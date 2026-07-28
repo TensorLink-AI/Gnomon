@@ -7,6 +7,9 @@ src/headwater/       Runtime and CLI source
 tests/               Unit and end-to-end tests
 docs/                User and developer documentation
 examples/            Small runnable datasets
+.github/workflows/   CI, PyPI release, and container automation
+Dockerfile           Production CLI container image
+install.sh           Isolated one-command installer
 pyproject.toml       Package metadata and test configuration
 ```
 
@@ -59,3 +62,5 @@ See [design review decisions](../DESIGN_REVIEW_NOTES.md), the broader
 [product specification](../Headwater_MVP_Product_Specification.md), and
 [system design](../Headwater_System_Design.md).
 
+Release maintainers should also read [CI/CD and release operations](ci-cd.md)
+and [Containers](containers.md).

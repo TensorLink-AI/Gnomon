@@ -7,7 +7,7 @@ and abstains when the evidence is inadequate.
 ## Quick start
 
 ```bash
-uv tool install .
+bash install.sh
 headwater capabilities
 headwater inspect examples/daily_requests.csv --time timestamp --target requests
 headwater forecast examples/daily_requests.csv \
@@ -33,6 +33,7 @@ events, and sharing remain planned and are never presented as working features.
 ## Documentation
 
 - [Documentation index](docs/README.md)
+- [Installation options and one-command installer](docs/installation.md)
 - [Installation and quick start](docs/getting-started.md)
 - [Preparing data](docs/data-format.md)
 - [CLI reference](docs/cli-reference.md)
@@ -42,6 +43,8 @@ events, and sharing remain planned and are never presented as working features.
 - [Troubleshooting and error reference](docs/troubleshooting.md)
 - [LLMs, API keys, OpenRouter, and planned integrations](docs/llm-integrations.md)
 - [Development and testing](docs/development.md)
+- [Containers](docs/containers.md)
+- [CI/CD and release operations](docs/ci-cd.md)
 
 The [product specification](Headwater_MVP_Product_Specification.md) and
 [system design](Headwater_System_Design.md) describe the broader direction;
