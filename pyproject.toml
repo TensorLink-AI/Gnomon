@@ -14,10 +14,16 @@ dependencies = []
 
 [project.optional-dependencies]
 parquet = ["pyarrow>=15"]
-dev = ["pytest>=8"]
+dev = ["build>=1.2", "pytest>=8"]
 
 [project.scripts]
 headwater = "headwater.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/TensorLink-AI/headwater"
+Documentation = "https://github.com/TensorLink-AI/headwater/tree/main/docs"
+Repository = "https://github.com/TensorLink-AI/headwater"
+Issues = "https://github.com/TensorLink-AI/headwater/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/headwater"]
@@ -25,4 +31,3 @@ packages = ["src/headwater"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-

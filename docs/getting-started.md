@@ -12,10 +12,13 @@ No account, network service, LLM, or API key is required to forecast.
 
 ```bash
 cd /root/headwater
-uv tool install .
+bash install.sh
 headwater --version
 headwater capabilities
 ```
+
+See [Installation options](installation.md) for uv, direct GitHub, pinned
+release, and future PyPI installation methods.
 
 To reinstall after changing the source:
 
@@ -90,4 +93,3 @@ All series must currently share one regular frequency.
 - Read [Preparing data](data-format.md) before using production data.
 - Read [Understanding results](results-and-artifacts.md) before acting on a forecast.
 - Use [Troubleshooting](troubleshooting.md) for structured errors or abstention.
-
