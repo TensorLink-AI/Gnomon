@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 
-from .contracts import HeadwaterError
+from .contracts import AionError
 from .data import Observation, timezone_name
 
 
@@ -20,7 +20,7 @@ def normalise_frequency(value: str) -> str:
                "week": "W", "weekly": "W", "month": "MS", "monthly": "MS"}
     result = aliases.get(value, value)
     if result not in {"h", "D", "W", "MS"}:
-        raise HeadwaterError("UNSUPPORTED_FREQUENCY", f"Unsupported frequency: {value}")
+        raise AionError("UNSUPPORTED_FREQUENCY", f"Unsupported frequency: {value}")
     return result
 
 
@@ -33,7 +33,7 @@ def _month_step(left: datetime, right: datetime) -> bool:
 def infer_frequency(timestamps: list[datetime]) -> str:
     unique = sorted(set(timestamps))
     if len(unique) < 3:
-        raise HeadwaterError("AMBIGUOUS_FREQUENCY", "At least three timestamps are required.")
+        raise AionError("AMBIGUOUS_FREQUENCY", "At least three timestamps are required.")
     if all(_month_step(left, right) for left, right in zip(unique, unique[1:])):
         return "MS"
     counts = Counter(right - left for left, right in zip(unique, unique[1:]))
@@ -41,7 +41,7 @@ def infer_frequency(timestamps: list[datetime]) -> str:
     for code, duration in FREQUENCIES.items():
         if step == duration:
             return code
-    raise HeadwaterError("AMBIGUOUS_FREQUENCY", "Could not infer a supported regular frequency.")
+    raise AionError("AMBIGUOUS_FREQUENCY", "Could not infer a supported regular frequency.")
 
 
 def next_timestamp(value: datetime, frequency: str) -> datetime:
@@ -67,17 +67,17 @@ def validate_and_group(
         values.sort(key=lambda item: item.timestamp)
         timestamps = [item.timestamp for item in values]
         if len(timestamps) != len(set(timestamps)):
-            raise HeadwaterError("DUPLICATE_TIMESTAMPS", f"Series {name} contains duplicate timestamps.")
+            raise AionError("DUPLICATE_TIMESTAMPS", f"Series {name} contains duplicate timestamps.")
         if len(timestamps) >= 3:
             inferred.add(infer_frequency(timestamps))
         for left, right in zip(timestamps, timestamps[1:]):
             if next_timestamp(left, frequency) != right:
-                raise HeadwaterError(
+                raise AionError(
                     "IRREGULAR_TIME_GRID", f"Series {name} has a missing or irregular period after {left.isoformat()}.",
                     {"series": name, "after": left.isoformat(), "expected": next_timestamp(left, frequency).isoformat()},
                 )
     if inferred and inferred != {frequency}:
-        raise HeadwaterError(
+        raise AionError(
             "FREQUENCY_MISMATCH", "Requested frequency does not match every series.",
             {"requested": frequency, "inferred": sorted(inferred)},
         )

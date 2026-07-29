@@ -5,7 +5,7 @@ The Python API calls the same runtime used by the CLI.
 ## Inspect a dataset
 
 ```python
-from headwater import inspect_dataset
+from aion import inspect_dataset
 
 inspection = inspect_dataset(
     "observations.csv",
@@ -25,7 +25,7 @@ artifact directory.
 ## Create a forecast
 
 ```python
-from headwater import forecast
+from aion import forecast
 
 artifact, artifact_path = forecast(
     "observations.csv",
@@ -34,7 +34,7 @@ artifact, artifact_path = forecast(
     series_column="service_id",
     frequency="D",
     horizon=7,
-    output="headwater-output",
+    output="aion-output",
     minimum_baseline_improvement=0.02,
 )
 
@@ -50,8 +50,8 @@ standard artifact files.
 ## Handle structured errors
 
 ```python
-from headwater import inspect_dataset
-from headwater.contracts import HeadwaterError
+from aion import inspect_dataset
+from aion.contracts import AionError
 
 try:
     inspect_dataset(
@@ -59,13 +59,13 @@ try:
         time_column="timestamp",
         target_column="requests",
     )
-except HeadwaterError as error:
+except AionError as error:
     print(error.code)
     print(error.message)
     print(error.details)
 ```
 
-`HeadwaterError.to_dict()` returns the same structured error envelope emitted by
+`AionError.to_dict()` returns the same structured error envelope emitted by
 the CLI. An `unsupported` series is not an exception: inspect
 `artifact.results[*].support` and its warnings.
 

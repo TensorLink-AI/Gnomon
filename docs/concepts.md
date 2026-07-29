@@ -1,15 +1,15 @@
 # Forecasting and evaluation concepts
 
-## Why Headwater runs baselines
+## Why Aion runs baselines
 
-A forecast is useful only relative to a credible simple alternative. Headwater
+A forecast is useful only relative to a credible simple alternative. Aion
 always tries last-value and seasonal-naive forecasts before considering drift.
 A candidate must beat the strongest successful baseline by a configured margin.
 
 ## Temporal evaluation
 
 Random train/test splitting leaks future structure into time-series evaluation.
-Headwater instead uses ordered rolling origins. At each origin, the model sees
+Aion instead uses ordered rolling origins. At each origin, the model sees
 only earlier observations and predicts the next complete horizon.
 
 The available origins are divided chronologically:
@@ -30,7 +30,7 @@ why warnings and support status matter.
 
 ## Per-series selection
 
-Panel series can behave differently. Headwater evaluates and selects each one
+Panel series can behave differently. Aion evaluates and selects each one
 independently rather than forcing one model across an entire panel. One series
 may retain seasonal-naive while another selects drift or abstains.
 
@@ -43,11 +43,11 @@ If baseline error is `B` and candidate error is `C`, candidate improvement is:
 ```
 
 With the default threshold of `0.02`, drift must reduce selection error by at
-least 2%. When baseline error is exactly zero, Headwater retains the baseline.
+least 2%. When baseline error is exactly zero, Aion retains the baseline.
 
 ## Abstention
 
-Headwater distinguishes two failure classes:
+Aion distinguishes two failure classes:
 
 - invalid data or task: a structured error and exit code `2`;
 - valid data but inadequate forecasting evidence: a complete artifact with
@@ -61,5 +61,5 @@ evaluation contract cannot be satisfied.
 v0.1 is a correct, deliberately narrow foundation—not a general forecasting
 suite. It has one candidate statistical model, fixed seasonal periods, no
 covariates, no transformations, no intermittent-demand methods, no TSFM, and no
-context-event evaluation. Use `headwater capabilities` to detect future changes.
+context-event evaluation. Use `aion capabilities` to detect future changes.
 

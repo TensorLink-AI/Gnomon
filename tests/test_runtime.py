@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from headwater.contracts import HeadwaterError
-from headwater.runtime import forecast, inspect_dataset
+from aion.contracts import AionError
+from aion.runtime import forecast, inspect_dataset
 
 
 def write_daily(path: Path, count: int, *, duplicate: bool = False) -> None:
@@ -68,7 +68,7 @@ def test_short_valid_series_abstains_without_error(tmp_path: Path) -> None:
 def test_duplicate_timestamps_are_structured_input_error(tmp_path: Path) -> None:
     source = tmp_path / "duplicate.csv"
     write_daily(source, 20, duplicate=True)
-    with pytest.raises(HeadwaterError) as caught:
+    with pytest.raises(AionError) as caught:
         inspect_dataset(str(source), time_column="timestamp", target_column="value", series_column="series")
     assert caught.value.code == "DUPLICATE_TIMESTAMPS"
 

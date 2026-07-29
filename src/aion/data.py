@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .contracts import HeadwaterError
+from .contracts import AionError
 
 
 @dataclass(frozen=True)
@@ -31,7 +31,7 @@ def _parse_timestamp(raw: object, row: int) -> datetime:
     try:
         parsed = datetime.fromisoformat(text)
     except ValueError as exc:
-        raise HeadwaterError(
+        raise AionError(
             "INVALID_TIMESTAMP", f"Cannot parse timestamp on row {row}: {raw!r}",
             {"row": row, "value": str(raw)},
         ) from exc
@@ -42,10 +42,10 @@ def _rows_from_parquet(path: Path) -> list[dict[str, object]]:
     try:
         import pyarrow.parquet as parquet  # type: ignore[import-not-found]
     except ImportError as exc:
-        raise HeadwaterError(
+        raise AionError(
             "MISSING_OPTIONAL_DEPENDENCY",
             "Parquet input requires the 'parquet' extra.",
-            {"install": "pip install 'headwater-forecast[parquet]'"},
+            {"install": "pip install 'aion-forecast[parquet]'"},
         ) from exc
     return parquet.read_table(path).to_pylist()
 
@@ -55,7 +55,7 @@ def load_observations(
 ) -> tuple[list[Observation], str, list[str]]:
     path = Path(input_path).expanduser().resolve()
     if not path.is_file():
-        raise HeadwaterError("INPUT_NOT_FOUND", f"Input file does not exist: {path}")
+        raise AionError("INPUT_NOT_FOUND", f"Input file does not exist: {path}")
     suffix = path.suffix.lower()
     if suffix == ".csv":
         with path.open("r", encoding="utf-8-sig", newline="") as handle:
@@ -66,12 +66,12 @@ def load_observations(
         rows = _rows_from_parquet(path)
         columns = list(rows[0]) if rows else []
     else:
-        raise HeadwaterError("UNSUPPORTED_INPUT", "Only CSV and Parquet inputs are supported.")
+        raise AionError("UNSUPPORTED_INPUT", "Only CSV and Parquet inputs are supported.")
 
     required = [time_column, target_column] + ([series_column] if series_column else [])
     missing = [column for column in required if column not in columns]
     if missing:
-        raise HeadwaterError(
+        raise AionError(
             "MISSING_COLUMNS", f"Required columns are missing: {', '.join(missing)}",
             {"available_columns": columns, "missing_columns": missing},
         )
@@ -80,7 +80,7 @@ def load_observations(
         try:
             value = float(row[target_column])
         except (TypeError, ValueError) as exc:
-            raise HeadwaterError(
+            raise AionError(
                 "INVALID_TARGET", f"Target is not numeric on row {row_number}.",
                 {"row": row_number, "value": row.get(target_column)},
             ) from exc
@@ -89,14 +89,14 @@ def load_observations(
             Observation(_parse_timestamp(row[time_column], row_number), value, series)
         )
     if not observations:
-        raise HeadwaterError("EMPTY_DATASET", "The input contains no observations.")
+        raise AionError("EMPTY_DATASET", "The input contains no observations.")
     return observations, fingerprint(path), columns
 
 
 def timezone_name(values: list[datetime]) -> str | None:
     aware = [value.utcoffset() is not None for value in values]
     if any(aware) and not all(aware):
-        raise HeadwaterError("MIXED_TIMEZONES", "Timestamps mix timezone-aware and naive values.")
+        raise AionError("MIXED_TIMEZONES", "Timestamps mix timezone-aware and naive values.")
     if not any(aware):
         return None
     offsets = {value.utcoffset() for value in values}

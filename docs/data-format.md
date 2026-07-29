@@ -2,7 +2,7 @@
 
 ## CSV schema
 
-Headwater requires one timestamp column, one numeric target column, and
+Aion requires one timestamp column, one numeric target column, and
 optionally one series identifier column. Column names are not fixed; provide
 them through `--time`, `--target`, and optionally `--series`.
 
@@ -26,7 +26,7 @@ Timestamps use ISO 8601 forms accepted by Python's `datetime.fromisoformat`:
 2026-01-01T04:30:00Z
 ```
 
-Do not mix timezone-aware and timezone-naive timestamps. Headwater preserves the
+Do not mix timezone-aware and timezone-naive timestamps. Aion preserves the
 provided offset but does not currently accept a separate named-timezone option.
 
 ## Supported frequencies
@@ -39,7 +39,7 @@ provided offset but does not currently accept a separate named-timezone option.
 | `MS` | Month start | 12 |
 
 Aliases such as `hourly`, `daily`, `weekly`, and `monthly` are accepted. When
-`--frequency` is omitted, Headwater infers a supported frequency from timestamp
+`--frequency` is omitted, Aion infers a supported frequency from timestamp
 differences. Supplying it explicitly is preferable in automation.
 
 Month-start data must use the first day of each month. Weekly data is any exact
@@ -53,9 +53,9 @@ series:
 - timestamps must be unique;
 - each timestamp must be exactly one configured period after the previous one;
 - the target must be parseable as a number; and
-- rows may arrive unsorted because Headwater sorts them before validation.
+- rows may arrive unsorted because Aion sorts them before validation.
 
-Headwater does not silently aggregate duplicate timestamps or impute missing
+Aion does not silently aggregate duplicate timestamps or impute missing
 periods. Resolve those choices upstream so the transformation is deliberate.
 
 ## Panel data
@@ -76,7 +76,7 @@ series must match the resolved frequency.
 
 ## History requirements
 
-Headwater needs four disjoint evaluation origins in addition to initial model
+Aion needs four disjoint evaluation origins in addition to initial model
 history. For seasonal period `S` and forecast horizon `H`, the current minimum is:
 
 ```text
@@ -92,7 +92,7 @@ an input error.
 Install the optional dependency before reading `.parquet` or `.pq` files:
 
 ```bash
-pip install 'headwater-forecast[parquet]'
+pip install 'aion-forecast[parquet]'
 ```
 
 The same logical column and temporal rules apply to CSV and Parquet inputs.

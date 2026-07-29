@@ -5,7 +5,7 @@
 Run the same mapping and frequency options through `inspect` first:
 
 ```bash
-headwater inspect data.csv --time timestamp --target value --frequency D
+aion inspect data.csv --time timestamp --target value --frequency D
 ```
 
 Successful responses go to standard output. Structured errors go to standard
@@ -52,8 +52,8 @@ history requirement.
 ## Parquet still reports unavailable
 
 `uv tool` installations are isolated. Installing `pyarrow` into an unrelated
-environment will not add it to the Headwater tool. Install with the extra in the
-same environment, then check `headwater capabilities` and confirm that
+environment will not add it to the Aion tool. Install with the extra in the
+same environment, then check `aion capabilities` and confirm that
 `inputs.parquet` is `true`.
 
 ## Artifact write failures

@@ -22,9 +22,9 @@ through PyPI Trusted Publishing. No long-lived PyPI token is stored in GitHub.
 
 One-time configuration is still required:
 
-1. Create or reserve the `headwater-forecast` project on PyPI.
+1. Create or reserve the `aion-forecast` project on PyPI.
 2. Add a GitHub Actions trusted publisher with owner `TensorLink-AI`, repository
-   `headwater`, workflow `release.yml`, and environment `pypi`.
+   `Aion`, workflow `release.yml`, and environment `pypi`.
 3. Create a GitHub environment named `pypi`; adding required reviewers is
    recommended.
 4. Update `project.version`, merge it, and create a matching tag such as
@@ -50,4 +50,3 @@ repository or organization must allow Actions to write packages.
 4. Create and push the matching signed or annotated version tag.
 5. Approve the `pypi` environment deployment if required.
 6. Verify the PyPI files, attestations, installed CLI, and GHCR image.
-
