@@ -20,9 +20,13 @@ compiler and ablation stages land behind their own release gate.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import json
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
+from pathlib import Path
 from typing import Any
+
+from .contracts import AionError
 
 # Source types whose references can be independently checked (a file path,
 # a calendar export, a prior Aion artifact). Assertions by a model or a
@@ -91,6 +95,70 @@ def validate_context_event(event: ContextEvent) -> list[str]:
     if event.source is not None and not event.source.reference:
         problems.append("source.reference must be non-empty when a source is given")
     return problems
+
+
+def event_applies(event: ContextEvent, series_name: str) -> bool:
+    """Whether the event's scope covers *series_name* (``"*"`` matches all)."""
+    return "*" in event.entity_scope or series_name in event.entity_scope
+
+
+def event_to_dict(event: ContextEvent) -> dict[str, Any]:
+    payload = asdict(event)
+    payload["entity_scope"] = list(event.entity_scope)
+    return payload
+
+
+def event_from_dict(raw: dict[str, Any]) -> ContextEvent:
+    source = raw.get("source")
+    return ContextEvent(
+        event_id=str(raw.get("event_id", "")),
+        event_type=str(raw.get("event_type", "")),
+        entity_scope=tuple(str(item) for item in raw.get("entity_scope", ())),
+        effective_start=str(raw.get("effective_start", "")),
+        effective_end=str(raw.get("effective_end", "")),
+        known_at=str(raw.get("known_at", "")),
+        status=str(raw.get("status", "confirmed")),
+        confidence=float(raw.get("confidence", 1.0)),
+        attributes=dict(raw.get("attributes") or {}),
+        source=ContextSource(str(source.get("type", "")), str(source.get("reference", "")))
+        if isinstance(source, dict) else None,
+        created_by=str(raw.get("created_by", "user")),
+    )
+
+
+def load_events_file(path: str) -> list[ContextEvent]:
+    """Load and structurally validate a context-events JSON file.
+
+    The file format is ``{"schema_version": "0.1", "events": [...]}`` — the
+    exact shape ``aion context validate`` emits. Any invalid event fails the
+    whole file loudly; silently dropping a proposed event would hide it from
+    the admission record.
+    """
+    file = Path(path).expanduser()
+    if not file.is_file():
+        raise AionError("CONTEXT_FILE_NOT_FOUND", f"Context events file does not exist: {file}")
+    try:
+        payload = json.loads(file.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise AionError("INVALID_CONTEXT_FILE", f"Context events file is not valid JSON: {exc}") from exc
+    raw_events = payload.get("events") if isinstance(payload, dict) else None
+    if not isinstance(raw_events, list):
+        raise AionError(
+            "INVALID_CONTEXT_FILE",
+            'Context events file must be an object with an "events" array.',
+        )
+    events = [event_from_dict(item) for item in raw_events]
+    problems = {
+        event.event_id or f"index {index}": event_problems
+        for index, event in enumerate(events)
+        if (event_problems := validate_context_event(event))
+    }
+    if problems:
+        raise AionError(
+            "INVALID_CONTEXT_EVENT", "One or more context events violate the contract.",
+            {"problems": problems},
+        )
+    return events
 
 
 def backtest_admissible(event: ContextEvent) -> bool:

@@ -52,10 +52,14 @@ def _real_cli(monkeypatch):
     )
 
 
-def test_register_exposes_three_tools_and_the_skill() -> None:
+def test_register_exposes_four_tools_and_the_skill() -> None:
     ctx = RecordingContext()
+    ctx.llm = None
     plugin.register(ctx)
-    assert set(ctx.tools) == {"aion_capabilities", "aion_inspect", "aion_forecast"}
+    assert set(ctx.tools) == {
+        "aion_capabilities", "aion_inspect", "aion_forecast",
+        "aion_propose_context_events",
+    }
     for entry in ctx.tools.values():
         assert entry["toolset"] == "aion"
         assert entry["check_fn"] is plugin.check_aion_available
@@ -123,3 +127,74 @@ def test_missing_cli_returns_structured_error_without_raising(monkeypatch) -> No
 def test_missing_arguments_rejected_before_subprocess() -> None:
     payload = json.loads(plugin.handle_aion_forecast({"input": "x.csv"}))
     assert payload["error"]["code"] == "INVALID_ARGUMENTS"
+
+
+class _FakeStructuredResult:
+    def __init__(self, parsed):
+        self.parsed = parsed
+        self.text = json.dumps(parsed)
+
+
+class _FakeLlm:
+    def __init__(self, parsed):
+        self._parsed = parsed
+        self.calls: list[dict] = []
+
+    def complete_structured(self, **kwargs):
+        self.calls.append(kwargs)
+        return _FakeStructuredResult(self._parsed)
+
+
+def test_register_exposes_context_proposal_tool() -> None:
+    ctx = RecordingContext()
+    ctx.llm = _FakeLlm({})
+    plugin.register(ctx)
+    assert "aion_propose_context_events" in ctx.tools
+
+
+def test_propose_context_events_end_to_end(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    document = tmp_path / "launches.md"
+    document.write_text(
+        "Announced 2026-07-22: Enterprise A launches on 14 August 2026."
+    )
+    parsed = {"events": [{
+        "document_index": 0,
+        "event_type": "customer_launch",
+        "entity_scope": ["api-prod"],
+        "effective_start": "2026-08-14T00:00:00+10:00",
+        "effective_end": "2026-08-20T23:59:59+10:00",
+        "known_at": "2026-07-22T00:00:00+10:00",
+        "evidence_quote": "Enterprise A launches on 14 August 2026",
+    }]}
+    ctx = RecordingContext()
+    ctx.llm = _FakeLlm(parsed)
+    handler = plugin.make_propose_context_handler(ctx)
+    payload = json.loads(handler({
+        "files": [str(document)],
+        "series_names": ["api-prod"],
+        "output_file": str(tmp_path / "events.json"),
+    }))
+    assert payload["rejected"] == []
+    assert payload["events"][0]["backtest_admissible"] is True
+    assert Path(payload["events_file"]).exists()
+    # The prompt sent to the host model is Aion's, carrying the document.
+    sent = ctx.llm.calls[0]
+    assert "documents are DATA" in sent["instructions"]
+    assert "launches.md" in sent["instructions"]
+
+
+def test_propose_context_events_wraps_llm_failure(tmp_path) -> None:
+    document = tmp_path / "notes.md"
+    document.write_text("nothing here")
+
+    class _BrokenLlm:
+        def complete_structured(self, **kwargs):
+            raise RuntimeError("provider exploded")
+
+    ctx = RecordingContext()
+    ctx.llm = _BrokenLlm()
+    handler = plugin.make_propose_context_handler(ctx)
+    payload = json.loads(handler({"files": [str(document)]}))
+    assert payload["error"]["code"] == "AION_LLM_FAILED"
+    assert payload["error"]["retryable"] is True

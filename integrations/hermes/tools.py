@@ -150,4 +150,76 @@ def handle_aion_forecast(args: dict[str, Any], **kwargs: Any) -> str:
         cli += ["--output", str(args["output_dir"])]
     if args.get("minimum_baseline_improvement") is not None:
         cli += ["--minimum-baseline-improvement", str(args["minimum_baseline_improvement"])]
+    if args.get("context_events_file"):
+        cli += ["--context", str(args["context_events_file"])]
     return json.dumps(_run_aion(cli), allow_nan=False)
+
+
+def make_propose_context_handler(ctx: Any):
+    """Build the context-investigation handler bound to the host's ``ctx.llm``.
+
+    The prompt and the validation both come from the Aion CLI — the plugin
+    only carries the model call: `aion context prompt` → host LLM →
+    `aion context validate`. The model's output never reaches a forecast
+    directly; only events surviving deterministic validation are written,
+    and admission into numbers still requires the ablation gate at
+    forecast time.
+    """
+    from .llm_adapter import HermesLLMAdapter
+
+    def handle_aion_propose_context_events(args: dict[str, Any], **kwargs: Any) -> str:
+        files = args.get("files") or []
+        if not files:
+            return json.dumps(_error("INVALID_ARGUMENTS", "Missing required argument: files."))
+        file_args: list[str] = []
+        for file in files:
+            file_args += ["--file", str(file)]
+        series_args: list[str] = []
+        for series in args.get("series_names") or []:
+            series_args += ["--series", str(series)]
+
+        prompt_payload = _run_aion(["context", "prompt", *file_args, *series_args])
+        if prompt_payload.get("status") == "error":
+            return json.dumps(prompt_payload, allow_nan=False)
+
+        adapter = HermesLLMAdapter(ctx, purpose="aion context investigation")
+        try:
+            raw_response = adapter.complete(
+                prompt_payload["instructions"], prompt_payload["response_schema"]
+            )
+        except Exception as exc:
+            return json.dumps(_error(
+                "AION_LLM_FAILED",
+                f"The host LLM call failed: {exc}. The forecast can still run "
+                "without context events.",
+                retryable=True,
+            ))
+
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(
+            "w", suffix=".json", delete=False, encoding="utf-8"
+        ) as handle:
+            json.dump(raw_response, handle)
+            response_path = handle.name
+        try:
+            validated = _run_aion(
+                ["context", "validate", "--response", response_path, *file_args]
+            )
+        finally:
+            os.unlink(response_path)
+        if validated.get("status") == "error":
+            return json.dumps(validated, allow_nan=False)
+
+        output_file = str(args.get("output_file") or "aion-context-events.json")
+        with open(output_file, "w", encoding="utf-8") as handle:
+            json.dump(validated, handle, indent=2)
+        validated["events_file"] = output_file
+        validated["next_step"] = (
+            "Pass events_file as context_events_file to aion_forecast. Events "
+            "are proposals: Aion admits them into the forecast only if they "
+            "demonstrate stable improvement on identical backtest folds."
+        )
+        return json.dumps(validated, allow_nan=False)
+
+    return handle_aion_propose_context_events

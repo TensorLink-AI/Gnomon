@@ -46,8 +46,10 @@ history.
 | Local CLI and Python API | Available |
 | Docker image and GitHub CI/CD | Available |
 | Hermes plugin wrapping the CLI (tools + safe-use skill) | Available |
-| Context-event and LLM-adapter contracts | Experimental (not wired into forecasting) |
-| MCP, LLM providers, TSFMs, project mode, and sharing | Planned |
+| Evidence-gated context events (`--context`, identical-fold ablation) | Available |
+| Local MCP server (`aion mcp serve`) | Available |
+| LLM workflow prompts (`aion context prompt` / `validate`) | Available |
+| Standalone LLM providers, TSFMs, project mode, and sharing | Planned |
 
 `aion capabilities` is the machine-readable source of truth. Roadmap features
 are not exposed as mocked commands.
@@ -169,11 +171,12 @@ The intended relationship is:
 - **Aion** validates temporal data and owns every numerical result.
 
 A packaged Hermes plugin lives in [`integrations/hermes`](integrations/hermes/README.md):
-three tools wrapping the CLI plus an `aion:forecasting` safe-use skill. MCP is
-not implemented in v0.1. Any other agent can use Aion today by invoking the CLI
-and parsing its JSON response. It must preserve Aion's support status and
-warnings and must never manufacture values for an unsupported series. No LLM
-or API key is currently required.
+four tools wrapping the CLI — including LLM-assisted context-event proposal
+run on the host's own model — plus an `aion:forecasting` safe-use skill. Any
+MCP-capable agent can instead launch `aion mcp serve` and discover the same
+tools over stdio. Either way the host must preserve Aion's support status and
+warnings and must never manufacture values for an unsupported series. Aion
+itself requires no LLM or API key.
 
 ## Installation
 

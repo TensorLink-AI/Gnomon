@@ -1,9 +1,11 @@
 """Aion plugin for Hermes Agent.
 
-Registers three tools wrapping the Aion CLI (capabilities, inspect,
-forecast) plus the ``aion:forecasting`` skill encoding the safe-use
-workflow. Aion remains authoritative for every number; Hermes formulates
-the question and explains the evidence.
+Registers four tools wrapping the Aion CLI — capabilities, inspect,
+forecast, and LLM-assisted context-event proposal (host model via
+``ctx.llm``, Aion-owned prompt and validation) — plus the
+``aion:forecasting`` skill encoding the safe-use workflow. Aion remains
+authoritative for every number; Hermes formulates the question and
+explains the evidence.
 
 Install by copying this directory to ``~/.hermes/plugins/aion`` and
 enabling it (plugins are opt-in): ``hermes plugins enable aion``.
@@ -18,12 +20,14 @@ from .schemas import (
     AION_CAPABILITIES_SCHEMA,
     AION_FORECAST_SCHEMA,
     AION_INSPECT_SCHEMA,
+    AION_PROPOSE_CONTEXT_SCHEMA,
 )
 from .tools import (
     check_aion_available,
     handle_aion_capabilities,
     handle_aion_forecast,
     handle_aion_inspect,
+    make_propose_context_handler,
 )
 
 _TOOLS = (
@@ -44,6 +48,15 @@ def register(ctx) -> None:
             description=schema["description"],
             emoji=emoji,
         )
+    ctx.register_tool(
+        name="aion_propose_context_events",
+        toolset="aion",
+        schema=AION_PROPOSE_CONTEXT_SCHEMA,
+        handler=make_propose_context_handler(ctx),
+        check_fn=check_aion_available,
+        description=AION_PROPOSE_CONTEXT_SCHEMA["description"],
+        emoji="🗓️",
+    )
     ctx.register_skill(
         name="forecasting",
         path=Path(__file__).parent / "SKILL.md",

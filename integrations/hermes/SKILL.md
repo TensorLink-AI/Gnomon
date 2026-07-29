@@ -46,6 +46,26 @@ evidence; Aion owns every number.
 - **Data stays local.** Never upload the user's data anywhere as part of a
   forecasting task unless the user explicitly requests sharing.
 
+## Context events (evidence-gated)
+
+When the user's documents (planning notes, release calendars, incident
+logs) may explain or foreshadow changes in the metric:
+
+1. Call `aion_propose_context_events` with **only files the user has
+   permitted you to read** and the series names from `aion_inspect`. The
+   extraction prompt and all validation belong to Aion; you supply nothing
+   but the file list.
+2. Review the response honestly: report `rejected` proposals and their
+   reasons alongside accepted events. Events without a verifiable dated
+   source are marked not backtest-admissible — say so.
+3. Pass the returned `events_file` to `aion_forecast` as
+   `context_events_file`.
+4. Report the admission decision from each series' `context` block:
+   admitted means the events demonstrably improved accuracy on identical
+   backtest folds; rejected means they did not, and the forecast ignores
+   them. **Never present a rejected event as having influenced the
+   forecast, and never claim causality Aion did not measure.**
+
 ## Interpreting support
 
 | Status | Meaning | What you say |

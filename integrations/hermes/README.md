@@ -1,8 +1,17 @@
 # Aion plugin for Hermes Agent
 
 Gives any Hermes agent evidence-backed local forecasting: `aion_capabilities`,
-`aion_inspect`, and `aion_forecast` tools wrapping the Aion CLI, plus the
-`aion:forecasting` skill encoding the safe-use workflow.
+`aion_inspect`, `aion_forecast`, and `aion_propose_context_events` tools
+wrapping the Aion CLI, plus the `aion:forecasting` skill encoding the
+safe-use workflow.
+
+`aion_propose_context_events` is the "LLM flair with honest numbers" path:
+Aion emits the extraction prompt (`aion context prompt`), the plugin runs it
+on the **host's own model** via Hermes's `ctx.llm` facade (no Aion-side API
+key), and Aion deterministically validates the response (`aion context
+validate`). Validated events are still only proposals — `aion_forecast`
+admits them into the numbers solely when they demonstrate stable improvement
+on identical backtest folds.
 
 Hermes's policy is that third-party integrations ship standalone rather than
 in the hermes-agent tree, so this plugin lives here, next to the runtime it

@@ -83,7 +83,49 @@ AION_FORECAST_SCHEMA = {
                 "type": "number",
                 "description": "Minimum relative improvement over the strongest baseline required to select a candidate model (default 0.02).",
             },
+            "context_events_file": {
+                "type": "string",
+                "description": (
+                    "Optional validated context-events JSON file produced by "
+                    "aion_propose_context_events. Events are admitted into the "
+                    "forecast only if they demonstrate stable improvement on "
+                    "identical backtest folds."
+                ),
+            },
         },
         "required": ["input", "time_column", "target_column", "horizon"],
+    },
+}
+
+AION_PROPOSE_CONTEXT_SCHEMA = {
+    "name": "aion_propose_context_events",
+    "description": (
+        "Extract candidate context events (launches, promotions, outages, "
+        "holidays) from explicitly permitted local documents using an "
+        "Aion-owned prompt run on the host LLM, then validate them "
+        "deterministically. Returns typed events plus rejected proposals with "
+        "reasons, and writes an events file for aion_forecast. Events without "
+        "a verifiable dated source are never used in backtests. Only use "
+        "documents the user has allowed you to read."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "files": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Paths of permitted local documents to scan (planning notes, calendars, release notes).",
+            },
+            "series_names": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Series names from the dataset the events may scope to (from aion_inspect).",
+            },
+            "output_file": {
+                "type": "string",
+                "description": "Where to write the validated events JSON (default ./aion-context-events.json).",
+            },
+        },
+        "required": ["files"],
     },
 }
