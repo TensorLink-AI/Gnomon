@@ -10,7 +10,7 @@ sys.path.insert(0, "src")
 
 import pytest
 from aion.tracking import (
-    TrackingStore, ForecastRecord, ModelPerformance, ScoreResult,
+    DEFAULT_REGISTRY_PATH, TrackingStore, ForecastRecord, ModelPerformance, ScoreResult,
     mase_score, mape_score, bias_score, interval_coverage, threshold_accuracy,
     mean_absolute_error,
 )
@@ -56,9 +56,9 @@ class TestScoringFunctions:
         assert result > 1.0
 
     def test_mase_with_zero_naive_error(self):
-        # Should fall back to mean diff
+        # MASE is undefined when the training-set naive scale is zero.
         result = mase_score([100, 110, 120], [100, 110, 120], 0.0)
-        assert result == 0.0
+        assert result is None
 
     def test_mape(self):
         result = mape_score([100, 200], [90, 210])
@@ -122,6 +122,9 @@ class TestTrackingStore:
         assert record.support == "supported"
         assert record.scored is False
 
+    def test_default_registry_path_is_a_database_file(self):
+        assert DEFAULT_REGISTRY_PATH.name == "registry.db"
+
     def test_list_by_project(self, store):
         store.register("f1", project="api", selected_model="drift")
         store.register("f2", project="billing", selected_model="ets")
@@ -142,6 +145,7 @@ class TestTrackingStore:
             forecast_id="test_scoring",
             project="test",
             selected_model="drift",
+            naive_error=10.0,
             artifact_path="/tmp/test",
         )
         result = store.score_forecast(
@@ -161,6 +165,7 @@ class TestTrackingStore:
             project="test",
             selected_model="drift",
             threshold=105,
+            naive_error=10.0,
             artifact_path="/tmp/test",
         )
         result = store.score_forecast(
@@ -182,9 +187,9 @@ class TestTrackingStore:
 
     def test_leaderboard(self, store):
         # Register and score two models
-        store.register("f1", project="lb", selected_model="drift")
+        store.register("f1", project="lb", selected_model="drift", naive_error=10.0)
         store.score_forecast("f1", [100, 110], [95, 105])
-        store.register("f2", project="lb", selected_model="ets")
+        store.register("f2", project="lb", selected_model="ets", naive_error=10.0)
         store.score_forecast("f2", [100, 110], [99, 109])
 
         lb = store.leaderboard("lb")
@@ -194,9 +199,9 @@ class TestTrackingStore:
         assert lb[0].count == 1
 
     def test_model_performance_history(self, store):
-        store.register("f1", project="p", selected_model="drift")
+        store.register("f1", project="p", selected_model="drift", naive_error=10.0)
         store.score_forecast("f1", [100, 110], [95, 105])
-        store.register("f2", project="p", selected_model="drift")
+        store.register("f2", project="p", selected_model="drift", naive_error=10.0)
         store.score_forecast("f2", [200, 210], [195, 205])
 
         history = store.model_performance("p", "drift")
@@ -204,9 +209,9 @@ class TestTrackingStore:
         assert all(h["model"] == "drift" for h in history)
 
     def test_compare(self, store):
-        store.register("f1", project="p", selected_model="drift")
+        store.register("f1", project="p", selected_model="drift", naive_error=10.0)
         store.score_forecast("f1", [100, 110], [95, 105])
-        store.register("f2", project="p", selected_model="ets")
+        store.register("f2", project="p", selected_model="ets", naive_error=10.0)
         store.score_forecast("f2", [100, 110], [99, 109])
 
         result = store.compare("f1", "f2")
@@ -221,11 +226,13 @@ class TestTrackingStore:
             ("d2", [200, 210], [198, 208]),
             ("d3", [300, 310], [298, 308]),
         ]):
-            store.register(fid, project="drift_test", selected_model="ets")
+            store.register(
+                fid, project="drift_test", selected_model="ets", naive_error=4.0,
+            )
             store.score_forecast(fid, actuals, points)
 
         # Now score a bad forecast (MASE will be much higher)
-        store.register("d4", project="drift_test", selected_model="ets")
+        store.register("d4", project="drift_test", selected_model="ets", naive_error=4.0)
         result = store.score_forecast("d4", [100, 110], [200, 210])
 
         assert result.drift_flag is not None
@@ -233,7 +240,7 @@ class TestTrackingStore:
 
     def test_no_drift_with_few_scores(self, store):
         # Only 1 score — not enough history for drift detection
-        store.register("d1", project="p", selected_model="drift")
+        store.register("d1", project="p", selected_model="drift", naive_error=10.0)
         result = store.score_forecast("d1", [100], [100])
         assert result.drift_flag is None
 
@@ -243,6 +250,7 @@ class TestTrackingStore:
             forecast_id="test123",
             project="submit_test",
             selected_model="drift",
+            naive_error=10.0,
             artifact_path=str(sample_forecast_dir),
         )
 
@@ -259,6 +267,67 @@ class TestTrackingStore:
         assert len(results) == 1
         assert results[0].mase is not None
         assert results[0].mape > 0  # actuals differ from forecast
+
+    def test_compare_treats_zero_mase_as_best(self, store):
+        store.register("perfect", project="p", selected_model="a", naive_error=10.0)
+        store.score_forecast("perfect", [100, 110], [100, 110])
+        store.register("imperfect", project="p", selected_model="b", naive_error=10.0)
+        store.score_forecast("imperfect", [100, 110], [101, 111])
+
+        assert store.compare("perfect", "imperfect")["winner"] == "a"
+
+    def test_panel_actuals_are_scored_per_series(self, store, tmp_path):
+        artifact = tmp_path / "panel"
+        artifact.mkdir()
+        with (artifact / "forecast.csv").open("w", newline="") as handle:
+            writer = csv.DictWriter(
+                handle, fieldnames=["series", "timestamp", "point", "q10", "q50", "q90"],
+            )
+            writer.writeheader()
+            writer.writerow({"series": "a", "timestamp": "2026-01-01T00:00:00Z", "point": 10})
+            writer.writerow({"series": "b", "timestamp": "2026-01-01T00:00:00Z", "point": 100})
+        store.register(
+            "panel:a", project="panel", series="a", selected_model="last_value",
+            naive_error=2.0, artifact_path=str(artifact),
+        )
+        store.register(
+            "panel:b", project="panel", series="b", selected_model="drift",
+            naive_error=20.0, artifact_path=str(artifact),
+        )
+        actuals = tmp_path / "panel-actuals.csv"
+        with actuals.open("w", newline="") as handle:
+            writer = csv.writer(handle)
+            writer.writerow(["series", "timestamp", "value"])
+            writer.writerow(["a", "2026-01-01T00:00:00+00:00", 12])
+            writer.writerow(["b", "2026-01-01T00:00:00+00:00", 120])
+
+        results = store.submit_actuals_csv("panel", str(actuals))
+
+        assert {result.forecast_id for result in results} == {"panel:a", "panel:b"}
+        assert store.get_forecast("panel:a").mase == 1.0
+        assert store.get_forecast("panel:b").mase == 1.0
+
+    def test_panel_actuals_require_series_column(self, store, tmp_path):
+        store.register("panel:a", project="panel", series="a")
+        store.register("panel:b", project="panel", series="b")
+        actuals = tmp_path / "actuals.csv"
+        actuals.write_text("timestamp,value\n2026-01-01T00:00:00Z,12\n")
+
+        with pytest.raises(ValueError, match="series.*column"):
+            store.submit_actuals_csv("panel", str(actuals))
+
+    def test_partial_actuals_do_not_close_forecast(self, store, sample_forecast_dir):
+        store.register(
+            "partial", project="p", selected_model="drift", naive_error=10.0,
+            artifact_path=str(sample_forecast_dir),
+        )
+
+        results = store.submit_actuals(
+            "p", [("2026-01-01T00:00:00Z", 102.0)],
+        )
+
+        assert results == []
+        assert store.get_forecast("partial").scored is False
 
     def test_reregister_updates(self, store):
         """Re-registering with same ID should update, not duplicate."""

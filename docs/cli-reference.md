@@ -60,6 +60,7 @@ aion forecast INPUT --time COLUMN --target COLUMN --horizon N [OPTIONS]
 | `--minimum-baseline-improvement FLOAT` | `0.02` | Fractional improvement required before selecting a candidate over the strongest baseline. |
 | `--context FILE` | None | Validated context-events JSON (output of `aion context validate`). |
 | `--threshold VALUE` | None | Decision threshold: the result reports when and how likely the forecast crosses this value. |
+| `--project NAME` | None | Register each forecast series for later realised scoring. |
 
 An improvement value of `0.02` means two percent, not two percentage points.
 Baseline retention is a valid outcome and does not itself weaken support.
@@ -92,6 +93,36 @@ Serves `aion_capabilities`, `aion_inspect`, and `aion_forecast` as typed
 tools over stdio MCP for any MCP-capable host. Logs go to stderr; the
 protocol owns stdout.
 
+## `aion track`
+
+Persist forecasts in a local SQLite registry and score them after the complete
+forecast horizon has been observed:
+
+```bash
+aion forecast data.csv --time timestamp --target value --horizon 7 \
+  --project capacity
+aion track actuals --project capacity --file actuals.csv
+aion track list --project capacity
+aion track performance --project capacity --model seasonal_naive
+aion track leaderboard --project capacity
+aion track compare --a FORECAST_ID --b FORECAST_ID
+```
+
+Single-series actuals require `timestamp,value` columns. For panel forecasts,
+use `series,timestamp,value`; Aion rejects ambiguous panel actuals. Timestamps
+are compared as instants when timezone offsets are present. A forecast remains
+open until actuals cover its entire horizon, preventing a partial submission
+from producing a misleading final score.
+
+MASE uses the naive scaling error saved from the training series when the
+forecast is registered. It is reported as unavailable for constant histories
+whose scale is zero. The leaderboard is descriptive historical telemetry: it
+does not prove that one model caused better outcomes, and it does not currently
+change future model selection automatically.
+
+The default registry is `~/.local/share/aion/registry.db`. Override it with
+`AION_REGISTRY_PATH` for isolated projects, tests, or containers.
+
 ## Shell automation
 
 Capture the successful response:
@@ -106,5 +137,4 @@ code and the response's `status` field.
 ## Not currently available
 
 Commands described in future-facing design documents—such as `init`, `run`,
-`actuals`, `score`, and `share`—are not implemented in v0.1.
-
+and `share`—are not implemented in v0.2.

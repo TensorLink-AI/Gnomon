@@ -52,9 +52,12 @@ logger = logging.getLogger(__name__)
 # Configuration
 # ---------------------------------------------------------------------------
 
-DEFAULT_REGISTRY_PATH = Path(
-    os.environ.get("AION_REGISTRY_PATH", "")
-) or Path.home() / ".local" / "share" / "aion" / "registry.db"
+_registry_path = os.environ.get("AION_REGISTRY_PATH")
+DEFAULT_REGISTRY_PATH = (
+    Path(_registry_path).expanduser()
+    if _registry_path
+    else Path.home() / ".local" / "share" / "aion" / "registry.db"
+)
 
 
 # ---------------------------------------------------------------------------
@@ -73,6 +76,7 @@ class ForecastRecord:
     support: str
     threshold: float | None
     threshold_peak_probability: float | None
+    naive_error: float | None
     artifact_path: str
     created_at: str
     scored: bool = False
@@ -122,14 +126,15 @@ def mean_absolute_error(actual: list[float], predicted: list[float]) -> float:
     return sum(abs(a - p) for a, p in zip(actual[:n], predicted[:n])) / n
 
 
-def mase_score(actual: list[float], predicted: list[float], naive_error: float) -> float:
+def mase_score(
+    actual: list[float], predicted: list[float], naive_error: float | None,
+) -> float | None:
     """Mean Absolute Scaled Error — scale-free, comparable across datasets.
 
     Args:
         actual: observed values
         predicted: forecast values
         naive_error: MAE of a seasonal-naive baseline on the training set.
-                     If unavailable, uses the mean of |diff(actual)| as a proxy.
 
     Returns:
         MASE < 1 means the forecast beats the naive baseline.
@@ -138,13 +143,9 @@ def mase_score(actual: list[float], predicted: list[float], naive_error: float) 
     if n == 0:
         return float("inf")
     mae = sum(abs(a - p) for a, p in zip(actual[:n], predicted[:n])) / n
-    if naive_error <= 0:
-        # Fall back to mean absolute difference as scale
-        if len(actual) > 1:
-            naive_error = sum(abs(actual[i] - actual[i-1]) for i in range(1, len(actual))) / (len(actual) - 1)
-        else:
-            naive_error = 1.0
-    return mae / naive_error if naive_error > 0 else mae
+    if naive_error is None or naive_error <= 0:
+        return None
+    return mae / naive_error
 
 
 def mape_score(actual: list[float], predicted: list[float]) -> float:
@@ -229,6 +230,7 @@ class TrackingStore:
                     support TEXT,
                     threshold REAL,
                     threshold_peak_probability REAL,
+                    naive_error REAL,
                     artifact_path TEXT,
                     created_at TEXT NOT NULL,
                     scored INTEGER DEFAULT 0,
@@ -263,6 +265,11 @@ class TrackingStore:
                 CREATE INDEX IF NOT EXISTS idx_perf_model
                     ON model_performance(project, model);
             """)
+            columns = {
+                row["name"] for row in conn.execute("PRAGMA table_info(forecasts)")
+            }
+            if "naive_error" not in columns:
+                conn.execute("ALTER TABLE forecasts ADD COLUMN naive_error REAL")
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(str(self.path))
@@ -283,6 +290,7 @@ class TrackingStore:
         support: str = "unsupported",
         threshold: float | None = None,
         threshold_peak_probability: float | None = None,
+        naive_error: float | None = None,
         artifact_path: str = "",
         created_at: str | None = None,
     ) -> None:
@@ -290,14 +298,26 @@ class TrackingStore:
         created_at = created_at or datetime.now(timezone.utc).isoformat()
         with self._connect() as conn:
             conn.execute("""
-                INSERT OR REPLACE INTO forecasts
+                INSERT INTO forecasts
                     (forecast_id, project, series, cutoff_time, horizon, frequency,
-                     selected_model, support, threshold, threshold_peak_probability,
+                     selected_model, support, threshold, threshold_peak_probability, naive_error,
                      artifact_path, created_at, scored)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+                ON CONFLICT(forecast_id) DO UPDATE SET
+                    project = excluded.project,
+                    series = excluded.series,
+                    cutoff_time = excluded.cutoff_time,
+                    horizon = excluded.horizon,
+                    frequency = excluded.frequency,
+                    selected_model = excluded.selected_model,
+                    support = excluded.support,
+                    threshold = excluded.threshold,
+                    threshold_peak_probability = excluded.threshold_peak_probability,
+                    naive_error = excluded.naive_error,
+                    artifact_path = excluded.artifact_path
             """, (
                 forecast_id, project, series, cutoff_time, horizon, frequency,
-                selected_model, support, threshold, threshold_peak_probability,
+                selected_model, support, threshold, threshold_peak_probability, naive_error,
                 artifact_path, created_at,
             ))
         logger.info("Registered forecast %s in project %s", forecast_id, project)
@@ -351,7 +371,8 @@ class TrackingStore:
         if record is None:
             raise ValueError(f"Forecast {forecast_id} not found in registry")
 
-        mase = mase_score(actuals, points, naive_error or 0.0)
+        scale = naive_error if naive_error is not None else record.naive_error
+        mase = mase_score(actuals, points, scale)
         mape = mape_score(actuals, points)
         bias = bias_score(actuals, points)
         cov = interval_coverage(actuals, q10 or [], q90 or []) if q10 and q90 else None
@@ -381,8 +402,8 @@ class TrackingStore:
                 ))
 
         logger.info(
-            "Scored forecast %s: MASE=%.3f MAPE=%.1f%% bias=%.2f coverage=%s drift=%s",
-            forecast_id, mase, mape, bias,
+            "Scored forecast %s: MASE=%s MAPE=%.1f%% bias=%.2f coverage=%s drift=%s",
+            forecast_id, f"{mase:.3f}" if mase is not None else "N/A", mape, bias,
             f"{cov:.1%}" if cov is not None else "N/A",
             drift or "none",
         )
@@ -391,7 +412,7 @@ class TrackingStore:
     def submit_actuals(
         self,
         project: str,
-        actuals: list[tuple[str, float]],
+        actuals: list[tuple[str, float] | tuple[str, str, float]],
         time_column: str = "timestamp",
         target_column: str = "value",
     ) -> list[ScoreResult]:
@@ -407,13 +428,23 @@ class TrackingStore:
             List of ScoreResult for each scored forecast.
         """
         # Build timestamp → value map
-        actual_map: dict[str, float] = {}
-        for ts, val in actuals:
-            # Normalise timestamp to match forecast format
-            actual_map[ts] = val
+        actual_map: dict[tuple[str | None, str], float] = {}
+        for item in actuals:
+            if len(item) == 2:
+                ts, val = item
+                actual_map[(None, self._normalise_timestamp(ts))] = val
+            else:
+                series, ts, val = item
+                actual_map[(series, self._normalise_timestamp(ts))] = val
 
         results: list[ScoreResult] = []
         forecasts = self.list_forecasts(project, limit=1000)
+        if len({record.series for record in forecasts}) > 1 and any(
+            series is None for series, _ in actual_map
+        ):
+            raise ValueError(
+                "Actuals for a multi-series project must include a 'series' column"
+            )
 
         for record in forecasts:
             if record.scored:
@@ -425,7 +456,10 @@ class TrackingStore:
                 continue
 
             # Parse forecast.csv
-            forecast_data = self._load_forecast_csv(artifact_path)
+            forecast_data = [
+                row for row in self._load_forecast_csv(artifact_path)
+                if row.get("series", "__default__") == record.series
+            ]
             if not forecast_data:
                 continue
 
@@ -435,30 +469,29 @@ class TrackingStore:
             matched_q10: list[float] = []
             matched_q90: list[float] = []
             for entry in forecast_data:
-                ts = entry["timestamp"]
-                # Try exact match, then date-only match
-                if ts in actual_map:
-                    matched_actuals.append(actual_map[ts])
+                ts = self._normalise_timestamp(entry["timestamp"])
+                exact_key = (record.series, ts)
+                default_key = (None, ts)
+                if exact_key in actual_map or default_key in actual_map:
+                    matched_actuals.append(
+                        actual_map[exact_key]
+                        if exact_key in actual_map
+                        else actual_map[default_key]
+                    )
                     matched_points.append(entry["point"])
                     if "q10" in entry:
                         matched_q10.append(entry["q10"])
                     if "q90" in entry:
                         matched_q90.append(entry["q90"])
-                else:
-                    # Try matching without timezone suffix
-                    ts_short = ts.split("+")[0].split("Z")[0]
-                    for a_ts in actual_map:
-                        if a_ts.split("+")[0].split("Z")[0] == ts_short:
-                            matched_actuals.append(actual_map[a_ts])
-                            matched_points.append(entry["point"])
-                            if "q10" in entry:
-                                matched_q10.append(entry["q10"])
-                            if "q90" in entry:
-                                matched_q90.append(entry["q90"])
-                            break
 
             if len(matched_actuals) < 1:
                 logger.debug("No matching actuals for forecast %s", record.forecast_id)
+                continue
+            if len(matched_actuals) != len(forecast_data):
+                logger.info(
+                    "Forecast %s is not ready to score: matched %d of %d actuals",
+                    record.forecast_id, len(matched_actuals), len(forecast_data),
+                )
                 continue
 
             # Compute predicted_above if threshold exists
@@ -485,20 +518,31 @@ class TrackingStore:
         if not path.exists():
             raise FileNotFoundError(f"Actuals file not found: {path}")
 
-        actuals: list[tuple[str, float]] = []
+        actuals: list[tuple[str, float] | tuple[str, str, float]] = []
         with open(path, encoding="utf-8-sig", newline="") as f:
             reader = csv.DictReader(f)
             cols = reader.fieldnames or []
             # Find timestamp and value columns
             ts_col = cols[0] if cols else "timestamp"
             val_col = cols[1] if len(cols) > 1 else "value"
+            series_col = "series" if "series" in cols else None
+            if series_col:
+                ts_col = "timestamp" if "timestamp" in cols else next(
+                    col for col in cols if col != series_col
+                )
+                val_col = "value" if "value" in cols else next(
+                    col for col in cols if col not in {series_col, ts_col}
+                )
             for row in reader:
                 ts = row[ts_col]
                 try:
                     val = float(row[val_col])
                 except (ValueError, TypeError):
                     continue
-                actuals.append((ts, val))
+                if series_col:
+                    actuals.append((row[series_col], ts, val))
+                else:
+                    actuals.append((ts, val))
 
         logger.info("Loaded %d actuals from %s", len(actuals), path)
         return self.submit_actuals(project, actuals, ts_col, val_col)
@@ -521,7 +565,7 @@ class TrackingStore:
                 FROM model_performance
                 WHERE project = ?
                 GROUP BY model
-                ORDER BY AVG(mase) ASC
+                ORDER BY AVG(mase) IS NULL, AVG(mase) ASC
             """, (project,)).fetchall()
 
         results = []
@@ -561,14 +605,14 @@ class TrackingStore:
     # ---- Drift Detection ----
 
     def _check_drift(
-        self, project: str, model: str | None, new_mase: float,
+        self, project: str, model: str | None, new_mase: float | None,
     ) -> str | None:
         """Check if the new score indicates model drift.
 
         Compares the new MASE to the model's historical average.
         Returns a drift flag string, or None if no drift.
         """
-        if model is None:
+        if model is None or new_mase is None:
             return None
 
         with self._connect() as conn:
@@ -620,11 +664,27 @@ class TrackingStore:
                 "coverage": b.coverage, "threshold_accuracy": b.threshold_accuracy,
             },
             "winner": (
-                "a" if (a.mase or float("inf")) < (b.mase or float("inf")) else "b"
+                "a"
+                if (a.mase if a.mase is not None else float("inf"))
+                < (b.mase if b.mase is not None else float("inf"))
+                else "b"
             ),
         }
 
     # ---- Helpers ----
+
+    @staticmethod
+    def _normalise_timestamp(value: str) -> str:
+        text = value.strip()
+        if text.endswith("Z"):
+            text = text[:-1] + "+00:00"
+        try:
+            parsed = datetime.fromisoformat(text)
+        except ValueError:
+            return text
+        if parsed.utcoffset() is not None:
+            parsed = parsed.astimezone(timezone.utc)
+        return parsed.isoformat()
 
     def _load_forecast_csv(self, path: Path) -> list[dict[str, Any]]:
         """Load forecast.csv and return rows as dicts."""
@@ -634,7 +694,10 @@ class TrackingStore:
             reader = csv.DictReader(f)
             rows = []
             for r in reader:
-                entry: dict[str, Any] = {"timestamp": r.get("timestamp", "")}
+                entry: dict[str, Any] = {
+                    "series": r.get("series", "__default__"),
+                    "timestamp": r.get("timestamp", ""),
+                }
                 try:
                     entry["point"] = float(r.get("point", 0))
                 except (ValueError, TypeError):
@@ -670,6 +733,7 @@ class TrackingStore:
             support=row["support"] or "unsupported",
             threshold=row["threshold"],
             threshold_peak_probability=row["threshold_peak_probability"],
+            naive_error=row["naive_error"],
             artifact_path=row["artifact_path"] or "",
             created_at=row["created_at"],
             scored=bool(row["scored"]),

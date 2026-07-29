@@ -273,8 +273,6 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return 0
 
             elif args.track_command == "score":
-                results = store.submit_actuals_csv("__single__", args.file)
-                # Override: score just the one forecast
                 record = store.get_forecast(args.forecast_id)
                 if record is None:
                     print(json.dumps({
@@ -299,11 +297,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                             continue
                 # Load forecast
                 fc_path = _Path(record.artifact_path) / "forecast.csv"
-                fc_data = store._load_forecast_csv(fc_path)
-                actual_map = {ts: val for ts, val in actuals}
+                fc_data = [
+                    row for row in store._load_forecast_csv(fc_path)
+                    if row.get("series", "__default__") == record.series
+                ]
+                actual_map = {
+                    store._normalise_timestamp(ts): val for ts, val in actuals
+                }
                 matched_a, matched_p, matched_q10, matched_q90 = [], [], [], []
                 for entry in fc_data:
-                    ts = entry["timestamp"]
+                    ts = store._normalise_timestamp(entry["timestamp"])
                     if ts in actual_map:
                         matched_a.append(actual_map[ts])
                         matched_p.append(entry["point"])
@@ -316,10 +319,24 @@ def main(argv: Sequence[str] | None = None) -> int:
                                   "message": "No matching actuals found for forecast timestamps"},
                     }, indent=2), file=sys.stderr)
                     return 2
+                if len(matched_a) != len(fc_data):
+                    print(json.dumps({
+                        "status": "error",
+                        "error": {"code": "INCOMPLETE_ACTUALS",
+                                  "message": (
+                                      f"Matched {len(matched_a)} of {len(fc_data)} "
+                                      "forecast timestamps"
+                                  )},
+                    }, indent=2), file=sys.stderr)
+                    return 2
                 result = store.score_forecast(
                     args.forecast_id, matched_a, matched_p,
                     q10=matched_q10 or None, q90=matched_q90 or None,
                     threshold=record.threshold,
+                    predicted_above=(
+                        [point > record.threshold for point in matched_p]
+                        if record.threshold is not None else None
+                    ),
                 )
                 print(json.dumps({
                     "forecast_id": result.forecast_id,
@@ -422,19 +439,48 @@ def main(argv: Sequence[str] | None = None) -> int:
 
             # Auto-register in tracking store if --project is set
             if getattr(args, "project", None):
+                from .data import load_observations
+                from .temporal import SEASONS
                 from .tracking import TrackingStore
                 store = TrackingStore()
+                observations, _, _ = load_observations(
+                    args.input, args.time_column, args.target_column, args.series_column,
+                )
+                histories: dict[str, list[float]] = {}
+                cutoffs: dict[str, str] = {}
+                for observation in observations:
+                    histories.setdefault(observation.series, []).append(observation.value)
+                    cutoffs[observation.series] = observation.timestamp.isoformat()
                 for result in artifact.results:
+                    values = histories[result.series]
+                    season = SEASONS[artifact.task.schema.frequency]
+                    lag = season if len(values) > season else 1
+                    scale_errors = [
+                        abs(values[index] - values[index - lag])
+                        for index in range(lag, len(values))
+                    ]
+                    naive_error = (
+                        sum(scale_errors) / len(scale_errors) if scale_errors else None
+                    )
+                    tracking_id = (
+                        artifact.forecast_id if result.series == "__default__"
+                        else f"{artifact.forecast_id}:{result.series}"
+                    )
                     store.register(
-                        forecast_id=artifact.forecast_id,
+                        forecast_id=tracking_id,
                         project=args.project,
                         series=result.series,
+                        cutoff_time=cutoffs[result.series],
                         horizon=artifact.task.horizon,
                         frequency=artifact.task.schema.frequency,
                         selected_model=result.selected_model,
                         support=result.support,
-                        threshold=artifact.task.threshold if hasattr(artifact.task, 'threshold') else None,
-                        threshold_peak_probability=None,
+                        threshold=args.threshold,
+                        threshold_peak_probability=(
+                            max(result.threshold["probability_above"])
+                            if result.threshold else None
+                        ),
+                        naive_error=naive_error,
                         artifact_path=str(path),
                     )
                 print(f"Registered forecast {artifact.forecast_id} in project '{args.project}'", file=sys.stderr)

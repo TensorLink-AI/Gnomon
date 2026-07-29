@@ -1,5 +1,11 @@
 # Aion Persistent Forecast Tracking — Design
 
+> **Implementation status:** this change implements the local registry, complete-horizon
+> realised scoring, descriptive leaderboard, and a simple drift warning. MCP tracking
+> tools, webhooks, reminders, and automatic model-weight adjustment below are future
+> design work. Historical leaderboard differences are observational and must not be
+> treated as causal evidence that one model will perform better on the next task.
+
 ## The problem
 
 Aion today is stateless. Every forecast is a one-shot: run it, get the result, move on. There's no way to:
@@ -273,7 +279,10 @@ Forecast → Track → Wait → Submit Actuals → Score → Learn
 5. **Week 5:** `chronos` starts degrading (concept drift). Score: MASE 0.90. Aion flags drift.
 6. **Week 6:** Aion's leaderboard shows `ets` is now the most reliable. Agent switches back.
 
-**The agent doesn't need to be a data scientist.** It runs forecasts, submits actuals, and lets Aion's scoring tell it which model is winning. Over time, the model selection improves automatically.
+The agent can use this history as evidence when investigating model performance, but
+the current implementation does not alter model selection automatically. Models may
+have been used on different series or time periods, so the leaderboard is telemetry,
+not a controlled head-to-head experiment.
 
 ---
 
