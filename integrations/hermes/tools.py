@@ -152,6 +152,8 @@ def handle_aion_forecast(args: dict[str, Any], **kwargs: Any) -> str:
         cli += ["--minimum-baseline-improvement", str(args["minimum_baseline_improvement"])]
     if args.get("context_events_file"):
         cli += ["--context", str(args["context_events_file"])]
+    if args.get("threshold") is not None:
+        cli += ["--threshold", str(float(args["threshold"]))]
     return json.dumps(_run_aion(cli), allow_nan=False)
 
 

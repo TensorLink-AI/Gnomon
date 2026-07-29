@@ -33,14 +33,22 @@ provided offset but does not currently accept a separate named-timezone option.
 
 | Code | Meaning | Default seasonal period |
 | --- | --- | ---: |
+| `min` | 1 minute | 60 (hourly cycle) |
+| `5min` | 5 minutes | 288 (daily cycle) |
+| `15min` | 15 minutes | 96 (daily cycle) |
+| `30min` | 30 minutes | 48 (daily cycle) |
 | `h` | Hourly | 24 |
 | `D` | Daily | 7 |
 | `W` | Weekly | 52 |
 | `MS` | Month start | 12 |
 
-Aliases such as `hourly`, `daily`, `weekly`, and `monthly` are accepted. When
+Aliases such as `hourly`, `daily`, `weekly`, `monthly`, and market-style
+candle codes (`1m`, `5m`, `15m`, `30m`, `1h`, `T`, `5T`, …) are accepted. When
 `--frequency` is omitted, Aion infers a supported frequency from timestamp
-differences. Supplying it explicitly is preferable in automation.
+differences. Supplying it explicitly is preferable in automation. Data at
+other granularities (for example 10-second sensor readings) must be resampled
+to a supported frequency first, e.g. with pandas:
+`df.resample("5min").last()`.
 
 Month-start data must use the first day of each month. Weekly data is any exact
 seven-day sequence; v0.1 does not impose a particular weekday.
@@ -76,16 +84,20 @@ series must match the resolved frequency.
 
 ## History requirements
 
-Aion needs four disjoint evaluation origins in addition to initial model
-history. For seasonal period `S` and forecast horizon `H`, the current minimum is:
+Aion evaluates on disjoint rolling folds after an initial training window.
+For seasonal period `S` and forecast horizon `H`, the training window is
+`max(2 × S, 2 × H, 8)` observations, and evaluation adapts to how many folds
+fit after it:
 
-```text
-max(2 × S, 2 × H, 8) + 4 × H observations per series
-```
+| Observations beyond the training window | Behaviour |
+| --- | --- |
+| ≥ 4 × H (four or more folds) | Full mode: separated selection, calibration, and final test windows. |
+| 2 × H to < 4 × H (two or three folds) | Degraded mode: a forecast is produced as `weakly_supported`, with a "Limited evaluation" warning naming what was skipped. |
+| < 2 × H | `unsupported`, with the exact required and available counts in the warning. |
 
-For daily data with a seven-day season and a seven-day horizon, that is 42
-observations. Shorter valid series produce an `unsupported` result rather than
-an input error.
+For daily data with a seven-day season and a seven-day horizon, full mode
+needs 42 observations and degraded mode starts at 28. Shorter valid series
+produce an `unsupported` result rather than an input error.
 
 ## Parquet
 

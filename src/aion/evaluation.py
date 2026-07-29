@@ -22,6 +22,7 @@ class Evaluation:
     coverage: float | None
     warnings: list[str]
     supported: bool
+    degraded: bool = False
     tsfm_scores: dict[str, float | None] = field(default_factory=dict)
 
 
@@ -42,6 +43,19 @@ def quantile(values: list[float], probability: float) -> float:
     return ordered[lower] * (1 - weight) + ordered[upper] * weight
 
 
+def interval_bounds(
+    point: float, residual_quantiles: dict[float, float], step: int
+) -> tuple[float, float, float]:
+    """Interval for forecast step ``step`` (1-based): the median residual shifts
+    the centre, and the spread around it widens with sqrt(step) so uncertainty
+    grows over the horizon instead of staying constant."""
+    centre = point + residual_quantiles[0.5]
+    scale = step ** 0.5
+    low = centre + (residual_quantiles[0.1] - residual_quantiles[0.5]) * scale
+    high = centre + (residual_quantiles[0.9] - residual_quantiles[0.5]) * scale
+    return min(low, centre, high), centre, max(low, centre, high)
+
+
 def _origins(length: int, horizon: int, minimum_train: int) -> list[int]:
     return list(range(minimum_train, length - horizon + 1, horizon))
 
@@ -58,13 +72,37 @@ def evaluate(
 ) -> Evaluation:
     minimum_train = max(2 * season, 2 * horizon, 8)
     origins = _origins(len(values), horizon, minimum_train)
-    all_model_names = list(MODELS.keys())
-    empty_scores = {name: None for name in all_model_names}
-    if len(origins) < 4:
+    empty_scores = {name: None for name in MODELS}
+    if len(origins) < 2:
+        minimum_required = minimum_train + 2 * horizon
+        full_required = minimum_train + 4 * horizon
         return Evaluation(
             None, None, empty_scores, empty_scores.copy(), None, [], None,
-            [f"Need at least {minimum_train + 4 * horizon} observations for separated selection, calibration, and test windows."],
+            [
+                f"Need at least {minimum_required} observations (have {len(values)}) "
+                f"for separated selection and calibration windows; "
+                f"{full_required} observations enable fully separated selection, "
+                f"calibration, and test windows."
+            ],
             False,
+        )
+
+    # Full mode holds out both a calibration fold and a final test fold after
+    # the selection folds. With only two or three folds we degrade gracefully
+    # instead of refusing: fewer selection folds, and with two folds no
+    # held-out test at all — each degradation is named in a warning.
+    degraded = len(origins) < 4
+    warnings: list[str] = []
+    if len(origins) >= 3:
+        selection_origins, calibration_origin = origins[:-2], origins[-2]
+        test_origin: int | None = origins[-1]
+    else:
+        selection_origins, calibration_origin, test_origin = origins[:-1], origins[-1], None
+    if degraded:
+        warnings.append(
+            f"Limited evaluation: only {len(origins)} rolling folds were available; "
+            f"{minimum_train + 4 * horizon} observations enable fully separated "
+            f"selection, calibration, and test windows."
         )
 
     # --- Resolve config ---
@@ -78,6 +116,7 @@ def evaluate(
     # Prefer sandboxed adapters (isolated venvs) to avoid dependency conflicts.
     # Fall back to in-process adapters if no sandboxes are set up.
     from .tsfm_sandbox import sandbox_tsfm_candidates, sandbox_available_tsfms
+    tsfm_adapters: list[Any] = []
     sandbox_names = sandbox_available_tsfms()
     if sandbox_names:
         tsfm_adapters = sandbox_tsfm_candidates(
@@ -103,8 +142,6 @@ def evaluate(
                         all_model_names.append(name)
                 except Exception:
                     logger.debug("API adapter %s failed to initialize", name, exc_info=True)
-
-    selection_origins, calibration_origin, test_origin = origins[:-2], origins[-2], origins[-1]
 
     # --- Run built-in models on selection folds ---
     fold_scores: dict[str, list[float]] = {name: [] for name in MODELS}
@@ -157,7 +194,6 @@ def evaluate(
     ensemble_fold_scores: list[float | None] = []
     if ensemble_enabled or meta_model_enabled:
         from .ensemble import compute_ensemble_forecast, ENSEMBLE_MODEL_NAME
-        all_valid_forecasts: dict[str, list[float]] = {}
         all_valid_scores: dict[str, float | None] = {**scores, **tsfm_scores}
 
         for fold_idx in range(len(selection_origins)):
@@ -189,13 +225,13 @@ def evaluate(
         valid = [x for x in ensemble_fold_scores if x is not None]
         if valid and len(valid) == len(selection_origins):
             ensemble_score = mean(valid)
-            all_model_names.append(ENSEMBLE_MODEL_NAME if 'ENSEMBLE_MODEL_NAME' in dir() else "ensemble")
+            all_model_names.append("ensemble")
 
     # --- Meta-model training ---
     meta_model_weights: dict[str, float] | None = None
     meta_model_score: float | None = None
     if meta_model_enabled:
-        from .meta_model import train_meta_model, predict_meta_model, META_MODEL_NAME
+        from .meta_model import train_meta_model
         # Collect fold forecasts and actuals for training
         mm_fold_forecasts: dict[str, list[list[float]]] = {}
         mm_fold_actuals: list[list[float]] = []
@@ -249,7 +285,7 @@ def evaluate(
         return Evaluation(
             None, None, scores, empty_scores.copy(), None, [], None,
             ["No baseline completed every selection fold."], False,
-            tsfm_scores=tsfm_scores,
+            degraded, tsfm_scores=tsfm_scores,
         )
     strongest_baseline = min(baseline_scores, key=baseline_scores.get)  # type: ignore[arg-type]
     selected = strongest_baseline
@@ -283,66 +319,73 @@ def evaluate(
     selected_score = all_scores.get(selected, baseline_score)
     improvement = 0.0 if selected in BASELINES else (baseline_score - selected_score) / baseline_score if baseline_score > 0 else 0.0  # type: ignore[operator]
 
-    # Get calibration prediction from the selected model
-    if selected in MODELS:
-        calibration_prediction = predict(selected, values[:calibration_origin], horizon, season)
-    else:
-        # TSFM selected — find the adapter and predict
-        adapter = next((a for a in tsfm_adapters if a.name == selected), None)
+    def _predict_selected(name: str, train: list[float]) -> list[float]:
+        """Dispatch a prediction to a built-in model or a TSFM adapter."""
+        if name in MODELS:
+            return predict(name, train, horizon, season)
+        adapter = next((a for a in tsfm_adapters if a.name == name), None)
         if adapter is None:
-            # Fallback to strongest baseline if adapter disappeared
-            selected = strongest_baseline
-            calibration_prediction = predict(selected, values[:calibration_origin], horizon, season)
-        else:
-            try:
-                calibration_prediction = adapter.predict(values[:calibration_origin], horizon, season)
-            except (TSFMError, TSFMUnavailable, Exception) as exc:
-                logger.warning("TSFM %s failed during calibration, falling back to %s: %s", selected, strongest_baseline, exc)
-                selected = strongest_baseline
-                calibration_prediction = predict(selected, values[:calibration_origin], horizon, season)
+            raise ValueError(f"no adapter available for {name}")
+        return adapter.predict(train, horizon, season)
 
+    # Get calibration prediction from the selected model; fall back to the
+    # strongest baseline if a TSFM/ensemble selection cannot predict here.
+    try:
+        calibration_prediction = _predict_selected(selected, values[:calibration_origin])
+    except Exception as exc:
+        if selected not in MODELS:
+            logger.warning(
+                "%s failed during calibration, falling back to %s: %s",
+                selected, strongest_baseline, exc,
+            )
+        selected = strongest_baseline
+        calibration_prediction = predict(selected, values[:calibration_origin], horizon, season)
+
+    # Pool residuals of the selected model across every selection fold plus
+    # the calibration fold: one horizon of residuals is too small a sample
+    # for stable quantiles. Folds where the selected model cannot predict
+    # (possible for TSFM adapters) simply contribute nothing.
+    residuals: list[float] = []
+    for origin in selection_origins:
+        try:
+            prediction = _predict_selected(selected, values[:origin])
+        except Exception:
+            continue
+        actual = values[origin : origin + horizon]
+        residuals.extend(a - p for a, p in zip(actual, prediction))
     calibration_actual = values[calibration_origin : calibration_origin + horizon]
-    residuals = [actual - predicted for actual, predicted in zip(calibration_actual, calibration_prediction)]
-    low, high = quantile(residuals, 0.1), quantile(residuals, 0.9)
+    residuals.extend(a - p for a, p in zip(calibration_actual, calibration_prediction))
+    residual_quantiles = {p: quantile(residuals, p) for p in (0.1, 0.5, 0.9)}
 
     # --- Test ---
-    test_actual = values[test_origin : test_origin + horizon]
     test_scores: dict[str, float | None] = {name: None for name in all_model_names}
-    for name in {selected, strongest_baseline}:
-        if name in MODELS:
+    coverage: float | None = None
+    if test_origin is not None:
+        test_actual = values[test_origin : test_origin + horizon]
+        for name in {selected, strongest_baseline}:
             try:
-                test_scores[name] = error_score(test_actual, predict(name, values[:test_origin], horizon, season))
-            except ValueError:
-                pass
-        else:
-            adapter = next((a for a in tsfm_adapters if a.name == selected), None)
-            if adapter:
-                try:
-                    test_prediction_tsfm = adapter.predict(values[:test_origin], horizon, season)
-                    test_scores[name] = error_score(test_actual, test_prediction_tsfm)
-                except (TSFMError, TSFMUnavailable, Exception) as exc:
-                    logger.warning("TSFM %s failed during test fold", name, exc_info=True)
+                test_scores[name] = error_score(
+                    test_actual, _predict_selected(name, values[:test_origin])
+                )
+            except Exception:
+                logger.debug("model %s failed during test fold", name, exc_info=True)
 
-    # Get test prediction for coverage assessment
-    if selected in MODELS:
-        test_prediction = predict(selected, values[:test_origin], horizon, season)
-    else:
-        adapter = next((a for a in tsfm_adapters if a.name == selected), None)
-        if adapter:
-            try:
-                test_prediction = adapter.predict(values[:test_origin], horizon, season)
-            except (TSFMError, TSFMUnavailable, Exception):
-                test_prediction = predict(strongest_baseline, values[:test_origin], horizon, season)
-        else:
+        # Get test prediction for coverage assessment
+        try:
+            test_prediction = _predict_selected(selected, values[:test_origin])
+        except Exception:
             test_prediction = predict(strongest_baseline, values[:test_origin], horizon, season)
-
-    coverage = mean(
-        1.0 if prediction + low <= actual <= prediction + high else 0.0
-        for actual, prediction in zip(test_actual, test_prediction)
-    )
-    warnings: list[str] = []
-    if coverage < 0.7:
-        warnings.append(f"Final-test 80% interval coverage was {coverage:.1%}, below 70%.")
+        covered = []
+        for step, (actual, prediction) in enumerate(zip(test_actual, test_prediction), 1):
+            low, _, high = interval_bounds(prediction, residual_quantiles, step)
+            covered.append(1.0 if low <= actual <= high else 0.0)
+        coverage = mean(covered)
+        if coverage < 0.7:
+            warnings.append(f"Final-test 80% interval coverage was {coverage:.1%}, below 70%.")
+    else:
+        warnings.append(
+            "Limited evaluation: no held-out test fold remained, so interval "
+            "coverage is unmeasured."
+        )
     return Evaluation(selected, strongest_baseline, scores, test_scores, improvement,
-                      residuals, coverage, warnings, True, tsfm_scores=tsfm_scores)
-
+                      residuals, coverage, warnings, True, degraded, tsfm_scores=tsfm_scores)

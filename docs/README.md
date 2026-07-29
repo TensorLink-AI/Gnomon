@@ -31,11 +31,12 @@ interval on a separate window, and either returns a supported result or abstains
 
 - Local CLI and Python API
 - CSV input; Parquet with the optional `pyarrow` dependency
-- Hourly, daily, weekly, and month-start frequencies
+- Minute (1/5/15/30), hourly, daily, weekly, and month-start frequencies
 - Independent series stored in one panel file
 - Last-value and seasonal-naive baselines
-- Drift candidate model
+- Drift, linear-trend, window-average, Theta, and ETS (Holt-Winters) candidate models
 - Separated model-selection, interval-calibration, and final-test windows
+- Horizon-widened uncertainty intervals and optional threshold-crossing analysis
 - Per-series support assessment
 - JSON, CSV, JSONL, and Markdown artifacts
 

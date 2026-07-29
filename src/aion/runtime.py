@@ -10,9 +10,9 @@ from .context import ContextEvent
 from .context_eval import CONTEXT_MODEL_NAME, assess_context
 from .contracts import DataSchema, Evidence, ForecastArtifact, ForecastTask, SeriesResult
 from .data import load_observations
-from .evaluation import evaluate, quantile
-from .models import MODELS, predict
-from .temporal import SEASONS, next_timestamp, validate_and_group
+from .evaluation import evaluate, interval_bounds, quantile
+from .models import BASELINES, MODELS, predict
+from .temporal import FREQUENCY_DESCRIPTIONS, SEASONS, next_timestamp, validate_and_group
 
 
 def inspect_dataset(
@@ -51,6 +51,48 @@ def inspect_dataset(
             }
             for name, items in sorted(groups.items())
         ],
+        "suggested_next": (
+            f"aion forecast {Path(input_path).expanduser().resolve()} "
+            f"--time {time_column} --target {target_column}"
+            + (f" --series {series_column}" if series_column else "")
+            + f" --frequency {resolved_frequency} --horizon <periods>"
+        ),
+    }
+
+
+def _assess_threshold(
+    threshold: float,
+    rows: list[dict[str, object]],
+    points: list[float],
+    residuals: list[float],
+    residual_quantiles: dict[float, float],
+) -> dict[str, object]:
+    """Empirical threshold-crossing analysis from the pooled backtest
+    residuals, recentred and widened exactly like the published intervals."""
+    centre_shift = residual_quantiles[0.5]
+    probabilities: list[float] = []
+    for step, point in enumerate(points, 1):
+        scale = step ** 0.5
+        above = sum(
+            1 for residual in residuals
+            if point + centre_shift + (residual - centre_shift) * scale > threshold
+        )
+        probabilities.append(round(above / len(residuals), 4))
+
+    def first_timestamp(condition) -> str | None:
+        for row in rows:
+            if condition(row):
+                return str(row["timestamp"])
+        return None
+
+    return {
+        "value": threshold,
+        "probability_above": probabilities,
+        "first_timestamp_point_above": first_timestamp(lambda row: row["point"] > threshold),
+        "first_timestamp_interval_above": first_timestamp(lambda row: row["q90"] > threshold),
+        "first_timestamp_point_below": first_timestamp(lambda row: row["point"] < threshold),
+        "first_timestamp_interval_below": first_timestamp(lambda row: row["q10"] < threshold),
+        "basis": "empirical probabilities from pooled backtest residuals with sqrt-horizon widening",
     }
 
 
@@ -65,6 +107,7 @@ def forecast(
     output: str = "aion-output",
     minimum_baseline_improvement: float = 0.02,
     context_events: list[ContextEvent] | None = None,
+    threshold: float | None = None,
     config: Any = None,
 ) -> tuple[ForecastArtifact, Path]:
     if horizon < 1:
@@ -151,22 +194,25 @@ def forecast(
                 warnings = list(context.warnings)
 
         rows: list[dict[str, object]] = []
+        threshold_analysis: dict[str, object] | None = None
         support = "unsupported"
         if assessment.supported and points:
             residual_quantiles = {probability: quantile(residuals, probability) for probability in (0.1, 0.5, 0.9)}
-            for timestamp, point in zip(future_timestamps, points):
-                q10 = point + residual_quantiles[0.1]
-                q50 = point + residual_quantiles[0.5]
-                q90 = point + residual_quantiles[0.9]
+            for step, (timestamp, point) in enumerate(zip(future_timestamps, points), 1):
+                q10, q50, q90 = interval_bounds(point, residual_quantiles, step)
                 rows.append({
                     "timestamp": timestamp.isoformat(), "point": point,
-                    "q10": min(q10, q50, q90), "q50": q50, "q90": max(q10, q50, q90),
+                    "q10": q10, "q50": q50, "q90": q90,
                 })
             support = "weakly_supported" if warnings else "supported"
+            if threshold is not None:
+                threshold_analysis = _assess_threshold(
+                    threshold, rows, points, residuals, residual_quantiles,
+                )
         result = SeriesResult(
             series_name, support, selected_model, assessment.strongest_baseline,
             assessment.selection_scores, assessment.test_scores, assessment.improvement,
-            coverage, warnings, rows, context_public,
+            coverage, warnings, rows, context_public, threshold_analysis,
         )
         results.append(result)
         evidence.extend([
@@ -196,13 +242,14 @@ def capabilities() -> dict[str, object]:
     from .tsfm_sandbox import list_sandboxes
     return {
         "schema_version": "0.1",
-        "runtime_version": "0.1.0",
+        "runtime_version": "0.2.0",
         "interfaces": {"cli": True, "python": True, "mcp": True, "http": False},
         "inputs": {"csv": True, "parquet": parquet},
-        "frequencies": ["h", "D", "W", "MS"],
+        "frequencies": sorted(SEASONS),
+        "frequency_descriptions": dict(FREQUENCY_DESCRIPTIONS),
         "models": {
-            "baselines": ["last_value", "seasonal_naive"],
-            "statistical": ["drift"],
+            "baselines": sorted(BASELINES),
+            "statistical": sorted(name for name in MODELS if name not in BASELINES),
             "context": ["event_adjusted"],
             "tsfm": installed_tsfms(),
             "tsfm_available": available_tsfms(),
@@ -210,7 +257,9 @@ def capabilities() -> dict[str, object]:
         },
         "features": {
             "inspection": True, "forecasting": True, "separated_evaluation": True,
-            "residual_intervals": True, "project_mode": False, "actual_scoring": False,
+            "residual_intervals": True, "horizon_widened_intervals": True,
+            "threshold_analysis": True, "degraded_evaluation": True,
+            "project_mode": False, "actual_scoring": False,
             "context_events": True, "llm_workflow_prompts": True, "sharing": False,
         },
     }

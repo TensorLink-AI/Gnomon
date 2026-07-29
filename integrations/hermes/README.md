@@ -25,6 +25,16 @@ wraps.
 
 ## Install
 
+The repository root carries a `plugin.yaml` and `__init__.py` that re-export
+this directory, so the standard install flow works directly:
+
+```bash
+hermes plugins install https://github.com/TensorLink-AI/Aion.git
+hermes plugins enable aion
+```
+
+From a local checkout, copying this directory works equally well:
+
 ```bash
 cp -r integrations/hermes ~/.hermes/plugins/aion
 hermes plugins enable aion

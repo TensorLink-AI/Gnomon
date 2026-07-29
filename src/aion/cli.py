@@ -19,7 +19,7 @@ def _common_input(parser: argparse.ArgumentParser) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="aion", description="Evidence-backed local forecasting")
-    parser.add_argument("--version", action="version", version="aion 0.1.0")
+    parser.add_argument("--version", action="version", version="aion 0.2.0")
     subcommands = parser.add_subparsers(dest="command", required=True)
 
     capability_parser = subcommands.add_parser("capabilities", help="Report implemented capabilities")
@@ -33,6 +33,10 @@ def build_parser() -> argparse.ArgumentParser:
     forecast_parser.add_argument("--horizon", required=True, type=int)
     forecast_parser.add_argument("--output", default="aion-output")
     forecast_parser.add_argument("--minimum-baseline-improvement", type=float, default=0.02)
+    forecast_parser.add_argument(
+        "--threshold", type=float,
+        help="Report when and how likely the forecast crosses this value",
+    )
     forecast_parser.add_argument(
         "--config", default=None,
         help="Path to aion.yaml config file (models, ensemble, meta-model, backends)",
@@ -214,7 +218,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.input, time_column=args.time_column, target_column=args.target_column,
                 series_column=args.series_column, frequency=args.frequency, horizon=args.horizon,
                 output=args.output, minimum_baseline_improvement=args.minimum_baseline_improvement,
-                context_events=events,
+                context_events=events, threshold=args.threshold,
                 config=config,
             )
             payload = forecast_summary(artifact, path)

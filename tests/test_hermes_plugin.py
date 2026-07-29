@@ -206,3 +206,57 @@ def test_tap_skill_is_in_sync_with_plugin_skill() -> None:
     # symlinks); it must stay identical to the plugin-bundled copy.
     tap_skill = REPO_ROOT / "skills" / "forecasting" / "SKILL.md"
     assert tap_skill.read_text() == (PLUGIN_DIR / "SKILL.md").read_text()
+
+
+def _significant_lines(text: str) -> list[str]:
+    return [
+        line for line in text.splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    ]
+
+
+def test_root_plugin_manifest_matches_integration_copy() -> None:
+    # `hermes plugins install <repo-url>` looks for plugin.yaml at the repo
+    # root, so a root copy exists; it must stay in sync with the canonical
+    # manifest in integrations/hermes/.
+    root = REPO_ROOT / "plugin.yaml"
+    assert root.exists()
+    assert _significant_lines(root.read_text()) == _significant_lines(
+        (PLUGIN_DIR / "plugin.yaml").read_text()
+    )
+
+
+def test_root_init_reexports_plugin_entry_points() -> None:
+    spec = importlib.util.spec_from_file_location(
+        "aion_root_plugin",
+        REPO_ROOT / "__init__.py",
+        submodule_search_locations=[str(REPO_ROOT)],
+    )
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    assert callable(module.register)
+    assert module.check_aion_available is not None
+
+
+def test_frequency_enum_matches_runtime_toolspec() -> None:
+    from aion.toolspec import _INPUT_PROPERTIES as runtime_properties
+
+    plugin_enum = plugin.AION_FORECAST_SCHEMA["parameters"]["properties"]["frequency"]["enum"]
+    assert plugin_enum == runtime_properties["frequency"]["enum"]
+
+
+def test_forecast_handler_forwards_threshold(tmp_path, monkeypatch) -> None:
+    captured = {}
+
+    def fake_run(cli_args):
+        captured["args"] = cli_args
+        return {"status": "complete"}
+
+    monkeypatch.setattr(plugin.tools, "_run_aion", fake_run)
+    plugin.handle_aion_forecast({
+        "input": "data.csv", "time_column": "t", "target_column": "v",
+        "horizon": 4, "threshold": 99.5,
+    })
+    assert "--threshold" in captured["args"]
+    assert captured["args"][captured["args"].index("--threshold") + 1] == "99.5"
