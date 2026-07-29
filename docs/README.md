@@ -17,6 +17,7 @@ interval on a separate window, and either returns a supported result or abstains
 | [Installation](installation.md) | You want Bash, uv, or PyPI installation options. |
 | [Getting started](getting-started.md) | You want a complete first run. |
 | [Data format](data-format.md) | You need to prepare or validate input data. |
+| [Covariate enrichment](covariates.md) | You want an agent to propose external data without temporal leakage. |
 | [CLI reference](cli-reference.md) | You need exact commands and options. |
 | [Python API](python-api.md) | You want to call Aion from Python. |
 | [Results and artifacts](results-and-artifacts.md) | You need to interpret or automate outputs. |
@@ -27,7 +28,7 @@ interval on a separate window, and either returns a supported result or abstains
 | [Containers](containers.md) | You want to build or run the Docker image. |
 | [CI/CD](ci-cd.md) | You maintain validation, publishing, or releases. |
 
-## Implemented in v0.1
+## Implemented
 
 - Local CLI and Python API
 - CSV input; Parquet with the optional `pyarrow` dependency
@@ -39,6 +40,7 @@ interval on a separate window, and either returns a supported result or abstains
 - Horizon-widened uncertainty intervals and optional threshold-crossing analysis
 - Per-series support assessment
 - JSON, CSV, JSONL, and Markdown artifacts
+- Point-in-time future-known covariates with leakage-safe ablation
+- Optional MCP and Hermes tools, projects, actual scoring, and TSFM candidates
 
-MCP, Hermes, LLM providers, project mode, actual submission, hosted services,
-context events, TSFM adapters, and sharing are roadmap features—not v0.1 features.
+Hosted services, automatic model switching, and sharing remain roadmap features.

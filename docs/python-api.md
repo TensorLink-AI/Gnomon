@@ -43,6 +43,39 @@ for result in artifact.results:
 print(artifact_path)
 ```
 
+### Forecast with covariates
+
+```python
+from aion import forecast, load_covariates, validate_covariate_file
+
+validation = validate_covariate_file(
+    "observations.csv",
+    "covariates.csv",
+    "is_holiday:binary:future_known",
+    time_column="timestamp",
+    target_column="requests",
+    horizon=7,
+    frequency="D",
+)
+if not validation["valid"]:
+    raise ValueError(validation["validation"])
+
+covariates = load_covariates(
+    "covariates.csv", "is_holiday:binary:future_known"
+)
+artifact, artifact_path = forecast(
+    "observations.csv",
+    time_column="timestamp",
+    target_column="requests",
+    horizon=7,
+    frequency="D",
+    covariates=covariates,
+)
+```
+
+The mapping requires explicit `future_known` availability. Aion uses
+`known_at` to replay the value available at each historical fold cutoff.
+
 The returned `ForecastArtifact` is a dataclass. Use `artifact.to_dict()` for a
 JSON-compatible representation. Calling `forecast` also persists the four
 standard artifact files.
@@ -74,4 +107,3 @@ the CLI. An `unsupported` series is not an exception: inspect
 The artifact schema is versioned as `0.1`, but the Python API is still an MVP.
 Pin the package version and consume persisted artifacts when long-term
 compatibility is important.
-

@@ -49,6 +49,36 @@ def build_parser() -> argparse.ArgumentParser:
         "--project", default=None,
         help="Register this forecast in a project for ongoing tracking and scoring",
     )
+    forecast_parser.add_argument("--covariates", help="Point-in-time covariates CSV")
+    forecast_parser.add_argument(
+        "--covariate-mapping",
+        help="Comma-separated name:type:future_known entries",
+    )
+    forecast_parser.add_argument("--covariate-time", default="timestamp")
+    forecast_parser.add_argument("--covariate-known-at", default="known_at")
+    forecast_parser.add_argument("--covariate-series")
+
+    covariate_parser = subcommands.add_parser(
+        "covariates", help="Guide and validate point-in-time covariate data"
+    )
+    covariate_commands = covariate_parser.add_subparsers(
+        dest="covariate_command", required=True
+    )
+    covariate_guide = covariate_commands.add_parser(
+        "guide", help="Report required format and temporal constraints"
+    )
+    _common_input(covariate_guide)
+    covariate_guide.add_argument("--horizon", required=True, type=int)
+    covariate_validate = covariate_commands.add_parser(
+        "validate", help="Validate covariate coverage at every backtest cutoff"
+    )
+    _common_input(covariate_validate)
+    covariate_validate.add_argument("--horizon", required=True, type=int)
+    covariate_validate.add_argument("--covariates", required=True)
+    covariate_validate.add_argument("--covariate-mapping", required=True)
+    covariate_validate.add_argument("--covariate-time", default="timestamp")
+    covariate_validate.add_argument("--covariate-known-at", default="known_at")
+    covariate_validate.add_argument("--covariate-series")
 
     context_parser = subcommands.add_parser(
         "context", help="LLM context-investigation workflow (prompt out, validation in)"
@@ -482,6 +512,22 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.input, time_column=args.time_column, target_column=args.target_column,
                 series_column=args.series_column, frequency=args.frequency,
             )
+        elif args.command == "covariates":
+            from .covariates import covariate_guide, validate_covariate_file
+            common = {
+                "time_column": args.time_column, "target_column": args.target_column,
+                "series_column": args.series_column, "frequency": args.frequency,
+                "horizon": args.horizon,
+            }
+            if args.covariate_command == "guide":
+                payload = covariate_guide(args.input, **common)
+            else:
+                payload = validate_covariate_file(
+                    args.input, args.covariates, args.covariate_mapping, **common,
+                    covariate_time_column=args.covariate_time,
+                    covariate_known_at_column=args.covariate_known_at,
+                    covariate_series_column=args.covariate_series,
+                )
         elif args.command == "context":
             from .workflows import build_context_investigation_prompt, parse_context_response
 
@@ -506,12 +552,27 @@ def main(argv: Sequence[str] | None = None) -> int:
             from .config import load_config
 
             events = load_events_file(args.context_file) if args.context_file else None
+            from .covariates import load_covariates
+            covariates = None
+            if args.covariates:
+                if not args.covariate_mapping:
+                    raise AionError(
+                        "MISSING_COVARIATE_MAPPING",
+                        "--covariate-mapping is required with --covariates.",
+                    )
+                covariates = load_covariates(
+                    args.covariates, args.covariate_mapping,
+                    time_column=args.covariate_time,
+                    known_at_column=args.covariate_known_at,
+                    series_column=args.covariate_series,
+                )
             config = load_config(getattr(args, "config", None))
             artifact, path = forecast(
                 args.input, time_column=args.time_column, target_column=args.target_column,
                 series_column=args.series_column, frequency=args.frequency, horizon=args.horizon,
                 output=args.output, minimum_baseline_improvement=args.minimum_baseline_improvement,
                 context_events=events, threshold=args.threshold,
+                covariates=covariates,
                 config=config,
             )
             payload = forecast_summary(artifact, path)

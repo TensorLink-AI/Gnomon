@@ -156,7 +156,53 @@ def handle_aion_forecast(args: dict[str, Any], **kwargs: Any) -> str:
         cli += ["--threshold", str(float(args["threshold"]))]
     if args.get("project"):
         cli += ["--project", str(args["project"])]
+    if args.get("covariates_file"):
+        if not args.get("covariate_mapping"):
+            return json.dumps(_error("INVALID_ARGUMENTS", "covariate_mapping is required with covariates_file."))
+        cli += ["--covariates", str(args["covariates_file"]),
+                "--covariate-mapping", str(args["covariate_mapping"])]
+        if args.get("covariate_time_column"):
+            cli += ["--covariate-time", str(args["covariate_time_column"])]
+        if args.get("covariate_known_at_column"):
+            cli += ["--covariate-known-at", str(args["covariate_known_at_column"])]
+        if args.get("covariate_series_column"):
+            cli += ["--covariate-series", str(args["covariate_series_column"])]
     return json.dumps(_run_aion(cli), allow_nan=False)
+
+
+def handle_aion_covariate_guide(args: dict[str, Any], **kwargs: Any) -> str:
+    cli = _dataset_args(args)
+    if isinstance(cli, dict):
+        return json.dumps(cli)
+    if not args.get("horizon"):
+        return json.dumps(_error("INVALID_ARGUMENTS", "Missing required argument: horizon."))
+    return json.dumps(_run_aion([
+        "covariates", "guide", *cli, "--horizon", str(int(args["horizon"])),
+    ]), allow_nan=False)
+
+
+def handle_aion_validate_covariates(args: dict[str, Any], **kwargs: Any) -> str:
+    cli = _dataset_args(args)
+    if isinstance(cli, dict):
+        return json.dumps(cli)
+    required = ["horizon", "covariates_file", "covariate_mapping"]
+    missing = [name for name in required if not args.get(name)]
+    if missing:
+        return json.dumps(_error("INVALID_ARGUMENTS", f"Missing required argument(s): {', '.join(missing)}."))
+    cli = ["covariates", "validate", *cli, "--horizon", str(int(args["horizon"])),
+           "--covariates", str(args["covariates_file"]),
+           "--covariate-mapping", str(args["covariate_mapping"])]
+    if args.get("covariate_time_column"):
+        cli += ["--covariate-time", str(args["covariate_time_column"])]
+    if args.get("covariate_known_at_column"):
+        cli += ["--covariate-known-at", str(args["covariate_known_at_column"])]
+    if args.get("covariate_series_column"):
+        cli += ["--covariate-series", str(args["covariate_series_column"])]
+    return json.dumps(_run_aion(cli), allow_nan=False)
+
+
+def handle_aion_propose_covariates(args: dict[str, Any], **kwargs: Any) -> str:
+    return handle_aion_forecast(args, **kwargs)
 
 
 def handle_aion_submit_actuals(args: dict[str, Any], **kwargs: Any) -> str:

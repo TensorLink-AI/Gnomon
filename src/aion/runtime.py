@@ -9,6 +9,7 @@ from .artifacts import write_artifact
 from .context import ContextEvent
 from .context_eval import CONTEXT_MODEL_NAME, assess_context
 from .contracts import DataSchema, Evidence, ForecastArtifact, ForecastTask, SeriesResult
+from .covariates import CovariateDataset, assess_covariates
 from .data import load_observations
 from .evaluation import evaluate, interval_bounds, quantile
 from .models import BASELINES, MODELS, predict
@@ -107,12 +108,19 @@ def forecast(
     output: str = "aion-output",
     minimum_baseline_improvement: float = 0.02,
     context_events: list[ContextEvent] | None = None,
+    covariates: CovariateDataset | None = None,
     threshold: float | None = None,
     config: Any = None,
 ) -> tuple[ForecastArtifact, Path]:
     if horizon < 1:
         from .contracts import AionError
         raise AionError("INVALID_HORIZON", "Horizon must be at least one period.")
+    if context_events and covariates:
+        from .contracts import AionError
+        raise AionError(
+            "COMBINED_ENRICHMENT_UNSUPPORTED",
+            "Context events and covariates cannot yet be admitted in the same run; evaluate them separately.",
+        )
     observations, source_fingerprint, _ = load_observations(
         input_path, time_column, target_column, series_column
     )
@@ -140,6 +148,7 @@ def forecast(
             config=config,
         )
         context_public: dict[str, object] | None = None
+        covariate_public: dict[str, object] | None = None
         selected_model = assessment.selected_model
         coverage = assessment.coverage
         warnings = list(assessment.warnings)
@@ -192,6 +201,23 @@ def forecast(
                 residuals = context.residuals
                 coverage = context.coverage
                 warnings = list(context.warnings)
+        if covariates:
+            covariate_assessment = assess_covariates(
+                values, timestamps, future_timestamps, covariates, series_name,
+                horizon, season, minimum_baseline_improvement, assessment,
+            )
+            covariate_public = covariate_assessment.to_public_dict()
+            evidence.append(Evidence(
+                f"covariate_ablation:{series_name}", "covariate_ablation", series_name,
+                {**covariate_public, "source_path": covariates.path,
+                 "source_fingerprint": covariates.fingerprint},
+            ))
+            if covariate_assessment.admitted:
+                selected_model = "covariate_linear"
+                points = covariate_assessment.points
+                residuals = covariate_assessment.residuals
+                coverage = covariate_assessment.coverage
+                warnings = list(covariate_assessment.warnings)
 
         rows: list[dict[str, object]] = []
         threshold_analysis: dict[str, object] | None = None
@@ -212,7 +238,7 @@ def forecast(
         result = SeriesResult(
             series_name, support, selected_model, assessment.strongest_baseline,
             assessment.selection_scores, assessment.test_scores, assessment.improvement,
-            coverage, warnings, rows, context_public, threshold_analysis,
+            coverage, warnings, rows, context_public, covariate_public, threshold_analysis,
         )
         results.append(result)
         evidence.extend([
@@ -238,7 +264,7 @@ def capabilities() -> dict[str, object]:
         parquet = True
     except ImportError:
         parquet = False
-    from .tsfm import available_tsfms, installed_tsfms
+    from .tsfm import available_tsfms, capability_matrix, installed_tsfms
     from .tsfm_sandbox import list_sandboxes
     return {
         "schema_version": "0.1",
@@ -254,6 +280,7 @@ def capabilities() -> dict[str, object]:
             "tsfm": installed_tsfms(),
             "tsfm_available": available_tsfms(),
             "tsfm_sandboxes": list_sandboxes(),
+            "tsfm_capabilities": capability_matrix(),
         },
         "features": {
             "inspection": True, "forecasting": True, "separated_evaluation": True,
@@ -262,5 +289,7 @@ def capabilities() -> dict[str, object]:
             "project_mode": True, "actual_scoring": True,
             "decision_outcomes": True, "agent_treatment_control_eval": True,
             "context_events": True, "llm_workflow_prompts": True, "sharing": False,
+            "future_known_covariates": True, "point_in_time_covariates": True,
+            "covariate_ablation": True,
         },
     }

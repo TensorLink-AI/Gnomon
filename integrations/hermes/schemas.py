@@ -105,8 +105,47 @@ AION_FORECAST_SCHEMA = {
                 "type": "string",
                 "description": "Optional tracking project for realised scoring and decision outcomes.",
             },
+            "covariates_file": {"type": "string", "description": "Local point-in-time covariate CSV."},
+            "covariate_mapping": {"type": "string", "description": "Comma-separated name:type:future_known entries."},
+            "covariate_time_column": {"type": "string", "description": "Valid-at column (default timestamp)."},
+            "covariate_known_at_column": {"type": "string", "description": "Availability timestamp column (default known_at)."},
+            "covariate_series_column": {"type": "string", "description": "Optional covariate series column."},
         },
         "required": ["input", "time_column", "target_column", "horizon"],
+    },
+}
+
+AION_COVARIATE_GUIDE_SCHEMA = {
+    "name": "aion_covariate_guide",
+    "description": "Return temporal constraints and the point-in-time CSV contract. You decide what to fetch; Aion defines how to represent it.",
+    "parameters": {"type": "object", "properties": {
+        **_INPUT_PROPERTIES, "horizon": {"type": "integer"},
+    }, "required": ["input", "time_column", "target_column", "horizon"]},
+}
+
+AION_VALIDATE_COVARIATES_SCHEMA = {
+    "name": "aion_validate_covariates",
+    "description": "Validate local covariate vintages for alignment, horizon coverage, and historical availability without fetching URLs.",
+    "parameters": {"type": "object", "properties": {
+        **_INPUT_PROPERTIES, "horizon": {"type": "integer"},
+        "covariates_file": {"type": "string"},
+        "covariate_mapping": {"type": "string"},
+        "covariate_time_column": {"type": "string"},
+        "covariate_known_at_column": {"type": "string"},
+        "covariate_series_column": {"type": "string"},
+    }, "required": ["input", "time_column", "target_column", "horizon", "covariates_file", "covariate_mapping"]},
+}
+
+AION_PROPOSE_COVARIATES_SCHEMA = {
+    **AION_FORECAST_SCHEMA,
+    "name": "aion_propose_covariates",
+    "description": "Evaluate a local covariate proposal on identical rolling folds and retain only features with stable material lift.",
+    "parameters": {
+        **AION_FORECAST_SCHEMA["parameters"],
+        "required": [
+            "input", "time_column", "target_column", "horizon",
+            "covariates_file", "covariate_mapping",
+        ],
     },
 }
 

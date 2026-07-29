@@ -52,10 +52,16 @@ history.
 | Persistent projects, realised scoring, and decision outcomes | Available |
 | Agent treatment/control evaluation (`aion eval compare`) | Available |
 | Optional sandboxed TSFM adapters | Available |
+| Point-in-time covariates with stable-lift admission | Available |
 | Standalone LLM providers, automatic model switching, and sharing | Planned |
 
 `aion capabilities` is the machine-readable source of truth. Roadmap features
 are not exposed as mocked commands.
+
+Agents can enrich a forecast with externally fetched, future-known data without
+being trusted to judge its value. Aion validates historical availability and
+admits a covariate only when it beats the univariate control on identical folds.
+See [Covariate enrichment](docs/covariates.md).
 
 ## See it work
 

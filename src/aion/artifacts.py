@@ -50,6 +50,12 @@ def write_artifact(artifact: ForecastArtifact, output_parent: str) -> Path:
                     f"- First timestamp with q90 above: {result.threshold['first_timestamp_interval_above'] or 'never in horizon'}",
                     f"- Peak probability above: {max(result.threshold['probability_above']):.1%}",
                 ])
+            if result.covariates:
+                lines.extend([
+                    "", "### Covariates", "",
+                    f"- Retained: {', '.join(result.covariates.get('retained', [])) or 'none'}",
+                    f"- Rejected: {len(result.covariates.get('rejected', []))}",
+                ])
             lines.append("")
         (temporary / "summary.md").write_text("\n".join(lines), encoding="utf-8")
         os.replace(temporary, final)
@@ -57,4 +63,3 @@ def write_artifact(artifact: ForecastArtifact, output_parent: str) -> Path:
         # Preserve the temporary directory for diagnosis; never expose it as a complete run.
         raise
     return final
-

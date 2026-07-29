@@ -24,6 +24,8 @@ from .schemas import (
     AION_SUBMIT_ACTUALS_SCHEMA, AION_LIST_OPEN_SCHEMA,
     AION_MODEL_PERFORMANCE_SCHEMA, AION_RECORD_DECISION_SCHEMA,
     AION_RESOLVE_DECISION_SCHEMA,
+    AION_COVARIATE_GUIDE_SCHEMA, AION_VALIDATE_COVARIATES_SCHEMA,
+    AION_PROPOSE_COVARIATES_SCHEMA,
 )
 from .tools import (
     check_aion_available,
@@ -34,12 +36,17 @@ from .tools import (
     handle_aion_submit_actuals, handle_aion_list_open_forecasts,
     handle_aion_model_performance, handle_aion_record_decision,
     handle_aion_resolve_decision,
+    handle_aion_covariate_guide, handle_aion_validate_covariates,
+    handle_aion_propose_covariates,
 )
 
 _TOOLS = (
     ("aion_capabilities", AION_CAPABILITIES_SCHEMA, handle_aion_capabilities, "🧭"),
     ("aion_inspect", AION_INSPECT_SCHEMA, handle_aion_inspect, "🔍"),
     ("aion_forecast", AION_FORECAST_SCHEMA, handle_aion_forecast, "📈"),
+    ("aion_covariate_guide", AION_COVARIATE_GUIDE_SCHEMA, handle_aion_covariate_guide, "🧱"),
+    ("aion_validate_covariates", AION_VALIDATE_COVARIATES_SCHEMA, handle_aion_validate_covariates, "🛡️"),
+    ("aion_propose_covariates", AION_PROPOSE_COVARIATES_SCHEMA, handle_aion_propose_covariates, "🧪"),
     ("aion_submit_actuals", AION_SUBMIT_ACTUALS_SCHEMA, handle_aion_submit_actuals, "✅"),
     ("aion_list_open_forecasts", AION_LIST_OPEN_SCHEMA, handle_aion_list_open_forecasts, "⏳"),
     ("aion_model_performance", AION_MODEL_PERFORMANCE_SCHEMA, handle_aion_model_performance, "📊"),

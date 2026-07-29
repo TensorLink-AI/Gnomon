@@ -58,6 +58,8 @@ def test_register_exposes_tracking_tools_and_the_skill() -> None:
     plugin.register(ctx)
     assert set(ctx.tools) == {
         "aion_capabilities", "aion_inspect", "aion_forecast",
+        "aion_covariate_guide", "aion_validate_covariates",
+        "aion_propose_covariates",
         "aion_propose_context_events",
         "aion_submit_actuals", "aion_list_open_forecasts",
         "aion_model_performance", "aion_record_decision",
