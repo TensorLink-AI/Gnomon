@@ -101,9 +101,56 @@ AION_FORECAST_SCHEMA = {
                     "how likely the forecast crosses this value."
                 ),
             },
+            "project": {
+                "type": "string",
+                "description": "Optional tracking project for realised scoring and decision outcomes.",
+            },
         },
         "required": ["input", "time_column", "target_column", "horizon"],
     },
+}
+
+AION_SUBMIT_ACTUALS_SCHEMA = {
+    "name": "aion_submit_actuals",
+    "description": "Score due forecasts from a complete actuals CSV.",
+    "parameters": {"type": "object", "properties": {
+        "project": {"type": "string"}, "actuals_file": {"type": "string"},
+    }, "required": ["project", "actuals_file"]},
+}
+
+AION_LIST_OPEN_SCHEMA = {
+    "name": "aion_list_open_forecasts",
+    "description": "List unscored forecasts and whether each complete horizon is due.",
+    "parameters": {"type": "object", "properties": {
+        "project": {"type": "string"},
+    }, "required": []},
+}
+
+AION_MODEL_PERFORMANCE_SCHEMA = {
+    "name": "aion_model_performance",
+    "description": "Read descriptive realised performance; rankings are observational, not causal.",
+    "parameters": {"type": "object", "properties": {
+        "project": {"type": "string"}, "model": {"type": "string"},
+    }, "required": ["project"]},
+}
+
+AION_RECORD_DECISION_SCHEMA = {
+    "name": "aion_record_decision",
+    "description": "Link an agent action and expected outcome to a tracked forecast.",
+    "parameters": {"type": "object", "properties": {
+        "decision_id": {"type": "string"}, "project": {"type": "string"},
+        "forecast_id": {"type": "string"}, "action": {"type": "string"},
+        "expected_outcome": {"type": "string"},
+    }, "required": ["decision_id", "project", "forecast_id", "action", "expected_outcome"]},
+}
+
+AION_RESOLVE_DECISION_SCHEMA = {
+    "name": "aion_resolve_decision",
+    "description": "Record the realised outcome and correctness of an agent decision.",
+    "parameters": {"type": "object", "properties": {
+        "decision_id": {"type": "string"}, "actual_outcome": {"type": "string"},
+        "correct": {"type": "boolean"},
+    }, "required": ["decision_id", "actual_outcome", "correct"]},
 }
 
 AION_PROPOSE_CONTEXT_SCHEMA = {

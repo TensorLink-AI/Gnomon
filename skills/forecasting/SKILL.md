@@ -25,6 +25,12 @@ evidence; Aion owns every number.
    `forecast.csv` and `summary.md` inside the returned `artifact_path`.
    Quote them verbatim. `artifact.json` holds full provenance when the user
    asks for detail.
+5. **Track consequential forecasts.** When the forecast supports an ongoing
+   decision, provide a `project`, record the action with
+   `aion_record_decision`, and retain the returned tracking ID.
+6. **Close the loop.** Use `aion_list_open_forecasts` to find due horizons,
+   submit complete actuals with `aion_submit_actuals`, then record the realised
+   business result with `aion_resolve_decision`.
 
 ## Hard rules
 
@@ -45,6 +51,8 @@ evidence; Aion owns every number.
   improvising around the error.
 - **Data stays local.** Never upload the user's data anywhere as part of a
   forecasting task unless the user explicitly requests sharing.
+- **Performance history is observational.** Never claim that the leaderboard
+  proves causality or automatically switch models from one score or warning.
 
 ## Context events (evidence-gated)
 

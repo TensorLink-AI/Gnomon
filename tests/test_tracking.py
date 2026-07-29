@@ -220,20 +220,26 @@ class TestTrackingStore:
         assert result["forecast_b"]["model"] == "ets"
 
     def test_drift_detection(self, store):
-        # Score 3 forecasts with consistent MASE ~0.5
+        # Score 5 comparable forecasts with consistent MASE ~0.5
         for i, (fid, actuals, points) in enumerate([
             ("d1", [100, 110], [98, 108]),
             ("d2", [200, 210], [198, 208]),
             ("d3", [300, 310], [298, 308]),
+            ("d4", [400, 410], [398, 408]),
+            ("d5", [500, 510], [498, 508]),
         ]):
             store.register(
                 fid, project="drift_test", selected_model="ets", naive_error=4.0,
+                horizon=2, frequency="h",
             )
             store.score_forecast(fid, actuals, points)
 
         # Now score a bad forecast (MASE will be much higher)
-        store.register("d4", project="drift_test", selected_model="ets", naive_error=4.0)
-        result = store.score_forecast("d4", [100, 110], [200, 210])
+        store.register(
+            "d6", project="drift_test", selected_model="ets", naive_error=4.0,
+            horizon=2, frequency="h",
+        )
+        result = store.score_forecast("d6", [100, 110], [200, 210])
 
         assert result.drift_flag is not None
         assert "degraded" in result.drift_flag or "warning" in result.drift_flag
@@ -328,6 +334,24 @@ class TestTrackingStore:
 
         assert results == []
         assert store.get_forecast("partial").scored is False
+
+    def test_due_forecasts_and_decision_outcomes(self, store, sample_forecast_dir):
+        store.register(
+            "f1", project="capacity", selected_model="drift", naive_error=10.0,
+            artifact_path=str(sample_forecast_dir),
+        )
+        due = store.due_forecasts("capacity", now="2027-01-01T00:00:00+00:00")
+        assert due[0]["state"] == "due"
+
+        decision = store.record_decision(
+            "decision-1", "capacity", "f1", "add_capacity", "avoid saturation",
+        )
+        assert decision.correct is None
+        resolved = store.resolve_decision(
+            "decision-1", "peak remained below capacity", True,
+        )
+        assert resolved.correct is True
+        assert store.list_decisions("capacity") == [resolved]
 
     def test_reregister_updates(self, store):
         """Re-registering with same ID should update, not duplicate."""

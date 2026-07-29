@@ -134,6 +134,43 @@ def build_parser() -> argparse.ArgumentParser:
     )
     track_leaderboard.add_argument("--project", required=True)
 
+    track_due = track_commands.add_parser(
+        "due", help="List open forecasts whose horizon has completed"
+    )
+    track_due.add_argument("--project", default=None)
+
+    track_decision = track_commands.add_parser(
+        "decision", help="Record and resolve decisions supported by forecasts"
+    )
+    decision_commands = track_decision.add_subparsers(dest="decision_command", required=True)
+    decision_record = decision_commands.add_parser("record")
+    decision_record.add_argument("--decision-id", required=True)
+    decision_record.add_argument("--project", required=True)
+    decision_record.add_argument("--forecast-id", required=True)
+    decision_record.add_argument("--action", required=True)
+    decision_record.add_argument("--expected-outcome", required=True)
+    decision_resolve = decision_commands.add_parser("resolve")
+    decision_resolve.add_argument("--decision-id", required=True)
+    decision_resolve.add_argument("--actual-outcome", required=True)
+    decision_resolve.add_argument("--correct", required=True, choices=["true", "false"])
+    decision_list = decision_commands.add_parser("list")
+    decision_list.add_argument("--project", default=None)
+
+    track_export = track_commands.add_parser("export", help="Export registry metadata as JSON")
+    track_export.add_argument("--project", default=None)
+    track_export.add_argument("--output", required=True)
+    track_relocate = track_commands.add_parser("relocate", help="Update a moved artifact path")
+    track_relocate.add_argument("--forecast-id", required=True)
+    track_relocate.add_argument("--artifact-path", required=True)
+
+    eval_parser = subcommands.add_parser(
+        "eval", help="Compare agent runs with and without Aion"
+    )
+    eval_commands = eval_parser.add_subparsers(dest="eval_command", required=True)
+    eval_compare = eval_commands.add_parser("compare")
+    eval_compare.add_argument("--baseline", required=True, help="Control JSONL runs")
+    eval_compare.add_argument("--treatment", required=True, help="Aion-enabled JSONL runs")
+
     return parser
 
 
@@ -392,6 +429,48 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print()
                 return 0
 
+            elif args.track_command == "due":
+                print(json.dumps(store.due_forecasts(args.project), indent=2))
+                return 0
+
+            elif args.track_command == "decision":
+                if args.decision_command == "record":
+                    decision = store.record_decision(
+                        args.decision_id, args.project, args.forecast_id,
+                        args.action, args.expected_outcome,
+                    )
+                    print(json.dumps(decision.__dict__, indent=2))
+                    return 0
+                if args.decision_command == "resolve":
+                    decision = store.resolve_decision(
+                        args.decision_id, args.actual_outcome, args.correct == "true",
+                    )
+                    print(json.dumps(decision.__dict__, indent=2))
+                    return 0
+                decisions = store.list_decisions(args.project)
+                print(json.dumps([item.__dict__ for item in decisions], indent=2))
+                return 0
+
+            elif args.track_command == "export":
+                output = Path(args.output).expanduser()
+                output.parent.mkdir(parents=True, exist_ok=True)
+                output.write_text(
+                    json.dumps(store.export_snapshot(args.project), indent=2) + "\n",
+                    encoding="utf-8",
+                )
+                print(json.dumps({"status": "ok", "output": str(output.resolve())}, indent=2))
+                return 0
+
+            elif args.track_command == "relocate":
+                record = store.relocate_artifact(args.forecast_id, args.artifact_path)
+                print(json.dumps(record.__dict__, indent=2))
+                return 0
+
+        if args.command == "eval":
+            from .agent_eval import compare_runs
+            print(json.dumps(compare_runs(args.baseline, args.treatment), indent=2))
+            return 0
+
         if args.command == "capabilities":
             from .runtime import capabilities
 
@@ -439,56 +518,18 @@ def main(argv: Sequence[str] | None = None) -> int:
 
             # Auto-register in tracking store if --project is set
             if getattr(args, "project", None):
-                from .data import load_observations
-                from .temporal import SEASONS
-                from .tracking import TrackingStore
-                store = TrackingStore()
-                observations, _, _ = load_observations(
-                    args.input, args.time_column, args.target_column, args.series_column,
-                )
-                histories: dict[str, list[float]] = {}
-                cutoffs: dict[str, str] = {}
-                for observation in observations:
-                    histories.setdefault(observation.series, []).append(observation.value)
-                    cutoffs[observation.series] = observation.timestamp.isoformat()
-                for result in artifact.results:
-                    values = histories[result.series]
-                    season = SEASONS[artifact.task.schema.frequency]
-                    lag = season if len(values) > season else 1
-                    scale_errors = [
-                        abs(values[index] - values[index - lag])
-                        for index in range(lag, len(values))
-                    ]
-                    naive_error = (
-                        sum(scale_errors) / len(scale_errors) if scale_errors else None
-                    )
-                    tracking_id = (
-                        artifact.forecast_id if result.series == "__default__"
-                        else f"{artifact.forecast_id}:{result.series}"
-                    )
-                    store.register(
-                        forecast_id=tracking_id,
-                        project=args.project,
-                        series=result.series,
-                        cutoff_time=cutoffs[result.series],
-                        horizon=artifact.task.horizon,
-                        frequency=artifact.task.schema.frequency,
-                        selected_model=result.selected_model,
-                        support=result.support,
-                        threshold=args.threshold,
-                        threshold_peak_probability=(
-                            max(result.threshold["probability_above"])
-                            if result.threshold else None
-                        ),
-                        naive_error=naive_error,
-                        artifact_path=str(path),
-                    )
+                from .tracking import register_artifact
+                register_artifact(artifact, args.project, str(path))
                 print(f"Registered forecast {artifact.forecast_id} in project '{args.project}'", file=sys.stderr)
 
         print(json.dumps(payload, indent=2, allow_nan=False))
         return 0
     except AionError as exc:
         print(json.dumps(exc.to_dict(), indent=2), file=sys.stderr)
+        return 2
+    except (ValueError, FileNotFoundError) as exc:
+        error = AionError("TRACKING_ERROR", str(exc))
+        print(json.dumps(error.to_dict(), indent=2), file=sys.stderr)
         return 2
 
 

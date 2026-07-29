@@ -36,15 +36,17 @@ Usage::
 from __future__ import annotations
 
 import csv
+from contextlib import contextmanager
 import json
 import logging
 import math
 import os
 import sqlite3
+import statistics
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Iterator, Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +114,19 @@ class ScoreResult:
     threshold_accuracy: float | None
     scored_at: str
     drift_flag: str | None
+
+
+@dataclass(frozen=True)
+class DecisionRecord:
+    decision_id: str
+    project: str
+    forecast_id: str
+    action: str
+    expected_outcome: str
+    actual_outcome: str | None
+    correct: bool | None
+    created_at: str
+    resolved_at: str | None
 
 
 # ---------------------------------------------------------------------------
@@ -259,22 +274,63 @@ class TrackingStore:
                     coverage REAL,
                     threshold_accuracy REAL,
                     scored_at TEXT NOT NULL,
+                    series TEXT,
+                    horizon INTEGER,
+                    frequency TEXT,
                     PRIMARY KEY (project, model, forecast_id)
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_perf_model
                     ON model_performance(project, model);
+
+                CREATE TABLE IF NOT EXISTS decisions (
+                    decision_id TEXT PRIMARY KEY,
+                    project TEXT NOT NULL,
+                    forecast_id TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    expected_outcome TEXT NOT NULL,
+                    actual_outcome TEXT,
+                    correct INTEGER,
+                    created_at TEXT NOT NULL,
+                    resolved_at TEXT,
+                    FOREIGN KEY (forecast_id) REFERENCES forecasts(forecast_id)
+                );
+
+                CREATE TABLE IF NOT EXISTS schema_metadata (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                );
             """)
             columns = {
                 row["name"] for row in conn.execute("PRAGMA table_info(forecasts)")
             }
             if "naive_error" not in columns:
                 conn.execute("ALTER TABLE forecasts ADD COLUMN naive_error REAL")
+            perf_columns = {
+                row["name"] for row in conn.execute("PRAGMA table_info(model_performance)")
+            }
+            for name, sql_type in (("series", "TEXT"), ("horizon", "INTEGER"), ("frequency", "TEXT")):
+                if name not in perf_columns:
+                    conn.execute(f"ALTER TABLE model_performance ADD COLUMN {name} {sql_type}")
+            conn.execute(
+                "INSERT OR REPLACE INTO schema_metadata(key, value) VALUES ('version', '2')"
+            )
 
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(str(self.path))
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
+        conn = sqlite3.connect(str(self.path), timeout=5.0)
         conn.row_factory = sqlite3.Row
-        return conn
+        conn.execute("PRAGMA busy_timeout = 5000")
+        conn.execute("PRAGMA journal_mode = WAL")
+        conn.execute("PRAGMA foreign_keys = ON")
+        try:
+            yield conn
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
 
     # ---- Registration ----
 
@@ -380,7 +436,7 @@ class TrackingStore:
         scored_at = datetime.now(timezone.utc).isoformat()
 
         # Drift detection: compare to model's historical average
-        drift = self._check_drift(record.project, record.selected_model, mase)
+        drift = self._check_drift(record, mase)
 
         with self._connect() as conn:
             conn.execute("""
@@ -394,11 +450,12 @@ class TrackingStore:
                 conn.execute("""
                     INSERT OR REPLACE INTO model_performance
                         (project, model, forecast_id, mase, mape, bias,
-                         coverage, threshold_accuracy, scored_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         coverage, threshold_accuracy, scored_at, series, horizon, frequency)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     record.project, record.selected_model, forecast_id,
                     mase, mape, bias, cov, thresh_acc, scored_at,
+                    record.series, record.horizon, record.frequency,
                 ))
 
         logger.info(
@@ -561,7 +618,11 @@ class TrackingStore:
                     AVG(bias) as avg_bias,
                     AVG(coverage) as avg_coverage,
                     AVG(threshold_accuracy) as avg_thresh,
-                    MAX(scored_at) as last_scored
+                    MAX(scored_at) as last_scored,
+                    (SELECT recent.mase FROM model_performance AS recent
+                     WHERE recent.project = model_performance.project
+                       AND recent.model = model_performance.model
+                     ORDER BY recent.scored_at DESC LIMIT 1) AS last_mase
                 FROM model_performance
                 WHERE project = ?
                 GROUP BY model
@@ -570,14 +631,6 @@ class TrackingStore:
 
         results = []
         for r in rows:
-            # Get last MASE for this model
-            last_row = conn.execute("""
-                SELECT mase FROM model_performance
-                WHERE project = ? AND model = ?
-                ORDER BY scored_at DESC LIMIT 1
-            """, (project, r["model"])).fetchone()
-            last_mase = last_row["mase"] if last_row else None
-
             results.append(ModelPerformance(
                 model=r["model"],
                 count=r["count"],
@@ -586,11 +639,125 @@ class TrackingStore:
                 avg_bias=r["avg_bias"],
                 avg_coverage=r["avg_coverage"],
                 avg_threshold_accuracy=r["avg_thresh"],
-                last_mase=last_mase,
+                last_mase=r["last_mase"],
                 last_scored=r["last_scored"],
             ))
 
         return results
+
+    def due_forecasts(
+        self, project: str | None = None, now: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """List unscored forecasts and whether their full horizon is due."""
+        current = datetime.fromisoformat(now) if now else datetime.now(timezone.utc)
+        if current.utcoffset() is None:
+            current = current.replace(tzinfo=timezone.utc)
+        records = self.list_forecasts(project, limit=1000)
+        due: list[dict[str, Any]] = []
+        for record in records:
+            if record.scored:
+                continue
+            rows = [
+                row for row in self._load_forecast_csv(Path(record.artifact_path) / "forecast.csv")
+                if row.get("series", "__default__") == record.series
+            ]
+            horizon_end = rows[-1]["timestamp"] if rows else None
+            parsed_end = None
+            if horizon_end:
+                try:
+                    parsed_end = datetime.fromisoformat(
+                        self._normalise_timestamp(horizon_end)
+                    )
+                    if parsed_end.utcoffset() is None:
+                        parsed_end = parsed_end.replace(tzinfo=timezone.utc)
+                except ValueError:
+                    pass
+            due.append({
+                "forecast_id": record.forecast_id,
+                "project": record.project,
+                "series": record.series,
+                "model": record.selected_model,
+                "horizon_end": horizon_end,
+                "state": "due" if parsed_end and parsed_end <= current else "awaiting_horizon",
+                "artifact_path": record.artifact_path,
+            })
+        return due
+
+    def record_decision(
+        self, decision_id: str, project: str, forecast_id: str,
+        action: str, expected_outcome: str,
+    ) -> DecisionRecord:
+        if self.get_forecast(forecast_id) is None:
+            raise ValueError(f"Forecast {forecast_id} not found in registry")
+        created_at = datetime.now(timezone.utc).isoformat()
+        with self._connect() as conn:
+            conn.execute("""
+                INSERT INTO decisions
+                    (decision_id, project, forecast_id, action, expected_outcome, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(decision_id) DO UPDATE SET
+                    action = excluded.action,
+                    expected_outcome = excluded.expected_outcome
+            """, (decision_id, project, forecast_id, action, expected_outcome, created_at))
+        return self.get_decision(decision_id)  # type: ignore[return-value]
+
+    def resolve_decision(
+        self, decision_id: str, actual_outcome: str, correct: bool,
+    ) -> DecisionRecord:
+        resolved_at = datetime.now(timezone.utc).isoformat()
+        with self._connect() as conn:
+            cursor = conn.execute("""
+                UPDATE decisions SET actual_outcome = ?, correct = ?, resolved_at = ?
+                WHERE decision_id = ?
+            """, (actual_outcome, int(correct), resolved_at, decision_id))
+            if cursor.rowcount == 0:
+                raise ValueError(f"Decision {decision_id} not found")
+        return self.get_decision(decision_id)  # type: ignore[return-value]
+
+    def get_decision(self, decision_id: str) -> DecisionRecord | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM decisions WHERE decision_id = ?", (decision_id,),
+            ).fetchone()
+        return self._row_to_decision(row) if row else None
+
+    def list_decisions(self, project: str | None = None) -> list[DecisionRecord]:
+        with self._connect() as conn:
+            if project:
+                rows = conn.execute(
+                    "SELECT * FROM decisions WHERE project = ? ORDER BY created_at DESC",
+                    (project,),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM decisions ORDER BY created_at DESC"
+                ).fetchall()
+        return [self._row_to_decision(row) for row in rows]
+
+    def export_snapshot(self, project: str | None = None) -> dict[str, Any]:
+        """Return a portable JSON snapshot; immutable artifacts remain separate."""
+        forecasts = self.list_forecasts(project, limit=100000)
+        decisions = self.list_decisions(project)
+        return {
+            "schema_version": "2",
+            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "project": project,
+            "forecasts": [item.__dict__ for item in forecasts],
+            "decisions": [item.__dict__ for item in decisions],
+        }
+
+    def relocate_artifact(self, forecast_id: str, artifact_path: str) -> ForecastRecord:
+        path = Path(artifact_path).expanduser().resolve()
+        if not (path / "forecast.csv").is_file():
+            raise ValueError(f"Artifact directory has no forecast.csv: {path}")
+        with self._connect() as conn:
+            cursor = conn.execute(
+                "UPDATE forecasts SET artifact_path = ? WHERE forecast_id = ?",
+                (str(path), forecast_id),
+            )
+            if cursor.rowcount == 0:
+                raise ValueError(f"Forecast {forecast_id} not found")
+        return self.get_forecast(forecast_id)  # type: ignore[return-value]
 
     def model_performance(self, project: str, model: str) -> list[dict[str, Any]]:
         """Get per-forecast performance history for a specific model."""
@@ -605,40 +772,42 @@ class TrackingStore:
     # ---- Drift Detection ----
 
     def _check_drift(
-        self, project: str, model: str | None, new_mase: float | None,
+        self, record: ForecastRecord, new_mase: float | None,
     ) -> str | None:
         """Check if the new score indicates model drift.
 
         Compares the new MASE to the model's historical average.
         Returns a drift flag string, or None if no drift.
         """
+        model = record.selected_model
         if model is None or new_mase is None:
             return None
 
         with self._connect() as conn:
             rows = conn.execute("""
                 SELECT mase FROM model_performance
-                WHERE project = ? AND model = ? AND mase IS NOT NULL
-                ORDER BY scored_at ASC
-            """, (project, model)).fetchall()
+                WHERE project = ? AND model = ? AND series = ?
+                  AND horizon = ? AND frequency = ? AND mase IS NOT NULL
+                ORDER BY scored_at DESC LIMIT 5
+            """, (record.project, model, record.series, record.horizon, record.frequency)).fetchall()
 
-        if len(rows) < 2:
+        if len(rows) < 5:
             return None  # Not enough history
 
         historical = [r["mase"] for r in rows if r["mase"] is not None]
         if not historical:
             return None
 
-        avg = sum(historical) / len(historical)
-        if avg <= 0:
+        baseline = statistics.median(historical)
+        if baseline <= 0:
             return None
 
-        degradation = (new_mase - avg) / avg
+        degradation = (new_mase - baseline) / baseline
 
         if degradation > 0.50:
-            return f"degraded: MASE {new_mase:.3f} vs historical {avg:.3f} (+{degradation:.0%})"
+            return f"degraded: MASE {new_mase:.3f} vs recent median {baseline:.3f} (+{degradation:.0%})"
         elif degradation > 0.25:
-            return f"warning: MASE {new_mase:.3f} vs historical {avg:.3f} (+{degradation:.0%})"
+            return f"warning: MASE {new_mase:.3f} vs recent median {baseline:.3f} (+{degradation:.0%})"
         return None
 
     # ---- Compare ----
@@ -652,6 +821,14 @@ class TrackingStore:
         if a is None or b is None:
             raise ValueError("One or both forecasts not found")
 
+        comparable = (
+            a.series == b.series and a.horizon == b.horizon
+            and a.frequency == b.frequency and a.cutoff_time == b.cutoff_time
+        )
+        winner = None
+        if comparable and a.mase is not None and b.mase is not None:
+            winner = "a" if a.mase < b.mase else "b"
+
         return {
             "forecast_a": {
                 "id": a.forecast_id, "model": a.selected_model,
@@ -663,12 +840,12 @@ class TrackingStore:
                 "mase": b.mase, "mape": b.mape, "bias": b.bias,
                 "coverage": b.coverage, "threshold_accuracy": b.threshold_accuracy,
             },
-            "winner": (
-                "a"
-                if (a.mase if a.mase is not None else float("inf"))
-                < (b.mase if b.mase is not None else float("inf"))
-                else "b"
+            "comparable": comparable,
+            "comparison_warning": (
+                None if comparable else
+                "Forecasts differ in series, cutoff, horizon, or frequency"
             ),
+            "winner": winner,
         }
 
     # ---- Helpers ----
@@ -745,3 +922,54 @@ class TrackingStore:
             scored_at=row["scored_at"],
             drift_flag=row["drift_flag"],
         )
+
+    @staticmethod
+    def _row_to_decision(row: sqlite3.Row) -> DecisionRecord:
+        return DecisionRecord(
+            decision_id=row["decision_id"], project=row["project"],
+            forecast_id=row["forecast_id"], action=row["action"],
+            expected_outcome=row["expected_outcome"],
+            actual_outcome=row["actual_outcome"],
+            correct=None if row["correct"] is None else bool(row["correct"]),
+            created_at=row["created_at"], resolved_at=row["resolved_at"],
+        )
+
+
+def register_artifact(artifact: Any, project: str, artifact_path: str) -> list[str]:
+    """Register every series in a completed artifact for any integration surface."""
+    from .data import load_observations
+    from .temporal import SEASONS
+
+    schema = artifact.task.schema
+    observations, _, _ = load_observations(
+        artifact.task.input_path, schema.time_column, schema.target_column,
+        schema.series_column,
+    )
+    histories: dict[str, list[float]] = {}
+    cutoffs: dict[str, str] = {}
+    for observation in observations:
+        histories.setdefault(observation.series, []).append(observation.value)
+        cutoffs[observation.series] = observation.timestamp.isoformat()
+    store = TrackingStore()
+    registered: list[str] = []
+    for result in artifact.results:
+        values = histories[result.series]
+        season = SEASONS[schema.frequency]
+        lag = season if len(values) > season else 1
+        errors = [abs(values[index] - values[index - lag])
+                  for index in range(lag, len(values))]
+        tracking_id = (artifact.forecast_id if result.series == "__default__"
+                       else f"{artifact.forecast_id}:{result.series}")
+        store.register(
+            tracking_id, project, series=result.series,
+            cutoff_time=cutoffs[result.series], horizon=artifact.task.horizon,
+            frequency=schema.frequency, selected_model=result.selected_model,
+            support=result.support,
+            threshold=result.threshold["value"] if result.threshold else None,
+            threshold_peak_probability=(max(result.threshold["probability_above"])
+                                        if result.threshold else None),
+            naive_error=sum(errors) / len(errors) if errors else None,
+            artifact_path=artifact_path,
+        )
+        registered.append(tracking_id)
+    return registered

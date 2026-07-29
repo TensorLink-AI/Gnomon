@@ -1,8 +1,9 @@
 # Aion Persistent Forecast Tracking — Design
 
 > **Implementation status:** this change implements the local registry, complete-horizon
-> realised scoring, descriptive leaderboard, and a simple drift warning. MCP tracking
-> tools, webhooks, reminders, and automatic model-weight adjustment below are future
+> realised scoring, descriptive leaderboard, robust recent-window drift warning,
+> MCP/Hermes tracking tools, due-forecast discovery, and decision outcomes. Webhooks,
+> host-native reminders, and automatic model-weight adjustment below are future
 > design work. Historical leaderboard differences are observational and must not be
 > treated as causal evidence that one model will perform better on the next task.
 

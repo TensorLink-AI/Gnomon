@@ -31,7 +31,7 @@ history.
 
 ## What it does today
 
-| Capability | v0.1 status |
+| Capability | v0.2 status |
 | --- | --- |
 | CSV input | Available |
 | Parquet input | Available with the `parquet` extra |
@@ -49,7 +49,10 @@ history.
 | Evidence-gated context events (`--context`, identical-fold ablation) | Available |
 | Local MCP server (`aion mcp serve`) | Available |
 | LLM workflow prompts (`aion context prompt` / `validate`) | Available |
-| Standalone LLM providers, TSFMs, project mode, and sharing | Planned |
+| Persistent projects, realised scoring, and decision outcomes | Available |
+| Agent treatment/control evaluation (`aion eval compare`) | Available |
+| Optional sandboxed TSFM adapters | Available |
+| Standalone LLM providers, automatic model switching, and sharing | Planned |
 
 `aion capabilities` is the machine-readable source of truth. Roadmap features
 are not exposed as mocked commands.
@@ -171,8 +174,9 @@ The intended relationship is:
 - **Aion** validates temporal data and owns every numerical result.
 
 A packaged Hermes plugin lives in [`integrations/hermes`](integrations/hermes/README.md):
-four tools wrapping the CLI — including LLM-assisted context-event proposal
-run on the host's own model — plus an `aion:forecasting` safe-use skill. Any
+tools for forecasting, context, realised scoring, lifecycle, and decision
+outcomes — including LLM-assisted context-event proposal run on the host's
+own model — plus an `aion:forecasting` safe-use skill. Any
 MCP-capable agent can instead launch `aion mcp serve` and discover the same
 tools over stdio. Either way the host must preserve Aion's support status and
 warnings and must never manufacture values for an unsupported series. Aion
@@ -220,6 +224,7 @@ Parquet extra, and future PyPI command are covered in the
 | [Hermes plugin](integrations/hermes/README.md) | Install and operate Aion inside Hermes Agent |
 | [Containers](docs/containers.md) | Local Docker and GHCR operation |
 | [CI/CD](docs/ci-cd.md) | Tests, PyPI trusted publishing, and releases |
+| [Agent evaluation](docs/agent-evaluation.md) | Measure Hermes task uplift with and without Aion |
 
 The [product specification](Aion_MVP_Product_Specification.md) describes the
 broader product direction. The [system design](Aion_System_Design.md) defines
@@ -228,11 +233,13 @@ response and this README distinguish those from working v0.1 behavior.
 
 ## Current limits
 
-Aion v0.1 is a narrow foundation, not a general forecasting platform. It has
-one statistical candidate, fixed seasonal periods, one calibration horizon, no
-covariates, no transformations, no intermittent-demand model, no TSFM, and no
-realized-actual scoring. A `supported` result means the current deterministic
-checks passed; it is not a guarantee that the future will resemble history.
+Aion v0.2 remains a focused foundation, not a universal forecasting platform.
+It has fixed seasonal periods, one calibration horizon, no general covariate or
+transformation pipeline, and no dedicated intermittent-demand model. Optional
+TSFMs require their own sandbox dependencies. Realised leaderboards are
+observational telemetry and never trigger automatic model switching. A
+`supported` result means the current deterministic checks passed; it is not a
+guarantee that the future will resemble history.
 
 ## Development
 

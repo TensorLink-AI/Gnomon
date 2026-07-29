@@ -21,6 +21,9 @@ from .schemas import (
     AION_FORECAST_SCHEMA,
     AION_INSPECT_SCHEMA,
     AION_PROPOSE_CONTEXT_SCHEMA,
+    AION_SUBMIT_ACTUALS_SCHEMA, AION_LIST_OPEN_SCHEMA,
+    AION_MODEL_PERFORMANCE_SCHEMA, AION_RECORD_DECISION_SCHEMA,
+    AION_RESOLVE_DECISION_SCHEMA,
 )
 from .tools import (
     check_aion_available,
@@ -28,12 +31,20 @@ from .tools import (
     handle_aion_forecast,
     handle_aion_inspect,
     make_propose_context_handler,
+    handle_aion_submit_actuals, handle_aion_list_open_forecasts,
+    handle_aion_model_performance, handle_aion_record_decision,
+    handle_aion_resolve_decision,
 )
 
 _TOOLS = (
     ("aion_capabilities", AION_CAPABILITIES_SCHEMA, handle_aion_capabilities, "🧭"),
     ("aion_inspect", AION_INSPECT_SCHEMA, handle_aion_inspect, "🔍"),
     ("aion_forecast", AION_FORECAST_SCHEMA, handle_aion_forecast, "📈"),
+    ("aion_submit_actuals", AION_SUBMIT_ACTUALS_SCHEMA, handle_aion_submit_actuals, "✅"),
+    ("aion_list_open_forecasts", AION_LIST_OPEN_SCHEMA, handle_aion_list_open_forecasts, "⏳"),
+    ("aion_model_performance", AION_MODEL_PERFORMANCE_SCHEMA, handle_aion_model_performance, "📊"),
+    ("aion_record_decision", AION_RECORD_DECISION_SCHEMA, handle_aion_record_decision, "📝"),
+    ("aion_resolve_decision", AION_RESOLVE_DECISION_SCHEMA, handle_aion_resolve_decision, "🎯"),
 )
 
 

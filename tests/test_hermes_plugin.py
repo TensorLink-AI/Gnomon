@@ -52,13 +52,16 @@ def _real_cli(monkeypatch):
     )
 
 
-def test_register_exposes_four_tools_and_the_skill() -> None:
+def test_register_exposes_tracking_tools_and_the_skill() -> None:
     ctx = RecordingContext()
     ctx.llm = None
     plugin.register(ctx)
     assert set(ctx.tools) == {
         "aion_capabilities", "aion_inspect", "aion_forecast",
         "aion_propose_context_events",
+        "aion_submit_actuals", "aion_list_open_forecasts",
+        "aion_model_performance", "aion_record_decision",
+        "aion_resolve_decision",
     }
     for entry in ctx.tools.values():
         assert entry["toolset"] == "aion"

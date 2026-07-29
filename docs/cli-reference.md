@@ -89,9 +89,10 @@ whether each event is admissible for backtesting.
 
 ## `aion mcp serve`
 
-Serves `aion_capabilities`, `aion_inspect`, and `aion_forecast` as typed
-tools over stdio MCP for any MCP-capable host. Logs go to stderr; the
-protocol owns stdout.
+Serves forecasting plus typed tracking, actual-submission, performance, and
+decision-outcome tools over stdio MCP for any MCP-capable host. Discover the
+installed list with `tools/list`; logs go to stderr and the protocol owns
+stdout.
 
 ## `aion track`
 
@@ -106,6 +107,14 @@ aion track list --project capacity
 aion track performance --project capacity --model seasonal_naive
 aion track leaderboard --project capacity
 aion track compare --a FORECAST_ID --b FORECAST_ID
+aion track due --project capacity
+aion track decision record --decision-id scale-001 --project capacity \
+  --forecast-id FORECAST_ID --action "add two workers" \
+  --expected-outcome "keep utilisation below 80%"
+aion track decision resolve --decision-id scale-001 \
+  --actual-outcome "peak utilisation was 74%" --correct true
+aion track export --project capacity --output capacity-registry.json
+aion track relocate --forecast-id FORECAST_ID --artifact-path /new/artifact/path
 ```
 
 Single-series actuals require `timestamp,value` columns. For panel forecasts,
@@ -122,6 +131,17 @@ change future model selection automatically.
 
 The default registry is `~/.local/share/aion/registry.db`. Override it with
 `AION_REGISTRY_PATH` for isolated projects, tests, or containers.
+
+## `aion eval compare`
+
+Compare programmatically graded agent runs with and without Aion:
+
+```bash
+aion eval compare --baseline control.jsonl --treatment aion.jsonl
+```
+
+See [Agent evaluation](agent-evaluation.md) for the JSONL contract and fair
+treatment/control protocol.
 
 ## Shell automation
 
