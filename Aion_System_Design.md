@@ -1,4 +1,4 @@
-# Headwater System Design
+# Aion System Design
 
 **A deployable forecasting capability by Cascade**
 
@@ -6,18 +6,18 @@
 **Date:** 28 July 2026  
 **Status:** Working technical design for MVP implementation
 
-> **Architecture decision:** Headwater uses a deterministic temporal runtime as the source of truth. Hermes Agent or an optional Headwater orchestrator may formulate tasks, inspect permitted sources, propose context, select bounded experiments, and interpret results. No LLM is allowed to generate, edit, or override forecast values, evaluation metrics, uncertainty, selection decisions, or abstention.
+> **Architecture decision:** Aion uses a deterministic temporal runtime as the source of truth. Hermes Agent or an optional Aion orchestrator may formulate tasks, inspect permitted sources, propose context, select bounded experiments, and interpret results. No LLM is allowed to generate, edit, or override forecast values, evaluation metrics, uncertainty, selection decisions, or abstention.
 
 ## Purpose of this document
 
 This document specifies the architecture, component boundaries, agent/runtime responsibilities, CLI and MCP interfaces, public contracts, forecast lifecycle, context-admission rules, evidence model, deployment modes, operational requirements, implementation phases, and release-blocking acceptance criteria.
 
-The companion **Headwater MVP Product Specification** defines the audience, positioning, product scope, launch strategy, validation plan, and success metrics.
+The companion **Aion MVP Product Specification** defines the audience, positioning, product scope, launch strategy, validation plan, and success metrics.
 
 ## System goals
 
 1. Deliver a correct and reproducible one-command forecasting path.
-2. Allow Hermes and other agents to operate Headwater through typed local tools.
+2. Allow Hermes and other agents to operate Aion through typed local tools.
 3. Improve task formulation and interpretation through LLM reasoning without allowing the LLM to own numerical conclusions.
 4. Preserve frequency, timezone, missing timestamps, cutoffs, context availability, and future timestamp geometry.
 5. Compare all candidates against mandatory baselines using timestamp-aware rolling evaluation.
@@ -43,7 +43,7 @@ The companion **Headwater MVP Product Specification** defines the audience, posi
 
 ### Logical orchestrator
 
-Implement one logical orchestrator with specialist steps rather than several agents chatting with each other. In Hermes mode, Hermes is the orchestrator and Headwater exposes specialist tools. In standalone mode, a small Headwater orchestrator invokes the same tool contracts.
+Implement one logical orchestrator with specialist steps rather than several agents chatting with each other. In Hermes mode, Hermes is the orchestrator and Aion exposes specialist tools. In standalone mode, a small Aion orchestrator invokes the same tool contracts.
 
 | Reasoning step | Responsibility |
 | --- | --- |
@@ -58,9 +58,9 @@ Implement one logical orchestrator with specialist steps rather than several age
 
 | Permission | Rule |
 | --- | --- |
-| Read | Dataset files, configuration, approved planning notes, calendar exports, and prior Headwater artifacts. |
+| Read | Dataset files, configuration, approved planning notes, calendar exports, and prior Aion artifacts. |
 | Propose | Task fields, column mappings, missingness policy, candidate context, and bounded experiments. |
-| Execute | Only typed Headwater operations allowed by the host and budget. |
+| Execute | Only typed Aion operations allowed by the host and budget. |
 | Never | Modify source files, silently upload data, override validation, edit forecast values, or suppress abstention. |
 
 ### Agent budget
@@ -87,11 +87,11 @@ The loop stops when the budget is exhausted, the decision is sufficiently suppor
 Human or external application
             │
             ▼
-Hermes Agent / Headwater optional orchestrator
+Hermes Agent / Aion optional orchestrator
   intent • file discovery • context proposals • interpretation
             │ typed MCP / CLI / Python calls
             ▼
-Headwater interface layer
+Aion interface layer
   CLI • MCP server • Python API • future HTTP adapter
             │
             ▼
@@ -120,19 +120,19 @@ Evidence ledger • forecast artifact • presentation outputs
 
 | Module | Responsibility |
 | --- | --- |
-| headwater.contracts | Versioned Pydantic models and generated JSON Schema for every public object. |
-| headwater.temporal | Frequency inference, timezone handling, regularisation, snapshots, and timestamp-aware folds. |
-| headwater.diagnostics | Missingness, duplicates, history sufficiency, seasonality, shifts, intermittency, leakage, and validity checks. |
-| headwater.models | Strict adapter protocol, model registry, baselines, statistical adapter, and TSFM adapter. |
-| headwater.evaluation | Rolling-origin evaluation, metrics, comparisons, context ablation, and per-series selection. |
-| headwater.calibration | Residual quantiles, coverage measurement, and later conformal methods. |
-| headwater.support | Deterministic support assessment and abstention reasons. |
-| headwater.context | Typed events, availability validation, covariate compilation, and context-gain evaluation. |
-| headwater.evidence | Append-only evidence records and evidence-linked claims. |
-| headwater.runtime | Typed state machine, budgets, idempotency, failure isolation, and artifact assembly. |
-| headwater.presentation | Human summary, table, CSV, JSON, JSONL, Markdown, and chart outputs. |
-| headwater.agent | Optional task compiler, investigator, planner, and interpreter using the public tool contracts. |
-| headwater.integrations.hermes | Hermes skill/plugin, MCP configuration, examples, and safe-use instructions. |
+| aion.contracts | Versioned Pydantic models and generated JSON Schema for every public object. |
+| aion.temporal | Frequency inference, timezone handling, regularisation, snapshots, and timestamp-aware folds. |
+| aion.diagnostics | Missingness, duplicates, history sufficiency, seasonality, shifts, intermittency, leakage, and validity checks. |
+| aion.models | Strict adapter protocol, model registry, baselines, statistical adapter, and TSFM adapter. |
+| aion.evaluation | Rolling-origin evaluation, metrics, comparisons, context ablation, and per-series selection. |
+| aion.calibration | Residual quantiles, coverage measurement, and later conformal methods. |
+| aion.support | Deterministic support assessment and abstention reasons. |
+| aion.context | Typed events, availability validation, covariate compilation, and context-gain evaluation. |
+| aion.evidence | Append-only evidence records and evidence-linked claims. |
+| aion.runtime | Typed state machine, budgets, idempotency, failure isolation, and artifact assembly. |
+| aion.presentation | Human summary, table, CSV, JSON, JSONL, Markdown, and chart outputs. |
+| aion.agent | Optional task compiler, investigator, planner, and interpreter using the public tool contracts. |
+| aion.integrations.hermes | Hermes skill/plugin, MCP configuration, examples, and safe-use instructions. |
 
 ### Canonical layering rule
 
@@ -144,31 +144,31 @@ The runtime library is canonical. The CLI, MCP server, standalone agent, and fut
 
 | Command | Purpose |
 | --- | --- |
-| headwater forecast INPUT | One-shot data-to-forecast workflow. |
-| headwater inspect INPUT | Diagnose mappings, frequency, quality, and eligible tasks without forecasting. |
-| headwater init | Create a persistent forecast project. |
-| headwater run | Execute the configured project. |
-| headwater explain FORECAST_ID | Render a deterministic or LLM-assisted evidence-linked explanation. |
-| headwater actuals submit FILE | Attach realised outcomes. |
-| headwater score FORECAST_ID | Calculate realised performance. |
-| headwater compare A B | Compare forecast versions or configurations. |
-| headwater share FORECAST_ID | Explicitly publish or export a shareable report. |
-| headwater mcp serve | Expose typed local tools to Hermes and other MCP clients. |
-| headwater capabilities | Return actual supported tasks, models, schemas, inputs, outputs, and limitations. |
+| aion forecast INPUT | One-shot data-to-forecast workflow. |
+| aion inspect INPUT | Diagnose mappings, frequency, quality, and eligible tasks without forecasting. |
+| aion init | Create a persistent forecast project. |
+| aion run | Execute the configured project. |
+| aion explain FORECAST_ID | Render a deterministic or LLM-assisted evidence-linked explanation. |
+| aion actuals submit FILE | Attach realised outcomes. |
+| aion score FORECAST_ID | Calculate realised performance. |
+| aion compare A B | Compare forecast versions or configurations. |
+| aion share FORECAST_ID | Explicitly publish or export a shareable report. |
+| aion mcp serve | Expose typed local tools to Hermes and other MCP clients. |
+| aion capabilities | Return actual supported tasks, models, schemas, inputs, outputs, and limitations. |
 
 ### MCP tool surface
 
 | Tool | Purpose |
 | --- | --- |
-| headwater_inspect_dataset | Inspect a file or registered dataset and return mapping candidates, diagnostics, and blockers. |
-| headwater_compile_task | Compile a typed task from user intent and dataset metadata. |
-| headwater_validate_task | Validate task, capabilities, and execution blockers. |
-| headwater_create_forecast | Run the deterministic forecast workflow. |
-| headwater_evaluate_context | Compare approved context bundles against history-only variants. |
-| headwater_explain_forecast | Return evidence-linked interpretation payloads. |
-| headwater_compare_forecasts | Compare runs, model choices, metrics, and support changes. |
-| headwater_submit_actuals | Attach actual outcomes to an existing forecast. |
-| headwater_score_forecast | Calculate realised metrics and update the performance record. |
+| aion_inspect_dataset | Inspect a file or registered dataset and return mapping candidates, diagnostics, and blockers. |
+| aion_compile_task | Compile a typed task from user intent and dataset metadata. |
+| aion_validate_task | Validate task, capabilities, and execution blockers. |
+| aion_create_forecast | Run the deterministic forecast workflow. |
+| aion_evaluate_context | Compare approved context bundles against history-only variants. |
+| aion_explain_forecast | Return evidence-linked interpretation payloads. |
+| aion_compare_forecasts | Compare runs, model choices, metrics, and support changes. |
+| aion_submit_actuals | Attach actual outcomes to an existing forecast. |
+| aion_score_forecast | Calculate realised metrics and update the performance record. |
 
 ### Core task contract
 
@@ -332,14 +332,14 @@ The runtime library is canonical. The CLI, MCP server, standalone agent, and fut
 
 ## Deployment and Hermes integration
 
-> **Deployment strategy:** Hermes-first, agent-agnostic. Headwater should be exceptionally easy for Hermes to install and operate, while preserving a stable open protocol for any agent or application.
+> **Deployment strategy:** Hermes-first, agent-agnostic. Aion should be exceptionally easy for Hermes to install and operate, while preserving a stable open protocol for any agent or application.
 
 ### Deployment modes
 
 | Mode | Use |
 | --- | --- |
 | Local CLI | Developer or agent invokes the executable. Lowest friction; full machine-readable output. |
-| Local MCP server | Hermes starts headwater mcp serve and discovers typed tools and schemas. |
+| Local MCP server | Hermes starts aion mcp serve and discovers typed tools and schemas. |
 | Hermes plugin/skill | Installation instructions, MCP configuration, safe-use policy, forecasting workflows, and examples bundled for Hermes. |
 | Python library | Applications call the canonical runtime without subprocess overhead. |
 | Container | Reproducible local/server deployment with mounted data and artifact volumes. |
@@ -348,30 +348,30 @@ The runtime library is canonical. The CLI, MCP server, standalone agent, and fut
 ### Hermes installation target
 
 ```bash
-# Install Headwater
-pipx install headwater-forecast
+# Install Aion
+pipx install aion-forecast
 
 # Verify local runtime
-headwater capabilities --output json
+aion capabilities --output json
 
 # Start as a local MCP server
-headwater mcp serve
+aion mcp serve
 
 # Hermes configuration concept
-hermes mcp add headwater --command headwater --args "mcp serve"
+hermes mcp add aion --command aion --args "mcp serve"
 ```
 
 The exact Hermes command may evolve, so the integration package should also include a ready-to-copy MCP configuration and a health-check workflow.
 
 ### Hermes skill behaviour
 
-- Prefer headwater_inspect_dataset before creating a task when mappings are uncertain.
+- Prefer aion_inspect_dataset before creating a task when mappings are uncertain.
 - Never infer a business threshold if none is found or provided; ask or omit threshold analysis.
-- Surface all Headwater warnings and support status in the final response.
+- Surface all Aion warnings and support status in the final response.
 - Do not paraphrase unsupported as low confidence; preserve the abstention.
 - Do not add a context event to model inputs without successful temporal validation and evaluation.
-- Use the evidence IDs returned by Headwater for all material numerical claims.
-- Ask Headwater to rerun only when the new experiment can plausibly change the user’s decision.
+- Use the evidence IDs returned by Aion for all material numerical claims.
+- Ask Aion to rerun only when the new experiment can plausibly change the user’s decision.
 - Never upload local data unless the user explicitly requests a sharing/hosted action.
 
 ## Security, privacy, and operations
@@ -381,7 +381,7 @@ The exact Hermes command may evolve, so the integration package should also incl
 | Local by default | Forecasting, artifacts, and LLM-free operation work entirely on the user’s machine. |
 | Explicit source permissions | The agent receives an allow-list of files, directories, connectors, or workspace roots. |
 | No implicit upload | Sharing, hosted inference, or remote LLM use requires explicit configuration and visible disclosure. |
-| Source immutability | Headwater never modifies source data. All transformations are materialised into versioned snapshots. |
+| Source immutability | Aion never modifies source data. All transformations are materialised into versioned snapshots. |
 | Secrets | Credentials remain in host-managed secret stores or environment variables and are never written into artifacts. |
 | Prompt-injection resistance | Text context is treated as data; it cannot grant tools or alter system policies. Extracted claims retain source references. |
 | Execution isolation | Adapters run with bounded time, memory expectations, and failure isolation. Optional container sandboxing is supported. |
@@ -415,7 +415,7 @@ The exact Hermes command may evolve, so the integration package should also incl
 | Phase 2 — Evaluation and selection | Mandatory baselines, timestamp-aware folds, per-series metrics, candidate adapters, selection, abstention. | Every selected forecast traces to concrete folds and a baseline comparison. |
 | Phase 3 — Honest uncertainty and evidence | Rolling residual quantiles, coverage, support assessment, evidence ledger, deterministic summaries. | Quantile claims expose method and measured coverage; every material claim resolves to evidence. |
 | Phase 4 — Product CLI and project lifecycle | One-shot command, project mode, outputs, actual submission, realised score, compare, atomic persistence. | A new technical user can install, forecast, rerun, and score through documented commands. |
-| Phase 5 — MCP and Hermes | MCP tools, schema discovery, Hermes skill/plugin, safe-use instructions, end-to-end demo. | Hermes can discover a dataset, invoke Headwater, and return an evidence-linked forecast without editing numbers. |
+| Phase 5 — MCP and Hermes | MCP tools, schema discovery, Hermes skill/plugin, safe-use instructions, end-to-end demo. | Hermes can discover a dataset, invoke Aion, and return an evidence-linked forecast without editing numbers. |
 | Phase 6 — Bounded context reasoning | Typed events, known-at gating, context compilation, identical-fold ablation, planner budget. | Context enters a final forecast only when it demonstrates stable temporal lift. |
 | Phase 7 — Sharing and growth surface | Chart/report projection, reproducible command, opt-in public share, template gallery. | A user can share a useful forecast without exposing private artifacts or data. |
 
@@ -423,7 +423,7 @@ The exact Hermes command may evolve, so the integration package should also incl
 
 | Area | Release gate |
 | --- | --- |
-| Installation | Clean virtual environment install; headwater capabilities succeeds; documented minimum Python versions pass. |
+| Installation | Clean virtual environment install; aion capabilities succeeds; documented minimum Python versions pass. |
 | Input correctness | CSV/Parquet; explicit/inferred frequency; mixed-frequency rejection; duplicate policies; missing-period policies; timezone preservation. |
 | Forecast correctness | Future timestamps match input grid; baselines always run; candidate failure isolation; per-series selection; unsupported series abstain. |
 | Evaluation correctness | Folds do not cross cutoffs; no future observation or late-known context enters training; metrics match fixtures; undefined metrics are explicit null/status. |
@@ -443,4 +443,4 @@ inspect → formulate → validate → forecast → backtest → select or absta
        → calibrate → explain → update → submit actuals → score
 ```
 
-Hermes is the hero orchestrator and distribution integration, but Headwater remains independently usable and agent-agnostic. The runtime library is canonical; CLI, MCP, Python, the optional standalone agent, and future hosted interfaces are adapters over the same contracts.
+Hermes is the hero orchestrator and distribution integration, but Aion remains independently usable and agent-agnostic. The runtime library is canonical; CLI, MCP, Python, the optional standalone agent, and future hosted interfaces are adapters over the same contracts.

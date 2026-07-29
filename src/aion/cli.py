@@ -5,7 +5,7 @@ import json
 import sys
 from typing import Sequence
 
-from .contracts import HeadwaterError
+from .contracts import AionError
 from .runtime import capabilities, forecast, inspect_dataset
 
 
@@ -18,8 +18,8 @@ def _common_input(parser: argparse.ArgumentParser) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="headwater", description="Evidence-backed local forecasting")
-    parser.add_argument("--version", action="version", version="headwater 0.1.0")
+    parser = argparse.ArgumentParser(prog="aion", description="Evidence-backed local forecasting")
+    parser.add_argument("--version", action="version", version="aion 0.1.0")
     subcommands = parser.add_subparsers(dest="command", required=True)
     capability_parser = subcommands.add_parser("capabilities", help="Report implemented capabilities")
     capability_parser.add_argument("--output", choices=["json"], default="json")
@@ -28,7 +28,7 @@ def build_parser() -> argparse.ArgumentParser:
     forecast_parser = subcommands.add_parser("forecast", help="Run an evaluated forecast")
     _common_input(forecast_parser)
     forecast_parser.add_argument("--horizon", required=True, type=int)
-    forecast_parser.add_argument("--output", default="headwater-output")
+    forecast_parser.add_argument("--output", default="aion-output")
     forecast_parser.add_argument("--minimum-baseline-improvement", type=float, default=0.02)
     return parser
 
@@ -60,7 +60,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             }
         print(json.dumps(payload, indent=2, allow_nan=False))
         return 0
-    except HeadwaterError as exc:
+    except AionError as exc:
         print(json.dumps(exc.to_dict(), indent=2), file=sys.stderr)
         return 2
 

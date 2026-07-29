@@ -59,12 +59,12 @@ def forecast(
     horizon: int,
     series_column: str | None = None,
     frequency: str | None = None,
-    output: str = "headwater-output",
+    output: str = "aion-output",
     minimum_baseline_improvement: float = 0.02,
 ) -> tuple[ForecastArtifact, Path]:
     if horizon < 1:
-        from .contracts import HeadwaterError
-        raise HeadwaterError("INVALID_HORIZON", "Horizon must be at least one period.")
+        from .contracts import AionError
+        raise AionError("INVALID_HORIZON", "Horizon must be at least one period.")
     observations, source_fingerprint, _ = load_observations(
         input_path, time_column, target_column, series_column
     )

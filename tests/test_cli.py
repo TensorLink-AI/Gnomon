@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from headwater.cli import main
+from aion.cli import main
 
 
 def test_capabilities_are_honest(capsys) -> None:

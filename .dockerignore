@@ -5,7 +5,7 @@
 __pycache__
 *.py[cod]
 dist
-headwater-output
+aion-output
 tests
 docs
 examples

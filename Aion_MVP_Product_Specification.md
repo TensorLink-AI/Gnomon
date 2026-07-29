@@ -1,4 +1,4 @@
-# Headwater MVP Product Specification
+# Aion MVP Product Specification
 
 **A deployable forecasting capability by Cascade**
 
@@ -6,29 +6,29 @@
 **Date:** 28 July 2026  
 **Status:** Working product specification for validation and implementation
 
-> **Product decision:** Headwater is a specialist forecasting capability that technical users, Hermes Agent, and other AI agents can run locally. General-purpose agents may reason about the task, discover permitted context, and interpret results. Headwater remains authoritative for temporal validation, numerical forecasting, backtesting, uncertainty, model selection, abstention, and evidence.
+> **Product decision:** Aion is a specialist forecasting capability that technical users, Hermes Agent, and other AI agents can run locally. General-purpose agents may reason about the task, discover permitted context, and interpret results. Aion remains authoritative for temporal validation, numerical forecasting, backtesting, uncertainty, model selection, abstention, and evidence.
 
 ## Purpose of this document
 
-This document defines the product being built, who it is for, the first useful workflows, the MVP boundary, the launch and retention loops, the assumptions that must be tested, and the criteria for deciding whether Headwater has earned further investment.
+This document defines the product being built, who it is for, the first useful workflows, the MVP boundary, the launch and retention loops, the assumptions that must be tested, and the criteria for deciding whether Aion has earned further investment.
 
-It intentionally does not specify every internal module or API. Those details are contained in the companion **Headwater System Design**.
+It intentionally does not specify every internal module or API. Those details are contained in the companion **Aion System Design**.
 
 ## Brand architecture
 
 | Layer | Name |
 | --- | --- |
 | Parent research/network brand | Cascade |
-| Product | Headwater |
-| Endorsement | Headwater by Cascade |
-| CLI | `headwater` |
-| MCP integration | Headwater MCP |
-| Hermes integration | Headwater for Hermes |
-| Optional hosted service | Headwater Cloud |
+| Product | Aion |
+| Endorsement | Aion by Cascade |
+| CLI | `aion` |
+| MCP integration | Aion MCP |
+| Hermes integration | Aion for Hermes |
+| Optional hosted service | Aion Cloud |
 
 ## Executive decision
 
-> **Recommendation:** Build a narrow, trustworthy forecasting runtime with an optional agentic layer. Make Hermes the hero integration, while keeping Headwater independently deployable through its CLI, MCP server, Python API, and containers.
+> **Recommendation:** Build a narrow, trustworthy forecasting runtime with an optional agentic layer. Make Hermes the hero integration, while keeping Aion independently deployable through its CLI, MCP server, Python API, and containers.
 
 The MVP should not attempt to be a general-purpose data-science agent. Its job is to transform a measurable temporal question into a defensible forecast and a structured statement of what another system may safely conclude from it.
 The LLM layer should improve task formulation, data mapping, context discovery, bounded experiment selection, and interpretation. It must not generate or modify numerical forecasts. The numerical runtime remains authoritative for validation, backtesting, model selection, quantiles, calibration, and abstention.
@@ -37,7 +37,7 @@ The launch proposition is broad enough to attract technical users — “forecas
 | Decision | MVP choice |
 | --- | --- |
 | Product category | Deployable temporal intelligence and forecasting capability for agents and technical users |
-| Primary integration | Hermes Agent running Headwater locally through MCP or the CLI |
+| Primary integration | Hermes Agent running Aion locally through MCP or the CLI |
 | Canonical interface | Typed runtime library with CLI and MCP adapters |
 | Agent boundary | LLM reasons about intent, context, experiments, and explanation; deterministic tools own numbers |
 | Initial promise | Produce a backtested forecast, compare it with baselines, quantify uncertainty, and abstain when evidence is inadequate |
@@ -48,7 +48,7 @@ The launch proposition is broad enough to attract technical users — “forecas
 
 ### Product thesis
 
-> Existing tools return predictions. Headwater determines whether the forecasting task is valid, whether a candidate beats defensible baselines, how uncertain the result is, and whether an agent should trust or reject it.
+> Existing tools return predictions. Aion determines whether the forecasting task is valid, whether a candidate beats defensible baselines, how uncertain the result is, and whether an agent should trust or reject it.
 
 ### Positioning hierarchy
 
@@ -58,9 +58,9 @@ The launch proposition is broad enough to attract technical users — “forecas
 | Broad acquisition line | Forecast anything you can measure. |
 | Technical category | A temporal intelligence CLI and runtime for developers and agents. |
 | Trust differentiator | It does not just predict. It tests whether the prediction deserves to be trusted. |
-| Hermes-specific line | Hermes manages the task. Headwater validates the data, runs the models, and returns evidence-backed forecasts. |
+| Hermes-specific line | Hermes manages the task. Aion validates the data, runs the models, and returns evidence-backed forecasts. |
 
-### What Headwater is not
+### What Aion is not
 
 - Not an LLM generating future values from serialised arrays.
 - Not a replacement for Hermes or another general-purpose agent.
@@ -127,7 +127,7 @@ The first audience is technical and distribution-oriented: developers, open-sour
 8. Return a human summary plus immutable machine-readable artifacts.
 9. Allow later submission of actuals and realised scoring.
 10. Expose the workflow through a one-shot CLI and a local MCP server.
-11. Provide a Hermes skill/plugin that teaches Hermes to operate Headwater safely.
+11. Provide a Hermes skill/plugin that teaches Hermes to operate Aion safely.
 
 ### In-scope agentic components
 
@@ -157,7 +157,7 @@ The first audience is technical and distribution-oriented: developers, open-sour
 ### One-command standalone forecast
 
 ```bash
-headwater forecast observations.csv \
+aion forecast observations.csv \
   --time timestamp \
   --target requests \
   --series service_id \
@@ -181,25 +181,25 @@ Warnings:
   - One series retained the seasonal baseline
 
 Artifacts:
-  ./headwater-output/forecast.csv
-  ./headwater-output/summary.md
-  ./headwater-output/artifact.json
-  ./headwater-output/evidence.jsonl
+  ./aion-output/forecast.csv
+  ./aion-output/summary.md
+  ./aion-output/artifact.json
+  ./aion-output/evidence.jsonl
 ```
 
 ### Hermes-operated forecast
 
-A user asks Hermes a broad question. Hermes searches the allowed workspace, identifies candidate data and context, calls typed Headwater tools, and explains the returned evidence. Headwater never depends on Hermes for numerical correctness.
+A user asks Hermes a broad question. Hermes searches the allowed workspace, identifies candidate data and context, calls typed Aion tools, and explains the returned evidence. Aion never depends on Hermes for numerical correctness.
 
 ### Persistent project mode
 
 ```bash
-headwater init
-headwater run
-headwater status
-headwater actuals submit actuals.csv
-headwater score
-headwater compare latest previous
+aion init
+aion run
+aion status
+aion actuals submit actuals.csv
+aion score
+aion compare latest previous
 ```
 
 Project mode stores configuration, data/version fingerprints, prior forecasts, model decisions, actual outcomes, and evaluation history. It is the primary retention mechanism.
@@ -207,8 +207,8 @@ Project mode stores configuration, data/version fingerprints, prior forecasts, m
 ### Shareable forecast
 
 ```bash
-headwater share forecast_01K...
-headwater badge forecast_01K...
+aion share forecast_01K...
+aion badge forecast_01K...
 ```
 
 The share output contains a chart, headline prediction, uncertainty range, historical backtest result, support level, generated-at time, and reproducible command. Public sharing is opt-in; local data is never uploaded implicitly.
@@ -233,8 +233,8 @@ The share output contains a chart, headline prediction, uncertainty range, histo
 | Discovery | Visits documentation, sees a shared forecast, or installs from a Hermes workflow. |
 | Activation | Completes a valid forecast and understands the support result. |
 | Value | Uses the output to answer a threshold, milestone, comparison, or planning question. |
-| Retention | Reruns, initialises a project, submits actuals, or embeds Headwater in an agent/workflow. |
-| Advocacy | Shares a forecast, publishes a template, or integrates Headwater into an open-source project. |
+| Retention | Reruns, initialises a project, submits actuals, or embeds Aion in an agent/workflow. |
+| Advocacy | Shares a forecast, publishes a template, or integrates Aion into an open-source project. |
 | Commercial signal | Requests hosted runs, connectors, private deployment, higher throughput, governance, or support. |
 
 ### Initial success criteria
@@ -264,18 +264,18 @@ The share output contains a chart, headline prediction, uncertainty range, histo
 
 ### Deferred decisions
 
-- Final package and command naming: headwater, headwater-forecast, or namespaced subcommand.
+- Final package and command naming: aion, aion-forecast, or namespaced subcommand.
 - Which lightweight statistical and TSFM adapters are reliable enough for the default local install.
 - Whether charts are generated locally with a static renderer or through an optional web share service.
 - The public/private projection format for shareable artifacts.
 - How context source permissions are represented consistently across Hermes, CLI, and standalone agent modes.
 - The first public-data connector after local files: GitHub, package registries, or generic CSV/JSON URL.
-- Whether scheduling belongs in Headwater project mode or remains delegated to Hermes/system schedulers.
+- Whether scheduling belongs in Aion project mode or remains delegated to Hermes/system schedulers.
 - The minimum anonymised telemetry needed to understand adoption without undermining local-first trust.
 
 ### Launch demonstration
 
-> **Hero demo:** A Hermes user asks a broad capacity question. Hermes finds a usage dataset, capacity configuration, releases, and incidents. Headwater validates the time grid, evaluates context, compares baselines and models, and returns a threshold-risk conclusion with uncertainty and support. The complete run is reproducible through one command and one MCP workflow.
+> **Hero demo:** A Hermes user asks a broad capacity question. Hermes finds a usage dataset, capacity configuration, releases, and incidents. Aion validates the time grid, evaluates context, compares baselines and models, and returns a threshold-risk conclusion with uncertainty and support. The complete run is reproducible through one command and one MCP workflow.
 
 ### Definition of an externally credible MVP
 
@@ -287,7 +287,7 @@ The share output contains a chart, headline prediction, uncertainty range, histo
 - Uncertainty method and measured coverage are explicit.
 - Every material claim resolves to evidence and provenance.
 - Actual submission and realised scoring work end to end.
-- Hermes can operate Headwater through typed MCP tools and faithfully communicate warnings.
+- Hermes can operate Aion through typed MCP tools and faithfully communicate warnings.
 - The public capabilities response contains no mocked analytical behaviour.
 - The product has at least three external repeat users, not only one-off demos.
 
@@ -302,7 +302,7 @@ The most important implementation discipline is to resist expanding the command 
 
 ## Product decision summary
 
-Build Headwater as a technically serious but approachable forecasting product:
+Build Aion as a technically serious but approachable forecasting product:
 
 - Broad and interesting enough for technical users to try on many measurable questions.
 - Simple enough to deliver a meaningful first result from one command.

@@ -7,7 +7,7 @@ or any other model provider. It does not read provider API-key environment
 variables. Forecasting is local and deterministic, so no API key is required.
 
 Setting `OPENROUTER_API_KEY`, `OPENAI_API_KEY`, or `ANTHROPIC_API_KEY` currently
-has no effect. There is also no `headwater mcp serve` command in v0.1.
+has no effect. There is also no `aion mcp serve` command in v0.1.
 
 ## Is OpenRouter a planned option?
 
@@ -35,19 +35,19 @@ change numerical results.
 The following is a design example, not working v0.1 configuration:
 
 ```text
-HEADWATER_LLM_PROVIDER=openrouter
+AION_LLM_PROVIDER=openrouter
 OPENROUTER_API_KEY=<secret>
-HEADWATER_LLM_MODEL=<provider/model-name>
+AION_LLM_MODEL=<provider/model-name>
 ```
 
-Before implementing this interface, Headwater needs provider-independent typed
+Before implementing this interface, Aion needs provider-independent typed
 contracts, secret-redaction tests, explicit network disclosure, timeout and cost
 budgets, prompt-injection defenses, and deterministic no-LLM fallbacks.
 
 ## Using an external agent today
 
 An external agent can invoke the CLI as a subprocess and parse its JSON output.
-Treat `headwater capabilities`, the structured error envelope, and persisted
+Treat `aion capabilities`, the structured error envelope, and persisted
 artifact values as authoritative. The agent should preserve support and warnings
 verbatim and must not manufacture values for unsupported series.
 

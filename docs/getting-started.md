@@ -11,10 +11,10 @@ No account, network service, LLM, or API key is required to forecast.
 ## Install from this checkout
 
 ```bash
-cd /root/headwater
+cd /root/Aion
 bash install.sh
-headwater --version
-headwater capabilities
+aion --version
+aion capabilities
 ```
 
 See [Installation options](installation.md) for uv, direct GitHub, pinned
@@ -29,8 +29,8 @@ uv tool install --force .
 For development without a tool installation:
 
 ```bash
-cd /root/headwater
-PYTHONPATH=src python3 -m headwater capabilities
+cd /root/Aion
+PYTHONPATH=src python3 -m aion capabilities
 ```
 
 ## Run the included example
@@ -38,7 +38,7 @@ PYTHONPATH=src python3 -m headwater capabilities
 Inspect the input before spending time on a forecast:
 
 ```bash
-headwater inspect examples/daily_requests.csv \
+aion inspect examples/daily_requests.csv \
   --time timestamp \
   --target requests \
   --frequency D
@@ -50,19 +50,19 @@ frequency, date range, and number of observations.
 Run a three-day forecast:
 
 ```bash
-headwater forecast examples/daily_requests.csv \
+aion forecast examples/daily_requests.csv \
   --time timestamp \
   --target requests \
   --horizon 3 \
   --frequency D \
-  --output ./headwater-output
+  --output ./aion-output
 ```
 
 The command prints JSON containing the forecast ID, support result, selected
 model, warnings, and artifact directory. Each run receives a new directory:
 
 ```text
-headwater-output/forecast_<id>/
+aion-output/forecast_<id>/
 ├── artifact.json
 ├── evidence.jsonl
 ├── forecast.csv
@@ -77,7 +77,7 @@ retain `artifact.json` when reproducibility or auditability matters.
 If one file contains several independent series, identify the grouping column:
 
 ```bash
-headwater forecast panel.csv \
+aion forecast panel.csv \
   --time timestamp \
   --target requests \
   --series service_id \

@@ -30,7 +30,7 @@ jobs:
       - name: Verify wheel installation
         run: |
           python -m pip install dist/*.whl
-          headwater capabilities
+          aion capabilities
       - uses: actions/upload-artifact@v4
         with:
           name: python-distributions
@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/project/headwater-forecast/
+      url: https://pypi.org/project/aion-forecast/
     permissions:
       id-token: write
     steps:

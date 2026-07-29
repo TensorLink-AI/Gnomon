@@ -41,7 +41,7 @@ For nonzero actuals, the score is:
 sum(abs(actual - predicted)) / sum(abs(actual))
 ```
 
-Lower is better. For an all-zero evaluation window, Headwater falls back to mean
+Lower is better. For an all-zero evaluation window, Aion falls back to mean
 absolute error to avoid division by zero. Consequently, scores from those two
 scales should not be compared as though they were identical units.
 

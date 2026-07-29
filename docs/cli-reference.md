@@ -1,34 +1,34 @@
 # CLI reference
 
 The CLI writes successful machine-readable responses to standard output and
-structured errors to standard error. Success exits with code `0`; Headwater
+structured errors to standard error. Success exits with code `0`; Aion
 input/runtime errors exit with code `2`.
 
 ## Global options
 
 ```bash
-headwater --help
-headwater --version
+aion --help
+aion --version
 ```
 
-## `headwater capabilities`
+## `aion capabilities`
 
 Reports only functionality available in the installed runtime:
 
 ```bash
-headwater capabilities
-headwater capabilities --output json
+aion capabilities
+aion capabilities --output json
 ```
 
 Use this response for feature detection instead of assuming that roadmap
 features in the product specification are installed.
 
-## `headwater inspect`
+## `aion inspect`
 
 Validates an input without forecasting:
 
 ```bash
-headwater inspect INPUT --time COLUMN --target COLUMN [OPTIONS]
+aion inspect INPUT --time COLUMN --target COLUMN [OPTIONS]
 ```
 
 | Option | Required | Meaning |
@@ -42,13 +42,13 @@ headwater inspect INPUT --time COLUMN --target COLUMN [OPTIONS]
 Inspection returns the source SHA-256 fingerprint, resolved schema, columns,
 series names, observation counts, and date ranges.
 
-## `headwater forecast`
+## `aion forecast`
 
 Runs validation, rolling evaluation, model selection, calibration, support
 assessment, final forecasting, and artifact persistence:
 
 ```bash
-headwater forecast INPUT --time COLUMN --target COLUMN --horizon N [OPTIONS]
+aion forecast INPUT --time COLUMN --target COLUMN --horizon N [OPTIONS]
 ```
 
 | Option | Default | Meaning |
@@ -56,7 +56,7 @@ headwater forecast INPUT --time COLUMN --target COLUMN --horizon N [OPTIONS]
 | `--series COLUMN` | None | Independent-series identifier. |
 | `--frequency CODE` | Inferred | `h`, `D`, `W`, or `MS`. |
 | `--horizon N` | Required | Number of future periods; must be at least one. |
-| `--output DIR` | `headwater-output` | Parent directory for immutable run directories. |
+| `--output DIR` | `aion-output` | Parent directory for immutable run directories. |
 | `--minimum-baseline-improvement FLOAT` | `0.02` | Fractional improvement required before selecting drift over the strongest baseline. |
 
 An improvement value of `0.02` means two percent, not two percentage points.
@@ -67,7 +67,7 @@ Baseline retention is a valid outcome and does not itself weaken support.
 Capture the successful response:
 
 ```bash
-headwater forecast data.csv --time timestamp --target value --horizon 7 > run.json
+aion forecast data.csv --time timestamp --target value --horizon 7 > run.json
 ```
 
 Do not infer success from the existence of output text; check the process exit

@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "headwater-forecast"
+name = "aion-forecast"
 version = "0.1.0"
 description = "A local-first, evidence-backed forecasting runtime"
 readme = "README.md"
@@ -17,16 +17,16 @@ parquet = ["pyarrow>=15"]
 dev = ["build>=1.2", "pytest>=8"]
 
 [project.scripts]
-headwater = "headwater.cli:main"
+aion = "aion.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/TensorLink-AI/headwater"
-Documentation = "https://github.com/TensorLink-AI/headwater/tree/main/docs"
-Repository = "https://github.com/TensorLink-AI/headwater"
-Issues = "https://github.com/TensorLink-AI/headwater/issues"
+Homepage = "https://github.com/TensorLink-AI/Aion"
+Documentation = "https://github.com/TensorLink-AI/Aion/tree/main/docs"
+Repository = "https://github.com/TensorLink-AI/Aion"
+Issues = "https://github.com/TensorLink-AI/Aion/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/headwater"]
+packages = ["src/aion"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
