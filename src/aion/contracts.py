@@ -48,6 +48,7 @@ class SeriesResult:
     warnings: list[str]
     forecast: list[dict[str, Any]]
     context: dict[str, Any] | None = None
+    threshold: dict[str, Any] | None = None
 
 
 @dataclass

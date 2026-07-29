@@ -8,19 +8,43 @@ from .data import Observation, timezone_name
 
 
 FREQUENCIES: dict[str, timedelta] = {
+    "min": timedelta(minutes=1),
+    "5min": timedelta(minutes=5),
+    "15min": timedelta(minutes=15),
+    "30min": timedelta(minutes=30),
     "h": timedelta(hours=1),
     "D": timedelta(days=1),
     "W": timedelta(weeks=1),
 }
-SEASONS = {"h": 24, "D": 7, "W": 52, "MS": 12}
+# Dominant cycle per frequency: hourly for 1-minute data (a daily cycle of
+# 1440 would demand days of history), daily for the coarser intraday steps.
+SEASONS = {"min": 60, "5min": 288, "15min": 96, "30min": 48,
+           "h": 24, "D": 7, "W": 52, "MS": 12}
+
+FREQUENCY_DESCRIPTIONS = {
+    "min": "1 minute", "5min": "5 minutes", "15min": "15 minutes",
+    "30min": "30 minutes", "h": "hourly", "D": "daily", "W": "weekly",
+    "MS": "month start",
+}
 
 
 def normalise_frequency(value: str) -> str:
-    aliases = {"H": "h", "hour": "h", "hourly": "h", "day": "D", "daily": "D",
-               "week": "W", "weekly": "W", "month": "MS", "monthly": "MS"}
+    aliases = {"H": "h", "hour": "h", "hourly": "h", "1h": "h",
+               "day": "D", "daily": "D", "1d": "D", "1D": "D",
+               "week": "W", "weekly": "W", "1w": "W",
+               "month": "MS", "monthly": "MS", "M": "MS", "1M": "MS",
+               "T": "min", "1T": "min", "1min": "min", "minute": "min", "1m": "min",
+               "5T": "5min", "5m": "5min",
+               "15T": "15min", "15m": "15min",
+               "30T": "30min", "30m": "30min"}
     result = aliases.get(value, value)
-    if result not in {"h", "D", "W", "MS"}:
-        raise AionError("UNSUPPORTED_FREQUENCY", f"Unsupported frequency: {value}")
+    if result not in SEASONS:
+        raise AionError(
+            "UNSUPPORTED_FREQUENCY",
+            f"Unsupported frequency: {value}. Supported: "
+            + ", ".join(f"{code} ({FREQUENCY_DESCRIPTIONS[code]})" for code in SEASONS),
+            {"supported": sorted(SEASONS)},
+        )
     return result
 
 
@@ -41,7 +65,12 @@ def infer_frequency(timestamps: list[datetime]) -> str:
     for code, duration in FREQUENCIES.items():
         if step == duration:
             return code
-    raise AionError("AMBIGUOUS_FREQUENCY", "Could not infer a supported regular frequency.")
+    raise AionError(
+        "AMBIGUOUS_FREQUENCY",
+        "Could not infer a supported regular frequency. Supported: "
+        + ", ".join(f"{code} ({FREQUENCY_DESCRIPTIONS[code]})" for code in SEASONS),
+        {"supported": sorted(SEASONS)},
+    )
 
 
 def next_timestamp(value: datetime, frequency: str) -> datetime:

@@ -27,8 +27,8 @@ _INPUT_PROPERTIES = {
     },
     "frequency": {
         "type": "string",
-        "enum": ["h", "D", "W", "MS"],
-        "description": "Observation frequency: hourly, daily, weekly, or month-start. Omit to let Aion infer it; ambiguity fails loudly rather than guessing.",
+        "enum": ["min", "5min", "15min", "30min", "h", "D", "W", "MS"],
+        "description": "Observation frequency: min/5min/15min/30min (minutes), h (hourly), D (daily), W (weekly), MS (month-start). Omit to let Aion infer it; ambiguity fails loudly rather than guessing.",
     },
 }
 
@@ -92,6 +92,13 @@ AION_FORECAST_SCHEMA = {
                     "aion_propose_context_events. Events are admitted into the "
                     "forecast only if they demonstrate stable improvement on "
                     "identical backtest folds."
+                ),
+            },
+            "threshold": {
+                "type": "number",
+                "description": (
+                    "Optional decision threshold: the result reports when and "
+                    "how likely the forecast crosses this value."
                 ),
             },
         },

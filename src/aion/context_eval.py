@@ -25,7 +25,7 @@ from typing import Any
 
 from .context import ContextEvent, backtest_admissible, event_applies
 from .context_model import event_adjusted
-from .evaluation import Evaluation, error_score, quantile
+from .evaluation import Evaluation, error_score, interval_bounds, quantile
 from .models import predict
 
 COVERAGE_DEGRADATION_LIMIT = 0.1
@@ -130,6 +130,15 @@ def assess_context(
     # the penultimate fold calibrates, the final fold reports.
     minimum_train = max(2 * season, 2 * horizon, 8)
     origins = list(range(minimum_train, len(values) - horizon + 1, horizon))
+    if len(origins) < 4:
+        return ContextAssessment(
+            True, False,
+            ["history evaluation ran in degraded mode (fewer than four rolling "
+             "folds); context ablation requires fully separated selection, "
+             "calibration, and test folds"],
+            events_used=[event.event_id for event in eligible],
+            events_excluded=excluded,
+        )
     selection_origins, calibration_origin, test_origin = origins[:-2], origins[-2], origins[-1]
 
     improvements: list[float] = []
@@ -194,7 +203,7 @@ def assess_context(
     assessment.residuals = [
         actual - predicted for actual, predicted in zip(calibration_actual, calibration_prediction)
     ]
-    low, high = quantile(assessment.residuals, 0.1), quantile(assessment.residuals, 0.9)
+    residual_quantiles = {p: quantile(assessment.residuals, p) for p in (0.1, 0.5, 0.9)}
 
     test_cutoff = timestamps[test_origin - 1]
     test_prediction = event_adjusted(
@@ -203,10 +212,11 @@ def assess_context(
         _flags(eligible, timestamps[test_origin : test_origin + horizon], test_cutoff),
     )
     test_actual = values[test_origin : test_origin + horizon]
-    assessment.coverage = mean(
-        1.0 if prediction + low <= actual <= prediction + high else 0.0
-        for actual, prediction in zip(test_actual, test_prediction)
-    )
+    covered = []
+    for step, (actual, prediction) in enumerate(zip(test_actual, test_prediction), 1):
+        low, _, high = interval_bounds(prediction, residual_quantiles, step)
+        covered.append(1.0 if low <= actual <= high else 0.0)
+    assessment.coverage = mean(covered)
     if base.coverage is not None and assessment.coverage < base.coverage - COVERAGE_DEGRADATION_LIMIT:
         assessment.reasons.append(
             f"interval coverage degraded from {base.coverage:.1%} to {assessment.coverage:.1%}"

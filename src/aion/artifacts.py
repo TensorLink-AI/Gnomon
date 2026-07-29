@@ -35,7 +35,21 @@ def write_artifact(artifact: ForecastArtifact, output_parent: str) -> Path:
                 f"- Selected model: {result.selected_model or 'none'}",
                 f"- Strongest baseline: {result.strongest_baseline or 'none'}",
             ])
+            if result.interval_coverage is not None:
+                lines.append(f"- Final-test 80% interval coverage: {result.interval_coverage:.1%}")
+            if result.selected_model == "last_value" and result.forecast:
+                lines.append(
+                    "- Note: no model beat the last-value baseline on backtest; "
+                    "the point forecast is a flat line at the last observed value."
+                )
             lines.extend(f"- Warning: {warning}" for warning in result.warnings)
+            if result.threshold:
+                lines.extend([
+                    "", f"### Threshold {result.threshold['value']}", "",
+                    f"- First timestamp with point above: {result.threshold['first_timestamp_point_above'] or 'never in horizon'}",
+                    f"- First timestamp with q90 above: {result.threshold['first_timestamp_interval_above'] or 'never in horizon'}",
+                    f"- Peak probability above: {max(result.threshold['probability_above']):.1%}",
+                ])
             lines.append("")
         (temporary / "summary.md").write_text("\n".join(lines), encoding="utf-8")
         os.replace(temporary, final)

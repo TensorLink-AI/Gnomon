@@ -37,7 +37,7 @@ aion inspect INPUT --time COLUMN --target COLUMN [OPTIONS]
 | `--time COLUMN` | Yes | Timestamp column. |
 | `--target COLUMN` | Yes | Numeric target column. |
 | `--series COLUMN` | No | Independent-series identifier. |
-| `--frequency CODE` | No | `h`, `D`, `W`, or `MS`; inferred when omitted. |
+| `--frequency CODE` | No | `min`, `5min`, `15min`, `30min`, `h`, `D`, `W`, or `MS`; inferred when omitted. |
 
 Inspection returns the source SHA-256 fingerprint, resolved schema, columns,
 series names, observation counts, and date ranges.
@@ -54,11 +54,12 @@ aion forecast INPUT --time COLUMN --target COLUMN --horizon N [OPTIONS]
 | Option | Default | Meaning |
 | --- | --- | --- |
 | `--series COLUMN` | None | Independent-series identifier. |
-| `--frequency CODE` | Inferred | `h`, `D`, `W`, or `MS`. |
+| `--frequency CODE` | Inferred | `min`, `5min`, `15min`, `30min`, `h`, `D`, `W`, or `MS`. |
 | `--horizon N` | Required | Number of future periods; must be at least one. |
 | `--output DIR` | `aion-output` | Parent directory for immutable run directories. |
-| `--minimum-baseline-improvement FLOAT` | `0.02` | Fractional improvement required before selecting drift over the strongest baseline. |
+| `--minimum-baseline-improvement FLOAT` | `0.02` | Fractional improvement required before selecting a candidate over the strongest baseline. |
 | `--context FILE` | None | Validated context-events JSON (output of `aion context validate`). |
+| `--threshold VALUE` | None | Decision threshold: the result reports when and how likely the forecast crosses this value. |
 
 An improvement value of `0.02` means two percent, not two percentage points.
 Baseline retention is a valid outcome and does not itself weaken support.

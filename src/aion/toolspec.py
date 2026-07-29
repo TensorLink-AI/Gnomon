@@ -21,14 +21,24 @@ _INPUT_PROPERTIES: dict[str, Any] = {
     "target_column": {"type": "string", "description": "Name of the numeric column to forecast."},
     "series_column": {"type": "string", "description": "Optional column identifying independent series."},
     "frequency": {
-        "type": "string", "enum": ["h", "D", "W", "MS"],
-        "description": "Observation frequency. Omit to infer; ambiguity fails loudly.",
+        "type": "string",
+        "enum": ["min", "5min", "15min", "30min", "h", "D", "W", "MS"],
+        "description": (
+            "Observation frequency: min/5min/15min/30min (minutes), h (hourly), "
+            "D (daily), W (weekly), MS (month start). Omit to infer; ambiguity "
+            "fails loudly."
+        ),
     },
 }
 
+FORECAST_PREVIEW_ROWS = 12
+
 
 def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
-    """The compact forecast payload shared by the CLI and every adapter."""
+    """The compact forecast payload shared by the CLI and every adapter.
+
+    The first forecast rows are inlined so an agent can quote numbers without
+    a second read; the full series always lives in forecast.csv."""
     return {
         "schema_version": "0.1",
         "status": "complete",
@@ -37,7 +47,12 @@ def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
         "results": [
             {
                 "series": item.series, "support": item.support,
-                "selected_model": item.selected_model, "warnings": item.warnings,
+                "selected_model": item.selected_model,
+                "interval_coverage": item.interval_coverage,
+                "warnings": item.warnings,
+                "forecast_preview": item.forecast[:FORECAST_PREVIEW_ROWS],
+                "forecast_rows": len(item.forecast),
+                "threshold": item.threshold,
                 "context": item.context,
             }
             for item in artifact.results
@@ -73,6 +88,7 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
         output=arguments.get("output_dir") or "aion-output",
         minimum_baseline_improvement=float(arguments.get("minimum_baseline_improvement", 0.02)),
         context_events=events,
+        threshold=float(arguments["threshold"]) if arguments.get("threshold") is not None else None,
     )
     return forecast_summary(artifact, path)
 
@@ -120,6 +136,7 @@ TOOLS: list[dict[str, Any]] = [
                 "output_dir": {"type": "string", "description": "Directory for the immutable artifact (default ./aion-output)."},
                 "minimum_baseline_improvement": {"type": "number", "description": "Minimum relative improvement over the strongest baseline to select a candidate (default 0.02)."},
                 "context_events_file": {"type": "string", "description": "Optional validated context-events JSON file (the output of `aion context validate`)."},
+                "threshold": {"type": "number", "description": "Optional decision threshold: the result reports when and how likely the forecast crosses this value."},
             },
             "required": ["input", "time_column", "target_column", "horizon"],
         },

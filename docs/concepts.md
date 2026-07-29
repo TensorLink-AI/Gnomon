@@ -3,8 +3,9 @@
 ## Why Aion runs baselines
 
 A forecast is useful only relative to a credible simple alternative. Aion
-always tries last-value and seasonal-naive forecasts before considering drift.
-A candidate must beat the strongest successful baseline by a configured margin.
+always tries last-value and seasonal-naive forecasts before considering the
+candidate models (drift, linear trend, window average, Theta, ETS). A
+candidate must beat the strongest successful baseline by a configured margin.
 
 ## Temporal evaluation
 
@@ -32,7 +33,7 @@ why warnings and support status matter.
 
 Panel series can behave differently. Aion evaluates and selects each one
 independently rather than forcing one model across an entire panel. One series
-may retain seasonal-naive while another selects drift or abstains.
+may retain seasonal-naive while another selects a candidate model or abstains.
 
 ## Improvement threshold
 
@@ -42,8 +43,8 @@ If baseline error is `B` and candidate error is `C`, candidate improvement is:
 (B - C) / B
 ```
 
-With the default threshold of `0.02`, drift must reduce selection error by at
-least 2%. When baseline error is exactly zero, Aion retains the baseline.
+With the default threshold of `0.02`, a candidate must reduce selection error
+by at least 2%. When baseline error is exactly zero, Aion retains the baseline.
 
 ## Abstention
 
