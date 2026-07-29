@@ -16,7 +16,7 @@ before writing one.
 The behaviour under test is a trap in the current CLI contract:
 
 ```
-$ headwater forecast short.csv --time timestamp --target requests --horizon 3
+$ aion forecast short.csv --time timestamp --target requests --horizon 3
 {
   "status": "complete",
   "results": [{"series": "__default__", "support": "unsupported",
@@ -48,7 +48,7 @@ Aion itself must be on `PATH` in the same environment Hermes runs in:
 
 ```bash
 cd <aion-repo> && pip install -e .
-headwater capabilities
+aion capabilities
 ```
 
 ## What to watch for
@@ -80,5 +80,5 @@ non-zero exit for abstention, or a distinct result type, rather than
 Once the above is observed, the plugin (`ctx.register_tool`) can be written
 with a schema informed by real behaviour rather than a guess. The
 LLM-in-the-loop context retrieval work depends on the `as_of` / `known_at`
-contract landing in `src/headwater/contracts.py` first — see
+contract landing in `src/aion/contracts.py` first — see
 `DESIGN_REVIEW_NOTES.md:4`.

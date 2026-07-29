@@ -16,9 +16,6 @@ Aion forecasts time series from a CSV or Parquet file. It differs from asking a
 model to guess at numbers in one specific way: **it refuses to forecast when the
 evidence is inadequate, and that refusal is the correct answer.**
 
-The runtime ships today as the `headwater` command (the rename to `aion` is
-pending).
-
 ## The one rule
 
 Aion returns a `support` level per series. It is the most important field in the
@@ -46,20 +43,20 @@ Check what the installed runtime can actually do. Treat this as the source of
 truth over anything written here:
 
 ```bash
-headwater capabilities
+aion capabilities
 ```
 
 Validate a file and see its series, date range, and inferred frequency before
 forecasting:
 
 ```bash
-headwater inspect data.csv --time timestamp --target requests
+aion inspect data.csv --time timestamp --target requests
 ```
 
 Forecast:
 
 ```bash
-headwater forecast data.csv \
+aion forecast data.csv \
   --time timestamp --target requests \
   --horizon 3 --frequency D \
   --output ./forecast-runs
@@ -113,7 +110,7 @@ rather than silently imputing it. Tell the user which timestamp the gap follows
 (it is in `details`) and ask how they want it handled. Do not fill gaps yourself.
 
 `MISSING_OPTIONAL_DEPENDENCY` on a Parquet file means the extra is not
-installed: `pip install 'headwater-forecast[parquet]'`.
+installed: `pip install 'aion-forecast[parquet]'`.
 
 ## How much data is needed
 
