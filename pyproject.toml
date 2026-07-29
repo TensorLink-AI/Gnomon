@@ -16,6 +16,18 @@ dependencies = []
 parquet = ["pyarrow>=15"]
 dev = ["build>=1.2", "pytest>=8"]
 
+# TSFM adapters — Aion works without any of these (missing deps = soft skip).
+# TSFM packages have conflicting transitive dependencies (e.g. numpy pinning),
+# so they are NOT declared as optional extras here. Install them separately:
+#
+#   pip install chronos-forecasting torch      # Amazon Chronos-Bolt (mini 21M, small 48M)
+#   pip install toto-models torch              # Datadog Toto-2.0-22m (22M)
+#   pip install uni2ts torch                   # Salesforce Moirai-2.0-R-Small (~14M)
+#   pip install momentfm torch                 # CMU MOMENT-1-Small (~38M)
+#   pip install "git+https://github.com/ibm-granite/granite-tsfm.git" torch  # IBM FlowState (18.5M) + TTM (1-3M)
+#
+# After installing any of the above, `aion capabilities` will list them under models.tsfm.
+
 [project.scripts]
 aion = "aion.cli:main"
 
