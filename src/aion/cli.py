@@ -38,6 +38,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="Report when and how likely the forecast crosses this value",
     )
     forecast_parser.add_argument(
+        "--config", default=None,
+        help="Path to aion.yaml config file (models, ensemble, meta-model, backends)",
+    )
+    forecast_parser.add_argument(
         "--context", dest="context_file",
         help="Validated context-events JSON file (output of `aion context validate`)",
     )
@@ -61,6 +65,29 @@ def build_parser() -> argparse.ArgumentParser:
     mcp_parser = subcommands.add_parser("mcp", help="Model Context Protocol server")
     mcp_commands = mcp_parser.add_subparsers(dest="mcp_command", required=True)
     mcp_commands.add_parser("serve", help="Serve Aion tools over stdio MCP")
+
+    tsfm_parser = subcommands.add_parser(
+        "tsfm", help="Manage TSFM sandbox environments (isolated venvs per model)"
+    )
+    tsfm_commands = tsfm_parser.add_subparsers(dest="tsfm_command", required=True)
+
+    tsfm_list = tsfm_commands.add_parser(
+        "list", help="List available, installed (in-process), and sandboxed TSFMs"
+    )
+
+    tsfm_install = tsfm_commands.add_parser(
+        "install", help="Create a sandboxed venv for a TSFM (isolated deps)"
+    )
+    tsfm_install.add_argument("name", help="TSFM adapter name (e.g. chronos_bolt_mini)")
+
+    tsfm_remove = tsfm_commands.add_parser(
+        "remove", help="Remove a TSFM sandbox venv"
+    )
+    tsfm_remove.add_argument("name", help="TSFM adapter name")
+
+    tsfm_install_all = tsfm_commands.add_parser(
+        "install-all", help="Create sandboxed venvs for all known TSFMs"
+    )
 
     return parser
 
@@ -89,6 +116,68 @@ def main(argv: Sequence[str] | None = None) -> int:
             from .mcp_server import serve
 
             return serve()
+        if args.command == "tsfm":
+            from .tsfm import available_tsfms, installed_tsfms
+            from .tsfm_sandbox import (
+                ensure_sandbox, remove_sandbox, list_sandboxes,
+                sandbox_exists, TSFM_PIP_SPECS,
+            )
+            from .tsfm import TSFMUnavailable, TSFMError
+
+            if args.tsfm_command == "list":
+                payload = {
+                    "available": available_tsfms(),
+                    "installed_in_process": installed_tsfms(),
+                    "sandboxed": list_sandboxes(),
+                    "pip_specs": {
+                        name: specs for name, specs in TSFM_PIP_SPECS.items()
+                    },
+                }
+                print(json.dumps(payload, indent=2))
+                return 0
+            elif args.tsfm_command == "install":
+                name = args.name
+                if name not in TSFM_PIP_SPECS:
+                    print(json.dumps({
+                        "status": "error",
+                        "error": {
+                            "code": "UNKNOWN_TSFM",
+                            "message": f"Unknown TSFM: {name}. Available: {available_tsfms()}",
+                        },
+                    }, indent=2), file=sys.stderr)
+                    return 2
+                print(f"Creating sandbox venv for {name}...", file=sys.stderr)
+                try:
+                    venv_dir = ensure_sandbox(name)
+                    print(json.dumps({
+                        "status": "ok",
+                        "tsfm": name,
+                        "sandbox_path": str(venv_dir),
+                        "pip_specs": TSFM_PIP_SPECS[name],
+                    }, indent=2))
+                    return 0
+                except (TSFMUnavailable, TSFMError) as exc:
+                    print(json.dumps({
+                        "status": "error",
+                        "error": {"code": "SANDBOX_FAILED", "message": str(exc)},
+                    }, indent=2), file=sys.stderr)
+                    return 2
+            elif args.tsfm_command == "remove":
+                name = args.name
+                remove_sandbox(name)
+                print(json.dumps({"status": "ok", "removed": name}, indent=2))
+                return 0
+            elif args.tsfm_command == "install-all":
+                results = {}
+                for name in TSFM_PIP_SPECS:
+                    print(f"Creating sandbox for {name}...", file=sys.stderr)
+                    try:
+                        ensure_sandbox(name)
+                        results[name] = "ok"
+                    except (TSFMUnavailable, TSFMError) as exc:
+                        results[name] = f"failed: {exc}"
+                print(json.dumps({"status": "complete", "results": results}, indent=2))
+                return 0
         if args.command == "capabilities":
             from .runtime import capabilities
 
@@ -121,13 +210,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             from .context import load_events_file
             from .runtime import forecast
             from .toolspec import forecast_summary
+            from .config import load_config
 
             events = load_events_file(args.context_file) if args.context_file else None
+            config = load_config(getattr(args, "config", None))
             artifact, path = forecast(
                 args.input, time_column=args.time_column, target_column=args.target_column,
                 series_column=args.series_column, frequency=args.frequency, horizon=args.horizon,
                 output=args.output, minimum_baseline_improvement=args.minimum_baseline_improvement,
                 context_events=events, threshold=args.threshold,
+                config=config,
             )
             payload = forecast_summary(artifact, path)
         print(json.dumps(payload, indent=2, allow_nan=False))

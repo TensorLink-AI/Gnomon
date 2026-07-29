@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 from .artifacts import write_artifact
@@ -107,6 +108,7 @@ def forecast(
     minimum_baseline_improvement: float = 0.02,
     context_events: list[ContextEvent] | None = None,
     threshold: float | None = None,
+    config: Any = None,
 ) -> tuple[ForecastArtifact, Path]:
     if horizon < 1:
         from .contracts import AionError
@@ -132,7 +134,11 @@ def forecast(
             timestamp = next_timestamp(timestamp, resolved_frequency)
             future_timestamps.append(timestamp)
 
-        assessment = evaluate(values, horizon, season, minimum_baseline_improvement)
+        assessment = evaluate(
+            values, horizon, season, minimum_baseline_improvement,
+            frequency=resolved_frequency,
+            config=config,
+        )
         context_public: dict[str, object] | None = None
         selected_model = assessment.selected_model
         coverage = assessment.coverage
@@ -140,7 +146,36 @@ def forecast(
         points: list[float] = []
         residuals = assessment.residuals
         if assessment.supported and assessment.selected_model:
-            points = predict(assessment.selected_model, values, horizon, season)
+            if assessment.selected_model in MODELS:
+                points = predict(assessment.selected_model, values, horizon, season)
+            else:
+                # TSFM selected — use the adapter for the final forecast.
+                # Try sandbox first, then in-process.
+                from .tsfm import get_tsfm, TSFMError, TSFMUnavailable
+                from .tsfm_sandbox import sandbox_tsfm_candidates, sandbox_available_tsfms
+                try:
+                    if assessment.selected_model in sandbox_available_tsfms():
+                        adapters = sandbox_tsfm_candidates(
+                            requested=[assessment.selected_model],
+                            frequency=resolved_frequency,
+                        )
+                    else:
+                        adapters = []
+                    if adapters:
+                        adapter = adapters[0]
+                    else:
+                        adapter = get_tsfm(assessment.selected_model)
+                        if hasattr(adapter, '_frequency'):
+                            adapter._frequency = resolved_frequency
+                    points = adapter.predict(values, horizon, season)
+                except (TSFMError, TSFMUnavailable, Exception) as exc:
+                    import logging
+                    logging.getLogger(__name__).warning(
+                        "TSFM %s failed during final forecast, falling back to %s: %s",
+                        assessment.selected_model, assessment.strongest_baseline, exc,
+                    )
+                    selected_model = assessment.strongest_baseline
+                    points = predict(selected_model, values, horizon, season)
         if context_events:
             context = assess_context(
                 values, timestamps, future_timestamps, context_events, series_name,
@@ -203,6 +238,8 @@ def capabilities() -> dict[str, object]:
         parquet = True
     except ImportError:
         parquet = False
+    from .tsfm import available_tsfms, installed_tsfms
+    from .tsfm_sandbox import list_sandboxes
     return {
         "schema_version": "0.1",
         "runtime_version": "0.2.0",
@@ -214,7 +251,9 @@ def capabilities() -> dict[str, object]:
             "baselines": sorted(BASELINES),
             "statistical": sorted(name for name in MODELS if name not in BASELINES),
             "context": ["event_adjusted"],
-            "tsfm": [],
+            "tsfm": installed_tsfms(),
+            "tsfm_available": available_tsfms(),
+            "tsfm_sandboxes": list_sandboxes(),
         },
         "features": {
             "inspection": True, "forecasting": True, "separated_evaluation": True,
