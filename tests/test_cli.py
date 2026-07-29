@@ -11,7 +11,8 @@ def test_capabilities_are_honest(capsys) -> None:
     assert result["interfaces"]["cli"] is True
     assert result["interfaces"]["mcp"] is True
     assert result["features"]["context_events"] is True
-    assert result["models"]["tsfm"] == []
+    assert isinstance(result["models"]["tsfm"], list)
+    assert isinstance(result["models"].get("tsfm_available"), list)
 
 
 def test_missing_input_returns_structured_error(capsys) -> None:

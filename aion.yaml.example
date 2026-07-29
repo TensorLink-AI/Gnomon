@@ -1,0 +1,244 @@
+# Aion configuration — example config showing all options.
+#
+# Copy to one of these locations and edit:
+#   ./aion.yaml           (current directory)
+#   ~/.config/aion/aion.yaml
+#   $AION_CONFIG_PATH
+#
+# Or pass explicitly:  aion forecast data.csv --config aion.yaml ...
+#
+# Every section is optional. Aion works with no config file at all
+# (uses sensible defaults: baselines + drift, no TSFMs, no ensemble).
+
+# ---------------------------------------------------------------------------
+# Models — which models run as candidates during evaluation
+# ---------------------------------------------------------------------------
+models:
+  # Always-on built-in models. These run with zero dependencies.
+  baselines:
+    enabled: true          # last_value + seasonal_naive (mandatory — can't disable)
+  statistical:
+    enabled: true
+    candidates:            # which statistical models to run
+      - drift              # the built-in linear-trend candidate
+      # - ols_regression   # (planned) proper OLS on all points
+      # - ets              # (planned) Holt-Winters
+      # - arima            # (planned) auto-ARIMA
+
+  # Time Series Foundation Models — each runs in an isolated sandbox venv
+  # or via API inference (see backends below).
+  tsfm:
+    # Which TSFMs to try, in order of preference.
+    # Only models with a working backend (sandbox venv or API) will actually run.
+    candidates:
+      - chronos_bolt_mini
+      - toto2_22m
+      - flowstate
+      # - chronos_bolt_small
+      # - ttm
+      # - moirai2_small
+      # - moment_small
+
+    # Per-model overrides
+    overrides:
+      chronos_bolt_mini:
+        backend: sandbox         # sandbox | api | auto (default: auto)
+        device: cpu              # cpu | cuda | mps
+        timeout: 300              # seconds per inference call
+      toto2_22m:
+        backend: sandbox
+        device: cpu
+        timeout: 300
+      flowstate:
+        backend: sandbox
+        device: cpu
+        timeout: 300
+        # FlowState needs a scale factor per frequency
+        scale_factors:
+          h: 1.0
+          D: 3.43
+          W: 0.46
+          MS: 2.0
+
+# ---------------------------------------------------------------------------
+# Backends — how TSFMs are executed
+# ---------------------------------------------------------------------------
+backends:
+  # Sandbox: isolated venv per TSFM (default for local execution).
+  # Each TSFM gets its own Python environment with its own deps.
+  sandbox:
+    enabled: true
+    venv_root: null            # null = ~/.cache/aion-tsfm-venvs/ (auto-managed)
+    auto_install: true         # auto-create venv on first use if missing
+
+  # API: remote inference via HTTP (for hosted / managed TSFMs).
+  # Use this when you don't want to install models locally.
+  api:
+    enabled: false
+    # Global default API settings (per-model overrides in models.tsfm.overrides)
+    timeout: 60               # seconds
+    retry: 2                  # retry count on transient failures
+    # Providers — define named endpoints for different TSFMs
+    providers:
+      # Example: hosted Chronos via your inference server
+      # chronos_bolt_mini:
+      #   url: https://inference.example.com/v1/forecast
+      #   auth:
+      #     type: bearer
+      #     token_env: AION_API_KEY      # read token from env var
+      #   model: chronos-bolt-mini       # model name on the server
+      #   timeout: 30
+
+      # Example: OpenAI-compatible endpoint for TSFMs
+      # toto2_22m:
+      #   url: https://api.example.com/v1/timeseries
+      #   auth:
+      #     type: header
+      #     header: X-API-Key
+      #     token_env: TOTO_API_KEY
+      #   model: toto-2.0-22m
+
+      # Example: local Triton / vLLM serving a TSFM
+      # flowstate:
+      #   url: http://localhost:8000/v2/models/flowstate/infer
+      #   auth:
+      #     type: none
+      #   model: flowstate-r1.1
+
+# ---------------------------------------------------------------------------
+# Ensemble — combine multiple model forecasts into one
+# ---------------------------------------------------------------------------
+ensemble:
+  enabled: false
+  strategy: weighted_mean      # weighted_mean | median | voting | stacking
+
+  # weighted_mean: weight each model by its inverse backtest error
+  weighted_mean:
+    min_models: 2              # need at least N successful models to ensemble
+    max_weight_ratio: 0.7      # no single model can exceed this weight fraction
+    fallback: strongest_baseline  # if too few models succeed, use this
+
+  # median: robust median of all model point forecasts (no weights needed)
+  # median:
+  #   min_models: 3
+
+  # voting: for direction/threshold decisions, majority vote across models
+  # voting:
+  #   min_models: 3
+  #   threshold: 0.5            # fraction of models needed for consensus
+
+  # stacking: use a meta-model to learn optimal combination (see meta_model)
+
+  # Which models are eligible for ensemble (by name or "all_candidates")
+  eligible: all_candidates    # all_candidates | list of model names
+  # eligible: [last_value, drift, chronos_bolt_mini, toto2_22m]
+
+  # Quantile ensemble: how to combine uncertainty intervals
+  quantile_strategy: union    # union (widest) | intersection (narrowest) | weighted
+
+# ---------------------------------------------------------------------------
+# Meta-model — lightweight learned combination of candidate forecasts
+# ---------------------------------------------------------------------------
+meta_model:
+  enabled: false
+  type: linear_regression       # linear_regression | ridge | lasso
+
+  # The meta-model learns: actual ~ w1*model1_forecast + w2*model2_forecast + ...
+  # Training data: residuals from all rolling-origin folds across all models.
+  # It's trained on the calibration fold and evaluated on the test fold.
+
+  linear_regression:
+    # Regularization to prevent overfitting with few models
+    ridge_alpha: 1.0           # L2 regularization strength
+    lasso_alpha: 0.1           # L1 regularization (for sparsity — drops bad models)
+
+  # Minimum data requirements
+  min_models: 2                # need at least N models with valid fold scores
+  min_folds: 3                 # need at least N folds for training
+  # Non-negative weights: a model can't have a negative contribution
+  non_negative: true           # constrain weights >= 0
+
+  # If the meta-model fails to train, fall back to this strategy
+  fallback: weighted_mean      # weighted_mean | median | strongest_baseline
+
+# ---------------------------------------------------------------------------
+# LLM reasoning — post-forecast interpretive layer
+# ---------------------------------------------------------------------------
+llm:
+  # LLM reasoning is OPTIONAL and never touches numbers.
+  # It can: compare models, explain selection, flag disagreement,
+  # suggest alternative models, and draft a narrative summary.
+
+  enabled: false
+  mode: interpret              # interpret | compare | challenge
+
+  # interpret: explain the selected forecast, cite evidence, surface caveats
+  # compare: contrast models, highlight disagreement, quantify uncertainty spread
+  # challenge: play devil's advocate — why might this forecast be wrong?
+
+  # The LLM receives:
+  # - The forecast artifact (point, intervals, support, model, scores)
+  # - The evidence ledger (fold scores, coverage, warnings)
+  # - The model comparison table (which models competed and their scores)
+  # - The ensemble/meta-model composition (if used)
+
+  # It may NEVER:
+  # - Edit point forecasts or quantiles
+  # - Change model selection or support status
+  # - Suppress warnings or evidence
+  # - Claim causality without evidence
+
+  # Provider (uses Aion's LLM adapter protocol — see llm.py)
+  adapter: null                # null = use host's adapter (Hermes ctx.llm)
+  # adapter:
+  #   type: openrouter
+  #   api_key_env: OPENROUTER_API_KEY
+  #   model: anthropic/claude-sonnet-4
+
+  max_tokens: 2000
+  temperature: 0.3             # low temperature for factual interpretation
+
+# ---------------------------------------------------------------------------
+# Evaluation — control the backtesting pipeline
+# ---------------------------------------------------------------------------
+evaluation:
+  # Minimum improvement over baseline to select a candidate (2% by default)
+  minimum_baseline_improvement: 0.02
+
+  # Rolling-origin fold configuration
+  folds:
+    # Minimum observations for the evaluation pipeline
+    # Below this, Aion abstains (or uses degraded mode if configured)
+    min_observations: 144      # default — adaptive lower thresholds are planned
+    # For short datasets, allow a degraded mode with fewer folds
+    degraded_mode:
+      enabled: false           # (planned) allow 2-fold evaluation with warning
+      min_observations: 48     # absolute minimum for any evaluation
+
+  # Per-series selection or global
+  selection: per_series        # per_series | global
+
+  # Uncertainty calibration
+  uncertainty:
+    # Pool residuals from all selection folds (not just calibration fold)
+    pool_residuals: true       # more stable quantile estimates
+    # Scale intervals with horizon (uncertainty grows with time)
+    temporal_scaling: true    # interval_width *= sqrt(step)
+    # Coverage target (70% by default)
+    target_coverage: 0.70
+
+# ---------------------------------------------------------------------------
+# Output — control artifact generation
+# ---------------------------------------------------------------------------
+output:
+  # Always write these
+  write_artifact: true         # artifact.json — full machine-readable result
+  write_forecast_csv: true     # forecast.csv — future timestamps + values
+  write_summary: true          # summary.md — human-readable result
+  write_evidence: true         # evidence.jsonl — evaluation evidence trail
+
+  # Optional: include model comparison table in summary
+  include_model_comparison: false
+
+  # Optional: include ensemble composition details
+  include_ensemble_details: false
