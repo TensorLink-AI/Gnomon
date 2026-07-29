@@ -54,6 +54,7 @@ def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
                 "forecast_rows": len(item.forecast),
                 "threshold": item.threshold,
                 "context": item.context,
+                "covariates": item.covariates,
             }
             for item in artifact.results
         ],
@@ -74,10 +75,41 @@ def _run_inspect(arguments: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def _run_covariate_guide(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .covariates import covariate_guide
+    return covariate_guide(
+        arguments["input"], time_column=arguments["time_column"],
+        target_column=arguments["target_column"], horizon=int(arguments["horizon"]),
+        series_column=arguments.get("series_column"), frequency=arguments.get("frequency"),
+    )
+
+
+def _run_validate_covariates(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .covariates import validate_covariate_file
+    return validate_covariate_file(
+        arguments["input"], arguments["covariates_file"], arguments["covariate_mapping"],
+        time_column=arguments["time_column"], target_column=arguments["target_column"],
+        horizon=int(arguments["horizon"]), series_column=arguments.get("series_column"),
+        frequency=arguments.get("frequency"),
+        covariate_time_column=arguments.get("covariate_time_column", "timestamp"),
+        covariate_known_at_column=arguments.get("covariate_known_at_column", "known_at"),
+        covariate_series_column=arguments.get("covariate_series_column"),
+    )
+
+
 def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
     events = None
     if arguments.get("context_events_file"):
         events = load_events_file(arguments["context_events_file"])
+    covariates = None
+    if arguments.get("covariates_file"):
+        from .covariates import load_covariates
+        covariates = load_covariates(
+            arguments["covariates_file"], arguments["covariate_mapping"],
+            time_column=arguments.get("covariate_time_column", "timestamp"),
+            known_at_column=arguments.get("covariate_known_at_column", "known_at"),
+            series_column=arguments.get("covariate_series_column"),
+        )
     artifact, path = forecast(
         arguments["input"],
         time_column=arguments["time_column"],
@@ -88,6 +120,7 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
         output=arguments.get("output_dir") or "aion-output",
         minimum_baseline_improvement=float(arguments.get("minimum_baseline_improvement", 0.02)),
         context_events=events,
+        covariates=covariates,
         threshold=float(arguments["threshold"]) if arguments.get("threshold") is not None else None,
     )
     payload = forecast_summary(artifact, path)
@@ -192,9 +225,53 @@ TOOLS: list[dict[str, Any]] = [
                 "context_events_file": {"type": "string", "description": "Optional validated context-events JSON file (the output of `aion context validate`)."},
                 "threshold": {"type": "number", "description": "Optional decision threshold: the result reports when and how likely the forecast crosses this value."},
                 "project": {"type": "string", "description": "Optional tracking project. When set, register the forecast for realised scoring."},
+                "covariates_file": {"type": "string", "description": "Local CSV containing point-in-time covariate vintages."},
+                "covariate_mapping": {"type": "string", "description": "Comma-separated name:type:future_known entries."},
+                "covariate_time_column": {"type": "string", "description": "Valid-at column (default timestamp)."},
+                "covariate_known_at_column": {"type": "string", "description": "Availability timestamp column (default known_at)."},
+                "covariate_series_column": {"type": "string", "description": "Optional series column in the covariate CSV."},
             },
             "required": ["input", "time_column", "target_column", "horizon"],
         },
+        "runner": _run_forecast,
+    },
+    {
+        "name": "aion_covariate_guide",
+        "description": "Return point-in-time format, forecast dates, and fold cutoffs. Aion does not suggest what data to fetch.",
+        "inputSchema": {"type": "object", "properties": {
+            **_INPUT_PROPERTIES,
+            "horizon": {"type": "integer"},
+        }, "required": ["input", "time_column", "target_column", "horizon"]},
+        "runner": _run_covariate_guide,
+    },
+    {
+        "name": "aion_validate_covariates",
+        "description": "Validate local covariate vintages for format, final-horizon coverage, and availability at every selection cutoff.",
+        "inputSchema": {"type": "object", "properties": {
+            **_INPUT_PROPERTIES,
+            "horizon": {"type": "integer"},
+            "covariates_file": {"type": "string"},
+            "covariate_mapping": {"type": "string"},
+            "covariate_time_column": {"type": "string"},
+            "covariate_known_at_column": {"type": "string"},
+            "covariate_series_column": {"type": "string"},
+        }, "required": ["input", "time_column", "target_column", "horizon", "covariates_file", "covariate_mapping"]},
+        "runner": _run_validate_covariates,
+    },
+    {
+        "name": "aion_propose_covariates",
+        "description": "Evaluate a local point-in-time covariate proposal through leakage-safe ablation and produce a forecast only when it earns admission.",
+        "inputSchema": {"type": "object", "properties": {
+            **_INPUT_PROPERTIES,
+            "horizon": {"type": "integer"},
+            "output_dir": {"type": "string"},
+            "minimum_baseline_improvement": {"type": "number"},
+            "covariates_file": {"type": "string"},
+            "covariate_mapping": {"type": "string"},
+            "covariate_time_column": {"type": "string"},
+            "covariate_known_at_column": {"type": "string"},
+            "covariate_series_column": {"type": "string"},
+        }, "required": ["input", "time_column", "target_column", "horizon", "covariates_file", "covariate_mapping"]},
         "runner": _run_forecast,
     },
     {

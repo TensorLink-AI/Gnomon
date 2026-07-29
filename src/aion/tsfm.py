@@ -32,9 +32,105 @@ Supported models (with optional extras):
 from __future__ import annotations
 
 import logging
+from dataclasses import asdict, dataclass
 from typing import Any, Callable, Protocol, runtime_checkable
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class TSFMCapabilities:
+    """Capabilities implemented and verified by an Aion adapter.
+
+    Upstream model claims are deliberately not enough to set these flags.
+    Selection may only rely on behavior exposed through the adapter protocol.
+    """
+
+    past_observed_covariates: bool = False
+    future_known_covariates: bool = False
+    static_covariates: bool = False
+    multivariate_targets: bool = False
+    native_quantiles: bool = False
+    min_context_length: int = 1
+    max_context_length: int | None = None
+    max_horizon: int | None = None
+    supported_frequencies: tuple[str, ...] | None = None
+    fine_tuning: bool = False
+    adapter_implemented: bool = True
+    source: str | None = None
+    verified_on: str = "2026-07-29"
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+_CAPABILITIES: dict[str, TSFMCapabilities] = {
+    "chronos_bolt_mini": TSFMCapabilities(
+        native_quantiles=True, max_context_length=2048,
+        source="https://github.com/amazon-science/chronos-forecasting",
+    ),
+    "chronos_bolt_small": TSFMCapabilities(
+        native_quantiles=True, max_context_length=2048,
+        source="https://github.com/amazon-science/chronos-forecasting",
+    ),
+    "toto2_22m": TSFMCapabilities(
+        multivariate_targets=True, native_quantiles=True,
+        source="https://github.com/DataDog/toto",
+    ),
+    "flowstate": TSFMCapabilities(
+        native_quantiles=True,
+        supported_frequencies=("min", "5min", "15min", "30min", "h", "D", "W", "MS"),
+        source="https://github.com/ibm-granite/granite-tsfm",
+    ),
+    "ttm": TSFMCapabilities(
+        multivariate_targets=True, native_quantiles=False, max_context_length=512,
+        source="https://github.com/ibm-granite/granite-tsfm",
+    ),
+    "moirai2_small": TSFMCapabilities(
+        native_quantiles=True,
+        source="https://github.com/SalesforceAIResearch/uni2ts",
+    ),
+    "moment_small": TSFMCapabilities(
+        native_quantiles=False, max_context_length=512,
+        source="https://github.com/moment-timeseries-foundation-model/moment",
+    ),
+}
+
+
+def tsfm_capabilities(name: str) -> TSFMCapabilities:
+    """Return adapter-level capabilities for a registered model."""
+    if name not in _CAPABILITIES:
+        raise KeyError(f"Unknown TSFM adapter: {name}")
+    return _CAPABILITIES[name]
+
+
+def capability_matrix() -> dict[str, dict[str, Any]]:
+    return {name: _CAPABILITIES[name].to_dict() for name in sorted(_CAPABILITIES)}
+
+
+def eligible_tsfms(
+    *, history_length: int, horizon: int, frequency: str,
+    require_future_covariates: bool = False,
+) -> tuple[list[str], dict[str, list[str]]]:
+    """Filter registered adapters using verified, machine-actionable limits."""
+    eligible: list[str] = []
+    excluded: dict[str, list[str]] = {}
+    for name in available_tsfms():
+        caps = tsfm_capabilities(name)
+        reasons: list[str] = []
+        if require_future_covariates and not caps.future_known_covariates:
+            reasons.append("Aion adapter does not implement future-known covariates")
+        if caps.min_context_length > history_length:
+            reasons.append(f"needs at least {caps.min_context_length} history points")
+        if caps.max_horizon is not None and horizon > caps.max_horizon:
+            reasons.append(f"horizon {horizon} exceeds verified maximum {caps.max_horizon}")
+        if caps.supported_frequencies is not None and frequency not in caps.supported_frequencies:
+            reasons.append(f"frequency {frequency!r} is not supported")
+        if reasons:
+            excluded[name] = reasons
+        else:
+            eligible.append(name)
+    return eligible, excluded
 
 
 # ---------------------------------------------------------------------------

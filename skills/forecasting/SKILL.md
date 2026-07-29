@@ -32,6 +32,11 @@ evidence; Aion owns every number.
    submit complete actuals with `aion_submit_actuals`, then record the realised
    business result with `aion_resolve_decision`.
 
+For external data, call `aion_covariate_guide` before fetching anything. Fetch
+with host tools, preserve historical issued vintages, and call
+`aion_validate_covariates` before `aion_propose_covariates`. Never substitute
+observed historical outcomes for the forecast vintage available at a cutoff.
+
 ## Hard rules
 
 - **Never invent, adjust, round-trip, or extrapolate forecast values,

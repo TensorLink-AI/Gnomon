@@ -7,6 +7,9 @@ provides_tools:
   - aion_capabilities
   - aion_inspect
   - aion_forecast
+  - aion_covariate_guide
+  - aion_validate_covariates
+  - aion_propose_covariates
   - aion_propose_context_events
   - aion_submit_actuals
   - aion_list_open_forecasts

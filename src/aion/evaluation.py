@@ -115,18 +115,25 @@ def evaluate(
     # --- Load TSFM candidates (lazy, graceful) ---
     # Prefer sandboxed adapters (isolated venvs) to avoid dependency conflicts.
     # Fall back to in-process adapters if no sandboxes are set up.
+    from .tsfm import eligible_tsfms
     from .tsfm_sandbox import sandbox_tsfm_candidates, sandbox_available_tsfms
     tsfm_adapters: list[Any] = []
+    eligible_names, capability_exclusions = eligible_tsfms(
+        history_length=len(values), horizon=horizon, frequency=frequency,
+    )
+    requested_names = tsfm_names if tsfm_names is not None else eligible_names
+    requested_names = [name for name in requested_names if name in eligible_names]
+    for name, reasons in capability_exclusions.items():
+        if tsfm_names is None or name in tsfm_names:
+            warnings.append(f"Skipped TSFM {name}: {'; '.join(reasons)}.")
     sandbox_names = sandbox_available_tsfms()
-    if sandbox_names:
+    if sandbox_names and requested_names:
         tsfm_adapters = sandbox_tsfm_candidates(
-            requested=tsfm_names if tsfm_names else None,
+            requested=requested_names,
             frequency=frequency,
         )
-    elif tsfm_names is None:
-        tsfm_adapters = tsfm_candidates(frequency=frequency)
-    elif tsfm_names:
-        tsfm_adapters = tsfm_candidates(requested=tsfm_names, frequency=frequency)
+    elif requested_names:
+        tsfm_adapters = tsfm_candidates(requested=requested_names, frequency=frequency)
     tsfm_model_names = [a.name for a in tsfm_adapters]
     all_model_names = list(MODELS.keys()) + tsfm_model_names
 

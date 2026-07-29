@@ -61,6 +61,11 @@ aion forecast INPUT --time COLUMN --target COLUMN --horizon N [OPTIONS]
 | `--context FILE` | None | Validated context-events JSON (output of `aion context validate`). |
 | `--threshold VALUE` | None | Decision threshold: the result reports when and how likely the forecast crosses this value. |
 | `--project NAME` | None | Register each forecast series for later realised scoring. |
+| `--covariates FILE` | None | Local point-in-time covariate CSV. |
+| `--covariate-mapping MAP` | None | Required `name:type:future_known` entries. |
+| `--covariate-time COLUMN` | `timestamp` | Covariate valid-at column. |
+| `--covariate-known-at COLUMN` | `known_at` | Covariate availability column. |
+| `--covariate-series COLUMN` | None | Optional panel-series key. |
 
 An improvement value of `0.02` means two percent, not two percentage points.
 Baseline retention is a valid outcome and does not itself weaken support.
@@ -86,6 +91,25 @@ aion context validate --response response.json --file launches.md --file holiday
 `validate` grounds each event's source from the document metadata (never
 from the model's claims), rejects non-verbatim evidence quotes, and marks
 whether each event is admissible for backtesting.
+
+## `aion covariates`
+
+Ask Aion for the point-in-time format and exact fold cutoffs:
+
+```bash
+aion covariates guide INPUT --time COLUMN --target COLUMN --horizon N
+```
+
+Validate a local proposal before paying for a complete forecast run:
+
+```bash
+aion covariates validate INPUT --time COLUMN --target COLUMN --horizon N \
+  --covariates covariates.csv \
+  --covariate-mapping 'holiday:binary:future_known'
+```
+
+Validation rejects missing historical vintages and incomplete final-horizon
+coverage. See [Covariate enrichment](covariates.md).
 
 ## `aion mcp serve`
 

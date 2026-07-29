@@ -6,6 +6,12 @@ to submit actuals, discover due forecasts, inspect realised performance, and
 record/resolve agent decisions. The `aion:forecasting` skill encodes the
 safe-use workflow.
 
+Covariate enrichment adds `aion_covariate_guide`,
+`aion_validate_covariates`, and `aion_propose_covariates`. Hermes decides what
+external data may matter and fetches it with its own permitted tools. Aion only
+accepts a local point-in-time CSV and admits features that demonstrate stable
+backtest lift.
+
 `aion_propose_context_events` is the "LLM flair with honest numbers" path:
 Aion emits the extraction prompt (`aion context prompt`), the plugin runs it
 on the **host's own model** via Hermes's `ctx.llm` facade (no Aion-side API
