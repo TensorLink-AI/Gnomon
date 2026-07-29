@@ -65,7 +65,9 @@ AION_FORECAST_SCHEMA = {
         "series is marked unsupported (abstention). Returns a compact result "
         "with support status, selected model, warnings, and the artifact "
         "directory; read forecast.csv / summary.md there for the numbers and "
-        "quote them verbatim. Never invent values for an unsupported series."
+        "quote them verbatim. Never invent values for an unsupported series. "
+        "Before first use, load the aion:forecasting skill for the full "
+        "workflow and safe-use rules."
     ),
     "parameters": {
         "type": "object",
@@ -106,7 +108,8 @@ AION_PROPOSE_CONTEXT_SCHEMA = {
         "deterministically. Returns typed events plus rejected proposals with "
         "reasons, and writes an events file for aion_forecast. Events without "
         "a verifiable dated source are never used in backtests. Only use "
-        "documents the user has allowed you to read."
+        "documents the user has allowed you to read. The aion:forecasting "
+        "skill documents how to report admission decisions honestly."
     ),
     "parameters": {
         "type": "object",
