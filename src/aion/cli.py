@@ -45,6 +45,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--context", dest="context_file",
         help="Validated context-events JSON file (output of `aion context validate`)",
     )
+    forecast_parser.add_argument(
+        "--project", default=None,
+        help="Register this forecast in a project for ongoing tracking and scoring",
+    )
 
     context_parser = subcommands.add_parser(
         "context", help="LLM context-investigation workflow (prompt out, validation in)"
@@ -88,6 +92,84 @@ def build_parser() -> argparse.ArgumentParser:
     tsfm_install_all = tsfm_commands.add_parser(
         "install-all", help="Create sandboxed venvs for all known TSFMs"
     )
+
+    # --- Tracking ---
+    track_parser = subcommands.add_parser(
+        "track", help="Manage forecast projects, submit actuals, and track model performance"
+    )
+    track_commands = track_parser.add_subparsers(dest="track_command", required=True)
+
+    track_list = track_commands.add_parser(
+        "list", help="List forecasts in a project (or all projects)"
+    )
+    track_list.add_argument("--project", default=None, help="Filter by project name")
+    track_list.add_argument("--limit", type=int, default=50)
+
+    track_actuals = track_commands.add_parser(
+        "actuals", help="Submit actual values and score all unscored forecasts in a project"
+    )
+    track_actuals.add_argument("--project", required=True)
+    track_actuals.add_argument("--file", required=True, help="CSV file with actual values")
+
+    track_score = track_commands.add_parser(
+        "score", help="Score a single forecast against actuals"
+    )
+    track_score.add_argument("--forecast-id", required=True)
+    track_score.add_argument("--file", required=True, help="CSV file with actual values")
+
+    track_compare = track_commands.add_parser(
+        "compare", help="Compare two scored forecasts"
+    )
+    track_compare.add_argument("--a", required=True, dest="forecast_a")
+    track_compare.add_argument("--b", required=True, dest="forecast_b")
+
+    track_perf = track_commands.add_parser(
+        "performance", help="Show model performance history for a project"
+    )
+    track_perf.add_argument("--project", required=True)
+    track_perf.add_argument("--model", default=None, help="Filter by model name")
+
+    track_leaderboard = track_commands.add_parser(
+        "leaderboard", help="Show ranked model performance for a project"
+    )
+    track_leaderboard.add_argument("--project", required=True)
+
+    track_due = track_commands.add_parser(
+        "due", help="List open forecasts whose horizon has completed"
+    )
+    track_due.add_argument("--project", default=None)
+
+    track_decision = track_commands.add_parser(
+        "decision", help="Record and resolve decisions supported by forecasts"
+    )
+    decision_commands = track_decision.add_subparsers(dest="decision_command", required=True)
+    decision_record = decision_commands.add_parser("record")
+    decision_record.add_argument("--decision-id", required=True)
+    decision_record.add_argument("--project", required=True)
+    decision_record.add_argument("--forecast-id", required=True)
+    decision_record.add_argument("--action", required=True)
+    decision_record.add_argument("--expected-outcome", required=True)
+    decision_resolve = decision_commands.add_parser("resolve")
+    decision_resolve.add_argument("--decision-id", required=True)
+    decision_resolve.add_argument("--actual-outcome", required=True)
+    decision_resolve.add_argument("--correct", required=True, choices=["true", "false"])
+    decision_list = decision_commands.add_parser("list")
+    decision_list.add_argument("--project", default=None)
+
+    track_export = track_commands.add_parser("export", help="Export registry metadata as JSON")
+    track_export.add_argument("--project", default=None)
+    track_export.add_argument("--output", required=True)
+    track_relocate = track_commands.add_parser("relocate", help="Update a moved artifact path")
+    track_relocate.add_argument("--forecast-id", required=True)
+    track_relocate.add_argument("--artifact-path", required=True)
+
+    eval_parser = subcommands.add_parser(
+        "eval", help="Compare agent runs with and without Aion"
+    )
+    eval_commands = eval_parser.add_subparsers(dest="eval_command", required=True)
+    eval_compare = eval_commands.add_parser("compare")
+    eval_compare.add_argument("--baseline", required=True, help="Control JSONL runs")
+    eval_compare.add_argument("--treatment", required=True, help="Aion-enabled JSONL runs")
 
     return parser
 
@@ -178,6 +260,217 @@ def main(argv: Sequence[str] | None = None) -> int:
                         results[name] = f"failed: {exc}"
                 print(json.dumps({"status": "complete", "results": results}, indent=2))
                 return 0
+        if args.command == "track":
+            from .tracking import TrackingStore
+            store = TrackingStore()
+
+            if args.track_command == "list":
+                forecasts = store.list_forecasts(
+                    project=args.project, limit=args.limit,
+                )
+                payload = [
+                    {
+                        "forecast_id": f.forecast_id,
+                        "project": f.project,
+                        "series": f.series,
+                        "model": f.selected_model,
+                        "support": f.support,
+                        "horizon": f.horizon,
+                        "threshold": f.threshold,
+                        "scored": f.scored,
+                        "mase": f.mase,
+                        "drift": f.drift_flag,
+                        "created_at": f.created_at,
+                    }
+                    for f in forecasts
+                ]
+                print(json.dumps(payload, indent=2))
+                return 0
+
+            elif args.track_command == "actuals":
+                results = store.submit_actuals_csv(args.project, args.file)
+                payload = [
+                    {
+                        "forecast_id": r.forecast_id,
+                        "mase": r.mase,
+                        "mape": r.mape,
+                        "bias": r.bias,
+                        "coverage": r.coverage,
+                        "threshold_accuracy": r.threshold_accuracy,
+                        "drift": r.drift_flag,
+                    }
+                    for r in results
+                ]
+                print(json.dumps({
+                    "status": "ok",
+                    "project": args.project,
+                    "scored": len(results),
+                    "results": payload,
+                }, indent=2))
+                return 0
+
+            elif args.track_command == "score":
+                record = store.get_forecast(args.forecast_id)
+                if record is None:
+                    print(json.dumps({
+                        "status": "error",
+                        "error": {"code": "NOT_FOUND",
+                                  "message": f"Forecast {args.forecast_id} not found"},
+                    }, indent=2), file=sys.stderr)
+                    return 2
+                # Load actuals and score
+                import csv as _csv
+                from pathlib import Path as _Path
+                actuals: list[tuple[str, float]] = []
+                with open(_Path(args.file), encoding="utf-8-sig", newline="") as f:
+                    reader = _csv.DictReader(f)
+                    cols = reader.fieldnames or []
+                    ts_col = cols[0] if cols else "timestamp"
+                    val_col = cols[1] if len(cols) > 1 else "value"
+                    for row in reader:
+                        try:
+                            actuals.append((row[ts_col], float(row[val_col])))
+                        except (ValueError, TypeError):
+                            continue
+                # Load forecast
+                fc_path = _Path(record.artifact_path) / "forecast.csv"
+                fc_data = [
+                    row for row in store._load_forecast_csv(fc_path)
+                    if row.get("series", "__default__") == record.series
+                ]
+                actual_map = {
+                    store._normalise_timestamp(ts): val for ts, val in actuals
+                }
+                matched_a, matched_p, matched_q10, matched_q90 = [], [], [], []
+                for entry in fc_data:
+                    ts = store._normalise_timestamp(entry["timestamp"])
+                    if ts in actual_map:
+                        matched_a.append(actual_map[ts])
+                        matched_p.append(entry["point"])
+                        if "q10" in entry: matched_q10.append(entry["q10"])
+                        if "q90" in entry: matched_q90.append(entry["q90"])
+                if not matched_a:
+                    print(json.dumps({
+                        "status": "error",
+                        "error": {"code": "NO_MATCH",
+                                  "message": "No matching actuals found for forecast timestamps"},
+                    }, indent=2), file=sys.stderr)
+                    return 2
+                if len(matched_a) != len(fc_data):
+                    print(json.dumps({
+                        "status": "error",
+                        "error": {"code": "INCOMPLETE_ACTUALS",
+                                  "message": (
+                                      f"Matched {len(matched_a)} of {len(fc_data)} "
+                                      "forecast timestamps"
+                                  )},
+                    }, indent=2), file=sys.stderr)
+                    return 2
+                result = store.score_forecast(
+                    args.forecast_id, matched_a, matched_p,
+                    q10=matched_q10 or None, q90=matched_q90 or None,
+                    threshold=record.threshold,
+                    predicted_above=(
+                        [point > record.threshold for point in matched_p]
+                        if record.threshold is not None else None
+                    ),
+                )
+                print(json.dumps({
+                    "forecast_id": result.forecast_id,
+                    "mase": result.mase,
+                    "mape": result.mape,
+                    "bias": result.bias,
+                    "coverage": result.coverage,
+                    "threshold_accuracy": result.threshold_accuracy,
+                    "drift": result.drift_flag,
+                }, indent=2))
+                return 0
+
+            elif args.track_command == "compare":
+                result = store.compare(args.forecast_a, args.forecast_b)
+                print(json.dumps(result, indent=2))
+                return 0
+
+            elif args.track_command == "performance":
+                if args.model:
+                    history = store.model_performance(args.project, args.model)
+                    payload = history
+                else:
+                    lb = store.leaderboard(args.project)
+                    payload = [
+                        {
+                            "model": m.model,
+                            "count": m.count,
+                            "avg_mase": m.avg_mase,
+                            "avg_mape": m.avg_mape,
+                            "avg_bias": m.avg_bias,
+                            "avg_coverage": m.avg_coverage,
+                            "avg_threshold_accuracy": m.avg_threshold_accuracy,
+                            "last_mase": m.last_mase,
+                            "last_scored": m.last_scored,
+                        }
+                        for m in lb
+                    ]
+                print(json.dumps(payload, indent=2))
+                return 0
+
+            elif args.track_command == "leaderboard":
+                lb = store.leaderboard(args.project)
+                print(f"\n  Model Leaderboard: {args.project}")
+                print(f"  {'Model':25s} {'Count':>5s} {'MASE':>7s} {'MAPE':>7s} {'Bias':>8s} {'Coverage':>9s} {'Last':>7s}")
+                print(f"  {'-'*25} {'-'*5} {'-'*7} {'-'*7} {'-'*8} {'-'*9} {'-'*7}")
+                for m in lb:
+                    mase_s = f"{m.avg_mase:.3f}" if m.avg_mase is not None else "N/A"
+                    mape_s = f"{m.avg_mape:.1f}%" if m.avg_mape is not None else "N/A"
+                    bias_s = f"{m.avg_bias:+.2f}" if m.avg_bias is not None else "N/A"
+                    cov_s = f"{m.avg_coverage:.0%}" if m.avg_coverage is not None else "N/A"
+                    last_s = f"{m.last_mase:.3f}" if m.last_mase is not None else "N/A"
+                    print(f"  {m.model:25s} {m.count:>5d} {mase_s:>7s} {mape_s:>7s} {bias_s:>8s} {cov_s:>9s} {last_s:>7s}")
+                print()
+                return 0
+
+            elif args.track_command == "due":
+                print(json.dumps(store.due_forecasts(args.project), indent=2))
+                return 0
+
+            elif args.track_command == "decision":
+                if args.decision_command == "record":
+                    decision = store.record_decision(
+                        args.decision_id, args.project, args.forecast_id,
+                        args.action, args.expected_outcome,
+                    )
+                    print(json.dumps(decision.__dict__, indent=2))
+                    return 0
+                if args.decision_command == "resolve":
+                    decision = store.resolve_decision(
+                        args.decision_id, args.actual_outcome, args.correct == "true",
+                    )
+                    print(json.dumps(decision.__dict__, indent=2))
+                    return 0
+                decisions = store.list_decisions(args.project)
+                print(json.dumps([item.__dict__ for item in decisions], indent=2))
+                return 0
+
+            elif args.track_command == "export":
+                output = Path(args.output).expanduser()
+                output.parent.mkdir(parents=True, exist_ok=True)
+                output.write_text(
+                    json.dumps(store.export_snapshot(args.project), indent=2) + "\n",
+                    encoding="utf-8",
+                )
+                print(json.dumps({"status": "ok", "output": str(output.resolve())}, indent=2))
+                return 0
+
+            elif args.track_command == "relocate":
+                record = store.relocate_artifact(args.forecast_id, args.artifact_path)
+                print(json.dumps(record.__dict__, indent=2))
+                return 0
+
+        if args.command == "eval":
+            from .agent_eval import compare_runs
+            print(json.dumps(compare_runs(args.baseline, args.treatment), indent=2))
+            return 0
+
         if args.command == "capabilities":
             from .runtime import capabilities
 
@@ -222,10 +515,21 @@ def main(argv: Sequence[str] | None = None) -> int:
                 config=config,
             )
             payload = forecast_summary(artifact, path)
+
+            # Auto-register in tracking store if --project is set
+            if getattr(args, "project", None):
+                from .tracking import register_artifact
+                register_artifact(artifact, args.project, str(path))
+                print(f"Registered forecast {artifact.forecast_id} in project '{args.project}'", file=sys.stderr)
+
         print(json.dumps(payload, indent=2, allow_nan=False))
         return 0
     except AionError as exc:
         print(json.dumps(exc.to_dict(), indent=2), file=sys.stderr)
+        return 2
+    except (ValueError, FileNotFoundError) as exc:
+        error = AionError("TRACKING_ERROR", str(exc))
+        print(json.dumps(error.to_dict(), indent=2), file=sys.stderr)
         return 2
 
 

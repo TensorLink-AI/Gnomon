@@ -1,8 +1,9 @@
 # Aion plugin for Hermes Agent
 
 Gives any Hermes agent evidence-backed local forecasting: `aion_capabilities`,
-`aion_inspect`, `aion_forecast`, and `aion_propose_context_events` tools
-wrapping the Aion CLI, plus the `aion:forecasting` skill encoding the
+`aion_inspect`, `aion_forecast`, and `aion_propose_context_events`, plus tools
+to submit actuals, discover due forecasts, inspect realised performance, and
+record/resolve agent decisions. The `aion:forecasting` skill encodes the
 safe-use workflow.
 
 `aion_propose_context_events` is the "LLM flair with honest numbers" path:
@@ -87,3 +88,8 @@ hermes cron create "0 8 * * 1" \
   "Forecast the next 7 days of requests from ~/metrics/daily_requests.csv using Aion and summarise support and warnings" \
   --name weekly-forecast --deliver telegram
 ```
+
+For a feedback loop, include a `project` when forecasting, record the action
+with `aion_record_decision`, periodically check `aion_list_open_forecasts`,
+then submit complete actuals and resolve the decision outcome. See
+[`docs/agent-evaluation.md`](../../docs/agent-evaluation.md) for the full flow.

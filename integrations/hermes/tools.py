@@ -154,7 +154,50 @@ def handle_aion_forecast(args: dict[str, Any], **kwargs: Any) -> str:
         cli += ["--context", str(args["context_events_file"])]
     if args.get("threshold") is not None:
         cli += ["--threshold", str(float(args["threshold"]))]
+    if args.get("project"):
+        cli += ["--project", str(args["project"])]
     return json.dumps(_run_aion(cli), allow_nan=False)
+
+
+def handle_aion_submit_actuals(args: dict[str, Any], **kwargs: Any) -> str:
+    return json.dumps(_run_aion([
+        "track", "actuals", "--project", str(args.get("project", "")),
+        "--file", str(args.get("actuals_file", "")),
+    ]), allow_nan=False)
+
+
+def handle_aion_list_open_forecasts(args: dict[str, Any], **kwargs: Any) -> str:
+    cli = ["track", "due"]
+    if args.get("project"):
+        cli += ["--project", str(args["project"])]
+    return json.dumps(_run_aion(cli), allow_nan=False)
+
+
+def handle_aion_model_performance(args: dict[str, Any], **kwargs: Any) -> str:
+    cli = ["track", "performance", "--project", str(args.get("project", ""))]
+    if args.get("model"):
+        cli += ["--model", str(args["model"])]
+    return json.dumps(_run_aion(cli), allow_nan=False)
+
+
+def handle_aion_record_decision(args: dict[str, Any], **kwargs: Any) -> str:
+    return json.dumps(_run_aion([
+        "track", "decision", "record",
+        "--decision-id", str(args.get("decision_id", "")),
+        "--project", str(args.get("project", "")),
+        "--forecast-id", str(args.get("forecast_id", "")),
+        "--action", str(args.get("action", "")),
+        "--expected-outcome", str(args.get("expected_outcome", "")),
+    ]), allow_nan=False)
+
+
+def handle_aion_resolve_decision(args: dict[str, Any], **kwargs: Any) -> str:
+    return json.dumps(_run_aion([
+        "track", "decision", "resolve",
+        "--decision-id", str(args.get("decision_id", "")),
+        "--actual-outcome", str(args.get("actual_outcome", "")),
+        "--correct", "true" if args.get("correct") else "false",
+    ]), allow_nan=False)
 
 
 def make_propose_context_handler(ctx: Any):

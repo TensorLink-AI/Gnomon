@@ -68,6 +68,10 @@ def _handle(message: dict[str, Any]) -> dict[str, Any] | None:
                 AionError("INVALID_ARGUMENTS", f"Missing required argument: {exc.args[0]}").to_dict(),
                 True,
             )
+        except (ValueError, FileNotFoundError) as exc:
+            return _tool_result(
+                AionError("TRACKING_ERROR", str(exc)).to_dict(), True,
+            )
     return None
 
 

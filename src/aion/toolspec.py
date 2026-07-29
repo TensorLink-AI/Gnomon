@@ -90,7 +90,61 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
         context_events=events,
         threshold=float(arguments["threshold"]) if arguments.get("threshold") is not None else None,
     )
-    return forecast_summary(artifact, path)
+    payload = forecast_summary(artifact, path)
+    if arguments.get("project"):
+        from .tracking import register_artifact
+        payload["tracking_ids"] = register_artifact(
+            artifact, str(arguments["project"]), str(path),
+        )
+        payload["project"] = str(arguments["project"])
+    return payload
+
+
+def _run_submit_actuals(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .tracking import TrackingStore
+    results = TrackingStore().submit_actuals_csv(
+        str(arguments["project"]), str(arguments["actuals_file"]),
+    )
+    return {"status": "ok", "scored": len(results),
+            "results": [item.__dict__ for item in results]}
+
+
+def _run_open_forecasts(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .tracking import TrackingStore
+    rows = TrackingStore().due_forecasts(arguments.get("project"))
+    return {"status": "ok", "forecasts": rows}
+
+
+def _run_model_performance(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .tracking import TrackingStore
+    store = TrackingStore()
+    if arguments.get("model"):
+        rows: Any = store.model_performance(
+            str(arguments["project"]), str(arguments["model"]),
+        )
+    else:
+        rows = [item.__dict__ for item in store.leaderboard(str(arguments["project"]))]
+    return {"status": "ok", "performance": rows,
+            "warning": "Historical telemetry is observational, not causal."}
+
+
+def _run_record_decision(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .tracking import TrackingStore
+    item = TrackingStore().record_decision(
+        str(arguments["decision_id"]), str(arguments["project"]),
+        str(arguments["forecast_id"]), str(arguments["action"]),
+        str(arguments["expected_outcome"]),
+    )
+    return {"status": "ok", "decision": item.__dict__}
+
+
+def _run_resolve_decision(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .tracking import TrackingStore
+    item = TrackingStore().resolve_decision(
+        str(arguments["decision_id"]), str(arguments["actual_outcome"]),
+        bool(arguments["correct"]),
+    )
+    return {"status": "ok", "decision": item.__dict__}
 
 
 TOOLS: list[dict[str, Any]] = [
@@ -137,10 +191,54 @@ TOOLS: list[dict[str, Any]] = [
                 "minimum_baseline_improvement": {"type": "number", "description": "Minimum relative improvement over the strongest baseline to select a candidate (default 0.02)."},
                 "context_events_file": {"type": "string", "description": "Optional validated context-events JSON file (the output of `aion context validate`)."},
                 "threshold": {"type": "number", "description": "Optional decision threshold: the result reports when and how likely the forecast crosses this value."},
+                "project": {"type": "string", "description": "Optional tracking project. When set, register the forecast for realised scoring."},
             },
             "required": ["input", "time_column", "target_column", "horizon"],
         },
         "runner": _run_forecast,
+    },
+    {
+        "name": "aion_submit_actuals",
+        "description": "Score all due forecasts in a project from complete realised actuals. Panel actuals must include series,timestamp,value.",
+        "inputSchema": {"type": "object", "properties": {
+            "project": {"type": "string"}, "actuals_file": {"type": "string"},
+        }, "required": ["project", "actuals_file"]},
+        "runner": _run_submit_actuals,
+    },
+    {
+        "name": "aion_list_open_forecasts",
+        "description": "List unscored forecasts and distinguish horizons that are due from those still awaiting observations.",
+        "inputSchema": {"type": "object", "properties": {
+            "project": {"type": "string"},
+        }, "required": []},
+        "runner": _run_open_forecasts,
+    },
+    {
+        "name": "aion_model_performance",
+        "description": "Read descriptive realised model performance for a project. Do not treat observational rankings as causal evidence.",
+        "inputSchema": {"type": "object", "properties": {
+            "project": {"type": "string"}, "model": {"type": "string"},
+        }, "required": ["project"]},
+        "runner": _run_model_performance,
+    },
+    {
+        "name": "aion_record_decision",
+        "description": "Link an agent decision and expected outcome to a tracked forecast.",
+        "inputSchema": {"type": "object", "properties": {
+            "decision_id": {"type": "string"}, "project": {"type": "string"},
+            "forecast_id": {"type": "string"}, "action": {"type": "string"},
+            "expected_outcome": {"type": "string"},
+        }, "required": ["decision_id", "project", "forecast_id", "action", "expected_outcome"]},
+        "runner": _run_record_decision,
+    },
+    {
+        "name": "aion_resolve_decision",
+        "description": "Record the realised business outcome and whether a previously recorded agent decision was correct.",
+        "inputSchema": {"type": "object", "properties": {
+            "decision_id": {"type": "string"}, "actual_outcome": {"type": "string"},
+            "correct": {"type": "boolean"},
+        }, "required": ["decision_id", "actual_outcome", "correct"]},
+        "runner": _run_resolve_decision,
     },
 ]
 

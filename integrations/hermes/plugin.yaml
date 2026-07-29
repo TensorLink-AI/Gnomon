@@ -8,3 +8,8 @@ provides_tools:
   - aion_inspect
   - aion_forecast
   - aion_propose_context_events
+  - aion_submit_actuals
+  - aion_list_open_forecasts
+  - aion_model_performance
+  - aion_record_decision
+  - aion_resolve_decision

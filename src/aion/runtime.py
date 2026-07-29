@@ -259,8 +259,8 @@ def capabilities() -> dict[str, object]:
             "inspection": True, "forecasting": True, "separated_evaluation": True,
             "residual_intervals": True, "horizon_widened_intervals": True,
             "threshold_analysis": True, "degraded_evaluation": True,
-            "project_mode": False, "actual_scoring": False,
+            "project_mode": True, "actual_scoring": True,
+            "decision_outcomes": True, "agent_treatment_control_eval": True,
             "context_events": True, "llm_workflow_prompts": True, "sharing": False,
         },
     }
-

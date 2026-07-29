@@ -34,7 +34,12 @@ def test_initialize_list_and_call() -> None:
     by_id = {response["id"]: response for response in responses}
     assert by_id[1]["result"]["serverInfo"]["name"] == "aion"
     tool_names = [tool["name"] for tool in by_id[2]["result"]["tools"]]
-    assert tool_names == ["aion_capabilities", "aion_inspect", "aion_forecast"]
+    assert tool_names == [
+        "aion_capabilities", "aion_inspect", "aion_forecast",
+        "aion_submit_actuals", "aion_list_open_forecasts",
+        "aion_model_performance", "aion_record_decision",
+        "aion_resolve_decision",
+    ]
     call = by_id[3]["result"]
     assert call["isError"] is False
     payload = json.loads(call["content"][0]["text"])
