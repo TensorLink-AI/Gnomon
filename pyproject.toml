@@ -14,7 +14,7 @@ dependencies = []
 
 [project.optional-dependencies]
 parquet = ["pyarrow>=15"]
-dev = ["build>=1.2", "pytest>=8"]
+dev = ["build>=1.2", "pytest>=8", "pyyaml>=6.0"]
 
 # TSFM adapters — Aion works without any of these (missing deps = soft skip).
 # TSFM packages have conflicting transitive dependencies (e.g. numpy pinning),

@@ -38,6 +38,10 @@ class TestConfig:
         assert cfg.models.baselines_enabled is True
 
     def test_load_config_from_explicit_path(self, tmp_path):
+        try:
+            import yaml  # noqa: F401
+        except ImportError:
+            pytest.skip("PyYAML not installed")
         config_file = tmp_path / "aion.yaml"
         config_file.write_text(
             "models:\n"
