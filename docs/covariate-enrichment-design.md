@@ -202,6 +202,154 @@ New MCP tool: `aion_propose_covariates`
 The LLM proposes covariates with their source and rationale. Aion validates
 alignment and availability. The evaluation layer decides whether they help.
 
+#### 5a. Covariate discovery guidance — `aion_suggest_covariates`
+
+The problem with `aion_propose_covariates` is that it assumes the LLM already
+knows what to fetch. In practice, the LLM needs **guidance from Aion** about
+what covariates are likely relevant, what format Aion expects, and what the
+temporal constraints are.
+
+A new tool: `aion_suggest_covariates` — Aion inspects the dataset and returns
+a structured guide for the LLM:
+
+```json
+{
+  "name": "aion_suggest_covariates",
+  "description": "Inspect a dataset and suggest what external covariates might improve the forecast. Returns domain-aware suggestions, temporal constraints, and a structured format guide. The LLM uses this to decide what to fetch from the web.",
+  "inputSchema": {
+    "properties": {
+      "input": {"type": "string", "description": "Path to the data CSV"},
+      "time_column": {"type": "string"},
+      "target_column": {"type": "string"},
+      "frequency": {"type": "string"},
+      "horizon": {"type": "integer"},
+      "series_column": {"type": "string"}
+    }
+  }
+}
+```
+
+**What Aion returns:**
+
+```json
+{
+  "dataset_summary": {
+    "target": "sales",
+    "frequency": "D",
+    "history_start": "2026-01-01",
+    "history_end": "2026-07-28",
+    "horizon": 14,
+    "forecast_period": "2026-07-29 to 2026-08-11",
+    "observations": 209,
+    "series_count": 1,
+    "detected_seasonality": "weekly (lag-7 autocorrelation: 0.71)",
+    "detected_trend": "upward (last 30d mean 12% above first 30d mean)",
+    "volatility": "moderate (CV=0.34)",
+    "domain_hint": "retail (based on target name 'sales' and daily frequency)"
+  },
+  "covariate_suggestions": [
+    {
+      "name": "is_holiday",
+      "type": "binary",
+      "relevance": "high",
+      "reason": "Retail sales typically spike on holidays. Daily frequency + retail domain.",
+      "fetch_hint": "Search for: 'US federal holidays 2026' or use a holiday API. Return 1 for holiday dates, 0 otherwise.",
+      "temporal_requirement": "Must cover 2026-01-01 to 2026-08-11 (history + horizon)",
+      "known_at_requirement": "Holidays are known in advance — safe to use at all fold cutoffs"
+    },
+    {
+      "name": "is_weekend",
+      "type": "binary",
+      "relevance": "high",
+      "reason": "Strong weekly seasonality detected (autocorrelation 0.71 at lag 7). Weekend flag captures this.",
+      "fetch_hint": "Derive from timestamps: Saturday/Sunday = 1, else 0. No web fetch needed.",
+      "temporal_requirement": "All timestamps",
+      "known_at_requirement": "Always known"
+    },
+    {
+      "name": "temperature",
+      "type": "continuous",
+      "relevance": "medium",
+      "reason": "Weather can affect retail foot traffic. No strong evidence in the data itself.",
+      "fetch_hint": "Search for: 'weather history [location] 2026' or use a weather API. Need daily average temperature.",
+      "temporal_requirement": "Must cover 2026-01-01 to 2026-08-11. For the forecast period, weather forecasts are needed.",
+      "known_at_requirement": "Historical weather is known. Forecast-period weather must be from a forecast that was available at the cutoff time — or use climatology as an approximation."
+    },
+    {
+      "name": "promotion_flag",
+      "type": "binary",
+      "relevance": "unknown",
+      "reason": "If promotions were run during the history, they would explain variance spikes.",
+      "fetch_hint": "Check internal promotion calendar or sales records. If unavailable, skip.",
+      "temporal_requirement": "Must cover full history if available",
+      "known_at_requirement": "Only known if the promotion was planned before it ran"
+    }
+  ],
+  "format_guide": {
+    "csv_format": "timestamp,is_holiday,is_weekend,temperature,promotion_flag",
+    "alignment": "One row per timestamp, matching the main data's timestamp column",
+    "missing_values": "Use null for unknown dates — Aion will handle gaps",
+    "known_at_column": "Optional: add a 'known_at' column if covariates have different availability dates"
+  },
+  "temporal_constraints": {
+    "history_coverage": "2026-01-01 to 2026-07-28",
+    "forecast_coverage": "2026-07-29 to 2026-08-11",
+    "fold_cutoffs": ["2026-03-15", "2026-04-15", "2026-05-15", "2026-06-15"],
+    "warning": "Covariates must be available at each fold cutoff. If a covariate was only known after a cutoff date, it cannot be used for folds before that date."
+  },
+  "eligible_models_with_covariates": [
+    {"model": "toto2_22m", "reason": "Supports multivariate + covariates"},
+    {"model": "moirai2_small", "reason": "Supports feat_dynamic_real"},
+    {"model": "ttm", "reason": "Supports exogenous infusion"}
+  ],
+  "eligible_models_without_covariates": [
+    {"model": "theta", "reason": "Univariate — will serve as baseline"},
+    {"model": "seasonal_naive", "reason": "Mandatory baseline"},
+    {"model": "chronos_bolt_mini", "reason": "Univariate TSFM — baseline candidate"}
+  ]
+}
+```
+
+**How the LLM uses this:**
+
+1. Calls `aion_suggest_covariates` before fetching anything
+2. Gets domain-aware suggestions with fetch hints (what to search for)
+3. Gets temporal constraints (what date range to cover, fold cutoff dates)
+4. Gets the CSV format Aion expects
+5. Gets a list of which models can use covariates vs which are univariate-only
+6. Decides what to fetch, fetches it via `web_search` / `web_extract`
+7. Structures as CSV in the specified format
+8. Calls `aion_forecast --covariates covariates.csv`
+
+This is the guidance layer — Aion doesn't fetch data itself, but it tells
+the LLM **what to look for, where to look, and how to format it**.
+
+#### 5b. Covariate validation — `aion_validate_covariates`
+
+Before running the full forecast, the LLM can validate its covariates:
+
+```json
+{
+  "name": "aion_validate_covariates",
+  "description": "Validate covariates before forecasting: check temporal alignment, coverage gaps, and known-at availability. Returns warnings about missing dates, future leakage risks, and format issues.",
+  "inputSchema": {
+    "properties": {
+      "covariates_file": {"type": "string"},
+      "time_column": {"type": "string"},
+      "main_data_file": {"type": "string"},
+      "frequency": {"type": "string"}
+    }
+  }
+}
+```
+
+Returns:
+- Coverage report (which dates have covariates, which are missing)
+- Alignment check (do timestamps match the main data?)
+- Leakage warning (any covariate values that wouldn't have been known at historical cutoffs?)
+- Format validation (are values numeric/binary as expected?)
+- Suggested fixes (interpolate gaps, extend coverage, etc.)
+
 #### 6. Models that support covariates
 
 | Model | Covariate Support | How |
@@ -398,8 +546,13 @@ winner based on backtest.
 
 ### Phase 4: LLM Enrichment Workflow
 
-- `aion_propose_covariates` MCP tool
-- Agent workflow: fetch web data → structure as covariates → propose → validate
+- `aion_suggest_covariates` MCP tool — Aion inspects data, returns domain-aware
+  suggestions with fetch hints, temporal constraints, format guide, and
+  eligible model lists
+- `aion_validate_covariates` MCP tool — validates temporal alignment,
+  coverage gaps, leakage risks, format before forecasting
+- `aion_propose_covariates` MCP tool — LLM proposes covariates, Aion validates
+- Agent workflow: suggest → fetch (web_search) → validate → forecast
 - Aion validates temporal alignment and availability
 - Aion evaluates covariate value via ablation
 - Tests
