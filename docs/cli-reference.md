@@ -58,9 +58,38 @@ aion forecast INPUT --time COLUMN --target COLUMN --horizon N [OPTIONS]
 | `--horizon N` | Required | Number of future periods; must be at least one. |
 | `--output DIR` | `aion-output` | Parent directory for immutable run directories. |
 | `--minimum-baseline-improvement FLOAT` | `0.02` | Fractional improvement required before selecting drift over the strongest baseline. |
+| `--context FILE` | None | Validated context-events JSON (output of `aion context validate`). |
 
 An improvement value of `0.02` means two percent, not two percentage points.
 Baseline retention is a valid outcome and does not itself weaken support.
+
+Context events are proposals. Each series' response carries a `context`
+block recording the admission decision: events enter the forecast only when
+they demonstrate stable improvement on identical backtest folds, and events
+without a verifiable source never participate in backtests at all.
+
+## `aion context`
+
+The bring-your-own-brain workflow. Aion owns the prompt and the validation;
+any LLM the host chooses runs in between.
+
+```bash
+aion context prompt --file launches.md --file holidays.md --series api-prod
+# → {"instructions": ..., "response_schema": ..., "documents": [...]}
+# run instructions on your model, save the JSON response, then:
+aion context validate --response response.json --file launches.md --file holidays.md
+# → {"events": [...], "rejected": [...]} — feed to `aion forecast --context`
+```
+
+`validate` grounds each event's source from the document metadata (never
+from the model's claims), rejects non-verbatim evidence quotes, and marks
+whether each event is admissible for backtesting.
+
+## `aion mcp serve`
+
+Serves `aion_capabilities`, `aion_inspect`, and `aion_forecast` as typed
+tools over stdio MCP for any MCP-capable host. Logs go to stderr; the
+protocol owns stdout.
 
 ## Shell automation
 
@@ -76,5 +105,5 @@ code and the response's `status` field.
 ## Not currently available
 
 Commands described in future-facing design documents—such as `init`, `run`,
-`actuals`, `score`, `share`, and `mcp serve`—are not implemented in v0.1.
+`actuals`, `score`, and `share`—are not implemented in v0.1.
 

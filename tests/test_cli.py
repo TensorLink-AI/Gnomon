@@ -9,7 +9,8 @@ def test_capabilities_are_honest(capsys) -> None:
     assert main(["capabilities"]) == 0
     result = json.loads(capsys.readouterr().out)
     assert result["interfaces"]["cli"] is True
-    assert result["interfaces"]["mcp"] is False
+    assert result["interfaces"]["mcp"] is True
+    assert result["features"]["context_events"] is True
     assert result["models"]["tsfm"] == []
 
 

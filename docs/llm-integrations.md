@@ -7,7 +7,19 @@ or any other model provider. It does not read provider API-key environment
 variables. Forecasting is local and deterministic, so no API key is required.
 
 Setting `OPENROUTER_API_KEY`, `OPENAI_API_KEY`, or `ANTHROPIC_API_KEY` currently
-has no effect. There is also no `aion mcp serve` command in v0.1.
+has no effect. `aion mcp serve` exposes the tools over stdio MCP without any
+LLM of its own.
+
+## Bring your own brain
+
+Aion ships LLM *workflows* (prompt + response schema + deterministic
+validation) without shipping an LLM. `aion context prompt` emits an
+Aion-owned extraction prompt for permitted documents; the host runs it on
+its own model; `aion context validate` grounds and validates the response
+into typed context events. The Hermes plugin wires this through the host's
+`ctx.llm` facade, so no API key is ever configured on the Aion side. Events
+enter a forecast only through the deterministic admission gate
+(identical-fold ablation).
 
 ## Is OpenRouter a planned option?
 

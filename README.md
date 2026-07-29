@@ -45,7 +45,11 @@ history.
 | JSON, CSV, JSONL, and Markdown artifacts | Available |
 | Local CLI and Python API | Available |
 | Docker image and GitHub CI/CD | Available |
-| MCP/Hermes integration, LLM providers, TSFMs, project mode, and sharing | Planned |
+| Hermes plugin wrapping the CLI (tools + safe-use skill) | Available |
+| Evidence-gated context events (`--context`, identical-fold ablation) | Available |
+| Local MCP server (`aion mcp serve`) | Available |
+| LLM workflow prompts (`aion context prompt` / `validate`) | Available |
+| Standalone LLM providers, TSFMs, project mode, and sharing | Planned |
 
 `aion capabilities` is the machine-readable source of truth. Roadmap features
 are not exposed as mocked commands.
@@ -166,10 +170,13 @@ The intended relationship is:
 - **Hermes** manages intent, permitted data discovery, orchestration, and explanation.
 - **Aion** validates temporal data and owns every numerical result.
 
-MCP and a packaged Hermes integration are not implemented in v0.1. An external
-agent can use Aion today by invoking the CLI and parsing its JSON response. It
-must preserve Aion's support status and warnings and must never manufacture
-values for an unsupported series. No LLM or API key is currently required.
+A packaged Hermes plugin lives in [`integrations/hermes`](integrations/hermes/README.md):
+four tools wrapping the CLI — including LLM-assisted context-event proposal
+run on the host's own model — plus an `aion:forecasting` safe-use skill. Any
+MCP-capable agent can instead launch `aion mcp serve` and discover the same
+tools over stdio. Either way the host must preserve Aion's support status and
+warnings and must never manufacture values for an unsupported series. Aion
+itself requires no LLM or API key.
 
 ## Installation
 
@@ -210,6 +217,7 @@ Parquet extra, and future PyPI command are covered in the
 | [Forecasting concepts](docs/concepts.md) | Baselines, temporal evaluation, and abstention |
 | [Troubleshooting](docs/troubleshooting.md) | Structured errors and remediation |
 | [LLM integrations](docs/llm-integrations.md) | Current API-key status and intended agent boundary |
+| [Hermes plugin](integrations/hermes/README.md) | Install and operate Aion inside Hermes Agent |
 | [Containers](docs/containers.md) | Local Docker and GHCR operation |
 | [CI/CD](docs/ci-cd.md) | Tests, PyPI trusted publishing, and releases |
 
