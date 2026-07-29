@@ -198,3 +198,11 @@ def test_propose_context_events_wraps_llm_failure(tmp_path) -> None:
     payload = json.loads(handler({"files": [str(document)]}))
     assert payload["error"]["code"] == "AION_LLM_FAILED"
     assert payload["error"]["retryable"] is True
+
+
+def test_tap_skill_is_in_sync_with_plugin_skill() -> None:
+    # skills/forecasting/ exists so `hermes skills install
+    # TensorLink-AI/Aion/skills/forecasting` works (the tap tree cannot use
+    # symlinks); it must stay identical to the plugin-bundled copy.
+    tap_skill = REPO_ROOT / "skills" / "forecasting" / "SKILL.md"
+    assert tap_skill.read_text() == (PLUGIN_DIR / "SKILL.md").read_text()

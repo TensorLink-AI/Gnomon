@@ -35,6 +35,16 @@ Hermes plugins are opt-in; enabling writes `plugins.enabled` in
 (`aion capabilities`) — if the CLI is missing or speaks an incompatible
 schema version, the tools stay hidden instead of failing mid-conversation.
 
+The bundled skill is registered as `aion:forecasting`. Plugin skills are
+explicit loads in Hermes (they are not listed in the system prompt's skill
+index), so the tool descriptions point the agent at it. To put the skill in
+the auto-surfaced index instead, install it from this repo's tap-compatible
+copy:
+
+```bash
+hermes skills install TensorLink-AI/Aion/skills/forecasting
+```
+
 ## Configuration
 
 | Environment variable | Purpose | Default |
