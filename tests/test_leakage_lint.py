@@ -15,7 +15,7 @@ SRC = Path(__file__).resolve().parent.parent / "src" / "aion"
 
 # Modules whose non-load functions must be snapshot-only. Extend as the
 # operator substrate grows.
-GUARDED_MODULES = ["pipeline.py", "operators.py"]
+GUARDED_MODULES = ["pipeline.py", "operators.py", "macros.py"]
 
 # Functions allowed to perform raw input reads.
 ALLOWED_FUNCTIONS = {"load_stage"}

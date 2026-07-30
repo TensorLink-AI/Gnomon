@@ -110,6 +110,45 @@ def build_parser() -> argparse.ArgumentParser:
     validate_parser.add_argument("--response", required=True)
     validate_parser.add_argument("--file", action="append", required=True, dest="files")
 
+    investigate_parser = subcommands.add_parser(
+        "investigate", help="What changed? Changepoints, regimes, anomalies, ranked explanations"
+    )
+    _common_input(investigate_parser)
+    investigate_parser.add_argument("--context", dest="context_file",
+                                    help="Validated context-events JSON to rank as concurrent events")
+    investigate_parser.add_argument("--as-of", dest="as_of")
+    investigate_parser.add_argument("--output", default="aion-output")
+    investigate_parser.add_argument("--store-path", dest="store_path")
+
+    decide_parser = subcommands.add_parser(
+        "decide", help="What should we do? Scenario risk, feasible actions, expected utility or abstention"
+    )
+    _common_input(decide_parser)
+    decide_parser.add_argument("--horizon", required=True, type=int)
+    decide_parser.add_argument("--threshold", required=True, type=float)
+    decide_parser.add_argument("--actions", required=True,
+                               help="JSON list of actions, or @path/to/actions.json")
+    decide_parser.add_argument("--utilities",
+                               help="JSON {action: {exceed: x, no_exceed: y}}, or @file")
+    decide_parser.add_argument("--max-acceptable-risk", type=float, dest="max_acceptable_risk")
+    decide_parser.add_argument("--series-name", dest="series_name")
+    decide_parser.add_argument("--as-of", dest="as_of")
+    decide_parser.add_argument("--output", default="aion-output")
+    decide_parser.add_argument("--store-path", dest="store_path")
+
+    monitor_parser = subcommands.add_parser(
+        "monitor", help="When should we intervene? Sequential risk and a cost-aware alert rule"
+    )
+    _common_input(monitor_parser)
+    monitor_parser.add_argument("--horizon", required=True, type=int)
+    monitor_parser.add_argument("--threshold", required=True, type=float)
+    monitor_parser.add_argument("--alert-cost", type=float, dest="alert_cost")
+    monitor_parser.add_argument("--miss-cost", type=float, dest="miss_cost")
+    monitor_parser.add_argument("--project")
+    monitor_parser.add_argument("--as-of", dest="as_of")
+    monitor_parser.add_argument("--output", default="aion-output")
+    monitor_parser.add_argument("--store-path", dest="store_path")
+
     ingest_parser = subcommands.add_parser(
         "ingest", help="Append observations (as vintages) to the bitemporal store"
     )
@@ -238,6 +277,27 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _json_argument(raw: str | None):
+    if raw is None:
+        return None
+    if raw.startswith("@"):
+        path = Path(raw[1:]).expanduser()
+        if not path.is_file():
+            raise AionError("ARGUMENT_FILE_NOT_FOUND", f"File does not exist: {path}")
+        raw = path.read_text(encoding="utf-8")
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise AionError("INVALID_JSON_ARGUMENT", f"Argument is not valid JSON: {exc}") from exc
+
+
+def _parse_as_of(raw: str | None):
+    if not raw:
+        return None
+    from .data import _parse_timestamp
+    return _parse_timestamp(raw, 0)
+
+
 def _read_documents(paths: list[str]):
     from .workflows import DocumentRef
 
@@ -258,6 +318,50 @@ def _read_documents(paths: list[str]):
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
+        if args.command == "investigate":
+            from .context import load_events_file
+            from .macros import investigate_change
+
+            events = load_events_file(args.context_file) if args.context_file else None
+            payload, path = investigate_change(
+                args.input, time_column=args.time_column,
+                target_column=args.target_column, series_column=args.series_column,
+                frequency=args.frequency, as_of=_parse_as_of(args.as_of),
+                context_events=events, output=args.output,
+                store_path=args.store_path,
+            )
+            print(json.dumps({**payload, "artifact_path": str(path)}, indent=2, allow_nan=False))
+            return 0
+        if args.command == "decide":
+            from .macros import decide
+
+            payload, path = decide(
+                args.input, time_column=args.time_column,
+                target_column=args.target_column, horizon=args.horizon,
+                threshold=args.threshold,
+                actions=_json_argument(args.actions) or [],
+                utilities=_json_argument(args.utilities),
+                max_acceptable_risk=args.max_acceptable_risk,
+                series_column=args.series_column, series_name=args.series_name,
+                frequency=args.frequency, as_of=_parse_as_of(args.as_of),
+                output=args.output, store_path=args.store_path,
+            )
+            print(json.dumps({**payload, "artifact_path": str(path)}, indent=2, allow_nan=False))
+            return 0
+        if args.command == "monitor":
+            from .macros import monitor
+
+            payload, path = monitor(
+                args.input, time_column=args.time_column,
+                target_column=args.target_column, horizon=args.horizon,
+                threshold=args.threshold, alert_cost=args.alert_cost,
+                miss_cost=args.miss_cost, series_column=args.series_column,
+                frequency=args.frequency, as_of=_parse_as_of(args.as_of),
+                project=args.project, output=args.output,
+                store_path=args.store_path,
+            )
+            print(json.dumps({**payload, "artifact_path": str(path)}, indent=2, allow_nan=False))
+            return 0
         if args.command == "ingest":
             from .temporal_store import TemporalStore
 

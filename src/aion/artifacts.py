@@ -80,6 +80,32 @@ def write_artifact(
     return final
 
 
+def write_json_artifact(
+    artifact_id: str, payload: dict[str, Any], output_parent: str,
+    lineage: dict[str, Any] | None = None,
+) -> Path:
+    """Immutable artifact directory for non-forecast macros: artifact.json
+    plus lineage.json, atomically placed, first write wins."""
+    parent = Path(output_parent).expanduser().resolve()
+    parent.mkdir(parents=True, exist_ok=True)
+    final = parent / artifact_id
+    if final.is_dir():
+        return final
+    temporary = parent / f".{artifact_id}.tmp"
+    if temporary.is_dir():
+        shutil.rmtree(temporary)
+    temporary.mkdir()
+    with (temporary / "artifact.json").open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2, allow_nan=False)
+        handle.write("\n")
+    if lineage is not None:
+        with (temporary / "lineage.json").open("w", encoding="utf-8") as handle:
+            json.dump(lineage, handle, indent=2, allow_nan=False)
+            handle.write("\n")
+    os.replace(temporary, final)
+    return final
+
+
 def read_artifact(artifact_dir: str | Path) -> dict[str, Any]:
     """Load a stored artifact.json, enforcing the schema-versioning rule."""
     from .versioning import ensure_readable

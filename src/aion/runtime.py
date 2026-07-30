@@ -249,6 +249,7 @@ def capabilities() -> dict[str, object]:
         parquet = True
     except ImportError:
         parquet = False
+    from .registry import registry_capabilities
     from .tsfm import available_tsfms, capability_matrix, installed_tsfms
     from .tsfm_sandbox import list_sandboxes
     return {
@@ -267,8 +268,12 @@ def capabilities() -> dict[str, object]:
             "tsfm_sandboxes": list_sandboxes(),
             "tsfm_capabilities": capability_matrix(),
         },
+        **registry_capabilities(),
         "features": {
             "inspection": True, "forecasting": True, "separated_evaluation": True,
+            "investigate_change": True, "decide": True, "monitor": True,
+            "bitemporal_store": True, "as_of_replay": True, "typed_lineage": True,
+            "claim_verifier": True,
             "residual_intervals": True, "horizon_widened_intervals": True,
             "threshold_analysis": True, "degraded_evaluation": True,
             "project_mode": True, "actual_scoring": True,
