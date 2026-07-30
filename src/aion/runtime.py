@@ -13,7 +13,7 @@ from .covariates import CovariateDataset, assess_covariates
 from .data import load_observations
 from .evaluation import evaluate, interval_bounds, quantile
 from .models import BASELINES, MODELS, predict
-from .temporal import FREQUENCY_DESCRIPTIONS, SEASONS, next_timestamp, validate_and_group
+from .temporal import FREQUENCY_DESCRIPTIONS, SEASONS, detect_season, next_timestamp, validate_and_group
 
 
 def inspect_dataset(
@@ -23,11 +23,13 @@ def inspect_dataset(
     target_column: str,
     series_column: str | None = None,
     frequency: str | None = None,
+    seasonal_period: int | None = None,
 ) -> dict[str, object]:
     observations, source_fingerprint, columns = load_observations(
         input_path, time_column, target_column, series_column
     )
     groups, resolved_frequency, zone = validate_and_group(observations, frequency)
+    from .multivariate import correlation_report
     return {
         "schema_version": "0.1",
         "status": "valid",
@@ -49,9 +51,12 @@ def inspect_dataset(
                 "observations": len(items),
                 "start": items[0].timestamp.isoformat(),
                 "end": items[-1].timestamp.isoformat(),
+                "seasonality": dict(zip(("period", "strength", "source"),
+                    (seasonal_period, 1.0, "override") if seasonal_period else detect_season([item.value for item in items], resolved_frequency))),
             }
             for name, items in sorted(groups.items())
         ],
+        "cross_series_correlations": correlation_report(groups),
         "suggested_next": (
             f"aion forecast {Path(input_path).expanduser().resolve()} "
             f"--time {time_column} --target {target_column}"
@@ -111,6 +116,10 @@ def forecast(
     covariates: CovariateDataset | None = None,
     threshold: float | None = None,
     config: Any = None,
+    strict_abstention: bool = False,
+    seasonal_period: int | None = None,
+    selection_strategy: str = "best",
+    multivariate: bool = False,
 ) -> tuple[ForecastArtifact, Path]:
     if horizon < 1:
         from .contracts import AionError
@@ -132,7 +141,11 @@ def forecast(
     )
     results: list[SeriesResult] = []
     evidence: list[Evidence] = []
-    season = SEASONS[resolved_frequency]
+    multivariate_points: dict[str, list[float]] = {}
+    multivariate_warnings: dict[str, str] = {}
+    if multivariate and len(groups) > 1:
+        from .multivariate import forecast_var
+        multivariate_points, multivariate_warnings = forecast_var(groups, horizon)
     for series_name, items in sorted(groups.items()):
         values = [item.value for item in items]
         timestamps = [item.timestamp for item in items]
@@ -142,10 +155,13 @@ def forecast(
             timestamp = next_timestamp(timestamp, resolved_frequency)
             future_timestamps.append(timestamp)
 
+        detected_season, _, season_source = detect_season(values, resolved_frequency)
+        season = seasonal_period or detected_season
         assessment = evaluate(
             values, horizon, season, minimum_baseline_improvement,
             frequency=resolved_frequency,
             config=config,
+            strict_abstention=strict_abstention,
         )
         context_public: dict[str, object] | None = None
         covariate_public: dict[str, object] | None = None
@@ -155,7 +171,31 @@ def forecast(
         points: list[float] = []
         residuals = assessment.residuals
         if assessment.supported and assessment.selected_model:
-            if assessment.selected_model in MODELS:
+            if assessment.selected_model == "ensemble" or selection_strategy == "ensemble":
+                from .ensemble import compute_ensemble_forecast
+                forecasts = {}
+                for name in MODELS:
+                    try:
+                        forecasts[name] = predict(name, values, horizon, season)
+                    except ValueError:
+                        pass
+                points = compute_ensemble_forecast(forecasts, assessment.selection_scores,
+                                                   strategy="weighted_mean", last_observed=values[-1])
+                selected_model = "ensemble"
+                # Pool out-of-sample residuals from every eligible model so
+                # ensemble intervals reflect both data noise and model spread.
+                holdout = min(horizon, max(1, len(values) // 4))
+                origin = len(values) - holdout
+                pooled: list[float] = []
+                for name in MODELS:
+                    try:
+                        prediction = predict(name, values[:origin], holdout, season)
+                        pooled.extend(a - p for a, p in zip(values[origin:], prediction))
+                    except ValueError:
+                        pass
+                if pooled:
+                    residuals = pooled
+            elif assessment.selected_model in MODELS:
                 points = predict(assessment.selected_model, values, horizon, season)
             else:
                 # TSFM selected — use the adapter for the final forecast.
@@ -185,6 +225,10 @@ def forecast(
                     )
                     selected_model = assessment.strongest_baseline
                     points = predict(selected_model, values, horizon, season)
+        if series_name in multivariate_points:
+            points = multivariate_points[series_name]
+            selected_model = "var"
+            warnings.append(multivariate_warnings[series_name])
         if context_events:
             context = assess_context(
                 values, timestamps, future_timestamps, context_events, series_name,
@@ -230,7 +274,7 @@ def forecast(
                     "timestamp": timestamp.isoformat(), "point": point,
                     "q10": q10, "q50": q50, "q90": q90,
                 })
-            support = "weakly_supported" if warnings else "supported"
+            support = "degraded" if assessment.degraded else ("supported_ensemble" if selected_model == "ensemble" else ("weakly_supported" if warnings else "supported"))
             if threshold is not None:
                 threshold_analysis = _assess_threshold(
                     threshold, rows, points, residuals, residual_quantiles,
@@ -291,5 +335,7 @@ def capabilities() -> dict[str, object]:
             "context_events": True, "llm_workflow_prompts": True, "sharing": False,
             "future_known_covariates": True, "point_in_time_covariates": True,
             "covariate_ablation": True,
+            "season_detection": True, "ensemble_forecasting": True,
+            "multivariate_var": True, "strict_abstention": True,
         },
     }

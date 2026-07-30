@@ -27,6 +27,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     inspect_parser = subcommands.add_parser("inspect", help="Validate a temporal dataset")
     _common_input(inspect_parser)
+    inspect_parser.add_argument("--seasonal-period", type=int)
 
     forecast_parser = subcommands.add_parser("forecast", help="Run an evaluated forecast")
     _common_input(forecast_parser)
@@ -57,6 +58,11 @@ def build_parser() -> argparse.ArgumentParser:
     forecast_parser.add_argument("--covariate-time", default="timestamp")
     forecast_parser.add_argument("--covariate-known-at", default="known_at")
     forecast_parser.add_argument("--covariate-series")
+    forecast_parser.add_argument("--seasonal-period", type=int)
+    forecast_parser.add_argument("--strict-abstention", action="store_true")
+    forecast_parser.add_argument("--selection-strategy", choices=("best", "ensemble"), default="best")
+    forecast_parser.add_argument("--ensemble", action="store_true", help=argparse.SUPPRESS)
+    forecast_parser.add_argument("--multivariate", action="store_true")
 
     covariate_parser = subcommands.add_parser(
         "covariates", help="Guide and validate point-in-time covariate data"
@@ -511,6 +517,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             payload = inspect_dataset(
                 args.input, time_column=args.time_column, target_column=args.target_column,
                 series_column=args.series_column, frequency=args.frequency,
+                seasonal_period=args.seasonal_period,
             )
         elif args.command == "covariates":
             from .covariates import covariate_guide, validate_covariate_file
@@ -573,7 +580,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 output=args.output, minimum_baseline_improvement=args.minimum_baseline_improvement,
                 context_events=events, threshold=args.threshold,
                 covariates=covariates,
-                config=config,
+                config=config, strict_abstention=args.strict_abstention,
+                seasonal_period=args.seasonal_period,
+                selection_strategy="ensemble" if args.ensemble else args.selection_strategy,
+                multivariate=args.multivariate,
             )
             payload = forecast_summary(artifact, path)
 

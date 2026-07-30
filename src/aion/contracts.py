@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
 
-Support = Literal["supported", "weakly_supported", "unsupported"]
+Support = Literal["supported", "weakly_supported", "degraded", "supported_ensemble", "unsupported"]
 
 
 @dataclass(frozen=True)

@@ -68,16 +68,27 @@ def test_forecast_selects_drift_and_writes_complete_artifact(tmp_path: Path) -> 
     assert persisted["evidence"][0]["payload"]["partitioning"].startswith("selection")
 
 
-def test_short_valid_series_abstains_without_error(tmp_path: Path) -> None:
+def test_short_valid_series_uses_degraded_forecast(tmp_path: Path) -> None:
     source = tmp_path / "short.csv"
     write_daily(source, 15)
     artifact, _ = forecast(
         str(source), time_column="timestamp", target_column="value", horizon=3,
         output=str(tmp_path / "output"),
     )
+    assert artifact.results[0].support == "degraded"
+    assert len(artifact.results[0].forecast) == 3
+    assert "single trailing" in artifact.results[0].warnings[0]
+
+
+def test_short_valid_series_can_strictly_abstain(tmp_path: Path) -> None:
+    source = tmp_path / "short.csv"
+    write_daily(source, 15)
+    artifact, _ = forecast(
+        str(source), time_column="timestamp", target_column="value", horizon=3,
+        output=str(tmp_path / "output"), strict_abstention=True,
+    )
     assert artifact.results[0].support == "unsupported"
     assert artifact.results[0].forecast == []
-    assert "separated selection" in artifact.results[0].warnings[0]
 
 
 def test_short_series_warning_reports_have_and_required_counts(tmp_path: Path) -> None:
@@ -100,7 +111,7 @@ def test_two_fold_history_degrades_instead_of_refusing(tmp_path: Path) -> None:
         frequency="h", output=str(tmp_path / "output"),
     )
     result = artifact.results[0]
-    assert result.support == "weakly_supported"
+    assert result.support == "degraded"
     assert len(result.forecast) == 24
     assert result.interval_coverage is None
     assert any("Limited evaluation" in warning for warning in result.warnings)
@@ -183,4 +194,3 @@ def test_duplicate_timestamps_are_structured_input_error(tmp_path: Path) -> None
     with pytest.raises(AionError) as caught:
         inspect_dataset(str(source), time_column="timestamp", target_column="value", series_column="series")
     assert caught.value.code == "DUPLICATE_TIMESTAMPS"
-

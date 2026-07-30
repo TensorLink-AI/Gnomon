@@ -28,6 +28,38 @@ FREQUENCY_DESCRIPTIONS = {
 }
 
 
+def detect_season(values: list[float], frequency: str) -> tuple[int, float, str]:
+    """Detect a repeat period from autocorrelation, falling back to frequency.
+
+    Peaks must be both locally maximal and materially correlated.  Restricting
+    the search to at least two observed cycles avoids choosing unsupported
+    long lags, while lag 1 is excluded because trend commonly dominates it.
+    """
+    fallback = SEASONS[frequency]
+    if len(values) < 8:
+        return fallback, 0.0, "frequency_default"
+    # Remove a least-squares line first: otherwise a trend creates large,
+    # slowly decaying autocorrelation that masquerades as seasonality.
+    x_mean = (len(values) - 1) / 2
+    y_mean = sum(values) / len(values)
+    x_var = sum((i - x_mean) ** 2 for i in range(len(values)))
+    slope = sum((i - x_mean) * (value - y_mean) for i, value in enumerate(values)) / x_var
+    centred = [value - (y_mean + slope * (i - x_mean)) for i, value in enumerate(values)]
+    denominator = sum(value * value for value in centred)
+    if denominator <= 1e-12:
+        return fallback, 0.0, "frequency_default"
+    maximum = min(len(values) // 2, max(fallback * 2, 2))
+    acf = [0.0]
+    for lag in range(1, maximum + 1):
+        acf.append(sum(centred[i] * centred[i - lag] for i in range(lag, len(values))) / denominator)
+    threshold = max(0.3, 2.0 / len(values) ** 0.5)
+    peaks = [lag for lag in range(2, maximum) if acf[lag] >= threshold and acf[lag] > acf[lag - 1] and acf[lag] >= acf[lag + 1]]
+    if not peaks:
+        return fallback, 0.0, "frequency_default"
+    lag = peaks[0]
+    return lag, acf[lag], "autocorrelation"
+
+
 def normalise_frequency(value: str) -> str:
     aliases = {"H": "h", "hour": "h", "hourly": "h", "1h": "h",
                "day": "D", "daily": "D", "1d": "D", "1D": "D",
@@ -112,4 +144,3 @@ def validate_and_group(
         )
     zone = timezone_name([item.timestamp for item in observations])
     return dict(groups), frequency, zone
-

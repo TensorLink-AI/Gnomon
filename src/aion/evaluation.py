@@ -60,6 +60,38 @@ def _origins(length: int, horizon: int, minimum_train: int) -> list[int]:
     return list(range(minimum_train, length - horizon + 1, horizon))
 
 
+def select_model_lightweight(values: list[float], horizon: int, season: int) -> Evaluation:
+    """Select on one trailing holdout when separated rolling folds do not fit."""
+    if len(values) < horizon + 2:
+        scores = {name: None for name in MODELS}
+        return Evaluation(None, None, scores, scores.copy(), None, [], None,
+                          [f"Need at least {horizon + 2} observations (have {len(values)}) for degraded forecasting."], False, True)
+    holdout = min(horizon, max(1, len(values) // 4))
+    origin = len(values) - holdout
+    scores: dict[str, float | None] = {name: None for name in MODELS}
+    forecasts: dict[str, list[float]] = {}
+    actual = values[origin:]
+    for name in MODELS:
+        try:
+            prediction = predict(name, values[:origin], holdout, season)
+            scores[name] = error_score(actual, prediction)
+            forecasts[name] = prediction
+        except (ValueError, ArithmeticError):
+            continue
+    valid = {name: score for name, score in scores.items() if score is not None}
+    if not valid:
+        return Evaluation(None, None, scores, scores.copy(), None, [], None,
+                          ["Series is too short for lightweight model selection."], False, True)
+    selected = min(valid, key=valid.get)  # type: ignore[arg-type]
+    baselines = {name: score for name, score in valid.items() if name in BASELINES}
+    strongest = min(baselines, key=baselines.get) if baselines else selected  # type: ignore[arg-type]
+    residuals = [a - p for a, p in zip(actual, forecasts[selected])]
+    return Evaluation(selected, strongest, scores, {name: None for name in MODELS}, None,
+                      residuals, None, [
+                          f"Degraded forecast: model selection used a single trailing {holdout}-observation holdout; rolling-origin calibration and final testing were unavailable. At least {max(2 * season, 2 * horizon, 8) + 2 * horizon} observations (have {len(values)}) are needed for separated selection and calibration."
+                      ], True, True)
+
+
 def evaluate(
     values: list[float],
     horizon: int,
@@ -69,11 +101,14 @@ def evaluate(
     frequency: str = "h",
     tsfm_names: list[str] | None = None,
     config: Any = None,
+    strict_abstention: bool = False,
 ) -> Evaluation:
     minimum_train = max(2 * season, 2 * horizon, 8)
     origins = _origins(len(values), horizon, minimum_train)
     empty_scores = {name: None for name in MODELS}
     if len(origins) < 2:
+        if not strict_abstention:
+            return select_model_lightweight(values, horizon, season)
         minimum_required = minimum_train + 2 * horizon
         full_required = minimum_train + 4 * horizon
         return Evaluation(

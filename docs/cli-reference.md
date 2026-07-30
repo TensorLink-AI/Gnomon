@@ -44,6 +44,22 @@ series names, observation counts, and date ranges.
 
 ## `aion forecast`
 
+Short histories use a single trailing holdout and return `degraded` forecasts
+by default. Pass `--strict-abstention` to retain empty-result abstention when
+separated rolling evaluation is unavailable.
+
+Forecast controls:
+
+- `--seasonal-period N` overrides autocorrelation-based season detection.
+- `--selection-strategy ensemble` (or `--ensemble`) averages eligible model
+  forecasts using inverse-error weights and reports `supported_ensemble`.
+- `--multivariate` tries a VAR(1) forecast for aligned, correlated series. It
+  is used only when it beats an independent last-value forecast on a trailing
+  holdout; otherwise Aion falls back to its normal per-series path.
+
+`aion inspect` reports the detected seasonal period for each series and
+pairwise correlations for aligned multi-series inputs.
+
 Runs validation, rolling evaluation, model selection, calibration, support
 assessment, final forecasting, and artifact persistence:
 
