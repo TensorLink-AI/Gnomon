@@ -365,9 +365,27 @@ def _run_decide(arguments: dict[str, Any]) -> dict[str, Any]:
         series_name=arguments.get("series_name"),
         frequency=arguments.get("frequency"),
         as_of=_parse_as_of(arguments.get("as_of")),
+        project=arguments.get("project"),
         output=arguments.get("output_dir") or "aion-output",
     )
     return {**payload, "artifact_path": str(path)}
+
+
+def _run_status(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .tracking import TrackingStore
+    return TrackingStore().status(arguments.get("project"))
+
+
+def _run_resolve_outcome(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .tracking import TrackingStore
+    artifact = TrackingStore().resolve_decision_outcome(
+        str(arguments["decision_id"]),
+        realised_scenario=arguments.get("realised_scenario"),
+        realised_utilities=arguments.get("realised_utilities"),
+        constraint_violations=arguments.get("constraint_violations"),
+        note=arguments.get("note"),
+    )
+    return {"status": "ok", "decision": artifact.to_dict()}
 
 
 def _run_monitor(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -485,6 +503,36 @@ TOOLS.extend([
             "include_lineage": {"type": "boolean", "description": "Include lineage.json (artifacts/evidence/claims)."},
         }, "required": ["artifact_path"]},
         "runner": _run_get_artifact,
+    },
+    {
+        "name": "aion_status",
+        "description": (
+            "Pollable status: open forecasts, due horizons, unresolved "
+            "decisions, and realised-performance summaries. Descriptive "
+            "evidence an agent can cite — never causal."
+        ),
+        "inputSchema": {"type": "object", "properties": {
+            "project": {"type": "string", "description": "Optional project filter."},
+        }, "required": []},
+        "runner": _run_status,
+    },
+    {
+        "name": "aion_resolve_outcome",
+        "description": (
+            "Resolve a recorded DecisionArtifact with what actually happened: "
+            "realised scenario and/or per-action realised utilities. Returns "
+            "realised utility, regret vs the best feasible action in "
+            "hindsight, ex-ante optimality, and risk calibration — bare "
+            "'correct' is retired."
+        ),
+        "inputSchema": {"type": "object", "properties": {
+            "decision_id": {"type": "string"},
+            "realised_scenario": {"type": "string", "description": "e.g. exceed / no_exceed."},
+            "realised_utilities": {"type": "object", "description": "Optional per-action realised payoff."},
+            "constraint_violations": {"type": "array", "items": {"type": "string"}},
+            "note": {"type": "string"},
+        }, "required": ["decision_id"]},
+        "runner": _run_resolve_outcome,
     },
     {
         "name": "aion_explain_run",

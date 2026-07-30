@@ -293,12 +293,15 @@ def decide(
     series_name: str | None = None,
     frequency: str | None = None,
     as_of: datetime | None = None,
+    project: str | None = None,
     output: str = "aion-output",
     store_path: str | None = None,
     clock: Clock | None = None,
 ) -> tuple[dict[str, Any], Path]:
     """Scenario generation → feasible actions → uncertainty propagation →
-    constraints/costs (degraded without utilities) → choose or abstain."""
+    constraints/costs (degraded without utilities) → choose or abstain.
+    With a project, the decision is recorded as a DecisionArtifact for
+    realised-outcome scoring."""
     from .runtime import forecast as run_forecast
     clock = clock or SYSTEM_CLOCK
     artifact, forecast_dir = run_forecast(
@@ -416,6 +419,33 @@ def decide(
             calibration_ref=f"evaluation:{result.series}",
         ))
     verify_or_raise(lineage, as_of=task.as_of)
+    if project:
+        from .decision_model import ActionOption, DecisionArtifact
+        from .tracking import TrackingStore, register_artifact
+        register_artifact(artifact, project, str(forecast_dir))
+        store = TrackingStore()
+        store.save_decision_artifact(DecisionArtifact(
+            decision_id=decision_id,
+            project=project,
+            forecast_id=artifact.forecast_id,
+            options=[
+                ActionOption(
+                    name=item["name"], feasible=item["feasible"],
+                    constraint_results=item.get("constraint_results", {}),
+                    expected_utility=item.get("expected_utility"),
+                    downside_risk=item.get("downside"),
+                )
+                for item in evaluation.get("evaluations", [])
+            ],
+            selected_action=evaluation.get("selected"),
+            decision_rule=evaluation.get("decision_rule"),
+            scenario_probabilities=scenario_probabilities,
+            utilities=utilities,
+            assumptions=[reason["message"] for reason in support.get("reasons", [])],
+            sensitivity=support.get("sensitivity", {}),
+            created_at=created_at,
+        ))
+        payload["project"] = project
     return payload, write_json_artifact(decision_id, payload, output, lineage=lineage.to_dict())
 
 

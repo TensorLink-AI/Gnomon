@@ -300,6 +300,16 @@ class TrackingStore:
                     key TEXT PRIMARY KEY,
                     value TEXT NOT NULL
                 );
+
+                CREATE TABLE IF NOT EXISTS decision_artifacts (
+                    decision_id TEXT PRIMARY KEY,
+                    project TEXT NOT NULL,
+                    forecast_id TEXT NOT NULL,
+                    selected_action TEXT,
+                    created_at TEXT NOT NULL,
+                    resolved_at TEXT,
+                    payload TEXT NOT NULL
+                );
             """)
             columns = {
                 row["name"] for row in conn.execute("PRAGMA table_info(forecasts)")
@@ -733,6 +743,132 @@ class TrackingStore:
                     "SELECT * FROM decisions ORDER BY created_at DESC"
                 ).fetchall()
         return [self._row_to_decision(row) for row in rows]
+
+    # -- Decision artifacts (Phase 6 model; legacy decisions kept intact) --
+
+    def save_decision_artifact(self, artifact: Any) -> Any:
+        import json as _json
+        with self._connect() as conn:
+            conn.execute("""
+                INSERT INTO decision_artifacts
+                    (decision_id, project, forecast_id, selected_action,
+                     created_at, resolved_at, payload)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(decision_id) DO UPDATE SET
+                    selected_action = excluded.selected_action,
+                    resolved_at = excluded.resolved_at,
+                    payload = excluded.payload
+            """, (
+                artifact.decision_id, artifact.project, artifact.forecast_id,
+                artifact.selected_action, artifact.created_at,
+                artifact.resolved_at, _json.dumps(artifact.to_dict()),
+            ))
+        return artifact
+
+    def get_decision_artifact(self, decision_id: str) -> Any | None:
+        import json as _json
+        from .decision_model import DecisionArtifact
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT payload FROM decision_artifacts WHERE decision_id = ?",
+                (decision_id,),
+            ).fetchone()
+        if row is not None:
+            return DecisionArtifact.from_dict(_json.loads(row["payload"]))
+        legacy = self.get_decision(decision_id)
+        return DecisionArtifact.from_legacy(legacy) if legacy else None
+
+    def list_decision_artifacts(self, project: str | None = None) -> list[Any]:
+        """New-model artifacts plus v0.2 DecisionRecords loaded as degraded
+        artifacts under the versioning rule — no stored project breaks."""
+        import json as _json
+        from .decision_model import DecisionArtifact
+        with self._connect() as conn:
+            if project:
+                rows = conn.execute(
+                    "SELECT payload FROM decision_artifacts WHERE project = ? "
+                    "ORDER BY created_at DESC", (project,),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT payload FROM decision_artifacts ORDER BY created_at DESC",
+                ).fetchall()
+        artifacts = [DecisionArtifact.from_dict(_json.loads(row["payload"])) for row in rows]
+        modern_ids = {artifact.decision_id for artifact in artifacts}
+        for legacy in self.list_decisions(project):
+            if legacy.decision_id not in modern_ids:
+                artifacts.append(DecisionArtifact.from_legacy(legacy))
+        return artifacts
+
+    def resolve_decision_outcome(
+        self, decision_id: str, *,
+        realised_scenario: str | None = None,
+        realised_utilities: dict[str, float] | None = None,
+        constraint_violations: list[str] | None = None,
+        note: str | None = None,
+        resolved_at: str | None = None,
+    ) -> Any:
+        from .decision_model import score_outcome
+        artifact = self.get_decision_artifact(decision_id)
+        if artifact is None:
+            raise ValueError(f"Decision {decision_id} not found")
+        artifact.outcome = score_outcome(
+            artifact, realised_scenario=realised_scenario,
+            realised_utilities=realised_utilities,
+            constraint_violations=constraint_violations, note=note,
+        )
+        artifact.resolved_at = resolved_at or datetime.now(timezone.utc).isoformat()
+        return self.save_decision_artifact(artifact)
+
+    def status(self, project: str | None = None) -> dict[str, Any]:
+        """Pollable view: open forecasts, due horizons, unresolved decisions,
+        realised-performance summaries. Descriptive, never causal."""
+        open_forecasts = [
+            {
+                "forecast_id": item.forecast_id, "project": item.project,
+                "series": item.series, "model": item.selected_model,
+                "support": item.support, "created_at": item.created_at,
+            }
+            for item in self.list_forecasts(project=project, limit=500)
+            if not item.scored
+        ]
+        unresolved = [
+            {
+                "decision_id": artifact.decision_id, "project": artifact.project,
+                "selected_action": artifact.selected_action,
+                "degraded": artifact.degraded, "created_at": artifact.created_at,
+            }
+            for artifact in self.list_decision_artifacts(project)
+            if artifact.resolved_at is None
+        ]
+        resolved = [a for a in self.list_decision_artifacts(project)
+                    if a.resolved_at is not None and a.outcome is not None]
+        regrets = [a.outcome.regret for a in resolved if a.outcome.regret is not None]
+        decision_summary = {
+            "resolved": len(resolved),
+            "with_regret_scored": len(regrets),
+            "mean_regret": (sum(regrets) / len(regrets)) if regrets else None,
+            "ex_ante_optimal": sum(
+                1 for a in resolved if a.outcome.ex_ante_optimal is True
+            ),
+        }
+        leaderboard = []
+        if project:
+            leaderboard = [
+                {"model": m.model, "count": m.count, "avg_mase": m.avg_mase,
+                 "avg_coverage": m.avg_coverage}
+                for m in self.leaderboard(project)
+            ]
+        return {
+            "schema_version": "0.1",
+            "project": project,
+            "open_forecasts": open_forecasts,
+            "due": self.due_forecasts(project),
+            "unresolved_decisions": unresolved,
+            "decision_summary": decision_summary,
+            "model_performance": leaderboard,
+            "warning": "Realised performance is observational evidence, never causal.",
+        }
 
     def export_snapshot(self, project: str | None = None) -> dict[str, Any]:
         """Return a portable JSON snapshot; immutable artifacts remain separate."""

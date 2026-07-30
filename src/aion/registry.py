@@ -203,6 +203,10 @@ MACROS: dict[str, MacroSpec] = {
                         "Optional constraint on each action's residual_risk."
                     )},
                     "series_name": {"type": "string", "description": "Series to decide for (required when multiple)."},
+                    "project": {"type": "string", "description": (
+                        "Optional tracking project: records a DecisionArtifact "
+                        "for realised-outcome scoring (regret, calibration)."
+                    )},
                 },
                 "required": ["input", "time_column", "target_column", "horizon", "threshold", "actions"],
             },

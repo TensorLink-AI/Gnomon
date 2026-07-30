@@ -132,6 +132,7 @@ def build_parser() -> argparse.ArgumentParser:
                                help="JSON {action: {exceed: x, no_exceed: y}}, or @file")
     decide_parser.add_argument("--max-acceptable-risk", type=float, dest="max_acceptable_risk")
     decide_parser.add_argument("--series-name", dest="series_name")
+    decide_parser.add_argument("--project", help="Record a DecisionArtifact in this tracking project")
     decide_parser.add_argument("--as-of", dest="as_of")
     decide_parser.add_argument("--output", default="aion-output")
     decide_parser.add_argument("--store-path", dest="store_path")
@@ -185,6 +186,11 @@ def build_parser() -> argparse.ArgumentParser:
     store_commands = store_parser.add_subparsers(dest="store_command", required=True)
     store_list = store_commands.add_parser("list", help="List ingested datasets")
     store_list.add_argument("--store-path", dest="store_path")
+
+    status_parser = subcommands.add_parser(
+        "status", help="Open forecasts, due horizons, unresolved decisions, realised performance"
+    )
+    status_parser.add_argument("--project", default=None)
 
     mcp_parser = subcommands.add_parser("mcp", help="Model Context Protocol server")
     mcp_commands = mcp_parser.add_subparsers(dest="mcp_command", required=True)
@@ -276,6 +282,15 @@ def build_parser() -> argparse.ArgumentParser:
     decision_list = decision_commands.add_parser("list")
     decision_list.add_argument("--project", default=None)
 
+    track_outcome = track_commands.add_parser(
+        "outcome", help="Resolve a DecisionArtifact with realised results (regret scoring)"
+    )
+    track_outcome.add_argument("--decision-id", required=True)
+    track_outcome.add_argument("--realised-scenario")
+    track_outcome.add_argument("--realised-utilities", help="JSON {action: payoff}, or @file")
+    track_outcome.add_argument("--violations", help="JSON list of violated constraints, or @file")
+    track_outcome.add_argument("--note")
+
     track_export = track_commands.add_parser("export", help="Export registry metadata as JSON")
     track_export.add_argument("--project", default=None)
     track_export.add_argument("--output", required=True)
@@ -361,9 +376,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                 max_acceptable_risk=args.max_acceptable_risk,
                 series_column=args.series_column, series_name=args.series_name,
                 frequency=args.frequency, as_of=_parse_as_of(args.as_of),
+                project=args.project,
                 output=args.output, store_path=args.store_path,
             )
             print(json.dumps({**payload, "artifact_path": str(path)}, indent=2, allow_nan=False))
+            return 0
+        if args.command == "status":
+            from .tracking import TrackingStore
+            print(json.dumps(TrackingStore().status(args.project), indent=2, allow_nan=False))
             return 0
         if args.command == "monitor":
             from .macros import monitor
@@ -674,6 +694,17 @@ def main(argv: Sequence[str] | None = None) -> int:
                     return 0
                 decisions = store.list_decisions(args.project)
                 print(json.dumps([item.__dict__ for item in decisions], indent=2))
+                return 0
+
+            elif args.track_command == "outcome":
+                artifact = store.resolve_decision_outcome(
+                    args.decision_id,
+                    realised_scenario=args.realised_scenario,
+                    realised_utilities=_json_argument(args.realised_utilities),
+                    constraint_violations=_json_argument(args.violations),
+                    note=args.note,
+                )
+                print(json.dumps(artifact.to_dict(), indent=2, allow_nan=False))
                 return 0
 
             elif args.track_command == "export":
