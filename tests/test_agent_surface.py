@@ -25,6 +25,7 @@ V02_TOOL_NAMES = [
 NEW_TOOL_NAMES = [
     "aion_investigate_change", "aion_decide", "aion_monitor",
     "aion_get_artifact", "aion_explain_run",
+    "aion_status", "aion_resolve_outcome",
 ]
 
 
