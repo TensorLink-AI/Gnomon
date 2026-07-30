@@ -501,8 +501,95 @@ TOOLS.extend([
 ])
 
 
+# --- Experimental planner surface (advanced; macros remain the default) ---
+
+def planner_enabled() -> bool:
+    import os
+    return os.environ.get("AION_EXPERIMENTAL_PLANNER") == "1"
+
+
+def _run_compile_task(arguments: dict[str, Any]) -> dict[str, Any]:
+    from dataclasses import asdict
+    from .plan import compile_task
+    plan = compile_task(str(arguments["task_type"]), dict(arguments.get("params") or {}))
+    return {"schema_version": "0.1", "plan_id": plan.plan_id(),
+            "plan": {"task": plan.task, "steps": [asdict(step) for step in plan.steps]}}
+
+
+def _run_validate_plan(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .plan import plan_from_dict, validate_plan
+    plan = plan_from_dict(dict(arguments["plan"]))
+    violations = validate_plan(plan)
+    return {"schema_version": "0.1", "plan_id": plan.plan_id(),
+            "valid": not violations, "violations": violations}
+
+
+def _run_execute_plan(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .execution import execute_plan
+    from .plan import plan_from_dict
+    payload, path = execute_plan(
+        plan_from_dict(dict(arguments["plan"])),
+        output=arguments.get("output_dir") or "aion-output",
+        as_of=_parse_as_of(arguments.get("as_of")),
+        store_path=arguments.get("store_path"),
+    )
+    return {**payload, "artifact_path": str(path)}
+
+
+def _run_get_run(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .artifacts import read_artifact
+    return {"schema_version": "0.1", "run": read_artifact(arguments["run_path"])}
+
+
+_PLAN_PROPERTY = {"type": "object", "description": "A TemporalPlan: {task, steps: [{step_id, operator, inputs, produces, failure_policy}]}."}
+
+PLANNER_TOOLS: list[dict[str, Any]] = [
+    {
+        "name": "aion_compile_task",
+        "description": "Compile one of the four canonical task types into a validated TemporalPlan (experimental).",
+        "inputSchema": {"type": "object", "properties": {
+            "task_type": {"type": "string", "enum": ["forecast", "investigate_change", "decide", "monitor"]},
+            "params": {"type": "object", "description": "The macro's parameters."},
+        }, "required": ["task_type", "params"]},
+        "runner": _run_compile_task,
+    },
+    {
+        "name": "aion_validate_plan",
+        "description": "Deterministically validate a TemporalPlan: operators, references, leakage, claim-class feasibility, budget, duplicates (experimental).",
+        "inputSchema": {"type": "object", "properties": {"plan": _PLAN_PROPERTY},
+                        "required": ["plan"]},
+        "runner": _run_validate_plan,
+    },
+    {
+        "name": "aion_execute_plan",
+        "description": "Execute a validated TemporalPlan with step checkpointing, content-addressed caching, and deterministic replay (experimental).",
+        "inputSchema": {"type": "object", "properties": {
+            "plan": _PLAN_PROPERTY,
+            "output_dir": {"type": "string"},
+            "as_of": {"type": "string"},
+            "store_path": {"type": "string"},
+        }, "required": ["plan"]},
+        "runner": _run_execute_plan,
+    },
+    {
+        "name": "aion_get_run",
+        "description": "Read a stored plan-run artifact: step provenance and outputs (experimental).",
+        "inputSchema": {"type": "object", "properties": {
+            "run_path": {"type": "string", "description": "Run artifact directory."},
+        }, "required": ["run_path"]},
+        "runner": _run_get_run,
+    },
+]
+
+
+def visible_tools() -> list[dict[str, Any]]:
+    """The tool surface as gated for this process: macros always; the raw
+    planner only behind AION_EXPERIMENTAL_PLANNER=1."""
+    return TOOLS + (PLANNER_TOOLS if planner_enabled() else [])
+
+
 def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
-    for tool in TOOLS:
+    for tool in visible_tools():
         if tool["name"] == name:
             return tool["runner"]
     return None

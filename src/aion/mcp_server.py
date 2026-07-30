@@ -15,7 +15,7 @@ import sys
 from typing import Any, TextIO
 
 from .contracts import AionError
-from .toolspec import TOOLS, runner_for
+from .toolspec import runner_for, visible_tools
 
 PROTOCOL_VERSION = "2025-06-18"
 SERVER_INFO = {"name": "aion", "version": "0.2.0"}
@@ -47,7 +47,7 @@ def _handle(message: dict[str, Any]) -> dict[str, Any] | None:
                     "description": tool["description"],
                     "inputSchema": tool["inputSchema"],
                 }
-                for tool in TOOLS
+                for tool in visible_tools()
             ]
         }
     if method == "tools/call":

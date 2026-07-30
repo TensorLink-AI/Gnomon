@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import asdict, is_dataclass
 from datetime import datetime
 from pathlib import Path
@@ -269,6 +270,7 @@ def capabilities() -> dict[str, object]:
             "tsfm_capabilities": capability_matrix(),
         },
         **registry_capabilities(),
+        "experimental": {"planner": os.environ.get("AION_EXPERIMENTAL_PLANNER") == "1"},
         "features": {
             "inspection": True, "forecasting": True, "separated_evaluation": True,
             "investigate_change": True, "decide": True, "monitor": True,

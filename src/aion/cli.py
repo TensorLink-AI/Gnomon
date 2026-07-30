@@ -149,6 +149,23 @@ def build_parser() -> argparse.ArgumentParser:
     monitor_parser.add_argument("--output", default="aion-output")
     monitor_parser.add_argument("--store-path", dest="store_path")
 
+    plan_parser = subcommands.add_parser(
+        "plan", help="Experimental: compile, validate, and execute TemporalPlans"
+    )
+    plan_commands = plan_parser.add_subparsers(dest="plan_command", required=True)
+    plan_compile = plan_commands.add_parser("compile")
+    plan_compile.add_argument("--task-type", required=True,
+                              choices=["forecast", "investigate_change", "decide", "monitor"])
+    plan_compile.add_argument("--params", required=True,
+                              help="JSON object of macro parameters, or @file")
+    plan_validate = plan_commands.add_parser("validate")
+    plan_validate.add_argument("--plan", required=True, help="Plan JSON, or @file")
+    plan_execute = plan_commands.add_parser("execute")
+    plan_execute.add_argument("--plan", required=True, help="Plan JSON, or @file")
+    plan_execute.add_argument("--output", default="aion-output")
+    plan_execute.add_argument("--as-of", dest="as_of")
+    plan_execute.add_argument("--store-path", dest="store_path")
+
     ingest_parser = subcommands.add_parser(
         "ingest", help="Append observations (as vintages) to the bitemporal store"
     )
@@ -361,6 +378,26 @@ def main(argv: Sequence[str] | None = None) -> int:
                 store_path=args.store_path,
             )
             print(json.dumps({**payload, "artifact_path": str(path)}, indent=2, allow_nan=False))
+            return 0
+        if args.command == "plan":
+            from .toolspec import (
+                _run_compile_task, _run_execute_plan, _run_validate_plan,
+            )
+            if args.plan_command == "compile":
+                payload = _run_compile_task({
+                    "task_type": args.task_type,
+                    "params": _json_argument(args.params),
+                })
+            elif args.plan_command == "validate":
+                payload = _run_validate_plan({"plan": _json_argument(args.plan)})
+            else:
+                payload = _run_execute_plan({
+                    "plan": _json_argument(args.plan),
+                    "output_dir": args.output,
+                    "as_of": args.as_of,
+                    "store_path": args.store_path,
+                })
+            print(json.dumps(payload, indent=2, allow_nan=False))
             return 0
         if args.command == "ingest":
             from .temporal_store import TemporalStore
