@@ -112,7 +112,34 @@
       ],
       "context": null,
       "covariates": null,
-      "threshold": null
+      "threshold": null,
+      "support_assessment": {
+        "status": "conditionally_supported",
+        "reasons": [
+          {
+            "code": "degraded_evaluation",
+            "message": "Model selection ran without separated calibration and test folds."
+          },
+          {
+            "code": "warning",
+            "message": "Limited evaluation: only 3 rolling folds were available; 42 observations enable fully separated selection, calibration, and test windows."
+          }
+        ],
+        "assumptions": [
+          "known_time_assumed: the source provides no known-time column, so each observation is treated as known the moment it applies (known_time = valid_time). Revisions and publication lags are invisible to this run."
+        ],
+        "sensitivity": {
+          "baseline_improvement": 1.0,
+          "final_test_interval_coverage": 1.0
+        },
+        "recovery_actions": [
+          {
+            "code": "provide_more_history",
+            "message": "Supply enough observations for separated selection, calibration, and test windows."
+          }
+        ],
+        "legacy_support": "degraded"
+      }
     }
   ],
   "evidence": [

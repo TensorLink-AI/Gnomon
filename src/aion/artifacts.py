@@ -10,7 +10,10 @@ from typing import Any
 from .contracts import AionError, ForecastArtifact
 
 
-def write_artifact(artifact: ForecastArtifact, output_parent: str) -> Path:
+def write_artifact(
+    artifact: ForecastArtifact, output_parent: str,
+    lineage: dict[str, Any] | None = None,
+) -> Path:
     parent = Path(output_parent).expanduser().resolve()
     parent.mkdir(parents=True, exist_ok=True)
     final = parent / artifact.forecast_id
@@ -29,6 +32,10 @@ def write_artifact(artifact: ForecastArtifact, output_parent: str) -> Path:
         with (temporary / "evidence.jsonl").open("w", encoding="utf-8") as handle:
             for record in artifact.evidence:
                 handle.write(json.dumps(record.__dict__, allow_nan=False) + "\n")
+        if lineage is not None:
+            with (temporary / "lineage.json").open("w", encoding="utf-8") as handle:
+                json.dump(lineage, handle, indent=2, allow_nan=False)
+                handle.write("\n")
         with (temporary / "forecast.csv").open("w", encoding="utf-8", newline="") as handle:
             writer = csv.DictWriter(handle, fieldnames=["series", "timestamp", "point", "q10", "q50", "q90"])
             writer.writeheader()

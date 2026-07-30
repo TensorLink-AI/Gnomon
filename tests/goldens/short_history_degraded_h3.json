@@ -78,7 +78,31 @@
       ],
       "context": null,
       "covariates": null,
-      "threshold": null
+      "threshold": null,
+      "support_assessment": {
+        "status": "conditionally_supported",
+        "reasons": [
+          {
+            "code": "degraded_evaluation",
+            "message": "Model selection ran without separated calibration and test folds."
+          },
+          {
+            "code": "warning",
+            "message": "Degraded forecast: model selection used a single trailing 1-observation holdout; rolling-origin calibration and final testing were unavailable. At least 20 observations (have 6) are needed for separated selection and calibration."
+          }
+        ],
+        "assumptions": [
+          "known_time_assumed: the source provides no known-time column, so each observation is treated as known the moment it applies (known_time = valid_time). Revisions and publication lags are invisible to this run."
+        ],
+        "sensitivity": {},
+        "recovery_actions": [
+          {
+            "code": "provide_more_history",
+            "message": "Supply enough observations for separated selection, calibration, and test windows."
+          }
+        ],
+        "legacy_support": "degraded"
+      }
     }
   ],
   "evidence": [

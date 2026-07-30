@@ -56,7 +56,27 @@
       "forecast": [],
       "context": null,
       "covariates": null,
-      "threshold": null
+      "threshold": null,
+      "support_assessment": {
+        "status": "inconclusive",
+        "reasons": [
+          {
+            "code": "insufficient_evaluation",
+            "message": "Need at least 20 observations (have 6) for separated selection and calibration windows; 26 observations enable fully separated selection, calibration, and test windows."
+          }
+        ],
+        "assumptions": [
+          "known_time_assumed: the source provides no known-time column, so each observation is treated as known the moment it applies (known_time = valid_time). Revisions and publication lags are invisible to this run."
+        ],
+        "sensitivity": {},
+        "recovery_actions": [
+          {
+            "code": "provide_more_history",
+            "message": "Supply more observations, or lower the horizon, so rolling evaluation can run."
+          }
+        ],
+        "legacy_support": "unsupported"
+      }
     }
   ],
   "evidence": [

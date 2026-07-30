@@ -47,6 +47,7 @@ def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
         "results": [
             {
                 "series": item.series, "support": item.support,
+                "support_assessment": item.support_assessment,
                 "selected_model": item.selected_model,
                 "interval_coverage": item.interval_coverage,
                 "warnings": item.warnings,

@@ -61,7 +61,8 @@ def test_forecast_selects_drift_and_writes_complete_artifact(tmp_path: Path) -> 
     assert result.selected_model == "drift"
     assert result.forecast[0]["point"] == pytest.approx(130.0)
     assert set(path.name for path in directory.iterdir()) == {
-        "artifact.json", "forecast.csv", "evidence.jsonl", "summary.md"
+        "artifact.json", "forecast.csv", "evidence.jsonl", "summary.md",
+        "lineage.json",
     }
     persisted = json.loads((directory / "artifact.json").read_text())
     assert persisted["task"]["schema"]["time_column"] == "timestamp"

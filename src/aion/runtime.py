@@ -179,11 +179,17 @@ def forecast(
             )
         rows, support, threshold_analysis = interval_stage(state, threshold=threshold)
         assessment = state.assessment
+        from .support import assess_forecast_support
+        support_assessment = assess_forecast_support(
+            support, state.warnings, assessment,
+            known_time_assumed=loaded.snapshot.assumed_known_time,
+        )
         result = SeriesResult(
             series_name, support, state.selected_model, assessment.strongest_baseline,
             assessment.selection_scores, assessment.test_scores, assessment.improvement,
             state.coverage, state.warnings, rows, state.context_public,
             state.covariate_public, threshold_analysis,
+            support_assessment.to_dict(),
         )
         results.append(result)
         evidence.extend(state.evidence)
@@ -222,7 +228,19 @@ def forecast(
         "0.1", forecast_id, clock.now().isoformat(),
         "complete", task, loaded.source_fingerprint, results, evidence,
     )
-    return artifact, write_artifact(artifact, output)
+    from .contracts import forecast_task
+    from .lineage import build_forecast_lineage
+    from .verifier import verify_or_raise
+    temporal_task = forecast_task(
+        task.input_path, time_column=time_column, target_column=target_column,
+        horizon=horizon, series_column=series_column, frequency=loaded.frequency,
+        threshold=threshold, minimum_baseline_improvement=minimum_baseline_improvement,
+        as_of=task.as_of,
+    )
+    lineage = build_forecast_lineage(artifact, temporal_task)
+    # No response leaves the process unverified — including our own.
+    verify_or_raise(lineage, as_of=task.as_of)
+    return artifact, write_artifact(artifact, output, lineage=lineage.to_dict())
 
 
 def capabilities() -> dict[str, object]:
