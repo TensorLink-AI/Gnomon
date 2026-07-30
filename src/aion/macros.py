@@ -347,6 +347,19 @@ def decide(
             utilities=utilities, max_acceptable_risk=max_acceptable_risk,
         )
         support = evaluation["support"]
+        # Uncertainty propagation: a decision grounded on a warned or
+        # degraded forecast cannot claim more support than the forecast has.
+        if result.warnings:
+            forecast_reasons = [
+                {"code": "forecast_warning", "message": warning}
+                for warning in result.warnings
+            ]
+            support = {
+                **support,
+                "status": ("conditionally_supported"
+                           if support["status"] == "supported" else support["status"]),
+                "reasons": list(support.get("reasons", [])) + forecast_reasons,
+            }
 
     decision_id = content_id("decision", {
         "forecast": artifact.forecast_id,
@@ -519,6 +532,7 @@ def monitor(
             "No alert/miss costs were supplied; the alert rule uses the "
             "uninformative 0.5 probability threshold.",
         )]
+        reasons += [SupportReason("forecast_warning", warning) for warning in result.warnings]
         triggers.append({
             "series": result.series,
             "armed": True,
@@ -534,7 +548,7 @@ def monitor(
                 result.forecast[first_alert - 1]["timestamp"] if first_alert else None
             ),
             "support_assessment": SupportAssessment(
-                "supported" if costed else "conditionally_supported",
+                "supported" if costed and not result.warnings else "conditionally_supported",
                 reasons,
                 recovery_actions=[] if costed else [SupportReason(
                     "provide_costs",

@@ -305,6 +305,13 @@ def build_parser() -> argparse.ArgumentParser:
     eval_compare = eval_commands.add_parser("compare")
     eval_compare.add_argument("--baseline", required=True, help="Control JSONL runs")
     eval_compare.add_argument("--treatment", required=True, help="Aion-enabled JSONL runs")
+    eval_episodes = eval_commands.add_parser(
+        "episodes", help="Run the built-in episode suite with the honest reference policy"
+    )
+    eval_episodes.add_argument("--workdir", required=True,
+                               help="Directory for generated worlds and artifacts")
+    eval_episodes.add_argument("--trials", type=int, default=1)
+    eval_episodes.add_argument("--jsonl", help="Also write graded rows for `aion eval compare`")
 
     return parser
 
@@ -723,6 +730,23 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return 0
 
         if args.command == "eval":
+            if args.eval_command == "episodes":
+                from .episodes import (
+                    evaluate_policy, honest_aion_policy, standard_suite,
+                    write_runs_jsonl,
+                )
+                workdir = Path(args.workdir).expanduser()
+                workdir.mkdir(parents=True, exist_ok=True)
+                (workdir / "worlds").mkdir(parents=True, exist_ok=True)
+                episodes = standard_suite(workdir / "worlds")
+                report = evaluate_policy(
+                    episodes, honest_aion_policy, workdir / "runs", trials=args.trials,
+                )
+                if args.jsonl:
+                    write_runs_jsonl(report["rows"], Path(args.jsonl).expanduser())
+                    report["jsonl"] = str(Path(args.jsonl).expanduser())
+                print(json.dumps(report, indent=2, allow_nan=False))
+                return 0
             from .agent_eval import compare_runs
             print(json.dumps(compare_runs(args.baseline, args.treatment), indent=2))
             return 0

@@ -61,6 +61,26 @@ Error envelope: `{"schema_version", "status": "error", "error": {"code",
   store (`aion ingest`). Numerical results for single-vintage data are
   unchanged.
 
+- Phase 2 (contracts), additive: every result carries `support_assessment`
+  (five-state status + typed reasons/assumptions/sensitivity/recovery
+  alongside the frozen enum); artifact directories gain `lineage.json`
+  (typed artifacts/evidence/claims); every response passes the deterministic
+  claim verifier before leaving the process.
+- Phase 3–4 (macros/surface), additive: new tools `aion_investigate_change`,
+  `aion_decide`, `aion_monitor`, `aion_get_artifact`, `aion_explain_run`,
+  `aion_status`, `aion_resolve_outcome`; new CLI verbs `investigate`,
+  `decide`, `monitor`, `status`, `store list`, `track outcome`; error
+  envelopes gain `error.repair_options` (machine-readable next actions).
+- Phase 5 (planner), gated: `aion_compile_task` / `aion_validate_plan` /
+  `aion_execute_plan` / `aion_get_run` and `aion plan …` exist only behind
+  `AION_EXPERIMENTAL_PLANNER=1`; macros remain the default path.
+- Phase 6 (decisions), additive: `DecisionArtifact` model with regret
+  scoring; v0.2 `DecisionRecord` rows and their tools keep working, and
+  load as degraded artifacts (nothing invented). Bare `correct` is retired
+  in the new model only.
+- Phase 7 (episodes), internal: `aion eval episodes` runs the built-in
+  trap-family suite and feeds `aion eval compare` unchanged.
+
 ## Enforcement
 
 `tests/test_golden_artifacts.py` pins byte-exact `artifact.json` output for
