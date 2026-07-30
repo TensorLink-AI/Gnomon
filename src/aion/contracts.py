@@ -187,6 +187,71 @@ class ForecastArtifact:
         return asdict(self)
 
 
+# Machine-readable repair options per error code: what a host model can do
+# next without human help. This layer is what lets hosts self-correct — it
+# appreciates as models improve, because better models act on it better.
+REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
+    "INVALID_HORIZON": [
+        {"action": "set_horizon", "description": "Pass a horizon of at least 1 period."},
+    ],
+    "MISSING_COLUMNS": [
+        {"action": "inspect_dataset", "description": "Call aion_inspect to see the available columns, then correct the mapping."},
+    ],
+    "INVALID_TIMESTAMP": [
+        {"action": "fix_timestamps", "description": "Convert the timestamp column to ISO-8601; the offending row is in details."},
+    ],
+    "INVALID_TARGET": [
+        {"action": "fix_target", "description": "Make the target column numeric; the offending row is in details."},
+    ],
+    "DUPLICATE_TIMESTAMPS": [
+        {"action": "deduplicate", "description": "Remove duplicate timestamps, or ingest revisions into the store with distinct known-at times."},
+    ],
+    "IRREGULAR_TIME_GRID": [
+        {"action": "fill_or_resample", "description": "Fill the missing period named in details, or resample to a coarser regular frequency."},
+    ],
+    "FREQUENCY_MISMATCH": [
+        {"action": "set_frequency", "description": "Pass the inferred frequency from details, or omit frequency to infer."},
+    ],
+    "EMPTY_SNAPSHOT": [
+        {"action": "adjust_as_of", "description": "Choose an as_of at or after the first known observation."},
+    ],
+    "DATASET_NOT_FOUND": [
+        {"action": "list_datasets", "description": "Run `aion store list`; available dataset names are in details."},
+        {"action": "ingest", "description": "Ingest the data first with `aion ingest`."},
+    ],
+    "MULTIPLE_SERIES_UNSUPPORTED": [
+        {"action": "set_series_name", "description": "Pass series_name; the available series are in details."},
+    ],
+    "MISSING_COVARIATE_MAPPING": [
+        {"action": "set_covariate_mapping", "description": "Pass covariate_mapping as name:type:future_known entries."},
+    ],
+    "COMBINED_ENRICHMENT_UNSUPPORTED": [
+        {"action": "split_runs", "description": "Evaluate context events and covariates in separate runs."},
+    ],
+    "TEMPORAL_LEAKAGE": [
+        {"action": "remove_post_cutoff_data", "description": "Drop rows whose known_time lies after the task as_of; the offending known_time is in details."},
+    ],
+    "CLAIM_VERIFICATION_FAILED": [
+        {"action": "review_violations", "description": "Each violation in details names the claim and the deterministic rule it broke."},
+    ],
+    "UNSUPPORTED_SCHEMA_VERSION": [
+        {"action": "upgrade_runtime", "description": "This artifact was written by a newer Aion; upgrade to read it."},
+    ],
+    "SERIES_NOT_FOUND": [
+        {"action": "list_series", "description": "Call aion_inspect to list series names."},
+    ],
+    "INVALID_COSTS": [
+        {"action": "fix_costs", "description": "alert_cost must be >= 0 and miss_cost > 0."},
+    ],
+    "SNAPSHOT_TIMEZONE_MISMATCH": [
+        {"action": "align_timezones", "description": "Use an as_of with the same timezone-awareness as the data."},
+    ],
+    "ARTIFACT_NOT_FOUND": [
+        {"action": "check_path", "description": "Pass the artifact directory returned by the macro (it contains artifact.json)."},
+    ],
+}
+
+
 class AionError(Exception):
     def __init__(self, code: str, message: str, details: dict[str, Any] | None = None):
         super().__init__(message)
@@ -203,5 +268,6 @@ class AionError(Exception):
                 "message": self.message,
                 "retryable": False,
                 "details": self.details,
+                "repair_options": REPAIR_OPTIONS.get(self.code, []),
             },
         }
