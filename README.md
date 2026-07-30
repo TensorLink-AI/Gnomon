@@ -1,11 +1,21 @@
 # Aion
 
-**Forecast anything you can measure—and test whether the forecast deserves to be trusted.**
+**A temporal execution harness for agents — forecast, investigate, decide,
+and monitor, with every number owned by Aion and every claim verified.**
 
-Aion is a local forecasting engine for developers, operators, and AI agents. It
-turns regular time-series data into a backtested forecast, compares every
-candidate with simple baselines, measures uncertainty, and abstains when the
-available evidence is inadequate.
+Aion is a local temporal-reasoning engine for developers, operators, and AI
+agents. It answers four questions over regular time-series data — *what
+changed?* (`aion investigate`), *what happens next?* (`aion forecast`),
+*what should we do?* (`aion decide`), and *when should we intervene?*
+(`aion monitor`) — under one contract: the LLM proposes; Aion validates,
+computes, and owns every number. A bitemporal store tracks when each value
+became known, so any run can be replayed at any historical instant
+(`--as-of`) and provably accessed nothing published after it. Results carry
+typed support assessments (structured abstention included), evidence-linked
+claims checked by a deterministic verifier, and machine-readable repair
+options on every error. See `docs/quickstart-mcp.md` to go from install to
+a grounded answer in a minute, and `COMPATIBILITY.md` for the frozen v0.2
+surface (all v0.2 tools keep working unchanged).
 
 It is designed to give agents such as Hermes a safe numerical capability. An
 agent can discover data, formulate a question, and explain the result; Aion
