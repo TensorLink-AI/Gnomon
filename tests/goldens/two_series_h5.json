@@ -1,0 +1,258 @@
+{
+  "schema_version": "0.1",
+  "forecast_id": "forecast_2e9aa94c1bc78b79",
+  "created_at": "2026-07-01T00:00:00+00:00",
+  "status": "complete",
+  "task": {
+    "input_path": "<REPO>/tests/data/golden_two_series.csv",
+    "schema": {
+      "time_column": "timestamp",
+      "target_column": "value",
+      "series_column": "series",
+      "frequency": "D",
+      "timezone": null,
+      "missing_policy": "reject",
+      "duplicate_policy": "reject"
+    },
+    "horizon": 5,
+    "quantiles": [
+      0.1,
+      0.5,
+      0.9
+    ],
+    "minimum_baseline_improvement": 0.02
+  },
+  "source_fingerprint": "sha256:9d358fb08d56b94b37e4b54ab5a8e08b23cad01b88cd54df6c7051b527d9d392",
+  "results": [
+    {
+      "series": "alpha",
+      "support": "supported",
+      "selected_model": "ets",
+      "strongest_baseline": "last_value",
+      "selection_scores": {
+        "last_value": 0.03419859446673828,
+        "seasonal_naive": 0.042636740429272825,
+        "drift": 0.03429897665682723,
+        "linear_trend": 0.02407187647818961,
+        "window_average": 0.037710494990708415,
+        "theta": 0.03274837422636675,
+        "ets": 0.013206236824607882
+      },
+      "test_scores": {
+        "last_value": 0.03267744202389318,
+        "seasonal_naive": null,
+        "drift": null,
+        "linear_trend": null,
+        "window_average": null,
+        "theta": null,
+        "ets": 0.0012188864037254435,
+        "chronos_bolt": null,
+        "flowstate": null,
+        "moirai2_small": null,
+        "moment_small": null,
+        "toto2_22m": null,
+        "ttm": null
+      },
+      "baseline_improvement": 0.6138368541007634,
+      "interval_coverage": 1.0,
+      "warnings": [],
+      "forecast": [
+        {
+          "timestamp": "2026-04-30T00:00:00",
+          "point": 288.129904223632,
+          "q10": 285.9733851301008,
+          "q50": 288.1437016020964,
+          "q90": 300.90634369639395
+        },
+        {
+          "timestamp": "2026-05-01T00:00:00",
+          "point": 285.92454647210474,
+          "q10": 282.8690528612311,
+          "q50": 285.93834385056914,
+          "q90": 303.98744539203847
+        },
+        {
+          "timestamp": "2026-05-02T00:00:00",
+          "point": 285.8269288511569,
+          "q10": 282.0816278316211,
+          "q50": 285.8407262296213,
+          "q90": 307.94627077576183
+        },
+        {
+          "timestamp": "2026-05-03T00:00:00",
+          "point": 298.6181055553638,
+          "q10": 294.29126998983685,
+          "q50": 298.6319029338282,
+          "q90": 324.15718712242324
+        },
+        {
+          "timestamp": "2026-05-04T00:00:00",
+          "point": 303.0554308932828,
+          "q10": 298.21625310767735,
+          "q50": 303.0692282717472,
+          "q90": 331.60736356709674
+        }
+      ],
+      "context": null,
+      "covariates": null,
+      "threshold": null
+    },
+    {
+      "series": "beta",
+      "support": "supported",
+      "selected_model": "linear_trend",
+      "strongest_baseline": "seasonal_naive",
+      "selection_scores": {
+        "last_value": 0.0375465579437471,
+        "seasonal_naive": 0.028537251007060515,
+        "drift": 0.03543252195828532,
+        "linear_trend": 0.022575494842780673,
+        "window_average": 0.031436126262427824,
+        "theta": 0.027559028470668503,
+        "ets": 0.028433121507515847
+      },
+      "test_scores": {
+        "last_value": null,
+        "seasonal_naive": 0.010089020771513243,
+        "drift": null,
+        "linear_trend": 0.02686466187949863,
+        "window_average": null,
+        "theta": null,
+        "ets": null,
+        "chronos_bolt": null,
+        "flowstate": null,
+        "moirai2_small": null,
+        "moment_small": null,
+        "toto2_22m": null,
+        "ttm": null
+      },
+      "baseline_improvement": 0.20891136861097168,
+      "interval_coverage": 0.8,
+      "warnings": [],
+      "forecast": [
+        {
+          "timestamp": "2026-04-30T00:00:00",
+          "point": 66.03785310734463,
+          "q10": 63.299105356908285,
+          "q50": 66.24762754343487,
+          "q90": 69.19696500473518
+        },
+        {
+          "timestamp": "2026-05-01T00:00:00",
+          "point": 65.63690840048162,
+          "q10": 61.676842771427985,
+          "q50": 65.84668283657186,
+          "q90": 70.01767587435778
+        },
+        {
+          "timestamp": "2026-05-02T00:00:00",
+          "point": 65.2359636936186,
+          "q10": 60.338747895400715,
+          "q50": 65.44573812970884,
+          "q90": 70.55414046134716
+        },
+        {
+          "timestamp": "2026-05-03T00:00:00",
+          "point": 64.83501898675559,
+          "q10": 59.14774904979265,
+          "q50": 65.04479342284583,
+          "q90": 70.94346834544642
+        },
+        {
+          "timestamp": "2026-05-04T00:00:00",
+          "point": 64.43407427989257,
+          "q10": 58.05075267374305,
+          "q50": 64.64384871598281,
+          "q90": 71.23876776803694
+        }
+      ],
+      "context": null,
+      "covariates": null,
+      "threshold": null
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "evaluation:alpha",
+      "kind": "rolling_evaluation",
+      "series": "alpha",
+      "payload": {
+        "partitioning": "selection folds, then calibration fold, then final test fold",
+        "selection_scores": {
+          "last_value": 0.03419859446673828,
+          "seasonal_naive": 0.042636740429272825,
+          "drift": 0.03429897665682723,
+          "linear_trend": 0.02407187647818961,
+          "window_average": 0.037710494990708415,
+          "theta": 0.03274837422636675,
+          "ets": 0.013206236824607882
+        },
+        "test_scores": {
+          "last_value": 0.03267744202389318,
+          "seasonal_naive": null,
+          "drift": null,
+          "linear_trend": null,
+          "window_average": null,
+          "theta": null,
+          "ets": 0.0012188864037254435,
+          "chronos_bolt": null,
+          "flowstate": null,
+          "moirai2_small": null,
+          "moment_small": null,
+          "toto2_22m": null,
+          "ttm": null
+        }
+      }
+    },
+    {
+      "evidence_id": "support:alpha",
+      "kind": "support_assessment",
+      "series": "alpha",
+      "payload": {
+        "support": "supported",
+        "warnings": []
+      }
+    },
+    {
+      "evidence_id": "evaluation:beta",
+      "kind": "rolling_evaluation",
+      "series": "beta",
+      "payload": {
+        "partitioning": "selection folds, then calibration fold, then final test fold",
+        "selection_scores": {
+          "last_value": 0.0375465579437471,
+          "seasonal_naive": 0.028537251007060515,
+          "drift": 0.03543252195828532,
+          "linear_trend": 0.022575494842780673,
+          "window_average": 0.031436126262427824,
+          "theta": 0.027559028470668503,
+          "ets": 0.028433121507515847
+        },
+        "test_scores": {
+          "last_value": null,
+          "seasonal_naive": 0.010089020771513243,
+          "drift": null,
+          "linear_trend": 0.02686466187949863,
+          "window_average": null,
+          "theta": null,
+          "ets": null,
+          "chronos_bolt": null,
+          "flowstate": null,
+          "moirai2_small": null,
+          "moment_small": null,
+          "toto2_22m": null,
+          "ttm": null
+        }
+      }
+    },
+    {
+      "evidence_id": "support:beta",
+      "kind": "support_assessment",
+      "series": "beta",
+      "payload": {
+        "support": "supported",
+        "warnings": []
+      }
+    }
+  ]
+}
