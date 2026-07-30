@@ -60,6 +60,14 @@ def build_parser() -> argparse.ArgumentParser:
     forecast_parser.add_argument("--covariate-series")
     forecast_parser.add_argument("--seasonal-period", type=int)
     forecast_parser.add_argument("--strict-abstention", action="store_true")
+    forecast_parser.add_argument(
+        "--as-of", dest="as_of",
+        help="Replay instant: use only data known at or before this ISO timestamp",
+    )
+    forecast_parser.add_argument(
+        "--store-path", dest="store_path",
+        help="Override the temporal-store path (for store:<dataset> inputs)",
+    )
     forecast_parser.add_argument("--selection-strategy", choices=("best", "ensemble"), default="best")
     forecast_parser.add_argument("--ensemble", action="store_true", help=argparse.SUPPRESS)
     forecast_parser.add_argument("--multivariate", action="store_true")
@@ -101,6 +109,26 @@ def build_parser() -> argparse.ArgumentParser:
     )
     validate_parser.add_argument("--response", required=True)
     validate_parser.add_argument("--file", action="append", required=True, dest="files")
+
+    ingest_parser = subcommands.add_parser(
+        "ingest", help="Append observations (as vintages) to the bitemporal store"
+    )
+    ingest_parser.add_argument("input")
+    ingest_parser.add_argument("--dataset", required=True)
+    ingest_parser.add_argument("--time", required=True, dest="time_column")
+    ingest_parser.add_argument("--target", required=True, dest="target_column")
+    ingest_parser.add_argument("--series", dest="series_column")
+    ingest_parser.add_argument(
+        "--known-at", dest="known_at_column",
+        help="Column stating when each value became known; omitted = assumed known at valid time",
+    )
+    ingest_parser.add_argument("--variable", help="Variable name (default: target column name)")
+    ingest_parser.add_argument("--store-path", dest="store_path")
+
+    store_parser = subcommands.add_parser("store", help="Inspect the bitemporal store")
+    store_commands = store_parser.add_subparsers(dest="store_command", required=True)
+    store_list = store_commands.add_parser("list", help="List ingested datasets")
+    store_list.add_argument("--store-path", dest="store_path")
 
     mcp_parser = subcommands.add_parser("mcp", help="Model Context Protocol server")
     mcp_commands = mcp_parser.add_subparsers(dest="mcp_command", required=True)
@@ -230,6 +258,26 @@ def _read_documents(paths: list[str]):
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
+        if args.command == "ingest":
+            from .temporal_store import TemporalStore
+
+            report = TemporalStore(args.store_path).ingest_csv(
+                args.input, dataset=args.dataset,
+                time_column=args.time_column, target_column=args.target_column,
+                series_column=args.series_column,
+                known_at_column=args.known_at_column,
+                variable=args.variable,
+            )
+            print(json.dumps(report.to_dict(), indent=2))
+            return 0
+        if args.command == "store":
+            from .temporal_store import TemporalStore
+
+            print(json.dumps({
+                "schema_version": "0.1",
+                "datasets": TemporalStore(args.store_path).list_datasets(),
+            }, indent=2))
+            return 0
         if args.command == "mcp":
             from .mcp_server import serve
 
@@ -574,6 +622,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                     series_column=args.covariate_series,
                 )
             config = load_config(getattr(args, "config", None))
+            as_of = None
+            if getattr(args, "as_of", None):
+                from .data import _parse_timestamp
+                as_of = _parse_timestamp(args.as_of, 0)
             artifact, path = forecast(
                 args.input, time_column=args.time_column, target_column=args.target_column,
                 series_column=args.series_column, frequency=args.frequency, horizon=args.horizon,
@@ -584,6 +636,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 seasonal_period=args.seasonal_period,
                 selection_strategy="ensemble" if args.ensemble else args.selection_strategy,
                 multivariate=args.multivariate,
+                as_of=as_of,
+                store_path=getattr(args, "store_path", None),
             )
             payload = forecast_summary(artifact, path)
 

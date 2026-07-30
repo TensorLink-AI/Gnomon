@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from statistics import mean
-from typing import Any
+from typing import Any, Callable
 
 from .models import BASELINES, MODELS, predict
 from .tsfm import TSFMError, TSFMUnavailable, tsfm_candidates
@@ -60,8 +60,13 @@ def _origins(length: int, horizon: int, minimum_train: int) -> list[int]:
     return list(range(minimum_train, length - horizon + 1, horizon))
 
 
-def select_model_lightweight(values: list[float], horizon: int, season: int) -> Evaluation:
+def select_model_lightweight(
+    values: list[float], horizon: int, season: int,
+    train_at: Callable[[int], list[float]] | None = None,
+) -> Evaluation:
     """Select on one trailing holdout when separated rolling folds do not fit."""
+    if train_at is None:
+        train_at = lambda origin: values[:origin]  # noqa: E731
     if len(values) < horizon + 2:
         scores = {name: None for name in MODELS}
         return Evaluation(None, None, scores, scores.copy(), None, [], None,
@@ -71,9 +76,10 @@ def select_model_lightweight(values: list[float], horizon: int, season: int) -> 
     scores: dict[str, float | None] = {name: None for name in MODELS}
     forecasts: dict[str, list[float]] = {}
     actual = values[origin:]
+    train = train_at(origin)
     for name in MODELS:
         try:
-            prediction = predict(name, values[:origin], holdout, season)
+            prediction = predict(name, train, holdout, season)
             scores[name] = error_score(actual, prediction)
             forecasts[name] = prediction
         except (ValueError, ArithmeticError):
@@ -102,13 +108,20 @@ def evaluate(
     tsfm_names: list[str] | None = None,
     config: Any = None,
     strict_abstention: bool = False,
+    train_at: Callable[[int], list[float]] | None = None,
 ) -> Evaluation:
+    """``train_at(origin)`` returns the training history for a fold whose
+    forecast origin is index ``origin`` — by default a plain prefix slice,
+    but a snapshot-backed provider returns the series *as known at* the
+    fold cutoff, which is what makes backtests vintage-honest."""
+    if train_at is None:
+        train_at = lambda origin: values[:origin]  # noqa: E731
     minimum_train = max(2 * season, 2 * horizon, 8)
     origins = _origins(len(values), horizon, minimum_train)
     empty_scores = {name: None for name in MODELS}
     if len(origins) < 2:
         if not strict_abstention:
-            return select_model_lightweight(values, horizon, season)
+            return select_model_lightweight(values, horizon, season, train_at)
         minimum_required = minimum_train + 2 * horizon
         full_required = minimum_train + 4 * horizon
         return Evaluation(
@@ -191,9 +204,10 @@ def evaluate(
     fold_forecasts: dict[str, list[list[float]]] = {name: [] for name in MODELS}
     for origin in selection_origins:
         actual = values[origin : origin + horizon]
+        train = train_at(origin)
         for name in MODELS:
             try:
-                forecast = predict(name, values[:origin], horizon, season)
+                forecast = predict(name, train, horizon, season)
                 fold_forecasts[name].append(forecast)
             except ValueError:
                 continue
@@ -205,7 +219,7 @@ def evaluate(
     for adapter in tsfm_adapters:
         for origin in selection_origins:
             actual = values[origin : origin + horizon]
-            train = values[:origin]
+            train = train_at(origin)
             try:
                 forecast = adapter.predict(train, horizon, season)
                 if len(forecast) != horizon:
@@ -252,7 +266,7 @@ def evaluate(
                     combined = compute_ensemble_forecast(
                         fold_forecast_map, all_valid_scores,
                         strategy=ensemble_strategy,
-                        last_observed=values[selection_origins[fold_idx] - 1] if selection_origins else 0.0,
+                        last_observed=(train_at(selection_origins[fold_idx]) or [0.0])[-1] if selection_origins else 0.0,
                         config=ensemble_cfg,
                     )
                     actual = values[selection_origins[fold_idx] : selection_origins[fold_idx] + horizon]
@@ -373,7 +387,7 @@ def evaluate(
     # Get calibration prediction from the selected model; fall back to the
     # strongest baseline if a TSFM/ensemble selection cannot predict here.
     try:
-        calibration_prediction = _predict_selected(selected, values[:calibration_origin])
+        calibration_prediction = _predict_selected(selected, train_at(calibration_origin))
     except Exception as exc:
         if selected not in MODELS:
             logger.warning(
@@ -381,7 +395,7 @@ def evaluate(
                 selected, strongest_baseline, exc,
             )
         selected = strongest_baseline
-        calibration_prediction = predict(selected, values[:calibration_origin], horizon, season)
+        calibration_prediction = predict(selected, train_at(calibration_origin), horizon, season)
 
     # Pool residuals of the selected model across every selection fold plus
     # the calibration fold: one horizon of residuals is too small a sample
@@ -390,7 +404,7 @@ def evaluate(
     residuals: list[float] = []
     for origin in selection_origins:
         try:
-            prediction = _predict_selected(selected, values[:origin])
+            prediction = _predict_selected(selected, train_at(origin))
         except Exception:
             continue
         actual = values[origin : origin + horizon]
@@ -407,16 +421,16 @@ def evaluate(
         for name in {selected, strongest_baseline}:
             try:
                 test_scores[name] = error_score(
-                    test_actual, _predict_selected(name, values[:test_origin])
+                    test_actual, _predict_selected(name, train_at(test_origin))
                 )
             except Exception:
                 logger.debug("model %s failed during test fold", name, exc_info=True)
 
         # Get test prediction for coverage assessment
         try:
-            test_prediction = _predict_selected(selected, values[:test_origin])
+            test_prediction = _predict_selected(selected, train_at(test_origin))
         except Exception:
-            test_prediction = predict(strongest_baseline, values[:test_origin], horizon, season)
+            test_prediction = predict(strongest_baseline, train_at(test_origin), horizon, season)
         covered = []
         for step, (actual, prediction) in enumerate(zip(test_actual, test_prediction), 1):
             low, _, high = interval_bounds(prediction, residual_quantiles, step)

@@ -16,17 +16,21 @@ from typing import Any
 
 from .context import ContextEvent
 from .context_eval import CONTEXT_MODEL_NAME, assess_context
-from .contracts import DataSchema, Evidence
+from .contracts import AionError, DataSchema, Evidence
 from .covariates import CovariateDataset, assess_covariates
 from .data import Observation, load_observations
 from .evaluation import Evaluation, evaluate, interval_bounds, quantile
 from .models import MODELS, predict
 from .temporal import detect_season, next_timestamp, validate_and_group
+from .temporal_store import InMemoryTemporalStore, Snapshot, TemporalStore
+
+STORE_SCHEME = "store:"
 
 
 @dataclass(frozen=True)
 class LoadedDataset:
-    """Output of the load stage: validated observations grouped by series."""
+    """Output of the load stage: validated observations grouped by series,
+    plus the snapshot every later stage must read through."""
 
     source_fingerprint: str
     columns: list[str]
@@ -34,6 +38,8 @@ class LoadedDataset:
     frequency: str
     timezone: str | None
     schema: DataSchema
+    snapshot: Snapshot
+    variable: str
 
 
 @dataclass
@@ -63,13 +69,45 @@ def load_stage(
     target_column: str,
     series_column: str | None,
     frequency: str | None,
+    as_of: datetime | None = None,
+    store_path: str | None = None,
 ) -> LoadedDataset:
-    observations, source_fingerprint, columns = load_observations(
-        input_path, time_column, target_column, series_column
-    )
+    """Resolve the input to a snapshot, then materialise the observations
+    that are visible at ``as_of``. ``store:<dataset>`` inputs read from the
+    persistent bitemporal store; plain files are wrapped in an ephemeral
+    store with ``known_time = valid_time`` so the snapshot guarantee is
+    uniform across both."""
+    variable = target_column
+    if input_path.startswith(STORE_SCHEME):
+        dataset = input_path[len(STORE_SCHEME):]
+        snapshot = TemporalStore(store_path).snapshot(dataset, as_of)
+        source_fingerprint = snapshot.source_ref
+        columns = [time_column, target_column] + ([series_column] if series_column else [])
+    else:
+        raw_observations, source_fingerprint, columns = load_observations(
+            input_path, time_column, target_column, series_column
+        )
+        store, _ = InMemoryTemporalStore.from_plain_observations(
+            raw_observations, variable, source_fingerprint,
+        )
+        snapshot = store.snapshot(as_of)
+    observations = [
+        Observation(item.valid_time, item.value, entity)
+        for entity in snapshot.entities()
+        for item in snapshot.series(entity, variable)
+    ]
+    if not observations:
+        raise AionError(
+            "EMPTY_SNAPSHOT",
+            "No observations are known at or before the requested as_of instant.",
+            {"as_of": as_of.isoformat() if as_of else "latest"},
+        )
     groups, resolved_frequency, zone = validate_and_group(observations, frequency)
     schema = DataSchema(time_column, target_column, series_column, resolved_frequency, zone)
-    return LoadedDataset(source_fingerprint, columns, groups, resolved_frequency, zone, schema)
+    return LoadedDataset(
+        source_fingerprint, columns, groups, resolved_frequency, zone, schema,
+        snapshot, variable,
+    )
 
 
 def horizon_stage(
@@ -101,13 +139,31 @@ def evaluate_stage(
     frequency: str,
     config: Any,
     strict_abstention: bool,
+    snapshot: Snapshot | None = None,
+    variable: str | None = None,
 ) -> None:
-    """Separated rolling evaluation: selection folds, calibration fold, test fold."""
+    """Separated rolling evaluation: selection folds, calibration fold, test
+    fold. With a snapshot, every fold trains on the series *as known at*
+    that fold's cutoff instant — identical to prefix slices for
+    single-vintage data, honest under revisions."""
+    train_at = None
+    if snapshot is not None and variable is not None:
+        entity, timestamps = state.name, state.timestamps
+
+        def train_at(origin: int) -> list[float]:
+            cutoff = timestamps[origin - 1]
+            return [
+                item.value
+                for item in snapshot.series(entity, variable, cutoff=cutoff)
+                if item.valid_time <= cutoff
+            ]
+
     assessment = evaluate(
         state.values, horizon, state.season, minimum_baseline_improvement,
         frequency=frequency,
         config=config,
         strict_abstention=strict_abstention,
+        train_at=train_at,
     )
     state.assessment = assessment
     state.selected_model = assessment.selected_model

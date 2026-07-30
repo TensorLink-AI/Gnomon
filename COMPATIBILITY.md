@@ -51,6 +51,15 @@ Error envelope: `{"schema_version", "status": "error", "error": {"code",
   (first write wins).
 - Readers of serialized artifacts accept `schema_version` N and N−1
   (`aion.versioning`).
+- Phase 1 (bitemporal core), additive: `task.as_of` field in artifact.json
+  (null unless a historical replay was requested); one `snapshot_access`
+  evidence record per run reporting the snapshot `as_of`, whether
+  `known_time` was assumed, and per-series access counts with the maximum
+  `known_time` touched. `aion forecast --as-of <instant>` replays a run
+  against only data known at that instant; `input` additionally accepts
+  `store:<dataset>` for datasets ingested into the persistent bitemporal
+  store (`aion ingest`). Numerical results for single-vintage data are
+  unchanged.
 
 ## Enforcement
 

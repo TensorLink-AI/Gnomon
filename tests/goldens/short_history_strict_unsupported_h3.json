@@ -1,6 +1,6 @@
 {
   "schema_version": "0.1",
-  "forecast_id": "forecast_1ba38d29c73bb571",
+  "forecast_id": "forecast_599f57ccd5677c36",
   "created_at": "2026-07-01T00:00:00+00:00",
   "status": "complete",
   "task": {
@@ -20,7 +20,8 @@
       0.5,
       0.9
     ],
-    "minimum_baseline_improvement": 0.02
+    "minimum_baseline_improvement": 0.02,
+    "as_of": null
   },
   "source_fingerprint": "sha256:b1dc29983a337e52c8f3745843e15e1833ce3edfa2afc92a9029040a6272b350",
   "results": [
@@ -93,6 +94,24 @@
         "support": "unsupported",
         "warnings": [
           "Need at least 20 observations (have 6) for separated selection and calibration windows; 26 observations enable fully separated selection, calibration, and test windows."
+        ]
+      }
+    },
+    {
+      "evidence_id": "snapshot",
+      "kind": "snapshot_access",
+      "series": "__all__",
+      "payload": {
+        "as_of": "latest",
+        "known_time_assumed": true,
+        "source_ref": "sha256:b1dc29983a337e52c8f3745843e15e1833ce3edfa2afc92a9029040a6272b350",
+        "accesses": [
+          {
+            "entity": "__default__",
+            "variable": "value",
+            "reads": 1,
+            "max_known_time": "2026-03-06T00:00:00"
+          }
         ]
       }
     }

@@ -1,6 +1,6 @@
 {
   "schema_version": "0.1",
-  "forecast_id": "forecast_80a60b9084d584a7",
+  "forecast_id": "forecast_2d2ee7d54a6c37e8",
   "created_at": "2026-07-01T00:00:00+00:00",
   "status": "complete",
   "task": {
@@ -20,7 +20,8 @@
       0.5,
       0.9
     ],
-    "minimum_baseline_improvement": 0.02
+    "minimum_baseline_improvement": 0.02,
+    "as_of": null
   },
   "source_fingerprint": "sha256:ee1b9db4c19a96b5641ad8f1c24794d86a1814aaeff43a002efeddda112ebc2f",
   "results": [
@@ -171,6 +172,24 @@
         "support": "degraded",
         "warnings": [
           "Limited evaluation: only 3 rolling folds were available; 42 observations enable fully separated selection, calibration, and test windows."
+        ]
+      }
+    },
+    {
+      "evidence_id": "snapshot",
+      "kind": "snapshot_access",
+      "series": "__all__",
+      "payload": {
+        "as_of": "latest",
+        "known_time_assumed": true,
+        "source_ref": "sha256:ee1b9db4c19a96b5641ad8f1c24794d86a1814aaeff43a002efeddda112ebc2f",
+        "accesses": [
+          {
+            "entity": "__default__",
+            "variable": "requests",
+            "reads": 14,
+            "max_known_time": "2026-02-04T00:00:00"
+          }
         ]
       }
     }

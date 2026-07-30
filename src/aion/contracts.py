@@ -25,6 +25,7 @@ class ForecastTask:
     horizon: int
     quantiles: tuple[float, ...] = (0.1, 0.5, 0.9)
     minimum_baseline_improvement: float = 0.02
+    as_of: str | None = None
 
 
 @dataclass

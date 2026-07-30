@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, is_dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -117,6 +118,8 @@ def forecast(
     selection_strategy: str = "best",
     multivariate: bool = False,
     clock: Clock | None = None,
+    as_of: datetime | None = None,
+    store_path: str | None = None,
 ) -> tuple[ForecastArtifact, Path]:
     clock = clock or SYSTEM_CLOCK
     if horizon < 1:
@@ -131,10 +134,14 @@ def forecast(
     loaded: LoadedDataset = load_stage(
         input_path, time_column=time_column, target_column=target_column,
         series_column=series_column, frequency=frequency,
+        as_of=as_of, store_path=store_path,
     )
     task = ForecastTask(
-        str(Path(input_path).expanduser().resolve()), loaded.schema, horizon,
+        input_path if input_path.startswith("store:")
+        else str(Path(input_path).expanduser().resolve()),
+        loaded.schema, horizon,
         minimum_baseline_improvement=minimum_baseline_improvement,
+        as_of=as_of.isoformat() if as_of else None,
     )
     results: list[SeriesResult] = []
     evidence: list[Evidence] = []
@@ -153,6 +160,7 @@ def forecast(
             minimum_baseline_improvement=minimum_baseline_improvement,
             frequency=loaded.frequency, config=config,
             strict_abstention=strict_abstention,
+            snapshot=loaded.snapshot, variable=loaded.variable,
         )
         predict_stage(
             state, horizon=horizon, frequency=loaded.frequency,
@@ -189,8 +197,12 @@ def forecast(
                 "support": support, "warnings": state.warnings,
             }),
         ])
+    evidence.append(Evidence(
+        "snapshot", "snapshot_access", "__all__", loaded.snapshot.access_summary(),
+    ))
     forecast_id = content_id("forecast", {
         "source": loaded.source_fingerprint,
+        "as_of": as_of.isoformat() if as_of else None,
         "schema": {
             "time": time_column, "target": target_column, "series": series_column,
             "frequency": loaded.frequency, "timezone": loaded.timezone,
