@@ -81,6 +81,22 @@ only features admitted on selection folds.
 The artifact records retained and rejected features, fold improvements, source
 path, content fingerprint, and measured test coverage in `evidence.jsonl`.
 
+## Combining covariates with context events
+
+A run may supply both `--covariates` and `--context`. Each enrichment first
+faces its own independent ablation gate exactly as in a single-enrichment
+run. An adjudication stage then compares the base model and every admitted
+challenger — base + context, base + covariates, base + both — on identical
+selection folds (same origins, same cutoffs), and picks the winner
+deterministically: best mean fold score, ties broken by fewest enrichments,
+then by fixed candidate order. The combined candidate is the covariate
+linear forecast plus the additive event effect, fitted per fold under that
+fold's cutoff; when it wins, the result reports
+`selected_model: "combined_enrichment"`. The whole comparison — candidates,
+per-fold scores, winner, and reason — is recorded as an
+`enrichment_adjudication` evidence record, so the artifact proves the
+choice rather than asserting it.
+
 ## Agent and MCP workflow
 
 When MCP is enabled, agents can call `aion_covariate_guide`,
@@ -106,7 +122,6 @@ their capability flag can become true.
 
 - Future-known numeric covariates only
 - CSV covariate files
-- No simultaneous context-event and covariate admission
 - Admission currently compares against a built-in selected model; if a TSFM
   wins the univariate evaluation, Aion reports that admission is unavailable
 - No automatic web retrieval or arbitrary URL loading

@@ -211,8 +211,11 @@ TOOLS: list[dict[str, Any]] = [
             "Run Aion's evaluated forecast: baselines and candidates are "
             "backtested on rolling folds; each series gets a selected model or "
             "an unsupported abstention. Context events (from `aion context "
-            "validate`) are admitted only when they demonstrate stable lift on "
-            "identical folds. Read forecast.csv / summary.md in the returned "
+            "validate`) and covariates are admitted only when they demonstrate "
+            "stable lift on identical folds; when both are supplied, an "
+            "adjudication ladder picks the best of base, context, covariates, "
+            "or their combination and records the comparison as evidence. "
+            "Read forecast.csv / summary.md in the returned "
             "artifact directory for the numbers and quote them verbatim; never "
             "invent values for an unsupported series."
         ),
