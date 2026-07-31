@@ -25,6 +25,33 @@ numbers.
 
 > Aion is named for the Greek personification of enduring and cyclical time.
 
+## Hook it to your agent (60 seconds)
+
+```bash
+git clone https://github.com/TensorLink-AI/Aion && cd Aion
+
+# Claude Code
+claude mcp add aion -- uvx --from "$(pwd)" aion mcp serve
+
+# any other MCP client: run this as a stdio server
+uvx --from . aion mcp serve
+```
+
+Then ask your agent:
+
+> Forecast `examples/messy_requests.csv` (column `requests`) 14 days ahead.
+> What changed in it, and when should we alert if crossing 340 costs us 20x
+> a false alarm?
+
+The agent gets 18 tools — `aion_forecast`, `aion_investigate_change`,
+`aion_decide`, `aion_monitor`, plus inspection, tracking, and artifact
+tools — and every number it quotes comes from an evidence-linked, verified
+artifact. It cannot invent values for an unsupported series; it can only
+report Aion's abstention and its recovery options. See the
+[MCP quickstart](docs/quickstart-mcp.md) for client configs, the vintage
+workflow, and the full tool surface. (A `pip install aion-forecast` /
+`uvx aion-forecast` path arrives with the PyPI release.)
+
 ## Why Aion exists
 
 Most forecasting tools answer, “What number comes next?” Aion also asks:

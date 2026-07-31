@@ -2,22 +2,33 @@
 
 ## 1. Serve the tools (one command)
 
+From a checkout (until the PyPI release lands, this is the way):
+
 ```bash
-uvx --from aion-forecast aion mcp serve
+git clone https://github.com/TensorLink-AI/Aion && cd Aion
+uvx --from . aion mcp serve
 ```
 
-Or, from a checkout: `pip install -e . && aion mcp serve`.
+Or `pip install -e . && aion mcp serve`. Once `aion-forecast` is published
+to PyPI this becomes `uvx --from aion-forecast aion mcp serve` with no
+clone.
 
 ## 2. Connect a client
 
-**Claude Desktop / Claude Code** (`claude_desktop_config.json` or `.mcp.json`):
+**Claude Code** — one command from inside the checkout:
+
+```bash
+claude mcp add aion -- uvx --from "$(pwd)" aion mcp serve
+```
+
+**Claude Desktop** (`claude_desktop_config.json`) or any `.mcp.json`:
 
 ```json
 {
   "mcpServers": {
     "aion": {
       "command": "uvx",
-      "args": ["--from", "aion-forecast", "aion", "mcp", "serve"]
+      "args": ["--from", "/absolute/path/to/Aion", "aion", "mcp", "serve"]
     }
   }
 }
