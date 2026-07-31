@@ -252,9 +252,6 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
     "MISSING_COVARIATE_MAPPING": [
         {"action": "set_covariate_mapping", "description": "Pass covariate_mapping as name:type:future_known entries."},
     ],
-    "COMBINED_ENRICHMENT_UNSUPPORTED": [
-        {"action": "split_runs", "description": "Evaluate context events and covariates in separate runs."},
-    ],
     "TEMPORAL_LEAKAGE": [
         {"action": "remove_post_cutoff_data", "description": "Drop rows whose known_time lies after the task as_of; the offending known_time is in details."},
     ],

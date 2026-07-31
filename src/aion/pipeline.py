@@ -14,10 +14,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from .adjudication import adjudicate_enrichments
 from .context import ContextEvent
-from .context_eval import CONTEXT_MODEL_NAME, assess_context
+from .context_eval import CONTEXT_MODEL_NAME, ContextAssessment, assess_context
 from .contracts import AionError, DataSchema, Evidence
-from .covariates import CovariateDataset, assess_covariates
+from .covariates import CovariateAssessment, CovariateDataset, assess_covariates
 from .data import Observation, load_observations
 from .evaluation import Evaluation, evaluate, interval_bounds, quantile
 from .models import MODELS, predict
@@ -60,6 +61,9 @@ class SeriesState:
     warnings: list[str] = field(default_factory=list)
     context_public: dict[str, object] | None = None
     covariate_public: dict[str, object] | None = None
+    context_assessment: ContextAssessment | None = None
+    covariate_assessment: CovariateAssessment | None = None
+    adjudication_public: dict[str, object] | None = None
     evidence: list[Evidence] = field(default_factory=list)
 
 
@@ -265,19 +269,22 @@ def context_stage(
     *,
     horizon: int,
     minimum_baseline_improvement: float,
+    apply: bool = True,
 ) -> None:
-    """Leakage-safe context-event ablation; admitted events replace the forecast."""
+    """Leakage-safe context-event ablation; admitted events replace the
+    forecast, unless a later adjudication stage owns that choice."""
     context = assess_context(
         state.values, state.timestamps, state.future_timestamps, context_events,
         state.name, horizon, state.season, minimum_baseline_improvement,
         state.assessment,
     )
+    state.context_assessment = context
     state.context_public = context.to_public_dict()
     state.evidence.append(Evidence(
         f"context_ablation:{state.name}", "context_ablation", state.name,
         state.context_public,
     ))
-    if context.admitted:
+    if context.admitted and apply:
         state.selected_model = CONTEXT_MODEL_NAME
         state.points = context.points
         state.residuals = context.residuals
@@ -291,25 +298,60 @@ def covariate_stage(
     *,
     horizon: int,
     minimum_baseline_improvement: float,
+    apply: bool = True,
 ) -> None:
-    """Leakage-safe covariate ablation; admitted covariates replace the forecast."""
+    """Leakage-safe covariate ablation; admitted covariates replace the
+    forecast, unless a later adjudication stage owns that choice."""
     covariate_assessment = assess_covariates(
         state.values, state.timestamps, state.future_timestamps, covariates,
         state.name, horizon, state.season, minimum_baseline_improvement,
         state.assessment,
     )
+    state.covariate_assessment = covariate_assessment
     state.covariate_public = covariate_assessment.to_public_dict()
     state.evidence.append(Evidence(
         f"covariate_ablation:{state.name}", "covariate_ablation", state.name,
         {**state.covariate_public, "source_path": covariates.path,
          "source_fingerprint": covariates.fingerprint},
     ))
-    if covariate_assessment.admitted:
+    if covariate_assessment.admitted and apply:
         state.selected_model = "covariate_linear"
         state.points = covariate_assessment.points
         state.residuals = covariate_assessment.residuals
         state.coverage = covariate_assessment.coverage
         state.warnings = list(covariate_assessment.warnings)
+
+
+def adjudicate_enrichments_stage(
+    state: SeriesState,
+    context_events: list[ContextEvent],
+    covariates: CovariateDataset,
+    *,
+    horizon: int,
+) -> None:
+    """Championship ladder over independently-admitted enrichments: the base
+    model, context, covariates, and their combination compete on identical
+    selection folds; the deterministic winner replaces the forecast and the
+    whole comparison is recorded as evidence."""
+    result = adjudicate_enrichments(
+        state.values, state.timestamps, state.future_timestamps,
+        context_events, covariates,
+        state.context_assessment, state.covariate_assessment,
+        state.name, horizon, state.season, state.assessment,
+    )
+    state.adjudication_public = result.to_public_dict()
+    state.evidence.append(Evidence(
+        f"enrichment_adjudication:{state.name}", "enrichment_adjudication",
+        state.name,
+        {**state.adjudication_public,
+         "covariates_fingerprint": covariates.fingerprint},
+    ))
+    if result.winner != "base":
+        state.selected_model = result.selected_model
+        state.points = result.points
+        state.residuals = result.residuals
+        state.coverage = result.coverage
+        state.warnings = list(result.warnings)
 
 
 def threshold_analysis_stage(

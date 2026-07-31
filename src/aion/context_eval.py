@@ -60,7 +60,7 @@ class ContextAssessment:
         }
 
 
-def _eligible_events(
+def eligible_events(
     events: list[ContextEvent], series_name: str
 ) -> tuple[list[ContextEvent], list[dict[str, str]]]:
     eligible: list[ContextEvent] = []
@@ -78,7 +78,7 @@ def _eligible_events(
     return eligible, excluded
 
 
-def _flags(
+def event_flags(
     events: list[ContextEvent], timestamps: list[datetime], cutoff: datetime
 ) -> list[bool]:
     known = [
@@ -107,7 +107,7 @@ def assess_context(
     minimum_improvement: float,
     base: Evaluation,
 ) -> ContextAssessment:
-    eligible, excluded = _eligible_events(events, series_name)
+    eligible, excluded = eligible_events(events, series_name)
     if timestamps and timestamps[0].tzinfo is None:
         return ContextAssessment(
             False, False,
@@ -148,8 +148,8 @@ def assess_context(
         try:
             context_prediction = event_adjusted(
                 values[:origin], horizon, season,
-                _flags(eligible, timestamps[:origin], cutoff),
-                _flags(eligible, timestamps[origin : origin + horizon], cutoff),
+                event_flags(eligible, timestamps[:origin], cutoff),
+                event_flags(eligible, timestamps[origin : origin + horizon], cutoff),
             )
         except ValueError as exc:
             return ContextAssessment(
@@ -196,8 +196,8 @@ def assess_context(
     calibration_cutoff = timestamps[calibration_origin - 1]
     calibration_prediction = event_adjusted(
         values[:calibration_origin], horizon, season,
-        _flags(eligible, timestamps[:calibration_origin], calibration_cutoff),
-        _flags(eligible, timestamps[calibration_origin : calibration_origin + horizon], calibration_cutoff),
+        event_flags(eligible, timestamps[:calibration_origin], calibration_cutoff),
+        event_flags(eligible, timestamps[calibration_origin : calibration_origin + horizon], calibration_cutoff),
     )
     calibration_actual = values[calibration_origin : calibration_origin + horizon]
     assessment.residuals = [
@@ -208,8 +208,8 @@ def assess_context(
     test_cutoff = timestamps[test_origin - 1]
     test_prediction = event_adjusted(
         values[:test_origin], horizon, season,
-        _flags(eligible, timestamps[:test_origin], test_cutoff),
-        _flags(eligible, timestamps[test_origin : test_origin + horizon], test_cutoff),
+        event_flags(eligible, timestamps[:test_origin], test_cutoff),
+        event_flags(eligible, timestamps[test_origin : test_origin + horizon], test_cutoff),
     )
     test_actual = values[test_origin : test_origin + horizon]
     covered = []
@@ -229,8 +229,8 @@ def assess_context(
     final_cutoff = timestamps[-1]
     assessment.points = event_adjusted(
         values, horizon, season,
-        _flags(eligible, timestamps, final_cutoff),
-        _flags(eligible, future_timestamps, final_cutoff),
+        event_flags(eligible, timestamps, final_cutoff),
+        event_flags(eligible, future_timestamps, final_cutoff),
     )
     if assessment.coverage < 0.7:
         assessment.warnings.append(

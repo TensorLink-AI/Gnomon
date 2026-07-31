@@ -351,7 +351,7 @@ def _solve(matrix: list[list[float]], target: list[float], ridge: float = 1e-6) 
     return [augmented[idx][-1] for idx in range(width)]
 
 
-def _covariate_forecast(
+def covariate_forecast(
     values: list[float], timestamps: list[datetime], future: list[datetime],
     dataset: CovariateDataset, names: list[str], series: str, cutoff: datetime,
     season: int,
@@ -402,7 +402,7 @@ def assess_covariates(
     def scores(names: list[str]) -> list[float] | None:
         fold_scores: list[float] = []
         for origin in selection:
-            forecast = _covariate_forecast(
+            forecast = covariate_forecast(
                 values[:origin], timestamps[:origin], timestamps[origin:origin + horizon],
                 dataset, names, series, timestamps[origin - 1], season,
             )
@@ -446,12 +446,12 @@ def assess_covariates(
     if not retained:
         return assessment
 
-    calibration = _covariate_forecast(
+    calibration = covariate_forecast(
         values[:calibration_origin], timestamps[:calibration_origin],
         timestamps[calibration_origin:calibration_origin + horizon], dataset, retained,
         series, timestamps[calibration_origin - 1], season,
     )
-    final = _covariate_forecast(
+    final = covariate_forecast(
         values, timestamps, future_timestamps, dataset, retained, series,
         timestamps[-1], season,
     )
@@ -463,7 +463,7 @@ def assess_covariates(
         actual - predicted
         for actual, predicted in zip(values[calibration_origin:calibration_origin + horizon], calibration)
     ]
-    test = _covariate_forecast(
+    test = covariate_forecast(
         values[:test_origin], timestamps[:test_origin], timestamps[test_origin:test_origin + horizon],
         dataset, retained, series, timestamps[test_origin - 1], season,
     )

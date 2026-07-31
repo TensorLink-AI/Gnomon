@@ -14,6 +14,7 @@ from .ids import SYSTEM_CLOCK, Clock, content_id
 from .models import BASELINES, MODELS
 from .pipeline import (
     LoadedDataset,
+    adjudicate_enrichments_stage,
     context_stage,
     covariate_stage,
     evaluate_stage,
@@ -174,12 +175,9 @@ def forecast(
     if horizon < 1:
         from .contracts import AionError
         raise AionError("INVALID_HORIZON", "Horizon must be at least one period.")
-    if context_events and covariates:
-        from .contracts import AionError
-        raise AionError(
-            "COMBINED_ENRICHMENT_UNSUPPORTED",
-            "Context events and covariates cannot yet be admitted in the same run; evaluate them separately.",
-        )
+    # When both enrichment kinds are supplied, neither ablation stage applies
+    # its own winner; the adjudication ladder owns the choice.
+    adjudicating = bool(context_events) and covariates is not None
     repair_log = RepairLog()
     loaded: LoadedDataset = load_stage(
         input_path, time_column=time_column, target_column=target_column,
@@ -222,11 +220,17 @@ def forecast(
             context_stage(
                 state, context_events, horizon=horizon,
                 minimum_baseline_improvement=minimum_baseline_improvement,
+                apply=not adjudicating,
             )
         if covariates:
             covariate_stage(
                 state, covariates, horizon=horizon,
                 minimum_baseline_improvement=minimum_baseline_improvement,
+                apply=not adjudicating,
+            )
+        if adjudicating:
+            adjudicate_enrichments_stage(
+                state, context_events, covariates, horizon=horizon,
             )
         repair_warnings = repair_log.warnings_for(series_name)
         if repair_warnings:
@@ -353,7 +357,7 @@ def capabilities() -> dict[str, object]:
             "decision_outcomes": True, "agent_treatment_control_eval": True,
             "context_events": True, "llm_workflow_prompts": True, "sharing": False,
             "future_known_covariates": True, "point_in_time_covariates": True,
-            "covariate_ablation": True,
+            "covariate_ablation": True, "enrichment_adjudication": True,
             "season_detection": True, "ensemble_forecasting": True,
             "multivariate_var": True, "strict_abstention": True,
         },

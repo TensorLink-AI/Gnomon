@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Enrichment adjudication
+
+- Context events and covariates can now be supplied in the same forecast
+  run. Each enrichment still passes its own independent, leakage-safe
+  ablation gate; a new adjudication stage then runs a championship ladder —
+  the base model against every admitted challenger (base + context,
+  base + covariates, base + both) on identical selection folds — and picks
+  the winner deterministically (best mean fold score, ties to fewest
+  enrichments, then fixed candidate order).
+- The combined challenger composes the two admitted mechanisms: the
+  covariate linear forecast plus the additive event effect, fitted per fold
+  under that fold's cutoff. Its winner reports
+  `selected_model: "combined_enrichment"`.
+- The full comparison — candidates, per-fold scores, winner, and why — is
+  recorded as an `enrichment_adjudication` evidence record in the artifact
+  and its typed lineage, so the artifact proves the model choice.
+- The `COMBINED_ENRICHMENT_UNSUPPORTED` error is retired (a pure
+  relaxation; see `COMPATIBILITY.md`). Single-enrichment runs are
+  numerically unchanged.
+
 ### Messy-data repair (disclosed, capped, deterministic)
 
 Real-world CSVs now work on first contact. `aion forecast --repair

@@ -15,6 +15,26 @@ from statistics import mean
 from .models import drift
 
 
+def event_effect(history: list[float], active_history: list[bool]) -> float:
+    """The measured additive effect: mean detrended level during event-active
+    periods minus the mean during inactive periods. Raises when the effect is
+    unmeasurable from the given history."""
+    if len(history) < 2:
+        raise ValueError("insufficient history")
+    if len(active_history) != len(history):
+        raise ValueError("event flags do not align with the time grid")
+    if not any(active_history):
+        raise ValueError("event has no occurrences in training history")
+    if all(active_history):
+        raise ValueError("event is active for the entire training history")
+
+    slope = (history[-1] - history[0]) / (len(history) - 1)
+    detrended = [value - (history[0] + slope * index) for index, value in enumerate(history)]
+    active_level = mean(d for d, active in zip(detrended, active_history) if active)
+    inactive_level = mean(d for d, active in zip(detrended, active_history) if not active)
+    return active_level - inactive_level
+
+
 def event_adjusted(
     history: list[float],
     horizon: int,
@@ -26,16 +46,7 @@ def event_adjusted(
         raise ValueError("insufficient history")
     if len(active_history) != len(history) or len(active_future) != horizon:
         raise ValueError("event flags do not align with the time grid")
-    if not any(active_history):
-        raise ValueError("event has no occurrences in training history")
-    if all(active_history):
-        raise ValueError("event is active for the entire training history")
-
-    slope = (history[-1] - history[0]) / (len(history) - 1)
-    detrended = [value - (history[0] + slope * index) for index, value in enumerate(history)]
-    active_level = mean(d for d, active in zip(detrended, active_history) if active)
-    inactive_level = mean(d for d, active in zip(detrended, active_history) if not active)
-    effect = active_level - inactive_level
+    effect = event_effect(history, active_history)
 
     base = drift(history, horizon, season)
     return [point + (effect if active else 0.0) for point, active in zip(base, active_future)]

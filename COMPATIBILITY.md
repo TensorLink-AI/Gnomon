@@ -80,6 +80,20 @@ Error envelope: `{"schema_version", "status": "error", "error": {"code",
   in the new model only.
 - Phase 7 (episodes), internal: `aion eval episodes` runs the built-in
   trap-family suite and feeds `aion eval compare` unchanged.
+- Enrichment adjudication (championship ladder), additive: one run may now
+  supply context events **and** covariates together — previously rejected
+  with `COMBINED_ENRICHMENT_UNSUPPORTED`, an error code now retired. This is
+  a pure relaxation: every previously-valid request behaves identically, and
+  single-enrichment runs are numerically unchanged (goldens unaffected). In a
+  combined run each enrichment still faces its own independent ablation gate;
+  the base model and every admitted challenger (base + context,
+  base + covariates, base + both) are then scored on identical selection
+  folds, and the winner is chosen deterministically — best mean fold score,
+  ties broken by fewest enrichments, then fixed candidate order. The full
+  comparison (candidates, per-fold scores, winner, reason) is recorded as an
+  `enrichment_adjudication` evidence record; the combined winner reports
+  `selected_model: "combined_enrichment"`. `capabilities().features` gains
+  `enrichment_adjudication: true`.
 
 - Messy-data repair, relaxation + additive: `forecast` (Python/CLI/tools)
   accepts `repair` ∈ `off | safe | aggressive`, default `safe`. Repairs
