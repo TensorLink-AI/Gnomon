@@ -54,17 +54,44 @@ workflow, and the full tool surface. (A `pip install aion-forecast` /
 
 ## Why Aion exists
 
-Most forecasting tools answer, “What number comes next?” Aion also asks:
+Wire an LLM agent to your operational data and it will, sooner or later:
 
-- Is the timestamp grid valid and reproducible?
-- Does the chosen method beat a defensible naive baseline?
-- Was evaluation performed without using future observations?
-- Is the uncertainty estimate supported by historical residuals?
-- Is there enough evidence to return a forecast at all?
+- backtest on numbers that hadn't been published yet — and report the
+  inflated accuracy as real;
+- produce a confident 14-day forecast from nine data points;
+- "clean" your messy CSV in its sandbox — silently, unaudited, differently
+  every run;
+- promote a correlation into a cause because the sentence flowed better
+  that way.
 
-Aion treats **unsupported** as a useful outcome. A structured abstention is
-safer than a plausible-looking forecast built from insufficient or malformed
-history.
+Each of these reads perfectly plausibly in chat. You find out when the
+capacity plan misses, the alert never fires, or the postmortem asks where
+a number came from and nobody can answer.
+
+A forecasting library doesn't fix this — the agent can misuse a library
+fluently. Aion is a harness: the agent frames the question and supplies
+the context; Aion computes every number and refuses the ones the evidence
+can't carry.
+
+- **Leakage is structural, not behavioural.** Every read goes through a
+  snapshot that cannot serve data published after its cutoff, and the
+  artifact records exactly what was touched. `--as-of` replays any past
+  moment as it was honestly knowable.
+- **Numbers are computed or absent.** Selection is backtested against
+  baselines that must be beaten; every figure traces to evidence; a
+  deterministic verifier rejects causal claims from associational
+  evidence and uncalibrated probabilities before any response leaves the
+  process.
+- **Cleaning is disclosed, never silent.** Messy files are repaired
+  deterministically, every fix listed as evidence, capped — and the
+  support status downgrades to match.
+- **Abstention is an answer.** When history can't support a forecast, you
+  get a typed refusal with recovery steps. The most dangerous forecast is
+  the confident one that shouldn't exist — Aion won't produce it, and the
+  agent can't fake it.
+- **Predictions are remembered.** Forecasts and decisions are tracked and
+  scored against realised outcomes — regret against the best feasible
+  action in hindsight, not vibes.
 
 ## What it does today
 
