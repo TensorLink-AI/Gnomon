@@ -10,6 +10,7 @@ changes show up as a diff here. Refresh deliberately with
 from __future__ import annotations
 
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -17,6 +18,13 @@ import pytest
 
 from aion.ids import FixedClock
 from aion.runtime import forecast
+
+# CPython 3.12 changed builtin sum() to Neumaier compensated summation
+# (gh-100425), which shifts float results by an ulp relative to 3.11.
+# Deterministic replay is guaranteed per interpreter: goldens are captured
+# on 3.12+ and byte-checked there; on older interpreters the values are
+# checked to 1e-9 relative tolerance instead.
+BYTE_EXACT = sys.version_info >= (3, 12)
 
 REPO = Path(__file__).resolve().parent.parent
 GOLDEN_DIR = Path(__file__).resolve().parent / "goldens"
@@ -71,10 +79,34 @@ def test_golden_artifact(name, tmp_path, request):
     assert golden_path.is_file(), (
         f"Missing golden {golden_path}; run pytest --update-goldens to create it."
     )
-    assert produced == golden_path.read_text(encoding="utf-8"), (
-        f"artifact.json for {name} deviates from its golden; if the change is "
-        "intentional, refresh with pytest --update-goldens and review the diff."
-    )
+    golden = golden_path.read_text(encoding="utf-8")
+    if BYTE_EXACT:
+        assert produced == golden, (
+            f"artifact.json for {name} deviates from its golden; if the change is "
+            "intentional, refresh with pytest --update-goldens and review the diff."
+        )
+    else:
+        _assert_semantically_equal(json.loads(golden), json.loads(produced), name)
+
+
+def _assert_semantically_equal(golden, produced, context: str) -> None:
+    """Structural equality with 1e-9 relative tolerance on floats — the
+    cross-interpreter guarantee, where byte equality is not promised."""
+    assert type(golden) is type(produced) or (
+        isinstance(golden, (int, float)) and isinstance(produced, (int, float))
+    ), context
+    if isinstance(golden, dict):
+        assert golden.keys() == produced.keys(), context
+        for key in golden:
+            _assert_semantically_equal(golden[key], produced[key], f"{context}.{key}")
+    elif isinstance(golden, list):
+        assert len(golden) == len(produced), context
+        for index, (a, b) in enumerate(zip(golden, produced)):
+            _assert_semantically_equal(a, b, f"{context}[{index}]")
+    elif isinstance(golden, float) and not isinstance(golden, bool):
+        assert produced == pytest.approx(golden, rel=1e-9, abs=1e-12), context
+    else:
+        assert golden == produced, context
 
 
 def test_forecast_id_is_content_addressed(tmp_path):

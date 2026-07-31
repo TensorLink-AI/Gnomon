@@ -87,3 +87,11 @@ Error envelope: `{"schema_version", "status": "error", "error": {"code",
 the example datasets under a fixed clock. A failing golden means this set is
 affected; refresh only with `pytest --update-goldens` and record the change
 here.
+
+Scope of the byte guarantee: deterministic replay yields identical bytes
+**per interpreter**. CPython 3.12 changed builtin `sum()` to Neumaier
+compensated summation (gh-100425), shifting float results by an ulp
+relative to 3.11 — so goldens are captured and byte-checked on 3.12+,
+and value-checked to 1e-9 relative tolerance on 3.11. Artifact IDs hash
+inputs and parameters, never outputs, so they are identical across
+interpreter versions.
