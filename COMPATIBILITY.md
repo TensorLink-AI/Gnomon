@@ -80,6 +80,33 @@ Error envelope: `{"schema_version", "status": "error", "error": {"code",
   in the new model only.
 - Phase 7 (episodes), internal: `aion eval episodes` runs the built-in
   trap-family suite and feeds `aion eval compare` unchanged.
+- Phase 8 (enrichment adjudication), **relaxation + additive**:
+
+  *Relaxation.* `COMBINED_ENRICHMENT_UNSUPPORTED` is retired. Passing
+  context events and covariates to the same run previously raised that
+  error; it now runs both ablations and then adjudicates between them.
+  This can only admit combinations that were previously refused — no run
+  that succeeded before changes behaviour, and no error code that could
+  still fire was removed. The code and its `repair_options` entry
+  (`split_runs`) are gone from `contracts.REPAIR_OPTIONS`; callers that
+  matched on it will simply never see it again.
+
+  *Additive.* When — and only when — both enrichment types are supplied,
+  a run emits one `enrichment_adjudication` evidence record per series
+  (also present in `lineage.json`), carrying the shared fold origins and
+  cutoffs, every candidate with its per-fold scores, each rung's
+  comparison, and the winner. The `context` and `covariates` result
+  dictionaries gain a `selected_by_adjudication` boolean in those runs;
+  their own `admitted` verdicts keep their existing meaning — the solo
+  ablation's honest answer — and the new key says which candidate the
+  artifact actually published. A joint winner reports
+  `selected_model: "covariate_linear+event_adjusted"`.
+  `capabilities().features` gains `combined_enrichments` and
+  `enrichment_adjudication`; `capabilities().models` gains `enrichment`.
+
+  Runs with one enrichment type (or none) are byte-identical to before:
+  the ladder does not convene, because a single ablation already *is* the
+  two-candidate comparison. The golden artifacts are unchanged.
 
 ## Enforcement
 

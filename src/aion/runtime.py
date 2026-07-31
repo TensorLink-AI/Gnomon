@@ -14,6 +14,7 @@ from .ids import SYSTEM_CLOCK, Clock, content_id
 from .models import BASELINES, MODELS
 from .pipeline import (
     LoadedDataset,
+    adjudicate_stage,
     context_stage,
     covariate_stage,
     evaluate_stage,
@@ -126,12 +127,6 @@ def forecast(
     if horizon < 1:
         from .contracts import AionError
         raise AionError("INVALID_HORIZON", "Horizon must be at least one period.")
-    if context_events and covariates:
-        from .contracts import AionError
-        raise AionError(
-            "COMBINED_ENRICHMENT_UNSUPPORTED",
-            "Context events and covariates cannot yet be admitted in the same run; evaluate them separately.",
-        )
     loaded: LoadedDataset = load_stage(
         input_path, time_column=time_column, target_column=target_column,
         series_column=series_column, frequency=frequency,
@@ -168,6 +163,9 @@ def forecast(
             selection_strategy=selection_strategy,
         )
         multivariate_stage(state, multivariate_points, multivariate_warnings)
+        # The history-only forecast, kept intact so the adjudication ladder can
+        # reinstate it when no enrichment earns its place.
+        base_forecast = state.capture()
         if context_events:
             context_stage(
                 state, context_events, horizon=horizon,
@@ -176,6 +174,12 @@ def forecast(
         if covariates:
             covariate_stage(
                 state, covariates, horizon=horizon,
+                minimum_baseline_improvement=minimum_baseline_improvement,
+            )
+        if context_events and covariates:
+            adjudicate_stage(
+                state, base_forecast, context_events=context_events,
+                covariates=covariates, horizon=horizon,
                 minimum_baseline_improvement=minimum_baseline_improvement,
             )
         rows, support, threshold_analysis = interval_stage(state, threshold=threshold)
@@ -250,6 +254,8 @@ def capabilities() -> dict[str, object]:
         parquet = True
     except ImportError:
         parquet = False
+    from .adjudication import JOINT_MODEL_NAME
+    from .covariates import COVARIATE_MODEL_NAME
     from .registry import registry_capabilities
     from .tsfm import available_tsfms, capability_matrix, installed_tsfms
     from .tsfm_sandbox import list_sandboxes
@@ -264,6 +270,7 @@ def capabilities() -> dict[str, object]:
             "baselines": sorted(BASELINES),
             "statistical": sorted(name for name in MODELS if name not in BASELINES),
             "context": ["event_adjusted"],
+            "enrichment": [COVARIATE_MODEL_NAME, JOINT_MODEL_NAME],
             "tsfm": installed_tsfms(),
             "tsfm_available": available_tsfms(),
             "tsfm_sandboxes": list_sandboxes(),
@@ -282,7 +289,8 @@ def capabilities() -> dict[str, object]:
             "decision_outcomes": True, "agent_treatment_control_eval": True,
             "context_events": True, "llm_workflow_prompts": True, "sharing": False,
             "future_known_covariates": True, "point_in_time_covariates": True,
-            "covariate_ablation": True,
+            "covariate_ablation": True, "combined_enrichments": True,
+            "enrichment_adjudication": True,
             "season_detection": True, "ensemble_forecasting": True,
             "multivariate_var": True, "strict_abstention": True,
         },

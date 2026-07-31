@@ -56,3 +56,10 @@ rejections honestly. For external covariates: `aion_covariate_guide` before
 fetching, preserve issued vintages, `aion_validate_covariates` before
 proposing. Never substitute realised outcomes for the vintage available at
 a cutoff; the store's `--as-of` replay exists to prove this.
+
+Both may be supplied to one run. Aion ablates each, then adjudicates every
+candidate — history-only, plus context, plus covariates, plus both — on
+identical folds, admitting the extra enrichment only when it earns its
+complexity. Read the winner and its per-candidate fold scores from the
+`enrichment_adjudication` evidence record; do not assert that an enrichment
+helped because it was passed in.

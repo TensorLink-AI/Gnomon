@@ -42,6 +42,10 @@ def write_artifact(
             for result in artifact.results:
                 for row in result.forecast:
                     writer.writerow({"series": result.series, **row})
+        adjudications = {
+            record.series: record.payload for record in artifact.evidence
+            if record.kind == "enrichment_adjudication"
+        }
         lines = [f"# Forecast {artifact.forecast_id}", ""]
         for result in artifact.results:
             lines.extend([
@@ -71,6 +75,22 @@ def write_artifact(
                     f"- Retained: {', '.join(result.covariates.get('retained', [])) or 'none'}",
                     f"- Rejected: {len(result.covariates.get('rejected', []))}",
                 ])
+            adjudication = adjudications.get(result.series)
+            if adjudication and adjudication.get("adjudicated"):
+                lines.extend([
+                    "", "### Enrichment adjudication", "",
+                    f"- Candidates ran on {len(adjudication['folds'])} identical folds",
+                    f"- Winner: {adjudication['winner']} ({adjudication['winner_model']})",
+                ])
+                lines.extend(
+                    f"- {candidate['candidate']}: mean fold score "
+                    f"{candidate['mean_fold_score']:.6f}"
+                    if candidate["eligible"] else
+                    f"- {candidate['candidate']}: not eligible "
+                    f"({candidate['excluded_reason']})"
+                    for candidate in adjudication["candidates"]
+                )
+                lines.extend(f"- {reason}" for reason in adjudication["reasons"])
             lines.append("")
         (temporary / "summary.md").write_text("\n".join(lines), encoding="utf-8")
         os.replace(temporary, final)

@@ -117,7 +117,11 @@ Unsupported series have no rows.
 ### `evidence.jsonl`
 
 Append-friendly, one-JSON-record-per-line evidence. v0.1 emits evaluation and
-support records for each series.
+support records for each series. Enrichment runs add `context_ablation` and
+`covariate_ablation` records; a run carrying both enrichment types also emits
+one `enrichment_adjudication` record per series — the shared fold origins and
+cutoffs, every candidate with its per-fold scores, each rung's comparison, and
+the winner.
 
 ### `summary.md`
 

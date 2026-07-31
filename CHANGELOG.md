@@ -1,5 +1,35 @@
 # Changelog
 
+## Unreleased
+
+### Enrichment adjudication
+
+- Context events and covariates can now be supplied to the same run.
+  `COMBINED_ENRICHMENT_UNSUPPORTED` is retired — a pure relaxation, since
+  the combination previously could not run at all.
+- New `adjudicate_enrichments` stage. After the existing ablations, every
+  candidate — history-only, plus context, plus covariates, plus both — is
+  scored on **identical** folds: the same rolling origins, the same
+  observation prefix at each origin, and enrichment inputs gated by
+  `known_at` at that origin's cutoff.
+- Selection is a complexity ladder, not an argmin: each rung of added
+  complexity must beat the standing champion by
+  `minimum_baseline_improvement`. Enrichments that only work together are
+  compared against the base and can be admitted; a second enrichment that
+  re-encodes the first is compared against the winning single and cannot
+  buy admission with a rounding-error gain. Ties keep the simpler
+  candidate, and equal scores break by a fixed order, so runs are
+  reproducible.
+- The joint candidate is the covariate model's forecast carrying the part
+  of the event effect that model has *not* already explained — measured on
+  its in-sample residuals rather than on raw history.
+- A winner that would publish intervals below the 70% coverage floor the
+  history-only forecast met is rejected; the base forecast is reinstated.
+- Each adjudicated series records one `enrichment_adjudication` evidence
+  record: the shared folds, every candidate's per-fold scores, each rung's
+  comparison with the score it needed, and the winner. The artifact proves
+  the choice instead of asserting it.
+
 ## 0.3.0 — the temporal execution harness (2026-07-31)
 
 Aion grows from a forecasting engine into a temporal execution harness:

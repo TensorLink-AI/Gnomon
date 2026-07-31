@@ -16,6 +16,8 @@ from .evaluation import Evaluation, error_score, quantile
 from .models import MODELS, predict
 from .temporal import SEASONS, next_timestamp, validate_and_group
 
+COVARIATE_MODEL_NAME = "covariate_linear"
+
 
 @dataclass(frozen=True)
 class CovariateSpec:
@@ -80,7 +82,7 @@ class CovariateAssessment:
     def to_public_dict(self) -> dict[str, Any]:
         return {
             "considered": self.considered, "admitted": self.admitted,
-            "model": "covariate_linear" if self.admitted else None,
+            "model": COVARIATE_MODEL_NAME if self.admitted else None,
             "retained": self.retained, "rejected": self.rejected,
             "fold_improvements": self.fold_improvements,
             "measured_test_coverage": self.coverage,
@@ -351,14 +353,17 @@ def _solve(matrix: list[list[float]], target: list[float], ridge: float = 1e-6) 
     return [augmented[idx][-1] for idx in range(width)]
 
 
-def _covariate_forecast(
-    values: list[float], timestamps: list[datetime], future: list[datetime],
-    dataset: CovariateDataset, names: list[str], series: str, cutoff: datetime,
-    season: int,
-) -> list[float] | None:
+def _design(
+    values: list[float], timestamps: list[datetime], dataset: CovariateDataset,
+    names: list[str], series: str, cutoff: datetime, season: int,
+) -> tuple[list[list[float]], list[float], list[int], int]:
+    """The training design: one row per usable history index, with the
+    covariate vintages visible at ``cutoff``. Shared by the forecast and the
+    in-sample fit so both rest on exactly the same fit."""
     start = max(1, season)
     matrix: list[list[float]] = []
     target: list[float] = []
+    indices: list[int] = []
     scale = max(len(values), 1)
     for idx in range(start, len(values)):
         covs = [dataset.value_at(name, series, timestamps[idx], cutoff) for name in names]
@@ -366,9 +371,47 @@ def _covariate_forecast(
             continue
         matrix.append([1.0, idx / scale, values[idx - 1], values[idx - season], *covs])
         target.append(values[idx])
+        indices.append(idx)
+    return matrix, target, indices, scale
+
+
+def _fitted(matrix: list[list[float]], target: list[float]) -> list[float] | None:
     if not matrix or len(matrix) < max(6, len(matrix[0]) + 1):
         return None
-    coefficients = _solve(matrix, target)
+    return _solve(matrix, target)
+
+
+def covariate_fit_residuals(
+    values: list[float], timestamps: list[datetime], dataset: CovariateDataset,
+    names: list[str], series: str, cutoff: datetime, season: int,
+) -> tuple[list[int], list[float]] | None:
+    """In-sample residuals of the covariate fit, paired with the history
+    indices they belong to. What this model leaves unexplained is what
+    another enrichment can still claim."""
+    matrix, target, indices, _ = _design(
+        values, timestamps, dataset, names, series, cutoff, season,
+    )
+    coefficients = _fitted(matrix, target)
+    if coefficients is None:
+        return None
+    residuals = [
+        actual - sum(coef * value for coef, value in zip(coefficients, row))
+        for row, actual in zip(matrix, target)
+    ]
+    return indices, residuals
+
+
+def covariate_forecast(
+    values: list[float], timestamps: list[datetime], future: list[datetime],
+    dataset: CovariateDataset, names: list[str], series: str, cutoff: datetime,
+    season: int,
+) -> list[float] | None:
+    matrix, target, _, scale = _design(
+        values, timestamps, dataset, names, series, cutoff, season,
+    )
+    coefficients = _fitted(matrix, target)
+    if coefficients is None:
+        return None
     history = list(values)
     result: list[float] = []
     for offset, valid_at in enumerate(future):
@@ -402,7 +445,7 @@ def assess_covariates(
     def scores(names: list[str]) -> list[float] | None:
         fold_scores: list[float] = []
         for origin in selection:
-            forecast = _covariate_forecast(
+            forecast = covariate_forecast(
                 values[:origin], timestamps[:origin], timestamps[origin:origin + horizon],
                 dataset, names, series, timestamps[origin - 1], season,
             )
@@ -446,12 +489,12 @@ def assess_covariates(
     if not retained:
         return assessment
 
-    calibration = _covariate_forecast(
+    calibration = covariate_forecast(
         values[:calibration_origin], timestamps[:calibration_origin],
         timestamps[calibration_origin:calibration_origin + horizon], dataset, retained,
         series, timestamps[calibration_origin - 1], season,
     )
-    final = _covariate_forecast(
+    final = covariate_forecast(
         values, timestamps, future_timestamps, dataset, retained, series,
         timestamps[-1], season,
     )
@@ -463,7 +506,7 @@ def assess_covariates(
         actual - predicted
         for actual, predicted in zip(values[calibration_origin:calibration_origin + horizon], calibration)
     ]
-    test = _covariate_forecast(
+    test = covariate_forecast(
         values[:test_origin], timestamps[:test_origin], timestamps[test_origin:test_origin + horizon],
         dataset, retained, series, timestamps[test_origin - 1], season,
     )

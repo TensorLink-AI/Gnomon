@@ -102,11 +102,46 @@ inputs. The built-in `covariate_linear` candidate provides the first safe
 covariate path. Future adapter implementations must add contract tests before
 their capability flag can become true.
 
+## Combining covariates with context events
+
+A run may pass both `--covariates` and `--context`. Each enrichment is still
+ablated on its own, and then an adjudication stage compares every candidate —
+history-only, plus context, plus covariates, plus both — on identical folds:
+the same rolling origins, the same observation prefix at each origin, and
+enrichment inputs gated by `known_at` at that origin's cutoff.
+
+The winner is the one that earns its complexity. Each rung — one enrichment,
+then two — must beat the standing champion by
+`minimum_baseline_improvement`, so:
+
+- enrichments that only clear the bar *together* are compared against the
+  history-only forecast, and can be admitted;
+- a second enrichment that merely re-encodes the first is compared against
+  the winning single, and cannot be admitted on a rounding-error gain.
+
+The candidate sets are exactly what the ablations produced: every
+backtest-admissible event, and the covariates the ablation retained. When the
+ablation retained none, the full declared set enters the ladder instead — a
+covariate that cannot carry a forecast alone may still carry one alongside
+context, and the margin rule is what keeps that honest.
+
+A joint winner reports `selected_model: covariate_linear+event_adjusted` —
+the covariate model's forecast carrying the part of the event effect that
+model did not already explain. Every adjudicated series records an
+`enrichment_adjudication` evidence record with the shared folds, each
+candidate's per-fold scores, and the comparison that decided the winner, so
+the choice can be audited rather than taken on trust.
+
+With a single enrichment type nothing changes: one ablation already *is* the
+two-candidate comparison, and no ladder convenes.
+
 ## Current limits
 
 - Future-known numeric covariates only
 - CSV covariate files
-- No simultaneous context-event and covariate admission
+- Adjudication requires at least four rolling folds and a built-in
+  univariate comparison model; when a TSFM, ensemble, or VAR forecast wins
+  the history-only evaluation, the ladder records why it stood down
 - Admission currently compares against a built-in selected model; if a TSFM
   wins the univariate evaluation, Aion reports that admission is unavailable
 - No automatic web retrieval or arbitrary URL loading

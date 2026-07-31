@@ -14,10 +14,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from .adjudication import (
+    CONTEXT_CANDIDATE,
+    COVARIATE_CANDIDATE,
+    JOINT_CANDIDATE,
+    adjudicate_enrichments,
+)
 from .context import ContextEvent
 from .context_eval import CONTEXT_MODEL_NAME, assess_context
 from .contracts import AionError, DataSchema, Evidence
-from .covariates import CovariateDataset, assess_covariates
+from .covariates import COVARIATE_MODEL_NAME, CovariateDataset, assess_covariates
 from .data import Observation, load_observations
 from .evaluation import Evaluation, evaluate, interval_bounds, quantile
 from .models import MODELS, predict
@@ -42,6 +48,19 @@ class LoadedDataset:
     variable: str
 
 
+@dataclass(frozen=True)
+class ForecastSnapshot:
+    """The publishable part of a series state, captured so a later stage can
+    put it back. The adjudication ladder needs the history-only forecast
+    intact after the enrichment stages have overwritten it."""
+
+    selected_model: str | None
+    points: list[float]
+    residuals: list[float]
+    coverage: float | None
+    warnings: list[str]
+
+
 @dataclass
 class SeriesState:
     """Working state for one series as it moves through the stages."""
@@ -59,7 +78,21 @@ class SeriesState:
     warnings: list[str] = field(default_factory=list)
     context_public: dict[str, object] | None = None
     covariate_public: dict[str, object] | None = None
+    adjudication_public: dict[str, object] | None = None
     evidence: list[Evidence] = field(default_factory=list)
+
+    def capture(self) -> ForecastSnapshot:
+        return ForecastSnapshot(
+            self.selected_model, list(self.points), list(self.residuals),
+            self.coverage, list(self.warnings),
+        )
+
+    def restore(self, snapshot: ForecastSnapshot) -> None:
+        self.selected_model = snapshot.selected_model
+        self.points = list(snapshot.points)
+        self.residuals = list(snapshot.residuals)
+        self.coverage = snapshot.coverage
+        self.warnings = list(snapshot.warnings)
 
 
 def load_stage(
@@ -299,11 +332,66 @@ def covariate_stage(
          "source_fingerprint": covariates.fingerprint},
     ))
     if covariate_assessment.admitted:
-        state.selected_model = "covariate_linear"
+        state.selected_model = COVARIATE_MODEL_NAME
         state.points = covariate_assessment.points
         state.residuals = covariate_assessment.residuals
         state.coverage = covariate_assessment.coverage
         state.warnings = list(covariate_assessment.warnings)
+
+
+def adjudicate_stage(
+    state: SeriesState,
+    base: ForecastSnapshot,
+    *,
+    context_events: list[ContextEvent] | None,
+    covariates: CovariateDataset | None,
+    horizon: int,
+    minimum_baseline_improvement: float,
+) -> None:
+    """The championship ladder over enrichment candidates.
+
+    Runs after the independent ablations, which keep recording their own
+    honest verdicts; this stage decides which candidate the artifact actually
+    publishes, on folds identical for every entrant. It only convenes when
+    more than one enrichment type was supplied — with a single enrichment the
+    ablation already *is* the two-candidate comparison."""
+    covariate_names: list[str] = []
+    if covariates is not None:
+        retained = list((state.covariate_public or {}).get("retained") or [])
+        # A covariate that could not carry a forecast alone may still carry
+        # one alongside context; the ladder's margin rule is the guard.
+        covariate_names = retained or [spec.name for spec in covariates.specs]
+    adjudication = adjudicate_enrichments(
+        state.values, state.timestamps, state.future_timestamps,
+        series_name=state.name, horizon=horizon, season=state.season,
+        minimum_improvement=minimum_baseline_improvement,
+        base=state.assessment, base_model=base.selected_model,
+        context_events=context_events, covariates=covariates,
+        covariate_names=covariate_names,
+    )
+    state.adjudication_public = adjudication.to_public_dict()
+    state.evidence.append(Evidence(
+        f"enrichment_adjudication:{state.name}", "enrichment_adjudication", state.name,
+        state.adjudication_public,
+    ))
+    if not adjudication.adjudicated:
+        return
+    selected = adjudication.winner
+    for public in (state.context_public, state.covariate_public):
+        if public is not None:
+            public["selected_by_adjudication"] = False
+    if adjudication.winner_is_base:
+        state.restore(base)
+        return
+    if selected in (CONTEXT_CANDIDATE, JOINT_CANDIDATE) and state.context_public is not None:
+        state.context_public["selected_by_adjudication"] = True
+    if selected in (COVARIATE_CANDIDATE, JOINT_CANDIDATE) and state.covariate_public is not None:
+        state.covariate_public["selected_by_adjudication"] = True
+    state.selected_model = adjudication.winner_model
+    state.points = adjudication.points
+    state.residuals = adjudication.residuals
+    state.coverage = adjudication.coverage
+    state.warnings = list(adjudication.warnings)
 
 
 def threshold_analysis_stage(
