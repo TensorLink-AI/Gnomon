@@ -68,6 +68,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--store-path", dest="store_path",
         help="Override the temporal-store path (for store:<dataset> inputs)",
     )
+    forecast_parser.add_argument(
+        "--repair", choices=("off", "safe", "aggressive"), default="safe",
+        help="Messy-data handling: off rejects anything non-strict; safe "
+             "(default) normalises cell text with disclosure; aggressive "
+             "additionally fills gaps, snaps jittered timestamps, and "
+             "resolves conflicts — capped and reported as warnings",
+    )
     forecast_parser.add_argument("--selection-strategy", choices=("best", "ensemble"), default="best")
     forecast_parser.add_argument("--ensemble", action="store_true", help=argparse.SUPPRESS)
     forecast_parser.add_argument("--multivariate", action="store_true")
@@ -834,6 +841,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 multivariate=args.multivariate,
                 as_of=as_of,
                 store_path=getattr(args, "store_path", None),
+                repair=args.repair,
             )
             payload = forecast_summary(artifact, path)
 

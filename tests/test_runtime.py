@@ -192,6 +192,14 @@ def test_capabilities_report_new_models_and_frequencies() -> None:
 def test_duplicate_timestamps_are_structured_input_error(tmp_path: Path) -> None:
     source = tmp_path / "duplicate.csv"
     write_daily(source, 20, duplicate=True)
+    # The strict path still rejects duplicates outright.
     with pytest.raises(AionError) as caught:
-        inspect_dataset(str(source), time_column="timestamp", target_column="value", series_column="series")
+        forecast(str(source), time_column="timestamp", target_column="value",
+                 series_column="series", horizon=3, output=str(tmp_path / "out"),
+                 repair="off")
     assert caught.value.code == "DUPLICATE_TIMESTAMPS"
+    # inspect diagnoses instead: the exact duplicate collapses under safe repair.
+    payload = inspect_dataset(str(source), time_column="timestamp", target_column="value", series_column="series")
+    quality = payload["data_quality"]
+    assert quality["status"] == "repaired_safe"  # type: ignore[index]
+    assert any(action["code"] == "duplicate_row_collapsed" for action in quality["repairs"])  # type: ignore[index]

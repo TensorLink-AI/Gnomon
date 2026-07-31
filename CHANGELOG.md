@@ -22,6 +22,43 @@
   relaxation; see `COMPATIBILITY.md`). Single-enrichment runs are
   numerically unchanged.
 
+### Messy-data repair (disclosed, capped, deterministic)
+
+Real-world CSVs now work on first contact. `aion forecast --repair
+{off,safe,aggressive}` (default `safe`):
+
+- `safe` normalises cell text only — mixed date formats (slash dates with
+  provable day/month order, month names, epoch stamps), currency symbols,
+  thousands/decimal separators, percent signs, accounting negatives,
+  sentinel missing values (`N/A`, `null`, …), fully blank rows, and
+  byte-identical duplicate rows. It never invents a value, moves a
+  timestamp, or drops a data point.
+- `aggressive` opts into structural fixes: interior gaps linearly
+  interpolated, jittered timestamps snapped to the inferred grid,
+  conflicting duplicates resolved (last row wins), unparseable rows
+  dropped, naive timestamps in mixed-timezone files assumed UTC — all
+  capped (`EXCESSIVE_REPAIR` past ~30% of a series) and disclosed.
+- Every fix lands in a `data_repair` evidence record; assumptive fixes
+  become series warnings, so support downgrades honestly.
+- Repairs fire only where strict parsing would fail: clean files remain
+  byte-identical with unchanged artifact IDs.
+- `aion inspect` now diagnoses instead of rejecting: `data_quality`
+  reports what the file needs (`clean` / `repaired_safe` /
+  `repaired_aggressive`), lists the repairs, and prints the exact
+  follow-up command.
+- New bundled example: `examples/filthy_requests.csv`.
+
+### Input formats
+
+- New always-on formats: `.tsv`, `.json` (array of objects),
+  `.jsonl`/`.ndjson`, and gzip-compressed text inputs (`.csv.gz`, …).
+- `.xlsx` behind a new `excel` extra (`pip install 'aion-forecast[excel]'`).
+- Semicolon/tab/pipe-delimited "CSV" detected under repair when the header
+  provably names the mapped columns (disclosed as `delimiter_detected`);
+  non-UTF-8 files fall back to Windows-1252 under repair (disclosed as an
+  `encoding_assumed` assumption; strict mode raises `INVALID_ENCODING`).
+- `aion capabilities` reports the full input matrix.
+
 ## 0.3.0 — the temporal execution harness (2026-07-31)
 
 Aion grows from a forecasting engine into a temporal execution harness:

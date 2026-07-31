@@ -22,6 +22,7 @@ from .covariates import CovariateAssessment, CovariateDataset, assess_covariates
 from .data import Observation, load_observations
 from .evaluation import Evaluation, evaluate, interval_bounds, quantile
 from .models import MODELS, predict
+from .repair import RepairLog, repair_observations
 from .temporal import detect_season, next_timestamp, validate_and_group
 from .temporal_store import InMemoryTemporalStore, Snapshot, TemporalStore
 
@@ -75,6 +76,8 @@ def load_stage(
     frequency: str | None,
     as_of: datetime | None = None,
     store_path: str | None = None,
+    repair: str = "off",
+    repair_log: "RepairLog | None" = None,
 ) -> LoadedDataset:
     """Resolve the input to a snapshot, then materialise the observations
     that are visible at ``as_of``. ``store:<dataset>`` inputs read from the
@@ -88,9 +91,12 @@ def load_stage(
         source_fingerprint = snapshot.source_ref
         columns = [time_column, target_column] + ([series_column] if series_column else [])
     else:
+        log = repair_log if repair_log is not None else RepairLog()
         raw_observations, source_fingerprint, columns = load_observations(
-            input_path, time_column, target_column, series_column
+            input_path, time_column, target_column, series_column,
+            repair=repair, repair_log=log,
         )
+        raw_observations = repair_observations(raw_observations, frequency, repair, log)
         store, _ = InMemoryTemporalStore.from_plain_observations(
             raw_observations, variable, source_fingerprint,
         )

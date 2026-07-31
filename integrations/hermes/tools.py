@@ -156,6 +156,8 @@ def handle_aion_forecast(args: dict[str, Any], **kwargs: Any) -> str:
         cli += ["--threshold", str(float(args["threshold"]))]
     if args.get("project"):
         cli += ["--project", str(args["project"])]
+    if args.get("repair"):
+        cli += ["--repair", str(args["repair"])]
     if args.get("covariates_file"):
         if not args.get("covariate_mapping"):
             return json.dumps(_error("INVALID_ARGUMENTS", "covariate_mapping is required with covariates_file."))
