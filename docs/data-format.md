@@ -99,13 +99,30 @@ For daily data with a seven-day season and a seven-day horizon, full mode
 needs 42 observations and degraded mode starts at 28. Shorter valid series
 produce an `unsupported` result rather than an input error.
 
-## Parquet
+## Other formats
 
-Install the optional dependency before reading `.parquet` or `.pq` files:
+Beyond comma-separated CSV, Aion reads:
+
+- **`.tsv`** — tab-separated, always.
+- **Semicolon, tab, or pipe-delimited `.csv`** — detected under the default
+  repair level when the header provably names your mapped columns under
+  that delimiter (common with European Excel exports); the detection is
+  disclosed as a `delimiter_detected` repair action.
+- **`.json`** — a top-level array of flat objects; **`.jsonl`/`.ndjson`** —
+  one object per line.
+- **`.gz`** — any of the text formats above, gzip-compressed (`.csv.gz`,
+  `.jsonl.gz`, …).
+- **`.parquet`/`.pq`** — with the `parquet` extra.
+- **`.xlsx`** — first worksheet, first row as headers, with the `excel`
+  extra.
 
 ```bash
-pip install 'aion-forecast[parquet]'
+pip install 'aion-forecast[parquet]'   # .parquet / .pq
+pip install 'aion-forecast[excel]'     # .xlsx
 ```
 
-The same logical column and temporal rules apply to CSV and Parquet inputs.
+Files that are not UTF-8 are read as Windows-1252 under repair, disclosed
+as an `encoding_assumed` assumption (strict mode raises `INVALID_ENCODING`).
+The same logical column and temporal rules apply to every format, and
+`aion capabilities` reports which optional formats are installed.
 

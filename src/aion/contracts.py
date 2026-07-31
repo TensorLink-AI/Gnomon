@@ -199,15 +199,42 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
     ],
     "INVALID_TIMESTAMP": [
         {"action": "fix_timestamps", "description": "Convert the timestamp column to ISO-8601; the offending row is in details."},
+        {"action": "enable_repair", "description": "Pass repair=aggressive to drop unparseable rows (capped and disclosed)."},
     ],
     "INVALID_TARGET": [
         {"action": "fix_target", "description": "Make the target column numeric; the offending row is in details."},
+        {"action": "enable_repair", "description": "Pass repair=aggressive to drop rows without a numeric reading (capped and disclosed)."},
     ],
     "DUPLICATE_TIMESTAMPS": [
         {"action": "deduplicate", "description": "Remove duplicate timestamps, or ingest revisions into the store with distinct known-at times."},
+        {"action": "enable_repair", "description": "Identical duplicate rows collapse under the default repair=safe; conflicting values need repair=aggressive (last row wins, disclosed)."},
     ],
     "IRREGULAR_TIME_GRID": [
         {"action": "fill_or_resample", "description": "Fill the missing period named in details, or resample to a coarser regular frequency."},
+        {"action": "enable_repair", "description": "Pass repair=aggressive to interpolate interior gaps and snap jittered timestamps — capped, and every fix becomes a warning."},
+    ],
+    "MIXED_TIMEZONES": [
+        {"action": "align_timezones", "description": "Make every timestamp consistently timezone-aware or consistently naive."},
+        {"action": "enable_repair", "description": "Pass repair=aggressive to assume naive timestamps are UTC (disclosed as an assumption)."},
+    ],
+    "AMBIGUOUS_DATE_ORDER": [
+        {"action": "fix_timestamps", "description": "Use ISO-8601 dates, or include at least one date whose day exceeds 12 so the order is provable."},
+        {"action": "enable_repair", "description": "Pass repair=aggressive to default to month-first (disclosed as an assumption)."},
+    ],
+    "EXCESSIVE_REPAIR": [
+        {"action": "fix_source_data", "description": "Too much of this series would be invented by repair; fix the export at the source. Counts are in details."},
+    ],
+    "INVALID_REPAIR_LEVEL": [
+        {"action": "set_repair_level", "description": "Use one of: off, safe, aggressive."},
+    ],
+    "INVALID_ENCODING": [
+        {"action": "fix_encoding", "description": "Re-export the file as UTF-8, or use the default repair level, which assumes Windows-1252 with disclosure."},
+    ],
+    "UNSUPPORTED_INPUT": [
+        {"action": "convert_input", "description": "Convert to a supported format: .csv, .tsv, .json, .jsonl (each optionally .gz), .parquet, or .xlsx (excel extra)."},
+    ],
+    "MISSING_OPTIONAL_DEPENDENCY": [
+        {"action": "install_extra", "description": "Install the package named in details.install."},
     ],
     "FREQUENCY_MISMATCH": [
         {"action": "set_frequency", "description": "Pass the inferred frequency from details, or omit frequency to infer."},

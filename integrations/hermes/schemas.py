@@ -110,6 +110,16 @@ AION_FORECAST_SCHEMA = {
             "covariate_time_column": {"type": "string", "description": "Valid-at column (default timestamp)."},
             "covariate_known_at_column": {"type": "string", "description": "Availability timestamp column (default known_at)."},
             "covariate_series_column": {"type": "string", "description": "Optional covariate series column."},
+            "repair": {
+                "type": "string",
+                "enum": ["off", "safe", "aggressive"],
+                "description": (
+                    "Messy-data handling (default safe): safe normalises cell "
+                    "text with disclosure; aggressive additionally fills gaps, "
+                    "snaps timestamps, and resolves conflicts — capped, and "
+                    "every fix is reported in evidence and warnings."
+                ),
+            },
         },
         "required": ["input", "time_column", "target_column", "horizon"],
     },

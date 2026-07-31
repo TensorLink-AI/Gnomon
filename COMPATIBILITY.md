@@ -81,6 +81,32 @@ Error envelope: `{"schema_version", "status": "error", "error": {"code",
 - Phase 7 (episodes), internal: `aion eval episodes` runs the built-in
   trap-family suite and feeds `aion eval compare` unchanged.
 
+- Messy-data repair, relaxation + additive: `forecast` (Python/CLI/tools)
+  accepts `repair` ∈ `off | safe | aggressive`, default `safe`. Repairs
+  fire **only where the strict path would fail**, so any file that parsed
+  before parses byte-identically and keeps its content-addressed ID (the
+  default level is absent from the ID payload). Files that previously
+  raised `INVALID_TIMESTAMP` / `INVALID_TARGET` / `DUPLICATE_TIMESTAMPS` /
+  `IRREGULAR_TIME_GRID` / `MIXED_TIMEZONES` may now succeed: `safe`
+  normalises cell text (date formats, currency/thousands, sentinels, blank
+  rows, identical duplicates) and `aggressive` opts into structural fixes
+  (gap interpolation, timestamp snapping, conflict resolution, capped row
+  drops, UTC coercion). Every repair is disclosed in a new `data_repair`
+  evidence record; assumptive repairs additionally appear as
+  `repaired_data: …` warnings and therefore downgrade support. New error
+  codes: `AMBIGUOUS_DATE_ORDER`, `EXCESSIVE_REPAIR`,
+  `INVALID_REPAIR_LEVEL`. `aion inspect` now diagnoses instead of
+  rejecting: it reports `data_quality` (status `clean` /
+  `repaired_safe` / `repaired_aggressive`, the repair list, and the exact
+  flag to pass) and raises only when no level reads the file.
+- Input formats, additive: `.tsv`, `.json`, `.jsonl`/`.ndjson`, gzipped
+  text inputs, and `.xlsx` (new `excel` extra) join CSV and Parquet;
+  alternative CSV delimiters and a Windows-1252 fallback are detected
+  under repair with disclosure. New error codes `INVALID_ENCODING` (was an
+  unhandled crash) and repair options on `UNSUPPORTED_INPUT` /
+  `MISSING_OPTIONAL_DEPENDENCY`. `capabilities().inputs` grew keys; the
+  existing `csv`/`parquet` keys are unchanged.
+
 ## Enforcement
 
 `tests/test_golden_artifacts.py` pins byte-exact `artifact.json` output for
