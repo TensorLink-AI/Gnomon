@@ -99,6 +99,13 @@ Error envelope: `{"schema_version", "status": "error", "error": {"code",
   rejecting: it reports `data_quality` (status `clean` /
   `repaired_safe` / `repaired_aggressive`, the repair list, and the exact
   flag to pass) and raises only when no level reads the file.
+- Input formats, additive: `.tsv`, `.json`, `.jsonl`/`.ndjson`, gzipped
+  text inputs, and `.xlsx` (new `excel` extra) join CSV and Parquet;
+  alternative CSV delimiters and a Windows-1252 fallback are detected
+  under repair with disclosure. New error codes `INVALID_ENCODING` (was an
+  unhandled crash) and repair options on `UNSUPPORTED_INPUT` /
+  `MISSING_OPTIONAL_DEPENDENCY`. `capabilities().inputs` grew keys; the
+  existing `csv`/`parquet` keys are unchanged.
 
 ## Enforcement
 

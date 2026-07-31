@@ -307,6 +307,11 @@ def forecast(
     return artifact, write_artifact(artifact, output, lineage=lineage.to_dict())
 
 
+def _has_module(name: str) -> bool:
+    from importlib.util import find_spec
+    return find_spec(name) is not None
+
+
 def capabilities() -> dict[str, object]:
     try:
         import pyarrow  # type: ignore[import-not-found]  # noqa: F401
@@ -320,7 +325,10 @@ def capabilities() -> dict[str, object]:
         "schema_version": "0.1",
         "runtime_version": "0.3.0",
         "interfaces": {"cli": True, "python": True, "mcp": True, "http": False},
-        "inputs": {"csv": True, "parquet": parquet},
+        "inputs": {
+            "csv": True, "tsv": True, "json": True, "jsonl": True,
+            "gzip": True, "parquet": parquet, "excel": _has_module("openpyxl"),
+        },
         "frequencies": sorted(SEASONS),
         "frequency_descriptions": dict(FREQUENCY_DESCRIPTIONS),
         "models": {

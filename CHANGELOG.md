@@ -28,6 +28,17 @@ Real-world CSVs now work on first contact. `aion forecast --repair
   follow-up command.
 - New bundled example: `examples/filthy_requests.csv`.
 
+### Input formats
+
+- New always-on formats: `.tsv`, `.json` (array of objects),
+  `.jsonl`/`.ndjson`, and gzip-compressed text inputs (`.csv.gz`, …).
+- `.xlsx` behind a new `excel` extra (`pip install 'aion-forecast[excel]'`).
+- Semicolon/tab/pipe-delimited "CSV" detected under repair when the header
+  provably names the mapped columns (disclosed as `delimiter_detected`);
+  non-UTF-8 files fall back to Windows-1252 under repair (disclosed as an
+  `encoding_assumed` assumption; strict mode raises `INVALID_ENCODING`).
+- `aion capabilities` reports the full input matrix.
+
 ## 0.3.0 — the temporal execution harness (2026-07-31)
 
 Aion grows from a forecasting engine into a temporal execution harness:

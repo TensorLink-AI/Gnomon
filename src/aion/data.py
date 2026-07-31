@@ -50,6 +50,125 @@ def _rows_from_parquet(path: Path) -> list[dict[str, object]]:
     return parquet.read_table(path).to_pylist()
 
 
+def _rows_from_excel(path: Path) -> tuple[list[dict[str, object]], list[str]]:
+    try:
+        import openpyxl  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise AionError(
+            "MISSING_OPTIONAL_DEPENDENCY",
+            "Excel input requires the 'excel' extra.",
+            {"install": "pip install 'aion-forecast[excel]'"},
+        ) from exc
+    workbook = openpyxl.load_workbook(path, read_only=True, data_only=True)
+    try:
+        sheet = workbook.worksheets[0]
+        iterator = sheet.iter_rows(values_only=True)
+        header = next(iterator, None)
+        if header is None:
+            return [], []
+        columns = [str(cell) if cell is not None else "" for cell in header]
+        rows = [
+            {column: cell for column, cell in zip(columns, values)}
+            for values in iterator
+        ]
+    finally:
+        workbook.close()
+    return rows, columns
+
+
+def _read_text(path: Path, gzipped: bool, repair: str, log: "RepairLog") -> str:
+    data = path.read_bytes()
+    if gzipped:
+        import gzip
+        data = gzip.decompress(data)
+    try:
+        return data.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        if repair == "off":
+            raise AionError(
+                "INVALID_ENCODING",
+                "The file is not valid UTF-8.",
+                {"hint": "Re-export as UTF-8, or rely on the default repair "
+                         "level which assumes Windows-1252."},
+            ) from exc
+        log.record("encoding_assumed",
+                   "File is not UTF-8; the Windows-1252 encoding was assumed.",
+                   assumptive=True)
+        return data.decode("cp1252", errors="replace")
+
+
+def _choose_delimiter(
+    header_line: str, time_column: str, target_column: str,
+    repair: str, log: "RepairLog",
+) -> str:
+    """Comma unless the required columns are provably split by another
+    delimiter (European semicolon exports, tabs, pipes). Detection is gated
+    on the strict choice failing and is disclosed, never guessed: the header
+    itself must name both mapped columns under the alternative."""
+    def fields(delimiter: str) -> list[str]:
+        return [field.strip().strip('"') for field in header_line.split(delimiter)]
+
+    if repair == "off":
+        return ","
+    if time_column in fields(",") and target_column in fields(","):
+        return ","
+    for delimiter, name in ((";", "semicolon"), ("\t", "tab"), ("|", "pipe")):
+        if time_column in fields(delimiter) and target_column in fields(delimiter):
+            log.record("delimiter_detected",
+                       f"Columns are {name}-separated, not comma-separated.")
+            return delimiter
+    return ","  # the MISSING_COLUMNS error downstream lists what was found
+
+
+def _read_rows(
+    path: Path, time_column: str, target_column: str,
+    repair: str, log: "RepairLog",
+) -> tuple[list[dict[str, object]], list[str]]:
+    import io
+    import json as json_module
+
+    suffixes = [suffix.lower() for suffix in path.suffixes]
+    suffix = suffixes[-1] if suffixes else ""
+    gzipped = suffix == ".gz"
+    if gzipped:
+        suffix = suffixes[-2] if len(suffixes) >= 2 else ""
+    if suffix in {".parquet", ".pq"}:
+        rows = _rows_from_parquet(path)
+        return rows, list(rows[0]) if rows else []
+    if suffix == ".xlsx":
+        return _rows_from_excel(path)
+    if suffix in {".csv", ".tsv"}:
+        text = _read_text(path, gzipped, repair, log)
+        header_line = text.splitlines()[0] if text else ""
+        delimiter = "\t" if suffix == ".tsv" else _choose_delimiter(
+            header_line, time_column, target_column, repair, log,
+        )
+        reader = csv.DictReader(io.StringIO(text, newline=""), delimiter=delimiter)
+        return list(reader), list(reader.fieldnames or [])
+    if suffix in {".json", ".jsonl", ".ndjson"}:
+        text = _read_text(path, gzipped, repair, log)
+        if suffix == ".json":
+            payload = json_module.loads(text)
+            if not (isinstance(payload, list)
+                    and all(isinstance(item, dict) for item in payload)):
+                raise AionError(
+                    "UNSUPPORTED_INPUT",
+                    "JSON input must be a top-level array of flat objects.",
+                )
+            rows = payload
+        else:
+            rows = [
+                json_module.loads(line)
+                for line in text.splitlines() if line.strip()
+            ]
+        return rows, list(rows[0]) if rows else []
+    raise AionError(
+        "UNSUPPORTED_INPUT",
+        "Supported inputs: .csv, .tsv, .json, .jsonl (each optionally "
+        ".gz-compressed), .parquet/.pq, and .xlsx.",
+    )
+
+
 def _load_lenient(
     rows: list[dict[str, object]],
     time_column: str,
@@ -174,17 +293,9 @@ def load_observations(
     path = Path(input_path).expanduser().resolve()
     if not path.is_file():
         raise AionError("INPUT_NOT_FOUND", f"Input file does not exist: {path}")
-    suffix = path.suffix.lower()
-    if suffix == ".csv":
-        with path.open("r", encoding="utf-8-sig", newline="") as handle:
-            reader = csv.DictReader(handle)
-            columns = reader.fieldnames or []
-            rows: list[dict[str, object]] = list(reader)
-    elif suffix in {".parquet", ".pq"}:
-        rows = _rows_from_parquet(path)
-        columns = list(rows[0]) if rows else []
-    else:
-        raise AionError("UNSUPPORTED_INPUT", "Only CSV and Parquet inputs are supported.")
+    from .repair import RepairLog
+    log = repair_log if repair_log is not None else RepairLog()
+    rows, columns = _read_rows(path, time_column, target_column, repair, log)
 
     required = [time_column, target_column] + ([series_column] if series_column else [])
     missing = [column for column in required if column not in columns]
@@ -194,10 +305,8 @@ def load_observations(
             {"available_columns": columns, "missing_columns": missing},
         )
     if repair != "off":
-        from .repair import RepairLog
         observations = _load_lenient(
-            rows, time_column, target_column, series_column, repair,
-            repair_log if repair_log is not None else RepairLog(),
+            rows, time_column, target_column, series_column, repair, log,
         )
     else:
         observations = []

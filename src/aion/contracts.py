@@ -227,6 +227,15 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
     "INVALID_REPAIR_LEVEL": [
         {"action": "set_repair_level", "description": "Use one of: off, safe, aggressive."},
     ],
+    "INVALID_ENCODING": [
+        {"action": "fix_encoding", "description": "Re-export the file as UTF-8, or use the default repair level, which assumes Windows-1252 with disclosure."},
+    ],
+    "UNSUPPORTED_INPUT": [
+        {"action": "convert_input", "description": "Convert to a supported format: .csv, .tsv, .json, .jsonl (each optionally .gz), .parquet, or .xlsx (excel extra)."},
+    ],
+    "MISSING_OPTIONAL_DEPENDENCY": [
+        {"action": "install_extra", "description": "Install the package named in details.install."},
+    ],
     "FREQUENCY_MISMATCH": [
         {"action": "set_frequency", "description": "Pass the inferred frequency from details, or omit frequency to infer."},
     ],
