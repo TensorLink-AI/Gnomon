@@ -13,7 +13,10 @@ timestamp,requests,service_id
 2026-01-03T00:00:00+10:00,135,api
 ```
 
-CSV files are read as UTF-8, including UTF-8 files with a byte-order mark.
+CSV files are read as UTF-8, including UTF-8 files with a byte-order mark;
+under the default repair level, non-UTF-8 files fall back to Windows-1252
+with disclosure, and semicolon/tab/pipe delimiters are detected when the
+header names your mapped columns. See "Other formats" below.
 
 ## Timestamps
 
@@ -26,7 +29,14 @@ Timestamps use ISO 8601 forms accepted by Python's `datetime.fromisoformat`:
 2026-01-01T04:30:00Z
 ```
 
-Do not mix timezone-aware and timezone-naive timestamps. Aion preserves the
+Under the default repair level, common non-ISO forms are also read and
+disclosed as `timestamp_format_normalised`: `2026/05/18`, `05 Mar 2026`,
+epoch seconds/milliseconds, and slash dates whose day/month order is
+provable from the column (an unprovable order is a typed
+`AMBIGUOUS_DATE_ORDER` error rather than a guess).
+
+Do not mix timezone-aware and timezone-naive timestamps (`--repair
+aggressive` assumes naive rows are UTC, with disclosure). Aion preserves the
 provided offset but does not currently accept a separate named-timezone option.
 
 ## Supported frequencies
@@ -51,20 +61,33 @@ to a supported frequency first, e.g. with pandas:
 `df.resample("5min").last()`.
 
 Month-start data must use the first day of each month. Weekly data is any exact
-seven-day sequence; v0.1 does not impose a particular weekday.
+seven-day sequence; Aion does not impose a particular weekday.
 
-## Regularity and missing periods
+## Regularity, duplicates, and missing periods
 
-The v0.1 missing-data and duplicate policies are both `reject`. Within each
-series:
+Within each series the validated grid requires that:
 
-- timestamps must be unique;
-- each timestamp must be exactly one configured period after the previous one;
-- the target must be parseable as a number; and
+- timestamps are unique;
+- each timestamp is exactly one configured period after the previous one;
+- the target is parseable as a number; and
 - rows may arrive unsorted because Aion sorts them before validation.
 
-Aion does not silently aggregate duplicate timestamps or impute missing
-periods. Resolve those choices upstream so the transformation is deliberate.
+What happens when a file falls short depends on `--repair`:
+
+- `off`: strict rejection with a typed error, exactly as in v0.2.
+- `safe` (default): cell text is normalised (formats, currency, sentinel
+  missing values, byte-identical duplicate rows), but nothing is invented,
+  moved, or dropped — a genuine gap or conflicting duplicate is still an
+  error, now carrying an `enable_repair` option.
+- `aggressive`: interior gaps are linearly interpolated, jittered
+  timestamps snapped to the grid, and conflicting duplicates resolved
+  (last row in file order wins) — each fix is recorded in the artifact's
+  `data_repair` evidence, surfaces as a `repaired_data:` warning that
+  downgrades support, and is capped: past roughly 30% of a series the run
+  refuses with `EXCESSIVE_REPAIR`.
+
+Aion never aggregates or imputes silently: either you resolved the mess
+upstream, or the artifact says exactly what was repaired.
 
 ## Panel data
 

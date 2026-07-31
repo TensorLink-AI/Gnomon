@@ -1,6 +1,6 @@
 # LLMs, API keys, and agent integrations
 
-## v0.1 does not use an LLM
+## Aion does not use an LLM
 
 The current runtime does not call OpenRouter, OpenAI, Anthropic, Google, Hermes,
 or any other model provider. It does not read provider API-key environment
@@ -44,7 +44,7 @@ change numerical results.
 
 ## Proposed future configuration
 
-The following is a design example, not working v0.1 configuration:
+The following is a design example, not working configuration:
 
 ```text
 AION_LLM_PROVIDER=openrouter

@@ -41,37 +41,45 @@ history.
 
 ## What it does today
 
-| Capability | v0.2 status |
-| --- | --- |
-| CSV input | Available |
-| Parquet input | Available with the `parquet` extra |
-| Hourly, daily, weekly, and month-start data | Available |
-| Multiple independent series in one file | Available |
-| Last-value and seasonal-naive baselines | Available |
-| Drift candidate model | Available |
-| Separated selection, calibration, and final-test windows | Available |
-| Residual quantile intervals and measured test coverage | Available |
-| Per-series selection and abstention | Available |
-| JSON, CSV, JSONL, and Markdown artifacts | Available |
-| Local CLI and Python API | Available |
-| Docker image and GitHub CI/CD | Available |
-| Hermes plugin wrapping the CLI (tools + safe-use skill) | Available |
-| Evidence-gated context events (`--context`, identical-fold ablation) | Available |
-| Local MCP server (`aion mcp serve`) | Available |
-| LLM workflow prompts (`aion context prompt` / `validate`) | Available |
-| Persistent projects, realised scoring, and decision outcomes | Available |
-| Agent treatment/control evaluation (`aion eval compare`) | Available |
-| Optional sandboxed TSFM adapters | Available |
-| Point-in-time covariates with stable-lift admission | Available |
-| Standalone LLM providers, automatic model switching, and sharing | Planned |
+**Four verbs.**
+
+| Verb | Question | What you get |
+| --- | --- | --- |
+| `aion forecast` | What happens next? | Backtested model selection, residual-quantile intervals, threshold-crossing analysis — or a structured abstention |
+| `aion investigate` | What changed? | Changepoints, regime shift vs transient, anomalies, ranked *associational* explanations (never a cause) |
+| `aion decide` | What should we do? | Exceedance scenarios, feasibility and constraint checks, expected utility — degraded honestly when utilities are missing |
+| `aion monitor` | When should we intervene? | Sequential exceedance risk and a cost-optimal alert rule |
+
+**The harness around them.**
+
+- Bitemporal store (`aion ingest`, `store:<dataset>` inputs): every value
+  carries *when it became known*; `--as-of` replays any historical instant
+  and the artifact proves nothing later was touched.
+- Five-state support assessments with typed reasons and recovery actions;
+  typed lineage and a deterministic claim verifier on every response.
+- Messy-data repair (`--repair off|safe|aggressive`): mixed date formats,
+  currency and thousands separators, sentinel `N/A` cells, duplicates,
+  gaps, jittered timestamps — every fix disclosed as evidence, assumptive
+  fixes downgrade support, excessive messiness is refused.
+- Inputs: CSV (any common delimiter), TSV, JSON/JSONL, gzipped text,
+  Parquet (`parquet` extra), and Excel (`excel` extra).
+- Decision tracking with realised-outcome scoring: regret against the best
+  feasible action in hindsight, never a bare "correct".
+- Trap-family episode evaluation (`aion eval episodes`): temporal leakage,
+  invented numbers, and silent-warning failures are caught mechanically.
+- Surfaces: CLI, Python API, local MCP server (`aion mcp serve`), Hermes
+  plugin, Docker. An experimental plan compiler/executor sits behind
+  `AION_EXPERIMENTAL_PLANNER=1`.
 
 `aion capabilities` is the machine-readable source of truth. Roadmap features
 are not exposed as mocked commands.
 
 Agents can enrich a forecast with externally fetched, future-known data without
 being trusted to judge its value. Aion validates historical availability and
-admits a covariate only when it beats the univariate control on identical folds.
-See [Covariate enrichment](docs/covariates.md).
+admits a covariate or context event only when it beats the univariate control
+on identical folds; when both are supplied, a deterministic adjudication
+ladder picks the winner on identical folds and records the full comparison
+as evidence. See [Covariate enrichment](docs/covariates.md).
 
 ## See it work
 
@@ -114,13 +122,32 @@ residuals—and therefore its interval widths—are zero. That demonstrates the
 pipeline, not realistic certainty. Use noisy operational history to evaluate
 forecast quality for a real decision.
 
+Real exports are rarely that clean. Point `aion inspect` at the bundled
+filthy dataset — conflicting duplicate rows, `$149`, an `N/A` outage day,
+regional date formats, a trailing blank line — and it diagnoses instead of
+rejecting:
+
+```bash
+aion inspect examples/filthy_requests.csv --time timestamp --target requests
+# → data_quality.status: "repaired_aggressive", every needed fix listed,
+#   and the exact follow-up command:
+aion forecast examples/filthy_requests.csv --time timestamp --target requests \
+  --frequency D --horizon 7 --repair aggressive
+```
+
+The forecast comes back `weakly_supported`, with both assumptive fixes named
+in its warnings and every repair recorded in the artifact's evidence — the
+cleaning is audited, not silent. And because `examples/messy_requests_revisions.csv`
+carries a `published` column, `aion ingest` + `aion forecast store:… --as-of <instant>`
+replays what was honestly knowable at any past moment.
+
 ## How Aion reaches a result
 
 ```text
-CSV or Parquet
+CSV / TSV / JSON / Parquet / Excel
       │
       ▼
-schema and temporal validation
+disclosed repair, then schema and temporal validation
       │
       ▼
 rolling model-selection folds ── compare with mandatory baselines
@@ -163,9 +190,14 @@ aion forecast observations.csv \
   --frequency D
 ```
 
-The current policy rejects duplicate timestamps and missing periods instead of
-silently aggregating or imputing them. See [preparing data](docs/data-format.md)
-for supported timestamp forms, frequencies, panel rules, and history needs.
+Messy files are handled by the disclosed repair layer rather than silent
+guessing or hard rejection: the default `--repair safe` normalises cell text
+only (formats, currency, sentinels), `--repair aggressive` opts into
+structural fixes (gap interpolation, timestamp snapping, conflict
+resolution) — capped, recorded as evidence, and reflected in the support
+status. `--repair off` restores strict rejection. See
+[preparing data](docs/data-format.md) for supported formats, timestamp
+forms, frequencies, panel rules, and history needs.
 
 ## Output
 
@@ -228,6 +260,7 @@ Parquet extra, and future PyPI command are covered in the
 
 | Guide | Purpose |
 | --- | --- |
+| [MCP quickstart](docs/quickstart-mcp.md) | Hook Aion to an agent and get a grounded answer in a minute |
 | [Getting started](docs/getting-started.md) | Complete first run |
 | [Installation](docs/installation.md) | Bash, uv, GitHub, Docker, and PyPI options |
 | [Preparing data](docs/data-format.md) | Input schema and temporal requirements |
@@ -245,17 +278,20 @@ Parquet extra, and future PyPI command are covered in the
 The [product specification](Aion_MVP_Product_Specification.md) describes the
 broader product direction. The [system design](Aion_System_Design.md) defines
 the intended architecture. Both include roadmap features; the capability
-response and this README distinguish those from working v0.1 behavior.
+response and this README distinguish those from working behavior. See
+`CHANGELOG.md` for what each release added and `COMPATIBILITY.md` for the
+frozen surface and every amendment to it.
 
 ## Current limits
 
-Aion v0.2 remains a focused foundation, not a universal forecasting platform.
-It has fixed seasonal periods, one calibration horizon, no general covariate or
-transformation pipeline, and no dedicated intermittent-demand model. Optional
-TSFMs require their own sandbox dependencies. Realised leaderboards are
-observational telemetry and never trigger automatic model switching. A
-`supported` result means the current deterministic checks passed; it is not a
-guarantee that the future will resemble history.
+Aion remains a focused foundation, not a universal forecasting platform. Its
+built-in models are deterministic classical methods (optional TSFM adapters
+raise the ceiling but need their own sandbox dependencies). Causal
+claims are never made — `investigate` stops at ranked associational
+explanations by design. Realised leaderboards are observational telemetry and
+never trigger automatic model switching. A `supported` result means the
+current deterministic checks passed; it is not a guarantee that the future
+will resemble history.
 
 ## Development
 

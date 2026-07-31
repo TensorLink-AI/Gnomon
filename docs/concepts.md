@@ -59,8 +59,15 @@ evaluation contract cannot be satisfied.
 
 ## Current methodological limits
 
-v0.1 is a correct, deliberately narrow foundation—not a general forecasting
-suite. It has one candidate statistical model, fixed seasonal periods, no
-covariates, no transformations, no intermittent-demand methods, no TSFM, and no
-context-event evaluation. Use `aion capabilities` to detect future changes.
+Aion is a correct, deliberately narrow foundation—not a general forecasting
+suite. Its built-in candidates are deterministic classical models (drift,
+window average, linear trend, theta, ETS) plus optional sandboxed TSFM
+adapters; seasonal periods are detected or overridden, not learned per
+model. Covariates and context events are admitted only through
+identical-fold ablation; when both are supplied, a deterministic
+adjudication ladder compares the base model against every admitted
+challenger on identical folds and records the comparison as evidence.
+There are no transformations and no dedicated intermittent-demand
+methods. Use `aion capabilities` as the machine-readable
+source of truth.
 
