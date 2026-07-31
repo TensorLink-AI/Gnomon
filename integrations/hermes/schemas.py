@@ -225,3 +225,94 @@ AION_PROPOSE_CONTEXT_SCHEMA = {
         "required": ["files"],
     },
 }
+
+
+AION_INVESTIGATE_SCHEMA = {
+    "name": "aion_investigate_change",
+    "description": (
+        "What changed? Detect changepoints in a series, locate the onset, "
+        "classify regime shift versus transient anomaly, and rank concurrent "
+        "events and cross-series precedence as associational explanations "
+        "with residual uncertainty. Never returns a cause; report the "
+        "ranking as associational, exactly as Aion states it."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            **_INPUT_PROPERTIES,
+            "context_events_file": {
+                "type": "string",
+                "description": "Optional validated context-events JSON (output of aion_propose_context_events) to rank as concurrent events.",
+            },
+            "as_of": {
+                "type": "string",
+                "description": "Optional ISO instant: investigate using only data known at or before this moment.",
+            },
+            "output_dir": {
+                "type": "string",
+                "description": "Directory for the immutable artifact (default ./aion-output).",
+            },
+        },
+        "required": ["input", "time_column", "target_column"],
+    },
+}
+
+AION_DECIDE_SCHEMA = {
+    "name": "aion_decide",
+    "description": (
+        "What should we do? Builds exceedance scenarios from an evaluated "
+        "forecast, checks feasibility and constraints over candidate "
+        "actions, and chooses by expected utility. Without utilities it "
+        "returns the feasible-action comparison and probabilities as "
+        "conditionally_supported (missing utility inputs) — report that "
+        "honestly and ask the user for utilities if they want a choice. "
+        "Never infer business thresholds or payoffs yourself."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            **_INPUT_PROPERTIES,
+            "horizon": {"type": "integer", "description": "Future periods to forecast, in units of the data frequency."},
+            "threshold": {"type": "number", "description": "Decision threshold on the target metric, supplied by the user."},
+            "actions": {
+                "type": "array", "items": {"type": "object"},
+                "description": "Candidate actions: [{name, feasible?, residual_risk?}].",
+            },
+            "utilities": {
+                "type": "object",
+                "description": "Optional payoff per action per scenario: {action: {exceed: x, no_exceed: y}}. Omit for the degraded comparison.",
+            },
+            "max_acceptable_risk": {"type": "number", "description": "Optional constraint on each action's residual_risk."},
+            "series_name": {"type": "string", "description": "Series to decide for (required when the file holds several)."},
+            "project": {"type": "string", "description": "Optional tracking project: records a DecisionArtifact for realised-outcome scoring."},
+            "as_of": {"type": "string", "description": "Optional ISO instant for historical replay."},
+            "output_dir": {"type": "string", "description": "Directory for the immutable artifact (default ./aion-output)."},
+        },
+        "required": ["input", "time_column", "target_column", "horizon", "threshold", "actions"],
+    },
+}
+
+AION_MONITOR_SCHEMA = {
+    "name": "aion_monitor",
+    "description": (
+        "When should we intervene? Sequential exceedance risk per horizon "
+        "step and an alert rule. With alert_cost and miss_cost the rule is "
+        "cost-optimal; without them it uses a flagged 0.5 default and the "
+        "result is conditionally_supported — say so, and ask for costs "
+        "rather than inventing them."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            **_INPUT_PROPERTIES,
+            "horizon": {"type": "integer", "description": "Future periods to monitor."},
+            "threshold": {"type": "number", "description": "Trigger threshold on the target metric."},
+            "alert_cost": {"type": "number", "description": "Cost of an unnecessary alert."},
+            "miss_cost": {"type": "number", "description": "Cost of a missed exceedance."},
+            "project": {"type": "string", "description": "Optional tracking project for the underlying forecast."},
+            "as_of": {"type": "string", "description": "Optional ISO instant for historical replay."},
+            "output_dir": {"type": "string", "description": "Directory for the immutable artifact (default ./aion-output)."},
+        },
+        "required": ["input", "time_column", "target_column", "horizon", "threshold"],
+    },
+}

@@ -314,3 +314,69 @@ def make_propose_context_handler(ctx: Any):
         return json.dumps(validated, allow_nan=False)
 
     return handle_aion_propose_context_events
+
+
+def handle_aion_investigate_change(args: dict[str, Any], **kwargs: Any) -> str:
+    cli = _dataset_args(args)
+    if isinstance(cli, dict):
+        return json.dumps(cli)
+    if args.get("context_events_file"):
+        cli += ["--context", str(args["context_events_file"])]
+    if args.get("as_of"):
+        cli += ["--as-of", str(args["as_of"])]
+    if args.get("output_dir"):
+        cli += ["--output", str(args["output_dir"])]
+    return json.dumps(_run_aion(["investigate", *cli]), allow_nan=False)
+
+
+def handle_aion_decide(args: dict[str, Any], **kwargs: Any) -> str:
+    cli = _dataset_args(args)
+    if isinstance(cli, dict):
+        return json.dumps(cli)
+    missing = [key for key in ("horizon", "threshold", "actions") if args.get(key) is None]
+    if missing:
+        return json.dumps(_error(
+            "INVALID_ARGUMENTS",
+            f"Missing required argument(s): {', '.join(missing)}.",
+        ))
+    cli += ["--horizon", str(int(args["horizon"])),
+            "--threshold", str(float(args["threshold"])),
+            "--actions", json.dumps(args["actions"], allow_nan=False)]
+    if args.get("utilities") is not None:
+        cli += ["--utilities", json.dumps(args["utilities"], allow_nan=False)]
+    if args.get("max_acceptable_risk") is not None:
+        cli += ["--max-acceptable-risk", str(float(args["max_acceptable_risk"]))]
+    if args.get("series_name"):
+        cli += ["--series-name", str(args["series_name"])]
+    if args.get("project"):
+        cli += ["--project", str(args["project"])]
+    if args.get("as_of"):
+        cli += ["--as-of", str(args["as_of"])]
+    if args.get("output_dir"):
+        cli += ["--output", str(args["output_dir"])]
+    return json.dumps(_run_aion(["decide", *cli]), allow_nan=False)
+
+
+def handle_aion_monitor(args: dict[str, Any], **kwargs: Any) -> str:
+    cli = _dataset_args(args)
+    if isinstance(cli, dict):
+        return json.dumps(cli)
+    missing = [key for key in ("horizon", "threshold") if args.get(key) is None]
+    if missing:
+        return json.dumps(_error(
+            "INVALID_ARGUMENTS",
+            f"Missing required argument(s): {', '.join(missing)}.",
+        ))
+    cli += ["--horizon", str(int(args["horizon"])),
+            "--threshold", str(float(args["threshold"]))]
+    if args.get("alert_cost") is not None:
+        cli += ["--alert-cost", str(float(args["alert_cost"]))]
+    if args.get("miss_cost") is not None:
+        cli += ["--miss-cost", str(float(args["miss_cost"]))]
+    if args.get("project"):
+        cli += ["--project", str(args["project"])]
+    if args.get("as_of"):
+        cli += ["--as-of", str(args["as_of"])]
+    if args.get("output_dir"):
+        cli += ["--output", str(args["output_dir"])]
+    return json.dumps(_run_aion(["monitor", *cli]), allow_nan=False)

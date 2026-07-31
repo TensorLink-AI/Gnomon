@@ -3,16 +3,27 @@ from __future__ import annotations
 import csv
 import json
 import os
+import shutil
 from pathlib import Path
+from typing import Any
 
-from .contracts import ForecastArtifact
+from .contracts import AionError, ForecastArtifact
 
 
-def write_artifact(artifact: ForecastArtifact, output_parent: str) -> Path:
+def write_artifact(
+    artifact: ForecastArtifact, output_parent: str,
+    lineage: dict[str, Any] | None = None,
+) -> Path:
     parent = Path(output_parent).expanduser().resolve()
     parent.mkdir(parents=True, exist_ok=True)
     final = parent / artifact.forecast_id
+    if final.is_dir():
+        # Content-addressed IDs: an existing directory holds this exact run.
+        # Artifacts are immutable, so the first write wins.
+        return final
     temporary = parent / f".{artifact.forecast_id}.tmp"
+    if temporary.is_dir():
+        shutil.rmtree(temporary)
     temporary.mkdir()
     try:
         with (temporary / "artifact.json").open("w", encoding="utf-8") as handle:
@@ -21,6 +32,10 @@ def write_artifact(artifact: ForecastArtifact, output_parent: str) -> Path:
         with (temporary / "evidence.jsonl").open("w", encoding="utf-8") as handle:
             for record in artifact.evidence:
                 handle.write(json.dumps(record.__dict__, allow_nan=False) + "\n")
+        if lineage is not None:
+            with (temporary / "lineage.json").open("w", encoding="utf-8") as handle:
+                json.dump(lineage, handle, indent=2, allow_nan=False)
+                handle.write("\n")
         with (temporary / "forecast.csv").open("w", encoding="utf-8", newline="") as handle:
             writer = csv.DictWriter(handle, fieldnames=["series", "timestamp", "point", "q10", "q50", "q90"])
             writer.writeheader()
@@ -63,3 +78,41 @@ def write_artifact(artifact: ForecastArtifact, output_parent: str) -> Path:
         # Preserve the temporary directory for diagnosis; never expose it as a complete run.
         raise
     return final
+
+
+def write_json_artifact(
+    artifact_id: str, payload: dict[str, Any], output_parent: str,
+    lineage: dict[str, Any] | None = None,
+) -> Path:
+    """Immutable artifact directory for non-forecast macros: artifact.json
+    plus lineage.json, atomically placed, first write wins."""
+    parent = Path(output_parent).expanduser().resolve()
+    parent.mkdir(parents=True, exist_ok=True)
+    final = parent / artifact_id
+    if final.is_dir():
+        return final
+    temporary = parent / f".{artifact_id}.tmp"
+    if temporary.is_dir():
+        shutil.rmtree(temporary)
+    temporary.mkdir()
+    with (temporary / "artifact.json").open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2, allow_nan=False)
+        handle.write("\n")
+    if lineage is not None:
+        with (temporary / "lineage.json").open("w", encoding="utf-8") as handle:
+            json.dump(lineage, handle, indent=2, allow_nan=False)
+            handle.write("\n")
+    os.replace(temporary, final)
+    return final
+
+
+def read_artifact(artifact_dir: str | Path) -> dict[str, Any]:
+    """Load a stored artifact.json, enforcing the schema-versioning rule."""
+    from .versioning import ensure_readable
+
+    path = Path(artifact_dir).expanduser() / "artifact.json"
+    if not path.is_file():
+        raise AionError("ARTIFACT_NOT_FOUND", f"No artifact.json under {path.parent}")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    ensure_readable(data.get("schema_version"))
+    return data

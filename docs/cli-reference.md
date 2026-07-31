@@ -44,6 +44,22 @@ series names, observation counts, and date ranges.
 
 ## `aion forecast`
 
+Short histories use a single trailing holdout and return `degraded` forecasts
+by default. Pass `--strict-abstention` to retain empty-result abstention when
+separated rolling evaluation is unavailable.
+
+Forecast controls:
+
+- `--seasonal-period N` overrides autocorrelation-based season detection.
+- `--selection-strategy ensemble` (or `--ensemble`) averages eligible model
+  forecasts using inverse-error weights and reports `supported_ensemble`.
+- `--multivariate` tries a VAR(1) forecast for aligned, correlated series. It
+  is used only when it beats an independent last-value forecast on a trailing
+  holdout; otherwise Aion falls back to its normal per-series path.
+
+`aion inspect` reports the detected seasonal period for each series and
+pairwise correlations for aligned multi-series inputs.
+
 Runs validation, rolling evaluation, model selection, calibration, support
 assessment, final forecasting, and artifact persistence:
 
@@ -182,3 +198,99 @@ code and the response's `status` field.
 
 Commands described in future-facing design documents—such as `init`, `run`,
 and `share`—are not implemented in v0.2.
+
+## `aion investigate`
+
+What changed? Changepoint detection, regime-shift vs transient
+classification, anomaly scores, and ranked associational explanations:
+
+```bash
+aion investigate data.csv --time timestamp --target value
+aion investigate data.csv --time timestamp --target value \
+  --context events.json --as-of 2026-06-01
+```
+
+## `aion decide`
+
+What should we do? Exceedance scenarios from an evaluated forecast plus
+feasibility, constraints, and expected utility over candidate actions.
+Without `--utilities` the result is the feasible-action comparison,
+`conditionally_supported: missing utility inputs`:
+
+```bash
+aion decide data.csv --time timestamp --target value --horizon 14 \
+  --threshold 340 \
+  --actions '[{"name": "scale_up"}, {"name": "wait"}]' \
+  --utilities '{"scale_up": {"exceed": 100, "no_exceed": -10},
+                "wait": {"exceed": -400, "no_exceed": 5}}' \
+  --project ops
+```
+
+`--actions` and `--utilities` accept inline JSON or `@path/to/file.json`.
+
+## `aion monitor`
+
+When should we intervene? Sequential exceedance risk per horizon step and
+an alert rule — cost-optimal when `--alert-cost` and `--miss-cost` are
+supplied, a flagged 0.5 default otherwise:
+
+```bash
+aion monitor data.csv --time timestamp --target value --horizon 14 \
+  --threshold 340 --alert-cost 1 --miss-cost 20 --project ops
+```
+
+## `aion ingest` and `aion store`
+
+Append observations to the bitemporal store; re-supplied corrected files
+become new revision rows rather than overwrites:
+
+```bash
+aion ingest revisions.csv --dataset requests \
+  --time timestamp --target value --known-at published
+aion store list
+```
+
+Datasets are then addressable as `store:<dataset>` in any verb, and
+`--as-of <instant>` replays a run using only data known at that moment.
+
+## `aion status`
+
+Pollable view of open forecasts, due horizons, unresolved decisions, and
+realised-performance summaries (descriptive, never causal):
+
+```bash
+aion status --project ops
+```
+
+## `aion track outcome`
+
+Resolve a recorded `DecisionArtifact` with what actually happened; returns
+realised utility, regret versus the best feasible action in hindsight, and
+ex-ante optimality:
+
+```bash
+aion track outcome --decision-id decision_abc123 \
+  --realised-scenario no_exceed --note "traffic stayed under capacity"
+```
+
+## `aion eval episodes`
+
+Run the built-in trap-family episode suite (leakage, abstention, regime
+breaks) with the honest reference policy and emit rows for
+`aion eval compare`:
+
+```bash
+aion eval episodes --workdir /tmp/aion-episodes --trials 2 --jsonl runs.jsonl
+```
+
+## `aion plan` (experimental)
+
+Compile, validate, and execute `TemporalPlan`s. The agent-facing tools are
+gated behind `AION_EXPERIMENTAL_PLANNER=1`; macros remain the default path:
+
+```bash
+aion plan compile --task-type forecast --params '{"input": "data.csv",
+  "time_column": "timestamp", "target_column": "value", "horizon": 7}'
+aion plan validate --plan @plan.json
+aion plan execute --plan @plan.json --output aion-output
+```

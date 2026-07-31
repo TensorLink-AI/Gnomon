@@ -4,7 +4,125 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
 
-Support = Literal["supported", "weakly_supported", "unsupported"]
+Support = Literal["supported", "weakly_supported", "degraded", "supported_ensemble", "unsupported"]
+
+# The harness-wide vocabulary. ``Support`` above is the frozen v0.2 enum;
+# new code speaks these.
+SupportStatus = Literal[
+    "supported", "conditionally_supported", "inconclusive", "unsupported", "invalid"
+]
+ClaimClass = Literal[
+    "descriptive", "predictive", "associational", "causal", "counterfactual", "decision"
+]
+
+
+@dataclass(frozen=True)
+class SupportReason:
+    code: str
+    message: str
+
+
+@dataclass
+class SupportAssessment:
+    """The honest verdict on one requested output.
+
+    ``inconclusive`` (not enough evidence either way) is not ``unsupported``
+    (evidence against), and neither is ``invalid`` (the question was
+    malformed) — and none of them is an operator failure."""
+
+    status: SupportStatus
+    reasons: list[SupportReason] = field(default_factory=list)
+    assumptions: list[str] = field(default_factory=list)
+    sensitivity: dict[str, Any] = field(default_factory=dict)
+    recovery_actions: list[SupportReason] = field(default_factory=list)
+    legacy_support: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class DataSourceRef:
+    """Reference to a temporal data source: a local file or ``store:<dataset>``."""
+
+    ref: str
+    time_column: str
+    target_column: str
+    series_column: str | None = None
+    frequency: str | None = None
+
+
+@dataclass(frozen=True)
+class ForecastSpec:
+    """Requested-output spec for the forecasting verb."""
+
+    horizon: int
+    quantiles: tuple[float, ...] = (0.1, 0.5, 0.9)
+    threshold: float | None = None
+    minimum_baseline_improvement: float = 0.02
+
+
+@dataclass(frozen=True)
+class DecisionPolicy:
+    """What the caller can act on, and — optionally — what outcomes cost.
+
+    Utilities are optional by contract: without them a decision output must
+    degrade to a feasible-action comparison with exceedance probabilities
+    (``conditionally_supported: missing utility inputs``), never a silent
+    guess and never a hard failure."""
+
+    actions: tuple[str, ...] = ()
+    utilities: tuple[tuple[str, float], ...] | None = None
+    constraints: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class ExecutionBudget:
+    max_wall_seconds: float | None = None
+    max_steps: int | None = None
+
+
+@dataclass(frozen=True)
+class TemporalTask:
+    """The general task contract: an objective compiled into validated,
+    snapshot-bound execution. Forecasting is one ``task_type`` among several."""
+
+    objective: str
+    task_type: Literal["forecast", "investigate_change", "decide", "monitor"]
+    sources: tuple[DataSourceRef, ...]
+    outputs: tuple[Any, ...]
+    as_of: str | None = None
+    decision_policy: DecisionPolicy | None = None
+    budget: ExecutionBudget | None = None
+    permissions: tuple[str, ...] = ("read_local",)
+
+    def task_id(self) -> str:
+        from .ids import content_id
+        return content_id("task", asdict(self))
+
+
+def forecast_task(
+    input_path: str,
+    *,
+    time_column: str,
+    target_column: str,
+    horizon: int,
+    series_column: str | None = None,
+    frequency: str | None = None,
+    threshold: float | None = None,
+    minimum_baseline_improvement: float = 0.02,
+    as_of: str | None = None,
+    objective: str | None = None,
+) -> TemporalTask:
+    """Thin constructor: a ForecastTask is a TemporalTask with a ForecastSpec."""
+    return TemporalTask(
+        objective=objective or f"Forecast {target_column} {horizon} periods ahead",
+        task_type="forecast",
+        sources=(DataSourceRef(input_path, time_column, target_column, series_column, frequency),),
+        outputs=(ForecastSpec(horizon, threshold=threshold,
+                              minimum_baseline_improvement=minimum_baseline_improvement),),
+        as_of=as_of,
+    )
 
 
 @dataclass(frozen=True)
@@ -25,6 +143,7 @@ class ForecastTask:
     horizon: int
     quantiles: tuple[float, ...] = (0.1, 0.5, 0.9)
     minimum_baseline_improvement: float = 0.02
+    as_of: str | None = None
 
 
 @dataclass
@@ -50,6 +169,7 @@ class SeriesResult:
     context: dict[str, Any] | None = None
     covariates: dict[str, Any] | None = None
     threshold: dict[str, Any] | None = None
+    support_assessment: dict[str, Any] | None = None
 
 
 @dataclass
@@ -65,6 +185,71 @@ class ForecastArtifact:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+# Machine-readable repair options per error code: what a host model can do
+# next without human help. This layer is what lets hosts self-correct — it
+# appreciates as models improve, because better models act on it better.
+REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
+    "INVALID_HORIZON": [
+        {"action": "set_horizon", "description": "Pass a horizon of at least 1 period."},
+    ],
+    "MISSING_COLUMNS": [
+        {"action": "inspect_dataset", "description": "Call aion_inspect to see the available columns, then correct the mapping."},
+    ],
+    "INVALID_TIMESTAMP": [
+        {"action": "fix_timestamps", "description": "Convert the timestamp column to ISO-8601; the offending row is in details."},
+    ],
+    "INVALID_TARGET": [
+        {"action": "fix_target", "description": "Make the target column numeric; the offending row is in details."},
+    ],
+    "DUPLICATE_TIMESTAMPS": [
+        {"action": "deduplicate", "description": "Remove duplicate timestamps, or ingest revisions into the store with distinct known-at times."},
+    ],
+    "IRREGULAR_TIME_GRID": [
+        {"action": "fill_or_resample", "description": "Fill the missing period named in details, or resample to a coarser regular frequency."},
+    ],
+    "FREQUENCY_MISMATCH": [
+        {"action": "set_frequency", "description": "Pass the inferred frequency from details, or omit frequency to infer."},
+    ],
+    "EMPTY_SNAPSHOT": [
+        {"action": "adjust_as_of", "description": "Choose an as_of at or after the first known observation."},
+    ],
+    "DATASET_NOT_FOUND": [
+        {"action": "list_datasets", "description": "Run `aion store list`; available dataset names are in details."},
+        {"action": "ingest", "description": "Ingest the data first with `aion ingest`."},
+    ],
+    "MULTIPLE_SERIES_UNSUPPORTED": [
+        {"action": "set_series_name", "description": "Pass series_name; the available series are in details."},
+    ],
+    "MISSING_COVARIATE_MAPPING": [
+        {"action": "set_covariate_mapping", "description": "Pass covariate_mapping as name:type:future_known entries."},
+    ],
+    "COMBINED_ENRICHMENT_UNSUPPORTED": [
+        {"action": "split_runs", "description": "Evaluate context events and covariates in separate runs."},
+    ],
+    "TEMPORAL_LEAKAGE": [
+        {"action": "remove_post_cutoff_data", "description": "Drop rows whose known_time lies after the task as_of; the offending known_time is in details."},
+    ],
+    "CLAIM_VERIFICATION_FAILED": [
+        {"action": "review_violations", "description": "Each violation in details names the claim and the deterministic rule it broke."},
+    ],
+    "UNSUPPORTED_SCHEMA_VERSION": [
+        {"action": "upgrade_runtime", "description": "This artifact was written by a newer Aion; upgrade to read it."},
+    ],
+    "SERIES_NOT_FOUND": [
+        {"action": "list_series", "description": "Call aion_inspect to list series names."},
+    ],
+    "INVALID_COSTS": [
+        {"action": "fix_costs", "description": "alert_cost must be >= 0 and miss_cost > 0."},
+    ],
+    "SNAPSHOT_TIMEZONE_MISMATCH": [
+        {"action": "align_timezones", "description": "Use an as_of with the same timezone-awareness as the data."},
+    ],
+    "ARTIFACT_NOT_FOUND": [
+        {"action": "check_path", "description": "Pass the artifact directory returned by the macro (it contains artifact.json)."},
+    ],
+}
 
 
 class AionError(Exception):
@@ -83,5 +268,6 @@ class AionError(Exception):
                 "message": self.message,
                 "retryable": False,
                 "details": self.details,
+                "repair_options": REPAIR_OPTIONS.get(self.code, []),
             },
         }

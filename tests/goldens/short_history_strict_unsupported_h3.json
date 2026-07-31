@@ -1,0 +1,139 @@
+{
+  "schema_version": "0.1",
+  "forecast_id": "forecast_0cd22973966b931e",
+  "created_at": "2026-07-01T00:00:00+00:00",
+  "status": "complete",
+  "task": {
+    "input_path": "<REPO>/tests/data/golden_short.csv",
+    "schema": {
+      "time_column": "timestamp",
+      "target_column": "value",
+      "series_column": null,
+      "frequency": "D",
+      "timezone": null,
+      "missing_policy": "reject",
+      "duplicate_policy": "reject"
+    },
+    "horizon": 3,
+    "quantiles": [
+      0.1,
+      0.5,
+      0.9
+    ],
+    "minimum_baseline_improvement": 0.02,
+    "as_of": null
+  },
+  "source_fingerprint": "sha256:b1dc29983a337e52c8f3745843e15e1833ce3edfa2afc92a9029040a6272b350",
+  "results": [
+    {
+      "series": "__default__",
+      "support": "unsupported",
+      "selected_model": null,
+      "strongest_baseline": null,
+      "selection_scores": {
+        "last_value": null,
+        "seasonal_naive": null,
+        "drift": null,
+        "linear_trend": null,
+        "window_average": null,
+        "theta": null,
+        "ets": null
+      },
+      "test_scores": {
+        "last_value": null,
+        "seasonal_naive": null,
+        "drift": null,
+        "linear_trend": null,
+        "window_average": null,
+        "theta": null,
+        "ets": null
+      },
+      "baseline_improvement": null,
+      "interval_coverage": null,
+      "warnings": [
+        "Need at least 20 observations (have 6) for separated selection and calibration windows; 26 observations enable fully separated selection, calibration, and test windows."
+      ],
+      "forecast": [],
+      "context": null,
+      "covariates": null,
+      "threshold": null,
+      "support_assessment": {
+        "status": "inconclusive",
+        "reasons": [
+          {
+            "code": "insufficient_evaluation",
+            "message": "Need at least 20 observations (have 6) for separated selection and calibration windows; 26 observations enable fully separated selection, calibration, and test windows."
+          }
+        ],
+        "assumptions": [
+          "known_time_assumed: the source provides no known-time column, so each observation is treated as known the moment it applies (known_time = valid_time). Revisions and publication lags are invisible to this run."
+        ],
+        "sensitivity": {},
+        "recovery_actions": [
+          {
+            "code": "provide_more_history",
+            "message": "Supply more observations, or lower the horizon, so rolling evaluation can run."
+          }
+        ],
+        "legacy_support": "unsupported"
+      }
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "evaluation:__default__",
+      "kind": "rolling_evaluation",
+      "series": "__default__",
+      "payload": {
+        "partitioning": "selection folds, then calibration fold, then final test fold",
+        "selection_scores": {
+          "last_value": null,
+          "seasonal_naive": null,
+          "drift": null,
+          "linear_trend": null,
+          "window_average": null,
+          "theta": null,
+          "ets": null
+        },
+        "test_scores": {
+          "last_value": null,
+          "seasonal_naive": null,
+          "drift": null,
+          "linear_trend": null,
+          "window_average": null,
+          "theta": null,
+          "ets": null
+        }
+      }
+    },
+    {
+      "evidence_id": "support:__default__",
+      "kind": "support_assessment",
+      "series": "__default__",
+      "payload": {
+        "support": "unsupported",
+        "warnings": [
+          "Need at least 20 observations (have 6) for separated selection and calibration windows; 26 observations enable fully separated selection, calibration, and test windows."
+        ]
+      }
+    },
+    {
+      "evidence_id": "snapshot",
+      "kind": "snapshot_access",
+      "series": "__all__",
+      "payload": {
+        "as_of": "latest",
+        "known_time_assumed": true,
+        "source_ref": "sha256:b1dc29983a337e52c8f3745843e15e1833ce3edfa2afc92a9029040a6272b350",
+        "accesses": [
+          {
+            "entity": "__default__",
+            "variable": "value",
+            "reads": 1,
+            "max_known_time": "2026-03-06T00:00:00"
+          }
+        ]
+      }
+    }
+  ]
+}

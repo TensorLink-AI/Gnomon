@@ -19,7 +19,7 @@ def _common_input(parser: argparse.ArgumentParser) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="aion", description="Evidence-backed local forecasting")
-    parser.add_argument("--version", action="version", version="aion 0.2.0")
+    parser.add_argument("--version", action="version", version="aion 0.3.0")
     subcommands = parser.add_subparsers(dest="command", required=True)
 
     capability_parser = subcommands.add_parser("capabilities", help="Report implemented capabilities")
@@ -27,6 +27,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     inspect_parser = subcommands.add_parser("inspect", help="Validate a temporal dataset")
     _common_input(inspect_parser)
+    inspect_parser.add_argument("--seasonal-period", type=int)
 
     forecast_parser = subcommands.add_parser("forecast", help="Run an evaluated forecast")
     _common_input(forecast_parser)
@@ -57,6 +58,19 @@ def build_parser() -> argparse.ArgumentParser:
     forecast_parser.add_argument("--covariate-time", default="timestamp")
     forecast_parser.add_argument("--covariate-known-at", default="known_at")
     forecast_parser.add_argument("--covariate-series")
+    forecast_parser.add_argument("--seasonal-period", type=int)
+    forecast_parser.add_argument("--strict-abstention", action="store_true")
+    forecast_parser.add_argument(
+        "--as-of", dest="as_of",
+        help="Replay instant: use only data known at or before this ISO timestamp",
+    )
+    forecast_parser.add_argument(
+        "--store-path", dest="store_path",
+        help="Override the temporal-store path (for store:<dataset> inputs)",
+    )
+    forecast_parser.add_argument("--selection-strategy", choices=("best", "ensemble"), default="best")
+    forecast_parser.add_argument("--ensemble", action="store_true", help=argparse.SUPPRESS)
+    forecast_parser.add_argument("--multivariate", action="store_true")
 
     covariate_parser = subcommands.add_parser(
         "covariates", help="Guide and validate point-in-time covariate data"
@@ -95,6 +109,88 @@ def build_parser() -> argparse.ArgumentParser:
     )
     validate_parser.add_argument("--response", required=True)
     validate_parser.add_argument("--file", action="append", required=True, dest="files")
+
+    investigate_parser = subcommands.add_parser(
+        "investigate", help="What changed? Changepoints, regimes, anomalies, ranked explanations"
+    )
+    _common_input(investigate_parser)
+    investigate_parser.add_argument("--context", dest="context_file",
+                                    help="Validated context-events JSON to rank as concurrent events")
+    investigate_parser.add_argument("--as-of", dest="as_of")
+    investigate_parser.add_argument("--output", default="aion-output")
+    investigate_parser.add_argument("--store-path", dest="store_path")
+
+    decide_parser = subcommands.add_parser(
+        "decide", help="What should we do? Scenario risk, feasible actions, expected utility or abstention"
+    )
+    _common_input(decide_parser)
+    decide_parser.add_argument("--horizon", required=True, type=int)
+    decide_parser.add_argument("--threshold", required=True, type=float)
+    decide_parser.add_argument("--actions", required=True,
+                               help="JSON list of actions, or @path/to/actions.json")
+    decide_parser.add_argument("--utilities",
+                               help="JSON {action: {exceed: x, no_exceed: y}}, or @file")
+    decide_parser.add_argument("--max-acceptable-risk", type=float, dest="max_acceptable_risk")
+    decide_parser.add_argument("--series-name", dest="series_name")
+    decide_parser.add_argument("--project", help="Record a DecisionArtifact in this tracking project")
+    decide_parser.add_argument("--as-of", dest="as_of")
+    decide_parser.add_argument("--output", default="aion-output")
+    decide_parser.add_argument("--store-path", dest="store_path")
+
+    monitor_parser = subcommands.add_parser(
+        "monitor", help="When should we intervene? Sequential risk and a cost-aware alert rule"
+    )
+    _common_input(monitor_parser)
+    monitor_parser.add_argument("--horizon", required=True, type=int)
+    monitor_parser.add_argument("--threshold", required=True, type=float)
+    monitor_parser.add_argument("--alert-cost", type=float, dest="alert_cost")
+    monitor_parser.add_argument("--miss-cost", type=float, dest="miss_cost")
+    monitor_parser.add_argument("--project")
+    monitor_parser.add_argument("--as-of", dest="as_of")
+    monitor_parser.add_argument("--output", default="aion-output")
+    monitor_parser.add_argument("--store-path", dest="store_path")
+
+    plan_parser = subcommands.add_parser(
+        "plan", help="Experimental: compile, validate, and execute TemporalPlans"
+    )
+    plan_commands = plan_parser.add_subparsers(dest="plan_command", required=True)
+    plan_compile = plan_commands.add_parser("compile")
+    plan_compile.add_argument("--task-type", required=True,
+                              choices=["forecast", "investigate_change", "decide", "monitor"])
+    plan_compile.add_argument("--params", required=True,
+                              help="JSON object of macro parameters, or @file")
+    plan_validate = plan_commands.add_parser("validate")
+    plan_validate.add_argument("--plan", required=True, help="Plan JSON, or @file")
+    plan_execute = plan_commands.add_parser("execute")
+    plan_execute.add_argument("--plan", required=True, help="Plan JSON, or @file")
+    plan_execute.add_argument("--output", default="aion-output")
+    plan_execute.add_argument("--as-of", dest="as_of")
+    plan_execute.add_argument("--store-path", dest="store_path")
+
+    ingest_parser = subcommands.add_parser(
+        "ingest", help="Append observations (as vintages) to the bitemporal store"
+    )
+    ingest_parser.add_argument("input")
+    ingest_parser.add_argument("--dataset", required=True)
+    ingest_parser.add_argument("--time", required=True, dest="time_column")
+    ingest_parser.add_argument("--target", required=True, dest="target_column")
+    ingest_parser.add_argument("--series", dest="series_column")
+    ingest_parser.add_argument(
+        "--known-at", dest="known_at_column",
+        help="Column stating when each value became known; omitted = assumed known at valid time",
+    )
+    ingest_parser.add_argument("--variable", help="Variable name (default: target column name)")
+    ingest_parser.add_argument("--store-path", dest="store_path")
+
+    store_parser = subcommands.add_parser("store", help="Inspect the bitemporal store")
+    store_commands = store_parser.add_subparsers(dest="store_command", required=True)
+    store_list = store_commands.add_parser("list", help="List ingested datasets")
+    store_list.add_argument("--store-path", dest="store_path")
+
+    status_parser = subcommands.add_parser(
+        "status", help="Open forecasts, due horizons, unresolved decisions, realised performance"
+    )
+    status_parser.add_argument("--project", default=None)
 
     mcp_parser = subcommands.add_parser("mcp", help="Model Context Protocol server")
     mcp_commands = mcp_parser.add_subparsers(dest="mcp_command", required=True)
@@ -186,6 +282,15 @@ def build_parser() -> argparse.ArgumentParser:
     decision_list = decision_commands.add_parser("list")
     decision_list.add_argument("--project", default=None)
 
+    track_outcome = track_commands.add_parser(
+        "outcome", help="Resolve a DecisionArtifact with realised results (regret scoring)"
+    )
+    track_outcome.add_argument("--decision-id", required=True)
+    track_outcome.add_argument("--realised-scenario")
+    track_outcome.add_argument("--realised-utilities", help="JSON {action: payoff}, or @file")
+    track_outcome.add_argument("--violations", help="JSON list of violated constraints, or @file")
+    track_outcome.add_argument("--note")
+
     track_export = track_commands.add_parser("export", help="Export registry metadata as JSON")
     track_export.add_argument("--project", default=None)
     track_export.add_argument("--output", required=True)
@@ -200,8 +305,36 @@ def build_parser() -> argparse.ArgumentParser:
     eval_compare = eval_commands.add_parser("compare")
     eval_compare.add_argument("--baseline", required=True, help="Control JSONL runs")
     eval_compare.add_argument("--treatment", required=True, help="Aion-enabled JSONL runs")
+    eval_episodes = eval_commands.add_parser(
+        "episodes", help="Run the built-in episode suite with the honest reference policy"
+    )
+    eval_episodes.add_argument("--workdir", required=True,
+                               help="Directory for generated worlds and artifacts")
+    eval_episodes.add_argument("--trials", type=int, default=1)
+    eval_episodes.add_argument("--jsonl", help="Also write graded rows for `aion eval compare`")
 
     return parser
+
+
+def _json_argument(raw: str | None):
+    if raw is None:
+        return None
+    if raw.startswith("@"):
+        path = Path(raw[1:]).expanduser()
+        if not path.is_file():
+            raise AionError("ARGUMENT_FILE_NOT_FOUND", f"File does not exist: {path}")
+        raw = path.read_text(encoding="utf-8")
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise AionError("INVALID_JSON_ARGUMENT", f"Argument is not valid JSON: {exc}") from exc
+
+
+def _parse_as_of(raw: str | None):
+    if not raw:
+        return None
+    from .data import _parse_timestamp
+    return _parse_timestamp(raw, 0)
 
 
 def _read_documents(paths: list[str]):
@@ -224,6 +357,95 @@ def _read_documents(paths: list[str]):
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
+        if args.command == "investigate":
+            from .context import load_events_file
+            from .macros import investigate_change
+
+            events = load_events_file(args.context_file) if args.context_file else None
+            payload, path = investigate_change(
+                args.input, time_column=args.time_column,
+                target_column=args.target_column, series_column=args.series_column,
+                frequency=args.frequency, as_of=_parse_as_of(args.as_of),
+                context_events=events, output=args.output,
+                store_path=args.store_path,
+            )
+            print(json.dumps({**payload, "artifact_path": str(path)}, indent=2, allow_nan=False))
+            return 0
+        if args.command == "decide":
+            from .macros import decide
+
+            payload, path = decide(
+                args.input, time_column=args.time_column,
+                target_column=args.target_column, horizon=args.horizon,
+                threshold=args.threshold,
+                actions=_json_argument(args.actions) or [],
+                utilities=_json_argument(args.utilities),
+                max_acceptable_risk=args.max_acceptable_risk,
+                series_column=args.series_column, series_name=args.series_name,
+                frequency=args.frequency, as_of=_parse_as_of(args.as_of),
+                project=args.project,
+                output=args.output, store_path=args.store_path,
+            )
+            print(json.dumps({**payload, "artifact_path": str(path)}, indent=2, allow_nan=False))
+            return 0
+        if args.command == "status":
+            from .tracking import TrackingStore
+            print(json.dumps(TrackingStore().status(args.project), indent=2, allow_nan=False))
+            return 0
+        if args.command == "monitor":
+            from .macros import monitor
+
+            payload, path = monitor(
+                args.input, time_column=args.time_column,
+                target_column=args.target_column, horizon=args.horizon,
+                threshold=args.threshold, alert_cost=args.alert_cost,
+                miss_cost=args.miss_cost, series_column=args.series_column,
+                frequency=args.frequency, as_of=_parse_as_of(args.as_of),
+                project=args.project, output=args.output,
+                store_path=args.store_path,
+            )
+            print(json.dumps({**payload, "artifact_path": str(path)}, indent=2, allow_nan=False))
+            return 0
+        if args.command == "plan":
+            from .toolspec import (
+                _run_compile_task, _run_execute_plan, _run_validate_plan,
+            )
+            if args.plan_command == "compile":
+                payload = _run_compile_task({
+                    "task_type": args.task_type,
+                    "params": _json_argument(args.params),
+                })
+            elif args.plan_command == "validate":
+                payload = _run_validate_plan({"plan": _json_argument(args.plan)})
+            else:
+                payload = _run_execute_plan({
+                    "plan": _json_argument(args.plan),
+                    "output_dir": args.output,
+                    "as_of": args.as_of,
+                    "store_path": args.store_path,
+                })
+            print(json.dumps(payload, indent=2, allow_nan=False))
+            return 0
+        if args.command == "ingest":
+            from .temporal_store import TemporalStore
+
+            report = TemporalStore(args.store_path).ingest_csv(
+                args.input, dataset=args.dataset,
+                time_column=args.time_column, target_column=args.target_column,
+                series_column=args.series_column,
+                known_at_column=args.known_at_column,
+                variable=args.variable,
+            )
+            print(json.dumps(report.to_dict(), indent=2))
+            return 0
+        if args.command == "store":
+            from .temporal_store import TemporalStore
+
+            print(json.dumps({
+                "schema_version": "0.1",
+                "datasets": TemporalStore(args.store_path).list_datasets(),
+            }, indent=2))
+            return 0
         if args.command == "mcp":
             from .mcp_server import serve
 
@@ -481,6 +703,17 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(json.dumps([item.__dict__ for item in decisions], indent=2))
                 return 0
 
+            elif args.track_command == "outcome":
+                artifact = store.resolve_decision_outcome(
+                    args.decision_id,
+                    realised_scenario=args.realised_scenario,
+                    realised_utilities=_json_argument(args.realised_utilities),
+                    constraint_violations=_json_argument(args.violations),
+                    note=args.note,
+                )
+                print(json.dumps(artifact.to_dict(), indent=2, allow_nan=False))
+                return 0
+
             elif args.track_command == "export":
                 output = Path(args.output).expanduser()
                 output.parent.mkdir(parents=True, exist_ok=True)
@@ -497,6 +730,23 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return 0
 
         if args.command == "eval":
+            if args.eval_command == "episodes":
+                from .episodes import (
+                    evaluate_policy, honest_aion_policy, standard_suite,
+                    write_runs_jsonl,
+                )
+                workdir = Path(args.workdir).expanduser()
+                workdir.mkdir(parents=True, exist_ok=True)
+                (workdir / "worlds").mkdir(parents=True, exist_ok=True)
+                episodes = standard_suite(workdir / "worlds")
+                report = evaluate_policy(
+                    episodes, honest_aion_policy, workdir / "runs", trials=args.trials,
+                )
+                if args.jsonl:
+                    write_runs_jsonl(report["rows"], Path(args.jsonl).expanduser())
+                    report["jsonl"] = str(Path(args.jsonl).expanduser())
+                print(json.dumps(report, indent=2, allow_nan=False))
+                return 0
             from .agent_eval import compare_runs
             print(json.dumps(compare_runs(args.baseline, args.treatment), indent=2))
             return 0
@@ -511,6 +761,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             payload = inspect_dataset(
                 args.input, time_column=args.time_column, target_column=args.target_column,
                 series_column=args.series_column, frequency=args.frequency,
+                seasonal_period=args.seasonal_period,
             )
         elif args.command == "covariates":
             from .covariates import covariate_guide, validate_covariate_file
@@ -567,13 +818,22 @@ def main(argv: Sequence[str] | None = None) -> int:
                     series_column=args.covariate_series,
                 )
             config = load_config(getattr(args, "config", None))
+            as_of = None
+            if getattr(args, "as_of", None):
+                from .data import _parse_timestamp
+                as_of = _parse_timestamp(args.as_of, 0)
             artifact, path = forecast(
                 args.input, time_column=args.time_column, target_column=args.target_column,
                 series_column=args.series_column, frequency=args.frequency, horizon=args.horizon,
                 output=args.output, minimum_baseline_improvement=args.minimum_baseline_improvement,
                 context_events=events, threshold=args.threshold,
                 covariates=covariates,
-                config=config,
+                config=config, strict_abstention=args.strict_abstention,
+                seasonal_period=args.seasonal_period,
+                selection_strategy="ensemble" if args.ensemble else args.selection_strategy,
+                multivariate=args.multivariate,
+                as_of=as_of,
+                store_path=getattr(args, "store_path", None),
             )
             payload = forecast_summary(artifact, path)
 

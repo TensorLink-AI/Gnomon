@@ -34,7 +34,9 @@ def test_initialize_list_and_call() -> None:
     by_id = {response["id"]: response for response in responses}
     assert by_id[1]["result"]["serverInfo"]["name"] == "aion"
     tool_names = [tool["name"] for tool in by_id[2]["result"]["tools"]]
-    assert tool_names == [
+    # The frozen v0.2 tools come first, unchanged; registry-generated macro
+    # and artifact tools follow.
+    assert tool_names[:11] == [
             "aion_capabilities", "aion_inspect", "aion_forecast",
             "aion_covariate_guide", "aion_validate_covariates",
             "aion_propose_covariates",
@@ -42,6 +44,11 @@ def test_initialize_list_and_call() -> None:
         "aion_model_performance", "aion_record_decision",
         "aion_resolve_decision",
     ]
+    assert set(tool_names[11:]) == {
+        "aion_investigate_change", "aion_decide", "aion_monitor",
+        "aion_get_artifact", "aion_explain_run",
+        "aion_status", "aion_resolve_outcome",
+    }
     call = by_id[3]["result"]
     assert call["isError"] is False
     payload = json.loads(call["content"][0]["text"])

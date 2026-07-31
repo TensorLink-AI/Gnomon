@@ -1,0 +1,165 @@
+{
+  "schema_version": "0.1",
+  "forecast_id": "forecast_dc38bd417a596e9d",
+  "created_at": "2026-07-01T00:00:00+00:00",
+  "status": "complete",
+  "task": {
+    "input_path": "<REPO>/tests/data/golden_short.csv",
+    "schema": {
+      "time_column": "timestamp",
+      "target_column": "value",
+      "series_column": null,
+      "frequency": "D",
+      "timezone": null,
+      "missing_policy": "reject",
+      "duplicate_policy": "reject"
+    },
+    "horizon": 3,
+    "quantiles": [
+      0.1,
+      0.5,
+      0.9
+    ],
+    "minimum_baseline_improvement": 0.02,
+    "as_of": null
+  },
+  "source_fingerprint": "sha256:b1dc29983a337e52c8f3745843e15e1833ce3edfa2afc92a9029040a6272b350",
+  "results": [
+    {
+      "series": "__default__",
+      "support": "degraded",
+      "selected_model": "drift",
+      "strongest_baseline": "last_value",
+      "selection_scores": {
+        "last_value": 0.01818181818181818,
+        "seasonal_naive": null,
+        "drift": 0.0,
+        "linear_trend": 0.0,
+        "window_average": 0.05454545454545454,
+        "theta": 0.011110909090909098,
+        "ets": 0.0008855272727274155
+      },
+      "test_scores": {
+        "last_value": null,
+        "seasonal_naive": null,
+        "drift": null,
+        "linear_trend": null,
+        "window_average": null,
+        "theta": null,
+        "ets": null
+      },
+      "baseline_improvement": null,
+      "interval_coverage": null,
+      "warnings": [
+        "Degraded forecast: model selection used a single trailing 1-observation holdout; rolling-origin calibration and final testing were unavailable. At least 20 observations (have 6) are needed for separated selection and calibration."
+      ],
+      "forecast": [
+        {
+          "timestamp": "2026-03-07T00:00:00",
+          "point": 112.0,
+          "q10": 112.0,
+          "q50": 112.0,
+          "q90": 112.0
+        },
+        {
+          "timestamp": "2026-03-08T00:00:00",
+          "point": 114.0,
+          "q10": 114.0,
+          "q50": 114.0,
+          "q90": 114.0
+        },
+        {
+          "timestamp": "2026-03-09T00:00:00",
+          "point": 116.0,
+          "q10": 116.0,
+          "q50": 116.0,
+          "q90": 116.0
+        }
+      ],
+      "context": null,
+      "covariates": null,
+      "threshold": null,
+      "support_assessment": {
+        "status": "conditionally_supported",
+        "reasons": [
+          {
+            "code": "degraded_evaluation",
+            "message": "Model selection ran without separated calibration and test folds."
+          },
+          {
+            "code": "warning",
+            "message": "Degraded forecast: model selection used a single trailing 1-observation holdout; rolling-origin calibration and final testing were unavailable. At least 20 observations (have 6) are needed for separated selection and calibration."
+          }
+        ],
+        "assumptions": [
+          "known_time_assumed: the source provides no known-time column, so each observation is treated as known the moment it applies (known_time = valid_time). Revisions and publication lags are invisible to this run."
+        ],
+        "sensitivity": {},
+        "recovery_actions": [
+          {
+            "code": "provide_more_history",
+            "message": "Supply enough observations for separated selection, calibration, and test windows."
+          }
+        ],
+        "legacy_support": "degraded"
+      }
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "evaluation:__default__",
+      "kind": "rolling_evaluation",
+      "series": "__default__",
+      "payload": {
+        "partitioning": "selection folds, then calibration fold, then final test fold",
+        "selection_scores": {
+          "last_value": 0.01818181818181818,
+          "seasonal_naive": null,
+          "drift": 0.0,
+          "linear_trend": 0.0,
+          "window_average": 0.05454545454545454,
+          "theta": 0.011110909090909098,
+          "ets": 0.0008855272727274155
+        },
+        "test_scores": {
+          "last_value": null,
+          "seasonal_naive": null,
+          "drift": null,
+          "linear_trend": null,
+          "window_average": null,
+          "theta": null,
+          "ets": null
+        }
+      }
+    },
+    {
+      "evidence_id": "support:__default__",
+      "kind": "support_assessment",
+      "series": "__default__",
+      "payload": {
+        "support": "degraded",
+        "warnings": [
+          "Degraded forecast: model selection used a single trailing 1-observation holdout; rolling-origin calibration and final testing were unavailable. At least 20 observations (have 6) are needed for separated selection and calibration."
+        ]
+      }
+    },
+    {
+      "evidence_id": "snapshot",
+      "kind": "snapshot_access",
+      "series": "__all__",
+      "payload": {
+        "as_of": "latest",
+        "known_time_assumed": true,
+        "source_ref": "sha256:b1dc29983a337e52c8f3745843e15e1833ce3edfa2afc92a9029040a6272b350",
+        "accesses": [
+          {
+            "entity": "__default__",
+            "variable": "value",
+            "reads": 2,
+            "max_known_time": "2026-03-06T00:00:00"
+          }
+        ]
+      }
+    }
+  ]
+}

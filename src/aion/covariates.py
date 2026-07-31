@@ -39,21 +39,30 @@ class CovariateDataset:
     specs: tuple[CovariateSpec, ...]
     rows: list[CovariateRow]
 
-    def value_at(self, name: str, series: str, valid_at: datetime, cutoff: datetime) -> float | None:
-        candidates = [
-            row for row in self.rows
-            if row.series == series
-            and row.valid_at == valid_at and row.known_at <= cutoff and name in row.values
-        ]
-        if not candidates and series != "__default__":
-            candidates = [
-                row for row in self.rows
-                if row.series == "__default__"
-                and row.valid_at == valid_at and row.known_at <= cutoff and name in row.values
+    def _snapshot(self):
+        """Lazy bitemporal view of the covariate rows; per-call cutoffs are
+        enforced by the snapshot rather than ad-hoc filtering."""
+        if getattr(self, "_snapshot_cache", None) is None:
+            from .temporal_store import InMemoryTemporalStore, TemporalObservation
+            observations = [
+                TemporalObservation(
+                    entity=row.series, variable=name, valid_time=row.valid_at,
+                    known_time=row.known_at, value=value, source_ref=self.fingerprint,
+                )
+                for row in self.rows
+                for name, value in row.values.items()
             ]
-        if not candidates:
-            return None
-        return max(candidates, key=lambda row: row.known_at).values[name]
+            self._snapshot_cache = InMemoryTemporalStore(
+                observations, source_ref=self.fingerprint,
+            ).snapshot(None)
+        return self._snapshot_cache
+
+    def value_at(self, name: str, series: str, valid_at: datetime, cutoff: datetime) -> float | None:
+        snapshot = self._snapshot()
+        value = snapshot.value_as_of(series, name, valid_at, cutoff=cutoff)
+        if value is None and series != "__default__":
+            value = snapshot.value_as_of("__default__", name, valid_at, cutoff=cutoff)
+        return value
 
 
 @dataclass

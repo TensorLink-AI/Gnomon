@@ -47,6 +47,7 @@ def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
         "results": [
             {
                 "series": item.series, "support": item.support,
+                "support_assessment": item.support_assessment,
                 "selected_model": item.selected_model,
                 "interval_coverage": item.interval_coverage,
                 "warnings": item.warnings,
@@ -320,8 +321,323 @@ TOOLS: list[dict[str, Any]] = [
 ]
 
 
+def _parse_as_of(raw: Any):
+    if not raw:
+        return None
+    from .data import _parse_timestamp
+    return _parse_timestamp(str(raw), 0)
+
+
+def _run_investigate_change(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .context import load_events_file
+    from .macros import investigate_change
+    events = None
+    if arguments.get("context_events_file"):
+        events = load_events_file(arguments["context_events_file"])
+    payload, path = investigate_change(
+        arguments["input"],
+        time_column=arguments["time_column"],
+        target_column=arguments["target_column"],
+        series_column=arguments.get("series_column"),
+        frequency=arguments.get("frequency"),
+        as_of=_parse_as_of(arguments.get("as_of")),
+        context_events=events,
+        output=arguments.get("output_dir") or "aion-output",
+    )
+    return {**payload, "artifact_path": str(path)}
+
+
+def _run_decide(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .macros import decide
+    payload, path = decide(
+        arguments["input"],
+        time_column=arguments["time_column"],
+        target_column=arguments["target_column"],
+        horizon=int(arguments["horizon"]),
+        threshold=float(arguments["threshold"]),
+        actions=list(arguments["actions"]),
+        utilities=arguments.get("utilities"),
+        max_acceptable_risk=(
+            float(arguments["max_acceptable_risk"])
+            if arguments.get("max_acceptable_risk") is not None else None
+        ),
+        series_column=arguments.get("series_column"),
+        series_name=arguments.get("series_name"),
+        frequency=arguments.get("frequency"),
+        as_of=_parse_as_of(arguments.get("as_of")),
+        project=arguments.get("project"),
+        output=arguments.get("output_dir") or "aion-output",
+    )
+    return {**payload, "artifact_path": str(path)}
+
+
+def _run_status(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .tracking import TrackingStore
+    return TrackingStore().status(arguments.get("project"))
+
+
+def _run_resolve_outcome(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .tracking import TrackingStore
+    artifact = TrackingStore().resolve_decision_outcome(
+        str(arguments["decision_id"]),
+        realised_scenario=arguments.get("realised_scenario"),
+        realised_utilities=arguments.get("realised_utilities"),
+        constraint_violations=arguments.get("constraint_violations"),
+        note=arguments.get("note"),
+    )
+    return {"status": "ok", "decision": artifact.to_dict()}
+
+
+def _run_monitor(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .macros import monitor
+    payload, path = monitor(
+        arguments["input"],
+        time_column=arguments["time_column"],
+        target_column=arguments["target_column"],
+        horizon=int(arguments["horizon"]),
+        threshold=float(arguments["threshold"]),
+        alert_cost=float(arguments["alert_cost"]) if arguments.get("alert_cost") is not None else None,
+        miss_cost=float(arguments["miss_cost"]) if arguments.get("miss_cost") is not None else None,
+        series_column=arguments.get("series_column"),
+        frequency=arguments.get("frequency"),
+        as_of=_parse_as_of(arguments.get("as_of")),
+        project=arguments.get("project"),
+        output=arguments.get("output_dir") or "aion-output",
+    )
+    return {**payload, "artifact_path": str(path)}
+
+
+def _run_get_artifact(arguments: dict[str, Any]) -> dict[str, Any]:
+    from pathlib import Path
+    from .artifacts import read_artifact
+    directory = Path(arguments["artifact_path"])
+    payload: dict[str, Any] = {
+        "schema_version": "0.1",
+        "artifact": read_artifact(directory),
+    }
+    lineage_path = directory / "lineage.json"
+    if arguments.get("include_lineage") and lineage_path.is_file():
+        import json as _json
+        payload["lineage"] = _json.loads(lineage_path.read_text(encoding="utf-8"))
+    return payload
+
+
+def _run_explain_run(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Compact explanation of a stored run: claims, support, warnings.
+    Statements come verbatim from the verified lineage — nothing is composed."""
+    import json as _json
+    from pathlib import Path
+    from .artifacts import read_artifact
+    directory = Path(arguments["artifact_path"])
+    artifact = read_artifact(directory)
+    explanation: dict[str, Any] = {
+        "schema_version": "0.1",
+        "artifact_id": (
+            artifact.get("investigation_id") or artifact.get("decision_id")
+            or artifact.get("monitor_id") or artifact.get("forecast_id")
+        ),
+        "created_at": artifact.get("created_at"),
+        "support_assessments": {},
+        "warnings": {},
+        "claims": [],
+    }
+    for result in artifact.get("results", []):
+        name = result.get("series", "__default__")
+        if result.get("support_assessment") is not None:
+            explanation["support_assessments"][name] = result["support_assessment"]
+        if result.get("warnings"):
+            explanation["warnings"][name] = result["warnings"]
+    if artifact.get("support_assessment") is not None:
+        explanation["support_assessments"]["__task__"] = artifact["support_assessment"]
+    for trigger in artifact.get("triggers", []):
+        explanation["support_assessments"][trigger.get("series", "__default__")] = (
+            trigger.get("support_assessment")
+        )
+    lineage_path = directory / "lineage.json"
+    if lineage_path.is_file():
+        lineage = _json.loads(lineage_path.read_text(encoding="utf-8"))
+        explanation["claims"] = [
+            {"claim_id": claim["claim_id"], "claim_class": claim["claim_class"],
+             "statement": claim["statement"], "evidence_ids": claim["evidence_ids"]}
+            for claim in lineage.get("claims", [])
+        ]
+    summary = directory / "summary.md"
+    if summary.is_file():
+        explanation["summary_md"] = summary.read_text(encoding="utf-8")
+    return explanation
+
+
+def _registry_tools() -> list[dict[str, Any]]:
+    """Agent tools generated from the macro registry — one source of truth
+    for schemas across CLI, Python API, and MCP."""
+    from .registry import MACROS
+    runners = {
+        "aion_investigate_change": _run_investigate_change,
+        "aion_decide": _run_decide,
+        "aion_monitor": _run_monitor,
+    }
+    tools = []
+    for spec in MACROS.values():
+        if spec.tool_name not in runners:
+            continue  # aion_forecast keeps its frozen v0.2 definition above
+        tools.append({
+            "name": spec.tool_name,
+            "description": spec.summary,
+            "inputSchema": spec.input_schema,
+            "runner": runners[spec.tool_name],
+        })
+    return tools
+
+
+TOOLS.extend(_registry_tools())
+TOOLS.extend([
+    {
+        "name": "aion_get_artifact",
+        "description": (
+            "Read a stored artifact directory: full artifact.json and, "
+            "optionally, the typed lineage. All numbers live here; quote them "
+            "verbatim."
+        ),
+        "inputSchema": {"type": "object", "properties": {
+            "artifact_path": {"type": "string", "description": "Artifact directory returned by a macro."},
+            "include_lineage": {"type": "boolean", "description": "Include lineage.json (artifacts/evidence/claims)."},
+        }, "required": ["artifact_path"]},
+        "runner": _run_get_artifact,
+    },
+    {
+        "name": "aion_status",
+        "description": (
+            "Pollable status: open forecasts, due horizons, unresolved "
+            "decisions, and realised-performance summaries. Descriptive "
+            "evidence an agent can cite — never causal."
+        ),
+        "inputSchema": {"type": "object", "properties": {
+            "project": {"type": "string", "description": "Optional project filter."},
+        }, "required": []},
+        "runner": _run_status,
+    },
+    {
+        "name": "aion_resolve_outcome",
+        "description": (
+            "Resolve a recorded DecisionArtifact with what actually happened: "
+            "realised scenario and/or per-action realised utilities. Returns "
+            "realised utility, regret vs the best feasible action in "
+            "hindsight, ex-ante optimality, and risk calibration — bare "
+            "'correct' is retired."
+        ),
+        "inputSchema": {"type": "object", "properties": {
+            "decision_id": {"type": "string"},
+            "realised_scenario": {"type": "string", "description": "e.g. exceed / no_exceed."},
+            "realised_utilities": {"type": "object", "description": "Optional per-action realised payoff."},
+            "constraint_violations": {"type": "array", "items": {"type": "string"}},
+            "note": {"type": "string"},
+        }, "required": ["decision_id"]},
+        "runner": _run_resolve_outcome,
+    },
+    {
+        "name": "aion_explain_run",
+        "description": (
+            "Compact explanation of a stored run: verified claim statements, "
+            "per-series support assessments, and warnings. Statements come "
+            "from the verified lineage; never paraphrase abstentions away."
+        ),
+        "inputSchema": {"type": "object", "properties": {
+            "artifact_path": {"type": "string", "description": "Artifact directory returned by a macro."},
+        }, "required": ["artifact_path"]},
+        "runner": _run_explain_run,
+    },
+])
+
+
+# --- Experimental planner surface (advanced; macros remain the default) ---
+
+def planner_enabled() -> bool:
+    import os
+    return os.environ.get("AION_EXPERIMENTAL_PLANNER") == "1"
+
+
+def _run_compile_task(arguments: dict[str, Any]) -> dict[str, Any]:
+    from dataclasses import asdict
+    from .plan import compile_task
+    plan = compile_task(str(arguments["task_type"]), dict(arguments.get("params") or {}))
+    return {"schema_version": "0.1", "plan_id": plan.plan_id(),
+            "plan": {"task": plan.task, "steps": [asdict(step) for step in plan.steps]}}
+
+
+def _run_validate_plan(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .plan import plan_from_dict, validate_plan
+    plan = plan_from_dict(dict(arguments["plan"]))
+    violations = validate_plan(plan)
+    return {"schema_version": "0.1", "plan_id": plan.plan_id(),
+            "valid": not violations, "violations": violations}
+
+
+def _run_execute_plan(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .execution import execute_plan
+    from .plan import plan_from_dict
+    payload, path = execute_plan(
+        plan_from_dict(dict(arguments["plan"])),
+        output=arguments.get("output_dir") or "aion-output",
+        as_of=_parse_as_of(arguments.get("as_of")),
+        store_path=arguments.get("store_path"),
+    )
+    return {**payload, "artifact_path": str(path)}
+
+
+def _run_get_run(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .artifacts import read_artifact
+    return {"schema_version": "0.1", "run": read_artifact(arguments["run_path"])}
+
+
+_PLAN_PROPERTY = {"type": "object", "description": "A TemporalPlan: {task, steps: [{step_id, operator, inputs, produces, failure_policy}]}."}
+
+PLANNER_TOOLS: list[dict[str, Any]] = [
+    {
+        "name": "aion_compile_task",
+        "description": "Compile one of the four canonical task types into a validated TemporalPlan (experimental).",
+        "inputSchema": {"type": "object", "properties": {
+            "task_type": {"type": "string", "enum": ["forecast", "investigate_change", "decide", "monitor"]},
+            "params": {"type": "object", "description": "The macro's parameters."},
+        }, "required": ["task_type", "params"]},
+        "runner": _run_compile_task,
+    },
+    {
+        "name": "aion_validate_plan",
+        "description": "Deterministically validate a TemporalPlan: operators, references, leakage, claim-class feasibility, budget, duplicates (experimental).",
+        "inputSchema": {"type": "object", "properties": {"plan": _PLAN_PROPERTY},
+                        "required": ["plan"]},
+        "runner": _run_validate_plan,
+    },
+    {
+        "name": "aion_execute_plan",
+        "description": "Execute a validated TemporalPlan with step checkpointing, content-addressed caching, and deterministic replay (experimental).",
+        "inputSchema": {"type": "object", "properties": {
+            "plan": _PLAN_PROPERTY,
+            "output_dir": {"type": "string"},
+            "as_of": {"type": "string"},
+            "store_path": {"type": "string"},
+        }, "required": ["plan"]},
+        "runner": _run_execute_plan,
+    },
+    {
+        "name": "aion_get_run",
+        "description": "Read a stored plan-run artifact: step provenance and outputs (experimental).",
+        "inputSchema": {"type": "object", "properties": {
+            "run_path": {"type": "string", "description": "Run artifact directory."},
+        }, "required": ["run_path"]},
+        "runner": _run_get_run,
+    },
+]
+
+
+def visible_tools() -> list[dict[str, Any]]:
+    """The tool surface as gated for this process: macros always; the raw
+    planner only behind AION_EXPERIMENTAL_PLANNER=1."""
+    return TOOLS + (PLANNER_TOOLS if planner_enabled() else [])
+
+
 def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
-    for tool in TOOLS:
+    for tool in visible_tools():
         if tool["name"] == name:
             return tool["runner"]
     return None

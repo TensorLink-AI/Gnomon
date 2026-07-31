@@ -26,6 +26,7 @@ from .schemas import (
     AION_RESOLVE_DECISION_SCHEMA,
     AION_COVARIATE_GUIDE_SCHEMA, AION_VALIDATE_COVARIATES_SCHEMA,
     AION_PROPOSE_COVARIATES_SCHEMA,
+    AION_INVESTIGATE_SCHEMA, AION_DECIDE_SCHEMA, AION_MONITOR_SCHEMA,
 )
 from .tools import (
     check_aion_available,
@@ -38,6 +39,7 @@ from .tools import (
     handle_aion_resolve_decision,
     handle_aion_covariate_guide, handle_aion_validate_covariates,
     handle_aion_propose_covariates,
+    handle_aion_investigate_change, handle_aion_decide, handle_aion_monitor,
 )
 
 _TOOLS = (
@@ -52,6 +54,9 @@ _TOOLS = (
     ("aion_model_performance", AION_MODEL_PERFORMANCE_SCHEMA, handle_aion_model_performance, "📊"),
     ("aion_record_decision", AION_RECORD_DECISION_SCHEMA, handle_aion_record_decision, "📝"),
     ("aion_resolve_decision", AION_RESOLVE_DECISION_SCHEMA, handle_aion_resolve_decision, "🎯"),
+    ("aion_investigate_change", AION_INVESTIGATE_SCHEMA, handle_aion_investigate_change, "🕵️"),
+    ("aion_decide", AION_DECIDE_SCHEMA, handle_aion_decide, "⚖️"),
+    ("aion_monitor", AION_MONITOR_SCHEMA, handle_aion_monitor, "🚨"),
 )
 
 
