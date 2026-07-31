@@ -64,8 +64,10 @@ suite. Its built-in candidates are deterministic classical models (drift,
 window average, linear trend, theta, ETS) plus optional sandboxed TSFM
 adapters; seasonal periods are detected or overridden, not learned per
 model. Covariates and context events are admitted only through
-identical-fold ablation and are evaluated separately, not jointly, in a
-single run. There are no transformations and no dedicated
-intermittent-demand methods. Use `aion capabilities` as the machine-readable
+identical-fold ablation; when both are supplied, a deterministic
+adjudication ladder compares the base model against every admitted
+challenger on identical folds and records the comparison as evidence.
+There are no transformations and no dedicated intermittent-demand
+methods. Use `aion capabilities` as the machine-readable
 source of truth.
 

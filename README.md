@@ -77,7 +77,9 @@ are not exposed as mocked commands.
 Agents can enrich a forecast with externally fetched, future-known data without
 being trusted to judge its value. Aion validates historical availability and
 admits a covariate or context event only when it beats the univariate control
-on identical folds. See [Covariate enrichment](docs/covariates.md).
+on identical folds; when both are supplied, a deterministic adjudication
+ladder picks the winner on identical folds and records the full comparison
+as evidence. See [Covariate enrichment](docs/covariates.md).
 
 ## See it work
 
@@ -284,8 +286,7 @@ frozen surface and every amendment to it.
 
 Aion remains a focused foundation, not a universal forecasting platform. Its
 built-in models are deterministic classical methods (optional TSFM adapters
-raise the ceiling but need their own sandbox dependencies). Context events
-and covariates are evaluated separately, not jointly, in a single run. Causal
+raise the ceiling but need their own sandbox dependencies). Causal
 claims are never made — `investigate` stops at ranked associational
 explanations by design. Realised leaderboards are observational telemetry and
 never trigger automatic model switching. A `supported` result means the
