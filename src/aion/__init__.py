@@ -7,4 +7,4 @@ __all__ = [
     "forecast", "inspect_dataset", "covariate_guide",
     "load_covariates", "validate_covariate_file",
 ]
-__version__ = "0.2.0"
+__version__ = "0.3.0"

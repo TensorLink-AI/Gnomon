@@ -64,6 +64,7 @@ def test_register_exposes_tracking_tools_and_the_skill() -> None:
         "aion_submit_actuals", "aion_list_open_forecasts",
         "aion_model_performance", "aion_record_decision",
         "aion_resolve_decision",
+        "aion_investigate_change", "aion_decide", "aion_monitor",
     }
     for entry in ctx.tools.values():
         assert entry["toolset"] == "aion"
@@ -265,3 +266,50 @@ def test_forecast_handler_forwards_threshold(tmp_path, monkeypatch) -> None:
     })
     assert "--threshold" in captured["args"]
     assert captured["args"][captured["args"].index("--threshold") + 1] == "99.5"
+
+
+def test_investigate_handler_end_to_end(tmp_path) -> None:
+    payload = json.loads(plugin.handle_aion_investigate_change({
+        "input": str(REPO_ROOT / "examples" / "messy_requests.csv"),
+        "time_column": "timestamp",
+        "target_column": "requests",
+        "output_dir": str(tmp_path),
+    }))
+    assert payload["status"] == "complete"
+    assert payload["results"][0]["classification"] == "regime_shift"
+
+
+def test_decide_handler_degrades_without_utilities(tmp_path) -> None:
+    payload = json.loads(plugin.handle_aion_decide({
+        "input": str(REPO_ROOT / "examples" / "messy_requests.csv"),
+        "time_column": "timestamp",
+        "target_column": "requests",
+        "horizon": 14,
+        "threshold": 340,
+        "actions": [{"name": "scale_up"}, {"name": "wait"}],
+        "output_dir": str(tmp_path),
+    }))
+    assert payload["support_assessment"]["status"] == "conditionally_supported"
+    assert payload["evaluation"]["selected"] is None
+
+
+def test_monitor_handler_end_to_end(tmp_path) -> None:
+    payload = json.loads(plugin.handle_aion_monitor({
+        "input": str(REPO_ROOT / "examples" / "messy_requests.csv"),
+        "time_column": "timestamp",
+        "target_column": "requests",
+        "horizon": 14,
+        "threshold": 340,
+        "alert_cost": 1,
+        "miss_cost": 20,
+        "output_dir": str(tmp_path),
+    }))
+    assert payload["triggers"][0]["armed"] is True
+
+
+def test_new_handlers_reject_missing_arguments_before_subprocess() -> None:
+    payload = json.loads(plugin.handle_aion_decide({
+        "input": "x.csv", "time_column": "t", "target_column": "y",
+    }))
+    assert payload["status"] == "error"
+    assert payload["error"]["code"] == "INVALID_ARGUMENTS"

@@ -1,5 +1,5 @@
 name: aion
-version: 0.2.0
+version: 0.3.0
 description: "Evidence-backed local forecasting via the Aion CLI. Aion is authoritative for all numbers, intervals, model selection, and abstention; the agent formulates the question and explains the evidence."
 author: "TensorLink"
 kind: standalone
@@ -16,3 +16,6 @@ provides_tools:
   - aion_model_performance
   - aion_record_decision
   - aion_resolve_decision
+  - aion_investigate_change
+  - aion_decide
+  - aion_monitor
