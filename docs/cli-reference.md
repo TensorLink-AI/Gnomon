@@ -42,6 +42,13 @@ aion inspect INPUT --time COLUMN --target COLUMN [OPTIONS]
 Inspection returns the source SHA-256 fingerprint, resolved schema, columns,
 series names, observation counts, and date ranges.
 
+Messy files are diagnosed rather than rejected: `data_quality.status` reports
+`clean`, `repaired_safe` (the default forecast repair level reads the file),
+or `repaired_aggressive` (the file needs `--repair aggressive`), together
+with the exact list of repairs each level would apply and a `suggested_next`
+command including any required flag. `aion inspect` fails only when no repair
+level can read the file.
+
 ## `aion forecast`
 
 Short histories use a single trailing holdout and return `degraded` forecasts
@@ -56,6 +63,19 @@ Forecast controls:
 - `--multivariate` tries a VAR(1) forecast for aligned, correlated series. It
   is used only when it beats an independent last-value forecast on a trailing
   holdout; otherwise Aion falls back to its normal per-series path.
+- `--repair {off,safe,aggressive}` (default `safe`) controls messy-data
+  handling. `safe` normalises cell text — mixed date formats, currency and
+  thousands separators, percent signs, sentinel missing values, blank rows,
+  identical duplicate rows — and never invents, moves, or drops a data
+  point. `aggressive` additionally interpolates interior gaps, snaps
+  jittered timestamps to the grid, resolves conflicting duplicates (last
+  row wins), and drops unparseable rows, all capped: past roughly 30% of a
+  series the run refuses with `EXCESSIVE_REPAIR`. Every repair is recorded
+  in a `data_repair` evidence record; assumptive repairs also appear as
+  `repaired_data:` warnings and downgrade support. `off` restores strict
+  rejection. Repairs only ever fire where strict parsing would fail, so
+  clean files produce byte-identical artifacts. Try it:
+  `aion inspect examples/filthy_requests.csv --time timestamp --target requests`.
 
 `aion inspect` reports the detected seasonal period for each series and
 pairwise correlations for aligned multi-series inputs.

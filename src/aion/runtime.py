@@ -35,10 +35,47 @@ def inspect_dataset(
     frequency: str | None = None,
     seasonal_period: int | None = None,
 ) -> dict[str, object]:
-    loaded = load_stage(
-        input_path, time_column=time_column, target_column=target_column,
-        series_column=series_column, frequency=frequency,
-    )
+    # Diagnose, don't just reject: try the strict path, then each repair
+    # level, and report what the file needs to become forecastable.
+    from .contracts import AionError
+    from .repair import REPAIR_LEVELS, RepairLog
+    loaded = None
+    repair_level_used = None
+    log = RepairLog()
+    errors: dict[str, AionError] = {}
+    for level in REPAIR_LEVELS:
+        log = RepairLog()
+        try:
+            loaded = load_stage(
+                input_path, time_column=time_column, target_column=target_column,
+                series_column=series_column, frequency=frequency,
+                repair=level, repair_log=log,
+            )
+            repair_level_used = level
+            break
+        except AionError as error:
+            errors[level] = error
+    if loaded is None:
+        # The safe-level error is the diagnosis; an aggressive-level failure
+        # (e.g. EXCESSIVE_REPAIR) is a consequence of forcing assumptions.
+        raise errors.get("safe") or errors["aggressive"]
+    data_quality: dict[str, object] = {
+        "status": {
+            "off": "clean",
+            "safe": "repaired_safe",
+            "aggressive": "repaired_aggressive",
+        }[repair_level_used],
+        "repairs": log.summary()["actions"],
+        "note": {
+            "off": "The file passes strict validation untouched.",
+            "safe": "The default repair level (safe) reads this file; every "
+                    "normalisation is listed under repairs.",
+            "aggressive": "This file needs --repair aggressive; the structural "
+                          "fixes it would apply are listed under repairs and "
+                          "will be disclosed as warnings on the forecast.",
+        }[repair_level_used],
+    }
+    repair_flag = " --repair aggressive" if repair_level_used == "aggressive" else ""
     from .multivariate import correlation_report
     return {
         "schema_version": "0.1",
@@ -67,11 +104,13 @@ def inspect_dataset(
             for name, items in sorted(loaded.groups.items())
         ],
         "cross_series_correlations": correlation_report(loaded.groups),
+        "data_quality": data_quality,
         "suggested_next": (
             f"aion forecast {Path(input_path).expanduser().resolve()} "
             f"--time {time_column} --target {target_column}"
             + (f" --series {series_column}" if series_column else "")
             + f" --frequency {loaded.frequency} --horizon <periods>"
+            + repair_flag
         ),
     }
 
@@ -121,8 +160,17 @@ def forecast(
     clock: Clock | None = None,
     as_of: datetime | None = None,
     store_path: str | None = None,
+    repair: str = "safe",
 ) -> tuple[ForecastArtifact, Path]:
     clock = clock or SYSTEM_CLOCK
+    from .repair import REPAIR_LEVELS, REPAIR_SAFE, RepairLog
+    if repair not in REPAIR_LEVELS:
+        from .contracts import AionError
+        raise AionError(
+            "INVALID_REPAIR_LEVEL",
+            f"repair must be one of {', '.join(REPAIR_LEVELS)}.",
+            {"requested": repair, "supported": list(REPAIR_LEVELS)},
+        )
     if horizon < 1:
         from .contracts import AionError
         raise AionError("INVALID_HORIZON", "Horizon must be at least one period.")
@@ -132,10 +180,12 @@ def forecast(
             "COMBINED_ENRICHMENT_UNSUPPORTED",
             "Context events and covariates cannot yet be admitted in the same run; evaluate them separately.",
         )
+    repair_log = RepairLog()
     loaded: LoadedDataset = load_stage(
         input_path, time_column=time_column, target_column=target_column,
         series_column=series_column, frequency=frequency,
         as_of=as_of, store_path=store_path,
+        repair=repair, repair_log=repair_log,
     )
     task = ForecastTask(
         input_path if input_path.startswith("store:")
@@ -178,6 +228,9 @@ def forecast(
                 state, covariates, horizon=horizon,
                 minimum_baseline_improvement=minimum_baseline_improvement,
             )
+        repair_warnings = repair_log.warnings_for(series_name)
+        if repair_warnings:
+            state.warnings.extend(repair_warnings)
         rows, support, threshold_analysis = interval_stage(state, threshold=threshold)
         assessment = state.assessment
         from .support import assess_forecast_support
@@ -204,10 +257,15 @@ def forecast(
                 "support": support, "warnings": state.warnings,
             }),
         ])
+    if repair_log.has_actions():
+        evidence.append(Evidence(
+            "data_repair", "data_repair", "__all__",
+            {"level": repair, **repair_log.summary()},
+        ))
     evidence.append(Evidence(
         "snapshot", "snapshot_access", "__all__", loaded.snapshot.access_summary(),
     ))
-    forecast_id = content_id("forecast", {
+    id_payload: dict[str, object] = {
         "source": loaded.source_fingerprint,
         "as_of": as_of.isoformat() if as_of else None,
         "schema": {
@@ -224,7 +282,12 @@ def forecast(
         "context_events": [event.__dict__ for event in context_events] if context_events else None,
         "covariates": {"source": covariates.fingerprint, "specs": [str(spec) for spec in covariates.specs]} if covariates else None,
         "config": _config_fingerprint(config),
-    })
+    }
+    if repair != REPAIR_SAFE:
+        # The default level is absent from the payload so IDs predating the
+        # repair layer are unchanged.
+        id_payload["repair"] = repair
+    forecast_id = content_id("forecast", id_payload)
     artifact = ForecastArtifact(
         "0.1", forecast_id, clock.now().isoformat(),
         "complete", task, loaded.source_fingerprint, results, evidence,
