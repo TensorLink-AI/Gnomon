@@ -45,6 +45,12 @@ Track consequential runs with a `project`; close the loop with
   inputs`. Report exactly that; ask for utilities if the user wants a choice.
 - **Errors are actionable.** Structured errors carry `repair_options`;
   follow one or ask the user rather than improvising.
+- **Never hand-clean data yourself.** For messy files, call `aion_inspect`
+  first: its `data_quality` report names the needed repair level, and
+  `repair: "aggressive"` on `aion_forecast` applies capped, disclosed fixes
+  (gaps, jitter, conflicts) that surface as warnings. Preserve those
+  `repaired_data:` warnings when reporting. Writing your own cleanup code
+  hides the repairs from the audit trail.
 - **Do not infer business thresholds or costs.** Ask, or omit the analysis.
 - **Data stays local** unless the user explicitly requests sharing.
 

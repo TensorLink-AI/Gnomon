@@ -2,13 +2,20 @@
 
 ## Support status
 
-Every series receives one of three statuses:
+Every series receives one of five statuses:
 
-| Status | Meaning in v0.1 |
+| Status | Meaning |
 | --- | --- |
 | `supported` | Evaluation completed, a baseline or candidate was selected, and no warning was triggered. |
-| `weakly_supported` | A forecast was produced with at least one warning: final-test 80% interval coverage below 70%, or a limited (degraded) evaluation with fewer than four rolling folds. Read every warning. |
+| `weakly_supported` | A forecast was produced with at least one warning — interval-coverage shortfalls, or disclosed assumptive data repairs. Read every warning. |
+| `degraded` | A forecast was produced from a limited evaluation (single trailing holdout instead of separated selection, calibration, and test windows). |
+| `supported_ensemble` | An inverse-error-weighted ensemble of eligible models beat the strongest baseline. |
 | `unsupported` | There was insufficient evaluation history (the warning states the exact required and available counts) or no baseline completed every selection fold. No forecast rows are emitted. |
+
+Each result additionally carries a `support_assessment` — a five-state
+harness-wide status (`supported` / `conditionally_supported` /
+`inconclusive` / `unsupported` / `invalid`) with typed reasons,
+assumptions, sensitivity, and recovery actions.
 
 Unsupported is a valid analytical result, unlike malformed input, which produces
 a structured error. Do not relabel unsupported as merely “low confidence.”
@@ -116,8 +123,10 @@ Unsupported series have no rows.
 
 ### `evidence.jsonl`
 
-Append-friendly, one-JSON-record-per-line evidence. v0.1 emits evaluation and
-support records for each series.
+Append-friendly, one-JSON-record-per-line evidence: evaluation and support
+records per series, snapshot-access proof, any `data_repair` disclosure, and
+context/covariate ablations when supplied. Artifact directories also contain
+`lineage.json` — typed artifacts, evidence, and verified claims.
 
 ### `summary.md`
 
@@ -127,7 +136,7 @@ A compact human-readable overview. It is deliberately less detailed than
 ## Reproducibility limits
 
 The input fingerprint proves whether source bytes changed, and the artifact
-preserves the resolved task. v0.1 does not yet record a source-control commit,
+preserves the resolved task. Aion does not yet record a source-control commit,
 wheel hash, operating-system details, or a lockfile inside each artifact. Retain
 the installed package version and original input when exact reproduction matters.
 

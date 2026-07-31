@@ -16,22 +16,27 @@ error and return exit code `2`.
 | Code | Cause | Resolution |
 | --- | --- | --- |
 | `INPUT_NOT_FOUND` | The path is absent or is not a file. | Check the working directory and path. |
-| `UNSUPPORTED_INPUT` | Extension is not CSV, `.parquet`, or `.pq`. | Convert the file or use a supported extension. |
-| `MISSING_OPTIONAL_DEPENDENCY` | Parquet was requested without `pyarrow`. | Install the `parquet` extra. |
+| `UNSUPPORTED_INPUT` | Extension is not a supported format. | Use `.csv`, `.tsv`, `.json`, `.jsonl` (optionally `.gz`), `.parquet`/`.pq`, or `.xlsx`. |
+| `MISSING_OPTIONAL_DEPENDENCY` | Parquet or Excel input without its extra. | Install the extra named in `details.install`. |
 | `MISSING_COLUMNS` | A mapped column is not present. | Inspect the reported available columns and correct the option. |
 | `EMPTY_DATASET` | The file has headers but no observations. | Supply at least one data row. |
-| `INVALID_TIMESTAMP` | A timestamp is not accepted ISO 8601. | Normalize the indicated row's timestamp. |
-| `INVALID_TARGET` | A target value cannot be converted to a number. | Repair or explicitly preprocess missing/non-numeric values. |
-| `MIXED_TIMEZONES` | Aware and naive timestamps are mixed. | Normalize the entire timestamp column consistently. |
+| `INVALID_ENCODING` | The file is not valid UTF-8 (strict mode only). | Re-export as UTF-8, or use the default repair level (Windows-1252 assumed, disclosed). |
+| `INVALID_TIMESTAMP` | A timestamp has no accepted reading. | Normalize the indicated row, or `--repair aggressive` to drop unparseable rows (capped). |
+| `INVALID_TARGET` | A target value has no numeric reading. | Fix the indicated row, or `--repair aggressive` to drop such rows (capped). |
+| `AMBIGUOUS_DATE_ORDER` | Slash dates could be day-first or month-first and no row proves the order. | Use ISO dates, or `--repair aggressive` to assume month-first (disclosed). |
+| `MIXED_TIMEZONES` | Aware and naive timestamps are mixed. | Normalize the column, or `--repair aggressive` to assume naive rows are UTC (disclosed). |
 | `AMBIGUOUS_FREQUENCY` | Too few timestamps or no supported interval dominates. | Supply more regular data or an explicit supported frequency. |
-| `UNSUPPORTED_FREQUENCY` | The requested code is unsupported. | Use `h`, `D`, `W`, or `MS`. |
-| `DUPLICATE_TIMESTAMPS` | A series contains the same timestamp twice. | Deliberately aggregate or remove duplicates upstream. |
-| `IRREGULAR_TIME_GRID` | A period is missing or spacing is irregular. | Fill/reindex upstream according to your chosen policy. |
+| `UNSUPPORTED_FREQUENCY` | The requested code is unsupported. | Use a code from `aion capabilities` (e.g. `min`, `h`, `D`, `W`, `MS`). |
+| `DUPLICATE_TIMESTAMPS` | Conflicting values share a timestamp (identical rows collapse under the default repair). | Resolve upstream, ingest as revisions, or `--repair aggressive` (last row wins, disclosed). |
+| `IRREGULAR_TIME_GRID` | A period is missing or spacing is irregular. | Fill/reindex upstream, or `--repair aggressive` to interpolate interior gaps and snap jitter (capped). |
 | `FREQUENCY_MISMATCH` | Requested and inferred frequencies disagree. | Correct the frequency or input timestamps. |
 | `INVALID_HORIZON` | Horizon is less than one. | Use a positive integer. |
+| `EXCESSIVE_REPAIR` | Repair would touch too much of a series (~30%, or >5% dropped rows). | Fix the export at the source; forecasting a mostly invented series is refused. |
+| `INVALID_REPAIR_LEVEL` | Unknown `--repair` value. | Use `off`, `safe`, or `aggressive`. |
 
 The JSON error's `details` field often includes the row, value, expected next
-timestamp, available columns, or detected frequencies.
+timestamp, available columns, or detected frequencies, and every error carries
+machine-readable `repair_options` naming the next actions.
 
 ## The run is `unsupported`
 
