@@ -64,7 +64,10 @@ abstention and error counts, never without them.
 
 ## Environment
 
-- `OPENROUTER_API_KEY` — required for any condition that queries a model.
+- `OPENROUTER_API_KEY` — required for any condition that queries a
+  model. Export it, or put it in an untracked `.env` file (`KEY=value`
+  lines) in the working directory or repository root — a real
+  environment variable always wins over the file.
 - Aion importable (`bash install.sh`, `uv tool install .`, or
   `PYTHONPATH=src` from the repository root).
 - Per-benchmark dependencies are deliberately not part of Aion's own

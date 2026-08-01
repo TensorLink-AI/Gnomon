@@ -63,6 +63,10 @@ class OpenRouterClient:
         timeout: int = DEFAULT_TIMEOUT_SECONDS,
     ) -> None:
         self.model = model
+        if not api_key and "OPENROUTER_API_KEY" not in os.environ:
+            from benchmarks.common.envfile import load_env_file
+
+            load_env_file()
         self.api_key = api_key or os.environ.get("OPENROUTER_API_KEY", "")
         self.base_url = base_url.rstrip("/")
         self.temperature = temperature
@@ -94,8 +98,9 @@ class OpenRouterClient:
         """
         if not self.api_key:
             raise OpenRouterError(
-                "OPENROUTER_API_KEY is not set. Export it before running a "
-                "benchmark that queries an LLM."
+                "OPENROUTER_API_KEY is not set. Export it, or put it in a "
+                ".env file in the working directory or repository root, "
+                "before running a benchmark that queries an LLM."
             )
         payload = {
             "model": self.model,
