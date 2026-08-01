@@ -154,6 +154,36 @@ decision-outcome tools over stdio MCP for any MCP-capable host. Discover the
 installed list with `tools/list`; logs go to stderr and the protocol owns
 stdout.
 
+## `aion tsfm`
+
+Manage sandboxed time-series foundation models. The base install is
+zero-dependency; each TSFM lives in its own isolated venv (created with
+`uv`), so pulling one never touches your environment or another model's
+pins. Model weights download from the Hugging Face Hub on first inference:
+
+```bash
+aion tsfm list                        # installable vs installed, with verified capabilities
+aion tsfm install chronos_bolt_mini   # create the sandbox venv + dependencies
+aion tsfm install moment_small        # multi-task: also unlocks a detect candidate
+aion tsfm install-all                 # every registered adapter
+aion tsfm remove chronos_bolt_mini    # delete the sandbox venv
+```
+
+Installing a sandbox is all the wiring there is: on the next `aion
+forecast`, the model joins the backtest candidate pool and must beat the
+statistical models to be selected. Installing `moment_small` additionally
+adds a `moment_small_reconstruction` candidate to `aion detect`, graded
+like every other detector. Nothing is ever selected on reputation —
+uninstalled models are simply absent, and installed ones compete.
+
+**For agents:** `aion_capabilities` reports the state machine-readably —
+`models.tsfm_available` (installable), `models.tsfm_sandboxes` (installed),
+and `models.tsfm_capabilities` (verified per-model limits and tasks) —
+plus the install command template. Sandbox installation is a deliberate
+human/shell step, not an MCP tool: an agent that wants a model should run
+`aion tsfm install <name>` where it has shell access, or ask the operator
+to.
+
 ## `aion track`
 
 Persist forecasts in a local SQLite registry and score them after the complete
