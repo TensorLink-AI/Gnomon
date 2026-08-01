@@ -21,6 +21,9 @@ Adapter decisions, disclosed:
   may propose typed context events (never numbers), which Aion's
   admission gate accepts or rejects — the same contract as the CiK
   adapter. ``pure`` mode ignores the text entirely.
+- In ``tools`` mode the model gets the history and the article and
+  drives Aion through a tool loop, then submits one computed run as its
+  answer; it never writes numbers. See ``tool_agent``.
 - If Aion abstains on a sample, the sample is recorded as an abstention
   and excluded from cumulative metrics — exactly how the official
   scripts treat their own failed samples, but visible in the summary.
@@ -189,6 +192,11 @@ def forecast_sample(sample: dict[str, Any], *, mode: str,
     from aion import forecast as aion_forecast
     from aion.contracts import AionError
 
+    if mode == "tools":
+        from benchmarks.mtbench.tool_agent import run_sample
+
+        return run_sample(sample, client, work_dir=work_dir)
+
     values = [float(v) for v in sample["input_window"]]
     horizon = len(sample["output_window"])
     run_dir = Path(tempfile.mkdtemp(prefix="mtbench-aion-", dir=work_dir))
@@ -237,7 +245,7 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
     if mtbench_root is not None and str(mtbench_root) not in sys.path:
         sys.path.insert(0, str(mtbench_root))
     client = (OpenRouterClient(openrouter_model, temperature=temperature)
-              if mode == "agent" else None)
+              if mode in ("agent", "tools") else None)
     samples = load_samples(dataset_folder)
     if limit:
         samples = samples[:limit]
@@ -281,6 +289,12 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
                 "selected_model": outcome["selected_model"],
                 "events": outcome["events"],
             })
+            # `tools` mode: keep the loop auditable — which run the model
+            # submitted, how many it computed, and every call it made.
+            for key in ("forecast_ref", "forecasts_computed", "tool_calls",
+                        "submit_reasoning", "trace"):
+                if outcome.get(key) is not None:
+                    entry[key] = outcome[key]
             if is_failed:
                 failed += 1
             else:
