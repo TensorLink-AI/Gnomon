@@ -14,6 +14,7 @@ interval on a separate window, and either returns a supported result or abstains
 
 | Document | Use it when |
 | --- | --- |
+| [Architecture](architecture.md) | You want the design as diagrams: layers, pipeline, folds, trust boundary. |
 | [Installation](installation.md) | You want Bash, uv, or PyPI installation options. |
 | [Getting started](getting-started.md) | You want a complete first run. |
 | [Data format](data-format.md) | You need to prepare or validate input data. |

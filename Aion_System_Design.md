@@ -83,6 +83,11 @@ The loop stops when the budget is exhausted, the decision is sufficiently suppor
 
 ### Architecture overview
 
+> Rendered Mermaid versions of this and eight other views of the design —
+> the pipeline stages, evaluation partitions, enrichment admission, support
+> states, the bitemporal store, and an agent sequence — live in
+> [`docs/architecture.md`](docs/architecture.md).
+
 ```text
 Human or external application
             │

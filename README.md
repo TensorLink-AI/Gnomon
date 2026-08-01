@@ -348,6 +348,7 @@ Parquet extra, and future PyPI command are covered in the
 
 | Guide | Purpose |
 | --- | --- |
+| [Architecture](docs/architecture.md) | The design as diagrams: layers, pipeline, folds, enrichment, trust boundary |
 | [MCP quickstart](docs/quickstart-mcp.md) | Hook Aion to an agent and get a grounded answer in a minute |
 | [Getting started](docs/getting-started.md) | Complete first run |
 | [Installation](docs/installation.md) | Bash, uv, GitHub, Docker, and PyPI options |
