@@ -223,6 +223,22 @@ def predict_stage(
             state.residuals = pooled
     elif assessment.selected_model in MODELS:
         state.points = predict(assessment.selected_model, values, horizon, season)
+    elif ":" in assessment.selected_model:
+        # Plugin backend model selected — resolve through the registry.
+        from .backends import resolve_backend_model
+        backend_fn = resolve_backend_model(assessment.selected_model)
+        try:
+            if backend_fn is None:
+                raise ValueError(f"backend model {assessment.selected_model!r} is no longer available")
+            state.points = backend_fn(values, horizon, season)
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning(
+                "Backend model %s failed during final forecast, falling back to %s: %s",
+                assessment.selected_model, assessment.strongest_baseline, exc,
+            )
+            state.selected_model = assessment.strongest_baseline
+            state.points = predict(state.selected_model, values, horizon, season)
     else:
         # TSFM selected — use the adapter for the final forecast.
         # Try sandbox first, then in-process.

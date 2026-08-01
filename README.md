@@ -142,6 +142,15 @@ question and the explanation, and never produces a number.
   a TSFM wins only by out-forecasting them on your data. When an eligible
   TSFM tier is *not* installed, the result says so in a note (support is
   unaffected), so the stronger candidate is never silently absent.
+- Pluggable model backends: any installed package can contribute forecast
+  candidates through the `aion.model_backends` entry-point group — same
+  folds, same mandatory baselines, namespaced names
+  (`statsforecast:auto_ets`) carrying provenance into every score and
+  artifact. The first-party statsforecast backend
+  (`pip install "aion-forecast[statistical]"`) adds Nixtla's AutoETS,
+  AutoARIMA, and AutoTheta as a middle tier between the zero-dependency
+  classical core and the sandboxed TSFMs; installed backends salt the
+  artifact ID, because a different candidate set is a different task.
 - Five-state support assessments with typed reasons and recovery actions;
   typed lineage and a deterministic claim verifier on every response.
 - Messy-data repair (`--repair off|safe|aggressive`): mixed date formats,

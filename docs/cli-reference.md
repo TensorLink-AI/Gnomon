@@ -184,6 +184,15 @@ human/shell step, not an MCP tool: an agent that wants a model should run
 `aion tsfm install <name>` where it has shell access, or ask the operator
 to.
 
+Plugin model backends are reported the same way:
+`models.plugin_backends` (installed backends with versions) and
+`models.plugin_candidates` (namespaced candidate names such as
+`statsforecast:auto_ets`). Any installed package can contribute
+candidates through the `aion.model_backends` entry-point group; the
+first-party statsforecast backend arrives with
+`pip install "aion-forecast[statistical]"`. Plugin candidates enter the
+same folds against the same mandatory baselines as every other model.
+
 ## `aion track`
 
 Persist forecasts in a local SQLite registry and score them after the complete

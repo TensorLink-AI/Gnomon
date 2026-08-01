@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Pluggable model backends: packages can contribute forecast candidates
+  via the `aion.model_backends` entry-point group (or `register_backend`
+  programmatically). Plugin models run in the same rolling folds as every
+  candidate, must beat the mandatory baselines, score `None` on any fold
+  where they fail, and appear under namespaced names
+  (`backend:model`) in scores and artifacts. Installed backends salt the
+  artifact ID (`model_backends` in the ID payload; absent when none are
+  installed, so existing IDs are unchanged) and are listed by
+  `aion capabilities` under `models.plugin_backends` /
+  `models.plugin_candidates`. The first-party statsforecast backend
+  (`pip install "aion-forecast[statistical]"`) contributes
+  `statsforecast:auto_ets`, `statsforecast:auto_arima`, and
+  `statsforecast:auto_theta`.
+
 - Data-insufficiency abstentions now name the way out: the refusal computes
   the largest horizon the supplied observations can support and, when one
   exists, adds a `reduce_horizon` recovery action ("retry with
