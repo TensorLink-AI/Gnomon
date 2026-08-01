@@ -139,7 +139,10 @@
           }
         ],
         "legacy_support": "degraded"
-      }
+      },
+      "notes": [
+        "No foundation-model candidate competed: chronos_bolt_mini, chronos_bolt_small, flowstate, moirai2_small, moment_small, toto2_22m, ttm are eligible for this series but no sandbox is installed. Run `aion tsfm install chronos_bolt_mini` to add one; it enters the same folds against the same baselines."
+      ]
     }
   ],
   "evidence": [

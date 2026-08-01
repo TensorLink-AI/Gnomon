@@ -135,6 +135,13 @@ question and the explanation, and never produces a number.
 - Bitemporal store (`aion ingest`, `store:<dataset>` inputs): every value
   carries *when it became known*; `--as-of` replays any historical instant
   and the artifact proves nothing later was touched.
+- A foundation-model tier (`aion tsfm install chronos_bolt_mini`): adapters
+  for Chronos-Bolt, Toto, Moment, and Moirai, each in its own sandboxed
+  venv so their conflicting dependencies never touch yours. Once installed
+  they enter the same backtest folds against the same mandatory baselines —
+  a TSFM wins only by out-forecasting them on your data. When an eligible
+  TSFM tier is *not* installed, the result says so in a note (support is
+  unaffected), so the stronger candidate is never silently absent.
 - Five-state support assessments with typed reasons and recovery actions;
   typed lineage and a deterministic claim verifier on every response.
 - Messy-data repair (`--repair off|safe|aggressive`): mixed date formats,
@@ -167,6 +174,7 @@ Install Aion from this checkout and inspect the included dataset:
 
 ```bash
 bash install.sh
+aion tsfm install chronos_bolt_mini  # optional: adds a foundation-model candidate
 
 aion inspect examples/daily_requests.csv \
   --time timestamp \
@@ -365,8 +373,10 @@ frozen surface and every amendment to it.
 ## Current limits
 
 Aion remains a focused foundation, not a universal forecasting platform. Its
-built-in models are deterministic classical methods (optional TSFM adapters
-raise the ceiling but need their own sandbox dependencies). Causal
+zero-dependency default models are deterministic classical methods; the
+sandboxed TSFM tier (Chronos-Bolt, Toto, Moment, Moirai) raises the ceiling
+but is opt-in via `aion tsfm install`, and a fresh install runs classical-only
+until then — the result's notes disclose when that happened. Causal
 claims are never made — `investigate` stops at ranked associational
 explanations by design. Realised leaderboards are observational telemetry and
 never trigger automatic model switching. A `supported` result means the

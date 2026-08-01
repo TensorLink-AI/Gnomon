@@ -138,6 +138,17 @@ Error envelope: `{"schema_version", "status": "error", "error": {"code",
   `task_conditioned_leaderboard`, `task_routing`. Forecast artifacts and
   goldens are unaffected.
 
+- Result notes (TSFM availability disclosure), additive: every forecast
+  `SeriesResult` gains `notes` (list of strings, default empty) — purely
+  informational disclosures that, unlike `warnings`, never downgrade
+  support. The first note: when TSFM candidates are capability-eligible
+  for a series but no sandbox (or in-process adapter) is installed, the
+  result names the eligible adapters and the `aion tsfm install` command
+  that would add them to the same folds. `summary.md` renders notes as
+  `- Note:` lines after warnings. Warnings, support semantics, forecast
+  values, and artifact IDs are unchanged; goldens were refreshed for the
+  new field only.
+
 ## Enforcement
 
 `tests/test_golden_artifacts.py` pins byte-exact `artifact.json` output for
@@ -146,7 +157,9 @@ affected; refresh only with `pytest --update-goldens` and record the change
 here.
 
 Golden refreshes on record: 0.4.0 (version-salt bump only — every
-`forecast_id` changed, no numeric or structural output changed).
+`forecast_id` changed, no numeric or structural output changed); result
+notes (each result gained a `notes` key — no numeric output or ID
+changed).
 
 Scope of the byte guarantee: deterministic replay yields identical bytes
 **per interpreter**. CPython 3.12 changed builtin `sum()` to Neumaier
