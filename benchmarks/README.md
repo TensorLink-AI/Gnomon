@@ -77,3 +77,23 @@ Run everything from the repository root with `python -m`, e.g.:
 python -m benchmarks.cik.run_cik --help
 python -m benchmarks.anomllm.run_anomllm --help
 ```
+
+## Batch runs
+
+`benchmarks/run_all.py` drives any subset of the adapters from one YAML
+(or JSON) config: shared `model`, `defaults.temperature`,
+`defaults.limit`, and per-run output dirs under `output_root` are
+injected where each adapter's CLI supports them, adapter-specific
+options pass through `args` verbatim, and every produced `summary.json`
+is collected into `<output_root>/combined_summary.json`.
+
+```bash
+python -m benchmarks.run_all --config benchmarks/configs/example.yaml --dry-run
+python -m benchmarks.run_all --config my-batch.yaml --only tb-control,tb-aion
+python -m benchmarks.run_all --config my-batch.yaml --continue-on-error
+```
+
+See `benchmarks/configs/example.yaml` for a config covering all five
+benchmarks. Datasets are not downloaded by the orchestrator — run each
+adapter's `--download`/setup step once first (see the per-benchmark
+READMEs).
