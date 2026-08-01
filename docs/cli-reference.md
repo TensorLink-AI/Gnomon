@@ -166,6 +166,7 @@ aion track actuals --project capacity --file actuals.csv
 aion track list --project capacity
 aion track performance --project capacity --model seasonal_naive
 aion track leaderboard --project capacity
+aion track leaderboard --project capacity --task forecast
 aion track compare --a FORECAST_ID --b FORECAST_ID
 aion track due --project capacity
 aion track decision record --decision-id scale-001 --project capacity \
@@ -186,8 +187,14 @@ from producing a misleading final score.
 MASE uses the naive scaling error saved from the training series when the
 forecast is registered. It is reported as unavailable for constant histories
 whose scale is zero. The leaderboard is descriptive historical telemetry: it
-does not prove that one model caused better outcomes, and it does not currently
-change future model selection automatically.
+does not prove that one model caused better outcomes, and it does not change
+future model selection automatically — `aion route` consults it as a
+disclosed, advisory prior, and evaluated runs still backtest every candidate.
+
+Each registered run also records its task (`forecast` by default) and a
+deterministic series fingerprint (trend, noise ratio, intermittency,
+direction-change rate, season), which `--task` filtering and the router's
+fingerprint-weighted prior are built on.
 
 The default registry is `~/.local/share/aion/registry.db`. Override it with
 `AION_REGISTRY_PATH` for isolated projects, tests, or containers.
@@ -229,6 +236,40 @@ aion investigate data.csv --time timestamp --target value
 aion investigate data.csv --time timestamp --target value \
   --context events.json --as-of 2026-06-01
 ```
+
+## `aion detect`
+
+What is abnormal? Candidate detectors — robust z-score, rolling-median
+residual, forecast-interval exceedance, plus any installed multi-task TSFM
+sandbox's reconstruction error — compete on a deterministic synthetic
+anomaly-injection grader; the winner flags anomalies and every candidate's
+precision/recall/F1 is disclosed in the artifact:
+
+```bash
+aion detect data.csv --time timestamp --target value
+aion detect data.csv --time timestamp --target value \
+  --threshold 3.0 --labels "2026-05-04,2026-06-11"
+```
+
+With `--labels` (known anomaly timestamps), detector selection uses label
+F1 instead of the synthetic grader.
+
+## `aion route`
+
+Which method for this task on this data? A disclosed, advisory routing
+decision: verified capability filter, then a fingerprint-weighted
+realised-performance prior from the tracking store — claimed only when
+enough scored history exists, never cold:
+
+```bash
+aion route data.csv --time timestamp --target value --task forecast \
+  --horizon 14 --project ops
+aion route data.csv --time timestamp --target value --task detect_anomalies
+```
+
+With `--project`, the prior is consulted and the decision recorded to the
+tracking store for replay. Evaluated runs still backtest every candidate;
+an explicit model choice always wins.
 
 ## `aion decide`
 
