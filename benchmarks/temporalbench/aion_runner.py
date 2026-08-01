@@ -7,9 +7,14 @@ Adapter decisions, disclosed:
   Aion models each channel on a synthetic regular hourly axis
   (observation *k* at epoch + *k* hours). Metrics are index-based; the
   axis never enters the score.
-- Missing readings (nulls) are written as ``N/A`` cells and handled by
-  Aion's disclosed repair layer (``--repair aggressive``), never
-  silently imputed by the adapter.
+- Missing readings (nulls) are omitted, and the readings that exist are
+  laid out consecutively on that axis. TemporalBench's clinical
+  channels are recorded irregularly, so a dense hourly grid would be
+  >30% holes — asking Aion to invent most of a series (its repair cap
+  rightly refuses at 30%, which abstained on 48 of 50 rows) instead of
+  forecasting the readings actually taken. The missingness was the
+  adapter's own construction, not the data's. Targets are the next *H*
+  entries either way, so the alignment of the forecast is unchanged.
 - Forecasts are Aion's q50 path per channel. A channel Aion abstains on
   stays absent — the official scorer then reports the row as missing,
   which is recorded as an abstention, not papered over.
@@ -37,17 +42,11 @@ EPOCH = datetime(2021, 1, 1, tzinfo=timezone.utc)
 STEP = timedelta(hours=1)
 
 
-def _clean(values: list[float | None]) -> list[float]:
-    filled: list[float] = []
-    previous = None
-    for value in values:
-        if value is None:
-            if previous is None:
-                continue
-            value = previous
-        filled.append(float(value))
-        previous = value
-    return filled
+def _observed(values: list[float | None]) -> list[float]:
+    """The readings that exist, in order. Nulls are absent, not filled:
+    forward-filling would flatten real variation and hand the anomaly
+    and season detectors runs of values nobody recorded."""
+    return [float(value) for value in values if value is not None]
 
 
 def forecast_channel(values: list[float | None], horizon: int,
@@ -58,17 +57,17 @@ def forecast_channel(values: list[float | None], horizon: int,
 
     run_dir = Path(tempfile.mkdtemp(prefix="tb-aion-", dir=work_dir))
     csv_path = run_dir / "history.csv"
+    observed = _observed(values)
     with csv_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
         writer.writerow(["timestamp", "value"])
-        for index, value in enumerate(values):
-            cell = "N/A" if value is None else repr(float(value))
-            writer.writerow([(EPOCH + index * STEP).isoformat(), cell])
+        for position, value in enumerate(observed):
+            writer.writerow([(EPOCH + position * STEP).isoformat(), repr(value)])
     try:
         artifact, _ = aion_forecast(
             str(csv_path), time_column="timestamp", target_column="value",
             horizon=horizon, frequency="h",
-            output=str(run_dir / "aion-output"), repair="aggressive",
+            output=str(run_dir / "aion-output"),
         )
     except AionError as error:
         return {"abstained": True, "reason": f"{error.code}: {error.message}"}
@@ -99,7 +98,7 @@ def analyse_row(row: dict[str, Any], work_dir: str | None = None) -> dict[str, A
                    else meta.get("target_keys") or ([main_key] if main_key else []))
 
     analysis: dict[str, Any] = {"main_key": main_key, "channels": {}}
-    main_values = _clean(arrays.get(main_key, [])) if main_key else []
+    main_values = _observed(arrays.get(main_key, [])) if main_key else []
     if main_values:
         season, strength, basis = detect_season(main_values, "h")
         analysis["season"] = {"period": season, "strength": round(strength, 4),
