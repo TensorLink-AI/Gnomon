@@ -59,6 +59,7 @@ class SeriesState:
     residuals: list[float] = field(default_factory=list)
     coverage: float | None = None
     warnings: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
     context_public: dict[str, object] | None = None
     covariate_public: dict[str, object] | None = None
     context_assessment: ContextAssessment | None = None
@@ -179,6 +180,7 @@ def evaluate_stage(
     state.selected_model = assessment.selected_model
     state.coverage = assessment.coverage
     state.warnings = list(assessment.warnings)
+    state.notes = list(assessment.notes)
     state.residuals = assessment.residuals
 
 

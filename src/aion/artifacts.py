@@ -58,6 +58,7 @@ def write_artifact(
                     "the point forecast is a flat line at the last observed value."
                 )
             lines.extend(f"- Warning: {warning}" for warning in result.warnings)
+            lines.extend(f"- Note: {note}" for note in result.notes)
             if result.threshold:
                 lines.extend([
                     "", f"### Threshold {result.threshold['value']}", "",

@@ -110,7 +110,9 @@ The canonical complete run record. It embeds:
 - schema and task settings;
 - absolute source path and SHA-256 content fingerprint;
 - selected model, strongest baseline, scores, improvement, and support;
-- final forecast rows and warnings; and
+- final forecast rows, warnings, and notes (informational disclosures —
+  e.g. an eligible-but-uninstalled TSFM tier — that, unlike warnings,
+  never downgrade support); and
 - evidence records for evaluation partitioning and support assessment.
 
 JSON is written with NaN and Infinity disabled. A run directory is exposed only

@@ -96,6 +96,28 @@ can't carry.
   scored against realised outcomes — regret against the best feasible
   action in hindsight, not vibes.
 
+## Where Aion sits in the research landscape
+
+The TMLR survey [*A Survey of Reasoning and Agentic Systems in Time Series
+with Large Language Models*](https://arxiv.org/abs/2509.11575) (curated
+paper list: [Time-Series-Reasoning-Survey](https://github.com/blacksnail789521/Time-Series-Reasoning-Survey))
+organises the field by reasoning topology — direct, linear chain,
+branch-structured — and primary objective, with attribute tags for
+decomposition, verification, ensembling, tool use, and knowledge access.
+
+In that taxonomy, an agent paired with Aion is a branch-structured system
+spanning traditional time-series analysis (`forecast`, `detect`),
+explanation (`investigate`), and advisory decision support (`decide`,
+`monitor`), with the full set of control-flow attributes: task
+decomposition (five verbs plus routing), ensemble selection (backtested
+model competition against mandatory baselines), tool use (Aion *is* the
+tool), and knowledge access (fold-validated covariate enrichment). The
+difference from the surveyed systems is where verification lives. There it
+is typically LLM self-critique or reflection; here the verifier is
+deterministic code, and the LLM is structurally unable to override it. Aion
+is the execution actor those systems assume: the agent improves the
+question and the explanation, and never produces a number.
+
 ## What it does today
 
 **Five verbs.**
@@ -113,6 +135,13 @@ can't carry.
 - Bitemporal store (`aion ingest`, `store:<dataset>` inputs): every value
   carries *when it became known*; `--as-of` replays any historical instant
   and the artifact proves nothing later was touched.
+- A foundation-model tier (`aion tsfm install chronos_bolt_mini`): adapters
+  for Chronos-Bolt, Toto, Moment, and Moirai, each in its own sandboxed
+  venv so their conflicting dependencies never touch yours. Once installed
+  they enter the same backtest folds against the same mandatory baselines —
+  a TSFM wins only by out-forecasting them on your data. When an eligible
+  TSFM tier is *not* installed, the result says so in a note (support is
+  unaffected), so the stronger candidate is never silently absent.
 - Five-state support assessments with typed reasons and recovery actions;
   typed lineage and a deterministic claim verifier on every response.
 - Messy-data repair (`--repair off|safe|aggressive`): mixed date formats,
@@ -145,6 +174,7 @@ Install Aion from this checkout and inspect the included dataset:
 
 ```bash
 bash install.sh
+aion tsfm install chronos_bolt_mini  # optional: adds a foundation-model candidate
 
 aion inspect examples/daily_requests.csv \
   --time timestamp \
@@ -343,8 +373,10 @@ frozen surface and every amendment to it.
 ## Current limits
 
 Aion remains a focused foundation, not a universal forecasting platform. Its
-built-in models are deterministic classical methods (optional TSFM adapters
-raise the ceiling but need their own sandbox dependencies). Causal
+zero-dependency default models are deterministic classical methods; the
+sandboxed TSFM tier (Chronos-Bolt, Toto, Moment, Moirai) raises the ceiling
+but is opt-in via `aion tsfm install`, and a fresh install runs classical-only
+until then — the result's notes disclose when that happened. Causal
 claims are never made — `investigate` stops at ranked associational
 explanations by design. Realised leaderboards are observational telemetry and
 never trigger automatic model switching. A `supported` result means the

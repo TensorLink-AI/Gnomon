@@ -201,6 +201,27 @@ class TestSandbox:
         assert result.supported is True
         assert result.selected_model is not None
 
+    def test_evaluate_notes_disclose_missing_tsfm_tier(self):
+        """Eligible-but-uninstalled TSFMs must be disclosed as a note that
+        names the install command — and must not downgrade support."""
+        values = [100.0 + 2.0 * i for i in range(200)]
+        result = evaluate(
+            values, horizon=24, season=24, minimum_improvement=0.02, frequency="h",
+        )
+        assert result.supported is True
+        assert result.notes, "expected a TSFM-availability note"
+        assert any("aion tsfm install" in note for note in result.notes)
+        assert not any("aion tsfm install" in warning for warning in result.warnings)
+
+    def test_evaluate_notes_empty_when_tsfms_explicitly_disabled(self):
+        """An explicit empty request means no TSFM tier was wanted: no note."""
+        values = [100.0 + 2.0 * i for i in range(200)]
+        result = evaluate(
+            values, horizon=24, season=24, minimum_improvement=0.02,
+            frequency="h", tsfm_names=[],
+        )
+        assert result.notes == []
+
     def test_evaluate_tsfm_scores_present(self):
         """Evaluation result should have a tsfm_scores dict."""
         values = [100.0 + 2.0 * i for i in range(200)]

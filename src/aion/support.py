@@ -61,12 +61,22 @@ def assess_forecast_support(
     # v0.2 "unsupported" is always a data-insufficiency abstention: the
     # evaluation could not run, so the honest status is inconclusive — the
     # evidence does not argue against forecasting, it is simply absent.
+    recovery = [SupportReason("provide_more_history",
+                              "Supply more observations, or lower the horizon, so rolling evaluation can run.")]
+    reachable = assessment.max_supportable_horizon if assessment is not None else None
+    if reachable is not None:
+        # A refusal must not be a dead end: name the horizon that trades
+        # reach for an honest result with the data already supplied.
+        recovery.insert(0, SupportReason(
+            "reduce_horizon",
+            f"Retry with horizon {reachable} or less: the observations "
+            f"already supplied support evaluation at that horizon.",
+        ))
     return SupportAssessment(
         "inconclusive",
         [SupportReason("insufficient_evaluation", message) for message in warnings]
         or [SupportReason("insufficient_evaluation", "The evaluation protocol could not complete.")],
         assumptions, sensitivity,
-        [SupportReason("provide_more_history",
-                       "Supply more observations, or lower the horizon, so rolling evaluation can run.")],
+        recovery,
         support,
     )

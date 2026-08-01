@@ -248,6 +248,7 @@ def forecast(
             state.coverage, state.warnings, rows, state.context_public,
             state.covariate_public, threshold_analysis,
             support_assessment.to_dict(),
+            notes=state.notes,
         )
         results.append(result)
         evidence.extend(state.evidence)

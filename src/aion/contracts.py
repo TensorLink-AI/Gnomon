@@ -170,6 +170,9 @@ class SeriesResult:
     covariates: dict[str, Any] | None = None
     threshold: dict[str, Any] | None = None
     support_assessment: dict[str, Any] | None = None
+    # Informational disclosures (e.g. an uninstalled-but-eligible TSFM tier);
+    # unlike warnings these never downgrade support.
+    notes: list[str] = field(default_factory=list)
 
 
 @dataclass

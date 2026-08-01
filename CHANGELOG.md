@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+- Data-insufficiency abstentions now name the way out: the refusal computes
+  the largest horizon the supplied observations can support and, when one
+  exists, adds a `reduce_horizon` recovery action ("retry with
+  `--horizon N`") to the support assessment and the warning text — in both
+  the default degraded path and `--strict-abstention` mode. When no shorter
+  horizon would succeed, no retry is suggested.
+
+- Forecast results gain an informational `notes` channel (additive; never
+  downgrades support, unlike warnings). When TSFM candidates are eligible
+  for a series but none is installed, the result now says so and names the
+  `aion tsfm install` command — a fresh install no longer silently hides
+  the foundation-model tier. Notes render in `summary.md` as `- Note:`
+  lines.
+- README: the sandboxed TSFM tier (Chronos-Bolt, Toto, Moment, Moirai) is
+  documented as a first-class capability — same folds, same mandatory
+  baselines — instead of a parenthetical, and the quickstart shows the
+  optional install command.
+
 ## 0.4.0 — first-contact release (2026-08-01)
 
 The beta-readiness release: real-world files work on first contact, a

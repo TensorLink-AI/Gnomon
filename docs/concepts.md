@@ -57,6 +57,14 @@ Aion distinguishes two failure classes:
 This prevents a plausible-looking forecast from being returned when the
 evaluation contract cannot be satisfied.
 
+An abstention is never a dead end. Alongside `provide_more_history`, the
+support assessment computes the largest horizon the supplied observations
+*can* support and, when one exists, names it as a `reduce_horizon`
+recovery action (and in the warning text: "retry with `--horizon N`") —
+an immediate trade of forecast reach for an honest result, instead of
+waiting for more data. When no shorter horizon would succeed either, the
+recovery is absent rather than aspirational.
+
 ## Current methodological limits
 
 Aion is a correct, deliberately narrow foundation—not a general forecasting
