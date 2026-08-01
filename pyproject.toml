@@ -18,10 +18,10 @@ excel = ["openpyxl>=3.1"]
 dev = ["build>=1.2", "pytest>=8", "pyyaml>=6.0"]
 
 # AionBench — the temporal-reasoning benchmark harness in benchmarks/.
-# Aion's own runtime stays dependency-free; these are the benchmark's needs
-# (parquet corpora, YAML rosters). The OpenRouter client is stdlib-only.
-# Runs the harness itself, and TSAIA's own gen_eval.py, which the tsaia
+# Aion's own runtime stays dependency-free; these are the benchmark's needs:
+# parquet corpora, YAML rosters, and TSAIA's own gen_eval.py, which the tsaia
 # suite fetches (pinned) and calls directly rather than paraphrasing.
+# The OpenRouter client itself is stdlib-only.
 bench = [
   "pyarrow>=15",
   "pyyaml>=6.0",
