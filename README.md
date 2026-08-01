@@ -96,6 +96,28 @@ can't carry.
   scored against realised outcomes — regret against the best feasible
   action in hindsight, not vibes.
 
+## Where Aion sits in the research landscape
+
+The TMLR survey [*A Survey of Reasoning and Agentic Systems in Time Series
+with Large Language Models*](https://arxiv.org/abs/2509.11575) (curated
+paper list: [Time-Series-Reasoning-Survey](https://github.com/blacksnail789521/Time-Series-Reasoning-Survey))
+organises the field by reasoning topology — direct, linear chain,
+branch-structured — and primary objective, with attribute tags for
+decomposition, verification, ensembling, tool use, and knowledge access.
+
+In that taxonomy, an agent paired with Aion is a branch-structured system
+spanning traditional time-series analysis (`forecast`, `detect`),
+explanation (`investigate`), and advisory decision support (`decide`,
+`monitor`), with the full set of control-flow attributes: task
+decomposition (five verbs plus routing), ensemble selection (backtested
+model competition against mandatory baselines), tool use (Aion *is* the
+tool), and knowledge access (fold-validated covariate enrichment). The
+difference from the surveyed systems is where verification lives. There it
+is typically LLM self-critique or reflection; here the verifier is
+deterministic code, and the LLM is structurally unable to override it. Aion
+is the execution actor those systems assume: the agent improves the
+question and the explanation, and never produces a number.
+
 ## What it does today
 
 **Five verbs.**
