@@ -327,7 +327,7 @@ def capabilities() -> dict[str, object]:
     from .tsfm_sandbox import list_sandboxes
     return {
         "schema_version": "0.1",
-        "runtime_version": "0.3.0",
+        "runtime_version": "0.4.0",
         "interfaces": {"cli": True, "python": True, "mcp": True, "http": False},
         "inputs": {
             "csv": True, "tsv": True, "json": True, "jsonl": True,

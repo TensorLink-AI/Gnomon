@@ -62,3 +62,19 @@ rejections honestly. For external covariates: `aion_covariate_guide` before
 fetching, preserve issued vintages, `aion_validate_covariates` before
 proposing. Never substitute realised outcomes for the vintage available at
 a cutoff; the store's `--as-of` replay exists to prove this.
+
+## Reporting issues (do this instead of working around a bug)
+
+If Aion behaves wrongly — a crash, a result that contradicts its own
+evidence, an error whose `repair_options` don't apply — do not silently
+work around it. Gather the reproducible report and give it to the user
+(or file it at https://github.com/TensorLink-AI/Aion/issues if they ask):
+
+1. the exact command or tool call with its arguments;
+2. the complete JSON error envelope, or the run's `artifact.json`;
+3. the output of `aion_capabilities` (runtime version and installed extras);
+4. if data can't be shared, the `data_quality` section from `aion_inspect`.
+
+Those four items make nearly every report reproducible without the
+original file. A wrong number with evidence attached is a bug; report it —
+never patch over it with your own estimate.

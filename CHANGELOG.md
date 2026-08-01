@@ -1,6 +1,15 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 — first-contact release (2026-08-01)
+
+The beta-readiness release: real-world files work on first contact, a
+fifth verb (`aion detect`) lands with graded anomaly detectors, joint
+enrichments are adjudicated honestly, tracked evidence becomes
+task-conditioned with an advisory router, and the README/docs describe
+the system as it is. Content-addressed IDs are salted with the runtime
+version, so all artifact IDs change with this release (inputs and
+parameters hash identically otherwise); golden artifacts were refreshed
+accordingly.
 
 ### Evaluated anomaly detection (`aion detect` / `aion_detect_anomalies`)
 

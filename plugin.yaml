@@ -3,7 +3,7 @@
 # the implementation lives in integrations/hermes/ and is re-exported by the
 # root __init__.py.
 name: aion
-version: 0.3.0
+version: 0.4.0
 description: "Evidence-backed local forecasting via the Aion CLI. Aion is authoritative for all numbers, intervals, model selection, and abstention; the agent formulates the question and explains the evidence."
 author: "TensorLink"
 kind: standalone

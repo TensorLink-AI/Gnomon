@@ -15,7 +15,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any, Protocol
 
-AION_VERSION = "0.3.0"
+AION_VERSION = "0.4.0"
 
 
 class Clock(Protocol):

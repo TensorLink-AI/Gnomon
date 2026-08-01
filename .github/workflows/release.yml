@@ -37,6 +37,43 @@ jobs:
           path: dist/
           if-no-files-found: error
 
+  github-release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-distributions
+          path: dist/
+      - name: Extract release notes from CHANGELOG.md
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python - <<'EOF'
+          import re, os, pathlib
+          version = os.environ["RELEASE_TAG"].lstrip("v")
+          text = pathlib.Path("CHANGELOG.md").read_text(encoding="utf-8")
+          match = re.search(
+              rf"^## {re.escape(version)}[^\n]*\n(.*?)(?=^## |\Z)",
+              text, re.M | re.S,
+          )
+          notes = (match.group(1).strip() + "\n") if match else "See CHANGELOG.md.\n"
+          pathlib.Path("release-notes.md").write_text(notes, encoding="utf-8")
+          EOF
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" dist/* \
+            --title "$RELEASE_TAG" \
+            --notes-file release-notes.md \
+            --verify-tag
+
   publish:
     name: Publish to PyPI
     needs: build

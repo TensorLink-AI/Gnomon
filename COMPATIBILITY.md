@@ -145,6 +145,9 @@ the example datasets under a fixed clock. A failing golden means this set is
 affected; refresh only with `pytest --update-goldens` and record the change
 here.
 
+Golden refreshes on record: 0.4.0 (version-salt bump only — every
+`forecast_id` changed, no numeric or structural output changed).
+
 Scope of the byte guarantee: deterministic replay yields identical bytes
 **per interpreter**. CPython 3.12 changed builtin `sum()` to Neumaier
 compensated summation (gh-100425), shifting float results by an ulp
