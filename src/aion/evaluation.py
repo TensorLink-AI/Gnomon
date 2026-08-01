@@ -26,6 +26,9 @@ class Evaluation:
     tsfm_scores: dict[str, float | None] = field(default_factory=dict)
     # Informational only: notes never downgrade support, unlike warnings.
     notes: list[str] = field(default_factory=list)
+    # On a data-insufficiency abstention: the largest horizon the supplied
+    # observations *can* support, so the refusal names an immediate retry.
+    max_supportable_horizon: int | None = None
 
 
 def error_score(actual: list[float], predicted: list[float]) -> float:
@@ -62,6 +65,16 @@ def _origins(length: int, horizon: int, minimum_train: int) -> list[int]:
     return list(range(minimum_train, length - horizon + 1, horizon))
 
 
+def supportable_horizon(length: int, season: int) -> int | None:
+    """Largest horizon whose separated rolling evaluation fits ``length``
+    observations — the dual of the abstention message, so a refusal can
+    name the horizon that would succeed right now."""
+    for candidate in range(length // 4, 0, -1):
+        if length >= max(2 * season, 2 * candidate, 8) + 2 * candidate:
+            return candidate
+    return None
+
+
 def select_model_lightweight(
     values: list[float], horizon: int, season: int,
     train_at: Callable[[int], list[float]] | None = None,
@@ -71,8 +84,16 @@ def select_model_lightweight(
         train_at = lambda origin: values[:origin]  # noqa: E731
     if len(values) < horizon + 2:
         scores = {name: None for name in MODELS}
+        message = f"Need at least {horizon + 2} observations (have {len(values)}) for degraded forecasting."
+        reachable = len(values) - 2 if len(values) >= 3 else None
+        if reachable is not None:
+            message += (
+                f" A horizon of {reachable} or less is supportable with the "
+                f"current history; retry with --horizon {reachable}."
+            )
         return Evaluation(None, None, scores, scores.copy(), None, [], None,
-                          [f"Need at least {horizon + 2} observations (have {len(values)}) for degraded forecasting."], False, True)
+                          [message], False, True,
+                          max_supportable_horizon=reachable)
     holdout = min(horizon, max(1, len(values) // 4))
     origin = len(values) - holdout
     scores: dict[str, float | None] = {name: None for name in MODELS}
@@ -126,15 +147,23 @@ def evaluate(
             return select_model_lightweight(values, horizon, season, train_at)
         minimum_required = minimum_train + 2 * horizon
         full_required = minimum_train + 4 * horizon
+        message = (
+            f"Need at least {minimum_required} observations (have {len(values)}) "
+            f"for separated selection and calibration windows; "
+            f"{full_required} observations enable fully separated selection, "
+            f"calibration, and test windows."
+        )
+        reachable = supportable_horizon(len(values), season)
+        if reachable is not None:
+            message += (
+                f" A horizon of {reachable} or less is evaluable with the "
+                f"current history; retry with --horizon {reachable}."
+            )
         return Evaluation(
             None, None, empty_scores, empty_scores.copy(), None, [], None,
-            [
-                f"Need at least {minimum_required} observations (have {len(values)}) "
-                f"for separated selection and calibration windows; "
-                f"{full_required} observations enable fully separated selection, "
-                f"calibration, and test windows."
-            ],
+            [message],
             False,
+            max_supportable_horizon=reachable,
         )
 
     # Full mode holds out both a calibration fold and a final test fold after

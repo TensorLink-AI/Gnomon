@@ -149,6 +149,16 @@ Error envelope: `{"schema_version", "status": "error", "error": {"code",
   values, and artifact IDs are unchanged; goldens were refreshed for the
   new field only.
 
+- Abstention recovery (`reduce_horizon`), additive: when a
+  data-insufficiency abstention occurs and a shorter horizon is
+  supportable with the observations already supplied, the support
+  assessment's `recovery_actions` gain a `reduce_horizon` entry naming
+  that horizon, and the abstention warning text appends the same retry
+  hint. `provide_more_history` remains; existing codes, statuses, and
+  supported-path outputs are unchanged (goldens unaffected — the bundled
+  abstention fixtures have no supportable shorter horizon, so their
+  messages are identical).
+
 ## Enforcement
 
 `tests/test_golden_artifacts.py` pins byte-exact `artifact.json` output for

@@ -65,6 +65,31 @@ def test_unsupported_maps_to_inconclusive_with_recovery():
     assert any(action.code == "provide_more_history" for action in result.recovery_actions)
 
 
+def test_abstention_recovery_names_supportable_horizon():
+    """A refusal is not a dead end: when a shorter horizon would succeed
+    with the data already supplied, the recovery actions say which."""
+    from aion.evaluation import evaluate
+
+    assessment = evaluate([1.0, 2.0, 3.0, 4.0, 5.0], horizon=24, season=24,
+                          minimum_improvement=0.02)
+    assert assessment.max_supportable_horizon == 3
+    assert any("--horizon 3" in warning for warning in assessment.warnings)
+    result = assess_forecast_support("unsupported", assessment.warnings, assessment)
+    reduce = [a for a in result.recovery_actions if a.code == "reduce_horizon"]
+    assert reduce and "horizon 3" in reduce[0].message
+
+
+def test_strict_abstention_recovery_names_supportable_horizon():
+    from aion.evaluation import evaluate
+
+    values = [float(i) for i in range(40)]
+    assessment = evaluate(values, horizon=24, season=7, minimum_improvement=0.02,
+                          strict_abstention=True)
+    assert assessment.supported is False
+    assert assessment.max_supportable_horizon == 10
+    assert any("--horizon 10" in warning for warning in assessment.warnings)
+
+
 def test_known_time_assumption_is_declared():
     result = assess_forecast_support("supported", [], None, known_time_assumed=True)
     assert any("known_time_assumed" in assumption for assumption in result.assumptions)

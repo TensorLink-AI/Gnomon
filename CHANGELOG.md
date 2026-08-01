@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Data-insufficiency abstentions now name the way out: the refusal computes
+  the largest horizon the supplied observations can support and, when one
+  exists, adds a `reduce_horizon` recovery action ("retry with
+  `--horizon N`") to the support assessment and the warning text — in both
+  the default degraded path and `--strict-abstention` mode. When no shorter
+  horizon would succeed, no retry is suggested.
+
 - Forecast results gain an informational `notes` channel (additive; never
   downgrades support, unlike warnings). When TSFM candidates are eligible
   for a series but none is installed, the result now says so and names the
