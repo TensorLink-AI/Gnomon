@@ -19,7 +19,7 @@ def _common_input(parser: argparse.ArgumentParser) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="aion", description="Evidence-backed local forecasting")
-    parser.add_argument("--version", action="version", version="aion 0.3.0")
+    parser.add_argument("--version", action="version", version="aion 0.4.0")
     subcommands = parser.add_subparsers(dest="command", required=True)
 
     capability_parser = subcommands.add_parser("capabilities", help="Report implemented capabilities")

@@ -18,7 +18,7 @@ from .contracts import AionError
 from .toolspec import runner_for, visible_tools
 
 PROTOCOL_VERSION = "2025-06-18"
-SERVER_INFO = {"name": "aion", "version": "0.3.0"}
+SERVER_INFO = {"name": "aion", "version": "0.4.0"}
 
 
 def _tool_result(payload: dict[str, Any], is_error: bool) -> dict[str, Any]:

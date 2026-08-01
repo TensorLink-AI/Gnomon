@@ -67,3 +67,19 @@ Check that the `--output` parent is writable and that a file does not occupy the
 requested directory path. Incomplete work uses a hidden temporary directory and
 is never exposed as a completed forecast directory.
 
+
+## Filing a good bug report
+
+Use the repository's issue templates (bug report / beta feedback). Three
+things make an Aion report reproducible, and agents can gather all of
+them automatically:
+
+1. the exact command or tool call;
+2. the full JSON error envelope (it already contains `code`, `details`,
+   and `repair_options`) or, for a wrong result, the run's `artifact.json`;
+3. the output of `aion capabilities`, which pins the runtime version and
+   installed extras.
+
+If the input can't be shared, include the `data_quality` section from
+`aion inspect` — it describes the file's shape and problems without the
+values.

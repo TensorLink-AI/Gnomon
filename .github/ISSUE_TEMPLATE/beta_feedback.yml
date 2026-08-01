@@ -1,0 +1,33 @@
+name: Beta feedback
+description: Experience report — friction, surprises, or something that worked well
+labels: ["beta-feedback"]
+body:
+  - type: textarea
+    id: setup
+    attributes:
+      label: How are you running Aion?
+      description: CLI directly, MCP with which client/agent, or the Hermes plugin — plus `aion capabilities` output if handy.
+    validations:
+      required: true
+  - type: textarea
+    id: task
+    attributes:
+      label: What were you trying to do?
+      description: The real task, in your words — not the command.
+    validations:
+      required: true
+  - type: textarea
+    id: experience
+    attributes:
+      label: What happened, and how did it feel?
+      description: |
+        Especially useful: did a repair, abstention, or EXCESSIVE_REPAIR
+        refusal feel protective or obstructive? Did your agent preserve
+        Aion's warnings when it reported numbers to you? Where did you
+        have to stop and think?
+    validations:
+      required: true
+  - type: textarea
+    id: wish
+    attributes:
+      label: What would have made this better?
