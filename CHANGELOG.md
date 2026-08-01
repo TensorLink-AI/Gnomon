@@ -2,6 +2,55 @@
 
 ## Unreleased
 
+### Evaluated anomaly detection (`aion detect` / `aion_detect_anomalies`)
+
+- New fifth canonical macro: candidate detectors — robust z-score,
+  rolling-median residual, and forecast-interval exceedance — compete on a
+  deterministic synthetic anomaly-injection grader (spikes, level shifts,
+  dropouts at noise-scaled magnitudes, placement seeded from the series
+  content) before any of them labels the real series. Supplying labelled
+  anomaly timestamps switches selection to label F1.
+- Every candidate's precision/recall/F1 ships in the artifact alongside
+  the winner; abstention below 16 observations is `inconclusive`, and a
+  best grader F1 under 0.5 downgrades the run to
+  `conditionally_supported` — if no detector can recover planted
+  anomalies in this series' noise, real detections inherit that doubt.
+- Registered as the `detect_anomalies` operator; surfaced through the
+  CLI, agent tools, and MCP from the registry as usual.
+
+### Series fingerprints, task-conditioned tracking, and the thin router
+
+- Every tracked run now records a deterministic, unit-free series
+  fingerprint (trend, noise ratio, intermittency, direction-change rate,
+  season) and a `task` dimension. Existing stores migrate in place
+  (schema v3); legacy rows read as `forecast`.
+- `aion track leaderboard --task ...` and
+  `TrackingStore.leaderboard(project, task=...)` condition realised
+  performance on the task, so accumulated evidence transfers by data
+  shape instead of restarting cold per project.
+- `aion route` / `aion_route`: a disclosed, advisory routing decision —
+  verified capability filter, then a fingerprint-weighted realised-MASE
+  prior claimed only once ≥10 scored records exist for the task. Every
+  exclusion reason and the decision itself are recorded to the store for
+  replay. Evaluated runs still backtest every candidate; an explicit
+  model choice always wins.
+
+### Multi-task adapter seams
+
+- `TSFMCapabilities.tasks` declares the tasks an adapter has verifiably
+  implemented (default: forecasting only); `eligible_tsfms(task=...)`
+  filters on it. MOMENT declares `forecast`, `detect_anomalies`,
+  `impute`, and `embed`.
+- The adapter protocol gains two optional verbs: `reconstruct(history,
+  mask)` (masked reconstruction — anomaly signal and imputation) and
+  `embed(history)`. Both are implemented for MOMENT in-process and in
+  the sandbox worker, whose JSON protocol now carries a `mode` field;
+  stale sandbox worker scripts refresh automatically.
+- Installed multi-task sandboxes join the anomaly-detection candidate
+  pool as reconstruction-error detectors and must win the same grader as
+  the statistical detectors; a detector that cannot run scores zero with
+  its error disclosed instead of failing the run.
+
 ### Enrichment adjudication
 
 - Context events and covariates can now be supplied in the same forecast

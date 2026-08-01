@@ -349,6 +349,9 @@ def capabilities() -> dict[str, object]:
         "features": {
             "inspection": True, "forecasting": True, "separated_evaluation": True,
             "investigate_change": True, "decide": True, "monitor": True,
+            "anomaly_detection": True, "graded_detector_selection": True,
+            "series_fingerprints": True, "task_conditioned_leaderboard": True,
+            "task_routing": True,
             "bitemporal_store": True, "as_of_replay": True, "typed_lineage": True,
             "claim_verifier": True,
             "residual_intervals": True, "horizon_widened_intervals": True,

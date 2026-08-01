@@ -1,12 +1,14 @@
 # Aion
 
-**A temporal execution harness for agents — forecast, investigate, decide,
-and monitor, with every number owned by Aion and every claim verified.**
+**A temporal execution harness for agents — forecast, investigate, detect,
+decide, and monitor, with every number owned by Aion and every claim
+verified.**
 
 Aion is a local temporal-reasoning engine for developers, operators, and AI
-agents. It answers four questions over regular time-series data — *what
+agents. It answers five questions over regular time-series data — *what
 changed?* (`aion investigate`), *what happens next?* (`aion forecast`),
-*what should we do?* (`aion decide`), and *when should we intervene?*
+*what is abnormal?* (`aion detect`), *what should we do?* (`aion decide`),
+and *when should we intervene?*
 (`aion monitor`) — under one contract: the LLM proposes; Aion validates,
 computes, and owns every number. A bitemporal store tracks when each value
 became known, so any run can be replayed at any historical instant
@@ -43,8 +45,9 @@ Then ask your agent:
 > What changed in it, and when should we alert if crossing 340 costs us 20x
 > a false alarm?
 
-The agent gets 18 tools — `aion_forecast`, `aion_investigate_change`,
-`aion_decide`, `aion_monitor`, plus inspection, tracking, and artifact
+The agent gets 20 tools — `aion_forecast`, `aion_investigate_change`,
+`aion_detect_anomalies`, `aion_decide`, `aion_monitor`, `aion_route`,
+plus inspection, tracking, and artifact
 tools — and every number it quotes comes from an evidence-linked, verified
 artifact. It cannot invent values for an unsupported series; it can only
 report Aion's abstention and its recovery options. See the
@@ -95,12 +98,13 @@ can't carry.
 
 ## What it does today
 
-**Four verbs.**
+**Five verbs.**
 
 | Verb | Question | What you get |
 | --- | --- | --- |
 | `aion forecast` | What happens next? | Backtested model selection, residual-quantile intervals, threshold-crossing analysis — or a structured abstention |
 | `aion investigate` | What changed? | Changepoints, regime shift vs transient, anomalies, ranked *associational* explanations (never a cause) |
+| `aion detect` | What is abnormal? | Competing detectors graded on synthetic anomaly injection (or your labels); the winner flags anomalies with every candidate's F1 disclosed |
 | `aion decide` | What should we do? | Exceedance scenarios, feasibility and constraint checks, expected utility — degraded honestly when utilities are missing |
 | `aion monitor` | When should we intervene? | Sequential exceedance risk and a cost-optimal alert rule |
 

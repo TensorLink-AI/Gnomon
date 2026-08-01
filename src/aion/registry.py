@@ -15,7 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from . import operators
+from . import anomaly, operators
 from .temporal_store import join_as_of
 
 
@@ -70,6 +70,16 @@ OPERATORS: dict[str, OperatorSpec] = {
             "anomaly_score", "Robust (median/MAD) anomaly scores, seasonally adjusted.",
             "8 observations", "Inconclusive below 8 observations.",
             ("descriptive",), runner=operators.anomaly_score,
+        ),
+        OperatorSpec(
+            "detect_anomalies",
+            "Graded anomaly detection: candidate detectors compete on a "
+            "synthetic-injection grader (or supplied labels); the winner "
+            "labels the series with every candidate's grade disclosed.",
+            "16 observations",
+            "Inconclusive below 16 observations; conditionally supported when "
+            "the best grader F1 falls below the confidence floor.",
+            ("descriptive",), seeded=True, runner=anomaly.detect_anomalies,
         ),
         OperatorSpec(
             "seasonality_analysis", "Detected period, strength, and per-phase profile.",
@@ -165,6 +175,34 @@ MACROS: dict[str, MacroSpec] = {
                     "context_events_file": {"type": "string", "description": (
                         "Optional validated context-events JSON (output of "
                         "`aion context validate`) to rank as concurrent events."
+                    )},
+                },
+                "required": ["input", "time_column", "target_column"],
+            },
+        ),
+        MacroSpec(
+            "detect_anomalies", "aion_detect_anomalies",
+            (
+                "What is abnormal? Candidate detectors (robust z-score, "
+                "rolling-median residual, forecast-interval exceedance) "
+                "compete on a synthetic anomaly-injection grader — or on "
+                "supplied labels — and the winner flags anomalies with every "
+                "candidate's precision/recall/F1 disclosed. Deterministic: "
+                "injection placement is seeded from the series content."
+            ),
+            ("detect_anomalies",),
+            {
+                "type": "object",
+                "properties": {
+                    **_COMMON_INPUT,
+                    "threshold": {"type": "number", "description": (
+                        "Detection threshold on standardised scores "
+                        "(default 3.5)."
+                    )},
+                    "labels": {"type": "array", "items": {"type": "string"}, "description": (
+                        "Optional ISO timestamps of known anomalies; when "
+                        "given, detector selection uses label F1 instead of "
+                        "the synthetic grader."
                     )},
                 },
                 "required": ["input", "time_column", "target_column"],

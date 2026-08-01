@@ -121,6 +121,23 @@ Error envelope: `{"schema_version", "status": "error", "error": {"code",
   `MISSING_OPTIONAL_DEPENDENCY`. `capabilities().inputs` grew keys; the
   existing `csv`/`parquet` keys are unchanged.
 
+- Anomaly detection + routing (TSFM infrastructure tracking), additive:
+  new macro `detect_anomalies` (`aion detect` / `aion_detect_anomalies`),
+  new operator `detect_anomalies` (seeded, deterministic — injection
+  placement hashes the series content), and new tool/CLI `aion_route` /
+  `aion route`. `aion track leaderboard` gains an optional `--task`
+  filter; the tracking store migrates in place to schema v3, adding
+  `task` (legacy rows read as `forecast`) and `fingerprint` columns and
+  a `routing_decisions` table — every v0.2 tracking command behaves
+  identically. `TSFMCapabilities` gains a `tasks` tuple (default
+  `("forecast",)`, so existing selection is unchanged) and the sandbox
+  worker JSON protocol gains an optional `mode` field defaulting to
+  `predict` (old requests behave identically; stale worker scripts are
+  refreshed on next use). `capabilities().features` gains
+  `anomaly_detection`, `graded_detector_selection`, `series_fingerprints`,
+  `task_conditioned_leaderboard`, `task_routing`. Forecast artifacts and
+  goldens are unaffected.
+
 ## Enforcement
 
 `tests/test_golden_artifacts.py` pins byte-exact `artifact.json` output for

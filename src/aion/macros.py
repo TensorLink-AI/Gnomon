@@ -1,9 +1,10 @@
-"""The four canonical temporal workflows, as fixed, fully validated macros.
+"""The canonical temporal workflows, as fixed, fully validated macros.
 
 A. investigate_change — what changed?
 B. forecast          — what happens next? (the existing runtime, registered)
 C. decide            — what should we do?
 D. monitor           — when should we intervene?
+E. detect_anomalies  — what is abnormal?
 
 Each macro is a hand-written pipeline over the deterministic operators in
 ``operators.py``: it loads through a snapshot, computes, assembles a typed
@@ -608,3 +609,143 @@ def monitor(
             ))
     verify_or_raise(lineage, as_of=task.as_of)
     return payload, write_json_artifact(monitor_id, payload, output, lineage=lineage.to_dict())
+
+
+# ---------------------------------------------------------------------------
+# E. What is abnormal? — aion_detect_anomalies
+# ---------------------------------------------------------------------------
+
+def detect_anomalies(
+    input_path: str,
+    *,
+    time_column: str,
+    target_column: str,
+    series_column: str | None = None,
+    frequency: str | None = None,
+    as_of: datetime | None = None,
+    threshold: float | None = None,
+    labels: list[str] | None = None,
+    include_tsfm: bool = True,
+    output: str = "aion-output",
+    store_path: str | None = None,
+    clock: Clock | None = None,
+) -> tuple[dict[str, Any], Path]:
+    """Graded anomaly detection: candidate detectors compete on a
+    synthetic-injection grader (or on supplied labels), the winner labels
+    the series, and every candidate's grade ships in the artifact.
+
+    Installed multi-task TSFM sandboxes (reconstruction-error scoring)
+    join the candidate pool automatically and must win the grader like
+    everyone else; ``include_tsfm=False`` keeps the pool statistical."""
+    from .anomaly import (
+        DEFAULT_THRESHOLD,
+        detect_anomalies as run_detection,
+        tsfm_reconstruction_detectors,
+    )
+    from .temporal import detect_season
+    clock = clock or SYSTEM_CLOCK
+    detection_threshold = DEFAULT_THRESHOLD if threshold is None else float(threshold)
+    loaded = load_stage(
+        input_path, time_column=time_column, target_column=target_column,
+        series_column=series_column, frequency=frequency,
+        as_of=as_of, store_path=store_path,
+    )
+    task = TemporalTask(
+        objective=f"Detect anomalies in {target_column}",
+        task_type="detect_anomalies",
+        sources=(DataSourceRef(input_path, time_column, target_column, series_column, loaded.frequency),),
+        outputs=("anomaly_detection",),
+        as_of=as_of.isoformat() if as_of else None,
+    )
+    label_moments = []
+    for label in labels or []:
+        label_moments.append(datetime.fromisoformat(str(label)))
+    extra_detectors = tsfm_reconstruction_detectors() if include_tsfm else {}
+    payloads = _series_payloads(loaded)
+    results: list[dict[str, Any]] = []
+    evidence_records: list[EvidenceRecord] = []
+    claims: list[ClaimRecord] = []
+    for name, (timestamps, values) in payloads.items():
+        season, _, _ = detect_season(values, loaded.frequency)
+        index_of = {moment: index for index, moment in enumerate(timestamps)}
+        label_indices = [index_of[m] for m in label_moments if m in index_of]
+        detection = run_detection(
+            [moment.isoformat() for moment in timestamps], values,
+            season=season, threshold=detection_threshold,
+            label_indices=label_indices or None,
+            extra_detectors=extra_detectors or None,
+        )
+        evidence_records.append(EvidenceRecord(
+            f"anomaly_detection:{name}", "anomaly_detection", name,
+            {key: detection[key] for key in
+             ("detector", "selection_basis", "detector_grades", "injection",
+              "anomalies", "support") if key in detection},
+        ))
+        result = {
+            "series": name,
+            "detector": detection["detector"],
+            "selection_basis": detection.get("selection_basis"),
+            "detector_grades": detection.get("detector_grades", {}),
+            "anomalies": detection.get("anomalies", []),
+            "support_assessment": detection["support"],
+        }
+        if "label_grades" in detection:
+            result["label_grades"] = detection["label_grades"]
+        results.append(result)
+        status = detection["support"].get("status")
+        if status in ("supported", "conditionally_supported") and detection["detector"]:
+            count = len(detection["anomalies"])
+            if count:
+                claims.append(ClaimRecord(
+                    claim_id=f"claim:anomalies:{name}",
+                    claim_class="descriptive",
+                    statement=(
+                        f"Series {name}: {count} anomalies flagged by "
+                        f"{detection['detector']} (selected by "
+                        f"{detection['selection_basis']}; grader F1 "
+                        f"{detection['detector_grades'][detection['detector']]['f1']:.2f})."
+                    ),
+                    subject=name,
+                    evidence_ids=(f"anomaly_detection:{name}",),
+                    artifact_ids=(),
+                ))
+            elif status == "supported":
+                claims.append(ClaimRecord(
+                    claim_id=f"claim:no_anomalies:{name}",
+                    claim_class="descriptive",
+                    statement=(
+                        f"No anomalies beyond threshold "
+                        f"{detection_threshold} were detected in series {name}."
+                    ),
+                    subject=name,
+                    evidence_ids=(f"anomaly_detection:{name}",),
+                    artifact_ids=(),
+                ))
+    artifact_id = content_id("anomaly", {
+        "source": loaded.source_fingerprint,
+        "as_of": task.as_of,
+        "series": sorted(payloads),
+        "threshold": detection_threshold,
+    })
+    created_at = clock.now().isoformat()
+    payload = {
+        "schema_version": "0.1",
+        "anomaly_id": artifact_id,
+        "created_at": created_at,
+        "status": "complete",
+        "task": _task_dict(task),
+        "source_fingerprint": loaded.source_fingerprint,
+        "threshold": detection_threshold,
+        "results": results,
+    }
+    lineage, dataset_id = _base_lineage(task, loaded, artifact_id, "anomaly_detection", created_at)
+    lineage.evidence.extend(evidence_records)
+    lineage.claims.extend([
+        ClaimRecord(
+            claim.claim_id, claim.claim_class, claim.statement, claim.subject,
+            claim.evidence_ids, (artifact_id, dataset_id),
+        )
+        for claim in claims
+    ])
+    verify_or_raise(lineage, as_of=task.as_of)
+    return payload, write_json_artifact(artifact_id, payload, output, lineage=lineage.to_dict())
