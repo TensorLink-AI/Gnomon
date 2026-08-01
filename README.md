@@ -362,6 +362,7 @@ Parquet extra, and future PyPI command are covered in the
 | [Containers](docs/containers.md) | Local Docker and GHCR operation |
 | [CI/CD](docs/ci-cd.md) | Tests, PyPI trusted publishing, and releases |
 | [Agent evaluation](docs/agent-evaluation.md) | Measure Hermes task uplift with and without Aion |
+| [External benchmarks](benchmarks/README.md) | Faithful, runnable adapters for published time-series reasoning benchmarks (CiK, AnomLLM) with OpenRouter-served controls |
 
 The [product specification](Aion_MVP_Product_Specification.md) describes the
 broader product direction. The [system design](Aion_System_Design.md) defines

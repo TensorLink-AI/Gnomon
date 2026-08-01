@@ -32,6 +32,16 @@ temporal-leakage traps. Grade final decisions programmatically wherever
 possible. Use an LLM judge only for explanation quality, separately from the
 primary task-success score.
 
+## External benchmarks
+
+Beyond the internal task families, [`benchmarks/`](../benchmarks/README.md)
+contains faithful adapters for published benchmarks — Context is Key
+(context-aided forecasting, RCRPS) and AnomLLM (anomaly detection, F1) —
+whose official metrics stay authoritative and whose runners also emit
+AionBench JSONL rows, so the same `aion eval compare` treatment/control
+comparison works there too. LLM conditions are served through OpenRouter
+so control and treatment share one model and provider.
+
 ## Hermes lifecycle
 
 1. Call `aion_forecast` with a `project`.
