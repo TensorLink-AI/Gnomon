@@ -17,8 +17,13 @@ Enable branch protection for `main` and require the CI jobs before merging.
 ## PyPI releases
 
 `.github/workflows/release.yml` runs only for `v*` tags. It verifies that the tag
-matches `project.version`, builds and smoke-tests distributions, and publishes
-through PyPI Trusted Publishing. No long-lived PyPI token is stored in GitHub.
+matches `project.version`, builds and smoke-tests distributions, publishes
+through PyPI Trusted Publishing, and creates the GitHub Release automatically —
+notes are extracted from the tag's `## <version>` section of `CHANGELOG.md`
+and the built distributions are attached. No long-lived PyPI token is stored
+in GitHub. The full staging flow is therefore: merge the release PR, push the
+matching tag, and everything downstream (PyPI, GHCR image, GitHub Release) is
+automatic.
 
 One-time configuration is still required:
 
