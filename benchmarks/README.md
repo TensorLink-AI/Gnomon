@@ -35,12 +35,16 @@ the treatment/control uplift and safety view described in
 | --- | --- | --- |
 | [Context is Key](cik/) (ICML 2025) | Forecasting when essential information lives in accompanying text; scored by RCRPS | `benchmarks/cik` |
 | [AnomLLM](anomllm/) (ICLR 2025, "Can LLMs Understand Time Series Anomalies?") | Anomaly detection on controlled synthetic series; scored by F1 and affiliation-F1 | `benchmarks/anomllm` |
+| [MTBench](mtbench/) (2025) | Temporal reasoning and QA over paired financial/weather series and news; forecasting scored by MSE/MAPE | `benchmarks/mtbench` |
+| [TimeSage-MT](timesage_mt/) (2026) | Multi-turn agentic time series analysis with per-turn verifiable answers across 4 tiers | `benchmarks/timesage_mt` |
 
-Both were selected because they exercise what Aion owns — context
+All four were selected because they exercise what Aion owns — context
 admission under a leakage gate, calibrated intervals, graded detection,
-structured abstention — rather than an LLM's ability to read raw
-number sequences. See each subdirectory's README for setup and the
-exact conditions.
+tool-grounded multi-turn analysis, structured abstention — rather than
+an LLM's ability to read raw number sequences. See each subdirectory's
+README for setup, the exact conditions, and any faithfulness caveats
+(TimeSage-MT's official judge is not public; its README explains what
+is and is not comparable).
 
 ## Conditions
 

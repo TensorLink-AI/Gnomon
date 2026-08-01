@@ -81,6 +81,8 @@ class OpenRouterClient:
         n: int = 1,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        tool_choice: str | None = None,
     ) -> SimpleNamespace:
         """Send one chat-completion request and return the parsed response.
 
@@ -104,6 +106,10 @@ class OpenRouterClient:
             # Ask OpenRouter to report token accounting and cost.
             "usage": {"include": True},
         }
+        if tools:
+            payload["tools"] = tools
+        if tool_choice:
+            payload["tool_choice"] = tool_choice
         body = json.dumps(payload).encode("utf-8")
         last_error: Exception | None = None
         for attempt in range(self.max_retries):
