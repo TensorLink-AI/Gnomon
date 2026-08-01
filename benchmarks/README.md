@@ -96,10 +96,18 @@ python -m benchmarks.run_all --config my-batch.yaml --only tb-control,tb-aion
 python -m benchmarks.run_all --config my-batch.yaml --continue-on-error
 ```
 
-See `benchmarks/configs/example.yaml` for a config covering all five
-benchmarks. Datasets are not downloaded by the orchestrator — run each
-adapter's `--download`/setup step once first (see the per-benchmark
-READMEs).
+Two shipped configs cover the common cases:
+
+- `benchmarks/configs/example.yaml` — capped smoke runs (`limit: 50`)
+  for cheap control-vs-treatment deltas;
+- `benchmarks/configs/full.yaml` — the full official protocol (no
+  caps, all tiers/variants, CiK's 5 seeds at its official temperature),
+  the one whose numbers are comparable to published results. Expect
+  hours and real API spend; use `--only` to take it a benchmark at a
+  time.
+
+Datasets are not downloaded by the orchestrator — run each adapter's
+`--download`/setup step once first (see the per-benchmark READMEs).
 
 ## Comparing against published results
 

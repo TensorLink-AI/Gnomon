@@ -1,0 +1,77 @@
+# Full official-protocol batch: no task caps, official seeds, all
+# tiers/variants. Numbers produced by this config are comparable to the
+# papers' tables and leaderboards (see "Comparing against published
+# results" in benchmarks/README.md); the smoke config for cheap
+# control-vs-treatment deltas is example.yaml.
+#
+# Cost warning: this is the expensive one. CiK alone is its full task
+# set x 5 seeds per condition; expect hours of wall clock and real API
+# spend for the LLM conditions. Run per-benchmark subsets with
+#   python -m benchmarks.run_all --config benchmarks/configs/full.yaml \
+#       --only tb-control,tb-aion
+#
+# Prerequisites (once): each adapter's --download / clone step, paths
+# below adjusted to where you put them.
+
+model: z-ai/glm-5.2          # swap for the model under evaluation
+output_root: results/full
+defaults:
+  temperature: 0.2           # no `limit:` here — full task sets
+
+runs:
+  # ---- TemporalBench: all four tiers, whole labeled split ----------
+  - benchmark: temporalbench
+    name: tb-control
+    args: {condition: control, data_dir: ~/temporalbench}
+  - benchmark: temporalbench
+    name: tb-aion
+    args: {condition: aion-agent, data_dir: ~/temporalbench}
+  - benchmark: temporalbench
+    name: tb-pure            # free no-LLM floor, T2/T4 by construction
+    args: {condition: aion-pure, data_dir: ~/temporalbench}
+
+  # ---- TimeSage-MT: all four tiers ---------------------------------
+  - benchmark: timesage_mt
+    name: ts-direct
+    args: {condition: direct, data_dir: ~/timesage-mt,
+           judge_model: openai/gpt-4o}
+  - benchmark: timesage_mt
+    name: ts-aion
+    args: {condition: aion-tools, data_dir: ~/timesage-mt,
+           judge_model: openai/gpt-4o}   # keep the judge FIXED across models
+
+  # ---- CiK: full task set, official 5 seeds -------------------------
+  # temperature pinned to CiK's official 1.0 (DirectPrompt rejection
+  # sampling) so the shared 0.2 default cannot alter the protocol.
+  - benchmark: cik
+    name: cik-control
+    args: {method: control, seeds: 5, temperature: 1.0}
+  - benchmark: cik
+    name: cik-pure
+    args: {method: aion-pure, seeds: 5, temperature: 1.0}
+  - benchmark: cik
+    name: cik-agent
+    args: {method: aion-agent, seeds: 5, temperature: 1.0}
+
+  # ---- MTBench: aion treatment per official dataset folder ----------
+  # (control runs go through the official scripts — see the MTBench
+  # README; add the other aligned_in*days_out*days windows you
+  # downloaded, finance and weather alike.)
+  - benchmark: mtbench
+    name: mtb-aion-fin-30-7
+    args: {subcommand: aion, mode: agent,
+           mtbench_root: ~/MTBench,
+           dataset_folder: ~/MTBench/data/processed/finance/aligned_in30days_out7days}
+
+  # ---- AnomLLM: every official variant, Aion detector + control -----
+  - {benchmark: anomllm, name: an-point,      args: {anomllm_root: ~/AnomLLM, data: point}}
+  - {benchmark: anomllm, name: an-range,      args: {anomllm_root: ~/AnomLLM, data: range}}
+  - {benchmark: anomllm, name: an-freq,       args: {anomllm_root: ~/AnomLLM, data: freq}}
+  - {benchmark: anomllm, name: an-trend,      args: {anomllm_root: ~/AnomLLM, data: trend}}
+  - {benchmark: anomllm, name: an-flat-trend, args: {anomllm_root: ~/AnomLLM, data: flat-trend}}
+  - {benchmark: anomllm, name: an-noisy-point, args: {anomllm_root: ~/AnomLLM, data: noisy-point}}
+  - {benchmark: anomllm, name: an-noisy-freq, args: {anomllm_root: ~/AnomLLM, data: noisy-freq}}
+  - {benchmark: anomllm, name: an-point-control,
+     args: {anomllm_root: ~/AnomLLM, data: point, skip_aion: true,
+            control_model: z-ai/glm-5.2, control_variant: 0shot-text}}
+    # repeat the control row per variant / prompt variant as needed
