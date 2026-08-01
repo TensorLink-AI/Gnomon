@@ -97,3 +97,31 @@ See `benchmarks/configs/example.yaml` for a config covering all five
 benchmarks. Datasets are not downloaded by the orchestrator — run each
 adapter's `--download`/setup step once first (see the per-benchmark
 READMEs).
+
+## Comparing against published results
+
+Because every adapter scores with the benchmark's official metric
+implementation, our summaries are directly comparable to the papers'
+tables and leaderboards — under the official protocol only:
+
+- full official task set (a `--limit`/`--task-filter` smoke run is
+  **not** comparable to a published number),
+- official seeds and sample counts (CiK: 5 seeds; TemporalBench: all
+  rows of the labeled split),
+- the same metric key the paper reports.
+
+`benchmarks/compare_published.py` renders ranked side-by-side tables
+from a reference YAML into which you transcribe published numbers with
+their source and retrieval date — the repo ships only a template
+(`benchmarks/configs/published_reference.yaml`, with pointers to each
+benchmark's leaderboard/paper tables), never third-party numbers that
+could go stale:
+
+```bash
+python -m benchmarks.compare_published \
+    --reference benchmarks/configs/published_reference.yaml
+```
+
+TemporalBench additionally has a public leaderboard accepting
+submissions (linked from its dataset card) if a result is worth
+publishing beyond a local comparison.

@@ -1,0 +1,59 @@
+# Template for benchmarks/compare_published.py.
+#
+# Fill `published:` entries by transcribing numbers from the papers /
+# leaderboards below — always with a source URL and retrieval date,
+# since leaderboards move. No third-party numbers ship in this repo.
+#
+# Comparability checklist before trusting any row against a published
+# one (see also benchmarks/README.md):
+#   - full official task set (no --limit / task-filter smoke subsets)
+#   - official seeds & sample counts (CiK: 5 seeds; TemporalBench: all
+#     rows of the labeled split)
+#   - same metric key as the paper table
+#
+# Where the published numbers live:
+#   CiK           leaderboard + paper Table (mean RCRPS):
+#                 https://servicenow.github.io/context-is-key-forecasting/
+#   TemporalBench HF leaderboard:
+#                 https://huggingface.co/spaces/Melady/TemporalBench_Leaderboard
+#   TimeSage-MT   paper (arXiv:2601.10083) accuracy-by-tier tables
+#   MTBench       paper (arXiv:2503.16858) task tables
+#   AnomLLM       paper (arXiv:2410.05440) affiliated-F1 tables
+
+cik:
+  metric: mean RCRPS
+  lower_is_better: true
+  published: []
+    # - {system: "Llama-3.1-405B DirectPrompt", value: 0.000,
+    #    source: "https://servicenow.github.io/context-is-key-forecasting/ (retrieved YYYY-MM-DD)"}
+  ours:
+    - {system: "aion-pure (ours)",
+       summary: results/glm52/cik-pure/summary.json,
+       key: mean_rcrps}
+    - {system: "glm-5.2 + aion-agent (ours)",
+       summary: results/glm52/cik-agent/summary.json,
+       key: mean_rcrps}
+
+temporalbench_t2_smape:
+  metric: T2 SMAPE (forecast)
+  lower_is_better: true
+  published: []
+  ours:
+    - {system: "glm-5.2 control (ours)",
+       summary: results/glm52/tb-control/summary.json,
+       key: forecast_metrics_mean.SMAPE}
+    - {system: "glm-5.2 + aion-agent (ours)",
+       summary: results/glm52/tb-aion/summary.json,
+       key: forecast_metrics_mean.SMAPE}
+
+timesage_l1_pass_rate:
+  metric: L1 pass rate
+  lower_is_better: false
+  published: []
+  ours:
+    - {system: "glm-5.2 direct (ours)",
+       summary: results/glm52/ts-direct/summary.json,
+       key: per_tier_pass_rate.L1}
+    - {system: "glm-5.2 + aion tools (ours)",
+       summary: results/glm52/ts-aion/summary.json,
+       key: per_tier_pass_rate.L1}
