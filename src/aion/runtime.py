@@ -343,6 +343,14 @@ def capabilities() -> dict[str, object]:
             "tsfm_available": available_tsfms(),
             "tsfm_sandboxes": list_sandboxes(),
             "tsfm_capabilities": capability_matrix(),
+            "tsfm_install_command": "aion tsfm install <name>",
+            "tsfm_install_note": (
+                "Sandboxed TSFMs are pulled per model into isolated venvs "
+                "(requires uv; weights download on first inference). "
+                "Installed models join forecast selection automatically; "
+                "moment_small also adds a reconstruction candidate to "
+                "detect_anomalies. Installation is a shell step, not a tool."
+            ),
         },
         **registry_capabilities(),
         "experimental": {"planner": os.environ.get("AION_EXPERIMENTAL_PLANNER") == "1"},

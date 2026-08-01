@@ -63,3 +63,19 @@ Treat `aion capabilities`, the structured error envelope, and persisted
 artifact values as authoritative. The agent should preserve support and warnings
 verbatim and must not manufacture values for unsupported series.
 
+## Agents and TSFM sandboxes
+
+Foundation-model sandboxes are installed per model, from the shell, never
+through an MCP tool: `aion tsfm install <name>`. An agent should read
+`aion_capabilities` first — `models.tsfm_available` lists what can be
+installed, `models.tsfm_sandboxes` what already is, and
+`models.tsfm_capabilities[<name>].tasks` which tasks each model has
+verifiably implemented (`forecast`, and for `moment_small` also
+`detect_anomalies` / `impute` / `embed`). If a wanted model is missing,
+an agent with shell access can run the install command itself (uv must be
+installed; weights download from the Hugging Face Hub on first
+inference); a tool-only agent should ask the operator to run it. Once the
+sandbox exists there is nothing else to wire: the model competes in the
+next evaluated run and is selected only if it wins the backtest or
+grader.
+
