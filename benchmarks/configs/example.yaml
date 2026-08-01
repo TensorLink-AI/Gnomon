@@ -1,0 +1,65 @@
+# Example batch config for benchmarks/run_all.py.
+#
+#   python -m benchmarks.run_all --config benchmarks/configs/example.yaml --dry-run
+#
+# `model`, `defaults.temperature`, `defaults.limit`, and per-run output
+# dirs under `output_root` are injected automatically where the
+# adapter's CLI supports them; anything adapter-specific goes in `args`
+# verbatim (key_name -> --key-name; true -> bare flag;
+# subcommand/positional are special-cased).
+
+model: openai/gpt-4o
+output_root: results/batch-example
+defaults:
+  limit: 50
+  temperature: 0.2
+
+runs:
+  # --- TemporalBench: control vs Aion-agent on the forecasting tiers ---
+  - benchmark: temporalbench
+    name: tb-control
+    args:
+      condition: control
+      data_dir: ~/temporalbench
+      tiers: T2,T4
+  - benchmark: temporalbench
+    name: tb-aion
+    args:
+      condition: aion-agent
+      data_dir: ~/temporalbench
+      tiers: T2,T4
+
+  # --- TimeSage-MT: direct vs tool-loop ---
+  - benchmark: timesage_mt
+    name: ts-direct
+    args:
+      condition: direct
+      data_dir: ~/timesage-mt
+  - benchmark: timesage_mt
+    name: ts-aion
+    args:
+      condition: aion-tools
+      data_dir: ~/timesage-mt
+
+  # --- CiK: no task cap; scope with task_filter / seeds ---
+  - benchmark: cik
+    name: cik-aion-pure
+    args:
+      method: aion-pure
+      seeds: 3
+
+  # --- MTBench: the aion subcommand takes output/limit; control wraps
+  #     the official script and manages its own outputs ---
+  - benchmark: mtbench
+    name: mtb-aion
+    args:
+      subcommand: aion
+      dataset_folder: ~/mtbench/MTBench/datasets/stock_temperature_weekly
+      mode: agent
+
+  # --- AnomLLM: fully explicit (its CLI has its own layout) ---
+  - benchmark: anomllm
+    name: anomllm-trend
+    args:
+      anomllm_root: ~/anomllm/AnomLLM
+      data: trend

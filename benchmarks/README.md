@@ -64,7 +64,10 @@ abstention and error counts, never without them.
 
 ## Environment
 
-- `OPENROUTER_API_KEY` — required for any condition that queries a model.
+- `OPENROUTER_API_KEY` — required for any condition that queries a
+  model. Export it, or put it in an untracked `.env` file (`KEY=value`
+  lines) in the working directory or repository root — a real
+  environment variable always wins over the file.
 - Aion importable (`bash install.sh`, `uv tool install .`, or
   `PYTHONPATH=src` from the repository root).
 - Per-benchmark dependencies are deliberately not part of Aion's own
@@ -77,3 +80,51 @@ Run everything from the repository root with `python -m`, e.g.:
 python -m benchmarks.cik.run_cik --help
 python -m benchmarks.anomllm.run_anomllm --help
 ```
+
+## Batch runs
+
+`benchmarks/run_all.py` drives any subset of the adapters from one YAML
+(or JSON) config: shared `model`, `defaults.temperature`,
+`defaults.limit`, and per-run output dirs under `output_root` are
+injected where each adapter's CLI supports them, adapter-specific
+options pass through `args` verbatim, and every produced `summary.json`
+is collected into `<output_root>/combined_summary.json`.
+
+```bash
+python -m benchmarks.run_all --config benchmarks/configs/example.yaml --dry-run
+python -m benchmarks.run_all --config my-batch.yaml --only tb-control,tb-aion
+python -m benchmarks.run_all --config my-batch.yaml --continue-on-error
+```
+
+See `benchmarks/configs/example.yaml` for a config covering all five
+benchmarks. Datasets are not downloaded by the orchestrator — run each
+adapter's `--download`/setup step once first (see the per-benchmark
+READMEs).
+
+## Comparing against published results
+
+Because every adapter scores with the benchmark's official metric
+implementation, our summaries are directly comparable to the papers'
+tables and leaderboards — under the official protocol only:
+
+- full official task set (a `--limit`/`--task-filter` smoke run is
+  **not** comparable to a published number),
+- official seeds and sample counts (CiK: 5 seeds; TemporalBench: all
+  rows of the labeled split),
+- the same metric key the paper reports.
+
+`benchmarks/compare_published.py` renders ranked side-by-side tables
+from a reference YAML into which you transcribe published numbers with
+their source and retrieval date — the repo ships only a template
+(`benchmarks/configs/published_reference.yaml`, with pointers to each
+benchmark's leaderboard/paper tables), never third-party numbers that
+could go stale:
+
+```bash
+python -m benchmarks.compare_published \
+    --reference benchmarks/configs/published_reference.yaml
+```
+
+TemporalBench additionally has a public leaderboard accepting
+submissions (linked from its dataset card) if a result is worth
+publishing beyond a local comparison.
