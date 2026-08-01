@@ -1,5 +1,38 @@
 # Changelog
 
+## Unreleased
+
+### AionBench — published temporal-reasoning benchmarks (`benchmarks/`)
+
+- New `aionbench` package and CLI, installable with the `bench` extra. Aion's
+  runtime keeps its zero-dependency guarantee; the benchmark's own needs
+  (`pyarrow`, `pyyaml`) live in the extra, and the OpenRouter client is
+  stdlib-only.
+- Three suites: `timeseriesexam` (arXiv:2410.14752, 746 IRT-refined concept
+  MCQs), `tsaia` (arXiv:2509.01822, 1,054 constraint-aware assistant tasks
+  over 33 task types), and `tsqa` (the TimeART ablation, arXiv:2601.13653,
+  corpus-agnostic with a field map and a built-in offline fixture).
+- Paired control/treatment design: identical items, identical decoding, the
+  model alone versus the same model driving Aion's real tool surface from
+  `aion.toolspec`. Reports absolute uplift, discordant counts, and an exact
+  two-sided McNemar p-value, labelling differences it cannot distinguish from
+  noise.
+- Every failure is typed (structural / execution / constraint / threshold /
+  refusal / transport). Transport failures score `correct=None` and are
+  excluded from accuracy denominators, then counted separately.
+- Treatment arms record whether a correct answer was *grounded* in a
+  successful Aion call; `aionbench export` emits `aion eval compare` inputs
+  and flags correct-but-ungrounded answers as `invented_number`.
+- Cost is measured from OpenRouter's returned usage, not estimated.
+  `--budget-usd` applies real backpressure, responses are cached on disk by
+  full request body, and runs resume from `rows.jsonl` at near-zero cost.
+- Two hazards are opt-in and warned about: `--allow-pickle` (TSAIA ships its
+  answer key as pickles) and `--allow-code-execution` (subprocess sandbox
+  with wall-clock and memory caps and credentials stripped from the child).
+- Docs: [`benchmarks/README.md`](benchmarks/README.md) and
+  [`docs/benchmarking.md`](docs/benchmarking.md), including every documented
+  departure from each paper's protocol.
+
 ## 0.4.0 — first-contact release (2026-08-01)
 
 The beta-readiness release: real-world files work on first contact, a

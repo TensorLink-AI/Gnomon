@@ -24,6 +24,7 @@ interval on a separate window, and either returns a supported result or abstains
 | [Concepts](concepts.md) | You want to understand selection, evaluation, intervals, or abstention. |
 | [Troubleshooting](troubleshooting.md) | A command failed or returned unsupported. |
 | [LLM integrations](llm-integrations.md) | You are looking for API-key, OpenRouter, or Hermes support. |
+| [Benchmarking](benchmarking.md) | You want to measure Aion's effect on published temporal-reasoning benchmarks. |
 | [Development](development.md) | You want to test or contribute to Aion. |
 | [Containers](containers.md) | You want to build or run the Docker image. |
 | [CI/CD](ci-cd.md) | You maintain validation, publishing, or releases. |

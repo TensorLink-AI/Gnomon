@@ -125,6 +125,10 @@ can't carry.
   feasible action in hindsight, never a bare "correct".
 - Trap-family episode evaluation (`aion eval episodes`): temporal leakage,
   invented numbers, and silent-warning failures are caught mechanically.
+- Published-benchmark evaluation (`aionbench`, in [`benchmarks/`](benchmarks/README.md)):
+  TimeSeriesExam, TSAIA, and TimeART-style agentic TSQA run under a paired
+  control/treatment design — the model alone versus the same model with
+  Aion's tool surface — across open- and closed-weight models via OpenRouter.
 - Surfaces: CLI, Python API, local MCP server (`aion mcp serve`), Hermes
   plugin, Docker. An experimental plan compiler/executor sits behind
   `AION_EXPERIMENTAL_PLANNER=1`.
@@ -332,6 +336,7 @@ Parquet extra, and future PyPI command are covered in the
 | [Containers](docs/containers.md) | Local Docker and GHCR operation |
 | [CI/CD](docs/ci-cd.md) | Tests, PyPI trusted publishing, and releases |
 | [Agent evaluation](docs/agent-evaluation.md) | Measure Hermes task uplift with and without Aion |
+| [Benchmarking](docs/benchmarking.md) | Measure Aion's effect on published temporal-reasoning benchmarks |
 
 The [product specification](Aion_MVP_Product_Specification.md) describes the
 broader product direction. The [system design](Aion_System_Design.md) defines

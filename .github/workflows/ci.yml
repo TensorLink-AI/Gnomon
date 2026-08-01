@@ -32,7 +32,7 @@ jobs:
       - name: Run tests
         run: pytest -q
       - name: Compile source
-        run: python -m compileall -q src tests
+        run: python -m compileall -q src tests benchmarks
 
   package:
     name: Build and smoke-test package
@@ -56,6 +56,8 @@ jobs:
           cd "$(mktemp -d)"
           aion capabilities
           aion --version
+          aionbench suites
+          aionbench --version
       - uses: actions/upload-artifact@v4
         with:
           name: python-distributions

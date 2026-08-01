@@ -7,8 +7,16 @@ or any other model provider. It does not read provider API-key environment
 variables. Forecasting is local and deterministic, so no API key is required.
 
 Setting `OPENROUTER_API_KEY`, `OPENAI_API_KEY`, or `ANTHROPIC_API_KEY` currently
-has no effect. `aion mcp serve` exposes the tools over stdio MCP without any
-LLM of its own.
+has no effect on the runtime. `aion mcp serve` exposes the tools over stdio MCP
+without any LLM of its own.
+
+The one place in this repository that *does* call a provider is
+[AionBench](../benchmarks/README.md), the benchmark harness in `benchmarks/`.
+It reads `OPENROUTER_API_KEY` to drive models across published
+temporal-reasoning benchmarks with and without Aion's tools. It is a separate
+package (`pip install -e '.[bench]'`), it is not importable from the runtime,
+and it does not change the boundary described below: it measures the boundary,
+it does not cross it.
 
 ## Bring your own brain
 
@@ -23,10 +31,15 @@ enter a forecast only through the deterministic admission gate
 
 ## Is OpenRouter a planned option?
 
-Yes, OpenRouter is a reasonable future provider because it offers a common API
-for multiple models. It is not implemented yet. Provider support should be
-adapter-based so a user can choose OpenRouter, a direct model vendor, or a local
-OpenAI-compatible endpoint without changing the numerical runtime.
+Yes, OpenRouter is a reasonable future provider for the *runtime's* LLM
+workflows because it offers a common API for multiple models. That is not
+implemented yet. Provider support should be adapter-based so a user can choose
+OpenRouter, a direct model vendor, or a local OpenAI-compatible endpoint
+without changing the numerical runtime.
+
+AionBench already uses OpenRouter for exactly that reason — one code path and
+one key to compare open- and closed-weight models — but as a benchmark client,
+not as a runtime adapter.
 
 ## Intended LLM boundary
 
