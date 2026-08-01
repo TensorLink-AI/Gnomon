@@ -20,7 +20,16 @@ dev = ["build>=1.2", "pytest>=8", "pyyaml>=6.0"]
 # AionBench — the temporal-reasoning benchmark harness in benchmarks/.
 # Aion's own runtime stays dependency-free; these are the benchmark's needs
 # (parquet corpora, YAML rosters). The OpenRouter client is stdlib-only.
-bench = ["pyarrow>=15", "pyyaml>=6.0"]
+# Runs the harness itself, and TSAIA's own gen_eval.py, which the tsaia
+# suite fetches (pinned) and calls directly rather than paraphrasing.
+bench = [
+  "pyarrow>=15",
+  "pyyaml>=6.0",
+  "numpy>=1.26",
+  "pandas>=2.0",
+  "scikit-learn>=1.3",
+  "joblib>=1.3",
+]
 
 # TSFM adapters — Aion works without any of these (missing deps = soft skip).
 # TSFM packages have conflicting transitive dependencies (e.g. numpy pinning),

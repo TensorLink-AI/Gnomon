@@ -191,6 +191,7 @@ class OpenRouterClient:
         tools: Sequence[Mapping[str, Any]] | None = None,
         tool_choice: str | Mapping[str, Any] | None = None,
         temperature: float = 0.0,
+        top_p: float | None = None,
         max_tokens: int = 2048,
         extra_body: Mapping[str, Any] | None = None,
     ) -> ChatResponse:
@@ -203,6 +204,8 @@ class OpenRouterClient:
             # that may lag the provider's.
             "usage": {"include": True},
         }
+        if top_p is not None:
+            payload["top_p"] = top_p
         if self.seed is not None:
             payload["seed"] = self.seed
         if tools:
@@ -301,6 +304,7 @@ class EchoClient:
         tools: Sequence[Mapping[str, Any]] | None = None,
         tool_choice: str | Mapping[str, Any] | None = None,
         temperature: float = 0.0,
+        top_p: float | None = None,
         max_tokens: int = 2048,
         extra_body: Mapping[str, Any] | None = None,
     ) -> ChatResponse:

@@ -145,6 +145,11 @@ class Attempt:
     error: str | None = None
     failure: str | None = None
 
+    # CodeAct episodes reach Aion by importing it in the kernel rather than
+    # by calling a tool, so grounding has a second source. Set by the
+    # CodeAct runner; left empty by the tool-calling loop.
+    codeact: dict[str, Any] = field(default_factory=dict)
+
     @property
     def cached(self) -> bool:
         """True only when the whole attempt was served from cache — a partly
@@ -157,12 +162,17 @@ class Attempt:
 
     @property
     def grounded(self) -> bool:
-        """Did any Aion tool actually return a result for this attempt?
+        """Did Aion actually contribute to this attempt?
 
-        A treatment run where every tool call errored is a treatment run in
-        name only; the reports separate the two.
+        Two routes, because there are two treatment mechanisms: a tool call
+        that returned a result, or CodeAct code that imported ``aion`` and
+        went on to bind an answer. A treatment run where every tool call
+        errored — or where the model never touched Aion — is a treatment run
+        in name only, and the reports separate the two.
         """
-        return self.successful_tool_calls > 0
+        if self.successful_tool_calls > 0:
+            return True
+        return bool(self.codeact.get("used_aion") and self.codeact.get("answer_found"))
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -179,6 +189,8 @@ class Attempt:
             "latency_seconds": self.latency_seconds,
             "provider_calls": self.provider_calls,
             "cached": self.cached,
+            "codeact": dict(self.codeact),
+            "grounded": self.grounded,
             "error": self.error,
             "failure": self.failure,
         }

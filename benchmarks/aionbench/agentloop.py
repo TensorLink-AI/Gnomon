@@ -34,6 +34,7 @@ class ChatClient(Protocol):
         tools: Sequence[Mapping[str, Any]] | None = ...,
         tool_choice: str | Mapping[str, Any] | None = ...,
         temperature: float = ...,
+        top_p: float | None = ...,
         max_tokens: int = ...,
         extra_body: Mapping[str, Any] | None = ...,
     ) -> ChatResponse:
