@@ -52,7 +52,10 @@ REGISTRY: dict[str, dict[str, Any]] = {
     },
     "anomllm": {
         "module": "benchmarks.anomllm.run_anomllm",
-        "accepts": set(),  # own layout: everything is explicit in args
+        # Own layout: no output dir or task cap, and the model flag names
+        # the control condition it serves.
+        "accepts": {"model"},
+        "model_key": "control_model",
         "limit_flag": None,
     },
     "mtbench": {
@@ -111,8 +114,9 @@ def build_command(run: dict[str, Any], config: dict[str, Any]) -> list[str]:
         accepts = {"model", "temperature"}
         limit_flag = None
 
-    if "model" in accepts and "model" not in args and config.get("model"):
-        args["model"] = config["model"]
+    model_key = spec.get("model_key", "model")
+    if "model" in accepts and model_key not in args and config.get("model"):
+        args[model_key] = config["model"]
     if "temperature" in accepts and "temperature" not in args \
             and "temperature" in defaults:
         args["temperature"] = defaults["temperature"]
