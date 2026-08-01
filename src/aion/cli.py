@@ -127,6 +127,19 @@ def build_parser() -> argparse.ArgumentParser:
     investigate_parser.add_argument("--output", default="aion-output")
     investigate_parser.add_argument("--store-path", dest="store_path")
 
+    detect_parser = subcommands.add_parser(
+        "detect", help="What is abnormal? Graded detectors, disclosed selection, flagged anomalies"
+    )
+    _common_input(detect_parser)
+    detect_parser.add_argument("--threshold", type=float,
+                               help="Detection threshold on standardised scores (default 3.5)")
+    detect_parser.add_argument("--labels",
+                               help="Comma-separated ISO timestamps of known anomalies "
+                                    "(selection then uses label F1)")
+    detect_parser.add_argument("--as-of", dest="as_of")
+    detect_parser.add_argument("--output", default="aion-output")
+    detect_parser.add_argument("--store-path", dest="store_path")
+
     decide_parser = subcommands.add_parser(
         "decide", help="What should we do? Scenario risk, feasible actions, expected utility or abstention"
     )
@@ -374,6 +387,19 @@ def main(argv: Sequence[str] | None = None) -> int:
                 target_column=args.target_column, series_column=args.series_column,
                 frequency=args.frequency, as_of=_parse_as_of(args.as_of),
                 context_events=events, output=args.output,
+                store_path=args.store_path,
+            )
+            print(json.dumps({**payload, "artifact_path": str(path)}, indent=2, allow_nan=False))
+            return 0
+        if args.command == "detect":
+            from .macros import detect_anomalies
+
+            labels = [item.strip() for item in args.labels.split(",")] if args.labels else None
+            payload, path = detect_anomalies(
+                args.input, time_column=args.time_column,
+                target_column=args.target_column, series_column=args.series_column,
+                frequency=args.frequency, as_of=_parse_as_of(args.as_of),
+                threshold=args.threshold, labels=labels, output=args.output,
                 store_path=args.store_path,
             )
             print(json.dumps({**payload, "artifact_path": str(path)}, indent=2, allow_nan=False))

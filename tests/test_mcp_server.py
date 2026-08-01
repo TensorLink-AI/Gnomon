@@ -45,7 +45,7 @@ def test_initialize_list_and_call() -> None:
         "aion_resolve_decision",
     ]
     assert set(tool_names[11:]) == {
-        "aion_investigate_change", "aion_decide", "aion_monitor",
+        "aion_investigate_change", "aion_detect_anomalies", "aion_decide", "aion_monitor",
         "aion_get_artifact", "aion_explain_run",
         "aion_status", "aion_resolve_outcome",
     }

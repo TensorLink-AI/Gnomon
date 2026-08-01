@@ -352,6 +352,23 @@ def _run_investigate_change(arguments: dict[str, Any]) -> dict[str, Any]:
     return {**payload, "artifact_path": str(path)}
 
 
+def _run_detect_anomalies(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .macros import detect_anomalies
+    payload, path = detect_anomalies(
+        arguments["input"],
+        time_column=arguments["time_column"],
+        target_column=arguments["target_column"],
+        series_column=arguments.get("series_column"),
+        frequency=arguments.get("frequency"),
+        as_of=_parse_as_of(arguments.get("as_of")),
+        threshold=(float(arguments["threshold"])
+                   if arguments.get("threshold") is not None else None),
+        labels=arguments.get("labels"),
+        output=arguments.get("output_dir") or "aion-output",
+    )
+    return {**payload, "artifact_path": str(path)}
+
+
 def _run_decide(arguments: dict[str, Any]) -> dict[str, Any]:
     from .macros import decide
     payload, path = decide(
@@ -478,6 +495,7 @@ def _registry_tools() -> list[dict[str, Any]]:
     from .registry import MACROS
     runners = {
         "aion_investigate_change": _run_investigate_change,
+        "aion_detect_anomalies": _run_detect_anomalies,
         "aion_decide": _run_decide,
         "aion_monitor": _run_monitor,
     }
