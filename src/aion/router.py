@@ -37,10 +37,12 @@ def _forecast_candidates(
 ) -> tuple[list[str], dict[str, list[str]]]:
     from .models import MODELS
     from .tsfm import eligible_tsfms
+    from .backends import backend_adapters
     eligible_names, excluded = eligible_tsfms(
         history_length=len(values), horizon=horizon, frequency=frequency,
     )
-    return list(MODELS) + eligible_names, excluded
+    plugin_names = [adapter.name for adapter in backend_adapters()]
+    return list(MODELS) + eligible_names + plugin_names, excluded
 
 
 def _anomaly_candidates(values: list[float]) -> tuple[list[str], dict[str, list[str]]]:

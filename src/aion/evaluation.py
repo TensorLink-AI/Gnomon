@@ -244,6 +244,15 @@ def evaluate(
             f"the same folds against the same baselines."
         )
 
+    # --- Plugin model backends (entry points / register_backend) ---
+    # Same lane as TSFM adapters: identical folds, must beat the baselines,
+    # per-fold failures score None. Namespaced names carry provenance.
+    from .backends import backend_adapters
+    for plugin_adapter in backend_adapters():
+        tsfm_adapters.append(plugin_adapter)
+        if plugin_adapter.name not in all_model_names:
+            all_model_names.append(plugin_adapter.name)
+
     # --- Run built-in models on selection folds ---
     fold_scores: dict[str, list[float]] = {name: [] for name in MODELS}
     # Store per-fold forecasts for ensemble/meta-model training

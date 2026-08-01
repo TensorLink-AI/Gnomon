@@ -159,6 +159,19 @@ Error envelope: `{"schema_version", "status": "error", "error": {"code",
   abstention fixtures have no supportable shorter horizon, so their
   messages are identical).
 
+- Plugin model backends, additive: the `aion.model_backends` entry-point
+  group (plus `aion.backends.register_backend`) admits third-party
+  forecast candidates into the standard evaluation — identical folds,
+  mandatory-baseline gate, per-fold failures scored `None`. Namespaced
+  candidate names (`backend:model`) may now appear in `test_scores`,
+  `selected_model`, routing candidates, and tracking records. When at
+  least one backend is installed the artifact ID payload gains a
+  `model_backends` key (name==version list); with no backend installed
+  the key is absent and every existing ID is unchanged (goldens
+  unaffected). `capabilities().models` gains `plugin_backends`,
+  `plugin_candidates`, and `plugin_backend_note`. The `statistical`
+  extra installs the first-party statsforecast backend.
+
 ## Enforcement
 
 `tests/test_golden_artifacts.py` pins byte-exact `artifact.json` output for

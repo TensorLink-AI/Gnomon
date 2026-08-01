@@ -292,6 +292,13 @@ def forecast(
         # The default level is absent from the payload so IDs predating the
         # repair layer are unchanged.
         id_payload["repair"] = repair
+    from .backends import backends_fingerprint
+    plugin_backends = backends_fingerprint()
+    if plugin_backends:
+        # A different candidate set is a different task; absent when no
+        # backend is installed so IDs predating the plugin layer are
+        # unchanged.
+        id_payload["model_backends"] = plugin_backends
     forecast_id = content_id("forecast", id_payload)
     artifact = ForecastArtifact(
         "0.1", forecast_id, clock.now().isoformat(),
@@ -326,6 +333,7 @@ def capabilities() -> dict[str, object]:
     from .registry import registry_capabilities
     from .tsfm import available_tsfms, capability_matrix, installed_tsfms
     from .tsfm_sandbox import list_sandboxes
+    from .backends import backend_adapters, loaded_backends
     return {
         "schema_version": "0.1",
         "runtime_version": "0.4.0",
@@ -351,6 +359,17 @@ def capabilities() -> dict[str, object]:
                 "Installed models join forecast selection automatically; "
                 "moment_small also adds a reconstruction candidate to "
                 "detect_anomalies. Installation is a shell step, not a tool."
+            ),
+            "plugin_backends": {
+                backend.name: backend.version for backend in loaded_backends()
+            },
+            "plugin_candidates": [adapter.name for adapter in backend_adapters()],
+            "plugin_backend_note": (
+                "Any installed package may contribute forecast candidates via "
+                "the 'aion.model_backends' entry-point group; the first-party "
+                "statsforecast backend arrives with "
+                "pip install 'aion-forecast[statistical]'. Plugin candidates "
+                "enter the same folds against the same mandatory baselines."
             ),
         },
         **registry_capabilities(),

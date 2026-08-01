@@ -15,6 +15,7 @@ dependencies = []
 [project.optional-dependencies]
 parquet = ["pyarrow>=15"]
 excel = ["openpyxl>=3.1"]
+statistical = ["statsforecast>=1.7"]
 dev = ["build>=1.2", "pytest>=8", "pyyaml>=6.0"]
 
 # TSFM adapters — Aion works without any of these (missing deps = soft skip).
@@ -31,6 +32,12 @@ dev = ["build>=1.2", "pytest>=8", "pyyaml>=6.0"]
 
 [project.scripts]
 aion = "aion.cli:main"
+
+# Pluggable model backends: any installed package may contribute forecast
+# candidates through this group. Factories return a ModelBackend, or None
+# when their optional dependency is absent (never an import error).
+[project.entry-points."aion.model_backends"]
+statsforecast = "aion.backends_statsforecast:backend"
 
 [project.urls]
 Homepage = "https://github.com/TensorLink-AI/Aion"

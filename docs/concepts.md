@@ -69,8 +69,12 @@ recovery is absent rather than aspirational.
 
 Aion is a correct, deliberately narrow foundation—not a general forecasting
 suite. Its built-in candidates are deterministic classical models (drift,
-window average, linear trend, theta, ETS) plus optional sandboxed TSFM
-adapters; seasonal periods are detected or overridden, not learned per
+window average, linear trend, theta, ETS), extendable by plugin model
+backends (the `aion.model_backends` entry-point group; the first-party
+statsforecast backend ships as the `statistical` extra) and optional
+sandboxed TSFM adapters — every candidate, whatever its origin, enters
+the same rolling folds and is selected only by beating the mandatory
+baselines. Seasonal periods are detected or overridden, not learned per
 model. Covariates and context events are admitted only through
 identical-fold ablation; when both are supplied, a deterministic
 adjudication ladder compares the base model against every admitted
