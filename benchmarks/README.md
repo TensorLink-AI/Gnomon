@@ -37,8 +37,9 @@ the treatment/control uplift and safety view described in
 | [AnomLLM](anomllm/) (ICLR 2025, "Can LLMs Understand Time Series Anomalies?") | Anomaly detection on controlled synthetic series; scored by F1 and affiliation-F1 | `benchmarks/anomllm` |
 | [MTBench](mtbench/) (2025) | Temporal reasoning and QA over paired financial/weather series and news; forecasting scored by MSE/MAPE | `benchmarks/mtbench` |
 | [TimeSage-MT](timesage_mt/) (2026) | Multi-turn agentic time series analysis with per-turn verifiable answers across 4 tiers | `benchmarks/timesage_mt` |
+| [TemporalBench](temporalbench/) (2026) | Four-tier contextual and event-informed reasoning (T1 understanding → T4 event-conditioned prediction); scored by the dataset's own metric module | `benchmarks/temporalbench` |
 
-All four were selected because they exercise what Aion owns — context
+All five were selected because they exercise what Aion owns — context
 admission under a leakage gate, calibrated intervals, graded detection,
 tool-grounded multi-turn analysis, structured abstention — rather than
 an LLM's ability to read raw number sequences. See each subdirectory's
