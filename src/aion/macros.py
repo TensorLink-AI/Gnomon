@@ -625,14 +625,23 @@ def detect_anomalies(
     as_of: datetime | None = None,
     threshold: float | None = None,
     labels: list[str] | None = None,
+    include_tsfm: bool = True,
     output: str = "aion-output",
     store_path: str | None = None,
     clock: Clock | None = None,
 ) -> tuple[dict[str, Any], Path]:
     """Graded anomaly detection: candidate detectors compete on a
     synthetic-injection grader (or on supplied labels), the winner labels
-    the series, and every candidate's grade ships in the artifact."""
-    from .anomaly import DEFAULT_THRESHOLD, detect_anomalies as run_detection
+    the series, and every candidate's grade ships in the artifact.
+
+    Installed multi-task TSFM sandboxes (reconstruction-error scoring)
+    join the candidate pool automatically and must win the grader like
+    everyone else; ``include_tsfm=False`` keeps the pool statistical."""
+    from .anomaly import (
+        DEFAULT_THRESHOLD,
+        detect_anomalies as run_detection,
+        tsfm_reconstruction_detectors,
+    )
     from .temporal import detect_season
     clock = clock or SYSTEM_CLOCK
     detection_threshold = DEFAULT_THRESHOLD if threshold is None else float(threshold)
@@ -651,6 +660,7 @@ def detect_anomalies(
     label_moments = []
     for label in labels or []:
         label_moments.append(datetime.fromisoformat(str(label)))
+    extra_detectors = tsfm_reconstruction_detectors() if include_tsfm else {}
     payloads = _series_payloads(loaded)
     results: list[dict[str, Any]] = []
     evidence_records: list[EvidenceRecord] = []
@@ -663,6 +673,7 @@ def detect_anomalies(
             [moment.isoformat() for moment in timestamps], values,
             season=season, threshold=detection_threshold,
             label_indices=label_indices or None,
+            extra_detectors=extra_detectors or None,
         )
         evidence_records.append(EvidenceRecord(
             f"anomaly_detection:{name}", "anomaly_detection", name,

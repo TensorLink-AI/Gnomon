@@ -118,6 +118,41 @@ DETECTORS: dict[str, ScoreFunction] = {
 }
 
 
+def _reconstruction_score_function(adapter: Any) -> ScoreFunction:
+    """Standardised reconstruction-error scores from a multi-task adapter."""
+    def scores(values: list[float], season: int) -> list[float]:
+        window = values[-512:]
+        reconstruction = adapter.reconstruct(window)
+        residuals = [value - rebuilt for value, rebuilt in zip(window, reconstruction)]
+        scale = _robust_scale(residuals)
+        offset = len(values) - len(window)
+        return [0.0] * offset + [value / scale for value in residuals]
+    return scores
+
+
+def tsfm_reconstruction_detectors() -> dict[str, ScoreFunction]:
+    """Reconstruction detectors for every installed sandbox whose adapter
+    has the verified ``detect_anomalies`` task. Empty when none are pulled —
+    the candidate pool only ever contains runnable detectors."""
+    try:
+        from .tsfm import tsfm_capabilities
+        from .tsfm_sandbox import SubprocessAdapter, list_sandboxes
+    except Exception:  # pragma: no cover - defensive: optional surface
+        return {}
+    detectors: dict[str, ScoreFunction] = {}
+    for name in list_sandboxes():
+        try:
+            capabilities = tsfm_capabilities(name)
+        except KeyError:
+            continue
+        if "detect_anomalies" not in capabilities.tasks:
+            continue
+        detectors[f"{name}_reconstruction"] = _reconstruction_score_function(
+            SubprocessAdapter(name)
+        )
+    return detectors
+
+
 # ---------------------------------------------------------------------------
 # The synthetic-injection grader
 # ---------------------------------------------------------------------------
@@ -182,16 +217,24 @@ def grade_detectors(
     trials = _injection_trials(values, season, rng)
     grades: dict[str, dict[str, Any]] = {}
     for name, score_function in detectors.items():
-        clean_flags = _flagged(score_function(values, season), threshold)
-        hits, false_positives = 0, 0
-        for trial in trials:
-            injected = list(values)
-            for index, delta in zip(trial["indices"], trial["deltas"]):
-                injected[index] += delta
-            novel = _flagged(score_function(injected, season), threshold) - clean_flags
-            if novel & trial["hit_indices"]:
-                hits += 1
-            false_positives += len(novel - trial["hit_indices"] - set(trial["indices"]))
+        try:
+            clean_flags = _flagged(score_function(values, season), threshold)
+            hits, false_positives = 0, 0
+            for trial in trials:
+                injected = list(values)
+                for index, delta in zip(trial["indices"], trial["deltas"]):
+                    injected[index] += delta
+                novel = _flagged(score_function(injected, season), threshold) - clean_flags
+                if novel & trial["hit_indices"]:
+                    hits += 1
+                false_positives += len(novel - trial["hit_indices"] - set(trial["indices"]))
+        except Exception as exc:
+            # A detector that cannot run scores zero and discloses why —
+            # it must not take the whole evaluation down with it.
+            grades[name] = {"precision": 0.0, "recall": 0.0, "f1": 0.0,
+                            "trials": len(trials), "false_positives": 0,
+                            "error": str(exc)}
+            continue
         recall = hits / len(trials) if trials else 0.0
         precision = hits / (hits + false_positives) if hits + false_positives else 0.0
         f1 = (2 * precision * recall / (precision + recall)) if precision + recall else 0.0
@@ -228,7 +271,12 @@ def _grade_against_labels(
         tolerant.update((index - 1, index, index + 1))
     grades = {}
     for name, score_function in detectors.items():
-        flags = _flagged(score_function(values, season), threshold)
+        try:
+            flags = _flagged(score_function(values, season), threshold)
+        except Exception as exc:
+            grades[name] = {"precision": 0.0, "recall": 0.0, "f1": 0.0,
+                            "labels": len(label_indices), "error": str(exc)}
+            continue
         hits = sum(1 for index in label_indices
                    if flags & {index - 1, index, index + 1})
         false_positives = len(flags - tolerant)

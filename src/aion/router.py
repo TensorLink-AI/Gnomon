@@ -44,12 +44,13 @@ def _forecast_candidates(
 
 
 def _anomaly_candidates(values: list[float]) -> tuple[list[str], dict[str, list[str]]]:
-    from .anomaly import DETECTORS, MIN_DETECTION_HISTORY
+    from .anomaly import DETECTORS, MIN_DETECTION_HISTORY, tsfm_reconstruction_detectors
+    names = list(DETECTORS) + list(tsfm_reconstruction_detectors())
     if len(values) < MIN_DETECTION_HISTORY:
         return [], {name: [
             f"needs at least {MIN_DETECTION_HISTORY} observations (have {len(values)})"
-        ] for name in DETECTORS}
-    return list(DETECTORS), {}
+        ] for name in names}
+    return names, {}
 
 
 def _tracking_prior(

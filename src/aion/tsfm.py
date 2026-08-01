@@ -51,6 +51,9 @@ class TSFMCapabilities:
     static_covariates: bool = False
     multivariate_targets: bool = False
     native_quantiles: bool = False
+    #: Tasks this adapter implements and Aion has verified — a task appears
+    #: here only once the adapter method behind it exists and is tested.
+    tasks: tuple[str, ...] = ("forecast",)
     min_context_length: int = 1
     max_context_length: int | None = None
     max_horizon: int | None = None
@@ -92,6 +95,7 @@ _CAPABILITIES: dict[str, TSFMCapabilities] = {
     ),
     "moment_small": TSFMCapabilities(
         native_quantiles=False, max_context_length=512,
+        tasks=("forecast", "detect_anomalies", "impute", "embed"),
         source="https://github.com/moment-timeseries-foundation-model/moment",
     ),
 }
@@ -111,6 +115,7 @@ def capability_matrix() -> dict[str, dict[str, Any]]:
 def eligible_tsfms(
     *, history_length: int, horizon: int, frequency: str,
     require_future_covariates: bool = False,
+    task: str = "forecast",
 ) -> tuple[list[str], dict[str, list[str]]]:
     """Filter registered adapters using verified, machine-actionable limits."""
     eligible: list[str] = []
@@ -118,6 +123,8 @@ def eligible_tsfms(
     for name in available_tsfms():
         caps = tsfm_capabilities(name)
         reasons: list[str] = []
+        if task not in caps.tasks:
+            reasons.append(f"Aion adapter does not implement task {task!r}")
         if require_future_covariates and not caps.future_known_covariates:
             reasons.append("Aion adapter does not implement future-known covariates")
         if caps.min_context_length > history_length:
@@ -139,7 +146,21 @@ def eligible_tsfms(
 
 @runtime_checkable
 class TSFMAdapter(Protocol):
-    """Uniform interface every TSFM adapter must implement."""
+    """Uniform interface every TSFM adapter must implement.
+
+    Beyond the required forecasting surface below, adapters may implement
+    two optional multi-task verbs, discovered via ``getattr`` and declared
+    through ``TSFMCapabilities.tasks``:
+
+    - ``reconstruct(history, mask=None) -> list[float]`` — a masked
+      reconstruction of the series (``mask``: 1 = observed, 0 = missing).
+      Reconstruction error powers anomaly scoring; reconstruction of
+      masked points is imputation.
+    - ``embed(history) -> list[float]`` — a fixed-length representation
+      of the series, for downstream heads.
+
+    An adapter without a verb simply doesn't list the task; capability
+    flags are set only for implemented, tested behavior."""
 
     #: Stable identifier used in evidence, artifacts, and capabilities.
     name: str
@@ -905,6 +926,82 @@ class MomentAdapter:
         # for forecasting is reconstruction-based. Return None to fall back
         # to Aion's residual-based intervals.
         return None
+
+    def _reconstruction_pipeline(self):
+        torch = _import_torch()
+        _try_import("momentfm")
+        try:
+            from momentfm import MOMENTPipeline
+            model = MOMENTPipeline.from_pretrained(
+                self._MODEL_ID, model_kwargs={"task_name": "reconstruction"},
+            )
+            model.init()
+            return model
+        except TSFMUnavailable:
+            raise
+        except Exception as exc:
+            raise TSFMError(f"Failed to load MOMENT reconstruction head: {exc}") from exc
+
+    def _windowed(self, history: list[float]):
+        torch = _import_torch()
+        ctx_len = min(len(history), 512)
+        ctx = history[-ctx_len:]
+        padding = 512 - len(ctx)
+        padded = [0.0] * padding + ctx
+        ts = torch.tensor(padded, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+        input_mask = torch.tensor(
+            [0.0] * padding + [1.0] * len(ctx), dtype=torch.float32,
+        ).unsqueeze(0)
+        return ts, input_mask, padding, ctx_len
+
+    def reconstruct(
+        self, history: list[float], mask: list[int] | None = None,
+    ) -> list[float]:
+        """Masked reconstruction of the trailing (≤512-point) window.
+
+        ``mask`` (1 = observed, 0 = missing) marks points the model must
+        not see: reconstruction there is imputation; elsewhere the gap
+        between value and reconstruction is the anomaly signal."""
+        torch = _import_torch()
+        model = self._reconstruction_pipeline()
+        try:
+            ts, input_mask, padding, ctx_len = self._windowed(history)
+            if mask is not None:
+                tail_mask = mask[-ctx_len:]
+                for offset, observed in enumerate(tail_mask):
+                    if not observed:
+                        input_mask[0, padding + offset] = 0.0
+                        ts[0, 0, padding + offset] = 0.0
+            with torch.no_grad():
+                output = model.model(x_enc=ts, input_mask=input_mask)
+            values = output.reconstruction.detach().cpu().numpy().squeeze()
+            return values[padding:].tolist()
+        except TSFMUnavailable:
+            raise
+        except Exception as exc:
+            raise TSFMError(f"MOMENT reconstruction failed: {exc}") from exc
+
+    def embed(self, history: list[float]) -> list[float]:
+        """Fixed-length embedding of the trailing (≤512-point) window."""
+        torch = _import_torch()
+        _try_import("momentfm")
+        try:
+            from momentfm import MOMENTPipeline
+            model = MOMENTPipeline.from_pretrained(
+                self._MODEL_ID, model_kwargs={"task_name": "embedding"},
+            )
+            model.init()
+            ts, input_mask, _, _ = self._windowed(history)
+            with torch.no_grad():
+                output = model.model(x_enc=ts, input_mask=input_mask)
+            embedding = output.embeddings.detach().cpu().numpy().squeeze()
+            if embedding.ndim > 1:
+                embedding = embedding.mean(axis=0)
+            return embedding.tolist()
+        except TSFMUnavailable:
+            raise
+        except Exception as exc:
+            raise TSFMError(f"MOMENT embedding failed: {exc}") from exc
 
 
 def _register_moment():

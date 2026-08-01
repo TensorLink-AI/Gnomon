@@ -225,15 +225,23 @@ WORKER_SCRIPT = textwrap.dedent("""\
     def main():
         request = json.load(sys.stdin)
         tsfm_name = request["tsfm_name"]
+        mode = request.get("mode", "predict")
         history = request["history"]
-        horizon = request["horizon"]
-        season = request["season"]
-        quantiles = request.get("quantiles", [0.1, 0.5, 0.9])
-        frequency = request.get("frequency", "h")
-        want_quantiles = request.get("want_quantiles", False)
 
         try:
-            result = run_tsfm(tsfm_name, history, horizon, season, quantiles, frequency, want_quantiles)
+            if mode == "reconstruct":
+                result = run_reconstruct(tsfm_name, history, request.get("mask"))
+            elif mode == "embed":
+                result = run_embed(tsfm_name, history)
+            elif mode == "predict":
+                result = run_tsfm(
+                    tsfm_name, history, request["horizon"], request["season"],
+                    request.get("quantiles", [0.1, 0.5, 0.9]),
+                    request.get("frequency", "h"),
+                    request.get("want_quantiles", False),
+                )
+            else:
+                raise ValueError(f"Unknown mode: {mode}")
             json.dump(result, sys.stdout)
         except Exception as exc:
             json.dump({"error": str(exc), "traceback": traceback.format_exc()}, sys.stdout)
@@ -452,15 +460,73 @@ WORKER_SCRIPT = textwrap.dedent("""\
         return {"point": point, "quantiles": None}
 
 
+    def _moment_window(history):
+        import torch
+        ctx_len = min(len(history), 512)
+        ctx = history[-ctx_len:]
+        padding = 512 - len(ctx)
+        padded = [0.0] * padding + ctx
+        ts = torch.tensor(padded, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+        input_mask = torch.tensor(
+            [0.0] * padding + [1.0] * len(ctx), dtype=torch.float32,
+        ).unsqueeze(0)
+        return ts, input_mask, padding, ctx_len
+
+
+    def run_reconstruct(name, history, mask):
+        if name != "moment_small":
+            raise ValueError(f"TSFM {name} does not implement reconstruction")
+        import torch
+        from momentfm import MOMENTPipeline
+
+        model = MOMENTPipeline.from_pretrained(
+            "AutonLab/MOMENT-1-small",
+            model_kwargs={"task_name": "reconstruction"},
+        )
+        model.init()
+        ts, input_mask, padding, ctx_len = _moment_window(history)
+        if mask is not None:
+            tail_mask = mask[-ctx_len:]
+            for offset, observed in enumerate(tail_mask):
+                if not observed:
+                    input_mask[0, padding + offset] = 0.0
+                    ts[0, 0, padding + offset] = 0.0
+        with torch.no_grad():
+            output = model.model(x_enc=ts, input_mask=input_mask)
+        values = output.reconstruction.detach().cpu().numpy().squeeze()
+        return {"reconstruction": values[padding:].tolist()}
+
+
+    def run_embed(name, history):
+        if name != "moment_small":
+            raise ValueError(f"TSFM {name} does not implement embedding")
+        import torch
+        from momentfm import MOMENTPipeline
+
+        model = MOMENTPipeline.from_pretrained(
+            "AutonLab/MOMENT-1-small",
+            model_kwargs={"task_name": "embedding"},
+        )
+        model.init()
+        ts, input_mask, _, _ = _moment_window(history)
+        with torch.no_grad():
+            output = model.model(x_enc=ts, input_mask=input_mask)
+        embedding = output.embeddings.detach().cpu().numpy().squeeze()
+        if embedding.ndim > 1:
+            embedding = embedding.mean(axis=0)
+        return {"embedding": embedding.tolist()}
+
+
     if __name__ == "__main__":
         main()
 """)
 
 
 def _ensure_worker_script(sandbox_dir: Path) -> Path:
-    """Write the worker script into the sandbox dir if not present."""
+    """Write the worker script into the sandbox dir, refreshing it when the
+    packaged script has changed (e.g. new verbs) since the sandbox was built."""
     script_path = sandbox_dir / "worker.py"
-    if not script_path.exists():
+    if not script_path.exists() or script_path.read_text() != WORKER_SCRIPT:
         script_path.write_text(WORKER_SCRIPT)
     return script_path
 
@@ -610,6 +676,42 @@ class SubprocessAdapter:
         }
         response = self._run_subprocess(request)
         return response.get("quantiles")
+
+    def _require_task(self, task: str) -> None:
+        from .tsfm import tsfm_capabilities
+        try:
+            capabilities = tsfm_capabilities(self.name)
+        except KeyError:
+            raise TSFMError(f"Unknown TSFM adapter: {self.name}")
+        if task not in capabilities.tasks:
+            raise TSFMError(
+                f"TSFM {self.name} does not implement task {task!r} "
+                f"(verified tasks: {', '.join(capabilities.tasks)})"
+            )
+
+    def reconstruct(
+        self, history: list[float], mask: list[int] | None = None,
+    ) -> list[float]:
+        """Masked reconstruction via the sandbox (see TSFMAdapter docs)."""
+        self._require_task("detect_anomalies")
+        request: dict[str, Any] = {"mode": "reconstruct", "history": history}
+        if mask is not None:
+            request["mask"] = mask
+        response = self._run_subprocess(request)
+        reconstruction = response.get("reconstruction")
+        if reconstruction is None:
+            raise TSFMError(f"Sandbox {self.name} returned no reconstruction")
+        return reconstruction
+
+    def embed(self, history: list[float]) -> list[float]:
+        """Series embedding via the sandbox (see TSFMAdapter docs)."""
+        self._require_task("embed")
+        request: dict[str, Any] = {"mode": "embed", "history": history}
+        response = self._run_subprocess(request)
+        embedding = response.get("embedding")
+        if embedding is None:
+            raise TSFMError(f"Sandbox {self.name} returned no embedding")
+        return embedding
 
 
 # ---------------------------------------------------------------------------
