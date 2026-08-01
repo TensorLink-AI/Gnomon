@@ -42,5 +42,5 @@ Issues = "https://github.com/TensorLink-AI/Aion/issues"
 packages = ["src/aion"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "benchmarks/tests"]
 pythonpath = ["src"]
