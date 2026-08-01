@@ -352,6 +352,30 @@ def _run_investigate_change(arguments: dict[str, Any]) -> dict[str, Any]:
     return {**payload, "artifact_path": str(path)}
 
 
+def _run_route(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .pipeline import load_stage
+    from .router import route
+    from .tracking import TrackingStore
+    loaded = load_stage(
+        arguments["input"],
+        time_column=arguments["time_column"],
+        target_column=arguments["target_column"],
+        series_column=arguments.get("series_column"),
+        frequency=arguments.get("frequency"),
+        as_of=_parse_as_of(arguments.get("as_of")),
+    )
+    project = arguments.get("project")
+    store = TrackingStore() if project else None
+    decisions = [
+        route(arguments.get("task") or "forecast",
+              [item.value for item in items], loaded.frequency,
+              horizon=int(arguments.get("horizon") or 1),
+              series=name, project=project, store=store)
+        for name, items in sorted(loaded.groups.items())
+    ]
+    return {"schema_version": "0.1", "decisions": decisions}
+
+
 def _run_detect_anomalies(arguments: dict[str, Any]) -> dict[str, Any]:
     from .macros import detect_anomalies
     payload, path = detect_anomalies(
@@ -556,6 +580,32 @@ TOOLS.extend([
             "note": {"type": "string"},
         }, "required": ["decision_id"]},
         "runner": _run_resolve_outcome,
+    },
+    {
+        "name": "aion_route",
+        "description": (
+            "Which method for this task on this data? A disclosed, advisory "
+            "routing decision: verified capability filter, then a realised-"
+            "performance prior from the tracking store when enough scored "
+            "history exists (never claimed cold), with the series fingerprint "
+            "and every exclusion reason in the output. Evaluated runs still "
+            "backtest every candidate; an explicit model choice always wins."
+        ),
+        "inputSchema": {"type": "object", "properties": {
+            "input": {"type": "string", "description": "Path to a CSV/Parquet file or store:<dataset>."},
+            "time_column": {"type": "string"},
+            "target_column": {"type": "string"},
+            "series_column": {"type": "string"},
+            "frequency": {"type": "string"},
+            "task": {"type": "string", "enum": ["forecast", "detect_anomalies"],
+                     "description": "Task to route (default forecast)."},
+            "horizon": {"type": "integer", "description": "Forecast horizon (default 1)."},
+            "project": {"type": "string", "description": (
+                "Tracking project: consults the realised-performance prior and "
+                "records the routing decision for replay."
+            )},
+        }, "required": ["input", "time_column", "target_column"]},
+        "runner": _run_route,
     },
     {
         "name": "aion_explain_run",

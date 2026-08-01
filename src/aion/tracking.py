@@ -89,6 +89,8 @@ class ForecastRecord:
     threshold_accuracy: float | None = None
     scored_at: str | None = None
     drift_flag: str | None = None
+    task: str = "forecast"
+    fingerprint: str | None = None
 
 
 @dataclass(frozen=True)
@@ -316,14 +318,31 @@ class TrackingStore:
             }
             if "naive_error" not in columns:
                 conn.execute("ALTER TABLE forecasts ADD COLUMN naive_error REAL")
+            for name, sql_type in (("task", "TEXT DEFAULT 'forecast'"), ("fingerprint", "TEXT")):
+                if name not in columns:
+                    conn.execute(f"ALTER TABLE forecasts ADD COLUMN {name} {sql_type}")
             perf_columns = {
                 row["name"] for row in conn.execute("PRAGMA table_info(model_performance)")
             }
-            for name, sql_type in (("series", "TEXT"), ("horizon", "INTEGER"), ("frequency", "TEXT")):
+            for name, sql_type in (("series", "TEXT"), ("horizon", "INTEGER"), ("frequency", "TEXT"),
+                                   ("task", "TEXT DEFAULT 'forecast'"), ("fingerprint", "TEXT")):
                 if name not in perf_columns:
                     conn.execute(f"ALTER TABLE model_performance ADD COLUMN {name} {sql_type}")
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS routing_decisions (
+                    route_id TEXT PRIMARY KEY,
+                    project TEXT NOT NULL,
+                    task TEXT NOT NULL,
+                    series TEXT,
+                    fingerprint TEXT,
+                    recommendation TEXT,
+                    basis TEXT NOT NULL,
+                    payload TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                )
+            """)
             conn.execute(
-                "INSERT OR REPLACE INTO schema_metadata(key, value) VALUES ('version', '2')"
+                "INSERT OR REPLACE INTO schema_metadata(key, value) VALUES ('version', '3')"
             )
 
     @contextmanager
@@ -359,6 +378,8 @@ class TrackingStore:
         naive_error: float | None = None,
         artifact_path: str = "",
         created_at: str | None = None,
+        task: str = "forecast",
+        fingerprint: str | None = None,
     ) -> None:
         """Register or update a forecast in the registry."""
         created_at = created_at or datetime.now(timezone.utc).isoformat()
@@ -367,8 +388,8 @@ class TrackingStore:
                 INSERT INTO forecasts
                     (forecast_id, project, series, cutoff_time, horizon, frequency,
                      selected_model, support, threshold, threshold_peak_probability, naive_error,
-                     artifact_path, created_at, scored)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+                     artifact_path, created_at, scored, task, fingerprint)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
                 ON CONFLICT(forecast_id) DO UPDATE SET
                     project = excluded.project,
                     series = excluded.series,
@@ -380,11 +401,13 @@ class TrackingStore:
                     threshold = excluded.threshold,
                     threshold_peak_probability = excluded.threshold_peak_probability,
                     naive_error = excluded.naive_error,
-                    artifact_path = excluded.artifact_path
+                    artifact_path = excluded.artifact_path,
+                    task = excluded.task,
+                    fingerprint = excluded.fingerprint
             """, (
                 forecast_id, project, series, cutoff_time, horizon, frequency,
                 selected_model, support, threshold, threshold_peak_probability, naive_error,
-                artifact_path, created_at,
+                artifact_path, created_at, task, fingerprint,
             ))
         logger.info("Registered forecast %s in project %s", forecast_id, project)
 
@@ -460,12 +483,14 @@ class TrackingStore:
                 conn.execute("""
                     INSERT OR REPLACE INTO model_performance
                         (project, model, forecast_id, mase, mape, bias,
-                         coverage, threshold_accuracy, scored_at, series, horizon, frequency)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         coverage, threshold_accuracy, scored_at, series, horizon, frequency,
+                         task, fingerprint)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     record.project, record.selected_model, forecast_id,
                     mase, mape, bias, cov, thresh_acc, scored_at,
                     record.series, record.horizon, record.frequency,
+                    record.task, record.fingerprint,
                 ))
 
         logger.info(
@@ -616,10 +641,12 @@ class TrackingStore:
 
     # ---- Performance / Leaderboard ----
 
-    def leaderboard(self, project: str) -> list[ModelPerformance]:
-        """Get ranked model performance for a project."""
+    def leaderboard(self, project: str, task: str | None = None) -> list[ModelPerformance]:
+        """Get ranked model performance for a project, optionally per task."""
+        task_filter = "" if task is None else " AND COALESCE(task, 'forecast') = ?"
+        params: tuple[Any, ...] = (project,) if task is None else (project, task)
         with self._connect() as conn:
-            rows = conn.execute("""
+            rows = conn.execute(f"""
                 SELECT
                     model,
                     COUNT(*) as count,
@@ -634,10 +661,10 @@ class TrackingStore:
                        AND recent.model = model_performance.model
                      ORDER BY recent.scored_at DESC LIMIT 1) AS last_mase
                 FROM model_performance
-                WHERE project = ?
+                WHERE project = ?{task_filter}
                 GROUP BY model
                 ORDER BY AVG(mase) IS NULL, AVG(mase) ASC
-            """, (project,)).fetchall()
+            """, params).fetchall()
 
         results = []
         for r in rows:
@@ -895,15 +922,64 @@ class TrackingStore:
                 raise ValueError(f"Forecast {forecast_id} not found")
         return self.get_forecast(forecast_id)  # type: ignore[return-value]
 
-    def model_performance(self, project: str, model: str) -> list[dict[str, Any]]:
+    def model_performance(
+        self, project: str, model: str, task: str | None = None,
+    ) -> list[dict[str, Any]]:
         """Get per-forecast performance history for a specific model."""
+        task_filter = "" if task is None else " AND COALESCE(task, 'forecast') = ?"
+        params: tuple[Any, ...] = (project, model) if task is None else (project, model, task)
         with self._connect() as conn:
-            rows = conn.execute("""
+            rows = conn.execute(f"""
                 SELECT * FROM model_performance
-                WHERE project = ? AND model = ?
+                WHERE project = ? AND model = ?{task_filter}
                 ORDER BY scored_at DESC
-            """, (project, model)).fetchall()
+            """, params).fetchall()
         return [dict(r) for r in rows]
+
+    # ---- Routing ----
+
+    def record_route(
+        self,
+        route_id: str,
+        project: str,
+        task: str,
+        *,
+        series: str | None = None,
+        fingerprint: str | None = None,
+        recommendation: str | None = None,
+        basis: str = "backtest_required",
+        payload: dict[str, Any] | None = None,
+        created_at: str | None = None,
+    ) -> None:
+        """Record one routing decision so replay can reproduce the choice."""
+        created_at = created_at or datetime.now(timezone.utc).isoformat()
+        with self._connect() as conn:
+            conn.execute("""
+                INSERT OR REPLACE INTO routing_decisions
+                    (route_id, project, task, series, fingerprint,
+                     recommendation, basis, payload, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (route_id, project, task, series, fingerprint, recommendation,
+                  basis, json.dumps(payload or {}, sort_keys=True), created_at))
+
+    def list_routes(self, project: str | None = None) -> list[dict[str, Any]]:
+        """List recorded routing decisions, newest first."""
+        with self._connect() as conn:
+            if project:
+                rows = conn.execute(
+                    "SELECT * FROM routing_decisions WHERE project = ? ORDER BY created_at DESC",
+                    (project,),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM routing_decisions ORDER BY created_at DESC",
+                ).fetchall()
+        results = []
+        for row in rows:
+            item = dict(row)
+            item["payload"] = json.loads(item["payload"])
+            results.append(item)
+        return results
 
     # ---- Drift Detection ----
 
@@ -1057,6 +1133,8 @@ class TrackingStore:
             threshold_accuracy=row["threshold_accuracy"],
             scored_at=row["scored_at"],
             drift_flag=row["drift_flag"],
+            task=(row["task"] if "task" in row.keys() else None) or "forecast",
+            fingerprint=row["fingerprint"] if "fingerprint" in row.keys() else None,
         )
 
     @staticmethod
@@ -1096,6 +1174,7 @@ def register_artifact(artifact: Any, project: str, artifact_path: str) -> list[s
                   for index in range(lag, len(values))]
         tracking_id = (artifact.forecast_id if result.series == "__default__"
                        else f"{artifact.forecast_id}:{result.series}")
+        from .fingerprint import fingerprint_json
         store.register(
             tracking_id, project, series=result.series,
             cutoff_time=cutoffs[result.series], horizon=artifact.task.horizon,
@@ -1106,6 +1185,8 @@ def register_artifact(artifact: Any, project: str, artifact_path: str) -> list[s
                                         if result.threshold else None),
             naive_error=sum(errors) / len(errors) if errors else None,
             artifact_path=artifact_path,
+            task="forecast",
+            fingerprint=fingerprint_json(values, schema.frequency),
         )
         registered.append(tracking_id)
     return registered

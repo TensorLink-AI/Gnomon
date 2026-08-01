@@ -47,7 +47,7 @@ def test_initialize_list_and_call() -> None:
     assert set(tool_names[11:]) == {
         "aion_investigate_change", "aion_detect_anomalies", "aion_decide", "aion_monitor",
         "aion_get_artifact", "aion_explain_run",
-        "aion_status", "aion_resolve_outcome",
+        "aion_status", "aion_resolve_outcome", "aion_route",
     }
     call = by_id[3]["result"]
     assert call["isError"] is False

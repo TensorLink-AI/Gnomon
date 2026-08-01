@@ -127,6 +127,19 @@ def build_parser() -> argparse.ArgumentParser:
     investigate_parser.add_argument("--output", default="aion-output")
     investigate_parser.add_argument("--store-path", dest="store_path")
 
+    route_parser = subcommands.add_parser(
+        "route", help="Which method for this task on this data? Disclosed, advisory, recorded"
+    )
+    _common_input(route_parser)
+    route_parser.add_argument("--task", default="forecast",
+                              choices=["forecast", "detect_anomalies"])
+    route_parser.add_argument("--horizon", type=int, default=1)
+    route_parser.add_argument("--project",
+                              help="Tracking project: consults the realised-performance "
+                                   "prior and records the decision")
+    route_parser.add_argument("--as-of", dest="as_of")
+    route_parser.add_argument("--store-path", dest="store_path")
+
     detect_parser = subcommands.add_parser(
         "detect", help="What is abnormal? Graded detectors, disclosed selection, flagged anomalies"
     )
@@ -279,6 +292,8 @@ def build_parser() -> argparse.ArgumentParser:
         "leaderboard", help="Show ranked model performance for a project"
     )
     track_leaderboard.add_argument("--project", required=True)
+    track_leaderboard.add_argument("--task",
+                                   help="Restrict to one task (e.g. forecast, detect_anomalies)")
 
     track_due = track_commands.add_parser(
         "due", help="List open forecasts whose horizon has completed"
@@ -390,6 +405,27 @@ def main(argv: Sequence[str] | None = None) -> int:
                 store_path=args.store_path,
             )
             print(json.dumps({**payload, "artifact_path": str(path)}, indent=2, allow_nan=False))
+            return 0
+        if args.command == "route":
+            from .pipeline import load_stage
+            from .router import route
+            from .tracking import TrackingStore
+
+            loaded = load_stage(
+                args.input, time_column=args.time_column,
+                target_column=args.target_column, series_column=args.series_column,
+                frequency=args.frequency, as_of=_parse_as_of(args.as_of),
+                store_path=args.store_path,
+            )
+            store = TrackingStore() if args.project else None
+            decisions = [
+                route(args.task, [item.value for item in items], loaded.frequency,
+                      horizon=args.horizon, series=name, project=args.project,
+                      store=store)
+                for name, items in sorted(loaded.groups.items())
+            ]
+            print(json.dumps({"schema_version": "0.1", "decisions": decisions},
+                             indent=2, allow_nan=False))
             return 0
         if args.command == "detect":
             from .macros import detect_anomalies
@@ -700,8 +736,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return 0
 
             elif args.track_command == "leaderboard":
-                lb = store.leaderboard(args.project)
-                print(f"\n  Model Leaderboard: {args.project}")
+                lb = store.leaderboard(args.project, task=args.task)
+                task_label = f" [{args.task}]" if args.task else ""
+                print(f"\n  Model Leaderboard: {args.project}{task_label}")
                 print(f"  {'Model':25s} {'Count':>5s} {'MASE':>7s} {'MAPE':>7s} {'Bias':>8s} {'Coverage':>9s} {'Last':>7s}")
                 print(f"  {'-'*25} {'-'*5} {'-'*7} {'-'*7} {'-'*8} {'-'*9} {'-'*7}")
                 for m in lb:
