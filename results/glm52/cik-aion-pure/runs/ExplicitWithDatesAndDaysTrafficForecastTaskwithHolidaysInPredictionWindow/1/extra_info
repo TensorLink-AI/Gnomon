@@ -1,0 +1,12 @@
+{'adapter': 'AionForecaster_mode=pure_model=none',
+ 'context': None,
+ 'proposal_notes': [],
+ 'proposed_events': [],
+ 'selected_model': 'drift',
+ 'strongest_baseline': 'last_value',
+ 'support': 'degraded',
+ 'total_time': 0.00809621810913086,
+ 'warnings': ['Degraded forecast: model selection used a single trailing '
+              '42-observation holdout; rolling-origin calibration and final '
+              'testing were unavailable. At least 288 observations (have 168) '
+              'are needed for separated selection and calibration.']}

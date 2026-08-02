@@ -1,0 +1,31 @@
+{
+  "benchmark": "temporalbench",
+  "condition": "aion-agent",
+  "model": "z-ai/glm-5.2",
+  "tiers": [
+    "T2",
+    "T4"
+  ],
+  "datasets": "all",
+  "rows": 50,
+  "rows_errored": 0,
+  "rows_with_abstentions": 48,
+  "choice_accuracy_by_tier": {
+    "T2": 0.36,
+    "T4": 0.37333333333333335
+  },
+  "forecast_metrics_mean": {
+    "OW_MASE": 2.388484015424864,
+    "OW_RMSSE": 1.6465744728525549,
+    "OW_sMAPE": 8.79910197363666
+  },
+  "note": "forecast metrics computed by the dataset's official forecast_metrics_utils.py; choice accuracy is exact-match against the official labels",
+  "llm_usage": {
+    "model": "z-ai/glm-5.2",
+    "requests": 52,
+    "prompt_tokens": 193225,
+    "completion_tokens": 308287,
+    "cost_usd": 1.055589,
+    "truncation_escalations": 2
+  }
+}

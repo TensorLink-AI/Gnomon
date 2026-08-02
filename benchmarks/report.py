@@ -218,6 +218,37 @@ def sign_test(baseline: dict[str, float], treatment: dict[str, float],
 # Comparison
 # ---------------------------------------------------------------------------
 
+def penalized_mean(baseline_values: dict[str, float],
+                   treatment_values: dict[str, float],
+                   answered_by_baseline: set[str]) -> dict[str, Any] | None:
+    """Treatment mean with abstentions imputed at the baseline's score.
+
+    A scored-only mean rewards abstention: refuse the hard tasks and the
+    average improves. The matched subset fixes the comparison but hides
+    the cost of refusing. Here every task the baseline answered and the
+    treatment did not is charged to the treatment at the baseline's own
+    result — the outcome a caller falls back to when Aion declines.
+
+    This is a *lower* bound on the cost of abstention: a real fallback
+    (seasonal-naive on the same task) may do worse than the baseline did.
+    """
+    missing = sorted(answered_by_baseline - set(treatment_values))
+    if not missing:
+        return None
+    imputed = dict(treatment_values)
+    for task in missing:
+        imputed[task] = baseline_values[task]
+    common = sorted(set(baseline_values) & set(imputed))
+    if not common:
+        return None
+    return {
+        "abstentions_imputed": len(missing),
+        "baseline_mean": round(statistics.mean(baseline_values[t] for t in common), 6),
+        "treatment_mean": round(statistics.mean(imputed[t] for t in common), 6),
+        "basis": "abstentions charged at the baseline's score on the same task",
+    }
+
+
 def compare(baseline: dict[str, Any], treatment: dict[str, Any],
             metric: str | None = None) -> dict[str, Any]:
     """Compare two arms on the tasks both answered, or refuse and say why."""
@@ -266,20 +297,40 @@ def compare(baseline: dict[str, Any], treatment: dict[str, Any],
         treat_values = {k: metric_value(treatment["tasks"][k], name) for k in shared}
         paired = {k for k in shared
                   if base_values.get(k) is not None and treat_values.get(k) is not None}
-        if len(paired) < 2:
-            continue
         base_values = {k: base_values[k] for k in paired}
         treat_values = {k: treat_values[k] for k in paired}
         lower = any(token in name.lower() for token in LOWER_IS_BETTER)
-        result.setdefault("metrics", {})[name] = {
+        penalized = penalized_mean(
+            {k: v for k, v in
+             ((k, metric_value(baseline["tasks"][k], name))
+              for k in baseline["tasks"]) if v is not None},
+            {k: v for k, v in
+             ((k, metric_value(treatment["tasks"][k], name))
+              for k in treatment["tasks"]) if v is not None},
+            {k for k in baseline["tasks"]
+             if metric_value(baseline["tasks"][k], name) is not None},
+        )
+        # A treatment that abstains on most tasks leaves too small a
+        # matched subset to test — but that is precisely when the
+        # penalized view is the only honest summary, so the entry is
+        # emitted with whichever halves exist.
+        if len(paired) < 2 and not penalized:
+            continue
+        entry: dict[str, Any] = {
             "scored_by_both": len(paired),
             "lower_is_better": lower,
-            "baseline_mean": round(statistics.mean(base_values.values()), 6),
-            "treatment_mean": round(statistics.mean(treat_values.values()), 6),
-            "baseline_median": round(statistics.median(base_values.values()), 6),
-            "treatment_median": round(statistics.median(treat_values.values()), 6),
-            "test": sign_test(base_values, treat_values, lower),
         }
+        if penalized:
+            entry["penalized"] = penalized
+        if len(paired) >= 2:
+            entry.update({
+                "baseline_mean": round(statistics.mean(base_values.values()), 6),
+                "treatment_mean": round(statistics.mean(treat_values.values()), 6),
+                "baseline_median": round(statistics.median(base_values.values()), 6),
+                "treatment_median": round(statistics.median(treat_values.values()), 6),
+                "test": sign_test(base_values, treat_values, lower),
+            })
+        result.setdefault("metrics", {})[name] = entry
     return result
 
 
@@ -308,14 +359,25 @@ def format_comparison(result: dict[str, Any]) -> str:
         )
     for name, entry in (result.get("metrics") or {}).items():
         direction = "lower better" if entry["lower_is_better"] else "higher better"
-        test = entry["test"]
-        lines.append(
-            f"  {name} ({direction}, n={entry['scored_by_both']}):"
-            f" mean {entry['baseline_mean']:.4g} -> {entry['treatment_mean']:.4g},"
-            f" median {entry['baseline_median']:.4g} -> {entry['treatment_median']:.4g},"
-            f" wins {test['treatment_wins']}/{test['treatment_wins'] + test['treatment_losses']},"
-            f" p={test['p_value']:.4f}"
-        )
+        test = entry.get("test")
+        if test is None:
+            lines.append(f"  {name} ({direction}): too few tasks scored by both"
+                         f" ({entry['scored_by_both']}) to test")
+        else:
+            lines.append(
+                f"  {name} ({direction}, n={entry['scored_by_both']}):"
+                f" mean {entry['baseline_mean']:.4g} -> {entry['treatment_mean']:.4g},"
+                f" median {entry['baseline_median']:.4g} -> {entry['treatment_median']:.4g},"
+                f" wins {test['treatment_wins']}/{test['treatment_wins'] + test['treatment_losses']},"
+                f" p={test['p_value']:.4f}"
+            )
+        if entry.get("penalized"):
+            pen = entry["penalized"]
+            lines.append(
+                f"    penalized ({pen['abstentions_imputed']} abstentions charged"
+                f" at the baseline's score): {pen['baseline_mean']:.4g}"
+                f" -> {pen['treatment_mean']:.4g}"
+            )
     return "\n".join(lines)
 
 

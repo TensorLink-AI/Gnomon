@@ -1,0 +1,9 @@
+
+Background:
+This is the electricity consumption recorded in Kilowatt (kW) in city A.
+
+Constraints:
+None
+
+Scenario:
+There was a festival in neighbouring cities B and C that resulted in 10 times the usual electricity being consumed there from 2013-05-28 12:00:00 for 2 hours. But this did not affect electricity consumption in city A.Suppose that there is a heat wave in city A from 2013-05-28 12:00:00 for 2 hours, leading to excessive use of air conditioning, and 4 times the usual electricity being consumed.

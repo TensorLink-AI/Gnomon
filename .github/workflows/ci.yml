@@ -33,6 +33,20 @@ jobs:
         run: pytest -q
       - name: Compile source
         run: python -m compileall -q src tests
+      - name: Validate benchmark configs
+        # The adapters' own tests run above (testpaths includes
+        # benchmarks/tests); this additionally proves every shipped config
+        # still expands to a runnable command line, which is where the
+        # suite silently rots — no datasets, no API keys, no LLM calls.
+        run: |
+          python -m pip install pyyaml
+          for config in benchmarks/configs/*.yaml; do
+            # Skip reference data (published_reference.yaml) — only
+            # configs that declare runs describe a batch to validate.
+            grep -q '^runs:' "$config" || continue
+            echo "== $config"
+            python -m benchmarks.run_all --config "$config" --dry-run
+          done
 
   package:
     name: Build and smoke-test package

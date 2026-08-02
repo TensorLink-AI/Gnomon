@@ -1,0 +1,267 @@
+{
+  "filename": "train-00000-of-00001_0014.json",
+  "ground_truth": [
+    26.36,
+    27.1,
+    26.97,
+    26.95,
+    27.12,
+    27.4,
+    28.335,
+    27.14,
+    27.4934,
+    27.84,
+    27.83,
+    27.54,
+    27.995,
+    28.4232,
+    28.865,
+    28.8,
+    28.56,
+    28.85,
+    28.75,
+    27.29,
+    27.84,
+    27.845,
+    28.11,
+    27.96,
+    28.215,
+    28.585,
+    28.88,
+    28.91,
+    29.44,
+    29.385,
+    29.235,
+    29.52,
+    29.3653
+  ],
+  "predict": [
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425,
+    27.342371428571425
+  ],
+  "mse": 1.3426282130674143,
+  "mae": 0.9556619047619066,
+  "rmse": 1.158718349327141,
+  "mape": 3.3371320944434473,
+  "failed": false,
+  "support": "degraded",
+  "selected_model": "window_average",
+  "events": [],
+  "forecast_ref": "fc1",
+  "forecasts_computed": 2,
+  "tool_calls": 6,
+  "trace": [
+    {
+      "tool": "series_stats",
+      "arguments": {},
+      "result": {
+        "count": 137,
+        "mean": 24.863603,
+        "std": 1.764666,
+        "min": 21.53,
+        "max": 28.47,
+        "first": 26.97,
+        "last": 26.49,
+        "coefficient_of_variation": 0.070974
+      }
+    },
+    {
+      "tool": "detect_season",
+      "arguments": {},
+      "result": {
+        "period_bars": 7,
+        "strength": 0.0,
+        "basis": "frequency_default"
+      }
+    },
+    {
+      "tool": "aion_detect_anomalies",
+      "arguments": {},
+      "result": {
+        "detector": "robust_zscore",
+        "selection_basis": "synthetic_injection_f1",
+        "support": "supported",
+        "anomaly_count": 0,
+        "anomalies": []
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "note": "History-only baseline forecast for NOG"
+      },
+      "result": {
+        "forecast_ref": "fc1",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "window_average",
+        "strongest_baseline": "seasonal_naive",
+        "warnings": [
+          "Limited evaluation: only 2 rolling folds were available; 198 observations enable fully separated selection, calibration, and test windows.",
+          "Limited evaluation: no held-out test fold remained, so interval coverage is unmeasured."
+        ],
+        "events_proposed": 0,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [],
+        "forecast": [
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424
+        ]
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "note": "Event-informed forecast with NOG earnings context from the article",
+        "context_events": [
+          {
+            "name": "NOG Q2 2022 earnings release",
+            "start": "2022-08-03",
+            "end": "2022-08-03",
+            "description": "Northern Oil and Gas expected to report Q2 2022 earnings on August 3, 2022. Consensus EPS estimate is $1.57 per share, representing a year-over-year increase of 70.7%. Revenue expected at $410.05 million, up 81.7% YoY. Earnings ESP is 0% and Zacks Rank is #2, making a beat difficult to predict conclusively."
+          },
+          {
+            "name": "EPS estimate revision trend",
+            "start": "2022-06-27",
+            "end": "2022-07-27",
+            "description": "Consensus EPS estimate for the quarter revised 0.8% lower over the last 30 days, reflecting analysts reassessing initial estimates downward."
+          },
+          {
+            "name": "Prior quarter earnings surprise",
+            "start": "2022-05-01",
+            "end": "2022-05-31",
+            "description": "In the last reported quarter, NOG produced earnings of $1.58 per share vs expectation of $1.20, delivering a positive surprise of 31.67%. Over the last four quarters, the company beat consensus EPS estimates two times."
+          }
+        ]
+      },
+      "result": {
+        "forecast_ref": "fc2",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "window_average",
+        "strongest_baseline": "seasonal_naive",
+        "warnings": [
+          "Limited evaluation: only 2 rolling folds were available; 198 observations enable fully separated selection, calibration, and test windows.",
+          "Limited evaluation: no held-out test fold remained, so interval coverage is unmeasured."
+        ],
+        "events_proposed": 3,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [
+          "proposal 1 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 2 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 3 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''"
+        ],
+        "forecast": [
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424,
+          27.3424
+        ]
+      }
+    },
+    {
+      "tool": "submit_forecast",
+      "arguments": {
+        "forecast_ref": "fc1"
+      },
+      "result": {
+        "accepted": true,
+        "forecast_ref": "fc1",
+        "steps": 33
+      }
+    }
+  ]
+}

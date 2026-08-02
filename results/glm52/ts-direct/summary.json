@@ -1,0 +1,30 @@
+{
+  "benchmark": "timesage-mt",
+  "condition": "direct",
+  "model": "z-ai/glm-5.2",
+  "judge_model": null,
+  "tiers": [
+    "L1",
+    "L2",
+    "L3",
+    "L4"
+  ],
+  "tasks": 50,
+  "mechanical_turns": 127,
+  "mechanical_pass_rate": 0.6850393700787402,
+  "judge_turns": 0,
+  "judge_pass_rate": null,
+  "unscored_turns": 45,
+  "per_tier_pass_rate": {
+    "L1": 0.6850393700787402
+  },
+  "llm_usage": {
+    "model": "z-ai/glm-5.2",
+    "requests": 174,
+    "prompt_tokens": 3525596,
+    "completion_tokens": 1935428,
+    "cost_usd": 5.938082,
+    "truncation_escalations": 2
+  },
+  "note": "mechanical scores follow the official finding_verify specs; judge scores use a local judge and are not comparable to the official leaderboard"
+}

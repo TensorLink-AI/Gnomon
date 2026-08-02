@@ -1,0 +1,12 @@
+{
+  "benchmark": "context-is-key",
+  "method": "AionForecaster_mode=pure_model=none",
+  "condition": "aion-pure",
+  "model": null,
+  "seeds": 1,
+  "runs_scored": 33,
+  "runs_abstained": 38,
+  "runs_errored": 0,
+  "mean_rcrps": 0.5974584510212215,
+  "note": "mean_rcrps averages scored runs only; abstentions and errors are reported separately and must be disclosed next to it"
+}

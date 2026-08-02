@@ -275,7 +275,8 @@ first (see §4 new item N3) or the condition measures nothing.
 
 ## 4. New items the review does not contain
 
-**N1 — Abstention-policy review. Effort: M. Phase 1.**
+**N1 — Abstention-policy review. Effort: M. Phase 1. MEASURED 2026-08-02;
+conclusion below reverses the hypothesis.**
 The highest-leverage item in this document, and it is not a proposal in
 the review. Aion scores 2 of 50 TemporalBench rows and 0 of 71 CiK
 tasks. Two specific questions:
@@ -293,6 +294,31 @@ seasonal-naive fallback. If a refused forecast would have beaten the
 fallback, the floor is too high and is costing real answers.
 This does not weaken abstention; it calibrates it with evidence, which
 is the same standard every other decision in the system is held to.
+
+**Result of the measurement — the floor is not the problem.**
+
+(b) was tested two ways. On 200 synthetic series per cell, forecasting
+below the floor beats a seasonal-naive fallback only 15-51% of the time
+at 16-20 observations: refusing there is well founded, not timid. Then
+the real distribution: across TemporalBench's 300 target channels, the
+median channel carries **1.67 observations per requested horizon step**,
+21% carry *less history than horizon*, and **not one** of the 300 has the
+4x horizon that separated rolling folds need. These rows do not ask for a
+forecast a lower floor would license; they ask for a 69-step forecast
+from 50 observations. Lowering the floor would produce unvalidated
+numbers, which is the one thing this system exists not to do. **Do not
+lower the floor.**
+
+(a) is where the loss actually is, and it is now quantified. Degraded
+mode needs only `horizon + 2` observations, which **76% of channels**
+satisfy — yet only 4% of rows scored, because a TemporalBench row scores
+only when *every* target channel forecasts. The all-or-nothing row
+convention, not the floor, is what turns 76% into 4%. Aion already emits
+per-channel results with per-series support states; the benchmark's
+metric is what demands completeness. So the fix is reporting, not
+policy — which is what C1's penalized mean now delivers: charged at the
+baseline's own score, TemporalBench reads **11.39 -> 11.41 sMAPE**
+(roughly neutral) rather than "2 of 50".
 
 **N2 — Falsification criterion per phase.** Stated in §5.
 

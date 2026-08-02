@@ -1,0 +1,9 @@
+{'adapter': 'AionForecaster_mode=pure_model=none',
+ 'context': None,
+ 'proposal_notes': [],
+ 'proposed_events': [],
+ 'selected_model': 'linear_trend',
+ 'strongest_baseline': 'seasonal_naive',
+ 'support': 'weakly_supported',
+ 'total_time': 0.028962373733520508,
+ 'warnings': ['Final-test 80% interval coverage was 58.3%, below 70%.']}

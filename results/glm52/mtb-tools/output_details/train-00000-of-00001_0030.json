@@ -1,0 +1,523 @@
+{
+  "filename": "train-00000-of-00001_0030.json",
+  "ground_truth": [
+    35.595,
+    36.34,
+    37.27,
+    37.39,
+    37.65,
+    37.13,
+    36.92,
+    36.91,
+    37.56,
+    37.35,
+    37.56,
+    37.56,
+    37.635,
+    37.6,
+    37.56,
+    37.265,
+    36.72,
+    36.47,
+    36.54,
+    36.55,
+    36.69,
+    36.53,
+    36.64,
+    37.05,
+    36.84,
+    36.89,
+    36.89,
+    36.96,
+    36.91,
+    37.63,
+    37.17,
+    36.98,
+    36.93,
+    36.81,
+    36.93
+  ],
+  "predict": [
+    35.11889835962941,
+    35.10348421222879,
+    35.08807006482817,
+    35.072655917427554,
+    35.057241770026934,
+    35.041827622626315,
+    35.026413475225695,
+    35.010999327825076,
+    34.995585180424456,
+    34.98017103302384,
+    34.96475688562322,
+    34.9493427382226,
+    34.93392859082198,
+    34.91851444342136,
+    34.90310029602074,
+    34.88768614862012,
+    34.8722720012195,
+    34.85685785381888,
+    34.84144370641826,
+    34.82602955901764,
+    34.81061541161702,
+    34.7952012642164,
+    34.77978711681578,
+    34.76437296941515,
+    34.74895882201453,
+    34.73354467461391,
+    34.71813052721329,
+    34.70271637981267,
+    34.68730223241205,
+    34.67188808501143,
+    34.65647393761081,
+    34.64105979021019,
+    34.62564564280957,
+    34.610231495408954,
+    34.594817348008334
+  ],
+  "mse": 4.860496046838001,
+  "mae": 2.155285003323982,
+  "rmse": 2.2046532713417775,
+  "mape": 5.80955544569769,
+  "failed": false,
+  "support": "degraded",
+  "selected_model": "theta",
+  "events": [],
+  "forecast_ref": "fc1",
+  "forecasts_computed": 4,
+  "tool_calls": 8,
+  "submit_reasoning": "The price history shows a clear downtrend from ~40 in early bars to ~35.58 at the end, with the most recent bars (125-130) showing an accelerated decline from 37.27 to 35.58. Series stats confirm: mean 38.72, last 35.58, CV 3.5%. No meaningful seasonality was detected (strength 0.0). Anomaly detection flagged 11 anomalies including the recent sharp drop to 35.58. I attempted to incorporate five context events from the article (earnings release date July 26, positive ESP +4.82%, upward EPS revision, Zacks Rank #2 Buy, four-quarter beat streak), but all were rejected by the ablation gate due to timestamp parsing issues. The Theta model was selected and produces a gently declining trajectory from 35.12 to 34.59 over 35 steps, consistent with the prevailing downtrend. While the article suggests a potential earnings beat could lift the stock, the model relies solely on price history since no context events were admitted. The forecast is marked as degraded support due to only 130 observations (140 needed for full calibration), but it is the best available.",
+  "trace": [
+    {
+      "tool": "series_stats",
+      "arguments": {},
+      "result": {
+        "count": 130,
+        "mean": 38.723952,
+        "std": 1.360489,
+        "min": 35.58,
+        "max": 41.13,
+        "first": 38.73,
+        "last": 35.58,
+        "coefficient_of_variation": 0.035133
+      }
+    },
+    {
+      "tool": "detect_season",
+      "arguments": {},
+      "result": {
+        "period_bars": 7,
+        "strength": 0.0,
+        "basis": "frequency_default"
+      }
+    },
+    {
+      "tool": "aion_detect_anomalies",
+      "arguments": {},
+      "result": {
+        "detector": "rolling_median_residual",
+        "selection_basis": "synthetic_injection_f1",
+        "support": "supported",
+        "anomaly_count": 11,
+        "anomalies": [
+          {
+            "timestamp": "2020-01-01T00:00:00+00:00",
+            "value": 38.73,
+            "score": -13.0402
+          },
+          {
+            "timestamp": "2020-01-08T00:00:00+00:00",
+            "value": 39.38,
+            "score": -5.2835
+          },
+          {
+            "timestamp": "2020-03-20T00:00:00+00:00",
+            "value": 36.61,
+            "score": -4.2718
+          },
+          {
+            "timestamp": "2020-03-24T00:00:00+00:00",
+            "value": 36.37,
+            "score": -5.3959
+          },
+          {
+            "timestamp": "2020-03-25T00:00:00+00:00",
+            "value": 36.53,
+            "score": -5.1711
+          },
+          {
+            "timestamp": "2020-03-31T00:00:00+00:00",
+            "value": 38.1,
+            "score": 3.9345
+          },
+          {
+            "timestamp": "2020-04-06T00:00:00+00:00",
+            "value": 38.4,
+            "score": 3.9345
+          },
+          {
+            "timestamp": "2020-04-27T00:00:00+00:00",
+            "value": 38.48,
+            "score": 6.2952
+          },
+          {
+            "timestamp": "2020-05-04T00:00:00+00:00",
+            "value": 35.755,
+            "score": -5.7894
+          },
+          {
+            "timestamp": "2020-05-06T00:00:00+00:00",
+            "value": 36.27,
+            "score": 4.609
+          },
+          {
+            "timestamp": "2020-05-09T00:00:00+00:00",
+            "value": 35.58,
+            "score": -4.5528
+          }
+        ]
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "note": "History-only baseline forecast"
+      },
+      "result": {
+        "forecast_ref": "fc1",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "theta",
+        "strongest_baseline": "seasonal_naive",
+        "warnings": [
+          "Degraded forecast: model selection used a single trailing 32-observation holdout; rolling-origin calibration and final testing were unavailable. At least 140 observations (have 130) are needed for separated selection and calibration."
+        ],
+        "events_proposed": 0,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [],
+        "forecast": [
+          35.1189,
+          35.1035,
+          35.0881,
+          35.0727,
+          35.0572,
+          35.0418,
+          35.0264,
+          35.011,
+          34.9956,
+          34.9802,
+          34.9648,
+          34.9493,
+          34.9339,
+          34.9185,
+          34.9031,
+          34.8877,
+          34.8723,
+          34.8569,
+          34.8414,
+          34.826,
+          34.8106,
+          34.7952,
+          34.7798,
+          34.7644,
+          34.749,
+          34.7335,
+          34.7181,
+          34.7027,
+          34.6873,
+          34.6719,
+          34.6565,
+          34.6411,
+          34.6256,
+          34.6102,
+          34.5948
+        ]
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "note": "Forecast with earnings event context from article",
+        "context_events": [
+          {
+            "name": "earnings_release_date",
+            "start": "2021-07-26",
+            "description": "Cathay General expected to report Q2 2021 earnings on July 26, 2021"
+          },
+          {
+            "name": "positive_earnings_esp",
+            "start": "2021-07-19",
+            "description": "Zacks Earnings ESP of +4.82% suggests Cathay likely to beat consensus EPS estimate"
+          },
+          {
+            "name": "eps_estimate_revision_upward",
+            "start": "2021-06-19",
+            "end": "2021-07-19",
+            "description": "Consensus EPS estimate revised 3.61% higher over last 30 days, analysts becoming more bullish"
+          },
+          {
+            "name": "zacks_rank_buy",
+            "start": "2021-07-19",
+            "description": "Stock carries Zacks Rank #2 (Buy), combined with positive ESP suggests likely earnings beat"
+          },
+          {
+            "name": "four_quarter_beat_streak",
+            "start": "2021-07-19",
+            "description": "Cathay has beaten consensus EPS estimates in each of the last four quarters"
+          }
+        ]
+      },
+      "result": {
+        "forecast_ref": "fc2",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "theta",
+        "strongest_baseline": "seasonal_naive",
+        "warnings": [
+          "Degraded forecast: model selection used a single trailing 32-observation holdout; rolling-origin calibration and final testing were unavailable. At least 140 observations (have 130) are needed for separated selection and calibration."
+        ],
+        "events_proposed": 5,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [
+          "proposal 1 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 2 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 3 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 4 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 5 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''"
+        ],
+        "forecast": [
+          35.1189,
+          35.1035,
+          35.0881,
+          35.0727,
+          35.0572,
+          35.0418,
+          35.0264,
+          35.011,
+          34.9956,
+          34.9802,
+          34.9648,
+          34.9493,
+          34.9339,
+          34.9185,
+          34.9031,
+          34.8877,
+          34.8723,
+          34.8569,
+          34.8414,
+          34.826,
+          34.8106,
+          34.7952,
+          34.7798,
+          34.7644,
+          34.749,
+          34.7335,
+          34.7181,
+          34.7027,
+          34.6873,
+          34.6719,
+          34.6565,
+          34.6411,
+          34.6256,
+          34.6102,
+          34.5948
+        ]
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "note": "Forecast with properly formatted earnings event context",
+        "context_events": [
+          {
+            "name": "earnings_release_date",
+            "start": "2021-07-26T00:00:00Z",
+            "description": "Cathay General expected to report Q2 2021 earnings on July 26, 2021"
+          },
+          {
+            "name": "positive_earnings_esp",
+            "start": "2021-07-19T00:00:00Z",
+            "description": "Zacks Earnings ESP of +4.82% suggests Cathay likely to beat consensus EPS estimate"
+          },
+          {
+            "name": "eps_estimate_revision_upward",
+            "start": "2021-06-19T00:00:00Z",
+            "end": "2021-07-19T00:00:00Z",
+            "description": "Consensus EPS estimate revised 3.61% higher over last 30 days, analysts becoming more bullish"
+          },
+          {
+            "name": "zacks_rank_buy",
+            "start": "2021-07-19T00:00:00Z",
+            "description": "Stock carries Zacks Rank #2 (Buy), combined with positive ESP suggests likely earnings beat"
+          },
+          {
+            "name": "four_quarter_beat_streak",
+            "start": "2021-07-19T00:00:00Z",
+            "description": "Cathay has beaten consensus EPS estimates in each of the last four quarters"
+          }
+        ]
+      },
+      "result": {
+        "forecast_ref": "fc3",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "theta",
+        "strongest_baseline": "seasonal_naive",
+        "warnings": [
+          "Degraded forecast: model selection used a single trailing 32-observation holdout; rolling-origin calibration and final testing were unavailable. At least 140 observations (have 130) are needed for separated selection and calibration."
+        ],
+        "events_proposed": 5,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [
+          "proposal 1 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 2 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 3 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 4 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 5 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''"
+        ],
+        "forecast": [
+          35.1189,
+          35.1035,
+          35.0881,
+          35.0727,
+          35.0572,
+          35.0418,
+          35.0264,
+          35.011,
+          34.9956,
+          34.9802,
+          34.9648,
+          34.9493,
+          34.9339,
+          34.9185,
+          34.9031,
+          34.8877,
+          34.8723,
+          34.8569,
+          34.8414,
+          34.826,
+          34.8106,
+          34.7952,
+          34.7798,
+          34.7644,
+          34.749,
+          34.7335,
+          34.7181,
+          34.7027,
+          34.6873,
+          34.6719,
+          34.6565,
+          34.6411,
+          34.6256,
+          34.6102,
+          34.5948
+        ]
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "context_events": [
+          {
+            "name": "earnings_release_date",
+            "start": "2021-07-26",
+            "description": "Cathay General expected to report Q2 2021 earnings on July 26 2021"
+          },
+          {
+            "name": "positive_earnings_esp",
+            "start": "2021-07-19",
+            "description": "Zacks Earnings ESP of +4.82% suggests Cathay likely to beat consensus EPS estimate"
+          },
+          {
+            "name": "eps_estimate_revision_upward",
+            "start": "2021-06-19",
+            "end": "2021-07-19",
+            "description": "Consensus EPS estimate revised 3.61% higher over last 30 days"
+          },
+          {
+            "name": "zacks_rank_buy",
+            "start": "2021-07-19",
+            "description": "Stock carries Zacks Rank #2 Buy combined with positive ESP suggests likely earnings beat"
+          },
+          {
+            "name": "four_quarter_beat_streak",
+            "start": "2021-07-19",
+            "description": "Cathay has beaten consensus EPS estimates in each of the last four quarters"
+          }
+        ],
+        "note": "Retry with date-only ISO format for context events"
+      },
+      "result": {
+        "forecast_ref": "fc4",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "theta",
+        "strongest_baseline": "seasonal_naive",
+        "warnings": [
+          "Degraded forecast: model selection used a single trailing 32-observation holdout; rolling-origin calibration and final testing were unavailable. At least 140 observations (have 130) are needed for separated selection and calibration."
+        ],
+        "events_proposed": 5,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [
+          "proposal 1 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 2 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 3 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 4 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 5 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''"
+        ],
+        "forecast": [
+          35.1189,
+          35.1035,
+          35.0881,
+          35.0727,
+          35.0572,
+          35.0418,
+          35.0264,
+          35.011,
+          34.9956,
+          34.9802,
+          34.9648,
+          34.9493,
+          34.9339,
+          34.9185,
+          34.9031,
+          34.8877,
+          34.8723,
+          34.8569,
+          34.8414,
+          34.826,
+          34.8106,
+          34.7952,
+          34.7798,
+          34.7644,
+          34.749,
+          34.7335,
+          34.7181,
+          34.7027,
+          34.6873,
+          34.6719,
+          34.6565,
+          34.6411,
+          34.6256,
+          34.6102,
+          34.5948
+        ]
+      }
+    },
+    {
+      "tool": "submit_forecast",
+      "arguments": {
+        "forecast_ref": "fc1",
+        "reasoning": "The price history shows a clear downtrend from ~40 in early bars to ~35.58 at the end, with the most recent bars (125-130) showing an accelerated decline from 37.27 to 35.58. Series stats confirm: mean 38.72, last 35.58, CV 3.5%. No meaningful seasonality was detected (strength 0.0). Anomaly detection flagged 11 anomalies including the recent sharp drop to 35.58. I attempted to incorporate five context events from the article (earnings release date July 26, positive ESP +4.82%, upward EPS revision, Zacks Rank #2 Buy, four-quarter beat streak), but all were rejected by the ablation gate due to timestamp parsing issues. The Theta model was selected and produces a gently declining trajectory from 35.12 to 34.59 over 35 steps, consistent with the prevailing downtrend. While the article suggests a potential earnings beat could lift the stock, the model relies solely on price history since no context events were admitted. The forecast is marked as degraded support due to only 130 observations (140 needed for full calibration), but it is the best available."
+      },
+      "result": {
+        "accepted": true,
+        "forecast_ref": "fc1",
+        "steps": 35
+      }
+    }
+  ]
+}

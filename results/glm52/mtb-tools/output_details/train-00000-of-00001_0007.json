@@ -1,0 +1,502 @@
+{
+  "filename": "train-00000-of-00001_0007.json",
+  "ground_truth": [
+    20.64,
+    20.52,
+    20.43,
+    20.52,
+    20.44,
+    20.36,
+    20.275,
+    20.615,
+    20.73,
+    20.64,
+    20.765,
+    20.699,
+    20.75,
+    21.16,
+    21.135,
+    21.3,
+    21.2,
+    21.22,
+    21.325,
+    21.335,
+    21.77,
+    21.715,
+    21.56,
+    21.56,
+    21.59,
+    21.6728,
+    21.61,
+    21.605,
+    21.665,
+    21.565,
+    21.55,
+    21.435,
+    21.34
+  ],
+  "predict": [
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905,
+    20.905
+  ],
+  "mse": 0.2667409951515145,
+  "mae": 0.47253939393939354,
+  "rmse": 0.5164697427260522,
+  "mape": 2.2257679284387537,
+  "failed": false,
+  "support": "degraded",
+  "selected_model": "last_value",
+  "events": [],
+  "forecast_ref": "fc1",
+  "forecasts_computed": 4,
+  "tool_calls": 8,
+  "trace": [
+    {
+      "tool": "series_stats",
+      "arguments": {},
+      "result": {
+        "count": 143,
+        "mean": 20.405729,
+        "std": 0.381462,
+        "min": 19.475,
+        "max": 21.02,
+        "first": 20.63,
+        "last": 20.725,
+        "coefficient_of_variation": 0.018694
+      }
+    },
+    {
+      "tool": "detect_season",
+      "arguments": {},
+      "result": {
+        "period_bars": 7,
+        "strength": 0.0,
+        "basis": "frequency_default"
+      }
+    },
+    {
+      "tool": "aion_detect_anomalies",
+      "arguments": {},
+      "result": {
+        "detector": "rolling_median_residual",
+        "selection_basis": "synthetic_injection_f1",
+        "support": "supported",
+        "anomaly_count": 20,
+        "anomalies": [
+          {
+            "timestamp": "2020-01-01T00:00:00+00:00",
+            "value": 20.63,
+            "score": -9.218
+          },
+          {
+            "timestamp": "2020-01-06T00:00:00+00:00",
+            "value": 21.02,
+            "score": 5.2475
+          },
+          {
+            "timestamp": "2020-01-07T00:00:00+00:00",
+            "value": 20.99,
+            "score": 5.8456
+          },
+          {
+            "timestamp": "2020-01-08T00:00:00+00:00",
+            "value": 20.93,
+            "score": 3.5973
+          },
+          {
+            "timestamp": "2020-01-15T00:00:00+00:00",
+            "value": 20.87,
+            "score": 4.0469
+          },
+          {
+            "timestamp": "2020-01-21T00:00:00+00:00",
+            "value": 20.335,
+            "score": -5.1711
+          },
+          {
+            "timestamp": "2020-02-02T00:00:00+00:00",
+            "value": 20.715,
+            "score": 7.0417
+          },
+          {
+            "timestamp": "2020-02-06T00:00:00+00:00",
+            "value": 20.1823,
+            "score": -4.618
+          },
+          {
+            "timestamp": "2020-02-08T00:00:00+00:00",
+            "value": 20.33,
+            "score": 5.1711
+          },
+          {
+            "timestamp": "2020-02-10T00:00:00+00:00",
+            "value": 20.12,
+            "score": -4.7214
+          },
+          {
+            "timestamp": "2020-02-14T00:00:00+00:00",
+            "value": 20.465,
+            "score": 7.4194
+          },
+          {
+            "timestamp": "2020-02-23T00:00:00+00:00",
+            "value": 19.865,
+            "score": -6.0704
+          },
+          {
+            "timestamp": "2020-02-28T00:00:00+00:00",
+            "value": 19.965,
+            "score": 4.7214
+          },
+          {
+            "timestamp": "2020-03-03T00:00:00+00:00",
+            "value": 19.475,
+            "score": -4.7214
+          },
+          {
+            "timestamp": "2020-04-01T00:00:00+00:00",
+            "value": 20.04,
+            "score": -5.8456
+          },
+          {
+            "timestamp": "2020-04-17T00:00:00+00:00",
+            "value": 20.92,
+            "score": 4.3257
+          }
+        ]
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "note": "History-only baseline forecast"
+      },
+      "result": {
+        "forecast_ref": "fc1",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "last_value",
+        "strongest_baseline": "last_value",
+        "warnings": [
+          "Limited evaluation: only 2 rolling folds were available; 198 observations enable fully separated selection, calibration, and test windows.",
+          "Limited evaluation: no held-out test fold remained, so interval coverage is unmeasured."
+        ],
+        "events_proposed": 0,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [],
+        "forecast": [
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905
+        ]
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "context_events": [
+          {
+            "name": "MPW_dividend_yield_highlight",
+            "start": "2021-10-23",
+            "description": "Article highlights MPW's 5.4% dividend yield as well above average, suggesting stock is overlooked by income investors"
+          },
+          {
+            "name": "MPW_portfolio_expansion_2021",
+            "start": "2021-01-01",
+            "end": "2021-10-23",
+            "description": "MPW invested more than $3.6 billion in additional hospital real estate transactions in 2021, growing normalized FFO per share by 13% year over year in Q2"
+          },
+          {
+            "name": "MPW_massachusetts_JV_sale",
+            "start": "2021-09-01",
+            "end": "2021-10-23",
+            "description": "MPW recently sold eight hospitals in Massachusetts to a joint venture, valuing them at $1.78 billion, 48% above what it paid in 2016, showcasing hidden portfolio value"
+          },
+          {
+            "name": "MPW_undervalued_vs_peers",
+            "start": "2021-10-23",
+            "description": "MPW trades at less than 12x 2021 FFO estimate vs average healthcare REIT at more than 17x FFO, suggesting potential for price appreciation"
+          }
+        ],
+        "note": "Event-informed forecast with article context about MPW's undervaluation, dividend yield, and expansion"
+      },
+      "result": {
+        "forecast_ref": "fc2",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "last_value",
+        "strongest_baseline": "last_value",
+        "warnings": [
+          "Limited evaluation: only 2 rolling folds were available; 198 observations enable fully separated selection, calibration, and test windows.",
+          "Limited evaluation: no held-out test fold remained, so interval coverage is unmeasured."
+        ],
+        "events_proposed": 4,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [
+          "proposal 1 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 2 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 3 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 4 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''"
+        ],
+        "forecast": [
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905
+        ]
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "context_events": [
+          {
+            "name": "MPW_dividend_yield_highlight",
+            "start": "2021-10-22",
+            "description": "Article highlights MPW's 5.4% dividend yield as well above average, suggesting stock is overlooked by income investors"
+          },
+          {
+            "name": "MPW_undervalued_vs_peers",
+            "start": "2021-10-22",
+            "description": "MPW trades at less than 12x 2021 FFO estimate vs average healthcare REIT at more than 17x FFO, suggesting potential for price appreciation"
+          },
+          {
+            "name": "MPW_massachusetts_JV_sale",
+            "start": "2021-09-01",
+            "description": "MPW recently sold eight hospitals in Massachusetts to a joint venture, valuing them at $1.78 billion, 48% above what it paid in 2016"
+          },
+          {
+            "name": "MPW_FFO_growth_13pct",
+            "start": "2021-07-01",
+            "description": "MPW grew normalized FFO per share by 13% year over year in Q2 2021, invested more than $3.6 billion in hospital real estate"
+          }
+        ],
+        "note": "Event-informed forecast with adjusted dates within the price history window"
+      },
+      "result": {
+        "forecast_ref": "fc3",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "last_value",
+        "strongest_baseline": "last_value",
+        "warnings": [
+          "Limited evaluation: only 2 rolling folds were available; 198 observations enable fully separated selection, calibration, and test windows.",
+          "Limited evaluation: no held-out test fold remained, so interval coverage is unmeasured."
+        ],
+        "events_proposed": 4,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [
+          "proposal 1 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 2 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 3 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 4 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''"
+        ],
+        "forecast": [
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905
+        ]
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "context_events": [
+          {
+            "description": "MPW highlighted as overlooked high-yield dividend stock with 5.4% yield, trading at discount to peers",
+            "name": "MPW_dividend_highlight",
+            "start": "2020-07-20",
+            "end": "2020-07-22"
+          }
+        ],
+        "note": "Event-informed forecast with date aligned to end of price history window"
+      },
+      "result": {
+        "forecast_ref": "fc4",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "last_value",
+        "strongest_baseline": "last_value",
+        "warnings": [
+          "Limited evaluation: only 2 rolling folds were available; 198 observations enable fully separated selection, calibration, and test windows.",
+          "Limited evaluation: no held-out test fold remained, so interval coverage is unmeasured."
+        ],
+        "events_proposed": 1,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [
+          "proposal 1 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''"
+        ],
+        "forecast": [
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905,
+          20.905
+        ]
+      }
+    },
+    {
+      "tool": "submit_forecast",
+      "arguments": {
+        "forecast_ref": "fc1"
+      },
+      "result": {
+        "accepted": true,
+        "forecast_ref": "fc1",
+        "steps": 33
+      }
+    }
+  ]
+}

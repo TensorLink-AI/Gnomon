@@ -1,0 +1,72 @@
+task,seed,rcrps,error
+ATMBuildingClosedTask,1,0.2549722130571741,
+ATMUnderPeriodicMaintenanceTaskWithConclusion,1,0.5656223515545548,
+ATMUnderPeriodicMaintenanceTaskWithConclusionLessExplicit,1,0.5656223515545548,
+ATMUnderPeriodicMaintenanceTaskWithoutConclusion,1,0.5656223515545548,
+BoundedPredConstraintsBasedOnPredQuantilesTask,1,0.9588997443041027,
+CashDepletedinATMScenarioTask,1,0.2549722130571741,
+DecreaseInTrafficInPredictionTask,1,0.15752189357802235,
+DiffuseHorizontalIrradianceFromCloudStatus,1,0.4554633606591639,
+DirectNormalIrradianceFromClearsky,1,0.19595356841172945,
+DirectNormalIrradianceFromCloudStatus,1,2.358765342265495,
+ElectricityIncreaseInPredictionTask,1,0.03723190839957924,
+ElectricityIncreaseInPredictionWithDistractorText,1,0.03723190839957924,
+ElectricityIncreaseInPredictionWithDistractorWithDates,1,0.03723190839957924,
+ElectricityIncreaseInPredictionWithSplitContext,1,0.03723190839957924,
+ExplicitDiffuseHorizontalIrradianceFromCloudStatus,1,0.4554633606591639,
+ExplicitDirectNormalIrradianceFromCloudStatus,1,2.358765342265495,
+ExplicitPressureFromSpeedTask,1,,"AION_ABSTAINED: AMBIGUOUS_FREQUENCY: Could not infer a supported regular frequency. Supported: min (1 minute), 5min (5 minutes), 15min (15 minutes), 30min (30 minutes), h (hourly), D (daily), W (weekly), MS (month start)"
+ExplicitSimilarLocationDaySolarForecastTask,1,,"AION_ABSTAINED: AMBIGUOUS_FREQUENCY: Could not infer a supported regular frequency. Supported: min (1 minute), 5min (5 minutes), 15min (15 minutes), 30min (30 minutes), h (hourly), D (daily), W (weekly), MS (month start)"
+ExplicitTrafficForecastTaskwithHolidaysInPredictionWindow,1,0.3977912354096309,
+ExplicitWithDatesAndDaysTrafficForecastTaskwithHolidaysInPredictionWindow,1,0.3977912354096309,
+ExplicitWithDaysTrafficForecastTaskwithHolidaysInPredictionWindow,1,0.3977912354096309,
+FullCausalContextExplicitEquationBivarLinSVAR,1,0.6112161363239694,
+FullCausalContextImplicitEquationBivarLinSVAR,1,0.6112161363239694,
+GlobalHorizontalIrradianceFromClearsky,1,0.18028578587540378,
+ImplicitPressureFromSpeedTask,1,,"AION_ABSTAINED: AMBIGUOUS_FREQUENCY: Could not infer a supported regular frequency. Supported: min (1 minute), 5min (5 minutes), 15min (15 minutes), 30min (30 minutes), h (hourly), D (daily), W (weekly), MS (month start)"
+ImplicitTrafficForecastTaskwithHolidaysInPredictionWindow,1,0.3977912354096309,
+IncreasedWithdrawalScenario,1,0.39427447347563954,
+LocaleInfoHalfDaySolarForecastTask,1,,"AION_ABSTAINED: AMBIGUOUS_FREQUENCY: Could not infer a supported regular frequency. Supported: min (1 minute), 5min (5 minutes), 15min (15 minutes), 30min (30 minutes), h (hourly), D (daily), W (weekly), MS (month start)"
+LongNewsElectricityIncreaseInPredictionTask,1,0.03723190839957924,
+MediumNewsElectricityIncreaseInPredictionTask,1,0.03723190839957924,
+MinimalCausalContextBivarLinSVAR,1,0.6112161363239694,
+MinimalInfoHalfDaySolarForecastTask,1,,"AION_ABSTAINED: AMBIGUOUS_FREQUENCY: Could not infer a supported regular frequency. Supported: min (1 minute), 5min (5 minutes), 15min (15 minutes), 30min (30 minutes), h (hourly), D (daily), W (weekly), MS (month start)"
+MontrealFireFieldAndGasConvincingToneExplicitCausalConfoundingTask,1,,AION_ABSTAINED: Need at least 9 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.
+MontrealFireFieldAndGasConvincingToneImplicitCausalConfoundingTask,1,,AION_ABSTAINED: Need at least 9 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.
+MontrealFireFieldAndGasNeutralToneExplicitCausalConfoundingTask,1,,AION_ABSTAINED: Need at least 9 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.
+MontrealFireFieldAndGasNeutralToneImplicitCausalConfoundingTask,1,,AION_ABSTAINED: Need at least 9 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.
+MontrealFireFieldAndTrashConvincingToneExplicitCausalConfoundingTask,1,,AION_ABSTAINED: Need at least 9 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.
+MontrealFireFieldAndTrashConvincingToneImplicitCausalConfoundingTask,1,,AION_ABSTAINED: Need at least 9 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.
+MontrealFireFieldAndTrashNeutralToneExplicitCausalConfoundingTask,1,,AION_ABSTAINED: Need at least 9 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.
+MontrealFireFieldAndTrashNeutralToneImplicitCausalConfoundingTask,1,,AION_ABSTAINED: Need at least 9 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.
+MontrealFireFieldFireExplicitShortHistoryTask,1,,AION_ABSTAINED: Need at least 9 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.
+MontrealFireFieldFireImplicitShortHistoryTask,1,,AION_ABSTAINED: Need at least 9 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.
+MontrealFireIceRescueExplicitShortHistoryTask,1,,AION_ABSTAINED: Need at least 9 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.
+MontrealFireIceRescueImplicitShortHistoryTask,1,,AION_ABSTAINED: Need at least 9 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.
+MontrealFireNauticalRescueAnalogyFullLocalizationMaybeWaterTask,1,,AION_ABSTAINED: Need at least 8 observations (have 3) for degraded forecasting. A horizon of 1 or less is supportable with the current history; retry with --horizon 1.
+MontrealFireNauticalRescueAnalogyTargetLocalizationMaybeWaterTask,1,,AION_ABSTAINED: Need at least 8 observations (have 3) for degraded forecasting. A horizon of 1 or less is supportable with the current history; retry with --horizon 1.
+MontrealFireNauticalRescueExplicitShortHistoryTask,1,,AION_ABSTAINED: Need at least 9 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.
+MontrealFireNauticalRescueImplicitShortHistoryTask,1,,AION_ABSTAINED: Need at least 9 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.
+MontrealFireTrashAndBicycleConvincingToneExplicitCausalConfoundingTask,1,,AION_ABSTAINED: Need at least 9 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.
+MontrealFireTrashAndBicycleConvincingToneImplicitCausalConfoundingTask,1,,AION_ABSTAINED: Need at least 9 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.
+MontrealFireTrashAndBicycleNeutralToneExplicitCausalConfoundingTask,1,,AION_ABSTAINED: Need at least 9 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.
+MontrealFireTrashAndBicycleNeutralToneImplicitCausalConfoundingTask,1,,AION_ABSTAINED: Need at least 9 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.
+MontrealFireTrashAndNauticalConvincingToneExplicitCausalConfoundingTask,1,,AION_ABSTAINED: Need at least 9 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.
+MontrealFireTrashAndNauticalConvincingToneImplicitCausalConfoundingTask,1,,AION_ABSTAINED: Need at least 9 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.
+MontrealFireTrashAndNauticalNeutralToneExplicitCausalConfoundingTask,1,,AION_ABSTAINED: Need at least 9 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.
+MontrealFireTrashAndNauticalNeutralToneImplicitCausalConfoundingTask,1,,AION_ABSTAINED: Need at least 9 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.
+MontrealFireTrashFireExplicitShortHistoryTask,1,,AION_ABSTAINED: Need at least 9 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.
+MontrealFireTrashFireImplicitShortHistoryTask,1,,AION_ABSTAINED: Need at least 9 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.
+OraclePredUnivariateConstraintsTask,1,5.050519079126665,
+SensorMaintenanceInPredictionTask,1,0.2113523761697587,
+SensorPeriodicMaintenanceTask,1,0.2994116832085853,
+SensorSpikeTask,1,0.10542557753797394,
+SensorTrendAccumulationTask,1,0.6417791059776133,
+ShortNewsElectricityIncreaseInPredictionTask,1,0.03723190839957924,
+SimilarLocationDaySolarForecastTask,1,,"AION_ABSTAINED: AMBIGUOUS_FREQUENCY: Could not infer a supported regular frequency. Supported: min (1 minute), 5min (5 minutes), 15min (15 minutes), 30min (30 minutes), h (hourly), D (daily), W (weekly), MS (month start)"
+SimilarLocationWithReferenceDaySolarForecastTask,1,,"AION_ABSTAINED: AMBIGUOUS_FREQUENCY: Could not infer a supported regular frequency. Supported: min (1 minute), 5min (5 minutes), 15min (15 minutes), 30min (30 minutes), h (hourly), D (daily), W (weekly), MS (month start)"
+SpeedFromLoadTask,1,,"AION_ABSTAINED: AMBIGUOUS_FREQUENCY: Could not infer a supported regular frequency. Supported: min (1 minute), 5min (5 minutes), 15min (15 minutes), 30min (30 minutes), h (hourly), D (daily), W (weekly), MS (month start)"
+UnemploymentCountyUsingExplicitMultipleStateData,1,,AION_ABSTAINED: Need at least 8 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.
+UnemploymentCountyUsingMultipleStateData,1,,AION_ABSTAINED: Need at least 8 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.
+UnemploymentCountyUsingSingleStateData,1,,AION_ABSTAINED: Need at least 8 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.
+ZenithInfoHalfDaySolarForecastTask,1,,"AION_ABSTAINED: AMBIGUOUS_FREQUENCY: Could not infer a supported regular frequency. Supported: min (1 minute), 5min (5 minutes), 15min (15 minutes), 30min (30 minutes), h (hourly), D (daily), W (weekly), MS (month start)"

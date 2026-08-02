@@ -1,0 +1,32 @@
+{
+  "verdict": {
+    "tier": "T4",
+    "choice": {
+      "per_question": {
+        "future_vs_history": false,
+        "volatility_change": false,
+        "seasonality_shift": false
+      },
+      "correct": 0,
+      "total": 3
+    },
+    "forecast_metrics": null,
+    "metric_flag": "missing_forecast"
+  },
+  "abstained": [
+    "heart_rate: Need at least 71 observations (have 50) for degraded forecasting. A horizon of 48 or less is supportable with the current history; retry with --horizon 48.",
+    "temperature_c: Need at least 71 observations (have 15) for degraded forecasting. A horizon of 13 or less is supportable with the current history; retry with --horizon 13.",
+    "resp_rate: Need at least 71 observations (have 49) for degraded forecasting. A horizon of 47 or less is supportable with the current history; retry with --horizon 47.",
+    "spo2: Need at least 71 observations (have 50) for degraded forecasting. A horizon of 48 or less is supportable with the current history; retry with --horizon 48.",
+    "sbp: Need at least 71 observations (have 46) for degraded forecasting. A horizon of 44 or less is supportable with the current history; retry with --horizon 44.",
+    "dbp: Need at least 71 observations (have 46) for degraded forecasting. A horizon of 44 or less is supportable with the current history; retry with --horizon 44."
+  ],
+  "answer": {
+    "forecast": {},
+    "mcq": {
+      "future_vs_history": "Similar",
+      "volatility_change": "decreased",
+      "seasonality_shift": "no"
+    }
+  }
+}

@@ -128,3 +128,28 @@ def test_derived_metrics_from_a_raw_trajectory():
 
 def test_derived_metrics_absent_without_a_trajectory():
     assert derived_metrics({"task_id": "a", "success": True}) == {}
+
+
+def test_penalized_mean_charges_abstentions_at_the_baseline_score(tmp_path):
+    # The treatment answers the easy task and abstains on the hard one.
+    # A scored-only mean would reward that; the penalized mean must not.
+    _write_run(tmp_path, "ctrl",
+               [{"task_id": "easy", "mse": 1.0}, {"task_id": "hard", "mse": 9.0}],
+               {"benchmark": "x", "target": "y"})
+    _write_run(tmp_path, "treat", [{"task_id": "easy", "mse": 2.0}],
+               {"benchmark": "x", "target": "y"})
+    result = compare(load_run(tmp_path / "ctrl"), load_run(tmp_path / "treat"),
+                     metric="mse")
+    penalized = result["metrics"]["mse"]["penalized"]
+    assert penalized["abstentions_imputed"] == 1
+    assert penalized["baseline_mean"] == 5.0        # (1 + 9) / 2
+    assert penalized["treatment_mean"] == 5.5       # (2 + 9) / 2, hard imputed
+
+
+def test_no_penalized_mean_when_nothing_was_abstained(tmp_path):
+    rows = [{"task_id": "a", "mse": 1.0}, {"task_id": "b", "mse": 2.0}]
+    _write_run(tmp_path, "ctrl", rows, {"benchmark": "x", "target": "y"})
+    _write_run(tmp_path, "treat", rows, {"benchmark": "x", "target": "y"})
+    result = compare(load_run(tmp_path / "ctrl"), load_run(tmp_path / "treat"),
+                     metric="mse")
+    assert "penalized" not in result["metrics"]["mse"]

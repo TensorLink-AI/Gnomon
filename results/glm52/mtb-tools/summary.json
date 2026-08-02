@@ -1,0 +1,23 @@
+{
+  "benchmark": "mtbench",
+  "dataset_folder": "/root/MTBench/data/tasks/finance_long",
+  "condition": "aion-tools",
+  "model": "z-ai/glm-5.2",
+  "samples": 50,
+  "scored": 44,
+  "abstained": 1,
+  "failed_official_filter": 5,
+  "mean_mse": 11.058801939590618,
+  "mean_mae": 2.158601272091086,
+  "mean_rmse": 2.462023794880729,
+  "mean_mape": 3.870330949363939,
+  "note": "means follow the official aggregation (samples past the official mse filter); abstained and filtered counts must be reported next to them",
+  "llm_usage": {
+    "model": "z-ai/glm-5.2",
+    "requests": 201,
+    "prompt_tokens": 759708,
+    "completion_tokens": 70793,
+    "cost_usd": 0.499991,
+    "truncation_escalations": 0
+  }
+}

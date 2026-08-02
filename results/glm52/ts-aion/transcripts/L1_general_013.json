@@ -1,0 +1,607 @@
+{
+  "task_id": "L1_general_013",
+  "tier": "L1",
+  "condition": "aion-tools",
+  "turns": [
+    {
+      "user_turn_id": 1,
+      "question": "I have a dataset with hourly timestamps, class labels, and 150 time-step feature columns. Can you profile this data and summarize what we're working with?",
+      "response": "Here's a profile of your dataset based on the tool results:\n\n---\n\n## Dataset Overview\n\n| Property | Value |\n|---|---|\n| **Rows** | 40 |\n| **Timestamps** | Hourly, from `2020-01-01 00:00:00` to `2020-01-02 15:00:00` |\n| **Feature columns** | 150 (`t_0` through `t_149`) |\n| **Label column** | `label` (values 1 and 2) |\n| **Missing values** | None detected (count = 40 on all sampled columns) |\n\n---\n\n## Feature Statistics (sampled at t_0, t_50, t_100, t_149)\n\n| Column | Mean | Std | Min | Max | CV |\n|---|---|---|---|---|---|\n| `t_0` | \u22120.996 | 0.344 | \u22122.013 | \u22120.546 | \u22120.345 |\n| `t_50` | 0.581 | 0.638 | \u22120.658 | 1.416 | 1.098 |\n| `t_100` | 0.304 | 0.674 | \u22121.036 | 1.332 | 2.220 |\n| `t_149` | \u22120.979 | 0.309 | \u22121.899 | \u22120.566 | \u22120.315 |\n\n**Key observations:**\n\n1. **Wave-like structure across the 150 time-steps.** The early columns (`t_0`) and late columns (`t_149`) have similar negative means (\u2248 \u22121.0) and low spread (std \u2248 0.3), while the middle columns (`t_50`, `t_100`) have positive means and much higher variability (std \u2248 0.64\u20130.67). This is consistent with each row being a **single oscillatory signal** (a wave) sampled at 150 points \u2014 low/negative at the tails, peaking in the middle.\n\n2. **High variability in the mid-section.** The coefficient of variation rises from ~0.35 at the tails to over 2.2 at `t_100`, meaning the wave amplitude and phase differ substantially across the 40 rows. Different rows reach their peaks at different points in the 150-step window.\n\n3. **Two class labels (1 and 2).** The `label` column alternates between 1 and 2, suggesting a binary classification task \u2014 likely distinguishing between two types of waveforms.\n\n---\n\n## Seasonality\n\n| Column | Dominant Period | Strength | Basis |\n|---|---|---|---|\n| `t_0` | 16 obs | 0.356 | autocorrelation |\n| `t_50` | 24 obs | 0.0 | frequency default |\n| `t_100` | 24 obs | 0.0 | frequency default |\n\nSeasonality is **weak to absent**. The `t_0` column shows a mild autocorrelation at a 16-hour lag (strength 0.36), but the mid-section columns show no meaningful seasonality (strength 0.0, defaulting to a 24-hour frequency). This makes sense: each row is an independent waveform sample, not a continuous time series in the column-wise direction.\n\n---\n\n## Anomalies\n\nThe anomaly detector (robust z-score, selected via synthetic injection F1) ran on `t_50` and found **0 anomalies** across the 40 rows. The detector was fully supported, so this is a clean \"no anomalies\" result rather than an abstention.\n\n---\n\n## Summary\n\nYou have **40 hourly observations**, each containing a **150-point waveform** with a characteristic rise-and-fall shape. The data is clean (no missing values, no anomalies detected), weakly seasonal at best, and tagged with a **binary label** (1 or 2). The primary variation across rows is in the **amplitude and timing of the wave peak** in the mid-section of the 150-step window. This looks well-suited for a waveform classification task.",
+      "tool_calls": [
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_0"
+          },
+          "result": {
+            "column": "t_0",
+            "count": 40,
+            "mean": -0.996453,
+            "std": 0.343582,
+            "min": -2.0125806,
+            "max": -0.54634534,
+            "coefficient_of_variation": -0.344806,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_50"
+          },
+          "result": {
+            "column": "t_50",
+            "count": 40,
+            "mean": 0.580985,
+            "std": 0.637931,
+            "min": -0.65765851,
+            "max": 1.4160413,
+            "coefficient_of_variation": 1.098016,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_100"
+          },
+          "result": {
+            "column": "t_100",
+            "count": 40,
+            "mean": 0.303534,
+            "std": 0.673955,
+            "min": -1.0362467,
+            "max": 1.3317525,
+            "coefficient_of_variation": 2.22036,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_149"
+          },
+          "result": {
+            "column": "t_149",
+            "count": 40,
+            "mean": -0.979469,
+            "std": 0.308682,
+            "min": -1.898637,
+            "max": -0.56639294,
+            "coefficient_of_variation": -0.315152,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "detect_season",
+          "arguments": {
+            "column": "t_0"
+          },
+          "result": {
+            "column": "t_0",
+            "period_observations": 16,
+            "strength": 0.3563,
+            "basis": "autocorrelation"
+          }
+        },
+        {
+          "tool": "detect_season",
+          "arguments": {
+            "column": "t_50"
+          },
+          "result": {
+            "column": "t_50",
+            "period_observations": 24,
+            "strength": 0.0,
+            "basis": "frequency_default"
+          }
+        },
+        {
+          "tool": "detect_season",
+          "arguments": {
+            "column": "t_100"
+          },
+          "result": {
+            "column": "t_100",
+            "period_observations": 24,
+            "strength": 0.0,
+            "basis": "frequency_default"
+          }
+        },
+        {
+          "tool": "aion_detect_anomalies",
+          "arguments": {
+            "column": "t_50"
+          },
+          "result": {
+            "detector": "robust_zscore",
+            "selection_basis": "synthetic_injection_f1",
+            "support": "supported",
+            "anomalies": [],
+            "anomaly_count": 0
+          }
+        }
+      ],
+      "verdict": {
+        "scored": true,
+        "passed": true,
+        "basis": "mechanical"
+      }
+    },
+    {
+      "user_turn_id": 3,
+      "question": "What common shape patterns do these 150-step series exhibit, and do the two class labels correspond to visibly different waveforms?",
+      "response": "Now I have a dense profile across all 150 time-steps. Let me reconstruct the average waveform and examine variability patterns.\n\n## Average Waveform Shape (from tool-derived column means)\n\nPlotting the mean at each sampled time-step reveals a clear **single-pulse bell shape**:\n\n| Phase | Time-steps | Mean range | Description |\n|---|---|---|---|\n| **Flat baseline** | t_0 \u2013 t_15 | \u22121.00 to \u22121.00 | Near-constant negative plateau |\n| **Rising limb** | t_20 \u2013 t_55 | \u22120.90 \u2192 +0.90 | Steady monotonic rise, crosses zero ~t_40 |\n| **Peak plateau** | t_60 \u2013 t_85 | +1.19 to +1.37 | Broad maximum around t_70\u2013t_75 (mean \u2248 1.37) |\n| **Falling limb** | t_90 \u2013 t_120 | +1.02 \u2192 \u22120.58 | Mirror-image descent, crosses zero ~t_105 |\n| **Return to baseline** | t_125 \u2013 t_149 | \u22120.68 \u2192 \u22120.98 | Settles back to ~\u22121.0 |\n\nThe waveform is **roughly symmetric**: the rise and fall span similar ranges (~2.3 units of amplitude) and similar numbers of time-steps (~30\u201335 steps each).\n\n## Variability Pattern (from tool-derived stds)\n\nThe standard deviation tells us *where* the 40 rows differ most:\n\n| Region | Std range | Interpretation |\n|---|---|---|\n| Tails (t_0\u2013t_15, t_140\u2013t_149) | 0.31 \u2013 0.35 | Low spread \u2014 baselines are consistent |\n| Rising transition (t_25\u2013t_50) | 0.53 \u2013 0.71 | **High spread** \u2014 rows rise at different times |\n| Peak (t_60\u2013t_85) | 0.37 \u2013 0.44 | Moderate spread \u2014 peak heights vary somewhat |\n| Falling transition (t_90\u2013t_120) | 0.41 \u2013 0.67 | **High spread** \u2014 rows fall at different times |\n\nThe dominant variation is in **phase/timing of the rise and fall**, not in baseline level or peak amplitude. Different rows reach the rising limb and falling limb at different points in the 150-step window.\n\n## Class Differences \u2014 Observations from the Raw Data\n\nThe tools provide aggregate statistics across all 40 rows and cannot split by class label directly. However, scanning the visible raw data, I can make some **tentative observations** (which should be verified with class-conditional analysis):\n\n**Peak amplitude tends to differ:**\n- Several **label 2** rows reach high peaks: 00:00 \u2192 1.83, 01:00 \u2192 1.92, 04:00 \u2192 2.04, 14:00 \u2192 2.02, 17:00 \u2192 1.86.\n- Several **label 1** rows reach more moderate peaks: 09:00 \u2192 1.20, 12:00 \u2192 1.11, 13:00 \u2192 1.21, 15:00 \u2192 1.26, 18:00 \u2192 1.28.\n\n**However, this is not a clean separator.** There are exceptions in both directions:\n- Label 2, 06:00 peaks at only 0.90; label 2, 07:00 peaks at only 0.59.\n- Label 1, 02:00 peaks at 1.70; label 1, 20:00 peaks at 1.54.\n\n**Baseline level may differ:**\n- Many label 2 rows (00:00, 01:00, 04:00, 14:00, 16:00, 17:00) start around \u22120.55 to \u22120.65.\n- Many label 1 rows (09:00, 11:00, 12:00, 13:00, 15:00, 18:00, 22:00) start around \u22120.82 to \u22121.24.\n\nBut again, label 2, 07:00 starts at \u22122.01 and label 2, 23:00 starts at \u22121.76, while label 1, 02:00 starts at \u22120.78.\n\n**Rise sharpness may differ:**\n- Label 2 rows like 00:00, 01:00, and 14:00 stay flat for 45\u201350 steps, then rise sharply.\n- Label 1 rows like 10:00, 12:00, and 22:00 show earlier, more gradual rises, sometimes with an initial dip (e.g., label 1, 12:00 dips from \u22121.12 to \u22121.41 at t_5 before recovering).\n\n## Summary\n\n| Feature | Finding |\n|---|---|\n| **Common shape** | Single symmetric bell pulse: flat baseline (\u2248\u22121.0), rise, broad peak (\u2248+1.37), fall, return to baseline |\n| **Main variation** | Phase/timing of rise and fall (std up to 0.71 in transitions vs. 0.34 at tails) |\n| **Class separation** | **Tentative** \u2014 label 2 may tend toward higher peaks, less negative baselines, and sharper/delayed rises; label 1 may tend toward moderate peaks, more negative baselines, and earlier/more gradual rises. But there are notable exceptions in both classes, so the separation is not cleanly visible from aggregate statistics alone. |\n\nTo confirm class differences rigorously, the next step would be computing class-conditional means and standard deviations at each time-step \u2014 something the current toolset doesn't support directly. Would you like me to run anomaly detection or forecasting on specific columns to dig deeper?",
+      "tool_calls": [
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_5"
+          },
+          "result": {
+            "column": "t_5",
+            "count": 40,
+            "mean": -1.002822,
+            "std": 0.350365,
+            "min": -2.0132187,
+            "max": -0.556537,
+            "coefficient_of_variation": -0.349379,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_10"
+          },
+          "result": {
+            "column": "t_10",
+            "count": 40,
+            "mean": -0.994536,
+            "std": 0.343316,
+            "min": -2.0136498,
+            "max": -0.56867254,
+            "coefficient_of_variation": -0.345202,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_15"
+          },
+          "result": {
+            "column": "t_15",
+            "count": 40,
+            "mean": -0.996335,
+            "std": 0.338887,
+            "min": -2.0164136,
+            "max": -0.57101101,
+            "coefficient_of_variation": -0.340133,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_20"
+          },
+          "result": {
+            "column": "t_20",
+            "count": 40,
+            "mean": -0.898138,
+            "std": 0.357705,
+            "min": -2.0197099,
+            "max": -0.39898452,
+            "coefficient_of_variation": -0.398274,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_25"
+          },
+          "result": {
+            "column": "t_25",
+            "count": 40,
+            "mean": -0.663074,
+            "std": 0.526665,
+            "min": -1.8339233,
+            "max": 0.72926097,
+            "coefficient_of_variation": -0.794279,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_30"
+          },
+          "result": {
+            "column": "t_30",
+            "count": 40,
+            "mean": -0.34916,
+            "std": 0.616646,
+            "min": -0.92896727,
+            "max": 1.2440062,
+            "coefficient_of_variation": -1.766086,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_35"
+          },
+          "result": {
+            "column": "t_35",
+            "count": 40,
+            "mean": -0.177757,
+            "std": 0.706912,
+            "min": -0.96370993,
+            "max": 1.2224381,
+            "coefficient_of_variation": -3.976852,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_40"
+          },
+          "result": {
+            "column": "t_40",
+            "count": 40,
+            "mean": 0.032588,
+            "std": 0.67385,
+            "min": -0.76625037,
+            "max": 1.2259365,
+            "coefficient_of_variation": 20.677843,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_45"
+          },
+          "result": {
+            "column": "t_45",
+            "count": 40,
+            "mean": 0.284984,
+            "std": 0.708669,
+            "min": -0.69934848,
+            "max": 1.2242567,
+            "coefficient_of_variation": 2.486695,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_55"
+          },
+          "result": {
+            "column": "t_55",
+            "count": 40,
+            "mean": 0.896507,
+            "std": 0.427614,
+            "min": -0.46503123,
+            "max": 1.4268997,
+            "coefficient_of_variation": 0.476978,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_60"
+          },
+          "result": {
+            "column": "t_60",
+            "count": 40,
+            "mean": 1.194649,
+            "std": 0.375966,
+            "min": 0.35028455,
+            "max": 2.0235278,
+            "coefficient_of_variation": 0.314708,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_65"
+          },
+          "result": {
+            "column": "t_65",
+            "count": 40,
+            "mean": 1.336247,
+            "std": 0.407656,
+            "min": 0.59396354,
+            "max": 2.0408923,
+            "coefficient_of_variation": 0.305075,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_70"
+          },
+          "result": {
+            "column": "t_70",
+            "count": 40,
+            "mean": 1.366043,
+            "std": 0.432059,
+            "min": 0.59309784,
+            "max": 2.0435828,
+            "coefficient_of_variation": 0.316285,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_75"
+          },
+          "result": {
+            "column": "t_75",
+            "count": 40,
+            "mean": 1.36602,
+            "std": 0.437403,
+            "min": 0.58449404,
+            "max": 2.029597,
+            "coefficient_of_variation": 0.320202,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_80"
+          },
+          "result": {
+            "column": "t_80",
+            "count": 40,
+            "mean": 1.346323,
+            "std": 0.419737,
+            "min": 0.57859558,
+            "max": 2.0298266,
+            "coefficient_of_variation": 0.311765,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_85"
+          },
+          "result": {
+            "column": "t_85",
+            "count": 40,
+            "mean": 1.241914,
+            "std": 0.36613,
+            "min": 0.57409878,
+            "max": 1.9896683,
+            "coefficient_of_variation": 0.294812,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_90"
+          },
+          "result": {
+            "column": "t_90",
+            "count": 40,
+            "mean": 1.018166,
+            "std": 0.410945,
+            "min": -0.12557755,
+            "max": 1.8065749,
+            "coefficient_of_variation": 0.403613,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_95"
+          },
+          "result": {
+            "column": "t_95",
+            "count": 40,
+            "mean": 0.698198,
+            "std": 0.548302,
+            "min": -0.73346451,
+            "max": 1.5421009,
+            "coefficient_of_variation": 0.78531,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_105"
+          },
+          "result": {
+            "column": "t_105",
+            "count": 40,
+            "mean": -0.078537,
+            "std": 0.663433,
+            "min": -1.1932095,
+            "max": 1.0713769,
+            "coefficient_of_variation": -8.447349,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_110"
+          },
+          "result": {
+            "column": "t_110",
+            "count": 40,
+            "mean": -0.333059,
+            "std": 0.608565,
+            "min": -1.1804277,
+            "max": 1.0192082,
+            "coefficient_of_variation": -1.827195,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_115"
+          },
+          "result": {
+            "column": "t_115",
+            "count": 40,
+            "mean": -0.481684,
+            "std": 0.56713,
+            "min": -1.1968717,
+            "max": 0.92739689,
+            "coefficient_of_variation": -1.177389,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_120"
+          },
+          "result": {
+            "column": "t_120",
+            "count": 40,
+            "mean": -0.582977,
+            "std": 0.516285,
+            "min": -1.2102789,
+            "max": 0.87487423,
+            "coefficient_of_variation": -0.885601,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_125"
+          },
+          "result": {
+            "column": "t_125",
+            "count": 40,
+            "mean": -0.67917,
+            "std": 0.469542,
+            "min": -1.3022339,
+            "max": 0.60601163,
+            "coefficient_of_variation": -0.691347,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_130"
+          },
+          "result": {
+            "column": "t_130",
+            "count": 40,
+            "mean": -0.742287,
+            "std": 0.408676,
+            "min": -1.3517119,
+            "max": 0.57750276,
+            "coefficient_of_variation": -0.550563,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_135"
+          },
+          "result": {
+            "column": "t_135",
+            "count": 40,
+            "mean": -0.815394,
+            "std": 0.35352,
+            "min": -1.3699956,
+            "max": 0.57698211,
+            "coefficient_of_variation": -0.433557,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_140"
+          },
+          "result": {
+            "column": "t_140",
+            "count": 40,
+            "mean": -0.91008,
+            "std": 0.327763,
+            "min": -1.4034112,
+            "max": 0.42697001,
+            "coefficient_of_variation": -0.360147,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_145"
+          },
+          "result": {
+            "column": "t_145",
+            "count": 40,
+            "mean": -0.967353,
+            "std": 0.335538,
+            "min": -1.8214575,
+            "max": -0.15011346,
+            "coefficient_of_variation": -0.346862,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        }
+      ],
+      "verdict": {
+        "scored": true,
+        "passed": false,
+        "basis": "mechanical"
+      }
+    }
+  ]
+}
