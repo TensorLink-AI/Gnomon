@@ -63,35 +63,65 @@
           "point": 288.129904223632,
           "q10": 285.4860645662203,
           "q50": 288.44206287242184,
-          "q90": 301.1778113569793
+          "q90": 301.1778113569793,
+          "q05": 285.4860645662203,
+          "q20": 285.4860645662203,
+          "q30": 286.6441949063172,
+          "q70": 288.7488786181549,
+          "q80": 301.1778113569793,
+          "q95": 301.1778113569793
         },
         {
           "timestamp": "2026-05-01T00:00:00",
           "point": 285.92454647210474,
           "q10": 283.281609546697,
           "q50": 286.38663438296874,
-          "q90": 302.24110276835535
+          "q90": 302.24110276835535,
+          "q05": 283.281609546697,
+          "q20": 283.281609546697,
+          "q30": 284.5887664168641,
+          "q70": 286.6934501287018,
+          "q80": 302.24110276835535,
+          "q95": 302.24110276835535
         },
         {
           "timestamp": "2026-05-02T00:00:00",
           "point": 285.8269288511569,
           "q10": 283.1503914748063,
           "q50": 286.2554163110781,
-          "q90": 302.1098846964647
+          "q90": 302.1098846964647,
+          "q05": 283.1503914748063,
+          "q20": 283.1503914748063,
+          "q30": 284.4575483449734,
+          "q70": 286.5622320568111,
+          "q80": 302.1098846964647,
+          "q95": 302.1098846964647
         },
         {
           "timestamp": "2026-05-03T00:00:00",
           "point": 298.6181055553638,
           "q10": 295.73737158905027,
           "q50": 298.842396425322,
-          "q90": 314.69686481070863
+          "q90": 314.69686481070863,
+          "q05": 295.73737158905027,
+          "q20": 295.73737158905027,
+          "q30": 297.04452845921736,
+          "q70": 299.14921217105507,
+          "q80": 314.69686481070863,
+          "q95": 314.69686481070863
         },
         {
           "timestamp": "2026-05-04T00:00:00",
           "point": 303.0554308932828,
           "q10": 299.8552179731509,
           "q50": 302.96024280942265,
-          "q90": 318.81471119480926
+          "q90": 318.81471119480926,
+          "q05": 299.8552179731509,
+          "q20": 299.8552179731509,
+          "q30": 301.162374843318,
+          "q70": 303.2670585551557,
+          "q80": 318.81471119480926,
+          "q95": 318.81471119480926
         }
       ],
       "context": null,
@@ -111,7 +141,8 @@
         "legacy_support": "supported"
       },
       "notes": [
-        "No foundation-model candidate competed: chronos_bolt_mini, chronos_bolt_small, flowstate, moirai2_small, moment_small, toto2_22m, ttm are eligible for this series but no sandbox is installed. Run `aion tsfm install chronos_bolt_mini` to add one; it enters the same folds against the same baselines."
+        "No foundation-model candidate competed: chronos_bolt_mini, chronos_bolt_small, flowstate, moirai2_small, moment_small, toto2_22m, ttm are eligible for this series but no sandbox is installed. Run `aion tsfm install chronos_bolt_mini` to add one; it enters the same folds against the same baselines.",
+        "Quantile levels are limited by the residual sample: at 5 of 5 lead times, adjacent levels share an order statistic and report identical values. q10/q50/q90 are unaffected in meaning."
       ]
     },
     {
@@ -154,35 +185,65 @@
           "point": 66.03785310734463,
           "q10": 63.14837942313412,
           "q50": 65.70451977401129,
-          "q90": 68.85462850403077
+          "q90": 68.85462850403077,
+          "q05": 63.14837942313412,
+          "q20": 63.94785310734463,
+          "q30": 65.15213882163034,
+          "q70": 66.94176558571347,
+          "q80": 67.85070086852988,
+          "q95": 68.85462850403077
         },
         {
           "timestamp": "2026-05-01T00:00:00",
           "point": 65.63690840048162,
           "q10": 62.89833186335736,
           "q50": 65.98166183021836,
-          "q90": 69.13177056023784
+          "q90": 69.13177056023784,
+          "q05": 62.89833186335736,
+          "q20": 63.63556262901486,
+          "q30": 64.38330700974937,
+          "q70": 67.21890764192054,
+          "q80": 68.12784292473695,
+          "q95": 69.13177056023784
         },
         {
           "timestamp": "2026-05-02T00:00:00",
           "point": 65.2359636936186,
           "q10": 62.66215753628142,
           "q50": 65.74548750314241,
-          "q90": 68.8955962331619
+          "q90": 68.8955962331619,
+          "q05": 62.66215753628142,
+          "q20": 63.39938830193892,
+          "q30": 64.14713268267343,
+          "q70": 66.9827333148446,
+          "q80": 67.89166859766101,
+          "q95": 68.8955962331619
         },
         {
           "timestamp": "2026-05-03T00:00:00",
           "point": 64.83501898675559,
           "q10": 60.93095731257751,
           "q50": 64.0142872794385,
-          "q90": 67.16439600945799
+          "q90": 67.16439600945799,
+          "q05": 60.93095731257751,
+          "q20": 61.66818807823501,
+          "q30": 62.41593245896953,
+          "q70": 65.40827625733915,
+          "q80": 66.1604683739571,
+          "q95": 67.16439600945799
         },
         {
           "timestamp": "2026-05-04T00:00:00",
           "point": 64.43407427989257,
           "q10": 61.84757075746025,
           "q50": 65.57256167485056,
-          "q90": 68.72267040487004
+          "q90": 68.72267040487004,
+          "q05": 61.84757075746025,
+          "q20": 62.92707147877212,
+          "q30": 63.36561274143102,
+          "q70": 66.96655065275121,
+          "q80": 67.71874276936916,
+          "q95": 68.72267040487004
         }
       ],
       "context": null,
@@ -212,7 +273,8 @@
         "legacy_support": "weakly_supported"
       },
       "notes": [
-        "No foundation-model candidate competed: chronos_bolt_mini, chronos_bolt_small, flowstate, moirai2_small, moment_small, toto2_22m, ttm are eligible for this series but no sandbox is installed. Run `aion tsfm install chronos_bolt_mini` to add one; it enters the same folds against the same baselines."
+        "No foundation-model candidate competed: chronos_bolt_mini, chronos_bolt_small, flowstate, moirai2_small, moment_small, toto2_22m, ttm are eligible for this series but no sandbox is installed. Run `aion tsfm install chronos_bolt_mini` to add one; it enters the same folds against the same baselines.",
+        "Quantile levels are limited by the residual sample: at 5 of 5 lead times, adjacent levels share an order statistic and report identical values. q10/q50/q90 are unaffected in meaning."
       ]
     }
   ],

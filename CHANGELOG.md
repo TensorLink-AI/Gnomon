@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+- **Additive, with a golden refresh.** Forecast rows and `forecast.csv` now
+  carry nine quantile levels (q05, q10, q20, q30, q50, q70, q80, q90, q95).
+  `q10`/`q50`/`q90` keep their exact meaning *and their exact values* — they
+  are the same order statistics of the same residuals, fitted the same way,
+  verified across randomised cases and by the goldens, whose only
+  non-additive change is a new note. The `forecast.csv` header keeps its
+  first six columns in order and appends the rest. Where the residual sample
+  cannot resolve adjacent levels they report the same number; that is
+  disclosed as a note rather than left to look like a defect.
+- `evaluate()` accepts `selection_loss`: `"wape"` (default, unchanged) or
+  `"pinball"`, the proper scoring rule for a quantile, scored on fold *i*
+  using only residuals from folds before it and reusing the fold forecasts so
+  it costs no extra fits. The default is unchanged because the measurement
+  does not support changing it —
+  `docs/selection-loss-measurement-2026-08.md` records that across 50 real
+  series the pinball-selected arm scored *worse* held-out pinball (0.891 vs
+  0.871) than the WAPE-selected arm, losing on its own metric.
 - Context events may carry typed numeric claims. A `min` or `max` bound in
   `ContextEvent.attributes["claim"]` (reserved `constraint:` event_type
   namespace) is projected onto the emitted quantiles — monotone, so it

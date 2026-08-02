@@ -22,9 +22,11 @@ from .covariates import CovariateAssessment, CovariateDataset, assess_covariates
 from .data import Observation, load_observations
 from .evaluation import (
     Evaluation,
+    conformal_quantile_spreads,
     conformal_spreads,
     evaluate,
     interval_from_spread,
+    quantiles_from_spread,
 )
 from .models import MODELS, predict
 from .multivariate import MULTIVARIATE_MODEL_NAME
@@ -598,12 +600,38 @@ def interval_stage(
         spreads = conformal_spreads(
             state.residuals_by_lead, len(state.points), state.residuals,
         )
+        # The full quantile set comes from the same residuals and the same
+        # fit; q10/q50/q90 are the identical order statistics they always
+        # were, so the additional levels are strictly additional.
+        level_spreads = conformal_quantile_spreads(
+            state.residuals_by_lead, len(state.points), state.residuals,
+        )
         for step, (timestamp, point) in enumerate(zip(state.future_timestamps, state.points), 1):
             q10, q50, q90 = interval_from_spread(point, spreads[step])
-            rows.append({
+            row = {
                 "timestamp": timestamp.isoformat(), "point": point,
                 "q10": q10, "q50": q50, "q90": q90,
-            })
+            }
+            extra = quantiles_from_spread(point, level_spreads[step])
+            row.update({key: value for key, value in extra.items()
+                        if key not in row})
+            rows.append(row)
+        # With few residuals at a lead time, adjacent levels land on the same
+        # order statistic and report the same number. Those values are still
+        # honest conformal bounds, but a reader seeing q05 == q20 should know
+        # it is the sample's resolution and not a defect. A note, not a
+        # warning: this says nothing about the evidence for the forecast.
+        collapsed = sum(1 for row in rows
+                        if len({row[key] for key in row
+                                if key.startswith("q")}) < len(
+                                    [key for key in row if key.startswith("q")]))
+        if collapsed:
+            state.notes.append(
+                f"Quantile levels are limited by the residual sample: at "
+                f"{collapsed} of {len(rows)} lead times, adjacent levels share "
+                f"an order statistic and report identical values. q10/q50/q90 "
+                f"are unaffected in meaning."
+            )
         # Feasibility bounds are projected onto the emitted quantiles here,
         # after the model has said what it believes and before anything reads
         # the rows, so the threshold analysis below sees the same numbers the

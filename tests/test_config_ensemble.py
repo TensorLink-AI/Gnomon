@@ -385,3 +385,97 @@ class TestSelectionStride:
                 f"stride {stride} lets a selection fold read the calibration "
                 f"partition"
             )
+
+
+class TestQuantileLevelsAndPinball:
+    """Nine levels, and a distributional loss available but not default.
+
+    q10/q50/q90 keep their exact meaning *and their exact values* — the same
+    order statistics of the same residuals, fitted the same way. The rest are
+    additional keys.
+    """
+
+    @staticmethod
+    def _series(count=260):
+        import math
+        return [100 + 20 * math.sin(2 * math.pi * i / 12) + 0.3 * i + (i % 7)
+                for i in range(count)]
+
+    def test_generalised_spreads_reproduce_the_frozen_three(self):
+        import random
+
+        from aion.evaluation import (
+            conformal_quantile_spreads,
+            conformal_spreads,
+            interval_from_spread,
+            quantiles_from_spread,
+        )
+
+        rng = random.Random(3)
+        for _ in range(50):
+            horizon = rng.randint(3, 14)
+            by_lead = {
+                step: [rng.gauss(0, 1 + step * 0.3)
+                       for _ in range(rng.choice([1, 2, 5, 8, 13, 30]))]
+                for step in range(1, horizon + 1)
+            }
+            old = conformal_spreads(by_lead, horizon)
+            new = conformal_quantile_spreads(by_lead, horizon)
+            for step in range(1, horizon + 1):
+                low, centre, high = interval_from_spread(100.0, old[step])
+                levels = quantiles_from_spread(100.0, new[step])
+                assert abs(levels["q10"] - low) < 1e-12
+                assert abs(levels["q50"] - centre) < 1e-12
+                assert abs(levels["q90"] - high) < 1e-12
+
+    def test_levels_are_ordered_within_every_lead(self):
+        import random
+
+        from aion.evaluation import conformal_quantile_spreads, quantiles_from_spread
+
+        rng = random.Random(11)
+        for _ in range(50):
+            horizon = rng.randint(3, 14)
+            by_lead = {
+                step: [rng.gauss(0, 1 + step * 0.3)
+                       for _ in range(rng.choice([1, 3, 9, 25]))]
+                for step in range(1, horizon + 1)
+            }
+            spreads = conformal_quantile_spreads(by_lead, horizon)
+            for step in range(1, horizon + 1):
+                values = [value for _, value in
+                          sorted(quantiles_from_spread(0.0, spreads[step]).items())]
+                assert values == sorted(values), (step, values)
+
+    def test_pinball_loss_is_minimised_at_the_true_quantile(self):
+        from aion.evaluation import pinball_loss
+
+        # For level 0.9, under-predicting must be cheaper to avoid than
+        # over-predicting: the loss is asymmetric in that direction.
+        assert pinball_loss(10.0, 8.0, 0.9) > pinball_loss(10.0, 12.0, 0.9)
+        assert pinball_loss(10.0, 8.0, 0.1) < pinball_loss(10.0, 12.0, 0.1)
+        assert pinball_loss(10.0, 10.0, 0.5) == 0.0
+
+    def test_default_selection_loss_is_unchanged(self):
+        from aion.evaluation import evaluate
+
+        values = self._series()
+        default = evaluate(values, 12, 12, 0.02, frequency="h")
+        explicit = evaluate(values, 12, 12, 0.02, frequency="h",
+                            selection_loss="wape")
+        assert default.selected_model == explicit.selected_model
+        assert default.pinball_scores == {}, (
+            "the distributional score is opt-in; computing it by default "
+            "would change nothing but cost every run"
+        )
+
+    def test_pinball_scores_are_reported_when_requested(self):
+        from aion.evaluation import evaluate
+
+        result = evaluate(self._series(), 12, 12, 0.02, frequency="h",
+                          selection_loss="pinball")
+        assert result.supported
+        assert result.pinball_scores
+        assert any(value is not None for value in result.pinball_scores.values())
+        # The point scores are reported alongside, never replaced.
+        assert result.selection_scores

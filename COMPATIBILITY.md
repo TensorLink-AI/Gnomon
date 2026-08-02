@@ -223,6 +223,20 @@ Error envelope: `{"schema_version", "status": "error", "error": {"code",
   `aion track leaderboard` and `avg_wape` in `track performance --json`.
   Existing columns and MASE ordering are unchanged.
 
+- Quantile levels, additive (goldens refreshed, additively): forecast rows
+  and `forecast.csv` gain `q05`, `q20`, `q30`, `q70`, `q80`, `q95`.
+  `q10`/`q50`/`q90` are unchanged in meaning **and in value** — identical
+  order statistics of identical residuals under an identical fit. The
+  `forecast.csv` header retains `series,timestamp,point,q10,q50,q90` as its
+  first six columns in that order, so positional readers are unaffected, and
+  appends the new levels after them. The golden refresh adds keys and one
+  note; no pre-existing number changed, which the refresh diff shows.
+
+- Distributional selection loss, additive and opt-in: `evaluate()` gains
+  `selection_loss` (`"wape"` default, `"pinball"`) and `Evaluation` gains
+  `pinball_scores`, populated only when pinball is requested. The default
+  path is byte-identical; nothing selects differently unless asked.
+
 ## Enforcement
 
 `tests/test_golden_artifacts.py` pins byte-exact `artifact.json` output for

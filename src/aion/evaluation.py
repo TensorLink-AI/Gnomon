@@ -40,6 +40,10 @@ class Evaluation:
     # the override would have nothing fold-separated to widen from.
     ensemble_residuals: list[float] = field(default_factory=list)
     ensemble_residuals_by_lead: dict[int, list[float]] = field(default_factory=dict)
+    # Mean pinball loss per candidate over the selection folds, populated only
+    # when `selection_loss="pinball"`. Reported alongside the point scores,
+    # never in place of them.
+    pinball_scores: dict[str, float | None] = field(default_factory=dict)
 
 
 #: The metric every selection decision is made on. Named so that hindsight
@@ -199,6 +203,121 @@ def interval_from_spread(
     return centre - low_offset, centre, centre + high_offset
 
 
+#: Quantile levels emitted alongside the forecast. q10/q50/q90 keep their
+#: exact meaning and their exact values — they are the same order statistics
+#: of the same residuals, fitted the same way — and the rest are additional.
+QUANTILE_LEVELS = (0.05, 0.1, 0.2, 0.3, 0.5, 0.7, 0.8, 0.9, 0.95)
+
+
+def quantile_key(level: float) -> str:
+    """``0.05 -> 'q05'``, ``0.5 -> 'q50'``: the artifact column name."""
+    return f"q{round(level * 100):02d}"
+
+
+def conformal_quantile_spreads(
+    residuals_by_lead: dict[int, list[float]], horizon: int,
+    pooled: list[float] | None = None,
+    levels: tuple[float, ...] = QUANTILE_LEVELS,
+) -> dict[int, dict[float, float]]:
+    """Split-conformal offset from the point forecast, per lead and level.
+
+    The same construction as :func:`conformal_spreads` at every level: the
+    residual order statistic at that lead when there are enough residuals,
+    the pooled one when there are not, fitted monotone in the lead time.
+
+    Two orderings have to hold and are enforced separately. Across leads,
+    uncertainty does not shrink with distance — that is the isotonic fit,
+    applied per level. Across levels within a lead, a higher quantile cannot
+    sit below a lower one — normally automatic, since these are order
+    statistics of one sorted sample, but the pooled fallback can mix samples
+    at adjacent leads, so a running maximum enforces it.
+    """
+    pooled = pooled if pooled is not None else [
+        residual for residuals in residuals_by_lead.values() for residual in residuals
+    ]
+    if not pooled:
+        return {}
+    pooled_quantiles = {level: conformal_quantile(pooled, level) for level in levels}
+
+    by_level: dict[float, list[float]] = {level: [] for level in levels}
+    medians: list[float] = []
+    for step in range(1, horizon + 1):
+        residuals = residuals_by_lead.get(step) or []
+        if len(residuals) >= MIN_RESIDUALS_PER_LEAD:
+            quantiles = {level: conformal_quantile(residuals, level) for level in levels}
+        else:
+            quantiles = pooled_quantiles
+        medians.append(quantiles[0.5])
+        for level in levels:
+            # Signed distance from the median, so the isotonic fit below acts
+            # on a half-width rather than on a level that may trend.
+            by_level[level].append(quantiles[level] - quantiles[0.5])
+
+    fitted: dict[float, list[float]] = {}
+    for level in levels:
+        offsets = by_level[level]
+        if level < 0.5:
+            # Lower tail: fit the magnitude monotone, then re-sign.
+            widths = _isotonic([max(0.0, -value) for value in offsets])
+            fitted[level] = [-value for value in widths]
+        elif level > 0.5:
+            fitted[level] = _isotonic([max(0.0, value) for value in offsets])
+        else:
+            fitted[level] = [0.0] * horizon
+
+    ordered = sorted(levels)
+    spreads: dict[int, dict[float, float]] = {}
+    for index in range(horizon):
+        running = float("-inf")
+        entry: dict[float, float] = {}
+        for level in ordered:
+            value = max(fitted[level][index], running)
+            entry[level] = value
+            running = value
+        spreads[index + 1] = {level: medians[index] + entry[level]
+                              for level in ordered}
+    return spreads
+
+
+def quantiles_from_spread(
+    point: float, spread: dict[float, float]
+) -> dict[str, float]:
+    """Named quantile columns at one lead time."""
+    return {quantile_key(level): point + offset
+            for level, offset in sorted(spread.items())}
+
+
+def pinball_loss(actual: float, predicted: float, level: float) -> float:
+    """Quantile (pinball) loss: the proper scoring rule for a quantile.
+
+    Under-prediction is charged ``level`` per unit and over-prediction
+    ``1 - level``, so the loss is minimised exactly when ``predicted`` is
+    the true ``level`` quantile. A point metric like WAPE cannot distinguish
+    a model with well-placed uncertainty from one whose centre happens to
+    land well, which is what makes this the right criterion when the answer
+    is a distribution.
+    """
+    error = actual - predicted
+    return level * error if error >= 0 else (level - 1) * error
+
+
+def mean_pinball(
+    actual: list[float], quantiles: list[dict[float, float]],
+    levels: tuple[float, ...] = QUANTILE_LEVELS,
+) -> float | None:
+    """Average pinball loss over every lead time and level."""
+    if not actual or len(quantiles) < len(actual):
+        return None
+    total, count = 0.0, 0
+    for observed, by_level in zip(actual, quantiles):
+        for level in levels:
+            if level not in by_level:
+                continue
+            total += pinball_loss(observed, by_level[level], level)
+            count += 1
+    return total / count if count else None
+
+
 def _origins(length: int, horizon: int, minimum_train: int) -> list[int]:
     """Non-overlapping rolling origins: the partition skeleton.
 
@@ -304,6 +423,7 @@ def evaluate(
     train_at: Callable[[int], list[float]] | None = None,
     extra_candidates: dict[str, Callable[[int, int], list[float]]] | None = None,
     selection_stride: int | None = None,
+    selection_loss: str = "wape",
 ) -> Evaluation:
     """``train_at(origin)`` returns the training history for a fold whose
     forecast origin is index ``origin`` — by default a plain prefix slice,
@@ -321,7 +441,14 @@ def evaluate(
     horizon (``None`` keeps them non-overlapping, one per horizon). It widens
     the comparison sample only: calibration residuals are always pooled from
     the non-overlapping skeleton, and no selection fold reads a point
-    belonging to the calibration or test partitions."""
+    belonging to the calibration or test partitions.
+
+    ``selection_loss`` chooses the criterion: ``"wape"`` (the default, a
+    point loss) or ``"pinball"``, the proper scoring rule for a quantile.
+    Pinball is the right criterion when the answer is a distribution — a
+    point loss cannot tell a model with well-placed uncertainty from one
+    whose centre happens to land well — but it changes which model is
+    selected, so it is opt-in until measured."""
     if train_at is None:
         train_at = lambda origin: values[:origin]  # noqa: E731
     minimum_train = max(2 * season, 2 * horizon, 8)
@@ -615,6 +742,52 @@ def evaluate(
                     if "meta_model" not in all_model_names:
                         all_model_names.append("meta_model")
 
+    # --- Distributional fold scoring (pinball) ---
+    def _pinball_score(forecasts: list[list[float]]) -> float | None:
+        """Mean pinball loss over the selection folds, calibrated honestly.
+
+        Fold *i* is scored with quantiles built from the residuals of folds
+        before it, never its own — the same separation the calibration fold
+        enforces for the published interval, applied inside selection. The
+        first fold has nothing to calibrate from and is not scored.
+
+        Reuses the fold forecasts already computed, so a distributional score
+        costs no extra model fits.
+        """
+        by_lead: dict[int, list[float]] = {}
+        pooled_residuals: list[float] = []
+        losses: list[float] = []
+        for index, origin in enumerate(selection_origins):
+            if index >= len(forecasts) or not forecasts[index]:
+                continue
+            actual = values[origin : origin + horizon]
+            forecast = forecasts[index]
+            if pooled_residuals:
+                spreads = conformal_quantile_spreads(by_lead, horizon, pooled_residuals)
+                if spreads:
+                    quantiles = [
+                        {level: forecast[step - 1] + offset
+                         for level, offset in spreads[step].items()}
+                        for step in range(1, min(horizon, len(forecast)) + 1)
+                    ]
+                    loss = mean_pinball(actual, quantiles)
+                    if loss is not None:
+                        losses.append(loss)
+            for step, (observed, predicted) in enumerate(zip(actual, forecast), 1):
+                by_lead.setdefault(step, []).append(observed - predicted)
+                pooled_residuals.append(observed - predicted)
+        return mean(losses) if losses else None
+
+    pinball_scores: dict[str, float | None] = {}
+    if selection_loss == "pinball":
+        for name in MODELS:
+            if scores.get(name) is not None:
+                pinball_scores[name] = _pinball_score(fold_forecasts[name])
+        for adapter in tsfm_adapters:
+            if tsfm_scores.get(adapter.name) is not None:
+                pinball_scores[adapter.name] = _pinball_score(
+                    [item for item in tsfm_fold_forecasts[adapter.name]])
+
     baseline_scores = {name: score for name, score in scores.items() if name in BASELINES and score is not None}
     if not baseline_scores:
         return Evaluation(
@@ -641,6 +814,24 @@ def evaluate(
         candidate_scores["ensemble"] = ensemble_score
     if meta_model_score is not None:
         candidate_scores["meta_model"] = meta_model_score
+
+    if selection_loss == "pinball" and pinball_scores:
+        # Decide on the distributional loss where it is available, keeping the
+        # point loss reported alongside rather than replacing it. Candidates
+        # without a pinball score (too few folds to calibrate one) keep their
+        # point score, so switching the criterion never silently drops a
+        # candidate from the contest.
+        scored = {name: value for name, value in pinball_scores.items()
+                  if value is not None}
+        if scored:
+            baseline_pinball = {name: value for name, value in scored.items()
+                                if name in BASELINES}
+            if baseline_pinball:
+                strongest_baseline = min(baseline_pinball, key=baseline_pinball.get)  # type: ignore[arg-type]
+                baseline_score = baseline_pinball[strongest_baseline]
+                selected = strongest_baseline
+                candidate_scores = {name: value for name, value in scored.items()
+                                    if name not in BASELINES}
 
     if candidate_scores:
         candidate = min(candidate_scores, key=candidate_scores.get)  # type: ignore[arg-type]
@@ -803,4 +994,5 @@ def evaluate(
                       tsfm_scores=tsfm_scores, notes=notes,
                       residuals_by_lead=residuals_by_lead,
                       ensemble_residuals=ensemble_residuals,
-                      ensemble_residuals_by_lead=ensemble_residuals_by_lead)
+                      ensemble_residuals_by_lead=ensemble_residuals_by_lead,
+                      pinball_scores=pinball_scores)
