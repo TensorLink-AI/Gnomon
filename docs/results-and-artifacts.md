@@ -72,18 +72,52 @@ scales should not be compared as though they were identical units.
 | --- | --- |
 | `series` | Series identifier, or `__default__` without `--series`. |
 | `timestamp` | Future timestamp generated from the validated grid. |
-| `point` | Raw selected-model forecast. |
-| `q10` | Lower interval bound (10th residual percentile, widened by step). |
-| `q50` | Point plus the pooled residual median. |
-| `q90` | Upper interval bound (90th residual percentile, widened by step). |
+| `point` | Raw selected-model forecast. **Not** the centre of the interval. |
+| `q10` | 10th residual percentile at this lead time. |
+| `q50` | Point plus the median residual — the bias-corrected centre. |
+| `q90` | 90th residual percentile at this lead time. |
+| `q05`, `q20`, `q30`, `q70`, `q80`, `q95` | The remaining emitted levels. |
+| `point_bias_correction` | Exactly `q50 - point`. |
 
-`q10`–`q90` form a nominal central 80% residual interval. Residuals are pooled
-from every selection fold plus the calibration fold, and the spread around the
-median widens with the square root of the forecast step, so uncertainty grows
-over the horizon instead of staying constant. The interval is empirical, not a
-probability guarantee. Check `interval_coverage` and warnings before using it
-for decisions. The median `q50` may differ from `point` when residuals show
-systematic bias.
+### `point` is not the median
+
+`point` is what the selected model output. Every `q*` level is recentred on
+the median backtest residual, so if the model carries systematic bias the
+two differ — sometimes substantially. In the `quickstart-mcp` vintage
+example `point` is 333.86 while `q50` is 346.80, which puts the headline
+number near the 30th percentile of Aion's own distribution.
+
+**Read `q50` when you want the centre.** `point_bias_correction` ships on
+every row so the gap is visible without recomputing it, and any result
+where it is non-zero carries a `point_is_not_the_median` disclosure in its
+support assessment naming the size.
+
+### What the interval is
+
+`q10`–`q90` form a nominal central 80% split-conformal interval, built from
+the residual order statistics at each lead time. Two properties are
+enforced: half-widths are fitted monotone across lead times, and levels
+within a lead cannot cross.
+
+Residuals are **not** widened by `sqrt(step)` — the spread at a lead time is
+the spread measured at that lead time. A lead with fewer than 8 residuals
+borrows the pooled set rather than trusting a two-sample quantile, and with
+the usual three or four folds *every* lead borrows, which makes the interval
+the same width across the whole horizon. That is honest, and it is stated:
+such a run carries a `constant_interval_width` disclosure.
+
+By default residuals are pooled across the selection folds and the
+calibration fold. The selected model was chosen to minimise error on the
+selection folds, so those residuals are optimistically small and the
+interval is narrower than strict split conformal would give; every run says
+so via `conformal_residuals_pooled_across_selection`. Set
+`evaluation.pool_residuals: false` in `aion.yaml` to calibrate on the
+held-out fold alone — genuine split conformal, noisier and wider.
+
+The interval is empirical, not a probability guarantee. Check
+`interval_coverage`, the disclosures, and the warnings before using it for
+decisions — and note that measured coverage comes from a single test fold
+of `horizon` points, which the `coverage_sample_size` disclosure states.
 
 ## Threshold analysis
 
@@ -91,8 +125,8 @@ When `--threshold VALUE` is supplied, each supported series carries a
 `threshold` block in `artifact.json` (and a section in `summary.md`) with:
 
 - `probability_above`: per-step empirical probability of exceeding the value,
-  computed from the pooled backtest residuals with the same square-root
-  horizon widening as the intervals;
+  computed from the pooled backtest residuals rescaled to the same per-lead
+  conformal spread the published intervals use;
 - `first_timestamp_point_above` / `first_timestamp_point_below`: earliest
   forecast timestamp whose point crosses the value; and
 - `first_timestamp_interval_above` / `first_timestamp_interval_below`:

@@ -15,10 +15,32 @@ SRC = Path(__file__).resolve().parent.parent / "src" / "aion"
 
 # Modules whose non-load functions must be snapshot-only. Extend as the
 # operator substrate grows.
-GUARDED_MODULES = ["pipeline.py", "adjudication.py", "operators.py", "macros.py"]
+#
+# `covariates.py` is here because it is the one module in the execution
+# path that reads a file outside the load stage. Its reader is on the
+# allow-list below; everything else in it must go through the snapshot,
+# which is what makes the covariate cutoff structural rather than a
+# convention honoured at each call site.
+GUARDED_MODULES = [
+    "pipeline.py", "adjudication.py", "operators.py", "macros.py",
+    "covariates.py",
+]
 
-# Functions allowed to perform raw input reads.
-ALLOWED_FUNCTIONS = {"load_stage"}
+# Functions allowed to perform raw input reads. Each entry is a deliberate
+# hole in the policy, so each one needs a reason.
+ALLOWED_FUNCTIONS = {
+    # Materialises the target series' snapshot; the only entry point for
+    # target data.
+    "load_stage",
+    # Materialises the covariate rows that `CovariateDataset._snapshot`
+    # then wraps. Reads the file and nothing else — no cutoff logic lives
+    # here, so it cannot leak past one.
+    "load_covariates",
+    # Validation and guidance helpers: they report on a covariate file for
+    # a user, and never feed a forecast.
+    "validate_covariate_file",
+    "covariate_guide",
+}
 
 FORBIDDEN_CALLS = {
     "open", "load_observations", "read_text", "read_bytes",

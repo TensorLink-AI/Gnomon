@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
+from typing import Any
 
 from .contracts import AionError
 from .data import Observation, timezone_name
@@ -105,17 +106,93 @@ def infer_frequency(timestamps: list[datetime]) -> str:
     )
 
 
+#: Frequencies whose step is a *calendar* step rather than a fixed
+#: duration. On a timezone-aware series in a DST zone, a "day" is 23 or 25
+#: hours across a transition, and adding `timedelta(days=1)` lands an hour
+#: off — which the grid check then reported as an irregular period, with
+#: two repairs that were both wrong (nothing is missing, and snapping would
+#: shift every post-transition timestamp).
+CALENDAR_FREQUENCIES = frozenset({"D", "W", "MS"})
+
+
 def next_timestamp(value: datetime, frequency: str) -> datetime:
+    """The next point on the grid.
+
+    For `D`/`W`/`MS` on an aware timestamp this is calendar-aware: add the
+    step to the wall-clock time and re-normalise the offset, so midnight
+    stays midnight across a DST transition instead of drifting by an hour.
+    """
+    if frequency in CALENDAR_FREQUENCIES and frequency in FREQUENCIES:
+        if value.tzinfo is None:
+            return value + FREQUENCIES[frequency]
+        naive = value.replace(tzinfo=None) + FREQUENCIES[frequency]
+        return _relocalise(naive, value)
     if frequency in FREQUENCIES:
         return value + FREQUENCIES[frequency]
     year, month = value.year, value.month + 1
     if month == 13:
         year, month = year + 1, 1
-    return value.replace(year=year, month=month, day=1)
+    if value.tzinfo is None:
+        return value.replace(year=year, month=month, day=1)
+    return _relocalise(
+        value.replace(tzinfo=None, year=year, month=month, day=1), value,
+    )
+
+
+def _relocalise(naive: datetime, reference: datetime) -> datetime:
+    """Re-attach ``reference``'s zone to a wall-clock time.
+
+    With a `ZoneInfo` this re-derives the offset for the new date, which is
+    the whole point: the same wall-clock hour on either side of a DST
+    transition has different offsets. With a fixed-offset zone it is a
+    no-op, which is also correct — a fixed offset has no transitions.
+    """
+    zone = reference.tzinfo
+    localised = naive.replace(tzinfo=zone)
+    # `fold` disambiguates the repeated hour in an autumn transition;
+    # normalising through UTC and back re-derives the correct offset.
+    try:
+        return localised.astimezone(zone)
+    except Exception:  # pragma: no cover - exotic tzinfo implementations
+        return localised
+
+
+def is_regular_step(left: datetime, right: datetime, frequency: str) -> bool:
+    """Whether ``right`` is the next point after ``left`` on the grid.
+
+    For a calendar frequency on timezone-aware timestamps this compares
+    *wall clocks*, not elapsed time. A day in a DST zone is 23 or 25 hours
+    across a transition, and the timestamps arrive as fixed offsets — a
+    parsed `+00:00` carries no knowledge that the zone is about to change —
+    so an instant comparison cannot tell a DST step from a missing row.
+    The wall clock can: midnight to midnight is one day either way.
+    """
+    if frequency == "MS":
+        naive_left = left.replace(tzinfo=None)
+        naive_right = right.replace(tzinfo=None)
+        return _month_step(naive_left, naive_right)
+    if frequency not in FREQUENCIES:
+        return next_timestamp(left, frequency) == right
+    step = FREQUENCIES[frequency]
+    if frequency in CALENDAR_FREQUENCIES and left.tzinfo is not None:
+        return right.replace(tzinfo=None) - left.replace(tzinfo=None) == step
+    return right - left == step
+
+
+def _modal_step_description(timestamps: list[datetime]) -> str:
+    """The most common gap between consecutive timestamps, in words."""
+    if len(timestamps) < 2:
+        return "unknown"
+    steps = Counter(right - left for left, right in zip(timestamps, timestamps[1:]))
+    step, _ = steps.most_common(1)[0]
+    for code, duration in FREQUENCIES.items():
+        if step == duration:
+            return f"{FREQUENCY_DESCRIPTIONS.get(code, code)} ({step})"
+    return str(step)
 
 
 def validate_and_group(
-    observations: list[Observation], requested_frequency: str | None
+    observations: list[Observation], requested_frequency: str | None,
 ) -> tuple[dict[str, list[Observation]], str, str | None]:
     frequency = normalise_frequency(requested_frequency) if requested_frequency else infer_frequency(
         [item.timestamp for item in observations]
@@ -123,24 +200,60 @@ def validate_and_group(
     groups: dict[str, list[Observation]] = defaultdict(list)
     for item in observations:
         groups[item.series].append(item)
-    inferred: set[str] = set()
+    # Per-series inference is a *consistency* check on a frequency Aion
+    # chose. When the caller named one, the grid check below is the check,
+    # and running inference first meant an explicit `--frequency MS` could
+    # never rescue a series whose raw step is not in FREQUENCIES —
+    # month-end data failed with AMBIGUOUS_FREQUENCY before the requested
+    # frequency was ever applied.
+    inferred: dict[str, str] = {}
+    if requested_frequency is None:
+        for name, values in groups.items():
+            timestamps = sorted({item.timestamp for item in values})
+            if len(timestamps) >= 3:
+                inferred[name] = infer_frequency(timestamps)
+        distinct = set(inferred.values())
+        if len(distinct) > 1:
+            # Blaming the minority series for being irregular describes the
+            # symptom; the file mixes frequencies, and that is the finding.
+            raise AionError(
+                "MIXED_SERIES_FREQUENCIES",
+                "The input mixes frequencies across series: "
+                + "; ".join(
+                    f"{name} is {FREQUENCY_DESCRIPTIONS.get(code, code)}"
+                    for name, code in sorted(inferred.items())
+                )
+                + ". Split the file, or pass --frequency to state which grid "
+                  "every series is on.",
+                {"per_series": dict(sorted(inferred.items())),
+                 "distinct": sorted(distinct)},
+            )
     for name, values in groups.items():
         values.sort(key=lambda item: item.timestamp)
         timestamps = [item.timestamp for item in values]
         if len(timestamps) != len(set(timestamps)):
             raise AionError("DUPLICATE_TIMESTAMPS", f"Series {name} contains duplicate timestamps.")
-        if len(timestamps) >= 3:
-            inferred.add(infer_frequency(timestamps))
         for left, right in zip(timestamps, timestamps[1:]):
-            if next_timestamp(left, frequency) != right:
+            if not is_regular_step(left, right, frequency):
+                observed = _modal_step_description(timestamps)
                 raise AionError(
-                    "IRREGULAR_TIME_GRID", f"Series {name} has a missing or irregular period after {left.isoformat()}.",
-                    {"series": name, "after": left.isoformat(), "expected": next_timestamp(left, frequency).isoformat()},
+                    "IRREGULAR_TIME_GRID",
+                    f"Series {name} has a missing or irregular period after "
+                    f"{left.isoformat()}: expected "
+                    f"{next_timestamp(left, frequency).isoformat()}, found "
+                    f"{right.isoformat()}. The most common step in this series "
+                    f"is {observed}.",
+                    {"series": name, "after": left.isoformat(),
+                     "expected": next_timestamp(left, frequency).isoformat(),
+                     "found": right.isoformat(),
+                     "frequency": frequency,
+                     "modal_step": observed},
                 )
-    if inferred and inferred != {frequency}:
+    if inferred and set(inferred.values()) != {frequency}:
         raise AionError(
             "FREQUENCY_MISMATCH", "Requested frequency does not match every series.",
-            {"requested": frequency, "inferred": sorted(inferred)},
+            {"requested": frequency, "inferred": sorted(set(inferred.values())),
+             "per_series": dict(sorted(inferred.items()))},
         )
     zone = timezone_name([item.timestamp for item in observations])
     return dict(groups), frequency, zone

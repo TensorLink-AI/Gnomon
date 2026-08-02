@@ -75,7 +75,8 @@
             "message": "Supply more observations, or lower the horizon, so rolling evaluation can run."
           }
         ],
-        "legacy_support": "unsupported"
+        "legacy_support": "unsupported",
+        "disclosures": []
       },
       "notes": []
     }
@@ -104,7 +105,13 @@
           "window_average": null,
           "theta": null,
           "ets": null
-        }
+        },
+        "measured_interval_coverage": null,
+        "baseline_improvement": null,
+        "strongest_baseline": null,
+        "selected_model": null,
+        "residuals_pooled_across_selection": true,
+        "residual_fold_count": 0
       }
     },
     {
@@ -125,6 +132,7 @@
       "payload": {
         "as_of": "latest",
         "known_time_assumed": true,
+        "known_time_provenance": "assumed",
         "source_ref": "sha256:b1dc29983a337e52c8f3745843e15e1833ce3edfa2afc92a9029040a6272b350",
         "accesses": [
           {

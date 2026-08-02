@@ -48,6 +48,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator, Sequence
 
+from .contracts import AionError
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -188,7 +190,12 @@ def mase_score(
 
 
 def mape_score(actual: list[float], predicted: list[float]) -> float:
-    """Mean Absolute Percentage Error."""
+    """Mean absolute percentage error, **in percent** (4.279 means 4.279%).
+
+    Every other error figure in this module is a fraction — `wape` at 0.0424
+    is 4.24% — and the two sat unlabelled in the same object. The name now
+    carries the unit wherever it is reported.
+    """
     n = min(len(actual), len(predicted))
     if n == 0:
         return 0.0
@@ -247,6 +254,145 @@ def threshold_accuracy(
 # Tracking store (SQLite)
 # ---------------------------------------------------------------------------
 
+#: Table definitions, one statement per table, so the schema has a single
+#: source of truth: ``_init_db`` creates from these and ``_rebuild_table``
+#: migrates to them. Keep each entry idempotent (``IF NOT EXISTS``).
+_TABLE_DEFINITIONS: dict[str, str] = {
+    "forecasts": """
+        CREATE TABLE IF NOT EXISTS forecasts (
+            forecast_id TEXT NOT NULL,
+            project TEXT NOT NULL,
+            series TEXT NOT NULL,
+            cutoff_time TEXT,
+            horizon INTEGER,
+            frequency TEXT,
+            selected_model TEXT,
+            support TEXT,
+            threshold REAL,
+            threshold_peak_probability REAL,
+            naive_error REAL,
+            artifact_path TEXT,
+            created_at TEXT NOT NULL,
+            scored INTEGER DEFAULT 0,
+            mase REAL,
+            wape REAL,
+            mape REAL,
+            bias REAL,
+            coverage REAL,
+            threshold_accuracy REAL,
+            scored_at TEXT,
+            drift_flag TEXT,
+            task TEXT DEFAULT 'forecast',
+            fingerprint TEXT,
+            -- A forecast_id is content-addressed: the same inputs in two
+            -- projects produce the same id. Keying on it alone made a
+            -- second registration *move* the first project's row, taking
+            -- its realised scores with it.
+            PRIMARY KEY (forecast_id, project, series)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_forecasts_project
+            ON forecasts(project);
+
+        CREATE INDEX IF NOT EXISTS idx_forecasts_model
+            ON forecasts(project, selected_model);
+    """,
+    "model_performance": """
+        CREATE TABLE IF NOT EXISTS model_performance (
+            project TEXT NOT NULL,
+            model TEXT NOT NULL,
+            forecast_id TEXT NOT NULL,
+            mase REAL,
+            wape REAL,
+            mape REAL,
+            bias REAL,
+            coverage REAL,
+            threshold_accuracy REAL,
+            scored_at TEXT NOT NULL,
+            series TEXT NOT NULL DEFAULT '__default__',
+            horizon INTEGER,
+            frequency TEXT,
+            task TEXT DEFAULT 'forecast',
+            fingerprint TEXT,
+            PRIMARY KEY (project, model, forecast_id, series)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_perf_model
+            ON model_performance(project, model);
+    """,
+    # Adaptive-conformal state, kept as an append-only log rather than a
+    # mutable current value. Each row carries the known_time of the outcome
+    # that caused it, so a replay at `--as-of T` reads only what was known
+    # by T and reproduces the interval that was actually published then. A
+    # single mutable alpha would make every historical run irreproducible
+    # the moment a new outcome arrived.
+    "conformal_adaptation": """
+        CREATE TABLE IF NOT EXISTS conformal_adaptation (
+            project TEXT NOT NULL,
+            scope TEXT NOT NULL,
+            forecast_id TEXT NOT NULL,
+            known_time TEXT NOT NULL,
+            covered INTEGER NOT NULL,
+            points INTEGER NOT NULL,
+            PRIMARY KEY (project, scope, forecast_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_adaptation_scope
+            ON conformal_adaptation(project, scope, known_time);
+    """,
+    "decisions": """
+        CREATE TABLE IF NOT EXISTS decisions (
+            decision_id TEXT PRIMARY KEY,
+            project TEXT NOT NULL,
+            forecast_id TEXT NOT NULL,
+            action TEXT NOT NULL,
+            expected_outcome TEXT NOT NULL,
+            actual_outcome TEXT,
+            correct INTEGER,
+            created_at TEXT NOT NULL,
+            resolved_at TEXT
+            -- No FK to forecasts: forecast_id is no longer unique there
+            -- (see the composite key above), and SQLite requires a parent
+            -- key to be uniquely indexed.
+        );
+    """,
+    "schema_metadata": """
+        CREATE TABLE IF NOT EXISTS schema_metadata (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
+    """,
+    "decision_artifacts": """
+        CREATE TABLE IF NOT EXISTS decision_artifacts (
+            decision_id TEXT PRIMARY KEY,
+            project TEXT NOT NULL,
+            forecast_id TEXT NOT NULL,
+            selected_action TEXT,
+            created_at TEXT NOT NULL,
+            resolved_at TEXT,
+            payload TEXT NOT NULL
+        );
+    """,
+    "routing_decisions": """
+        CREATE TABLE IF NOT EXISTS routing_decisions (
+            route_id TEXT PRIMARY KEY,
+            project TEXT NOT NULL,
+            task TEXT NOT NULL,
+            series TEXT,
+            fingerprint TEXT,
+            recommendation TEXT,
+            basis TEXT NOT NULL,
+            payload TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+    """,
+}
+
+#: Bumped to 4 when ``forecasts`` and ``model_performance`` gained their
+#: composite keys.
+SCHEMA_VERSION = "4"
+
+
 class TrackingStore:
     """SQLite-backed forecast registry and scoring store."""
 
@@ -257,104 +403,8 @@ class TrackingStore:
 
     def _init_db(self) -> None:
         with self._connect() as conn:
-            conn.executescript("""
-                CREATE TABLE IF NOT EXISTS forecasts (
-                    forecast_id TEXT PRIMARY KEY,
-                    project TEXT NOT NULL,
-                    series TEXT NOT NULL,
-                    cutoff_time TEXT,
-                    horizon INTEGER,
-                    frequency TEXT,
-                    selected_model TEXT,
-                    support TEXT,
-                    threshold REAL,
-                    threshold_peak_probability REAL,
-                    naive_error REAL,
-                    artifact_path TEXT,
-                    created_at TEXT NOT NULL,
-                    scored INTEGER DEFAULT 0,
-                    mase REAL,
-                    mape REAL,
-                    bias REAL,
-                    coverage REAL,
-                    threshold_accuracy REAL,
-                    scored_at TEXT,
-                    drift_flag TEXT
-                );
-
-                CREATE INDEX IF NOT EXISTS idx_forecasts_project
-                    ON forecasts(project);
-
-                CREATE INDEX IF NOT EXISTS idx_forecasts_model
-                    ON forecasts(project, selected_model);
-
-                CREATE TABLE IF NOT EXISTS model_performance (
-                    project TEXT NOT NULL,
-                    model TEXT NOT NULL,
-                    forecast_id TEXT NOT NULL,
-                    mase REAL,
-                    mape REAL,
-                    bias REAL,
-                    coverage REAL,
-                    threshold_accuracy REAL,
-                    scored_at TEXT NOT NULL,
-                    series TEXT,
-                    horizon INTEGER,
-                    frequency TEXT,
-                    PRIMARY KEY (project, model, forecast_id)
-                );
-
-                CREATE INDEX IF NOT EXISTS idx_perf_model
-                    ON model_performance(project, model);
-
-                -- Adaptive-conformal state, kept as an append-only log rather
-                -- than a mutable current value. Each row carries the
-                -- known_time of the outcome that caused it, so a replay at
-                -- `--as-of T` reads only what was known by T and reproduces
-                -- the interval that was actually published then. A single
-                -- mutable alpha would make every historical run
-                -- irreproducible the moment a new outcome arrived.
-                CREATE TABLE IF NOT EXISTS conformal_adaptation (
-                    project TEXT NOT NULL,
-                    scope TEXT NOT NULL,
-                    forecast_id TEXT NOT NULL,
-                    known_time TEXT NOT NULL,
-                    covered INTEGER NOT NULL,
-                    points INTEGER NOT NULL,
-                    PRIMARY KEY (project, scope, forecast_id)
-                );
-
-                CREATE INDEX IF NOT EXISTS idx_adaptation_scope
-                    ON conformal_adaptation(project, scope, known_time);
-
-                CREATE TABLE IF NOT EXISTS decisions (
-                    decision_id TEXT PRIMARY KEY,
-                    project TEXT NOT NULL,
-                    forecast_id TEXT NOT NULL,
-                    action TEXT NOT NULL,
-                    expected_outcome TEXT NOT NULL,
-                    actual_outcome TEXT,
-                    correct INTEGER,
-                    created_at TEXT NOT NULL,
-                    resolved_at TEXT,
-                    FOREIGN KEY (forecast_id) REFERENCES forecasts(forecast_id)
-                );
-
-                CREATE TABLE IF NOT EXISTS schema_metadata (
-                    key TEXT PRIMARY KEY,
-                    value TEXT NOT NULL
-                );
-
-                CREATE TABLE IF NOT EXISTS decision_artifacts (
-                    decision_id TEXT PRIMARY KEY,
-                    project TEXT NOT NULL,
-                    forecast_id TEXT NOT NULL,
-                    selected_action TEXT,
-                    created_at TEXT NOT NULL,
-                    resolved_at TEXT,
-                    payload TEXT NOT NULL
-                );
-            """)
+            for definition in _TABLE_DEFINITIONS.values():
+                conn.executescript(definition)
             columns = {
                 row["name"] for row in conn.execute("PRAGMA table_info(forecasts)")
             }
@@ -372,30 +422,68 @@ class TrackingStore:
                                    ("wape", "REAL")):
                 if name not in perf_columns:
                     conn.execute(f"ALTER TABLE model_performance ADD COLUMN {name} {sql_type}")
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS routing_decisions (
-                    route_id TEXT PRIMARY KEY,
-                    project TEXT NOT NULL,
-                    task TEXT NOT NULL,
-                    series TEXT,
-                    fingerprint TEXT,
-                    recommendation TEXT,
-                    basis TEXT NOT NULL,
-                    payload TEXT NOT NULL,
-                    created_at TEXT NOT NULL
-                )
-            """)
             conn.execute(
-                "INSERT OR REPLACE INTO schema_metadata(key, value) VALUES ('version', '3')"
+                "INSERT OR REPLACE INTO schema_metadata(key, value) VALUES ('version', ?)",
+                (SCHEMA_VERSION,),
             )
+        self._migrate_composite_keys()
+
+    def _migrate_composite_keys(self) -> None:
+        """Rebuild registries that were keyed on ``forecast_id`` alone.
+
+        A store created before schema 4 has ``forecasts`` keyed on the
+        content-addressed id, so registering the same forecast in a second
+        project overwrote the first project's row and its realised scores.
+        Rebuilding is the only way to change a primary key in SQLite. Rows
+        are preserved verbatim; nothing that was already distinct is merged.
+        """
+        with self._connect(foreign_keys=False) as conn:
+            for table, wanted in (
+                ("forecasts", "PRIMARY KEY (forecast_id, project, series)"),
+                ("model_performance", "PRIMARY KEY (project, model, forecast_id, series)"),
+                ("decisions", "FOREIGN KEY"),
+            ):
+                row = conn.execute(
+                    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
+                    (table,),
+                ).fetchone()
+                if row is None:
+                    continue
+                sql = row["sql"] or ""
+                # `decisions` is the inverse case: it needs rebuilding while
+                # the marker is *present*, because the FK is what we drop.
+                stale = (wanted in sql) if table == "decisions" else (wanted not in sql)
+                if not stale:
+                    continue
+                self._rebuild_table(conn, table)
+
+    def _rebuild_table(self, conn: sqlite3.Connection, table: str) -> None:
+        """Copy ``table`` into a freshly-defined one of the same name."""
+        columns = [row["name"] for row in conn.execute(f"PRAGMA table_info({table})")]
+        conn.execute(f"ALTER TABLE {table} RENAME TO {table}__legacy")
+        conn.executescript(_TABLE_DEFINITIONS[table])
+        new_columns = [row["name"] for row in conn.execute(f"PRAGMA table_info({table})")]
+        shared = [name for name in columns if name in new_columns]
+        joined = ", ".join(shared)
+        # A legacy row whose `series` is NULL predates multi-series support.
+        select = ", ".join(
+            "COALESCE(series, '__default__')" if name == "series" else name
+            for name in shared
+        )
+        conn.execute(
+            f"INSERT OR REPLACE INTO {table} ({joined}) "
+            f"SELECT {select} FROM {table}__legacy"
+        )
+        conn.execute(f"DROP TABLE {table}__legacy")
+        logger.info("Migrated %s to the schema-4 composite key", table)
 
     @contextmanager
-    def _connect(self) -> Iterator[sqlite3.Connection]:
+    def _connect(self, foreign_keys: bool = True) -> Iterator[sqlite3.Connection]:
         conn = sqlite3.connect(str(self.path), timeout=5.0)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA busy_timeout = 5000")
         conn.execute("PRAGMA journal_mode = WAL")
-        conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute(f"PRAGMA foreign_keys = {'ON' if foreign_keys else 'OFF'}")
         try:
             yield conn
             conn.commit()
@@ -434,9 +522,7 @@ class TrackingStore:
                      selected_model, support, threshold, threshold_peak_probability, naive_error,
                      artifact_path, created_at, scored, task, fingerprint)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
-                ON CONFLICT(forecast_id) DO UPDATE SET
-                    project = excluded.project,
-                    series = excluded.series,
+                ON CONFLICT(forecast_id, project, series) DO UPDATE SET
                     cutoff_time = excluded.cutoff_time,
                     horizon = excluded.horizon,
                     frequency = excluded.frequency,
@@ -474,12 +560,28 @@ class TrackingStore:
                 ).fetchall()
         return [self._row_to_record(r) for r in rows]
 
-    def get_forecast(self, forecast_id: str) -> ForecastRecord | None:
-        """Get a single forecast by ID."""
+    def get_forecast(
+        self, forecast_id: str, project: str | None = None,
+        series: str | None = None,
+    ) -> ForecastRecord | None:
+        """Get a single registration by id, optionally scoped.
+
+        The same content-addressed ``forecast_id`` can be registered in
+        several projects, so an unscoped lookup is ambiguous by
+        construction; it returns the most recent registration. Callers that
+        know the project should say so.
+        """
+        query = "SELECT * FROM forecasts WHERE forecast_id = ?"
+        params: list[Any] = [forecast_id]
+        if project is not None:
+            query += " AND project = ?"
+            params.append(project)
+        if series is not None:
+            query += " AND series = ?"
+            params.append(series)
+        query += " ORDER BY created_at DESC LIMIT 1"
         with self._connect() as conn:
-            row = conn.execute(
-                "SELECT * FROM forecasts WHERE forecast_id = ?", (forecast_id,)
-            ).fetchone()
+            row = conn.execute(query, params).fetchone()
         return self._row_to_record(row) if row else None
 
     # ---- Adaptive conformal state ----
@@ -566,13 +668,17 @@ class TrackingStore:
         threshold: float | None = None,
         predicted_above: list[bool] | None = None,
         naive_error: float | None = None,
+        project: str | None = None,
+        series: str | None = None,
     ) -> ScoreResult:
         """Score a single forecast against actuals.
 
         Computes MASE, MAPE, bias, coverage, and threshold accuracy.
-        Stores the result and updates model_performance.
+        Stores the result and updates model_performance. ``project`` and
+        ``series`` scope the registration being scored; without them the
+        most recent registration of the id is used.
         """
-        record = self.get_forecast(forecast_id)
+        record = self.get_forecast(forecast_id, project, series)
         if record is None:
             raise ValueError(f"Forecast {forecast_id} not found in registry")
 
@@ -596,8 +702,9 @@ class TrackingStore:
                 UPDATE forecasts SET
                     scored = 1, mase = ?, wape = ?, mape = ?, bias = ?,
                     coverage = ?, threshold_accuracy = ?, scored_at = ?, drift_flag = ?
-                WHERE forecast_id = ?
-            """, (mase, wape, mape, bias, cov, thresh_acc, scored_at, drift, forecast_id))
+                WHERE forecast_id = ? AND project = ? AND series = ?
+            """, (mase, wape, mape, bias, cov, thresh_acc, scored_at, drift,
+                  forecast_id, record.project, record.series))
 
             if record.selected_model:
                 conn.execute("""
@@ -731,13 +838,25 @@ class TrackingStore:
                 q90=matched_q90 if matched_q90 else None,
                 threshold=record.threshold,
                 predicted_above=pred_above,
+                project=record.project,
+                series=record.series,
             )
             results.append(result)
 
         return results
 
-    def submit_actuals_csv(self, project: str, csv_path: str) -> list[ScoreResult]:
-        """Submit actuals from a CSV file and score all unscored forecasts."""
+    def submit_actuals_csv(
+        self, project: str, csv_path: str,
+        time_column: str | None = None, target_column: str | None = None,
+        series_column: str | None = None,
+    ) -> list[ScoreResult]:
+        """Submit actuals from a CSV file and score all unscored forecasts.
+
+        ``time_column`` and ``target_column`` are named rather than guessed
+        positionally when supplied. Guessing by position turned a perfectly
+        good operator export of `requests,timestamp,host` into a silent
+        `{"scored": 0}` — indistinguishable from "nothing was due".
+        """
         path = Path(csv_path).expanduser()
         if not path.exists():
             raise FileNotFoundError(f"Actuals file not found: {path}")
@@ -746,17 +865,9 @@ class TrackingStore:
         with open(path, encoding="utf-8-sig", newline="") as f:
             reader = csv.DictReader(f)
             cols = reader.fieldnames or []
-            # Find timestamp and value columns
-            ts_col = cols[0] if cols else "timestamp"
-            val_col = cols[1] if len(cols) > 1 else "value"
-            series_col = "series" if "series" in cols else None
-            if series_col:
-                ts_col = "timestamp" if "timestamp" in cols else next(
-                    col for col in cols if col != series_col
-                )
-                val_col = "value" if "value" in cols else next(
-                    col for col in cols if col not in {series_col, ts_col}
-                )
+            ts_col, val_col, series_col = self._resolve_actuals_columns(
+                cols, time_column, target_column, series_column,
+            )
             for row in reader:
                 ts = row[ts_col]
                 try:
@@ -770,6 +881,138 @@ class TrackingStore:
 
         logger.info("Loaded %d actuals from %s", len(actuals), path)
         return self.submit_actuals(project, actuals, ts_col, val_col)
+
+    @staticmethod
+    def _resolve_actuals_columns(
+        columns: list[str], time_column: str | None, target_column: str | None,
+        series_column: str | None,
+    ) -> tuple[str, str, str | None]:
+        """Named columns win; otherwise infer, and refuse to guess blind."""
+        missing = [
+            name for name in (time_column, target_column, series_column)
+            if name is not None and name not in columns
+        ]
+        if missing:
+            raise AionError(
+                "MISSING_COLUMNS",
+                f"Actuals file is missing: {', '.join(missing)}",
+                {"available_columns": columns, "missing_columns": missing},
+            )
+        series_col = series_column or ("series" if "series" in columns else None)
+        remaining = [name for name in columns if name != series_col]
+
+        ts_col = time_column
+        if ts_col is None:
+            named = [name for name in remaining
+                     if name.lower() in {"timestamp", "time", "date", "ts"}]
+            if named:
+                ts_col = named[0]
+            elif len(remaining) == 2:
+                # Two columns and no naming convention: position is the only
+                # signal there is, and it is disclosed by being documented.
+                ts_col = remaining[0]
+            else:
+                raise AionError(
+                    "AMBIGUOUS_SCHEMA",
+                    "Cannot tell which column holds the timestamp. Pass "
+                    "--time explicitly.",
+                    {"available_columns": columns, "argument": "--time"},
+                )
+        val_col = target_column
+        if val_col is None:
+            named = [name for name in remaining
+                     if name.lower() in {"value", "actual", "actuals"} and name != ts_col]
+            candidates = [name for name in remaining if name != ts_col]
+            if named:
+                val_col = named[0]
+            elif len(candidates) == 1:
+                val_col = candidates[0]
+            else:
+                raise AionError(
+                    "AMBIGUOUS_SCHEMA",
+                    "Cannot tell which column holds the actual value. Pass "
+                    "--target explicitly.",
+                    {"available_columns": columns, "candidates": candidates,
+                     "argument": "--target"},
+                )
+        return ts_col, val_col, series_col
+
+    def explain_unscored(
+        self, project: str, actual_timestamps: list[str],
+    ) -> dict[str, Any]:
+        """Why nothing scored, in terms a caller can act on.
+
+        `{"scored": 0}` is the failure mode of the exact follow-up loop the
+        product promises, and it was indistinguishable from "nothing was
+        due yet".
+        """
+        forecasts = self.list_forecasts(project, limit=1000)
+        open_forecasts = [record for record in forecasts if not record.scored]
+        normalised = {self._normalise_timestamp(item) for item in actual_timestamps}
+
+        windows: list[dict[str, Any]] = []
+        overlap_total = 0
+        for record in open_forecasts:
+            artifact = Path(record.artifact_path) / "forecast.csv"
+            if not artifact.exists():
+                windows.append({
+                    "forecast_id": record.forecast_id, "series": record.series,
+                    "problem": "artifact_missing", "artifact_path": str(artifact),
+                })
+                continue
+            rows = [
+                row for row in self._load_forecast_csv(artifact)
+                if row.get("series", "__default__") == record.series
+            ]
+            wanted = {self._normalise_timestamp(row["timestamp"]) for row in rows}
+            overlap = wanted & normalised
+            overlap_total += len(overlap)
+            windows.append({
+                "forecast_id": record.forecast_id,
+                "series": record.series,
+                "needs_timestamps": sorted(wanted)[:1] + sorted(wanted)[-1:],
+                "periods_required": len(wanted),
+                "periods_supplied": len(overlap),
+            })
+
+        if not forecasts:
+            reason = f"no forecasts are registered in project {project!r}"
+        elif not open_forecasts:
+            reason = "every registered forecast is already scored"
+        elif overlap_total == 0:
+            reason = (
+                "the supplied actuals do not overlap any open forecast's "
+                "horizon window"
+            )
+        else:
+            reason = (
+                "open forecasts overlap the actuals only partially; a forecast "
+                "scores when every one of its periods has an actual"
+            )
+        supplied = sorted(normalised)
+        return {
+            "scored": 0,
+            "reason": reason,
+            "registered_forecasts": len(forecasts),
+            "open_forecasts": len(open_forecasts),
+            "actuals_supplied": len(normalised),
+            "actuals_window": (
+                {"first": supplied[0], "last": supplied[-1]} if supplied else None
+            ),
+            "open_forecast_windows": windows,
+            "repair_options": [
+                {"action": "check_window",
+                 "description": "Compare actuals_window with each entry's "
+                                "needs_timestamps; a forecast scores only when "
+                                "every period in its horizon has an actual."},
+                {"action": "name_columns",
+                 "description": "If the file's columns were read wrongly, pass "
+                                "--time and --target explicitly."},
+                {"action": "list_open",
+                 "description": "Run `aion track list --project <name>` to see "
+                                "what is awaiting actuals."},
+            ],
+        }
 
     # ---- Performance / Leaderboard ----
 
@@ -1028,8 +1271,38 @@ class TrackingStore:
             "unresolved_decisions": unresolved,
             "decision_summary": decision_summary,
             "model_performance": leaderboard,
+            "coverage_adaptation": self.coverage_adaptation(project) if project else [],
             "warning": "Realised performance is observational evidence, never causal.",
         }
+
+    def coverage_adaptation(
+        self, project: str, as_of: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """The adapted miscoverage level per scope, from realised outcomes.
+
+        `adapted_alpha` replays the coverage log into a corrected level and
+        is carefully written, deterministic, and covered by tests — and had
+        zero call sites outside them, so a complete capability was
+        unreachable from every surface. It is reported here.
+
+        **Reported, not applied.** Published intervals still use the
+        nominal level; folding this in would move numbers for tracked
+        projects, which is a behavioural change that deserves to be asked
+        for rather than inherited.
+        """
+        with self._connect() as conn:
+            scopes = [
+                row["scope"] for row in conn.execute(
+                    "SELECT DISTINCT scope FROM conformal_adaptation "
+                    "WHERE project = ? ORDER BY scope",
+                    (project,),
+                )
+            ]
+        return [
+            {"scope": scope, "applied_to_published_intervals": False,
+             **self.adapted_alpha(project, scope, as_of)}
+            for scope in scopes
+        ]
 
     def export_snapshot(self, project: str | None = None) -> dict[str, Any]:
         """Return a portable JSON snapshot; immutable artifacts remain separate."""
@@ -1160,12 +1433,20 @@ class TrackingStore:
 
     def compare(
         self, forecast_id_a: str, forecast_id_b: str,
+        project: str | None = None,
     ) -> dict[str, Any]:
-        """Compare two scored forecasts."""
-        a = self.get_forecast(forecast_id_a)
-        b = self.get_forecast(forecast_id_b)
+        """Compare two scored forecasts, optionally within one project."""
+        a = self.get_forecast(forecast_id_a, project)
+        b = self.get_forecast(forecast_id_b, project)
         if a is None or b is None:
-            raise ValueError("One or both forecasts not found")
+            missing = [
+                fid for fid, record in
+                ((forecast_id_a, a), (forecast_id_b, b)) if record is None
+            ]
+            raise ValueError(
+                f"Not found in the registry: {', '.join(missing)}"
+                + (f" (project {project!r})" if project else "")
+            )
 
         comparable = (
             a.series == b.series and a.horizon == b.horizon

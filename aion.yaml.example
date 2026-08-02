@@ -14,16 +14,22 @@
 # Models — which models run as candidates during evaluation
 # ---------------------------------------------------------------------------
 models:
-  # Always-on built-in models. These run with zero dependencies.
-  baselines:
-    enabled: true          # last_value + seasonal_naive (mandatory — can't disable)
+  # last_value and seasonal_naive always compete and are not configurable:
+  # every candidate is selected by beating them, so a pool without them has
+  # nothing to select against. Use evaluation.minimum_baseline_improvement
+  # to move the bar.
   statistical:
-    enabled: true
-    candidates:            # which statistical models to run
-      - drift              # the built-in linear-trend candidate
-      # - ols_regression   # (planned) proper OLS on all points
-      # - ets              # (planned) Holt-Winters
-      # - arima            # (planned) auto-ARIMA
+    enabled: true          # false leaves only the baselines, which asks a
+                           # real question: does anything beat the naive answer?
+    # Which statistical models compete. Omit the key entirely for all of
+    # them, which is the default.
+    # candidates:
+    #   - drift
+    #   - linear_trend
+    #   - window_average
+    #   - theta
+    #   - ets
+    # (arima is not implemented; naming it is an error, not a silent skip.)
 
   # Time Series Foundation Models — each runs in an isolated sandbox venv
   # or via API inference (see backends below).
@@ -133,8 +139,9 @@ ensemble:
   eligible: all_candidates    # all_candidates | list of model names
   # eligible: [last_value, drift, chronos_bolt_mini, toto2_22m]
 
-  # Quantile ensemble: how to combine uncertainty intervals
-  quantile_strategy: union    # union (widest) | intersection (narrowest) | weighted
+  # The ensemble's intervals come from its own fold residuals, not from
+  # combining member quantiles, so there is no union/intersection choice to
+  # make — combining member intervals would produce a band no fold measured.
 
 # ---------------------------------------------------------------------------
 # Meta-model — lightweight learned combination of candidate forecasts
@@ -145,12 +152,15 @@ meta_model:
 
   # The meta-model learns: actual ~ w1*model1_forecast + w2*model2_forecast + ...
   # Training data: residuals from all rolling-origin folds across all models.
-  # It's trained on the calibration fold and evaluated on the test fold.
+  # The weights that ship are fit on every fold; the weights that are
+  # *scored* are refit leave-one-fold-out, so its selection score is
+  # out-of-sample like every member's.
 
   linear_regression:
     # Regularization to prevent overfitting with few models
     ridge_alpha: 1.0           # L2 regularization strength
-    lasso_alpha: 0.1           # L1 regularization (for sparsity — drops bad models)
+    # L1/lasso is not implemented: sparse selection over a handful of models
+    # on a handful of folds would drop members on noise.
 
   # Minimum data requirements
   min_models: 2                # need at least N models with valid fold scores
@@ -207,38 +217,45 @@ evaluation:
 
   # Rolling-origin fold configuration
   folds:
-    # Minimum observations for the evaluation pipeline
-    # Below this, Aion abstains (or uses degraded mode if configured)
-    min_observations: 144      # default — adaptive lower thresholds are planned
-    # For short datasets, allow a degraded mode with fewer folds
-    degraded_mode:
-      enabled: false           # (planned) allow 2-fold evaluation with warning
-      min_observations: 48     # absolute minimum for any evaluation
+    # An abstention floor *above* Aion's own, which is derived from the
+    # horizon and the seasonal period (max(2*season, 2*horizon, 8) of
+    # training, plus folds). Omit to use the derived one.
+    # min_observations: 144
+    #
+    # Degraded evaluation is not a switch: Aion enters it automatically when
+    # fewer than four folds are available and says so in a warning and in
+    # the support assessment. Setting it is an error.
 
-  # Per-series selection or global
-  selection: per_series        # per_series | global
+  # Only per-series selection is implemented. A global selection would
+  # impose one model on series whose backtests disagree.
+  selection: per_series
 
   # Uncertainty calibration
   uncertainty:
-    # Pool residuals from all selection folds (not just calibration fold)
-    pool_residuals: true       # more stable quantile estimates
-    # Scale intervals with horizon (uncertainty grows with time)
-    temporal_scaling: true    # interval_width *= sqrt(step)
-    # Coverage target (70% by default)
-    target_coverage: 0.70
+    # true (default): pool residuals across the selection folds as well as
+    #   the calibration fold. More residuals, but the selected model was
+    #   chosen to minimise error on those folds, so they are optimistically
+    #   small and the interval is narrower than strict split conformal.
+    #   Every run discloses this.
+    # false: calibrate on the held-out calibration fold alone. Genuine split
+    #   conformal, noisier, wider.
+    pool_residuals: true
+    #
+    # Intervals are NOT scaled by sqrt(step): each lead time's spread is
+    # measured at that lead time. Setting temporal_scaling is an error.
+    #
+    # Nominal coverage of the central interval. 0.80 is what q10/q90 have
+    # always meant; changing it changes which residual order statistics are
+    # emitted as the bounds.
+    target_coverage: 0.80
 
 # ---------------------------------------------------------------------------
 # Output — control artifact generation
 # ---------------------------------------------------------------------------
 output:
-  # Always write these
-  write_artifact: true         # artifact.json — full machine-readable result
+  # artifact.json and lineage.json are always written: the artifact is the
+  # run's identity and the lineage is what the verifier checked, so a run
+  # without them is not a run.
   write_forecast_csv: true     # forecast.csv — future timestamps + values
   write_summary: true          # summary.md — human-readable result
   write_evidence: true         # evidence.jsonl — evaluation evidence trail
-
-  # Optional: include model comparison table in summary
-  include_model_comparison: false
-
-  # Optional: include ensemble composition details
-  include_ensemble_details: false

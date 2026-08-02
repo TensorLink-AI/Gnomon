@@ -16,7 +16,7 @@ from .contracts import ForecastArtifact
 from .runtime import capabilities, forecast, inspect_dataset
 
 _INPUT_PROPERTIES: dict[str, Any] = {
-    "input": {"type": "string", "description": "Path to a local CSV or Parquet file of time-series observations."},
+    "input": {"type": "string", "description": "Path to a local CSV, TSV, JSON, JSONL, Parquet, or Excel file of time-series observations, or `store:<dataset>` to read a dataset from the bitemporal store (see aion_list_datasets)."},
     "time_column": {"type": "string", "description": "Name of the timestamp column."},
     "target_column": {"type": "string", "description": "Name of the numeric column to forecast."},
     "series_column": {"type": "string", "description": "Optional column identifying independent series."},
@@ -27,6 +27,29 @@ _INPUT_PROPERTIES: dict[str, Any] = {
             "Observation frequency: min/5min/15min/30min (minutes), h (hourly), "
             "D (daily), W (weekly), MS (month start). Omit to infer; ambiguity "
             "fails loudly."
+        ),
+    },
+}
+
+#: Replay controls, shared by every verb that reads data. `aion_forecast`
+#: and `aion_inspect` were the two that lacked them, which made the
+#: bitemporal store and `--as-of` replay CLI-only — invisible to the agents
+#: the MCP server exists to serve.
+_REPLAY_PROPERTIES: dict[str, Any] = {
+    "as_of": {
+        "type": "string",
+        "description": (
+            "Replay instant (ISO-8601). Only data whose known_time is at or "
+            "before this is visible; the artifact's snapshot_access evidence "
+            "proves what was served. Requires a `store:<dataset>` input to "
+            "mean anything, since a plain file carries one vintage."
+        ),
+    },
+    "store_path": {
+        "type": "string",
+        "description": (
+            "Override the temporal-store path for `store:<dataset>` inputs "
+            "(default ~/.local/share/aion)."
         ),
     },
 }
@@ -73,7 +96,45 @@ def _run_inspect(arguments: dict[str, Any]) -> dict[str, Any]:
         target_column=arguments["target_column"],
         series_column=arguments.get("series_column"),
         frequency=arguments.get("frequency"),
+        as_of=_parse_as_of(arguments.get("as_of")),
+        store_path=arguments.get("store_path"),
     )
+
+
+def _run_ingest(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Append a file's observations to the bitemporal store as vintages."""
+    from .ids import SYSTEM_CLOCK
+    from .temporal_store import TemporalStore
+
+    store = TemporalStore(arguments.get("store_path"))
+    report = store.ingest_csv(
+        str(arguments["input"]),
+        dataset=str(arguments["dataset"]),
+        time_column=str(arguments["time_column"]),
+        target_column=str(arguments["target_column"]),
+        series_column=arguments.get("series_column"),
+        known_at_column=arguments.get("known_at_column"),
+        variable=arguments.get("variable"),
+        clock=SYSTEM_CLOCK,
+    )
+    return report.to_dict()
+
+
+def _run_list_datasets(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .temporal_store import TemporalStore
+
+    store = TemporalStore(arguments.get("store_path"))
+    datasets = store.list_datasets()
+    return {
+        "schema_version": "0.1",
+        "status": "ok",
+        "datasets": [
+            {**item,
+             "input_ref": f"store:{item['dataset']}",
+             "known_time_provenance": store.known_time_provenance(str(item["dataset"]))}
+            for item in datasets
+        ],
+    }
 
 
 def _run_covariate_guide(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -118,12 +179,15 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
         series_column=arguments.get("series_column"),
         frequency=arguments.get("frequency"),
         horizon=int(arguments["horizon"]),
+        as_of=_parse_as_of(arguments.get("as_of")),
+        store_path=arguments.get("store_path"),
         output=arguments.get("output_dir") or "aion-output",
         minimum_baseline_improvement=float(arguments.get("minimum_baseline_improvement", 0.02)),
         context_events=events,
         covariates=covariates,
         threshold=float(arguments["threshold"]) if arguments.get("threshold") is not None else None,
         repair=arguments.get("repair", "safe"),
+        candidates=arguments.get("candidates"),
     )
     payload = forecast_summary(artifact, path)
     if arguments.get("project"):
@@ -136,11 +200,34 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
 
 
 def _run_submit_actuals(arguments: dict[str, Any]) -> dict[str, Any]:
+    import csv as csv_module
+
     from .tracking import TrackingStore
-    results = TrackingStore().submit_actuals_csv(
-        str(arguments["project"]), str(arguments["actuals_file"]),
+    store = TrackingStore()
+    project = str(arguments["project"])
+    path = str(arguments["actuals_file"])
+    time_column = arguments.get("time_column")
+    target_column = arguments.get("target_column")
+    series_column = arguments.get("series_column")
+    results = store.submit_actuals_csv(
+        project, path, time_column=time_column,
+        target_column=target_column, series_column=series_column,
     )
-    return {"status": "ok", "scored": len(results),
+    if not results:
+        # A bare `scored: 0` reads as "nothing was due" whether or not
+        # anything was due. Return the diagnosis instead.
+        with open(path, encoding="utf-8-sig", newline="") as handle:
+            reader = csv_module.DictReader(handle)
+            columns = reader.fieldnames or []
+            rows = list(reader)
+        resolved_time, _, _ = store._resolve_actuals_columns(
+            columns, time_column, target_column, series_column,
+        )
+        return {
+            "schema_version": "0.1", "status": "ok", "project": project,
+            **store.explain_unscored(project, [row[resolved_time] for row in rows]),
+        }
+    return {"schema_version": "0.1", "status": "ok", "scored": len(results),
             "results": [item.__dict__ for item in results]}
 
 
@@ -201,7 +288,7 @@ TOOLS: list[dict[str, Any]] = [
         ),
         "inputSchema": {
             "type": "object",
-            "properties": dict(_INPUT_PROPERTIES),
+            "properties": {**_INPUT_PROPERTIES, **_REPLAY_PROPERTIES},
             "required": ["input", "time_column", "target_column"],
         },
         "runner": _run_inspect,
@@ -224,9 +311,11 @@ TOOLS: list[dict[str, Any]] = [
             "type": "object",
             "properties": {
                 **_INPUT_PROPERTIES,
+                **_REPLAY_PROPERTIES,
                 "horizon": {"type": "integer", "description": "Future periods to forecast, in units of the data frequency."},
-                "output_dir": {"type": "string", "description": "Directory for the immutable artifact (default ./aion-output)."},
-                "minimum_baseline_improvement": {"type": "number", "description": "Minimum relative improvement over the strongest baseline to select a candidate (default 0.02)."},
+                "candidates": {"type": "array", "items": {"type": "string"}, "description": "Restrict the model pool to these names — pass `aion_route`'s `candidates` or its `recommendation` to act on a routing decision. The mandatory baselines always compete regardless, so a named candidate still has to beat them."},
+                "output_dir": {"type": "string", "description": "Directory for the immutable artifact. Defaults to ./aion-output relative to the *server's* working directory, which is often inside the user's repository — pass an explicit path when that matters."},
+                "minimum_baseline_improvement": {"type": "number", "minimum": 0, "description": "Minimum relative improvement over the strongest baseline to select a candidate (default 0.02). Must be >= 0; a negative value would let a model that lost the backtest be selected."},
                 "context_events_file": {"type": "string", "description": "Optional validated context-events JSON file (the output of `aion context validate`)."},
                 "threshold": {"type": "number", "description": "Optional decision threshold: the result reports when and how likely the forecast crosses this value."},
                 "project": {"type": "string", "description": "Optional tracking project. When set, register the forecast for realised scoring."},
@@ -271,7 +360,7 @@ TOOLS: list[dict[str, Any]] = [
             **_INPUT_PROPERTIES,
             "horizon": {"type": "integer"},
             "output_dir": {"type": "string"},
-            "minimum_baseline_improvement": {"type": "number"},
+            "minimum_baseline_improvement": {"type": "number", "minimum": 0},
             "covariates_file": {"type": "string"},
             "covariate_mapping": {"type": "string"},
             "covariate_time_column": {"type": "string"},
@@ -282,9 +371,12 @@ TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "aion_submit_actuals",
-        "description": "Score all due forecasts in a project from complete realised actuals. Panel actuals must include series,timestamp,value.",
+        "description": "Score all due forecasts in a project from complete realised actuals. Panel actuals must include series,timestamp,value. A forecast scores only when every period in its horizon has an actual; when nothing scores, the result explains which window was missing rather than returning a bare zero.",
         "inputSchema": {"type": "object", "properties": {
             "project": {"type": "string"}, "actuals_file": {"type": "string"},
+            "time_column": {"type": "string", "description": "Timestamp column in the actuals file. Inferred from a conventional name or a two-column layout when omitted."},
+            "target_column": {"type": "string", "description": "Realised value column. Inferred when unambiguous."},
+            "series_column": {"type": "string", "description": "Series column, required for multi-series projects."},
         }, "required": ["project", "actuals_file"]},
         "runner": _run_submit_actuals,
     },
@@ -306,7 +398,7 @@ TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "aion_record_decision",
-        "description": "Link an agent decision and expected outcome to a tracked forecast.",
+        "description": ("DEPRECATED (v0.2 lifecycle) — prefer `aion_decide`, which produces a DecisionArtifact that `aion_resolve_outcome` scores against realised utility and regret. This pair records a free-text action and a later yes/no verdict, which cannot express \"a costly precaution was rational even though the adverse event never occurred\". Kept for v0.2 compatibility. Link an agent decision and expected outcome to a tracked forecast."),
         "inputSchema": {"type": "object", "properties": {
             "decision_id": {"type": "string"}, "project": {"type": "string"},
             "forecast_id": {"type": "string"}, "action": {"type": "string"},
@@ -316,12 +408,56 @@ TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "aion_resolve_decision",
-        "description": "Record the realised business outcome and whether a previously recorded agent decision was correct.",
+        "description": ("DEPRECATED (v0.2 lifecycle) — resolves records made by `aion_record_decision` only. Bare `correct` is retired: prefer `aion_decide` + `aion_resolve_outcome`, which report realised utility, regret against the best feasible action in hindsight, and ex-ante optimality separately. Record the realised business outcome and whether a previously recorded agent decision was correct."),
         "inputSchema": {"type": "object", "properties": {
             "decision_id": {"type": "string"}, "actual_outcome": {"type": "string"},
             "correct": {"type": "boolean"},
         }, "required": ["decision_id", "actual_outcome", "correct"]},
         "runner": _run_resolve_decision,
+    },
+    {
+        "name": "aion_ingest",
+        "description": (
+            "Append a file's observations to the bitemporal store as vintages. "
+            "Supply known_at_column when the source records when each value "
+            "became knowable — that is what makes `as_of` replay meaningful. "
+            "Without it Aion records known_time = valid_time and says so, "
+            "which asserts every value was knowable the moment it applied. "
+            "Re-ingesting a corrected file appends revisions; it never "
+            "overwrites, so the vintage history accumulates."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "input": {"type": "string", "description": "Path to the CSV to ingest."},
+                "dataset": {"type": "string", "description": "Dataset name; read it back as `store:<dataset>`."},
+                "time_column": {"type": "string", "description": "Valid-time column: when the value applies."},
+                "target_column": {"type": "string", "description": "Numeric value column."},
+                "known_at_column": {"type": "string", "description": "Known-time column: when the value became knowable. Omit only if the source genuinely has no publication lag."},
+                "series_column": {"type": "string", "description": "Optional column identifying independent series."},
+                "variable": {"type": "string", "description": "Name to store the measure under (defaults to target_column)."},
+                "store_path": {"type": "string", "description": "Override the temporal-store path."},
+            },
+            "required": ["input", "dataset", "time_column", "target_column"],
+        },
+        "runner": _run_ingest,
+    },
+    {
+        "name": "aion_list_datasets",
+        "description": (
+            "List datasets in the bitemporal store with their observation and "
+            "revision counts, their valid- and known-time ranges, and whether "
+            "their known times were recorded or assumed. Each carries the "
+            "`store:<dataset>` reference to pass as an input."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "store_path": {"type": "string", "description": "Override the temporal-store path."},
+            },
+            "required": [],
+        },
+        "runner": _run_list_datasets,
     },
 ]
 
@@ -566,6 +702,10 @@ TOOLS.extend([
     {
         "name": "aion_resolve_outcome",
         "description": (
+            "The current decision resolver, for DecisionArtifacts produced by "
+            "`aion_decide`. (The v0.2 `aion_record_decision` / "
+            "`aion_resolve_decision` pair is deprecated and resolves only its "
+            "own records.) "
             "Resolve a recorded DecisionArtifact with what actually happened: "
             "realised scenario and/or per-action realised utilities. Returns "
             "realised utility, regret vs the best feasible action in "
@@ -588,8 +728,11 @@ TOOLS.extend([
             "routing decision: verified capability filter, then a realised-"
             "performance prior from the tracking store when enough scored "
             "history exists (never claimed cold), with the series fingerprint "
-            "and every exclusion reason in the output. Evaluated runs still "
-            "backtest every candidate; an explicit model choice always wins."
+            "and every exclusion reason in the output. Feed `candidates` (or "
+            "`recommendation`) to `aion_forecast`'s `candidates` parameter to "
+            "act on the answer. Evaluated runs still backtest whatever pool "
+            "they are given against the mandatory baselines, so routing "
+            "narrows the contest but never decides it."
         ),
         "inputSchema": {"type": "object", "properties": {
             "input": {"type": "string", "description": "Path to a CSV/Parquet file or store:<dataset>."},

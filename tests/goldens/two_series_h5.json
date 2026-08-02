@@ -64,6 +64,7 @@
           "q10": 285.4860645662203,
           "q50": 288.44206287242184,
           "q90": 301.1778113569793,
+          "point_bias_correction": 0.31215864878981847,
           "q05": 285.4860645662203,
           "q20": 285.4860645662203,
           "q30": 286.6441949063172,
@@ -77,6 +78,7 @@
           "q10": 283.281609546697,
           "q50": 286.38663438296874,
           "q90": 302.24110276835535,
+          "point_bias_correction": 0.4620879108639997,
           "q05": 283.281609546697,
           "q20": 283.281609546697,
           "q30": 284.5887664168641,
@@ -90,6 +92,7 @@
           "q10": 283.1503914748063,
           "q50": 286.2554163110781,
           "q90": 302.1098846964647,
+          "point_bias_correction": 0.4284874599212003,
           "q05": 283.1503914748063,
           "q20": 283.1503914748063,
           "q30": 284.4575483449734,
@@ -103,6 +106,7 @@
           "q10": 295.73737158905027,
           "q50": 298.842396425322,
           "q90": 314.69686481070863,
+          "point_bias_correction": 0.22429086995822445,
           "q05": 295.73737158905027,
           "q20": 295.73737158905027,
           "q30": 297.04452845921736,
@@ -116,6 +120,7 @@
           "q10": 299.8552179731509,
           "q50": 302.96024280942265,
           "q90": 318.81471119480926,
+          "point_bias_correction": -0.09518808386013689,
           "q05": 299.8552179731509,
           "q20": 299.8552179731509,
           "q30": 301.162374843318,
@@ -138,11 +143,28 @@
           "final_test_interval_coverage": 1.0
         },
         "recovery_actions": [],
-        "legacy_support": "supported"
+        "legacy_support": "supported",
+        "disclosures": [
+          {
+            "code": "point_is_not_the_median",
+            "message": "`point` is the selected model's raw output; every quantile is recentred on the median backtest residual, so `q50` differs from `point` by up to 0.4621 (2% of the 80% interval width). Each row carries the gap as `point_bias_correction`."
+          },
+          {
+            "code": "conformal_residuals_pooled_across_selection",
+            "message": "Interval calibration pools residuals from 8 folds, including the selection folds the model was chosen on. Those residuals are optimistically small, so the interval is narrower than strict split conformal would give. Set `evaluation.pool_residuals: false` to calibrate on the held-out fold alone."
+          },
+          {
+            "code": "coverage_sample_size",
+            "message": "Measured interval coverage is 100.0% over 5 points from a single test fold. At this sample size the figure is indicative, not a calibration guarantee."
+          },
+          {
+            "code": "quantile_levels_collapsed",
+            "message": "Quantile levels are limited by the residual sample: at 5 of 5 lead times, adjacent levels share an order statistic and report identical values. q10/q50/q90 are unaffected in meaning."
+          }
+        ]
       },
       "notes": [
-        "No foundation-model candidate competed: chronos_bolt_mini, chronos_bolt_small, flowstate, moirai2_small, moment_small, toto2_22m, ttm are eligible for this series but no sandbox is installed. Run `aion tsfm install chronos_bolt_mini` to add one; it enters the same folds against the same baselines.",
-        "Quantile levels are limited by the residual sample: at 5 of 5 lead times, adjacent levels share an order statistic and report identical values. q10/q50/q90 are unaffected in meaning."
+        "No foundation-model candidate competed: chronos_bolt_mini, chronos_bolt_small, flowstate, moirai2_small, moment_small, toto2_22m, ttm are eligible for this series but no sandbox is installed. Run `aion tsfm install chronos_bolt_mini` to add one; it enters the same folds against the same baselines."
       ]
     },
     {
@@ -186,6 +208,7 @@
           "q10": 63.14837942313412,
           "q50": 65.70451977401129,
           "q90": 68.85462850403077,
+          "point_bias_correction": -0.3333333333333428,
           "q05": 63.14837942313412,
           "q20": 63.94785310734463,
           "q30": 65.15213882163034,
@@ -199,6 +222,7 @@
           "q10": 62.89833186335736,
           "q50": 65.98166183021836,
           "q90": 69.13177056023784,
+          "point_bias_correction": 0.34475342973674117,
           "q05": 62.89833186335736,
           "q20": 63.63556262901486,
           "q30": 64.38330700974937,
@@ -212,6 +236,7 @@
           "q10": 62.66215753628142,
           "q50": 65.74548750314241,
           "q90": 68.8955962331619,
+          "point_bias_correction": 0.509523809523813,
           "q05": 62.66215753628142,
           "q20": 63.39938830193892,
           "q30": 64.14713268267343,
@@ -225,6 +250,7 @@
           "q10": 60.93095731257751,
           "q50": 64.0142872794385,
           "q90": 67.16439600945799,
+          "point_bias_correction": -0.8207317073170799,
           "q05": 60.93095731257751,
           "q20": 61.66818807823501,
           "q30": 62.41593245896953,
@@ -238,6 +264,7 @@
           "q10": 61.84757075746025,
           "q50": 65.57256167485056,
           "q90": 68.72267040487004,
+          "point_bias_correction": 1.1384873949579912,
           "q05": 61.84757075746025,
           "q20": 62.92707147877212,
           "q30": 63.36561274143102,
@@ -270,11 +297,28 @@
             "message": "Inspect the attached warnings; each names the condition under which this forecast holds."
           }
         ],
-        "legacy_support": "weakly_supported"
+        "legacy_support": "weakly_supported",
+        "disclosures": [
+          {
+            "code": "point_is_not_the_median",
+            "message": "`point` is the selected model's raw output; every quantile is recentred on the median backtest residual, so `q50` differs from `point` by up to 1.138 (17% of the 80% interval width). Each row carries the gap as `point_bias_correction`."
+          },
+          {
+            "code": "conformal_residuals_pooled_across_selection",
+            "message": "Interval calibration pools residuals from 9 folds, including the selection folds the model was chosen on. Those residuals are optimistically small, so the interval is narrower than strict split conformal would give. Set `evaluation.pool_residuals: false` to calibrate on the held-out fold alone."
+          },
+          {
+            "code": "coverage_sample_size",
+            "message": "Measured interval coverage is 60.0% over 5 points from a single test fold. At this sample size the figure is indicative, not a calibration guarantee."
+          },
+          {
+            "code": "quantile_levels_collapsed",
+            "message": "Quantile levels are limited by the residual sample: at 5 of 5 lead times, adjacent levels share an order statistic and report identical values. q10/q50/q90 are unaffected in meaning."
+          }
+        ]
       },
       "notes": [
-        "No foundation-model candidate competed: chronos_bolt_mini, chronos_bolt_small, flowstate, moirai2_small, moment_small, toto2_22m, ttm are eligible for this series but no sandbox is installed. Run `aion tsfm install chronos_bolt_mini` to add one; it enters the same folds against the same baselines.",
-        "Quantile levels are limited by the residual sample: at 5 of 5 lead times, adjacent levels share an order statistic and report identical values. q10/q50/q90 are unaffected in meaning."
+        "No foundation-model candidate competed: chronos_bolt_mini, chronos_bolt_small, flowstate, moirai2_small, moment_small, toto2_22m, ttm are eligible for this series but no sandbox is installed. Run `aion tsfm install chronos_bolt_mini` to add one; it enters the same folds against the same baselines."
       ]
     }
   ],
@@ -308,7 +352,13 @@
           "moment_small": null,
           "toto2_22m": null,
           "ttm": null
-        }
+        },
+        "measured_interval_coverage": 1.0,
+        "baseline_improvement": 0.6138368541007634,
+        "strongest_baseline": "last_value",
+        "selected_model": "ets",
+        "residuals_pooled_across_selection": true,
+        "residual_fold_count": 8
       }
     },
     {
@@ -349,7 +399,13 @@
           "moment_small": null,
           "toto2_22m": null,
           "ttm": null
-        }
+        },
+        "measured_interval_coverage": 0.6,
+        "baseline_improvement": 0.20891136861097168,
+        "strongest_baseline": "seasonal_naive",
+        "selected_model": "linear_trend",
+        "residuals_pooled_across_selection": true,
+        "residual_fold_count": 9
       }
     },
     {
@@ -370,6 +426,7 @@
       "payload": {
         "as_of": "latest",
         "known_time_assumed": true,
+        "known_time_provenance": "assumed",
         "source_ref": "sha256:9d358fb08d56b94b37e4b54ab5a8e08b23cad01b88cd54df6c7051b527d9d392",
         "accesses": [
           {

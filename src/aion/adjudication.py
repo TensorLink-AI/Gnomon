@@ -82,6 +82,11 @@ class AdjudicationResult:
     candidates: list[Candidate] = field(default_factory=list)
     points: list[float] = field(default_factory=list)
     residuals: list[float] = field(default_factory=list)
+    #: The winner's residuals indexed by lead time. Carried explicitly so
+    #: the pipeline can replace the base model's per-lead set when the
+    #: winner replaces its points; leaving the base model's set in place
+    #: published an interval belonging to a model that lost.
+    residuals_by_lead: dict[int, list[float]] = field(default_factory=dict)
     coverage: float | None = None
     warnings: list[str] = field(default_factory=list)
 
@@ -248,7 +253,8 @@ def adjudicate_enrichments(
         candidates=candidates,
     )
     if finalised is not None:
-        result.points, result.residuals, result.coverage, result.warnings = finalised
+        (result.points, result.residuals, result.residuals_by_lead,
+         result.coverage, result.warnings) = finalised
     return result
 
 
@@ -268,19 +274,26 @@ def _finalise(
     season: int,
     calibration_origin: int,
     test_origin: int,
-) -> tuple[list[float], list[float], float | None, list[str]] | None:
-    """The winner's final forecast, calibration residuals, and measured test
-    coverage. Single-enrichment winners reuse their assessment's already-final
-    outputs; the combined winner is computed here, calibrated and measured on
-    the same held-out folds the assessors use."""
+) -> tuple[list[float], list[float], dict[int, list[float]], float | None, list[str]] | None:
+    """The winner's final forecast, calibration residuals (pooled and by
+    lead time), and measured test coverage. Single-enrichment winners reuse
+    their assessment's already-final outputs; the combined winner is
+    computed here, calibrated and measured on the same held-out folds the
+    assessors use.
+
+    The per-lead set travels with the pooled one so a caller cannot install
+    the winner's points beside the loser's interval.
+    """
     if candidate.name == "context" and context_assessment is not None:
         return (
             context_assessment.points, context_assessment.residuals,
+            dict(context_assessment.residuals_by_lead),
             context_assessment.coverage, list(context_assessment.warnings),
         )
     if candidate.name == "covariates" and covariate_assessment is not None:
         return (
             covariate_assessment.points, covariate_assessment.residuals,
+            dict(covariate_assessment.residuals_by_lead),
             covariate_assessment.coverage, list(covariate_assessment.warnings),
         )
     if candidate.name != "combined":
@@ -321,4 +334,8 @@ def _finalise(
     warnings: list[str] = []
     if coverage is not None and coverage < 0.7:
         warnings.append(f"Final-test 80% interval coverage was {coverage:.1%}, below 70%.")
-    return points, residuals, coverage, warnings
+    # One calibration fold walked in lead order: index i is lead i+1.
+    residuals_by_lead = {
+        step: [residual] for step, residual in enumerate(residuals, 1)
+    }
+    return points, residuals, residuals_by_lead, coverage, warnings

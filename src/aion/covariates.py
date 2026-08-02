@@ -38,10 +38,30 @@ class CovariateDataset:
     fingerprint: str
     specs: tuple[CovariateSpec, ...]
     rows: list[CovariateRow]
+    #: The run's visible-data boundary. Set by ``bind_as_of`` before the
+    #: covariates are read, so the snapshot itself excludes anything
+    #: published after it. Without this the cutoff was enforced only by
+    #: convention at each call site: correct behaviour resting on review
+    #: discipline rather than on the type, which is the opposite of how the
+    #: target series is handled.
+    as_of: datetime | None = None
+
+    def bind_as_of(self, as_of: datetime | None) -> None:
+        """Attach the run's ``as_of`` before any read.
+
+        Rebuilding the snapshot is the point: a snapshot constructed at
+        ``as_of`` cannot serve a post-cutoff row to any caller, however the
+        caller asks.
+        """
+        if as_of == self.as_of:
+            return
+        self.as_of = as_of
+        self._snapshot_cache = None
 
     def _snapshot(self):
-        """Lazy bitemporal view of the covariate rows; per-call cutoffs are
-        enforced by the snapshot rather than ad-hoc filtering."""
+        """Lazy bitemporal view of the covariate rows, built at the run's
+        ``as_of``; per-call cutoffs narrow it further but can never widen
+        it, because ``Snapshot`` filters at construction."""
         if getattr(self, "_snapshot_cache", None) is None:
             from .temporal_store import InMemoryTemporalStore, TemporalObservation
             observations = [
@@ -54,7 +74,7 @@ class CovariateDataset:
             ]
             self._snapshot_cache = InMemoryTemporalStore(
                 observations, source_ref=self.fingerprint,
-            ).snapshot(None)
+            ).snapshot(self.as_of)
         return self._snapshot_cache
 
     def value_at(self, name: str, series: str, valid_at: datetime, cutoff: datetime) -> float | None:
@@ -63,6 +83,16 @@ class CovariateDataset:
         if value is None and series != "__default__":
             value = snapshot.value_as_of("__default__", name, valid_at, cutoff=cutoff)
         return value
+
+    def access_summary(self) -> dict[str, Any]:
+        """What this dataset actually served, for the run's evidence.
+
+        Covariate reads used to leave no trace in `snapshot_access`, so the
+        `max_known_time` the verifier's leakage check reads came from the
+        target series alone — a covariate could not have been caught by it.
+        """
+        summary = self._snapshot().access_summary()
+        return {**summary, "source": "covariates", "path": self.path}
 
 
 @dataclass
@@ -74,6 +104,12 @@ class CovariateAssessment:
     fold_improvements: dict[str, list[float]] = field(default_factory=dict)
     points: list[float] = field(default_factory=list)
     residuals: list[float] = field(default_factory=list)
+    #: The same residuals indexed by lead time. One calibration fold gives
+    #: one residual per lead, which is below MIN_RESIDUALS_PER_LEAD, so
+    #: every lead correctly borrows this model's own pooled spread. What
+    #: must not happen is inheriting the *base* model's per-lead residuals,
+    #: which describe a different forecast.
+    residuals_by_lead: dict[int, list[float]] = field(default_factory=dict)
     coverage: float | None = None
     warnings: list[str] = field(default_factory=list)
 
@@ -299,7 +335,9 @@ def validate_covariates(
     dataset: CovariateDataset, *, series: str, timestamps: list[datetime],
     future_timestamps: list[datetime], fold_cutoffs: list[datetime],
 ) -> dict[str, Any]:
-    issues: list[dict[str, str]] = []
+    from .contracts import REPAIR_OPTIONS
+
+    issues: list[dict[str, Any]] = []
     coverage: dict[str, dict[str, int]] = {}
     for spec in dataset.specs:
         missing_backtest = 0
@@ -316,12 +354,49 @@ def validate_covariates(
             "missing_backtest_future_points": missing_backtest,
             "missing_final_future_points": missing_future,
         }
+        # The gate is right; the old messages named a count and nothing
+        # else — not why the values were unavailable (published too late)
+        # nor what to change (`known_at` must precede each fold cutoff).
         if missing_backtest:
-            issues.append({"covariate": spec.name, "code": "MISSING_HISTORICAL_VINTAGES",
-                           "message": f"{missing_backtest} fold-time values were unavailable."})
+            issues.append({
+                "covariate": spec.name,
+                "code": "MISSING_HISTORICAL_VINTAGES",
+                "message": (
+                    f"{spec.name}: {missing_backtest} value(s) needed at the "
+                    f"backtest cutoffs had no vintage published in time. A "
+                    f"fold cutting at T may only use rows whose known_at is "
+                    f"at or before T, and this file's earliest known_at for "
+                    f"those points is later. The covariate cannot be "
+                    f"backtested, so it will not be admitted."
+                ),
+                "cause": "published_after_the_fold_cutoff",
+                "remedy": (
+                    "Supply rows whose known_at precedes each fold cutoff "
+                    f"(the cutoffs are listed under selection_fold_cutoffs), "
+                    f"or drop {spec.name} and forecast without it."
+                ),
+                "missing_points": missing_backtest,
+                "fold_cutoffs": [cutoff.isoformat() for cutoff in fold_cutoffs],
+                "repair_options": REPAIR_OPTIONS.get("MISSING_HISTORICAL_VINTAGES", []),
+            })
         if missing_future:
-            issues.append({"covariate": spec.name, "code": "MISSING_FORECAST_VALUES",
-                           "message": f"{missing_future} final-horizon values were unavailable."})
+            issues.append({
+                "covariate": spec.name,
+                "code": "MISSING_FORECAST_VALUES",
+                "message": (
+                    f"{spec.name}: {missing_future} of {len(future_timestamps)} "
+                    f"horizon period(s) have no value knowable at the forecast "
+                    f"origin. A future_known covariate must cover every period "
+                    f"being forecast."
+                ),
+                "cause": "horizon_not_covered",
+                "remedy": (
+                    f"Add rows for the horizon periods with a known_at at or "
+                    f"before {timestamps[-1].isoformat()}."
+                ),
+                "missing_points": missing_future,
+                "repair_options": REPAIR_OPTIONS.get("MISSING_FORECAST_VALUES", []),
+            })
     return {"valid": not issues, "coverage": coverage, "issues": issues}
 
 
@@ -477,6 +552,11 @@ def assess_covariates(
         actual - predicted
         for actual, predicted in zip(values[calibration_origin:calibration_origin + horizon], calibration)
     ]
+    # The calibration fold is walked in lead order, so index i is lead i+1.
+    assessment.residuals_by_lead = {
+        step: [residual]
+        for step, residual in enumerate(assessment.residuals, 1)
+    }
     test = covariate_forecast(
         values[:test_origin], timestamps[:test_origin], timestamps[test_origin:test_origin + horizon],
         dataset, retained, series, timestamps[test_origin - 1], season,

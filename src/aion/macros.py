@@ -75,6 +75,29 @@ def _task_dict(task: TemporalTask) -> dict[str, Any]:
     return asdict(task)
 
 
+def _event_payload(event: Any) -> Any:
+    """Context events as id material, matching ``runtime.forecast``."""
+    return getattr(event, "__dict__", event)
+
+
+def _schema_payload(loaded, time_column: str, target_column: str,
+                    series_column: str | None) -> dict[str, Any]:
+    """The column and grid choices that change what a macro computes.
+
+    ``source_fingerprint`` covers the bytes on disk, not which columns were
+    read out of them, so an id built from the fingerprint alone collides
+    across genuinely different reads of the same file. ``runtime.forecast``
+    has always included this block; the other macros now do too.
+    """
+    return {
+        "time": time_column,
+        "target": target_column,
+        "series": series_column,
+        "frequency": loaded.frequency,
+        "timezone": getattr(loaded, "timezone", None),
+    }
+
+
 # ---------------------------------------------------------------------------
 # A. What changed? — aion_investigate_change
 # ---------------------------------------------------------------------------
@@ -199,8 +222,38 @@ def investigate_change(
             if explanations else None
         )
         support = detection["support"] if onset is None else detection["regimes"][-1]["support"]
+        # "What changed?" answered in the reader's terms. The raw list is
+        # kept verbatim; `ranked_changes` is the same changepoints ordered
+        # by how much of the series' variation each explains, timestamped
+        # rather than indexed, with the dominant one marked. A user asking
+        # what changed was previously handed three `index:` values, one of
+        # which (relative_gain 0.016) was noise beside the real one (0.779).
+        ranked = sorted(
+            detection["changepoints"],
+            key=lambda item: item.get("relative_gain") or 0.0,
+            reverse=True,
+        )
+        strongest = (ranked[0].get("relative_gain") or 0.0) if ranked else 0.0
+        ranked_changes = [
+            {
+                "timestamp": (
+                    item["timestamp"].isoformat()
+                    if hasattr(item["timestamp"], "isoformat") else str(item["timestamp"])
+                ),
+                "before_mean": item.get("before_mean"),
+                "after_mean": item.get("after_mean"),
+                "shift": item.get("shift"),
+                "share_of_variation_explained": item.get("relative_gain"),
+                "dominant": bool(
+                    strongest > 0
+                    and (item.get("relative_gain") or 0.0) >= strongest * 0.5
+                ),
+            }
+            for item in ranked
+        ]
         result = {
             "series": name,
+            "ranked_changes": ranked_changes,
             "changepoints": detection["changepoints"],
             "classification": detection["classification"],
             "onset": timestamps[onset["index"]].isoformat() if onset else None,
@@ -252,6 +305,11 @@ def investigate_change(
         "source": loaded.source_fingerprint,
         "as_of": task.as_of,
         "series": sorted(payloads),
+        "schema": _schema_payload(loaded, time_column, target_column, series_column),
+        "context_events": (
+            [_event_payload(event) for event in context_events]
+            if context_events else None
+        ),
     })
     created_at = clock.now().isoformat()
     payload = {
@@ -340,9 +398,40 @@ def decide(
             "Provide more history or lower the horizon, then re-run.",
         ).to_dict()
         scenario_probabilities: dict[str, float] | None = None
+        exceedance: dict[str, Any] | None = None
     else:
-        peak = max(result.threshold["probability_above"])
+        # The per-step maximum, not the probability of at least one
+        # exceedance across the horizon — which is >= this and is usually
+        # what a horizon-level decision turns on. Labelled `exceed` with no
+        # definition, it understated the risk feeding expected utility.
+        step_probabilities = result.threshold["probability_above"]
+        peak = max(step_probabilities)
+        # Any-step exceedance under an independence assumption, reported
+        # beside the peak rather than replacing it: the steps are not
+        # independent, so this is an upper reference, not a better number.
+        any_step = 1.0
+        for probability in step_probabilities:
+            any_step *= (1.0 - probability)
+        any_step = round(1.0 - any_step, 4)
+        # The two scenarios the expected-utility comparison sums over. Kept
+        # to exactly these keys because `evaluate_actions` weights payoffs
+        # by them; the definition and the alternative reading ride alongside
+        # in `exceedance` rather than inside the probability mass.
         scenario_probabilities = {"exceed": peak, "no_exceed": round(1.0 - peak, 4)}
+        exceedance = {
+            "peak_step_exceedance": peak,
+            "any_step_exceedance_if_independent": any_step,
+            "per_step": step_probabilities,
+            "event_definition": (
+                "`exceed` is the largest single-step probability of crossing "
+                "the threshold, and is what the expected-utility comparison "
+                "uses. `any_step_exceedance_if_independent` is the "
+                "probability of at least one crossing over the horizon under "
+                "an independence assumption the steps do not satisfy — an "
+                "upper reference, not a substitute. For a horizon-level "
+                "decision the true any-step probability lies between them."
+            ),
+        }
         evaluation = evaluate_actions(
             actions, scenario_probabilities,
             utilities=utilities, max_acceptable_risk=max_acceptable_risk,
@@ -366,7 +455,13 @@ def decide(
         "forecast": artifact.forecast_id,
         "series": result.series,
         "threshold": threshold,
-        "actions": [action.get("name") for action in actions],
+        # Every field of every action, not just its name: `feasible` and
+        # `residual_risk` select a different action, so an id over names
+        # alone let two runs with different answers share one artifact.
+        "actions": [
+            {str(key): action[key] for key in sorted(action)}
+            for action in actions
+        ],
         "utilities": utilities,
         "max_acceptable_risk": max_acceptable_risk,
     })
@@ -381,6 +476,7 @@ def decide(
         "forecast_artifact_path": str(forecast_dir),
         "threshold": threshold,
         "scenario_probabilities": scenario_probabilities,
+        "exceedance": exceedance,
         "evaluation": {key: value for key, value in evaluation.items() if key != "support"},
         "support_assessment": support,
     }
@@ -562,6 +658,7 @@ def monitor(
         "forecast": artifact.forecast_id,
         "threshold": threshold,
         "alert_cost": alert_cost, "miss_cost": miss_cost,
+        "horizon": horizon,
     })
     payload = {
         "schema_version": "0.1",
@@ -726,6 +823,11 @@ def detect_anomalies(
         "as_of": task.as_of,
         "series": sorted(payloads),
         "threshold": detection_threshold,
+        "schema": _schema_payload(loaded, time_column, target_column, series_column),
+        # Labels change the detector *and* the basis it is selected on, so
+        # a labelled and an unlabelled run are different computations.
+        "labels": sorted(str(label) for label in labels) if labels else None,
+        "include_tsfm": include_tsfm,
     })
     created_at = clock.now().isoformat()
     payload = {

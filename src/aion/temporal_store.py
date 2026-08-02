@@ -82,12 +82,20 @@ class Snapshot:
         *,
         source_ref: str = "",
         assumed_known_time: bool = False,
+        known_time_provenance: str | None = None,
     ):
-        if as_of is not None and observations:
-            _comparable(observations[0].known_time, as_of, what="as_of versus the dataset")
+        if as_of is not None:
+            # Every observation, not just the first: a dataset whose
+            # aware/naive mix begins after row 0 used to reach the
+            # comparison below and raise a bare TypeError.
+            for item in observations:
+                _comparable(item.known_time, as_of, what="as_of versus the dataset")
         self.as_of = as_of
         self.source_ref = source_ref
         self.assumed_known_time = assumed_known_time
+        self.known_time_provenance = known_time_provenance or (
+            "assumed" if assumed_known_time else "recorded"
+        )
         self._observations = [
             item for item in observations
             if as_of is None or item.known_time <= as_of
@@ -170,6 +178,7 @@ class Snapshot:
         return {
             "as_of": self.as_of.isoformat() if self.as_of else "latest",
             "known_time_assumed": self.assumed_known_time,
+            "known_time_provenance": self.known_time_provenance,
             "source_ref": self.source_ref,
             "accesses": [by_key[key] for key in sorted(by_key)],
         }
@@ -250,7 +259,13 @@ class IngestReport:
     rows_seen: int = 0
     rows_added: int = 0
     revisions_created: int = 0
+    #: Exact repeats of an existing vintage — same valid_time, same
+    #: known_time, same value. A genuine no-op re-ingest.
     duplicates_skipped: int = 0
+    #: Vintages whose value restates a figure the series already carried at
+    #: an earlier known_time. Recorded like any other vintage; counted
+    #: separately because a value-only dedup used to drop them silently.
+    reverts_recorded: int = 0
     warnings: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, object]:
@@ -292,9 +307,24 @@ class TemporalStore:
                     ingested_at TEXT NOT NULL,
                     rows_added INTEGER NOT NULL,
                     revisions_created INTEGER NOT NULL,
-                    duplicates_skipped INTEGER NOT NULL
+                    duplicates_skipped INTEGER NOT NULL,
+                    reverts_recorded INTEGER NOT NULL DEFAULT 0,
+                    -- Whether this ingest supplied a known-time column, or
+                    -- Aion assumed known_time = valid_time. Recorded here
+                    -- because it is a fact about the *ingest*; inferring it
+                    -- from the data mislabels genuine same-day publication
+                    -- as assumed, and hides an assumed ingest that later
+                    -- sits beside a real one.
+                    assumed_known_time INTEGER NOT NULL DEFAULT 1
                 );
             """)
+            existing = {
+                row["name"] for row in conn.execute("PRAGMA table_info(ingests)")
+            }
+            for name, sql_type in (("reverts_recorded", "INTEGER NOT NULL DEFAULT 0"),
+                                   ("assumed_known_time", "INTEGER NOT NULL DEFAULT 1")):
+                if name not in existing:
+                    conn.execute(f"ALTER TABLE ingests ADD COLUMN {name} {sql_type}")
 
     @contextmanager
     def _connect(self) -> Iterator[sqlite3.Connection]:
@@ -338,11 +368,23 @@ class TemporalStore:
                     "ORDER BY revision",
                     (dataset, row.entity, row.variable, row.valid_time.isoformat()),
                 ).fetchall()
+                # A vintage is identified by (valid_time, known_time, value).
+                # Deduplicating on value alone dropped a *revert*: a series
+                # revised 100 -> 150 -> back to 100 lost its third vintage,
+                # and a replay after the revert returned the superseded 150.
+                # Only an exact repeat of an existing vintage is a no-op.
+                known_time = row.known_time.isoformat()
                 if any(
-                    item["value"] == row.value for item in existing
+                    item["known_time"] == known_time and item["value"] == row.value
+                    for item in existing
                 ):
                     report.duplicates_skipped += 1
                     continue
+                if any(item["value"] == row.value for item in existing):
+                    # Same value, new known_time: a restatement back to a
+                    # figure this series already carried. Recorded, and
+                    # counted separately so it is visible that it happened.
+                    report.reverts_recorded += 1
                 revision = existing[-1]["revision"] + 1 if existing else 0
                 conn.execute(
                     "INSERT INTO observations "
@@ -355,9 +397,13 @@ class TemporalStore:
                 if revision > 0:
                     report.revisions_created += 1
             conn.execute(
-                "INSERT OR REPLACE INTO ingests VALUES (?,?,?,?,?,?,?)",
+                "INSERT OR REPLACE INTO ingests "
+                "(ingest_id, dataset, source_fingerprint, ingested_at, rows_added, "
+                " revisions_created, duplicates_skipped, reverts_recorded, "
+                " assumed_known_time) VALUES (?,?,?,?,?,?,?,?,?)",
                 (ingest_id, dataset, source_fingerprint, clock.now().isoformat(),
-                 report.rows_added, report.revisions_created, report.duplicates_skipped),
+                 report.rows_added, report.revisions_created, report.duplicates_skipped,
+                 report.reverts_recorded, int(assumed_known_time)),
             )
         return report
 
@@ -453,12 +499,41 @@ class TemporalStore:
 
     def snapshot(self, dataset: str, as_of: datetime | None = None) -> Snapshot:
         observations = self._load_dataset(dataset)
-        assumed = all(item.valid_time == item.known_time for item in observations)
+        provenance = self.known_time_provenance(dataset)
         return Snapshot(
             observations, as_of,
             source_ref=self.dataset_fingerprint(dataset),
-            assumed_known_time=assumed,
+            assumed_known_time=provenance != "recorded",
+            known_time_provenance=provenance,
         )
+
+    def known_time_provenance(self, dataset: str) -> str:
+        """``recorded`` | ``assumed`` | ``partially_assumed``.
+
+        Read from the ingests that built the dataset, not inferred from the
+        data: a series genuinely published the day it applies has
+        ``valid_time == known_time`` for every row and is not assumed, while
+        a dataset mixing one assumed ingest with one real one has rows where
+        they differ and is not fully recorded either. Inference cannot tell
+        those apart; provenance can.
+        """
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT DISTINCT i.assumed_known_time AS assumed "
+                "FROM ingests i WHERE i.dataset = ? AND EXISTS ("
+                "  SELECT 1 FROM observations o "
+                "  WHERE o.dataset = i.dataset AND o.source_ref = i.ingest_id)",
+                (dataset,),
+            ).fetchall()
+        flags = {bool(row["assumed"]) for row in rows}
+        if flags == {True}:
+            return "assumed"
+        if flags == {False}:
+            return "recorded"
+        if not flags:
+            # Rows with no surviving ingest record: pre-provenance stores.
+            return "assumed"
+        return "partially_assumed"
 
     def dataset_fingerprint(self, dataset: str) -> str:
         """Content address of the dataset's full current vintage history."""

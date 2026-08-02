@@ -17,10 +17,11 @@ from typing import Any
 from .adjudication import adjudicate_enrichments
 from .context import ContextEvent
 from .context_eval import CONTEXT_MODEL_NAME, ContextAssessment, assess_context
-from .contracts import AionError, DataSchema, Evidence
+from .contracts import AionError, DataSchema, Evidence, SupportReason
 from .covariates import CovariateAssessment, CovariateDataset, assess_covariates
 from .data import Observation, load_observations
 from .evaluation import (
+    DEFAULT_TARGET_COVERAGE,
     Evaluation,
     conformal_quantile_spreads,
     conformal_spreads,
@@ -68,6 +69,12 @@ class SeriesState:
     # Residuals indexed by lead time, when the producing stage measured
     # them that way; empty means intervals fall back to the pooled spread.
     residuals_by_lead: dict[int, list[float]] = field(default_factory=dict)
+    #: Which model the residual sets above describe. Points and intervals
+    #: must come from the same model, and every stage that replaces
+    #: `points` must replace the residuals with it — a stage that changed
+    #: one and not the other published a interval belonging to a model that
+    #: was not selected. `assert_residual_provenance` enforces it.
+    residual_source: str | None = None
     coverage: float | None = None
     warnings: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
@@ -77,6 +84,9 @@ class SeriesState:
     covariate_assessment: CovariateAssessment | None = None
     adjudication_public: dict[str, object] | None = None
     conditional_forecasts: list[dict[str, object]] = field(default_factory=list)
+    #: Typed, correct-but-surprising facts for the support assessment.
+    #: Never affects support status — see SupportAssessment.disclosures.
+    disclosures: list[SupportReason] = field(default_factory=list)
     evidence: list[Evidence] = field(default_factory=list)
 
 
@@ -110,6 +120,7 @@ def load_stage(
             repair=repair, repair_log=log,
         )
         raw_observations = repair_observations(raw_observations, frequency, repair, log)
+        _record_reordering(raw_observations, log)
         store, _ = InMemoryTemporalStore.from_plain_observations(
             raw_observations, variable, source_fingerprint,
         )
@@ -131,6 +142,34 @@ def load_stage(
         source_fingerprint, columns, groups, resolved_frequency, zone, schema,
         snapshot, variable,
     )
+
+
+def _record_reordering(observations: list[Observation], log: "RepairLog") -> None:
+    """Note when the input arrived out of chronological order.
+
+    Sorting is correct and happens further down, in the snapshot — which is
+    also why it was invisible: by the time any check ran, the rows were
+    already ordered, so a genuinely unsorted export never raised a
+    data-quality signal. This runs while the file's own order is still
+    observable.
+    """
+    from collections import defaultdict
+
+    by_series: dict[str, list] = defaultdict(list)
+    for item in observations:
+        by_series[item.series].append(item.timestamp)
+    for name, stamps in sorted(by_series.items()):
+        ordered = sorted(stamps)
+        if stamps == ordered:
+            continue
+        moved = sum(1 for left, right in zip(stamps, ordered) if left != right)
+        log.record(
+            "timestamps_reordered",
+            "Rows arrived out of chronological order and were sorted. The "
+            "sort is correct; it is recorded because an unsorted export is "
+            "usually a symptom worth knowing about.",
+            series=name, count=moved,
+        )
 
 
 def horizon_stage(
@@ -197,6 +236,7 @@ def evaluate_stage(
     state.notes = list(assessment.notes)
     state.residuals = assessment.residuals
     state.residuals_by_lead = dict(assessment.residuals_by_lead)
+    state.residual_source = assessment.selected_model
 
 
 def predict_stage(
@@ -250,6 +290,7 @@ def predict_stage(
         state.residuals = list(ensemble_residuals)
         state.residuals_by_lead = {step: list(items)
                                    for step, items in ensemble_by_lead.items()}
+        state.residual_source = "ensemble"
     elif assessment.selected_model in MODELS:
         state.points = predict(assessment.selected_model, values, horizon, season)
     elif extra_candidates and assessment.selected_model in extra_candidates:
@@ -283,8 +324,36 @@ def predict_stage(
                 "TSFM %s failed during final forecast, falling back to %s: %s",
                 assessment.selected_model, assessment.strongest_baseline, exc,
             )
-            state.selected_model = assessment.strongest_baseline
-            state.points = predict(state.selected_model, values, horizon, season)
+            # The same failure the ensemble path above was already fixed to
+            # prevent: swapping the point path while keeping the failed
+            # model's residuals publishes an interval calibrated on a
+            # forecast nobody is being shown. Recalibrate from the fallback
+            # model's own fold residuals, or decline the fallback.
+            failed = assessment.selected_model
+            fallback = assessment.strongest_baseline
+            if fallback and assessment.fallback_residuals:
+                state.selected_model = fallback
+                state.points = predict(fallback, values, horizon, season)
+                state.residuals = list(assessment.fallback_residuals)
+                state.residuals_by_lead = {
+                    step: list(items)
+                    for step, items in assessment.fallback_residuals_by_lead.items()
+                }
+                state.residual_source = fallback
+                state.warnings.append(
+                    f"{failed} was selected by the backtest but failed at final "
+                    f"prediction; reporting {fallback} instead, recalibrated on "
+                    "its own fold residuals."
+                )
+            else:
+                # Nothing fold-separated to calibrate the fallback from.
+                state.points = []
+                state.selected_model = None
+                state.warnings.append(
+                    f"{failed} was selected by the backtest but failed at final "
+                    "prediction, and no fold-separated residuals exist for a "
+                    "fallback; no forecast is published."
+                )
 
 
 def conditional_stage(
@@ -438,6 +507,7 @@ def context_stage(
         state.points = context.points
         state.residuals = context.residuals
         state.residuals_by_lead = dict(context.residuals_by_lead)
+        state.residual_source = CONTEXT_MODEL_NAME
         state.coverage = context.coverage
         state.warnings = list(context.warnings)
 
@@ -468,6 +538,12 @@ def covariate_stage(
         state.selected_model = "covariate_linear"
         state.points = covariate_assessment.points
         state.residuals = covariate_assessment.residuals
+        # Previously left as the *base* model's per-lead residuals, which
+        # every lead satisfied, so the covariate model's own residuals were
+        # never consulted and the published interval belonged to a model
+        # that was not selected.
+        state.residuals_by_lead = dict(covariate_assessment.residuals_by_lead)
+        state.residual_source = "covariate_linear"
         state.coverage = covariate_assessment.coverage
         state.warnings = list(covariate_assessment.warnings)
 
@@ -500,6 +576,11 @@ def adjudicate_enrichments_stage(
         state.selected_model = result.selected_model
         state.points = result.points
         state.residuals = result.residuals
+        # The winner's per-lead residuals, not the base model's. Leaving the
+        # base set in place meant every lead had enough of the *wrong*
+        # residuals, so the winner's own were never consulted.
+        state.residuals_by_lead = dict(result.residuals_by_lead)
+        state.residual_source = result.selected_model
         state.coverage = result.coverage
         state.warnings = list(result.warnings)
 
@@ -570,6 +651,17 @@ def _constraint_stage(
     if not claims and not rejected:
         return rows
     projected, applications = apply_claims(rows, claims)
+    if rows and claims:
+        sample = datetime.fromisoformat(str(rows[0]["timestamp"]))
+        if any(claim.needs_alignment(sample) for claim in claims):
+            state.disclosures.append(SupportReason(
+                "context_timezone_aligned",
+                "Context events carry an explicit timezone offset and this "
+                "dataset's timestamps do not (or the reverse). The event "
+                "windows were matched on wall-clock time, which is the only "
+                "reading available without knowing the dataset's zone. Add an "
+                "offset to the dataset's timestamps to remove the assumption.",
+            ))
     state.evidence.append(Evidence(
         f"constraint_applied:{state.name}", "constraint_applied", state.name,
         {
@@ -585,13 +677,144 @@ def _constraint_stage(
     return projected
 
 
+def _forecast_disclosures(
+    state: SeriesState,
+    rows: list[dict[str, object]],
+    spreads: dict[int, tuple[float, float, float]],
+) -> list[SupportReason]:
+    """Correct-but-surprising facts about how these rows were produced.
+
+    Each of these is honest output that a reader will misinterpret unless
+    it is stated in band, at the moment it happens. They are disclosures
+    rather than warnings: none of them argues against the forecast, so none
+    of them may move the support status.
+    """
+    from .evaluation import MIN_RESIDUALS_PER_LEAD, pooled_fallback_leads
+
+    disclosures: list[SupportReason] = []
+
+    # H2 / S1. `point` is the raw model output; the quantiles are recentred
+    # on the median residual, so `point` is not the middle of its interval.
+    corrections = [abs(float(row["point_bias_correction"])) for row in rows]
+    spans = [float(row["q90"]) - float(row["q10"]) for row in rows]
+    widest = max(spans) if spans else 0.0
+    if corrections and max(corrections) > 1e-9:
+        share = (max(corrections) / widest) if widest > 1e-12 else 0.0
+        disclosures.append(SupportReason(
+            "point_is_not_the_median",
+            f"`point` is the selected model's raw output; every quantile is "
+            f"recentred on the median backtest residual, so `q50` differs "
+            f"from `point` by up to {max(corrections):.4g} "
+            f"({share:.0%} of the 80% interval width). Each row carries the "
+            f"gap as `point_bias_correction`.",
+        ))
+
+    # H3 / S2. When every lead borrows the pooled spread, the interval does
+    # not widen with distance — the 14-step is exactly the 1-step.
+    horizon = len(rows)
+    borrowed = pooled_fallback_leads(state.residuals_by_lead, horizon)
+    if horizon and len(borrowed) == horizon:
+        disclosures.append(SupportReason(
+            "constant_interval_width",
+            f"Interval width is constant across the horizon: no lead time "
+            f"has the {MIN_RESIDUALS_PER_LEAD} residuals needed to resolve "
+            f"its own spread, so every lead borrows the pooled set. "
+            f"Uncertainty is not modelled as growing with distance here. "
+            f"More folds — a longer history relative to the horizon — would "
+            f"let each lead measure its own.",
+        ))
+    elif borrowed:
+        disclosures.append(SupportReason(
+            "partial_pooled_interval_width",
+            f"{len(borrowed)} of {horizon} lead times borrow the pooled "
+            f"residual spread rather than measuring their own.",
+        ))
+
+    # H4. Pooling the selection folds is not split conformal, and the
+    # direction of the bias is known: the winner was chosen to minimise
+    # error on exactly those folds, so its residuals there are optimistic
+    # and the published interval is correspondingly narrow.
+    assessment = state.assessment
+    if assessment is not None and assessment.residuals_pooled_across_selection:
+        disclosures.append(SupportReason(
+            "conformal_residuals_pooled_across_selection",
+            f"Interval calibration pools residuals from "
+            f"{assessment.residual_fold_count} folds, including the "
+            f"selection folds the model was chosen on. Those residuals are "
+            f"optimistically small, so the interval is narrower than strict "
+            f"split conformal would give. Set `evaluation.pool_residuals: "
+            f"false` to calibrate on the held-out fold alone.",
+        ))
+
+    # M2 / S3. Coverage measured on one fold of `horizon` points carries
+    # almost no information; report the count beside the rate.
+    if state.coverage is not None:
+        disclosures.append(SupportReason(
+            "coverage_sample_size",
+            f"Measured interval coverage is {state.coverage:.1%} over "
+            f"{horizon} point{'s' if horizon != 1 else ''} from a single "
+            f"test fold. At this sample size the figure is indicative, not "
+            f"a calibration guarantee.",
+        ))
+
+    # L6 / S-. Adjacent levels sharing an order statistic is the sample's
+    # resolution, not a defect. Promoted from free-text `notes` to a code.
+    collapsed = sum(
+        1 for row in rows
+        if len({row[key] for key in row if _is_quantile(key)})
+        < len([key for key in row if _is_quantile(key)])
+    )
+    if collapsed:
+        disclosures.append(SupportReason(
+            "quantile_levels_collapsed",
+            f"Quantile levels are limited by the residual sample: at "
+            f"{collapsed} of {len(rows)} lead times, adjacent levels share an "
+            f"order statistic and report identical values. q10/q50/q90 are "
+            f"unaffected in meaning.",
+        ))
+    return disclosures
+
+
+def _is_quantile(key: object) -> bool:
+    text = str(key)
+    return text.startswith("q") and text[1:].isdigit()
+
+
+def assert_residual_provenance(state: SeriesState) -> None:
+    """Points and intervals must come from the same model.
+
+    Five paths used to publish a point path from one model beside an
+    interval calibrated on another's residuals. Each was a separate bug;
+    all of them are this one invariant, checked once, immediately before
+    the intervals are built. A violation is a programming error in a
+    stage — not a data condition — so it raises rather than warns.
+    """
+    if not state.points or state.selected_model is None:
+        return
+    if state.residual_source != state.selected_model:
+        raise AionError(
+            "RESIDUAL_PROVENANCE_MISMATCH",
+            f"Intervals for series {state.name!r} would be built from "
+            f"{state.residual_source!r} residuals while the published model "
+            f"is {state.selected_model!r}.",
+            {"series": state.name, "selected_model": state.selected_model,
+             "residual_source": state.residual_source},
+        )
+
+
 def interval_stage(
     state: SeriesState,
     *,
     threshold: float | None,
     context_events: list[ContextEvent] | None = None,
+    target_coverage: float = DEFAULT_TARGET_COVERAGE,
 ) -> tuple[list[dict[str, object]], str, dict[str, object] | None]:
-    """Residual-quantile intervals, the support status, and threshold analysis."""
+    """Residual-quantile intervals, the support status, and threshold analysis.
+
+    ``target_coverage`` is the nominal central coverage the interval
+    carries, from ``evaluation.uncertainty.target_coverage``.
+    """
+    assert_residual_provenance(state)
     assessment = state.assessment
     rows: list[dict[str, object]] = []
     threshold_analysis: dict[str, object] | None = None
@@ -599,6 +822,7 @@ def interval_stage(
     if assessment and assessment.supported and state.points:
         spreads = conformal_spreads(
             state.residuals_by_lead, len(state.points), state.residuals,
+            target_coverage,
         )
         # The full quantile set comes from the same residuals and the same
         # fit; q10/q50/q90 are the identical order statistics they always
@@ -611,27 +835,17 @@ def interval_stage(
             row = {
                 "timestamp": timestamp.isoformat(), "point": point,
                 "q10": q10, "q50": q50, "q90": q90,
+                # `point` is the model's raw output; every quantile is
+                # recentred on the median residual. Publishing the gap makes
+                # the relationship checkable instead of leaving `point` to
+                # be read as the middle of its own interval.
+                "point_bias_correction": q50 - point,
             }
             extra = quantiles_from_spread(point, level_spreads[step])
             row.update({key: value for key, value in extra.items()
                         if key not in row})
             rows.append(row)
-        # With few residuals at a lead time, adjacent levels land on the same
-        # order statistic and report the same number. Those values are still
-        # honest conformal bounds, but a reader seeing q05 == q20 should know
-        # it is the sample's resolution and not a defect. A note, not a
-        # warning: this says nothing about the evidence for the forecast.
-        collapsed = sum(1 for row in rows
-                        if len({row[key] for key in row
-                                if key.startswith("q")}) < len(
-                                    [key for key in row if key.startswith("q")]))
-        if collapsed:
-            state.notes.append(
-                f"Quantile levels are limited by the residual sample: at "
-                f"{collapsed} of {len(rows)} lead times, adjacent levels share "
-                f"an order statistic and report identical values. q10/q50/q90 "
-                f"are unaffected in meaning."
-            )
+        state.disclosures.extend(_forecast_disclosures(state, rows, spreads))
         # Feasibility bounds are projected onto the emitted quantiles here,
         # after the model has said what it believes and before anything reads
         # the rows, so the threshold analysis below sees the same numbers the

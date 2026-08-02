@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from statistics import mean
 from typing import Any, Callable
 
+from .contracts import AionError
 from .models import BASELINES, MODELS, predict
 from .tsfm import TSFMError, TSFMUnavailable, tsfm_candidates
 
@@ -40,10 +41,24 @@ class Evaluation:
     # the override would have nothing fold-separated to widen from.
     ensemble_residuals: list[float] = field(default_factory=list)
     ensemble_residuals_by_lead: dict[int, list[float]] = field(default_factory=dict)
+    # Residuals of the strongest baseline over the same folds, populated
+    # only when the selection is one that can fail at final prediction (a
+    # TSFM or a cross-series candidate). Without these, a fallback would
+    # have to publish the failed model's intervals around the baseline's
+    # points — an interval belonging to a forecast nobody is shown.
+    fallback_residuals: list[float] = field(default_factory=list)
+    fallback_residuals_by_lead: dict[int, list[float]] = field(default_factory=dict)
     # Mean pinball loss per candidate over the selection folds, populated only
     # when `selection_loss="pinball"`. Reported alongside the point scores,
     # never in place of them.
     pinball_scores: dict[str, float | None] = field(default_factory=dict)
+    #: Whether conformal residuals were pooled across the selection folds
+    #: (optimistically narrow, more stable) or restricted to the held-out
+    #: calibration fold (genuine split conformal, noisier). Recorded so the
+    #: result can say which trade it made.
+    residuals_pooled_across_selection: bool = True
+    #: How many origins the published residuals came from.
+    residual_fold_count: int = 0
 
 
 #: The metric every selection decision is made on. Named so that hindsight
@@ -154,9 +169,63 @@ def _isotonic(values: list[float]) -> list[float]:
     return [level[0] for level in levels for _ in range(int(level[1]))]
 
 
+def active_models(config: Any = None) -> dict[str, Any]:
+    """The built-in candidate pool this run competes, honouring the config.
+
+    The mandatory baselines are always present: a candidate is selected by
+    beating them, so a pool without them has nothing to select against.
+    `models.statistical.enabled: false` leaves exactly the baselines, which
+    is a coherent question — does anything beat the naive answer? — and
+    `models.statistical.candidates` restricts the pool to named models.
+
+    Both keys were documented and neither was read, so a user who disabled
+    statistical models still got all five of them.
+    """
+    if config is None:
+        return dict(MODELS)
+    models_config = getattr(config, "models", None)
+    if models_config is None:
+        return dict(MODELS)
+    if not getattr(models_config, "statistical_enabled", True):
+        return {name: MODELS[name] for name in MODELS if name in BASELINES}
+    requested = getattr(models_config, "statistical_candidates", None)
+    if not requested:
+        return dict(MODELS)
+    unknown = [name for name in requested if name not in MODELS]
+    if unknown:
+        raise AionError(
+            "UNKNOWN_MODEL",
+            f"models.statistical.candidates names models that do not exist: "
+            f"{', '.join(sorted(unknown))}.",
+            {"unknown": sorted(unknown), "available": sorted(set(MODELS) - BASELINES)},
+        )
+    return {
+        name: MODELS[name] for name in MODELS
+        if name in BASELINES or name in requested
+    }
+
+
+#: Nominal coverage of the central interval q10..q90 has always carried.
+#: `evaluation.uncertainty.target_coverage` overrides it.
+DEFAULT_TARGET_COVERAGE = 0.80
+
+
+def coverage_levels(target_coverage: float = DEFAULT_TARGET_COVERAGE) -> tuple[float, float, float]:
+    """The (lower, median, upper) residual levels for a nominal coverage.
+
+    Rounded because `conformal_quantile` takes the `ceil((n+1)p)` order
+    statistic: at the default, `(1 - 0.8) / 2` is 0.09999999999999998, and
+    on a small sample that lands on a different residual from 0.1. The
+    default must reproduce the frozen q10/q50/q90 exactly.
+    """
+    tail = round((1.0 - target_coverage) / 2.0, 10)
+    return (tail, 0.5, round(1.0 - tail, 10))
+
+
 def conformal_spreads(
     residuals_by_lead: dict[int, list[float]], horizon: int,
     pooled: list[float] | None = None,
+    target_coverage: float = DEFAULT_TARGET_COVERAGE,
 ) -> dict[int, tuple[float, float, float]]:
     """Split-conformal offsets (low, median, high) for each lead time.
 
@@ -165,13 +234,19 @@ def conformal_spreads(
     Lead times with too few residuals borrow the pooled set rather than
     trusting a two-sample quantile, and the half-widths are then fitted
     monotone in h.
+
+    ``target_coverage`` is the nominal central coverage: 0.80 by default,
+    which is what q10/q90 have always meant, and settable through
+    ``evaluation.uncertainty.target_coverage`` — a documented key that was
+    parsed and never read.
     """
     pooled = pooled if pooled is not None else [
         residual for residuals in residuals_by_lead.values() for residual in residuals
     ]
     if not pooled:
         return {}
-    pooled_quantiles = {p: conformal_quantile(pooled, p) for p in (0.1, 0.5, 0.9)}
+    levels = coverage_levels(target_coverage)
+    pooled_quantiles = {p: conformal_quantile(pooled, p) for p in levels}
 
     medians: list[float] = []
     lows: list[float] = []
@@ -179,19 +254,35 @@ def conformal_spreads(
     for step in range(1, horizon + 1):
         residuals = residuals_by_lead.get(step) or []
         if len(residuals) >= MIN_RESIDUALS_PER_LEAD:
-            quantiles = {p: conformal_quantile(residuals, p) for p in (0.1, 0.5, 0.9)}
+            quantiles = {p: conformal_quantile(residuals, p) for p in levels}
         else:
             # Too few residuals at this lead to estimate its own tails:
             # borrow the pooled spread rather than invent precision.
             quantiles = pooled_quantiles
-        medians.append(quantiles[0.5])
-        lows.append(quantiles[0.5] - quantiles[0.1])
-        highs.append(quantiles[0.9] - quantiles[0.5])
+        lower, middle, upper = levels
+        medians.append(quantiles[middle])
+        lows.append(quantiles[middle] - quantiles[lower])
+        highs.append(quantiles[upper] - quantiles[middle])
 
     lows = _isotonic([max(0.0, value) for value in lows])
     highs = _isotonic([max(0.0, value) for value in highs])
     return {step + 1: (lows[step], medians[step], highs[step])
             for step in range(horizon)}
+
+
+def pooled_fallback_leads(
+    residuals_by_lead: dict[int, list[float]], horizon: int,
+) -> list[int]:
+    """Lead times that borrow the pooled spread instead of measuring their own.
+
+    Reported so the pipeline can say so. With the usual three or four folds
+    *every* lead borrows, which makes the 14-step interval exactly as wide
+    as the 1-step one — correct, and invisible unless it is stated.
+    """
+    return [
+        step for step in range(1, horizon + 1)
+        if len(residuals_by_lead.get(step) or []) < MIN_RESIDUALS_PER_LEAD
+    ]
 
 
 def interval_from_spread(
@@ -448,7 +539,24 @@ def evaluate(
     Pinball is the right criterion when the answer is a distribution — a
     point loss cannot tell a model with well-placed uncertainty from one
     whose centre happens to land well — but it changes which model is
-    selected, so it is opt-in until measured."""
+    selected, so it is opt-in until measured.
+
+    ``minimum_improvement`` is the margin a candidate must beat the
+    strongest baseline by. It must not be negative: at ``-5.0`` the gate
+    became ``candidate <= baseline * 6``, which selects a model that *lost*
+    the backtest and reports it as supported. One caller-supplied number
+    turning off the mandated-baseline rule is precisely the thing the rule
+    exists to prevent, so a negative value is refused here rather than
+    honoured."""
+    if minimum_improvement < 0:
+        raise AionError(
+            "INVALID_MINIMUM_IMPROVEMENT",
+            f"minimum_baseline_improvement must be >= 0; got "
+            f"{minimum_improvement}. A negative margin inverts the "
+            f"mandated-baseline gate, letting a model that lost the "
+            f"backtest be selected and reported as supported.",
+            {"supplied": minimum_improvement, "minimum": 0.0},
+        )
     if train_at is None:
         train_at = lambda origin: values[:origin]  # noqa: E731
     minimum_train = max(2 * season, 2 * horizon, 8)
@@ -493,6 +601,27 @@ def evaluate(
     # its stride: a conformal quantile over dependent residuals is not a
     # conformal quantile.
     residual_origins = list(selection_origins)
+    # `evaluation.pool_residuals` (default true): pool the selection folds
+    # with the calibration fold for sample size, accepting a known
+    # optimistic bias. False is genuine split conformal — the calibration
+    # fold only, whose origins selection never saw — and noisier. The key
+    # was documented and never read; it is read here.
+    # The built-in candidates this run competes, after `models.statistical.*`.
+    # The mandatory baselines are always in it.
+    pool = active_models(config)
+    pool_residuals = True
+    evaluation_config = getattr(config, "evaluation", None) if config else None
+    if evaluation_config is not None:
+        pool_residuals = bool(getattr(evaluation_config, "pool_residuals", True))
+        # A caller-supplied abstention floor, above Aion's derived one.
+        floor = getattr(evaluation_config, "min_observations", None)
+        if floor is not None and len(values) < int(floor):
+            raise AionError(
+                "INSUFFICIENT_OBSERVATIONS",
+                f"{len(values)} observations is below the configured "
+                f"evaluation.folds.min_observations of {int(floor)}.",
+                {"observations": len(values), "min_observations": int(floor)},
+            )
     if selection_stride is not None and selection_origins:
         selection_origins = dense_selection_origins(
             minimum_train, selection_origins[-1], selection_stride,
@@ -542,7 +671,7 @@ def evaluate(
     elif requested_names:
         tsfm_adapters = tsfm_candidates(requested=requested_names, frequency=frequency)
     tsfm_model_names = [a.name for a in tsfm_adapters]
-    all_model_names = list(MODELS.keys()) + tsfm_model_names
+    all_model_names = list(pool.keys()) + tsfm_model_names
 
     # --- API inference adapters ---
     if config and config.backends.api.enabled:
@@ -573,13 +702,13 @@ def evaluate(
         )
 
     # --- Run built-in models on selection folds ---
-    fold_scores: dict[str, list[float]] = {name: [] for name in MODELS}
+    fold_scores: dict[str, list[float]] = {name: [] for name in pool}
     # Store per-fold forecasts for ensemble/meta-model training
-    fold_forecasts: dict[str, list[list[float]]] = {name: [] for name in MODELS}
+    fold_forecasts: dict[str, list[list[float]]] = {name: [] for name in pool}
     for origin in selection_origins:
         actual = values[origin : origin + horizon]
         train = train_at(origin)
-        for name in MODELS:
+        for name in pool:
             try:
                 forecast = predict(name, train, horizon, season)
             except ValueError:
@@ -656,11 +785,28 @@ def evaluate(
     ensemble_fold_scores: list[float | None] = []
     if ensemble_enabled or meta_model_enabled:
         from .ensemble import compute_ensemble_forecast, ENSEMBLE_MODEL_NAME
-        all_valid_scores: dict[str, float | None] = {**scores, **tsfm_scores}
+
+        def _weighting_scores(fold_idx: int) -> dict[str, float | None]:
+            """Member scores available *before* fold ``fold_idx``.
+
+            The inverse-error weights used to come from aggregates over
+            every selection fold, fold ``fold_idx`` included — so each
+            fold's ensemble was weighted using its own outcome, and the
+            ensemble's selection score was optimistic by construction.
+            Fold 0 has no prior evidence and so weights members equally.
+            """
+            prior: dict[str, float | None] = {}
+            for source in (fold_scores, tsfm_fold_scores):
+                for name, items in source.items():
+                    earlier = [
+                        item for item in items[:fold_idx] if item is not None
+                    ]
+                    prior[name] = mean(earlier) if earlier else None
+            return prior
 
         for fold_idx in range(len(selection_origins)):
             fold_forecast_map: dict[str, list[float]] = {}
-            for name in MODELS:
+            for name in pool:
                 if fold_idx < len(fold_forecasts[name]) and fold_forecasts[name][fold_idx]:
                     fold_forecast_map[name] = fold_forecasts[name][fold_idx]
             for adapter in tsfm_adapters:
@@ -670,7 +816,7 @@ def evaluate(
             if len(fold_forecast_map) >= (ensemble_cfg.min_models if ensemble_cfg else 2):
                 try:
                     combined = compute_ensemble_forecast(
-                        fold_forecast_map, all_valid_scores,
+                        fold_forecast_map, _weighting_scores(fold_idx),
                         strategy=ensemble_strategy,
                         last_observed=(train_at(selection_origins[fold_idx]) or [0.0])[-1] if selection_origins else 0.0,
                         config=ensemble_cfg,
@@ -702,7 +848,7 @@ def evaluate(
             actual = values[origin : origin + horizon]
             mm_fold_actuals.append(actual)
 
-        for name in MODELS:
+        for name in pool:
             if fold_forecasts[name]:
                 mm_fold_forecasts[name] = fold_forecasts[name]
         for adapter in tsfm_adapters:
@@ -711,25 +857,55 @@ def evaluate(
                 mm_fold_forecasts[adapter.name] = tsfm_fold_forecasts[adapter.name]
 
         if len(mm_fold_forecasts) >= (meta_model_cfg.min_models if meta_model_cfg else 2):
+            # The weights that will actually be used are fit on every fold,
+            # like any final refit.
             meta_model_weights = train_meta_model(
                 mm_fold_forecasts,
                 mm_fold_actuals,
                 non_negative=meta_model_cfg.non_negative if meta_model_cfg else True,
             )
             if meta_model_weights:
-                # Evaluate meta-model on selection folds
+                # The *score* is leave-one-fold-out. Fitting on all folds and
+                # then scoring on those same folds made the meta-model's
+                # selection score in-sample, competing against its members'
+                # honest out-of-sample scores — it won by construction, which
+                # is what `meta_model.py`'s docstring already promised it did
+                # not do.
                 from .meta_model import predict_meta_model as pmm
-                mm_scores = []
+                mm_scores: list[float | None] = []
                 for fold_idx in range(len(selection_origins)):
+                    held_out_forecasts = {
+                        name: [
+                            forecast for index, forecast in enumerate(items)
+                            if index != fold_idx
+                        ]
+                        for name, items in mm_fold_forecasts.items()
+                    }
+                    held_out_actuals = [
+                        actual for index, actual in enumerate(mm_fold_actuals)
+                        if index != fold_idx
+                    ]
+                    try:
+                        fold_weights = train_meta_model(
+                            held_out_forecasts, held_out_actuals,
+                            non_negative=(
+                                meta_model_cfg.non_negative if meta_model_cfg else True
+                            ),
+                        )
+                    except Exception:
+                        fold_weights = None
+                    if not fold_weights:
+                        mm_scores.append(None)
+                        continue
                     fold_map = {}
-                    for name, weights_val in meta_model_weights.items():
+                    for name in fold_weights:
                         if name in mm_fold_forecasts and fold_idx < len(mm_fold_forecasts[name]):
                             f = mm_fold_forecasts[name][fold_idx]
                             if f:
                                 fold_map[name] = f
                     if len(fold_map) >= 2:
                         try:
-                            combined = pmm(meta_model_weights, fold_map)
+                            combined = pmm(fold_weights, fold_map)
                             actual = values[selection_origins[fold_idx] : selection_origins[fold_idx] + horizon]
                             mm_scores.append(error_score(actual, combined))
                         except Exception:
@@ -780,7 +956,7 @@ def evaluate(
 
     pinball_scores: dict[str, float | None] = {}
     if selection_loss == "pinball":
-        for name in MODELS:
+        for name in pool:
             if scores.get(name) is not None:
                 pinball_scores[name] = _pinball_score(fold_forecasts[name])
         for adapter in tsfm_adapters:
@@ -847,6 +1023,18 @@ def evaluate(
         all_scores["meta_model"] = meta_model_score
     selected_score = all_scores.get(selected, baseline_score)
     improvement = 0.0 if selected in BASELINES else (baseline_score - selected_score) / baseline_score if baseline_score > 0 else 0.0  # type: ignore[operator]
+    if improvement < 0:
+        # Belt and braces. A negative `minimum_improvement` is refused up
+        # front, but a criterion switch (pinball selection scores a
+        # different quantity from the reported WAPE improvement) can still
+        # land here. A model that lost the comparison it is reported
+        # against must never be published as plainly supported.
+        warnings.append(
+            f"{selected} was selected but scored {abs(improvement):.2%} worse "
+            f"than the strongest baseline {strongest_baseline} on the reported "
+            f"metric; the selection criterion and the reported improvement "
+            f"measure different quantities."
+        )
 
     def _ensemble_predict(train: list[float]) -> list[float]:
         """Recombine the member models on *train* only.
@@ -860,7 +1048,7 @@ def evaluate(
         from .ensemble import compute_ensemble_forecast
         member_scores: dict[str, float | None] = {**scores, **tsfm_scores}
         forecasts: dict[str, list[float]] = {}
-        for name in MODELS:
+        for name in pool:
             if member_scores.get(name) is None:
                 continue
             try:
@@ -918,9 +1106,22 @@ def evaluate(
     def _pool_residuals(
         name: str, final_prediction: list[float] | None = None,
     ) -> tuple[list[float], dict[int, list[float]]]:
-        """Residuals of *name* over the selection folds and the calibration
-        fold. The test fold is never touched: it reports, it never calibrates.
+        """Residuals of *name* over the calibration fold, and — when
+        ``evaluation.pool_residuals`` is on, as it is by default — the
+        selection folds as well. The test fold is never touched: it reports,
+        it never calibrates.
+
+        **Pooling is not split-conformal, and the direction of the error is
+        known.** The selected model was chosen to minimise error on exactly
+        the selection folds, so its residuals there are optimistically small
+        and pooling them narrows the interval. The calibration fold alone
+        *is* honest split conformal, but at one fold it supplies `horizon`
+        residuals — too few for a stable tail quantile. That trade is the
+        reason the default is what it is, not an oversight.
+        ``evaluation.pool_residuals: false`` selects the honest, noisier
+        alternative; either way the choice is disclosed on every result.
         """
+        origins = residual_origins if pool_residuals else []
         pooled: list[float] = []
         by_lead: dict[int, list[float]] = {}
 
@@ -929,7 +1130,7 @@ def evaluate(
                 pooled.append(a - p)
                 by_lead.setdefault(step, []).append(a - p)
 
-        for origin in residual_origins:
+        for origin in origins:
             try:
                 prediction = _predict_selected(name, train_at(origin), origin)
             except Exception:
@@ -954,6 +1155,15 @@ def evaluate(
     ensemble_residuals_by_lead: dict[int, list[float]] = {}
     if ensemble_enabled and selected != "ensemble":
         ensemble_residuals, ensemble_residuals_by_lead = _pool_residuals("ensemble")
+
+    # A TSFM or cross-series candidate can pass the folds and still fail at
+    # the final prediction. Calibrate the baseline it would fall back to on
+    # the same folds now, so the fallback publishes its own intervals rather
+    # than inheriting the failed model's.
+    fallback_residuals: list[float] = []
+    fallback_residuals_by_lead: dict[int, list[float]] = {}
+    if selected not in MODELS and strongest_baseline:
+        fallback_residuals, fallback_residuals_by_lead = _pool_residuals(strongest_baseline)
 
     # --- Test ---
     test_scores: dict[str, float | None] = {name: None for name in all_model_names}
@@ -995,4 +1205,10 @@ def evaluate(
                       residuals_by_lead=residuals_by_lead,
                       ensemble_residuals=ensemble_residuals,
                       ensemble_residuals_by_lead=ensemble_residuals_by_lead,
-                      pinball_scores=pinball_scores)
+                      fallback_residuals=fallback_residuals,
+                      fallback_residuals_by_lead=fallback_residuals_by_lead,
+                      pinball_scores=pinball_scores,
+                      residuals_pooled_across_selection=pool_residuals,
+                      residual_fold_count=(
+                          len(residual_origins) + 1 if pool_residuals else 1
+                      ))

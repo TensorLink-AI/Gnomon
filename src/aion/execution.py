@@ -148,7 +148,16 @@ def execute_plan(
             continue
         try:
             resolved = {key: _resolve(value, outputs) for key, value in step.inputs.items()}
-            cache_key = content_id("step", {"operator": step.operator, "inputs": resolved})
+            # The visible-data boundary is part of a step's identity: the
+            # same operator over the same inputs at a different ``as_of``
+            # is a different computation. Omitting it let a replay at an
+            # earlier instant return numbers computed from later data.
+            cache_key = content_id("step", {
+                "operator": step.operator,
+                "inputs": resolved,
+                "as_of": as_of.isoformat() if as_of else None,
+                "store_path": store_path,
+            })
             cache_file = cache_dir / f"{cache_key}.json"
             if cache_file.is_file():
                 result = json.loads(cache_file.read_text(encoding="utf-8"))

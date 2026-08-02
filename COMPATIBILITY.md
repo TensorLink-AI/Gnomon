@@ -32,7 +32,10 @@ Each forecast artifact is an immutable directory `<output>/<forecast_id>/`:
 - `artifact.json` — `schema_version`, `forecast_id`, `created_at`, `status`,
   `task` (input_path, schema, horizon, quantiles, minimum_baseline_improvement),
   `source_fingerprint`, `results[]`, `evidence[]`.
-- `forecast.csv` — columns `series,timestamp,point,q10,q50,q90`.
+- `forecast.csv` — leading columns `series,timestamp,point,q10,q50,q90`,
+  then the additional quantile levels and `point_bias_correction`. `point`
+  is the model's raw output; `q50` is recentred on the median backtest
+  residual, and `point_bias_correction` is exactly the difference.
 - `evidence.jsonl` — one record per line: `evidence_id`, `kind`, `series`, `payload`.
 - `summary.md` — human-readable, not machine-parsed; content may evolve freely.
 
@@ -236,6 +239,72 @@ Error envelope: `{"schema_version", "status": "error", "error": {"code",
   `selection_loss` (`"wape"` default, `"pinball"`) and `Evaluation` gains
   `pinball_scores`, populated only when pinball is requested. The default
   path is byte-identical; nothing selects differently unless asked.
+
+- **`point` is not the median, and now says so** (additive; goldens
+  refreshed additively). `point` is the selected model's *raw* output.
+  Every `q*` level is recentred on the median backtest residual, so when a
+  model carries systematic bias `point` is not the middle of its own
+  interval — in the vintage example it sits near the 30th percentile.
+  This has always been the behaviour and is unchanged. What is new:
+
+  - each forecast row and `forecast.csv` gain a `point_bias_correction`
+    column, exactly `q50 - point`, appended after the quantile columns so
+    positional readers are unaffected;
+  - a `point_is_not_the_median` disclosure appears on any result where the
+    correction is non-zero, naming the size and its share of the interval.
+
+  **No `point`, `q10`, `q50`, or `q90` value changed.** Callers treating
+  `point` as the distribution's centre were always reading it wrong; they
+  should read `q50`, and `point_bias_correction` is how to detect the gap.
+
+- Support disclosures, additive: `SupportAssessment` gains `disclosures`,
+  a list of typed `SupportReason`s for correct-but-surprising facts about
+  how a result was produced — `point_is_not_the_median`,
+  `constant_interval_width`, `conformal_residuals_pooled_across_selection`,
+  `coverage_sample_size`, `quantile_levels_collapsed`. A disclosure never
+  changes `status`; that is what separates it from a `reason`. The
+  free-text quantile-collapse entry moves out of `notes` into
+  `quantile_levels_collapsed`, so `notes` is empty where it used to carry
+  that one string. `summary.md` renders each disclosure on its own line.
+
+- Interval provenance, behavioural fix: points and intervals now always
+  come from the same model. Previously an admitted covariate model, an
+  adjudication winner, and a failed-TSFM fallback each published their
+  point path beside residuals belonging to a different model. Affected
+  runs — those using `--covariates`, enrichment adjudication, or a TSFM
+  that fails at final prediction — will report **different interval
+  widths**; the covariate path was measured at ~5.8x too wide. Point
+  forecasts are unchanged in every case. Runs on the default path (no
+  covariates, no context, no TSFM) are unaffected.
+
+- Conformal calibration scope, opt-in: `evaluation.pool_residuals` in
+  `aion.yaml` is now read. It defaults to `true`, which is the existing
+  behaviour — residuals pooled across the selection folds and the
+  calibration fold. Setting it `false` calibrates on the held-out
+  calibration fold alone: genuine split conformal, noisier, wider. Either
+  way the choice is disclosed on the result.
+
+- `snapshot_access` evidence, additive: gains `known_time_provenance`
+  (`recorded` | `assumed` | `partially_assumed`), read from ingest
+  provenance rather than inferred from the data. `known_time_assumed` keeps
+  its name, type, and meaning.
+
+- Ingest reports, additive: `IngestReport` gains `reverts_recorded`.
+  `duplicates_skipped` narrows to exact repeats of an existing vintage
+  (same `valid_time`, same `known_time`, same value); a restatement at a
+  new `known_time` is now recorded as the vintage it is rather than being
+  skipped. Stores built before this fix are missing any reverted vintages
+  they were offered; re-ingesting the source files recovers them.
+
+- Tracking schema 4, migrating: `forecasts` is keyed on
+  `(forecast_id, project, series)` and `model_performance` on
+  `(project, model, forecast_id, series)`. Existing databases migrate in
+  place on first open, preserving every row and score. `get_forecast`,
+  `score_forecast`, and `compare` gain optional `project`/`series`
+  arguments; called without them they resolve to the most recent
+  registration, which matches the old single-row behaviour. The unenforced
+  `decisions.forecast_id` foreign key is dropped, because SQLite requires a
+  uniquely-indexed parent key.
 
 ## Enforcement
 

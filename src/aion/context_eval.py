@@ -181,18 +181,31 @@ def eligible_events(
 def event_flags(
     events: list[ContextEvent], timestamps: list[datetime], cutoff: datetime
 ) -> list[bool]:
+    """Which periods an admissible event is active in.
+
+    Every comparison goes through ``constraints._align``: events must carry
+    an explicit offset while most datasets are naive, and comparing the two
+    directly raised a bare TypeError out of the forecast.
+    """
+    from .constraints import _align
+
     known = [
         event for event in events
-        if datetime.fromisoformat(event.known_at) <= cutoff
+        if _align(datetime.fromisoformat(event.known_at), cutoff)[0]
+        <= _align(datetime.fromisoformat(event.known_at), cutoff)[1]
     ]
     flags: list[bool] = []
     for timestamp in timestamps:
-        flags.append(any(
-            datetime.fromisoformat(event.effective_start)
-            <= timestamp
-            <= datetime.fromisoformat(event.effective_end)
-            for event in known
-        ))
+        active = False
+        for event in known:
+            start, moment = _align(
+                datetime.fromisoformat(event.effective_start), timestamp,
+            )
+            end, _ = _align(datetime.fromisoformat(event.effective_end), timestamp)
+            if start <= moment <= end:
+                active = True
+                break
+        flags.append(active)
     return flags
 
 
@@ -209,12 +222,12 @@ def assess_context(
     shrink: bool = False,
 ) -> ContextAssessment:
     eligible, excluded = eligible_events(events, series_name)
-    if timestamps and timestamps[0].tzinfo is None:
-        return ContextAssessment(
-            False, False,
-            ["dataset timestamps are timezone-naive; context events require timezone-aware data"],
-            events_excluded=excluded,
-        )
+    # A naive dataset used to disqualify context outright, which made the
+    # whole feature unreachable for every example this repo ships — events
+    # are required to carry an offset, and no shipped dataset does. Windows
+    # are now matched on wall-clock time (see `constraints._align`) and the
+    # assumption is disclosed on the result, rather than the capability
+    # being withdrawn.
     if not base.supported or base.selected_model is None:
         return ContextAssessment(
             False, False,

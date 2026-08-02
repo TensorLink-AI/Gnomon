@@ -47,6 +47,11 @@ def series_fingerprint(values: list[float], frequency: str | None = None) -> dic
         from .temporal import detect_season
         period, strength, source = detect_season(values, frequency)
         fingerprint["season_period"] = period
+        # In periods of the series' own frequency, not days: weekly data
+        # reporting `season_period: 7` means seven *weeks*, which is easy to
+        # misread sitting beside `frequency: W`.
+        fingerprint["season_period_unit"] = frequency
+        fingerprint["season_period_label"] = f"{period} x {frequency}"
         fingerprint["season_strength"] = round(strength, 4)
         fingerprint["season_source"] = source
     return fingerprint

@@ -38,6 +38,73 @@ from typing import Any, Callable, Protocol, runtime_checkable
 logger = logging.getLogger(__name__)
 
 
+# ---------------------------------------------------------------------------
+# Weight pinning
+# ---------------------------------------------------------------------------
+#
+# A ``forecast_id`` records the model *name*. Without a pinned revision the
+# same name denotes whatever weights the Hub served that day, so two runs
+# with the same id could publish different numbers — and the artifact store
+# is first-write-wins, which would silently discard the second. Every
+# adapter therefore loads at an explicit commit, and the commit actually
+# resolved is reported through ``resolved_weights`` so it can reach the id
+# payload and the evidence record.
+#
+# Resolved 2026-08-02 via ``HfApi().model_info(model_id).sha``. To move a
+# pin, re-resolve and re-run the TSFM benchmark: changing a revision changes
+# every forecast_id that selected the model, which is the intended effect.
+TSFM_REVISIONS: dict[str, str] = {
+    "amazon/chronos-bolt-mini": "251268337516a88e253628c43e1d26ec577b376b",
+    "amazon/chronos-bolt-small": "772f3d25d38aec6d914c8949dab4462e2d46f5d8",
+    "Datadog/Toto-2.0-22m": "685e4ae3e2be8d8998025e53dd98e7fdcb296a89",
+    "ibm-granite/granite-timeseries-ttm-r2": "d6a79570cac0f33d526601cd3a0fc7c80a8f9a2f",
+    "Salesforce/moirai-2.0-R-small": "30f43ff08c8494f4943ae1521e9d4e94a0fbb389",
+    "AutonLab/MOMENT-1-small": "411e288267f82cce86296dbe4d6c8bc533cc162f",
+    "ibm-granite/granite-timeseries-flowstate-r1": "05effc6cb39ee16dce9dd0064ed1a76e4b8ff464",
+}
+
+
+class UnpinnedWeights(RuntimeError):
+    """Raised when an adapter would load weights at an unpinned revision."""
+
+
+def pinned_revision(model_id: str) -> str:
+    """The commit an adapter must load ``model_id`` at.
+
+    Failing loudly beats loading whatever is current: an unpinned load
+    produces numbers that no id can honestly cover.
+    """
+    try:
+        return TSFM_REVISIONS[model_id]
+    except KeyError:
+        raise UnpinnedWeights(
+            f"No pinned revision for {model_id!r}. Add its commit sha to "
+            "TSFM_REVISIONS before the adapter may load it."
+        ) from None
+
+
+def resolved_weights(name: str) -> dict[str, str]:
+    """``{model_id: revision}`` for an adapter, for ids and evidence."""
+    model_ids = _ADAPTER_MODEL_IDS.get(name, ())
+    return {
+        model_id: TSFM_REVISIONS[model_id]
+        for model_id in model_ids if model_id in TSFM_REVISIONS
+    }
+
+
+#: Which Hub repos each adapter loads. Kept beside the revisions so a new
+#: adapter cannot quietly skip the pin.
+_ADAPTER_MODEL_IDS: dict[str, tuple[str, ...]] = {
+    "chronos_bolt_mini": ("amazon/chronos-bolt-mini",),
+    "chronos_bolt_small": ("amazon/chronos-bolt-small",),
+    "toto2_22m": ("Datadog/Toto-2.0-22m",),
+    "flowstate": ("ibm-granite/granite-timeseries-flowstate-r1",),
+    "ttm": ("ibm-granite/granite-timeseries-ttm-r2",),
+    "moirai2_small": ("Salesforce/moirai-2.0-R-small",),
+    "moment_small": ("AutonLab/MOMENT-1-small",),
+}
+
+
 @dataclass(frozen=True)
 class TSFMCapabilities:
     """Capabilities implemented and verified by an Aion adapter.
@@ -353,6 +420,7 @@ class ChronosBoltAdapter:
             from chronos import BaseChronosPipeline
             self._pipeline = BaseChronosPipeline.from_pretrained(
                 model_id,
+                revision=pinned_revision(model_id),
                 device_map="cpu",
                 torch_dtype=torch.float32,
             )
@@ -453,7 +521,9 @@ class Toto2Adapter:
         _try_import("toto2")
         try:
             from toto2 import Toto2Model
-            self._model = Toto2Model.from_pretrained(self._MODEL_ID)
+            self._model = Toto2Model.from_pretrained(
+                self._MODEL_ID, revision=pinned_revision(self._MODEL_ID),
+            )
             device = torch.device("cpu")
             self._model = self._model.to(device).eval()
         except TSFMUnavailable:
@@ -543,7 +613,9 @@ class FlowStateAdapter:
     supports_quantiles = True
 
     _MODEL_ID = "ibm-granite/granite-timeseries-flowstate-r1"
-    _REVISION = "r1.1"
+    #: The upstream branch the pinned commit was taken from. The load uses
+    #: the commit, not the branch: a branch can move under a fixed name.
+    _REVISION_BRANCH = "r1.1"
 
     _SCALE_FACTORS = {
         "h": 1.0,
@@ -565,7 +637,7 @@ class FlowStateAdapter:
             from tsfm_public import FlowStateForPrediction
             self._predictor = FlowStateForPrediction.from_pretrained(
                 self._MODEL_ID,
-                revision=self._REVISION,
+                revision=pinned_revision(self._MODEL_ID),
             )
             device = torch.device("cpu")
             self._predictor = self._predictor.to(device)
@@ -671,7 +743,9 @@ class TinyTimeMixerAdapter:
         _try_import("tsfm_public")
         try:
             from tsfm_public import TinyTimeMixerForPrediction
-            self._model = TinyTimeMixerForPrediction.from_pretrained(self._MODEL_ID)
+            self._model = TinyTimeMixerForPrediction.from_pretrained(
+                self._MODEL_ID, revision=pinned_revision(self._MODEL_ID),
+            )
         except TSFMUnavailable:
             raise
         except Exception as exc:
@@ -743,7 +817,9 @@ class Moirai2Adapter:
         _try_import("uni2ts")
         try:
             from uni2ts.model.moirai import Moirai2Forecast, Moirai2Module
-            module = Moirai2Module.from_pretrained(self._MODEL_ID)
+            module = Moirai2Module.from_pretrained(
+                self._MODEL_ID, revision=pinned_revision(self._MODEL_ID),
+            )
             self._model = Moirai2Forecast(
                 module=module,
                 prediction_length=1,  # set per-call
@@ -875,6 +951,7 @@ class MomentAdapter:
             from momentfm import MOMENTPipeline
             self._model = MOMENTPipeline.from_pretrained(
                 self._MODEL_ID,
+                revision=pinned_revision(self._MODEL_ID),
                 model_kwargs={
                     "task_name": "forecasting",
                     "forecast_horizon": 1,
@@ -933,7 +1010,8 @@ class MomentAdapter:
         try:
             from momentfm import MOMENTPipeline
             model = MOMENTPipeline.from_pretrained(
-                self._MODEL_ID, model_kwargs={"task_name": "reconstruction"},
+                self._MODEL_ID, revision=pinned_revision(self._MODEL_ID),
+                model_kwargs={"task_name": "reconstruction"},
             )
             model.init()
             return model
@@ -988,7 +1066,8 @@ class MomentAdapter:
         try:
             from momentfm import MOMENTPipeline
             model = MOMENTPipeline.from_pretrained(
-                self._MODEL_ID, model_kwargs={"task_name": "embedding"},
+                self._MODEL_ID, revision=pinned_revision(self._MODEL_ID),
+                model_kwargs={"task_name": "embedding"},
             )
             model.init()
             ts, input_mask, _, _ = self._windowed(history)

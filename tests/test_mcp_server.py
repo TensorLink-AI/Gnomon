@@ -48,6 +48,8 @@ def test_initialize_list_and_call() -> None:
         "aion_investigate_change", "aion_detect_anomalies", "aion_decide", "aion_monitor",
         "aion_get_artifact", "aion_explain_run",
         "aion_status", "aion_resolve_outcome", "aion_route",
+        # The bitemporal store, previously reachable only from the CLI.
+        "aion_ingest", "aion_list_datasets",
     }
     call = by_id[3]["result"]
     assert call["isError"] is False

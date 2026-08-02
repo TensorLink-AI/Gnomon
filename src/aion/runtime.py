@@ -36,6 +36,9 @@ def inspect_dataset(
     series_column: str | None = None,
     frequency: str | None = None,
     seasonal_period: int | None = None,
+    as_of: datetime | None = None,
+    store_path: str | None = None,
+    clock: Clock | None = None,
 ) -> dict[str, object]:
     # Diagnose, don't just reject: try the strict path, then each repair
     # level, and report what the file needs to become forecastable.
@@ -51,6 +54,7 @@ def inspect_dataset(
             loaded = load_stage(
                 input_path, time_column=time_column, target_column=target_column,
                 series_column=series_column, frequency=frequency,
+                as_of=as_of, store_path=store_path,
                 repair=level, repair_log=log,
             )
             repair_level_used = level
@@ -78,11 +82,46 @@ def inspect_dataset(
         }[repair_level_used],
     }
     repair_flag = " --repair aggressive" if repair_level_used == "aggressive" else ""
+    # A harness built on knowledge time should remark when every observation
+    # postdates now. It is not an error — synthetic and planning data are
+    # legitimate — but `status: valid` with no note read as endorsement.
+    now = (clock or SYSTEM_CLOCK).now()
+    latest = max(
+        (item.timestamp for items in loaded.groups.values() for item in items),
+        default=None,
+    )
+    if latest is not None:
+        # Most datasets are naive and the clock is aware, so compare wall
+        # clocks — the same alignment the context path makes, for the same
+        # reason: without it the check never fires on real input.
+        from .constraints import _align
+
+        latest, now = _align(latest, now)
+        if latest > now:
+            earliest = min(
+                item.timestamp for items in loaded.groups.values() for item in items
+            )
+            earliest, _ = _align(earliest, now)
+            data_quality["temporal_position"] = (
+                "entirely_in_the_future" if earliest > now else "extends_into_the_future"
+            )
+            data_quality["note"] += (
+                f" Every observation is dated after the current instant "
+                f"({now.isoformat()}); the series runs to {latest.isoformat()}. "
+                f"That is legitimate for synthetic or planning data and "
+                f"unusual otherwise."
+                if earliest > now else
+                f" The series extends past the current instant "
+                f"({now.isoformat()}) to {latest.isoformat()}."
+            )
     from .multivariate import correlation_report
     return {
         "schema_version": "0.1",
         "status": "valid",
-        "input_path": str(Path(input_path).expanduser().resolve()),
+        "input_path": (
+            input_path if input_path.startswith("store:")
+            else str(Path(input_path).expanduser().resolve())
+        ),
         "source_fingerprint": loaded.source_fingerprint,
         "columns": loaded.columns,
         "schema": {
@@ -141,6 +180,43 @@ def _config_fingerprint(config: Any) -> dict[str, object] | None:
     return payload
 
 
+def _restrict_candidates(config: Any, candidates: list[str]):
+    """A copy of ``config`` whose candidate pool is the named models.
+
+    Baselines are added back unconditionally: a candidate is selected by
+    beating them, so a pool without them has nothing to select against.
+    """
+    import copy as copy_module
+
+    from .config import load_config
+    from .contracts import AionError
+    from .models import BASELINES, MODELS
+    from .tsfm import available_tsfms
+
+    known_tsfms = set(available_tsfms())
+    unknown = [
+        name for name in candidates
+        if name not in MODELS and name not in known_tsfms
+    ]
+    if unknown:
+        raise AionError(
+            "UNKNOWN_MODEL",
+            f"candidates names models that do not exist: "
+            f"{', '.join(sorted(unknown))}.",
+            {"unknown": sorted(unknown),
+             "available": sorted(set(MODELS) | known_tsfms)},
+        )
+    resolved = copy_module.deepcopy(config) if config is not None else load_config()
+    statistical = [
+        name for name in candidates if name in MODELS and name not in BASELINES
+    ]
+    resolved.models.statistical_candidates = statistical or None
+    resolved.models.tsfm_candidates = [
+        name for name in candidates if name in known_tsfms
+    ]
+    return resolved
+
+
 def forecast(
     input_path: str,
     *,
@@ -163,8 +239,17 @@ def forecast(
     as_of: datetime | None = None,
     store_path: str | None = None,
     repair: str = "safe",
+    candidates: list[str] | None = None,
 ) -> tuple[ForecastArtifact, Path]:
     clock = clock or SYSTEM_CLOCK
+    if candidates:
+        # `aion route`'s output, made actionable. The router answered "which
+        # method for this task?" and nothing consumed the answer: forecast
+        # had no model parameter at all, so even a confident recommendation
+        # could not be acted on. Restricting the pool is advisory in the
+        # right way — the named candidates still backtest against the
+        # mandatory baselines, which are never removable.
+        config = _restrict_candidates(config, candidates)
     from .repair import REPAIR_LEVELS, REPAIR_SAFE, RepairLog
     if repair not in REPAIR_LEVELS:
         from .contracts import AionError
@@ -187,6 +272,19 @@ def forecast(
     # When both enrichment kinds are supplied, neither ablation stage applies
     # its own winner; the adjudication ladder owns the choice.
     adjudicating = bool(context_events) and covariates is not None
+    # `evaluation.uncertainty.target_coverage`, previously parsed and never
+    # read: every run published an 80% interval whatever the config said.
+    from .evaluation import DEFAULT_TARGET_COVERAGE
+    target_coverage = DEFAULT_TARGET_COVERAGE
+    if config is not None and getattr(config, "evaluation", None) is not None:
+        target_coverage = float(
+            getattr(config.evaluation, "target_coverage", DEFAULT_TARGET_COVERAGE)
+        )
+    if covariates is not None:
+        # Bind the run's boundary to the covariate snapshot before anything
+        # reads it, so leakage control is a property of the object rather
+        # than of every call site remembering to pass a cutoff.
+        covariates.bind_as_of(as_of)
     repair_log = RepairLog()
     loaded: LoadedDataset = load_stage(
         input_path, time_column=time_column, target_column=target_column,
@@ -267,12 +365,15 @@ def forecast(
             state.warnings.extend(repair_warnings)
         rows, support, threshold_analysis = interval_stage(
             state, threshold=threshold, context_events=context_events,
+            target_coverage=target_coverage,
         )
         assessment = state.assessment
         from .support import assess_forecast_support
         support_assessment = assess_forecast_support(
             support, state.warnings, assessment,
             known_time_assumed=loaded.snapshot.assumed_known_time,
+            disclosures=state.disclosures,
+            measured_coverage=state.coverage,
         )
         result = SeriesResult(
             series_name, support, state.selected_model, assessment.strongest_baseline,
@@ -290,6 +391,16 @@ def forecast(
                 "partitioning": "selection folds, then calibration fold, then final test fold",
                 "selection_scores": assessment.selection_scores,
                 "test_scores": assessment.test_scores,
+                # The verifier gates probability-bearing claims on these,
+                # so they have to be *in* the calibration record rather
+                # than only in the result beside it.
+                "measured_interval_coverage": state.coverage,
+                "baseline_improvement": assessment.improvement,
+                "strongest_baseline": assessment.strongest_baseline,
+                "selected_model": state.selected_model,
+                "residuals_pooled_across_selection":
+                    assessment.residuals_pooled_across_selection,
+                "residual_fold_count": assessment.residual_fold_count,
             }),
             Evidence(f"support:{series_name}", "support_assessment", series_name, {
                 "support": support, "warnings": state.warnings,
@@ -300,9 +411,37 @@ def forecast(
             "data_repair", "data_repair", "__all__",
             {"level": repair, **repair_log.summary()},
         ))
+    snapshot_access: dict[str, object] = dict(loaded.snapshot.access_summary())
+    if covariates is not None:
+        # Merge the covariate reads in, so the `max_known_time` the
+        # verifier's leakage check reads covers every source the run
+        # consulted rather than the target series alone.
+        covariate_access = covariates.access_summary()
+        snapshot_access["accesses"] = list(snapshot_access.get("accesses", [])) + [
+            {**entry, "source": "covariates"}
+            for entry in covariate_access.get("accesses", [])
+        ]
+        snapshot_access["covariate_as_of"] = covariate_access.get("as_of")
     evidence.append(Evidence(
-        "snapshot", "snapshot_access", "__all__", loaded.snapshot.access_summary(),
+        "snapshot", "snapshot_access", "__all__", snapshot_access,
     ))
+    # A selected TSFM's weights are part of what produced the numbers, so
+    # they belong in the id and in the evidence. Without this the id covers
+    # the model *name* only, and two runs at different Hub revisions could
+    # publish different forecasts under one id.
+    from .tsfm import resolved_weights
+    selected_weights = {
+        model: weights
+        for model in sorted({
+            item.selected_model for item in results if item.selected_model
+        })
+        if (weights := resolved_weights(model))
+    }
+    if selected_weights:
+        evidence.append(Evidence(
+            "model_weights", "model_weights", "__all__",
+            {"pinned_revisions": selected_weights},
+        ))
     id_payload: dict[str, object] = {
         "source": loaded.source_fingerprint,
         "as_of": as_of.isoformat() if as_of else None,
@@ -325,6 +464,10 @@ def forecast(
         # The default level is absent from the payload so IDs predating the
         # repair layer are unchanged.
         id_payload["repair"] = repair
+    if selected_weights:
+        # Absent when no TSFM was selected, so ids for baseline and
+        # statistical selections are unchanged by this addition.
+        id_payload["model_weights"] = selected_weights
     forecast_id = content_id("forecast", id_payload)
     artifact = ForecastArtifact(
         "0.1", forecast_id, clock.now().isoformat(),
@@ -342,7 +485,10 @@ def forecast(
     lineage = build_forecast_lineage(artifact, temporal_task)
     # No response leaves the process unverified — including our own.
     verify_or_raise(lineage, as_of=task.as_of)
-    return artifact, write_artifact(artifact, output, lineage=lineage.to_dict())
+    return artifact, write_artifact(
+        artifact, output, lineage=lineage.to_dict(),
+        output_config=getattr(config, "output", None),
+    )
 
 
 def _has_module(name: str) -> bool:
