@@ -300,10 +300,29 @@ def context_stage(
         f"context_ablation:{state.name}", "context_ablation", state.name,
         state.context_public,
     ))
+    # The gate's own decisions, countable: how many events were supplied,
+    # how many survived eligibility, and which condition decided the
+    # outcome. Admission rate cannot be measured across a corpus from
+    # prose reasons alone.
+    state.evidence.append(Evidence(
+        f"context_gate:{state.name}", "context_gate", state.name,
+        {
+            "events_supplied": len(context_events),
+            "events_eligible": len(context.events_used),
+            "events_excluded": len(context.events_excluded),
+            "admitted": context.admitted,
+            "checks": context.gate_checks,
+            "decided_by": next(
+                (check["code"] for check in context.gate_checks
+                 if not check["passed"]), None,
+            ),
+        },
+    ))
     if context.admitted and apply:
         state.selected_model = CONTEXT_MODEL_NAME
         state.points = context.points
         state.residuals = context.residuals
+        state.residuals_by_lead = dict(context.residuals_by_lead)
         state.coverage = context.coverage
         state.warnings = list(context.warnings)
 

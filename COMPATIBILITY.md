@@ -179,6 +179,17 @@ Error envelope: `{"schema_version", "status": "error", "error": {"code",
   for callers holding one pooled quantile set. Goldens refreshed:
   quantile columns only.
 
+- Gate instrumentation + interval-aware coverage veto, additive: a new
+  `context_gate` evidence record per series with context events, and
+  `context.gate_checks` in the public context dict (each entry: `code`,
+  `passed`, and where applicable `measured`, `threshold`, `detail`).
+  Existing `reasons` strings are unchanged and still populated. The
+  coverage condition now triggers on the Wilson upper bound of measured
+  coverage rather than the point estimate, so it fires only when the
+  degradation exceeds the measurement's own uncertainty — strictly fewer
+  spurious rejections; no previously-rejected-for-cause run is admitted
+  on any other condition.
+
 ## Enforcement
 
 `tests/test_golden_artifacts.py` pins byte-exact `artifact.json` output for

@@ -148,3 +148,62 @@ def test_invalid_context_file_fails_loudly(tmp_path, capsys) -> None:
     ]) == 2
     error = json.loads(capsys.readouterr().err)
     assert error["error"]["code"] == "INVALID_CONTEXT_EVENT"
+
+
+def test_wilson_upper_bounds_a_noisy_proportion() -> None:
+    from aion.context_eval import wilson_upper
+
+    # Four of five covered: the upper bound stays high, so a coverage
+    # veto cannot fire on five points of sampling noise alone.
+    assert wilson_upper(4, 5) > 0.9
+    # The same proportion measured on 500 points is known far better.
+    assert wilson_upper(400, 500) < 0.85
+    assert wilson_upper(0, 0) == 1.0
+
+
+def test_gate_records_every_check_and_names_the_decider(tmp_path) -> None:
+    csv_path = tmp_path / "promo.csv"
+    _write_csv(csv_path, 130)
+    artifact, _ = forecast(
+        str(csv_path), time_column="timestamp", target_column="requests",
+        horizon=7, frequency="D", output=str(tmp_path / "out"),
+        context_events=_events(140),
+    )
+    gate = [record for record in artifact.evidence
+            if record.kind == "context_gate"]
+    assert len(gate) == 1
+    payload = gate[0].payload
+    assert payload["events_supplied"] > 0
+    assert payload["admitted"] is True
+    # An admitted run records the conditions it passed, not only failures.
+    codes = {check["code"] for check in payload["checks"]}
+    assert {"events_eligible", "mean_improvement_meets_margin",
+            "majority_of_folds_improve"} <= codes
+    assert all(check["passed"] for check in payload["checks"])
+    assert payload["decided_by"] is None
+
+
+def test_gate_names_the_condition_that_rejected(tmp_path) -> None:
+    csv_path = tmp_path / "promo.csv"
+    _write_csv(csv_path, 130)
+    unsourced = [
+        ContextEvent(
+            event_id=event.event_id, event_type=event.event_type,
+            entity_scope=event.entity_scope,
+            effective_start=event.effective_start,
+            effective_end=event.effective_end, known_at=event.known_at,
+        )
+        for event in _events(140)
+    ]
+    artifact, _ = forecast(
+        str(csv_path), time_column="timestamp", target_column="requests",
+        horizon=7, frequency="D", output=str(tmp_path / "out2"),
+        context_events=unsourced,
+    )
+    payload = [r for r in artifact.evidence if r.kind == "context_gate"][0].payload
+    assert payload["admitted"] is False
+    # Every supplied event failed eligibility, and the record says so with
+    # counts rather than only in prose.
+    assert payload["events_supplied"] > 0
+    assert payload["events_eligible"] == 0
+    assert payload["decided_by"] == "events_eligible"

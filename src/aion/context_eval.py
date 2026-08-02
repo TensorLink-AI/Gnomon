@@ -25,11 +25,35 @@ from typing import Any
 
 from .context import ContextEvent, backtest_admissible, event_applies
 from .context_model import event_adjusted
-from .evaluation import Evaluation, error_score, interval_bounds, quantile
+from .evaluation import (
+    Evaluation,
+    conformal_spreads,
+    error_score,
+    interval_from_spread,
+)
 from .models import predict
 
 COVERAGE_DEGRADATION_LIMIT = 0.1
 CONTEXT_MODEL_NAME = "event_adjusted"
+
+
+def wilson_upper(successes: float, trials: int, z: float = 1.96) -> float:
+    """Upper bound of a Wilson score interval for a proportion.
+
+    Coverage is measured on one test fold — a handful of points — so the
+    point estimate is noisy enough that a veto based on it fires on
+    sampling error alone. Comparing the *upper* bound against the policy
+    limit means admission is refused only when the degradation is larger
+    than the measurement's own uncertainty.
+    """
+    if trials <= 0:
+        return 1.0
+    proportion = successes / trials
+    denominator = 1 + z * z / trials
+    centre = proportion + z * z / (2 * trials)
+    margin = z * ((proportion * (1 - proportion) / trials
+                   + z * z / (4 * trials * trials)) ** 0.5)
+    return min(1.0, (centre + margin) / denominator)
 
 
 @dataclass
@@ -44,7 +68,26 @@ class ContextAssessment:
     coverage: float | None = None
     residuals: list[float] = field(default_factory=list)
     points: list[float] = field(default_factory=list)
+    residuals_by_lead: dict[int, list[float]] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
+    # One entry per gate condition evaluated, whether it passed or not, with
+    # the number it was decided on. `reasons` says what went wrong in prose;
+    # this says what was measured, so admission rates and rejection causes
+    # are countable across a run rather than parsed out of sentences.
+    gate_checks: list[dict[str, Any]] = field(default_factory=list)
+
+    def record_check(self, code: str, passed: bool, *, measured: Any = None,
+                     threshold: Any = None, detail: str | None = None) -> None:
+        entry: dict[str, Any] = {"code": code, "passed": passed}
+        if measured is not None:
+            entry["measured"] = measured
+        if threshold is not None:
+            entry["threshold"] = threshold
+        if detail:
+            entry["detail"] = detail
+        self.gate_checks.append(entry)
+        if not passed and detail:
+            self.reasons.append(detail)
 
     def to_public_dict(self) -> dict[str, Any]:
         return {
@@ -57,6 +100,7 @@ class ContextAssessment:
             "fold_improvements": self.fold_improvements,
             "mean_improvement": self.mean_improvement,
             "measured_coverage": self.coverage,
+            "gate_checks": self.gate_checks,
         }
 
 
@@ -121,24 +165,31 @@ def assess_context(
             events_excluded=excluded,
         )
     if not eligible:
-        return ContextAssessment(
-            True, False, ["no admissible events apply to this series"],
-            events_excluded=excluded,
+        assessment = ContextAssessment(True, False, [], events_excluded=excluded)
+        assessment.record_check(
+            "events_eligible", False, measured=0, threshold=1,
+            detail="no admissible events apply to this series",
         )
+        return assessment
 
     # Replay the exact partitioning used by evaluate(): earlier folds select,
     # the penultimate fold calibrates, the final fold reports.
     minimum_train = max(2 * season, 2 * horizon, 8)
     origins = list(range(minimum_train, len(values) - horizon + 1, horizon))
     if len(origins) < 4:
-        return ContextAssessment(
-            True, False,
-            ["history evaluation ran in degraded mode (fewer than four rolling "
-             "folds); context ablation requires fully separated selection, "
-             "calibration, and test folds"],
+        assessment = ContextAssessment(
+            True, False, [],
             events_used=[event.event_id for event in eligible],
             events_excluded=excluded,
         )
+        assessment.record_check(
+            "separated_folds_available", False,
+            measured=len(origins), threshold=4,
+            detail="history evaluation ran in degraded mode (fewer than four "
+                   "rolling folds); context ablation requires fully separated "
+                   "selection, calibration, and test folds",
+        )
+        return assessment
     selection_origins, calibration_origin, test_origin = origins[:-2], origins[-2], origins[-1]
 
     improvements: list[float] = []
@@ -152,12 +203,16 @@ def assess_context(
                 event_flags(eligible, timestamps[origin : origin + horizon], cutoff),
             )
         except ValueError as exc:
-            return ContextAssessment(
-                True, False,
-                [f"context candidate failed a selection fold: {exc}"],
+            assessment = ContextAssessment(
+                True, False, [],
                 events_used=[event.event_id for event in eligible],
                 events_excluded=excluded,
             )
+            assessment.record_check(
+                "candidate_fits_every_fold", False, measured=str(exc),
+                detail=f"context candidate failed a selection fold: {exc}",
+            )
+            return assessment
         base_score = error_score(actual, predict(base.selected_model, values[:origin], horizon, season))
         context_score = error_score(actual, context_prediction)
         # Symmetric relative improvement, bounded to [-1, 1]: a fold where
@@ -176,20 +231,37 @@ def assess_context(
         mean_improvement=mean(improvements),
     )
 
-    if assessment.mean_improvement < minimum_improvement:
-        assessment.reasons.append(
-            f"mean fold improvement {assessment.mean_improvement:.3f} is below the "
-            f"required margin {minimum_improvement}"
-        )
+    assessment.record_check(
+        "events_eligible", True, measured=len(eligible), threshold=1,
+    )
+    assessment.record_check(
+        "separated_folds_available", True, measured=len(origins), threshold=4,
+    )
+    assessment.record_check(
+        "candidate_fits_every_fold", True, measured=len(improvements),
+    )
+    assessment.record_check(
+        "mean_improvement_meets_margin",
+        assessment.mean_improvement >= minimum_improvement,
+        measured=round(assessment.mean_improvement, 6),
+        threshold=minimum_improvement,
+        detail=(f"mean fold improvement {assessment.mean_improvement:.3f} is below "
+                f"the required margin {minimum_improvement}"),
+    )
     improved = sum(1 for value in improvements if value > 0)
-    if improved * 2 <= len(improvements):
-        assessment.reasons.append(
-            f"only {improved} of {len(improvements)} folds improved; a majority is required"
-        )
+    assessment.record_check(
+        "majority_of_folds_improve", improved * 2 > len(improvements),
+        measured=improved, threshold=len(improvements) // 2 + 1,
+        detail=(f"only {improved} of {len(improvements)} folds improved; "
+                "a majority is required"),
+    )
     if len(improvements) > 1:
         without_single_best = sorted(improvements)[:-1]
-        if mean(without_single_best) <= 0:
-            assessment.reasons.append("the gain is confined to a single fold")
+        assessment.record_check(
+            "gain_survives_best_fold", mean(without_single_best) > 0,
+            measured=round(mean(without_single_best), 6), threshold=0.0,
+            detail="the gain is confined to a single fold",
+        )
 
     # Calibrate and measure coverage with context before deciding, so a
     # coverage regression can veto admission.
@@ -203,7 +275,13 @@ def assess_context(
     assessment.residuals = [
         actual - predicted for actual, predicted in zip(calibration_actual, calibration_prediction)
     ]
-    residual_quantiles = {p: quantile(assessment.residuals, p) for p in (0.1, 0.5, 0.9)}
+    assessment.residuals_by_lead = {
+        step: [residual]
+        for step, residual in enumerate(assessment.residuals, 1)
+    }
+    spreads = conformal_spreads(
+        assessment.residuals_by_lead, horizon, assessment.residuals,
+    )
 
     test_cutoff = timestamps[test_origin - 1]
     test_prediction = event_adjusted(
@@ -214,12 +292,27 @@ def assess_context(
     test_actual = values[test_origin : test_origin + horizon]
     covered = []
     for step, (actual, prediction) in enumerate(zip(test_actual, test_prediction), 1):
-        low, _, high = interval_bounds(prediction, residual_quantiles, step)
+        spread = spreads.get(step)
+        if spread is None:
+            continue
+        low, _, high = interval_from_spread(prediction, spread)
         covered.append(1.0 if low <= actual <= high else 0.0)
-    assessment.coverage = mean(covered)
-    if base.coverage is not None and assessment.coverage < base.coverage - COVERAGE_DEGRADATION_LIMIT:
-        assessment.reasons.append(
-            f"interval coverage degraded from {base.coverage:.1%} to {assessment.coverage:.1%}"
+    assessment.coverage = mean(covered) if covered else None
+    if base.coverage is not None and assessment.coverage is not None:
+        # Veto on the interval, not the point estimate: with one test fold
+        # of `horizon` points, a coverage drop well inside sampling noise
+        # would otherwise reject context that never degraded anything.
+        limit = base.coverage - COVERAGE_DEGRADATION_LIMIT
+        upper = wilson_upper(sum(covered), len(covered))
+        assessment.record_check(
+            "coverage_not_degraded", upper >= limit,
+            measured={"coverage": round(assessment.coverage, 4),
+                      "upper_bound": round(upper, 4),
+                      "points": len(covered)},
+            threshold=round(limit, 4),
+            detail=(f"interval coverage degraded from {base.coverage:.1%} to "
+                    f"{assessment.coverage:.1%} (upper bound {upper:.1%}, "
+                    f"below the {limit:.1%} policy limit)"),
         )
 
     if assessment.reasons:

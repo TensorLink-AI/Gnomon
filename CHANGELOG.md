@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- The context admission gate now reports itself. Every run with context
+  events emits a `context_gate` evidence record: how many events were
+  supplied, how many survived eligibility, each condition the gate
+  evaluated with the number it was decided on, and which condition
+  decided a rejection. Admission rate and rejection causes are countable
+  across a corpus instead of being parsed out of prose reasons.
+- The gate's coverage veto compares a Wilson upper bound rather than a
+  point estimate. Coverage is measured on one test fold of `horizon`
+  points, where a drop well inside sampling noise could previously veto
+  context that degraded nothing.
+
 - Forecast intervals are now split-conformal per lead time. The previous
   bounds took residuals pooled across a whole horizon and widened them by
   `sqrt(step)` — but pooled residuals already contain lead-time growth, so
