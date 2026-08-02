@@ -1,0 +1,11 @@
+{
+  "benchmark": "temporalbench",
+  "code_revision": "fe72125",
+  "command": "/root/Aion/.venv/bin/python -m benchmarks.temporalbench.run_temporalbench --condition control --data-dir ~/temporalbench --tiers T2,T4 --model z-ai/glm-5.2 --temperature 0.2 --output-dir results/rerun/tb-control --limit 50",
+  "condition": "control",
+  "config_path": "benchmarks/configs/glm52.yaml",
+  "limit": 50,
+  "model": "z-ai/glm-5.2",
+  "run_name": "tb-control",
+  "status": "ok"
+}

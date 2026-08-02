@@ -1,0 +1,27 @@
+AION_ABSTAINED: AMBIGUOUS_FREQUENCY: Could not infer a supported regular frequency. Supported: min (1 minute), 5min (5 minutes), 15min (15 minutes), 30min (30 minutes), h (hourly), D (daily), W (weekly), MS (month start)
+Traceback (most recent call last):
+  File "/root/Aion/benchmarks/cik/aion_forecaster.py", line 266, in __call__
+    artifact, _ = aion_forecast(
+                  ^^^^^^^^^^^^^^
+  File "/root/Aion/src/aion/runtime.py", line 191, in forecast
+    loaded: LoadedDataset = load_stage(
+                            ^^^^^^^^^^^
+  File "/root/Aion/src/aion/pipeline.py", line 128, in load_stage
+    groups, resolved_frequency, zone = validate_and_group(observations, frequency)
+                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/Aion/src/aion/temporal.py", line 120, in validate_and_group
+    frequency = normalise_frequency(requested_frequency) if requested_frequency else infer_frequency(
+                                                                                     ^^^^^^^^^^^^^^^^
+  File "/root/Aion/src/aion/temporal.py", line 100, in infer_frequency
+    raise AionError(
+aion.contracts.AionError: Could not infer a supported regular frequency. Supported: min (1 minute), 5min (5 minutes), 15min (15 minutes), 30min (30 minutes), h (hourly), D (daily), W (weekly), MS (month start)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/root/Aion/.venv-cik/lib/python3.12/site-packages/cik_benchmark/evaluation.py", line 161, in evaluate_task
+    samples = method_callable(task_instance=task, n_samples=n_samples)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/Aion/benchmarks/cik/aion_forecaster.py", line 275, in __call__
+    raise AionAbstained([f"{error.code}: {error.message}"]) from error
+benchmarks.cik.aion_forecaster.AionAbstained: AION_ABSTAINED: AMBIGUOUS_FREQUENCY: Could not infer a supported regular frequency. Supported: min (1 minute), 5min (5 minutes), 15min (15 minutes), 30min (30 minutes), h (hourly), D (daily), W (weekly), MS (month start)

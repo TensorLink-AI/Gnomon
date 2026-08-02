@@ -1,0 +1,13 @@
+{'adapter': 'AionForecaster_mode=pure_model=none',
+ 'context': None,
+ 'proposal_notes': [],
+ 'proposed_events': [],
+ 'selected_model': 'theta',
+ 'strongest_baseline': 'last_value',
+ 'support': 'degraded',
+ 'total_time': 0.02012181282043457,
+ 'warnings': ['Limited evaluation: only 2 rolling folds were available; 192 '
+              'observations enable fully separated selection, calibration, and '
+              'test windows.',
+              'Limited evaluation: no held-out test fold remained, so interval '
+              'coverage is unmeasured.']}

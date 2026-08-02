@@ -1,0 +1,12 @@
+{'adapter': 'AionForecaster_mode=pure_model=none',
+ 'context': None,
+ 'proposal_notes': [],
+ 'proposed_events': [],
+ 'selected_model': 'seasonal_naive',
+ 'strongest_baseline': 'seasonal_naive',
+ 'support': 'degraded',
+ 'total_time': 0.0052373409271240234,
+ 'warnings': ['Degraded forecast: model selection used a single trailing '
+              '12-observation holdout; rolling-origin calibration and final '
+              'testing were unavailable. At least 96 observations (have 48) '
+              'are needed for separated selection and calibration.']}
