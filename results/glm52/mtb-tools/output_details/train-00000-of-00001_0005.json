@@ -1,0 +1,360 @@
+{
+  "filename": "train-00000-of-00001_0005.json",
+  "ground_truth": [
+    138.9,
+    138.26,
+    138.005,
+    139.04,
+    137.25,
+    138.36,
+    138.37,
+    140.0,
+    141.7,
+    141.61,
+    141.03,
+    140.93,
+    140.62,
+    139.07,
+    139.11,
+    139.27,
+    139.01,
+    138.28,
+    138.58,
+    138.19,
+    138.39,
+    138.275,
+    138.95,
+    138.41,
+    138.155,
+    138.23,
+    139.28,
+    139.51,
+    138.28,
+    138.63,
+    138.9582,
+    139.235,
+    138.38
+  ],
+  "predict": [
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143,
+    144.6810142857143
+  ],
+  "mse": 32.94096945405703,
+  "mae": 5.642583982683995,
+  "rmse": 5.739422397250182,
+  "mape": 4.06417409183121,
+  "failed": false,
+  "support": "degraded",
+  "selected_model": "window_average",
+  "events": [],
+  "forecast_ref": "fc1",
+  "forecasts_computed": 3,
+  "tool_calls": 7,
+  "submit_reasoning": "The price history shows a downtrend from ~150 to ~140 over 124 bars with no detected seasonality (strength 0.0) and no anomalies. All four context events extracted from the article (gas price surge, jet fuel spike, travel demand recovery, travel plan cancellations) were rejected by the ablation gate \u2014 the system could not map their ISO dates to bars in the price history, so they provided no additional signal. Both the history-only and event-informed runs selected the window_average model and produced identical flat forecasts of 144.681. Support is degraded (124 bars vs. 132 needed for full calibration), but this is the best available forecast. The flat 144.681 level sits between the recent recovery (~140) and the series mean (~140.3), reflecting the window average model's assessment.",
+  "trace": [
+    {
+      "tool": "series_stats",
+      "arguments": {},
+      "result": {
+        "count": 124,
+        "mean": 140.328279,
+        "std": 6.553976,
+        "min": 128.53,
+        "max": 150.73,
+        "first": 150.19,
+        "last": 140.13,
+        "coefficient_of_variation": 0.046705
+      }
+    },
+    {
+      "tool": "detect_season",
+      "arguments": {},
+      "result": {
+        "period_bars": 7,
+        "strength": 0.0,
+        "basis": "frequency_default"
+      }
+    },
+    {
+      "tool": "aion_detect_anomalies",
+      "arguments": {},
+      "result": {
+        "detector": "robust_zscore",
+        "selection_basis": "synthetic_injection_f1",
+        "support": "supported",
+        "anomaly_count": 0,
+        "anomalies": []
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "note": "History-only baseline forecast for comparison"
+      },
+      "result": {
+        "forecast_ref": "fc1",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "window_average",
+        "strongest_baseline": "seasonal_naive",
+        "warnings": [
+          "Degraded forecast: model selection used a single trailing 31-observation holdout; rolling-origin calibration and final testing were unavailable. At least 132 observations (have 124) are needed for separated selection and calibration."
+        ],
+        "events_proposed": 0,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [],
+        "forecast": [
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681
+        ]
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "note": "Event-informed forecast with gas price surge and travel demand context from article",
+        "context_events": [
+          {
+            "name": "gas_price_surge",
+            "start": "2022-02-24",
+            "end": "2022-03-20",
+            "description": "National average gas price rose from $3.48 to $4.32 per gallon following Russian invasion of Ukraine, highest level in years"
+          },
+          {
+            "name": "jet_fuel_price_spike",
+            "start": "2022-02-24",
+            "end": "2022-03-20",
+            "description": "Jet fuel prices increased to highest level since 2014 in wake of Russia-Ukraine conflict"
+          },
+          {
+            "name": "travel_demand_recovery",
+            "start": "2022-02-01",
+            "end": "2022-03-20",
+            "description": "Travel demand up significantly as omicron variant subsides, people booking trips after two years of pandemic"
+          },
+          {
+            "name": "travel_plan_cancellations",
+            "start": "2022-03-01",
+            "end": "2022-03-20",
+            "description": "Americans cancelling or rethinking spring and summer vacation plans due to high gas and travel prices"
+          }
+        ]
+      },
+      "result": {
+        "forecast_ref": "fc2",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "window_average",
+        "strongest_baseline": "seasonal_naive",
+        "warnings": [
+          "Degraded forecast: model selection used a single trailing 31-observation holdout; rolling-origin calibration and final testing were unavailable. At least 132 observations (have 124) are needed for separated selection and calibration."
+        ],
+        "events_proposed": 4,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [
+          "proposal 1 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 2 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 3 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 4 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''"
+        ],
+        "forecast": [
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681
+        ]
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "context_events": [
+          {
+            "name": "gas_price_surge",
+            "start": "2022-02-24T00:00:00Z",
+            "end": "2022-03-20T23:59:59Z",
+            "description": "National average gas price rose from $3.48 to $4.32 per gallon following Russian invasion of Ukraine, highest level in years"
+          },
+          {
+            "name": "jet_fuel_price_spike",
+            "start": "2022-02-24T00:00:00Z",
+            "end": "2022-03-20T23:59:59Z",
+            "description": "Jet fuel prices increased to highest level since 2014 in wake of Russia-Ukraine conflict"
+          },
+          {
+            "name": "travel_demand_recovery",
+            "start": "2022-02-01T00:00:00Z",
+            "end": "2022-03-20T23:59:59Z",
+            "description": "Travel demand up significantly as omicron variant subsides, people booking trips after two years of pandemic"
+          },
+          {
+            "name": "travel_plan_cancellations",
+            "start": "2022-03-01T00:00:00Z",
+            "end": "2022-03-20T23:59:59Z",
+            "description": "Americans cancelling or rethinking spring and summer vacation plans due to high gas and travel prices"
+          }
+        ],
+        "note": "Event-informed forecast with proper ISO-8601 timestamps for gas price surge and travel demand context"
+      },
+      "result": {
+        "forecast_ref": "fc3",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "window_average",
+        "strongest_baseline": "seasonal_naive",
+        "warnings": [
+          "Degraded forecast: model selection used a single trailing 31-observation holdout; rolling-origin calibration and final testing were unavailable. At least 132 observations (have 124) are needed for separated selection and calibration."
+        ],
+        "events_proposed": 4,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [
+          "proposal 1 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 2 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 3 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 4 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''"
+        ],
+        "forecast": [
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681,
+          144.681
+        ]
+      }
+    },
+    {
+      "tool": "submit_forecast",
+      "arguments": {
+        "forecast_ref": "fc1",
+        "reasoning": "The price history shows a downtrend from ~150 to ~140 over 124 bars with no detected seasonality (strength 0.0) and no anomalies. All four context events extracted from the article (gas price surge, jet fuel spike, travel demand recovery, travel plan cancellations) were rejected by the ablation gate \u2014 the system could not map their ISO dates to bars in the price history, so they provided no additional signal. Both the history-only and event-informed runs selected the window_average model and produced identical flat forecasts of 144.681. Support is degraded (124 bars vs. 132 needed for full calibration), but this is the best available forecast. The flat 144.681 level sits between the recent recovery (~140) and the series mean (~140.3), reflecting the window average model's assessment."
+      },
+      "result": {
+        "accepted": true,
+        "forecast_ref": "fc1",
+        "steps": 33
+      }
+    }
+  ]
+}

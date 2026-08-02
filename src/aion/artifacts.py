@@ -36,8 +36,20 @@ def write_artifact(
             with (temporary / "lineage.json").open("w", encoding="utf-8") as handle:
                 json.dump(lineage, handle, indent=2, allow_nan=False)
                 handle.write("\n")
+        # The first six columns are the frozen ones and keep their order and
+        # meaning; any additional quantile levels the run emitted are appended
+        # after them, so a reader that indexes the leading columns is
+        # unaffected and one that reads by header name gains the rest.
+        from .evaluation import QUANTILE_LEVELS, quantile_key
+
+        core = ["series", "timestamp", "point", "q10", "q50", "q90"]
+        present = {key for result in artifact.results
+                   for row in result.forecast for key in row}
+        extra = [quantile_key(level) for level in QUANTILE_LEVELS
+                 if quantile_key(level) in present
+                 and quantile_key(level) not in core]
         with (temporary / "forecast.csv").open("w", encoding="utf-8", newline="") as handle:
-            writer = csv.DictWriter(handle, fieldnames=["series", "timestamp", "point", "q10", "q50", "q90"])
+            writer = csv.DictWriter(handle, fieldnames=core + extra)
             writer.writeheader()
             for result in artifact.results:
                 for row in result.forecast:

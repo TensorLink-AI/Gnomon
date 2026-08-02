@@ -268,3 +268,214 @@ class TestEvaluationWithConfig:
             frequency="h", config=cfg,
         )
         assert result.supported is True
+
+
+class TestEnsembleCalibrationPartitions:
+    """The ensemble must be calibrated like every other candidate.
+
+    Before this, the ensemble path pooled residuals from a trailing window
+    of the series — which overlaps both the calibration fold and the
+    report-only test fold — so the published interval width for every
+    ensemble result was derived from data the design forbids choosing on.
+    """
+
+    @staticmethod
+    def _series():
+        import math
+        return [100.0 + 10 * math.sin(i / 6) + 0.5 * i + (i % 5) for i in range(200)]
+
+    def test_ensemble_residuals_exclude_the_test_fold(self):
+        from aion.config import AionConfig, EnsembleConfig
+        from aion.evaluation import evaluate, _origins
+
+        horizon, season = 12, 12
+        values = self._series()
+        cfg = AionConfig()
+        cfg.ensemble = EnsembleConfig(enabled=True, min_models=2)
+        result = evaluate(
+            values, horizon=horizon, season=season, minimum_improvement=0.02,
+            frequency="h", config=cfg,
+        )
+        residuals = (result.residuals if result.selected_model == "ensemble"
+                     else result.ensemble_residuals)
+        assert residuals, "the ensemble must be calibrated on the folds"
+        origins = _origins(len(values), horizon, max(2 * season, 2 * horizon, 8))
+        # Selection folds plus the calibration fold. The final origin is the
+        # test fold and contributes nothing.
+        assert len(residuals) == (len(origins) - 1) * horizon
+
+    def test_forcing_the_ensemble_still_calibrates_on_folds(self, tmp_path):
+        """`--selection-strategy ensemble` overrides selection, not honesty."""
+        import csv
+        from datetime import datetime, timedelta
+        from aion.runtime import forecast
+
+        path = tmp_path / "series.csv"
+        start = datetime(2024, 1, 1)
+        with path.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.writer(handle)
+            writer.writerow(["timestamp", "value"])
+            for index, value in enumerate(self._series()):
+                writer.writerow([(start + timedelta(hours=index)).isoformat(), value])
+
+        artifact, _ = forecast(
+            str(path), time_column="timestamp", target_column="value",
+            horizon=12, selection_strategy="ensemble",
+            output=str(tmp_path / "out"),
+        )
+        result = artifact.results[0]
+        assert result.support == "supported_ensemble"
+        assert result.forecast, "an ensemble forecast must still carry intervals"
+        assert all(row["q10"] <= row["point"] <= row["q90"] for row in result.forecast)
+
+
+class TestSelectionStride:
+    """Selection folds and calibration folds answer to different rules.
+
+    Overlapping folds are legitimate for selection -- candidates are still
+    compared on identical windows, and the extra comparisons cut variance.
+    They are not legitimate for calibration: residuals from overlapping
+    windows are dependent, and a conformal quantile that treats n of them as
+    n independent draws is anti-conservative by exactly the amount it
+    over-counts.
+    """
+
+    @staticmethod
+    def _series(count=260):
+        import math
+        return [100 + 20 * math.sin(2 * math.pi * i / 12) + 0.3 * i + (i % 7)
+                for i in range(count)]
+
+    def test_default_is_non_overlapping(self):
+        from aion.evaluation import evaluate
+
+        values = self._series()
+        base = evaluate(values, 12, 12, 0.02, frequency="h")
+        explicit = evaluate(values, 12, 12, 0.02, frequency="h",
+                            selection_stride=12)
+        assert base.selected_model == explicit.selected_model
+        assert base.residuals == explicit.residuals
+
+    def test_stride_does_not_change_calibration_residuals(self):
+        from aion.evaluation import evaluate
+
+        values = self._series()
+        sparse = evaluate(values, 12, 12, 0.02, frequency="h")
+        dense = evaluate(values, 12, 12, 0.02, frequency="h", selection_stride=3)
+        if sparse.selected_model != dense.selected_model:
+            pytest.skip("stride changed the selection; residuals describe "
+                        "different models and are not comparable")
+        assert dense.residuals == sparse.residuals, (
+            "calibration must stay on the non-overlapping skeleton whatever "
+            "stride selection uses"
+        )
+
+    def test_no_selection_fold_reads_the_calibration_or_test_partition(self):
+        from aion.evaluation import _origins, dense_selection_origins
+
+        horizon, season, length = 12, 12, 260
+        minimum_train = max(2 * season, 2 * horizon, 8)
+        origins = _origins(length, horizon, minimum_train)
+        calibration_origin = origins[-2]
+        for stride in (1, 2, 3, 5, 12):
+            dense = dense_selection_origins(minimum_train, origins[:-2][-1], stride)
+            assert dense, stride
+            # Each fold's target window is [origin, origin + horizon).
+            assert max(dense) + horizon <= calibration_origin, (
+                f"stride {stride} lets a selection fold read the calibration "
+                f"partition"
+            )
+
+
+class TestQuantileLevelsAndPinball:
+    """Nine levels, and a distributional loss available but not default.
+
+    q10/q50/q90 keep their exact meaning *and their exact values* — the same
+    order statistics of the same residuals, fitted the same way. The rest are
+    additional keys.
+    """
+
+    @staticmethod
+    def _series(count=260):
+        import math
+        return [100 + 20 * math.sin(2 * math.pi * i / 12) + 0.3 * i + (i % 7)
+                for i in range(count)]
+
+    def test_generalised_spreads_reproduce_the_frozen_three(self):
+        import random
+
+        from aion.evaluation import (
+            conformal_quantile_spreads,
+            conformal_spreads,
+            interval_from_spread,
+            quantiles_from_spread,
+        )
+
+        rng = random.Random(3)
+        for _ in range(50):
+            horizon = rng.randint(3, 14)
+            by_lead = {
+                step: [rng.gauss(0, 1 + step * 0.3)
+                       for _ in range(rng.choice([1, 2, 5, 8, 13, 30]))]
+                for step in range(1, horizon + 1)
+            }
+            old = conformal_spreads(by_lead, horizon)
+            new = conformal_quantile_spreads(by_lead, horizon)
+            for step in range(1, horizon + 1):
+                low, centre, high = interval_from_spread(100.0, old[step])
+                levels = quantiles_from_spread(100.0, new[step])
+                assert abs(levels["q10"] - low) < 1e-12
+                assert abs(levels["q50"] - centre) < 1e-12
+                assert abs(levels["q90"] - high) < 1e-12
+
+    def test_levels_are_ordered_within_every_lead(self):
+        import random
+
+        from aion.evaluation import conformal_quantile_spreads, quantiles_from_spread
+
+        rng = random.Random(11)
+        for _ in range(50):
+            horizon = rng.randint(3, 14)
+            by_lead = {
+                step: [rng.gauss(0, 1 + step * 0.3)
+                       for _ in range(rng.choice([1, 3, 9, 25]))]
+                for step in range(1, horizon + 1)
+            }
+            spreads = conformal_quantile_spreads(by_lead, horizon)
+            for step in range(1, horizon + 1):
+                values = [value for _, value in
+                          sorted(quantiles_from_spread(0.0, spreads[step]).items())]
+                assert values == sorted(values), (step, values)
+
+    def test_pinball_loss_is_minimised_at_the_true_quantile(self):
+        from aion.evaluation import pinball_loss
+
+        # For level 0.9, under-predicting must be cheaper to avoid than
+        # over-predicting: the loss is asymmetric in that direction.
+        assert pinball_loss(10.0, 8.0, 0.9) > pinball_loss(10.0, 12.0, 0.9)
+        assert pinball_loss(10.0, 8.0, 0.1) < pinball_loss(10.0, 12.0, 0.1)
+        assert pinball_loss(10.0, 10.0, 0.5) == 0.0
+
+    def test_default_selection_loss_is_unchanged(self):
+        from aion.evaluation import evaluate
+
+        values = self._series()
+        default = evaluate(values, 12, 12, 0.02, frequency="h")
+        explicit = evaluate(values, 12, 12, 0.02, frequency="h",
+                            selection_loss="wape")
+        assert default.selected_model == explicit.selected_model
+        assert default.pinball_scores == {}, (
+            "the distributional score is opt-in; computing it by default "
+            "would change nothing but cost every run"
+        )
+
+    def test_pinball_scores_are_reported_when_requested(self):
+        from aion.evaluation import evaluate
+
+        result = evaluate(self._series(), 12, 12, 0.02, frequency="h",
+                          selection_loss="pinball")
+        assert result.supported
+        assert result.pinball_scores
+        assert any(value is not None for value in result.pinball_scores.values())
+        # The point scores are reported alongside, never replaced.
+        assert result.selection_scores

@@ -55,6 +55,30 @@ report Aion's abstention and its recovery options. See the
 workflow, and the full tool surface. (A `pip install aion-forecast` /
 `uvx aion-forecast` path arrives with the PyPI release.)
 
+## Relation to prior work
+
+Two recent systems share vocabulary with this one, and one shares the
+name. They solve a different half of the problem.
+
+**AION** (Zhan et al., [arXiv:2605.25045](https://arxiv.org/abs/2605.25045))
+and **TimeClaw** ([arXiv:2606.05404](https://arxiv.org/abs/2606.05404))
+are agent-side scaffolding: an LLM plans, critiques, and reviews its own
+time-series reasoning, and the quality of the answer rests on the quality
+of that review. The name collision with AION is coincidental and
+unresolved; nothing here is derived from it.
+
+This project is the other actor. It is the deterministic execution layer
+an agent calls: the LLM proposes, and Aion validates the proposal,
+computes every number itself, and refuses when the data cannot carry the
+question. Leakage safety is structural rather than reviewed — a snapshot
+cannot serve rows published after its `as_of`, so a backtest cannot see
+the future even if the agent asks it to. Model choice is decided by
+backtest against mandated baselines, not by argument.
+
+The two are complementary: better agent-side reasoning proposes better
+candidates; this decides which of them survive contact with the data.
+
+
 ## Why Aion exists
 
 Wire an LLM agent to your operational data and it will, sooner or later:

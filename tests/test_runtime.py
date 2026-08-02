@@ -126,10 +126,15 @@ def test_intervals_widen_with_the_horizon(tmp_path: Path) -> None:
         output=str(tmp_path / "output"),
     )
     rows = artifact.results[0].forecast
-    first_width = rows[0]["q90"] - rows[0]["q10"]
-    last_width = rows[-1]["q90"] - rows[-1]["q10"]
-    assert first_width > 0
-    assert last_width == pytest.approx(first_width * 24 ** 0.5, rel=1e-6)
+    widths = [row["q90"] - row["q10"] for row in rows]
+    assert widths[0] > 0
+    # Intervals widen with the horizon because the residuals at longer
+    # leads are wider, not because a sqrt(h) factor says they must: the
+    # spread is measured per lead time and fitted monotone, so it never
+    # narrows with distance and is not pinned to any closed form.
+    assert all(later >= earlier - 1e-9
+               for earlier, later in zip(widths, widths[1:]))
+    assert widths[-1] > widths[0]
 
 
 def test_threshold_analysis_reports_crossings(tmp_path: Path) -> None:

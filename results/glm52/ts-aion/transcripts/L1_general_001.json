@@ -1,0 +1,284 @@
+{
+  "task_id": "L1_general_001",
+  "tier": "L1",
+  "condition": "aion-tools",
+  "turns": [
+    {
+      "user_turn_id": 1,
+      "question": "I have a dataset that appears to be a time series classification problem \u2014 each row has a timestamp, a label column, and 150 sequential feature columns t_0 through t_149. Can you profile the structure, frequency, and basic value ranges?",
+      "response": "Here's a comprehensive profile of your dataset:\n\n---\n\n## Dataset Structure\n\n| Property | Value |\n|---|---|\n| **Rows** | 40 |\n| **Columns** | 152 (`date`, `label`, `t_0` \u2026 `t_149`) |\n| **Time span** | `2020-01-01 00:00:00` \u2192 `2020-01-02 15:00:00` |\n| **Sampling frequency** | Hourly (1 row per hour) |\n| **Missing values** | 0 (all sampled columns report `count: 40` with no missing count) |\n\n---\n\n## Label Column\n\n| Stat | Value |\n|---|---|\n| Mean | 1.525 |\n| Std | 0.506 |\n| Min / Max | 1.0 / 2.0 |\n\nThe label is **binary** (classes 1 and 2), with a slight class imbalance favoring class 2 (mean 1.525 \u2192 ~47.5% class 1, ~52.5% class 2).\n\n---\n\n## Feature Columns (t_0 \u2026 t_149)\n\nEach row contains a **150-step sequential signal**. The sampled columns reveal a clear **wave-like trajectory** across the 150 steps:\n\n| Column | Mean | Std | Min | Max | CV |\n|---|---|---|---|---|---|\n| `t_0` (start) | \u22120.996 | 0.344 | \u22122.013 | \u22120.546 | \u22120.345 |\n| `t_25` | \u22120.663 | 0.527 | \u22121.834 | 0.729 | \u22120.794 |\n| `t_50` (mid) | 0.581 | 0.638 | \u22120.658 | 1.416 | 1.098 |\n| `t_75` (peak region) | 1.366 | 0.437 | 0.584 | 2.030 | 0.320 |\n| `t_100` | 0.304 | 0.674 | \u22121.036 | 1.332 | 2.220 |\n| `t_125` | \u22120.679 | 0.470 | \u22121.302 | 0.606 | \u22120.691 |\n| `t_149` (end) | \u22120.979 | 0.309 | \u22121.899 | \u22120.566 | \u22120.315 |\n\n**Key observations:**\n\n1. **Wave shape**: The mean values trace a clear oscillation \u2014 starting negative (~\u22121.0), rising through the middle to a peak around `t_75` (~1.37), then declining back to negative (~\u22120.98) by `t_149`. This suggests each row is a single cycle of a periodic waveform.\n\n2. **Variability peaks mid-sequence**: The coefficient of variation is highest at `t_100` (2.22) and `t_50` (1.10), meaning the discriminative signal between classes is likely strongest in the transition/rising/falling phases rather than at the extremes.\n\n3. **Value range**: Across all sampled columns, values span roughly **\u22122.01 to +2.03**, with no extreme outliers.\n\n---\n\n## Seasonality / Temporal Structure\n\n| Column | Dominant Period (obs) | Strength | Basis |\n|---|---|---|---|\n| `t_0` | 16 | 0.356 | Autocorrelation |\n| `t_50` | 24 | 0.0 | Frequency default |\n| `t_75` | 24 | 0.0 | Frequency default |\n\n- `t_0` shows a **weak 16-hour periodicity** (strength 0.356), suggesting some hourly-level pattern in the starting values of the sequences.\n- `t_50` and `t_75` show **no meaningful seasonality** (strength 0.0, defaulting to a 24-hour period), which is expected since these are intra-sequence positions, not time-of-day features.\n\n---\n\n## Summary\n\nThis is a **binary time-series classification** dataset with 40 hourly samples, each containing a 150-point waveform. The waveforms follow a consistent oscillatory pattern (negative \u2192 positive peak \u2192 negative), and the between-class variation is most pronounced in the mid-sequence transition regions. The data is clean (no missing values) and compact in range (roughly [\u22122, +2]).",
+      "tool_calls": [
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_0"
+          },
+          "result": {
+            "column": "t_0",
+            "count": 40,
+            "mean": -0.996453,
+            "std": 0.343582,
+            "min": -2.0125806,
+            "max": -0.54634534,
+            "coefficient_of_variation": -0.344806,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_25"
+          },
+          "result": {
+            "column": "t_25",
+            "count": 40,
+            "mean": -0.663074,
+            "std": 0.526665,
+            "min": -1.8339233,
+            "max": 0.72926097,
+            "coefficient_of_variation": -0.794279,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_50"
+          },
+          "result": {
+            "column": "t_50",
+            "count": 40,
+            "mean": 0.580985,
+            "std": 0.637931,
+            "min": -0.65765851,
+            "max": 1.4160413,
+            "coefficient_of_variation": 1.098016,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_75"
+          },
+          "result": {
+            "column": "t_75",
+            "count": 40,
+            "mean": 1.36602,
+            "std": 0.437403,
+            "min": 0.58449404,
+            "max": 2.029597,
+            "coefficient_of_variation": 0.320202,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_100"
+          },
+          "result": {
+            "column": "t_100",
+            "count": 40,
+            "mean": 0.303534,
+            "std": 0.673955,
+            "min": -1.0362467,
+            "max": 1.3317525,
+            "coefficient_of_variation": 2.22036,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_125"
+          },
+          "result": {
+            "column": "t_125",
+            "count": 40,
+            "mean": -0.67917,
+            "std": 0.469542,
+            "min": -1.3022339,
+            "max": 0.60601163,
+            "coefficient_of_variation": -0.691347,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_149"
+          },
+          "result": {
+            "column": "t_149",
+            "count": 40,
+            "mean": -0.979469,
+            "std": 0.308682,
+            "min": -1.898637,
+            "max": -0.56639294,
+            "coefficient_of_variation": -0.315152,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "label"
+          },
+          "result": {
+            "column": "label",
+            "count": 40,
+            "mean": 1.525,
+            "std": 0.505736,
+            "min": 1.0,
+            "max": 2.0,
+            "coefficient_of_variation": 0.33163,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "detect_season",
+          "arguments": {
+            "column": "t_0"
+          },
+          "result": {
+            "column": "t_0",
+            "period_observations": 16,
+            "strength": 0.3563,
+            "basis": "autocorrelation"
+          }
+        },
+        {
+          "tool": "detect_season",
+          "arguments": {
+            "column": "t_50"
+          },
+          "result": {
+            "column": "t_50",
+            "period_observations": 24,
+            "strength": 0.0,
+            "basis": "frequency_default"
+          }
+        },
+        {
+          "tool": "detect_season",
+          "arguments": {
+            "column": "t_75"
+          },
+          "result": {
+            "column": "t_75",
+            "period_observations": 24,
+            "strength": 0.0,
+            "basis": "frequency_default"
+          }
+        }
+      ],
+      "verdict": {
+        "scored": true,
+        "passed": true,
+        "basis": "mechanical"
+      }
+    },
+    {
+      "user_turn_id": 3,
+      "question": "Good. Since this is binary classification, the class balance probably matters \u2014 skewed classes would mean stratified splitting is essential. Can you compute the class distribution and compare the peak amplitudes between classes to see whether the pulse shapes differ?",
+      "response": "Now I have the label distribution and peak-region statistics. Let me compile the findings.\n\n## Class Distribution\n\nFrom the `label` column stats (count: 40, mean: 1.525, min: 1.0, max: 2.0):\n\n| Class | Count | Proportion |\n|---|---|---|\n| 1 | 19 | 47.5% |\n| 2 | 21 | 52.5% |\n\nThe classes are **nearly balanced** (52.5% vs 47.5%), so while stratified splitting is still good practice, severe class imbalance is not a concern here.\n\n---\n\n## Peak Region Analysis (t_70 \u2013 t_80)\n\nThe aggregate statistics across all 40 rows for the peak region:\n\n| Column | Mean | Std | Min | Max | CV |\n|---|---|---|---|---|---|\n| `t_70` | 1.366 | 0.432 | 0.593 | 2.044 | 0.316 |\n| `t_72` | 1.367 | 0.436 | 0.592 | 2.047 | 0.319 |\n| `t_75` | 1.366 | 0.437 | 0.584 | 2.030 | 0.320 |\n| `t_78` | 1.361 | 0.434 | 0.587 | 2.024 | 0.319 |\n| `t_80` | 1.346 | 0.420 | 0.579 | 2.030 | 0.312 |\n\nThe peak is broad and flat across t_70\u2013t_78 (means all ~1.36), with a gentle decline starting at t_80.\n\n---\n\n## Anomaly Detection at Peak\n\nThe anomaly detector (robust z-score, selected via synthetic injection F1) ran on `t_75` and found **0 anomalies** across all 40 rows. This means no single row's peak value is a statistical outlier \u2014 the spread is driven by systematic between-class (or between-group) variation, not by individual anomalous rows.\n\n---\n\n## Can We Compare Peak Amplitudes by Class?\n\n**Limitation**: The available tools compute aggregate statistics over all rows and do not support filtering by the `label` column, so I cannot directly produce per-class means or standard deviations from a tool result.\n\nHowever, I can point to **individual data points visible in the CSV** that illustrate the contrast:\n\n| Timestamp | Label | `t_75` value |\n|---|---|---|\n| 2020-01-01 04:00:00 | 2 | 2.0245 |\n| 2020-01-01 14:00:00 | 2 | 2.0169 |\n| 2020-01-02 10:00:00 | 2 | 1.9911 |\n| 2020-01-01 12:00:00 | 1 | 1.0845 |\n| 2020-01-01 13:00:00 | 1 | 1.1733 |\n| 2020-01-02 05:00:00 | 1 | 0.9612 |\n\nThis suggests **class 2 tends to have higher peak amplitudes** (approaching ~2.0) while class 1 peaks are more moderate (~1.0\u20131.2), but I want to be clear: this is a qualitative observation from individual visible rows, not a tool-computed per-class statistic.\n\n---\n\n## What the Aggregate Stats Tell Us Indirectly\n\nThe standard deviation at the peak (~0.437) relative to the mean (~1.366) gives a CV of 0.320. Combined with the fact that **no anomalies were detected**, this spread is consistent with a **bimodal distribution** \u2014 two distinct groups (classes) contributing different peak heights \u2014 rather than a single normal distribution with outliers.\n\nFor a rigorous per-class comparison, you would need to either:\n1. Split the dataset by label and run the tools on each subset, or\n2. Use a classification model to directly assess feature importance at peak positions.\n\nWould you like me to run forecasts or anomaly detection on any other columns to further characterize the shape differences?",
+      "tool_calls": [
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_70"
+          },
+          "result": {
+            "column": "t_70",
+            "count": 40,
+            "mean": 1.366043,
+            "std": 0.432059,
+            "min": 0.59309784,
+            "max": 2.0435828,
+            "coefficient_of_variation": 0.316285,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_72"
+          },
+          "result": {
+            "column": "t_72",
+            "count": 40,
+            "mean": 1.367264,
+            "std": 0.435602,
+            "min": 0.59248627,
+            "max": 2.0474175,
+            "coefficient_of_variation": 0.318594,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_78"
+          },
+          "result": {
+            "column": "t_78",
+            "count": 40,
+            "mean": 1.36109,
+            "std": 0.434486,
+            "min": 0.58656158,
+            "max": 2.0243333,
+            "coefficient_of_variation": 0.319219,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "series_stats",
+          "arguments": {
+            "column": "t_80"
+          },
+          "result": {
+            "column": "t_80",
+            "count": 40,
+            "mean": 1.346323,
+            "std": 0.419737,
+            "min": 0.57859558,
+            "max": 2.0298266,
+            "coefficient_of_variation": 0.311765,
+            "first_timestamp": "2020-01-01 00:00:00",
+            "last_timestamp": "2020-01-02 15:00:00"
+          }
+        },
+        {
+          "tool": "aion_detect_anomalies",
+          "arguments": {
+            "column": "t_75"
+          },
+          "result": {
+            "detector": "robust_zscore",
+            "selection_basis": "synthetic_injection_f1",
+            "support": "supported",
+            "anomalies": [],
+            "anomaly_count": 0
+          }
+        }
+      ],
+      "verdict": {
+        "scored": true,
+        "passed": true,
+        "basis": "mechanical"
+      }
+    }
+  ]
+}

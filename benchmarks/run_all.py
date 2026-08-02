@@ -41,6 +41,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from benchmarks.common.manifest import write_manifest  # noqa: E402
+
 # Which shared defaults each adapter's CLI can accept. "limit_flag"
 # names the adapter's closest equivalent of a sample cap.
 REGISTRY: dict[str, dict[str, Any]] = {
@@ -52,7 +56,10 @@ REGISTRY: dict[str, dict[str, Any]] = {
     },
     "anomllm": {
         "module": "benchmarks.anomllm.run_anomllm",
-        "accepts": set(),  # own layout: everything is explicit in args
+        # Own layout: no output dir or task cap, and the model flag names
+        # the control condition it serves.
+        "accepts": {"model"},
+        "model_key": "control_model",
         "limit_flag": None,
     },
     "mtbench": {
@@ -67,6 +74,13 @@ REGISTRY: dict[str, dict[str, Any]] = {
     },
     "temporalbench": {
         "module": "benchmarks.temporalbench.run_temporalbench",
+        "accepts": {"model", "temperature", "output_dir"},
+        "limit_flag": "--limit",
+    },
+    "leaktrap": {
+        # Tasks are generated from (seed, horizon, history), not downloaded,
+        # so this adapter needs no data directory.
+        "module": "benchmarks.leaktrap.run_leaktrap",
         "accepts": {"model", "temperature", "output_dir"},
         "limit_flag": "--limit",
     },
@@ -111,8 +125,9 @@ def build_command(run: dict[str, Any], config: dict[str, Any]) -> list[str]:
         accepts = {"model", "temperature"}
         limit_flag = None
 
-    if "model" in accepts and "model" not in args and config.get("model"):
-        args["model"] = config["model"]
+    model_key = spec.get("model_key", "model")
+    if "model" in accepts and model_key not in args and config.get("model"):
+        args[model_key] = config["model"]
     if "temperature" in accepts and "temperature" not in args \
             and "temperature" in defaults:
         args["temperature"] = defaults["temperature"]
@@ -132,6 +147,10 @@ def build_command(run: dict[str, Any], config: dict[str, Any]) -> list[str]:
             command.extend([flag, str(value)])
     command.extend(str(item) for item in positional)
     return command
+
+
+def benchmark_of(run: dict[str, Any]) -> str | None:
+    return run.get("benchmark")
 
 
 def summary_path(run: dict[str, Any], config: dict[str, Any]) -> Path | None:
@@ -156,9 +175,16 @@ def main() -> int:
                         help="comma list of run names to execute")
     parser.add_argument("--continue-on-error", action="store_true",
                         help="keep going when a run exits non-zero")
+    parser.add_argument("--output-root", default=None,
+                        help="override the config's output_root, for running "
+                             "the same config twice in different environments "
+                             "(e.g. with and without TSFM sandboxes installed)")
     args = parser.parse_args()
 
     config = load_config(Path(args.config))
+    if args.output_root:
+        config["output_root"] = args.output_root
+    args_config_path = args.config
     runs = config.get("runs") or []
     if not runs:
         raise SystemExit("config has no 'runs'")
@@ -187,6 +213,23 @@ def main() -> int:
         outcome: dict[str, Any] = {"name": name, "command": printable,
                                    "status": status}
         path = summary_path(run, config)
+        if path is not None:
+            # Record what this arm was, so a later comparison can refuse
+            # to put it next to an arm that answered other questions.
+            args = dict(run.get("args") or {})
+            write_manifest(
+                path.parent,
+                benchmark=benchmark_of(run),
+                run_name=name,
+                condition=(args.get("condition") or args.get("method")
+                           or args.get("mode") or args.get("subcommand")),
+                target=run.get("target") or args.get("indicator"),
+                model=config.get("model"),
+                command=printable,
+                config_path=args_config_path,
+                limit=(config.get("defaults") or {}).get("limit"),
+                status=status,
+            )
         if path and path.exists():
             outcome["summary"] = json.loads(path.read_text(encoding="utf-8"))
         outcomes.append(outcome)

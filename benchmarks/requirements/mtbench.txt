@@ -1,0 +1,7 @@
+# MTBench: the official evaluation scripts import these at module level.
+# The vendor LLM SDKs (openai/anthropic/google-generativeai) are NOT needed —
+# benchmarks.mtbench.openrouter_patch stubs them, since every send function
+# it would build a client for is replaced by the OpenRouter routing.
+-r base.txt
+matplotlib>=3.8      # evaluation/utils.py
+scikit-learn>=1.4    # evaluation/utils.py

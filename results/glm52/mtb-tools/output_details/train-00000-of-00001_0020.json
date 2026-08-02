@@ -1,0 +1,436 @@
+{
+  "filename": "train-00000-of-00001_0020.json",
+  "ground_truth": [
+    3.75,
+    3.86,
+    3.77,
+    3.79,
+    3.86,
+    3.9165,
+    3.89,
+    4.08,
+    4.0,
+    4.08,
+    4.151,
+    4.085,
+    3.96,
+    3.91,
+    3.69,
+    3.66,
+    3.61,
+    3.54,
+    3.57,
+    3.5305,
+    3.46,
+    3.56,
+    3.6579,
+    3.605,
+    3.605,
+    3.59,
+    3.68,
+    4.0441,
+    4.18,
+    4.21,
+    4.165,
+    4.2099,
+    4.175
+  ],
+  "predict": [
+    3.5424906097658435,
+    3.51884719891313,
+    3.495203788060417,
+    3.471560377207704,
+    3.4479169663549905,
+    3.4242735555022774,
+    3.4006301446495644,
+    3.376986733796851,
+    3.353343322944138,
+    3.329699912091425,
+    3.3060565012387113,
+    3.2824130903859983,
+    3.2587696795332852,
+    3.235126268680572,
+    3.2114828578278587,
+    3.1878394469751457,
+    3.1641960361224326,
+    3.140552625269719,
+    3.116909214417006,
+    3.093265803564293,
+    3.06962239271158,
+    3.0459789818588665,
+    3.0223355710061535,
+    2.9986921601534404,
+    2.975048749300727,
+    2.951405338448014,
+    2.927761927595301,
+    2.9041185167425874,
+    2.8804751058898743,
+    2.8568316950371613,
+    2.833188284184448,
+    2.8095448733317347,
+    2.7859014624790217
+  ],
+  "mse": 0.5762904773530985,
+  "mae": 0.6795888123624161,
+  "rmse": 0.7591379830788988,
+  "mape": 17.35671283658639,
+  "failed": false,
+  "support": "degraded",
+  "selected_model": "drift",
+  "events": [],
+  "forecast_ref": "fc1",
+  "forecasts_computed": 4,
+  "tool_calls": 8,
+  "trace": [
+    {
+      "tool": "series_stats",
+      "arguments": {},
+      "result": {
+        "count": 130,
+        "mean": 5.084582,
+        "std": 0.651562,
+        "min": 3.52,
+        "max": 6.86,
+        "first": 6.86,
+        "last": 3.81,
+        "coefficient_of_variation": 0.128145
+      }
+    },
+    {
+      "tool": "detect_season",
+      "arguments": {},
+      "result": {
+        "period_bars": 7,
+        "strength": 0.0,
+        "basis": "frequency_default"
+      }
+    },
+    {
+      "tool": "aion_detect_anomalies",
+      "arguments": {},
+      "result": {
+        "detector": "robust_zscore",
+        "selection_basis": "synthetic_injection_f1",
+        "support": "supported",
+        "anomaly_count": 0,
+        "anomalies": []
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "note": "History-only baseline forecast for FCEL"
+      },
+      "result": {
+        "forecast_ref": "fc1",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "drift",
+        "strongest_baseline": "seasonal_naive",
+        "warnings": [
+          "Degraded forecast: model selection used a single trailing 32-observation holdout; rolling-origin calibration and final testing were unavailable. At least 132 observations (have 130) are needed for separated selection and calibration."
+        ],
+        "events_proposed": 0,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [],
+        "forecast": [
+          3.5425,
+          3.5188,
+          3.4952,
+          3.4716,
+          3.4479,
+          3.4243,
+          3.4006,
+          3.377,
+          3.3533,
+          3.3297,
+          3.3061,
+          3.2824,
+          3.2588,
+          3.2351,
+          3.2115,
+          3.1878,
+          3.1642,
+          3.1406,
+          3.1169,
+          3.0933,
+          3.0696,
+          3.046,
+          3.0223,
+          2.9987,
+          2.975,
+          2.9514,
+          2.9278,
+          2.9041,
+          2.8805,
+          2.8568,
+          2.8332,
+          2.8095,
+          2.7859
+        ]
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "context_events": [
+          {
+            "name": "zacks_rank_sell",
+            "start": "2022-01-24",
+            "description": "FuelCell Energy is currently a Zacks Rank #4 (Sell), indicating negative analyst sentiment"
+          },
+          {
+            "name": "eps_estimate_revision_down",
+            "start": "2022-01-24",
+            "description": "Over the past month, the Zacks Consensus EPS estimate has moved 60.71% lower, reflecting analyst pessimism"
+          },
+          {
+            "name": "upcoming_earnings",
+            "start": "2022-01-24",
+            "description": "FuelCell Energy nearing its next earnings release, expected EPS of -$0.04 and revenue of $26.11 million"
+          },
+          {
+            "name": "recent_decline",
+            "start": "2022-01-24",
+            "description": "Shares have lost 39.63% in the past month, underperforming the Oils-Energy sector which gained 9%"
+          }
+        ],
+        "note": "Event-informed forecast incorporating article context: Zacks Rank Sell, downward EPS revisions, upcoming earnings"
+      },
+      "result": {
+        "forecast_ref": "fc2",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "drift",
+        "strongest_baseline": "seasonal_naive",
+        "warnings": [
+          "Degraded forecast: model selection used a single trailing 32-observation holdout; rolling-origin calibration and final testing were unavailable. At least 132 observations (have 130) are needed for separated selection and calibration."
+        ],
+        "events_proposed": 4,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [
+          "proposal 1 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 2 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 3 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 4 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''"
+        ],
+        "forecast": [
+          3.5425,
+          3.5188,
+          3.4952,
+          3.4716,
+          3.4479,
+          3.4243,
+          3.4006,
+          3.377,
+          3.3533,
+          3.3297,
+          3.3061,
+          3.2824,
+          3.2588,
+          3.2351,
+          3.2115,
+          3.1878,
+          3.1642,
+          3.1406,
+          3.1169,
+          3.0933,
+          3.0696,
+          3.046,
+          3.0223,
+          2.9987,
+          2.975,
+          2.9514,
+          2.9278,
+          2.9041,
+          2.8805,
+          2.8568,
+          2.8332,
+          2.8095,
+          2.7859
+        ]
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "context_events": [
+          {
+            "name": "zacks_rank_sell",
+            "start": "2022-01-24T00:00:00Z",
+            "end": "2022-01-24T23:59:59Z",
+            "description": "FuelCell Energy is currently a Zacks Rank #4 (Sell), indicating negative analyst sentiment"
+          },
+          {
+            "name": "eps_estimate_revision_down",
+            "start": "2022-01-24T00:00:00Z",
+            "end": "2022-01-24T23:59:59Z",
+            "description": "Over the past month, the Zacks Consensus EPS estimate has moved 60.71% lower, reflecting analyst pessimism"
+          },
+          {
+            "name": "upcoming_earnings",
+            "start": "2022-01-24T00:00:00Z",
+            "end": "2022-02-28T23:59:59Z",
+            "description": "FuelCell Energy nearing its next earnings release, expected EPS of -$0.04 and revenue of $26.11 million"
+          },
+          {
+            "name": "recent_decline",
+            "start": "2022-01-24T00:00:00Z",
+            "end": "2022-01-24T23:59:59Z",
+            "description": "Shares have lost 39.63% in the past month, underperforming the Oils-Energy sector which gained 9%"
+          }
+        ],
+        "note": "Event-informed forecast with proper ISO-8601 timestamps: Zacks Rank Sell, downward EPS revisions, upcoming earnings, recent sharp decline"
+      },
+      "result": {
+        "forecast_ref": "fc3",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "drift",
+        "strongest_baseline": "seasonal_naive",
+        "warnings": [
+          "Degraded forecast: model selection used a single trailing 32-observation holdout; rolling-origin calibration and final testing were unavailable. At least 132 observations (have 130) are needed for separated selection and calibration."
+        ],
+        "events_proposed": 4,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [
+          "proposal 1 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 2 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 3 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 4 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''"
+        ],
+        "forecast": [
+          3.5425,
+          3.5188,
+          3.4952,
+          3.4716,
+          3.4479,
+          3.4243,
+          3.4006,
+          3.377,
+          3.3533,
+          3.3297,
+          3.3061,
+          3.2824,
+          3.2588,
+          3.2351,
+          3.2115,
+          3.1878,
+          3.1642,
+          3.1406,
+          3.1169,
+          3.0933,
+          3.0696,
+          3.046,
+          3.0223,
+          2.9987,
+          2.975,
+          2.9514,
+          2.9278,
+          2.9041,
+          2.8805,
+          2.8568,
+          2.8332,
+          2.8095,
+          2.7859
+        ]
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "note": "Event-informed forecast with start-only timestamps: Zacks Rank Sell, downward EPS revisions, upcoming earnings, recent sharp decline",
+        "context_events": [
+          {
+            "name": "zacks_rank_sell",
+            "start": "2022-01-24T00:00:00Z",
+            "description": "FuelCell Energy is currently a Zacks Rank #4 (Sell), indicating negative analyst sentiment"
+          },
+          {
+            "name": "eps_estimate_revision_down",
+            "start": "2022-01-24T00:00:00Z",
+            "description": "Over the past month, the Zacks Consensus EPS estimate has moved 60.71% lower, reflecting analyst pessimism"
+          },
+          {
+            "name": "upcoming_earnings",
+            "start": "2022-01-24T00:00:00Z",
+            "description": "FuelCell Energy nearing its next earnings release, expected EPS of -$0.04 and revenue of $26.11 million"
+          },
+          {
+            "name": "recent_decline",
+            "start": "2022-01-24T00:00:00Z",
+            "description": "Shares have lost 39.63% in the past month, underperforming the Oils-Energy sector which gained 9%"
+          }
+        ]
+      },
+      "result": {
+        "forecast_ref": "fc4",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "drift",
+        "strongest_baseline": "seasonal_naive",
+        "warnings": [
+          "Degraded forecast: model selection used a single trailing 32-observation holdout; rolling-origin calibration and final testing were unavailable. At least 132 observations (have 130) are needed for separated selection and calibration."
+        ],
+        "events_proposed": 4,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [
+          "proposal 1 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 2 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 3 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 4 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''"
+        ],
+        "forecast": [
+          3.5425,
+          3.5188,
+          3.4952,
+          3.4716,
+          3.4479,
+          3.4243,
+          3.4006,
+          3.377,
+          3.3533,
+          3.3297,
+          3.3061,
+          3.2824,
+          3.2588,
+          3.2351,
+          3.2115,
+          3.1878,
+          3.1642,
+          3.1406,
+          3.1169,
+          3.0933,
+          3.0696,
+          3.046,
+          3.0223,
+          2.9987,
+          2.975,
+          2.9514,
+          2.9278,
+          2.9041,
+          2.8805,
+          2.8568,
+          2.8332,
+          2.8095,
+          2.7859
+        ]
+      }
+    },
+    {
+      "tool": "submit_forecast",
+      "arguments": {
+        "forecast_ref": "fc1"
+      },
+      "result": {
+        "accepted": true,
+        "forecast_ref": "fc1",
+        "steps": 33
+      }
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass, field
 from statistics import mean
 from typing import Any, Callable
@@ -29,12 +30,44 @@ class Evaluation:
     # On a data-insufficiency abstention: the largest horizon the supplied
     # observations *can* support, so the refusal names an immediate retry.
     max_supportable_horizon: int | None = None
+    # Residuals indexed by lead time (1-based). `residuals` stays the pooled
+    # list every existing caller reads; this is what conformal intervals are
+    # built from.
+    residuals_by_lead: dict[int, list[float]] = field(default_factory=dict)
+    # Residuals of the ensemble over the same selection + calibration folds,
+    # populated only when the ensemble is enabled but did not win selection.
+    # The `--ensemble` override needs its own honest calibration; without it
+    # the override would have nothing fold-separated to widen from.
+    ensemble_residuals: list[float] = field(default_factory=list)
+    ensemble_residuals_by_lead: dict[int, list[float]] = field(default_factory=dict)
+    # Mean pinball loss per candidate over the selection folds, populated only
+    # when `selection_loss="pinball"`. Reported alongside the point scores,
+    # never in place of them.
+    pinball_scores: dict[str, float | None] = field(default_factory=dict)
 
 
-def error_score(actual: list[float], predicted: list[float]) -> float:
-    absolute_error = sum(abs(a - p) for a, p in zip(actual, predicted))
+#: The metric every selection decision is made on. Named so that hindsight
+#: scoring (`aion.tracking`) can report the same quantity: a leaderboard in
+#: different units from selection can contradict it for reasons that are pure
+#: metric artefact rather than forecast quality.
+SELECTION_METRIC = "wape"
+
+
+def error_score(actual: list[float], predicted: list[float]) -> float | None:
+    """Weighted absolute percentage error: sum|a-p| / sum|a|.
+
+    ``None`` when the window has no scale (``sum|a|`` at zero, e.g. an
+    all-zero stretch of intermittent demand). WAPE is undefined there, and
+    the previous fallback returned a raw mean absolute error under the same
+    name — a number in level units rather than a ratio — so averaging it with
+    WAPE from other folds silently mixed two metrics. A fold that cannot be
+    scored now contributes nothing, exactly as a fold a model cannot predict
+    does.
+    """
     scale = sum(abs(a) for a in actual)
-    return absolute_error / scale if scale > 1e-12 else absolute_error / len(actual)
+    if scale <= 1e-12:
+        return None
+    return sum(abs(a - p) for a, p in zip(actual, predicted)) / scale
 
 
 def quantile(values: list[float], probability: float) -> float:
@@ -48,12 +81,48 @@ def quantile(values: list[float], probability: float) -> float:
     return ordered[lower] * (1 - weight) + ordered[upper] * weight
 
 
+#: Fewest residuals at one lead time before its own quantiles are trusted;
+#: below this the lead borrows the pooled spread (see `conformal_spreads`).
+MIN_RESIDUALS_PER_LEAD = 8
+
+
+def conformal_quantile(values: list[float], probability: float) -> float:
+    """Finite-sample (split-conformal) quantile.
+
+    The plain interpolated quantile of a handful of residuals is
+    anti-conservative: with five residuals there is no honest 90th
+    percentile, and interpolating between the two largest produces an
+    interval far narrower than the data supports. Conformal prediction's
+    correction is to take the ``ceil((n + 1) * p)``-th order statistic —
+    which for small ``n`` lands on the extreme value rather than inside
+    the sample — so coverage is maintained by widening when evidence is
+    thin instead of pretending to precision.
+    """
+    ordered = sorted(values)
+    n = len(ordered)
+    if n == 0:
+        raise ValueError("no residuals")
+    if n == 1:
+        return ordered[0]
+    if probability >= 0.5:
+        rank = math.ceil((n + 1) * probability)
+        return ordered[min(rank, n) - 1]
+    rank = math.floor((n + 1) * probability)
+    return ordered[max(rank, 1) - 1]
+
+
 def interval_bounds(
     point: float, residual_quantiles: dict[float, float], step: int
 ) -> tuple[float, float, float]:
-    """Interval for forecast step ``step`` (1-based): the median residual shifts
-    the centre, and the spread around it widens with sqrt(step) so uncertainty
-    grows over the horizon instead of staying constant."""
+    """Interval for forecast step ``step`` (1-based) from *pooled* residuals.
+
+    Retained for callers holding one pooled quantile set. The ``sqrt(step)``
+    widening it applies is only correct when the residuals describe a single
+    lead time; residuals pooled across a whole horizon already contain the
+    growth, and widening them again double-counts it. Prefer
+    :func:`conformal_spreads` with :func:`interval_from_spread`, which
+    measures the spread at each lead time instead of assuming its shape.
+    """
     centre = point + residual_quantiles[0.5]
     scale = step ** 0.5
     low = centre + (residual_quantiles[0.1] - residual_quantiles[0.5]) * scale
@@ -61,8 +130,228 @@ def interval_bounds(
     return min(low, centre, high), centre, max(low, centre, high)
 
 
+def _isotonic(values: list[float]) -> list[float]:
+    """Least-squares fit of a non-decreasing sequence (pool-adjacent-violators).
+
+    Uncertainty about a more distant step is not smaller than about a nearer
+    one; with few folds a lead time can nonetheless land below its
+    predecessor by sampling noise alone. Enforcing monotonicity keeps that
+    artefact from producing an interval that narrows with distance, without
+    imposing a functional form on how it grows.
+    """
+    levels = [[value, 1] for value in values]
+    index = 0
+    while index < len(levels) - 1:
+        if levels[index][0] <= levels[index + 1][0] + 1e-12:
+            index += 1
+            continue
+        total = levels[index][0] * levels[index][1] + levels[index + 1][0] * levels[index + 1][1]
+        weight = levels[index][1] + levels[index + 1][1]
+        levels[index] = [total / weight, weight]
+        del levels[index + 1]
+        if index:
+            index -= 1
+    return [level[0] for level in levels for _ in range(int(level[1]))]
+
+
+def conformal_spreads(
+    residuals_by_lead: dict[int, list[float]], horizon: int,
+    pooled: list[float] | None = None,
+) -> dict[int, tuple[float, float, float]]:
+    """Split-conformal offsets (low, median, high) for each lead time.
+
+    Residuals are collected per lead time h, so the interval at h is the
+    measured spread at h — not a pooled spread scaled by an assumed shape.
+    Lead times with too few residuals borrow the pooled set rather than
+    trusting a two-sample quantile, and the half-widths are then fitted
+    monotone in h.
+    """
+    pooled = pooled if pooled is not None else [
+        residual for residuals in residuals_by_lead.values() for residual in residuals
+    ]
+    if not pooled:
+        return {}
+    pooled_quantiles = {p: conformal_quantile(pooled, p) for p in (0.1, 0.5, 0.9)}
+
+    medians: list[float] = []
+    lows: list[float] = []
+    highs: list[float] = []
+    for step in range(1, horizon + 1):
+        residuals = residuals_by_lead.get(step) or []
+        if len(residuals) >= MIN_RESIDUALS_PER_LEAD:
+            quantiles = {p: conformal_quantile(residuals, p) for p in (0.1, 0.5, 0.9)}
+        else:
+            # Too few residuals at this lead to estimate its own tails:
+            # borrow the pooled spread rather than invent precision.
+            quantiles = pooled_quantiles
+        medians.append(quantiles[0.5])
+        lows.append(quantiles[0.5] - quantiles[0.1])
+        highs.append(quantiles[0.9] - quantiles[0.5])
+
+    lows = _isotonic([max(0.0, value) for value in lows])
+    highs = _isotonic([max(0.0, value) for value in highs])
+    return {step + 1: (lows[step], medians[step], highs[step])
+            for step in range(horizon)}
+
+
+def interval_from_spread(
+    point: float, spread: tuple[float, float, float]
+) -> tuple[float, float, float]:
+    """Interval at one lead time from its conformal offsets."""
+    low_offset, median, high_offset = spread
+    centre = point + median
+    return centre - low_offset, centre, centre + high_offset
+
+
+#: Quantile levels emitted alongside the forecast. q10/q50/q90 keep their
+#: exact meaning and their exact values — they are the same order statistics
+#: of the same residuals, fitted the same way — and the rest are additional.
+QUANTILE_LEVELS = (0.05, 0.1, 0.2, 0.3, 0.5, 0.7, 0.8, 0.9, 0.95)
+
+
+def quantile_key(level: float) -> str:
+    """``0.05 -> 'q05'``, ``0.5 -> 'q50'``: the artifact column name."""
+    return f"q{round(level * 100):02d}"
+
+
+def conformal_quantile_spreads(
+    residuals_by_lead: dict[int, list[float]], horizon: int,
+    pooled: list[float] | None = None,
+    levels: tuple[float, ...] = QUANTILE_LEVELS,
+) -> dict[int, dict[float, float]]:
+    """Split-conformal offset from the point forecast, per lead and level.
+
+    The same construction as :func:`conformal_spreads` at every level: the
+    residual order statistic at that lead when there are enough residuals,
+    the pooled one when there are not, fitted monotone in the lead time.
+
+    Two orderings have to hold and are enforced separately. Across leads,
+    uncertainty does not shrink with distance — that is the isotonic fit,
+    applied per level. Across levels within a lead, a higher quantile cannot
+    sit below a lower one — normally automatic, since these are order
+    statistics of one sorted sample, but the pooled fallback can mix samples
+    at adjacent leads, so a running maximum enforces it.
+    """
+    pooled = pooled if pooled is not None else [
+        residual for residuals in residuals_by_lead.values() for residual in residuals
+    ]
+    if not pooled:
+        return {}
+    pooled_quantiles = {level: conformal_quantile(pooled, level) for level in levels}
+
+    by_level: dict[float, list[float]] = {level: [] for level in levels}
+    medians: list[float] = []
+    for step in range(1, horizon + 1):
+        residuals = residuals_by_lead.get(step) or []
+        if len(residuals) >= MIN_RESIDUALS_PER_LEAD:
+            quantiles = {level: conformal_quantile(residuals, level) for level in levels}
+        else:
+            quantiles = pooled_quantiles
+        medians.append(quantiles[0.5])
+        for level in levels:
+            # Signed distance from the median, so the isotonic fit below acts
+            # on a half-width rather than on a level that may trend.
+            by_level[level].append(quantiles[level] - quantiles[0.5])
+
+    fitted: dict[float, list[float]] = {}
+    for level in levels:
+        offsets = by_level[level]
+        if level < 0.5:
+            # Lower tail: fit the magnitude monotone, then re-sign.
+            widths = _isotonic([max(0.0, -value) for value in offsets])
+            fitted[level] = [-value for value in widths]
+        elif level > 0.5:
+            fitted[level] = _isotonic([max(0.0, value) for value in offsets])
+        else:
+            fitted[level] = [0.0] * horizon
+
+    ordered = sorted(levels)
+    spreads: dict[int, dict[float, float]] = {}
+    for index in range(horizon):
+        running = float("-inf")
+        entry: dict[float, float] = {}
+        for level in ordered:
+            value = max(fitted[level][index], running)
+            entry[level] = value
+            running = value
+        spreads[index + 1] = {level: medians[index] + entry[level]
+                              for level in ordered}
+    return spreads
+
+
+def quantiles_from_spread(
+    point: float, spread: dict[float, float]
+) -> dict[str, float]:
+    """Named quantile columns at one lead time."""
+    return {quantile_key(level): point + offset
+            for level, offset in sorted(spread.items())}
+
+
+def pinball_loss(actual: float, predicted: float, level: float) -> float:
+    """Quantile (pinball) loss: the proper scoring rule for a quantile.
+
+    Under-prediction is charged ``level`` per unit and over-prediction
+    ``1 - level``, so the loss is minimised exactly when ``predicted`` is
+    the true ``level`` quantile. A point metric like WAPE cannot distinguish
+    a model with well-placed uncertainty from one whose centre happens to
+    land well, which is what makes this the right criterion when the answer
+    is a distribution.
+    """
+    error = actual - predicted
+    return level * error if error >= 0 else (level - 1) * error
+
+
+def mean_pinball(
+    actual: list[float], quantiles: list[dict[float, float]],
+    levels: tuple[float, ...] = QUANTILE_LEVELS,
+) -> float | None:
+    """Average pinball loss over every lead time and level."""
+    if not actual or len(quantiles) < len(actual):
+        return None
+    total, count = 0.0, 0
+    for observed, by_level in zip(actual, quantiles):
+        for level in levels:
+            if level not in by_level:
+                continue
+            total += pinball_loss(observed, by_level[level], level)
+            count += 1
+    return total / count if count else None
+
+
 def _origins(length: int, horizon: int, minimum_train: int) -> list[int]:
+    """Non-overlapping rolling origins: the partition skeleton.
+
+    Stepping by ``horizon`` makes each fold's target window disjoint from
+    every other, which is what lets the last two be reserved as a
+    calibration and a report-only test fold, and what makes the pooled
+    residuals exchangeable enough for a conformal quantile to mean
+    something. It is also why fold count collapses as the horizon grows —
+    see ``dense_selection_origins``, which buys back selection folds
+    without disturbing this skeleton.
+    """
     return list(range(minimum_train, length - horizon + 1, horizon))
+
+
+def dense_selection_origins(
+    minimum_train: int, last_selection_origin: int, stride: int,
+) -> list[int]:
+    """Selection origins at a finer stride than the horizon.
+
+    Selection compares candidates on identical folds, so overlapping folds
+    are legitimate there: they cut the variance of the comparison without
+    changing what is being compared. They are *not* legitimate for
+    calibration — residuals from overlapping windows are dependent, and
+    treating n of them as n independent draws makes a conformal quantile
+    look better determined than it is, which is precisely how intervals end
+    up anti-conservative.
+
+    So this widens the selection sample only. The window of the last dense
+    origin still ends at the calibration origin, so no selection fold ever
+    reads a point belonging to the calibration or test partitions.
+    """
+    if stride >= 1 and last_selection_origin >= minimum_train:
+        return list(range(minimum_train, last_selection_origin + 1, max(1, stride)))
+    return []
 
 
 def supportable_horizon(length: int, season: int) -> int | None:
@@ -132,11 +421,34 @@ def evaluate(
     config: Any = None,
     strict_abstention: bool = False,
     train_at: Callable[[int], list[float]] | None = None,
+    extra_candidates: dict[str, Callable[[int, int], list[float]]] | None = None,
+    selection_stride: int | None = None,
+    selection_loss: str = "wape",
 ) -> Evaluation:
     """``train_at(origin)`` returns the training history for a fold whose
     forecast origin is index ``origin`` — by default a plain prefix slice,
     but a snapshot-backed provider returns the series *as known at* the
-    fold cutoff, which is what makes backtests vintage-honest."""
+    fold cutoff, which is what makes backtests vintage-honest.
+
+    ``extra_candidates`` maps a name to ``predictor(origin, horizon)`` for
+    candidates that need more than this series' own history — a VAR fit
+    across aligned series, say. They are scored on the same folds, against
+    the same baselines, under the same improvement margin as everything
+    else; a candidate that cannot beat the ladder does not get in by being
+    special.
+
+    ``selection_stride`` samples selection origins more finely than the
+    horizon (``None`` keeps them non-overlapping, one per horizon). It widens
+    the comparison sample only: calibration residuals are always pooled from
+    the non-overlapping skeleton, and no selection fold reads a point
+    belonging to the calibration or test partitions.
+
+    ``selection_loss`` chooses the criterion: ``"wape"`` (the default, a
+    point loss) or ``"pinball"``, the proper scoring rule for a quantile.
+    Pinball is the right criterion when the answer is a distribution — a
+    point loss cannot tell a model with well-placed uncertainty from one
+    whose centre happens to land well — but it changes which model is
+    selected, so it is opt-in until measured."""
     if train_at is None:
         train_at = lambda origin: values[:origin]  # noqa: E731
     minimum_train = max(2 * season, 2 * horizon, 8)
@@ -177,6 +489,14 @@ def evaluate(
         test_origin: int | None = origins[-1]
     else:
         selection_origins, calibration_origin, test_origin = origins[:-1], origins[-1], None
+    # Residuals stay on the disjoint skeleton whatever selection does with
+    # its stride: a conformal quantile over dependent residuals is not a
+    # conformal quantile.
+    residual_origins = list(selection_origins)
+    if selection_stride is not None and selection_origins:
+        selection_origins = dense_selection_origins(
+            minimum_train, selection_origins[-1], selection_stride,
+        )
     if degraded:
         warnings.append(
             f"Limited evaluation: only {len(origins)} rolling folds were available; "
@@ -202,9 +522,17 @@ def evaluate(
     )
     requested_names = tsfm_names if tsfm_names is not None else eligible_names
     requested_names = [name for name in requested_names if name in eligible_names]
-    for name, reasons in capability_exclusions.items():
-        if tsfm_names is None or name in tsfm_names:
-            warnings.append(f"Skipped TSFM {name}: {'; '.join(reasons)}.")
+    # Informational, never a warning. A capability exclusion says a foundation
+    # model could not run on this history length or frequency — it says nothing
+    # about the evidence behind the forecast that did run. Routed through
+    # `warnings` it would downgrade support to "weakly_supported" (pipeline's
+    # support enum), so a fully evidenced forecast would advertise doubt about
+    # itself because a model the caller never asked for was ineligible.
+    capability_notes = [
+        f"Skipped TSFM {name}: {'; '.join(reasons)}."
+        for name, reasons in capability_exclusions.items()
+        if tsfm_names is None or name in tsfm_names
+    ]
     sandbox_names = sandbox_available_tsfms()
     if sandbox_names and requested_names:
         tsfm_adapters = sandbox_tsfm_candidates(
@@ -233,7 +561,7 @@ def evaluate(
     # TSFM sandboxes, so without this note the operator most likely to benefit
     # from a stronger candidate never learns one was eligible.
     from .tsfm import installed_tsfms
-    notes: list[str] = []
+    notes: list[str] = list(capability_notes)
     if requested_names and not sandbox_names and not installed_tsfms():
         notes.append(
             f"No foundation-model candidate competed: "
@@ -254,10 +582,16 @@ def evaluate(
         for name in MODELS:
             try:
                 forecast = predict(name, train, horizon, season)
-                fold_forecasts[name].append(forecast)
             except ValueError:
                 continue
-            fold_scores[name].append(error_score(actual, forecast))
+            score = error_score(actual, forecast)
+            if score is None:
+                # Unscoreable fold (no scale in the window). Recording the
+                # forecast without its score would desynchronise the two
+                # lists the ensemble reads by fold index.
+                continue
+            fold_forecasts[name].append(forecast)
+            fold_scores[name].append(score)
 
     # --- Run TSFM candidates on selection folds ---
     tsfm_fold_scores: dict[str, list[float]] = {a.name: [] for a in tsfm_adapters}
@@ -291,6 +625,32 @@ def evaluate(
             tsfm_scores[name] = mean(valid)
         else:
             tsfm_scores[name] = None
+
+    # --- Run cross-series candidates on the same selection folds ---
+    extra_candidates = dict(extra_candidates or {})
+    extra_fold_scores: dict[str, list[float | None]] = {name: [] for name in extra_candidates}
+    for name, predictor in extra_candidates.items():
+        for origin in selection_origins:
+            actual = values[origin : origin + horizon]
+            try:
+                forecast = predictor(origin, horizon)
+            except Exception:
+                logger.debug("candidate %s failed on fold at origin %d", name, origin,
+                             exc_info=True)
+                extra_fold_scores[name].append(None)
+                continue
+            if len(forecast) != horizon:
+                extra_fold_scores[name].append(None)
+                continue
+            extra_fold_scores[name].append(error_score(actual, forecast))
+    extra_scores: dict[str, float | None] = {}
+    for name, items in extra_fold_scores.items():
+        valid = [item for item in items if item is not None]
+        extra_scores[name] = (
+            mean(valid) if valid and len(valid) == len(selection_origins) else None
+        )
+        if name not in all_model_names:
+            all_model_names.append(name)
 
     # --- Compute ensemble forecast on selection folds ---
     ensemble_fold_scores: list[float | None] = []
@@ -382,6 +742,52 @@ def evaluate(
                     if "meta_model" not in all_model_names:
                         all_model_names.append("meta_model")
 
+    # --- Distributional fold scoring (pinball) ---
+    def _pinball_score(forecasts: list[list[float]]) -> float | None:
+        """Mean pinball loss over the selection folds, calibrated honestly.
+
+        Fold *i* is scored with quantiles built from the residuals of folds
+        before it, never its own — the same separation the calibration fold
+        enforces for the published interval, applied inside selection. The
+        first fold has nothing to calibrate from and is not scored.
+
+        Reuses the fold forecasts already computed, so a distributional score
+        costs no extra model fits.
+        """
+        by_lead: dict[int, list[float]] = {}
+        pooled_residuals: list[float] = []
+        losses: list[float] = []
+        for index, origin in enumerate(selection_origins):
+            if index >= len(forecasts) or not forecasts[index]:
+                continue
+            actual = values[origin : origin + horizon]
+            forecast = forecasts[index]
+            if pooled_residuals:
+                spreads = conformal_quantile_spreads(by_lead, horizon, pooled_residuals)
+                if spreads:
+                    quantiles = [
+                        {level: forecast[step - 1] + offset
+                         for level, offset in spreads[step].items()}
+                        for step in range(1, min(horizon, len(forecast)) + 1)
+                    ]
+                    loss = mean_pinball(actual, quantiles)
+                    if loss is not None:
+                        losses.append(loss)
+            for step, (observed, predicted) in enumerate(zip(actual, forecast), 1):
+                by_lead.setdefault(step, []).append(observed - predicted)
+                pooled_residuals.append(observed - predicted)
+        return mean(losses) if losses else None
+
+    pinball_scores: dict[str, float | None] = {}
+    if selection_loss == "pinball":
+        for name in MODELS:
+            if scores.get(name) is not None:
+                pinball_scores[name] = _pinball_score(fold_forecasts[name])
+        for adapter in tsfm_adapters:
+            if tsfm_scores.get(adapter.name) is not None:
+                pinball_scores[adapter.name] = _pinball_score(
+                    [item for item in tsfm_fold_forecasts[adapter.name]])
+
     baseline_scores = {name: score for name, score in scores.items() if name in BASELINES and score is not None}
     if not baseline_scores:
         return Evaluation(
@@ -401,10 +807,31 @@ def evaluate(
     for name, score in tsfm_scores.items():
         if score is not None:
             candidate_scores[name] = score
+    for name, score in extra_scores.items():
+        if score is not None:
+            candidate_scores[name] = score
     if ensemble_score is not None:
         candidate_scores["ensemble"] = ensemble_score
     if meta_model_score is not None:
         candidate_scores["meta_model"] = meta_model_score
+
+    if selection_loss == "pinball" and pinball_scores:
+        # Decide on the distributional loss where it is available, keeping the
+        # point loss reported alongside rather than replacing it. Candidates
+        # without a pinball score (too few folds to calibrate one) keep their
+        # point score, so switching the criterion never silently drops a
+        # candidate from the contest.
+        scored = {name: value for name, value in pinball_scores.items()
+                  if value is not None}
+        if scored:
+            baseline_pinball = {name: value for name, value in scored.items()
+                                if name in BASELINES}
+            if baseline_pinball:
+                strongest_baseline = min(baseline_pinball, key=baseline_pinball.get)  # type: ignore[arg-type]
+                baseline_score = baseline_pinball[strongest_baseline]
+                selected = strongest_baseline
+                candidate_scores = {name: value for name, value in scored.items()
+                                    if name not in BASELINES}
 
     if candidate_scores:
         candidate = min(candidate_scores, key=candidate_scores.get)  # type: ignore[arg-type]
@@ -413,7 +840,7 @@ def evaluate(
             selected = candidate
 
     # --- Calibration ---
-    all_scores = {**scores, **tsfm_scores}
+    all_scores = {**scores, **tsfm_scores, **extra_scores}
     if ensemble_score is not None:
         all_scores["ensemble"] = ensemble_score
     if meta_model_score is not None:
@@ -421,10 +848,51 @@ def evaluate(
     selected_score = all_scores.get(selected, baseline_score)
     improvement = 0.0 if selected in BASELINES else (baseline_score - selected_score) / baseline_score if baseline_score > 0 else 0.0  # type: ignore[operator]
 
-    def _predict_selected(name: str, train: list[float]) -> list[float]:
-        """Dispatch a prediction to a built-in model or a TSFM adapter."""
+    def _ensemble_predict(train: list[float]) -> list[float]:
+        """Recombine the member models on *train* only.
+
+        The ensemble has to be predictable at an arbitrary fold origin like
+        any other candidate. Without this it could win selection and then
+        fail to produce a calibration forecast, which both discarded the
+        winner and pushed interval calibration onto a trailing window that
+        overlaps the report-only test fold.
+        """
+        from .ensemble import compute_ensemble_forecast
+        member_scores: dict[str, float | None] = {**scores, **tsfm_scores}
+        forecasts: dict[str, list[float]] = {}
+        for name in MODELS:
+            if member_scores.get(name) is None:
+                continue
+            try:
+                forecasts[name] = predict(name, train, horizon, season)
+            except (ValueError, ArithmeticError):
+                continue
+        for adapter in tsfm_adapters:
+            if member_scores.get(adapter.name) is None:
+                continue
+            try:
+                forecasts[adapter.name] = adapter.predict(train, horizon, season)
+            except Exception:
+                logger.debug("ensemble member %s failed on a fold", adapter.name,
+                             exc_info=True)
+        if len(forecasts) < (ensemble_cfg.min_models if ensemble_cfg else 2):
+            raise ValueError("too few ensemble members completed this fold")
+        return compute_ensemble_forecast(
+            forecasts, member_scores, strategy=ensemble_strategy,
+            last_observed=train[-1] if train else 0.0, config=ensemble_cfg,
+        )
+
+    def _predict_selected(name: str, train: list[float], origin: int) -> list[float]:
+        """Dispatch a prediction to a built-in model, a TSFM, the ensemble, or
+        a cross-series candidate. ``origin`` is the fold's forecast origin —
+        cross-series candidates need it because their inputs are other series,
+        which ``train`` does not carry."""
         if name in MODELS:
             return predict(name, train, horizon, season)
+        if name == "ensemble":
+            return _ensemble_predict(train)
+        if name in extra_candidates:
+            return extra_candidates[name](origin, horizon)
         adapter = next((a for a in tsfm_adapters if a.name == name), None)
         if adapter is None:
             raise ValueError(f"no adapter available for {name}")
@@ -433,7 +901,7 @@ def evaluate(
     # Get calibration prediction from the selected model; fall back to the
     # strongest baseline if a TSFM/ensemble selection cannot predict here.
     try:
-        calibration_prediction = _predict_selected(selected, train_at(calibration_origin))
+        calibration_prediction = _predict_selected(selected, train_at(calibration_origin), calibration_origin)
     except Exception as exc:
         if selected not in MODELS:
             logger.warning(
@@ -447,17 +915,45 @@ def evaluate(
     # the calibration fold: one horizon of residuals is too small a sample
     # for stable quantiles. Folds where the selected model cannot predict
     # (possible for TSFM adapters) simply contribute nothing.
-    residuals: list[float] = []
-    for origin in selection_origins:
-        try:
-            prediction = _predict_selected(selected, train_at(origin))
-        except Exception:
-            continue
-        actual = values[origin : origin + horizon]
-        residuals.extend(a - p for a, p in zip(actual, prediction))
-    calibration_actual = values[calibration_origin : calibration_origin + horizon]
-    residuals.extend(a - p for a, p in zip(calibration_actual, calibration_prediction))
-    residual_quantiles = {p: quantile(residuals, p) for p in (0.1, 0.5, 0.9)}
+    def _pool_residuals(
+        name: str, final_prediction: list[float] | None = None,
+    ) -> tuple[list[float], dict[int, list[float]]]:
+        """Residuals of *name* over the selection folds and the calibration
+        fold. The test fold is never touched: it reports, it never calibrates.
+        """
+        pooled: list[float] = []
+        by_lead: dict[int, list[float]] = {}
+
+        def record(actual: list[float], prediction: list[float]) -> None:
+            for step, (a, p) in enumerate(zip(actual, prediction), 1):
+                pooled.append(a - p)
+                by_lead.setdefault(step, []).append(a - p)
+
+        for origin in residual_origins:
+            try:
+                prediction = _predict_selected(name, train_at(origin), origin)
+            except Exception:
+                continue
+            record(values[origin : origin + horizon], prediction)
+        if final_prediction is None:
+            try:
+                final_prediction = _predict_selected(name, train_at(calibration_origin), calibration_origin)
+            except Exception:
+                return pooled, by_lead
+        record(values[calibration_origin : calibration_origin + horizon],
+               final_prediction)
+        return pooled, by_lead
+
+    residuals, residuals_by_lead = _pool_residuals(selected, calibration_prediction)
+    spreads = conformal_spreads(residuals_by_lead, horizon, residuals)
+
+    # The `--ensemble` override can force the ensemble even when it did not win
+    # selection. Calibrate it here, on the same folds, so the override never
+    # has to fall back to a trailing window that overlaps the test fold.
+    ensemble_residuals: list[float] = []
+    ensemble_residuals_by_lead: dict[int, list[float]] = {}
+    if ensemble_enabled and selected != "ensemble":
+        ensemble_residuals, ensemble_residuals_by_lead = _pool_residuals("ensemble")
 
     # --- Test ---
     test_scores: dict[str, float | None] = {name: None for name in all_model_names}
@@ -467,28 +963,36 @@ def evaluate(
         for name in {selected, strongest_baseline}:
             try:
                 test_scores[name] = error_score(
-                    test_actual, _predict_selected(name, train_at(test_origin))
+                    test_actual, _predict_selected(name, train_at(test_origin), test_origin)
                 )
             except Exception:
                 logger.debug("model %s failed during test fold", name, exc_info=True)
 
         # Get test prediction for coverage assessment
         try:
-            test_prediction = _predict_selected(selected, train_at(test_origin))
+            test_prediction = _predict_selected(selected, train_at(test_origin), test_origin)
         except Exception:
             test_prediction = predict(strongest_baseline, train_at(test_origin), horizon, season)
         covered = []
         for step, (actual, prediction) in enumerate(zip(test_actual, test_prediction), 1):
-            low, _, high = interval_bounds(prediction, residual_quantiles, step)
+            spread = spreads.get(step)
+            if spread is None:
+                continue
+            low, _, high = interval_from_spread(prediction, spread)
             covered.append(1.0 if low <= actual <= high else 0.0)
-        coverage = mean(covered)
-        if coverage < 0.7:
+        coverage = mean(covered) if covered else None
+        if coverage is not None and coverage < 0.7:
             warnings.append(f"Final-test 80% interval coverage was {coverage:.1%}, below 70%.")
     else:
         warnings.append(
             "Limited evaluation: no held-out test fold remained, so interval "
             "coverage is unmeasured."
         )
-    return Evaluation(selected, strongest_baseline, scores, test_scores, improvement,
+    return Evaluation(selected, strongest_baseline, {**scores, **extra_scores},
+                      test_scores, improvement,
                       residuals, coverage, warnings, True, degraded,
-                      tsfm_scores=tsfm_scores, notes=notes)
+                      tsfm_scores=tsfm_scores, notes=notes,
+                      residuals_by_lead=residuals_by_lead,
+                      ensemble_residuals=ensemble_residuals,
+                      ensemble_residuals_by_lead=ensemble_residuals_by_lead,
+                      pinball_scores=pinball_scores)

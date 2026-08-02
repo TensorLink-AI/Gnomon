@@ -1,0 +1,357 @@
+{
+  "filename": "train-00000-of-00001_0008.json",
+  "ground_truth": [
+    24.0,
+    24.36,
+    25.325,
+    25.5,
+    25.95,
+    25.76,
+    26.05,
+    26.38,
+    26.83,
+    26.78,
+    26.72,
+    26.8,
+    26.83,
+    27.1,
+    27.55,
+    27.41,
+    27.5,
+    27.5,
+    27.28,
+    27.1,
+    27.14,
+    26.38,
+    26.31,
+    26.49,
+    26.6,
+    26.26,
+    25.58,
+    25.91,
+    25.28,
+    24.84,
+    23.974,
+    24.06,
+    24.29
+  ],
+  "predict": [
+    25.40733079982216,
+    25.40181279493911,
+    25.39629479005606,
+    25.390776785173014,
+    25.385258780289966,
+    25.37974077540692,
+    25.37422277052387,
+    25.36870476564082,
+    25.363186760757774,
+    25.357668755874727,
+    25.35215075099168,
+    25.34663274610863,
+    25.34111474122558,
+    25.335596736342534,
+    25.330078731459487,
+    25.32456072657644,
+    25.31904272169339,
+    25.313524716810342,
+    25.308006711927295,
+    25.302488707044247,
+    25.296970702161197,
+    25.29145269727815,
+    25.285934692395102,
+    25.280416687512055,
+    25.274898682629008,
+    25.269380677745957,
+    25.26386267286291,
+    25.258344667979863,
+    25.252826663096815,
+    25.247308658213765,
+    25.241790653330717,
+    25.23627264844767,
+    25.230754643564623
+  ],
+  "mse": 1.7832025168446524,
+  "mae": 1.1798703079050405,
+  "rmse": 1.3353660609902636,
+  "mape": 4.466615679413686,
+  "failed": false,
+  "support": "degraded",
+  "selected_model": "theta",
+  "events": [],
+  "forecast_ref": "fc1",
+  "forecasts_computed": 3,
+  "tool_calls": 7,
+  "submit_reasoning": "The price history shows a clear downtrend from ~29.05 to ~25.11 over 144 bars, with a brief recovery spike around bars 97-104 (up to 29.65) before resuming the decline. Series stats: mean 26.90, std 1.35, CV 0.05. No seasonality detected (strength 0.0) and no anomalies flagged. The article mentions a Zacks Strong Buy rating, upcoming earnings with expected YoY EPS growth, and a valuation discount, but all context events were rejected by the ablation gate, so the forecast falls back to history alone. The Theta model was selected, producing a slight downward drift from ~25.41 to ~25.23 over 33 steps, consistent with the recent downtrend. Support is degraded due to limited evaluation folds, but this is the best available forecast.",
+  "trace": [
+    {
+      "tool": "series_stats",
+      "arguments": {},
+      "result": {
+        "count": 144,
+        "mean": 26.900431,
+        "std": 1.350608,
+        "min": 24.3,
+        "max": 29.65,
+        "first": 29.05,
+        "last": 25.11,
+        "coefficient_of_variation": 0.050208
+      }
+    },
+    {
+      "tool": "detect_season",
+      "arguments": {},
+      "result": {
+        "period_bars": 7,
+        "strength": 0.0,
+        "basis": "frequency_default"
+      }
+    },
+    {
+      "tool": "aion_detect_anomalies",
+      "arguments": {},
+      "result": {
+        "detector": "robust_zscore",
+        "selection_basis": "synthetic_injection_f1",
+        "support": "supported",
+        "anomaly_count": 0,
+        "anomalies": []
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "note": "History-only baseline forecast"
+      },
+      "result": {
+        "forecast_ref": "fc1",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "theta",
+        "strongest_baseline": "last_value",
+        "warnings": [
+          "Limited evaluation: only 2 rolling folds were available; 198 observations enable fully separated selection, calibration, and test windows.",
+          "Limited evaluation: no held-out test fold remained, so interval coverage is unmeasured."
+        ],
+        "events_proposed": 0,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [],
+        "forecast": [
+          25.4073,
+          25.4018,
+          25.3963,
+          25.3908,
+          25.3853,
+          25.3797,
+          25.3742,
+          25.3687,
+          25.3632,
+          25.3577,
+          25.3522,
+          25.3466,
+          25.3411,
+          25.3356,
+          25.3301,
+          25.3246,
+          25.319,
+          25.3135,
+          25.308,
+          25.3025,
+          25.297,
+          25.2915,
+          25.2859,
+          25.2804,
+          25.2749,
+          25.2694,
+          25.2639,
+          25.2583,
+          25.2528,
+          25.2473,
+          25.2418,
+          25.2363,
+          25.2308
+        ]
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "note": "Event-informed forecast with article context: Zacks Strong Buy rating, upcoming earnings, valuation discount",
+        "context_events": [
+          {
+            "name": "zacks_strong_buy_rating",
+            "start": "2022-10-12",
+            "description": "JOYY currently has a Zacks Rank of #1 (Strong Buy), indicating positive analyst estimate revisions and optimism about the company's business and profitability"
+          },
+          {
+            "name": "upcoming_earnings_report",
+            "start": "2022-10-12",
+            "description": "JOYY approaching next earnings report date with analysts expecting EPS of $0.52 per share, marking 23.81% year-over-year growth"
+          },
+          {
+            "name": "valuation_discount",
+            "start": "2022-10-12",
+            "description": "JOYY has a Forward P/E ratio of 12.53, representing a discount compared to its industry average Forward P/E of 19.69"
+          },
+          {
+            "name": "recent_stock_decline",
+            "start": "2022-09-12",
+            "end": "2022-10-12",
+            "description": "Shares of JOYY lost 14.88% over the past month, lagging the Computer and Technology sector and S&P 500"
+          }
+        ]
+      },
+      "result": {
+        "forecast_ref": "fc2",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "theta",
+        "strongest_baseline": "last_value",
+        "warnings": [
+          "Limited evaluation: only 2 rolling folds were available; 198 observations enable fully separated selection, calibration, and test windows.",
+          "Limited evaluation: no held-out test fold remained, so interval coverage is unmeasured."
+        ],
+        "events_proposed": 4,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [
+          "proposal 1 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 2 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 3 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 4 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''"
+        ],
+        "forecast": [
+          25.4073,
+          25.4018,
+          25.3963,
+          25.3908,
+          25.3853,
+          25.3797,
+          25.3742,
+          25.3687,
+          25.3632,
+          25.3577,
+          25.3522,
+          25.3466,
+          25.3411,
+          25.3356,
+          25.3301,
+          25.3246,
+          25.319,
+          25.3135,
+          25.308,
+          25.3025,
+          25.297,
+          25.2915,
+          25.2859,
+          25.2804,
+          25.2749,
+          25.2694,
+          25.2639,
+          25.2583,
+          25.2528,
+          25.2473,
+          25.2418,
+          25.2363,
+          25.2308
+        ]
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "context_events": [
+          {
+            "name": "zacks_strong_buy_rating",
+            "start": "2022-10-12T00:00:00Z",
+            "description": "JOYY currently has a Zacks Rank of #1 (Strong Buy), indicating positive analyst estimate revisions and optimism about the company's business and profitability"
+          },
+          {
+            "name": "upcoming_earnings_report",
+            "start": "2022-10-12T00:00:00Z",
+            "description": "JOYY approaching next earnings report date with analysts expecting EPS of $0.52 per share, marking 23.81% year-over-year growth"
+          },
+          {
+            "name": "valuation_discount",
+            "start": "2022-10-12T00:00:00Z",
+            "description": "JOYY has a Forward P/E ratio of 12.53, representing a discount compared to its industry average Forward P/E of 19.69"
+          },
+          {
+            "name": "recent_stock_decline",
+            "start": "2022-09-12T00:00:00Z",
+            "end": "2022-10-12T00:00:00Z",
+            "description": "Shares of JOYY lost 14.88% over the past month, lagging the Computer and Technology sector and S&P 500"
+          }
+        ],
+        "note": "Event-informed forecast with properly formatted ISO-8601 timestamps for article context events"
+      },
+      "result": {
+        "forecast_ref": "fc3",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "theta",
+        "strongest_baseline": "last_value",
+        "warnings": [
+          "Limited evaluation: only 2 rolling folds were available; 198 observations enable fully separated selection, calibration, and test windows.",
+          "Limited evaluation: no held-out test fold remained, so interval coverage is unmeasured."
+        ],
+        "events_proposed": 4,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [
+          "proposal 1 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 2 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 3 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 4 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''"
+        ],
+        "forecast": [
+          25.4073,
+          25.4018,
+          25.3963,
+          25.3908,
+          25.3853,
+          25.3797,
+          25.3742,
+          25.3687,
+          25.3632,
+          25.3577,
+          25.3522,
+          25.3466,
+          25.3411,
+          25.3356,
+          25.3301,
+          25.3246,
+          25.319,
+          25.3135,
+          25.308,
+          25.3025,
+          25.297,
+          25.2915,
+          25.2859,
+          25.2804,
+          25.2749,
+          25.2694,
+          25.2639,
+          25.2583,
+          25.2528,
+          25.2473,
+          25.2418,
+          25.2363,
+          25.2308
+        ]
+      }
+    },
+    {
+      "tool": "submit_forecast",
+      "arguments": {
+        "forecast_ref": "fc1",
+        "reasoning": "The price history shows a clear downtrend from ~29.05 to ~25.11 over 144 bars, with a brief recovery spike around bars 97-104 (up to 29.65) before resuming the decline. Series stats: mean 26.90, std 1.35, CV 0.05. No seasonality detected (strength 0.0) and no anomalies flagged. The article mentions a Zacks Strong Buy rating, upcoming earnings with expected YoY EPS growth, and a valuation discount, but all context events were rejected by the ablation gate, so the forecast falls back to history alone. The Theta model was selected, producing a slight downward drift from ~25.41 to ~25.23 over 33 steps, consistent with the recent downtrend. Support is degraded due to limited evaluation folds, but this is the best available forecast."
+      },
+      "result": {
+        "accepted": true,
+        "forecast_ref": "fc1",
+        "steps": 33
+      }
+    }
+  ]
+}

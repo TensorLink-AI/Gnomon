@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from benchmarks.temporalbench.aion_runner import _clean, uncertain_mcq
+from benchmarks.temporalbench.aion_runner import _observed, uncertain_mcq
 from benchmarks.temporalbench.scoring import score_mcq, score_t1, score_t3
 from benchmarks.temporalbench.tasks import extract_json_object, prompt_input_arrays
 
@@ -57,6 +57,8 @@ def test_uncertain_mcq_uses_option_casing():
     assert answers["q2"] == "fixed"  # no Uncertain option: first option
 
 
-def test_clean_forward_fills_and_drops_leading_nulls():
-    assert _clean([None, 1.0, None, 3.0]) == [1.0, 1.0, 3.0]
-    assert _clean([None, None]) == []
+def test_observed_keeps_only_recorded_readings():
+    # Nulls are dropped, not forward-filled: a reading nobody took must
+    # not reach the forecaster as a repeat of the previous one.
+    assert _observed([None, 1.0, None, 3.0]) == [1.0, 3.0]
+    assert _observed([None, None]) == []

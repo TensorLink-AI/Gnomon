@@ -159,6 +159,84 @@ Error envelope: `{"schema_version", "status": "error", "error": {"code",
   abstention fixtures have no supportable shorter horizon, so their
   messages are identical).
 
+- Per-lead-time conformal intervals, **behaviour change** (Phase 1 of
+  `docs/integration-plan-review-2026-08.md`): interval bounds were the
+  pooled residual quantiles widened by `sqrt(step)`. The pooled
+  residuals span every lead time of a horizon-h fold, so they already
+  contained the growth, and scaling them again double-counted it —
+  measured across 300 synthetic series, coverage was 0.96 against a
+  nominal 0.80, with intervals ~2.5x too wide. Bounds are now split-
+  conformal per lead time: residuals indexed by lead, the finite-sample
+  `ceil((n+1)p)` order statistic instead of an interpolated quantile,
+  the pooled spread borrowed where a lead has fewer than
+  `MIN_RESIDUALS_PER_LEAD` residuals, and half-widths fitted monotone in
+  h. Measured coverage moves to 0.88-0.91 — still conservative, as split
+  conformal guarantees, but no longer by 3x. `q10`/`q50`/`q90` keep
+  their names, meaning, and position; point forecasts, model selection,
+  and artifact IDs are unchanged. Threshold-crossing probabilities
+  follow the same per-lead scaling (their `basis` string says so).
+  `Evaluation` gains `residuals_by_lead`; `interval_bounds` is retained
+  for callers holding one pooled quantile set. Goldens refreshed:
+  quantile columns only.
+
+- Gate instrumentation + interval-aware coverage veto, additive: a new
+  `context_gate` evidence record per series with context events, and
+  `context.gate_checks` in the public context dict (each entry: `code`,
+  `passed`, and where applicable `measured`, `threshold`, `detail`).
+  Existing `reasons` strings are unchanged and still populated. The
+  coverage condition now triggers on the Wilson upper bound of measured
+  coverage rather than the point estimate, so it fires only when the
+  degradation exceeds the measurement's own uncertainty — strictly fewer
+  spurious rejections; no previously-rejected-for-cause run is admitted
+  on any other condition.
+
+- Conditional forecasts, additive: a result may carry
+  `conditional_forecasts`, a list of answers conditioned on events the
+  admission gate cannot admit (no verifiable source, so not backtestable).
+  Each entry has its own `support: "conditional_on_event"`, `assumptions`,
+  `forecast` rows, `measured_effect`, `effect_standard_error`, and
+  `occurrences_in_history`; runs that produce one also emit a
+  `conditional_forecasts` evidence record naming every declined event and
+  why. The key is **omitted entirely** when empty, so a run that produces no
+  conditional forecast serialises byte-for-byte as it did before the feature
+  existed — the goldens are unchanged and verify this. Every existing field
+  keeps its unconditional value: a v0.2 reader that ignores the key sees what
+  it has always seen.
+
+- Multivariate gate, behaviour change: `--multivariate` no longer overrides
+  the forecast for every aligned series. VAR is a candidate in the selection
+  folds, admitted per series under the same margin as every other model, and
+  each such run emits a `multivariate_gate` evidence record. A caller that
+  passed `--multivariate` and relied on `selected_model == "var"` for all
+  series will now see it only where VAR won. `aion.multivariate.forecast_var`
+  is removed (`VarFrame` replaces it); no MCP tool name or signature changed.
+
+- Ensemble intervals, behaviour change: calibrated on the selection and
+  calibration folds rather than a trailing window overlapping the test fold.
+  Ensemble `q10`/`q90` values change (they were ~3x too narrow on a
+  representative series); `point` values are unchanged. No golden covers the
+  ensemble path.
+
+- Tracking schema, additive: `forecasts.wape` and `model_performance.wape`
+  columns, added by the existing in-place migration; `ScoreResult.wape`,
+  `ForecastRecord.wape`, `ModelPerformance.avg_wape`; a WAPE column in
+  `aion track leaderboard` and `avg_wape` in `track performance --json`.
+  Existing columns and MASE ordering are unchanged.
+
+- Quantile levels, additive (goldens refreshed, additively): forecast rows
+  and `forecast.csv` gain `q05`, `q20`, `q30`, `q70`, `q80`, `q95`.
+  `q10`/`q50`/`q90` are unchanged in meaning **and in value** — identical
+  order statistics of identical residuals under an identical fit. The
+  `forecast.csv` header retains `series,timestamp,point,q10,q50,q90` as its
+  first six columns in that order, so positional readers are unaffected, and
+  appends the new levels after them. The golden refresh adds keys and one
+  note; no pre-existing number changed, which the refresh diff shows.
+
+- Distributional selection loss, additive and opt-in: `evaluate()` gains
+  `selection_loss` (`"wape"` default, `"pinball"`) and `Evaluation` gains
+  `pinball_scores`, populated only when pinball is requested. The default
+  path is byte-identical; nothing selects differently unless asked.
+
 ## Enforcement
 
 `tests/test_golden_artifacts.py` pins byte-exact `artifact.json` output for
@@ -178,3 +256,19 @@ relative to 3.11 — so goldens are captured and byte-checked on 3.12+,
 and value-checked to 1e-9 relative tolerance on 3.11. Artifact IDs hash
 inputs and parameters, never outputs, so they are identical across
 interpreter versions.
+
+- Trend-shift anomaly coverage + graded-scope disclosure, additive:
+  `aion.anomaly` gains a fourth candidate detector, `local_slope`
+  (deviation of the windowed median first difference from the series'
+  typical slope), and the injection grader gains a fourth family,
+  `trend_shift` (a ramped slope change of `TREND_SCALE` robust-scale
+  units, `TREND_TRIALS` per run). The three existing detectors and
+  three existing families are unchanged. Every anomaly result's support
+  now carries `sensitivity.graded_families` and, for synthetic-injection
+  selection, an assumption naming those families — the grade vouches for
+  the kinds the grader planted and says so, instead of implying
+  coverage of kinds nobody tested. Detector selection is unchanged in
+  mechanism (best F1, ties to the earlier candidate), but a series whose
+  anomalies are slope changes can now select a detector able to find
+  them, so previously-empty detections may become non-empty. Forecast
+  artifacts, forecast goldens, and artifact IDs are unaffected.

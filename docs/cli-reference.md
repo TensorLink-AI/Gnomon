@@ -270,10 +270,11 @@ aion investigate data.csv --time timestamp --target value \
 ## `aion detect`
 
 What is abnormal? Candidate detectors — robust z-score, rolling-median
-residual, forecast-interval exceedance, plus any installed multi-task TSFM
-sandbox's reconstruction error — compete on a deterministic synthetic
-anomaly-injection grader; the winner flags anomalies and every candidate's
-precision/recall/F1 is disclosed in the artifact:
+residual, local-slope deviation, forecast-interval exceedance, plus any
+installed multi-task TSFM sandbox's reconstruction error — compete on a
+deterministic synthetic anomaly-injection grader that plants spikes, level
+shifts, dropouts, and trend shifts; the winner flags anomalies and every
+candidate's precision/recall/F1 is disclosed in the artifact:
 
 ```bash
 aion detect data.csv --time timestamp --target value
@@ -283,6 +284,11 @@ aion detect data.csv --time timestamp --target value \
 
 With `--labels` (known anomaly timestamps), detector selection uses label
 F1 instead of the synthetic grader.
+
+The grade covers the families the grader planted and nothing else. Each
+result's support carries `graded_families` and, under synthetic selection,
+an assumption naming them — a detector that recovers planted spikes has
+not been tested on anomaly kinds outside that list.
 
 ## `aion route`
 

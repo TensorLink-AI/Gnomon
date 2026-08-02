@@ -57,9 +57,10 @@ def main() -> int:
     aion.add_argument("--dataset-folder", required=True,
                       help="Official processed dataset folder of task JSONs")
     aion.add_argument("--output-dir", required=True)
-    aion.add_argument("--mode", choices=["pure", "agent"], default="pure")
+    aion.add_argument("--mode", choices=["pure", "agent", "tools"],
+                      default="pure")
     aion.add_argument("--model", default=None,
-                      help="OpenRouter model id (required for --mode agent)")
+                      help="OpenRouter model id (required for agent/tools modes)")
     aion.add_argument("--temperature", type=float, default=1.0)
     aion.add_argument("--limit", type=int, default=None)
 

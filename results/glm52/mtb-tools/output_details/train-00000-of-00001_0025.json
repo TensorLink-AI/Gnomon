@@ -1,0 +1,384 @@
+{
+  "filename": "train-00000-of-00001_0025.json",
+  "ground_truth": [
+    113.42,
+    115.78,
+    120.19,
+    119.6708,
+    121.82,
+    120.6,
+    120.75,
+    119.07,
+    116.61,
+    116.28,
+    115.6637,
+    115.26,
+    114.31,
+    116.5,
+    117.6,
+    117.48,
+    118.09,
+    117.2,
+    115.65,
+    116.26,
+    117.2358,
+    117.13,
+    116.15,
+    118.07,
+    118.46,
+    117.31,
+    118.35,
+    121.44,
+    121.64,
+    122.59,
+    122.6917,
+    123.33,
+    123.97
+  ],
+  "predict": [
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235,
+    119.235
+  ],
+  "mse": 7.99923048060605,
+  "mae": 2.49690909090909,
+  "rmse": 2.82829108837935,
+  "mape": 2.1159279256019166,
+  "failed": false,
+  "support": "degraded",
+  "selected_model": "last_value",
+  "events": [],
+  "forecast_ref": "fc1",
+  "forecasts_computed": 3,
+  "tool_calls": 7,
+  "trace": [
+    {
+      "tool": "series_stats",
+      "arguments": {},
+      "result": {
+        "count": 143,
+        "mean": 108.830465,
+        "std": 5.607133,
+        "min": 98.49,
+        "max": 119.78,
+        "first": 112.25,
+        "last": 115.4,
+        "coefficient_of_variation": 0.051522
+      }
+    },
+    {
+      "tool": "detect_season",
+      "arguments": {},
+      "result": {
+        "period_bars": 7,
+        "strength": 0.0,
+        "basis": "frequency_default"
+      }
+    },
+    {
+      "tool": "aion_detect_anomalies",
+      "arguments": {},
+      "result": {
+        "detector": "rolling_median_residual",
+        "selection_basis": "synthetic_injection_f1",
+        "support": "supported",
+        "anomaly_count": 10,
+        "anomalies": [
+          {
+            "timestamp": "2020-01-15T00:00:00+00:00",
+            "value": 103.95,
+            "score": -3.6988
+          },
+          {
+            "timestamp": "2020-01-27T00:00:00+00:00",
+            "value": 101.23,
+            "score": -3.8729
+          },
+          {
+            "timestamp": "2020-02-09T00:00:00+00:00",
+            "value": 109.56,
+            "score": 5.026
+          },
+          {
+            "timestamp": "2020-03-07T00:00:00+00:00",
+            "value": 102.17,
+            "score": 3.5465
+          },
+          {
+            "timestamp": "2020-04-23T00:00:00+00:00",
+            "value": 116.93,
+            "score": -3.6771
+          },
+          {
+            "timestamp": "2020-05-10T00:00:00+00:00",
+            "value": 109.49,
+            "score": -3.503
+          },
+          {
+            "timestamp": "2020-05-11T00:00:00+00:00",
+            "value": 108.52,
+            "score": -5.6135
+          },
+          {
+            "timestamp": "2020-05-17T00:00:00+00:00",
+            "value": 109.2,
+            "score": -5.1131
+          },
+          {
+            "timestamp": "2020-05-21T00:00:00+00:00",
+            "value": 114.75,
+            "score": 5.3742
+          },
+          {
+            "timestamp": "2020-05-22T00:00:00+00:00",
+            "value": 115.4,
+            "score": 4.1013
+          }
+        ]
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "note": "History-only baseline forecast"
+      },
+      "result": {
+        "forecast_ref": "fc1",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "last_value",
+        "strongest_baseline": "last_value",
+        "warnings": [
+          "Limited evaluation: only 2 rolling folds were available; 198 observations enable fully separated selection, calibration, and test windows.",
+          "Limited evaluation: no held-out test fold remained, so interval coverage is unmeasured."
+        ],
+        "events_proposed": 0,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [],
+        "forecast": [
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235
+        ]
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "note": "Event-informed forecast with positive analyst outlook and renewable diesel expansion context from article",
+        "context_events": [
+          {
+            "name": "analyst_positive_outlook",
+            "start": "2022-10-13",
+            "end": "2022-11-30",
+            "description": "Analysts expecting more upside for VLO, strong Q2 results, diversified refinery base, Gulf coast export advantage"
+          },
+          {
+            "name": "renewable_diesel_expansion",
+            "start": "2022-10-13",
+            "end": "2023-12-31",
+            "description": "Valero intends to quadruple renewable diesel production capacity by 2023, low-carbon fuel policies driving demand"
+          }
+        ]
+      },
+      "result": {
+        "forecast_ref": "fc2",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "last_value",
+        "strongest_baseline": "last_value",
+        "warnings": [
+          "Limited evaluation: only 2 rolling folds were available; 198 observations enable fully separated selection, calibration, and test windows.",
+          "Limited evaluation: no held-out test fold remained, so interval coverage is unmeasured."
+        ],
+        "events_proposed": 2,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [
+          "proposal 1 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 2 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''"
+        ],
+        "forecast": [
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235
+        ]
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "context_events": [
+          {
+            "description": "Analysts expecting more upside for VLO, strong Q2 results, diversified refinery base, Gulf coast export advantage",
+            "name": "analyst_positive_outlook",
+            "start": "2022-10-13T00:00:00Z",
+            "end": "2022-11-30T00:00:00Z"
+          },
+          {
+            "description": "Valero intends to quadruple renewable diesel production capacity by 2023, low-carbon fuel policies driving demand",
+            "name": "renewable_diesel_expansion",
+            "start": "2022-10-13T00:00:00Z",
+            "end": "2023-12-31T00:00:00Z"
+          }
+        ],
+        "note": "Event-informed forecast with properly formatted ISO timestamps"
+      },
+      "result": {
+        "forecast_ref": "fc3",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "last_value",
+        "strongest_baseline": "last_value",
+        "warnings": [
+          "Limited evaluation: only 2 rolling folds were available; 198 observations enable fully separated selection, calibration, and test windows.",
+          "Limited evaluation: no held-out test fold remained, so interval coverage is unmeasured."
+        ],
+        "events_proposed": 2,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [
+          "proposal 1 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 2 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''"
+        ],
+        "forecast": [
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235,
+          119.235
+        ]
+      }
+    },
+    {
+      "tool": "submit_forecast",
+      "arguments": {
+        "forecast_ref": "fc1"
+      },
+      "result": {
+        "accepted": true,
+        "forecast_ref": "fc1",
+        "steps": 33
+      }
+    }
+  ]
+}

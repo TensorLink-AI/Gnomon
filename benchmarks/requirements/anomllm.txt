@@ -1,0 +1,10 @@
+# AnomLLM: needed to *generate* the official synthetic datasets
+# (src/data/synthetic.py) and to import the official src/ modules.
+-r base.txt
+torch>=2.0           # install the CPU wheel: --index-url https://download.pytorch.org/whl/cpu
+scipy>=1.11
+tqdm>=4.66
+loguru>=0.7
+matplotlib>=3.8
+google-generativeai>=0.8   # imported at module level by src/gemini_api.py
+affiliation @ git+https://github.com/ahstat/affiliation-metrics-py.git

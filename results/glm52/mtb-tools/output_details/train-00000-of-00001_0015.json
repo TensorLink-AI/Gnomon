@@ -1,0 +1,346 @@
+{
+  "filename": "train-00000-of-00001_0015.json",
+  "ground_truth": [
+    42.14,
+    42.28,
+    43.04,
+    43.19,
+    43.07,
+    42.84,
+    42.91,
+    44.91,
+    43.94,
+    44.27,
+    44.34,
+    44.52,
+    44.42,
+    43.09,
+    44.91,
+    44.93,
+    44.56,
+    44.58,
+    44.79,
+    44.6098,
+    44.12,
+    43.36,
+    43.395,
+    43.39,
+    43.62,
+    43.53,
+    43.6,
+    44.03,
+    43.275,
+    43.08,
+    43.3,
+    43.03,
+    42.775
+  ],
+  "predict": [
+    47.37245655331365,
+    47.41101758062524,
+    47.44957860793683,
+    47.48813963524842,
+    47.52670066256002,
+    47.565261689871605,
+    47.60382271718319,
+    47.642383744494786,
+    47.68094477180638,
+    47.71950579911797,
+    47.75806682642956,
+    47.79662785374115,
+    47.835188881052744,
+    47.87374990836433,
+    47.912310935675926,
+    47.95087196298751,
+    47.98943299029911,
+    48.027994017610695,
+    48.06655504492229,
+    48.10511607223388,
+    48.14367709954547,
+    48.18223812685706,
+    48.22079915416865,
+    48.25936018148025,
+    48.297921208791834,
+    48.33648223610343,
+    48.375043263415016,
+    48.41360429072661,
+    48.4521653180382,
+    48.49072634534979,
+    48.52928737266138,
+    48.56784839997297,
+    48.60640942728456
+  ],
+  "mse": 19.165409797184648,
+  "mae": 4.29716632363244,
+  "rmse": 4.3778316318909125,
+  "mape": 9.868644469685714,
+  "failed": false,
+  "support": "degraded",
+  "selected_model": "linear_trend",
+  "events": [],
+  "forecast_ref": "fc1",
+  "forecasts_computed": 3,
+  "tool_calls": 7,
+  "trace": [
+    {
+      "tool": "series_stats",
+      "arguments": {},
+      "result": {
+        "count": 137,
+        "mean": 43.607933,
+        "std": 1.944756,
+        "min": 40.06,
+        "max": 47.0099,
+        "first": 40.83,
+        "last": 43.73,
+        "coefficient_of_variation": 0.044596
+      }
+    },
+    {
+      "tool": "detect_season",
+      "arguments": {},
+      "result": {
+        "period_bars": 7,
+        "strength": 0.0,
+        "basis": "frequency_default"
+      }
+    },
+    {
+      "tool": "aion_detect_anomalies",
+      "arguments": {},
+      "result": {
+        "detector": "robust_zscore",
+        "selection_basis": "synthetic_injection_f1",
+        "support": "supported",
+        "anomaly_count": 0,
+        "anomalies": []
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "note": "History-only baseline forecast"
+      },
+      "result": {
+        "forecast_ref": "fc1",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "linear_trend",
+        "strongest_baseline": "seasonal_naive",
+        "warnings": [
+          "Limited evaluation: only 2 rolling folds were available; 198 observations enable fully separated selection, calibration, and test windows.",
+          "Limited evaluation: no held-out test fold remained, so interval coverage is unmeasured."
+        ],
+        "events_proposed": 0,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [],
+        "forecast": [
+          47.3725,
+          47.411,
+          47.4496,
+          47.4881,
+          47.5267,
+          47.5653,
+          47.6038,
+          47.6424,
+          47.6809,
+          47.7195,
+          47.7581,
+          47.7966,
+          47.8352,
+          47.8737,
+          47.9123,
+          47.9509,
+          47.9894,
+          48.028,
+          48.0666,
+          48.1051,
+          48.1437,
+          48.1822,
+          48.2208,
+          48.2594,
+          48.2979,
+          48.3365,
+          48.375,
+          48.4136,
+          48.4522,
+          48.4907,
+          48.5293,
+          48.5678,
+          48.6064
+        ]
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "context_events": [
+          {
+            "name": "ANF added to Zacks Rank #1 Strong Buy",
+            "start": "2021-05-29",
+            "description": "Abercrombie & Fitch was added to the Zacks Rank #1 (Strong Buy) list, indicating positive earnings estimate revisions and institutional buying interest"
+          },
+          {
+            "name": "Seven analysts revised earnings estimates higher",
+            "start": "2021-05-09",
+            "end": "2021-07-08",
+            "description": "Seven analysts revised their earnings estimate higher in the last 60 days for fiscal 2022, with Zacks Consensus Estimate increasing from $1.88 to $3.30 per share"
+          },
+          {
+            "name": "ANF gained 5% over past four weeks",
+            "start": "2021-06-10",
+            "end": "2021-07-08",
+            "description": "ANF climbed higher over the past four weeks gaining 5%, outperforming the S&P 500 which was up 3.2%"
+          }
+        ],
+        "note": "Event-informed forecast with Zacks Rank upgrade and earnings revision context"
+      },
+      "result": {
+        "forecast_ref": "fc2",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "linear_trend",
+        "strongest_baseline": "seasonal_naive",
+        "warnings": [
+          "Limited evaluation: only 2 rolling folds were available; 198 observations enable fully separated selection, calibration, and test windows.",
+          "Limited evaluation: no held-out test fold remained, so interval coverage is unmeasured."
+        ],
+        "events_proposed": 3,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [
+          "proposal 1 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 2 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 3 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''"
+        ],
+        "forecast": [
+          47.3725,
+          47.411,
+          47.4496,
+          47.4881,
+          47.5267,
+          47.5653,
+          47.6038,
+          47.6424,
+          47.6809,
+          47.7195,
+          47.7581,
+          47.7966,
+          47.8352,
+          47.8737,
+          47.9123,
+          47.9509,
+          47.9894,
+          48.028,
+          48.0666,
+          48.1051,
+          48.1437,
+          48.1822,
+          48.2208,
+          48.2594,
+          48.2979,
+          48.3365,
+          48.375,
+          48.4136,
+          48.4522,
+          48.4907,
+          48.5293,
+          48.5678,
+          48.6064
+        ]
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "note": "Event-informed forecast with corrected ISO-8601 timestamps for Zacks Rank upgrade and earnings revision context",
+        "context_events": [
+          {
+            "name": "ANF added to Zacks Rank #1 Strong Buy",
+            "start": "2021-05-29T00:00:00Z",
+            "end": "2021-07-08T00:00:00Z",
+            "description": "Abercrombie & Fitch was added to the Zacks Rank #1 Strong Buy list on May 29 2021, indicating positive earnings estimate revisions and expected institutional buying interest"
+          },
+          {
+            "name": "Seven analysts revised earnings estimates higher",
+            "start": "2021-05-09T00:00:00Z",
+            "end": "2021-07-08T00:00:00Z",
+            "description": "Seven analysts revised their earnings estimate higher in the last 60 days for fiscal 2022, with Zacks Consensus Estimate increasing from $1.88 to $3.30 per share"
+          },
+          {
+            "name": "ANF outperformed S&P 500 over past four weeks",
+            "start": "2021-06-10T00:00:00Z",
+            "end": "2021-07-08T00:00:00Z",
+            "description": "ANF climbed 5% over the past four weeks outperforming the S&P 500 which gained 3.2%"
+          }
+        ]
+      },
+      "result": {
+        "forecast_ref": "fc3",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "linear_trend",
+        "strongest_baseline": "seasonal_naive",
+        "warnings": [
+          "Limited evaluation: only 2 rolling folds were available; 198 observations enable fully separated selection, calibration, and test windows.",
+          "Limited evaluation: no held-out test fold remained, so interval coverage is unmeasured."
+        ],
+        "events_proposed": 3,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [
+          "proposal 1 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 2 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 3 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''"
+        ],
+        "forecast": [
+          47.3725,
+          47.411,
+          47.4496,
+          47.4881,
+          47.5267,
+          47.5653,
+          47.6038,
+          47.6424,
+          47.6809,
+          47.7195,
+          47.7581,
+          47.7966,
+          47.8352,
+          47.8737,
+          47.9123,
+          47.9509,
+          47.9894,
+          48.028,
+          48.0666,
+          48.1051,
+          48.1437,
+          48.1822,
+          48.2208,
+          48.2594,
+          48.2979,
+          48.3365,
+          48.375,
+          48.4136,
+          48.4522,
+          48.4907,
+          48.5293,
+          48.5678,
+          48.6064
+        ]
+      }
+    },
+    {
+      "tool": "submit_forecast",
+      "arguments": {
+        "forecast_ref": "fc1"
+      },
+      "result": {
+        "accepted": true,
+        "forecast_ref": "fc1",
+        "steps": 33
+      }
+    }
+  ]
+}

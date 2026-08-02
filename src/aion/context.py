@@ -14,8 +14,12 @@ metadata (a dated file, a calendar entry), never taken from the model's
 assertion alone. Events without a verifiable source may inform only the
 future horizon and are never admissible for backtesting.
 
-Status: experimental contract. No v0.1 pipeline consumes events yet; the
-compiler and ablation stages land behind their own release gate.
+Events are consumed by the forecast pipeline's context stage, which
+replays the selection folds with a context-adjusted candidate and admits
+it only on measured, stable improvement (``aion.context_eval``). Every
+gate decision — the conditions evaluated, what each measured, and which
+one decided a rejection — is disclosed as a ``context_gate`` evidence
+record.
 """
 
 from __future__ import annotations

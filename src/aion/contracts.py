@@ -173,6 +173,11 @@ class SeriesResult:
     # Informational disclosures (e.g. an uninstalled-but-eligible TSFM tier);
     # unlike warnings these never downgrade support.
     notes: list[str] = field(default_factory=list)
+    # Answers to "what if this event happens", each with its own
+    # `conditional_on_event` support and assumptions. Strictly additive: every
+    # field above keeps its unconditional value, so a reader that ignores this
+    # key sees what it has always seen.
+    conditional_forecasts: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -187,7 +192,15 @@ class ForecastArtifact:
     evidence: list[Evidence] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        payload = asdict(self)
+        for result in payload.get("results", []):
+            # Additive keys appear only when they carry something. A run that
+            # produced no conditional forecast serialises exactly as it did
+            # before the feature existed, which is what makes the v0.2 surface
+            # freeze verifiable byte-for-byte rather than by inspection.
+            if not result.get("conditional_forecasts"):
+                result.pop("conditional_forecasts", None)
+        return payload
 
 
 # Machine-readable repair options per error code: what a host model can do

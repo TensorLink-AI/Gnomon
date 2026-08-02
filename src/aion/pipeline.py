@@ -20,8 +20,16 @@ from .context_eval import CONTEXT_MODEL_NAME, ContextAssessment, assess_context
 from .contracts import AionError, DataSchema, Evidence
 from .covariates import CovariateAssessment, CovariateDataset, assess_covariates
 from .data import Observation, load_observations
-from .evaluation import Evaluation, evaluate, interval_bounds, quantile
+from .evaluation import (
+    Evaluation,
+    conformal_quantile_spreads,
+    conformal_spreads,
+    evaluate,
+    interval_from_spread,
+    quantiles_from_spread,
+)
 from .models import MODELS, predict
+from .multivariate import MULTIVARIATE_MODEL_NAME
 from .repair import RepairLog, repair_observations
 from .temporal import detect_season, next_timestamp, validate_and_group
 from .temporal_store import InMemoryTemporalStore, Snapshot, TemporalStore
@@ -57,6 +65,9 @@ class SeriesState:
     selected_model: str | None = None
     points: list[float] = field(default_factory=list)
     residuals: list[float] = field(default_factory=list)
+    # Residuals indexed by lead time, when the producing stage measured
+    # them that way; empty means intervals fall back to the pooled spread.
+    residuals_by_lead: dict[int, list[float]] = field(default_factory=dict)
     coverage: float | None = None
     warnings: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
@@ -65,6 +76,7 @@ class SeriesState:
     context_assessment: ContextAssessment | None = None
     covariate_assessment: CovariateAssessment | None = None
     adjudication_public: dict[str, object] | None = None
+    conditional_forecasts: list[dict[str, object]] = field(default_factory=list)
     evidence: list[Evidence] = field(default_factory=list)
 
 
@@ -152,6 +164,7 @@ def evaluate_stage(
     strict_abstention: bool,
     snapshot: Snapshot | None = None,
     variable: str | None = None,
+    extra_candidates: dict[str, Any] | None = None,
 ) -> None:
     """Separated rolling evaluation: selection folds, calibration fold, test
     fold. With a snapshot, every fold trains on the series *as known at*
@@ -175,6 +188,7 @@ def evaluate_stage(
         config=config,
         strict_abstention=strict_abstention,
         train_at=train_at,
+        extra_candidates=extra_candidates,
     )
     state.assessment = assessment
     state.selected_model = assessment.selected_model
@@ -182,6 +196,7 @@ def evaluate_stage(
     state.warnings = list(assessment.warnings)
     state.notes = list(assessment.notes)
     state.residuals = assessment.residuals
+    state.residuals_by_lead = dict(assessment.residuals_by_lead)
 
 
 def predict_stage(
@@ -190,6 +205,7 @@ def predict_stage(
     horizon: int,
     frequency: str,
     selection_strategy: str,
+    extra_candidates: dict[str, Any] | None = None,
 ) -> None:
     """Produce the final point forecast from the selected model, with the
     ensemble path and the TSFM sandbox/in-process fallback chain."""
@@ -197,7 +213,30 @@ def predict_stage(
     if not (assessment and assessment.supported and assessment.selected_model):
         return
     values, season = state.values, state.season
-    if assessment.selected_model == "ensemble" or selection_strategy == "ensemble":
+    # Intervals for the ensemble come from the ensemble's own residuals over
+    # the selection and calibration folds, computed in `evaluate`. The previous
+    # version pooled residuals from a trailing window of the series, which
+    # overlaps the calibration and report-only test folds — so the published
+    # interval width for every ensemble result was calibrated on the partition
+    # the design says nothing may be chosen on (DESIGN_REVIEW_NOTES §1).
+    wants_ensemble = assessment.selected_model == "ensemble" or selection_strategy == "ensemble"
+    ensemble_residuals, ensemble_by_lead = (
+        (assessment.residuals, assessment.residuals_by_lead)
+        if assessment.selected_model == "ensemble"
+        else (assessment.ensemble_residuals, assessment.ensemble_residuals_by_lead)
+    )
+    if wants_ensemble and not ensemble_residuals:
+        # Nothing fold-separated to calibrate the ensemble from, and the
+        # selected model's residuals describe a different forecast. Publishing
+        # the ensemble point with someone else's interval is the failure this
+        # fix exists to remove, so the ensemble is declined instead.
+        wants_ensemble = False
+        state.warnings.append(
+            "Ensemble was requested but produced no fold-separated residuals "
+            f"of its own; reporting {assessment.selected_model} instead, whose "
+            "intervals are calibrated."
+        )
+    if wants_ensemble:
         from .ensemble import compute_ensemble_forecast
         forecasts = {}
         for name in MODELS:
@@ -208,21 +247,16 @@ def predict_stage(
         state.points = compute_ensemble_forecast(forecasts, assessment.selection_scores,
                                                  strategy="weighted_mean", last_observed=values[-1])
         state.selected_model = "ensemble"
-        # Pool out-of-sample residuals from every eligible model so
-        # ensemble intervals reflect both data noise and model spread.
-        holdout = min(horizon, max(1, len(values) // 4))
-        origin = len(values) - holdout
-        pooled: list[float] = []
-        for name in MODELS:
-            try:
-                prediction = predict(name, values[:origin], holdout, season)
-                pooled.extend(a - p for a, p in zip(values[origin:], prediction))
-            except ValueError:
-                pass
-        if pooled:
-            state.residuals = pooled
+        state.residuals = list(ensemble_residuals)
+        state.residuals_by_lead = {step: list(items)
+                                   for step, items in ensemble_by_lead.items()}
     elif assessment.selected_model in MODELS:
         state.points = predict(assessment.selected_model, values, horizon, season)
+    elif extra_candidates and assessment.selected_model in extra_candidates:
+        # A cross-series candidate that won the folds; the final forecast is
+        # refit at the end of the observed history, the same way every fold
+        # forecast was refit at its own origin.
+        state.points = extra_candidates[assessment.selected_model](len(values), horizon)
     else:
         # TSFM selected — use the adapter for the final forecast.
         # Try sandbox first, then in-process.
@@ -253,16 +287,111 @@ def predict_stage(
             state.points = predict(state.selected_model, values, horizon, season)
 
 
+def conditional_stage(
+    state: SeriesState,
+    context_events: list[ContextEvent],
+    *,
+    horizon: int,
+) -> None:
+    """Answer "what if this event happens" for events the gate cannot admit.
+
+    Events without a verifiable source are excluded from backtesting because
+    their `known_at` cannot be shown not to leak — which is right for the
+    forecast, and turns a real question into an abstention. The answer goes
+    in its own list with its own support status; nothing above it changes.
+    """
+    from .conditional import assess_conditional
+
+    assessment = state.assessment
+    if not (assessment and assessment.supported and state.points):
+        return
+    spreads = conformal_spreads(
+        state.residuals_by_lead, len(state.points), state.residuals,
+    )
+    forecasts, excluded = assess_conditional(
+        state.values, state.timestamps, state.future_timestamps,
+        context_events, state.name, horizon, state.season, spreads,
+        state.points,
+    )
+    state.conditional_forecasts = [item.to_public_dict() for item in forecasts]
+    if forecasts or excluded:
+        state.evidence.append(Evidence(
+            f"conditional_forecasts:{state.name}", "conditional_forecasts",
+            state.name,
+            {
+                "produced": len(forecasts),
+                "declined": excluded,
+                "basis": "effect measured from event-active periods in the "
+                         "observed history; never from the event description",
+            },
+        ))
+
+
 def multivariate_stage(
     state: SeriesState,
-    multivariate_points: dict[str, list[float]],
-    multivariate_warnings: dict[str, str],
+    *,
+    eligible: bool,
+    minimum_baseline_improvement: float,
+    ineligibility_reason: str | None = None,
+    strongest_correlation: float | None = None,
+    series_count: int = 0,
 ) -> None:
-    """Override the univariate forecast with the VAR forecast when one exists."""
-    if state.name in multivariate_points:
-        state.points = multivariate_points[state.name]
-        state.selected_model = "var"
-        state.warnings.append(multivariate_warnings[state.name])
+    """Record what the cross-series candidate was and how it was decided.
+
+    The VAR does not override anything here. It is entered in `evaluate` as a
+    candidate on the same rolling folds as every other model and admitted only
+    by the same margin rule, so by this point selection has already spoken.
+    Previously this stage overwrote the forecast outright — no fold
+    comparison, no baseline, no evidence record — which made it the one path
+    that could publish a number the admission philosophy never examined.
+    """
+    assessment = state.assessment
+    if assessment is None:
+        return
+    score = assessment.selection_scores.get(MULTIVARIATE_MODEL_NAME)
+    baseline = assessment.strongest_baseline
+    baseline_score = assessment.selection_scores.get(baseline) if baseline else None
+    checks: list[dict[str, Any]] = [{
+        "code": "series_eligible_for_var",
+        "passed": eligible,
+        "measured": series_count,
+        **({"detail": ineligibility_reason} if ineligibility_reason else {}),
+    }]
+    if eligible:
+        checks.append({
+            "code": "var_completed_every_fold",
+            "passed": score is not None,
+            "measured": score,
+        })
+        if score is not None and baseline_score:
+            margin = baseline_score * (1 - minimum_baseline_improvement)
+            checks.append({
+                "code": "var_beats_strongest_baseline_by_margin",
+                "passed": score <= margin,
+                "measured": round(score, 6),
+                "threshold": round(margin, 6),
+            })
+            # Clearing the baseline is not the same as winning: another
+            # candidate can clear it by more. Both are recorded so a
+            # rejection histogram distinguishes "no cross-series signal"
+            # from "cross-series signal, but a univariate model did better".
+            checks.append({
+                "code": "var_is_the_best_candidate",
+                "passed": state.selected_model == MULTIVARIATE_MODEL_NAME,
+                "measured": state.selected_model,
+            })
+    state.evidence.append(Evidence(
+        f"multivariate_gate:{state.name}", "multivariate_gate", state.name,
+        {
+            "series_in_frame": series_count,
+            "strongest_correlation": strongest_correlation,
+            "admitted": state.selected_model == MULTIVARIATE_MODEL_NAME,
+            "checks": checks,
+            "decided_by": next(
+                (check["code"] for check in checks if not check["passed"]), None,
+            ),
+        },
+    ))
 
 
 def context_stage(
@@ -286,10 +415,29 @@ def context_stage(
         f"context_ablation:{state.name}", "context_ablation", state.name,
         state.context_public,
     ))
+    # The gate's own decisions, countable: how many events were supplied,
+    # how many survived eligibility, and which condition decided the
+    # outcome. Admission rate cannot be measured across a corpus from
+    # prose reasons alone.
+    state.evidence.append(Evidence(
+        f"context_gate:{state.name}", "context_gate", state.name,
+        {
+            "events_supplied": len(context_events),
+            "events_eligible": len(context.events_used),
+            "events_excluded": len(context.events_excluded),
+            "admitted": context.admitted,
+            "checks": context.gate_checks,
+            "decided_by": next(
+                (check["code"] for check in context.gate_checks
+                 if not check["passed"]), None,
+            ),
+        },
+    ))
     if context.admitted and apply:
         state.selected_model = CONTEXT_MODEL_NAME
         state.points = context.points
         state.residuals = context.residuals
+        state.residuals_by_lead = dict(context.residuals_by_lead)
         state.coverage = context.coverage
         state.warnings = list(context.warnings)
 
@@ -361,14 +509,25 @@ def threshold_analysis_stage(
     rows: list[dict[str, object]],
     points: list[float],
     residuals: list[float],
-    residual_quantiles: dict[float, float],
+    spreads: dict[int, tuple[float, float, float]],
 ) -> dict[str, object]:
-    """Empirical threshold-crossing analysis from the pooled backtest
-    residuals, recentred and widened exactly like the published intervals."""
-    centre_shift = residual_quantiles[0.5]
+    """Empirical threshold-crossing analysis from the backtest residuals,
+    recentred and scaled exactly like the published intervals.
+
+    The published interval at a lead time is now the measured spread at
+    that lead time, so the crossing probability is computed against the
+    same scaling: pooled residuals rescaled to each lead's half-width
+    rather than stretched by sqrt(step).
+    """
     probabilities: list[float] = []
+    pooled_half = (max(spreads[1][0], spreads[1][2])
+                   if spreads and 1 in spreads else 0.0)
     for step, point in enumerate(points, 1):
-        scale = step ** 0.5
+        low_offset, centre_shift, high_offset = spreads[step]
+        lead_half = max(low_offset, high_offset)
+        # Scale the empirical residual cloud to this lead's measured
+        # spread; with one lead's worth of residuals the ratio is 1.
+        scale = (lead_half / pooled_half) if pooled_half > 1e-12 else 1.0
         above = sum(
             1 for residual in residuals
             if point + centre_shift + (residual - centre_shift) * scale > threshold
@@ -388,14 +547,49 @@ def threshold_analysis_stage(
         "first_timestamp_interval_above": first_timestamp(lambda row: row["q90"] > threshold),
         "first_timestamp_point_below": first_timestamp(lambda row: row["point"] < threshold),
         "first_timestamp_interval_below": first_timestamp(lambda row: row["q10"] < threshold),
-        "basis": "empirical probabilities from pooled backtest residuals with sqrt-horizon widening",
+        "basis": "empirical probabilities from backtest residuals scaled to the per-lead-time conformal spread",
     }
+
+
+def _constraint_stage(
+    state: SeriesState,
+    context_events: list[ContextEvent],
+    rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Project the forecast onto bounds the caller says the domain has.
+
+    Rejections are recorded as loudly as applications: a bound the training
+    window already breaches is describing a different quantity, and silently
+    dropping it would leave the caller believing it was enforced.
+    """
+    from .constraints import apply_claims, collect_claims
+
+    claims, rejected = collect_claims(
+        context_events, state.name, state.values, state.timestamps,
+    )
+    if not claims and not rejected:
+        return rows
+    projected, applications = apply_claims(rows, claims)
+    state.evidence.append(Evidence(
+        f"constraint_applied:{state.name}", "constraint_applied", state.name,
+        {
+            "claims_supplied": len(claims) + len(rejected),
+            "claims_applied": len(claims),
+            "rejected": rejected,
+            "clamps": applications,
+            "basis": "bounds are projected onto the emitted quantiles after "
+                     "interval construction; the point path is never adjusted "
+                     "to satisfy a claim",
+        },
+    ))
+    return projected
 
 
 def interval_stage(
     state: SeriesState,
     *,
     threshold: float | None,
+    context_events: list[ContextEvent] | None = None,
 ) -> tuple[list[dict[str, object]], str, dict[str, object] | None]:
     """Residual-quantile intervals, the support status, and threshold analysis."""
     assessment = state.assessment
@@ -403,16 +597,50 @@ def interval_stage(
     threshold_analysis: dict[str, object] | None = None
     support = "unsupported"
     if assessment and assessment.supported and state.points:
-        residual_quantiles = {probability: quantile(state.residuals, probability) for probability in (0.1, 0.5, 0.9)}
+        spreads = conformal_spreads(
+            state.residuals_by_lead, len(state.points), state.residuals,
+        )
+        # The full quantile set comes from the same residuals and the same
+        # fit; q10/q50/q90 are the identical order statistics they always
+        # were, so the additional levels are strictly additional.
+        level_spreads = conformal_quantile_spreads(
+            state.residuals_by_lead, len(state.points), state.residuals,
+        )
         for step, (timestamp, point) in enumerate(zip(state.future_timestamps, state.points), 1):
-            q10, q50, q90 = interval_bounds(point, residual_quantiles, step)
-            rows.append({
+            q10, q50, q90 = interval_from_spread(point, spreads[step])
+            row = {
                 "timestamp": timestamp.isoformat(), "point": point,
                 "q10": q10, "q50": q50, "q90": q90,
-            })
+            }
+            extra = quantiles_from_spread(point, level_spreads[step])
+            row.update({key: value for key, value in extra.items()
+                        if key not in row})
+            rows.append(row)
+        # With few residuals at a lead time, adjacent levels land on the same
+        # order statistic and report the same number. Those values are still
+        # honest conformal bounds, but a reader seeing q05 == q20 should know
+        # it is the sample's resolution and not a defect. A note, not a
+        # warning: this says nothing about the evidence for the forecast.
+        collapsed = sum(1 for row in rows
+                        if len({row[key] for key in row
+                                if key.startswith("q")}) < len(
+                                    [key for key in row if key.startswith("q")]))
+        if collapsed:
+            state.notes.append(
+                f"Quantile levels are limited by the residual sample: at "
+                f"{collapsed} of {len(rows)} lead times, adjacent levels share "
+                f"an order statistic and report identical values. q10/q50/q90 "
+                f"are unaffected in meaning."
+            )
+        # Feasibility bounds are projected onto the emitted quantiles here,
+        # after the model has said what it believes and before anything reads
+        # the rows, so the threshold analysis below sees the same numbers the
+        # caller will.
+        if context_events:
+            rows = _constraint_stage(state, context_events, rows)
         support = "degraded" if assessment.degraded else ("supported_ensemble" if state.selected_model == "ensemble" else ("weakly_supported" if state.warnings else "supported"))
         if threshold is not None:
             threshold_analysis = threshold_analysis_stage(
-                threshold, rows, state.points, state.residuals, residual_quantiles,
+                threshold, rows, state.points, state.residuals, spreads,
             )
     return rows, support, threshold_analysis

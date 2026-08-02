@@ -1,0 +1,8 @@
+AION_ABSTAINED: Need at least 8 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.
+Traceback (most recent call last):
+  File "/root/Aion/.venv-cik/lib/python3.12/site-packages/cik_benchmark/evaluation.py", line 161, in evaluate_task
+    samples = method_callable(task_instance=task, n_samples=n_samples)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/Aion/benchmarks/cik/aion_forecaster.py", line 280, in __call__
+    raise AionAbstained(reasons)
+benchmarks.cik.aion_forecaster.AionAbstained: AION_ABSTAINED: Need at least 8 observations (have 6) for degraded forecasting. A horizon of 4 or less is supportable with the current history; retry with --horizon 4.

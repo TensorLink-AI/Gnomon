@@ -65,49 +65,91 @@
           "point": 205.0,
           "q10": 205.0,
           "q50": 205.0,
-          "q90": 205.0
+          "q90": 205.0,
+          "q05": 205.0,
+          "q20": 205.0,
+          "q30": 205.0,
+          "q70": 205.0,
+          "q80": 205.0,
+          "q95": 205.0
         },
         {
           "timestamp": "2026-02-06T00:00:00",
           "point": 208.0,
           "q10": 208.0,
           "q50": 208.0,
-          "q90": 208.0
+          "q90": 208.0,
+          "q05": 208.0,
+          "q20": 208.0,
+          "q30": 208.0,
+          "q70": 208.0,
+          "q80": 208.0,
+          "q95": 208.0
         },
         {
           "timestamp": "2026-02-07T00:00:00",
           "point": 211.0,
           "q10": 211.0,
           "q50": 211.0,
-          "q90": 211.0
+          "q90": 211.0,
+          "q05": 211.0,
+          "q20": 211.0,
+          "q30": 211.0,
+          "q70": 211.0,
+          "q80": 211.0,
+          "q95": 211.0
         },
         {
           "timestamp": "2026-02-08T00:00:00",
           "point": 214.0,
           "q10": 214.0,
           "q50": 214.0,
-          "q90": 214.0
+          "q90": 214.0,
+          "q05": 214.0,
+          "q20": 214.0,
+          "q30": 214.0,
+          "q70": 214.0,
+          "q80": 214.0,
+          "q95": 214.0
         },
         {
           "timestamp": "2026-02-09T00:00:00",
           "point": 217.0,
           "q10": 217.0,
           "q50": 217.0,
-          "q90": 217.0
+          "q90": 217.0,
+          "q05": 217.0,
+          "q20": 217.0,
+          "q30": 217.0,
+          "q70": 217.0,
+          "q80": 217.0,
+          "q95": 217.0
         },
         {
           "timestamp": "2026-02-10T00:00:00",
           "point": 220.0,
           "q10": 220.0,
           "q50": 220.0,
-          "q90": 220.0
+          "q90": 220.0,
+          "q05": 220.0,
+          "q20": 220.0,
+          "q30": 220.0,
+          "q70": 220.0,
+          "q80": 220.0,
+          "q95": 220.0
         },
         {
           "timestamp": "2026-02-11T00:00:00",
           "point": 223.0,
           "q10": 223.0,
           "q50": 223.0,
-          "q90": 223.0
+          "q90": 223.0,
+          "q05": 223.0,
+          "q20": 223.0,
+          "q30": 223.0,
+          "q70": 223.0,
+          "q80": 223.0,
+          "q95": 223.0
         }
       ],
       "context": null,
@@ -127,7 +169,7 @@
         "first_timestamp_interval_above": "2026-02-05T00:00:00",
         "first_timestamp_point_below": null,
         "first_timestamp_interval_below": null,
-        "basis": "empirical probabilities from pooled backtest residuals with sqrt-horizon widening"
+        "basis": "empirical probabilities from backtest residuals scaled to the per-lead-time conformal spread"
       },
       "support_assessment": {
         "status": "conditionally_supported",
@@ -157,7 +199,8 @@
         "legacy_support": "degraded"
       },
       "notes": [
-        "No foundation-model candidate competed: chronos_bolt_mini, chronos_bolt_small, flowstate, moirai2_small, moment_small, toto2_22m, ttm are eligible for this series but no sandbox is installed. Run `aion tsfm install chronos_bolt_mini` to add one; it enters the same folds against the same baselines."
+        "No foundation-model candidate competed: chronos_bolt_mini, chronos_bolt_small, flowstate, moirai2_small, moment_small, toto2_22m, ttm are eligible for this series but no sandbox is installed. Run `aion tsfm install chronos_bolt_mini` to add one; it enters the same folds against the same baselines.",
+        "Quantile levels are limited by the residual sample: at 7 of 7 lead times, adjacent levels share an order statistic and report identical values. q10/q50/q90 are unaffected in meaning."
       ]
     }
   ],

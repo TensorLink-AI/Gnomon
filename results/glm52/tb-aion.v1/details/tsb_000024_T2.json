@@ -1,0 +1,123 @@
+{
+  "verdict": {
+    "tier": "T2",
+    "choice": {
+      "per_question": {
+        "future_vs_history": false,
+        "volatility_change": true,
+        "seasonality_shift": false
+      },
+      "correct": 1,
+      "total": 3
+    },
+    "forecast_metrics": null,
+    "metric_flag": "missing_channel"
+  },
+  "abstained": [
+    "temperature_c: EXCESSIVE_REPAIR: Series __default__ would need repairs to more than 30% of its rows; fix the data at the source instead of forecasting on a mostly invented series.",
+    "sbp: EXCESSIVE_REPAIR: Series __default__ would need repairs to more than 30% of its rows; fix the data at the source instead of forecasting on a mostly invented series.",
+    "dbp: EXCESSIVE_REPAIR: Series __default__ would need repairs to more than 30% of its rows; fix the data at the source instead of forecasting on a mostly invented series."
+  ],
+  "answer": {
+    "forecast": {
+      "heart_rate": [
+        118.31767767925507,
+        118.43863806340872,
+        118.5595984475624,
+        118.68055883171604,
+        118.80151921586972,
+        118.92247960002337,
+        119.04343998417704,
+        119.16440036833069,
+        119.28536075248437,
+        119.40632113663801,
+        119.52728152079169,
+        119.64824190494534,
+        119.76920228909901,
+        119.89016267325266,
+        120.01112305740631,
+        120.13208344155998,
+        120.25304382571363,
+        120.37400420986731,
+        120.49496459402096,
+        120.61592497817463,
+        120.73688536232828,
+        120.85784574648196,
+        120.9788061306356,
+        121.09976651478928,
+        121.22072689894293,
+        121.3416872830966,
+        121.46264766725025,
+        121.58360805140393,
+        121.70456843555758
+      ],
+      "resp_rate": [
+        24.125,
+        24.125,
+        24.125,
+        24.125,
+        24.125,
+        24.125,
+        24.125,
+        24.125,
+        24.125,
+        24.125,
+        24.125,
+        24.125,
+        24.125,
+        24.125,
+        24.125,
+        24.125,
+        24.125,
+        24.125,
+        24.125,
+        24.125,
+        24.125,
+        24.125,
+        24.125,
+        24.125,
+        24.125,
+        24.125,
+        24.125,
+        24.125,
+        24.125
+      ],
+      "spo2": [
+        100.0,
+        100.0,
+        100.0,
+        100.0,
+        100.0,
+        100.0,
+        100.0,
+        100.0,
+        100.0,
+        100.0,
+        100.0,
+        100.0,
+        100.0,
+        100.0,
+        100.0,
+        100.0,
+        100.0,
+        100.0,
+        100.0,
+        100.0,
+        100.0,
+        100.0,
+        100.0,
+        100.0,
+        100.0,
+        100.0,
+        100.0,
+        100.0,
+        100.0
+      ]
+    },
+    "mcq": {
+      "future_vs_history": "Higher",
+      "volatility_change": "decreased",
+      "seasonality_shift": "no"
+    }
+  }
+}

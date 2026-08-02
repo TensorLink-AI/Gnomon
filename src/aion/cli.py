@@ -723,6 +723,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                             "model": m.model,
                             "count": m.count,
                             "avg_mase": m.avg_mase,
+                            "avg_wape": m.avg_wape,
                             "avg_mape": m.avg_mape,
                             "avg_bias": m.avg_bias,
                             "avg_coverage": m.avg_coverage,
@@ -739,15 +740,20 @@ def main(argv: Sequence[str] | None = None) -> int:
                 lb = store.leaderboard(args.project, task=args.task)
                 task_label = f" [{args.task}]" if args.task else ""
                 print(f"\n  Model Leaderboard: {args.project}{task_label}")
-                print(f"  {'Model':25s} {'Count':>5s} {'MASE':>7s} {'MAPE':>7s} {'Bias':>8s} {'Coverage':>9s} {'Last':>7s}")
-                print(f"  {'-'*25} {'-'*5} {'-'*7} {'-'*7} {'-'*8} {'-'*9} {'-'*7}")
+                print(f"  {'Model':25s} {'Count':>5s} {'MASE':>7s} {'WAPE':>7s} {'MAPE':>7s} {'Bias':>8s} {'Coverage':>9s} {'Last':>7s}")
+                print(f"  {'-'*25} {'-'*5} {'-'*7} {'-'*7} {'-'*7} {'-'*8} {'-'*9} {'-'*7}")
                 for m in lb:
                     mase_s = f"{m.avg_mase:.3f}" if m.avg_mase is not None else "N/A"
+                    # WAPE is the metric selection was decided on; showing it
+                    # next to MASE is what lets a contradiction between the
+                    # leaderboard and the selection be read as a real
+                    # regression rather than a change of units.
+                    wape_s = f"{m.avg_wape:.3f}" if m.avg_wape is not None else "N/A"
                     mape_s = f"{m.avg_mape:.1f}%" if m.avg_mape is not None else "N/A"
                     bias_s = f"{m.avg_bias:+.2f}" if m.avg_bias is not None else "N/A"
                     cov_s = f"{m.avg_coverage:.0%}" if m.avg_coverage is not None else "N/A"
                     last_s = f"{m.last_mase:.3f}" if m.last_mase is not None else "N/A"
-                    print(f"  {m.model:25s} {m.count:>5d} {mase_s:>7s} {mape_s:>7s} {bias_s:>8s} {cov_s:>9s} {last_s:>7s}")
+                    print(f"  {m.model:25s} {m.count:>5d} {mase_s:>7s} {wape_s:>7s} {mape_s:>7s} {bias_s:>8s} {cov_s:>9s} {last_s:>7s}")
                 print()
                 return 0
 

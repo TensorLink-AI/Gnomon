@@ -2,6 +2,172 @@
 
 ## Unreleased
 
+- Temporal-leakage trap family (`benchmarks/leaktrap/`), with results. On 40
+  generated trap tasks where reading past the cutoff is worth ~78% of the
+  honest ceiling, a GLM-5.2 control told plainly that "a value is only
+  knowable on or after its publication date" leaked on **13 of the 35 tasks
+  it answered** and reproduced post-cutoff values verbatim on **4**. Aion
+  through the snapshot path: **0 of 40**, with the no-read-past-cutoff claim
+  proven **40/40** from each run's own `snapshot_access` evidence rather than
+  asserted. Exact McNemar p = 0.00024. See
+  `docs/leakage-trap-results-2026-08.md`, including why the accuracy columns
+  do *not* carry the finding.
+- Adaptive-conformal state, additive and bitemporal. The tracking store gains
+  a `conformal_adaptation` table and `record_coverage_outcome` /
+  `coverage_outcomes` / `adapted_alpha`. It is an append-only log rather than
+  a mutable current level, and each row carries the `known_time` of the
+  outcome that caused it, so `adapted_alpha(..., as_of=T)` is a fold over the
+  rows known by T: adding an outcome tomorrow cannot change what a replay of
+  yesterday reports, and insertion order is irrelevant. Scoring feeds the log
+  automatically; nothing reads it into a published interval yet.
+- `benchmarks/run_all.py` gains `--output-root`, so one config can be run in
+  two environments (with and without TSFM sandboxes) without editing it.
+- **Additive, with a golden refresh.** Forecast rows and `forecast.csv` now
+  carry nine quantile levels (q05, q10, q20, q30, q50, q70, q80, q90, q95).
+  `q10`/`q50`/`q90` keep their exact meaning *and their exact values* — they
+  are the same order statistics of the same residuals, fitted the same way,
+  verified across randomised cases and by the goldens, whose only
+  non-additive change is a new note. The `forecast.csv` header keeps its
+  first six columns in order and appends the rest. Where the residual sample
+  cannot resolve adjacent levels they report the same number; that is
+  disclosed as a note rather than left to look like a defect.
+- `evaluate()` accepts `selection_loss`: `"wape"` (default, unchanged) or
+  `"pinball"`, the proper scoring rule for a quantile, scored on fold *i*
+  using only residuals from folds before it and reusing the fold forecasts so
+  it costs no extra fits. The default is unchanged because the measurement
+  does not support changing it —
+  `docs/selection-loss-measurement-2026-08.md` records that across 50 real
+  series the pinball-selected arm scored *worse* held-out pinball (0.891 vs
+  0.871) than the WAPE-selected arm, losing on its own metric.
+- Context events may carry typed numeric claims. A `min` or `max` bound in
+  `ContextEvent.attributes["claim"]` (reserved `constraint:` event_type
+  namespace) is projected onto the emitted quantiles — monotone, so it
+  cannot reorder them, and idempotent. A claim that supplies a *value*
+  rather than a bound is refused, and the refusal names the admissible route
+  (a covariate, where Aion estimates the coefficient on identical folds).
+  Bounds the training window already breaches are rejected with the
+  violating timestamps rather than enforced. Each run with claims emits a
+  `constraint_applied` evidence record. No new dataclass; runs without
+  claims are byte-identical.
+- `assess_context()` accepts `shrink`: continuous admission via an
+  empirical-Bayes factor λ = max(0, 1 − (standard error / mean)²) applied to
+  the measured effect, pinned to zero below 0.1. λ is **always computed and
+  disclosed** as `context.shrinkage`; applying it is off by default, and
+  `context.admitted` stays exactly `λ > 0` in that mode so the frozen boolean
+  keeps its meaning. λ governs strength only — eligibility, fold
+  availability, candidate fit, and coverage stay hard vetoes, because no
+  measured improvement makes a leaking event admissible.
+  `docs/shrinkage-admission-measurement-2026-08.md` records why the default
+  is off, and here the evidence is significant *against* rather than merely
+  absent: across 120 planted-event series, shrinkage produced the better
+  held-out forecast on 5 of the 28 series where the arms differed
+  (p = 0.0009). The gate's three strength conditions have already removed the
+  candidates whose gains are noise, so shrinking on top discards a median 36%
+  of effects independently established as real.
+- Context effect shapes. The intervention model grows from a single level
+  shift to `level`, `decay` (geometric, for a pull-forward) and `ramp`
+  (linear build). The shape is chosen by the *same* identical-fold ablation
+  that decides admission, never by the caller, and both the winner
+  (`context.effect_shape`) and every shape's fold score
+  (`context.shape_scores`) are disclosed. Shapes are normalised to deliver
+  the same measured total, so they differ in timing rather than magnitude
+  and `decay` cannot win by simply being smaller. On planted data the
+  ablation recovers the true shape 3 times out of 3.
+- Conditional forecasts. An event without a verifiable source cannot be
+  admitted to the forecast — its `known_at` cannot be shown not to leak — so
+  "what if we run the promotion in March?" used to be an abstention. Such
+  events now produce a clearly separated answer in a new
+  `conditional_forecasts` list, each with its own `conditional_on_event`
+  support and stated assumptions. The unconditional forecast is the base and
+  is unchanged, so the difference between the two is the event and nothing
+  else. The effect size is measured from periods in the observed history when
+  an event of the same type was active — never read off the event
+  description — and an event with no precedent is declined with that reason
+  rather than given an invented magnitude. Intervals widen at event-active
+  steps by the standard error of the measured effect, so an effect estimated
+  from three occurrences is visibly less certain than one from thirty. The
+  key is omitted when empty, so existing artifacts are byte-identical.
+- **Behaviour change.** `--multivariate` no longer overrides the forecast.
+  The VAR(1) candidate is now entered in the selection folds like every other
+  model: scored on the same rolling origins, against the same baselines,
+  under the same improvement margin, with its own fold-separated calibration
+  residuals. Previously it overwrote the univariate point forecast outright
+  for every aligned series — no fold comparison against the models it
+  displaced, no evidence record, and its internal check validated on a
+  trailing window that overlaps the report-only test fold. Consequences:
+  the VAR is now admitted **per series** rather than imposed on all of them,
+  an admitted VAR carries intervals derived from its own residuals rather
+  than a different model's, and every run with `--multivariate` emits a
+  `multivariate_gate` evidence record with the conditions and the one that
+  decided the outcome. `aion.multivariate.forecast_var` is removed;
+  `VarFrame` replaces it.
+- **Behaviour change.** Ensemble prediction intervals are calibrated on the
+  selection and calibration folds instead of a trailing window of the series.
+  The old window overlapped both the calibration fold and the report-only
+  test fold, and pooled across models at a single origin — so it measured
+  model disagreement rather than error by lead time. On a representative
+  series it produced intervals 3.3x too narrow. `--selection-strategy
+  ensemble` now also enters the ensemble in the evaluation rather than only
+  swapping the final forecast; where the ensemble still has no
+  fold-separated residuals, it is declined in favour of the calibrated
+  selected model rather than published with someone else's interval.
+- Foundation-model capability exclusions are notes, not warnings, so they no
+  longer downgrade support to `weakly_supported`. Every adapter has a
+  `min_context_length` of 1, so the live trigger was frequency: `flowstate`
+  supports `min`..`MS`, which downgraded every quarterly and annual series
+  regardless of the evidence behind its forecast.
+- `evaluate()` accepts `selection_stride`: selection origins sampled more
+  finely than the horizon, so overlapping selection folds cut comparison
+  variance while calibration residuals stay on the non-overlapping skeleton
+  a conformal quantile needs. The default is unchanged (one origin per
+  horizon) — `docs/fold-stride-measurement-2026-08.md` records why: across
+  140 series the denser stride's choice beat the default's on the held-out
+  test fold 19 times out of 31 changed selections (p = 0.28), for roughly 4x
+  the selection compute. It also does **not** relax the four-fold cliff,
+  which comes from needing calibration and test windows and is
+  stride-independent.
+- `evaluate()` accepts `extra_candidates`: named predictors that need more
+  than the series' own history (`predictor(origin, horizon)`), scored on the
+  same folds under the same margin. This is how the VAR enters the ladder.
+
+- The context admission gate now reports itself. Every run with context
+  events emits a `context_gate` evidence record: how many events were
+  supplied, how many survived eligibility, each condition the gate
+  evaluated with the number it was decided on, and which condition
+  decided a rejection. Admission rate and rejection causes are countable
+  across a corpus instead of being parsed out of prose reasons.
+- The gate's coverage veto compares a Wilson upper bound rather than a
+  point estimate. Coverage is measured on one test fold of `horizon`
+  points, where a drop well inside sampling noise could previously veto
+  context that degraded nothing.
+
+- Forecast intervals are now split-conformal per lead time. The previous
+  bounds took residuals pooled across a whole horizon and widened them by
+  `sqrt(step)` — but pooled residuals already contain lead-time growth, so
+  the widening double-counted it. Measured over 300 synthetic series,
+  coverage was 0.96 against a nominal 0.80 and intervals were ~2.5x wider
+  than the data supports. Residuals are now indexed by lead time, tails use
+  the finite-sample conformal order statistic rather than an interpolated
+  quantile (with a handful of residuals there is no honest 90th percentile),
+  sparse leads borrow the pooled spread, and half-widths are fitted monotone
+  in the horizon. Coverage measures 0.88-0.91 — conservative by design, not
+  by accident. Intervals still widen with the horizon, now because the
+  residuals at longer leads are wider rather than because a formula says so.
+
+- Anomaly detection covers trend anomalies, and says what its grade
+  covers. A fourth detector (`local_slope`) scores how fast the series
+  moves rather than where it sits, and the grader plants a fourth family
+  (`trend_shift`) so that detector must earn selection like any other.
+  Found by running AnomLLM's `trend` dataset: Aion flagged nothing on
+  397 of 400 series while reporting `supported`, because its grader only
+  ever planted spikes, level shifts and dropouts — the detectors were
+  built to treat drift as *not* an anomaly. Against that dataset's
+  labels the new detector scores F1 0.755 where the best existing one
+  scored 0.096. Every anomaly result now also discloses
+  `graded_families` and carries an assumption naming them: a grade
+  earned on planted spikes vouches for spikes, not for kinds nobody
+  tested.
+
 - Data-insufficiency abstentions now name the way out: the refusal computes
   the largest horizon the supplied observations can support and, when one
   exists, adds a `reduce_horizon` recovery action ("retry with

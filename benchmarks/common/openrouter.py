@@ -26,9 +26,34 @@ OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 DEFAULT_TIMEOUT_SECONDS = 600
 RETRYABLE_STATUS = {408, 409, 429, 500, 502, 503, 504}
 
+# Reasoning models spend the completion budget on hidden reasoning
+# tokens before writing an answer: when the budget runs out first the
+# response is a truncated `finish_reason: "length"` with *empty*
+# content. Retry such a call with a larger budget, up to this ceiling,
+# instead of handing the caller an answer that is not there.
+TRUNCATION_ESCALATION_FACTOR = 4
+# Well under the completion limit of current reasoning models (GLM-5.2
+# allows 128k), but high enough that a model which reasons for ~20k
+# tokens before answering still gets to answer.
+MAX_TOKENS_CEILING = 64000
+
 
 class OpenRouterError(RuntimeError):
     """A request to OpenRouter failed after all retries."""
+
+
+def _truncated_empty(response: SimpleNamespace) -> bool:
+    """True when every choice ran out of budget before writing anything."""
+    choices = getattr(response, "choices", None) or []
+    if not choices:
+        return False
+    for choice in choices:
+        content = getattr(getattr(choice, "message", None), "content", None)
+        if content:
+            return False
+        if getattr(choice, "finish_reason", None) != "length":
+            return False
+    return True
 
 
 def _to_namespace(value: Any) -> Any:
@@ -77,6 +102,7 @@ class OpenRouterClient:
         self.total_completion_tokens = 0
         self.total_cost_usd = 0.0
         self.total_requests = 0
+        self.truncation_escalations = 0
 
     def chat(
         self,
@@ -95,6 +121,11 @@ class OpenRouterClient:
         ``.usage.prompt_tokens`` / ``.completion_tokens`` and
         ``.provider``. Retries with exponential backoff on transient
         HTTP failures; raises :class:`OpenRouterError` once exhausted.
+
+        A reasoning model that exhausts the completion budget on hidden
+        reasoning returns empty content with ``finish_reason:
+        "length"``; that request is retried with a budget escalated up
+        to :data:`MAX_TOKENS_CEILING` before the response is returned.
         """
         if not self.api_key:
             raise OpenRouterError(
@@ -102,12 +133,41 @@ class OpenRouterClient:
                 ".env file in the working directory or repository root, "
                 "before running a benchmark that queries an LLM."
             )
+        caller_budget = max_tokens is not None
+        budget = self.max_tokens if max_tokens is None else max_tokens
+        while True:
+            response = self._request(
+                messages, n=n, temperature=temperature, max_tokens=budget,
+                tools=tools, tool_choice=tool_choice,
+            )
+            if not _truncated_empty(response) or budget >= MAX_TOKENS_CEILING:
+                return response
+            budget = min(budget * TRUNCATION_ESCALATION_FACTOR,
+                         MAX_TOKENS_CEILING)
+            self.truncation_escalations += 1
+            if not caller_budget:
+                # A model that reasons past one budget will do it again:
+                # keep the larger budget so only the first call pays for
+                # the discovery.
+                self.max_tokens = budget
+
+    def _request(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        n: int,
+        temperature: float | None,
+        max_tokens: int,
+        tools: list[dict[str, Any]] | None,
+        tool_choice: str | None,
+    ) -> SimpleNamespace:
+        """Perform one request, retrying transient HTTP failures."""
         payload = {
             "model": self.model,
             "messages": messages,
             "n": n,
             "temperature": self.temperature if temperature is None else temperature,
-            "max_tokens": self.max_tokens if max_tokens is None else max_tokens,
+            "max_tokens": max_tokens,
             # Ask OpenRouter to report token accounting and cost.
             "usage": {"include": True},
         }
@@ -154,9 +214,24 @@ class OpenRouterClient:
         )
 
     def completions(self, messages: list[dict[str, Any]], *, n: int = 1) -> list[str]:
-        """Convenience wrapper returning just the completion texts."""
+        """Convenience wrapper returning just the completion texts.
+
+        An empty completion is an error, not an answer: returning it
+        would reach a scorer as a missing or unparseable response and be
+        recorded as a wrong answer the model never gave.
+        """
         response = self.chat(messages, n=n)
-        return [choice.message.content for choice in response.choices]
+        texts = [choice.message.content for choice in response.choices]
+        if any(not text for text in texts):
+            reasons = [getattr(choice, "finish_reason", None)
+                       for choice in response.choices]
+            raise OpenRouterError(
+                f"{self.model} returned an empty completion "
+                f"(finish_reason={reasons}). Reasoning models can spend the "
+                f"whole budget on reasoning tokens; the request was already "
+                f"retried up to max_tokens={MAX_TOKENS_CEILING}."
+            )
+        return texts
 
     def _account(self, parsed: dict[str, Any]) -> None:
         usage = parsed.get("usage") or {}
@@ -175,6 +250,9 @@ class OpenRouterClient:
             "prompt_tokens": self.total_prompt_tokens,
             "completion_tokens": self.total_completion_tokens,
             "cost_usd": round(self.total_cost_usd, 6),
+            # Disclosed, not hidden: requests that had to be re-sent with
+            # a larger budget because the model reasoned past the first.
+            "truncation_escalations": self.truncation_escalations,
         }
 
 

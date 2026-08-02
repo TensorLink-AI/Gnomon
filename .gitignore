@@ -10,3 +10,13 @@ aion-output/
 # secrets
 .env
 .env.*
+
+# Benchmark corpora are downloaded, not versioned. A `git add -A` swept
+# 582 MB of them into history once; GitHub rejects the 290 MB file among
+# them, and nothing in the codebase reads these paths.
+data/
+
+# CiK's official result cache. Swept in by the same `git add -A`; the runs
+# that produced it used --no-cache because the cached path fails on
+# object-dtype columns.
+inference_cache/

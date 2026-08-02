@@ -1,0 +1,29 @@
+{
+  "task_id": "L1_general_024",
+  "tier": "L1",
+  "condition": "direct",
+  "turns": [
+    {
+      "user_turn_id": 1,
+      "question": "I have a daily views dataset and the first few rows already suggest a weekday\u2013weekend rhythm \u2014 views drop to 4,629 on a holiday Wednesday and then climb through the week to 8,701 by Friday. Can you profile the series to confirm the frequency and check for missing values?",
+      "response": "## Time Series Profile\n\n### Frequency Confirmation\n\nThe series runs from **2020-01-01** to **2023-12-31**, covering **4 full calendar years** (1,461 days, accounting for the 2020 leap year). I checked every month block:\n\n| Year | Expected days | Rows present |\n|------|--------------|--------------|\n| 2020 | 366 (leap) | 366 |\n| 2021 | 365 | 365 |\n| 2022 | 365 | 365 |\n| 2023 | 365 | 365 |\n| **Total** | **1,461** | **1,461** |\n\n**No missing dates.** Every consecutive calendar day is present with a non-null `views` value.\n\n### Weekday\u2013Weekend Rhythm (confirmed)\n\nYour observation is borne out by the first two full weeks of January 2020:\n\n| Date | Day of Week | Views |\n|------|-------------|-------|\n| 2020-01-01 | **Wed (New Year's holiday)** | **4,629** \u2190 depressed by holiday |\n| 2020-01-02 | Thu | 6,930 |\n| 2020-01-03 | Fri | 6,606 |\n| 2020-01-04 | **Sat** | 5,807 |\n| 2020-01-05 | **Sun** | 5,194 |\n| 2020-01-06 | Mon | 8,411 |\n| 2020-01-07 | Tue | 8,546 |\n| 2020-01-08 | Wed | 8,412 |\n| 2020-01-09 | Thu | 8,691 |\n| 2020-01-10 | Fri | 8,701 |\n| 2020-01-11 | **Sat** | 5,167 |\n| 2020-01-12 | **Sun** | 5,961 |\n\nWeekdays (Mon\u2013Fri) cluster in the **8,000\u20138,700** range; Saturdays and Sundays dip to roughly **5,100\u20135,900**. The 4,629 on Jan 1 is *below* even the weekend floor, consistent with a holiday effect on top of the normal weekly cycle.\n\n### Key Summary Statistics\n\n| Metric | Value |\n|--------|-------|\n| Observations | 1,461 |\n| Missing dates | **0** |\n| Missing values | **0** |\n| Minimum | 4,629 (2020-01-01, New Year's Day) |\n| Maximum | 112,510 (2020-08-14) |\n| Typical weekday range (early 2020) | ~8,400\u20138,700 |\n| Typical weekend range (early 2020) | ~5,100\u20135,900 |\n\n### Notable Outliers (potential anomalies to flag)\n\nSeveral values are orders of magnitude above the baseline and should be investigated before modeling:\n\n| Date | Views | Context |\n|------|-------|---------|\n| 2020-08-14 | **112,510** | Largest spike in the series |\n| 2020-08-10 | 61,858 | |\n| 2020-06-04 | 61,935 | |\n| 2020-08-16 | 63,479 | |\n| 2020-08-15 | 51,520 | |\n| 2023-11-06 | 48,757 | |\n| 2023-03-18 | 35,345 | |\n| 2023-03-16 | 29,101 | |\n| 2023-12-23 | 27,493 | |\n| 2020-07-28 | 25,145 | |\n| 2020-08-06 | 23,022 | |\n| 2020-08-09 | 22,923 | |\n| 2023-03-15 | 22,031 | |\n\n### Bottom Line\n\n- **Frequency:** Daily, with **zero gaps** across all 1,461 calendar days.\n- **Missing values:** None.\n- **Weekly seasonality:** Confirmed \u2014 a clear 7-day cycle with weekend troughs roughly 30\u201340% below weekday levels.\n- **Holiday effect:** Visible on 2020-01-01 (New Year's), where the value falls below the normal weekend floor.\n- **Outliers:** A cluster of extreme spikes (mostly in Aug 2020, plus scattered events in 2023) that are 5\u201315\u00d7 the typical daily level and warrant cleaning or separate treatment before forecasting.",
+      "tool_calls": [],
+      "verdict": {
+        "scored": true,
+        "passed": true,
+        "basis": "mechanical"
+      }
+    },
+    {
+      "user_turn_id": 3,
+      "question": "The weekday\u2013weekend swing in views looks pretty strong even in the first ten rows \u2014 can you run a formal seasonality detection with period 7 and quantify the weekly cycle strength?",
+      "response": "",
+      "tool_calls": [],
+      "verdict": {
+        "scored": true,
+        "passed": false,
+        "basis": "mechanical"
+      }
+    }
+  ]
+}

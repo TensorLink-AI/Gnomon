@@ -1,0 +1,12 @@
+{'crps': 0.42218510146982263,
+ 'metric': 2.358765342265495,
+ 'non_roi_crps': 0.42218510146982263,
+ 'num_non_roi_timesteps': 0,
+ 'num_roi_timesteps': 24,
+ 'raw_metric': 2.358765342265495,
+ 'roi_crps': 0.42218510146982263,
+ 'scaling': 0.0013892747985551543,
+ 'standard_crps': 0.42218510146982263,
+ 'variance': -1,
+ 'violation_crps': 1.9365802407956725,
+ 'violation_mean': 0.6050205374918226}

@@ -62,28 +62,67 @@ def _predict(columns: list[list[float]], horizon: int) -> list[list[float]]:
     return result
 
 
-def forecast_var(groups: dict[str, list[Any]], horizon: int) -> tuple[dict[str, list[float]], dict[str, str]]:
-    names = sorted(groups)
-    timestamps = [[item.timestamp for item in groups[name]] for name in names]
-    if len({tuple(items) for items in timestamps}) != 1 or len(timestamps[0]) < max(8, len(names) + 3):
-        return {}, {}
-    columns = [[item.value for item in groups[name]] for name in names]
-    strongest = max(abs(_correlation(columns[i], columns[j])) for i in range(len(names)) for j in range(i))
-    if strongest < 0.3:
-        return {}, {}
-    holdout = min(horizon, max(2, len(columns[0]) // 5))
-    training = [column[:-holdout] for column in columns]
-    if len(training[0]) < len(names) + 3:
-        return {}, {}
-    validation = _predict(training, holdout)
-    var_error = sum(abs(actual - predicted)
-                    for column, predictions in zip(columns, validation)
-                    for actual, predicted in zip(column[-holdout:], predictions))
-    naive_error = sum(abs(actual - column[-holdout - 1])
-                      for column in columns for actual in column[-holdout:])
-    if var_error >= naive_error:
-        return {}, {}
-    forecasts = _predict(columns, horizon)
-    result = {name: points for name, points in zip(names, forecasts)}
-    warning = f"Opt-in VAR(1) forecast used across {len(names)} aligned series (maximum absolute correlation {strongest:.2f}); uncertainty remains based on univariate residuals."
-    return result, {name: warning for name in names}
+#: Weakest maximum absolute cross-correlation worth fitting a VAR on. This is
+#: an eligibility filter, not a decision: passing it only earns the VAR a place
+#: in the selection folds, where it still has to beat the univariate ladder.
+MINIMUM_CORRELATION = 0.3
+
+MULTIVARIATE_MODEL_NAME = "var"
+
+
+class VarFrame:
+    """Aligned multi-series values with a VAR(1) predictor at any fold origin.
+
+    The point of the origin argument is that a candidate which reads other
+    series must be *refittable* at each fold cutoff. Fitting once on the whole
+    frame and validating on a trailing window — which is what this module did
+    before — both leaks the report-only test fold into the decision and gives
+    the VAR a comparison no other candidate gets. With this, the VAR is scored
+    on the same rolling origins as every baseline, statistical model, and TSFM,
+    and is admitted only by the same margin rule.
+    """
+
+    def __init__(self, names: list[str], columns: list[list[float]],
+                 strongest_correlation: float) -> None:
+        self.names = names
+        self.columns = columns
+        self.strongest_correlation = strongest_correlation
+        self._cache: dict[tuple[int, int], list[list[float]]] = {}
+
+    @classmethod
+    def build(cls, groups: dict[str, list[Any]]) -> tuple["VarFrame | None", str | None]:
+        """Return a frame, or ``None`` and the reason it is not eligible."""
+        names = sorted(groups)
+        if len(names) < 2:
+            return None, "fewer than two series"
+        timestamps = [[item.timestamp for item in groups[name]] for name in names]
+        if len({tuple(items) for items in timestamps}) != 1:
+            return None, "series are not observed on identical timestamps"
+        if len(timestamps[0]) < max(8, len(names) + 3):
+            return None, (f"needs at least {max(8, len(names) + 3)} aligned "
+                          f"observations (have {len(timestamps[0])})")
+        columns = [[item.value for item in groups[name]] for name in names]
+        strongest = max(abs(_correlation(columns[i], columns[j]))
+                        for i in range(len(names)) for j in range(i))
+        if strongest < MINIMUM_CORRELATION:
+            return None, (f"maximum absolute cross-correlation {strongest:.2f} is "
+                          f"below {MINIMUM_CORRELATION}")
+        return cls(names, columns, strongest), None
+
+    def _fit_predict(self, origin: int, horizon: int) -> list[list[float]]:
+        key = (origin, horizon)
+        if key not in self._cache:
+            training = [column[:origin] for column in self.columns]
+            if len(training[0]) < len(self.names) + 3:
+                raise ValueError("too little aligned history at this origin")
+            self._cache[key] = _predict(training, horizon)
+        return self._cache[key]
+
+    def predictor(self, series_name: str):
+        """``predictor(origin, horizon)`` for one series, for ``evaluate``."""
+        index = self.names.index(series_name)
+
+        def predict_at(origin: int, horizon: int) -> list[float]:
+            return self._fit_predict(origin, horizon)[index]
+
+        return predict_at

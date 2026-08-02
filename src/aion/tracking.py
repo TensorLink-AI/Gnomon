@@ -83,6 +83,11 @@ class ForecastRecord:
     created_at: str
     scored: bool = False
     mase: float | None = None
+    #: The selection metric, recorded in hindsight. Selection is decided on
+    #: WAPE; a leaderboard reported only in MASE can rank models against the
+    #: order selection chose them in, for reasons that are metric artefact
+    #: rather than forecast quality.
+    wape: float | None = None
     mape: float | None = None
     bias: float | None = None
     coverage: float | None = None
@@ -98,6 +103,7 @@ class ModelPerformance:
     model: str
     count: int
     avg_mase: float | None
+    avg_wape: float | None
     avg_mape: float | None
     avg_bias: float | None
     avg_coverage: float | None
@@ -110,6 +116,7 @@ class ModelPerformance:
 class ScoreResult:
     forecast_id: str
     mase: float | None
+    wape: float | None
     mape: float | None
     bias: float | None
     coverage: float | None
@@ -141,6 +148,21 @@ def mean_absolute_error(actual: list[float], predicted: list[float]) -> float:
     if n == 0:
         return float("inf")
     return sum(abs(a - p) for a, p in zip(actual[:n], predicted[:n])) / n
+
+
+#: Nominal coverage the adaptive level is steered toward, matching the
+#: 80% interval the rest of the pipeline publishes.
+ADAPTIVE_TARGET_COVERAGE = 0.8
+
+#: Step size per outcome. Small enough that one unusual horizon cannot move
+#: the published width far, large enough to correct a persistent bias within
+#: a few dozen scored forecasts.
+ADAPTIVE_LEARNING_RATE = 0.02
+
+#: Bounds on the working miscoverage level, so a run of outcomes cannot drive
+#: intervals to zero width or to uselessness.
+MIN_ADAPTIVE_ALPHA = 0.01
+MAX_ADAPTIVE_ALPHA = 0.5
 
 
 def mase_score(
@@ -285,6 +307,26 @@ class TrackingStore:
                 CREATE INDEX IF NOT EXISTS idx_perf_model
                     ON model_performance(project, model);
 
+                -- Adaptive-conformal state, kept as an append-only log rather
+                -- than a mutable current value. Each row carries the
+                -- known_time of the outcome that caused it, so a replay at
+                -- `--as-of T` reads only what was known by T and reproduces
+                -- the interval that was actually published then. A single
+                -- mutable alpha would make every historical run
+                -- irreproducible the moment a new outcome arrived.
+                CREATE TABLE IF NOT EXISTS conformal_adaptation (
+                    project TEXT NOT NULL,
+                    scope TEXT NOT NULL,
+                    forecast_id TEXT NOT NULL,
+                    known_time TEXT NOT NULL,
+                    covered INTEGER NOT NULL,
+                    points INTEGER NOT NULL,
+                    PRIMARY KEY (project, scope, forecast_id)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_adaptation_scope
+                    ON conformal_adaptation(project, scope, known_time);
+
                 CREATE TABLE IF NOT EXISTS decisions (
                     decision_id TEXT PRIMARY KEY,
                     project TEXT NOT NULL,
@@ -318,14 +360,16 @@ class TrackingStore:
             }
             if "naive_error" not in columns:
                 conn.execute("ALTER TABLE forecasts ADD COLUMN naive_error REAL")
-            for name, sql_type in (("task", "TEXT DEFAULT 'forecast'"), ("fingerprint", "TEXT")):
+            for name, sql_type in (("task", "TEXT DEFAULT 'forecast'"), ("fingerprint", "TEXT"),
+                                   ("wape", "REAL")):
                 if name not in columns:
                     conn.execute(f"ALTER TABLE forecasts ADD COLUMN {name} {sql_type}")
             perf_columns = {
                 row["name"] for row in conn.execute("PRAGMA table_info(model_performance)")
             }
             for name, sql_type in (("series", "TEXT"), ("horizon", "INTEGER"), ("frequency", "TEXT"),
-                                   ("task", "TEXT DEFAULT 'forecast'"), ("fingerprint", "TEXT")):
+                                   ("task", "TEXT DEFAULT 'forecast'"), ("fingerprint", "TEXT"),
+                                   ("wape", "REAL")):
                 if name not in perf_columns:
                     conn.execute(f"ALTER TABLE model_performance ADD COLUMN {name} {sql_type}")
             conn.execute("""
@@ -438,6 +482,78 @@ class TrackingStore:
             ).fetchone()
         return self._row_to_record(row) if row else None
 
+    # ---- Adaptive conformal state ----
+
+    def record_coverage_outcome(
+        self, project: str, scope: str, forecast_id: str,
+        known_time: str, covered: int, points: int,
+    ) -> None:
+        """Append one realised-coverage observation to the adaptation log.
+
+        ``known_time`` is when the *outcome* became knowable, not when it was
+        recorded. That distinction is what makes replay honest: a run at
+        ``--as-of T`` must see exactly the outcomes a forecaster at T could
+        have seen, whatever order they were entered in afterwards.
+        """
+        with self._connect() as conn:
+            conn.execute("""
+                INSERT OR REPLACE INTO conformal_adaptation
+                    (project, scope, forecast_id, known_time, covered, points)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (project, scope, forecast_id, known_time, int(covered), int(points)))
+
+    def coverage_outcomes(
+        self, project: str, scope: str, as_of: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Outcomes known by ``as_of``, oldest first, ties broken by id.
+
+        The ordering is total and content-derived, so the replay below is a
+        pure function of the rows it reads.
+        """
+        query = ("SELECT forecast_id, known_time, covered, points "
+                 "FROM conformal_adaptation WHERE project = ? AND scope = ?")
+        params: list[Any] = [project, scope]
+        if as_of is not None:
+            query += " AND known_time <= ?"
+            params.append(as_of)
+        query += " ORDER BY known_time ASC, forecast_id ASC"
+        with self._connect() as conn:
+            return [dict(row) for row in conn.execute(query, params)]
+
+    def adapted_alpha(
+        self, project: str, scope: str, as_of: str | None = None,
+        target: float = ADAPTIVE_TARGET_COVERAGE,
+        rate: float = ADAPTIVE_LEARNING_RATE,
+    ) -> dict[str, Any]:
+        """Replay the adaptation log into an effective miscoverage level.
+
+        Adaptive conformal inference: after each outcome, move the working
+        level by ``rate`` toward whichever direction the realised coverage
+        was wrong in. Nominal 80% intervals that keep covering 95% of points
+        are too wide, and this is the standard correction.
+
+        The hard part is not the update rule but determinism. This is a fold
+        over an ordered, immutable log filtered by ``known_time``, so the
+        same inputs at the same ``as_of`` produce the same level forever —
+        adding an outcome tomorrow cannot change what a replay of yesterday
+        reports.
+        """
+        outcomes = self.coverage_outcomes(project, scope, as_of)
+        alpha = 1.0 - target
+        for outcome in outcomes:
+            points = int(outcome["points"]) or 1
+            realised = int(outcome["covered"]) / points
+            # err = 1 when the interval missed more than it should have.
+            alpha = alpha + rate * ((1.0 - target) - (1.0 - realised))
+            alpha = min(MAX_ADAPTIVE_ALPHA, max(MIN_ADAPTIVE_ALPHA, alpha))
+        return {
+            "alpha": alpha,
+            "effective_coverage": 1.0 - alpha,
+            "observations": len(outcomes),
+            "as_of": as_of,
+            "basis": "adaptive conformal replay over outcomes known by as_of",
+        }
+
     # ---- Scoring ----
 
     def score_forecast(
@@ -462,6 +578,10 @@ class TrackingStore:
 
         scale = naive_error if naive_error is not None else record.naive_error
         mase = mase_score(actuals, points, scale)
+        # The same function selection is decided on, so hindsight and choice
+        # are reported in one unit as well as in MASE's naive-relative one.
+        from .evaluation import error_score
+        wape = error_score(actuals, points)
         mape = mape_score(actuals, points)
         bias = bias_score(actuals, points)
         cov = interval_coverage(actuals, q10 or [], q90 or []) if q10 and q90 else None
@@ -474,24 +594,35 @@ class TrackingStore:
         with self._connect() as conn:
             conn.execute("""
                 UPDATE forecasts SET
-                    scored = 1, mase = ?, mape = ?, bias = ?,
+                    scored = 1, mase = ?, wape = ?, mape = ?, bias = ?,
                     coverage = ?, threshold_accuracy = ?, scored_at = ?, drift_flag = ?
                 WHERE forecast_id = ?
-            """, (mase, mape, bias, cov, thresh_acc, scored_at, drift, forecast_id))
+            """, (mase, wape, mape, bias, cov, thresh_acc, scored_at, drift, forecast_id))
 
             if record.selected_model:
                 conn.execute("""
                     INSERT OR REPLACE INTO model_performance
-                        (project, model, forecast_id, mase, mape, bias,
+                        (project, model, forecast_id, mase, wape, mape, bias,
                          coverage, threshold_accuracy, scored_at, series, horizon, frequency,
                          task, fingerprint)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     record.project, record.selected_model, forecast_id,
-                    mase, mape, bias, cov, thresh_acc, scored_at,
+                    mase, wape, mape, bias, cov, thresh_acc, scored_at,
                     record.series, record.horizon, record.frequency,
                     record.task, record.fingerprint,
                 ))
+
+        if cov is not None and q10 and q90:
+            # Feed the adaptation log, stamped with when the outcome became
+            # knowable rather than when it was entered. The forecast's own
+            # horizon end is the earliest instant every scored point existed.
+            points = min(len(actuals), len(q10), len(q90))
+            self.record_coverage_outcome(
+                record.project, record.series or "__default__", forecast_id,
+                known_time=record.cutoff_time or scored_at,
+                covered=round(cov * points), points=points,
+            )
 
         logger.info(
             "Scored forecast %s: MASE=%s MAPE=%.1f%% bias=%.2f coverage=%s drift=%s",
@@ -499,7 +630,8 @@ class TrackingStore:
             f"{cov:.1%}" if cov is not None else "N/A",
             drift or "none",
         )
-        return ScoreResult(forecast_id, mase, mape, bias, cov, thresh_acc, scored_at, drift)
+        return ScoreResult(forecast_id, mase, wape, mape, bias, cov, thresh_acc,
+                           scored_at, drift)
 
     def submit_actuals(
         self,
@@ -651,6 +783,7 @@ class TrackingStore:
                     model,
                     COUNT(*) as count,
                     AVG(mase) as avg_mase,
+                    AVG(wape) as avg_wape,
                     AVG(mape) as avg_mape,
                     AVG(bias) as avg_bias,
                     AVG(coverage) as avg_coverage,
@@ -672,6 +805,7 @@ class TrackingStore:
                 model=r["model"],
                 count=r["count"],
                 avg_mase=r["avg_mase"],
+                avg_wape=r["avg_wape"],
                 avg_mape=r["avg_mape"],
                 avg_bias=r["avg_bias"],
                 avg_coverage=r["avg_coverage"],
@@ -1127,6 +1261,7 @@ class TrackingStore:
             created_at=row["created_at"],
             scored=bool(row["scored"]),
             mase=row["mase"],
+            wape=row["wape"] if "wape" in row.keys() else None,
             mape=row["mape"],
             bias=row["bias"],
             coverage=row["coverage"],

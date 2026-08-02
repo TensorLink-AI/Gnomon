@@ -1,0 +1,32 @@
+{
+  "verdict": {
+    "tier": "T2",
+    "choice": {
+      "per_question": {
+        "future_vs_history": false,
+        "volatility_change": false,
+        "seasonality_shift": false
+      },
+      "correct": 0,
+      "total": 3
+    },
+    "forecast_metrics": null,
+    "metric_flag": "missing_forecast"
+  },
+  "abstained": [
+    "heart_rate: Need at least 71 observations (have 50) for degraded forecasting. A horizon of 48 or less is supportable with the current history; retry with --horizon 48.",
+    "temperature_c: EXCESSIVE_REPAIR: Series __default__ would need repairs to more than 30% of its rows; fix the data at the source instead of forecasting on a mostly invented series.",
+    "resp_rate: Need at least 71 observations (have 50) for degraded forecasting. A horizon of 48 or less is supportable with the current history; retry with --horizon 48.; repaired_data: gap_filled x1 \u2014 Interior gaps filled by linear interpolation between neighbouring observations.",
+    "spo2: Need at least 71 observations (have 50) for degraded forecasting. A horizon of 48 or less is supportable with the current history; retry with --horizon 48.",
+    "sbp: Need at least 71 observations (have 50) for degraded forecasting. A horizon of 48 or less is supportable with the current history; retry with --horizon 48.; repaired_data: gap_filled x4 \u2014 Interior gaps filled by linear interpolation between neighbouring observations.",
+    "dbp: Need at least 71 observations (have 50) for degraded forecasting. A horizon of 48 or less is supportable with the current history; retry with --horizon 48.; repaired_data: gap_filled x4 \u2014 Interior gaps filled by linear interpolation between neighbouring observations."
+  ],
+  "answer": {
+    "forecast": {},
+    "mcq": {
+      "future_vs_history": "Similar",
+      "volatility_change": "decreased",
+      "seasonality_shift": "no"
+    }
+  }
+}

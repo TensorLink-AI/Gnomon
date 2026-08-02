@@ -1,0 +1,276 @@
+{
+  "filename": "train-00000-of-00001_0043.json",
+  "ground_truth": [
+    128.48,
+    128.39,
+    128.37,
+    128.18,
+    127.97,
+    128.12,
+    127.61,
+    128.125,
+    128.27,
+    128.06,
+    127.85,
+    127.6,
+    126.875,
+    126.12,
+    126.44,
+    126.6,
+    126.41,
+    125.43,
+    125.66,
+    125.95,
+    127.56,
+    127.93,
+    126.81,
+    125.42,
+    125.605,
+    126.18,
+    126.49,
+    125.67,
+    125.58,
+    125.15,
+    123.94,
+    123.7,
+    123.65,
+    122.2
+  ],
+  "predict": [
+    127.92127085162424,
+    127.8661237928007,
+    127.8109767339772,
+    127.75582967515366,
+    127.70068261633013,
+    127.6455355575066,
+    127.59038849868307,
+    127.53524143985955,
+    127.48009438103601,
+    127.42494732221249,
+    127.36980026338895,
+    127.31465320456543,
+    127.2595061457419,
+    127.20435908691837,
+    127.14921202809484,
+    127.09406496927132,
+    127.03891791044778,
+    126.98377085162424,
+    126.92862379280072,
+    126.87347673397718,
+    126.81832967515366,
+    126.76318261633013,
+    126.7080355575066,
+    126.65288849868307,
+    126.59774143985955,
+    126.54259438103601,
+    126.48744732221249,
+    126.43230026338895,
+    126.37715320456543,
+    126.3220061457419,
+    126.26685908691837,
+    126.21171202809484,
+    126.15656496927132,
+    126.10141791044778
+  ],
+  "mse": 1.4936145580801867,
+  "mae": 0.9186949981924295,
+  "rmse": 1.2221352454127925,
+  "mape": 0.7327047709873267,
+  "failed": false,
+  "support": "degraded",
+  "selected_model": "drift",
+  "events": [],
+  "forecast_ref": "fc1",
+  "forecasts_computed": 2,
+  "tool_calls": 6,
+  "submit_reasoning": "Both the history-only and event-informed forecasts produced identical trajectories \u2014 the context events were rejected by the ablation gate (none were admitted), so the model fell back to history alone. The series shows a clear downtrend over the 137-bar window (from ~135.83 to ~128.33), with no significant seasonality (strength 0.0) and no detected anomalies. The selected model is \"drift,\" which captures the persistent downward trend. The forecast projects a continuation of this gentle decline from ~127.92 to ~126.10 over 34 steps, which is consistent with the recent price behavior and the article's neutral-to-cautious tone (Zacks Hold rating, negative earnings estimate revision, recent underperformance). Given that both runs yield the same forecast and the event-informed run adds no value, I submit the history-only baseline (fc1).",
+  "trace": [
+    {
+      "tool": "series_stats",
+      "arguments": {},
+      "result": {
+        "count": 137,
+        "mean": 132.639152,
+        "std": 3.016659,
+        "min": 127.815,
+        "max": 137.2,
+        "first": 135.83,
+        "last": 128.33,
+        "coefficient_of_variation": 0.022743
+      }
+    },
+    {
+      "tool": "detect_season",
+      "arguments": {},
+      "result": {
+        "period_bars": 7,
+        "strength": 0.0,
+        "basis": "frequency_default"
+      }
+    },
+    {
+      "tool": "aion_detect_anomalies",
+      "arguments": {},
+      "result": {
+        "detector": "robust_zscore",
+        "selection_basis": "synthetic_injection_f1",
+        "support": "supported",
+        "anomaly_count": 0,
+        "anomalies": []
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "note": "History-only baseline forecast"
+      },
+      "result": {
+        "forecast_ref": "fc1",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "drift",
+        "strongest_baseline": "last_value",
+        "warnings": [
+          "Limited evaluation: only 2 rolling folds were available; 204 observations enable fully separated selection, calibration, and test windows.",
+          "Limited evaluation: no held-out test fold remained, so interval coverage is unmeasured."
+        ],
+        "events_proposed": 0,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [],
+        "forecast": [
+          127.9213,
+          127.8661,
+          127.811,
+          127.7558,
+          127.7007,
+          127.6455,
+          127.5904,
+          127.5352,
+          127.4801,
+          127.4249,
+          127.3698,
+          127.3147,
+          127.2595,
+          127.2044,
+          127.1492,
+          127.0941,
+          127.0389,
+          126.9838,
+          126.9286,
+          126.8735,
+          126.8183,
+          126.7632,
+          126.708,
+          126.6529,
+          126.5977,
+          126.5426,
+          126.4874,
+          126.4323,
+          126.3772,
+          126.322,
+          126.2669,
+          126.2117,
+          126.1566,
+          126.1014
+        ]
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "context_events": [
+          {
+            "name": "Zacks Hold rating",
+            "start": "2023-03-08",
+            "description": "IBM rated Zacks Rank #3 Hold, suggesting it may perform in line with the broader market in the near term"
+          },
+          {
+            "name": "Negative earnings estimate revision",
+            "start": "2023-03-08",
+            "description": "Zacks Consensus Estimate for current quarter EPS changed -2.3% over last 30 days, with EPS expected at $1.27 representing -9.3% year-over-year change"
+          },
+          {
+            "name": "Recent stock underperformance",
+            "start": "2023-03-08",
+            "description": "IBM shares returned -5.6% over the past month versus S&P 500 -4.1% change"
+          },
+          {
+            "name": "Valuation at par with peers",
+            "start": "2023-03-08",
+            "description": "IBM graded C on Zacks Value Style Score, indicating trading at par with its peers"
+          }
+        ],
+        "note": "Forecast with article context events: Zacks Hold rating, negative earnings revision, recent underperformance"
+      },
+      "result": {
+        "forecast_ref": "fc2",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "drift",
+        "strongest_baseline": "last_value",
+        "warnings": [
+          "Limited evaluation: only 2 rolling folds were available; 204 observations enable fully separated selection, calibration, and test windows.",
+          "Limited evaluation: no held-out test fold remained, so interval coverage is unmeasured."
+        ],
+        "events_proposed": 4,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [
+          "proposal 1 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 2 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 3 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 4 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''"
+        ],
+        "forecast": [
+          127.9213,
+          127.8661,
+          127.811,
+          127.7558,
+          127.7007,
+          127.6455,
+          127.5904,
+          127.5352,
+          127.4801,
+          127.4249,
+          127.3698,
+          127.3147,
+          127.2595,
+          127.2044,
+          127.1492,
+          127.0941,
+          127.0389,
+          126.9838,
+          126.9286,
+          126.8735,
+          126.8183,
+          126.7632,
+          126.708,
+          126.6529,
+          126.5977,
+          126.5426,
+          126.4874,
+          126.4323,
+          126.3772,
+          126.322,
+          126.2669,
+          126.2117,
+          126.1566,
+          126.1014
+        ]
+      }
+    },
+    {
+      "tool": "submit_forecast",
+      "arguments": {
+        "forecast_ref": "fc1",
+        "reasoning": "Both the history-only and event-informed forecasts produced identical trajectories \u2014 the context events were rejected by the ablation gate (none were admitted), so the model fell back to history alone. The series shows a clear downtrend over the 137-bar window (from ~135.83 to ~128.33), with no significant seasonality (strength 0.0) and no detected anomalies. The selected model is \"drift,\" which captures the persistent downward trend. The forecast projects a continuation of this gentle decline from ~127.92 to ~126.10 over 34 steps, which is consistent with the recent price behavior and the article's neutral-to-cautious tone (Zacks Hold rating, negative earnings estimate revision, recent underperformance). Given that both runs yield the same forecast and the event-informed run adds no value, I submit the history-only baseline (fc1)."
+      },
+      "result": {
+        "accepted": true,
+        "forecast_ref": "fc1",
+        "steps": 34
+      }
+    }
+  ]
+}

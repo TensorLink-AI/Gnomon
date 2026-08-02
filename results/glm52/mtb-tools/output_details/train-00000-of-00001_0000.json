@@ -1,0 +1,561 @@
+{
+  "filename": "train-00000-of-00001_0000.json",
+  "ground_truth": [
+    52.63,
+    52.2101,
+    50.315,
+    49.76,
+    49.7,
+    49.515,
+    49.03,
+    48.43,
+    47.27,
+    46.75,
+    46.77,
+    46.26,
+    46.83,
+    47.8021,
+    48.8,
+    48.44,
+    48.92,
+    49.3498,
+    49.51,
+    49.8,
+    47.51,
+    47.55,
+    47.615,
+    47.63,
+    48.05,
+    48.38,
+    48.11,
+    46.95,
+    46.7,
+    46.89,
+    46.41,
+    47.63,
+    46.78
+  ],
+  "predict": [
+    50.36735094164109,
+    50.135906137003914,
+    49.90446133236672,
+    49.673016527729544,
+    49.441571723092366,
+    49.210126918455174,
+    48.978682113817996,
+    48.747237309180804,
+    48.515792504543626,
+    48.28434769990645,
+    48.052902895269256,
+    47.82145809063208,
+    47.5900132859949,
+    47.35856848135771,
+    47.12712367672053,
+    46.89567887208334,
+    46.66423406744616,
+    46.43278926280898,
+    46.20134445817179,
+    45.96989965353461,
+    45.73845484889743,
+    45.50701004426024,
+    45.27556523962306,
+    45.04412043498587,
+    44.81267563034869,
+    44.581230825711515,
+    44.34978602107432,
+    44.118341216437145,
+    43.88689641179997,
+    43.655451607162775,
+    43.4240068025256,
+    43.192561997888404,
+    42.961117193251226
+  ],
+  "mse": 5.791828201086905,
+  "mae": 2.0539630104645736,
+  "rmse": 2.4066217403420307,
+  "mape": 4.269594170348746,
+  "failed": false,
+  "support": "degraded",
+  "selected_model": "linear_trend",
+  "events": [],
+  "forecast_ref": "fc1",
+  "forecasts_computed": 4,
+  "tool_calls": 8,
+  "submit_reasoning": "The price history shows a clear downtrend from ~76 to ~54 over 137 bars, with the last value at 54.26. Series stats confirm a high coefficient of variation (14.4%) and a declining trend. No seasonality was detected (strength 0.0). Anomaly detection found 18 anomalies but the rolling median residual detector is supported. All forecast runs (history-only and event-informed) selected the linear_trend model and produced identical trajectories. Context events from the article (FDA EUA submission, international approvals, analyst revenue guidance, combination vaccine results) were all rejected by the ablation gate \u2014 likely because the article's 2022 dates fall outside the data's internal date range. The forecast projects a continued gradual decline from ~50.37 to ~42.96 over 33 steps, consistent with the persistent downtrend. Support is degraded due to limited evaluation folds, but this is the best available forecast.",
+  "trace": [
+    {
+      "tool": "series_stats",
+      "arguments": {},
+      "result": {
+        "count": 137,
+        "mean": 67.75105,
+        "std": 9.779069,
+        "min": 52.605,
+        "max": 84.41,
+        "first": 76.26,
+        "last": 54.26,
+        "coefficient_of_variation": 0.144338
+      }
+    },
+    {
+      "tool": "detect_season",
+      "arguments": {},
+      "result": {
+        "period_bars": 7,
+        "strength": 0.0,
+        "basis": "frequency_default"
+      }
+    },
+    {
+      "tool": "aion_detect_anomalies",
+      "arguments": {},
+      "result": {
+        "detector": "rolling_median_residual",
+        "selection_basis": "synthetic_injection_f1",
+        "support": "supported",
+        "anomaly_count": 18,
+        "anomalies": [
+          {
+            "timestamp": "2020-01-01T00:00:00+00:00",
+            "value": 76.26,
+            "score": -13.7051
+          },
+          {
+            "timestamp": "2020-01-02T00:00:00+00:00",
+            "value": 80.74,
+            "score": -4.175
+          },
+          {
+            "timestamp": "2020-01-06T00:00:00+00:00",
+            "value": 84.41,
+            "score": 4.5122
+          },
+          {
+            "timestamp": "2020-01-08T00:00:00+00:00",
+            "value": 81.26,
+            "score": -4.4862
+          },
+          {
+            "timestamp": "2020-01-27T00:00:00+00:00",
+            "value": 75.91,
+            "score": 4.1491
+          },
+          {
+            "timestamp": "2020-02-04T00:00:00+00:00",
+            "value": 79.07,
+            "score": 4.0065
+          },
+          {
+            "timestamp": "2020-02-06T00:00:00+00:00",
+            "value": 77.525,
+            "score": -3.5138
+          },
+          {
+            "timestamp": "2020-02-09T00:00:00+00:00",
+            "value": 82.25,
+            "score": 7.1313
+          },
+          {
+            "timestamp": "2020-02-23T00:00:00+00:00",
+            "value": 75.38,
+            "score": 5.0049
+          },
+          {
+            "timestamp": "2020-03-01T00:00:00+00:00",
+            "value": 76.9,
+            "score": 3.8294
+          },
+          {
+            "timestamp": "2020-03-02T00:00:00+00:00",
+            "value": 76.92,
+            "score": 3.8812
+          },
+          {
+            "timestamp": "2020-03-13T00:00:00+00:00",
+            "value": 61.09,
+            "score": -4.2528
+          },
+          {
+            "timestamp": "2020-03-14T00:00:00+00:00",
+            "value": 62.73,
+            "score": 4.2528
+          },
+          {
+            "timestamp": "2020-03-22T00:00:00+00:00",
+            "value": 56.86,
+            "score": -5.8347
+          },
+          {
+            "timestamp": "2020-03-27T00:00:00+00:00",
+            "value": 63.11,
+            "score": 4.8233
+          },
+          {
+            "timestamp": "2020-04-12T00:00:00+00:00",
+            "value": 58.13,
+            "score": -3.9676
+          }
+        ]
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "note": "History-only baseline forecast"
+      },
+      "result": {
+        "forecast_ref": "fc1",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "linear_trend",
+        "strongest_baseline": "last_value",
+        "warnings": [
+          "Limited evaluation: only 2 rolling folds were available; 198 observations enable fully separated selection, calibration, and test windows.",
+          "Limited evaluation: no held-out test fold remained, so interval coverage is unmeasured."
+        ],
+        "events_proposed": 0,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [],
+        "forecast": [
+          50.3674,
+          50.1359,
+          49.9045,
+          49.673,
+          49.4416,
+          49.2101,
+          48.9787,
+          48.7472,
+          48.5158,
+          48.2843,
+          48.0529,
+          47.8215,
+          47.59,
+          47.3586,
+          47.1271,
+          46.8957,
+          46.6642,
+          46.4328,
+          46.2013,
+          45.9699,
+          45.7385,
+          45.507,
+          45.2756,
+          45.0441,
+          44.8127,
+          44.5812,
+          44.3498,
+          44.1183,
+          43.8869,
+          43.6555,
+          43.424,
+          43.1926,
+          42.9611
+        ]
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "note": "Event-informed forecast with dated claims from the article",
+        "context_events": [
+          {
+            "name": "FDA EUA submission completed",
+            "start": "2022-01-31",
+            "description": "Novavax completed its EUA application to the FDA for its COVID vaccine NVX-CoV2373. No set timeline for review; standard review takes 10 months, priority review 6 months."
+          },
+          {
+            "name": "Thailand EUA granted",
+            "start": "2022-04-08",
+            "description": "Novavax COVID vaccine granted EUA in Thailand."
+          },
+          {
+            "name": "Switzerland conditional marketing authorization",
+            "start": "2022-04-13",
+            "description": "Novavax COVID vaccine granted conditional marketing authorization in Switzerland."
+          },
+          {
+            "name": "Japan approval for primary and booster",
+            "start": "2022-04-19",
+            "description": "Japan green-lighted Novavax COVID vaccine for primary and booster immunization in adults."
+          },
+          {
+            "name": "Combination flu-COVID vaccine promising early results",
+            "start": "2022-04-20",
+            "description": "Novavax announced its combination flu and COVID vaccine candidate showed promising results in early stage clinical trials."
+          },
+          {
+            "name": "Analyst revenue guidance 2022",
+            "start": "2022-04-21",
+            "description": "Analysts expect Novavax to post revenue of $4.49 billion in 2022, within company guidance of $4-5 billion, representing ~290% YoY increase from $1.15 billion in 2021."
+          }
+        ]
+      },
+      "result": {
+        "forecast_ref": "fc2",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "linear_trend",
+        "strongest_baseline": "last_value",
+        "warnings": [
+          "Limited evaluation: only 2 rolling folds were available; 198 observations enable fully separated selection, calibration, and test windows.",
+          "Limited evaluation: no held-out test fold remained, so interval coverage is unmeasured."
+        ],
+        "events_proposed": 6,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [
+          "proposal 1 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 2 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 3 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 4 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 5 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 6 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''"
+        ],
+        "forecast": [
+          50.3674,
+          50.1359,
+          49.9045,
+          49.673,
+          49.4416,
+          49.2101,
+          48.9787,
+          48.7472,
+          48.5158,
+          48.2843,
+          48.0529,
+          47.8215,
+          47.59,
+          47.3586,
+          47.1271,
+          46.8957,
+          46.6642,
+          46.4328,
+          46.2013,
+          45.9699,
+          45.7385,
+          45.507,
+          45.2756,
+          45.0441,
+          44.8127,
+          44.5812,
+          44.3498,
+          44.1183,
+          43.8869,
+          43.6555,
+          43.424,
+          43.1926,
+          42.9611
+        ]
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "context_events": [
+          {
+            "name": "FDA EUA submission completed",
+            "start": "2022-01-31T00:00:00Z",
+            "description": "Novavax completed its EUA application to the FDA for its COVID vaccine NVX-CoV2373."
+          },
+          {
+            "name": "Thailand EUA granted",
+            "start": "2022-04-08T00:00:00Z",
+            "description": "Novavax COVID vaccine granted EUA in Thailand."
+          },
+          {
+            "name": "Switzerland conditional marketing authorization",
+            "start": "2022-04-13T00:00:00Z",
+            "description": "Novavax COVID vaccine granted conditional marketing authorization in Switzerland."
+          },
+          {
+            "name": "Japan approval for primary and booster",
+            "start": "2022-04-19T00:00:00Z",
+            "description": "Japan green-lighted Novavax COVID vaccine for primary and booster immunization in adults."
+          },
+          {
+            "name": "Combination flu-COVID vaccine promising early results",
+            "start": "2022-04-20T00:00:00Z",
+            "description": "Novavax announced its combination flu and COVID vaccine candidate showed promising results in early stage clinical trials."
+          },
+          {
+            "name": "Analyst revenue guidance 2022",
+            "start": "2022-04-21T00:00:00Z",
+            "description": "Analysts expect Novavax to post revenue of $4.49 billion in 2022, within company guidance of $4-5 billion, representing ~290% YoY increase from $1.15 billion in 2021."
+          }
+        ],
+        "note": "Event-informed forecast with corrected ISO-8601 timestamps"
+      },
+      "result": {
+        "forecast_ref": "fc3",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "linear_trend",
+        "strongest_baseline": "last_value",
+        "warnings": [
+          "Limited evaluation: only 2 rolling folds were available; 198 observations enable fully separated selection, calibration, and test windows.",
+          "Limited evaluation: no held-out test fold remained, so interval coverage is unmeasured."
+        ],
+        "events_proposed": 6,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [
+          "proposal 1 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 2 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 3 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 4 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 5 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 6 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''"
+        ],
+        "forecast": [
+          50.3674,
+          50.1359,
+          49.9045,
+          49.673,
+          49.4416,
+          49.2101,
+          48.9787,
+          48.7472,
+          48.5158,
+          48.2843,
+          48.0529,
+          47.8215,
+          47.59,
+          47.3586,
+          47.1271,
+          46.8957,
+          46.6642,
+          46.4328,
+          46.2013,
+          45.9699,
+          45.7385,
+          45.507,
+          45.2756,
+          45.0441,
+          44.8127,
+          44.5812,
+          44.3498,
+          44.1183,
+          43.8869,
+          43.6555,
+          43.424,
+          43.1926,
+          42.9611
+        ]
+      }
+    },
+    {
+      "tool": "aion_forecast",
+      "arguments": {
+        "context_events": [
+          {
+            "name": "FDA EUA submission completed",
+            "start": "2022-01-31T00:00:00Z",
+            "end": "2022-01-31T23:59:59Z",
+            "description": "Novavax completed its EUA application to the FDA for its COVID vaccine NVX-CoV2373."
+          },
+          {
+            "name": "Thailand EUA granted",
+            "start": "2022-04-08T00:00:00Z",
+            "end": "2022-04-08T23:59:59Z",
+            "description": "Novavax COVID vaccine granted EUA in Thailand."
+          },
+          {
+            "name": "Switzerland conditional marketing authorization",
+            "start": "2022-04-13T00:00:00Z",
+            "end": "2022-04-13T23:59:59Z",
+            "description": "Novavax COVID vaccine granted conditional marketing authorization in Switzerland."
+          },
+          {
+            "name": "Japan approval for primary and booster",
+            "start": "2022-04-19T00:00:00Z",
+            "end": "2022-04-19T23:59:59Z",
+            "description": "Japan green-lighted Novavax COVID vaccine for primary and booster immunization in adults."
+          },
+          {
+            "name": "Combination flu-COVID vaccine promising early results",
+            "start": "2022-04-20T00:00:00Z",
+            "end": "2022-04-20T23:59:59Z",
+            "description": "Novavax announced its combination flu and COVID vaccine candidate showed promising results in early stage clinical trials."
+          },
+          {
+            "name": "Analyst revenue guidance 2022",
+            "start": "2022-04-21T00:00:00Z",
+            "end": "2022-04-21T23:59:59Z",
+            "description": "Analysts expect Novavax to post revenue of $4.49 billion in 2022, within company guidance of $4-5 billion, representing ~290% YoY increase from $1.15 billion in 2021."
+          }
+        ],
+        "note": "Event-informed forecast with end dates included"
+      },
+      "result": {
+        "forecast_ref": "fc4",
+        "abstained": false,
+        "support": "degraded",
+        "selected_model": "linear_trend",
+        "strongest_baseline": "last_value",
+        "warnings": [
+          "Limited evaluation: only 2 rolling folds were available; 198 observations enable fully separated selection, calibration, and test windows.",
+          "Limited evaluation: no held-out test fold remained, so interval coverage is unmeasured."
+        ],
+        "events_proposed": 6,
+        "events_admitted": 0,
+        "context": null,
+        "proposal_notes": [
+          "proposal 1 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 2 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 3 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 4 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 5 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''",
+          "proposal 6 rejected: effective_start is not a valid ISO-8601 timestamp: ''; effective_end is not a valid ISO-8601 timestamp: ''"
+        ],
+        "forecast": [
+          50.3674,
+          50.1359,
+          49.9045,
+          49.673,
+          49.4416,
+          49.2101,
+          48.9787,
+          48.7472,
+          48.5158,
+          48.2843,
+          48.0529,
+          47.8215,
+          47.59,
+          47.3586,
+          47.1271,
+          46.8957,
+          46.6642,
+          46.4328,
+          46.2013,
+          45.9699,
+          45.7385,
+          45.507,
+          45.2756,
+          45.0441,
+          44.8127,
+          44.5812,
+          44.3498,
+          44.1183,
+          43.8869,
+          43.6555,
+          43.424,
+          43.1926,
+          42.9611
+        ]
+      }
+    },
+    {
+      "tool": "submit_forecast",
+      "arguments": {
+        "forecast_ref": "fc1",
+        "reasoning": "The price history shows a clear downtrend from ~76 to ~54 over 137 bars, with the last value at 54.26. Series stats confirm a high coefficient of variation (14.4%) and a declining trend. No seasonality was detected (strength 0.0). Anomaly detection found 18 anomalies but the rolling median residual detector is supported. All forecast runs (history-only and event-informed) selected the linear_trend model and produced identical trajectories. Context events from the article (FDA EUA submission, international approvals, analyst revenue guidance, combination vaccine results) were all rejected by the ablation gate \u2014 likely because the article's 2022 dates fall outside the data's internal date range. The forecast projects a continued gradual decline from ~50.37 to ~42.96 over 33 steps, consistent with the persistent downtrend. Support is degraded due to limited evaluation folds, but this is the best available forecast."
+      },
+      "result": {
+        "accepted": true,
+        "forecast_ref": "fc1",
+        "steps": 33
+      }
+    }
+  ]
+}

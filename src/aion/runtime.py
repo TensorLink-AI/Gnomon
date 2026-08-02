@@ -15,6 +15,7 @@ from .models import BASELINES, MODELS
 from .pipeline import (
     LoadedDataset,
     adjudicate_enrichments_stage,
+    conditional_stage,
     context_stage,
     covariate_stage,
     evaluate_stage,
@@ -175,6 +176,14 @@ def forecast(
     if horizon < 1:
         from .contracts import AionError
         raise AionError("INVALID_HORIZON", "Horizon must be at least one period.")
+    if selection_strategy == "ensemble":
+        # Asking for the ensemble has to enter it in the evaluation, not just
+        # swap the final forecast. Otherwise it is never scored on the folds
+        # and has no fold-separated residuals to build an interval from.
+        import copy as _copy
+        from .config import load_config as _load_config
+        config = _copy.deepcopy(config) if config is not None else _load_config()
+        config.ensemble.enabled = True
     # When both enrichment kinds are supplied, neither ablation stage applies
     # its own winner; the adjudication ladder owns the choice.
     adjudicating = bool(context_events) and covariates is not None
@@ -194,28 +203,44 @@ def forecast(
     )
     results: list[SeriesResult] = []
     evidence: list[Evidence] = []
-    multivariate_points: dict[str, list[float]] = {}
-    multivariate_warnings: dict[str, str] = {}
-    if multivariate and len(loaded.groups) > 1:
-        from .multivariate import forecast_var
-        multivariate_points, multivariate_warnings = forecast_var(loaded.groups, horizon)
+    var_frame = None
+    var_ineligible: str | None = None
+    if multivariate:
+        from .multivariate import VarFrame
+        var_frame, var_ineligible = VarFrame.build(loaded.groups)
     for series_name, items in sorted(loaded.groups.items()):
         state = horizon_stage(
             series_name, items, horizon=horizon, frequency=loaded.frequency,
             seasonal_period=seasonal_period,
         )
+        extra_candidates: dict[str, Any] = {}
+        if var_frame is not None and series_name in var_frame.names:
+            from .multivariate import MULTIVARIATE_MODEL_NAME
+            extra_candidates[MULTIVARIATE_MODEL_NAME] = var_frame.predictor(series_name)
         evaluate_stage(
             state, horizon=horizon,
             minimum_baseline_improvement=minimum_baseline_improvement,
             frequency=loaded.frequency, config=config,
             strict_abstention=strict_abstention,
             snapshot=loaded.snapshot, variable=loaded.variable,
+            extra_candidates=extra_candidates,
         )
         predict_stage(
             state, horizon=horizon, frequency=loaded.frequency,
             selection_strategy=selection_strategy,
+            extra_candidates=extra_candidates,
         )
-        multivariate_stage(state, multivariate_points, multivariate_warnings)
+        if multivariate:
+            multivariate_stage(
+                state,
+                eligible=var_frame is not None,
+                minimum_baseline_improvement=minimum_baseline_improvement,
+                ineligibility_reason=var_ineligible,
+                strongest_correlation=(
+                    round(var_frame.strongest_correlation, 4) if var_frame else None
+                ),
+                series_count=len(var_frame.names) if var_frame else len(loaded.groups),
+            )
         if context_events:
             context_stage(
                 state, context_events, horizon=horizon,
@@ -232,10 +257,17 @@ def forecast(
             adjudicate_enrichments_stage(
                 state, context_events, covariates, horizon=horizon,
             )
+        if context_events:
+            # After every stage that can change the point forecast and its
+            # calibration: a conditional answer is conditioned on the
+            # forecast that was actually selected.
+            conditional_stage(state, context_events, horizon=horizon)
         repair_warnings = repair_log.warnings_for(series_name)
         if repair_warnings:
             state.warnings.extend(repair_warnings)
-        rows, support, threshold_analysis = interval_stage(state, threshold=threshold)
+        rows, support, threshold_analysis = interval_stage(
+            state, threshold=threshold, context_events=context_events,
+        )
         assessment = state.assessment
         from .support import assess_forecast_support
         support_assessment = assess_forecast_support(
@@ -249,6 +281,7 @@ def forecast(
             state.covariate_public, threshold_analysis,
             support_assessment.to_dict(),
             notes=state.notes,
+            conditional_forecasts=state.conditional_forecasts,
         )
         results.append(result)
         evidence.extend(state.evidence)

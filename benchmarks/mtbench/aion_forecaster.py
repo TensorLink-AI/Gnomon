@@ -21,6 +21,9 @@ Adapter decisions, disclosed:
   may propose typed context events (never numbers), which Aion's
   admission gate accepts or rejects — the same contract as the CiK
   adapter. ``pure`` mode ignores the text entirely.
+- In ``tools`` mode the model gets the history and the article and
+  drives Aion through a tool loop, then submits one computed run as its
+  answer; it never writes numbers. See ``tool_agent``.
 - If Aion abstains on a sample, the sample is recorded as an abstention
   and excluded from cumulative metrics — exactly how the official
   scripts treat their own failed samples, but visible in the summary.
@@ -84,24 +87,67 @@ def official_mape(y_true: list[float], y_pred: list[float]) -> float:
         return 100.0 * sum(abs((t - p) / t) for t, p in pairs) / len(pairs)
 
 
+def _article_text(value: Any) -> Any:
+    """The article body, however the official export wrapped it."""
+    if isinstance(value, str) and value.lstrip().startswith("{"):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError:
+            return value
+    if isinstance(value, dict):
+        return value.get("content")
+    return value
+
+
+def _samples_from_parquet(dataset_folder: Path) -> list[dict[str, Any]]:
+    """Rows of the official Hugging Face export.
+
+    ``download_processed_dataset.py`` fetches each dataset as a single
+    parquet shard, not per-task JSONs, so this is the layout an official
+    checkout actually has.
+    """
+    shards = sorted(dataset_folder.rglob("*.parquet"))
+    if not shards:
+        return []
+    import pandas as pd
+
+    samples = []
+    for shard in shards:
+        frame = pd.read_parquet(shard)
+        for position, row in enumerate(frame.to_dict("records")):
+            samples.append({
+                "filename": f"{shard.stem}#{position:04d}",
+                "input_window": list(row.get("input_window", [])),
+                "output_window": list(row.get("output_window", [])),
+                "input_timestamps": list(row.get("input_timestamps", [])),
+                "text": _article_text(row.get("text")),
+            })
+    return samples
+
+
 def load_samples(dataset_folder: Path) -> list[dict[str, Any]]:
-    """Load the official processed task JSONs from one dataset folder."""
+    """Load the official processed tasks from one dataset folder.
+
+    Accepts either layout: per-task JSONs (as produced by the official
+    preparation scripts) or the parquet shards the Hugging Face export
+    ships.
+    """
     samples = []
     for json_file in sorted(dataset_folder.glob("*.json")):
         with json_file.open("r", encoding="utf-8") as handle:
             data = json.load(handle)
-        text = data.get("text")
-        if isinstance(text, dict):
-            text = text.get("content")
         samples.append({
             "filename": json_file.name,
             "input_window": data.get("input_window"),
             "output_window": data.get("output_window"),
             "input_timestamps": data.get("input_timestamps"),
-            "text": text,
+            "text": _article_text(data.get("text")),
         })
+    samples = samples or _samples_from_parquet(dataset_folder)
     if not samples:
-        raise FileNotFoundError(f"No task JSONs found in {dataset_folder}")
+        raise FileNotFoundError(
+            f"No task JSONs or parquet shards found in {dataset_folder}"
+        )
     return samples
 
 
@@ -145,6 +191,11 @@ def forecast_sample(sample: dict[str, Any], *, mode: str,
     """Run Aion on one sample. Returns prediction or abstention info."""
     from aion import forecast as aion_forecast
     from aion.contracts import AionError
+
+    if mode == "tools":
+        from benchmarks.mtbench.tool_agent import run_sample
+
+        return run_sample(sample, client, work_dir=work_dir)
 
     values = [float(v) for v in sample["input_window"]]
     horizon = len(sample["output_window"])
@@ -194,7 +245,7 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
     if mtbench_root is not None and str(mtbench_root) not in sys.path:
         sys.path.insert(0, str(mtbench_root))
     client = (OpenRouterClient(openrouter_model, temperature=temperature)
-              if mode == "agent" else None)
+              if mode in ("agent", "tools") else None)
     samples = load_samples(dataset_folder)
     if limit:
         samples = samples[:limit]
@@ -238,6 +289,12 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
                 "selected_model": outcome["selected_model"],
                 "events": outcome["events"],
             })
+            # `tools` mode: keep the loop auditable — which run the model
+            # submitted, how many it computed, and every call it made.
+            for key in ("forecast_ref", "forecasts_computed", "tool_calls",
+                        "submit_reasoning", "trace"):
+                if outcome.get(key) is not None:
+                    entry[key] = outcome[key]
             if is_failed:
                 failed += 1
             else:
