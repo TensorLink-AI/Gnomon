@@ -370,6 +370,7 @@
       "payload": {
         "as_of": "latest",
         "known_time_assumed": true,
+        "known_time_provenance": "assumed",
         "source_ref": "sha256:9d358fb08d56b94b37e4b54ab5a8e08b23cad01b88cd54df6c7051b527d9d392",
         "accesses": [
           {

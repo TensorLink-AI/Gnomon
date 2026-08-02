@@ -255,6 +255,7 @@
       "payload": {
         "as_of": "latest",
         "known_time_assumed": true,
+        "known_time_provenance": "assumed",
         "source_ref": "sha256:ee1b9db4c19a96b5641ad8f1c24794d86a1814aaeff43a002efeddda112ebc2f",
         "accesses": [
           {

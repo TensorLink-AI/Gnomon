@@ -57,6 +57,11 @@ agents quote them, never restate them.
 
 ## 4. Vintages (optional, compounding)
 
+`messy_requests_revisions.csv` is the same series as above plus a
+`published` column: the full 70 days of history, with the last ten days
+carrying a preliminary figure published same-day and a revised figure
+published three days later. One ingest is all it needs.
+
 ```bash
 aion ingest examples/messy_requests_revisions.csv --dataset requests \
      --time timestamp --target requests --known-at published
@@ -67,7 +72,16 @@ aion forecast store:requests --time timestamp --target requests --horizon 7 \
 
 Re-supplied corrected files append revision rows; `--as-of` replays any
 historical instant using only what was known then, and the artifact's
-`snapshot_access` evidence proves it.
+`snapshot_access` evidence proves it — the run above reports
+`max_known_time: 2026-06-03T00:00:00`, so the revisions published on the
+4th through the 12th were invisible to it.
+
+Do **not** also ingest `messy_requests.csv` into this dataset. It has no
+`published` column, so every row would be recorded as known the day it
+applies — asserting that each day's *final* figure was available before
+the revision that produced it. `aion ingest` says so on any file without
+`--known-at`, via the `known_time_assumed` warning, and the resulting
+dataset reports `known_time_provenance: partially_assumed`.
 
 ## Tool surface
 

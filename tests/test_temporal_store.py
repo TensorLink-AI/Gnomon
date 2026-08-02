@@ -106,6 +106,10 @@ def test_ingest_appends_revisions(tmp_path):
     assert again.duplicates_skipped == 2
 
     # A corrected history becomes new revision rows, not an overwrite.
+    # Both rows are new vintages: 100 -> 101 is a correction, and 200
+    # restated on Jan 5 is the source confirming 200 at a second instant.
+    # "As known on Jan 1 it was 200" and "as known on Jan 5 it was 200" are
+    # different facts, and only the second survives a later contradiction.
     corrected = _write_csv(
         tmp_path / "v2.csv",
         ["2026-01-01,101,2026-01-05", "2026-01-02,200,2026-01-05"],
@@ -115,14 +119,168 @@ def test_ingest_appends_revisions(tmp_path):
         str(corrected), dataset="sales", time_column="timestamp",
         target_column="value", known_at_column="published", clock=CLOCK,
     )
-    assert revised.rows_added == 1
-    assert revised.revisions_created == 1
-    assert revised.duplicates_skipped == 1
+    assert revised.rows_added == 2
+    assert revised.revisions_created == 2
+    assert revised.duplicates_skipped == 0
+    assert revised.reverts_recorded == 1
 
     snapshot = store.snapshot("sales")
     assert [item.value for item in snapshot.series("__default__", "value")] == [101.0, 200.0]
     early = snapshot.series("__default__", "value", cutoff=datetime(2026, 1, 3))
     assert [item.value for item in early] == [100.0, 200.0]
+
+
+def test_a_revert_keeps_its_own_vintage(tmp_path):
+    """100 -> 150 -> back to 100 is three vintages, not two.
+
+    Deduplicating on value alone dropped the third, so a replay positioned
+    after the revert returned the superseded 150 — the store answering a
+    point-in-time question with a value that was wrong at that instant.
+    """
+    store = TemporalStore(tmp_path / "store.db")
+
+    def _ingest(name: str, value: str, published: str):
+        path = _write_csv(
+            tmp_path / name, [f"2026-01-01,{value},{published}"],
+            header="timestamp,value,published",
+        )
+        return store.ingest_csv(
+            str(path), dataset="revisions", time_column="timestamp",
+            target_column="value", known_at_column="published", clock=CLOCK,
+        )
+
+    _ingest("r1.csv", "100", "2026-01-05")
+    _ingest("r2.csv", "150", "2026-01-08")
+    third = _ingest("r3.csv", "100", "2026-01-11")
+
+    assert third.rows_added == 1, "the reverted vintage was dropped"
+    assert third.duplicates_skipped == 0
+    assert third.reverts_recorded == 1
+
+    snapshot = store.snapshot("revisions")
+    at = lambda day: snapshot.value_as_of(  # noqa: E731
+        "__default__", "value", datetime(2026, 1, 1),
+        cutoff=datetime(2026, 1, day),
+    )
+    assert at(6) == 100.0
+    assert at(9) == 150.0
+    assert at(11) == 100.0, "replay after the revert returned the superseded value"
+
+
+def test_an_exact_repeat_is_still_a_duplicate(tmp_path):
+    """Same valid_time, same known_time, same value: a genuine no-op."""
+    store = TemporalStore(tmp_path / "store.db")
+    path = _write_csv(
+        tmp_path / "v.csv", ["2026-01-01,100,2026-01-05"],
+        header="timestamp,value,published",
+    )
+    kwargs = dict(
+        dataset="sales", time_column="timestamp", target_column="value",
+        known_at_column="published", clock=CLOCK,
+    )
+    assert store.ingest_csv(str(path), **kwargs).rows_added == 1
+    repeat = store.ingest_csv(str(path), **kwargs)
+    assert repeat.rows_added == 0
+    assert repeat.duplicates_skipped == 1
+    assert repeat.reverts_recorded == 0
+
+
+def test_known_time_provenance_comes_from_the_ingest(tmp_path):
+    """Not inferred from the data: same-day publication is not an assumption.
+
+    A dataset whose values genuinely become knowable the day they apply has
+    ``valid_time == known_time`` on every row, which the old inference read
+    as "assumed". Provenance can tell them apart.
+    """
+    store = TemporalStore(tmp_path / "store.db")
+    same_day = _write_csv(
+        tmp_path / "same_day.csv",
+        ["2026-01-01,100,2026-01-01", "2026-01-02,200,2026-01-02"],
+        header="timestamp,value,published",
+    )
+    store.ingest_csv(
+        str(same_day), dataset="realtime", time_column="timestamp",
+        target_column="value", known_at_column="published", clock=CLOCK,
+    )
+    assert store.known_time_provenance("realtime") == "recorded"
+    assert store.snapshot("realtime").assumed_known_time is False
+
+
+def test_a_mixed_dataset_reports_partially_assumed(tmp_path):
+    """One assumed ingest beside one real one is neither, and says so."""
+    store = TemporalStore(tmp_path / "store.db")
+    plain = _write_csv(tmp_path / "plain.csv", ["2026-01-01,100"])
+    store.ingest_csv(
+        str(plain), dataset="mixed", time_column="timestamp",
+        target_column="value", clock=CLOCK,
+    )
+    dated = _write_csv(
+        tmp_path / "dated.csv", ["2026-01-02,200,2026-01-06"],
+        header="timestamp,value,published",
+    )
+    store.ingest_csv(
+        str(dated), dataset="mixed", time_column="timestamp",
+        target_column="value", known_at_column="published", clock=CLOCK,
+    )
+    assert store.known_time_provenance("mixed") == "partially_assumed"
+    summary = store.snapshot("mixed").access_summary()
+    assert summary["known_time_provenance"] == "partially_assumed"
+    assert summary["known_time_assumed"] is True
+
+
+def test_timezone_mismatch_after_the_first_row_is_structured(tmp_path):
+    """The check reads every observation, not just ``observations[0]``."""
+    observations = [
+        TemporalObservation(
+            entity="alpha", variable="sales",
+            valid_time=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            known_time=datetime(2026, 1, 1, tzinfo=timezone.utc), value=1.0,
+        ),
+        TemporalObservation(
+            entity="alpha", variable="sales",
+            valid_time=datetime(2026, 1, 2), known_time=datetime(2026, 1, 2),
+            value=2.0,
+        ),
+    ]
+    with pytest.raises(AionError) as raised:
+        Snapshot(observations, datetime(2026, 1, 3, tzinfo=timezone.utc))
+    assert raised.value.code == "SNAPSHOT_TIMEZONE_MISMATCH"
+
+
+def test_documented_vintage_quickstart_is_supported(tmp_path):
+    """`docs/quickstart-mcp.md` §4, run verbatim on the shipped fixture.
+
+    The revisions fixture used to hold ten dates, so the documented
+    horizon-7 replay abstained; the workaround the docs implied — ingesting
+    the plain file first — asserted same-day knowledge of revised figures.
+    The fixture now carries the whole history and one ingest suffices.
+    """
+    examples = Path(__file__).resolve().parent.parent / "examples"
+    source = examples / "messy_requests_revisions.csv"
+    store = TemporalStore(tmp_path / "store.db")
+    report = store.ingest_csv(
+        str(source), dataset="requests", time_column="timestamp",
+        target_column="requests", known_at_column="published", clock=CLOCK,
+    )
+    assert report.rows_added == report.rows_seen
+    assert report.revisions_created > 0
+    assert store.known_time_provenance("requests") == "recorded"
+
+    artifact, _ = forecast(
+        "store:requests", time_column="timestamp", target_column="requests",
+        horizon=7, as_of=datetime(2026, 6, 3),
+        store_path=str(tmp_path / "store.db"),
+        output=str(tmp_path / "out"), clock=CLOCK,
+    )
+    result = artifact.results[0]
+    assert result.support == "supported", result.support_assessment
+    assert len(result.forecast) == 7
+
+    access = next(
+        item for item in artifact.evidence if item.kind == "snapshot_access"
+    ).payload
+    served = [entry["max_known_time"] for entry in access["accesses"]]
+    assert served == ["2026-06-03T00:00:00"], "the replay saw post-cutoff vintages"
 
 
 def _daily_csv(path: Path, days: int) -> Path:
