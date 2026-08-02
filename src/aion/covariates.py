@@ -408,17 +408,31 @@ def assess_covariates(
             )
             if forecast is None:
                 return None
-            fold_scores.append(error_score(values[origin:origin + horizon], forecast))
+            score = error_score(values[origin:origin + horizon], forecast)
+            if score is None:
+                # No scale in this window: neither arm can be scored on it,
+                # and dropping it for one arm only would break the
+                # identical-folds comparison this gate rests on.
+                return None
+            fold_scores.append(score)
         return fold_scores
 
-    current_scores = [
-        error_score(values[origin:origin + horizon],
-                    predict(base.selected_model, values[:origin], horizon, season))
-        for origin in selection
-    ] if base.selected_model in MODELS else None
+    current_scores: list[float] | None = None
+    if base.selected_model in MODELS:
+        current_scores = []
+        for origin in selection:
+            score = error_score(
+                values[origin:origin + horizon],
+                predict(base.selected_model, values[:origin], horizon, season),
+            )
+            if score is None:
+                current_scores = None
+                break
+            current_scores.append(score)
     if current_scores is None:
         return CovariateAssessment(True, False, rejected=[{
-            "reason": "covariate admission currently requires a built-in univariate comparison model"
+            "reason": "covariate admission requires a built-in univariate comparison "
+                      "model scoreable on every selection fold"
         }])
 
     for spec in dataset.specs:

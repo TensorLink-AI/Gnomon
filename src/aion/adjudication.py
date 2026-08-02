@@ -193,7 +193,18 @@ def adjudicate_enrichments(
                 )
                 scores = None
                 break
-            scores.append(error_score(values[origin:origin + horizon], prediction))
+            score = error_score(values[origin:origin + horizon], prediction)
+            if score is None:
+                # The window has no scale, so no candidate can be scored on
+                # it. Dropping it for one arm only would compare the two on
+                # different folds, which is the whole point of this ladder.
+                candidate.excluded_reason = (
+                    f"selection fold at {cutoff.isoformat()} has no scale to "
+                    f"score against"
+                )
+                scores = None
+                break
+            scores.append(score)
         if scores is not None:
             candidate.fold_scores = scores
             candidate.mean_score = mean(scores)

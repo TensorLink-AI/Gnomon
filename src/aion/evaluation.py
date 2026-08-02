@@ -42,10 +42,28 @@ class Evaluation:
     ensemble_residuals_by_lead: dict[int, list[float]] = field(default_factory=dict)
 
 
-def error_score(actual: list[float], predicted: list[float]) -> float:
-    absolute_error = sum(abs(a - p) for a, p in zip(actual, predicted))
+#: The metric every selection decision is made on. Named so that hindsight
+#: scoring (`aion.tracking`) can report the same quantity: a leaderboard in
+#: different units from selection can contradict it for reasons that are pure
+#: metric artefact rather than forecast quality.
+SELECTION_METRIC = "wape"
+
+
+def error_score(actual: list[float], predicted: list[float]) -> float | None:
+    """Weighted absolute percentage error: sum|a-p| / sum|a|.
+
+    ``None`` when the window has no scale (``sum|a|`` at zero, e.g. an
+    all-zero stretch of intermittent demand). WAPE is undefined there, and
+    the previous fallback returned a raw mean absolute error under the same
+    name — a number in level units rather than a ratio — so averaging it with
+    WAPE from other folds silently mixed two metrics. A fold that cannot be
+    scored now contributes nothing, exactly as a fold a model cannot predict
+    does.
+    """
     scale = sum(abs(a) for a in actual)
-    return absolute_error / scale if scale > 1e-12 else absolute_error / len(actual)
+    if scale <= 1e-12:
+        return None
+    return sum(abs(a - p) for a, p in zip(actual, predicted)) / scale
 
 
 def quantile(values: list[float], probability: float) -> float:
@@ -390,10 +408,16 @@ def evaluate(
         for name in MODELS:
             try:
                 forecast = predict(name, train, horizon, season)
-                fold_forecasts[name].append(forecast)
             except ValueError:
                 continue
-            fold_scores[name].append(error_score(actual, forecast))
+            score = error_score(actual, forecast)
+            if score is None:
+                # Unscoreable fold (no scale in the window). Recording the
+                # forecast without its score would desynchronise the two
+                # lists the ensemble reads by fold index.
+                continue
+            fold_forecasts[name].append(forecast)
+            fold_scores[name].append(score)
 
     # --- Run TSFM candidates on selection folds ---
     tsfm_fold_scores: dict[str, list[float]] = {a.name: [] for a in tsfm_adapters}

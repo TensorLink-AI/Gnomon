@@ -360,3 +360,45 @@ class TestTrackingStore:
         record = store.get_forecast("f1")
         assert record.selected_model == "ets"
         assert record.support == "supported"
+
+
+class TestSelectionMetricInHindsight:
+    """Selection and hindsight must be readable in the same unit.
+
+    `evaluation.error_score` (WAPE) decides which model is chosen;
+    `tracking.mase_score` judges it afterwards against a seasonal-naive
+    baseline. Reporting only the latter means the leaderboard can rank
+    models against the order selection chose them in for reasons that are
+    pure metric artefact.
+    """
+
+    def test_scoring_records_the_selection_metric(self, tmp_path):
+        from aion.evaluation import error_score
+        from aion.tracking import TrackingStore
+
+        store = TrackingStore(tmp_path / "track.db")
+        store.register(
+            forecast_id="f1", project="p", series="s",
+            cutoff_time="2024-01-01T00:00:00", horizon=3, frequency="h",
+            selected_model="drift", support="supported",
+            artifact_path=str(tmp_path), naive_error=2.0,
+        )
+        actuals, points = [10.0, 11.0, 12.0], [9.0, 11.0, 13.0]
+        result = store.score_forecast("f1", actuals=actuals, points=points)
+
+        assert result.wape == error_score(actuals, points)
+        assert store.get_forecast("f1").wape == result.wape
+        entry = store.leaderboard("p")[0]
+        assert entry.avg_wape == result.wape
+        assert entry.avg_mase is not None, "MASE stays; this adds a unit"
+
+
+class TestDegenerateWindowsAreNotSilentlyRescored:
+    def test_error_score_declines_a_window_with_no_scale(self):
+        from aion.evaluation import error_score
+
+        # WAPE is undefined when sum|actual| is zero. The previous fallback
+        # returned a raw MAE under the same name — a level-unit number
+        # averaged together with ratios from other folds.
+        assert error_score([0.0, 0.0, 0.0], [1.0, -1.0, 2.0]) is None
+        assert error_score([0.0, 0.0, 4.0], [0.0, 0.0, 2.0]) == 0.5

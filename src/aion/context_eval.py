@@ -215,6 +215,20 @@ def assess_context(
             return assessment
         base_score = error_score(actual, predict(base.selected_model, values[:origin], horizon, season))
         context_score = error_score(actual, context_prediction)
+        if base_score is None or context_score is None:
+            # No scale in this window. Scoring one arm and not the other would
+            # break the identical-folds comparison the gate rests on.
+            assessment = ContextAssessment(
+                True, False, [],
+                events_used=[event.event_id for event in eligible],
+                events_excluded=excluded,
+            )
+            assessment.record_check(
+                "folds_are_scoreable", False, measured=origin,
+                detail="a selection fold has no scale to score against, so the "
+                       "context candidate cannot be compared on identical folds",
+            )
+            return assessment
         # Symmetric relative improvement, bounded to [-1, 1]: a fold where
         # both candidates are (near-)exact contributes 0 rather than
         # aborting or dividing by zero.

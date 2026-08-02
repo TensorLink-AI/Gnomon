@@ -83,6 +83,11 @@ class ForecastRecord:
     created_at: str
     scored: bool = False
     mase: float | None = None
+    #: The selection metric, recorded in hindsight. Selection is decided on
+    #: WAPE; a leaderboard reported only in MASE can rank models against the
+    #: order selection chose them in, for reasons that are metric artefact
+    #: rather than forecast quality.
+    wape: float | None = None
     mape: float | None = None
     bias: float | None = None
     coverage: float | None = None
@@ -98,6 +103,7 @@ class ModelPerformance:
     model: str
     count: int
     avg_mase: float | None
+    avg_wape: float | None
     avg_mape: float | None
     avg_bias: float | None
     avg_coverage: float | None
@@ -110,6 +116,7 @@ class ModelPerformance:
 class ScoreResult:
     forecast_id: str
     mase: float | None
+    wape: float | None
     mape: float | None
     bias: float | None
     coverage: float | None
@@ -318,14 +325,16 @@ class TrackingStore:
             }
             if "naive_error" not in columns:
                 conn.execute("ALTER TABLE forecasts ADD COLUMN naive_error REAL")
-            for name, sql_type in (("task", "TEXT DEFAULT 'forecast'"), ("fingerprint", "TEXT")):
+            for name, sql_type in (("task", "TEXT DEFAULT 'forecast'"), ("fingerprint", "TEXT"),
+                                   ("wape", "REAL")):
                 if name not in columns:
                     conn.execute(f"ALTER TABLE forecasts ADD COLUMN {name} {sql_type}")
             perf_columns = {
                 row["name"] for row in conn.execute("PRAGMA table_info(model_performance)")
             }
             for name, sql_type in (("series", "TEXT"), ("horizon", "INTEGER"), ("frequency", "TEXT"),
-                                   ("task", "TEXT DEFAULT 'forecast'"), ("fingerprint", "TEXT")):
+                                   ("task", "TEXT DEFAULT 'forecast'"), ("fingerprint", "TEXT"),
+                                   ("wape", "REAL")):
                 if name not in perf_columns:
                     conn.execute(f"ALTER TABLE model_performance ADD COLUMN {name} {sql_type}")
             conn.execute("""
@@ -462,6 +471,10 @@ class TrackingStore:
 
         scale = naive_error if naive_error is not None else record.naive_error
         mase = mase_score(actuals, points, scale)
+        # The same function selection is decided on, so hindsight and choice
+        # are reported in one unit as well as in MASE's naive-relative one.
+        from .evaluation import error_score
+        wape = error_score(actuals, points)
         mape = mape_score(actuals, points)
         bias = bias_score(actuals, points)
         cov = interval_coverage(actuals, q10 or [], q90 or []) if q10 and q90 else None
@@ -474,21 +487,21 @@ class TrackingStore:
         with self._connect() as conn:
             conn.execute("""
                 UPDATE forecasts SET
-                    scored = 1, mase = ?, mape = ?, bias = ?,
+                    scored = 1, mase = ?, wape = ?, mape = ?, bias = ?,
                     coverage = ?, threshold_accuracy = ?, scored_at = ?, drift_flag = ?
                 WHERE forecast_id = ?
-            """, (mase, mape, bias, cov, thresh_acc, scored_at, drift, forecast_id))
+            """, (mase, wape, mape, bias, cov, thresh_acc, scored_at, drift, forecast_id))
 
             if record.selected_model:
                 conn.execute("""
                     INSERT OR REPLACE INTO model_performance
-                        (project, model, forecast_id, mase, mape, bias,
+                        (project, model, forecast_id, mase, wape, mape, bias,
                          coverage, threshold_accuracy, scored_at, series, horizon, frequency,
                          task, fingerprint)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     record.project, record.selected_model, forecast_id,
-                    mase, mape, bias, cov, thresh_acc, scored_at,
+                    mase, wape, mape, bias, cov, thresh_acc, scored_at,
                     record.series, record.horizon, record.frequency,
                     record.task, record.fingerprint,
                 ))
@@ -499,7 +512,8 @@ class TrackingStore:
             f"{cov:.1%}" if cov is not None else "N/A",
             drift or "none",
         )
-        return ScoreResult(forecast_id, mase, mape, bias, cov, thresh_acc, scored_at, drift)
+        return ScoreResult(forecast_id, mase, wape, mape, bias, cov, thresh_acc,
+                           scored_at, drift)
 
     def submit_actuals(
         self,
@@ -651,6 +665,7 @@ class TrackingStore:
                     model,
                     COUNT(*) as count,
                     AVG(mase) as avg_mase,
+                    AVG(wape) as avg_wape,
                     AVG(mape) as avg_mape,
                     AVG(bias) as avg_bias,
                     AVG(coverage) as avg_coverage,
@@ -672,6 +687,7 @@ class TrackingStore:
                 model=r["model"],
                 count=r["count"],
                 avg_mase=r["avg_mase"],
+                avg_wape=r["avg_wape"],
                 avg_mape=r["avg_mape"],
                 avg_bias=r["avg_bias"],
                 avg_coverage=r["avg_coverage"],
@@ -1127,6 +1143,7 @@ class TrackingStore:
             created_at=row["created_at"],
             scored=bool(row["scored"]),
             mase=row["mase"],
+            wape=row["wape"] if "wape" in row.keys() else None,
             mape=row["mape"],
             bias=row["bias"],
             coverage=row["coverage"],
