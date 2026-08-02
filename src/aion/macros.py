@@ -75,6 +75,29 @@ def _task_dict(task: TemporalTask) -> dict[str, Any]:
     return asdict(task)
 
 
+def _event_payload(event: Any) -> Any:
+    """Context events as id material, matching ``runtime.forecast``."""
+    return getattr(event, "__dict__", event)
+
+
+def _schema_payload(loaded, time_column: str, target_column: str,
+                    series_column: str | None) -> dict[str, Any]:
+    """The column and grid choices that change what a macro computes.
+
+    ``source_fingerprint`` covers the bytes on disk, not which columns were
+    read out of them, so an id built from the fingerprint alone collides
+    across genuinely different reads of the same file. ``runtime.forecast``
+    has always included this block; the other macros now do too.
+    """
+    return {
+        "time": time_column,
+        "target": target_column,
+        "series": series_column,
+        "frequency": loaded.frequency,
+        "timezone": getattr(loaded, "timezone", None),
+    }
+
+
 # ---------------------------------------------------------------------------
 # A. What changed? — aion_investigate_change
 # ---------------------------------------------------------------------------
@@ -252,6 +275,11 @@ def investigate_change(
         "source": loaded.source_fingerprint,
         "as_of": task.as_of,
         "series": sorted(payloads),
+        "schema": _schema_payload(loaded, time_column, target_column, series_column),
+        "context_events": (
+            [_event_payload(event) for event in context_events]
+            if context_events else None
+        ),
     })
     created_at = clock.now().isoformat()
     payload = {
@@ -366,7 +394,13 @@ def decide(
         "forecast": artifact.forecast_id,
         "series": result.series,
         "threshold": threshold,
-        "actions": [action.get("name") for action in actions],
+        # Every field of every action, not just its name: `feasible` and
+        # `residual_risk` select a different action, so an id over names
+        # alone let two runs with different answers share one artifact.
+        "actions": [
+            {str(key): action[key] for key in sorted(action)}
+            for action in actions
+        ],
         "utilities": utilities,
         "max_acceptable_risk": max_acceptable_risk,
     })
@@ -562,6 +596,7 @@ def monitor(
         "forecast": artifact.forecast_id,
         "threshold": threshold,
         "alert_cost": alert_cost, "miss_cost": miss_cost,
+        "horizon": horizon,
     })
     payload = {
         "schema_version": "0.1",
@@ -726,6 +761,11 @@ def detect_anomalies(
         "as_of": task.as_of,
         "series": sorted(payloads),
         "threshold": detection_threshold,
+        "schema": _schema_payload(loaded, time_column, target_column, series_column),
+        # Labels change the detector *and* the basis it is selected on, so
+        # a labelled and an unlabelled run are different computations.
+        "labels": sorted(str(label) for label in labels) if labels else None,
+        "include_tsfm": include_tsfm,
     })
     created_at = clock.now().isoformat()
     payload = {

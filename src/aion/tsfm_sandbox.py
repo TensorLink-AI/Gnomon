@@ -62,37 +62,47 @@ SANDBOX_ROOT = Path(
     os.environ.get("AION_TSFM_SANDBOX_ROOT", "")
 ) or Path.home() / ".cache" / "aion-tsfm-venvs"
 
-# Each TSFM's pip-install spec. The key must match the adapter name in tsfm.py.
-# The value is a list of pip specs (packages with optional version constraints).
+# Each TSFM's pip-install spec. The key must match the adapter name in
+# tsfm.py. Every spec is exact — ``==`` for PyPI, a tag for git.
+#
+# Unpinned specs made a sandbox's numbers a function of the day it was
+# built, which a content-addressed forecast_id cannot express: two runs
+# with the same id could disagree, and first-write-wins would discard the
+# second. The module docstring already cites numpy conflicts as a known
+# sensitivity, so this surface was never safely floating.
+#
+# Resolved 2026-08-02 from PyPI and from granite-tsfm's tag list. To move a
+# pin, bump it here and re-run the TSFM benchmark: a library change can move
+# published numbers exactly as a weight change can.
 TSFM_PIP_SPECS: dict[str, list[str]] = {
     "chronos_bolt_mini": [
-        "chronos-forecasting",
-        "torch",
+        "chronos-forecasting==2.3.1",
+        "torch==2.13.0",
     ],
     "chronos_bolt_small": [
-        "chronos-forecasting",
-        "torch",
+        "chronos-forecasting==2.3.1",
+        "torch==2.13.0",
     ],
     "toto2_22m": [
-        "toto-models",
-        "torch",
+        "toto-models==1.0.0",
+        "torch==2.13.0",
     ],
     "flowstate": [
-        # tsfm_public is not on PyPI — install from GitHub
-        "git+https://github.com/ibm-granite/granite-tsfm.git",
-        "torch",
+        # tsfm_public is not on PyPI — install from GitHub at a fixed tag.
+        "git+https://github.com/ibm-granite/granite-tsfm.git@v0.3.7",
+        "torch==2.13.0",
     ],
     "ttm": [
-        "git+https://github.com/ibm-granite/granite-tsfm.git",
-        "torch",
+        "git+https://github.com/ibm-granite/granite-tsfm.git@v0.3.7",
+        "torch==2.13.0",
     ],
     "moirai2_small": [
-        "uni2ts",
-        "torch",
+        "uni2ts==2.0.0",
+        "torch==2.13.0",
     ],
     "moment_small": [
-        "momentfm",
-        "torch",
+        "momentfm==0.1.4",
+        "torch==2.13.0",
     ],
 }
 

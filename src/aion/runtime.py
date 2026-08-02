@@ -303,6 +303,23 @@ def forecast(
     evidence.append(Evidence(
         "snapshot", "snapshot_access", "__all__", loaded.snapshot.access_summary(),
     ))
+    # A selected TSFM's weights are part of what produced the numbers, so
+    # they belong in the id and in the evidence. Without this the id covers
+    # the model *name* only, and two runs at different Hub revisions could
+    # publish different forecasts under one id.
+    from .tsfm import resolved_weights
+    selected_weights = {
+        model: weights
+        for model in sorted({
+            item.selected_model for item in results if item.selected_model
+        })
+        if (weights := resolved_weights(model))
+    }
+    if selected_weights:
+        evidence.append(Evidence(
+            "model_weights", "model_weights", "__all__",
+            {"pinned_revisions": selected_weights},
+        ))
     id_payload: dict[str, object] = {
         "source": loaded.source_fingerprint,
         "as_of": as_of.isoformat() if as_of else None,
@@ -325,6 +342,10 @@ def forecast(
         # The default level is absent from the payload so IDs predating the
         # repair layer are unchanged.
         id_payload["repair"] = repair
+    if selected_weights:
+        # Absent when no TSFM was selected, so ids for baseline and
+        # statistical selections are unchanged by this addition.
+        id_payload["model_weights"] = selected_weights
     forecast_id = content_id("forecast", id_payload)
     artifact = ForecastArtifact(
         "0.1", forecast_id, clock.now().isoformat(),
