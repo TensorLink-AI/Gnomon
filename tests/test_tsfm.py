@@ -213,6 +213,22 @@ class TestSandbox:
         assert any("aion tsfm install" in note for note in result.notes)
         assert not any("aion tsfm install" in warning for warning in result.warnings)
 
+    def test_capability_exclusion_does_not_downgrade_support(self):
+        """A TSFM being ineligible says nothing about the forecast's evidence.
+
+        Quarterly data excludes `flowstate` on frequency. Routed through
+        `warnings` that exclusion made the pipeline report
+        "weakly_supported" for a forecast whose own evidence was intact.
+        """
+        values = [100.0 + 2.0 * i for i in range(200)]
+        result = evaluate(
+            values, horizon=8, season=4, minimum_improvement=0.02, frequency="QS",
+        )
+        assert result.supported is True
+        assert any("Skipped TSFM" in note for note in result.notes)
+        assert not any("Skipped TSFM" in warning for warning in result.warnings)
+        assert result.warnings == []
+
     def test_evaluate_notes_empty_when_tsfms_explicitly_disabled(self):
         """An explicit empty request means no TSFM tier was wanted: no note."""
         values = [100.0 + 2.0 * i for i in range(200)]

@@ -34,6 +34,12 @@ class Evaluation:
     # list every existing caller reads; this is what conformal intervals are
     # built from.
     residuals_by_lead: dict[int, list[float]] = field(default_factory=dict)
+    # Residuals of the ensemble over the same selection + calibration folds,
+    # populated only when the ensemble is enabled but did not win selection.
+    # The `--ensemble` override needs its own honest calibration; without it
+    # the override would have nothing fold-separated to widen from.
+    ensemble_residuals: list[float] = field(default_factory=list)
+    ensemble_residuals_by_lead: dict[int, list[float]] = field(default_factory=dict)
 
 
 def error_score(actual: list[float], predicted: list[float]) -> float:
@@ -316,9 +322,17 @@ def evaluate(
     )
     requested_names = tsfm_names if tsfm_names is not None else eligible_names
     requested_names = [name for name in requested_names if name in eligible_names]
-    for name, reasons in capability_exclusions.items():
-        if tsfm_names is None or name in tsfm_names:
-            warnings.append(f"Skipped TSFM {name}: {'; '.join(reasons)}.")
+    # Informational, never a warning. A capability exclusion says a foundation
+    # model could not run on this history length or frequency — it says nothing
+    # about the evidence behind the forecast that did run. Routed through
+    # `warnings` it would downgrade support to "weakly_supported" (pipeline's
+    # support enum), so a fully evidenced forecast would advertise doubt about
+    # itself because a model the caller never asked for was ineligible.
+    capability_notes = [
+        f"Skipped TSFM {name}: {'; '.join(reasons)}."
+        for name, reasons in capability_exclusions.items()
+        if tsfm_names is None or name in tsfm_names
+    ]
     sandbox_names = sandbox_available_tsfms()
     if sandbox_names and requested_names:
         tsfm_adapters = sandbox_tsfm_candidates(
@@ -347,7 +361,7 @@ def evaluate(
     # TSFM sandboxes, so without this note the operator most likely to benefit
     # from a stronger candidate never learns one was eligible.
     from .tsfm import installed_tsfms
-    notes: list[str] = []
+    notes: list[str] = list(capability_notes)
     if requested_names and not sandbox_names and not installed_tsfms():
         notes.append(
             f"No foundation-model candidate competed: "
@@ -535,10 +549,46 @@ def evaluate(
     selected_score = all_scores.get(selected, baseline_score)
     improvement = 0.0 if selected in BASELINES else (baseline_score - selected_score) / baseline_score if baseline_score > 0 else 0.0  # type: ignore[operator]
 
+    def _ensemble_predict(train: list[float]) -> list[float]:
+        """Recombine the member models on *train* only.
+
+        The ensemble has to be predictable at an arbitrary fold origin like
+        any other candidate. Without this it could win selection and then
+        fail to produce a calibration forecast, which both discarded the
+        winner and pushed interval calibration onto a trailing window that
+        overlaps the report-only test fold.
+        """
+        from .ensemble import compute_ensemble_forecast
+        member_scores: dict[str, float | None] = {**scores, **tsfm_scores}
+        forecasts: dict[str, list[float]] = {}
+        for name in MODELS:
+            if member_scores.get(name) is None:
+                continue
+            try:
+                forecasts[name] = predict(name, train, horizon, season)
+            except (ValueError, ArithmeticError):
+                continue
+        for adapter in tsfm_adapters:
+            if member_scores.get(adapter.name) is None:
+                continue
+            try:
+                forecasts[adapter.name] = adapter.predict(train, horizon, season)
+            except Exception:
+                logger.debug("ensemble member %s failed on a fold", adapter.name,
+                             exc_info=True)
+        if len(forecasts) < (ensemble_cfg.min_models if ensemble_cfg else 2):
+            raise ValueError("too few ensemble members completed this fold")
+        return compute_ensemble_forecast(
+            forecasts, member_scores, strategy=ensemble_strategy,
+            last_observed=train[-1] if train else 0.0, config=ensemble_cfg,
+        )
+
     def _predict_selected(name: str, train: list[float]) -> list[float]:
-        """Dispatch a prediction to a built-in model or a TSFM adapter."""
+        """Dispatch a prediction to a built-in model, a TSFM, or the ensemble."""
         if name in MODELS:
             return predict(name, train, horizon, season)
+        if name == "ensemble":
+            return _ensemble_predict(train)
         adapter = next((a for a in tsfm_adapters if a.name == name), None)
         if adapter is None:
             raise ValueError(f"no adapter available for {name}")
@@ -561,23 +611,45 @@ def evaluate(
     # the calibration fold: one horizon of residuals is too small a sample
     # for stable quantiles. Folds where the selected model cannot predict
     # (possible for TSFM adapters) simply contribute nothing.
-    residuals: list[float] = []
-    residuals_by_lead: dict[int, list[float]] = {}
+    def _pool_residuals(
+        name: str, final_prediction: list[float] | None = None,
+    ) -> tuple[list[float], dict[int, list[float]]]:
+        """Residuals of *name* over the selection folds and the calibration
+        fold. The test fold is never touched: it reports, it never calibrates.
+        """
+        pooled: list[float] = []
+        by_lead: dict[int, list[float]] = {}
 
-    def _record(actual: list[float], prediction: list[float]) -> None:
-        for step, (a, p) in enumerate(zip(actual, prediction), 1):
-            residuals.append(a - p)
-            residuals_by_lead.setdefault(step, []).append(a - p)
+        def record(actual: list[float], prediction: list[float]) -> None:
+            for step, (a, p) in enumerate(zip(actual, prediction), 1):
+                pooled.append(a - p)
+                by_lead.setdefault(step, []).append(a - p)
 
-    for origin in selection_origins:
-        try:
-            prediction = _predict_selected(selected, train_at(origin))
-        except Exception:
-            continue
-        _record(values[origin : origin + horizon], prediction)
-    calibration_actual = values[calibration_origin : calibration_origin + horizon]
-    _record(calibration_actual, calibration_prediction)
+        for origin in selection_origins:
+            try:
+                prediction = _predict_selected(name, train_at(origin))
+            except Exception:
+                continue
+            record(values[origin : origin + horizon], prediction)
+        if final_prediction is None:
+            try:
+                final_prediction = _predict_selected(name, train_at(calibration_origin))
+            except Exception:
+                return pooled, by_lead
+        record(values[calibration_origin : calibration_origin + horizon],
+               final_prediction)
+        return pooled, by_lead
+
+    residuals, residuals_by_lead = _pool_residuals(selected, calibration_prediction)
     spreads = conformal_spreads(residuals_by_lead, horizon, residuals)
+
+    # The `--ensemble` override can force the ensemble even when it did not win
+    # selection. Calibrate it here, on the same folds, so the override never
+    # has to fall back to a trailing window that overlaps the test fold.
+    ensemble_residuals: list[float] = []
+    ensemble_residuals_by_lead: dict[int, list[float]] = {}
+    if ensemble_enabled and selected != "ensemble":
+        ensemble_residuals, ensemble_residuals_by_lead = _pool_residuals("ensemble")
 
     # --- Test ---
     test_scores: dict[str, float | None] = {name: None for name in all_model_names}
@@ -615,4 +687,6 @@ def evaluate(
     return Evaluation(selected, strongest_baseline, scores, test_scores, improvement,
                       residuals, coverage, warnings, True, degraded,
                       tsfm_scores=tsfm_scores, notes=notes,
-                      residuals_by_lead=residuals_by_lead)
+                      residuals_by_lead=residuals_by_lead,
+                      ensemble_residuals=ensemble_residuals,
+                      ensemble_residuals_by_lead=ensemble_residuals_by_lead)

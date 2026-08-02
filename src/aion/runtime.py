@@ -175,6 +175,14 @@ def forecast(
     if horizon < 1:
         from .contracts import AionError
         raise AionError("INVALID_HORIZON", "Horizon must be at least one period.")
+    if selection_strategy == "ensemble":
+        # Asking for the ensemble has to enter it in the evaluation, not just
+        # swap the final forecast. Otherwise it is never scored on the folds
+        # and has no fold-separated residuals to build an interval from.
+        import copy as _copy
+        from .config import load_config as _load_config
+        config = _copy.deepcopy(config) if config is not None else _load_config()
+        config.ensemble.enabled = True
     # When both enrichment kinds are supplied, neither ablation stage applies
     # its own winner; the adjudication ladder owns the choice.
     adjudicating = bool(context_events) and covariates is not None

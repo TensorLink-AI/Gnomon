@@ -206,7 +206,30 @@ def predict_stage(
     if not (assessment and assessment.supported and assessment.selected_model):
         return
     values, season = state.values, state.season
-    if assessment.selected_model == "ensemble" or selection_strategy == "ensemble":
+    # Intervals for the ensemble come from the ensemble's own residuals over
+    # the selection and calibration folds, computed in `evaluate`. The previous
+    # version pooled residuals from a trailing window of the series, which
+    # overlaps the calibration and report-only test folds — so the published
+    # interval width for every ensemble result was calibrated on the partition
+    # the design says nothing may be chosen on (DESIGN_REVIEW_NOTES §1).
+    wants_ensemble = assessment.selected_model == "ensemble" or selection_strategy == "ensemble"
+    ensemble_residuals, ensemble_by_lead = (
+        (assessment.residuals, assessment.residuals_by_lead)
+        if assessment.selected_model == "ensemble"
+        else (assessment.ensemble_residuals, assessment.ensemble_residuals_by_lead)
+    )
+    if wants_ensemble and not ensemble_residuals:
+        # Nothing fold-separated to calibrate the ensemble from, and the
+        # selected model's residuals describe a different forecast. Publishing
+        # the ensemble point with someone else's interval is the failure this
+        # fix exists to remove, so the ensemble is declined instead.
+        wants_ensemble = False
+        state.warnings.append(
+            "Ensemble was requested but produced no fold-separated residuals "
+            f"of its own; reporting {assessment.selected_model} instead, whose "
+            "intervals are calibrated."
+        )
+    if wants_ensemble:
         from .ensemble import compute_ensemble_forecast
         forecasts = {}
         for name in MODELS:
@@ -217,24 +240,9 @@ def predict_stage(
         state.points = compute_ensemble_forecast(forecasts, assessment.selection_scores,
                                                  strategy="weighted_mean", last_observed=values[-1])
         state.selected_model = "ensemble"
-        # Pool out-of-sample residuals from every eligible model so
-        # ensemble intervals reflect both data noise and model spread.
-        holdout = min(horizon, max(1, len(values) // 4))
-        origin = len(values) - holdout
-        pooled: list[float] = []
-        pooled_by_lead: dict[int, list[float]] = {}
-        for name in MODELS:
-            try:
-                prediction = predict(name, values[:origin], holdout, season)
-            except ValueError:
-                continue
-            for step, (actual, predicted) in enumerate(
-                    zip(values[origin:], prediction), 1):
-                pooled.append(actual - predicted)
-                pooled_by_lead.setdefault(step, []).append(actual - predicted)
-        if pooled:
-            state.residuals = pooled
-            state.residuals_by_lead = pooled_by_lead
+        state.residuals = list(ensemble_residuals)
+        state.residuals_by_lead = {step: list(items)
+                                   for step, items in ensemble_by_lead.items()}
     elif assessment.selected_model in MODELS:
         state.points = predict(assessment.selected_model, values, horizon, season)
     else:

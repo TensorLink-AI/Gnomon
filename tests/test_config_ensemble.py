@@ -268,3 +268,62 @@ class TestEvaluationWithConfig:
             frequency="h", config=cfg,
         )
         assert result.supported is True
+
+
+class TestEnsembleCalibrationPartitions:
+    """The ensemble must be calibrated like every other candidate.
+
+    Before this, the ensemble path pooled residuals from a trailing window
+    of the series — which overlaps both the calibration fold and the
+    report-only test fold — so the published interval width for every
+    ensemble result was derived from data the design forbids choosing on.
+    """
+
+    @staticmethod
+    def _series():
+        import math
+        return [100.0 + 10 * math.sin(i / 6) + 0.5 * i + (i % 5) for i in range(200)]
+
+    def test_ensemble_residuals_exclude_the_test_fold(self):
+        from aion.config import AionConfig, EnsembleConfig
+        from aion.evaluation import evaluate, _origins
+
+        horizon, season = 12, 12
+        values = self._series()
+        cfg = AionConfig()
+        cfg.ensemble = EnsembleConfig(enabled=True, min_models=2)
+        result = evaluate(
+            values, horizon=horizon, season=season, minimum_improvement=0.02,
+            frequency="h", config=cfg,
+        )
+        residuals = (result.residuals if result.selected_model == "ensemble"
+                     else result.ensemble_residuals)
+        assert residuals, "the ensemble must be calibrated on the folds"
+        origins = _origins(len(values), horizon, max(2 * season, 2 * horizon, 8))
+        # Selection folds plus the calibration fold. The final origin is the
+        # test fold and contributes nothing.
+        assert len(residuals) == (len(origins) - 1) * horizon
+
+    def test_forcing_the_ensemble_still_calibrates_on_folds(self, tmp_path):
+        """`--selection-strategy ensemble` overrides selection, not honesty."""
+        import csv
+        from datetime import datetime, timedelta
+        from aion.runtime import forecast
+
+        path = tmp_path / "series.csv"
+        start = datetime(2024, 1, 1)
+        with path.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.writer(handle)
+            writer.writerow(["timestamp", "value"])
+            for index, value in enumerate(self._series()):
+                writer.writerow([(start + timedelta(hours=index)).isoformat(), value])
+
+        artifact, _ = forecast(
+            str(path), time_column="timestamp", target_column="value",
+            horizon=12, selection_strategy="ensemble",
+            output=str(tmp_path / "out"),
+        )
+        result = artifact.results[0]
+        assert result.support == "supported_ensemble"
+        assert result.forecast, "an ensemble forecast must still carry intervals"
+        assert all(row["q10"] <= row["point"] <= row["q90"] for row in result.forecast)
