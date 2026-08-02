@@ -1,9 +1,0 @@
-
-Background:
-This series represents the occupancy rate (%) captured by a highway sensor. The sensor was offline for maintenance every day between 08:00 and 14:00, which resulted in zero readings. Assume that the sensor will not be in maintenance in the future.
-
-Constraints:
-None
-
-Scenario:
-None

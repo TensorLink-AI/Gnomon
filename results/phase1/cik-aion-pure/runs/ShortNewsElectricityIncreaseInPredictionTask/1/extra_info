@@ -1,9 +1,0 @@
-{'adapter': 'AionForecaster_mode=pure_model=none',
- 'context': None,
- 'proposal_notes': [],
- 'proposed_events': [],
- 'selected_model': 'last_value',
- 'strongest_baseline': 'last_value',
- 'support': 'supported',
- 'total_time': 0.023934602737426758,
- 'warnings': []}

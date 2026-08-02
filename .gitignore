@@ -21,6 +21,17 @@ data/
 # object-dtype columns.
 inference_cache/
 
-# Benchmark run outputs
-results/
+# Benchmark run outputs. Regenerable from benchmarks/configs/*.yaml, and
+# large enough (10.5 MB of JSON, PNG, and PDF) that carrying them makes
+# every clone pay for one machine's run.
+#
+# `results/*` rather than `results/`: git does not descend into an excluded
+# directory, so the negation below would never be reached under the shorter
+# form.
+results/*
 metric_scaling_cache/
+
+# Except the leakage-trap results — the evidence behind the McNemar figure
+# in docs/leakage-trap-results-2026-08.md. 62 KB of text, and a published
+# claim should not rest on output nobody can see.
+!results/leaktrap/
