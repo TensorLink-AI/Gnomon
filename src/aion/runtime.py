@@ -265,7 +265,9 @@ def forecast(
         repair_warnings = repair_log.warnings_for(series_name)
         if repair_warnings:
             state.warnings.extend(repair_warnings)
-        rows, support, threshold_analysis = interval_stage(state, threshold=threshold)
+        rows, support, threshold_analysis = interval_stage(
+            state, threshold=threshold, context_events=context_events,
+        )
         assessment = state.assessment
         from .support import assess_forecast_support
         support_assessment = assess_forecast_support(

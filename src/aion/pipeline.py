@@ -549,10 +549,45 @@ def threshold_analysis_stage(
     }
 
 
+def _constraint_stage(
+    state: SeriesState,
+    context_events: list[ContextEvent],
+    rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Project the forecast onto bounds the caller says the domain has.
+
+    Rejections are recorded as loudly as applications: a bound the training
+    window already breaches is describing a different quantity, and silently
+    dropping it would leave the caller believing it was enforced.
+    """
+    from .constraints import apply_claims, collect_claims
+
+    claims, rejected = collect_claims(
+        context_events, state.name, state.values, state.timestamps,
+    )
+    if not claims and not rejected:
+        return rows
+    projected, applications = apply_claims(rows, claims)
+    state.evidence.append(Evidence(
+        f"constraint_applied:{state.name}", "constraint_applied", state.name,
+        {
+            "claims_supplied": len(claims) + len(rejected),
+            "claims_applied": len(claims),
+            "rejected": rejected,
+            "clamps": applications,
+            "basis": "bounds are projected onto the emitted quantiles after "
+                     "interval construction; the point path is never adjusted "
+                     "to satisfy a claim",
+        },
+    ))
+    return projected
+
+
 def interval_stage(
     state: SeriesState,
     *,
     threshold: float | None,
+    context_events: list[ContextEvent] | None = None,
 ) -> tuple[list[dict[str, object]], str, dict[str, object] | None]:
     """Residual-quantile intervals, the support status, and threshold analysis."""
     assessment = state.assessment
@@ -569,6 +604,12 @@ def interval_stage(
                 "timestamp": timestamp.isoformat(), "point": point,
                 "q10": q10, "q50": q50, "q90": q90,
             })
+        # Feasibility bounds are projected onto the emitted quantiles here,
+        # after the model has said what it believes and before anything reads
+        # the rows, so the threshold analysis below sees the same numbers the
+        # caller will.
+        if context_events:
+            rows = _constraint_stage(state, context_events, rows)
         support = "degraded" if assessment.degraded else ("supported_ensemble" if state.selected_model == "ensemble" else ("weakly_supported" if state.warnings else "supported"))
         if threshold is not None:
             threshold_analysis = threshold_analysis_stage(
