@@ -1,9 +1,0 @@
-
-Background:
-This series represents the occupancy rate (%) captured by a highway sensor. The sensor experienced an unexpected glitch resulting in a spike starting from 2024-01-12 16:00:00 for 1 hour. Assume that the sensor will not have this glitch in the future.
-
-Constraints:
-None
-
-Scenario:
-None

@@ -216,18 +216,14 @@ def main() -> int:
         if path is not None:
             # Record what this arm was, so a later comparison can refuse
             # to put it next to an arm that answered other questions.
-            # Not `args`: that name holds the parsed CLI namespace, and
-            # shadowing it here made every iteration after the first fail on
-            # `args.dry_run` — so the orchestrator only ever completed a
-            # single run.
-            run_args = dict(run.get("args") or {})
+            args = dict(run.get("args") or {})
             write_manifest(
                 path.parent,
                 benchmark=benchmark_of(run),
                 run_name=name,
-                condition=(run_args.get("condition") or run_args.get("method")
-                           or run_args.get("mode") or run_args.get("subcommand")),
-                target=run.get("target") or run_args.get("indicator"),
+                condition=(args.get("condition") or args.get("method")
+                           or args.get("mode") or args.get("subcommand")),
+                target=run.get("target") or args.get("indicator"),
                 model=config.get("model"),
                 command=printable,
                 config_path=args_config_path,
