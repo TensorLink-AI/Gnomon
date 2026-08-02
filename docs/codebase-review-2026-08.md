@@ -3,6 +3,32 @@
 **Date:** 2026-08-02 · **Reviewed at:** branch `clean/harness-integrity` (PR #31)
 · **Runtime version:** 0.4.0
 
+> ## Status: closed. Every finding below is fixed.
+>
+> **Do not treat this file as a defect list.** All 58 findings — C1–C10,
+> H1–H23, M1–M19, L1–L6 — were implemented and merged in **PR #35**
+> (`fix/review-findings-2026-08`), with the build-output finding M18
+> completed by **PR #36**. `tests/` went from 443 to **586 passing**
+> (671 with the benchmark suite, 2 skipped); every reproduction recorded
+> below (C1, C4, C6, C9, C10, H6) was re-run against the fixed tree and no
+> longer reproduces.
+>
+> The file is kept as the record of *why* the code looks the way it does.
+> Read a finding when you want the reasoning behind a guard, a disclosure,
+> or a test — not to learn what is broken. The "Verdict" in §1 describes the
+> tree at PR #31 and is **no longer true of `main`**.
+>
+> Four findings were resolved by a deliberate judgement other than the fix
+> the table proposes. These are the only places where the code and the
+> proposed fix diverge:
+>
+> | # | Proposed | What shipped, and why |
+> |---|---|---|
+> | H2 | Publish the bias-corrected centre as `point` | `point` keeps its meaning; `point_bias_correction` is published alongside it and stated in `summary.md` and `COMPATIBILITY.md`. Redefining `point` would have moved every published number and every historical MASE — a silent restatement of the tracking record. |
+> | M3 | Wire `adapted_alpha` into `interval_stage` | Exposed as `aion track coverage` and an MCP field: **reported, not applied.** Applying an adapted level to a published interval is a change to the calibration contract, and needs its own measurement before it is switched on. |
+> | H4 | Measure the bias | Disclosed and switchable, not measured. Measuring it is an experiment, not a fix, and belongs with the other recorded measurements. |
+> | M18 | Untrack the build outputs | Done in PR #36, except `results/leaktrap/` — 62 KB of text kept deliberately, because it is the evidence behind the McNemar figure in [`leakage-trap-results-2026-08.md`](leakage-trap-results-2026-08.md). |
+
 ---
 
 ## 0. What was actually done

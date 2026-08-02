@@ -3,10 +3,14 @@
 ## Repository layout
 
 ```text
-src/aion/       Runtime and CLI source
-tests/               Unit and end-to-end tests
+src/aion/            Runtime, CLI, and MCP server source
+tests/               Unit, end-to-end, and golden tests
+tests/goldens/       Byte-pinned artifacts; refresh with --update-goldens
 docs/                User and developer documentation
-examples/            Small runnable datasets
+examples/            Small runnable datasets, including deliberately messy ones
+benchmarks/          Runnable adapters for published external benchmarks
+integrations/hermes/ Packaged Hermes Agent plugin
+skills/              Agent-facing safe-use skills
 .github/workflows/   CI, PyPI release, and container automation
 Dockerfile           Production CLI container image
 install.sh           Isolated one-command installer
@@ -29,7 +33,18 @@ PYTHONPATH=src pytest -q
 
 The tests cover schema inspection, model selection on a known trend, artifact
 persistence, unsupported short series, duplicate timestamp errors, capability
-truthfulness, and CLI structured errors.
+truthfulness, and CLI structured errors. Three suites are worth knowing about
+before you change behaviour:
+
+- **Goldens** (`tests/goldens/`) pin whole artifacts byte-exact under a fixed
+  clock. A diff there means a published number moved. If the move is
+  intended, refresh with `PYTHONPATH=src pytest --update-goldens` and read
+  the diff before committing it.
+- **Leakage lint** (`tests/test_leakage_lint.py`) is an AST check over
+  `GUARDED_MODULES`. It fails on code that reads observations outside a
+  snapshot, which is how the structural leakage guarantee stays structural.
+- **Doc drift** (`tests/test_docs_current.py`) asserts that the counts and
+  command lists in `README.md` and `docs/` still match the shipped surface.
 
 ## Build distributable packages
 
@@ -44,7 +59,7 @@ without changing your normal environment:
 uv venv /tmp/aion-wheel-verify
 uv pip install \
   --python /tmp/aion-wheel-verify/bin/python \
-  dist/aion_forecast-0.1.0-py3-none-any.whl
+  dist/aion_forecast-*-py3-none-any.whl
 /tmp/aion-wheel-verify/bin/aion capabilities
 ```
 
@@ -58,9 +73,14 @@ uv pip install \
 - Source data is read-only; outputs go into new run directories.
 - Avoid adding a documented command before its end-to-end path works.
 
-See [design review decisions](../DESIGN_REVIEW_NOTES.md), the broader
-[product specification](../Aion_MVP_Product_Specification.md), and
-[system design](../Aion_System_Design.md).
+For the reasoning behind these constraints, read
+[Concepts](concepts.md) — it documents the partitioning, the
+baseline rule, and why abstention is a result rather than an error.
+
+The [product specification](../Aion_MVP_Product_Specification.md) and
+[system design](../Aion_System_Design.md) are v0.1 direction documents and
+describe features that were never built; check `aion capabilities` before
+relying on either.
 
 Release maintainers should also read [CI/CD and release operations](ci-cd.md)
 and [Containers](containers.md).

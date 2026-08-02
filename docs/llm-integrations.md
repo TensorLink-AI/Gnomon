@@ -23,10 +23,17 @@ enter a forecast only through the deterministic admission gate
 
 ## Is OpenRouter a planned option?
 
-Yes, OpenRouter is a reasonable future provider because it offers a common API
-for multiple models. It is not implemented yet. Provider support should be
-adapter-based so a user can choose OpenRouter, a direct model vendor, or a local
-OpenAI-compatible endpoint without changing the numerical runtime.
+Not in the runtime, and there is no committed date. OpenRouter is a
+reasonable future provider because it offers a common API for multiple
+models; provider support should be adapter-based, so a user can choose
+OpenRouter, a direct model vendor, or a local OpenAI-compatible endpoint
+without changing the numerical runtime.
+
+One thing to be aware of if you are grepping the repository: `benchmarks/`
+*does* call OpenRouter, and reads `OPENROUTER_API_KEY`. That is the
+benchmark harness serving LLM **controls** to compare against Aion — it is
+not part of the runtime, and no forecast path touches it. Installing Aion
+and forecasting never makes a network call to a model provider.
 
 ## Intended LLM boundary
 

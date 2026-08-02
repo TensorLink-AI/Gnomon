@@ -4,7 +4,17 @@
 
 **Version:** 0.1  
 **Date:** 28 July 2026  
-**Status:** Working product specification for validation and implementation
+**Status:** Historical direction document — superseded in parts by the shipped runtime
+
+> **Read this as intent, not as description.** It was written before
+> implementation, at v0.1; the runtime is now 0.4.0. Parts of it shipped,
+> parts were built differently, and parts — hosted service, sharing,
+> `init`/`run`/`share` commands, automatic model switching — were never
+> built and are not on a committed roadmap.
+>
+> **If you need to know what Aion does, run `aion capabilities`** or read
+> the [documentation index](docs/README.md). Do not infer a feature exists
+> because this document describes it.
 
 > **Product decision:** Aion is a specialist forecasting capability that technical users, Hermes Agent, and other AI agents can run locally. General-purpose agents may reason about the task, discover permitted context, and interpret results. Aion remains authoritative for temporal validation, numerical forecasting, backtesting, uncertainty, model selection, abstention, and evidence.
 

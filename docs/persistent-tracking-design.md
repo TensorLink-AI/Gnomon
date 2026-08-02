@@ -1,11 +1,25 @@
 # Aion Persistent Forecast Tracking — Design
 
-> **Implementation status:** this change implements the local registry, complete-horizon
-> realised scoring, descriptive leaderboard, robust recent-window drift warning,
-> MCP/Hermes tracking tools, due-forecast discovery, and decision outcomes. Webhooks,
-> host-native reminders, and automatic model-weight adjustment below are future
-> design work. Historical leaderboard differences are observational and must not be
-> treated as causal evidence that one model will perform better on the next task.
+> **This is a design record, not a status page.** It describes the thinking
+> behind `aion track`; some of what it proposes was built and some was not.
+>
+> **Built:** the local registry, complete-horizon realised scoring, the
+> descriptive leaderboard, the robust recent-window drift warning,
+> MCP/Hermes tracking tools, due-forecast discovery, decision outcomes, and
+> the coverage-adaptation log (`aion track coverage`).
+>
+> **Not built:** webhooks, host-native reminders, and automatic model-weight
+> adjustment. Every "Layer 3" item below that involves Aion reaching out to
+> the world is still design.
+>
+> **Deliberately not built:** automatic model switching. Historical
+> leaderboard differences are observational and must never be treated as
+> causal evidence that one model will do better on the next task — the
+> adapted coverage level is *reported*, never applied to a published
+> interval.
+>
+> For what the commands actually do today, see the
+> [CLI reference](cli-reference.md).
 
 ## The problem
 
@@ -323,11 +337,11 @@ not a controlled head-to-head experiment.
 |---|---|---|---|
 | Evidence-backed | Every number traces to backtest | Some | Never |
 | Abstention | First-class | Rare | Never |
-| Model tracking over time | Planned (this design) | Manual | Never |
+| Model tracking over time | Shipped (`aion track`) | Manual | Never |
 | Agent-safe protocol | MCP + CLI + Python | CLI only | N/A |
 | Dependency isolation | Per-model sandboxes | Shared env | N/A |
 | Ensemble + meta-model | Competes as a candidate | Separate step | N/A |
-| Realised scoring | Planned (this design) | External | Never |
-| Drift detection | Planned (this design) | Enterprise-only | Never |
+| Realised scoring | Shipped (`aion track actuals`) | External | Never |
+| Drift detection | Shipped (recent-window warning) | Enterprise-only | Never |
 
 The persistence layer turns Aion from a tool into a system — one that gets better the more you use it.

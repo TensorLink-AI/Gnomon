@@ -258,7 +258,8 @@ def predict_stage(
     # version pooled residuals from a trailing window of the series, which
     # overlaps the calibration and report-only test folds — so the published
     # interval width for every ensemble result was calibrated on the partition
-    # the design says nothing may be chosen on (DESIGN_REVIEW_NOTES §1).
+    # the design says nothing may be chosen on (docs/concepts.md, "Temporal
+    # evaluation": the final fold reports, and never changes a choice).
     wants_ensemble = assessment.selected_model == "ensemble" or selection_strategy == "ensemble"
     ensemble_residuals, ensemble_by_lead = (
         (assessment.residuals, assessment.residuals_by_lead)
