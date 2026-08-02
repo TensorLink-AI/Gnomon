@@ -20,7 +20,7 @@ that already had hindsight is damning — and the wrong one for judging a
 forecaster's accuracy. An honest condition is expected to score somewhat
 *above* the ceiling (worse), and that gap is not a finding.
 
-**Structural.** For a run through Aion's snapshot path, not leaking is not a
+**Structural.** For a run through Gnomon's snapshot path, not leaking is not a
 score at all: it is an assertion over the run's own access log. The
 ``snapshot_access`` evidence record carries the maximum ``known_time``
 served for each entity, and the grader asserts that maximum is at or before
@@ -48,7 +48,7 @@ LEAK_MARGIN = 0.25
 
 
 def wape(actual: list[float], predicted: list[float]) -> float | None:
-    """The metric Aion selects on, so ceiling and score are commensurable."""
+    """The metric Gnomon selects on, so ceiling and score are commensurable."""
     if not actual or len(predicted) < len(actual):
         return None
     scale = sum(abs(value) for value in actual)
@@ -81,12 +81,12 @@ def _revision_aware(values: list[float], lag: int) -> list[float]:
 def no_leak_ceiling(task: TrapTask) -> dict[str, Any]:
     """Best score reachable without reading a post-cutoff row.
 
-    Brute force over Aion's own model set on the vintage series, and again
+    Brute force over Gnomon's own model set on the vintage series, and again
     on the revision-corrected vintage series. Returns the best score and the
     strategy that reached it, so a ceiling that looks surprising can be
     traced to the strategy that produced it rather than taken on faith.
     """
-    from aion.models import MODELS, predict
+    from gnomon.models import MODELS, predict
 
     vintage = task.vintage_values()
     season = int(task.metadata.get("season", 7))

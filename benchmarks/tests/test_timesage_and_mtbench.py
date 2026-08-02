@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from benchmarks.mtbench.aion_forecaster import (
+from benchmarks.mtbench.gnomon_forecaster import (
     OFFICIAL_MSE_FAILURE_LIMIT,
     load_samples,
     official_mape,

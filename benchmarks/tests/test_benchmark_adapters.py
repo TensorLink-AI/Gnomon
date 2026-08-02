@@ -14,13 +14,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from benchmarks.anomllm.aion_detector import (
+from benchmarks.anomllm.gnomon_detector import (
     binary_f1,
     flagged_indices_to_intervals,
     intervals_to_vector,
 )
-from benchmarks.cik.aion_forecaster import (
-    AionAbstained,
+from benchmarks.cik.gnomon_forecaster import (
+    GnomonAbstained,
     events_from_proposals,
     samples_from_quantile_rows,
 )
@@ -75,7 +75,7 @@ def test_events_from_proposals_validates_and_filters():
             "confidence": 0.9,
             "rationale": "the context announces maintenance",
         },
-        {  # timezone-naive: must be rejected by the aion contract
+        {  # timezone-naive: must be rejected by the gnomon contract
             "event_type": "bad_tz",
             "effective_start": "2024-02-01T00:00:00",
             "effective_end": "2024-02-02T00:00:00",
@@ -103,7 +103,7 @@ def test_events_from_proposals_validates_and_filters():
 
 
 def test_events_are_backtest_admissible():
-    from aion.context import backtest_admissible
+    from gnomon.context import backtest_admissible
 
     events, _ = events_from_proposals(
         [{
@@ -120,8 +120,8 @@ def test_events_are_backtest_admissible():
 
 
 def test_abstention_carries_reasons():
-    error = AionAbstained(["insufficient history", "no baseline beaten"])
-    assert "AION_ABSTAINED" in str(error)
+    error = GnomonAbstained(["insufficient history", "no baseline beaten"])
+    assert "GNOMON_ABSTAINED" in str(error)
     assert error.reasons == ["insufficient history", "no baseline beaten"]
 
 
@@ -145,7 +145,7 @@ def test_interval_vector_round_trip_and_f1():
     assert 0.0 < f1 < 1.0
 
 
-def test_run_record_rows_match_aionbench_schema(tmp_path):
+def test_run_record_rows_match_gnomonbench_schema(tmp_path):
     writer = RecordWriter(tmp_path / "rows.jsonl")
     writer.write(RunRecord(
         task_id="demo-001", success=True, tool_calls=2,
@@ -167,7 +167,7 @@ def test_run_record_extra_never_overrides_core_fields():
 
 
 def test_epoch_is_timezone_aware():
-    from benchmarks.anomllm.aion_detector import EPOCH
+    from benchmarks.anomllm.gnomon_detector import EPOCH
 
     assert EPOCH.tzinfo == timezone.utc
     assert isinstance(EPOCH, datetime)

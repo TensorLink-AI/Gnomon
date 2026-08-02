@@ -1,13 +1,13 @@
-"""Run the AnomLLM benchmark's Aion treatment (and optionally the LLM
+"""Run the AnomLLM benchmark's Gnomon treatment (and optionally the LLM
 control) against an official AnomLLM checkout.
 
 The datasets, prompt variants, and metrics are the official ones; this
-script writes Aion's predictions into the official results tree and can
+script writes Gnomon's predictions into the official results tree and can
 invoke the official ``online_api.py`` for the control condition.
 
 Examples
 --------
-Aion treatment on the ``point`` dataset::
+Gnomon treatment on the ``point`` dataset::
 
     python -m benchmarks.anomllm.run_anomllm \
         --anomllm-root ~/AnomLLM --data point
@@ -25,8 +25,8 @@ Official scoring (from the AnomLLM checkout)::
     python src/result_agg.py --data_name point \
         --label_name point-exp --table_caption "Point anomalies"
 
-The resulting table contains one row per condition — Aion appears as
-``aion`` next to every LLM variant, scored by identical code.
+The resulting table contains one row per condition — Gnomon appears as
+``gnomon`` next to every LLM variant, scored by identical code.
 """
 
 from __future__ import annotations
@@ -39,7 +39,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from benchmarks.anomllm.aion_detector import run_aion_condition  # noqa: E402
+from benchmarks.anomllm.gnomon_detector import run_gnomon_condition  # noqa: E402
 
 DATASETS = (
     "point", "range", "freq", "trend", "flat-trend",
@@ -73,10 +73,10 @@ def main() -> int:
     parser.add_argument("--data", required=True,
                         help=f"Dataset name, e.g. one of {', '.join(DATASETS)}")
     parser.add_argument("--threshold", type=float, default=None,
-                        help="Aion detection threshold (default: Aion's)")
+                        help="Gnomon detection threshold (default: Gnomon's)")
     parser.add_argument("--variant-name", default="detect",
-                        help="Variant label for Aion's results file")
-    parser.add_argument("--skip-aion", action="store_true",
+                        help="Variant label for Gnomon's results file")
+    parser.add_argument("--skip-gnomon", action="store_true",
                         help="Only run the control condition")
     parser.add_argument("--control-model", default=None,
                         help="OpenRouter model id for the official LLM control")
@@ -92,8 +92,8 @@ def main() -> int:
         )
 
     exit_code = 0
-    if not args.skip_aion:
-        summary = run_aion_condition(
+    if not args.skip_gnomon:
+        summary = run_gnomon_condition(
             anomllm_root, args.data,
             threshold=args.threshold, variant_name=args.variant_name,
         )

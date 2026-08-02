@@ -1,2 +1,2 @@
 """Shared infrastructure for benchmark adapters: OpenRouter access and
-AionBench-compatible run records."""
+GnomonBench-compatible run records."""

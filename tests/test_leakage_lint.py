@@ -11,7 +11,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-SRC = Path(__file__).resolve().parent.parent / "src" / "aion"
+SRC = Path(__file__).resolve().parent.parent / "src" / "gnomon"
 
 # Modules whose non-load functions must be snapshot-only. Extend as the
 # operator substrate grows.

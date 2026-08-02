@@ -3,7 +3,7 @@
 ## Repository layout
 
 ```text
-src/aion/            Runtime, CLI, and MCP server source
+src/gnomon/            Runtime, CLI, and MCP server source
 tests/               Unit, end-to-end, and golden tests
 tests/goldens/       Byte-pinned artifacts; refresh with --update-goldens
 docs/                User and developer documentation
@@ -20,14 +20,14 @@ pyproject.toml       Package metadata and test configuration
 ## Run from source
 
 ```bash
-cd Aion
-PYTHONPATH=src python3 -m aion capabilities
+cd Gnomon
+PYTHONPATH=src python3 -m gnomon capabilities
 ```
 
 ## Run tests
 
 ```bash
-cd Aion
+cd Gnomon
 PYTHONPATH=src pytest -q
 ```
 
@@ -56,11 +56,11 @@ This creates a source distribution and wheel under `dist/`. To verify the wheel
 without changing your normal environment:
 
 ```bash
-uv venv /tmp/aion-wheel-verify
+uv venv /tmp/gnomon-wheel-verify
 uv pip install \
-  --python /tmp/aion-wheel-verify/bin/python \
-  dist/aion_forecast-*-py3-none-any.whl
-/tmp/aion-wheel-verify/bin/aion capabilities
+  --python /tmp/gnomon-wheel-verify/bin/python \
+  dist/gnomon_forecast-*-py3-none-any.whl
+/tmp/gnomon-wheel-verify/bin/gnomon capabilities
 ```
 
 ## Design constraints for contributions
@@ -77,9 +77,9 @@ For the reasoning behind these constraints, read
 [Concepts](concepts.md) — it documents the partitioning, the
 baseline rule, and why abstention is a result rather than an error.
 
-The [product specification](../Aion_MVP_Product_Specification.md) and
-[system design](../Aion_System_Design.md) are v0.1 direction documents and
-describe features that were never built; check `aion capabilities` before
+The [product specification](../Gnomon_MVP_Product_Specification.md) and
+[system design](../Gnomon_System_Design.md) are v0.1 direction documents and
+describe features that were never built; check `gnomon capabilities` before
 relying on either.
 
 Release maintainers should also read [CI/CD and release operations](ci-cd.md)

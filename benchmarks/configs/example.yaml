@@ -15,7 +15,7 @@ defaults:
   temperature: 0.2
 
 runs:
-  # --- TemporalBench: control vs Aion-agent on the forecasting tiers ---
+  # --- TemporalBench: control vs Gnomon-agent on the forecasting tiers ---
   - benchmark: temporalbench
     name: tb-control
     args:
@@ -23,9 +23,9 @@ runs:
       data_dir: ~/temporalbench
       tiers: T2,T4
   - benchmark: temporalbench
-    name: tb-aion
+    name: tb-gnomon
     args:
-      condition: aion-agent
+      condition: gnomon-agent
       data_dir: ~/temporalbench
       tiers: T2,T4
 
@@ -36,24 +36,24 @@ runs:
       condition: direct
       data_dir: ~/timesage-mt
   - benchmark: timesage_mt
-    name: ts-aion
+    name: ts-gnomon
     args:
-      condition: aion-tools
+      condition: gnomon-tools
       data_dir: ~/timesage-mt
 
   # --- CiK: no task cap; scope with task_filter / seeds ---
   - benchmark: cik
-    name: cik-aion-pure
+    name: cik-gnomon-pure
     args:
-      method: aion-pure
+      method: gnomon-pure
       seeds: 3
 
-  # --- MTBench: the aion subcommand takes output/limit; control wraps
+  # --- MTBench: the gnomon subcommand takes output/limit; control wraps
   #     the official script and manages its own outputs ---
   - benchmark: mtbench
-    name: mtb-aion
+    name: mtb-gnomon
     args:
-      subcommand: aion
+      subcommand: gnomon
       dataset_folder: ~/mtbench/MTBench/datasets/stock_temperature_weekly
       mode: agent
 

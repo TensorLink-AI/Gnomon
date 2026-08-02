@@ -6,9 +6,9 @@ import math
 
 import pytest
 
-from aion.tsfm import TSFMCapabilities, eligible_tsfms, tsfm_capabilities
-from aion.tsfm_sandbox import SubprocessAdapter
-from aion.tsfm import TSFMError
+from gnomon.tsfm import TSFMCapabilities, eligible_tsfms, tsfm_capabilities
+from gnomon.tsfm_sandbox import SubprocessAdapter
+from gnomon.tsfm import TSFMError
 
 
 def _series(n: int = 64) -> list[float]:
@@ -25,7 +25,7 @@ class TestTasksCapability:
         assert set(tasks) == {"forecast", "detect_anomalies", "impute", "embed"}
 
     def test_tasks_in_capability_matrix(self):
-        from aion.tsfm import capability_matrix
+        from gnomon.tsfm import capability_matrix
         matrix = capability_matrix()
         assert matrix["moment_small"]["tasks"] == ["forecast", "detect_anomalies", "impute", "embed"] or \
             tuple(matrix["moment_small"]["tasks"]) == ("forecast", "detect_anomalies", "impute", "embed")
@@ -55,13 +55,13 @@ class TestSubprocessVerbs:
             adapter.embed(_series())
 
     def test_worker_script_carries_new_verbs(self):
-        from aion.tsfm_sandbox import WORKER_SCRIPT
+        from gnomon.tsfm_sandbox import WORKER_SCRIPT
         assert "def run_reconstruct" in WORKER_SCRIPT
         assert "def run_embed" in WORKER_SCRIPT
         assert 'request.get("mode", "predict")' in WORKER_SCRIPT
 
     def test_stale_worker_script_is_refreshed(self, tmp_path):
-        from aion.tsfm_sandbox import WORKER_SCRIPT, _ensure_worker_script
+        from gnomon.tsfm_sandbox import WORKER_SCRIPT, _ensure_worker_script
         stale = tmp_path / "worker.py"
         stale.write_text("# old worker without verbs")
         path = _ensure_worker_script(tmp_path)
@@ -78,7 +78,7 @@ class FakeReconstructionAdapter:
 
 class TestReconstructionDetector:
     def test_scores_flag_the_planted_spike(self):
-        from aion.anomaly import DEFAULT_THRESHOLD, _reconstruction_score_function
+        from gnomon.anomaly import DEFAULT_THRESHOLD, _reconstruction_score_function
         values = _series()
         values[40] += 20.0
         scores = _reconstruction_score_function(FakeReconstructionAdapter())(values, 8)
@@ -86,7 +86,7 @@ class TestReconstructionDetector:
         assert abs(scores[40]) >= DEFAULT_THRESHOLD
 
     def test_detector_can_join_and_win(self):
-        from aion.anomaly import detect_anomalies
+        from gnomon.anomaly import detect_anomalies
         values = _series()
         values[40] += 20.0
         timestamps = [f"t{i}" for i in range(len(values))]
@@ -95,7 +95,7 @@ class TestReconstructionDetector:
         assert "fake_reconstruction" in result["detector_grades"]
 
     def test_failing_detector_scores_zero_with_disclosure(self):
-        from aion.anomaly import detect_anomalies
+        from gnomon.anomaly import detect_anomalies
 
         def broken(values, season):
             raise RuntimeError("sandbox unavailable")
@@ -110,12 +110,12 @@ class TestReconstructionDetector:
         assert result["detector"] != "broken"
 
     def test_no_sandboxes_means_no_tsfm_candidates(self, monkeypatch, tmp_path):
-        import aion.tsfm_sandbox as sandbox_module
+        import gnomon.tsfm_sandbox as sandbox_module
         monkeypatch.setattr(sandbox_module, "SANDBOX_ROOT", tmp_path)
-        from aion.anomaly import tsfm_reconstruction_detectors
+        from gnomon.anomaly import tsfm_reconstruction_detectors
         assert tsfm_reconstruction_detectors() == {}
 
 
 def _score_via_fake():
-    from aion.anomaly import _reconstruction_score_function
+    from gnomon.anomaly import _reconstruction_score_function
     return _reconstruction_score_function(FakeReconstructionAdapter())

@@ -5,7 +5,7 @@ import random
 
 import pytest
 
-from aion.models import MODELS, ets, linear_trend, theta, window_average
+from gnomon.models import MODELS, ets, linear_trend, theta, window_average
 
 
 def trend_series(count: int, slope: float = 2.0, noise: float = 0.0) -> list[float]:

@@ -7,7 +7,7 @@ which joins arms on task id, reports matched-subset means with paired
 significance tests, and refuses comparisons whose manifests disagree.
 
 Faithful, locally runnable implementations of published time-series
-reasoning benchmarks, used to measure whether Aion improves an agent —
+reasoning benchmarks, used to measure whether Gnomon improves an agent —
 and by how much — on evaluations the community already trusts.
 
 ## Ground rules
@@ -18,12 +18,12 @@ Every adapter in this directory obeys three rules:
    metrics come from the official benchmark code, installed or checked
    out unmodified. Nothing here reimplements a metric that the official
    package can compute; where the official scorer runs, it scores every
-   condition, including Aion's.
+   condition, including Gnomon's.
 2. **OpenRouter is the single LLM source.** Every condition that needs a
    model reads `OPENROUTER_API_KEY` and takes a full OpenRouter model id
    (e.g. `openai/gpt-4o`, `anthropic/claude-sonnet-4`), so control and
    treatment always use the same model through the same provider.
-3. **Adapter decisions are disclosed.** Where Aion's output shape and a
+3. **Adapter decisions are disclosed.** Where Gnomon's output shape and a
    benchmark's expected input differ (e.g. quantiles vs. sample paths),
    the conversion is deterministic, documented in the module docstring,
    and applied identically across runs. Abstentions are recorded as
@@ -31,7 +31,7 @@ Every adapter in this directory obeys three rules:
 
 Each run emits two artifacts: the benchmark's **official results** (its
 own file formats and scores — the headline numbers), and an
-**AionBench JSONL** file per condition so `aion eval compare` can report
+**GnomonBench JSONL** file per condition so `gnomon eval compare` can report
 the treatment/control uplift and safety view described in
 [docs/agent-evaluation.md](../docs/agent-evaluation.md).
 
@@ -45,7 +45,7 @@ the treatment/control uplift and safety view described in
 | [TimeSage-MT](timesage_mt/) (2026) | Multi-turn agentic time series analysis with per-turn verifiable answers across 4 tiers | `benchmarks/timesage_mt` |
 | [TemporalBench](temporalbench/) (2026) | Four-tier contextual and event-informed reasoning (T1 understanding → T4 event-conditioned prediction); scored by the dataset's own metric module | `benchmarks/temporalbench` |
 
-All five were selected because they exercise what Aion owns — context
+All five were selected because they exercise what Gnomon owns — context
 admission under a leakage gate, calibrated intervals, graded detection,
 tool-grounded multi-turn analysis, structured abstention — rather than
 an LLM's ability to read raw number sequences. See each subdirectory's
@@ -59,9 +59,9 @@ Adapters run matched conditions on identical task sets:
 
 - **control** — the benchmark's own LLM baseline protocol, unmodified,
   with completions served through OpenRouter.
-- **treatment** — the same model constrained to Aion's contract: the LLM
-  proposes (context events, questions), Aion validates, computes, or
-  abstains. Variants with no LLM at all (`aion-pure`, the `aion`
+- **treatment** — the same model constrained to Gnomon's contract: the LLM
+  proposes (context events, questions), Gnomon validates, computes, or
+  abstains. Variants with no LLM at all (`gnomon-pure`, the `gnomon`
   detector) measure the harness floor.
 
 Keep model, temperature, seeds, and sample counts identical across the
@@ -74,9 +74,9 @@ abstention and error counts, never without them.
   model. Export it, or put it in an untracked `.env` file (`KEY=value`
   lines) in the working directory or repository root — a real
   environment variable always wins over the file.
-- Aion importable (`bash install.sh`, `uv tool install .`, or
+- Gnomon importable (`bash install.sh`, `uv tool install .`, or
   `PYTHONPATH=src` from the repository root).
-- Per-benchmark dependencies are deliberately not part of Aion's own
+- Per-benchmark dependencies are deliberately not part of Gnomon's own
   (empty) dependency set — install them per subdirectory, ideally in a
   dedicated virtualenv, since official benchmark packages can be heavy.
 
@@ -98,7 +98,7 @@ is collected into `<output_root>/combined_summary.json`.
 
 ```bash
 python -m benchmarks.run_all --config benchmarks/configs/example.yaml --dry-run
-python -m benchmarks.run_all --config my-batch.yaml --only tb-control,tb-aion
+python -m benchmarks.run_all --config my-batch.yaml --only tb-control,tb-gnomon
 python -m benchmarks.run_all --config my-batch.yaml --continue-on-error
 ```
 

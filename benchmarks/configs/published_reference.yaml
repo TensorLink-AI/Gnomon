@@ -27,10 +27,10 @@ cik:
     # - {system: "Llama-3.1-405B DirectPrompt", value: 0.000,
     #    source: "https://servicenow.github.io/context-is-key-forecasting/ (retrieved YYYY-MM-DD)"}
   ours:
-    - {system: "aion-pure (ours)",
+    - {system: "gnomon-pure (ours)",
        summary: results/glm52/cik-pure/summary.json,
        key: mean_rcrps}
-    - {system: "glm-5.2 + aion-agent (ours)",
+    - {system: "glm-5.2 + gnomon-agent (ours)",
        summary: results/glm52/cik-agent/summary.json,
        key: mean_rcrps}
 
@@ -42,8 +42,8 @@ temporalbench_t2_smape:
     - {system: "glm-5.2 control (ours)",
        summary: results/glm52/tb-control/summary.json,
        key: forecast_metrics_mean.SMAPE}
-    - {system: "glm-5.2 + aion-agent (ours)",
-       summary: results/glm52/tb-aion/summary.json,
+    - {system: "glm-5.2 + gnomon-agent (ours)",
+       summary: results/glm52/tb-gnomon/summary.json,
        key: forecast_metrics_mean.SMAPE}
 
 timesage_l1_pass_rate:
@@ -54,6 +54,6 @@ timesage_l1_pass_rate:
     - {system: "glm-5.2 direct (ours)",
        summary: results/glm52/ts-direct/summary.json,
        key: per_tier_pass_rate.L1}
-    - {system: "glm-5.2 + aion tools (ours)",
-       summary: results/glm52/ts-aion/summary.json,
+    - {system: "glm-5.2 + gnomon tools (ours)",
+       summary: results/glm52/ts-gnomon/summary.json,
        key: per_tier_pass_rate.L1}

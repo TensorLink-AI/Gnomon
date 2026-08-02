@@ -12,7 +12,7 @@ import json
 
 import pytest
 
-from aion.ids import FixedClock
+from gnomon.ids import FixedClock
 
 CLOCK = FixedClock(datetime(2026, 7, 1, tzinfo=timezone.utc))
 REPO = Path(__file__).resolve().parent.parent
@@ -36,7 +36,7 @@ def test_decide_defines_the_exceedance_event(tmp_path):
     """`exceed` was the per-step maximum, labelled plainly, with no
     definition — and it is lower than the any-step probability a
     horizon-level decision usually turns on."""
-    from aion.macros import decide
+    from gnomon.macros import decide
 
     payload, _ = decide(
         str(_csv(tmp_path)), time_column="timestamp", target_column="value",
@@ -57,7 +57,7 @@ def test_decide_defines_the_exceedance_event(tmp_path):
 # -- M6: data in the future is remarked on ----------------------------------
 
 def test_inspect_remarks_on_entirely_future_data(tmp_path):
-    from aion.runtime import inspect_dataset
+    from gnomon.runtime import inspect_dataset
 
     start = date(2027, 1, 1)
     rows = [f"{(start + timedelta(days=i)).isoformat()},{100 + i}" for i in range(40)]
@@ -73,7 +73,7 @@ def test_inspect_remarks_on_entirely_future_data(tmp_path):
 
 
 def test_inspect_says_nothing_about_ordinary_past_data(tmp_path):
-    from aion.runtime import inspect_dataset
+    from gnomon.runtime import inspect_dataset
 
     report = inspect_dataset(
         str(_csv(tmp_path)), time_column="timestamp", target_column="value",
@@ -85,17 +85,17 @@ def test_inspect_says_nothing_about_ordinary_past_data(tmp_path):
 # -- M8: monitor and decide say what they do --------------------------------
 
 def test_monitor_and_decide_lead_with_what_they_do_not_do():
-    from aion.toolspec import TOOLS
+    from gnomon.toolspec import TOOLS
 
     by_name = {tool["name"]: tool["description"] for tool in TOOLS}
-    assert by_name["aion_monitor"].startswith("Defines an alert policy; does not run one.")
-    assert by_name["aion_decide"].startswith("Compares actions; does not take one.")
+    assert by_name["gnomon_monitor"].startswith("Defines an alert policy; does not run one.")
+    assert by_name["gnomon_decide"].startswith("Compares actions; does not take one.")
 
 
 # -- M9: units are labelled -------------------------------------------------
 
 def test_mape_documents_that_it_is_a_percentage():
-    from aion.tracking import mape_score
+    from gnomon.tracking import mape_score
 
     assert "percent" in (mape_score.__doc__ or "")
     # 100 vs 110 is 10% error, reported as 10.0 not 0.1.
@@ -103,7 +103,7 @@ def test_mape_documents_that_it_is_a_percentage():
 
 
 def test_wape_is_a_fraction():
-    from aion.evaluation import error_score
+    from gnomon.evaluation import error_score
 
     assert error_score([100.0], [110.0]) == pytest.approx(0.1)
 
@@ -111,10 +111,10 @@ def test_wape_is_a_fraction():
 # -- M15: the actuals response wears the standard envelope ------------------
 
 def test_actuals_response_carries_schema_version_and_support(tmp_path, capsys, monkeypatch):
-    import aion.tracking as tracking_module
-    from aion.cli import main
-    from aion.runtime import forecast
-    from aion.tracking import TrackingStore, register_artifact
+    import gnomon.tracking as tracking_module
+    from gnomon.cli import main
+    from gnomon.runtime import forecast
+    from gnomon.tracking import TrackingStore, register_artifact
 
     registry = tmp_path / "registry.db"
     monkeypatch.setattr(tracking_module, "DEFAULT_REGISTRY_PATH", registry)
@@ -153,7 +153,7 @@ def test_actuals_response_carries_schema_version_and_support(tmp_path, capsys, m
 def test_out_of_order_rows_are_recorded_as_a_repair(tmp_path):
     """Correct, and previously invisible — which is why a genuinely
     unsorted file never raised a data-quality signal."""
-    from aion.runtime import inspect_dataset
+    from gnomon.runtime import inspect_dataset
 
     start = date(2026, 1, 1)
     dates = [start + timedelta(days=i) for i in range(40)]
@@ -170,7 +170,7 @@ def test_out_of_order_rows_are_recorded_as_a_repair(tmp_path):
 
 
 def test_sorted_input_records_nothing(tmp_path):
-    from aion.runtime import inspect_dataset
+    from gnomon.runtime import inspect_dataset
 
     report = inspect_dataset(
         str(_csv(tmp_path)), time_column="timestamp", target_column="value",
@@ -183,9 +183,9 @@ def test_sorted_input_records_nothing(tmp_path):
 # -- M19: compare is reachable from a project -------------------------------
 
 def test_compare_finds_its_own_ids(tmp_path, capsys, monkeypatch):
-    import aion.tracking as tracking_module
-    from aion.cli import main
-    from aion.tracking import TrackingStore
+    import gnomon.tracking as tracking_module
+    from gnomon.cli import main
+    from gnomon.tracking import TrackingStore
 
     registry = tmp_path / "registry.db"
     monkeypatch.setattr(tracking_module, "DEFAULT_REGISTRY_PATH", registry)
@@ -209,9 +209,9 @@ def test_compare_finds_its_own_ids(tmp_path, capsys, monkeypatch):
 
 
 def test_compare_without_ids_or_project_says_what_to_pass(tmp_path, capsys, monkeypatch):
-    import aion.tracking as tracking_module
-    from aion.cli import main
-    from aion.tracking import TrackingStore
+    import gnomon.tracking as tracking_module
+    from gnomon.cli import main
+    from gnomon.tracking import TrackingStore
 
     registry = tmp_path / "registry.db"
     monkeypatch.setattr(tracking_module, "DEFAULT_REGISTRY_PATH", registry)
@@ -225,7 +225,7 @@ def test_compare_without_ids_or_project_says_what_to_pass(tmp_path, capsys, monk
 # -- L2 / L5: help text and units -------------------------------------------
 
 def test_every_forecast_flag_has_help():
-    from aion.cli import build_parser
+    from gnomon.cli import build_parser
 
     parser = build_parser()
     forecast = next(
@@ -241,7 +241,7 @@ def test_every_forecast_flag_has_help():
 
 
 def test_season_period_carries_its_unit():
-    from aion.fingerprint import series_fingerprint
+    from gnomon.fingerprint import series_fingerprint
 
     values = [100 + (index % 7) * 5 for index in range(60)]
     fingerprint = series_fingerprint(values, "W")
@@ -285,7 +285,7 @@ def test_python_api_does_not_miscount_the_artifact_files():
 
 
 def test_the_example_config_does_not_call_implemented_models_planned():
-    example = (REPO / "aion.yaml.example").read_text(encoding="utf-8")
+    example = (REPO / "gnomon.yaml.example").read_text(encoding="utf-8")
     for line in example.splitlines():
         if "(planned)" in line and "ets" in line:
             pytest.fail(f"ets is implemented but listed as planned: {line.strip()}")

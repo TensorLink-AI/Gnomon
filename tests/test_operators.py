@@ -3,7 +3,7 @@ trap inputs."""
 
 import pytest
 
-from aion.operators import (
+from gnomon.operators import (
     anomaly_score,
     changepoint_detection,
     cross_correlation,

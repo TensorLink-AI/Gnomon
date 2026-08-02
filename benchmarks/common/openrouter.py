@@ -184,8 +184,8 @@ class OpenRouterClient:
                 headers={
                     "Authorization": f"Bearer {self.api_key}",
                     "Content-Type": "application/json",
-                    "HTTP-Referer": "https://github.com/TensorLink-AI/Aion",
-                    "X-Title": "Aion benchmarks",
+                    "HTTP-Referer": "https://github.com/TensorLink-AI/Gnomon",
+                    "X-Title": "Gnomon benchmarks",
                 },
                 method="POST",
             )

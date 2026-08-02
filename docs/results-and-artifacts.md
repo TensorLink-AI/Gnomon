@@ -60,7 +60,7 @@ For nonzero actuals, the score is:
 sum(abs(actual - predicted)) / sum(abs(actual))
 ```
 
-Lower is better. For an all-zero evaluation window, Aion falls back to mean
+Lower is better. For an all-zero evaluation window, Gnomon falls back to mean
 absolute error to avoid division by zero. Consequently, scores from those two
 scales should not be compared as though they were identical units.
 
@@ -85,7 +85,7 @@ scales should not be compared as though they were identical units.
 the median backtest residual, so if the model carries systematic bias the
 two differ — sometimes substantially. In the `quickstart-mcp` vintage
 example `point` is 333.86 while `q50` is 346.80, which puts the headline
-number near the 30th percentile of Aion's own distribution.
+number near the 30th percentile of Gnomon's own distribution.
 
 **Read `q50` when you want the centre.** `point_bias_correction` ships on
 every row so the gap is visible without recomputing it, and any result
@@ -111,7 +111,7 @@ calibration fold. The selected model was chosen to minimise error on the
 selection folds, so those residuals are optimistically small and the
 interval is narrower than strict split conformal would give; every run says
 so via `conformal_residuals_pooled_across_selection`. Set
-`evaluation.pool_residuals: false` in `aion.yaml` to calibrate on the
+`evaluation.pool_residuals: false` in `gnomon.yaml` to calibrate on the
 held-out fold alone — genuine split conformal, noisier and wider.
 
 The interval is empirical, not a probability guarantee. Check
@@ -172,7 +172,7 @@ A compact human-readable overview. It is deliberately less detailed than
 ## Reproducibility limits
 
 The input fingerprint proves whether source bytes changed, and the artifact
-preserves the resolved task. Aion does not yet record a source-control commit,
+preserves the resolved task. Gnomon does not yet record a source-control commit,
 wheel hash, operating-system details, or a lockfile inside each artifact. Retain
 the installed package version and original input when exact reproduction matters.
 

@@ -1,4 +1,4 @@
-"""MTBench's ``aion-tools`` condition: Aion as tools an agent calls.
+"""MTBench's ``gnomon-tools`` condition: Gnomon as tools an agent calls.
 
 The ``agent`` condition hands the news text to the model once, takes
 whatever typed events come back, and forecasts — the model never sees a
@@ -7,14 +7,14 @@ against the control's full agentic freedom, which is not the comparison
 the product makes.
 
 Here the model gets everything the control gets — the price history and
-the article — plus a tool loop over Aion: summary statistics, season
+the article — plus a tool loop over Gnomon: summary statistics, season
 detection, anomaly detection, and forecasting, which it may run
 repeatedly with different typed context events drawn from the article.
 
 The contract that keeps this honest: **the model never writes numbers**.
-Every ``aion_forecast`` result is registered under a reference id, and
+Every ``gnomon_forecast`` result is registered under a reference id, and
 the run ends when the model calls ``submit_forecast`` with one of those
-ids. The submitted trajectory is the one Aion computed, byte for byte.
+ids. The submitted trajectory is the one Gnomon computed, byte for byte.
 The article influences the answer through which events the model
 proposes and which run it selects — not by editing digits. A model that
 submits nothing is recorded as an abstention, never as a guess.
@@ -32,7 +32,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from benchmarks.cik.aion_forecaster import events_from_proposals  # noqa: E402
+from benchmarks.cik.gnomon_forecaster import events_from_proposals  # noqa: E402
 from benchmarks.common.openrouter import OpenRouterClient  # noqa: E402
 
 EPOCH = datetime(2020, 1, 1, tzinfo=timezone.utc)
@@ -50,14 +50,14 @@ published over that window. Your job is to produce the best {horizon}-step
 forecast of the price you can, using the tools:
 
 - Inspect the series (`series_stats`, `detect_season`,
-  `aion_detect_anomalies`) as needed.
-- Call `aion_forecast` to compute a forecast. You may pass
+  `gnomon_detect_anomalies`) as needed.
+- Call `gnomon_forecast` to compute a forecast. You may pass
   `context_events` — typed, dated claims you extract from the article
-  (never numbers you invent). Aion tests each event against a
+  (never numbers you invent). Gnomon tests each event against a
   leakage-safe ablation gate and reports whether it was admitted; an
   event that does not earn its place is rejected and the forecast falls
   back to history alone.
-- Call `aion_forecast` more than once if you want to compare a
+- Call `gnomon_forecast` more than once if you want to compare a
   history-only run against an event-informed one.
 - Finish by calling `submit_forecast` with the `forecast_ref` of the run
   you judge best. That run's trajectory becomes your answer.
@@ -89,23 +89,23 @@ TOOL_SPECS = [
         "type": "function",
         "function": {
             "name": "detect_season",
-            "description": "Aion's autocorrelation-based seasonality detection over the price history: dominant period in bars, strength, basis.",
+            "description": "Gnomon's autocorrelation-based seasonality detection over the price history: dominant period in bars, strength, basis.",
             "parameters": {"type": "object", "properties": {}},
         },
     },
     {
         "type": "function",
         "function": {
-            "name": "aion_detect_anomalies",
-            "description": "Aion's graded anomaly detection over the price history: competing detectors scored on synthetic anomaly injection, the winner's flagged bars, grades disclosed.",
+            "name": "gnomon_detect_anomalies",
+            "description": "Gnomon's graded anomaly detection over the price history: competing detectors scored on synthetic anomaly injection, the winner's flagged bars, grades disclosed.",
             "parameters": {"type": "object", "properties": {}},
         },
     },
     {
         "type": "function",
         "function": {
-            "name": "aion_forecast",
-            "description": "Aion's backtested forecast of the price history. Optionally accepts typed context events extracted from the article; each faces a leakage-safe ablation gate. Returns a forecast_ref you can submit, the trajectory Aion computed, the selected model, support status, and which events were admitted. Abstains when the history cannot carry the forecast.",
+            "name": "gnomon_forecast",
+            "description": "Gnomon's backtested forecast of the price history. Optionally accepts typed context events extracted from the article; each faces a leakage-safe ablation gate. Returns a forecast_ref you can submit, the trajectory Gnomon computed, the selected model, support status, and which events were admitted. Abstains when the history cannot carry the forecast.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -136,7 +136,7 @@ TOOL_SPECS = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "forecast_ref": {"type": "string", "description": "A forecast_ref from aion_forecast, or 'none' to abstain."},
+                    "forecast_ref": {"type": "string", "description": "A forecast_ref from gnomon_forecast, or 'none' to abstain."},
                     "reasoning": {"type": "string"},
                 },
                 "required": ["forecast_ref"],
@@ -147,7 +147,7 @@ TOOL_SPECS = [
 
 
 class ToolBox:
-    """Aion bound to one MTBench sample, exposed as callable tools."""
+    """Gnomon bound to one MTBench sample, exposed as callable tools."""
 
     def __init__(self, values: list[float], horizon: int, text: str,
                  sample_name: str, work_dir: str | None = None):
@@ -185,8 +185,8 @@ class ToolBox:
         handler = {
             "series_stats": self.series_stats,
             "detect_season": self.detect_season,
-            "aion_detect_anomalies": self.aion_detect_anomalies,
-            "aion_forecast": self.aion_forecast,
+            "gnomon_detect_anomalies": self.gnomon_detect_anomalies,
+            "gnomon_forecast": self.gnomon_forecast,
             "submit_forecast": self.submit_forecast,
         }.get(name)
         if handler is None:
@@ -212,15 +212,15 @@ class ToolBox:
         }
 
     def detect_season(self) -> dict[str, Any]:
-        from aion.temporal import detect_season
+        from gnomon.temporal import detect_season
 
         season, strength, basis = detect_season(self.values, "D")
         return {"period_bars": season, "strength": round(strength, 4),
                 "basis": basis}
 
-    def aion_detect_anomalies(self) -> dict[str, Any]:
-        from aion.anomaly import detect_anomalies
-        from aion.temporal import detect_season
+    def gnomon_detect_anomalies(self) -> dict[str, Any]:
+        from gnomon.anomaly import detect_anomalies
+        from gnomon.temporal import detect_season
 
         season, _, _ = detect_season(self.values, "D")
         timestamps = [(EPOCH + k * DAY).isoformat()
@@ -234,10 +234,10 @@ class ToolBox:
             "anomalies": detection.get("anomalies", [])[:16],
         }
 
-    def aion_forecast(self, context_events: list[dict[str, Any]] | None = None,
+    def gnomon_forecast(self, context_events: list[dict[str, Any]] | None = None,
                       note: str | None = None) -> dict[str, Any]:
-        from aion import forecast as aion_forecast_fn
-        from aion.contracts import AionError
+        from gnomon import forecast as gnomon_forecast_fn
+        from gnomon.contracts import GnomonError
 
         window_start, window_end = self._window()
         events: list[Any] = []
@@ -253,13 +253,13 @@ class ToolBox:
 
         csv_path = self._write_csv()
         try:
-            artifact, _ = aion_forecast_fn(
+            artifact, _ = gnomon_forecast_fn(
                 str(csv_path), time_column="timestamp", target_column="value",
                 horizon=self.horizon, frequency="D",
-                output=str(csv_path.parent / "aion-output"),
+                output=str(csv_path.parent / "gnomon-output"),
                 context_events=events or None,
             )
-        except AionError as error:
+        except GnomonError as error:
             return {"abstained": True, "code": error.code,
                     "message": error.message,
                     "proposal_notes": proposal_notes}
@@ -322,7 +322,7 @@ def _tool_calls_as_dicts(message: Any) -> list[dict[str, Any]]:
 
 def run_sample(sample: dict[str, Any], client: OpenRouterClient,
                work_dir: str | None = None) -> dict[str, Any]:
-    """Let the model drive Aion over one sample; return its submission."""
+    """Let the model drive Gnomon over one sample; return its submission."""
     values = [float(v) for v in sample["input_window"]]
     horizon = len(sample["output_window"])
     toolbox = ToolBox(values, horizon, sample.get("text") or "",

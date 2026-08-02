@@ -1,25 +1,25 @@
 # Root-level Hermes plugin manifest so `hermes plugins install
-# https://github.com/TensorLink-AI/Aion.git` discovers the plugin directly;
+# https://github.com/TensorLink-AI/Gnomon.git` discovers the plugin directly;
 # the implementation lives in integrations/hermes/ and is re-exported by the
 # root __init__.py.
-name: aion
-version: 0.4.0
-description: "Evidence-backed local forecasting via the Aion CLI. Aion is authoritative for all numbers, intervals, model selection, and abstention; the agent formulates the question and explains the evidence."
+name: gnomon
+version: 0.5.0
+description: "Evidence-backed local forecasting via the Gnomon CLI. Gnomon is authoritative for all numbers, intervals, model selection, and abstention; the agent formulates the question and explains the evidence."
 author: "TensorLink"
 kind: standalone
 provides_tools:
-  - aion_capabilities
-  - aion_inspect
-  - aion_forecast
-  - aion_covariate_guide
-  - aion_validate_covariates
-  - aion_propose_covariates
-  - aion_propose_context_events
-  - aion_submit_actuals
-  - aion_list_open_forecasts
-  - aion_model_performance
-  - aion_record_decision
-  - aion_resolve_decision
-  - aion_investigate_change
-  - aion_decide
-  - aion_monitor
+  - gnomon_capabilities
+  - gnomon_inspect
+  - gnomon_forecast
+  - gnomon_covariate_guide
+  - gnomon_validate_covariates
+  - gnomon_propose_covariates
+  - gnomon_propose_context_events
+  - gnomon_submit_actuals
+  - gnomon_list_open_forecasts
+  - gnomon_model_performance
+  - gnomon_record_decision
+  - gnomon_resolve_decision
+  - gnomon_investigate_change
+  - gnomon_decide
+  - gnomon_monitor

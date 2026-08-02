@@ -6,10 +6,10 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from aion.cli import main
-from aion.context import ContextEvent, ContextSource
-from aion.context_model import event_adjusted
-from aion.runtime import forecast
+from gnomon.cli import main
+from gnomon.context import ContextEvent, ContextSource
+from gnomon.context_model import event_adjusted
+from gnomon.runtime import forecast
 
 START = datetime(2026, 1, 1, tzinfo=timezone.utc)
 PROMO_EFFECT = 30.0
@@ -151,7 +151,7 @@ def test_invalid_context_file_fails_loudly(tmp_path, capsys) -> None:
 
 
 def test_wilson_upper_bounds_a_noisy_proportion() -> None:
-    from aion.context_eval import wilson_upper
+    from gnomon.context_eval import wilson_upper
 
     # Four of five covered: the upper bound stays high, so a coverage
     # veto cannot fire on five points of sampling noise alone.
@@ -224,19 +224,19 @@ class TestEffectShapes:
         Without normalising by the mean active weight, `decay` would win
         comparisons simply by applying a smaller effect.
         """
-        from aion.context_model import EFFECT_SHAPES, event_effect, event_effect_shaped
+        from gnomon.context_model import EFFECT_SHAPES, event_effect, event_effect_shaped
 
         history = [10.0] * 20 + [30.0] * 10 + [10.0] * 20
         active = [False] * 20 + [True] * 10 + [False] * 20
         base = event_effect(history, active)
         for shape in EFFECT_SHAPES:
-            weights = __import__("aion.context_model", fromlist=["shape_weights"]).shape_weights(active, shape)
+            weights = __import__("gnomon.context_model", fromlist=["shape_weights"]).shape_weights(active, shape)
             scaled = event_effect_shaped(history, active, shape)
             delivered = [scaled * weight for weight, flag in zip(weights, active) if flag]
             assert abs(sum(delivered) / len(delivered) - base) < 1e-9, shape
 
     def test_each_active_run_gets_its_own_onset(self):
-        from aion.context_model import shape_weights
+        from gnomon.context_model import shape_weights
 
         active = [True, True, False, True, True]
         weights = shape_weights(active, "decay")
@@ -247,20 +247,20 @@ class TestEffectShapes:
         assert weights[2] == 0.0
 
     def test_ramp_builds_across_the_window(self):
-        from aion.context_model import shape_weights
+        from gnomon.context_model import shape_weights
 
         weights = shape_weights([True] * 4, "ramp")
         assert weights == [0.25, 0.5, 0.75, 1.0]
 
     def test_level_is_flat(self):
-        from aion.context_model import shape_weights
+        from gnomon.context_model import shape_weights
 
         assert shape_weights([True, True, False], "level") == [1.0, 1.0, 0.0]
 
     def test_unknown_shape_is_refused(self):
         import pytest as _pytest
 
-        from aion.context_model import shape_weights
+        from gnomon.context_model import shape_weights
 
         with _pytest.raises(ValueError, match="unknown effect shape"):
             shape_weights([True], "exponential_ramp_v2")
@@ -273,7 +273,7 @@ class TestEffectShapes:
         collapsed fold improvements toward -1; this states the arithmetic
         directly so the idea is not re-attempted.
         """
-        from aion.context_model import event_adjusted
+        from gnomon.context_model import event_adjusted
 
         period, span, bump = 10, 3, 40.0
         history = [100.0 + (bump if index % period < span else 0.0)
@@ -306,8 +306,8 @@ class TestEffectShapes:
         import csv
         import math
 
-        from aion.context import ContextEvent, ContextSource
-        from aion.runtime import forecast
+        from gnomon.context import ContextEvent, ContextSource
+        from gnomon.runtime import forecast
 
         start = datetime(2024, 1, 1, tzinfo=timezone.utc)
         period, span, count = 30, 8, 300
@@ -367,22 +367,22 @@ class TestShrinkageAdmission:
     """
 
     def test_a_mean_far_above_its_noise_keeps_the_effect(self):
-        from aion.context_eval import shrinkage_factor
+        from gnomon.context_eval import shrinkage_factor
 
         assert shrinkage_factor([0.50, 0.52, 0.49, 0.51]) > 0.95
 
     def test_a_mean_inside_its_noise_keeps_none(self):
-        from aion.context_eval import shrinkage_factor
+        from gnomon.context_eval import shrinkage_factor
 
         assert shrinkage_factor([0.5, -0.4, 0.6, -0.5]) == 0.0
 
     def test_a_negative_mean_keeps_none(self):
-        from aion.context_eval import shrinkage_factor
+        from gnomon.context_eval import shrinkage_factor
 
         assert shrinkage_factor([-0.2, -0.3, -0.1]) == 0.0
 
     def test_a_factor_below_the_floor_is_pinned_to_zero(self):
-        from aion.context_eval import MINIMUM_SHRINKAGE, shrinkage_factor
+        from gnomon.context_eval import MINIMUM_SHRINKAGE, shrinkage_factor
 
         # Constructed so the raw factor lands just under the floor: a small
         # non-zero effect no evidence supports is worse than none.
@@ -390,7 +390,7 @@ class TestShrinkageAdmission:
         assert value == 0.0 or value >= MINIMUM_SHRINKAGE
 
     def test_one_fold_cannot_support_any_effect(self):
-        from aion.context_eval import shrinkage_factor
+        from gnomon.context_eval import shrinkage_factor
 
         assert shrinkage_factor([0.9]) == 0.0
         assert shrinkage_factor([]) == 0.0

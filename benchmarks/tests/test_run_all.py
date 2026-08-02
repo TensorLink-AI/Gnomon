@@ -44,9 +44,9 @@ def test_explicit_args_beat_defaults():
 
 
 def test_cik_gets_no_limit_flag():
-    cmd = _cmd("cik", "cik", {"method": "aion-pure", "seeds": 3})
+    cmd = _cmd("cik", "cik", {"method": "gnomon-pure", "seeds": 3})
     text = " ".join(cmd)
-    assert "--method aion-pure" in text and "--seeds 3" in text
+    assert "--method gnomon-pure" in text and "--seeds 3" in text
     assert "--limit" not in text and "--n-samples" not in text
     assert "--output-dir results/batch/cik" in text
 
@@ -63,12 +63,12 @@ def test_mtbench_control_subcommand_scope():
     assert cmd[-3:] == ["--", "--dataset", "x"]
 
 
-def test_mtbench_aion_gets_output_and_limit():
+def test_mtbench_gnomon_gets_output_and_limit():
     cmd = _cmd("mtbench", "mtb-a",
-               {"subcommand": "aion", "dataset_folder": "~/d",
+               {"subcommand": "gnomon", "dataset_folder": "~/d",
                 "mode": "agent"})
     text = " ".join(cmd)
-    assert cmd[3] == "aion"
+    assert cmd[3] == "gnomon"
     assert "--output-dir results/batch/mtb-a" in text
     assert "--limit 25" in text
 
@@ -124,8 +124,8 @@ def test_orchestrator_completes_more_than_one_run(tmp_path, monkeypatch):
         "model": "m",
         "output_root": str(tmp_path / "out"),
         "runs": [
-            {"benchmark": "leaktrap", "name": "one", "args": {"subcommand": "aion"}},
-            {"benchmark": "leaktrap", "name": "two", "args": {"subcommand": "aion"}},
+            {"benchmark": "leaktrap", "name": "one", "args": {"subcommand": "gnomon"}},
+            {"benchmark": "leaktrap", "name": "two", "args": {"subcommand": "gnomon"}},
         ],
     }
     config_path = tmp_path / "cfg.json"

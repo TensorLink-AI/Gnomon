@@ -1,0 +1,15 @@
+{
+  "benchmark": "leakage-trap",
+  "condition": "gnomon",
+  "model": null,
+  "seed": 7,
+  "tasks": 40,
+  "answered": 40,
+  "mean_score": 0.20522902128341158,
+  "mean_no_leak_ceiling": 0.14541153125308232,
+  "mean_leak_advantage": -0.3678234669307588,
+  "tasks_flagged_as_leaking": 0,
+  "tasks_transcribing_the_future": 0,
+  "structural_claim_proven": 40,
+  "note": "leak_advantage is (ceiling - score) / ceiling: positive means the forecast beat what any strategy restricted to data published by the cutoff could achieve. The ceiling picks its strategy with hindsight, so it is optimistic by construction: an honest condition is expected to score above it (negative advantage) and that gap is not a finding. Beating a bound that already had hindsight is what is damning. tasks_transcribing_the_future counts forecasts that reproduce the post-cutoff values verbatim -- a copy rather than a prediction, and detectable without any ceiling. structural_claim_proven counts runs whose own snapshot access log shows no read past the cutoff -- a proof, not a score, and unavailable to any condition that does not go through the snapshot."
+}

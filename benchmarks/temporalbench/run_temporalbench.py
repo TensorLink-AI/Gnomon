@@ -5,14 +5,14 @@ Conditions
 ----------
 ``control``     the row's official prompt sent verbatim to an OpenRouter
                 model; its JSON answer is scored as-is.
-``aion-pure``   T2/T4 only, no LLM: Aion forecasts every target channel;
+``gnomon-pure``   T2/T4 only, no LLM: Gnomon forecasts every target channel;
                 multiple-choice answers are 'Uncertain' (an honest
                 abstention the option sets allow).
-``aion-agent``  Aion computes the evidence (per-channel forecasts,
+``gnomon-agent``  Gnomon computes the evidence (per-channel forecasts,
                 season, anomalies, stats); the LLM sees the official
                 prompt plus that evidence and answers only the choice
                 questions. Forecast arrays in the final answer are the
-                Aion arrays — the model cannot edit them.
+                Gnomon arrays — the model cannot edit them.
 
 Examples
 --------
@@ -27,12 +27,12 @@ Examples
         --output-dir results/tb-control
 
     python -m benchmarks.temporalbench.run_temporalbench \
-        --data-dir ~/temporalbench --condition aion-agent \
+        --data-dir ~/temporalbench --condition gnomon-agent \
         --model openai/gpt-4o --tiers T2,T4 --limit 50 \
-        --output-dir results/tb-aion
+        --output-dir results/tb-gnomon
 
-    aion eval compare --baseline results/tb-control/aionbench.jsonl \
-                      --treatment results/tb-aion/aionbench.jsonl
+    gnomon eval compare --baseline results/tb-control/gnomonbench.jsonl \
+                      --treatment results/tb-gnomon/gnomonbench.jsonl
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from benchmarks.common.openrouter import OpenRouterClient  # noqa: E402
 from benchmarks.common.records import RecordWriter, RunRecord  # noqa: E402
-from benchmarks.temporalbench import aion_runner, scoring  # noqa: E402
+from benchmarks.temporalbench import gnomon_runner, scoring  # noqa: E402
 from benchmarks.temporalbench.tasks import (  # noqa: E402
     TIERS,
     download,
@@ -59,13 +59,13 @@ from benchmarks.temporalbench.tasks import (  # noqa: E402
 
 AGENT_PREAMBLE = """\
 Deterministic tool evidence computed from the task's own data by the
-Aion engine (backtested forecasts, graded anomaly detection, season
+Gnomon engine (backtested forecasts, graded anomaly detection, season
 detection). Base every numeric judgement on this evidence; where a
 forecast is required in the output, reproduce these arrays exactly.
 
-<aion_evidence>
+<gnomon_evidence>
 {evidence}
-</aion_evidence>
+</gnomon_evidence>
 
 """
 
@@ -79,19 +79,19 @@ def answer_row(row: dict[str, Any], condition: str,
         )[0]
         return {"answer": extract_json_object(completion), "abstained": []}
 
-    analysis = aion_runner.analyse_row(row)
+    analysis = gnomon_runner.analyse_row(row)
     tier = row.get("tier")
-    if condition == "aion-pure":
+    if condition == "gnomon-pure":
         if tier not in ("T2", "T4"):
-            raise ValueError("aion-pure covers tiers T2 and T4 only")
-        forecast, abstained = aion_runner.forecast_payload(analysis)
+            raise ValueError("gnomon-pure covers tiers T2 and T4 only")
+        forecast, abstained = gnomon_runner.forecast_payload(analysis)
         return {
             "answer": {"forecast": forecast,
-                       "mcq": aion_runner.uncertain_mcq(row)},
+                       "mcq": gnomon_runner.uncertain_mcq(row)},
             "abstained": abstained, "analysis": analysis,
         }
 
-    # aion-agent: evidence digest + official prompt; LLM answers choices.
+    # gnomon-agent: evidence digest + official prompt; LLM answers choices.
     digest = {k: v for k, v in analysis.items() if k != "channels"}
     digest["forecasts"] = {
         key: (outcome if outcome.get("abstained") else
@@ -109,8 +109,8 @@ def answer_row(row: dict[str, Any], condition: str,
     answer = extract_json_object(completion)
     abstained: list[str] = []
     if tier in ("T2", "T4"):
-        forecast, abstained = aion_runner.forecast_payload(analysis)
-        answer["forecast"] = forecast  # Aion owns the numbers.
+        forecast, abstained = gnomon_runner.forecast_payload(analysis)
+        answer["forecast"] = forecast  # Gnomon owns the numbers.
     return {"answer": answer, "abstained": abstained, "analysis": analysis}
 
 
@@ -137,7 +137,7 @@ def main() -> int:
     parser.add_argument("--data-dir", required=True)
     parser.add_argument("--download", action="store_true")
     parser.add_argument("--condition",
-                        choices=["control", "aion-pure", "aion-agent"])
+                        choices=["control", "gnomon-pure", "gnomon-agent"])
     parser.add_argument("--model", default=None, help="OpenRouter model id")
     parser.add_argument("--tiers", default="T1,T2,T3,T4")
     parser.add_argument("--datasets", default=None,
@@ -155,11 +155,11 @@ def main() -> int:
             return 0
     if not args.condition or not args.output_dir:
         parser.error("--condition and --output-dir are required to run")
-    if args.condition != "aion-pure" and not args.model:
+    if args.condition != "gnomon-pure" and not args.model:
         parser.error("--model is required for this condition")
 
     tiers = tuple(t.strip() for t in args.tiers.split(",") if t.strip() in TIERS)
-    if args.condition == "aion-pure":
+    if args.condition == "gnomon-pure":
         tiers = tuple(t for t in tiers if t in ("T2", "T4")) or ("T2", "T4")
     datasets = (tuple(d.strip() for d in args.datasets.split(","))
                 if args.datasets else None)
@@ -171,7 +171,7 @@ def main() -> int:
     output_dir = Path(args.output_dir)
     details_dir = output_dir / "details"
     details_dir.mkdir(parents=True, exist_ok=True)
-    records = RecordWriter(output_dir / "aionbench.jsonl")
+    records = RecordWriter(output_dir / "gnomonbench.jsonl")
 
     choice_by_tier: dict[str, list[int]] = {}
     forecast_metrics_acc: dict[str, list[float]] = {}

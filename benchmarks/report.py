@@ -23,7 +23,7 @@ This does it the same way every time:
 Usage::
 
     python -m benchmarks.report --root results/glm52
-    python -m benchmarks.report --root results/glm52 --compare tb-control tb-aion
+    python -m benchmarks.report --root results/glm52 --compare tb-control tb-gnomon
 """
 
 from __future__ import annotations
@@ -62,9 +62,9 @@ def normalise_task_id(task_id: str) -> str:
     return text.replace("#", "_")
 
 
-def _load_aionbench(run_dir: Path) -> dict[str, dict[str, Any]]:
-    """Rows written by our adapters (`aionbench.jsonl`)."""
-    path = run_dir / "aionbench.jsonl"
+def _load_gnomonbench(run_dir: Path) -> dict[str, dict[str, Any]]:
+    """Rows written by our adapters (`gnomonbench.jsonl`)."""
+    path = run_dir / "gnomonbench.jsonl"
     if not path.exists():
         return {}
     rows = {}
@@ -110,7 +110,7 @@ def load_run(run_dir: Path) -> dict[str, Any]:
             summary = json.loads(summary_path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             summary = {}
-    tasks = _load_aionbench(run_dir) or _load_mtbench_official(run_dir)
+    tasks = _load_gnomonbench(run_dir) or _load_mtbench_official(run_dir)
     return {"name": run_dir.name, "dir": run_dir, "manifest": read_manifest(run_dir),
             "summary": summary, "tasks": tasks}
 
@@ -227,7 +227,7 @@ def penalized_mean(baseline_values: dict[str, float],
     average improves. The matched subset fixes the comparison but hides
     the cost of refusing. Here every task the baseline answered and the
     treatment did not is charged to the treatment at the baseline's own
-    result — the outcome a caller falls back to when Aion declines.
+    result — the outcome a caller falls back to when Gnomon declines.
 
     This is a *lower* bound on the cost of abstention: a real fallback
     (seasonal-naive on the same task) may do worse than the baseline did.

@@ -16,8 +16,8 @@ from pathlib import Path
 
 import pytest
 
-from aion.ids import FixedClock
-from aion.runtime import forecast
+from gnomon.ids import FixedClock
+from gnomon.runtime import forecast
 
 # CPython 3.12 changed builtin sum() to Neumaier compensated summation
 # (gh-100425), which shifts float results by an ulp relative to 3.11.

@@ -1,8 +1,8 @@
 # Covariate enrichment
 
-Aion can evaluate externally sourced, future-known variables such as published
+Gnomon can evaluate externally sourced, future-known variables such as published
 holiday calendars, scheduled prices, or archived weather-forecast vintages.
-The agent decides what might matter and fetches it. Aion owns the temporal data
+The agent decides what might matter and fetches it. Gnomon owns the temporal data
 contract and decides whether the proposal improves rolling backtests.
 
 MCP is optional. The same workflow is available through the CLI and Python API.
@@ -21,13 +21,13 @@ timestamp,known_at,is_holiday,temperature_forecast
 ```
 
 Multiple rows may share `timestamp`. This represents revised vintages. At a
-historical fold cutoff, Aion selects the most recent row whose `known_at` is no
+historical fold cutoff, Gnomon selects the most recent row whose `known_at` is no
 later than the cutoff.
 
 Do not label a reconstructed historical observation as a forecast. For example,
 today's archive of observed temperatures does not reveal what weather forecast
 was available six months ago. Weather inputs require archived issued forecasts.
-If those vintages are unavailable, Aion rejects the proposal for backtesting.
+If those vintages are unavailable, Gnomon rejects the proposal for backtesting.
 
 This release accepts numeric `continuous` and `binary` features whose
 availability is explicitly `future_known`. It does not silently encode
@@ -38,14 +38,14 @@ categoricals, interpolate gaps, or fetch URLs.
 Get the exact forecast timestamps and selection-fold cutoffs:
 
 ```bash
-aion covariates guide sales.csv \
+gnomon covariates guide sales.csv \
   --time timestamp --target sales --frequency D --horizon 14
 ```
 
 Validate a locally fetched proposal:
 
 ```bash
-aion covariates validate sales.csv \
+gnomon covariates validate sales.csv \
   --time timestamp --target sales --frequency D --horizon 14 \
   --covariates covariates.csv \
   --covariate-mapping 'is_holiday:binary:future_known,temperature_forecast:continuous:future_known'
@@ -54,7 +54,7 @@ aion covariates validate sales.csv \
 Evaluate it and produce a forecast:
 
 ```bash
-aion forecast sales.csv \
+gnomon forecast sales.csv \
   --time timestamp --target sales --frequency D --horizon 14 \
   --covariates covariates.csv \
   --covariate-mapping 'is_holiday:binary:future_known,temperature_forecast:continuous:future_known'
@@ -65,7 +65,7 @@ For panel data, pass both `--series` for the target file and
 
 ## Admission procedure
 
-Aion always retains the evaluated univariate forecast as the control. Candidate
+Gnomon always retains the evaluated univariate forecast as the control. Candidate
 features enter in declared order through forward selection. A feature is kept
 only when it:
 
@@ -99,17 +99,17 @@ choice rather than asserting it.
 
 ## Agent and MCP workflow
 
-When MCP is enabled, agents can call `aion_covariate_guide`,
-`aion_validate_covariates`, and `aion_propose_covariates`.
+When MCP is enabled, agents can call `gnomon_covariate_guide`,
+`gnomon_validate_covariates`, and `gnomon_propose_covariates`.
 
 The tools accept local files. Agents should use their own permitted web tools to
-retrieve data and preserve its source URL separately; Aion will not dereference
-arbitrary URLs. `aion_propose_covariates` runs the same admission gate as the CLI.
+retrieve data and preserve its source URL separately; Gnomon will not dereference
+arbitrary URLs. `gnomon_propose_covariates` runs the same admission gate as the CLI.
 
 ## TSFM capability matrix
 
-`aion capabilities` reports `models.tsfm_capabilities`. These are adapter-level
-capabilities verified through Aion's actual protocol, not upstream marketing
+`gnomon capabilities` reports `models.tsfm_capabilities`. These are adapter-level
+capabilities verified through Gnomon's actual protocol, not upstream marketing
 claims. It distinguishes multivariate targets from future-known covariates.
 
 The current TSFM adapter protocol is univariate. Consequently, no TSFM is
@@ -123,5 +123,5 @@ their capability flag can become true.
 - Future-known numeric covariates only
 - CSV covariate files
 - Admission currently compares against a built-in selected model; if a TSFM
-  wins the univariate evaluation, Aion reports that admission is unavailable
+  wins the univariate evaluation, Gnomon reports that admission is unavailable
 - No automatic web retrieval or arbitrary URL loading

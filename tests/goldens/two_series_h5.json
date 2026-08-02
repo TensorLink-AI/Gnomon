@@ -1,6 +1,6 @@
 {
   "schema_version": "0.1",
-  "forecast_id": "forecast_9af1a625c0837457",
+  "forecast_id": "forecast_9a47190ea4040768",
   "created_at": "2026-07-01T00:00:00+00:00",
   "status": "complete",
   "task": {
@@ -164,7 +164,7 @@
         ]
       },
       "notes": [
-        "No foundation-model candidate competed: chronos_bolt_mini, chronos_bolt_small, flowstate, moirai2_small, moment_small, toto2_22m, ttm are eligible for this series but no sandbox is installed. Run `aion tsfm install chronos_bolt_mini` to add one; it enters the same folds against the same baselines."
+        "No foundation-model candidate competed: chronos_bolt_mini, chronos_bolt_small, flowstate, moirai2_small, moment_small, toto2_22m, ttm are eligible for this series but no sandbox is installed. Run `gnomon tsfm install chronos_bolt_mini` to add one; it enters the same folds against the same baselines."
       ]
     },
     {
@@ -318,7 +318,7 @@
         ]
       },
       "notes": [
-        "No foundation-model candidate competed: chronos_bolt_mini, chronos_bolt_small, flowstate, moirai2_small, moment_small, toto2_22m, ttm are eligible for this series but no sandbox is installed. Run `aion tsfm install chronos_bolt_mini` to add one; it enters the same folds against the same baselines."
+        "No foundation-model candidate competed: chronos_bolt_mini, chronos_bolt_small, flowstate, moirai2_small, moment_small, toto2_22m, ttm are eligible for this series but no sandbox is installed. Run `gnomon tsfm install chronos_bolt_mini` to add one; it enters the same folds against the same baselines."
       ]
     }
   ],

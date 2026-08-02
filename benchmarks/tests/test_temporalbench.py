@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from benchmarks.temporalbench.aion_runner import _observed, uncertain_mcq
+from benchmarks.temporalbench.gnomon_runner import _observed, uncertain_mcq
 from benchmarks.temporalbench.scoring import score_mcq, score_t1, score_t3
 from benchmarks.temporalbench.tasks import extract_json_object, prompt_input_arrays
 

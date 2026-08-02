@@ -11,9 +11,9 @@ from pathlib import Path
 
 import pytest
 
-from aion.contracts import AionError
-from aion.ids import FixedClock
-from aion.runtime import capabilities, forecast
+from gnomon.contracts import GnomonError
+from gnomon.ids import FixedClock
+from gnomon.runtime import capabilities, forecast
 
 CLOCK = FixedClock(datetime(2026, 7, 1, tzinfo=timezone.utc))
 
@@ -48,7 +48,7 @@ def test_semicolon_csv_with_comma_decimals(tmp_path: Path) -> None:
     assert "delimiter_detected" in repair_codes(artifact)
     assert artifact.results[0].support == "supported"
     # Strict mode keeps the old behaviour: one giant column, missing mapping.
-    with pytest.raises(AionError) as caught:
+    with pytest.raises(GnomonError) as caught:
         run(source, tmp_path, repair="off")
     assert caught.value.code == "MISSING_COLUMNS"
 
@@ -75,7 +75,7 @@ def test_cp1252_fallback_is_assumptive(tmp_path: Path) -> None:
         f"{stamp},{value},caf\xe9" for stamp, value in daily(20)
     ]
     source.write_bytes("\n".join(lines).encode("cp1252"))
-    with pytest.raises(AionError) as caught:
+    with pytest.raises(GnomonError) as caught:
         run(source, tmp_path, repair="off")
     assert caught.value.code == "INVALID_ENCODING"
     artifact, _ = run(source, tmp_path)
@@ -103,7 +103,7 @@ def test_json_array(tmp_path: Path) -> None:
 def test_json_must_be_array_of_objects(tmp_path: Path) -> None:
     source = tmp_path / "bad.json"
     source.write_text(json.dumps({"rows": []}), encoding="utf-8")
-    with pytest.raises(AionError) as caught:
+    with pytest.raises(GnomonError) as caught:
         run(source, tmp_path)
     assert caught.value.code == "UNSUPPORTED_INPUT"
 
@@ -120,7 +120,7 @@ def test_jsonl(tmp_path: Path) -> None:
 def test_unsupported_suffix_lists_formats(tmp_path: Path) -> None:
     source = tmp_path / "data.xml"
     source.write_text("<rows/>", encoding="utf-8")
-    with pytest.raises(AionError) as caught:
+    with pytest.raises(GnomonError) as caught:
         run(source, tmp_path)
     assert caught.value.code == "UNSUPPORTED_INPUT"
     assert caught.value.to_dict()["error"]["repair_options"]
@@ -132,7 +132,7 @@ def test_excel_requires_extra_or_works(tmp_path: Path) -> None:
         import openpyxl
     except ImportError:
         source.write_bytes(b"not really an xlsx")
-        with pytest.raises(AionError) as caught:
+        with pytest.raises(GnomonError) as caught:
             run(source, tmp_path)
         assert caught.value.code == "MISSING_OPTIONAL_DEPENDENCY"
         assert "excel" in caught.value.details["install"]

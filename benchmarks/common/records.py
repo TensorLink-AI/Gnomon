@@ -1,8 +1,8 @@
-"""AionBench-compatible run records.
+"""GnomonBench-compatible run records.
 
 Every benchmark adapter, in addition to the benchmark's own official
 metric output, emits one JSONL row per graded run in the format consumed
-by ``aion eval compare`` (see docs/agent-evaluation.md). The official
+by ``gnomon eval compare`` (see docs/agent-evaluation.md). The official
 metric stays the headline number for each external benchmark; these rows
 add the completion/safety view (abstentions, tool calls, latency, cost)
 and make treatment/control comparison mechanical.
@@ -19,7 +19,7 @@ from typing import Any
 @dataclass
 class RunRecord:
     """One graded run. ``task_id`` and ``success`` are the only fields
-    required by ``aion eval compare``; the rest default to the schema's
+    required by ``gnomon eval compare``; the rest default to the schema's
     zero values and extra keys are carried through untouched."""
 
     task_id: str

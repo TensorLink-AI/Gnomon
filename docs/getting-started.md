@@ -11,10 +11,10 @@ No account, network service, LLM, or API key is required to forecast.
 ## Install from this checkout
 
 ```bash
-cd Aion
+cd Gnomon
 bash install.sh --local
-aion --version
-aion capabilities
+gnomon --version
+gnomon capabilities
 ```
 
 `--local` installs the checkout you are standing in. Without it,
@@ -34,8 +34,8 @@ uv tool install --force .
 For development without a tool installation:
 
 ```bash
-cd Aion
-PYTHONPATH=src python3 -m aion capabilities
+cd Gnomon
+PYTHONPATH=src python3 -m gnomon capabilities
 ```
 
 ## Run the included example
@@ -43,7 +43,7 @@ PYTHONPATH=src python3 -m aion capabilities
 Inspect the input before spending time on a forecast:
 
 ```bash
-aion inspect examples/daily_requests.csv \
+gnomon inspect examples/daily_requests.csv \
   --time timestamp \
   --target requests \
   --frequency D
@@ -55,19 +55,19 @@ frequency, date range, and number of observations.
 Run a three-day forecast:
 
 ```bash
-aion forecast examples/daily_requests.csv \
+gnomon forecast examples/daily_requests.csv \
   --time timestamp \
   --target requests \
   --horizon 3 \
   --frequency D \
-  --output ./aion-output
+  --output ./gnomon-output
 ```
 
 The command prints JSON containing the forecast ID, support result, selected
 model, warnings, and artifact directory. Each run receives a new directory:
 
 ```text
-aion-output/forecast_<id>/
+gnomon-output/forecast_<id>/
 ├── artifact.json
 ├── evidence.jsonl
 ├── forecast.csv
@@ -82,7 +82,7 @@ retain `artifact.json` when reproducibility or auditability matters.
 If one file contains several independent series, identify the grouping column:
 
 ```bash
-aion forecast panel.csv \
+gnomon forecast panel.csv \
   --time timestamp \
   --target requests \
   --series service_id \

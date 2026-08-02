@@ -5,8 +5,8 @@ body:
   - type: textarea
     id: setup
     attributes:
-      label: How are you running Aion?
-      description: CLI directly, MCP with which client/agent, or the Hermes plugin — plus `aion capabilities` output if handy.
+      label: How are you running Gnomon?
+      description: CLI directly, MCP with which client/agent, or the Hermes plugin — plus `gnomon capabilities` output if handy.
     validations:
       required: true
   - type: textarea
@@ -23,7 +23,7 @@ body:
       description: |
         Especially useful: did a repair, abstention, or EXCESSIVE_REPAIR
         refusal feel protective or obstructive? Did your agent preserve
-        Aion's warnings when it reported numbers to you? Where did you
+        Gnomon's warnings when it reported numbers to you? Where did you
         have to stop and think?
     validations:
       required: true

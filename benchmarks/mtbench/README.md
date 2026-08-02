@@ -21,7 +21,7 @@ Ours (this directory):
   any of their `--model` branches is served by one OpenRouter model
   through `OPENROUTER_API_KEY` instead of four separate pasted keys.
   Return shapes are preserved; the scripts never know the difference.
-- `aion_forecaster.py` — the Aion treatment for the two task families
+- `gnomon_forecaster.py` — the Gnomon treatment for the two task families
   whose answer is a numeric trajectory: finance price forecasting
   (`--indicator time`) and weather temperature forecasting. Reads the
   same official task JSONs; aggregation mirrors the official metric
@@ -29,9 +29,9 @@ Ours (this directory):
   from the official `evaluation.utils` when the checkout is on the
   path. Disclosed decisions: trading bars are modelled on a synthetic
   regular daily axis (bar *k* = epoch + *k* days; the metric compares
-  values only); Aion's q50 path is the point forecast; in `agent` mode
+  values only); Gnomon's q50 path is the point forecast; in `agent` mode
   the news text goes to an OpenRouter model that may propose typed
-  context events for Aion's admission gate — never numbers.
+  context events for Gnomon's admission gate — never numbers.
 
 MTBench's QA/MCQA/trend/correlation tasks run under the control path
 only for now: they grade text answers, and their official scripts
@@ -62,17 +62,17 @@ python -m benchmarks.mtbench.run_mtbench control \
     --indicator=time --model=gpt-4o --mode=combined
 ```
 
-Treatment — Aion owns the numbers (forecasting families):
+Treatment — Gnomon owns the numbers (forecasting families):
 
 ```bash
-python -m benchmarks.mtbench.run_mtbench aion \
+python -m benchmarks.mtbench.run_mtbench gnomon \
     --mtbench-root ~/MTBench \
     --dataset-folder ~/MTBench/data/processed/finance/aligned_in30days_out7days \
-    --output-dir results/mtbench-aion-agent \
+    --output-dir results/mtbench-gnomon-agent \
     --mode agent --model openai/gpt-4o
 ```
 
 Outputs: `summary.json` (official-style mean MSE/MAE/RMSE/MAPE over
 samples passing the official filter, plus abstention counts),
-`output_details/` per sample, and `aionbench.jsonl` for
-`aion eval compare` against a control run.
+`output_details/` per sample, and `gnomonbench.jsonl` for
+`gnomon eval compare` against a control run.

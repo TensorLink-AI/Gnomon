@@ -14,7 +14,7 @@ PLUGIN_DIR = REPO_ROOT / "integrations" / "hermes"
 
 def _load_plugin():
     spec = importlib.util.spec_from_file_location(
-        "aion_hermes_plugin",
+        "gnomon_hermes_plugin",
         PLUGIN_DIR / "__init__.py",
         submodule_search_locations=[str(PLUGIN_DIR)],
     )
@@ -43,7 +43,7 @@ class RecordingContext:
 
 @pytest.fixture(autouse=True)
 def _real_cli(monkeypatch):
-    monkeypatch.setenv("AION_PLUGIN_CLI", f"{sys.executable} -m aion")
+    monkeypatch.setenv("GNOMON_PLUGIN_CLI", f"{sys.executable} -m gnomon")
     monkeypatch.setenv(
         "PYTHONPATH",
         os.pathsep.join(
@@ -57,39 +57,39 @@ def test_register_exposes_tracking_tools_and_the_skill() -> None:
     ctx.llm = None
     plugin.register(ctx)
     assert set(ctx.tools) == {
-        "aion_capabilities", "aion_inspect", "aion_forecast",
-        "aion_covariate_guide", "aion_validate_covariates",
-        "aion_propose_covariates",
-        "aion_propose_context_events",
-        "aion_submit_actuals", "aion_list_open_forecasts",
-        "aion_model_performance", "aion_record_decision",
-        "aion_resolve_decision",
-        "aion_investigate_change", "aion_decide", "aion_monitor",
+        "gnomon_capabilities", "gnomon_inspect", "gnomon_forecast",
+        "gnomon_covariate_guide", "gnomon_validate_covariates",
+        "gnomon_propose_covariates",
+        "gnomon_propose_context_events",
+        "gnomon_submit_actuals", "gnomon_list_open_forecasts",
+        "gnomon_model_performance", "gnomon_record_decision",
+        "gnomon_resolve_decision",
+        "gnomon_investigate_change", "gnomon_decide", "gnomon_monitor",
     }
     for entry in ctx.tools.values():
-        assert entry["toolset"] == "aion"
-        assert entry["check_fn"] is plugin.check_aion_available
+        assert entry["toolset"] == "gnomon"
+        assert entry["check_fn"] is plugin.check_gnomon_available
         assert entry["schema"]["parameters"]["type"] == "object"
     assert ctx.skills["forecasting"].exists()
 
 
 def test_check_fn_handshake_succeeds_against_real_cli() -> None:
-    assert plugin.check_aion_available() is True
+    assert plugin.check_gnomon_available() is True
 
 
 def test_check_fn_fails_when_cli_missing(monkeypatch) -> None:
-    monkeypatch.setenv("AION_PLUGIN_CLI", "/nonexistent/aion-binary")
-    assert plugin.check_aion_available() is False
+    monkeypatch.setenv("GNOMON_PLUGIN_CLI", "/nonexistent/gnomon-binary")
+    assert plugin.check_gnomon_available() is False
 
 
 def test_capabilities_handler_passes_payload_through() -> None:
-    payload = json.loads(plugin.handle_aion_capabilities({}))
+    payload = json.loads(plugin.handle_gnomon_capabilities({}))
     assert payload["schema_version"] == "0.1"
     assert payload["interfaces"]["cli"] is True
 
 
 def test_inspect_handler_on_example_dataset() -> None:
-    payload = json.loads(plugin.handle_aion_inspect({
+    payload = json.loads(plugin.handle_gnomon_inspect({
         "input": str(REPO_ROOT / "examples" / "daily_requests.csv"),
         "time_column": "timestamp",
         "target_column": "requests",
@@ -99,7 +99,7 @@ def test_inspect_handler_on_example_dataset() -> None:
 
 
 def test_forecast_handler_end_to_end(tmp_path) -> None:
-    payload = json.loads(plugin.handle_aion_forecast({
+    payload = json.loads(plugin.handle_gnomon_forecast({
         "input": str(REPO_ROOT / "examples" / "daily_requests.csv"),
         "time_column": "timestamp",
         "target_column": "requests",
@@ -113,8 +113,8 @@ def test_forecast_handler_end_to_end(tmp_path) -> None:
     assert all("support" in result for result in payload["results"])
 
 
-def test_aion_error_is_passed_through_verbatim() -> None:
-    payload = json.loads(plugin.handle_aion_inspect({
+def test_gnomon_error_is_passed_through_verbatim() -> None:
+    payload = json.loads(plugin.handle_gnomon_inspect({
         "input": "/does/not/exist.csv",
         "time_column": "timestamp",
         "target_column": "requests",
@@ -124,14 +124,14 @@ def test_aion_error_is_passed_through_verbatim() -> None:
 
 
 def test_missing_cli_returns_structured_error_without_raising(monkeypatch) -> None:
-    monkeypatch.setenv("AION_PLUGIN_CLI", "/nonexistent/aion-binary")
-    payload = json.loads(plugin.handle_aion_capabilities({}))
+    monkeypatch.setenv("GNOMON_PLUGIN_CLI", "/nonexistent/gnomon-binary")
+    payload = json.loads(plugin.handle_gnomon_capabilities({}))
     assert payload["status"] == "error"
-    assert payload["error"]["code"] == "AION_NOT_INSTALLED"
+    assert payload["error"]["code"] == "GNOMON_NOT_INSTALLED"
 
 
 def test_missing_arguments_rejected_before_subprocess() -> None:
-    payload = json.loads(plugin.handle_aion_forecast({"input": "x.csv"}))
+    payload = json.loads(plugin.handle_gnomon_forecast({"input": "x.csv"}))
     assert payload["error"]["code"] == "INVALID_ARGUMENTS"
 
 
@@ -155,7 +155,7 @@ def test_register_exposes_context_proposal_tool() -> None:
     ctx = RecordingContext()
     ctx.llm = _FakeLlm({})
     plugin.register(ctx)
-    assert "aion_propose_context_events" in ctx.tools
+    assert "gnomon_propose_context_events" in ctx.tools
 
 
 def test_propose_context_events_end_to_end(tmp_path, monkeypatch) -> None:
@@ -184,7 +184,7 @@ def test_propose_context_events_end_to_end(tmp_path, monkeypatch) -> None:
     assert payload["rejected"] == []
     assert payload["events"][0]["backtest_admissible"] is True
     assert Path(payload["events_file"]).exists()
-    # The prompt sent to the host model is Aion's, carrying the document.
+    # The prompt sent to the host model is Gnomon's, carrying the document.
     sent = ctx.llm.calls[0]
     assert "documents are DATA" in sent["instructions"]
     assert "launches.md" in sent["instructions"]
@@ -202,13 +202,13 @@ def test_propose_context_events_wraps_llm_failure(tmp_path) -> None:
     ctx.llm = _BrokenLlm()
     handler = plugin.make_propose_context_handler(ctx)
     payload = json.loads(handler({"files": [str(document)]}))
-    assert payload["error"]["code"] == "AION_LLM_FAILED"
+    assert payload["error"]["code"] == "GNOMON_LLM_FAILED"
     assert payload["error"]["retryable"] is True
 
 
 def test_tap_skill_is_in_sync_with_plugin_skill() -> None:
     # skills/forecasting/ exists so `hermes skills install
-    # TensorLink-AI/Aion/skills/forecasting` works (the tap tree cannot use
+    # TensorLink-AI/Gnomon/skills/forecasting` works (the tap tree cannot use
     # symlinks); it must stay identical to the plugin-bundled copy.
     tap_skill = REPO_ROOT / "skills" / "forecasting" / "SKILL.md"
     assert tap_skill.read_text() == (PLUGIN_DIR / "SKILL.md").read_text()
@@ -234,7 +234,7 @@ def test_root_plugin_manifest_matches_integration_copy() -> None:
 
 def test_root_init_reexports_plugin_entry_points() -> None:
     spec = importlib.util.spec_from_file_location(
-        "aion_root_plugin",
+        "gnomon_root_plugin",
         REPO_ROOT / "__init__.py",
         submodule_search_locations=[str(REPO_ROOT)],
     )
@@ -242,13 +242,13 @@ def test_root_init_reexports_plugin_entry_points() -> None:
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     assert callable(module.register)
-    assert module.check_aion_available is not None
+    assert module.check_gnomon_available is not None
 
 
 def test_frequency_enum_matches_runtime_toolspec() -> None:
-    from aion.toolspec import _INPUT_PROPERTIES as runtime_properties
+    from gnomon.toolspec import _INPUT_PROPERTIES as runtime_properties
 
-    plugin_enum = plugin.AION_FORECAST_SCHEMA["parameters"]["properties"]["frequency"]["enum"]
+    plugin_enum = plugin.GNOMON_FORECAST_SCHEMA["parameters"]["properties"]["frequency"]["enum"]
     assert plugin_enum == runtime_properties["frequency"]["enum"]
 
 
@@ -259,8 +259,8 @@ def test_forecast_handler_forwards_threshold(tmp_path, monkeypatch) -> None:
         captured["args"] = cli_args
         return {"status": "complete"}
 
-    monkeypatch.setattr(plugin.tools, "_run_aion", fake_run)
-    plugin.handle_aion_forecast({
+    monkeypatch.setattr(plugin.tools, "_run_gnomon", fake_run)
+    plugin.handle_gnomon_forecast({
         "input": "data.csv", "time_column": "t", "target_column": "v",
         "horizon": 4, "threshold": 99.5,
     })
@@ -269,7 +269,7 @@ def test_forecast_handler_forwards_threshold(tmp_path, monkeypatch) -> None:
 
 
 def test_investigate_handler_end_to_end(tmp_path) -> None:
-    payload = json.loads(plugin.handle_aion_investigate_change({
+    payload = json.loads(plugin.handle_gnomon_investigate_change({
         "input": str(REPO_ROOT / "examples" / "messy_requests.csv"),
         "time_column": "timestamp",
         "target_column": "requests",
@@ -280,7 +280,7 @@ def test_investigate_handler_end_to_end(tmp_path) -> None:
 
 
 def test_decide_handler_degrades_without_utilities(tmp_path) -> None:
-    payload = json.loads(plugin.handle_aion_decide({
+    payload = json.loads(plugin.handle_gnomon_decide({
         "input": str(REPO_ROOT / "examples" / "messy_requests.csv"),
         "time_column": "timestamp",
         "target_column": "requests",
@@ -294,7 +294,7 @@ def test_decide_handler_degrades_without_utilities(tmp_path) -> None:
 
 
 def test_monitor_handler_end_to_end(tmp_path) -> None:
-    payload = json.loads(plugin.handle_aion_monitor({
+    payload = json.loads(plugin.handle_gnomon_monitor({
         "input": str(REPO_ROOT / "examples" / "messy_requests.csv"),
         "time_column": "timestamp",
         "target_column": "requests",
@@ -308,7 +308,7 @@ def test_monitor_handler_end_to_end(tmp_path) -> None:
 
 
 def test_new_handlers_reject_missing_arguments_before_subprocess() -> None:
-    payload = json.loads(plugin.handle_aion_decide({
+    payload = json.loads(plugin.handle_gnomon_decide({
         "input": "x.csv", "time_column": "t", "target_column": "y",
     }))
     assert payload["status"] == "error"

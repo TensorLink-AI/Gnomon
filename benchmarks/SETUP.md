@@ -89,7 +89,7 @@ native HDF5 equivalent`) — pass `--no-cache`.
 ```bash
 .venv/bin/python -m benchmarks.run_all --config benchmarks/configs/glm52.yaml --dry-run
 .venv/bin/python -m benchmarks.run_all --config benchmarks/configs/glm52.yaml \
-    --only tb-control,tb-aion --continue-on-error
+    --only tb-control,tb-gnomon --continue-on-error
 ```
 
 Each run writes a `manifest.json` next to its results recording the
@@ -104,12 +104,12 @@ control arms are far more than the rest of the suite combined:
 
 | Arm | Scale | Cost | Wall clock |
 | --- | --- | --- | --- |
-| TemporalBench control / Aion | 50 rows | ~$2.9 / ~$1.1 | ~2 h each |
-| TimeSage direct / aion-tools | 127 turns | ~$5.9 / ~$2.6 | ~4 h / ~1.5 h |
-| MTBench control / aion / tools | 50 tasks | ~$0.26 / ~$0.10 / ~$0.50 | < 1 h |
+| TemporalBench control / Gnomon | 50 rows | ~$2.9 / ~$1.1 | ~2 h each |
+| TimeSage direct / gnomon-tools | 127 turns | ~$5.9 / ~$2.6 | ~4 h / ~1.5 h |
+| MTBench control / gnomon / tools | 50 tasks | ~$0.26 / ~$0.10 / ~$0.50 | < 1 h |
 | CiK control | 71 tasks × 50 samples | **~$140** | many hours |
 | AnomLLM control | 400 series | **~$18** | ~22 h |
-| CiK / AnomLLM Aion arms | full | $0 (no LLM) | ~20 min |
+| CiK / AnomLLM Gnomon arms | full | $0 (no LLM) | ~20 min |
 
 `--limit` caps the LLM-bearing adapters (TemporalBench, TimeSage,
 MTBench). CiK scales by `--seeds` and `--task-filter`; AnomLLM's official

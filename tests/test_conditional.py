@@ -15,9 +15,9 @@ from pathlib import Path
 
 sys.path.insert(0, "src")
 
-from aion.conditional import CONDITIONAL_SUPPORT, conditional_candidates  # noqa: E402
-from aion.context import ContextEvent, ContextSource  # noqa: E402
-from aion.runtime import forecast  # noqa: E402
+from gnomon.conditional import CONDITIONAL_SUPPORT, conditional_candidates  # noqa: E402
+from gnomon.context import ContextEvent, ContextSource  # noqa: E402
+from gnomon.runtime import forecast  # noqa: E402
 
 START = datetime(2024, 1, 1, tzinfo=timezone.utc)
 

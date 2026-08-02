@@ -8,11 +8,11 @@ Two agent conditions, matched turn-for-turn on the same tasks:
     visibility contract) plus the running conversation, and answers each
     user turn with no tools.
 
-``aion-tools``
+``gnomon-tools``
     The same model and the same visible series, but with a function-
     calling loop over deterministic tools whose numbers are computed —
-    not generated: summary statistics, Aion season detection, Aion
-    backtested forecasting, and Aion graded anomaly detection. The
+    not generated: summary statistics, Gnomon season detection, Gnomon
+    backtested forecasting, and Gnomon graded anomaly detection. The
     system prompt requires every quoted number to come from a tool
     result.
 
@@ -80,7 +80,7 @@ TOOL_SPECS = [
         "type": "function",
         "function": {
             "name": "detect_season",
-            "description": "Aion's autocorrelation-based seasonality detection: dominant period (in observations), strength, and basis.",
+            "description": "Gnomon's autocorrelation-based seasonality detection: dominant period (in observations), strength, and basis.",
             "parameters": {
                 "type": "object",
                 "properties": {"column": {"type": "string"}},
@@ -91,8 +91,8 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
-            "name": "aion_forecast",
-            "description": "Aion's backtested forecast for a numeric column: model selected against mandatory baselines, per-step point and q10/q50/q90, support status. Abstains when history cannot carry the forecast.",
+            "name": "gnomon_forecast",
+            "description": "Gnomon's backtested forecast for a numeric column: model selected against mandatory baselines, per-step point and q10/q50/q90, support status. Abstains when history cannot carry the forecast.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -106,8 +106,8 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
-            "name": "aion_detect_anomalies",
-            "description": "Aion's graded anomaly detection: competing detectors scored on synthetic anomaly injection, winner flags anomalous timestamps, grades disclosed.",
+            "name": "gnomon_detect_anomalies",
+            "description": "Gnomon's graded anomaly detection: competing detectors scored on synthetic anomaly injection, winner flags anomalous timestamps, grades disclosed.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -161,8 +161,8 @@ class ToolBox:
             handler = {
                 "series_stats": self.series_stats,
                 "detect_season": self.detect_season,
-                "aion_forecast": self.aion_forecast,
-                "aion_detect_anomalies": self.aion_detect_anomalies,
+                "gnomon_forecast": self.gnomon_forecast,
+                "gnomon_detect_anomalies": self.gnomon_detect_anomalies,
             }[name]
         except KeyError:
             return {"error": f"unknown tool {name}"}
@@ -189,17 +189,17 @@ class ToolBox:
         }
 
     def _frequency(self) -> str:
-        from aion.contracts import AionError
-        from aion.temporal import infer_frequency
+        from gnomon.contracts import GnomonError
+        from gnomon.temporal import infer_frequency
 
         aware = self._aware_timestamps()
         try:
             return infer_frequency([datetime.fromisoformat(t) for t in aware[:64]])
-        except (AionError, ValueError, IndexError):
+        except (GnomonError, ValueError, IndexError):
             return "h"
 
     def detect_season(self, column: str) -> dict[str, Any]:
-        from aion.temporal import detect_season
+        from gnomon.temporal import detect_season
 
         values = self._column(column)
         season, strength, basis = detect_season(values, self._frequency())
@@ -211,7 +211,7 @@ class ToolBox:
         values = self._column(column)
         if not aware or len(aware) != len(values):
             raise ValueError("visible series has no parseable regular time axis")
-        run_dir = Path(tempfile.mkdtemp(prefix="timesage-aion-", dir=self.work_dir))
+        run_dir = Path(tempfile.mkdtemp(prefix="timesage-gnomon-", dir=self.work_dir))
         path = run_dir / "visible.csv"
         with path.open("w", newline="", encoding="utf-8") as handle:
             writer = csv.writer(handle)
@@ -220,17 +220,17 @@ class ToolBox:
                 writer.writerow([timestamp, repr(float(value))])
         return path
 
-    def aion_forecast(self, column: str, horizon: int) -> dict[str, Any]:
-        from aion import forecast as aion_forecast
-        from aion.contracts import AionError
+    def gnomon_forecast(self, column: str, horizon: int) -> dict[str, Any]:
+        from gnomon import forecast as gnomon_forecast
+        from gnomon.contracts import GnomonError
 
         csv_path = self._write_csv(column)
         try:
-            artifact, _ = aion_forecast(
+            artifact, _ = gnomon_forecast(
                 str(csv_path), time_column="timestamp", target_column="value",
-                horizon=int(horizon), output=str(csv_path.parent / "aion-output"),
+                horizon=int(horizon), output=str(csv_path.parent / "gnomon-output"),
             )
-        except AionError as error:
+        except GnomonError as error:
             return {"abstained": True, "code": error.code,
                     "message": error.message}
         result = artifact.results[0]
@@ -245,10 +245,10 @@ class ToolBox:
             "forecast": result.forecast[:64],
         }
 
-    def aion_detect_anomalies(self, column: str,
+    def gnomon_detect_anomalies(self, column: str,
                               threshold: float | None = None) -> dict[str, Any]:
-        from aion.anomaly import DEFAULT_THRESHOLD, detect_anomalies
-        from aion.temporal import detect_season
+        from gnomon.anomaly import DEFAULT_THRESHOLD, detect_anomalies
+        from gnomon.temporal import detect_season
 
         values = self._column(column)
         season, _, _ = detect_season(values, self._frequency())
@@ -289,7 +289,7 @@ def run_dialogue(
     """Replay all user turns; return one record per user turn with the
     agent's final response and tool usage."""
     toolbox = ToolBox(task, work_dir=work_dir)
-    use_tools = condition == "aion-tools"
+    use_tools = condition == "gnomon-tools"
     system = (TOOLS_SYSTEM if use_tools else DIRECT_SYSTEM).format(
         csv_text=toolbox.bounded_csv()
     )

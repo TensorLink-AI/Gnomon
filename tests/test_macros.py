@@ -7,10 +7,10 @@ from pathlib import Path
 import json
 import pytest
 
-from aion.cli import main
-from aion.contracts import AionError
-from aion.ids import FixedClock
-from aion.macros import decide, investigate_change, monitor
+from gnomon.cli import main
+from gnomon.contracts import GnomonError
+from gnomon.ids import FixedClock
+from gnomon.macros import decide, investigate_change, monitor
 
 CLOCK = FixedClock(datetime(2026, 7, 1, tzinfo=timezone.utc))
 NOISE = [0.5, -0.3, 0.2, -0.4, 0.1, 0.3, -0.2, -0.1, 0.4, -0.5]
@@ -72,7 +72,7 @@ def test_investigate_short_history_abstains(tmp_path):
 
 
 def test_investigate_ranks_concurrent_event(tmp_path):
-    from aion.context import ContextEvent
+    from gnomon.context import ContextEvent
     source = _csv(tmp_path / "shift.csv", _shifted_series())
     event = ContextEvent(
         event_id="promo-1", event_type="promotion", entity_scope=("__default__",),
@@ -151,7 +151,7 @@ def test_decide_multiple_series_requires_selection(tmp_path):
         rows.append(f"{day},b,{200 - i}")
     source = tmp_path / "two.csv"
     source.write_text("\n".join(rows) + "\n", encoding="utf-8")
-    with pytest.raises(AionError) as caught:
+    with pytest.raises(GnomonError) as caught:
         decide(
             str(source), time_column="timestamp", target_column="value",
             series_column="series", horizon=3, threshold=150.0,

@@ -6,10 +6,10 @@ from __future__ import annotations
 import csv
 from datetime import datetime, timedelta, timezone
 
-from aion.adjudication import COMBINED_MODEL_NAME, Candidate, rank_candidates
-from aion.context import ContextEvent, ContextSource
-from aion.covariates import load_covariates
-from aion.runtime import capabilities, forecast
+from gnomon.adjudication import COMBINED_MODEL_NAME, Candidate, rank_candidates
+from gnomon.context import ContextEvent, ContextSource
+from gnomon.covariates import load_covariates
+from gnomon.runtime import capabilities, forecast
 
 START = datetime(2025, 1, 1, tzinfo=timezone.utc)
 COUNT = 130

@@ -6,7 +6,7 @@ hits first — the whole covariate family, AMBIGUOUS_FREQUENCY, INPUT_NOT_FOUND,
 EMPTY_DATASET, INVALID_JSON_ARGUMENT. `docs/troubleshooting.md` covered
 several of them in prose, so the human was served where the agent was not.
 
-This test walks the `AionError` call sites so the promise stays true as
+This test walks the `GnomonError` call sites so the promise stays true as
 codes are added, rather than being re-audited by hand.
 """
 
@@ -17,9 +17,9 @@ from pathlib import Path
 
 import pytest
 
-from aion.contracts import REPAIR_OPTIONS
+from gnomon.contracts import REPAIR_OPTIONS
 
-SRC = Path(__file__).resolve().parent.parent / "src" / "aion"
+SRC = Path(__file__).resolve().parent.parent / "src" / "gnomon"
 
 #: Codes constructed dynamically, or raised only to be caught internally,
 #: where a static walk cannot see a literal. Each needs a reason.
@@ -39,7 +39,7 @@ def _raised_codes() -> dict[str, list[str]]:
                 func.id if isinstance(func, ast.Name)
                 else func.attr if isinstance(func, ast.Attribute) else None
             )
-            if name != "AionError" or not node.args:
+            if name != "GnomonError" or not node.args:
                 continue
             first = node.args[0]
             if isinstance(first, ast.Constant) and isinstance(first.value, str):
@@ -51,7 +51,7 @@ def _raised_codes() -> dict[str, list[str]]:
 
 def test_every_raised_code_has_repair_options():
     raised = _raised_codes()
-    assert raised, "the AST walk found no AionError call sites"
+    assert raised, "the AST walk found no GnomonError call sites"
     missing = {
         code: sites for code, sites in sorted(raised.items())
         if code not in REPAIR_OPTIONS and code not in DYNAMIC_CODES
@@ -97,9 +97,9 @@ def test_claim_verification_failure_surfaces_per_violation_options():
     """L3. `TEMPORAL_LEAKAGE` had repair options and was never raised as an
     error; `CLAIM_VERIFICATION_FAILED`, which carries it, had none of its
     own for the specific violation."""
-    from aion.contracts import AionError
-    from aion.lineage import ArtifactRecord, ClaimRecord, Lineage
-    from aion.verifier import verify_or_raise
+    from gnomon.contracts import GnomonError
+    from gnomon.lineage import ArtifactRecord, ClaimRecord, Lineage
+    from gnomon.verifier import verify_or_raise
 
     lineage = Lineage("task_1", {})
     lineage.artifacts.append(ArtifactRecord(
@@ -110,7 +110,7 @@ def test_claim_verification_failure_surfaces_per_violation_options():
         claim_id="claim:alpha", claim_class="descriptive", statement="…",
         subject="alpha", evidence_ids=(), artifact_ids=("artifact_1",),
     ))
-    with pytest.raises(AionError) as raised:
+    with pytest.raises(GnomonError) as raised:
         verify_or_raise(lineage, as_of="2026-06-01T00:00:00+00:00")
 
     payload = raised.value.to_dict()["error"]

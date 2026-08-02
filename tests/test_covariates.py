@@ -5,17 +5,17 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from aion.contracts import AionError
-from aion.covariates import (
+from gnomon.contracts import GnomonError
+from gnomon.covariates import (
     assess_covariates,
     covariate_guide,
     load_covariates,
     parse_mapping,
     validate_covariate_file,
 )
-from aion.evaluation import evaluate
-from aion.runtime import capabilities, forecast
-from aion.tsfm import capability_matrix, eligible_tsfms
+from gnomon.evaluation import evaluate
+from gnomon.runtime import capabilities, forecast
+from gnomon.tsfm import capability_matrix, eligible_tsfms
 
 
 START = datetime(2025, 1, 1, tzinfo=timezone.utc)
@@ -50,10 +50,10 @@ def _write_files(tmp_path, count: int = 100, horizon: int = 7):
 
 
 def test_mapping_requires_explicit_future_known() -> None:
-    with pytest.raises(AionError) as exc:
+    with pytest.raises(GnomonError) as exc:
         parse_mapping("temperature:continuous")
     assert exc.value.code == "INVALID_COVARIATE_MAPPING"
-    with pytest.raises(AionError) as exc:
+    with pytest.raises(GnomonError) as exc:
         parse_mapping("temperature:continuous:observed")
     assert exc.value.code == "UNSUPPORTED_COVARIATE_AVAILABILITY"
 

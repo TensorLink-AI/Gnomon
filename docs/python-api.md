@@ -5,7 +5,7 @@ The Python API calls the same runtime used by the CLI.
 ## Inspect a dataset
 
 ```python
-from aion import inspect_dataset
+from gnomon import inspect_dataset
 
 inspection = inspect_dataset(
     "observations.csv",
@@ -25,7 +25,7 @@ artifact directory.
 ## Create a forecast
 
 ```python
-from aion import forecast
+from gnomon import forecast
 
 artifact, artifact_path = forecast(
     "observations.csv",
@@ -34,7 +34,7 @@ artifact, artifact_path = forecast(
     series_column="service_id",
     frequency="D",
     horizon=7,
-    output="aion-output",
+    output="gnomon-output",
     minimum_baseline_improvement=0.02,
 )
 
@@ -46,7 +46,7 @@ print(artifact_path)
 ### Forecast with covariates
 
 ```python
-from aion import forecast, load_covariates, validate_covariate_file
+from gnomon import forecast, load_covariates, validate_covariate_file
 
 validation = validate_covariate_file(
     "observations.csv",
@@ -73,7 +73,7 @@ artifact, artifact_path = forecast(
 )
 ```
 
-The mapping requires explicit `future_known` availability. Aion uses
+The mapping requires explicit `future_known` availability. Gnomon uses
 `known_at` to replay the value available at each historical fold cutoff.
 
 The returned `ForecastArtifact` is a dataclass. Use `artifact.to_dict()` for a
@@ -84,8 +84,8 @@ canonical list and what each one carries.
 ## Handle structured errors
 
 ```python
-from aion import inspect_dataset
-from aion.contracts import AionError
+from gnomon import inspect_dataset
+from gnomon.contracts import GnomonError
 
 try:
     inspect_dataset(
@@ -93,13 +93,13 @@ try:
         time_column="timestamp",
         target_column="requests",
     )
-except AionError as error:
+except GnomonError as error:
     print(error.code)
     print(error.message)
     print(error.details)
 ```
 
-`AionError.to_dict()` returns the same structured error envelope emitted by
+`GnomonError.to_dict()` returns the same structured error envelope emitted by
 the CLI. An `unsupported` series is not an exception: inspect
 `artifact.results[*].support` and its warnings.
 

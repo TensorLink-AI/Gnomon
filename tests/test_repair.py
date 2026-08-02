@@ -11,16 +11,16 @@ from pathlib import Path
 
 import pytest
 
-from aion.contracts import AionError
-from aion.ids import FixedClock
-from aion.repair import (
+from gnomon.contracts import GnomonError
+from gnomon.ids import FixedClock
+from gnomon.repair import (
     AmbiguousDateOrder,
     parse_number,
     parse_timestamp_lenient,
     scan_day_first,
     scan_numeric_evidence,
 )
-from aion.runtime import forecast, inspect_dataset
+from gnomon.runtime import forecast, inspect_dataset
 
 CLOCK = FixedClock(datetime(2026, 7, 1, tzinfo=timezone.utc))
 REPO = Path(__file__).resolve().parent.parent
@@ -90,7 +90,7 @@ def test_ambiguous_dates_need_evidence() -> None:
     assert parse_timestamp_lenient("03/04/2026", False)[0] == datetime(2026, 3, 4)
     assert scan_day_first(["18/05/2026", "03/04/2026"]) is True
     assert scan_day_first(["2026-05-01"]) is None
-    with pytest.raises(AionError) as caught:
+    with pytest.raises(GnomonError) as caught:
         scan_day_first(["18/05/2026", "05/18/2026"])
     assert caught.value.code == "AMBIGUOUS_DATE_ORDER"
 
@@ -156,7 +156,7 @@ def test_safe_never_fills_gaps(tmp_path: Path) -> None:
     rows[12] = (rows[12][0], "N/A")      # interior sentinel leaves a hole
     source = tmp_path / "gap.csv"
     write_rows(source, rows)
-    with pytest.raises(AionError) as caught:
+    with pytest.raises(GnomonError) as caught:
         run(source, tmp_path)
     assert caught.value.code == "IRREGULAR_TIME_GRID"
 
@@ -166,7 +166,7 @@ def test_off_preserves_strict_errors(tmp_path: Path) -> None:
     rows[5] = (rows[5][0], "$105")
     source = tmp_path / "messy.csv"
     write_rows(source, rows)
-    with pytest.raises(AionError) as caught:
+    with pytest.raises(GnomonError) as caught:
         run(source, tmp_path, repair="off")
     assert caught.value.code == "INVALID_TARGET"
 
@@ -175,7 +175,7 @@ def test_safe_ambiguous_date_order_is_an_error(tmp_path: Path) -> None:
     rows = [(f"0{1 + index}/03/2026", str(100 + index)) for index in range(9)]
     source = tmp_path / "ambiguous.csv"
     write_rows(source, rows)
-    with pytest.raises(AionError) as caught:
+    with pytest.raises(GnomonError) as caught:
         inspect_dataset(str(source), time_column="timestamp", target_column="value")
     assert caught.value.code == "AMBIGUOUS_DATE_ORDER"
 
@@ -201,7 +201,7 @@ def test_aggressive_fills_gaps_and_downgrades_support(tmp_path: Path) -> None:
 
 
 def _series_values(source: Path, tmp_path: Path):
-    from aion.pipeline import load_stage
+    from gnomon.pipeline import load_stage
     loaded = load_stage(
         str(source), time_column="timestamp", target_column="value",
         series_column=None, frequency=None, repair="aggressive",
@@ -215,7 +215,7 @@ def test_aggressive_resolves_conflicts_last_wins(tmp_path: Path) -> None:
     rows[5], rows[6] = rows[6], rows[5]
     source = tmp_path / "conflict.csv"
     write_rows(source, rows)
-    with pytest.raises(AionError):
+    with pytest.raises(GnomonError):
         run(source, tmp_path)             # safe refuses to choose
     artifact, _ = run(source, tmp_path, repair="aggressive")
     values = [item.value for item in _series_values(source, tmp_path)]
@@ -234,7 +234,7 @@ def test_aggressive_snaps_jittered_timestamps(tmp_path: Path) -> None:
         rows.append((stamp.isoformat(), str(100 + index)))
     source = tmp_path / "jitter.csv"
     write_rows(source, rows)
-    with pytest.raises(AionError):
+    with pytest.raises(GnomonError):
         run(source, tmp_path)
     artifact, _ = run(source, tmp_path, repair="aggressive")
     snapped = [a for a in repair_evidence(artifact)["actions"] if a["code"] == "timestamp_snapped"]
@@ -246,7 +246,7 @@ def test_aggressive_coerces_mixed_timezones(tmp_path: Path) -> None:
     rows[3] = (rows[3][0] + "T00:00:00+00:00", rows[3][1])
     source = tmp_path / "mixed_tz.csv"
     write_rows(source, rows)
-    with pytest.raises(AionError) as caught:
+    with pytest.raises(GnomonError) as caught:
         run(source, tmp_path)
     assert caught.value.code == "MIXED_TIMEZONES"
     artifact, _ = run(source, tmp_path, repair="aggressive")
@@ -259,7 +259,7 @@ def test_excessive_repair_is_refused(tmp_path: Path) -> None:
     rows = [row for index, row in enumerate(rows) if index % 4 != 1]
     source = tmp_path / "swiss_cheese.csv"
     write_rows(source, rows)
-    with pytest.raises(AionError) as caught:
+    with pytest.raises(GnomonError) as caught:
         run(source, tmp_path, repair="aggressive")
     assert caught.value.code == "EXCESSIVE_REPAIR"
     assert caught.value.to_dict()["error"]["repair_options"]
@@ -268,7 +268,7 @@ def test_excessive_repair_is_refused(tmp_path: Path) -> None:
 def test_invalid_repair_level_is_typed(tmp_path: Path) -> None:
     source = tmp_path / "clean.csv"
     write_rows(source, daily_rows(10))
-    with pytest.raises(AionError) as caught:
+    with pytest.raises(GnomonError) as caught:
         run(source, tmp_path, repair="yolo")
     assert caught.value.code == "INVALID_REPAIR_LEVEL"
 

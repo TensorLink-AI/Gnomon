@@ -2,11 +2,27 @@
 
 ## Unreleased
 
+- **Renamed from Aion to Gnomon, and bumped to 0.5.0.** The old name
+  collided with AION (Zhan et al., arXiv:2605.25045) and could not be
+  claimed on PyPI. Every public identifier moved: distribution
+  `aion-forecast` → `gnomon-forecast`, import package `aion` → `gnomon`,
+  console script `aion` → `gnomon`, MCP tools `aion_*` → `gnomon_*`,
+  environment `AION_*` → `GNOMON_*`, default output `aion-output/` →
+  `gnomon-output/`, config `aion.yaml` → `gnomon.yaml`, image
+  `ghcr.io/tensorlink-ai/aion` → `ghcr.io/tensorlink-ai/gnomon`, and the
+  repository itself. **This breaks the frozen v0.2 tool set**, deliberately
+  and without aliases — serving `aion_*` would have kept the name the
+  rename existed to remove. Porting a v0.4.0 client is a prefix
+  substitution: no tool input, response envelope, artifact layout, support
+  value, or error code changed. Golden artifact IDs move because they are
+  salted with the runtime version, not the project name, and the version
+  bumped. See [the rename record](docs/rename-impact-inventory.md).
+
 - Temporal-leakage trap family (`benchmarks/leaktrap/`), with results. On 40
   generated trap tasks where reading past the cutoff is worth ~78% of the
   honest ceiling, a GLM-5.2 control told plainly that "a value is only
   knowable on or after its publication date" leaked on **13 of the 35 tasks
-  it answered** and reproduced post-cutoff values verbatim on **4**. Aion
+  it answered** and reproduced post-cutoff values verbatim on **4**. Gnomon
   through the snapshot path: **0 of 40**, with the no-read-past-cutoff claim
   proven **40/40** from each run's own `snapshot_access` evidence rather than
   asserted. Exact McNemar p = 0.00024. See
@@ -44,7 +60,7 @@
   namespace) is projected onto the emitted quantiles — monotone, so it
   cannot reorder them, and idempotent. A claim that supplies a *value*
   rather than a bound is refused, and the refusal names the admissible route
-  (a covariate, where Aion estimates the coefficient on identical folds).
+  (a covariate, where Gnomon estimates the coefficient on identical folds).
   Bounds the training window already breaches are rejected with the
   violating timestamps rather than enforced. Each run with claims emits a
   `constraint_applied` evidence record. No new dataclass; runs without
@@ -99,7 +115,7 @@
   an admitted VAR carries intervals derived from its own residuals rather
   than a different model's, and every run with `--multivariate` emits a
   `multivariate_gate` evidence record with the conditions and the one that
-  decided the outcome. `aion.multivariate.forecast_var` is removed;
+  decided the outcome. `gnomon.multivariate.forecast_var` is removed;
   `VarFrame` replaces it.
 - **Behaviour change.** Ensemble prediction intervals are calibrated on the
   selection and calibration folds instead of a trailing window of the series.
@@ -158,7 +174,7 @@
   covers. A fourth detector (`local_slope`) scores how fast the series
   moves rather than where it sits, and the grader plants a fourth family
   (`trend_shift`) so that detector must earn selection like any other.
-  Found by running AnomLLM's `trend` dataset: Aion flagged nothing on
+  Found by running AnomLLM's `trend` dataset: Gnomon flagged nothing on
   397 of 400 series while reporting `supported`, because its grader only
   ever planted spikes, level shifts and dropouts — the detectors were
   built to treat drift as *not* an anomaly. Against that dataset's
@@ -178,7 +194,7 @@
 - Forecast results gain an informational `notes` channel (additive; never
   downgrades support, unlike warnings). When TSFM candidates are eligible
   for a series but none is installed, the result now says so and names the
-  `aion tsfm install` command — a fresh install no longer silently hides
+  `gnomon tsfm install` command — a fresh install no longer silently hides
   the foundation-model tier. Notes render in `summary.md` as `- Note:`
   lines.
 - README: the sandboxed TSFM tier (Chronos-Bolt, Toto, Moment, Moirai) is
@@ -189,7 +205,7 @@
 ## 0.4.0 — first-contact release (2026-08-01)
 
 The beta-readiness release: real-world files work on first contact, a
-fifth verb (`aion detect`) lands with graded anomaly detectors, joint
+fifth verb (`gnomon detect`) lands with graded anomaly detectors, joint
 enrichments are adjudicated honestly, tracked evidence becomes
 task-conditioned with an advisory router, and the README/docs describe
 the system as it is. Content-addressed IDs are salted with the runtime
@@ -197,7 +213,7 @@ version, so all artifact IDs change with this release (inputs and
 parameters hash identically otherwise); golden artifacts were refreshed
 accordingly.
 
-### Evaluated anomaly detection (`aion detect` / `aion_detect_anomalies`)
+### Evaluated anomaly detection (`gnomon detect` / `gnomon_detect_anomalies`)
 
 - New fifth canonical macro: candidate detectors — robust z-score,
   rolling-median residual, and forecast-interval exceedance — compete on a
@@ -219,11 +235,11 @@ accordingly.
   fingerprint (trend, noise ratio, intermittency, direction-change rate,
   season) and a `task` dimension. Existing stores migrate in place
   (schema v3); legacy rows read as `forecast`.
-- `aion track leaderboard --task ...` and
+- `gnomon track leaderboard --task ...` and
   `TrackingStore.leaderboard(project, task=...)` condition realised
   performance on the task, so accumulated evidence transfers by data
   shape instead of restarting cold per project.
-- `aion route` / `aion_route`: a disclosed, advisory routing decision —
+- `gnomon route` / `gnomon_route`: a disclosed, advisory routing decision —
   verified capability filter, then a fingerprint-weighted realised-MASE
   prior claimed only once ≥10 scored records exist for the task. Every
   exclusion reason and the decision itself are recorded to the store for
@@ -268,7 +284,7 @@ accordingly.
 
 ### Messy-data repair (disclosed, capped, deterministic)
 
-Real-world CSVs now work on first contact. `aion forecast --repair
+Real-world CSVs now work on first contact. `gnomon forecast --repair
 {off,safe,aggressive}` (default `safe`):
 
 - `safe` normalises cell text only — mixed date formats (slash dates with
@@ -286,7 +302,7 @@ Real-world CSVs now work on first contact. `aion forecast --repair
   become series warnings, so support downgrades honestly.
 - Repairs fire only where strict parsing would fail: clean files remain
   byte-identical with unchanged artifact IDs.
-- `aion inspect` now diagnoses instead of rejecting: `data_quality`
+- `gnomon inspect` now diagnoses instead of rejecting: `data_quality`
   reports what the file needs (`clean` / `repaired_safe` /
   `repaired_aggressive`), lists the repairs, and prints the exact
   follow-up command.
@@ -296,17 +312,17 @@ Real-world CSVs now work on first contact. `aion forecast --repair
 
 - New always-on formats: `.tsv`, `.json` (array of objects),
   `.jsonl`/`.ndjson`, and gzip-compressed text inputs (`.csv.gz`, …).
-- `.xlsx` behind a new `excel` extra (`pip install 'aion-forecast[excel]'`).
+- `.xlsx` behind a new `excel` extra (`pip install 'gnomon-forecast[excel]'`).
 - Semicolon/tab/pipe-delimited "CSV" detected under repair when the header
   provably names the mapped columns (disclosed as `delimiter_detected`);
   non-UTF-8 files fall back to Windows-1252 under repair (disclosed as an
   `encoding_assumed` assumption; strict mode raises `INVALID_ENCODING`).
-- `aion capabilities` reports the full input matrix.
+- `gnomon capabilities` reports the full input matrix.
 
 ## 0.3.0 — the temporal execution harness (2026-07-31)
 
-Aion grows from a forecasting engine into a temporal execution harness:
-an agent supplies an objective; Aion compiles it into validated,
+Gnomon grows from a forecasting engine into a temporal execution harness:
+an agent supplies an objective; Gnomon compiles it into validated,
 snapshot-bound execution and returns typed, evidence-linked conclusions —
 or a structured abstention. **Every v0.2 tool, CLI command, and artifact
 schema keeps working unchanged** (see `COMPATIBILITY.md` for the frozen
@@ -314,15 +330,15 @@ set and each amendment).
 
 ### New verbs
 
-- `aion investigate` / `aion_investigate_change` — what changed?
+- `gnomon investigate` / `gnomon_investigate_change` — what changed?
   Changepoints, regime shift vs transient, anomalies, and ranked
   *associational* explanations (concurrent events, cross-series
   precedence) with residual uncertainty. Never returns a cause.
-- `aion decide` / `aion_decide` — what should we do? Exceedance scenarios
+- `gnomon decide` / `gnomon_decide` — what should we do? Exceedance scenarios
   from an evaluated forecast, feasibility and constraint checks, expected
   utility — or, without utilities, the feasible-action comparison as
   `conditionally_supported: missing utility inputs`.
-- `aion monitor` / `aion_monitor` — when should we intervene? Sequential
+- `gnomon monitor` / `gnomon_monitor` — when should we intervene? Sequential
   exceedance risk per step and an alert-cost-aware rule (cost-optimal with
   alert/miss costs).
 
@@ -331,9 +347,9 @@ set and each amendment).
 - Every observation carries `valid_time` and `known_time`; all execution
   reads through a `Snapshot` that structurally cannot serve rows published
   after its `as_of`, and logs every read.
-- `aion ingest` appends revisions (corrected files become new vintage
-  rows); `aion store list` inspects datasets; `store:<dataset>` inputs.
-- `aion forecast --as-of <instant>` replays any historical moment; the
+- `gnomon ingest` appends revisions (corrected files become new vintage
+  rows); `gnomon store list` inspects datasets; `store:<dataset>` inputs.
+- `gnomon forecast --as-of <instant>` replays any historical moment; the
   artifact's `snapshot_access` evidence proves the maximum `known_time`
   touched. Backtest folds train on the series *as known at* each fold
   cutoff.
@@ -357,28 +373,28 @@ set and each amendment).
   declared-or-absent utilities; realised-outcome scoring computes regret
   vs the best feasible action in hindsight and ex-ante optimality — bare
   `correct` is retired. v0.2 `DecisionRecord`s load as degraded artifacts.
-- `aion status` — pollable open forecasts, due horizons, unresolved
+- `gnomon status` — pollable open forecasts, due horizons, unresolved
   decisions, realised performance (descriptive, never causal).
-- `aion eval episodes` — trap-family episode suite (temporal leakage,
+- `gnomon eval episodes` — trap-family episode suite (temporal leakage,
   invented numbers, abstention traps, regime breaks) with mechanical
-  graders and pass^k, feeding `aion eval compare`.
+  graders and pass^k, feeding `gnomon eval compare`.
 
-### Experimental (gated behind `AION_EXPERIMENTAL_PLANNER=1`)
+### Experimental (gated behind `GNOMON_EXPERIMENTAL_PLANNER=1`)
 
 - `TemporalPlan` DAG IR, deterministic validator, executor with step
   checkpointing / content-addressed caching / deterministic replay, and a
-  bounded two-round repair loop. `aion plan compile|validate|execute` and
-  the `aion_compile_task` / `aion_validate_plan` / `aion_execute_plan` /
-  `aion_get_run` tools. Macros remain the default path.
+  bounded two-round repair loop. `gnomon plan compile|validate|execute` and
+  the `gnomon_compile_task` / `gnomon_validate_plan` / `gnomon_execute_plan` /
+  `gnomon_get_run` tools. Macros remain the default path.
 
 ### Integrations
 
-- New tools: `aion_get_artifact`, `aion_explain_run`, `aion_status`,
-  `aion_resolve_outcome`; Hermes plugin exposes the three new macros.
+- New tools: `gnomon_get_artifact`, `gnomon_explain_run`, `gnomon_status`,
+  `gnomon_resolve_outcome`; Hermes plugin exposes the three new macros.
 - Quickstart: `docs/quickstart-mcp.md`; bundled messy example datasets.
 
 ## 0.2.0
 
 Forecasting engine: evaluated forecasts with abstention, covariate and
 context-event ablation, tracking store, TSFM sandboxes, MCP server,
-Hermes plugin, `aion eval compare`.
+Hermes plugin, `gnomon eval compare`.

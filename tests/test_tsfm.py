@@ -13,7 +13,7 @@ import sys
 
 sys.path.insert(0, "src")
 
-from aion.tsfm import (
+from gnomon.tsfm import (
     TSFMAdapter,
     TSFMUnavailable,
     available_tsfms,
@@ -23,8 +23,8 @@ from aion.tsfm import (
     register_tsfm,
     tsfm_candidates,
 )
-from aion.evaluation import evaluate
-from aion.runtime import capabilities
+from gnomon.evaluation import evaluate
+from gnomon.runtime import capabilities
 
 
 class TestRegistry:
@@ -72,7 +72,7 @@ class TestGracefulDegradation:
         # the adapter should raise TSFMUnavailable.
         # When torch IS NOT installed, the same applies.
         # We test the import-checking behavior via the _try_import helper.
-        from aion.tsfm import _try_import, TSFMUnavailable
+        from gnomon.tsfm import _try_import, TSFMUnavailable
         with pytest.raises(TSFMUnavailable):
             _try_import("this_module_does_not_exist_xyz")
 
@@ -122,43 +122,43 @@ class TestSandbox:
     """Sandbox venv management."""
 
     def test_list_sandboxes_empty_by_default(self):
-        from aion.tsfm_sandbox import list_sandboxes
+        from gnomon.tsfm_sandbox import list_sandboxes
         # On a fresh system, no sandboxes should exist
         # (but we can't guarantee the test env is clean, so just check it's a list)
         assert isinstance(list_sandboxes(), list)
 
     def test_sandbox_exists_returns_bool(self):
-        from aion.tsfm_sandbox import sandbox_exists
+        from gnomon.tsfm_sandbox import sandbox_exists
         assert isinstance(sandbox_exists("chronos_bolt_mini"), bool)
         assert sandbox_exists("nonexistent") is False
 
     def test_subprocess_adapter_protocol(self):
-        from aion.tsfm_sandbox import SubprocessAdapter
+        from gnomon.tsfm_sandbox import SubprocessAdapter
         adapter = SubprocessAdapter("chronos_bolt_mini")
         assert adapter.name == "chronos_bolt_mini"
         assert adapter.params_m == 21.0
         assert adapter.supports_quantiles is True
 
     def test_ttm_does_not_support_quantiles(self):
-        from aion.tsfm_sandbox import SubprocessAdapter
+        from gnomon.tsfm_sandbox import SubprocessAdapter
         adapter = SubprocessAdapter("ttm")
         assert adapter.supports_quantiles is False
 
     def test_moment_does_not_support_quantiles(self):
-        from aion.tsfm_sandbox import SubprocessAdapter
+        from gnomon.tsfm_sandbox import SubprocessAdapter
         adapter = SubprocessAdapter("moment_small")
         assert adapter.supports_quantiles is False
 
     def test_sandbox_candidates_empty_without_venvs(self):
-        from aion.tsfm_sandbox import sandbox_tsfm_candidates
+        from gnomon.tsfm_sandbox import sandbox_tsfm_candidates
         candidates = sandbox_tsfm_candidates(frequency="h")
         # Without any sandboxes set up, should be empty
         # (or contain only sandboxes that actually exist)
         assert isinstance(candidates, list)
 
     def test_tsfm_pip_specs_cover_all_adapters(self):
-        from aion.tsfm_sandbox import TSFM_PIP_SPECS
-        from aion.tsfm import available_tsfms
+        from gnomon.tsfm_sandbox import TSFM_PIP_SPECS
+        from gnomon.tsfm import available_tsfms
         # Every registered TSFM should have a pip spec
         for name in available_tsfms():
             assert name in TSFM_PIP_SPECS, f"Missing pip spec for {name}"
@@ -169,7 +169,7 @@ class TestSandbox:
         assert isinstance(caps["models"]["tsfm_sandboxes"], list)
 
     def test_cli_tsfm_list(self):
-        from aion.cli import main
+        from gnomon.cli import main
         import io, contextlib
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
@@ -210,8 +210,8 @@ class TestSandbox:
         )
         assert result.supported is True
         assert result.notes, "expected a TSFM-availability note"
-        assert any("aion tsfm install" in note for note in result.notes)
-        assert not any("aion tsfm install" in warning for warning in result.warnings)
+        assert any("gnomon tsfm install" in note for note in result.notes)
+        assert not any("gnomon tsfm install" in warning for warning in result.warnings)
 
     def test_capability_exclusion_does_not_downgrade_support(self):
         """A TSFM being ineligible says nothing about the forecast's evidence.

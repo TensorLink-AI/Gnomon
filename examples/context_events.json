@@ -34,7 +34,7 @@
       "status": "confirmed",
       "confidence": 1.0,
       "attributes": {
-        "note": "A campaign window with no claim attached. Aion measures its effect from history through the context ablation; it is never told what the effect is."
+        "note": "A campaign window with no claim attached. Gnomon measures its effect from history through the context ablation; it is never told what the effect is."
       },
       "source": {
         "type": "calendar",

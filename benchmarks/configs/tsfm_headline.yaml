@@ -11,7 +11,7 @@
 #   1. With no sandboxes installed, run this config with
 #      `--output-root results/tsfm-floor`. Every result carries the
 #      "No foundation-model candidate competed" note.
-#   2. `aion tsfm install chronos_bolt_small` (and any others wanted).
+#   2. `gnomon tsfm install chronos_bolt_small` (and any others wanted).
 #   3. Run it again into the default `results/tsfm-headline`.
 #   4. Compare the pairs with `python -m benchmarks.report`.
 #
@@ -34,13 +34,13 @@ defaults:
 runs:
   - benchmark: mtbench
     name: mtb
-    args: {subcommand: aion, mode: agent}
+    args: {subcommand: gnomon, mode: agent}
   - benchmark: temporalbench
     name: tb
-    args: {condition: aion-agent, data_dir: ~/temporalbench, tiers: "T2,T4"}
+    args: {condition: gnomon-agent, data_dir: ~/temporalbench, tiers: "T2,T4"}
   # Free and model-less: the leakage traps exercise the same selection path
   # at no API cost, so the tier's effect on a structurally-safe run is
   # measurable without spending anything.
   - benchmark: leaktrap
     name: lt
-    args: {subcommand: aion}
+    args: {subcommand: gnomon}

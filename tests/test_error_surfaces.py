@@ -14,9 +14,9 @@ import json
 
 import pytest
 
-from aion.cli import main
-from aion.contracts import AionError
-from aion.ids import FixedClock
+from gnomon.cli import main
+from gnomon.contracts import GnomonError
+from gnomon.ids import FixedClock
 
 CLOCK = FixedClock(datetime(2026, 7, 1, tzinfo=timezone.utc))
 NOISE = [0.5, -0.3, 0.2, -0.4, 0.1, 0.3, -0.2, -0.1, 0.4, -0.5]
@@ -60,7 +60,7 @@ def test_unknown_subcommand_is_structured(capsys):
 # -- H21: the naive path works --------------------------------------------
 
 def test_forecast_with_no_flags_infers_and_discloses(tmp_path, capsys):
-    """`aion forecast data.csv` on an obvious two-column file."""
+    """`gnomon forecast data.csv` on an obvious two-column file."""
     code = main([
         "forecast", str(_csv(tmp_path)),
         "--output", str(tmp_path / "out"),
@@ -75,7 +75,7 @@ def test_forecast_with_no_flags_infers_and_discloses(tmp_path, capsys):
 
 
 def test_ambiguous_schema_names_the_candidates(tmp_path, capsys):
-    """Two numeric columns is not a guess Aion is entitled to make."""
+    """Two numeric columns is not a guess Gnomon is entitled to make."""
     start = date(2026, 1, 1)
     rows = [
         f"{(start + timedelta(days=i)).isoformat()},{100 + i},{500 + i}"
@@ -136,12 +136,12 @@ def test_well_formed_actions_are_accepted(tmp_path, capsys):
 def test_mcp_tool_bug_returns_a_repairable_result():
     """Anything uncaught became JSON-RPC -32603: no payload, no repair
     options, no way for an agent to self-correct."""
-    from aion import mcp_server
+    from gnomon import mcp_server
 
     original = mcp_server.runner_for
 
     def exploding_runner(name):
-        if name == "aion_forecast":
+        if name == "gnomon_forecast":
             def runner(arguments):
                 raise TypeError("string indices must be integers, not 'str'")
             return runner
@@ -151,7 +151,7 @@ def test_mcp_tool_bug_returns_a_repairable_result():
     try:
         result = mcp_server._handle({
             "method": "tools/call",
-            "params": {"name": "aion_forecast", "arguments": {}},
+            "params": {"name": "gnomon_forecast", "arguments": {}},
         })
     finally:
         mcp_server.runner_for = original
@@ -165,18 +165,18 @@ def test_mcp_tool_bug_returns_a_repairable_result():
 
 def test_mcp_results_carry_structured_content():
     """M4. Protocol 2025-06-18 supports it; every agent was parsing a string."""
-    from aion import mcp_server
+    from gnomon import mcp_server
 
     result = mcp_server._handle({
         "method": "tools/call",
-        "params": {"name": "aion_capabilities", "arguments": {}},
+        "params": {"name": "gnomon_capabilities", "arguments": {}},
     })
     assert "structuredContent" in result
     assert result["structuredContent"] == json.loads(result["content"][0]["text"])
 
 
 def test_mcp_tools_publish_an_output_schema():
-    from aion import mcp_server
+    from gnomon import mcp_server
 
     listing = mcp_server._handle({"method": "tools/list"})
     assert listing["tools"]
@@ -207,7 +207,7 @@ def test_dst_spanning_daily_data_forecasts(tmp_path, zone, start):
     """A day across a DST transition is 23 or 25 hours. The grid check used
     to call that an irregular period, and both offered repairs were wrong:
     nothing is missing, and snapping would shift every later timestamp."""
-    from aion.runtime import forecast
+    from gnomon.runtime import forecast
 
     artifact, _ = forecast(
         str(_aware_daily(tmp_path, zone, start, 90)),
@@ -218,7 +218,7 @@ def test_dst_spanning_daily_data_forecasts(tmp_path, zone, start):
 
 
 def test_dst_future_timestamps_stay_on_the_wall_clock(tmp_path):
-    from aion.runtime import forecast
+    from gnomon.runtime import forecast
 
     artifact, _ = forecast(
         str(_aware_daily(tmp_path, "Europe/London", datetime(2026, 2, 1), 90)),
@@ -234,7 +234,7 @@ def test_dst_future_timestamps_stay_on_the_wall_clock(tmp_path):
 
 def test_irregular_grid_names_the_observed_step(tmp_path):
     """H19. The error named neither the observed step nor the fix."""
-    from aion.runtime import forecast
+    from gnomon.runtime import forecast
 
     dates = ["2026-01-31", "2026-02-28", "2026-03-31", "2026-04-30",
              "2026-05-31", "2026-06-30"]
@@ -245,7 +245,7 @@ def test_irregular_grid_names_the_observed_step(tmp_path):
         + "\n",
         encoding="utf-8",
     )
-    with pytest.raises(AionError) as raised:
+    with pytest.raises(GnomonError) as raised:
         forecast(
             str(path), time_column="timestamp", target_column="value",
             horizon=2, frequency="MS", output=str(tmp_path / "out"), clock=CLOCK,
@@ -258,7 +258,7 @@ def test_irregular_grid_names_the_observed_step(tmp_path):
 
 def test_month_end_ambiguity_offers_restamping():
     """The repair that actually works is named."""
-    from aion.contracts import REPAIR_OPTIONS
+    from gnomon.contracts import REPAIR_OPTIONS
 
     actions = {
         option["action"] for option in REPAIR_OPTIONS["AMBIGUOUS_FREQUENCY"]
@@ -269,7 +269,7 @@ def test_month_end_ambiguity_offers_restamping():
 def test_mixed_frequency_panel_blames_the_file_not_a_series(tmp_path):
     """M7. Inferring one frequency from pooled observations and then
     reporting the minority series as irregular describes the symptom."""
-    from aion.runtime import forecast
+    from gnomon.runtime import forecast
 
     lines = [f"2026-01-{i + 1:02d}T00:00:00,daily,{100 + i}" for i in range(20)]
     lines += [f"2026-01-01T{i:02d}:00:00,hourly,{50 + i}" for i in range(20)]
@@ -277,7 +277,7 @@ def test_mixed_frequency_panel_blames_the_file_not_a_series(tmp_path):
     path.write_text(
         "timestamp,series,value\n" + "\n".join(lines) + "\n", encoding="utf-8",
     )
-    with pytest.raises(AionError) as raised:
+    with pytest.raises(GnomonError) as raised:
         forecast(
             str(path), time_column="timestamp", target_column="value",
             series_column="series", horizon=2,
@@ -310,7 +310,7 @@ def test_context_events_work_against_a_naive_dataset(tmp_path, capsys):
 
 
 def test_shipped_context_example_is_valid():
-    from aion.context import load_events_file
+    from gnomon.context import load_events_file
 
     repo = Path(__file__).resolve().parent.parent
     events = load_events_file(str(repo / "examples" / "context_events.json"))
@@ -323,7 +323,7 @@ def test_shipped_context_example_is_valid():
 def test_zero_scored_explains_which_window_was_missing(tmp_path, capsys):
     """`{"scored": 0}` is the failure mode of the follow-up loop the product
     promises, and was indistinguishable from "nothing was due"."""
-    from aion.tracking import TrackingStore
+    from gnomon.tracking import TrackingStore
 
     registry = tmp_path / "registry.db"
     store = TrackingStore(registry)
@@ -351,7 +351,7 @@ def test_zero_scored_explains_which_window_was_missing(tmp_path, capsys):
 def test_actuals_columns_can_be_named(tmp_path):
     """A `requests,timestamp,host` export returned {"scored": 0} because the
     first two columns were taken positionally."""
-    from aion.tracking import TrackingStore
+    from gnomon.tracking import TrackingStore
 
     store = TrackingStore(tmp_path / "registry.db")
     columns = ["requests", "timestamp", "host"]
@@ -360,16 +360,16 @@ def test_actuals_columns_can_be_named(tmp_path):
 
 
 def test_actuals_columns_refuse_to_guess_blind(tmp_path):
-    from aion.tracking import TrackingStore
+    from gnomon.tracking import TrackingStore
 
     store = TrackingStore(tmp_path / "registry.db")
-    with pytest.raises(AionError) as raised:
+    with pytest.raises(GnomonError) as raised:
         store._resolve_actuals_columns(["requests", "host", "region"], None, None, None)
     assert raised.value.code == "AMBIGUOUS_SCHEMA"
 
 
 def test_actuals_columns_infer_the_conventional_names(tmp_path):
-    from aion.tracking import TrackingStore
+    from gnomon.tracking import TrackingStore
 
     store = TrackingStore(tmp_path / "registry.db")
     assert store._resolve_actuals_columns(
@@ -383,10 +383,10 @@ def test_actuals_columns_infer_the_conventional_names(tmp_path):
 def test_operator_export_asks_rather_than_guessing(tmp_path):
     """`requests,timestamp,host` used to be read positionally as
     (requests, timestamp) and return {"scored": 0} with no complaint."""
-    from aion.tracking import TrackingStore
+    from gnomon.tracking import TrackingStore
 
     store = TrackingStore(tmp_path / "registry.db")
-    with pytest.raises(AionError) as raised:
+    with pytest.raises(GnomonError) as raised:
         store._resolve_actuals_columns(["requests", "timestamp", "host"], None, None, None)
     assert raised.value.code == "AMBIGUOUS_SCHEMA"
     assert raised.value.details["argument"] == "--target"
@@ -405,7 +405,7 @@ def test_missing_vintages_names_the_cause_and_the_remedy(tmp_path):
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from test_covariates import _write_files
 
-    from aion.covariates import validate_covariate_file
+    from gnomon.covariates import validate_covariate_file
 
     observations, covariates = _write_files(tmp_path)
     rows = list(csv_module.DictReader(covariates.open()))

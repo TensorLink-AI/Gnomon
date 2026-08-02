@@ -20,9 +20,9 @@ Ours (this directory):
 
 - `harness.py` — dialogue replay. `direct` mirrors the paper's Direct
   Answering baseline (visible CSV + conversation, no tools);
-  `aion-tools` gives the same model a function-calling loop over
-  deterministic tools (summary stats, Aion season detection, Aion
-  backtested forecasting, Aion graded anomaly detection) with a
+  `gnomon-tools` gives the same model a function-calling loop over
+  deterministic tools (summary stats, Gnomon season detection, Gnomon
+  backtested forecasting, Gnomon graded anomaly detection) with a
   system-prompt contract that every quoted number come from a tool.
   Reference agent turns are never shown to the agent.
 - `scoring.py` — applies the dataset-embedded `finding_verify` specs:
@@ -53,18 +53,18 @@ python -m benchmarks.timesage_mt.run_timesage \
     --model openai/gpt-4o --tiers L1,L2 --output-dir results/ts-direct
 
 python -m benchmarks.timesage_mt.run_timesage \
-    --data-dir ~/timesage-mt --condition aion-tools \
-    --model openai/gpt-4o --tiers L1,L2 --output-dir results/ts-aion
+    --data-dir ~/timesage-mt --condition gnomon-tools \
+    --model openai/gpt-4o --tiers L1,L2 --output-dir results/ts-gnomon
 
-aion eval compare \
-    --baseline results/ts-direct/aionbench.jsonl \
-    --treatment results/ts-aion/aionbench.jsonl
+gnomon eval compare \
+    --baseline results/ts-direct/gnomonbench.jsonl \
+    --treatment results/ts-gnomon/gnomonbench.jsonl
 ```
 
 Outputs per run: `transcripts/<task>.json` (every turn, tool calls, and
 verdicts), `scores.csv`, `summary.json` (mechanical pass rate, judge
 pass rate if enabled, unscored count, per-tier breakdown), and
-`aionbench.jsonl` (one row per scored turn).
+`gnomonbench.jsonl` (one row per scored turn).
 
 Start with `--tiers L1 --limit 10` to gauge cost; L3/L4 dialogues are
 long and tool loops multiply requests.

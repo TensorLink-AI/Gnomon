@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Aion's structured outputs make bugs unusually reproducible — the three
+        Gnomon's structured outputs make bugs unusually reproducible — the three
         fields below are usually everything needed. Agents can gather all of
         them automatically; see "Reporting issues" in the skill/docs.
   - type: textarea
@@ -13,7 +13,7 @@ body:
     attributes:
       label: Exact command or tool call
       description: The CLI command, or the MCP tool name and JSON arguments.
-      placeholder: aion forecast data.csv --time timestamp --target value --horizon 7 --repair aggressive
+      placeholder: gnomon forecast data.csv --time timestamp --target value --horizon 7 --repair aggressive
     validations:
       required: true
   - type: textarea
@@ -30,7 +30,7 @@ body:
   - type: textarea
     id: capabilities
     attributes:
-      label: Output of `aion capabilities`
+      label: Output of `gnomon capabilities`
       description: Reports the runtime version, Python, and installed extras.
       render: json
     validations:
@@ -41,5 +41,5 @@ body:
       label: Input data (optional)
       description: |
         A minimal sample of the input that triggers the issue, if it can be
-        shared. If not, the `data_quality` section of `aion inspect` output
+        shared. If not, the `data_quality` section of `gnomon inspect` output
         is the next best thing.

@@ -83,7 +83,7 @@ class TestTheTrapActuallyTraps:
 
     def test_an_honest_forecast_is_not_flagged(self):
         """The ceiling must not accuse the best honest strategy of leaking."""
-        from aion.models import predict
+        from gnomon.models import predict
 
         for task in generate_tasks(12, seed=7):
             ceiling = no_leak_ceiling(task)
@@ -140,7 +140,7 @@ class TestScoring:
         assert wape([0.0, 0.0], [1.0, 1.0]) is None
 
     def test_wape_matches_the_selection_metric(self):
-        from aion.evaluation import error_score
+        from gnomon.evaluation import error_score
 
         actual, predicted = [10.0, 12.0, 9.0], [11.0, 11.0, 10.0]
         assert wape(actual, predicted) == error_score(actual, predicted)

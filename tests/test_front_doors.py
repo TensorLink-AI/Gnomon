@@ -12,7 +12,7 @@ import json
 
 import pytest
 
-from aion.ids import FixedClock
+from gnomon.ids import FixedClock
 
 CLOCK = FixedClock(datetime(2026, 7, 1, tzinfo=timezone.utc))
 REPO = Path(__file__).resolve().parent.parent
@@ -31,7 +31,7 @@ def _csv(tmp_path: Path, periods: int = 90) -> Path:
 
 
 def _call(name: str, arguments: dict):
-    from aion import mcp_server
+    from gnomon import mcp_server
 
     result = mcp_server._handle({
         "method": "tools/call", "params": {"name": name, "arguments": arguments},
@@ -42,66 +42,66 @@ def _call(name: str, arguments: dict):
 # -- H10: the Python API is the product, not a corner of it --------------
 
 def test_python_api_exports_all_five_verbs():
-    import aion
+    import gnomon
 
     for verb in ("forecast", "investigate_change", "decide", "monitor",
                  "detect_anomalies"):
-        assert verb in aion.__all__, f"{verb} is not a Python API export"
-        assert callable(getattr(aion, verb))
+        assert verb in gnomon.__all__, f"{verb} is not a Python API export"
+        assert callable(getattr(gnomon, verb))
 
 
 def test_python_api_exposes_the_stores():
-    import aion
+    import gnomon
 
-    assert "TemporalStore" in aion.__all__
-    assert "TrackingStore" in aion.__all__
+    assert "TemporalStore" in gnomon.__all__
+    assert "TrackingStore" in gnomon.__all__
 
 
 def test_python_api_verbs_actually_run(tmp_path):
-    import aion
+    import gnomon
 
     source = str(_csv(tmp_path))
     common = dict(
         time_column="timestamp", target_column="value",
         output=str(tmp_path / "out"), clock=CLOCK,
     )
-    payload, path = aion.investigate_change(source, **common)
+    payload, path = gnomon.investigate_change(source, **common)
     assert (path / "artifact.json").is_file()
     assert payload["investigation_id"]
 
-    payload, _ = aion.decide(
+    payload, _ = gnomon.decide(
         source, horizon=5, threshold=120.0,
         actions=[{"name": "scale_up"}, {"name": "do_nothing"}], **common,
     )
     assert payload["decision_id"]
 
-    payload, _ = aion.monitor(
+    payload, _ = gnomon.monitor(
         source, horizon=5, threshold=120.0, alert_cost=1.0, miss_cost=20.0, **common,
     )
     assert payload["monitor_id"]
 
-    payload, _ = aion.detect_anomalies(source, include_tsfm=False, **common)
+    payload, _ = gnomon.detect_anomalies(source, include_tsfm=False, **common)
     assert payload["anomaly_id"]
 
 
 # -- H9: MCP reaches the bitemporal store --------------------------------
 
 def test_mcp_exposes_ingest_and_list_datasets():
-    from aion.toolspec import TOOLS
+    from gnomon.toolspec import TOOLS
 
     names = {tool["name"] for tool in TOOLS}
-    assert {"aion_ingest", "aion_list_datasets"} <= names
+    assert {"gnomon_ingest", "gnomon_list_datasets"} <= names
 
 
 def test_mcp_forecast_and_inspect_accept_as_of():
-    from aion.toolspec import TOOLS
+    from gnomon.toolspec import TOOLS
 
-    for name in ("aion_forecast", "aion_inspect"):
+    for name in ("gnomon_forecast", "gnomon_inspect"):
         tool = next(item for item in TOOLS if item["name"] == name)
         properties = tool["inputSchema"]["properties"]
         assert "as_of" in properties, f"{name} cannot replay"
         assert "store_path" in properties, f"{name} cannot reach a store"
-    forecast = next(item for item in TOOLS if item["name"] == "aion_forecast")
+    forecast = next(item for item in TOOLS if item["name"] == "gnomon_forecast")
     assert "store:" in forecast["inputSchema"]["properties"]["input"]["description"]
 
 
@@ -110,7 +110,7 @@ def test_the_whole_vintage_workflow_runs_over_mcp(tmp_path):
     store_path = str(tmp_path / "store.db")
     source = str(REPO / "examples" / "messy_requests_revisions.csv")
 
-    report, error = _call("aion_ingest", {
+    report, error = _call("gnomon_ingest", {
         "input": source, "dataset": "requests", "time_column": "timestamp",
         "target_column": "requests", "known_at_column": "published",
         "store_path": store_path,
@@ -119,13 +119,13 @@ def test_the_whole_vintage_workflow_runs_over_mcp(tmp_path):
     assert report["rows_added"] == report["rows_seen"]
     assert report["revisions_created"] > 0
 
-    listing, error = _call("aion_list_datasets", {"store_path": store_path})
+    listing, error = _call("gnomon_list_datasets", {"store_path": store_path})
     assert not error
     dataset = listing["datasets"][0]
     assert dataset["input_ref"] == "store:requests"
     assert dataset["known_time_provenance"] == "recorded"
 
-    payload, error = _call("aion_forecast", {
+    payload, error = _call("gnomon_forecast", {
         "input": "store:requests", "time_column": "timestamp",
         "target_column": "requests", "horizon": 7, "as_of": "2026-06-03",
         "store_path": store_path, "output_dir": str(tmp_path / "out"),
@@ -135,7 +135,7 @@ def test_the_whole_vintage_workflow_runs_over_mcp(tmp_path):
     assert result["support"] == "supported"
     assert result["forecast_rows"] == 7
 
-    inspection, error = _call("aion_inspect", {
+    inspection, error = _call("gnomon_inspect", {
         "input": "store:requests", "time_column": "timestamp",
         "target_column": "requests", "as_of": "2026-06-03",
         "store_path": store_path,
@@ -147,17 +147,17 @@ def test_the_whole_vintage_workflow_runs_over_mcp(tmp_path):
 def test_as_of_over_mcp_actually_restricts_what_is_seen(tmp_path):
     store_path = str(tmp_path / "store.db")
     source = str(REPO / "examples" / "messy_requests_revisions.csv")
-    _call("aion_ingest", {
+    _call("gnomon_ingest", {
         "input": source, "dataset": "requests", "time_column": "timestamp",
         "target_column": "requests", "known_at_column": "published",
         "store_path": store_path,
     })
-    early, _ = _call("aion_inspect", {
+    early, _ = _call("gnomon_inspect", {
         "input": "store:requests", "time_column": "timestamp",
         "target_column": "requests", "as_of": "2026-05-01",
         "store_path": store_path,
     })
-    late, _ = _call("aion_inspect", {
+    late, _ = _call("gnomon_inspect", {
         "input": "store:requests", "time_column": "timestamp",
         "target_column": "requests", "store_path": store_path,
     })
@@ -167,7 +167,7 @@ def test_as_of_over_mcp_actually_restricts_what_is_seen(tmp_path):
 # -- H17: the router's answer has a consumer -----------------------------
 
 def test_forecast_accepts_the_routers_candidates(tmp_path):
-    import aion.runtime as runtime_module
+    import gnomon.runtime as runtime_module
 
     seen: dict = {}
     original = runtime_module.evaluate_stage
@@ -196,7 +196,7 @@ def test_forecast_accepts_the_routers_candidates(tmp_path):
 
 
 def test_baselines_survive_a_candidate_restriction(tmp_path):
-    from aion.runtime import forecast
+    from gnomon.runtime import forecast
 
     artifact, _ = forecast(
         str(_csv(tmp_path)), time_column="timestamp", target_column="value",
@@ -207,10 +207,10 @@ def test_baselines_survive_a_candidate_restriction(tmp_path):
 
 
 def test_unknown_candidate_is_refused(tmp_path):
-    from aion.contracts import AionError
-    from aion.runtime import forecast
+    from gnomon.contracts import GnomonError
+    from gnomon.runtime import forecast
 
-    with pytest.raises(AionError) as raised:
+    with pytest.raises(GnomonError) as raised:
         forecast(
             str(_csv(tmp_path)), time_column="timestamp", target_column="value",
             horizon=7, output=str(tmp_path / "out"), clock=CLOCK,
@@ -220,32 +220,32 @@ def test_unknown_candidate_is_refused(tmp_path):
 
 
 def test_route_names_its_consumer():
-    from aion.toolspec import TOOLS
+    from gnomon.toolspec import TOOLS
 
-    route = next(item for item in TOOLS if item["name"] == "aion_route")
-    assert "aion_forecast" in route["description"]
-    forecast = next(item for item in TOOLS if item["name"] == "aion_forecast")
+    route = next(item for item in TOOLS if item["name"] == "gnomon_route")
+    assert "gnomon_forecast" in route["description"]
+    forecast = next(item for item in TOOLS if item["name"] == "gnomon_forecast")
     assert "candidates" in forecast["inputSchema"]["properties"]
 
 
 # -- H18: the two decision lifecycles are distinguishable ----------------
 
 def test_the_v02_decision_pair_is_marked_deprecated():
-    from aion.toolspec import TOOLS
+    from gnomon.toolspec import TOOLS
 
     by_name = {tool["name"]: tool for tool in TOOLS}
-    for name in ("aion_record_decision", "aion_resolve_decision"):
+    for name in ("gnomon_record_decision", "gnomon_resolve_decision"):
         assert by_name[name]["description"].startswith("DEPRECATED")
-        assert "aion_decide" in by_name[name]["description"]
-    current = by_name["aion_resolve_outcome"]["description"]
-    assert "aion_decide" in current
+        assert "gnomon_decide" in by_name[name]["description"]
+    current = by_name["gnomon_resolve_outcome"]["description"]
+    assert "gnomon_decide" in current
     assert "deprecated" in current
 
 
 # -- H23: investigate answers in the reader's terms ----------------------
 
 def test_investigate_ranks_changes_and_marks_the_dominant_one(tmp_path):
-    from aion.macros import investigate_change
+    from gnomon.macros import investigate_change
 
     payload, path = investigate_change(
         str(REPO / "examples" / "messy_requests.csv"),
@@ -264,7 +264,7 @@ def test_investigate_ranks_changes_and_marks_the_dominant_one(tmp_path):
 
 
 def test_every_macro_writes_a_summary(tmp_path):
-    from aion.macros import decide, detect_anomalies, investigate_change, monitor
+    from gnomon.macros import decide, detect_anomalies, investigate_change, monitor
 
     source = str(_csv(tmp_path))
     common = dict(
@@ -291,7 +291,7 @@ def test_every_macro_writes_a_summary(tmp_path):
 
 def test_coverage_adaptation_is_reachable_and_says_it_is_not_applied(tmp_path):
     """A complete, tested capability with zero call sites outside its tests."""
-    from aion.tracking import TrackingStore
+    from gnomon.tracking import TrackingStore
 
     store = TrackingStore(tmp_path / "registry.db")
     store.record_coverage_outcome(
@@ -309,9 +309,9 @@ def test_coverage_adaptation_is_reachable_and_says_it_is_not_applied(tmp_path):
 
 
 def test_track_coverage_is_a_cli_command(tmp_path, capsys, monkeypatch):
-    import aion.tracking as tracking_module
-    from aion.cli import main
-    from aion.tracking import TrackingStore
+    import gnomon.tracking as tracking_module
+    from gnomon.cli import main
+    from gnomon.tracking import TrackingStore
 
     registry = tmp_path / "registry.db"
     # DEFAULT_REGISTRY_PATH is resolved at import, so the env var is read
@@ -338,11 +338,11 @@ def test_install_script_has_a_local_mode():
 def test_getting_started_uses_the_local_mode():
     doc = (REPO / "docs" / "getting-started.md").read_text(encoding="utf-8")
     assert "bash install.sh --local" in doc
-    assert "/root/Aion" not in doc, "a reviewer's local path is in the published docs"
+    assert "/root/Gnomon" not in doc, "a reviewer's local path is in the published docs"
 
 
 def test_no_published_doc_ships_a_local_path():
     for doc in (REPO / "docs").glob("*.md"):
         if doc.name.startswith("codebase-review"):
             continue  # the review quotes the paths it is reporting
-        assert "/root/Aion" not in doc.read_text(encoding="utf-8"), doc.name
+        assert "/root/Gnomon" not in doc.read_text(encoding="utf-8"), doc.name

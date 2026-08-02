@@ -1,7 +1,7 @@
 {
   "benchmark": "leakage-trap",
   "code_revision": "99003f1",
-  "command": "/root/Aion/benchmarks/leaktrap/run_leaktrap.py oracle-leak --limit 40 --output-dir results/leaktrap/lt-oracle",
+  "command": "/root/Gnomon/benchmarks/leaktrap/run_leaktrap.py oracle-leak --limit 40 --output-dir results/leaktrap/lt-oracle",
   "condition": "oracle-leak",
   "target": "seed=7,horizon=14,history=120"
 }

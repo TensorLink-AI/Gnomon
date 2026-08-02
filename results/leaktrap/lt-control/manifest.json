@@ -1,7 +1,7 @@
 {
   "benchmark": "leakage-trap",
   "code_revision": "99003f1",
-  "command": "/root/Aion/benchmarks/leaktrap/run_leaktrap.py control --limit 40 --model z-ai/glm-5.2 --output-dir /root/Aion/results/leaktrap/lt-control",
+  "command": "/root/Gnomon/benchmarks/leaktrap/run_leaktrap.py control --limit 40 --model z-ai/glm-5.2 --output-dir /root/Gnomon/results/leaktrap/lt-control",
   "condition": "control",
   "model": "z-ai/glm-5.2",
   "target": "seed=7,horizon=14,history=120"

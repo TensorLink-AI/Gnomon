@@ -7,9 +7,9 @@ import math
 
 import pytest
 
-from aion.fingerprint import fingerprint_distance, fingerprint_json, series_fingerprint
-from aion.router import MIN_PRIOR_RECORDS, route
-from aion.tracking import TrackingStore
+from gnomon.fingerprint import fingerprint_distance, fingerprint_json, series_fingerprint
+from gnomon.router import MIN_PRIOR_RECORDS, route
+from gnomon.tracking import TrackingStore
 
 
 def _series(n: int = 60) -> list[float]:
@@ -139,7 +139,7 @@ class TestRouter:
         assert first == second
 
     def test_capabilities_flags(self):
-        from aion.runtime import capabilities
+        from gnomon.runtime import capabilities
         features = capabilities()["features"]
         assert features["series_fingerprints"] is True
         assert features["task_conditioned_leaderboard"] is True
