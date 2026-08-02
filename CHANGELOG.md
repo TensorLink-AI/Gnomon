@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Temporal-leakage trap family (`benchmarks/leaktrap/`), with results. On 40
+  generated trap tasks where reading past the cutoff is worth ~78% of the
+  honest ceiling, a GLM-5.2 control told plainly that "a value is only
+  knowable on or after its publication date" leaked on **13 of the 35 tasks
+  it answered** and reproduced post-cutoff values verbatim on **4**. Aion
+  through the snapshot path: **0 of 40**, with the no-read-past-cutoff claim
+  proven **40/40** from each run's own `snapshot_access` evidence rather than
+  asserted. Exact McNemar p = 0.00024. See
+  `docs/leakage-trap-results-2026-08.md`, including why the accuracy columns
+  do *not* carry the finding.
 - Adaptive-conformal state, additive and bitemporal. The tracking store gains
   a `conformal_adaptation` table and `record_coverage_outcome` /
   `coverage_outcomes` / `adapted_alpha`. It is an append-only log rather than

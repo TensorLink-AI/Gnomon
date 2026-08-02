@@ -9,7 +9,7 @@
 > | B1 per-lead conformal | shipped. CiK rCRPS 0.597 → **0.329** on the identical 33 scored tasks |
 > | A7 gate instrumentation, B5 Wilson veto | shipped |
 > | N1 abstention pricing, C1, D | shipped |
-> | **C2 leakage traps** | shipped. Trap validated at **+80%** oracle advantage; Aion's structural claim proven **30/30** from its own access log |
+> | **C2 leakage traps** | shipped and **run**. Trap validated (+0.78 oracle advantage). GLM-5.2 control leaked on **13/35** answered tasks and transcribed the future verbatim on **4**; Aion **0/40**, structural claim proven **40/40**. McNemar **p = 0.00024**. Not falsified — see [results](leakage-trap-results-2026-08.md) |
 > | A6 conditional forecasts | shipped |
 > | A1+A2 typed claims | shipped — bounds admitted, asserted values refused |
 > | A3 effect shapes | shipped. Ablation recovers the planted shape **3/3** |
