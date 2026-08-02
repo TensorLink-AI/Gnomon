@@ -1,0 +1,31 @@
+{
+  "benchmark": "temporalbench",
+  "condition": "control",
+  "model": "z-ai/glm-5.2",
+  "tiers": [
+    "T2",
+    "T4"
+  ],
+  "datasets": "all",
+  "rows": 50,
+  "rows_errored": 1,
+  "rows_with_abstentions": 0,
+  "choice_accuracy_by_tier": {
+    "T2": 0.41333333333333333,
+    "T4": 0.4305555555555556
+  },
+  "forecast_metrics_mean": {
+    "OW_MASE": 384124.2635927711,
+    "OW_RMSSE": 446034.20331934805,
+    "OW_sMAPE": 10.82922451813192
+  },
+  "note": "forecast metrics computed by the dataset's official forecast_metrics_utils.py; choice accuracy is exact-match against the official labels",
+  "llm_usage": {
+    "model": "z-ai/glm-5.2",
+    "requests": 52,
+    "prompt_tokens": 116492,
+    "completion_tokens": 875240,
+    "cost_usd": 2.230325,
+    "truncation_escalations": 2
+  }
+}
