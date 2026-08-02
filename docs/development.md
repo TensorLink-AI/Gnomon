@@ -16,14 +16,14 @@ pyproject.toml       Package metadata and test configuration
 ## Run from source
 
 ```bash
-cd /root/Aion
+cd Aion
 PYTHONPATH=src python3 -m aion capabilities
 ```
 
 ## Run tests
 
 ```bash
-cd /root/Aion
+cd Aion
 PYTHONPATH=src pytest -q
 ```
 

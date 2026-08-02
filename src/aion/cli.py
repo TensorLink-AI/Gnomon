@@ -168,6 +168,12 @@ def build_parser() -> argparse.ArgumentParser:
              "additionally fills gaps, snaps jittered timestamps, and "
              "resolves conflicts — capped and reported as warnings",
     )
+    forecast_parser.add_argument(
+        "--candidates", action="append", dest="candidates", default=None,
+        help="Restrict the model pool to this model (repeatable). Pass "
+             "`aion route`'s candidates to act on a routing decision; the "
+             "mandatory baselines always compete regardless.",
+    )
     forecast_parser.add_argument("--selection-strategy", choices=("best", "ensemble"), default="best")
     forecast_parser.add_argument("--ensemble", action="store_true", help=argparse.SUPPRESS)
     forecast_parser.add_argument("--multivariate", action="store_true")
@@ -399,6 +405,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     track_perf.add_argument("--project", required=True)
     track_perf.add_argument("--model", default=None, help="Filter by model name")
+
+    track_coverage = track_commands.add_parser(
+        "coverage",
+        help="Adaptive-conformal level from realised coverage outcomes "
+             "(reported, not yet applied to published intervals)",
+    )
+    track_coverage.add_argument("--project", required=True)
+    track_coverage.add_argument(
+        "--scope", default=None,
+        help="One series scope; omit for every scope in the project",
+    )
+    track_coverage.add_argument(
+        "--as-of", dest="as_of", default=None,
+        help="Replay the adaptation log as it stood at this instant",
+    )
 
     track_leaderboard = track_commands.add_parser(
         "leaderboard", help="Show ranked model performance for a project"
@@ -1031,6 +1052,28 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(json.dumps(result, indent=2))
                 return 0
 
+            elif args.track_command == "coverage":
+                if args.scope:
+                    payload = {
+                        "schema_version": "0.1",
+                        "project": args.project,
+                        "scope": args.scope,
+                        "applied_to_published_intervals": False,
+                        **store.adapted_alpha(args.project, args.scope, args.as_of),
+                    }
+                else:
+                    payload = {
+                        "schema_version": "0.1",
+                        "project": args.project,
+                        "scopes": store.coverage_adaptation(args.project, args.as_of),
+                        "note": (
+                            "Reported, not applied: published intervals still "
+                            "use the nominal level."
+                        ),
+                    }
+                print(json.dumps(payload, indent=2))
+                return 0
+
             elif args.track_command == "performance":
                 if args.model:
                     history = store.model_performance(args.project, args.model)
@@ -1230,6 +1273,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 as_of=as_of,
                 store_path=getattr(args, "store_path", None),
                 repair=args.repair,
+                candidates=getattr(args, "candidates", None),
             )
             payload = forecast_summary(artifact, path)
 

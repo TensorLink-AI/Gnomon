@@ -11,11 +11,16 @@ No account, network service, LLM, or API key is required to forecast.
 ## Install from this checkout
 
 ```bash
-cd /root/Aion
-bash install.sh
+cd Aion
+bash install.sh --local
 aion --version
 aion capabilities
 ```
+
+`--local` installs the checkout you are standing in. Without it,
+`install.sh` fetches the repository's default branch from GitHub — which is
+right for a first install from a URL, and wrong when you are testing local
+changes.
 
 See [Installation options](installation.md) for uv, direct GitHub, pinned
 release, and future PyPI installation methods.
@@ -29,7 +34,7 @@ uv tool install --force .
 For development without a tool installation:
 
 ```bash
-cd /root/Aion
+cd Aion
 PYTHONPATH=src python3 -m aion capabilities
 ```
 

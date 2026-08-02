@@ -21,6 +21,7 @@ from .contracts import AionError, DataSchema, Evidence, SupportReason
 from .covariates import CovariateAssessment, CovariateDataset, assess_covariates
 from .data import Observation, load_observations
 from .evaluation import (
+    DEFAULT_TARGET_COVERAGE,
     Evaluation,
     conformal_quantile_spreads,
     conformal_spreads,
@@ -777,8 +778,13 @@ def interval_stage(
     *,
     threshold: float | None,
     context_events: list[ContextEvent] | None = None,
+    target_coverage: float = DEFAULT_TARGET_COVERAGE,
 ) -> tuple[list[dict[str, object]], str, dict[str, object] | None]:
-    """Residual-quantile intervals, the support status, and threshold analysis."""
+    """Residual-quantile intervals, the support status, and threshold analysis.
+
+    ``target_coverage`` is the nominal central coverage the interval
+    carries, from ``evaluation.uncertainty.target_coverage``.
+    """
     assert_residual_provenance(state)
     assessment = state.assessment
     rows: list[dict[str, object]] = []
@@ -787,6 +793,7 @@ def interval_stage(
     if assessment and assessment.supported and state.points:
         spreads = conformal_spreads(
             state.residuals_by_lead, len(state.points), state.residuals,
+            target_coverage,
         )
         # The full quantile set comes from the same residuals and the same
         # fit; q10/q50/q90 are the identical order statistics they always

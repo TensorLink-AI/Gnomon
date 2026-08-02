@@ -1266,8 +1266,38 @@ class TrackingStore:
             "unresolved_decisions": unresolved,
             "decision_summary": decision_summary,
             "model_performance": leaderboard,
+            "coverage_adaptation": self.coverage_adaptation(project) if project else [],
             "warning": "Realised performance is observational evidence, never causal.",
         }
+
+    def coverage_adaptation(
+        self, project: str, as_of: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """The adapted miscoverage level per scope, from realised outcomes.
+
+        `adapted_alpha` replays the coverage log into a corrected level and
+        is carefully written, deterministic, and covered by tests — and had
+        zero call sites outside them, so a complete capability was
+        unreachable from every surface. It is reported here.
+
+        **Reported, not applied.** Published intervals still use the
+        nominal level; folding this in would move numbers for tracked
+        projects, which is a behavioural change that deserves to be asked
+        for rather than inherited.
+        """
+        with self._connect() as conn:
+            scopes = [
+                row["scope"] for row in conn.execute(
+                    "SELECT DISTINCT scope FROM conformal_adaptation "
+                    "WHERE project = ? ORDER BY scope",
+                    (project,),
+                )
+            ]
+        return [
+            {"scope": scope, "applied_to_published_intervals": False,
+             **self.adapted_alpha(project, scope, as_of)}
+            for scope in scopes
+        ]
 
     def export_snapshot(self, project: str | None = None) -> dict[str, Any]:
         """Return a portable JSON snapshot; immutable artifacts remain separate."""

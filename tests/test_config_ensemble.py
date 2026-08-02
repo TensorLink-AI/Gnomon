@@ -23,8 +23,11 @@ class TestConfig:
 
     def test_default_config(self):
         cfg = DEFAULT_CONFIG
-        assert cfg.models.baselines_enabled is True
+        # Baselines are mandatory and no longer expressible as a setting:
+        # a candidate is selected by beating them.
+        assert not hasattr(cfg.models, "baselines_enabled")
         assert cfg.models.statistical_enabled is True
+        assert cfg.models.statistical_candidates is None
         assert cfg.models.tsfm_candidates == []
         assert cfg.ensemble.enabled is False
         assert cfg.meta_model.enabled is False
@@ -35,7 +38,7 @@ class TestConfig:
         monkeypatch.setenv("AION_CONFIG_PATH", "")
         cfg = load_config()
         assert isinstance(cfg, AionConfig)
-        assert cfg.models.baselines_enabled is True
+        assert cfg.models.statistical_enabled is True
 
     def test_load_config_from_explicit_path(self, tmp_path):
         try:

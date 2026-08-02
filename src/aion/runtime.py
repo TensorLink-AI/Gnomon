@@ -36,6 +36,8 @@ def inspect_dataset(
     series_column: str | None = None,
     frequency: str | None = None,
     seasonal_period: int | None = None,
+    as_of: datetime | None = None,
+    store_path: str | None = None,
 ) -> dict[str, object]:
     # Diagnose, don't just reject: try the strict path, then each repair
     # level, and report what the file needs to become forecastable.
@@ -51,6 +53,7 @@ def inspect_dataset(
             loaded = load_stage(
                 input_path, time_column=time_column, target_column=target_column,
                 series_column=series_column, frequency=frequency,
+                as_of=as_of, store_path=store_path,
                 repair=level, repair_log=log,
             )
             repair_level_used = level
@@ -82,7 +85,10 @@ def inspect_dataset(
     return {
         "schema_version": "0.1",
         "status": "valid",
-        "input_path": str(Path(input_path).expanduser().resolve()),
+        "input_path": (
+            input_path if input_path.startswith("store:")
+            else str(Path(input_path).expanduser().resolve())
+        ),
         "source_fingerprint": loaded.source_fingerprint,
         "columns": loaded.columns,
         "schema": {
@@ -141,6 +147,43 @@ def _config_fingerprint(config: Any) -> dict[str, object] | None:
     return payload
 
 
+def _restrict_candidates(config: Any, candidates: list[str]):
+    """A copy of ``config`` whose candidate pool is the named models.
+
+    Baselines are added back unconditionally: a candidate is selected by
+    beating them, so a pool without them has nothing to select against.
+    """
+    import copy as copy_module
+
+    from .config import load_config
+    from .contracts import AionError
+    from .models import BASELINES, MODELS
+    from .tsfm import available_tsfms
+
+    known_tsfms = set(available_tsfms())
+    unknown = [
+        name for name in candidates
+        if name not in MODELS and name not in known_tsfms
+    ]
+    if unknown:
+        raise AionError(
+            "UNKNOWN_MODEL",
+            f"candidates names models that do not exist: "
+            f"{', '.join(sorted(unknown))}.",
+            {"unknown": sorted(unknown),
+             "available": sorted(set(MODELS) | known_tsfms)},
+        )
+    resolved = copy_module.deepcopy(config) if config is not None else load_config()
+    statistical = [
+        name for name in candidates if name in MODELS and name not in BASELINES
+    ]
+    resolved.models.statistical_candidates = statistical or None
+    resolved.models.tsfm_candidates = [
+        name for name in candidates if name in known_tsfms
+    ]
+    return resolved
+
+
 def forecast(
     input_path: str,
     *,
@@ -163,8 +206,17 @@ def forecast(
     as_of: datetime | None = None,
     store_path: str | None = None,
     repair: str = "safe",
+    candidates: list[str] | None = None,
 ) -> tuple[ForecastArtifact, Path]:
     clock = clock or SYSTEM_CLOCK
+    if candidates:
+        # `aion route`'s output, made actionable. The router answered "which
+        # method for this task?" and nothing consumed the answer: forecast
+        # had no model parameter at all, so even a confident recommendation
+        # could not be acted on. Restricting the pool is advisory in the
+        # right way — the named candidates still backtest against the
+        # mandatory baselines, which are never removable.
+        config = _restrict_candidates(config, candidates)
     from .repair import REPAIR_LEVELS, REPAIR_SAFE, RepairLog
     if repair not in REPAIR_LEVELS:
         from .contracts import AionError
@@ -187,6 +239,14 @@ def forecast(
     # When both enrichment kinds are supplied, neither ablation stage applies
     # its own winner; the adjudication ladder owns the choice.
     adjudicating = bool(context_events) and covariates is not None
+    # `evaluation.uncertainty.target_coverage`, previously parsed and never
+    # read: every run published an 80% interval whatever the config said.
+    from .evaluation import DEFAULT_TARGET_COVERAGE
+    target_coverage = DEFAULT_TARGET_COVERAGE
+    if config is not None and getattr(config, "evaluation", None) is not None:
+        target_coverage = float(
+            getattr(config.evaluation, "target_coverage", DEFAULT_TARGET_COVERAGE)
+        )
     if covariates is not None:
         # Bind the run's boundary to the covariate snapshot before anything
         # reads it, so leakage control is a property of the object rather
@@ -272,6 +332,7 @@ def forecast(
             state.warnings.extend(repair_warnings)
         rows, support, threshold_analysis = interval_stage(
             state, threshold=threshold, context_events=context_events,
+            target_coverage=target_coverage,
         )
         assessment = state.assessment
         from .support import assess_forecast_support
@@ -391,7 +452,10 @@ def forecast(
     lineage = build_forecast_lineage(artifact, temporal_task)
     # No response leaves the process unverified — including our own.
     verify_or_raise(lineage, as_of=task.as_of)
-    return artifact, write_artifact(artifact, output, lineage=lineage.to_dict())
+    return artifact, write_artifact(
+        artifact, output, lineage=lineage.to_dict(),
+        output_config=getattr(config, "output", None),
+    )
 
 
 def _has_module(name: str) -> bool:

@@ -13,7 +13,19 @@ from .contracts import AionError, ForecastArtifact
 def write_artifact(
     artifact: ForecastArtifact, output_parent: str,
     lineage: dict[str, Any] | None = None,
+    output_config: Any = None,
 ) -> Path:
+    """Write the immutable artifact directory.
+
+    ``output_config`` is `aion.yaml`'s `output` section, whose six switches
+    were documented and never read — a user who set `write_summary: false`
+    still got a summary. `artifact.json` and `lineage.json` are not
+    switchable: the artifact is the run's identity and the lineage is what
+    the verifier checked, so a run without them is not a run.
+    """
+    write_forecast_csv = getattr(output_config, "write_forecast_csv", True)
+    write_summary = getattr(output_config, "write_summary", True)
+    write_evidence = getattr(output_config, "write_evidence", True)
     parent = Path(output_parent).expanduser().resolve()
     parent.mkdir(parents=True, exist_ok=True)
     final = parent / artifact.forecast_id
@@ -29,9 +41,10 @@ def write_artifact(
         with (temporary / "artifact.json").open("w", encoding="utf-8") as handle:
             json.dump(artifact.to_dict(), handle, indent=2, allow_nan=False)
             handle.write("\n")
-        with (temporary / "evidence.jsonl").open("w", encoding="utf-8") as handle:
-            for record in artifact.evidence:
-                handle.write(json.dumps(record.__dict__, allow_nan=False) + "\n")
+        if write_evidence:
+            with (temporary / "evidence.jsonl").open("w", encoding="utf-8") as handle:
+                for record in artifact.evidence:
+                    handle.write(json.dumps(record.__dict__, allow_nan=False) + "\n")
         if lineage is not None:
             with (temporary / "lineage.json").open("w", encoding="utf-8") as handle:
                 json.dump(lineage, handle, indent=2, allow_nan=False)
@@ -53,12 +66,13 @@ def write_artifact(
         # ships as a column rather than being left for the reader to derive.
         if "point_bias_correction" in present:
             extra.append("point_bias_correction")
-        with (temporary / "forecast.csv").open("w", encoding="utf-8", newline="") as handle:
-            writer = csv.DictWriter(handle, fieldnames=core + extra)
-            writer.writeheader()
-            for result in artifact.results:
-                for row in result.forecast:
-                    writer.writerow({"series": result.series, **row})
+        if write_forecast_csv:
+            with (temporary / "forecast.csv").open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=core + extra)
+                writer.writeheader()
+                for result in artifact.results:
+                    for row in result.forecast:
+                        writer.writerow({"series": result.series, **row})
         lines = [f"# Forecast {artifact.forecast_id}", ""]
         for result in artifact.results:
             lines.extend([
@@ -101,7 +115,8 @@ def write_artifact(
                     f"- Rejected: {len(result.covariates.get('rejected', []))}",
                 ])
             lines.append("")
-        (temporary / "summary.md").write_text("\n".join(lines), encoding="utf-8")
+        if write_summary:
+            (temporary / "summary.md").write_text("\n".join(lines), encoding="utf-8")
         os.replace(temporary, final)
     except Exception:
         # Preserve the temporary directory for diagnosis; never expose it as a complete run.
@@ -113,8 +128,12 @@ def write_json_artifact(
     artifact_id: str, payload: dict[str, Any], output_parent: str,
     lineage: dict[str, Any] | None = None,
 ) -> Path:
-    """Immutable artifact directory for non-forecast macros: artifact.json
-    plus lineage.json, atomically placed, first write wins."""
+    """Immutable artifact directory for non-forecast macros: artifact.json,
+    lineage.json, and summary.md, atomically placed, first write wins.
+
+    Only forecasts used to get a human-readable rendering, so `investigate`,
+    `detect`, `decide`, and `monitor` were JSON or nothing.
+    """
     parent = Path(output_parent).expanduser().resolve()
     parent.mkdir(parents=True, exist_ok=True)
     final = parent / artifact_id
@@ -131,8 +150,83 @@ def write_json_artifact(
         with (temporary / "lineage.json").open("w", encoding="utf-8") as handle:
             json.dump(lineage, handle, indent=2, allow_nan=False)
             handle.write("\n")
+    (temporary / "summary.md").write_text(
+        _macro_summary(artifact_id, payload), encoding="utf-8",
+    )
     os.replace(temporary, final)
     return final
+
+
+def _macro_summary(artifact_id: str, payload: dict[str, Any]) -> str:
+    """A human-readable rendering of any macro payload.
+
+    Deliberately generic: it reads the shapes the macros share — a support
+    assessment, a per-series `results` list — rather than switching on the
+    verb, so a new macro gets a summary without a new branch here.
+    """
+    kind = str(payload.get("task", {}).get("task_type", "result"))
+    lines = [f"# {kind.replace('_', ' ').title()} {artifact_id}", ""]
+    created = payload.get("created_at")
+    if created:
+        lines.extend([f"- Created: {created}", ""])
+
+    def render_support(assessment: dict[str, Any] | None, indent: str = "") -> None:
+        if not assessment:
+            return
+        lines.append(f"{indent}- Support: {assessment.get('status', 'unknown')}")
+        for reason in assessment.get("reasons", []):
+            lines.append(f"{indent}- Reason ({reason['code']}): {reason['message']}")
+        for disclosure in assessment.get("disclosures", []):
+            lines.append(
+                f"{indent}- Disclosure ({disclosure['code']}): {disclosure['message']}"
+            )
+        for action in assessment.get("recovery_actions", []):
+            lines.append(f"{indent}- Next ({action['code']}): {action['message']}")
+
+    render_support(payload.get("support_assessment"))
+
+    for result in payload.get("results", []) or []:
+        if not isinstance(result, dict):
+            continue
+        lines.extend(["", f"## {result.get('series', 'result')}", ""])
+        for key in ("classification", "onset", "detector", "selection_basis"):
+            if result.get(key) is not None:
+                lines.append(f"- {key.replace('_', ' ').capitalize()}: {result[key]}")
+        for change in result.get("ranked_changes", []) or []:
+            marker = " **(dominant)**" if change.get("dominant") else ""
+            share = change.get("share_of_variation_explained")
+            lines.append(
+                f"- Change at {change['timestamp']}: "
+                f"{change.get('before_mean'):.4g} → {change.get('after_mean'):.4g} "
+                f"(shift {change.get('shift'):+.4g}"
+                + (f", explains {share:.1%} of the variation" if share is not None else "")
+                + f"){marker}"
+            )
+        for rank, explanation in enumerate(result.get("explanations", []) or [], 1):
+            lines.append(f"- Explanation {rank}: {explanation}")
+        if result.get("residual_uncertainty"):
+            lines.append(f"- Residual uncertainty: {result['residual_uncertainty']}")
+        render_support(result.get("support_assessment"))
+
+    evaluation = payload.get("evaluation")
+    if isinstance(evaluation, dict) and evaluation.get("selected") is not None:
+        lines.extend(["", "## Decision", "", f"- Selected: {evaluation['selected']}"])
+        for item in evaluation.get("evaluations", []) or []:
+            lines.append(
+                f"- {item.get('action')}: feasible={item.get('feasible')}"
+                + (f", expected utility {item['expected_utility']:.4g}"
+                   if item.get("expected_utility") is not None else "")
+            )
+
+    for trigger in payload.get("triggers", []) or []:
+        lines.extend(["", f"## Trigger — {trigger.get('series', 'series')}", ""])
+        lines.append(f"- Armed: {trigger.get('armed')}")
+        if trigger.get("first_alert_step") is not None:
+            lines.append(f"- First alert at step: {trigger['first_alert_step']}")
+        render_support(trigger.get("support_assessment"))
+
+    lines.append("")
+    return "\n".join(lines)
 
 
 def read_artifact(artifact_dir: str | Path) -> dict[str, Any]:

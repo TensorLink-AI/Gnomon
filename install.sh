@@ -3,6 +3,10 @@ set -Eeuo pipefail
 
 REPOSITORY="${AION_REPOSITORY:-TensorLink-AI/Aion}"
 VERSION="${AION_VERSION:-main}"
+# --local installs the checkout this script lives in, rather than fetching
+# from GitHub. Without it, `cd Aion && bash install.sh` silently installs
+# the remote default branch — not the source the reader just changed.
+LOCAL_SOURCE="${AION_LOCAL:-}"
 INSTALL_ROOT="${AION_INSTALL_ROOT:-${XDG_DATA_HOME:-${HOME}/.local/share}/aion}"
 BIN_DIR="${AION_BIN_DIR:-${XDG_BIN_HOME:-${HOME}/.local/bin}}"
 
@@ -13,6 +17,7 @@ usage() {
     "Usage: bash install.sh [options]" \
     "" \
     "Options:" \
+    "  --local             Install this checkout instead of fetching from GitHub" \
     "  --version REF       Git tag, branch, or commit (default: main)" \
     "  --repository OWNER/REPO  Source repository" \
     "  --install-root DIR  Environment storage directory" \
@@ -22,6 +27,10 @@ usage() {
 
 while (($#)); do
   case "$1" in
+    --local)
+      LOCAL_SOURCE=1
+      shift
+      ;;
     --version)
       VERSION="${2:?--version requires a value}"
       shift 2
@@ -50,11 +59,18 @@ while (($#)); do
   esac
 done
 
-if [[ ! "$REPOSITORY" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -n "$LOCAL_SOURCE" ]]; then
+  if [[ ! -f "$SCRIPT_DIR/pyproject.toml" ]]; then
+    printf 'No pyproject.toml beside install.sh; --local needs a checkout.\n' >&2
+    exit 2
+  fi
+elif [[ ! "$REPOSITORY" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
   printf 'Invalid repository: %s\n' "$REPOSITORY" >&2
   exit 2
 fi
-if [[ ! "$VERSION" =~ ^[A-Za-z0-9._/-]+$ ]] || [[ "$VERSION" == *..* ]]; then
+if [[ -z "$LOCAL_SOURCE" ]] &&
+   { [[ ! "$VERSION" =~ ^[A-Za-z0-9._/-]+$ ]] || [[ "$VERSION" == *..* ]]; }; then
   printf 'Invalid version/ref: %s\n' "$VERSION" >&2
   exit 2
 fi
@@ -87,10 +103,16 @@ trap cleanup_failed_install EXIT
 
 SOURCE_URL="https://github.com/$REPOSITORY/archive/$VERSION.tar.gz"
 SOURCE_ARCHIVE="$RELEASE_DIR/aion-source.tar.gz"
-printf 'Installing Aion from %s at %s using %s...\n' "$REPOSITORY" "$VERSION" "$PYTHON_BIN"
+if [[ -n "$LOCAL_SOURCE" ]]; then
+  printf 'Installing Aion from the local checkout at %s using %s...\n' "$SCRIPT_DIR" "$PYTHON_BIN"
+else
+  printf 'Installing Aion from %s at %s using %s...\n' "$REPOSITORY" "$VERSION" "$PYTHON_BIN"
+fi
 "$PYTHON_BIN" -m venv "$RELEASE_DIR"
 "$RELEASE_DIR/bin/python" -m pip install --disable-pip-version-check --upgrade pip
-if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+if [[ -n "$LOCAL_SOURCE" ]]; then
+  "$RELEASE_DIR/bin/python" -m pip install --disable-pip-version-check "$SCRIPT_DIR"
+elif command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
   gh api "repos/$REPOSITORY/tarball/$VERSION" > "$SOURCE_ARCHIVE"
   "$RELEASE_DIR/bin/python" -m pip install --disable-pip-version-check "$SOURCE_ARCHIVE"
 else

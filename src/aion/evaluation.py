@@ -169,9 +169,63 @@ def _isotonic(values: list[float]) -> list[float]:
     return [level[0] for level in levels for _ in range(int(level[1]))]
 
 
+def active_models(config: Any = None) -> dict[str, Any]:
+    """The built-in candidate pool this run competes, honouring the config.
+
+    The mandatory baselines are always present: a candidate is selected by
+    beating them, so a pool without them has nothing to select against.
+    `models.statistical.enabled: false` leaves exactly the baselines, which
+    is a coherent question — does anything beat the naive answer? — and
+    `models.statistical.candidates` restricts the pool to named models.
+
+    Both keys were documented and neither was read, so a user who disabled
+    statistical models still got all five of them.
+    """
+    if config is None:
+        return dict(MODELS)
+    models_config = getattr(config, "models", None)
+    if models_config is None:
+        return dict(MODELS)
+    if not getattr(models_config, "statistical_enabled", True):
+        return {name: MODELS[name] for name in MODELS if name in BASELINES}
+    requested = getattr(models_config, "statistical_candidates", None)
+    if not requested:
+        return dict(MODELS)
+    unknown = [name for name in requested if name not in MODELS]
+    if unknown:
+        raise AionError(
+            "UNKNOWN_MODEL",
+            f"models.statistical.candidates names models that do not exist: "
+            f"{', '.join(sorted(unknown))}.",
+            {"unknown": sorted(unknown), "available": sorted(set(MODELS) - BASELINES)},
+        )
+    return {
+        name: MODELS[name] for name in MODELS
+        if name in BASELINES or name in requested
+    }
+
+
+#: Nominal coverage of the central interval q10..q90 has always carried.
+#: `evaluation.uncertainty.target_coverage` overrides it.
+DEFAULT_TARGET_COVERAGE = 0.80
+
+
+def coverage_levels(target_coverage: float = DEFAULT_TARGET_COVERAGE) -> tuple[float, float, float]:
+    """The (lower, median, upper) residual levels for a nominal coverage.
+
+    Rounded because `conformal_quantile` takes the `ceil((n+1)p)` order
+    statistic: at the default, `(1 - 0.8) / 2` is 0.09999999999999998, and
+    on a small sample that lands on a different residual from 0.1. The
+    default must reproduce the frozen q10/q50/q90 exactly.
+    """
+    tail = round((1.0 - target_coverage) / 2.0, 10)
+    return (tail, 0.5, round(1.0 - tail, 10))
+
+
 def conformal_spreads(
     residuals_by_lead: dict[int, list[float]], horizon: int,
     pooled: list[float] | None = None,
+    target_coverage: float = DEFAULT_TARGET_COVERAGE,
 ) -> dict[int, tuple[float, float, float]]:
     """Split-conformal offsets (low, median, high) for each lead time.
 
@@ -180,13 +234,19 @@ def conformal_spreads(
     Lead times with too few residuals borrow the pooled set rather than
     trusting a two-sample quantile, and the half-widths are then fitted
     monotone in h.
+
+    ``target_coverage`` is the nominal central coverage: 0.80 by default,
+    which is what q10/q90 have always meant, and settable through
+    ``evaluation.uncertainty.target_coverage`` — a documented key that was
+    parsed and never read.
     """
     pooled = pooled if pooled is not None else [
         residual for residuals in residuals_by_lead.values() for residual in residuals
     ]
     if not pooled:
         return {}
-    pooled_quantiles = {p: conformal_quantile(pooled, p) for p in (0.1, 0.5, 0.9)}
+    levels = coverage_levels(target_coverage)
+    pooled_quantiles = {p: conformal_quantile(pooled, p) for p in levels}
 
     medians: list[float] = []
     lows: list[float] = []
@@ -194,14 +254,15 @@ def conformal_spreads(
     for step in range(1, horizon + 1):
         residuals = residuals_by_lead.get(step) or []
         if len(residuals) >= MIN_RESIDUALS_PER_LEAD:
-            quantiles = {p: conformal_quantile(residuals, p) for p in (0.1, 0.5, 0.9)}
+            quantiles = {p: conformal_quantile(residuals, p) for p in levels}
         else:
             # Too few residuals at this lead to estimate its own tails:
             # borrow the pooled spread rather than invent precision.
             quantiles = pooled_quantiles
-        medians.append(quantiles[0.5])
-        lows.append(quantiles[0.5] - quantiles[0.1])
-        highs.append(quantiles[0.9] - quantiles[0.5])
+        lower, middle, upper = levels
+        medians.append(quantiles[middle])
+        lows.append(quantiles[middle] - quantiles[lower])
+        highs.append(quantiles[upper] - quantiles[middle])
 
     lows = _isotonic([max(0.0, value) for value in lows])
     highs = _isotonic([max(0.0, value) for value in highs])
@@ -545,12 +606,21 @@ def evaluate(
     # optimistic bias. False is genuine split conformal — the calibration
     # fold only, whose origins selection never saw — and noisier. The key
     # was documented and never read; it is read here.
+    # The built-in candidates this run competes, after `models.statistical.*`.
+    # The mandatory baselines are always in it.
+    pool = active_models(config)
     pool_residuals = True
-    if config is not None:
-        evaluation_config = getattr(config, "evaluation", None)
-        if evaluation_config is not None:
-            pool_residuals = bool(
-                getattr(evaluation_config, "pool_residuals", True)
+    evaluation_config = getattr(config, "evaluation", None) if config else None
+    if evaluation_config is not None:
+        pool_residuals = bool(getattr(evaluation_config, "pool_residuals", True))
+        # A caller-supplied abstention floor, above Aion's derived one.
+        floor = getattr(evaluation_config, "min_observations", None)
+        if floor is not None and len(values) < int(floor):
+            raise AionError(
+                "INSUFFICIENT_OBSERVATIONS",
+                f"{len(values)} observations is below the configured "
+                f"evaluation.folds.min_observations of {int(floor)}.",
+                {"observations": len(values), "min_observations": int(floor)},
             )
     if selection_stride is not None and selection_origins:
         selection_origins = dense_selection_origins(
@@ -601,7 +671,7 @@ def evaluate(
     elif requested_names:
         tsfm_adapters = tsfm_candidates(requested=requested_names, frequency=frequency)
     tsfm_model_names = [a.name for a in tsfm_adapters]
-    all_model_names = list(MODELS.keys()) + tsfm_model_names
+    all_model_names = list(pool.keys()) + tsfm_model_names
 
     # --- API inference adapters ---
     if config and config.backends.api.enabled:
@@ -632,13 +702,13 @@ def evaluate(
         )
 
     # --- Run built-in models on selection folds ---
-    fold_scores: dict[str, list[float]] = {name: [] for name in MODELS}
+    fold_scores: dict[str, list[float]] = {name: [] for name in pool}
     # Store per-fold forecasts for ensemble/meta-model training
-    fold_forecasts: dict[str, list[list[float]]] = {name: [] for name in MODELS}
+    fold_forecasts: dict[str, list[list[float]]] = {name: [] for name in pool}
     for origin in selection_origins:
         actual = values[origin : origin + horizon]
         train = train_at(origin)
-        for name in MODELS:
+        for name in pool:
             try:
                 forecast = predict(name, train, horizon, season)
             except ValueError:
@@ -736,7 +806,7 @@ def evaluate(
 
         for fold_idx in range(len(selection_origins)):
             fold_forecast_map: dict[str, list[float]] = {}
-            for name in MODELS:
+            for name in pool:
                 if fold_idx < len(fold_forecasts[name]) and fold_forecasts[name][fold_idx]:
                     fold_forecast_map[name] = fold_forecasts[name][fold_idx]
             for adapter in tsfm_adapters:
@@ -778,7 +848,7 @@ def evaluate(
             actual = values[origin : origin + horizon]
             mm_fold_actuals.append(actual)
 
-        for name in MODELS:
+        for name in pool:
             if fold_forecasts[name]:
                 mm_fold_forecasts[name] = fold_forecasts[name]
         for adapter in tsfm_adapters:
@@ -886,7 +956,7 @@ def evaluate(
 
     pinball_scores: dict[str, float | None] = {}
     if selection_loss == "pinball":
-        for name in MODELS:
+        for name in pool:
             if scores.get(name) is not None:
                 pinball_scores[name] = _pinball_score(fold_forecasts[name])
         for adapter in tsfm_adapters:
@@ -978,7 +1048,7 @@ def evaluate(
         from .ensemble import compute_ensemble_forecast
         member_scores: dict[str, float | None] = {**scores, **tsfm_scores}
         forecasts: dict[str, list[float]] = {}
-        for name in MODELS:
+        for name in pool:
             if member_scores.get(name) is None:
                 continue
             try:

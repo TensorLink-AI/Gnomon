@@ -222,8 +222,38 @@ def investigate_change(
             if explanations else None
         )
         support = detection["support"] if onset is None else detection["regimes"][-1]["support"]
+        # "What changed?" answered in the reader's terms. The raw list is
+        # kept verbatim; `ranked_changes` is the same changepoints ordered
+        # by how much of the series' variation each explains, timestamped
+        # rather than indexed, with the dominant one marked. A user asking
+        # what changed was previously handed three `index:` values, one of
+        # which (relative_gain 0.016) was noise beside the real one (0.779).
+        ranked = sorted(
+            detection["changepoints"],
+            key=lambda item: item.get("relative_gain") or 0.0,
+            reverse=True,
+        )
+        strongest = (ranked[0].get("relative_gain") or 0.0) if ranked else 0.0
+        ranked_changes = [
+            {
+                "timestamp": (
+                    item["timestamp"].isoformat()
+                    if hasattr(item["timestamp"], "isoformat") else str(item["timestamp"])
+                ),
+                "before_mean": item.get("before_mean"),
+                "after_mean": item.get("after_mean"),
+                "shift": item.get("shift"),
+                "share_of_variation_explained": item.get("relative_gain"),
+                "dominant": bool(
+                    strongest > 0
+                    and (item.get("relative_gain") or 0.0) >= strongest * 0.5
+                ),
+            }
+            for item in ranked
+        ]
         result = {
             "series": name,
+            "ranked_changes": ranked_changes,
             "changepoints": detection["changepoints"],
             "classification": detection["classification"],
             "onset": timestamps[onset["index"]].isoformat() if onset else None,

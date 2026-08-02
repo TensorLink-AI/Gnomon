@@ -452,6 +452,19 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
         {"action": "regenerate", "description": "The model's reply did not parse as the requested JSON. Re-run `aion context prompt` and pass the reply verbatim."},
     ],
 
+    # --- Configuration ----------------------------------------------------
+    "UNSUPPORTED_CONFIG_KEY": [
+        {"action": "remove_key", "description": "details.reasons explains, per key, why Aion cannot honour it. A setting that is silently ignored is worse than one that does not exist, which is why this is an error."},
+        {"action": "see_example", "description": "aion.yaml.example documents every key that does take effect."},
+    ],
+    "UNKNOWN_MODEL": [
+        {"action": "fix_candidates", "description": "details.available lists the statistical models that exist. Baselines are always in the pool and need not be named."},
+    ],
+    "INSUFFICIENT_OBSERVATIONS": [
+        {"action": "supply_more_history", "description": "The series is below the floor set by evaluation.folds.min_observations; details carries both numbers."},
+        {"action": "lower_the_floor", "description": "Lower or remove evaluation.folds.min_observations to fall back to Aion's own derived minimum, which depends on the horizon and the seasonal period."},
+    ],
+
     # --- Internal ---------------------------------------------------------
     "TRACKING_ERROR": [
         {"action": "review_message", "description": "The registry rejected the operation; the message states why."},

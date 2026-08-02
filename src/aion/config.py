@@ -35,9 +35,13 @@ class TSFMModelConfig:
 
 @dataclass
 class ModelsConfig:
-    baselines_enabled: bool = True
+    #: Whether the statistical candidates compete at all. False leaves the
+    #: mandatory baselines, which is a coherent request: it asks whether
+    #: anything beats the naive answer.
     statistical_enabled: bool = True
-    statistical_candidates: list[str] = field(default_factory=lambda: ["drift"])
+    #: Which statistical models compete. `None` means all of them, which is
+    #: the default; a list restricts the pool to those names.
+    statistical_candidates: list[str] | None = None
     tsfm_candidates: list[str] = field(default_factory=list)
     tsfm_overrides: dict[str, dict[str, Any]] = field(default_factory=dict)
 
@@ -118,23 +122,28 @@ class LLMConfig:
 @dataclass
 class EvaluationConfig:
     minimum_baseline_improvement: float = 0.02
-    min_observations: int = 144
-    degraded_mode_enabled: bool = False
-    degraded_min_observations: int = 48
+    #: An abstention floor a caller can raise above Aion's own derived
+    #: minimum. `None` (the default) uses the derived one; a number refuses
+    #: any series with fewer observations, naming this setting.
+    min_observations: int | None = None
+    #: `per_series` is the only implemented mode; `global` is rejected at
+    #: load rather than silently ignored.
     selection: str = "per_series"
     pool_residuals: bool = True
-    temporal_scaling: bool = True
-    target_coverage: float = 0.70
+    #: Nominal coverage of the published central interval. The default 0.80
+    #: is what q10/q90 have always meant; changing it changes which residual
+    #: order statistics are emitted as the interval bounds.
+    target_coverage: float = 0.80
 
 
 @dataclass
 class OutputConfig:
-    write_artifact: bool = True
+    #: `artifact.json` and `lineage.json` have no switch: the artifact is
+    #: the run's identity and the lineage is what the verifier checked, so
+    #: a run without them is not a run.
     write_forecast_csv: bool = True
     write_summary: bool = True
     write_evidence: bool = True
-    include_model_comparison: bool = False
-    include_ensemble_details: bool = False
 
 
 @dataclass
@@ -208,24 +217,137 @@ def load_config(explicit_path: str | None = None) -> AionConfig:
     return cfg
 
 
+#: Keys Aion parses but cannot honour, each with the reason. Supplying one
+#: raises rather than being silently ignored.
+#:
+#: Roughly thirty documented options were parsed and never read, so a user
+#: who disabled statistical models still got all five and a user who set
+#: `target_coverage` still got 80% intervals. Everything that could be
+#: honoured now is; what cannot be says so at load time, because a setting
+#: that is quietly ignored is worse than one that does not exist.
+INERT_KEYS: dict[str, str] = {
+    "models.baselines.enabled": (
+        "Baselines are mandatory by design: every candidate is selected by "
+        "beating them, so disabling them would remove the comparison that "
+        "makes a selection meaningful. Raise "
+        "`evaluation.minimum_baseline_improvement` instead if you want a "
+        "stricter bar, or lower it to 0 for a looser one."
+    ),
+    "evaluation.uncertainty.temporal_scaling": (
+        "Intervals are not scaled by sqrt(step). Each lead time's spread is "
+        "measured at that lead time, and a lead with too few residuals "
+        "borrows the pooled set rather than being stretched by an assumed "
+        "shape — see `conformal_spreads`. The flag would have described a "
+        "method Aion deliberately does not use."
+    ),
+    "ensemble.quantile_strategy": (
+        "The ensemble's intervals come from its own fold residuals, not from "
+        "combining member quantiles, so there is no union/intersection choice "
+        "to make. Combining member intervals would produce a band no fold "
+        "ever measured."
+    ),
+    "meta_model.linear_regression.lasso_alpha": (
+        "Only ridge regularisation is implemented; `ridge_alpha` is honoured. "
+        "L1 selection over a handful of models on a handful of folds would "
+        "drop members on noise."
+    ),
+    "evaluation.folds.degraded_mode.enabled": (
+        "Degraded evaluation is not a switch: Aion enters it automatically "
+        "when fewer than four folds are available, and says so in a warning "
+        "and in the support assessment. Turning it on cannot create folds, "
+        "and turning it off would replace a disclosed degradation with an "
+        "abstention that hides why."
+    ),
+    "evaluation.folds.degraded_mode.min_observations": (
+        "The floor is derived from the horizon and the seasonal period, not "
+        "configured: `minimum_train = max(2 * season, 2 * horizon, 8)`. A "
+        "fixed number cannot be right across frequencies."
+    ),
+    "output.write_artifact": (
+        "artifact.json is the run's identity — a content-addressed record "
+        "that everything else references. A run that does not write it is "
+        "not a run. forecast.csv, summary.md, and evidence.jsonl are "
+        "switchable."
+    ),
+    "output.include_model_comparison": (
+        "Every candidate's fold score is already in artifact.json under "
+        "`selection_scores`, and in the `rolling_evaluation` evidence "
+        "record. There is nothing to include or omit."
+    ),
+    "output.include_ensemble_details": (
+        "The ensemble's composition is already in the evidence when the "
+        "ensemble runs, and absent when it does not."
+    ),
+    "models.baselines": (
+        "Baselines are mandatory by design: every candidate is selected by "
+        "beating them. Use evaluation.minimum_baseline_improvement to move "
+        "the bar."
+    ),
+}
+
+
+def _flatten(raw: dict[str, Any], prefix: str = "") -> dict[str, Any]:
+    flat: dict[str, Any] = {}
+    for key, value in raw.items():
+        path = f"{prefix}.{key}" if prefix else str(key)
+        if isinstance(value, dict):
+            flat.update(_flatten(value, path))
+        else:
+            flat[path] = value
+    return flat
+
+
+def check_inert_keys(raw: dict[str, Any]) -> None:
+    """Refuse config keys that cannot take effect."""
+    from .contracts import AionError
+
+    supplied = _flatten(raw)
+    offending = [key for key in supplied if key in INERT_KEYS]
+    if not offending:
+        return
+    raise AionError(
+        "UNSUPPORTED_CONFIG_KEY",
+        "The config sets options Aion cannot honour: "
+        + "; ".join(f"{key} — {INERT_KEYS[key]}" for key in sorted(offending)),
+        {"keys": sorted(offending),
+         "reasons": {key: INERT_KEYS[key] for key in sorted(offending)}},
+    )
+
+
+def _section(raw: dict[str, Any], *path: str) -> dict[str, Any]:
+    """A nested config section, treating an empty one as absent.
+
+    A YAML key whose body is only comments parses as ``None``, not ``{}`` —
+    which is exactly what `backends.api.providers` looks like in the shipped
+    example. Without this, `aion.yaml.example` could not be loaded at all.
+    """
+    cursor: Any = raw
+    for key in path:
+        if not isinstance(cursor, dict):
+            return {}
+        cursor = cursor.get(key)
+    return cursor if isinstance(cursor, dict) else {}
+
+
 def _parse_config(raw: dict[str, Any]) -> AionConfig:
     """Parse a raw dict into a typed AionConfig."""
+    raw = raw or {}
+    check_inert_keys(raw)
     cfg = AionConfig()
 
     # Models
-    models_raw = raw.get("models", {})
+    models_raw = _section(raw, "models")
     cfg.models = ModelsConfig(
-        baselines_enabled=models_raw.get("baselines", {}).get("enabled", True),
-        statistical_enabled=models_raw.get("statistical", {}).get("enabled", True),
-        statistical_candidates=models_raw.get("statistical", {}).get("candidates", ["drift"]),
-        tsfm_candidates=models_raw.get("tsfm", {}).get("candidates", []),
-        tsfm_overrides=models_raw.get("tsfm", {}).get("overrides", {}),
+        statistical_enabled=_section(models_raw, "statistical").get("enabled", True),
+        statistical_candidates=_section(models_raw, "statistical").get("candidates"),
+        tsfm_candidates=_section(models_raw, "tsfm").get("candidates", []),
+        tsfm_overrides=_section(models_raw, "tsfm").get("overrides", {}),
     )
 
     # Backends
-    backends_raw = raw.get("backends", {})
-    sandbox_raw = backends_raw.get("sandbox", {})
-    api_raw = backends_raw.get("api", {})
+    backends_raw = _section(raw, "backends")
+    sandbox_raw = _section(backends_raw, "sandbox")
+    api_raw = _section(backends_raw, "api")
     cfg.backends = BackendsConfig(
         sandbox=SandboxBackendConfig(
             enabled=sandbox_raw.get("enabled", True),
@@ -236,34 +358,34 @@ def _parse_config(raw: dict[str, Any]) -> AionConfig:
             enabled=api_raw.get("enabled", False),
             timeout=api_raw.get("timeout", 60),
             retry=api_raw.get("retry", 2),
-            providers=_parse_api_providers(api_raw.get("providers", {})),
+            providers=_parse_api_providers(_section(api_raw, "providers")),
         ),
     )
 
     # Ensemble
-    ens_raw = raw.get("ensemble", {})
+    ens_raw = _section(raw, "ensemble")
     cfg.ensemble = EnsembleConfig(
         enabled=ens_raw.get("enabled", False),
         strategy=ens_raw.get("strategy", "weighted_mean"),
-        min_models=ens_raw.get("weighted_mean", {}).get("min_models",
-                          ens_raw.get("median", {}).get("min_models",
-                          ens_raw.get("voting", {}).get("min_models", 2))),
-        max_weight_ratio=ens_raw.get("weighted_mean", {}).get("max_weight_ratio", 0.7),
-        fallback=ens_raw.get("weighted_mean", {}).get("fallback", "strongest_baseline"),
+        min_models=_section(ens_raw, "weighted_mean").get("min_models",
+                          _section(ens_raw, "median").get("min_models",
+                          _section(ens_raw, "voting").get("min_models", 2))),
+        max_weight_ratio=_section(ens_raw, "weighted_mean").get("max_weight_ratio", 0.7),
+        fallback=_section(ens_raw, "weighted_mean").get("fallback", "strongest_baseline"),
         eligible=ens_raw.get("eligible", "all_candidates"),
         quantile_strategy=ens_raw.get("quantile_strategy", "union"),
-        weighted_mean=ens_raw.get("weighted_mean", {}),
-        median=ens_raw.get("median", {}),
-        voting=ens_raw.get("voting", {}),
+        weighted_mean=_section(ens_raw, "weighted_mean"),
+        median=_section(ens_raw, "median"),
+        voting=_section(ens_raw, "voting"),
     )
 
     # Meta-model
-    mm_raw = raw.get("meta_model", {})
+    mm_raw = _section(raw, "meta_model")
     cfg.meta_model = MetaModelConfig(
         enabled=mm_raw.get("enabled", False),
         type=mm_raw.get("type", "linear_regression"),
-        ridge_alpha=mm_raw.get("linear_regression", {}).get("ridge_alpha", 1.0),
-        lasso_alpha=mm_raw.get("linear_regression", {}).get("lasso_alpha", 0.1),
+        ridge_alpha=_section(mm_raw, "linear_regression").get("ridge_alpha", 1.0),
+        lasso_alpha=_section(mm_raw, "linear_regression").get("lasso_alpha", 0.1),
         min_models=mm_raw.get("min_models", 2),
         min_folds=mm_raw.get("min_folds", 3),
         non_negative=mm_raw.get("non_negative", True),
@@ -271,7 +393,7 @@ def _parse_config(raw: dict[str, Any]) -> AionConfig:
     )
 
     # LLM
-    llm_raw = raw.get("llm", {})
+    llm_raw = _section(raw, "llm")
     cfg.llm = LLMConfig(
         enabled=llm_raw.get("enabled", False),
         mode=llm_raw.get("mode", "interpret"),
@@ -281,29 +403,43 @@ def _parse_config(raw: dict[str, Any]) -> AionConfig:
     )
 
     # Evaluation
-    eval_raw = raw.get("evaluation", {})
-    folds_raw = eval_raw.get("folds", {})
-    unc_raw = eval_raw.get("uncertainty", {})
+    eval_raw = _section(raw, "evaluation")
+    folds_raw = _section(eval_raw, "folds")
+    unc_raw = _section(eval_raw, "uncertainty")
+    selection = eval_raw.get("selection", "per_series")
+    if selection != "per_series":
+        from .contracts import AionError
+        raise AionError(
+            "UNSUPPORTED_CONFIG_KEY",
+            f"evaluation.selection={selection!r} is not implemented; models "
+            f"are selected per series. A global selection would impose one "
+            f"model on series whose backtests disagree.",
+            {"keys": ["evaluation.selection"], "supported": ["per_series"]},
+        )
+    target_coverage = float(unc_raw.get("target_coverage", 0.80))
+    if not 0.5 <= target_coverage < 1.0:
+        from .contracts import AionError
+        raise AionError(
+            "UNSUPPORTED_CONFIG_KEY",
+            f"evaluation.uncertainty.target_coverage must be in [0.5, 1.0); "
+            f"got {target_coverage}.",
+            {"keys": ["evaluation.uncertainty.target_coverage"],
+             "supplied": target_coverage},
+        )
     cfg.evaluation = EvaluationConfig(
         minimum_baseline_improvement=eval_raw.get("minimum_baseline_improvement", 0.02),
-        min_observations=folds_raw.get("min_observations", 144),
-        degraded_mode_enabled=folds_raw.get("degraded_mode", {}).get("enabled", False),
-        degraded_min_observations=folds_raw.get("degraded_mode", {}).get("min_observations", 48),
-        selection=eval_raw.get("selection", "per_series"),
+        min_observations=folds_raw.get("min_observations"),
+        selection=selection,
         pool_residuals=unc_raw.get("pool_residuals", True),
-        temporal_scaling=unc_raw.get("temporal_scaling", True),
-        target_coverage=unc_raw.get("target_coverage", 0.70),
+        target_coverage=target_coverage,
     )
 
     # Output
-    out_raw = raw.get("output", {})
+    out_raw = _section(raw, "output")
     cfg.output = OutputConfig(
-        write_artifact=out_raw.get("write_artifact", True),
         write_forecast_csv=out_raw.get("write_forecast_csv", True),
         write_summary=out_raw.get("write_summary", True),
         write_evidence=out_raw.get("write_evidence", True),
-        include_model_comparison=out_raw.get("include_model_comparison", False),
-        include_ensemble_details=out_raw.get("include_ensemble_details", False),
     )
 
     return cfg
@@ -315,7 +451,7 @@ def _parse_api_providers(
     """Parse the backends.api.providers section."""
     result = {}
     for name, provider_raw in providers_raw.items():
-        auth_raw = provider_raw.get("auth", {})
+        auth_raw = _section(provider_raw, "auth")
         result[name] = APIProviderConfig(
             url=provider_raw.get("url", ""),
             auth=APIAuthConfig(
