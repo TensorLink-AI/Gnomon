@@ -1,4 +1,4 @@
-"""Phase 6: DecisionArtifact, realised-outcome scoring, aion status, and
+"""Phase 6: DecisionArtifact, realised-outcome scoring, gnomon status, and
 legacy migration."""
 
 from datetime import datetime, timezone
@@ -6,10 +6,10 @@ from pathlib import Path
 
 import json
 
-from aion.decision_model import ActionOption, DecisionArtifact, score_outcome
-from aion.ids import FixedClock
-from aion.macros import decide
-from aion.tracking import TrackingStore
+from gnomon.decision_model import ActionOption, DecisionArtifact, score_outcome
+from gnomon.ids import FixedClock
+from gnomon.macros import decide
+from gnomon.tracking import TrackingStore
 
 CLOCK = FixedClock(datetime(2026, 7, 1, tzinfo=timezone.utc))
 
@@ -101,9 +101,9 @@ def test_legacy_decision_records_load_as_degraded_artifacts(tmp_path):
 
 
 def test_decide_macro_records_decision_artifact(tmp_path, monkeypatch):
-    monkeypatch.setenv("AION_REGISTRY_PATH", str(tmp_path / "registry.db"))
+    monkeypatch.setenv("GNOMON_REGISTRY_PATH", str(tmp_path / "registry.db"))
     import importlib
-    import aion.tracking as tracking_module
+    import gnomon.tracking as tracking_module
     importlib.reload(tracking_module)
 
     from datetime import date, timedelta

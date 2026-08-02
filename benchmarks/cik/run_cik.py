@@ -1,4 +1,4 @@
-"""Run the Context-is-Key benchmark against Aion or an LLM control.
+"""Run the Context-is-Key benchmark against Gnomon or an LLM control.
 
 The tasks, seeds, sampling protocol, and RCRPS metric are the official
 ones from ``cik_benchmark``; this script only chooses which forecaster
@@ -7,8 +7,8 @@ answers them and collects the results.
 Conditions:
 
 - ``control``     official DirectPrompt LLM baseline via OpenRouter
-- ``aion-pure``   Aion alone, context text ignored
-- ``aion-agent``  OpenRouter LLM proposes typed context events; Aion
+- ``gnomon-pure``   Gnomon alone, context text ignored
+- ``gnomon-agent``  OpenRouter LLM proposes typed context events; Gnomon
                   validates, computes, or abstains
 
 Examples
@@ -17,14 +17,14 @@ Full official run (5 seeds, official sample count), control vs treatment::
 
     python -m benchmarks.cik.run_cik --method control \
         --model openai/gpt-4o --output-dir results/cik-control
-    python -m benchmarks.cik.run_cik --method aion-agent \
-        --model openai/gpt-4o --output-dir results/cik-aion
+    python -m benchmarks.cik.run_cik --method gnomon-agent \
+        --model openai/gpt-4o --output-dir results/cik-gnomon
 
 Then compare the completion/safety view::
 
-    aion eval compare \
-        --baseline results/cik-control/aionbench.jsonl \
-        --treatment results/cik-aion/aionbench.jsonl
+    gnomon eval compare \
+        --baseline results/cik-control/gnomonbench.jsonl \
+        --treatment results/cik-gnomon/gnomonbench.jsonl
 
 The headline CiK number is the mean RCRPS written to ``summary.json``;
 the official per-run scores are in ``scores.csv``.
@@ -43,7 +43,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from benchmarks.common.records import RecordWriter, RunRecord  # noqa: E402
 
-ABSTAIN_MARKER = "AION_ABSTAINED"
+ABSTAIN_MARKER = "GNOMON_ABSTAINED"
 
 
 def build_method(args):
@@ -57,10 +57,10 @@ def build_method(args):
             temperature=args.temperature,
             fail_on_invalid=False,
         )
-    from benchmarks.cik.aion_forecaster import AionForecaster
+    from benchmarks.cik.gnomon_forecaster import GnomonForecaster
 
-    mode = "agent" if args.method == "aion-agent" else "pure"
-    return AionForecaster(
+    mode = "agent" if args.method == "gnomon-agent" else "pure"
+    return GnomonForecaster(
         mode=mode, openrouter_model=args.model, temperature=args.temperature
     )
 
@@ -108,8 +108,8 @@ def run(args) -> int:
 
 def write_outputs(results: dict, method, args, output_dir: Path) -> None:
     scores_path = output_dir / "scores.csv"
-    jsonl = RecordWriter(output_dir / "aionbench.jsonl")
-    is_aion = args.method != "control"
+    jsonl = RecordWriter(output_dir / "gnomonbench.jsonl")
+    is_gnomon = args.method != "control"
 
     scored: list[float] = []
     abstentions = 0
@@ -137,7 +137,7 @@ def write_outputs(results: dict, method, args, output_dir: Path) -> None:
                     task_id=f"{task_name}-seed{seed}",
                     success=finite,
                     appropriate_abstention=abstained,
-                    tool_calls=1 if is_aion else 0,
+                    tool_calls=1 if is_gnomon else 0,
                     extra={"rcrps": float(score) if finite else None,
                            "method": method.cache_name},
                 ))
@@ -162,7 +162,7 @@ def write_outputs(results: dict, method, args, output_dir: Path) -> None:
     )
     print(json.dumps(summary, indent=2))
     print(f"Official per-run scores: {scores_path}")
-    print(f"AionBench rows: {jsonl.path} ({jsonl.count} rows)")
+    print(f"GnomonBench rows: {jsonl.path} ({jsonl.count} rows)")
 
 
 def main() -> int:
@@ -172,11 +172,11 @@ def main() -> int:
     parser.add_argument(
         "--method",
         required=True,
-        choices=["control", "aion-pure", "aion-agent"],
+        choices=["control", "gnomon-pure", "gnomon-agent"],
     )
     parser.add_argument(
         "--model",
-        help="OpenRouter model id (control and aion-agent), e.g. openai/gpt-4o",
+        help="OpenRouter model id (control and gnomon-agent), e.g. openai/gpt-4o",
     )
     parser.add_argument("--seeds", type=int, default=5,
                         help="Seeds per task (official: 5)")
@@ -190,8 +190,8 @@ def main() -> int:
                         help="Disable the official result cache")
     parser.add_argument("--output-dir", required=True)
     args = parser.parse_args()
-    if args.method == "aion-agent" and not args.model:
-        parser.error("--model is required for aion-agent")
+    if args.method == "gnomon-agent" and not args.model:
+        parser.error("--model is required for gnomon-agent")
     return run(args)
 
 

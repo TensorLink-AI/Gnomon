@@ -1,0 +1,7 @@
+{
+  "benchmark": "leakage-trap",
+  "code_revision": "99003f1",
+  "command": "/root/Gnomon/benchmarks/leaktrap/run_leaktrap.py gnomon --limit 40 --output-dir results/leaktrap/lt-gnomon",
+  "condition": "gnomon",
+  "target": "seed=7,horizon=14,history=120"
+}

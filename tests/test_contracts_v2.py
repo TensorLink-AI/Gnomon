@@ -7,8 +7,8 @@ from pathlib import Path
 import json
 import pytest
 
-from aion.contracts import (
-    AionError,
+from gnomon.contracts import (
+    GnomonError,
     DataSourceRef,
     ForecastSpec,
     SupportAssessment,
@@ -16,11 +16,11 @@ from aion.contracts import (
     TemporalTask,
     forecast_task,
 )
-from aion.ids import FixedClock
-from aion.lineage import ArtifactRecord, ClaimRecord, EvidenceRecord, Lineage
-from aion.runtime import forecast
-from aion.support import assess_forecast_support
-from aion.verifier import verify_lineage, verify_or_raise
+from gnomon.ids import FixedClock
+from gnomon.lineage import ArtifactRecord, ClaimRecord, EvidenceRecord, Lineage
+from gnomon.runtime import forecast
+from gnomon.support import assess_forecast_support
+from gnomon.verifier import verify_lineage, verify_or_raise
 
 REPO = Path(__file__).resolve().parent.parent
 CLOCK = FixedClock(datetime(2026, 7, 1, tzinfo=timezone.utc))
@@ -68,7 +68,7 @@ def test_unsupported_maps_to_inconclusive_with_recovery():
 def test_abstention_recovery_names_supportable_horizon():
     """A refusal is not a dead end: when a shorter horizon would succeed
     with the data already supplied, the recovery actions say which."""
-    from aion.evaluation import evaluate
+    from gnomon.evaluation import evaluate
 
     assessment = evaluate([1.0, 2.0, 3.0, 4.0, 5.0], horizon=24, season=24,
                           minimum_improvement=0.02)
@@ -80,7 +80,7 @@ def test_abstention_recovery_names_supportable_horizon():
 
 
 def test_strict_abstention_recovery_names_supportable_horizon():
-    from aion.evaluation import evaluate
+    from gnomon.evaluation import evaluate
 
     values = [float(i) for i in range(40)]
     assessment = evaluate(values, horizon=24, season=7, minimum_improvement=0.02,
@@ -169,7 +169,7 @@ def test_verify_or_raise_is_structured():
         "claim:causal", "causal", "X caused Y", "s",
         evidence_ids=("ablation:s",), artifact_ids=("dataset:abc",),
     )])
-    with pytest.raises(AionError) as caught:
+    with pytest.raises(GnomonError) as caught:
         verify_or_raise(lineage, as_of=None)
     assert caught.value.code == "CLAIM_VERIFICATION_FAILED"
     assert caught.value.details["violations"][0]["code"] == "CAUSAL_FROM_ASSOCIATIONAL"

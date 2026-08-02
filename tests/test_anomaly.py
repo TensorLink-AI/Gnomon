@@ -7,7 +7,7 @@ import math
 
 import pytest
 
-from aion.anomaly import (
+from gnomon.anomaly import (
     DEFAULT_THRESHOLD,
     DETECTORS,
     MIN_DETECTION_HISTORY,
@@ -149,7 +149,7 @@ class TestDetectAnomalies:
 
 class TestRegistryAndMacro:
     def test_operator_is_registered(self):
-        from aion.registry import OPERATORS
+        from gnomon.registry import OPERATORS
         spec = OPERATORS["detect_anomalies"]
         assert spec.seeded is True
         assert spec.deterministic is True
@@ -157,14 +157,14 @@ class TestRegistryAndMacro:
         assert spec.runner is detect_anomalies
 
     def test_macro_is_registered_with_schema(self):
-        from aion.registry import MACROS
+        from gnomon.registry import MACROS
         spec = MACROS["detect_anomalies"]
-        assert spec.tool_name == "aion_detect_anomalies"
+        assert spec.tool_name == "gnomon_detect_anomalies"
         assert "threshold" in spec.input_schema["properties"]
         assert "labels" in spec.input_schema["properties"]
 
     def test_capabilities_flag(self):
-        from aion.runtime import capabilities
+        from gnomon.runtime import capabilities
         payload = capabilities()
         assert payload["features"]["anomaly_detection"] is True
         assert payload["features"]["graded_detector_selection"] is True
@@ -175,7 +175,7 @@ class TestRegistryAndMacro:
         values[40] += 25.0
         csv_path = tmp_path / "series.csv"
         csv_path.write_text(_daily_csv(values), encoding="utf-8")
-        from aion.macros import detect_anomalies as macro
+        from gnomon.macros import detect_anomalies as macro
         payload, artifact_path = macro(
             str(csv_path), time_column="timestamp", target_column="value",
             output=str(tmp_path / "out"),
@@ -190,7 +190,7 @@ class TestRegistryAndMacro:
         values = _seasonal_series(60, 12)
         csv_path = tmp_path / "series.csv"
         csv_path.write_text(_daily_csv(values), encoding="utf-8")
-        from aion.cli import main
+        from gnomon.cli import main
         code = main([
             "detect", str(csv_path), "--time", "timestamp",
             "--target", "value", "--output", str(tmp_path / "out"),

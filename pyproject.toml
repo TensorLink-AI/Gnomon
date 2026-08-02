@@ -3,8 +3,8 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "aion-forecast"
-version = "0.4.0"
+name = "gnomon-forecast"
+version = "0.5.0"
 description = "A local-first, evidence-backed forecasting runtime"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -17,7 +17,7 @@ parquet = ["pyarrow>=15"]
 excel = ["openpyxl>=3.1"]
 dev = ["build>=1.2", "pytest>=8", "pyyaml>=6.0"]
 
-# TSFM adapters — Aion works without any of these (missing deps = soft skip).
+# TSFM adapters — Gnomon works without any of these (missing deps = soft skip).
 # TSFM packages have conflicting transitive dependencies (e.g. numpy pinning),
 # so they are NOT declared as optional extras here. Install them separately:
 #
@@ -27,19 +27,19 @@ dev = ["build>=1.2", "pytest>=8", "pyyaml>=6.0"]
 #   pip install momentfm torch                 # CMU MOMENT-1-Small (~38M)
 #   pip install "git+https://github.com/ibm-granite/granite-tsfm.git" torch  # IBM FlowState (18.5M) + TTM (1-3M)
 #
-# After installing any of the above, `aion capabilities` will list them under models.tsfm.
+# After installing any of the above, `gnomon capabilities` will list them under models.tsfm.
 
 [project.scripts]
-aion = "aion.cli:main"
+gnomon = "gnomon.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/TensorLink-AI/Aion"
-Documentation = "https://github.com/TensorLink-AI/Aion/tree/main/docs"
-Repository = "https://github.com/TensorLink-AI/Aion"
-Issues = "https://github.com/TensorLink-AI/Aion/issues"
+Homepage = "https://github.com/TensorLink-AI/Gnomon"
+Documentation = "https://github.com/TensorLink-AI/Gnomon/tree/main/docs"
+Repository = "https://github.com/TensorLink-AI/Gnomon"
+Issues = "https://github.com/TensorLink-AI/Gnomon/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/aion"]
+packages = ["src/gnomon"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "benchmarks/tests"]

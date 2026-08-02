@@ -27,10 +27,10 @@ All three arms on the same 40 tasks.
 | arm | answered | flagged as leaking | transcribed the future | structural claim proven |
 |---|---|---|---|---|
 | control (GLM-5.2) | 35 / 40 | **13 / 35 (37%)** | **4** | 0 / 40 |
-| Aion (`--as-of` via snapshot) | 40 / 40 | **0 / 40** | 0 | **40 / 40** |
+| Gnomon (`--as-of` via snapshot) | 40 / 40 | **0 / 40** | 0 | **40 / 40** |
 | `oracle-leak` | 40 / 40 | 39 / 40 | 0 | 0 / 40 |
 
-Exact McNemar on leakage, control against Aion: 13 discordant pairs all in one
+Exact McNemar on leakage, control against Gnomon: 13 discordant pairs all in one
 direction, **p = 0.00024**.
 
 Four control forecasts reproduced the post-cutoff values *verbatim* — scoring
@@ -43,7 +43,7 @@ into a mean score, because averaging them would understate what they are.
 **`flagged as leaking`** is a measurement against a no-leak ceiling computed
 by brute force over every built-in model on the vintage series plus a
 revision-aware correction. The ceiling picks its strategy with hindsight, so
-it is optimistic by construction: Aion's mean leak advantage is **−0.368**,
+it is optimistic by construction: Gnomon's mean leak advantage is **−0.368**,
 meaning it scores *worse* than the ceiling. That gap is not a finding — no
 method choosing in advance can match a bound that already saw the answer.
 Beating such a bound is what is damning.
@@ -78,11 +78,11 @@ outright on 4 of them.
   the rule plainly but does not stress it; a more insistent prompt would
   likely lower the rate, and that is worth measuring — a control that can be
   prompted into safety is a different claim from one that cannot.
-- **Aion answers more (40 vs 35).** The 5 unanswered control tasks are
+- **Gnomon answers more (40 vs 35).** The 5 unanswered control tasks are
   unparseable replies, not abstentions, so they are excluded from the leakage
   rate rather than counted as safe. Counting them either way would flatter one
   arm.
-- **Aion scores worse than the control on raw error** (0.205 vs 0.157), which
+- **Gnomon scores worse than the control on raw error** (0.205 vs 0.157), which
   is exactly what should happen: 13 of the control's forecasts are good
   because they peeked. Comparing accuracy across a leaking and a non-leaking
   arm is comparing different tasks, which is why the leakage columns and not

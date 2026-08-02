@@ -9,7 +9,7 @@ from pathlib import Path
 sys.path.insert(0, "src")
 
 import pytest
-from aion.tracking import (
+from gnomon.tracking import (
     DEFAULT_REGISTRY_PATH, TrackingStore, ForecastRecord, ModelPerformance, ScoreResult,
     mase_score, mape_score, bias_score, interval_coverage, threshold_accuracy,
     mean_absolute_error,
@@ -373,8 +373,8 @@ class TestSelectionMetricInHindsight:
     """
 
     def test_scoring_records_the_selection_metric(self, tmp_path):
-        from aion.evaluation import error_score
-        from aion.tracking import TrackingStore
+        from gnomon.evaluation import error_score
+        from gnomon.tracking import TrackingStore
 
         store = TrackingStore(tmp_path / "track.db")
         store.register(
@@ -395,7 +395,7 @@ class TestSelectionMetricInHindsight:
 
 class TestDegenerateWindowsAreNotSilentlyRescored:
     def test_error_score_declines_a_window_with_no_scale(self):
-        from aion.evaluation import error_score
+        from gnomon.evaluation import error_score
 
         # WAPE is undefined when sum|actual| is zero. The previous fallback
         # returned a raw MAE under the same name — a level-unit number
@@ -417,7 +417,7 @@ class TestAdaptiveConformalReplay:
 
     @staticmethod
     def _store(tmp_path):
-        from aion.tracking import TrackingStore
+        from gnomon.tracking import TrackingStore
 
         return TrackingStore(tmp_path / "adapt.db")
 
@@ -464,7 +464,7 @@ class TestAdaptiveConformalReplay:
         assert store.adapted_alpha("p", "s")["alpha"] < base
 
     def test_alpha_stays_within_bounds(self, tmp_path):
-        from aion.tracking import MAX_ADAPTIVE_ALPHA, MIN_ADAPTIVE_ALPHA
+        from gnomon.tracking import MAX_ADAPTIVE_ALPHA, MIN_ADAPTIVE_ALPHA
 
         store = self._store(tmp_path)
         for index in range(500):

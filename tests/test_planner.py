@@ -7,11 +7,11 @@ from pathlib import Path
 import json
 import pytest
 
-from aion.contracts import AionError
-from aion.execution import execute_plan
-from aion.ids import FixedClock
-from aion.macros import investigate_change
-from aion.plan import (
+from gnomon.contracts import GnomonError
+from gnomon.execution import execute_plan
+from gnomon.ids import FixedClock
+from gnomon.macros import investigate_change
+from gnomon.plan import (
     MAX_REPAIR_ROUNDS,
     PlanStep,
     TemporalPlan,
@@ -156,7 +156,7 @@ def test_executor_isolates_failures_and_skips_downstream(tmp_path):
 
 def test_executor_rejects_invalid_plan(tmp_path):
     plan = plan_from_dict({"task": {}, "steps": []})
-    with pytest.raises(AionError) as caught:
+    with pytest.raises(GnomonError) as caught:
         execute_plan(plan, output=str(tmp_path / "out"), clock=CLOCK)
     assert caught.value.code == "INVALID_PLAN"
 
@@ -222,20 +222,20 @@ def test_repair_is_bounded_and_feedback_driven(tmp_path):
 # -- Gated surface --------------------------------------------------------
 
 def test_planner_tools_are_gated(monkeypatch):
-    from aion.toolspec import runner_for, visible_tools
-    monkeypatch.delenv("AION_EXPERIMENTAL_PLANNER", raising=False)
+    from gnomon.toolspec import runner_for, visible_tools
+    monkeypatch.delenv("GNOMON_EXPERIMENTAL_PLANNER", raising=False)
     names = {tool["name"] for tool in visible_tools()}
-    assert "aion_execute_plan" not in names
-    assert runner_for("aion_execute_plan") is None
+    assert "gnomon_execute_plan" not in names
+    assert runner_for("gnomon_execute_plan") is None
 
-    monkeypatch.setenv("AION_EXPERIMENTAL_PLANNER", "1")
+    monkeypatch.setenv("GNOMON_EXPERIMENTAL_PLANNER", "1")
     names = {tool["name"] for tool in visible_tools()}
-    assert {"aion_compile_task", "aion_validate_plan",
-            "aion_execute_plan", "aion_get_run"} <= names
+    assert {"gnomon_compile_task", "gnomon_validate_plan",
+            "gnomon_execute_plan", "gnomon_get_run"} <= names
 
 
 def test_cli_plan_roundtrip(tmp_path, capsys):
-    from aion.cli import main
+    from gnomon.cli import main
     source = _shift_csv(tmp_path)
     params = json.dumps({"input": str(source), "time_column": "timestamp",
                          "target_column": "value", "horizon": 5})

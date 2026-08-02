@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from aion.contracts import AionError
-from aion.runtime import capabilities, forecast, inspect_dataset
+from gnomon.contracts import GnomonError
+from gnomon.runtime import capabilities, forecast, inspect_dataset
 
 
 def write_daily(path: Path, count: int, *, duplicate: bool = False) -> None:
@@ -158,7 +158,7 @@ def test_minute_frequency_is_inferred_and_forecastable(tmp_path: Path) -> None:
     write_noisy(source, 1000, minutes=5)
     inspected = inspect_dataset(str(source), time_column="timestamp", target_column="value")
     assert inspected["schema"]["frequency"] == "5min"  # type: ignore[index]
-    assert "aion forecast" in inspected["suggested_next"]  # type: ignore[operator]
+    assert "gnomon forecast" in inspected["suggested_next"]  # type: ignore[operator]
     artifact, _ = forecast(
         str(source), time_column="timestamp", target_column="value", horizon=12,
         output=str(tmp_path / "output"),
@@ -198,7 +198,7 @@ def test_duplicate_timestamps_are_structured_input_error(tmp_path: Path) -> None
     source = tmp_path / "duplicate.csv"
     write_daily(source, 20, duplicate=True)
     # The strict path still rejects duplicates outright.
-    with pytest.raises(AionError) as caught:
+    with pytest.raises(GnomonError) as caught:
         forecast(str(source), time_column="timestamp", target_column="value",
                  series_column="series", horizon=3, output=str(tmp_path / "out"),
                  repair="off")

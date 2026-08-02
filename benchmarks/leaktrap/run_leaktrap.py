@@ -8,7 +8,7 @@ Conditions
                  no-leak ceiling, then leaking does not help on these tasks
                  and every other number in the family is meaningless. Run it
                  first; it is free and needs no model.
-``aion``         Ingests the same CSV with its publication dates and
+``gnomon``         Ingests the same CSV with its publication dates and
                  forecasts through the snapshot at ``--as-of <cutoff>``.
                  Post-cutoff reads are structurally impossible, and the
                  grader asserts it over the run's own ``snapshot_access``
@@ -26,14 +26,14 @@ Examples
     python -m benchmarks.leaktrap.run_leaktrap oracle-leak --limit 40 \
         --output-dir results/leaktrap-oracle
 
-    python -m benchmarks.leaktrap.run_leaktrap aion --limit 40 \
-        --output-dir results/leaktrap-aion
+    python -m benchmarks.leaktrap.run_leaktrap gnomon --limit 40 \
+        --output-dir results/leaktrap-gnomon
 
     python -m benchmarks.leaktrap.run_leaktrap control --limit 40 \
         --model z-ai/glm-5.2 --output-dir results/leaktrap-control
 
     python -m benchmarks.report --baseline results/leaktrap-control \
-        --treatment results/leaktrap-aion --metric score
+        --treatment results/leaktrap-gnomon --metric score
 """
 
 from __future__ import annotations
@@ -59,7 +59,7 @@ from benchmarks.leaktrap.grade import (  # noqa: E402
 )
 from benchmarks.leaktrap.tasks import TrapTask, generate_tasks  # noqa: E402
 
-CONDITIONS = ("oracle-leak", "aion", "control")
+CONDITIONS = ("oracle-leak", "gnomon", "control")
 
 CONTROL_PROMPT = """You are forecasting a daily time series.
 
@@ -87,7 +87,7 @@ def _oracle_forecast(task: TrapTask) -> list[float]:
     shock — which is exactly the read a careless consumer of a revision-
     carrying extract makes.
     """
-    from aion.models import MODELS, predict
+    from gnomon.models import MODELS, predict
 
     revised = task.revised_values()
     season = int(task.metadata.get("season", 7))
@@ -109,16 +109,16 @@ def _oracle_forecast(task: TrapTask) -> list[float]:
     return best or []
 
 
-def _aion_forecast(task: TrapTask, work: Path) -> tuple[list[float], list[dict[str, Any]]]:
+def _gnomon_forecast(task: TrapTask, work: Path) -> tuple[list[float], list[dict[str, Any]]]:
     """Forecast through the snapshot, and return the run's evidence.
 
     The evidence is returned rather than a claim: the grader decides whether
     the run could have leaked by reading the access log, not by trusting
     that this function passed the right `as_of`.
     """
-    from aion.contracts import AionError
-    from aion.runtime import forecast
-    from aion.temporal_store import TemporalStore
+    from gnomon.contracts import GnomonError
+    from gnomon.runtime import forecast
+    from gnomon.temporal_store import TemporalStore
 
     dataset = f"trap_{task.task_id.replace('-', '_')}"
     csv_path = task.write_csv(work / f"{task.task_id}.csv")
@@ -133,7 +133,7 @@ def _aion_forecast(task: TrapTask, work: Path) -> tuple[list[float], list[dict[s
             horizon=task.horizon, as_of=task.cutoff, store_path=store_path,
             output=str(work / "out"),
         )
-    except AionError as exc:
+    except GnomonError as exc:
         return [], [{"kind": "error", "payload": {"code": exc.code}}]
     evidence = [{"kind": item.kind, "payload": item.payload}
                 for item in artifact.evidence]
@@ -214,10 +214,10 @@ def main(argv: list[str] | None = None) -> int:
             calls = 0
             if args.condition == "oracle-leak":
                 points = _oracle_forecast(task)
-            elif args.condition == "aion":
+            elif args.condition == "gnomon":
                 work = work_root / task.task_id
                 work.mkdir(parents=True, exist_ok=True)
-                points, evidence = _aion_forecast(task, work)
+                points, evidence = _gnomon_forecast(task, work)
                 shutil.rmtree(work, ignore_errors=True)
             else:
                 points, calls = _control_forecast(task, client)
@@ -278,7 +278,7 @@ def main(argv: list[str] | None = None) -> int:
                 "snapshot.",
     }
 
-    with (output / "aionbench.jsonl").open("w", encoding="utf-8") as handle:
+    with (output / "gnomonbench.jsonl").open("w", encoding="utf-8") as handle:
         for row in rows:
             handle.write(json.dumps(row) + "\n")
     (output / "summary.json").write_text(json.dumps(summary, indent=2) + "\n",
@@ -290,7 +290,7 @@ def main(argv: list[str] | None = None) -> int:
         command=" ".join(sys.argv),
     )
     print(json.dumps(summary, indent=2))
-    print(f"AionBench rows: {output / 'aionbench.jsonl'} ({len(rows)} rows)")
+    print(f"GnomonBench rows: {output / 'gnomonbench.jsonl'} ({len(rows)} rows)")
     return 0
 
 

@@ -54,7 +54,7 @@ the forecast worse here, and the reason is structural rather than incidental.
 
 Shrinkage is the right instrument when admission is otherwise unconditional,
 because then the admitted set contains candidates whose apparent gain is
-noise. Aion's gate is not unconditional: a candidate only reaches λ after
+noise. Gnomon's gate is not unconditional: a candidate only reaches λ after
 already clearing a mean-improvement margin, a majority-of-folds condition,
 and survival of the single best fold's removal. Those three conditions have
 *already* removed the candidates whose effects are noise. Applying shrinkage

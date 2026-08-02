@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from aion.workflows import (
+from gnomon.workflows import (
     DocumentRef,
     build_context_investigation_prompt,
     build_task_formulation_prompt,

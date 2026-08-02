@@ -17,8 +17,8 @@ sys.path.insert(0, "src")
 
 import pytest  # noqa: E402
 
-from aion.multivariate import MINIMUM_CORRELATION, VarFrame  # noqa: E402
-from aion.runtime import forecast  # noqa: E402
+from gnomon.multivariate import MINIMUM_CORRELATION, VarFrame  # noqa: E402
+from gnomon.runtime import forecast  # noqa: E402
 
 
 class _Item:

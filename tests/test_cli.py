@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from aion.cli import main
+from gnomon.cli import main
 
 
 def test_capabilities_are_honest(capsys) -> None:

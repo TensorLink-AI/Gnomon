@@ -14,9 +14,9 @@ import sqlite3
 
 import pytest
 
-from aion.ids import FixedClock
-from aion.macros import decide, detect_anomalies, investigate_change
-from aion.tracking import TrackingStore
+from gnomon.ids import FixedClock
+from gnomon.macros import decide, detect_anomalies, investigate_change
+from gnomon.tracking import TrackingStore
 
 CLOCK = FixedClock(datetime(2026, 7, 1, tzinfo=timezone.utc))
 NOISE = [0.5, -0.3, 0.2, -0.4, 0.1, 0.3, -0.2, -0.1, 0.4, -0.5]
@@ -47,8 +47,8 @@ def test_step_cache_key_includes_as_of(tmp_path):
     latest-data result verbatim with ``cached: true`` — the one place a
     documented replay demonstrably read post-cutoff data.
     """
-    from aion.execution import execute_plan
-    from aion.plan import plan_from_dict
+    from gnomon.execution import execute_plan
+    from gnomon.plan import plan_from_dict
 
     source = _series_csv(tmp_path)
     steps = [{
@@ -264,7 +264,7 @@ def test_migration_is_idempotent(tmp_path):
 # -- C8: an id that names a model must cover its weights ------------------
 
 def test_every_adapter_model_id_is_pinned():
-    from aion.tsfm import _ADAPTER_MODEL_IDS, TSFM_REVISIONS
+    from gnomon.tsfm import _ADAPTER_MODEL_IDS, TSFM_REVISIONS
     for adapter, model_ids in _ADAPTER_MODEL_IDS.items():
         for model_id in model_ids:
             assert model_id in TSFM_REVISIONS, f"{adapter} loads {model_id} unpinned"
@@ -272,7 +272,7 @@ def test_every_adapter_model_id_is_pinned():
 
 def test_pinned_revisions_are_commit_shas():
     """A tag or branch can move under a fixed name; a commit cannot."""
-    from aion.tsfm import TSFM_REVISIONS
+    from gnomon.tsfm import TSFM_REVISIONS
     for model_id, revision in TSFM_REVISIONS.items():
         assert len(revision) == 40 and all(
             character in "0123456789abcdef" for character in revision
@@ -280,13 +280,13 @@ def test_pinned_revisions_are_commit_shas():
 
 
 def test_unpinned_model_id_is_refused():
-    from aion.tsfm import UnpinnedWeights, pinned_revision
+    from gnomon.tsfm import UnpinnedWeights, pinned_revision
     with pytest.raises(UnpinnedWeights):
         pinned_revision("someone/an-unpinned-model")
 
 
 def test_every_sandbox_pip_spec_is_pinned():
-    from aion.tsfm_sandbox import TSFM_PIP_SPECS
+    from gnomon.tsfm_sandbox import TSFM_PIP_SPECS
     for adapter, specs in TSFM_PIP_SPECS.items():
         for spec in specs:
             pinned = "==" in spec or (spec.startswith("git+") and "@" in spec.rsplit("/", 1)[-1])
@@ -298,7 +298,7 @@ def test_every_adapter_load_passes_a_revision():
     import ast
     import inspect
 
-    import aion.tsfm as tsfm_module
+    import gnomon.tsfm as tsfm_module
 
     tree = ast.parse(inspect.getsource(tsfm_module))
     unpinned = [

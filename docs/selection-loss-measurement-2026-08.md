@@ -9,7 +9,7 @@ which reaches the same shape of conclusion about fold stride.
 
 ## The argument for changing it
 
-Aion's answer is a distribution — nine quantile levels per lead time — but
+Gnomon's answer is a distribution — nine quantile levels per lead time — but
 selection is decided on WAPE, a point loss. A point loss cannot tell a model
 whose uncertainty is well placed from one whose centre happens to land well,
 so on the face of it the model chosen is optimised for the wrong output.

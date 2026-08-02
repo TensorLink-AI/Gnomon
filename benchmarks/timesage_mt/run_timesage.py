@@ -8,7 +8,7 @@ Download the official dataset once::
     python -m benchmarks.timesage_mt.run_timesage --download \
         --data-dir ~/timesage-mt
 
-Control (direct answering) vs. treatment (Aion tool loop), same model::
+Control (direct answering) vs. treatment (Gnomon tool loop), same model::
 
     python -m benchmarks.timesage_mt.run_timesage \
         --data-dir ~/timesage-mt --condition direct \
@@ -16,13 +16,13 @@ Control (direct answering) vs. treatment (Aion tool loop), same model::
         --output-dir results/timesage-direct
 
     python -m benchmarks.timesage_mt.run_timesage \
-        --data-dir ~/timesage-mt --condition aion-tools \
+        --data-dir ~/timesage-mt --condition gnomon-tools \
         --model openai/gpt-4o --tiers L1,L2 \
-        --output-dir results/timesage-aion
+        --output-dir results/timesage-gnomon
 
-    aion eval compare \
-        --baseline results/timesage-direct/aionbench.jsonl \
-        --treatment results/timesage-aion/aionbench.jsonl
+    gnomon eval compare \
+        --baseline results/timesage-direct/gnomonbench.jsonl \
+        --treatment results/timesage-gnomon/gnomonbench.jsonl
 
 Scoring: mechanical checks (keyword / numerical_range) are applied
 exactly as the task files specify. Turns whose spec needs an embedding
@@ -56,7 +56,7 @@ def main() -> int:
                         help="Official dataset snapshot directory")
     parser.add_argument("--download", action="store_true",
                         help="Fetch the dataset into --data-dir first")
-    parser.add_argument("--condition", choices=["direct", "aion-tools"],
+    parser.add_argument("--condition", choices=["direct", "gnomon-tools"],
                         default=None, help="Agent condition to run")
     parser.add_argument("--model", default=None, help="OpenRouter model id")
     parser.add_argument("--judge-model", default=None,
@@ -86,7 +86,7 @@ def main() -> int:
     output_dir = Path(args.output_dir)
     transcripts_dir = output_dir / "transcripts"
     transcripts_dir.mkdir(parents=True, exist_ok=True)
-    records = RecordWriter(output_dir / "aionbench.jsonl")
+    records = RecordWriter(output_dir / "gnomonbench.jsonl")
 
     counts = {"mechanical_pass": 0, "mechanical_fail": 0,
               "judge_pass": 0, "judge_fail": 0, "unscored": 0}

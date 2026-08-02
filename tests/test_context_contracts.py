@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import pytest
 
-from aion.context import (
+from gnomon.context import (
     ContextEvent,
     ContextSource,
     backtest_admissible,
     validate_context_event,
 )
-from aion.llm import LLMAdapter, LLMUnavailable, NullLLMAdapter
+from gnomon.llm import LLMAdapter, LLMUnavailable, NullLLMAdapter
 
 
 def _event(**overrides) -> ContextEvent:

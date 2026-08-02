@@ -14,15 +14,15 @@ event:
 
 | run | rows | rows supplying ≥1 event |
 |---|---|---|
-| CiK `aion-pure` | 71 | 0 |
-| MTBench `aion` (agent) | 50 | 0 |
-| MTBench `aion-tools` | 50 | 0 |
-| TemporalBench `aion-agent` | 50 | 0 |
-| TimeSage `ts-aion` | 127 | 0 |
+| CiK `gnomon-pure` | 71 | 0 |
+| MTBench `gnomon` (agent) | 50 | 0 |
+| MTBench `gnomon-tools` | 50 | 0 |
+| TemporalBench `gnomon-agent` | 50 | 0 |
+| TimeSage `ts-gnomon` | 127 | 0 |
 
-The `aion-tools` row is the one that settles it. That condition was built
+The `gnomon-tools` row is the one that settles it. That condition was built
 specifically so a model could propose context events: `context_events` is an
-explicit parameter of the `aion_forecast` tool, the schema is in the tool
+explicit parameter of the `gnomon_forecast` tool, the schema is in the tool
 description, and GLM-5.2 made 6.9 tool calls per sample. It proposed zero
 admissible events across 50 samples.
 
@@ -37,7 +37,7 @@ table would be empty, the leakage rule would never fire, and the feature
 would be untestable except against fixtures written to exercise it.
 
 The measurement also points at where the real problem is. The bottleneck is
-not that Aion pools event effects badly; it is that **nothing supplies
+not that Gnomon pools event effects badly; it is that **nothing supplies
 events**. Two plausible reasons, neither addressed by pooling:
 
 1. The benchmark corpora do not carry dated, sourced events. CiK's context is

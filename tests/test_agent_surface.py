@@ -6,26 +6,26 @@ from pathlib import Path
 
 import json
 
-from aion.contracts import AionError
-from aion.ids import FixedClock
-from aion.macros import monitor
-from aion.mcp_server import _handle
-from aion.runtime import forecast
-from aion.toolspec import TOOLS, runner_for
+from gnomon.contracts import GnomonError
+from gnomon.ids import FixedClock
+from gnomon.macros import monitor
+from gnomon.mcp_server import _handle
+from gnomon.runtime import forecast
+from gnomon.toolspec import TOOLS, runner_for
 
 REPO = Path(__file__).resolve().parent.parent
 CLOCK = FixedClock(datetime(2026, 7, 1, tzinfo=timezone.utc))
 
 V02_TOOL_NAMES = [
-    "aion_capabilities", "aion_inspect", "aion_forecast",
-    "aion_covariate_guide", "aion_validate_covariates", "aion_propose_covariates",
-    "aion_submit_actuals", "aion_list_open_forecasts", "aion_model_performance",
-    "aion_record_decision", "aion_resolve_decision",
+    "gnomon_capabilities", "gnomon_inspect", "gnomon_forecast",
+    "gnomon_covariate_guide", "gnomon_validate_covariates", "gnomon_propose_covariates",
+    "gnomon_submit_actuals", "gnomon_list_open_forecasts", "gnomon_model_performance",
+    "gnomon_record_decision", "gnomon_resolve_decision",
 ]
 NEW_TOOL_NAMES = [
-    "aion_investigate_change", "aion_decide", "aion_monitor",
-    "aion_get_artifact", "aion_explain_run",
-    "aion_status", "aion_resolve_outcome",
+    "gnomon_investigate_change", "gnomon_decide", "gnomon_monitor",
+    "gnomon_get_artifact", "gnomon_explain_run",
+    "gnomon_status", "gnomon_resolve_outcome",
 ]
 
 
@@ -42,15 +42,15 @@ def test_mcp_lists_macro_tools():
     names = {tool["name"] for tool in result["tools"]}
     assert set(NEW_TOOL_NAMES) <= names
     schemas = {tool["name"]: tool["inputSchema"] for tool in result["tools"]}
-    assert "actions" in schemas["aion_decide"]["properties"]
-    assert "threshold" in schemas["aion_monitor"]["required"]
+    assert "actions" in schemas["gnomon_decide"]["properties"]
+    assert "threshold" in schemas["gnomon_monitor"]["required"]
 
 
 def test_macro_schemas_come_from_registry():
-    from aion.registry import MACROS
+    from gnomon.registry import MACROS
     by_name = {tool["name"]: tool for tool in TOOLS}
     for spec in MACROS.values():
-        if spec.tool_name == "aion_forecast":
+        if spec.tool_name == "gnomon_forecast":
             continue  # frozen v0.2 definition
         assert by_name[spec.tool_name]["inputSchema"] == spec.input_schema
         assert by_name[spec.tool_name]["description"] == spec.summary
@@ -62,13 +62,13 @@ def test_get_artifact_and_explain_run(tmp_path):
         time_column="timestamp", target_column="requests", horizon=5,
         output=str(tmp_path), clock=CLOCK,
     )
-    fetched = runner_for("aion_get_artifact")({
+    fetched = runner_for("gnomon_get_artifact")({
         "artifact_path": str(directory), "include_lineage": True,
     })
     assert fetched["artifact"]["forecast_id"] == artifact.forecast_id
     assert fetched["lineage"]["claims"]
 
-    explained = runner_for("aion_explain_run")({"artifact_path": str(directory)})
+    explained = runner_for("gnomon_explain_run")({"artifact_path": str(directory)})
     assert explained["artifact_id"] == artifact.forecast_id
     assert "__default__" in explained["support_assessments"]
     assert explained["claims"][0]["claim_class"] in ("predictive", "descriptive")
@@ -87,23 +87,23 @@ def test_explain_run_on_monitor_artifact(tmp_path):
         horizon=6, threshold=165.0, alert_cost=1.0, miss_cost=9.0,
         output=str(tmp_path / "out"), clock=CLOCK,
     )
-    explained = runner_for("aion_explain_run")({"artifact_path": str(directory)})
+    explained = runner_for("gnomon_explain_run")({"artifact_path": str(directory)})
     assert explained["artifact_id"] == payload["monitor_id"]
     assert explained["support_assessments"]
 
 
 def test_errors_carry_repair_options():
-    error = AionError("DATASET_NOT_FOUND", "no such dataset", {"available": []})
+    error = GnomonError("DATASET_NOT_FOUND", "no such dataset", {"available": []})
     envelope = error.to_dict()
     actions = [option["action"] for option in envelope["error"]["repair_options"]]
     assert "list_datasets" in actions and "ingest" in actions
     # Unknown codes degrade to an empty list, never a crash.
-    assert AionError("BRAND_NEW_CODE", "x").to_dict()["error"]["repair_options"] == []
+    assert GnomonError("BRAND_NEW_CODE", "x").to_dict()["error"]["repair_options"] == []
 
 
 def test_mcp_tool_error_includes_repair_options(tmp_path):
     result = _handle({"method": "tools/call", "params": {
-        "name": "aion_decide",
+        "name": "gnomon_decide",
         "arguments": {
             "input": str(REPO / "examples" / "daily_requests.csv"),
             "time_column": "timestamp", "target_column": "nope",
@@ -118,8 +118,8 @@ def test_mcp_tool_error_includes_repair_options(tmp_path):
 
 
 def test_capabilities_expose_registry():
-    from aion.runtime import capabilities
+    from gnomon.runtime import capabilities
     payload = capabilities()
-    assert "aion_investigate_change" in payload["macros"]
+    assert "gnomon_investigate_change" in payload["macros"]
     assert payload["operators"]["evaluate_actions"]["claim_classes"] == ["decision"]
     assert payload["features"]["claim_verifier"] is True

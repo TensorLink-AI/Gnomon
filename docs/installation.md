@@ -11,7 +11,7 @@ bash install.sh
 Directly from GitHub:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/TensorLink-AI/Aion/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/TensorLink-AI/Gnomon/main/install.sh | bash
 ```
 
 The direct `curl` form requires the repository to be public. While it is
@@ -20,8 +20,8 @@ The installer detects an authenticated `gh` CLI and uses it to download private
 source archives without placing the token in a URL or subprocess argument.
 
 The installer requires Python 3.11 or newer. It creates an isolated virtual
-environment under `~/.local/share/aion/releases/` and links the executable
-to `~/.local/bin/aion`. It does not use `sudo` or modify system Python.
+environment under `~/.local/share/gnomon/releases/` and links the executable
+to `~/.local/bin/gnomon`. It does not use `sudo` or modify system Python.
 
 If `~/.local/bin` is not on `PATH`, add it in your shell configuration:
 
@@ -37,7 +37,7 @@ the installed source:
 
 ```bash
 curl -fsSL \
-  https://raw.githubusercontent.com/TensorLink-AI/Aion/v0.1.0/install.sh \
+  https://raw.githubusercontent.com/TensorLink-AI/Gnomon/v0.1.0/install.sh \
   | bash -s -- --version v0.1.0
 ```
 
@@ -49,7 +49,7 @@ Supported installer overrides:
 ```bash
 bash install.sh --help
 bash install.sh --version main
-bash install.sh --install-root /opt/aion --bin-dir /usr/local/bin
+bash install.sh --install-root /opt/gnomon --bin-dir /usr/local/bin
 ```
 
 Writing to system paths may require appropriate permissions. Re-running the
@@ -67,7 +67,7 @@ uv tool install .
 From GitHub:
 
 ```bash
-uv tool install 'git+https://github.com/TensorLink-AI/Aion.git@main'
+uv tool install 'git+https://github.com/TensorLink-AI/Gnomon.git@main'
 ```
 
 ## Install from PyPI
@@ -75,9 +75,9 @@ uv tool install 'git+https://github.com/TensorLink-AI/Aion.git@main'
 After the first tagged release has been published:
 
 ```bash
-pipx install aion-forecast
+pipx install gnomon-forecast
 # or
-uv tool install aion-forecast
+uv tool install gnomon-forecast
 ```
 
 Until that release exists, use the checkout, GitHub, or Bash installer methods.
@@ -87,5 +87,5 @@ Until that release exists, use the checkout, GitHub, or Bash installer methods.
 The default Bash installer installs CSV support only. With uv or pip, request:
 
 ```bash
-uv tool install 'aion-forecast[parquet]'
+uv tool install 'gnomon-forecast[parquet]'
 ```

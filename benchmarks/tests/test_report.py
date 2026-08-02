@@ -24,7 +24,7 @@ from benchmarks.report import (  # noqa: E402
 def _write_run(root, name, rows, manifest=None):
     run_dir = root / name
     run_dir.mkdir(parents=True)
-    with (run_dir / "aionbench.jsonl").open("w", encoding="utf-8") as handle:
+    with (run_dir / "gnomonbench.jsonl").open("w", encoding="utf-8") as handle:
         for row in rows:
             handle.write(json.dumps(row) + "\n")
     if manifest is not None:

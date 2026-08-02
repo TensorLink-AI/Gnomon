@@ -15,7 +15,7 @@ def _talk(messages: list[dict]) -> list[dict]:
         part for part in (str(REPO_ROOT / "src"), env.get("PYTHONPATH")) if part
     )
     completed = subprocess.run(
-        [sys.executable, "-m", "aion", "mcp", "serve"],
+        [sys.executable, "-m", "gnomon", "mcp", "serve"],
         input="".join(json.dumps(message) + "\n" for message in messages),
         capture_output=True, text=True, timeout=60, env=env,
     )
@@ -29,27 +29,27 @@ def test_initialize_list_and_call() -> None:
         {"jsonrpc": "2.0", "method": "notifications/initialized"},
         {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
         {"jsonrpc": "2.0", "id": 3, "method": "tools/call",
-         "params": {"name": "aion_capabilities", "arguments": {}}},
+         "params": {"name": "gnomon_capabilities", "arguments": {}}},
     ])
     by_id = {response["id"]: response for response in responses}
-    assert by_id[1]["result"]["serverInfo"]["name"] == "aion"
+    assert by_id[1]["result"]["serverInfo"]["name"] == "gnomon"
     tool_names = [tool["name"] for tool in by_id[2]["result"]["tools"]]
     # The frozen v0.2 tools come first, unchanged; registry-generated macro
     # and artifact tools follow.
     assert tool_names[:11] == [
-            "aion_capabilities", "aion_inspect", "aion_forecast",
-            "aion_covariate_guide", "aion_validate_covariates",
-            "aion_propose_covariates",
-        "aion_submit_actuals", "aion_list_open_forecasts",
-        "aion_model_performance", "aion_record_decision",
-        "aion_resolve_decision",
+            "gnomon_capabilities", "gnomon_inspect", "gnomon_forecast",
+            "gnomon_covariate_guide", "gnomon_validate_covariates",
+            "gnomon_propose_covariates",
+        "gnomon_submit_actuals", "gnomon_list_open_forecasts",
+        "gnomon_model_performance", "gnomon_record_decision",
+        "gnomon_resolve_decision",
     ]
     assert set(tool_names[11:]) == {
-        "aion_investigate_change", "aion_detect_anomalies", "aion_decide", "aion_monitor",
-        "aion_get_artifact", "aion_explain_run",
-        "aion_status", "aion_resolve_outcome", "aion_route",
+        "gnomon_investigate_change", "gnomon_detect_anomalies", "gnomon_decide", "gnomon_monitor",
+        "gnomon_get_artifact", "gnomon_explain_run",
+        "gnomon_status", "gnomon_resolve_outcome", "gnomon_route",
         # The bitemporal store, previously reachable only from the CLI.
-        "aion_ingest", "aion_list_datasets",
+        "gnomon_ingest", "gnomon_list_datasets",
     }
     call = by_id[3]["result"]
     assert call["isError"] is False
@@ -60,7 +60,7 @@ def test_initialize_list_and_call() -> None:
 def test_tool_error_is_structured_not_fatal() -> None:
     responses = _talk([
         {"jsonrpc": "2.0", "id": 1, "method": "tools/call",
-         "params": {"name": "aion_inspect", "arguments": {
+         "params": {"name": "gnomon_inspect", "arguments": {
              "input": "/does/not/exist.csv", "time_column": "t", "target_column": "y"}}},
         {"jsonrpc": "2.0", "id": 2, "method": "ping"},
     ])

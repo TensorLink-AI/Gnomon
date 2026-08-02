@@ -5,7 +5,7 @@
 Run the same mapping and frequency options through `inspect` first:
 
 ```bash
-aion inspect data.csv --time timestamp --target value --frequency D
+gnomon inspect data.csv --time timestamp --target value --frequency D
 ```
 
 Successful responses go to standard output. Structured errors go to standard
@@ -26,7 +26,7 @@ error and return exit code `2`.
 | `AMBIGUOUS_DATE_ORDER` | Slash dates could be day-first or month-first and no row proves the order. | Use ISO dates, or `--repair aggressive` to assume month-first (disclosed). |
 | `MIXED_TIMEZONES` | Aware and naive timestamps are mixed. | Normalize the column, or `--repair aggressive` to assume naive rows are UTC (disclosed). |
 | `AMBIGUOUS_FREQUENCY` | Too few timestamps or no supported interval dominates. | Supply more regular data or an explicit supported frequency. |
-| `UNSUPPORTED_FREQUENCY` | The requested code is unsupported. | Use a code from `aion capabilities` (e.g. `min`, `h`, `D`, `W`, `MS`). |
+| `UNSUPPORTED_FREQUENCY` | The requested code is unsupported. | Use a code from `gnomon capabilities` (e.g. `min`, `h`, `D`, `W`, `MS`). |
 | `DUPLICATE_TIMESTAMPS` | Conflicting values share a timestamp (identical rows collapse under the default repair). | Resolve upstream, ingest as revisions, or `--repair aggressive` (last row wins, disclosed). |
 | `IRREGULAR_TIME_GRID` | A period is missing or spacing is irregular. | Fill/reindex upstream, or `--repair aggressive` to interpolate interior gaps and snap jitter (capped). |
 | `FREQUENCY_MISMATCH` | Requested and inferred frequencies disagree. | Correct the frequency or input timestamps. |
@@ -57,8 +57,8 @@ history requirement.
 ## Parquet still reports unavailable
 
 `uv tool` installations are isolated. Installing `pyarrow` into an unrelated
-environment will not add it to the Aion tool. Install with the extra in the
-same environment, then check `aion capabilities` and confirm that
+environment will not add it to the Gnomon tool. Install with the extra in the
+same environment, then check `gnomon capabilities` and confirm that
 `inputs.parquet` is `true`.
 
 ## Artifact write failures
@@ -71,15 +71,15 @@ is never exposed as a completed forecast directory.
 ## Filing a good bug report
 
 Use the repository's issue templates (bug report / beta feedback). Three
-things make an Aion report reproducible, and agents can gather all of
+things make an Gnomon report reproducible, and agents can gather all of
 them automatically:
 
 1. the exact command or tool call;
 2. the full JSON error envelope (it already contains `code`, `details`,
    and `repair_options`) or, for a wrong result, the run's `artifact.json`;
-3. the output of `aion capabilities`, which pins the runtime version and
+3. the output of `gnomon capabilities`, which pins the runtime version and
    installed extras.
 
 If the input can't be shared, include the `data_quality` section from
-`aion inspect` — it describes the file's shape and problems without the
+`gnomon inspect` — it describes the file's shape and problems without the
 values.

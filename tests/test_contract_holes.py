@@ -12,9 +12,9 @@ from pathlib import Path
 
 import pytest
 
-from aion.contracts import AionError
-from aion.ids import FixedClock
-from aion.runtime import forecast
+from gnomon.contracts import GnomonError
+from gnomon.ids import FixedClock
+from gnomon.runtime import forecast
 
 CLOCK = FixedClock(datetime(2026, 7, 1, tzinfo=timezone.utc))
 NOISE = [0.5, -0.3, 0.2, -0.4, 0.1, 0.3, -0.2, -0.1, 0.4, -0.5]
@@ -42,9 +42,9 @@ def _csv(tmp_path: Path, periods: int = 120) -> Path:
 def test_negative_minimum_improvement_is_refused():
     """At -5.0 the gate became `candidate <= baseline * 6`, which selects a
     model that lost the backtest and still reports it as supported."""
-    from aion.evaluation import evaluate
+    from gnomon.evaluation import evaluate
 
-    with pytest.raises(AionError) as raised:
+    with pytest.raises(GnomonError) as raised:
         evaluate(_values(), 7, 7, -5.0, frequency="D", tsfm_names=[])
     assert raised.value.code == "INVALID_MINIMUM_IMPROVEMENT"
     assert raised.value.to_dict()["error"]["details"]["supplied"] == -5.0
@@ -52,14 +52,14 @@ def test_negative_minimum_improvement_is_refused():
 
 def test_zero_minimum_improvement_is_allowed():
     """Zero means "must not be worse", which is a coherent request."""
-    from aion.evaluation import evaluate
+    from gnomon.evaluation import evaluate
 
     assessment = evaluate(_values(), 7, 7, 0.0, frequency="D", tsfm_names=[])
     assert assessment.selected_model is not None
 
 
 def test_negative_minimum_improvement_is_refused_through_the_cli(tmp_path, capsys):
-    from aion.cli import main
+    from gnomon.cli import main
 
     code = main([
         "forecast", str(_csv(tmp_path)), "--time", "timestamp",
@@ -73,9 +73,9 @@ def test_negative_minimum_improvement_is_refused_through_the_cli(tmp_path, capsy
 
 
 def test_mcp_schema_bounds_minimum_improvement():
-    from aion.toolspec import TOOLS
+    from gnomon.toolspec import TOOLS
 
-    tool = next(item for item in TOOLS if item["name"] == "aion_forecast")
+    tool = next(item for item in TOOLS if item["name"] == "gnomon_forecast")
     schema = tool["inputSchema"]["properties"]["minimum_baseline_improvement"]
     assert schema.get("minimum") == 0
 
@@ -86,8 +86,8 @@ def test_forced_ensemble_does_not_claim_it_beat_the_baseline():
     """`--ensemble` on a series a baseline won produced the sentence "An
     ensemble of eligible models beat the strongest baseline" beside a
     measured improvement of exactly zero."""
-    from aion.evaluation import Evaluation
-    from aion.support import assess_forecast_support
+    from gnomon.evaluation import Evaluation
+    from gnomon.support import assess_forecast_support
 
     lost = Evaluation(
         selected_model="ensemble", strongest_baseline="seasonal_naive",
@@ -105,8 +105,8 @@ def test_forced_ensemble_does_not_claim_it_beat_the_baseline():
 
 
 def test_winning_ensemble_states_the_measured_margin():
-    from aion.evaluation import Evaluation
-    from aion.support import assess_forecast_support
+    from gnomon.evaluation import Evaluation
+    from gnomon.support import assess_forecast_support
 
     won = Evaluation(
         selected_model="ensemble", strongest_baseline="seasonal_naive",
@@ -121,10 +121,10 @@ def test_winning_ensemble_states_the_measured_margin():
 
 def test_verifier_checks_an_asserted_comparison_against_its_evidence():
     """Reference integrity is satisfied by a sentence that is simply false."""
-    from aion.lineage import (
+    from gnomon.lineage import (
         ArtifactRecord, ClaimRecord, ComparisonAssertion, EvidenceRecord, Lineage,
     )
-    from aion.verifier import verify_lineage
+    from gnomon.verifier import verify_lineage
 
     lineage = Lineage("task_1", {})
     lineage.artifacts.append(ArtifactRecord("artifact_1", "forecast", "2026-01-01T00:00:00"))
@@ -148,10 +148,10 @@ def test_verifier_checks_an_asserted_comparison_against_its_evidence():
 
 
 def test_verifier_accepts_a_comparison_the_evidence_supports():
-    from aion.lineage import (
+    from gnomon.lineage import (
         ArtifactRecord, ClaimRecord, ComparisonAssertion, EvidenceRecord, Lineage,
     )
-    from aion.verifier import verify_lineage
+    from gnomon.verifier import verify_lineage
 
     lineage = Lineage("task_1", {})
     lineage.artifacts.append(ArtifactRecord("artifact_1", "forecast", "2026-01-01T00:00:00"))
@@ -172,10 +172,10 @@ def test_verifier_accepts_a_comparison_the_evidence_supports():
 
 
 def test_verifier_rejects_a_comparison_the_evidence_does_not_report():
-    from aion.lineage import (
+    from gnomon.lineage import (
         ArtifactRecord, ClaimRecord, ComparisonAssertion, EvidenceRecord, Lineage,
     )
-    from aion.verifier import verify_lineage
+    from gnomon.verifier import verify_lineage
 
     lineage = Lineage("task_1", {})
     lineage.artifacts.append(ArtifactRecord("artifact_1", "forecast", "2026-01-01T00:00:00"))
@@ -201,8 +201,8 @@ def test_probability_claim_needs_coverage_inside_the_band():
     """A run at 57.1% coverage on a nominal 80% interval used to emit
     verified `predictive` claims, because the gate only checked that a
     `rolling_evaluation` record existed."""
-    from aion.lineage import ArtifactRecord, ClaimRecord, EvidenceRecord, Lineage
-    from aion.verifier import verify_lineage
+    from gnomon.lineage import ArtifactRecord, ClaimRecord, EvidenceRecord, Lineage
+    from gnomon.verifier import verify_lineage
 
     lineage = Lineage("task_1", {})
     lineage.artifacts.append(ArtifactRecord("artifact_1", "forecast", "2026-01-01T00:00:00"))
@@ -222,7 +222,7 @@ def test_probability_claim_needs_coverage_inside_the_band():
 
 def test_unmeasured_coverage_is_not_treated_as_bad_coverage():
     """A two-fold run has no test fold; refusing it would be wrong."""
-    from aion.contracts import interval_calibration_is_verifiable
+    from gnomon.contracts import interval_calibration_is_verifiable
 
     assert interval_calibration_is_verifiable(None) is True
     assert interval_calibration_is_verifiable(0.8) is True
@@ -236,7 +236,7 @@ def test_bad_coverage_degrades_the_claim_rather_than_crashing(tmp_path):
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from test_covariates import _write_files
 
-    from aion.covariates import load_covariates
+    from gnomon.covariates import load_covariates
 
     observations, covariates_path = _write_files(tmp_path)
     dataset = load_covariates(str(covariates_path), "campaign:binary:future_known")
@@ -263,8 +263,8 @@ def test_bad_coverage_degrades_the_claim_rather_than_crashing(tmp_path):
 
 def test_degraded_does_not_swallow_the_coverage_reason():
     """`degraded` used to replace the reason list, losing the worse fact."""
-    from aion.evaluation import Evaluation
-    from aion.support import assess_forecast_support
+    from gnomon.evaluation import Evaluation
+    from gnomon.support import assess_forecast_support
 
     assessment = Evaluation(
         selected_model="drift", strongest_baseline="last_value",
@@ -283,7 +283,7 @@ def test_degraded_does_not_swallow_the_coverage_reason():
 # -- H6: the leakage check compares instants, not strings -----------------
 
 def _leakage_lineage(known_time: str):
-    from aion.lineage import ArtifactRecord, ClaimRecord, Lineage
+    from gnomon.lineage import ArtifactRecord, ClaimRecord, Lineage
 
     lineage = Lineage("task_1", {})
     lineage.artifacts.append(ArtifactRecord(
@@ -304,7 +304,7 @@ def test_offset_aware_leak_is_caught_despite_sorting_safe_as_a_string():
     leak — yet the string `"2026-06-03T23:00:00+00:00"` sorts *before*
     `"2026-06-04T00:00:00+02:00"`, so the old lexicographic check passed it.
     """
-    from aion.verifier import verify_lineage
+    from gnomon.verifier import verify_lineage
 
     as_of = "2026-06-04T00:00:00+02:00"  # == 2026-06-03T22:00:00Z
 
@@ -319,14 +319,14 @@ def test_offset_aware_leak_is_caught_despite_sorting_safe_as_a_string():
 
 
 def test_z_suffix_and_offset_notation_compare_equal():
-    from aion.verifier import verify_lineage
+    from gnomon.verifier import verify_lineage
 
     lineage = _leakage_lineage("2026-06-04T00:00:00Z")
     assert verify_lineage(lineage, as_of="2026-06-04T00:00:00+00:00") == []
 
 
 def test_naive_versus_aware_is_a_structured_mismatch():
-    from aion.verifier import verify_lineage
+    from gnomon.verifier import verify_lineage
 
     lineage = _leakage_lineage("2026-06-04T00:00:00+00:00")
     violations = verify_lineage(lineage, as_of="2026-06-03T00:00:00")
@@ -334,7 +334,7 @@ def test_naive_versus_aware_is_a_structured_mismatch():
 
 
 def test_unparseable_known_time_is_reported_not_ignored():
-    from aion.verifier import verify_lineage
+    from gnomon.verifier import verify_lineage
 
     lineage = _leakage_lineage("not-a-timestamp")
     violations = verify_lineage(lineage, as_of="2026-06-04T00:00:00+00:00")
@@ -348,7 +348,7 @@ def test_covariate_snapshot_is_built_at_the_runs_as_of(tmp_path):
     cutoff was enforced by convention at each call site."""
     import csv as csv_module
 
-    from aion.covariates import load_covariates
+    from gnomon.covariates import load_covariates
 
     path = tmp_path / "covariates.csv"
     with path.open("w", newline="", encoding="utf-8") as handle:
@@ -378,7 +378,7 @@ def test_covariate_reads_reach_snapshot_access(tmp_path):
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from test_covariates import _write_files
 
-    from aion.covariates import load_covariates
+    from gnomon.covariates import load_covariates
 
     observations, covariates_path = _write_files(tmp_path)
     dataset = load_covariates(str(covariates_path), "campaign:binary:future_known")
@@ -406,11 +406,11 @@ def test_meta_model_is_scored_out_of_fold():
     """Fit on all folds and scored on those same folds, the meta-model's
     selection score was in-sample while every member's was out-of-sample —
     it won by construction."""
-    import aion.evaluation as evaluation_module
-    from aion import meta_model as meta_module
-    from aion.config import AionConfig
+    import gnomon.evaluation as evaluation_module
+    from gnomon import meta_model as meta_module
+    from gnomon.config import GnomonConfig
 
-    config = AionConfig()
+    config = GnomonConfig()
     config.meta_model.enabled = True
     config.ensemble.enabled = True
 
@@ -445,11 +445,11 @@ def test_meta_model_is_scored_out_of_fold():
 def test_ensemble_fold_weights_use_only_earlier_folds():
     """Weights came from aggregates over every fold including the one being
     scored, so each fold's ensemble was weighted using its own outcome."""
-    import aion.ensemble as ensemble_module
-    from aion.config import AionConfig
-    from aion.evaluation import evaluate
+    import gnomon.ensemble as ensemble_module
+    from gnomon.config import GnomonConfig
+    from gnomon.evaluation import evaluate
 
-    config = AionConfig()
+    config = GnomonConfig()
     config.ensemble.enabled = True
 
     seen: list[dict] = []
@@ -460,7 +460,7 @@ def test_ensemble_fold_weights_use_only_earlier_folds():
         return original(forecasts, scores, **kwargs)
 
     ensemble_module.compute_ensemble_forecast = spy
-    import aion.evaluation as evaluation_module
+    import gnomon.evaluation as evaluation_module
     try:
         evaluate(_values(160), 7, 7, 0.02, frequency="D", tsfm_names=[], config=config)
     finally:

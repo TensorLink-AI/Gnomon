@@ -1,16 +1,30 @@
 # v0.2 compatibility set
 
-This file freezes the public surface of Aion v0.2. Every subsequent phase of
+This file freezes the public surface of Gnomon v0.2. Every subsequent phase of
 the temporal-harness migration must state what it **preserves**, **deprecates**,
-or **breaks** against this set. `aion_forecast` keeps working unchanged
-throughout the migration.
+or **breaks** against this set.
+
+> **v0.5.0 breaks this set once, by renaming.** The project was called *Aion*
+> through v0.4.0. Every public identifier below is spelled with `gnomon`
+> where it used to read `aion`: the console script, the import package, the
+> `GNOMON_*` environment variables, and all 22 MCP tool names
+> (`aion_forecast` → `gnomon_forecast`, and so on). **No `aion_*` aliases are
+> served**, and there is no deprecation period — an alias would have preserved
+> the exact name the rename existed to remove. See
+> [the rename record](docs/rename-impact-inventory.md) for why, and for what
+> the break did and did not cost.
+>
+> Nothing else about this set moved. Tool inputs, the response envelope, the
+> artifact layout, the support enum, and the error envelope are all unchanged;
+> substituting the prefix in a v0.4.0 client is sufficient to port it. Every
+> name below is already written in its post-rename form.
 
 ## MCP / agent tools (from `toolspec.TOOLS`)
 
-`aion_capabilities`, `aion_inspect`, `aion_forecast`, `aion_covariate_guide`,
-`aion_validate_covariates`, `aion_propose_covariates`, `aion_submit_actuals`,
-`aion_list_open_forecasts`, `aion_model_performance`, `aion_record_decision`,
-`aion_resolve_decision`.
+`gnomon_capabilities`, `gnomon_inspect`, `gnomon_forecast`, `gnomon_covariate_guide`,
+`gnomon_validate_covariates`, `gnomon_propose_covariates`, `gnomon_submit_actuals`,
+`gnomon_list_open_forecasts`, `gnomon_model_performance`, `gnomon_record_decision`,
+`gnomon_resolve_decision`.
 
 Frozen per tool: name, required input properties, and the response envelope
 (`schema_version`, `status`, and for forecasts `forecast_id`, `artifact_path`,
@@ -19,11 +33,11 @@ Frozen per tool: name, required input properties, and the response envelope
 
 ## CLI commands
 
-`aion capabilities` · `aion inspect` · `aion forecast` · `aion covariates
-guide|validate` · `aion context prompt|validate` · `aion mcp serve` ·
-`aion tsfm list|install|remove|install-all` · `aion track
+`gnomon capabilities` · `gnomon inspect` · `gnomon forecast` · `gnomon covariates
+guide|validate` · `gnomon context prompt|validate` · `gnomon mcp serve` ·
+`gnomon tsfm list|install|remove|install-all` · `gnomon track
 list|actuals|score|compare|performance|leaderboard|due|decision|export|relocate`
-· `aion eval compare`. Flags listed in `cli.build_parser()` are part of the set.
+· `gnomon eval compare`. Flags listed in `cli.build_parser()` are part of the set.
 
 ## Artifact layout (`schema_version: "0.1"`)
 
@@ -53,15 +67,15 @@ Error envelope: `{"schema_version", "status": "error", "error": {"code",
   tasks intentionally share an ID, and artifact writes are idempotent
   (first write wins).
 - Readers of serialized artifacts accept `schema_version` N and N−1
-  (`aion.versioning`).
+  (`gnomon.versioning`).
 - Phase 1 (bitemporal core), additive: `task.as_of` field in artifact.json
   (null unless a historical replay was requested); one `snapshot_access`
   evidence record per run reporting the snapshot `as_of`, whether
   `known_time` was assumed, and per-series access counts with the maximum
-  `known_time` touched. `aion forecast --as-of <instant>` replays a run
+  `known_time` touched. `gnomon forecast --as-of <instant>` replays a run
   against only data known at that instant; `input` additionally accepts
   `store:<dataset>` for datasets ingested into the persistent bitemporal
-  store (`aion ingest`). Numerical results for single-vintage data are
+  store (`gnomon ingest`). Numerical results for single-vintage data are
   unchanged.
 
 - Phase 2 (contracts), additive: every result carries `support_assessment`
@@ -69,20 +83,20 @@ Error envelope: `{"schema_version", "status": "error", "error": {"code",
   alongside the frozen enum); artifact directories gain `lineage.json`
   (typed artifacts/evidence/claims); every response passes the deterministic
   claim verifier before leaving the process.
-- Phase 3–4 (macros/surface), additive: new tools `aion_investigate_change`,
-  `aion_decide`, `aion_monitor`, `aion_get_artifact`, `aion_explain_run`,
-  `aion_status`, `aion_resolve_outcome`; new CLI verbs `investigate`,
+- Phase 3–4 (macros/surface), additive: new tools `gnomon_investigate_change`,
+  `gnomon_decide`, `gnomon_monitor`, `gnomon_get_artifact`, `gnomon_explain_run`,
+  `gnomon_status`, `gnomon_resolve_outcome`; new CLI verbs `investigate`,
   `decide`, `monitor`, `status`, `store list`, `track outcome`; error
   envelopes gain `error.repair_options` (machine-readable next actions).
-- Phase 5 (planner), gated: `aion_compile_task` / `aion_validate_plan` /
-  `aion_execute_plan` / `aion_get_run` and `aion plan …` exist only behind
-  `AION_EXPERIMENTAL_PLANNER=1`; macros remain the default path.
+- Phase 5 (planner), gated: `gnomon_compile_task` / `gnomon_validate_plan` /
+  `gnomon_execute_plan` / `gnomon_get_run` and `gnomon plan …` exist only behind
+  `GNOMON_EXPERIMENTAL_PLANNER=1`; macros remain the default path.
 - Phase 6 (decisions), additive: `DecisionArtifact` model with regret
   scoring; v0.2 `DecisionRecord` rows and their tools keep working, and
   load as degraded artifacts (nothing invented). Bare `correct` is retired
   in the new model only.
-- Phase 7 (episodes), internal: `aion eval episodes` runs the built-in
-  trap-family suite and feeds `aion eval compare` unchanged.
+- Phase 7 (episodes), internal: `gnomon eval episodes` runs the built-in
+  trap-family suite and feeds `gnomon eval compare` unchanged.
 - Enrichment adjudication (championship ladder), additive: one run may now
   supply context events **and** covariates together — previously rejected
   with `COMBINED_ENRICHMENT_UNSUPPORTED`, an error code now retired. This is
@@ -112,7 +126,7 @@ Error envelope: `{"schema_version", "status": "error", "error": {"code",
   evidence record; assumptive repairs additionally appear as
   `repaired_data: …` warnings and therefore downgrade support. New error
   codes: `AMBIGUOUS_DATE_ORDER`, `EXCESSIVE_REPAIR`,
-  `INVALID_REPAIR_LEVEL`. `aion inspect` now diagnoses instead of
+  `INVALID_REPAIR_LEVEL`. `gnomon inspect` now diagnoses instead of
   rejecting: it reports `data_quality` (status `clean` /
   `repaired_safe` / `repaired_aggressive`, the repair list, and the exact
   flag to pass) and raises only when no level reads the file.
@@ -125,10 +139,10 @@ Error envelope: `{"schema_version", "status": "error", "error": {"code",
   existing `csv`/`parquet` keys are unchanged.
 
 - Anomaly detection + routing (TSFM infrastructure tracking), additive:
-  new macro `detect_anomalies` (`aion detect` / `aion_detect_anomalies`),
+  new macro `detect_anomalies` (`gnomon detect` / `gnomon_detect_anomalies`),
   new operator `detect_anomalies` (seeded, deterministic — injection
-  placement hashes the series content), and new tool/CLI `aion_route` /
-  `aion route`. `aion track leaderboard` gains an optional `--task`
+  placement hashes the series content), and new tool/CLI `gnomon_route` /
+  `gnomon route`. `gnomon track leaderboard` gains an optional `--task`
   filter; the tracking store migrates in place to schema v3, adding
   `task` (legacy rows read as `forecast`) and `fingerprint` columns and
   a `routing_decisions` table — every v0.2 tracking command behaves
@@ -146,7 +160,7 @@ Error envelope: `{"schema_version", "status": "error", "error": {"code",
   informational disclosures that, unlike `warnings`, never downgrade
   support. The first note: when TSFM candidates are capability-eligible
   for a series but no sandbox (or in-process adapter) is installed, the
-  result names the eligible adapters and the `aion tsfm install` command
+  result names the eligible adapters and the `gnomon tsfm install` command
   that would add them to the same folds. `summary.md` renders notes as
   `- Note:` lines after warnings. Warnings, support semantics, forecast
   values, and artifact IDs are unchanged; goldens were refreshed for the
@@ -211,7 +225,7 @@ Error envelope: `{"schema_version", "status": "error", "error": {"code",
   folds, admitted per series under the same margin as every other model, and
   each such run emits a `multivariate_gate` evidence record. A caller that
   passed `--multivariate` and relied on `selected_model == "var"` for all
-  series will now see it only where VAR won. `aion.multivariate.forecast_var`
+  series will now see it only where VAR won. `gnomon.multivariate.forecast_var`
   is removed (`VarFrame` replaces it); no MCP tool name or signature changed.
 
 - Ensemble intervals, behaviour change: calibrated on the selection and
@@ -223,7 +237,7 @@ Error envelope: `{"schema_version", "status": "error", "error": {"code",
 - Tracking schema, additive: `forecasts.wape` and `model_performance.wape`
   columns, added by the existing in-place migration; `ScoreResult.wape`,
   `ForecastRecord.wape`, `ModelPerformance.avg_wape`; a WAPE column in
-  `aion track leaderboard` and `avg_wape` in `track performance --json`.
+  `gnomon track leaderboard` and `avg_wape` in `track performance --json`.
   Existing columns and MASE ordering are unchanged.
 
 - Quantile levels, additive (goldens refreshed, additively): forecast rows
@@ -278,7 +292,7 @@ Error envelope: `{"schema_version", "status": "error", "error": {"code",
   covariates, no context, no TSFM) are unaffected.
 
 - Conformal calibration scope, opt-in: `evaluation.pool_residuals` in
-  `aion.yaml` is now read. It defaults to `true`, which is the existing
+  `gnomon.yaml` is now read. It defaults to `true`, which is the existing
   behaviour — residuals pooled across the selection folds and the
   calibration fold. Setting it `false` calibrates on the held-out
   calibration fold alone: genuine split conformal, noisier, wider. Either
@@ -327,7 +341,7 @@ inputs and parameters, never outputs, so they are identical across
 interpreter versions.
 
 - Trend-shift anomaly coverage + graded-scope disclosure, additive:
-  `aion.anomaly` gains a fourth candidate detector, `local_slope`
+  `gnomon.anomaly` gains a fourth candidate detector, `local_slope`
   (deviation of the windowed median first difference from the series'
   typical slope), and the injection grader gains a fourth family,
   `trend_shift` (a ramped slope change of `TREND_SCALE` robust-scale
@@ -341,3 +355,15 @@ interpreter versions.
   anomalies are slope changes can now select a detector able to find
   them, so previously-empty detections may become non-empty. Forecast
   artifacts, forecast goldens, and artifact IDs are unaffected.
+
+- v0.5.0 (rename), **breaking, once**: `Aion` → `Gnomon` across every public
+  identifier. Distribution `aion-forecast` → `gnomon-forecast` (the bare name
+  `gnomon` is taken on PyPI); import package `aion` → `gnomon`; console script
+  `aion` → `gnomon`; MCP tools `aion_*` → `gnomon_*`; environment `AION_*` →
+  `GNOMON_*`; default output directory `aion-output/` → `gnomon-output/`;
+  config file `aion.yaml` → `gnomon.yaml`; image `ghcr.io/tensorlink-ai/aion`
+  → `ghcr.io/tensorlink-ai/gnomon`; repository `TensorLink-AI/Aion` →
+  `TensorLink-AI/Gnomon`. No behaviour, schema, or numerical result changes
+  with the rename. Artifact IDs do move, because they are salted with the
+  runtime version and the version bumped — the same thing any release does;
+  they are not salted with the project name.

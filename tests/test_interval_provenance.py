@@ -15,11 +15,11 @@ from pathlib import Path
 
 import pytest
 
-from aion.contracts import AionError
-from aion.evaluation import MIN_RESIDUALS_PER_LEAD, pooled_fallback_leads
-from aion.ids import FixedClock
-from aion.pipeline import SeriesState, assert_residual_provenance
-from aion.runtime import forecast
+from gnomon.contracts import GnomonError
+from gnomon.evaluation import MIN_RESIDUALS_PER_LEAD, pooled_fallback_leads
+from gnomon.ids import FixedClock
+from gnomon.pipeline import SeriesState, assert_residual_provenance
+from gnomon.runtime import forecast
 
 CLOCK = FixedClock(datetime(2026, 7, 1, tzinfo=timezone.utc))
 NOISE = [0.5, -0.3, 0.2, -0.4, 0.1, 0.3, -0.2, -0.1, 0.4, -0.5]
@@ -52,7 +52,7 @@ def test_mismatched_residual_provenance_is_refused():
     state.points = [1.0, 2.0]
     state.selected_model = "covariate_linear"
     state.residual_source = "linear_trend"
-    with pytest.raises(AionError) as raised:
+    with pytest.raises(GnomonError) as raised:
         assert_residual_provenance(state)
     assert raised.value.code == "RESIDUAL_PROVENANCE_MISMATCH"
 
@@ -69,7 +69,7 @@ def test_matching_residual_provenance_passes():
 
 def test_baseline_forecast_has_matching_provenance(tmp_path):
     """The invariant holds on the ordinary path, not only in unit tests."""
-    import aion.runtime as runtime
+    import gnomon.runtime as runtime
 
     seen: dict[str, object] = {}
     original = runtime.interval_stage
@@ -103,8 +103,8 @@ def test_admitted_covariate_carries_its_own_residuals(tmp_path):
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from test_covariates import _write_files
 
-    import aion.runtime as runtime
-    from aion.covariates import load_covariates
+    import gnomon.runtime as runtime
+    from gnomon.covariates import load_covariates
 
     observations, covariates_path = _write_files(tmp_path)
     dataset = load_covariates(str(covariates_path), "campaign:binary:future_known")
@@ -144,7 +144,7 @@ def test_admitted_covariate_carries_its_own_residuals(tmp_path):
 # -- C4: every emitted quantile is projected ------------------------------
 
 def test_constraints_clamp_every_quantile_level():
-    from aion.constraints import Claim, apply_claims
+    from gnomon.constraints import Claim, apply_claims
 
     row = {
         "timestamp": "2026-06-04T00:00:00", "point": 350.0,
@@ -163,7 +163,7 @@ def test_constraints_clamp_every_quantile_level():
 
 
 def test_constraints_clamp_a_minimum_across_every_level():
-    from aion.constraints import Claim, apply_claims
+    from gnomon.constraints import Claim, apply_claims
 
     row = {
         "timestamp": "2026-06-04T00:00:00", "point": 100.0,
@@ -176,9 +176,9 @@ def test_constraints_clamp_a_minimum_across_every_level():
 
 
 def test_crossed_quantiles_are_refused():
-    from aion.constraints import _assert_monotone
+    from gnomon.constraints import _assert_monotone
 
-    with pytest.raises(AionError) as raised:
+    with pytest.raises(GnomonError) as raised:
         _assert_monotone({"timestamp": "t", "q10": 5.0, "q50": 9.0, "q90": 4.0})
     assert raised.value.code == "QUANTILE_CROSSING"
 
@@ -242,13 +242,13 @@ def test_held_out_calibration_uses_one_fold(tmp_path):
     The key was documented and never consulted; honouring it is what gives
     a caller the honest split-conformal alternative.
     """
-    from aion.config import AionConfig
-    from aion.evaluation import evaluate
+    from gnomon.config import GnomonConfig
+    from gnomon.evaluation import evaluate
 
     values = [100 + index * 0.4 + NOISE[index % 10] * 6 for index in range(120)]
 
     pooled = evaluate(values, 7, 7, 0.02, frequency="D", tsfm_names=[])
-    config = AionConfig()
+    config = GnomonConfig()
     config.evaluation.pool_residuals = False
     held_out = evaluate(
         values, 7, 7, 0.02, frequency="D", tsfm_names=[], config=config,
@@ -263,8 +263,8 @@ def test_held_out_calibration_uses_one_fold(tmp_path):
 
 def test_disclosures_never_change_support_status():
     """A disclosure describes; only a reason may downgrade."""
-    from aion.contracts import SupportReason
-    from aion.support import assess_forecast_support
+    from gnomon.contracts import SupportReason
+    from gnomon.support import assess_forecast_support
 
     plain = assess_forecast_support("supported", [], None)
     with_disclosures = assess_forecast_support(

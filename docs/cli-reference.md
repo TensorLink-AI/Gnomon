@@ -1,12 +1,12 @@
 # CLI reference
 
 The CLI writes successful machine-readable responses to standard output and
-structured errors to standard error. Success exits with code `0`; Aion
+structured errors to standard error. Success exits with code `0`; Gnomon
 input/runtime errors exit with code `2`.
 
 Every command below is implemented and reachable in this build. The one
-exception is marked: `aion plan` is gated behind
-`AION_EXPERIMENTAL_PLANNER=1`. Commands that exist only in the design
+exception is marked: `gnomon plan` is gated behind
+`GNOMON_EXPERIMENTAL_PLANNER=1`. Commands that exist only in the design
 documents are listed under [Not currently
 available](#not-currently-available) at the end.
 
@@ -14,46 +14,46 @@ available](#not-currently-available) at the end.
 
 | Command | Question | Section |
 | --- | --- | --- |
-| `aion forecast` | What happens next? | [↓](#aion-forecast) |
-| `aion investigate` | What changed? | [↓](#aion-investigate) |
-| `aion detect` | What is abnormal? | [↓](#aion-detect) |
-| `aion decide` | What should we do? | [↓](#aion-decide) |
-| `aion monitor` | When should we intervene? | [↓](#aion-monitor) |
+| `gnomon forecast` | What happens next? | [↓](#gnomon-forecast) |
+| `gnomon investigate` | What changed? | [↓](#gnomon-investigate) |
+| `gnomon detect` | What is abnormal? | [↓](#gnomon-detect) |
+| `gnomon decide` | What should we do? | [↓](#gnomon-decide) |
+| `gnomon monitor` | When should we intervene? | [↓](#gnomon-monitor) |
 
 ## Everything else
 
-`aion capabilities` · `aion inspect` · `aion route` · `aion ingest` ·
-`aion store list` · `aion status` · `aion context prompt|validate` ·
-`aion covariates guide|validate` · `aion mcp serve` ·
-`aion tsfm list|install|install-all|remove` ·
-`aion track actuals|compare|coverage|decision|due|export|leaderboard|list|outcome|performance|relocate|score` ·
-`aion eval compare|episodes` · `aion plan compile|validate|execute`
+`gnomon capabilities` · `gnomon inspect` · `gnomon route` · `gnomon ingest` ·
+`gnomon store list` · `gnomon status` · `gnomon context prompt|validate` ·
+`gnomon covariates guide|validate` · `gnomon mcp serve` ·
+`gnomon tsfm list|install|install-all|remove` ·
+`gnomon track actuals|compare|coverage|decision|due|export|leaderboard|list|outcome|performance|relocate|score` ·
+`gnomon eval compare|episodes` · `gnomon plan compile|validate|execute`
 
 ## Global options
 
 ```bash
-aion --help
-aion --version
+gnomon --help
+gnomon --version
 ```
 
-## `aion capabilities`
+## `gnomon capabilities`
 
 Reports only functionality available in the installed runtime:
 
 ```bash
-aion capabilities
-aion capabilities --output json
+gnomon capabilities
+gnomon capabilities --output json
 ```
 
 Use this response for feature detection instead of assuming that roadmap
 features in the product specification are installed.
 
-## `aion inspect`
+## `gnomon inspect`
 
 Validates an input without forecasting:
 
 ```bash
-aion inspect INPUT --time COLUMN --target COLUMN [OPTIONS]
+gnomon inspect INPUT --time COLUMN --target COLUMN [OPTIONS]
 ```
 
 | Option | Required | Meaning |
@@ -71,10 +71,10 @@ Messy files are diagnosed rather than rejected: `data_quality.status` reports
 `clean`, `repaired_safe` (the default forecast repair level reads the file),
 or `repaired_aggressive` (the file needs `--repair aggressive`), together
 with the exact list of repairs each level would apply and a `suggested_next`
-command including any required flag. `aion inspect` fails only when no repair
+command including any required flag. `gnomon inspect` fails only when no repair
 level can read the file.
 
-## `aion forecast`
+## `gnomon forecast`
 
 Short histories use a single trailing holdout and return `degraded` forecasts
 by default. Pass `--strict-abstention` to retain empty-result abstention when
@@ -87,7 +87,7 @@ Forecast controls:
   forecasts using inverse-error weights and reports `supported_ensemble`.
 - `--multivariate` tries a VAR(1) forecast for aligned, correlated series. It
   is used only when it beats an independent last-value forecast on a trailing
-  holdout; otherwise Aion falls back to its normal per-series path.
+  holdout; otherwise Gnomon falls back to its normal per-series path.
 - `--repair {off,safe,aggressive}` (default `safe`) controls messy-data
   handling. `safe` normalises cell text — mixed date formats, currency and
   thousands separators, percent signs, sentinel missing values, blank rows,
@@ -100,16 +100,16 @@ Forecast controls:
   `repaired_data:` warnings and downgrade support. `off` restores strict
   rejection. Repairs only ever fire where strict parsing would fail, so
   clean files produce byte-identical artifacts. Try it:
-  `aion inspect examples/filthy_requests.csv --time timestamp --target requests`.
+  `gnomon inspect examples/filthy_requests.csv --time timestamp --target requests`.
 
-`aion inspect` reports the detected seasonal period for each series and
+`gnomon inspect` reports the detected seasonal period for each series and
 pairwise correlations for aligned multi-series inputs.
 
 Runs validation, rolling evaluation, model selection, calibration, support
 assessment, final forecasting, and artifact persistence:
 
 ```bash
-aion forecast INPUT --time COLUMN --target COLUMN --horizon N [OPTIONS]
+gnomon forecast INPUT --time COLUMN --target COLUMN --horizon N [OPTIONS]
 ```
 
 | Option | Default | Meaning |
@@ -117,9 +117,9 @@ aion forecast INPUT --time COLUMN --target COLUMN --horizon N [OPTIONS]
 | `--series COLUMN` | None | Independent-series identifier. |
 | `--frequency CODE` | Inferred | `min`, `5min`, `15min`, `30min`, `h`, `D`, `W`, or `MS`. |
 | `--horizon N` | Required | Number of future periods; must be at least one. |
-| `--output DIR` | `aion-output` | Parent directory for immutable run directories. |
+| `--output DIR` | `gnomon-output` | Parent directory for immutable run directories. |
 | `--minimum-baseline-improvement FLOAT` | `0.02` | Fractional improvement required before selecting a candidate over the strongest baseline. |
-| `--context FILE` | None | Validated context-events JSON (output of `aion context validate`). |
+| `--context FILE` | None | Validated context-events JSON (output of `gnomon context validate`). |
 | `--threshold VALUE` | None | Decision threshold: the result reports when and how likely the forecast crosses this value. |
 | `--project NAME` | None | Register each forecast series for later realised scoring. |
 | `--covariates FILE` | None | Local point-in-time covariate CSV. |
@@ -136,35 +136,35 @@ block recording the admission decision: events enter the forecast only when
 they demonstrate stable improvement on identical backtest folds, and events
 without a verifiable source never participate in backtests at all.
 
-## `aion context`
+## `gnomon context`
 
-The bring-your-own-brain workflow. Aion owns the prompt and the validation;
+The bring-your-own-brain workflow. Gnomon owns the prompt and the validation;
 any LLM the host chooses runs in between.
 
 ```bash
-aion context prompt --file launches.md --file holidays.md --series api-prod
+gnomon context prompt --file launches.md --file holidays.md --series api-prod
 # → {"instructions": ..., "response_schema": ..., "documents": [...]}
 # run instructions on your model, save the JSON response, then:
-aion context validate --response response.json --file launches.md --file holidays.md
-# → {"events": [...], "rejected": [...]} — feed to `aion forecast --context`
+gnomon context validate --response response.json --file launches.md --file holidays.md
+# → {"events": [...], "rejected": [...]} — feed to `gnomon forecast --context`
 ```
 
 `validate` grounds each event's source from the document metadata (never
 from the model's claims), rejects non-verbatim evidence quotes, and marks
 whether each event is admissible for backtesting.
 
-## `aion covariates`
+## `gnomon covariates`
 
-Ask Aion for the point-in-time format and exact fold cutoffs:
+Ask Gnomon for the point-in-time format and exact fold cutoffs:
 
 ```bash
-aion covariates guide INPUT --time COLUMN --target COLUMN --horizon N
+gnomon covariates guide INPUT --time COLUMN --target COLUMN --horizon N
 ```
 
 Validate a local proposal before paying for a complete forecast run:
 
 ```bash
-aion covariates validate INPUT --time COLUMN --target COLUMN --horizon N \
+gnomon covariates validate INPUT --time COLUMN --target COLUMN --horizon N \
   --covariates covariates.csv \
   --covariate-mapping 'holiday:binary:future_known'
 ```
@@ -172,14 +172,14 @@ aion covariates validate INPUT --time COLUMN --target COLUMN --horizon N \
 Validation rejects missing historical vintages and incomplete final-horizon
 coverage. See [Covariate enrichment](covariates.md).
 
-## `aion mcp serve`
+## `gnomon mcp serve`
 
 Serves forecasting plus typed tracking, actual-submission, performance, and
 decision-outcome tools over stdio MCP for any MCP-capable host. Discover the
 installed list with `tools/list`; logs go to stderr and the protocol owns
 stdout.
 
-## `aion tsfm`
+## `gnomon tsfm`
 
 Manage sandboxed time-series foundation models. The base install is
 zero-dependency; each TSFM lives in its own isolated venv (created with
@@ -187,54 +187,54 @@ zero-dependency; each TSFM lives in its own isolated venv (created with
 pins. Model weights download from the Hugging Face Hub on first inference:
 
 ```bash
-aion tsfm list                        # installable vs installed, with verified capabilities
-aion tsfm install chronos_bolt_mini   # create the sandbox venv + dependencies
-aion tsfm install moment_small        # multi-task: also unlocks a detect candidate
-aion tsfm install-all                 # every registered adapter
-aion tsfm remove chronos_bolt_mini    # delete the sandbox venv
+gnomon tsfm list                        # installable vs installed, with verified capabilities
+gnomon tsfm install chronos_bolt_mini   # create the sandbox venv + dependencies
+gnomon tsfm install moment_small        # multi-task: also unlocks a detect candidate
+gnomon tsfm install-all                 # every registered adapter
+gnomon tsfm remove chronos_bolt_mini    # delete the sandbox venv
 ```
 
-Installing a sandbox is all the wiring there is: on the next `aion
+Installing a sandbox is all the wiring there is: on the next `gnomon
 forecast`, the model joins the backtest candidate pool and must beat the
 statistical models to be selected. Installing `moment_small` additionally
-adds a `moment_small_reconstruction` candidate to `aion detect`, graded
+adds a `moment_small_reconstruction` candidate to `gnomon detect`, graded
 like every other detector. Nothing is ever selected on reputation —
 uninstalled models are simply absent, and installed ones compete.
 
-**For agents:** `aion_capabilities` reports the state machine-readably —
+**For agents:** `gnomon_capabilities` reports the state machine-readably —
 `models.tsfm_available` (installable), `models.tsfm_sandboxes` (installed),
 and `models.tsfm_capabilities` (verified per-model limits and tasks) —
 plus the install command template. Sandbox installation is a deliberate
 human/shell step, not an MCP tool: an agent that wants a model should run
-`aion tsfm install <name>` where it has shell access, or ask the operator
+`gnomon tsfm install <name>` where it has shell access, or ask the operator
 to.
 
-## `aion track`
+## `gnomon track`
 
 Persist forecasts in a local SQLite registry and score them after the complete
 forecast horizon has been observed:
 
 ```bash
-aion forecast data.csv --time timestamp --target value --horizon 7 \
+gnomon forecast data.csv --time timestamp --target value --horizon 7 \
   --project capacity
-aion track actuals --project capacity --file actuals.csv
-aion track list --project capacity
-aion track performance --project capacity --model seasonal_naive
-aion track leaderboard --project capacity
-aion track leaderboard --project capacity --task forecast
-aion track compare --a FORECAST_ID --b FORECAST_ID
-aion track due --project capacity
-aion track decision record --decision-id scale-001 --project capacity \
+gnomon track actuals --project capacity --file actuals.csv
+gnomon track list --project capacity
+gnomon track performance --project capacity --model seasonal_naive
+gnomon track leaderboard --project capacity
+gnomon track leaderboard --project capacity --task forecast
+gnomon track compare --a FORECAST_ID --b FORECAST_ID
+gnomon track due --project capacity
+gnomon track decision record --decision-id scale-001 --project capacity \
   --forecast-id FORECAST_ID --action "add two workers" \
   --expected-outcome "keep utilisation below 80%"
-aion track decision resolve --decision-id scale-001 \
+gnomon track decision resolve --decision-id scale-001 \
   --actual-outcome "peak utilisation was 74%" --correct true
-aion track export --project capacity --output capacity-registry.json
-aion track relocate --forecast-id FORECAST_ID --artifact-path /new/artifact/path
+gnomon track export --project capacity --output capacity-registry.json
+gnomon track relocate --forecast-id FORECAST_ID --artifact-path /new/artifact/path
 ```
 
 Single-series actuals require `timestamp,value` columns. For panel forecasts,
-use `series,timestamp,value`; Aion rejects ambiguous panel actuals. Timestamps
+use `series,timestamp,value`; Gnomon rejects ambiguous panel actuals. Timestamps
 are compared as instants when timezone offsets are present. A forecast remains
 open until actuals cover its entire horizon, preventing a partial submission
 from producing a misleading final score.
@@ -243,7 +243,7 @@ MASE uses the naive scaling error saved from the training series when the
 forecast is registered. It is reported as unavailable for constant histories
 whose scale is zero. The leaderboard is descriptive historical telemetry: it
 does not prove that one model caused better outcomes, and it does not change
-future model selection automatically — `aion route` consults it as a
+future model selection automatically — `gnomon route` consults it as a
 disclosed, advisory prior, and evaluated runs still backtest every candidate.
 
 Each registered run also records its task (`forecast` by default) and a
@@ -251,15 +251,15 @@ deterministic series fingerprint (trend, noise ratio, intermittency,
 direction-change rate, season), which `--task` filtering and the router's
 fingerprint-weighted prior are built on.
 
-The default registry is `~/.local/share/aion/registry.db`. Override it with
-`AION_REGISTRY_PATH` for isolated projects, tests, or containers.
+The default registry is `~/.local/share/gnomon/registry.db`. Override it with
+`GNOMON_REGISTRY_PATH` for isolated projects, tests, or containers.
 
-## `aion eval compare`
+## `gnomon eval compare`
 
-Compare programmatically graded agent runs with and without Aion:
+Compare programmatically graded agent runs with and without Gnomon:
 
 ```bash
-aion eval compare --baseline control.jsonl --treatment aion.jsonl
+gnomon eval compare --baseline control.jsonl --treatment gnomon.jsonl
 ```
 
 See [Agent evaluation](agent-evaluation.md) for the JSONL contract and fair
@@ -270,24 +270,24 @@ treatment/control protocol.
 Capture the successful response:
 
 ```bash
-aion forecast data.csv --time timestamp --target value --horizon 7 > run.json
+gnomon forecast data.csv --time timestamp --target value --horizon 7 > run.json
 ```
 
 Do not infer success from the existence of output text; check the process exit
 code and the response's `status` field.
 
-## `aion investigate`
+## `gnomon investigate`
 
 What changed? Changepoint detection, regime-shift vs transient
 classification, anomaly scores, and ranked associational explanations:
 
 ```bash
-aion investigate data.csv --time timestamp --target value
-aion investigate data.csv --time timestamp --target value \
+gnomon investigate data.csv --time timestamp --target value
+gnomon investigate data.csv --time timestamp --target value \
   --context events.json --as-of 2026-06-01
 ```
 
-## `aion detect`
+## `gnomon detect`
 
 What is abnormal? Candidate detectors — robust z-score, rolling-median
 residual, local-slope deviation, forecast-interval exceedance, plus any
@@ -297,8 +297,8 @@ shifts, dropouts, and trend shifts; the winner flags anomalies and every
 candidate's precision/recall/F1 is disclosed in the artifact:
 
 ```bash
-aion detect data.csv --time timestamp --target value
-aion detect data.csv --time timestamp --target value \
+gnomon detect data.csv --time timestamp --target value
+gnomon detect data.csv --time timestamp --target value \
   --threshold 3.0 --labels "2026-05-04,2026-06-11"
 ```
 
@@ -310,7 +310,7 @@ result's support carries `graded_families` and, under synthetic selection,
 an assumption naming them — a detector that recovers planted spikes has
 not been tested on anomaly kinds outside that list.
 
-## `aion route`
+## `gnomon route`
 
 Which method for this task on this data? A disclosed, advisory routing
 decision: verified capability filter, then a fingerprint-weighted
@@ -318,16 +318,16 @@ realised-performance prior from the tracking store — claimed only when
 enough scored history exists, never cold:
 
 ```bash
-aion route data.csv --time timestamp --target value --task forecast \
+gnomon route data.csv --time timestamp --target value --task forecast \
   --horizon 14 --project ops
-aion route data.csv --time timestamp --target value --task detect_anomalies
+gnomon route data.csv --time timestamp --target value --task detect_anomalies
 ```
 
 With `--project`, the prior is consulted and the decision recorded to the
 tracking store for replay. Evaluated runs still backtest every candidate;
 an explicit model choice always wins.
 
-## `aion decide`
+## `gnomon decide`
 
 What should we do? Exceedance scenarios from an evaluated forecast plus
 feasibility, constraints, and expected utility over candidate actions.
@@ -335,7 +335,7 @@ Without `--utilities` the result is the feasible-action comparison,
 `conditionally_supported: missing utility inputs`:
 
 ```bash
-aion decide data.csv --time timestamp --target value --horizon 14 \
+gnomon decide data.csv --time timestamp --target value --horizon 14 \
   --threshold 340 \
   --actions '[{"name": "scale_up"}, {"name": "wait"}]' \
   --utilities '{"scale_up": {"exceed": 100, "no_exceed": -10},
@@ -345,76 +345,76 @@ aion decide data.csv --time timestamp --target value --horizon 14 \
 
 `--actions` and `--utilities` accept inline JSON or `@path/to/file.json`.
 
-## `aion monitor`
+## `gnomon monitor`
 
 When should we intervene? Sequential exceedance risk per horizon step and
 an alert rule — cost-optimal when `--alert-cost` and `--miss-cost` are
 supplied, a flagged 0.5 default otherwise:
 
 ```bash
-aion monitor data.csv --time timestamp --target value --horizon 14 \
+gnomon monitor data.csv --time timestamp --target value --horizon 14 \
   --threshold 340 --alert-cost 1 --miss-cost 20 --project ops
 ```
 
-## `aion ingest` and `aion store`
+## `gnomon ingest` and `gnomon store`
 
 Append observations to the bitemporal store; re-supplied corrected files
 become new revision rows rather than overwrites:
 
 ```bash
-aion ingest revisions.csv --dataset requests \
+gnomon ingest revisions.csv --dataset requests \
   --time timestamp --target value --known-at published
-aion store list
+gnomon store list
 ```
 
 Datasets are then addressable as `store:<dataset>` in any verb, and
 `--as-of <instant>` replays a run using only data known at that moment.
 
-## `aion status`
+## `gnomon status`
 
 Pollable view of open forecasts, due horizons, unresolved decisions, and
 realised-performance summaries (descriptive, never causal):
 
 ```bash
-aion status --project ops
+gnomon status --project ops
 ```
 
-## `aion track outcome`
+## `gnomon track outcome`
 
 Resolve a recorded `DecisionArtifact` with what actually happened; returns
 realised utility, regret versus the best feasible action in hindsight, and
 ex-ante optimality:
 
 ```bash
-aion track outcome --decision-id decision_abc123 \
+gnomon track outcome --decision-id decision_abc123 \
   --realised-scenario no_exceed --note "traffic stayed under capacity"
 ```
 
-## `aion eval episodes`
+## `gnomon eval episodes`
 
 Run the built-in trap-family episode suite (leakage, abstention, regime
 breaks) with the honest reference policy and emit rows for
-`aion eval compare`:
+`gnomon eval compare`:
 
 ```bash
-aion eval episodes --workdir /tmp/aion-episodes --trials 2 --jsonl runs.jsonl
+gnomon eval episodes --workdir /tmp/gnomon-episodes --trials 2 --jsonl runs.jsonl
 ```
 
-## `aion plan` (experimental)
+## `gnomon plan` (experimental)
 
 Compile, validate, and execute `TemporalPlan`s. The agent-facing tools are
-gated behind `AION_EXPERIMENTAL_PLANNER=1`; macros remain the default path:
+gated behind `GNOMON_EXPERIMENTAL_PLANNER=1`; macros remain the default path:
 
 ```bash
-aion plan compile --task-type forecast --params '{"input": "data.csv",
+gnomon plan compile --task-type forecast --params '{"input": "data.csv",
   "time_column": "timestamp", "target_column": "value", "horizon": 7}'
-aion plan validate --plan @plan.json
-aion plan execute --plan @plan.json --output aion-output
+gnomon plan validate --plan @plan.json
+gnomon plan execute --plan @plan.json --output gnomon-output
 ```
 
 ## Not currently available
 
-`aion init`, `aion run`, and `aion share` appear in the product
+`gnomon init`, `gnomon run`, and `gnomon share` appear in the product
 specification and system design. They are **not implemented**, and no
-mocked version of them is exposed. Ask `aion capabilities` rather than
+mocked version of them is exposed. Ask `gnomon capabilities` rather than
 either design document when you need to know what this build can do.

@@ -21,7 +21,7 @@ Reference file shape::
         - {system: "<name from leaderboard>", value: 0.000,
            source: "https://... (retrieved YYYY-MM-DD)"}
       ours:
-        - {system: "aion-agent (ours)",
+        - {system: "gnomon-agent (ours)",
            summary: results/cik-agent/summary.json,
            key: rcrps.mean}
 

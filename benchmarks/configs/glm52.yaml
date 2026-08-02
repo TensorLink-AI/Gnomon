@@ -2,13 +2,13 @@
 #
 #   python -m benchmarks.run_all --config benchmarks/configs/glm52.yaml --dry-run
 #   python -m benchmarks.run_all --config benchmarks/configs/glm52.yaml \
-#       --only tb-control,tb-aion
+#       --only tb-control,tb-gnomon
 #
 # Every run below is served by `model` — including AnomLLM, whose CLI
 # names the flag --control-model. Each benchmark pairs a control (the
-# model answering the official prompt alone) against the Aion condition
-# (the same model, but every number computed by Aion), so
-# `aion eval compare` has a like-for-like baseline.
+# model answering the official prompt alone) against the Gnomon condition
+# (the same model, but every number computed by Gnomon), so
+# `gnomon eval compare` has a like-for-like baseline.
 #
 # Prerequisites per benchmark are in each adapter's README; the two
 # Hugging Face datasets are fetched with the adapter's own --download.
@@ -28,16 +28,16 @@ runs:
       data_dir: ~/temporalbench
       tiers: T2,T4
   - benchmark: temporalbench
-    name: tb-aion
+    name: tb-gnomon
     args:
-      condition: aion-agent
+      condition: gnomon-agent
       data_dir: ~/temporalbench
       tiers: T2,T4
 
   # --- TimeSage-MT (HF: Timesage/TimeSage-MT, --download) -------------
   # No `judge_model`: mechanical specs score identically in both
   # conditions and judge-based turns stay `unscored`, which keeps the
-  # control/Aion comparison clean and avoids the model judging itself.
+  # control/Gnomon comparison clean and avoids the model judging itself.
   - benchmark: timesage_mt
     name: ts-direct
     args:
@@ -45,9 +45,9 @@ runs:
       data_dir: ~/timesage-mt
       tiers: L1,L2,L3,L4
   - benchmark: timesage_mt
-    name: ts-aion
+    name: ts-gnomon
     args:
-      condition: aion-tools
+      condition: gnomon-tools
       data_dir: ~/timesage-mt
       tiers: L1,L2,L3,L4
 
@@ -60,14 +60,14 @@ runs:
       method: control
       seeds: 1
   - benchmark: cik
-    name: cik-aion
+    name: cik-gnomon
     args:
-      method: aion-agent
+      method: gnomon-agent
       seeds: 1
 
   # --- MTBench (git clone Graph-and-Geometric-Learning/MTBench) -------
   # `control` wraps an official script unchanged and manages its own
-  # outputs; `aion` takes the shared output dir and limit.
+  # outputs; `gnomon` takes the shared output dir and limit.
   - benchmark: mtbench
     name: mtb-control
     args:
@@ -75,16 +75,16 @@ runs:
       mtbench_root: ~/MTBench
       script: evaluation/finance/value_prediction.py
   - benchmark: mtbench
-    name: mtb-aion
+    name: mtb-gnomon
     args:
-      subcommand: aion
+      subcommand: gnomon
       mtbench_root: ~/MTBench
       dataset_folder: ~/MTBench/data/processed/finance/aligned_in30days_out7days
       mode: agent
 
   # --- AnomLLM (git clone rose-stl-lab/AnomLLM; needs credentials.yml
   #     in the checkout for the control condition) --------------------
-  # One invocation runs the Aion condition and the LLM control into the
+  # One invocation runs the Gnomon condition and the LLM control into the
   # official results tree, scored by the official src/result_agg.py.
   - benchmark: anomllm
     name: anomllm-trend

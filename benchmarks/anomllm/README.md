@@ -21,17 +21,17 @@ Official (used unmodified, from an AnomLLM checkout):
 
 Ours (this directory):
 
-- `aion_detector.py` — runs Aion's graded anomaly detection
-  (`aion.anomaly.detect_anomalies`, the same competing-detector grading
-  behind `aion detect`, selection by synthetic-injection F1, no access
+- `gnomon_detector.py` — runs Gnomon's graded anomaly detection
+  (`gnomon.anomaly.detect_anomalies`, the same competing-detector grading
+  behind `gnomon detect`, selection by synthetic-injection F1, no access
   to ground truth) on each eval series and writes predictions into the
-  official results tree as model `aion`, in the exact row format the
+  official results tree as model `gnomon`, in the exact row format the
   official aggregator parses. Disclosed adapter decisions: the
   benchmark's series carry no timestamps, so a synthetic hourly UTC axis
   is attached (the metric is index-based; the axis never enters it);
   flagged points are merged into the benchmark's half-open
   `{"start", "end"}` intervals.
-- `run_anomllm.py` — orchestrates the Aion condition and can invoke the
+- `run_anomllm.py` — orchestrates the Gnomon condition and can invoke the
   official control runner.
 - `credentials.example.yml` — points the official runner's
   OpenAI-compatible client at OpenRouter, so the control uses the same
@@ -42,27 +42,27 @@ Ours (this directory):
 ```bash
 git clone https://github.com/rose-stl-lab/AnomLLM ~/AnomLLM
 cd ~/AnomLLM && pip install -r <their environment> && bash synthesize.sh
-cp /path/to/Aion/benchmarks/anomllm/credentials.example.yml credentials.yml
+cp /path/to/Gnomon/benchmarks/anomllm/credentials.example.yml credentials.yml
 # edit credentials.yml: add your OpenRouter key for each model you'll run
 ```
 
-Aion itself needs no extra dependencies beyond numpy-free stdlib — the
+Gnomon itself needs no extra dependencies beyond numpy-free stdlib — the
 adapter reads the benchmark's `data.pkl` directly.
 
 ## Run
 
 ```bash
-# Treatment: Aion as the detector (no LLM, no API key needed)
+# Treatment: Gnomon as the detector (no LLM, no API key needed)
 python -m benchmarks.anomllm.run_anomllm \
     --anomllm-root ~/AnomLLM --data point
 
 # Control: official prompt variant through OpenRouter
 python -m benchmarks.anomllm.run_anomllm \
     --anomllm-root ~/AnomLLM --data point \
-    --skip-aion --control-model openai/gpt-4o-mini \
+    --skip-gnomon --control-model openai/gpt-4o-mini \
     --control-variant 0shot-text
 
-# Official scoring — Aion appears as a row next to every LLM variant
+# Official scoring — Gnomon appears as a row next to every LLM variant
 cd ~/AnomLLM && python src/result_agg.py --data_name point \
     --label_name point-exp --table_caption "Point anomalies"
 ```
@@ -70,7 +70,7 @@ cd ~/AnomLLM && python src/result_agg.py --data_name point \
 Repeat `--data` over `point`, `range`, `freq`, `trend`, `flat-trend`,
 `noisy-point`, `noisy-freq` for the full suite.
 
-Each Aion run also writes `<variant>.aionbench.jsonl` next to the
+Each Gnomon run also writes `<variant>.gnomonbench.jsonl` next to the
 predictions (per-series success/abstention/latency rows plus an adapter
-F1 preview) for `aion eval compare`; the official aggregator remains the
+F1 preview) for `gnomon eval compare`; the official aggregator remains the
 authoritative scorer.

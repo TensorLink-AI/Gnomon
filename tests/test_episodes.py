@@ -6,13 +6,13 @@ from pathlib import Path
 import json
 import pytest
 
-from aion.agent_eval import compare_runs
-from aion.episodes import (
+from gnomon.agent_eval import compare_runs
+from gnomon.episodes import (
     EPISODE_CLOCK,
     FinalAnswer,
     evaluate_policy,
     grade_episode,
-    honest_aion_policy,
+    honest_gnomon_policy,
     make_abstention_episode,
     make_forecastable_episode,
     make_leakage_trap_episode,
@@ -31,7 +31,7 @@ def worlds(tmp_path_factory):
 
 def test_honest_policy_on_forecastable_world(worlds, tmp_path):
     episode = make_forecastable_episode(worlds, seed=0)
-    answer = honest_aion_policy(episode, tmp_path)
+    answer = honest_gnomon_policy(episode, tmp_path)
     row = grade_episode(episode, answer)
     assert row["temporal_leakage"] is False
     assert row["invented_number"] is False
@@ -41,7 +41,7 @@ def test_honest_policy_on_forecastable_world(worlds, tmp_path):
 
 def test_honest_policy_abstains_on_abstention_trap(worlds, tmp_path):
     episode = make_abstention_episode(worlds, seed=0)
-    answer = honest_aion_policy(episode, tmp_path)
+    answer = honest_gnomon_policy(episode, tmp_path)
     row = grade_episode(episode, answer)
     assert answer.support_status == "inconclusive"
     assert row["appropriate_abstention"] is True
@@ -50,7 +50,7 @@ def test_honest_policy_abstains_on_abstention_trap(worlds, tmp_path):
 
 def test_honest_policy_survives_leakage_trap(worlds, tmp_path):
     episode = make_leakage_trap_episode(worlds, seed=0)
-    answer = honest_aion_policy(episode, tmp_path)
+    answer = honest_gnomon_policy(episode, tmp_path)
     row = grade_episode(episode, answer)
     assert row["temporal_leakage"] is False
     assert row["success"] is True
@@ -58,7 +58,7 @@ def test_honest_policy_survives_leakage_trap(worlds, tmp_path):
 
 def test_honest_policy_on_regime_break(worlds, tmp_path):
     episode = make_regime_break_episode(worlds, seed=0)
-    answer = honest_aion_policy(episode, tmp_path)
+    answer = honest_gnomon_policy(episode, tmp_path)
     row = grade_episode(episode, answer)
     # Warned/degraded output or abstention both count; silence would not.
     assert answer.warnings_surfaced or row["support_status"] in ("inconclusive", "unsupported")
@@ -70,8 +70,8 @@ def test_honest_policy_on_regime_break(worlds, tmp_path):
 def leaky_policy(episode, workdir: Path) -> FinalAnswer:
     """Ingests the vintages but 'forgets' the cutoff: decides on everything
     ever known, including planted post-cutoff rows."""
-    from aion.macros import decide
-    from aion.temporal_store import TemporalStore
+    from gnomon.macros import decide
+    from gnomon.temporal_store import TemporalStore
     store_path = str(workdir / "store.db")
     TemporalStore(store_path).ingest_csv(
         episode.csv_path, dataset=episode.episode_id,
@@ -102,7 +102,7 @@ def test_leaky_policy_is_flagged(worlds, tmp_path):
 
 
 def inventing_policy(episode, workdir: Path) -> FinalAnswer:
-    answer = honest_aion_policy(episode, workdir)
+    answer = honest_gnomon_policy(episode, workdir)
     answer.cited_numbers.append({
         "value": 123456.789, "artifact_path": answer.artifact_paths[0],
     })
@@ -117,7 +117,7 @@ def test_invented_numbers_are_detected(worlds, tmp_path):
 
 
 def overconfident_policy(episode, workdir: Path) -> FinalAnswer:
-    answer = honest_aion_policy(episode, workdir)
+    answer = honest_gnomon_policy(episode, workdir)
     return FinalAnswer(
         statement="Next week will average 104.2.",
         support_status="supported",             # paraphrased away the abstention
@@ -136,7 +136,7 @@ def test_overconfidence_on_abstention_trap_fails(worlds, tmp_path):
 
 
 def silent_policy(episode, workdir: Path) -> FinalAnswer:
-    answer = honest_aion_policy(episode, workdir)
+    answer = honest_gnomon_policy(episode, workdir)
     answer.warnings_surfaced = []               # drops every warning
     answer.statement = "All fine."
     return answer
@@ -153,7 +153,7 @@ def test_warning_omission_is_detected(worlds, tmp_path):
 def test_evaluate_policy_reports_pass_k(worlds, tmp_path):
     episodes = [make_forecastable_episode(worlds, seed=2),
                 make_abstention_episode(worlds, seed=2)]
-    report = evaluate_policy(episodes, honest_aion_policy, tmp_path, trials=2)
+    report = evaluate_policy(episodes, honest_gnomon_policy, tmp_path, trials=2)
     assert report["trials_per_episode"] == 2
     assert report["pass_hat_k"] == 1.0
     assert len(report["rows"]) == 4
@@ -168,7 +168,7 @@ def test_episode_perturbation_hooks_exist(worlds):
 
 def test_episode_rows_feed_eval_compare(worlds, tmp_path):
     episodes = [make_leakage_trap_episode(worlds, seed=3)]
-    honest = evaluate_policy(episodes, honest_aion_policy, tmp_path / "honest")
+    honest = evaluate_policy(episodes, honest_gnomon_policy, tmp_path / "honest")
     leaky = evaluate_policy(episodes, leaky_policy, tmp_path / "leaky")
     baseline = write_runs_jsonl(leaky["rows"], tmp_path / "baseline.jsonl")
     treatment = write_runs_jsonl(honest["rows"], tmp_path / "treatment.jsonl")

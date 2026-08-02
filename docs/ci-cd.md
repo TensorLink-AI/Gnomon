@@ -27,9 +27,9 @@ automatic.
 
 One-time configuration is still required:
 
-1. Create or reserve the `aion-forecast` project on PyPI.
+1. Create or reserve the `gnomon-forecast` project on PyPI.
 2. Add a GitHub Actions trusted publisher with owner `TensorLink-AI`, repository
-   `Aion`, workflow `release.yml`, and environment `pypi`.
+   `Gnomon`, workflow `release.yml`, and environment `pypi`.
 3. Create a GitHub environment named `pypi`; adding required reviewers is
    recommended.
 4. Update `project.version`, merge it, and create a matching tag such as

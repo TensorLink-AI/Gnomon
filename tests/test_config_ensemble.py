@@ -4,15 +4,15 @@ import sys
 sys.path.insert(0, "src")
 
 import pytest
-from aion.config import (
-    AionConfig, load_config, DEFAULT_CONFIG,
+from gnomon.config import (
+    GnomonConfig, load_config, DEFAULT_CONFIG,
     resolve_tsfm_backend, find_config,
 )
-from aion.ensemble import (
+from gnomon.ensemble import (
     weighted_mean_forecast, median_forecast, combine_quantiles,
     compute_ensemble_forecast,
 )
-from aion.meta_model import (
+from gnomon.meta_model import (
     train_meta_model, predict_meta_model, _solve_nnls, _solve_ols,
     _gaussian_elimination,
 )
@@ -35,9 +35,9 @@ class TestConfig:
 
     def test_load_config_returns_default_when_no_file(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
-        monkeypatch.setenv("AION_CONFIG_PATH", "")
+        monkeypatch.setenv("GNOMON_CONFIG_PATH", "")
         cfg = load_config()
-        assert isinstance(cfg, AionConfig)
+        assert isinstance(cfg, GnomonConfig)
         assert cfg.models.statistical_enabled is True
 
     def test_load_config_from_explicit_path(self, tmp_path):
@@ -45,7 +45,7 @@ class TestConfig:
             import yaml  # noqa: F401
         except ImportError:
             pytest.skip("PyYAML not installed")
-        config_file = tmp_path / "aion.yaml"
+        config_file = tmp_path / "gnomon.yaml"
         config_file.write_text(
             "models:\n"
             "  tsfm:\n"
@@ -69,7 +69,7 @@ class TestConfig:
 
     def test_find_config_returns_none_when_missing(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
-        monkeypatch.setenv("AION_CONFIG_PATH", "")
+        monkeypatch.setenv("GNOMON_CONFIG_PATH", "")
         assert find_config() is None
 
 
@@ -224,10 +224,10 @@ class TestEvaluationWithConfig:
     """Evaluation pipeline with config-driven features."""
 
     def test_evaluate_with_ensemble_config(self):
-        from aion.evaluation import evaluate
-        from aion.config import AionConfig, EnsembleConfig
+        from gnomon.evaluation import evaluate
+        from gnomon.config import GnomonConfig, EnsembleConfig
 
-        cfg = AionConfig()
+        cfg = GnomonConfig()
         cfg.ensemble = EnsembleConfig(
             enabled=True, strategy="median", min_models=2,
         )
@@ -242,10 +242,10 @@ class TestEvaluationWithConfig:
         assert "ensemble" in result.tsfm_scores or result.selected_model is not None
 
     def test_evaluate_with_meta_model_config(self):
-        from aion.evaluation import evaluate
-        from aion.config import AionConfig, MetaModelConfig
+        from gnomon.evaluation import evaluate
+        from gnomon.config import GnomonConfig, MetaModelConfig
 
-        cfg = AionConfig()
+        cfg = GnomonConfig()
         cfg.meta_model = MetaModelConfig(
             enabled=True, min_models=2, min_folds=2,
         )
@@ -258,10 +258,10 @@ class TestEvaluationWithConfig:
         assert result.supported is True
 
     def test_evaluate_with_full_config(self):
-        from aion.evaluation import evaluate
-        from aion.config import AionConfig, EnsembleConfig, MetaModelConfig
+        from gnomon.evaluation import evaluate
+        from gnomon.config import GnomonConfig, EnsembleConfig, MetaModelConfig
 
-        cfg = AionConfig()
+        cfg = GnomonConfig()
         cfg.ensemble = EnsembleConfig(enabled=True, strategy="weighted_mean", min_models=2)
         cfg.meta_model = MetaModelConfig(enabled=True, min_models=2)
 
@@ -288,12 +288,12 @@ class TestEnsembleCalibrationPartitions:
         return [100.0 + 10 * math.sin(i / 6) + 0.5 * i + (i % 5) for i in range(200)]
 
     def test_ensemble_residuals_exclude_the_test_fold(self):
-        from aion.config import AionConfig, EnsembleConfig
-        from aion.evaluation import evaluate, _origins
+        from gnomon.config import GnomonConfig, EnsembleConfig
+        from gnomon.evaluation import evaluate, _origins
 
         horizon, season = 12, 12
         values = self._series()
-        cfg = AionConfig()
+        cfg = GnomonConfig()
         cfg.ensemble = EnsembleConfig(enabled=True, min_models=2)
         result = evaluate(
             values, horizon=horizon, season=season, minimum_improvement=0.02,
@@ -311,7 +311,7 @@ class TestEnsembleCalibrationPartitions:
         """`--selection-strategy ensemble` overrides selection, not honesty."""
         import csv
         from datetime import datetime, timedelta
-        from aion.runtime import forecast
+        from gnomon.runtime import forecast
 
         path = tmp_path / "series.csv"
         start = datetime(2024, 1, 1)
@@ -350,7 +350,7 @@ class TestSelectionStride:
                 for i in range(count)]
 
     def test_default_is_non_overlapping(self):
-        from aion.evaluation import evaluate
+        from gnomon.evaluation import evaluate
 
         values = self._series()
         base = evaluate(values, 12, 12, 0.02, frequency="h")
@@ -360,7 +360,7 @@ class TestSelectionStride:
         assert base.residuals == explicit.residuals
 
     def test_stride_does_not_change_calibration_residuals(self):
-        from aion.evaluation import evaluate
+        from gnomon.evaluation import evaluate
 
         values = self._series()
         sparse = evaluate(values, 12, 12, 0.02, frequency="h")
@@ -374,7 +374,7 @@ class TestSelectionStride:
         )
 
     def test_no_selection_fold_reads_the_calibration_or_test_partition(self):
-        from aion.evaluation import _origins, dense_selection_origins
+        from gnomon.evaluation import _origins, dense_selection_origins
 
         horizon, season, length = 12, 12, 260
         minimum_train = max(2 * season, 2 * horizon, 8)
@@ -407,7 +407,7 @@ class TestQuantileLevelsAndPinball:
     def test_generalised_spreads_reproduce_the_frozen_three(self):
         import random
 
-        from aion.evaluation import (
+        from gnomon.evaluation import (
             conformal_quantile_spreads,
             conformal_spreads,
             interval_from_spread,
@@ -434,7 +434,7 @@ class TestQuantileLevelsAndPinball:
     def test_levels_are_ordered_within_every_lead(self):
         import random
 
-        from aion.evaluation import conformal_quantile_spreads, quantiles_from_spread
+        from gnomon.evaluation import conformal_quantile_spreads, quantiles_from_spread
 
         rng = random.Random(11)
         for _ in range(50):
@@ -451,7 +451,7 @@ class TestQuantileLevelsAndPinball:
                 assert values == sorted(values), (step, values)
 
     def test_pinball_loss_is_minimised_at_the_true_quantile(self):
-        from aion.evaluation import pinball_loss
+        from gnomon.evaluation import pinball_loss
 
         # For level 0.9, under-predicting must be cheaper to avoid than
         # over-predicting: the loss is asymmetric in that direction.
@@ -460,7 +460,7 @@ class TestQuantileLevelsAndPinball:
         assert pinball_loss(10.0, 10.0, 0.5) == 0.0
 
     def test_default_selection_loss_is_unchanged(self):
-        from aion.evaluation import evaluate
+        from gnomon.evaluation import evaluate
 
         values = self._series()
         default = evaluate(values, 12, 12, 0.02, frequency="h")
@@ -473,7 +473,7 @@ class TestQuantileLevelsAndPinball:
         )
 
     def test_pinball_scores_are_reported_when_requested(self):
-        from aion.evaluation import evaluate
+        from gnomon.evaluation import evaluate
 
         result = evaluate(self._series(), 12, 12, 0.02, frequency="h",
                           selection_loss="pinball")

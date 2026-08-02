@@ -17,8 +17,8 @@ Config shape::
         name: tb-control        # output lands in <output_root>/<name>
         args: {condition: control, data_dir: ~/temporalbench, tiers: "T2,T4"}
       - benchmark: mtbench
-        name: mtb-aion
-        args: {subcommand: aion, dataset_folder: ~/mtbench/data, mode: agent}
+        name: mtb-gnomon
+        args: {subcommand: gnomon, dataset_folder: ~/mtbench/data, mode: agent}
 
 Any key in ``args`` becomes ``--kebab-case`` on the command line
 (``true`` becomes a bare flag, ``subcommand`` a leading positional), so
@@ -29,7 +29,7 @@ Usage::
 
     python -m benchmarks.run_all --config benchmarks/configs/example.yaml
     python -m benchmarks.run_all --config cfg.yaml --dry-run
-    python -m benchmarks.run_all --config cfg.yaml --only tb-control,tb-aion
+    python -m benchmarks.run_all --config cfg.yaml --only tb-control,tb-gnomon
 """
 
 from __future__ import annotations
@@ -65,7 +65,7 @@ REGISTRY: dict[str, dict[str, Any]] = {
     "mtbench": {
         "module": "benchmarks.mtbench.run_mtbench",
         "accepts": {"model", "temperature", "output_dir"},
-        "limit_flag": "--limit",  # aion subcommand only
+        "limit_flag": "--limit",  # gnomon subcommand only
     },
     "timesage_mt": {
         "module": "benchmarks.timesage_mt.run_timesage",

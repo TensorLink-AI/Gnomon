@@ -1,7 +1,7 @@
-"""Aion's LLMAdapter implemented over Hermes's host-owned ``ctx.llm`` facade.
+"""Gnomon's LLMAdapter implemented over Hermes's host-owned ``ctx.llm`` facade.
 
 The host owns provider routing, auth, model choice, and budgets; this
-adapter only carries an Aion-authored prompt and JSON schema across, and
+adapter only carries an Gnomon-authored prompt and JSON schema across, and
 returns the parsed object. No API keys, no provider config, no numbers.
 """
 
@@ -12,11 +12,11 @@ from typing import Any
 
 
 class HermesLLMAdapter:
-    """Adapter satisfying ``aion.llm.LLMAdapter`` using ``ctx.llm``."""
+    """Adapter satisfying ``gnomon.llm.LLMAdapter`` using ``ctx.llm``."""
 
     available = True
 
-    def __init__(self, ctx: Any, purpose: str = "aion workflow"):
+    def __init__(self, ctx: Any, purpose: str = "gnomon workflow"):
         self._ctx = ctx
         self._purpose = purpose
 
@@ -25,7 +25,7 @@ class HermesLLMAdapter:
             instructions=prompt,
             input=[{"type": "text", "text": "Respond now with schema-conforming JSON only."}],
             json_schema=response_schema,
-            schema_name="aion_workflow_response",
+            schema_name="gnomon_workflow_response",
             purpose=self._purpose,
         )
         parsed = getattr(result, "parsed", None)

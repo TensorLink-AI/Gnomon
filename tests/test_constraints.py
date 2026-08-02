@@ -1,8 +1,8 @@
 """Typed numeric claims: bounds are admissible, asserted values are not.
 
-The line this module defends: a caller may tell Aion which values are
-*possible* (returns cannot be negative, the line caps at 500) and Aion will
-project its answer onto that region. A caller may not tell Aion what the
+The line this module defends: a caller may tell Gnomon which values are
+*possible* (returns cannot be negative, the line caps at 500) and Gnomon will
+project its answer onto that region. A caller may not tell Gnomon what the
 answer *is*. The first is a fact about the domain; the second would make an
 LLM's say-so into a forecast number.
 """
@@ -15,14 +15,14 @@ from pathlib import Path
 
 sys.path.insert(0, "src")
 
-from aion.constraints import (  # noqa: E402
+from gnomon.constraints import (  # noqa: E402
     apply_claims,
     collect_claims,
     history_violations,
     parse_claim,
 )
-from aion.context import ContextEvent  # noqa: E402
-from aion.runtime import forecast  # noqa: E402
+from gnomon.context import ContextEvent  # noqa: E402
+from gnomon.runtime import forecast  # noqa: E402
 
 START = datetime(2024, 1, 1, tzinfo=timezone.utc)
 FAR = datetime(2030, 1, 1, tzinfo=timezone.utc)

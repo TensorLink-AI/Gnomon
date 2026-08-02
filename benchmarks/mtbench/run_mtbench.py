@@ -1,5 +1,5 @@
 """Run MTBench conditions: official LLM scripts via OpenRouter, or the
-Aion treatment on the forecasting task families.
+Gnomon treatment on the forecasting task families.
 
 Control (any official evaluation script, unmodified, LLM served by
 OpenRouter)::
@@ -15,12 +15,12 @@ OpenRouter)::
     (the script's own ``--model gpt-4o`` selects the official dispatch
     branch; the patch serves it with the OpenRouter model you chose)
 
-Treatment (Aion owns the numbers; forecasting families only)::
+Treatment (Gnomon owns the numbers; forecasting families only)::
 
-    python -m benchmarks.mtbench.run_mtbench aion \
+    python -m benchmarks.mtbench.run_mtbench gnomon \
         --mtbench-root ~/MTBench \
         --dataset-folder ~/MTBench/data/processed/finance/aligned_in30days_out7days \
-        --output-dir results/mtbench-aion-agent \
+        --output-dir results/mtbench-gnomon-agent \
         --mode agent --model openai/gpt-4o
 """
 
@@ -51,18 +51,18 @@ def main() -> int:
     control.add_argument("script_args", nargs=argparse.REMAINDER,
                          help="Arguments after -- go to the official script")
 
-    aion = sub.add_parser("aion", help="Aion treatment (forecasting tasks)")
-    aion.add_argument("--mtbench-root", default=None,
+    gnomon = sub.add_parser("gnomon", help="Gnomon treatment (forecasting tasks)")
+    gnomon.add_argument("--mtbench-root", default=None,
                       help="Checkout path; enables the official MAPE import")
-    aion.add_argument("--dataset-folder", required=True,
+    gnomon.add_argument("--dataset-folder", required=True,
                       help="Official processed dataset folder of task JSONs")
-    aion.add_argument("--output-dir", required=True)
-    aion.add_argument("--mode", choices=["pure", "agent", "tools"],
+    gnomon.add_argument("--output-dir", required=True)
+    gnomon.add_argument("--mode", choices=["pure", "agent", "tools"],
                       default="pure")
-    aion.add_argument("--model", default=None,
+    gnomon.add_argument("--model", default=None,
                       help="OpenRouter model id (required for agent/tools modes)")
-    aion.add_argument("--temperature", type=float, default=1.0)
-    aion.add_argument("--limit", type=int, default=None)
+    gnomon.add_argument("--temperature", type=float, default=1.0)
+    gnomon.add_argument("--limit", type=int, default=None)
 
     args = parser.parse_args()
     if args.command == "control":
@@ -78,7 +78,7 @@ def main() -> int:
 
     if args.mode == "agent" and not args.model:
         parser.error("--model is required for --mode agent")
-    from benchmarks.mtbench.aion_forecaster import run
+    from benchmarks.mtbench.gnomon_forecaster import run
 
     summary = run(
         Path(args.dataset_folder).expanduser().resolve(),

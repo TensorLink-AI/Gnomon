@@ -9,7 +9,7 @@
 > | B1 per-lead conformal | shipped. CiK rCRPS 0.597 → **0.329** on the identical 33 scored tasks |
 > | A7 gate instrumentation, B5 Wilson veto | shipped |
 > | N1 abstention pricing, C1, D | shipped |
-> | **C2 leakage traps** | shipped and **run**. Trap validated (+0.78 oracle advantage). GLM-5.2 control leaked on **13/35** answered tasks and transcribed the future verbatim on **4**; Aion **0/40**, structural claim proven **40/40**. McNemar **p = 0.00024**. Not falsified — see [results](leakage-trap-results-2026-08.md) |
+> | **C2 leakage traps** | shipped and **run**. Trap validated (+0.78 oracle advantage). GLM-5.2 control leaked on **13/35** answered tasks and transcribed the future verbatim on **4**; Gnomon **0/40**, structural claim proven **40/40**. McNemar **p = 0.00024**. Not falsified — see [results](leakage-trap-results-2026-08.md) |
 > | A6 conditional forecasts | shipped |
 > | A1+A2 typed claims | shipped — bounds admitted, asserted values refused |
 > | A3 effect shapes | shipped. Ablation recovers the planted shape **3/3** |
@@ -49,32 +49,32 @@ with.
 
 Reproduce with `python -m benchmarks.report --root results/glm52`.
 
-| Benchmark | Control | Aion | Paired result |
+| Benchmark | Control | Gnomon | Paired result |
 | --- | --- | --- | --- |
 | TimeSage-MT (127 turns) | 68.5% | **73.2%** | 21 fixed / 15 broke, **p = 0.41** |
-| MTBench (50 tasks) | **43.18 mean MSE** | 92.25 | Aion wins 12/50, **p = 0.0003** |
+| MTBench (50 tasks) | **43.18 mean MSE** | 92.25 | Gnomon wins 12/50, **p = 0.0003** |
 | TemporalBench (50 rows) | scores 50, worst MASE **10,753,522** | scores **2**, worst MASE 2.4 | not comparable at n = 2 |
 | CiK (71 tasks) | not run (~$140) | **0 scored**, 36 abstained, 35 cache-failed | — |
 | AnomLLM (400 series) | not run (~$18 / 22 h) | flagged nothing on 397, reported `supported` | — |
 
 Four findings that bear directly on this plan:
 
-1. **Aion mostly does not answer.** TemporalBench scores 2 of 50 rows;
+1. **Gnomon mostly does not answer.** TemporalBench scores 2 of 50 rows;
    CiK scores 0 of 71. The causes are minimum-history rules and a
    row-level all-channels-or-nothing convention — not gate width, not
    interval width. Any benchmark delta from proposals A or B would be
    measured on ~4% of the data.
 2. **The premise behind proposal A did not survive testing.** A assumes
-   the admission gate is what suppresses context value. An `aion-tools`
+   the admission gate is what suppresses context value. An `gnomon-tools`
    condition was built for MTBench: the model sees the prices *and* the
-   article, calls Aion 6.9 times per sample, may propose events and
+   article, calls Gnomon 6.9 times per sample, may propose events and
    compare runs. It submitted the plain history-only forecast in **48 of
    50 cases** and scored identically to the one-shot pipeline (11.06
    MSE). The model is not being blocked by a narrow gate; it is not
    producing admissible claims at all.
 3. **What survived contact is not accuracy.** It is: no catastrophic
    outputs (control's worst TemporalBench error was seven orders of
-   magnitude; Aion's worst was 2.4), 2.3× cheaper, 2.9× faster, and
+   magnitude; Gnomon's worst was 2.4), 2.3× cheaper, 2.9× faster, and
    structural leakage safety. Only proposal C2 measures the last one,
    and the review buries it in Phase 3.
 4. **A proxy can be confidently wrong.** Adding a trend detector
@@ -142,7 +142,7 @@ Application points: a constraint is a **projection of the emitted
 quantiles** applied in `pipeline.py` after interval construction, never
 an adjustment to the point path; a magnitude enters through
 `covariates.py`'s existing fold-safe path as a future regressor level,
-with the coefficient still estimated by Aion.
+with the coefficient still estimated by Gnomon.
 Rejection rule: a claim violated by history within its own scope is
 rejected before use (e.g. a `min` bound that the training window already
 breaches), disclosed with the violating timestamps.
@@ -275,7 +275,7 @@ Effort: L.**
 `docs/agent-evaluation.md` already promises this family. Tasks built on
 revision-heavy series (`examples/messy_requests_revisions.csv`) where
 peeking past the cutoff measurably improves the score; control LLM vs
-Aion treatment; report the leakage differential.
+Gnomon treatment; report the leakage differential.
 The assertion that makes it more than a benchmark: "provably could not
 leak" is an assertion over the snapshot access log — the run's
 `snapshot_access` evidence records the maximum `known_time` touched, so
@@ -288,7 +288,7 @@ claim that survived this session's benchmarking.
 **C3 — TSFM-enabled headline configs. Effort: S.** Config work plus the
 sandbox install path; stdlib pool stays as the floor condition.
 
-**C4 — AnomLLM `aion-agent`. Recommendation: drop for now.** It costs
+**C4 — AnomLLM `gnomon-agent`. Recommendation: drop for now.** It costs
 LLM budget to test a path whose non-LLM version currently selects a
 detector that cannot see the dataset's anomaly class. Fix selection
 first (see §4 new item N3) or the condition measures nothing.
@@ -297,7 +297,7 @@ first (see §4 new item N3) or the condition measures nothing.
 
 - `pytest -q` collection under pytest 9 (root `__init__.py` Hermes
   shim): guard the relative import; verify the CI matrix. **S**
-- Stale docstring in `src/aion/context.py` ("No v0.1 pipeline consumes
+- Stale docstring in `src/gnomon/context.py` ("No v0.1 pipeline consumes
   events yet"). **S**
 - README section on the relation to AION (Zhan et al., arXiv:2605.25045)
   and TimeClaw (arXiv:2606.05404): theirs is agent-side scaffolding with
@@ -315,7 +315,7 @@ first (see §4 new item N3) or the condition measures nothing.
 **N1 — Abstention-policy review. Effort: M. Phase 1. MEASURED 2026-08-02;
 conclusion below reverses the hypothesis.**
 The highest-leverage item in this document, and it is not a proposal in
-the review. Aion scores 2 of 50 TemporalBench rows and 0 of 71 CiK
+the review. Gnomon scores 2 of 50 TemporalBench rows and 0 of 71 CiK
 tasks. Two specific questions:
 (a) *Row-level all-or-nothing.* A TemporalBench row scores only if every
 target channel forecasts; one short channel voids the row. Should a
@@ -350,7 +350,7 @@ lower the floor.**
 mode needs only `horizon + 2` observations, which **76% of channels**
 satisfy — yet only 4% of rows scored, because a TemporalBench row scores
 only when *every* target channel forecasts. The all-or-nothing row
-convention, not the floor, is what turns 76% into 4%. Aion already emits
+convention, not the floor, is what turns 76% into 4%. Gnomon already emits
 per-channel results with per-series support states; the benchmark's
 metric is what demands completeness. So the fix is reporting, not
 policy — which is what C1's penalized mean now delivers: charged at the
@@ -444,7 +444,7 @@ rather than weakened.
 ## 6. Open questions for a human
 
 1. **Does abstention get a price?** The penalized mean (C1) makes
-   refusing cost something. It is the difference between "Aion scored 2
+   refusing cost something. It is the difference between "Gnomon scored 2
    of 50" reading as caution or as failure. This is a positioning call,
    not a technical one.
 2. **May a partially-supported row answer?** (N1a) Emitting 4 of 6

@@ -2,7 +2,7 @@
 
 ## CSV schema
 
-Aion requires one timestamp column, one numeric target column, and
+Gnomon requires one timestamp column, one numeric target column, and
 optionally one series identifier column. Column names are not fixed; provide
 them through `--time`, `--target`, and optionally `--series`.
 
@@ -36,7 +36,7 @@ provable from the column (an unprovable order is a typed
 `AMBIGUOUS_DATE_ORDER` error rather than a guess).
 
 Do not mix timezone-aware and timezone-naive timestamps (`--repair
-aggressive` assumes naive rows are UTC, with disclosure). Aion preserves the
+aggressive` assumes naive rows are UTC, with disclosure). Gnomon preserves the
 provided offset but does not currently accept a separate named-timezone option.
 
 ## Supported frequencies
@@ -54,14 +54,14 @@ provided offset but does not currently accept a separate named-timezone option.
 
 Aliases such as `hourly`, `daily`, `weekly`, `monthly`, and market-style
 candle codes (`1m`, `5m`, `15m`, `30m`, `1h`, `T`, `5T`, …) are accepted. When
-`--frequency` is omitted, Aion infers a supported frequency from timestamp
+`--frequency` is omitted, Gnomon infers a supported frequency from timestamp
 differences. Supplying it explicitly is preferable in automation. Data at
 other granularities (for example 10-second sensor readings) must be resampled
 to a supported frequency first, e.g. with pandas:
 `df.resample("5min").last()`.
 
 Month-start data must use the first day of each month. Weekly data is any exact
-seven-day sequence; Aion does not impose a particular weekday.
+seven-day sequence; Gnomon does not impose a particular weekday.
 
 ## Regularity, duplicates, and missing periods
 
@@ -70,7 +70,7 @@ Within each series the validated grid requires that:
 - timestamps are unique;
 - each timestamp is exactly one configured period after the previous one;
 - the target is parseable as a number; and
-- rows may arrive unsorted because Aion sorts them before validation.
+- rows may arrive unsorted because Gnomon sorts them before validation.
 
 What happens when a file falls short depends on `--repair`:
 
@@ -86,7 +86,7 @@ What happens when a file falls short depends on `--repair`:
   downgrades support, and is capped: past roughly 30% of a series the run
   refuses with `EXCESSIVE_REPAIR`.
 
-Aion never aggregates or imputes silently: either you resolved the mess
+Gnomon never aggregates or imputes silently: either you resolved the mess
 upstream, or the artifact says exactly what was repaired.
 
 ## Panel data
@@ -107,7 +107,7 @@ series must match the resolved frequency.
 
 ## History requirements
 
-Aion evaluates on disjoint rolling folds after an initial training window.
+Gnomon evaluates on disjoint rolling folds after an initial training window.
 For seasonal period `S` and forecast horizon `H`, the training window is
 `max(2 × S, 2 × H, 8)` observations, and evaluation adapts to how many folds
 fit after it:
@@ -124,7 +124,7 @@ produce an `unsupported` result rather than an input error.
 
 ## Other formats
 
-Beyond comma-separated CSV, Aion reads:
+Beyond comma-separated CSV, Gnomon reads:
 
 - **`.tsv`** — tab-separated, always.
 - **Semicolon, tab, or pipe-delimited `.csv`** — detected under the default
@@ -140,12 +140,12 @@ Beyond comma-separated CSV, Aion reads:
   extra.
 
 ```bash
-pip install 'aion-forecast[parquet]'   # .parquet / .pq
-pip install 'aion-forecast[excel]'     # .xlsx
+pip install 'gnomon-forecast[parquet]'   # .parquet / .pq
+pip install 'gnomon-forecast[excel]'     # .xlsx
 ```
 
 Files that are not UTF-8 are read as Windows-1252 under repair, disclosed
 as an `encoding_assumed` assumption (strict mode raises `INVALID_ENCODING`).
 The same logical column and temporal rules apply to every format, and
-`aion capabilities` reports which optional formats are installed.
+`gnomon capabilities` reports which optional formats are installed.
 

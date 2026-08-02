@@ -1,4 +1,4 @@
-# Shared by every adapter. The Aion core itself is stdlib-only; these are
+# Shared by every adapter. The Gnomon core itself is stdlib-only; these are
 # the benchmark side's own dependencies.
 #
 #   uv venv .venv && uv pip install --python .venv -e . -r benchmarks/requirements/base.txt

@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-REPOSITORY="${AION_REPOSITORY:-TensorLink-AI/Aion}"
-VERSION="${AION_VERSION:-main}"
+REPOSITORY="${GNOMON_REPOSITORY:-TensorLink-AI/Gnomon}"
+VERSION="${GNOMON_VERSION:-main}"
 # --local installs the checkout this script lives in, rather than fetching
-# from GitHub. Without it, `cd Aion && bash install.sh` silently installs
+# from GitHub. Without it, `cd Gnomon && bash install.sh` silently installs
 # the remote default branch — not the source the reader just changed.
-LOCAL_SOURCE="${AION_LOCAL:-}"
-INSTALL_ROOT="${AION_INSTALL_ROOT:-${XDG_DATA_HOME:-${HOME}/.local/share}/aion}"
-BIN_DIR="${AION_BIN_DIR:-${XDG_BIN_HOME:-${HOME}/.local/bin}}"
+LOCAL_SOURCE="${GNOMON_LOCAL:-}"
+INSTALL_ROOT="${GNOMON_INSTALL_ROOT:-${XDG_DATA_HOME:-${HOME}/.local/share}/gnomon}"
+BIN_DIR="${GNOMON_BIN_DIR:-${XDG_BIN_HOME:-${HOME}/.local/bin}}"
 
 usage() {
   printf '%s\n' \
-    "Install Aion in an isolated Python environment." \
+    "Install Gnomon in an isolated Python environment." \
     "" \
     "Usage: bash install.sh [options]" \
     "" \
@@ -84,29 +84,29 @@ for candidate in python3.13 python3.12 python3.11 python3; do
   fi
 done
 if [[ -z "$PYTHON_BIN" ]]; then
-  printf 'Aion requires Python 3.11 or newer.\n' >&2
+  printf 'Gnomon requires Python 3.11 or newer.\n' >&2
   exit 1
 fi
 
 mkdir -p "$INSTALL_ROOT/releases" "$BIN_DIR"
 RELEASE_ID="$(date -u +%Y%m%dT%H%M%SZ)-$$"
 RELEASE_DIR="$INSTALL_ROOT/releases/$RELEASE_ID"
-LINK_TMP="$BIN_DIR/.aion-$RELEASE_ID"
+LINK_TMP="$BIN_DIR/.gnomon-$RELEASE_ID"
 
 cleanup_failed_install() {
   rm -f "$LINK_TMP"
-  if [[ ! -x "$RELEASE_DIR/bin/aion" ]]; then
+  if [[ ! -x "$RELEASE_DIR/bin/gnomon" ]]; then
     rm -rf "$RELEASE_DIR"
   fi
 }
 trap cleanup_failed_install EXIT
 
 SOURCE_URL="https://github.com/$REPOSITORY/archive/$VERSION.tar.gz"
-SOURCE_ARCHIVE="$RELEASE_DIR/aion-source.tar.gz"
+SOURCE_ARCHIVE="$RELEASE_DIR/gnomon-source.tar.gz"
 if [[ -n "$LOCAL_SOURCE" ]]; then
-  printf 'Installing Aion from the local checkout at %s using %s...\n' "$SCRIPT_DIR" "$PYTHON_BIN"
+  printf 'Installing Gnomon from the local checkout at %s using %s...\n' "$SCRIPT_DIR" "$PYTHON_BIN"
 else
-  printf 'Installing Aion from %s at %s using %s...\n' "$REPOSITORY" "$VERSION" "$PYTHON_BIN"
+  printf 'Installing Gnomon from %s at %s using %s...\n' "$REPOSITORY" "$VERSION" "$PYTHON_BIN"
 fi
 "$PYTHON_BIN" -m venv "$RELEASE_DIR"
 "$RELEASE_DIR/bin/python" -m pip install --disable-pip-version-check --upgrade pip
@@ -119,15 +119,15 @@ else
   "$RELEASE_DIR/bin/python" -m pip install --disable-pip-version-check "$SOURCE_URL"
 fi
 rm -f "$SOURCE_ARCHIVE"
-"$RELEASE_DIR/bin/aion" capabilities >/dev/null
+"$RELEASE_DIR/bin/gnomon" capabilities >/dev/null
 
-ln -s "$RELEASE_DIR/bin/aion" "$LINK_TMP"
-mv -f "$LINK_TMP" "$BIN_DIR/aion"
+ln -s "$RELEASE_DIR/bin/gnomon" "$LINK_TMP"
+mv -f "$LINK_TMP" "$BIN_DIR/gnomon"
 trap - EXIT
 
-printf 'Aion installed successfully: %s\n' "$BIN_DIR/aion"
+printf 'Gnomon installed successfully: %s\n' "$BIN_DIR/gnomon"
 if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
-  printf 'Add %s to PATH, then run: aion capabilities\n' "$BIN_DIR"
+  printf 'Add %s to PATH, then run: gnomon capabilities\n' "$BIN_DIR"
 else
-  printf 'Run: aion capabilities\n'
+  printf 'Run: gnomon capabilities\n'
 fi

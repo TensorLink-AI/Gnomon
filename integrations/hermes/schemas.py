@@ -1,4 +1,4 @@
-"""OpenAI-style function schemas for the Aion tools exposed to Hermes.
+"""OpenAI-style function schemas for the Gnomon tools exposed to Hermes.
 
 Deliberately three tools, mirroring the v0.1 CLI exactly. Richer surfaces
 (explain, score, compare, context evaluation) arrive only after these prove
@@ -28,26 +28,26 @@ _INPUT_PROPERTIES = {
     "frequency": {
         "type": "string",
         "enum": ["min", "5min", "15min", "30min", "h", "D", "W", "MS"],
-        "description": "Observation frequency: min/5min/15min/30min (minutes), h (hourly), D (daily), W (weekly), MS (month-start). Omit to let Aion infer it; ambiguity fails loudly rather than guessing.",
+        "description": "Observation frequency: min/5min/15min/30min (minutes), h (hourly), D (daily), W (weekly), MS (month-start). Omit to let Gnomon infer it; ambiguity fails loudly rather than guessing.",
     },
 }
 
-AION_CAPABILITIES_SCHEMA = {
-    "name": "aion_capabilities",
+GNOMON_CAPABILITIES_SCHEMA = {
+    "name": "gnomon_capabilities",
     "description": (
-        "Report what the installed Aion runtime actually supports (inputs, "
+        "Report what the installed Gnomon runtime actually supports (inputs, "
         "frequencies, models, features). Call this for feature detection "
         "instead of assuming a capability exists."
     ),
     "parameters": {"type": "object", "properties": {}, "required": []},
 }
 
-AION_INSPECT_SCHEMA = {
-    "name": "aion_inspect",
+GNOMON_INSPECT_SCHEMA = {
+    "name": "gnomon_inspect",
     "description": (
         "Validate a temporal dataset before forecasting: schema mapping, "
         "frequency, duplicates, missing periods, and history sufficiency. "
-        "Prefer this before aion_forecast when column mappings or data "
+        "Prefer this before gnomon_forecast when column mappings or data "
         "quality are uncertain."
     ),
     "parameters": {
@@ -57,16 +57,16 @@ AION_INSPECT_SCHEMA = {
     },
 }
 
-AION_FORECAST_SCHEMA = {
-    "name": "aion_forecast",
+GNOMON_FORECAST_SCHEMA = {
+    "name": "gnomon_forecast",
     "description": (
-        "Run Aion's evaluated forecast: baselines and candidates are "
+        "Run Gnomon's evaluated forecast: baselines and candidates are "
         "backtested on rolling folds, a model is selected per series or the "
         "series is marked unsupported (abstention). Returns a compact result "
         "with support status, selected model, warnings, and the artifact "
         "directory; read forecast.csv / summary.md there for the numbers and "
         "quote them verbatim. Never invent values for an unsupported series. "
-        "Before first use, load the aion:forecasting skill for the full "
+        "Before first use, load the gnomon:forecasting skill for the full "
         "workflow and safe-use rules."
     ),
     "parameters": {
@@ -79,7 +79,7 @@ AION_FORECAST_SCHEMA = {
             },
             "output_dir": {
                 "type": "string",
-                "description": "Directory for the immutable forecast artifact (default: ./aion-output).",
+                "description": "Directory for the immutable forecast artifact (default: ./gnomon-output).",
             },
             "minimum_baseline_improvement": {
                 "type": "number",
@@ -89,7 +89,7 @@ AION_FORECAST_SCHEMA = {
                 "type": "string",
                 "description": (
                     "Optional validated context-events JSON file produced by "
-                    "aion_propose_context_events. Events are admitted into the "
+                    "gnomon_propose_context_events. Events are admitted into the "
                     "forecast only if they demonstrate stable improvement on "
                     "identical backtest folds."
                 ),
@@ -125,16 +125,16 @@ AION_FORECAST_SCHEMA = {
     },
 }
 
-AION_COVARIATE_GUIDE_SCHEMA = {
-    "name": "aion_covariate_guide",
-    "description": "Return temporal constraints and the point-in-time CSV contract. You decide what to fetch; Aion defines how to represent it.",
+GNOMON_COVARIATE_GUIDE_SCHEMA = {
+    "name": "gnomon_covariate_guide",
+    "description": "Return temporal constraints and the point-in-time CSV contract. You decide what to fetch; Gnomon defines how to represent it.",
     "parameters": {"type": "object", "properties": {
         **_INPUT_PROPERTIES, "horizon": {"type": "integer"},
     }, "required": ["input", "time_column", "target_column", "horizon"]},
 }
 
-AION_VALIDATE_COVARIATES_SCHEMA = {
-    "name": "aion_validate_covariates",
+GNOMON_VALIDATE_COVARIATES_SCHEMA = {
+    "name": "gnomon_validate_covariates",
     "description": "Validate local covariate vintages for alignment, horizon coverage, and historical availability without fetching URLs.",
     "parameters": {"type": "object", "properties": {
         **_INPUT_PROPERTIES, "horizon": {"type": "integer"},
@@ -146,12 +146,12 @@ AION_VALIDATE_COVARIATES_SCHEMA = {
     }, "required": ["input", "time_column", "target_column", "horizon", "covariates_file", "covariate_mapping"]},
 }
 
-AION_PROPOSE_COVARIATES_SCHEMA = {
-    **AION_FORECAST_SCHEMA,
-    "name": "aion_propose_covariates",
+GNOMON_PROPOSE_COVARIATES_SCHEMA = {
+    **GNOMON_FORECAST_SCHEMA,
+    "name": "gnomon_propose_covariates",
     "description": "Evaluate a local covariate proposal on identical rolling folds and retain only features with stable material lift.",
     "parameters": {
-        **AION_FORECAST_SCHEMA["parameters"],
+        **GNOMON_FORECAST_SCHEMA["parameters"],
         "required": [
             "input", "time_column", "target_column", "horizon",
             "covariates_file", "covariate_mapping",
@@ -159,32 +159,32 @@ AION_PROPOSE_COVARIATES_SCHEMA = {
     },
 }
 
-AION_SUBMIT_ACTUALS_SCHEMA = {
-    "name": "aion_submit_actuals",
+GNOMON_SUBMIT_ACTUALS_SCHEMA = {
+    "name": "gnomon_submit_actuals",
     "description": "Score due forecasts from a complete actuals CSV.",
     "parameters": {"type": "object", "properties": {
         "project": {"type": "string"}, "actuals_file": {"type": "string"},
     }, "required": ["project", "actuals_file"]},
 }
 
-AION_LIST_OPEN_SCHEMA = {
-    "name": "aion_list_open_forecasts",
+GNOMON_LIST_OPEN_SCHEMA = {
+    "name": "gnomon_list_open_forecasts",
     "description": "List unscored forecasts and whether each complete horizon is due.",
     "parameters": {"type": "object", "properties": {
         "project": {"type": "string"},
     }, "required": []},
 }
 
-AION_MODEL_PERFORMANCE_SCHEMA = {
-    "name": "aion_model_performance",
+GNOMON_MODEL_PERFORMANCE_SCHEMA = {
+    "name": "gnomon_model_performance",
     "description": "Read descriptive realised performance; rankings are observational, not causal.",
     "parameters": {"type": "object", "properties": {
         "project": {"type": "string"}, "model": {"type": "string"},
     }, "required": ["project"]},
 }
 
-AION_RECORD_DECISION_SCHEMA = {
-    "name": "aion_record_decision",
+GNOMON_RECORD_DECISION_SCHEMA = {
+    "name": "gnomon_record_decision",
     "description": "Link an agent action and expected outcome to a tracked forecast.",
     "parameters": {"type": "object", "properties": {
         "decision_id": {"type": "string"}, "project": {"type": "string"},
@@ -193,8 +193,8 @@ AION_RECORD_DECISION_SCHEMA = {
     }, "required": ["decision_id", "project", "forecast_id", "action", "expected_outcome"]},
 }
 
-AION_RESOLVE_DECISION_SCHEMA = {
-    "name": "aion_resolve_decision",
+GNOMON_RESOLVE_DECISION_SCHEMA = {
+    "name": "gnomon_resolve_decision",
     "description": "Record the realised outcome and correctness of an agent decision.",
     "parameters": {"type": "object", "properties": {
         "decision_id": {"type": "string"}, "actual_outcome": {"type": "string"},
@@ -202,16 +202,16 @@ AION_RESOLVE_DECISION_SCHEMA = {
     }, "required": ["decision_id", "actual_outcome", "correct"]},
 }
 
-AION_PROPOSE_CONTEXT_SCHEMA = {
-    "name": "aion_propose_context_events",
+GNOMON_PROPOSE_CONTEXT_SCHEMA = {
+    "name": "gnomon_propose_context_events",
     "description": (
         "Extract candidate context events (launches, promotions, outages, "
         "holidays) from explicitly permitted local documents using an "
-        "Aion-owned prompt run on the host LLM, then validate them "
+        "Gnomon-owned prompt run on the host LLM, then validate them "
         "deterministically. Returns typed events plus rejected proposals with "
-        "reasons, and writes an events file for aion_forecast. Events without "
+        "reasons, and writes an events file for gnomon_forecast. Events without "
         "a verifiable dated source are never used in backtests. Only use "
-        "documents the user has allowed you to read. The aion:forecasting "
+        "documents the user has allowed you to read. The gnomon:forecasting "
         "skill documents how to report admission decisions honestly."
     ),
     "parameters": {
@@ -225,11 +225,11 @@ AION_PROPOSE_CONTEXT_SCHEMA = {
             "series_names": {
                 "type": "array",
                 "items": {"type": "string"},
-                "description": "Series names from the dataset the events may scope to (from aion_inspect).",
+                "description": "Series names from the dataset the events may scope to (from gnomon_inspect).",
             },
             "output_file": {
                 "type": "string",
-                "description": "Where to write the validated events JSON (default ./aion-context-events.json).",
+                "description": "Where to write the validated events JSON (default ./gnomon-context-events.json).",
             },
         },
         "required": ["files"],
@@ -237,14 +237,14 @@ AION_PROPOSE_CONTEXT_SCHEMA = {
 }
 
 
-AION_INVESTIGATE_SCHEMA = {
-    "name": "aion_investigate_change",
+GNOMON_INVESTIGATE_SCHEMA = {
+    "name": "gnomon_investigate_change",
     "description": (
         "What changed? Detect changepoints in a series, locate the onset, "
         "classify regime shift versus transient anomaly, and rank concurrent "
         "events and cross-series precedence as associational explanations "
         "with residual uncertainty. Never returns a cause; report the "
-        "ranking as associational, exactly as Aion states it."
+        "ranking as associational, exactly as Gnomon states it."
     ),
     "parameters": {
         "type": "object",
@@ -252,7 +252,7 @@ AION_INVESTIGATE_SCHEMA = {
             **_INPUT_PROPERTIES,
             "context_events_file": {
                 "type": "string",
-                "description": "Optional validated context-events JSON (output of aion_propose_context_events) to rank as concurrent events.",
+                "description": "Optional validated context-events JSON (output of gnomon_propose_context_events) to rank as concurrent events.",
             },
             "as_of": {
                 "type": "string",
@@ -260,15 +260,15 @@ AION_INVESTIGATE_SCHEMA = {
             },
             "output_dir": {
                 "type": "string",
-                "description": "Directory for the immutable artifact (default ./aion-output).",
+                "description": "Directory for the immutable artifact (default ./gnomon-output).",
             },
         },
         "required": ["input", "time_column", "target_column"],
     },
 }
 
-AION_DECIDE_SCHEMA = {
-    "name": "aion_decide",
+GNOMON_DECIDE_SCHEMA = {
+    "name": "gnomon_decide",
     "description": (
         "What should we do? Builds exceedance scenarios from an evaluated "
         "forecast, checks feasibility and constraints over candidate "
@@ -296,14 +296,14 @@ AION_DECIDE_SCHEMA = {
             "series_name": {"type": "string", "description": "Series to decide for (required when the file holds several)."},
             "project": {"type": "string", "description": "Optional tracking project: records a DecisionArtifact for realised-outcome scoring."},
             "as_of": {"type": "string", "description": "Optional ISO instant for historical replay."},
-            "output_dir": {"type": "string", "description": "Directory for the immutable artifact (default ./aion-output)."},
+            "output_dir": {"type": "string", "description": "Directory for the immutable artifact (default ./gnomon-output)."},
         },
         "required": ["input", "time_column", "target_column", "horizon", "threshold", "actions"],
     },
 }
 
-AION_MONITOR_SCHEMA = {
-    "name": "aion_monitor",
+GNOMON_MONITOR_SCHEMA = {
+    "name": "gnomon_monitor",
     "description": (
         "When should we intervene? Sequential exceedance risk per horizon "
         "step and an alert rule. With alert_cost and miss_cost the rule is "
@@ -321,7 +321,7 @@ AION_MONITOR_SCHEMA = {
             "miss_cost": {"type": "number", "description": "Cost of a missed exceedance."},
             "project": {"type": "string", "description": "Optional tracking project for the underlying forecast."},
             "as_of": {"type": "string", "description": "Optional ISO instant for historical replay."},
-            "output_dir": {"type": "string", "description": "Directory for the immutable artifact (default ./aion-output)."},
+            "output_dir": {"type": "string", "description": "Directory for the immutable artifact (default ./gnomon-output)."},
         },
         "required": ["input", "time_column", "target_column", "horizon", "threshold"],
     },

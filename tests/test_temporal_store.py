@@ -4,11 +4,11 @@ from pathlib import Path
 import json
 import pytest
 
-from aion.cli import main
-from aion.contracts import AionError
-from aion.ids import FixedClock
-from aion.runtime import forecast
-from aion.temporal_store import (
+from gnomon.cli import main
+from gnomon.contracts import GnomonError
+from gnomon.ids import FixedClock
+from gnomon.runtime import forecast
+from gnomon.temporal_store import (
     InMemoryTemporalStore,
     Snapshot,
     TemporalObservation,
@@ -71,12 +71,12 @@ def test_access_log_records_reads():
 
 
 def test_plain_observations_reject_duplicates():
-    from aion.data import Observation
+    from gnomon.data import Observation
     rows = [
         Observation(datetime(2026, 1, 1), 1.0, "alpha"),
         Observation(datetime(2026, 1, 1), 2.0, "alpha"),
     ]
-    with pytest.raises(AionError) as caught:
+    with pytest.raises(GnomonError) as caught:
         InMemoryTemporalStore.from_plain_observations(rows, "sales", "sha256:x")
     assert caught.value.code == "DUPLICATE_TIMESTAMPS"
 
@@ -242,7 +242,7 @@ def test_timezone_mismatch_after_the_first_row_is_structured(tmp_path):
             value=2.0,
         ),
     ]
-    with pytest.raises(AionError) as raised:
+    with pytest.raises(GnomonError) as raised:
         Snapshot(observations, datetime(2026, 1, 3, tzinfo=timezone.utc))
     assert raised.value.code == "SNAPSHOT_TIMEZONE_MISMATCH"
 
@@ -315,7 +315,7 @@ def test_forecast_as_of_replay_uses_only_prior_data(tmp_path):
 
 def test_forecast_as_of_before_all_data_is_structured_error(tmp_path):
     source = _daily_csv(tmp_path / "history.csv", 10)
-    with pytest.raises(AionError) as caught:
+    with pytest.raises(GnomonError) as caught:
         forecast(
             str(source), time_column="timestamp", target_column="value",
             horizon=3, output=str(tmp_path / "out"), clock=CLOCK,
@@ -342,7 +342,7 @@ def test_forecast_from_persistent_store(tmp_path):
 
 
 def test_missing_dataset_is_structured_error(tmp_path):
-    with pytest.raises(AionError) as caught:
+    with pytest.raises(GnomonError) as caught:
         forecast(
             "store:nope", time_column="timestamp", target_column="value",
             horizon=3, output=str(tmp_path / "out"), clock=CLOCK,
