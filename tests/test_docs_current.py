@@ -5,6 +5,13 @@ two behind the toolspec, five verbs filed under a "Not currently available"
 heading, an install command that fetched GitHub while the prose said it
 installed the checkout, and a closed review that still read as 58 open
 defects. Prose rots silently; these assertions make it rot loudly.
+
+The v0.5.0 rename added a second failure mode: a bulk `Aion` -> `Gnomon`
+substitution silently rewrote sentences *about* the old name, turning a
+true claim (Aion was the Greek personification of unbounded time) into a
+false one about a sundial part. Grepping for the old name cannot catch
+that, because the old name is exactly what was replaced. Hence the
+etymology and version assertions below.
 """
 
 from __future__ import annotations
@@ -21,6 +28,60 @@ DOCS = REPO / "docs"
 
 def _doc(name: str) -> str:
     return (DOCS / name).read_text(encoding="utf-8")
+
+
+# -- the name ---------------------------------------------------------------
+
+def test_the_readme_does_not_claim_gnomon_is_a_greek_deity():
+    """That sentence was true of *Aion*. The rename inherited it verbatim.
+
+    A gnomon is a sundial part; it is not a personification of anything.
+    """
+    for phrase in ("personification", "Greek god", "deity"):
+        assert phrase not in README, (
+            f"README calls Gnomon a {phrase!r} — that was Aion's etymology, "
+            "carried over by the rename substitution"
+        )
+
+
+def test_the_readme_says_what_a_gnomon_actually_is():
+    assert "## The name" in README, "the README no longer explains the name"
+    section = README[README.index("## The name"):]
+    assert "sundial" in section
+
+
+# -- the version -------------------------------------------------------------
+
+def test_documents_claiming_the_current_version_state_the_current_one():
+    """The two v0.1 direction documents date themselves against the live
+    runtime, so a release bump silently falsifies them."""
+    from gnomon import __version__
+
+    stated = re.compile(r"the runtime is now (\d+\.\d+\.\d+)")
+    checked = 0
+    for path in sorted(REPO.glob("Gnomon_*.md")):
+        for found in stated.finditer(path.read_text(encoding="utf-8")):
+            checked += 1
+            assert found.group(1) == __version__, (
+                f"{path.name} says the runtime is {found.group(1)}; "
+                f"it is {__version__}"
+            )
+    assert checked == 2, f"expected 2 self-dating documents, found {checked}"
+
+
+def test_the_hardcoded_versions_agree_with_the_package():
+    """Six version strings drifted independently of pyproject.toml before
+    the 0.5.0 bump; `gnomon --version` reported 0.4.0 against a 0.5.0 wheel."""
+    from gnomon import __version__
+    from gnomon.ids import GNOMON_VERSION
+    from gnomon.mcp_server import SERVER_INFO
+    from gnomon.runtime import capabilities
+
+    assert GNOMON_VERSION == __version__
+    assert SERVER_INFO["version"] == __version__
+    assert capabilities()["runtime_version"] == __version__
+    pyproject = (REPO / "pyproject.toml").read_text(encoding="utf-8")
+    assert f'version = "{__version__}"' in pyproject
 
 
 # -- the counts ------------------------------------------------------------

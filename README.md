@@ -21,7 +21,9 @@ Gnomon stays authoritative for timestamps, backtests, model selection,
 intervals, support status, and every forecast value. The LLM never gets to
 invent or edit a number.
 
-> Gnomon is named for the Greek personification of enduring and cyclical time.
+> A gnomon is the shadow-casting rod on a sundial: it computes nothing, and
+> it reads nothing at night rather than inventing an hour.
+> [More on the name](#the-name).
 
 **`gnomon capabilities` is the machine-readable source of truth for what a
 given build can do.** Roadmap features are never exposed as mocked
