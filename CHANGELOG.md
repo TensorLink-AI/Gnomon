@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- Context events may carry typed numeric claims. A `min` or `max` bound in
+  `ContextEvent.attributes["claim"]` (reserved `constraint:` event_type
+  namespace) is projected onto the emitted quantiles — monotone, so it
+  cannot reorder them, and idempotent. A claim that supplies a *value*
+  rather than a bound is refused, and the refusal names the admissible route
+  (a covariate, where Aion estimates the coefficient on identical folds).
+  Bounds the training window already breaches are rejected with the
+  violating timestamps rather than enforced. Each run with claims emits a
+  `constraint_applied` evidence record. No new dataclass; runs without
+  claims are byte-identical.
+- Context effect shapes. The intervention model grows from a single level
+  shift to `level`, `decay` (geometric, for a pull-forward) and `ramp`
+  (linear build). The shape is chosen by the *same* identical-fold ablation
+  that decides admission, never by the caller, and both the winner
+  (`context.effect_shape`) and every shape's fold score
+  (`context.shape_scores`) are disclosed. Shapes are normalised to deliver
+  the same measured total, so they differ in timing rather than magnitude
+  and `decay` cannot win by simply being smaller. On planted data the
+  ablation recovers the true shape 3 times out of 3.
 - Conditional forecasts. An event without a verifiable source cannot be
   admitted to the forecast — its `known_at` cannot be shown not to leak — so
   "what if we run the promotion in March?" used to be an abstention. Such

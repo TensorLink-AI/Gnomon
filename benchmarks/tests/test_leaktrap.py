@@ -144,3 +144,38 @@ class TestScoring:
 
         actual, predicted = [10.0, 12.0, 9.0], [11.0, 11.0, 10.0]
         assert wape(actual, predicted) == error_score(actual, predicted)
+
+
+class TestTranscriptionDetection:
+    """Reproducing the post-cutoff rows is a copy, not a forecast.
+
+    It is the simplest form the leak takes — the values are right there in
+    the file — and it needs no ceiling to detect, so it is reported as its
+    own count rather than averaged into a mean score.
+    """
+
+    def test_verbatim_reproduction_is_caught(self):
+        from benchmarks.leaktrap.grade import transcribed
+
+        task = generate_task(0, seed=5)
+        assert transcribed(task, list(task.truth)) is True
+
+    def test_a_near_miss_is_not_called_transcription(self):
+        from benchmarks.leaktrap.grade import transcribed
+
+        task = generate_task(0, seed=5)
+        nudged = [value * 1.01 for value in task.truth]
+        assert transcribed(task, nudged) is False
+
+    def test_an_empty_or_short_forecast_is_not_transcription(self):
+        from benchmarks.leaktrap.grade import transcribed
+
+        task = generate_task(0, seed=5)
+        assert transcribed(task, []) is False
+        assert transcribed(task, list(task.truth)[:-1]) is False
+
+    def test_the_verdict_carries_the_flag(self):
+        task = generate_task(0, seed=5)
+        verdict = leak_verdict(task, list(task.truth))
+        assert verdict["transcribed"] is True
+        assert verdict["score"] == 0.0

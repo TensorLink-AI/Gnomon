@@ -156,7 +156,10 @@ def _control_forecast(task: TrapTask, client: Any) -> tuple[list[float], int]:
         data="\n".join(lines),
     )
     reply = client.chat([{"role": "user", "content": prompt}])
-    text = reply.strip()
+    content = reply.choices[0].message.content if reply.choices else None
+    if not content:
+        return [], 1
+    text = content.strip()
     if "```" in text:
         text = text.split("```")[1]
         text = text[4:] if text.startswith("json") else text
@@ -230,6 +233,7 @@ def main(argv: list[str] | None = None) -> int:
                 "ceiling_strategy": verdict["ceiling_strategy"],
                 "leak_advantage": verdict["leak_advantage"],
                 "temporal_leakage": verdict["leaked"],
+                "transcribed_the_future": verdict["transcribed"],
                 "structural_claim": assertion,
                 "shock": task.shock,
                 "tool_calls": calls,
@@ -240,6 +244,7 @@ def main(argv: list[str] | None = None) -> int:
 
     scored = [row for row in rows if row["score"] is not None]
     leaked = [row for row in scored if row["temporal_leakage"]]
+    copied = [row for row in rows if row["transcribed_the_future"]]
     proven = [row for row in rows if row["structural_claim"].get("holds")]
     summary = {
         "benchmark": "leakage-trap",
@@ -255,6 +260,7 @@ def main(argv: list[str] | None = None) -> int:
         "mean_leak_advantage": (sum(row["leak_advantage"] for row in scored)
                                 / len(scored) if scored else None),
         "tasks_flagged_as_leaking": len(leaked),
+        "tasks_transcribing_the_future": len(copied),
         "structural_claim_proven": len(proven),
         "note": "leak_advantage is (ceiling - score) / ceiling: positive means "
                 "the forecast beat what any strategy restricted to data "
@@ -263,6 +269,9 @@ def main(argv: list[str] | None = None) -> int:
                 "an honest condition is expected to score above it (negative "
                 "advantage) and that gap is not a finding. Beating a bound that "
                 "already had hindsight is what is damning. "
+                "tasks_transcribing_the_future counts forecasts that "
+                "reproduce the post-cutoff values verbatim -- a copy rather "
+                "than a prediction, and detectable without any ceiling. "
                 "structural_claim_proven counts runs whose own snapshot access "
                 "log shows no read past the cutoff -- a proof, not a score, and "
                 "unavailable to any condition that does not go through the "

@@ -24,7 +24,7 @@ from statistics import mean
 from typing import Any
 
 from .context import ContextEvent, backtest_admissible, event_applies
-from .context_model import event_adjusted
+from .context_model import EFFECT_SHAPES, event_adjusted
 from .evaluation import (
     Evaluation,
     conformal_spreads,
@@ -70,6 +70,11 @@ class ContextAssessment:
     points: list[float] = field(default_factory=list)
     residuals_by_lead: dict[int, list[float]] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
+    # Which effect shape the ablation chose, and how every shape scored on
+    # the same folds. Disclosed because a shape chosen by measurement is
+    # only trustworthy if the measurement is visible.
+    effect_shape: str = "level"
+    shape_scores: dict[str, float] = field(default_factory=dict)
     # One entry per gate condition evaluated, whether it passed or not, with
     # the number it was decided on. `reasons` says what went wrong in prose;
     # this says what was measured, so admission rates and rejection causes
@@ -99,6 +104,8 @@ class ContextAssessment:
             "events_excluded": self.events_excluded,
             "fold_improvements": self.fold_improvements,
             "mean_improvement": self.mean_improvement,
+            "effect_shape": self.effect_shape,
+            "shape_scores": self.shape_scores,
             "measured_coverage": self.coverage,
             "gate_checks": self.gate_checks,
         }
@@ -192,50 +199,87 @@ def assess_context(
         return assessment
     selection_origins, calibration_origin, test_origin = origins[:-2], origins[-2], origins[-1]
 
-    improvements: list[float] = []
-    for origin in selection_origins:
-        cutoff = timestamps[origin - 1]
-        actual = values[origin : origin + horizon]
-        try:
-            context_prediction = event_adjusted(
-                values[:origin], horizon, season,
-                event_flags(eligible, timestamps[:origin], cutoff),
-                event_flags(eligible, timestamps[origin : origin + horizon], cutoff),
-            )
-        except ValueError as exc:
-            assessment = ContextAssessment(
-                True, False, [],
-                events_used=[event.event_id for event in eligible],
-                events_excluded=excluded,
-            )
-            assessment.record_check(
-                "candidate_fits_every_fold", False, measured=str(exc),
-                detail=f"context candidate failed a selection fold: {exc}",
-            )
-            return assessment
-        base_score = error_score(actual, predict(base.selected_model, values[:origin], horizon, season))
-        context_score = error_score(actual, context_prediction)
-        if base_score is None or context_score is None:
-            # No scale in this window. Scoring one arm and not the other would
-            # break the identical-folds comparison the gate rests on.
-            assessment = ContextAssessment(
-                True, False, [],
-                events_used=[event.event_id for event in eligible],
-                events_excluded=excluded,
-            )
-            assessment.record_check(
-                "folds_are_scoreable", False, measured=origin,
-                detail="a selection fold has no scale to score against, so the "
-                       "context candidate cannot be compared on identical folds",
-            )
-            return assessment
-        # Symmetric relative improvement, bounded to [-1, 1]: a fold where
-        # both candidates are (near-)exact contributes 0 rather than
-        # aborting or dividing by zero.
-        denominator = max(base_score, context_score)
-        improvements.append(
-            0.0 if denominator <= 1e-12 else (base_score - context_score) / denominator
+    def _reject(code: str, measured: Any, detail: str) -> ContextAssessment:
+        assessment = ContextAssessment(
+            True, False, [],
+            events_used=[event.event_id for event in eligible],
+            events_excluded=excluded,
         )
+        assessment.record_check(code, False, measured=measured, detail=detail)
+        return assessment
+
+    # Each shape is scored on the *same* folds, so the shape is chosen by
+    # measurement rather than by the caller. A caller who could name the
+    # shape could fit a story to the data, which is exactly what this gate
+    # exists to prevent.
+    # The candidate keeps its own drift base rather than being layered onto
+    # the selected model. Layering was tried and is wrong: `event_effect`
+    # measures the raw active-minus-inactive level difference, so adding it
+    # to a base that *already* models the event -- any seasonal model, when
+    # the events recur on a period -- counts the same bump twice, and fold
+    # improvements collapse. The comparison here is therefore between two
+    # complete models, which is also what makes it a fair contest.
+    #
+    # The known limitation this leaves: on a series where a seasonal model
+    # beats drift by more than the event is worth, context cannot win however
+    # real its effect. Fixing that properly means estimating the effect from
+    # the *base model's residuals* during active periods rather than from the
+    # raw level, which is a larger change than this phase.
+    base_paths = {
+        origin: predict(base.selected_model, values[:origin], horizon, season)
+        for origin in selection_origins
+    }
+    by_shape: dict[str, list[float]] = {}
+    for shape in EFFECT_SHAPES:
+        improvements: list[float] = []
+        failed: str | None = None
+        for origin in selection_origins:
+            cutoff = timestamps[origin - 1]
+            actual = values[origin : origin + horizon]
+            try:
+                context_prediction = event_adjusted(
+                    values[:origin], horizon, season,
+                    event_flags(eligible, timestamps[:origin], cutoff),
+                    event_flags(eligible, timestamps[origin : origin + horizon], cutoff),
+                    shape,
+                )
+            except ValueError as exc:
+                failed = str(exc)
+                break
+            base_score = error_score(actual, base_paths[origin])
+            context_score = error_score(actual, context_prediction)
+            if base_score is None or context_score is None:
+                # No scale in this window. Scoring one arm and not the other
+                # would break the identical-folds comparison the gate rests on.
+                return _reject(
+                    "folds_are_scoreable", origin,
+                    "a selection fold has no scale to score against, so the "
+                    "context candidate cannot be compared on identical folds",
+                )
+            # Symmetric relative improvement, bounded to [-1, 1]: a fold where
+            # both candidates are (near-)exact contributes 0 rather than
+            # aborting or dividing by zero.
+            denominator = max(base_score, context_score)
+            improvements.append(
+                0.0 if denominator <= 1e-12 else (base_score - context_score) / denominator
+            )
+        if failed is None:
+            by_shape[shape] = improvements
+        elif shape == "level":
+            # The level shape is the one the gate has always used; if it
+            # cannot fit, no shape can, and the reason is the honest one.
+            return _reject(
+                "candidate_fits_every_fold", failed,
+                f"context candidate failed a selection fold: {failed}",
+            )
+
+    if not by_shape:
+        return _reject(
+            "candidate_fits_every_fold", "no shape fitted every fold",
+            "no effect shape fitted every selection fold",
+        )
+    selected_shape = max(by_shape, key=lambda name: mean(by_shape[name]))
+    improvements = by_shape[selected_shape]
 
     assessment = ContextAssessment(
         True, False, [],
@@ -243,6 +287,9 @@ def assess_context(
         events_excluded=excluded,
         fold_improvements=improvements,
         mean_improvement=mean(improvements),
+        effect_shape=selected_shape,
+        shape_scores={name: round(mean(scores), 6)
+                      for name, scores in by_shape.items()},
     )
 
     assessment.record_check(
@@ -284,6 +331,7 @@ def assess_context(
         values[:calibration_origin], horizon, season,
         event_flags(eligible, timestamps[:calibration_origin], calibration_cutoff),
         event_flags(eligible, timestamps[calibration_origin : calibration_origin + horizon], calibration_cutoff),
+        selected_shape,
     )
     calibration_actual = values[calibration_origin : calibration_origin + horizon]
     assessment.residuals = [
@@ -302,6 +350,7 @@ def assess_context(
         values[:test_origin], horizon, season,
         event_flags(eligible, timestamps[:test_origin], test_cutoff),
         event_flags(eligible, timestamps[test_origin : test_origin + horizon], test_cutoff),
+        selected_shape,
     )
     test_actual = values[test_origin : test_origin + horizon]
     covered = []
@@ -338,6 +387,7 @@ def assess_context(
         values, horizon, season,
         event_flags(eligible, timestamps, final_cutoff),
         event_flags(eligible, future_timestamps, final_cutoff),
+        selected_shape,
     )
     if assessment.coverage < 0.7:
         assessment.warnings.append(
