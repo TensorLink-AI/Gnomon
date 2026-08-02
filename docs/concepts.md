@@ -65,6 +65,44 @@ an immediate trade of forecast reach for an honest result, instead of
 waiting for more data. When no shorter horizon would succeed either, the
 recovery is absent rather than aspirational.
 
+## Context events
+
+A context event is something you know about the world that the series
+alone cannot show: a promotion window, a capacity cap, a migration. Aion
+never takes your word for its *effect* — it measures one, on the same folds
+everything else competes on, and excludes the event when it cannot.
+
+`examples/context_events.json` is a worked file with one of each kind:
+
+```bash
+aion forecast examples/messy_requests.csv \
+  --time timestamp --target requests --horizon 14 \
+  --context examples/context_events.json
+```
+
+**An event with a `claim`** states a bound on what is possible.
+`capacity-cap-2026-06` says throughput cannot exceed 360, and that bound is
+projected onto every emitted quantile after the model has said what it
+believes. Bounds are admissible; pinned values are not — an event that
+supplied a *value* would be supplying the answer. A bound the training
+window already breaches is rejected, with the violating timestamps named.
+
+**An event without one** is a window whose effect Aion estimates.
+`marketing-push-2026-06` marks a campaign; the context ablation measures
+its effect from detrended history and admits it only if it beats the
+history-only baseline on identical folds. The effect shape (level, decay,
+ramp) is chosen by the same measurement, never by the caller — a caller who
+could name the shape could fit a story to the data.
+
+Every event needs a `known_at`. It is what makes the backtest honest: a
+fold cutting at T may only use events knowable by T, so an event recorded
+after the fact cannot improve a historical fold.
+
+Events must carry an explicit timezone offset. When the dataset's own
+timestamps are naive — as every example here is — the windows are matched
+on wall-clock time and the result carries a `context_timezone_aligned`
+disclosure saying so.
+
 ## Current methodological limits
 
 Aion is a correct, deliberately narrow foundation—not a general forecasting

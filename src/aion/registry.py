@@ -217,11 +217,15 @@ MACROS: dict[str, MacroSpec] = {
         MacroSpec(
             "decide", "aion_decide",
             (
+                "Compares actions; does not take one. Nothing is actuated. "
                 "What should we do? Exceedance scenarios from an evaluated "
                 "forecast, feasibility and constraint checks over candidate "
                 "actions, and an expected-utility choice — or, without "
                 "utilities, the feasible-action comparison with probabilities "
-                "(conditionally_supported: missing utility inputs)."
+                "(conditionally_supported: missing utility inputs). "
+                "`scenario_probabilities.exceed` is the largest single-step "
+                "probability; `exceedance` carries the per-step series and the "
+                "any-step reading."
             ),
             ("forecast", "evaluate_threshold_risk", "evaluate_actions"),
             {
@@ -252,6 +256,9 @@ MACROS: dict[str, MacroSpec] = {
         MacroSpec(
             "monitor", "aion_monitor",
             (
+                "Defines an alert policy; does not run one. One evaluation "
+                "against one forecast — nothing watches the series afterwards "
+                "and nothing is actuated; re-run as observations arrive. "
                 "When should we intervene? Trigger definition, sequential "
                 "exceedance risk per horizon step, and an alert-cost-aware "
                 "alert rule (cost-optimal with alert/miss costs; otherwise a "

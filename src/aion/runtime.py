@@ -38,6 +38,7 @@ def inspect_dataset(
     seasonal_period: int | None = None,
     as_of: datetime | None = None,
     store_path: str | None = None,
+    clock: Clock | None = None,
 ) -> dict[str, object]:
     # Diagnose, don't just reject: try the strict path, then each repair
     # level, and report what the file needs to become forecastable.
@@ -81,6 +82,38 @@ def inspect_dataset(
         }[repair_level_used],
     }
     repair_flag = " --repair aggressive" if repair_level_used == "aggressive" else ""
+    # A harness built on knowledge time should remark when every observation
+    # postdates now. It is not an error — synthetic and planning data are
+    # legitimate — but `status: valid` with no note read as endorsement.
+    now = (clock or SYSTEM_CLOCK).now()
+    latest = max(
+        (item.timestamp for items in loaded.groups.values() for item in items),
+        default=None,
+    )
+    if latest is not None:
+        # Most datasets are naive and the clock is aware, so compare wall
+        # clocks — the same alignment the context path makes, for the same
+        # reason: without it the check never fires on real input.
+        from .constraints import _align
+
+        latest, now = _align(latest, now)
+        if latest > now:
+            earliest = min(
+                item.timestamp for items in loaded.groups.values() for item in items
+            )
+            earliest, _ = _align(earliest, now)
+            data_quality["temporal_position"] = (
+                "entirely_in_the_future" if earliest > now else "extends_into_the_future"
+            )
+            data_quality["note"] += (
+                f" Every observation is dated after the current instant "
+                f"({now.isoformat()}); the series runs to {latest.isoformat()}. "
+                f"That is legitimate for synthetic or planning data and "
+                f"unusual otherwise."
+                if earliest > now else
+                f" The series extends past the current instant "
+                f"({now.isoformat()}) to {latest.isoformat()}."
+            )
     from .multivariate import correlation_report
     return {
         "schema_version": "0.1",

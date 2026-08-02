@@ -111,7 +111,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     inspect_parser = subcommands.add_parser("inspect", help="Validate a temporal dataset")
     _common_input(inspect_parser)
-    inspect_parser.add_argument("--seasonal-period", type=int)
+    inspect_parser.add_argument(
+        "--seasonal-period", type=int,
+        help="Override the detected seasonal period, in periods of the "
+             "data frequency (7 on daily data means a weekly cycle)",
+    )
 
     forecast_parser = subcommands.add_parser("forecast", help="Run an evaluated forecast")
     _common_input(forecast_parser)
@@ -120,7 +124,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Periods to forecast. Defaults to one seasonal period of the "
              "inferred grid, disclosed as an assumption.",
     )
-    forecast_parser.add_argument("--output", default="aion-output")
+    forecast_parser.add_argument(
+        "--output", default="aion-output",
+        help="Artifact directory (default ./aion-output, relative to the "
+             "working directory — so a run from inside a clone writes into "
+             "it). Point it at a data directory to keep artifacts out of "
+             "source control.",
+    )
     forecast_parser.add_argument(
         "--minimum-baseline-improvement", type=float, default=0.02,
         help="Relative margin a candidate must beat the strongest baseline "
@@ -143,16 +153,39 @@ def build_parser() -> argparse.ArgumentParser:
         "--project", default=None,
         help="Register this forecast in a project for ongoing tracking and scoring",
     )
-    forecast_parser.add_argument("--covariates", help="Point-in-time covariates CSV")
+    forecast_parser.add_argument(
+        "--covariates",
+        help="Point-in-time covariates CSV. Each row needs a known_at "
+             "column so each backtest fold sees only what was published "
+             "by its cutoff; run `aion covariates guide` for the format.",
+    )
     forecast_parser.add_argument(
         "--covariate-mapping",
         help="Comma-separated name:type:future_known entries",
     )
-    forecast_parser.add_argument("--covariate-time", default="timestamp")
-    forecast_parser.add_argument("--covariate-known-at", default="known_at")
-    forecast_parser.add_argument("--covariate-series")
-    forecast_parser.add_argument("--seasonal-period", type=int)
-    forecast_parser.add_argument("--strict-abstention", action="store_true")
+    forecast_parser.add_argument(
+        "--covariate-time", default="timestamp",
+        help="Valid-at column in the covariates file (default timestamp)",
+    )
+    forecast_parser.add_argument(
+        "--covariate-known-at", default="known_at",
+        help="Publication-time column in the covariates file "
+             "(default known_at) — when each value became knowable",
+    )
+    forecast_parser.add_argument(
+        "--covariate-series",
+        help="Series column in the covariates file, for panel data",
+    )
+    forecast_parser.add_argument(
+        "--seasonal-period", type=int,
+        help="Override the detected seasonal period, in periods of the "
+             "data frequency (7 on daily data means a weekly cycle)",
+    )
+    forecast_parser.add_argument(
+        "--strict-abstention", action="store_true",
+        help="Refuse rather than fall back to a lightweight selection "
+             "when there is too little history for rolling evaluation",
+    )
     forecast_parser.add_argument(
         "--as-of", dest="as_of",
         help="Replay instant: use only data known at or before this ISO timestamp",
@@ -174,9 +207,18 @@ def build_parser() -> argparse.ArgumentParser:
              "`aion route`'s candidates to act on a routing decision; the "
              "mandatory baselines always compete regardless.",
     )
-    forecast_parser.add_argument("--selection-strategy", choices=("best", "ensemble"), default="best")
+    forecast_parser.add_argument(
+        "--selection-strategy", choices=("best", "ensemble"), default="best",
+        help="best (default) publishes the model that won the backtest; "
+             "ensemble forces the ensemble and discloses whether it "
+             "actually beat the strongest baseline",
+    )
     forecast_parser.add_argument("--ensemble", action="store_true", help=argparse.SUPPRESS)
-    forecast_parser.add_argument("--multivariate", action="store_true")
+    forecast_parser.add_argument(
+        "--multivariate", action="store_true",
+        help="Let a cross-series VAR candidate compete on the same folds "
+             "as everything else; it is admitted only if it wins",
+    )
 
     covariate_parser = subcommands.add_parser(
         "covariates", help="Guide and validate point-in-time covariate data"
@@ -370,7 +412,10 @@ def build_parser() -> argparse.ArgumentParser:
     track_actuals = track_commands.add_parser(
         "actuals", help="Submit actual values and score all unscored forecasts in a project"
     )
-    track_actuals.add_argument("--project", required=True)
+    track_actuals.add_argument(
+        "--project", required=True,
+        help="Project whose open forecasts these actuals should score",
+    )
     track_actuals.add_argument("--file", required=True, help="CSV file with actual values")
     # Explicit, like every other input path. Guessing positionally turned a
     # perfectly good `requests,timestamp,host` export into a silent
@@ -395,10 +440,25 @@ def build_parser() -> argparse.ArgumentParser:
     track_score.add_argument("--file", required=True, help="CSV file with actual values")
 
     track_compare = track_commands.add_parser(
-        "compare", help="Compare two scored forecasts"
+        "compare", help="Compare scored forecasts"
     )
-    track_compare.add_argument("--a", required=True, dest="forecast_a")
-    track_compare.add_argument("--b", required=True, dest="forecast_b")
+    # Two ids and no discovery path made compare reachable only if you had
+    # already written the ids down. --project --latest gets there from
+    # where the user actually is.
+    track_compare.add_argument("--a", dest="forecast_a", default=None)
+    track_compare.add_argument("--b", dest="forecast_b", default=None)
+    track_compare.add_argument(
+        "--project", default=None,
+        help="Compare within a project; with --latest, picks the ids for you",
+    )
+    track_compare.add_argument(
+        "--series", default=None, help="Restrict to one series",
+    )
+    track_compare.add_argument(
+        "--latest", type=int, default=None, metavar="N",
+        help="Compare the N most recently scored forecasts in --project "
+             "(N=2 compares the last two)",
+    )
 
     track_perf = track_commands.add_parser(
         "performance", help="Show model performance history for a project"
@@ -963,10 +1023,26 @@ def main(argv: Sequence[str] | None = None) -> int:
                     for r in results
                 ]
                 print(json.dumps({
+                    "schema_version": "0.1",
                     "status": "ok",
                     "project": args.project,
                     "scored": len(results),
                     "results": payload,
+                    "support_assessment": {
+                        "status": "supported",
+                        "reasons": [],
+                        "assumptions": [],
+                        "sensitivity": {"forecasts_scored": len(results)},
+                        "recovery_actions": [],
+                        "disclosures": [{
+                            "code": "hindsight_is_observational",
+                            "message": (
+                                "Realised scores describe what happened, not "
+                                "why. A model that scored well here was not "
+                                "shown to be the cause of it."
+                            ),
+                        }],
+                    },
                 }, indent=2))
                 return 0
 
@@ -1048,8 +1124,58 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return 0
 
             elif args.track_command == "compare":
-                result = store.compare(args.forecast_a, args.forecast_b)
-                print(json.dumps(result, indent=2))
+                if args.forecast_a and args.forecast_b:
+                    result = store.compare(
+                        args.forecast_a, args.forecast_b, args.project,
+                    )
+                    print(json.dumps(result, indent=2))
+                    return 0
+                if not args.project:
+                    raise AionError(
+                        "INVALID_ARGUMENTS",
+                        "Pass either --a and --b, or --project with --latest N.",
+                        {"missing_arguments": ["--a/--b", "--project"]},
+                        repair_options=[{
+                            "action": "list_forecasts",
+                            "description": "Run `aion track list --project <name>` "
+                                           "to see scored forecasts and their ids.",
+                        }],
+                    )
+                scored = [
+                    record for record in store.list_forecasts(args.project, limit=1000)
+                    if record.scored
+                    and (args.series is None or record.series == args.series)
+                ]
+                wanted = args.latest or 2
+                chosen = scored[:wanted]
+                if len(chosen) < 2:
+                    print(json.dumps({
+                        "schema_version": "0.1",
+                        "status": "ok",
+                        "project": args.project,
+                        "compared": 0,
+                        "reason": (
+                            f"{len(chosen)} scored forecast(s) match; comparison "
+                            f"needs at least two."
+                        ),
+                        "scored_forecasts": len(scored),
+                    }, indent=2))
+                    return 0
+                comparisons = [
+                    store.compare(
+                        chosen[index].forecast_id,
+                        chosen[index + 1].forecast_id,
+                        args.project,
+                    )
+                    for index in range(len(chosen) - 1)
+                ]
+                print(json.dumps({
+                    "schema_version": "0.1",
+                    "status": "ok",
+                    "project": args.project,
+                    "compared": len(comparisons),
+                    "comparisons": comparisons,
+                }, indent=2))
                 return 0
 
             elif args.track_command == "coverage":

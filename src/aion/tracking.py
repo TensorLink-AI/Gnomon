@@ -190,7 +190,12 @@ def mase_score(
 
 
 def mape_score(actual: list[float], predicted: list[float]) -> float:
-    """Mean Absolute Percentage Error."""
+    """Mean absolute percentage error, **in percent** (4.279 means 4.279%).
+
+    Every other error figure in this module is a fraction — `wape` at 0.0424
+    is 4.24% — and the two sat unlabelled in the same object. The name now
+    carries the unit wherever it is reported.
+    """
     n = min(len(actual), len(predicted))
     if n == 0:
         return 0.0

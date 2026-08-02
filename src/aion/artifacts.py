@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import csv
 import json
+import logging
 import os
 import shutil
 from pathlib import Path
 from typing import Any
 
 from .contracts import AionError, ForecastArtifact
+
+logger = logging.getLogger(__name__)
 
 
 def write_artifact(
@@ -119,7 +122,13 @@ def write_artifact(
             (temporary / "summary.md").write_text("\n".join(lines), encoding="utf-8")
         os.replace(temporary, final)
     except Exception:
-        # Preserve the temporary directory for diagnosis; never expose it as a complete run.
+        # The partial directory is kept for diagnosis and never exposed as a
+        # complete run — but nothing else would ever mention it, and the
+        # next attempt at the same id silently rmtree's it. Say where it is.
+        logger.warning(
+            "Artifact write failed; the partial directory is retained at %s "
+            "and will be removed by the next attempt at this id.", temporary,
+        )
         raise
     return final
 

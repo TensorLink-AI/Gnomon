@@ -314,7 +314,7 @@ TOOLS: list[dict[str, Any]] = [
                 **_REPLAY_PROPERTIES,
                 "horizon": {"type": "integer", "description": "Future periods to forecast, in units of the data frequency."},
                 "candidates": {"type": "array", "items": {"type": "string"}, "description": "Restrict the model pool to these names — pass `aion_route`'s `candidates` or its `recommendation` to act on a routing decision. The mandatory baselines always compete regardless, so a named candidate still has to beat them."},
-                "output_dir": {"type": "string", "description": "Directory for the immutable artifact (default ./aion-output)."},
+                "output_dir": {"type": "string", "description": "Directory for the immutable artifact. Defaults to ./aion-output relative to the *server's* working directory, which is often inside the user's repository — pass an explicit path when that matters."},
                 "minimum_baseline_improvement": {"type": "number", "minimum": 0, "description": "Minimum relative improvement over the strongest baseline to select a candidate (default 0.02). Must be >= 0; a negative value would let a model that lost the backtest be selected."},
                 "context_events_file": {"type": "string", "description": "Optional validated context-events JSON file (the output of `aion context validate`)."},
                 "threshold": {"type": "number", "description": "Optional decision threshold: the result reports when and how likely the forecast crosses this value."},

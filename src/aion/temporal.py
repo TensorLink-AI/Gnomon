@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
+from typing import Any
 
 from .contracts import AionError
 from .data import Observation, timezone_name
@@ -191,7 +192,7 @@ def _modal_step_description(timestamps: list[datetime]) -> str:
 
 
 def validate_and_group(
-    observations: list[Observation], requested_frequency: str | None
+    observations: list[Observation], requested_frequency: str | None,
 ) -> tuple[dict[str, list[Observation]], str, str | None]:
     frequency = normalise_frequency(requested_frequency) if requested_frequency else infer_frequency(
         [item.timestamp for item in observations]

@@ -77,8 +77,9 @@ The mapping requires explicit `future_known` availability. Aion uses
 `known_at` to replay the value available at each historical fold cutoff.
 
 The returned `ForecastArtifact` is a dataclass. Use `artifact.to_dict()` for a
-JSON-compatible representation. Calling `forecast` also persists the four
-standard artifact files.
+JSON-compatible representation. Calling `forecast` also persists the standard
+artifact files — see [Results and artifacts](results-and-artifacts.md) for the
+canonical list and what each one carries.
 
 ## Handle structured errors
 

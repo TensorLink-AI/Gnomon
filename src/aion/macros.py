@@ -398,9 +398,40 @@ def decide(
             "Provide more history or lower the horizon, then re-run.",
         ).to_dict()
         scenario_probabilities: dict[str, float] | None = None
+        exceedance: dict[str, Any] | None = None
     else:
-        peak = max(result.threshold["probability_above"])
+        # The per-step maximum, not the probability of at least one
+        # exceedance across the horizon — which is >= this and is usually
+        # what a horizon-level decision turns on. Labelled `exceed` with no
+        # definition, it understated the risk feeding expected utility.
+        step_probabilities = result.threshold["probability_above"]
+        peak = max(step_probabilities)
+        # Any-step exceedance under an independence assumption, reported
+        # beside the peak rather than replacing it: the steps are not
+        # independent, so this is an upper reference, not a better number.
+        any_step = 1.0
+        for probability in step_probabilities:
+            any_step *= (1.0 - probability)
+        any_step = round(1.0 - any_step, 4)
+        # The two scenarios the expected-utility comparison sums over. Kept
+        # to exactly these keys because `evaluate_actions` weights payoffs
+        # by them; the definition and the alternative reading ride alongside
+        # in `exceedance` rather than inside the probability mass.
         scenario_probabilities = {"exceed": peak, "no_exceed": round(1.0 - peak, 4)}
+        exceedance = {
+            "peak_step_exceedance": peak,
+            "any_step_exceedance_if_independent": any_step,
+            "per_step": step_probabilities,
+            "event_definition": (
+                "`exceed` is the largest single-step probability of crossing "
+                "the threshold, and is what the expected-utility comparison "
+                "uses. `any_step_exceedance_if_independent` is the "
+                "probability of at least one crossing over the horizon under "
+                "an independence assumption the steps do not satisfy — an "
+                "upper reference, not a substitute. For a horizon-level "
+                "decision the true any-step probability lies between them."
+            ),
+        }
         evaluation = evaluate_actions(
             actions, scenario_probabilities,
             utilities=utilities, max_acceptable_risk=max_acceptable_risk,
@@ -445,6 +476,7 @@ def decide(
         "forecast_artifact_path": str(forecast_dir),
         "threshold": threshold,
         "scenario_probabilities": scenario_probabilities,
+        "exceedance": exceedance,
         "evaluation": {key: value for key, value in evaluation.items() if key != "support"},
         "support_assessment": support,
     }

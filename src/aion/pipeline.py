@@ -120,6 +120,7 @@ def load_stage(
             repair=repair, repair_log=log,
         )
         raw_observations = repair_observations(raw_observations, frequency, repair, log)
+        _record_reordering(raw_observations, log)
         store, _ = InMemoryTemporalStore.from_plain_observations(
             raw_observations, variable, source_fingerprint,
         )
@@ -141,6 +142,34 @@ def load_stage(
         source_fingerprint, columns, groups, resolved_frequency, zone, schema,
         snapshot, variable,
     )
+
+
+def _record_reordering(observations: list[Observation], log: "RepairLog") -> None:
+    """Note when the input arrived out of chronological order.
+
+    Sorting is correct and happens further down, in the snapshot — which is
+    also why it was invisible: by the time any check ran, the rows were
+    already ordered, so a genuinely unsorted export never raised a
+    data-quality signal. This runs while the file's own order is still
+    observable.
+    """
+    from collections import defaultdict
+
+    by_series: dict[str, list] = defaultdict(list)
+    for item in observations:
+        by_series[item.series].append(item.timestamp)
+    for name, stamps in sorted(by_series.items()):
+        ordered = sorted(stamps)
+        if stamps == ordered:
+            continue
+        moved = sum(1 for left, right in zip(stamps, ordered) if left != right)
+        log.record(
+            "timestamps_reordered",
+            "Rows arrived out of chronological order and were sorted. The "
+            "sort is correct; it is recorded because an unsorted export is "
+            "usually a symptom worth knowing about.",
+            series=name, count=moved,
+        )
 
 
 def horizon_stage(
