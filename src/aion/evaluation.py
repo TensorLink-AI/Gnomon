@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from statistics import mean
 from typing import Any, Callable
 
+from .contracts import AionError
 from .models import BASELINES, MODELS, predict
 from .tsfm import TSFMError, TSFMUnavailable, tsfm_candidates
 
@@ -477,7 +478,24 @@ def evaluate(
     Pinball is the right criterion when the answer is a distribution — a
     point loss cannot tell a model with well-placed uncertainty from one
     whose centre happens to land well — but it changes which model is
-    selected, so it is opt-in until measured."""
+    selected, so it is opt-in until measured.
+
+    ``minimum_improvement`` is the margin a candidate must beat the
+    strongest baseline by. It must not be negative: at ``-5.0`` the gate
+    became ``candidate <= baseline * 6``, which selects a model that *lost*
+    the backtest and reports it as supported. One caller-supplied number
+    turning off the mandated-baseline rule is precisely the thing the rule
+    exists to prevent, so a negative value is refused here rather than
+    honoured."""
+    if minimum_improvement < 0:
+        raise AionError(
+            "INVALID_MINIMUM_IMPROVEMENT",
+            f"minimum_baseline_improvement must be >= 0; got "
+            f"{minimum_improvement}. A negative margin inverts the "
+            f"mandated-baseline gate, letting a model that lost the "
+            f"backtest be selected and reported as supported.",
+            {"supplied": minimum_improvement, "minimum": 0.0},
+        )
     if train_at is None:
         train_at = lambda origin: values[:origin]  # noqa: E731
     minimum_train = max(2 * season, 2 * horizon, 8)
@@ -697,7 +715,24 @@ def evaluate(
     ensemble_fold_scores: list[float | None] = []
     if ensemble_enabled or meta_model_enabled:
         from .ensemble import compute_ensemble_forecast, ENSEMBLE_MODEL_NAME
-        all_valid_scores: dict[str, float | None] = {**scores, **tsfm_scores}
+
+        def _weighting_scores(fold_idx: int) -> dict[str, float | None]:
+            """Member scores available *before* fold ``fold_idx``.
+
+            The inverse-error weights used to come from aggregates over
+            every selection fold, fold ``fold_idx`` included — so each
+            fold's ensemble was weighted using its own outcome, and the
+            ensemble's selection score was optimistic by construction.
+            Fold 0 has no prior evidence and so weights members equally.
+            """
+            prior: dict[str, float | None] = {}
+            for source in (fold_scores, tsfm_fold_scores):
+                for name, items in source.items():
+                    earlier = [
+                        item for item in items[:fold_idx] if item is not None
+                    ]
+                    prior[name] = mean(earlier) if earlier else None
+            return prior
 
         for fold_idx in range(len(selection_origins)):
             fold_forecast_map: dict[str, list[float]] = {}
@@ -711,7 +746,7 @@ def evaluate(
             if len(fold_forecast_map) >= (ensemble_cfg.min_models if ensemble_cfg else 2):
                 try:
                     combined = compute_ensemble_forecast(
-                        fold_forecast_map, all_valid_scores,
+                        fold_forecast_map, _weighting_scores(fold_idx),
                         strategy=ensemble_strategy,
                         last_observed=(train_at(selection_origins[fold_idx]) or [0.0])[-1] if selection_origins else 0.0,
                         config=ensemble_cfg,
@@ -752,25 +787,55 @@ def evaluate(
                 mm_fold_forecasts[adapter.name] = tsfm_fold_forecasts[adapter.name]
 
         if len(mm_fold_forecasts) >= (meta_model_cfg.min_models if meta_model_cfg else 2):
+            # The weights that will actually be used are fit on every fold,
+            # like any final refit.
             meta_model_weights = train_meta_model(
                 mm_fold_forecasts,
                 mm_fold_actuals,
                 non_negative=meta_model_cfg.non_negative if meta_model_cfg else True,
             )
             if meta_model_weights:
-                # Evaluate meta-model on selection folds
+                # The *score* is leave-one-fold-out. Fitting on all folds and
+                # then scoring on those same folds made the meta-model's
+                # selection score in-sample, competing against its members'
+                # honest out-of-sample scores — it won by construction, which
+                # is what `meta_model.py`'s docstring already promised it did
+                # not do.
                 from .meta_model import predict_meta_model as pmm
-                mm_scores = []
+                mm_scores: list[float | None] = []
                 for fold_idx in range(len(selection_origins)):
+                    held_out_forecasts = {
+                        name: [
+                            forecast for index, forecast in enumerate(items)
+                            if index != fold_idx
+                        ]
+                        for name, items in mm_fold_forecasts.items()
+                    }
+                    held_out_actuals = [
+                        actual for index, actual in enumerate(mm_fold_actuals)
+                        if index != fold_idx
+                    ]
+                    try:
+                        fold_weights = train_meta_model(
+                            held_out_forecasts, held_out_actuals,
+                            non_negative=(
+                                meta_model_cfg.non_negative if meta_model_cfg else True
+                            ),
+                        )
+                    except Exception:
+                        fold_weights = None
+                    if not fold_weights:
+                        mm_scores.append(None)
+                        continue
                     fold_map = {}
-                    for name, weights_val in meta_model_weights.items():
+                    for name in fold_weights:
                         if name in mm_fold_forecasts and fold_idx < len(mm_fold_forecasts[name]):
                             f = mm_fold_forecasts[name][fold_idx]
                             if f:
                                 fold_map[name] = f
                     if len(fold_map) >= 2:
                         try:
-                            combined = pmm(meta_model_weights, fold_map)
+                            combined = pmm(fold_weights, fold_map)
                             actual = values[selection_origins[fold_idx] : selection_origins[fold_idx] + horizon]
                             mm_scores.append(error_score(actual, combined))
                         except Exception:
@@ -888,6 +953,18 @@ def evaluate(
         all_scores["meta_model"] = meta_model_score
     selected_score = all_scores.get(selected, baseline_score)
     improvement = 0.0 if selected in BASELINES else (baseline_score - selected_score) / baseline_score if baseline_score > 0 else 0.0  # type: ignore[operator]
+    if improvement < 0:
+        # Belt and braces. A negative `minimum_improvement` is refused up
+        # front, but a criterion switch (pinball selection scores a
+        # different quantity from the reported WAPE improvement) can still
+        # land here. A model that lost the comparison it is reported
+        # against must never be published as plainly supported.
+        warnings.append(
+            f"{selected} was selected but scored {abs(improvement):.2%} worse "
+            f"than the strongest baseline {strongest_baseline} on the reported "
+            f"metric; the selection criterion and the reported improvement "
+            f"measure different quantities."
+        )
 
     def _ensemble_predict(train: list[float]) -> list[float]:
         """Recombine the member models on *train* only.

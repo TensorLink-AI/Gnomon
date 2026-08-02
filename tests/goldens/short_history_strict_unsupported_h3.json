@@ -105,7 +105,13 @@
           "window_average": null,
           "theta": null,
           "ets": null
-        }
+        },
+        "measured_interval_coverage": null,
+        "baseline_improvement": null,
+        "strongest_baseline": null,
+        "selected_model": null,
+        "residuals_pooled_across_selection": true,
+        "residual_fold_count": 0
       }
     },
     {

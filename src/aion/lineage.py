@@ -12,7 +12,12 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
-from .contracts import ClaimClass, ForecastArtifact, TemporalTask
+from .contracts import (
+    ClaimClass,
+    ForecastArtifact,
+    TemporalTask,
+    interval_calibration_is_verifiable,
+)
 
 
 @dataclass(frozen=True)
@@ -35,6 +40,26 @@ class EvidenceRecord:
 
 
 @dataclass(frozen=True)
+class ComparisonAssertion:
+    """A comparison a claim's prose asserts, in a form the verifier can check.
+
+    Prose like "beat the strongest baseline" is unfalsifiable to a checker
+    that only validates references and kinds — which is how a claim stating
+    the ensemble won came to verify beside evidence measuring an
+    improvement of exactly zero. Stating the comparison structurally beside
+    the sentence makes the sentence checkable against its own evidence.
+    """
+
+    #: Dotted path into the cited evidence record's payload.
+    metric: str
+    #: Which evidence record reports it.
+    evidence_id: str
+    #: One of the comparators in ``verifier._COMPARATORS``.
+    direction: str
+    threshold: float
+
+
+@dataclass(frozen=True)
 class ClaimRecord:
     claim_id: str
     claim_class: ClaimClass
@@ -47,6 +72,10 @@ class ClaimRecord:
     calibration_ref: str | None = None
     # Decision claims must state whether their constraints were evaluated.
     constraints_evaluated: bool | None = None
+    # Measurable comparisons this claim's statement asserts. Each is checked
+    # against the evidence it names; a claim that says more than its
+    # evidence supports fails verification.
+    comparisons: tuple[ComparisonAssertion, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -127,31 +156,70 @@ def build_forecast_lineage(
         evaluation_id = f"evaluation:{result.series}"
         support_id = f"support:{result.series}"
         if result.forecast:
+            # A probability-bearing claim needs calibration that measured
+            # up, not merely a calibration record that exists. Outside the
+            # band the run still publishes its point path — it just stops
+            # claiming the intervals mean what they say, which is a
+            # downgrade to `descriptive` rather than a failure.
+            calibrated = interval_calibration_is_verifiable(result.interval_coverage)
+            # A selection over the mandated baselines is a comparison, and a
+            # comparison that is stated has to be checkable. Baselines make
+            # no such claim about themselves, so they carry no assertion.
+            comparisons: tuple[ComparisonAssertion, ...] = ()
+            beat_baseline = (
+                result.selected_model is not None
+                and result.strongest_baseline is not None
+                and result.selected_model != result.strongest_baseline
+                and (result.baseline_improvement or 0) > 0
+            )
+            if beat_baseline:
+                comparisons = (ComparisonAssertion(
+                    metric="baseline_improvement",
+                    evidence_id=evaluation_id,
+                    direction="greater_than",
+                    threshold=0.0,
+                ),)
+            statement = (
+                f"Forecast for series {result.series} over "
+                f"{len(result.forecast)} periods, selected model "
+                f"{result.selected_model}, with 10/50/90 residual-quantile intervals."
+            )
+            if beat_baseline:
+                statement += (
+                    f" {result.selected_model} beat the strongest baseline "
+                    f"{result.strongest_baseline} on the selection folds."
+                )
+            if not calibrated:
+                statement += (
+                    f" Measured interval coverage is "
+                    f"{result.interval_coverage:.1%}, so the intervals are "
+                    f"reported without probability weight."
+                )
             lineage.claims.append(ClaimRecord(
                 claim_id=f"claim:forecast:{result.series}",
-                claim_class="predictive",
-                statement=(
-                    f"Forecast for series {result.series} over "
-                    f"{len(result.forecast)} periods, selected model "
-                    f"{result.selected_model}, with 10/50/90 residual-quantile intervals."
-                ),
+                claim_class="predictive" if calibrated else "descriptive",
+                statement=statement,
                 subject=result.series,
                 evidence_ids=(evaluation_id, support_id),
                 artifact_ids=(artifact.forecast_id, dataset_id),
-                calibration_ref=evaluation_id,
+                calibration_ref=evaluation_id if calibrated else None,
+                comparisons=comparisons,
             ))
             if result.threshold:
                 lineage.claims.append(ClaimRecord(
                     claim_id=f"claim:threshold:{result.series}",
-                    claim_class="predictive",
+                    claim_class="predictive" if calibrated else "descriptive",
                     statement=(
                         f"Probability of series {result.series} exceeding "
                         f"{result.threshold['value']} per horizon step."
+                        + ("" if calibrated else
+                           " Reported without probability weight: measured "
+                           "interval coverage is outside the verifiable band.")
                     ),
                     subject=result.series,
                     evidence_ids=(evaluation_id, support_id),
                     artifact_ids=(artifact.forecast_id, dataset_id),
-                    calibration_ref=evaluation_id,
+                    calibration_ref=evaluation_id if calibrated else None,
                 ))
         else:
             lineage.claims.append(ClaimRecord(

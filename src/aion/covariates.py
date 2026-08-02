@@ -38,10 +38,30 @@ class CovariateDataset:
     fingerprint: str
     specs: tuple[CovariateSpec, ...]
     rows: list[CovariateRow]
+    #: The run's visible-data boundary. Set by ``bind_as_of`` before the
+    #: covariates are read, so the snapshot itself excludes anything
+    #: published after it. Without this the cutoff was enforced only by
+    #: convention at each call site: correct behaviour resting on review
+    #: discipline rather than on the type, which is the opposite of how the
+    #: target series is handled.
+    as_of: datetime | None = None
+
+    def bind_as_of(self, as_of: datetime | None) -> None:
+        """Attach the run's ``as_of`` before any read.
+
+        Rebuilding the snapshot is the point: a snapshot constructed at
+        ``as_of`` cannot serve a post-cutoff row to any caller, however the
+        caller asks.
+        """
+        if as_of == self.as_of:
+            return
+        self.as_of = as_of
+        self._snapshot_cache = None
 
     def _snapshot(self):
-        """Lazy bitemporal view of the covariate rows; per-call cutoffs are
-        enforced by the snapshot rather than ad-hoc filtering."""
+        """Lazy bitemporal view of the covariate rows, built at the run's
+        ``as_of``; per-call cutoffs narrow it further but can never widen
+        it, because ``Snapshot`` filters at construction."""
         if getattr(self, "_snapshot_cache", None) is None:
             from .temporal_store import InMemoryTemporalStore, TemporalObservation
             observations = [
@@ -54,7 +74,7 @@ class CovariateDataset:
             ]
             self._snapshot_cache = InMemoryTemporalStore(
                 observations, source_ref=self.fingerprint,
-            ).snapshot(None)
+            ).snapshot(self.as_of)
         return self._snapshot_cache
 
     def value_at(self, name: str, series: str, valid_at: datetime, cutoff: datetime) -> float | None:
@@ -63,6 +83,16 @@ class CovariateDataset:
         if value is None and series != "__default__":
             value = snapshot.value_as_of("__default__", name, valid_at, cutoff=cutoff)
         return value
+
+    def access_summary(self) -> dict[str, Any]:
+        """What this dataset actually served, for the run's evidence.
+
+        Covariate reads used to leave no trace in `snapshot_access`, so the
+        `max_known_time` the verifier's leakage check reads came from the
+        target series alone — a covariate could not have been caught by it.
+        """
+        summary = self._snapshot().access_summary()
+        return {**summary, "source": "covariates", "path": self.path}
 
 
 @dataclass

@@ -11,7 +11,13 @@ the evidence supports.
 
 from __future__ import annotations
 
-from .contracts import SupportAssessment, SupportReason
+from .contracts import (
+    MAX_VERIFIABLE_COVERAGE,
+    MIN_VERIFIABLE_COVERAGE,
+    SupportAssessment,
+    SupportReason,
+    interval_calibration_is_verifiable,
+)
 from .evaluation import Evaluation
 from .temporal_store import KNOWN_TIME_ASSUMED_WARNING
 
@@ -23,7 +29,15 @@ def assess_forecast_support(
     *,
     known_time_assumed: bool = False,
     disclosures: list[SupportReason] | None = None,
+    measured_coverage: float | None = None,
 ) -> SupportAssessment:
+    """``measured_coverage`` is the coverage of the *published* model.
+
+    It is not always ``assessment.coverage``: a covariate or adjudication
+    winner replaces the base model's forecast and its measured coverage
+    with its own, and it is the published one a reader is being asked to
+    trust. Omitted, it falls back to the assessment's.
+    """
     disclosures = list(disclosures or [])
     reasons = [SupportReason("warning", message) for message in warnings]
     assumptions: list[str] = []
@@ -36,13 +50,63 @@ def assess_forecast_support(
         if assessment.coverage is not None:
             sensitivity["final_test_interval_coverage"] = assessment.coverage
 
+    # A coverage failure is its own typed reason, prepended so that no
+    # branch below can drop it. `degraded` used to replace the reason list
+    # wholesale, which meant a badly calibrated *and* degraded run reported
+    # only that it was degraded — the more serious fact vanished.
+    coverage = measured_coverage
+    if coverage is None and assessment is not None:
+        coverage = assessment.coverage
+    miscalibrated = not interval_calibration_is_verifiable(coverage)
+    if miscalibrated:
+        reasons.insert(0, SupportReason(
+            "interval_coverage_out_of_band",
+            f"Measured interval coverage is {float(coverage):.1%}, outside "
+            f"the band [{MIN_VERIFIABLE_COVERAGE:.0%}, "
+            f"{MAX_VERIFIABLE_COVERAGE:.0%}] required to treat the intervals "
+            f"as probabilities. The point path stands; the intervals do not "
+            f"carry probability weight.",
+        ))
+
     if support in ("supported", "supported_ensemble"):
-        extra = [SupportReason("ensemble_selection",
-                               "An ensemble of eligible models beat the strongest baseline.")] \
-            if support == "supported_ensemble" else []
+        extra: list[SupportReason] = []
+        status = "supported"
+        if support == "supported_ensemble":
+            # Derived from the measurement, never asserted. `--ensemble` can
+            # force the ensemble onto a series a baseline won, and the old
+            # unconditional sentence then stated the opposite of the evidence
+            # sitting beside it — exactly what the verifier exists to catch.
+            improvement = assessment.improvement if assessment is not None else None
+            if improvement is None:
+                # No measurement to appeal to, so assert nothing about one.
+                extra.append(SupportReason(
+                    "ensemble_selection",
+                    "An ensemble of eligible models produced this forecast.",
+                ))
+            elif improvement > 0:
+                extra.append(SupportReason(
+                    "ensemble_selection",
+                    f"An ensemble of eligible models beat the strongest "
+                    f"baseline by {improvement:.2%} on the selection folds.",
+                ))
+            else:
+                extra.append(SupportReason(
+                    "ensemble_forced",
+                    f"The ensemble was selected by an explicit request, not by "
+                    f"the backtest: its measured improvement over the strongest "
+                    f"baseline is {improvement:.2%}.",
+                ))
+                status = "conditionally_supported"
+        if miscalibrated:
+            status = "conditionally_supported"
         return SupportAssessment(
-            "supported", extra + reasons, assumptions, sensitivity, [], support,
-            disclosures,
+            status, extra + reasons, assumptions, sensitivity,
+            [SupportReason(
+                "treat_intervals_as_indicative",
+                "Use the point path and the model comparison; do not read "
+                "the intervals as calibrated probabilities.",
+            )] if miscalibrated else [],
+            support, disclosures,
         )
     if support == "weakly_supported":
         return SupportAssessment(
@@ -52,6 +116,9 @@ def assess_forecast_support(
             support, disclosures,
         )
     if support == "degraded":
+        # `reasons` already carries the coverage failure at its head when
+        # there is one, so the degraded reason is added beside it, never
+        # in place of it.
         return SupportAssessment(
             "conditionally_supported",
             [SupportReason("degraded_evaluation",

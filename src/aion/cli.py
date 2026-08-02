@@ -33,7 +33,12 @@ def build_parser() -> argparse.ArgumentParser:
     _common_input(forecast_parser)
     forecast_parser.add_argument("--horizon", required=True, type=int)
     forecast_parser.add_argument("--output", default="aion-output")
-    forecast_parser.add_argument("--minimum-baseline-improvement", type=float, default=0.02)
+    forecast_parser.add_argument(
+        "--minimum-baseline-improvement", type=float, default=0.02,
+        help="Relative margin a candidate must beat the strongest baseline "
+             "by to be selected (default 0.02). Must be >= 0: a negative "
+             "margin inverts the mandated-baseline gate.",
+    )
     forecast_parser.add_argument(
         "--threshold", type=float,
         help="Report when and how likely the forecast crosses this value",

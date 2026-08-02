@@ -46,6 +46,36 @@ class SupportAssessment:
         return asdict(self)
 
 
+#: The band measured interval coverage must fall inside for a
+#: probability-bearing claim to carry probability weight, at a nominal 80%
+#: interval.
+#:
+#: The verifier's calibration gate used to be satisfied by the mere
+#: *existence* of a `rolling_evaluation` record, so a run whose intervals
+#: covered 57.1% of a nominal 80% still emitted verified `predictive`
+#: claims. Coverage that far below nominal means the interval is not what
+#: it says it is, and a claim resting on it is not calibrated in any useful
+#: sense.
+#:
+#: The band is wide because the measurement is small — one test fold of
+#: `horizon` points — and a narrow band would reject honest runs for sample
+#: noise. It catches calibration that is plainly broken, which is the job.
+MIN_VERIFIABLE_COVERAGE = 0.5
+MAX_VERIFIABLE_COVERAGE = 1.0
+
+
+def interval_calibration_is_verifiable(coverage: float | None) -> bool:
+    """Whether measured coverage can carry a probability-bearing claim.
+
+    Unmeasured coverage (``None``) is not disqualifying: the run already
+    warns that no test fold remained, and treating "unknown" as "bad" would
+    refuse every two-fold evaluation. Measured-and-outside-the-band is.
+    """
+    if coverage is None:
+        return True
+    return MIN_VERIFIABLE_COVERAGE <= float(coverage) <= MAX_VERIFIABLE_COVERAGE
+
+
 @dataclass(frozen=True)
 class DataSourceRef:
     """Reference to a temporal data source: a local file or ``store:<dataset>``."""

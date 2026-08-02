@@ -10,8 +10,16 @@ Training data construction:
   The meta-model learns: actual[i] = w0 + w1*model1_forecast[i] + w2*model2_forecast[i] + ...
 
   Training samples come from ALL selection folds across ALL models.
-  The meta-model is trained on the calibration fold and evaluated on
-  the test fold — the same protocol as individual models.
+
+Selection score, and why it is not the fit:
+  The weights that ship are fit on every selection fold, like any final
+  refit. The weights that are *scored* are not: ``evaluation.evaluate``
+  refits leave-one-fold-out and scores fold i with weights that never saw
+  fold i. Without that, the meta-model's selection score would be
+  in-sample while every member's is out-of-sample, and it would win the
+  comparison by construction rather than by being better. (This docstring
+  previously claimed a calibration-fold/test-fold protocol that the code
+  did not implement; leave-one-fold-out is what it does now.)
 
 Constraints:
   - ``non_negative=True`` constrains weights to be >= 0 (a model can't

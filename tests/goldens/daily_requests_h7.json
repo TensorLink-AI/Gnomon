@@ -242,7 +242,13 @@
           "moment_small": null,
           "toto2_22m": null,
           "ttm": null
-        }
+        },
+        "measured_interval_coverage": 1.0,
+        "baseline_improvement": 1.0,
+        "strongest_baseline": "last_value",
+        "selected_model": "drift",
+        "residuals_pooled_across_selection": true,
+        "residual_fold_count": 2
       }
     },
     {

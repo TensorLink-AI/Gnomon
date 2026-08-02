@@ -187,6 +187,11 @@ def forecast(
     # When both enrichment kinds are supplied, neither ablation stage applies
     # its own winner; the adjudication ladder owns the choice.
     adjudicating = bool(context_events) and covariates is not None
+    if covariates is not None:
+        # Bind the run's boundary to the covariate snapshot before anything
+        # reads it, so leakage control is a property of the object rather
+        # than of every call site remembering to pass a cutoff.
+        covariates.bind_as_of(as_of)
     repair_log = RepairLog()
     loaded: LoadedDataset = load_stage(
         input_path, time_column=time_column, target_column=target_column,
@@ -274,6 +279,7 @@ def forecast(
             support, state.warnings, assessment,
             known_time_assumed=loaded.snapshot.assumed_known_time,
             disclosures=state.disclosures,
+            measured_coverage=state.coverage,
         )
         result = SeriesResult(
             series_name, support, state.selected_model, assessment.strongest_baseline,
@@ -291,6 +297,16 @@ def forecast(
                 "partitioning": "selection folds, then calibration fold, then final test fold",
                 "selection_scores": assessment.selection_scores,
                 "test_scores": assessment.test_scores,
+                # The verifier gates probability-bearing claims on these,
+                # so they have to be *in* the calibration record rather
+                # than only in the result beside it.
+                "measured_interval_coverage": state.coverage,
+                "baseline_improvement": assessment.improvement,
+                "strongest_baseline": assessment.strongest_baseline,
+                "selected_model": state.selected_model,
+                "residuals_pooled_across_selection":
+                    assessment.residuals_pooled_across_selection,
+                "residual_fold_count": assessment.residual_fold_count,
             }),
             Evidence(f"support:{series_name}", "support_assessment", series_name, {
                 "support": support, "warnings": state.warnings,
@@ -301,8 +317,19 @@ def forecast(
             "data_repair", "data_repair", "__all__",
             {"level": repair, **repair_log.summary()},
         ))
+    snapshot_access: dict[str, object] = dict(loaded.snapshot.access_summary())
+    if covariates is not None:
+        # Merge the covariate reads in, so the `max_known_time` the
+        # verifier's leakage check reads covers every source the run
+        # consulted rather than the target series alone.
+        covariate_access = covariates.access_summary()
+        snapshot_access["accesses"] = list(snapshot_access.get("accesses", [])) + [
+            {**entry, "source": "covariates"}
+            for entry in covariate_access.get("accesses", [])
+        ]
+        snapshot_access["covariate_as_of"] = covariate_access.get("as_of")
     evidence.append(Evidence(
-        "snapshot", "snapshot_access", "__all__", loaded.snapshot.access_summary(),
+        "snapshot", "snapshot_access", "__all__", snapshot_access,
     ))
     # A selected TSFM's weights are part of what produced the numbers, so
     # they belong in the id and in the evidence. Without this the id covers
