@@ -123,7 +123,8 @@ class TestRouter:
     def test_anomaly_task_candidates(self):
         decision = route("detect_anomalies", _series(), "D")
         assert set(decision["candidates"]) == {
-            "robust_zscore", "rolling_median_residual", "forecast_interval"}
+            "robust_zscore", "rolling_median_residual", "local_slope",
+            "forecast_interval"}
         assert decision["basis"] == "backtest_required"
 
     def test_too_short_series_has_no_candidates(self):

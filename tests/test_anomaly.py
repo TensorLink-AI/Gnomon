@@ -14,6 +14,7 @@ from aion.anomaly import (
     detect_anomalies,
     forecast_interval_scores,
     grade_detectors,
+    local_slope_scores,
     robust_zscore_scores,
     rolling_median_scores,
 )
@@ -102,7 +103,7 @@ class TestDetectAnomalies:
         timestamps = [f"t{i}" for i in range(len(values))]
         result = detect_anomalies(timestamps, values, season=12)
         assert result["detector"] in DETECTORS
-        assert result["selection_basis"] == "synthetic_injection_f1"
+        assert result["selection_basis"] == "synthetic_injection_macro_f1"
         assert any(item["timestamp"] == "t60" for item in result["anomalies"])
         assert set(result["detector_grades"]) == set(DETECTORS)
         assert result["support"]["status"] in ("supported", "conditionally_supported")
@@ -197,3 +198,35 @@ class TestRegistryAndMacro:
         assert code == 0
         printed = json.loads(capsys.readouterr().out)
         assert printed["threshold"] == pytest.approx(DEFAULT_THRESHOLD)
+
+
+def test_local_slope_detector_finds_a_trend_anomaly():
+    # A flat series that drifts at the wrong rate for a stretch: every
+    # value stays in range, so only slope reveals it.
+    values = [10.0 + (i % 3) * 0.1 for i in range(60)]
+    for offset, index in enumerate(range(25, 40)):
+        values[index] += 0.6 * (offset + 1)
+    for index in range(40, 60):
+        values[index] += 0.6 * 15
+    scores = local_slope_scores(values, 1)
+    flagged = [i for i, s in enumerate(scores) if abs(s) >= DEFAULT_THRESHOLD]
+    assert flagged, "slope change went unflagged"
+    assert all(24 <= i <= 41 for i in flagged), flagged
+
+
+def test_grader_plants_and_discloses_trend_shifts():
+    values = [10.0 + (i % 5) * 0.2 for i in range(80)]
+    grading = grade_detectors(values, 1)
+    assert "trend_shift" in grading["injection"]["families"]
+    assert "trend_shift" in grading["injection"]["families_planted"]
+    assert "local_slope" in grading["grades"]
+
+
+def test_support_names_the_families_the_grade_covers():
+    values = [10.0 + (i % 7) * 0.3 for i in range(80)]
+    result = detect_anomalies([str(i) for i in range(80)], values)
+    support = result["support"]
+    families = support["sensitivity"]["graded_families"]
+    assert "trend_shift" in families
+    assert any("not vouched for" in assumption
+               for assumption in support["assumptions"]), support["assumptions"]

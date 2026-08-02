@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Anomaly detection covers trend anomalies, and says what its grade
+  covers. A fourth detector (`local_slope`) scores how fast the series
+  moves rather than where it sits, and the grader plants a fourth family
+  (`trend_shift`) so that detector must earn selection like any other.
+  Found by running AnomLLM's `trend` dataset: Aion flagged nothing on
+  397 of 400 series while reporting `supported`, because its grader only
+  ever planted spikes, level shifts and dropouts — the detectors were
+  built to treat drift as *not* an anomaly. Against that dataset's
+  labels the new detector scores F1 0.755 where the best existing one
+  scored 0.096. Every anomaly result now also discloses
+  `graded_families` and carries an assumption naming them: a grade
+  earned on planted spikes vouches for spikes, not for kinds nobody
+  tested.
+
 - Data-insufficiency abstentions now name the way out: the refusal computes
   the largest horizon the supplied observations can support and, when one
   exists, adds a `reduce_horizon` recovery action ("retry with

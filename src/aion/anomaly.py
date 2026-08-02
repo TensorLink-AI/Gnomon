@@ -1,13 +1,21 @@
 """Evaluated anomaly detection: competing detectors, graded selection.
 
 Candidate detectors — a robust z-score, a rolling-median residual score,
-and a one-step-ahead forecast-residual score — compete on a synthetic
-anomaly-injection grader before any of them is allowed to label the real
-series. The grader plants spikes, level shifts, and dropouts of a
-standard, noise-scaled magnitude into copies of the observed series and
-scores each detector's precision, recall, and F1 at recovering them; the
-winner (ties broken toward the simpler detector) produces the reported
-anomalies, and every candidate's grade ships in the output.
+a local-slope deviation score, and a one-step-ahead forecast-residual
+score — compete on a synthetic anomaly-injection grader before any of
+them is allowed to label the real series. The grader plants spikes,
+level shifts, dropouts, and trend shifts of a standard, noise-scaled
+magnitude into copies of the observed series and scores each detector's
+precision, recall, and F1 at recovering them; the winner (ties broken
+toward the simpler detector) produces the reported anomalies, and every
+candidate's grade ships in the output.
+
+The grade vouches for the families the grader planted and nothing more,
+so the tested families travel with the verdict (``graded_families`` in
+the support sensitivity, and an assumption naming them). A detector that
+recovers spikes has said nothing about anomaly kinds nobody tested it
+on — and a support status that did not say so would overstate what was
+measured.
 
 Injection placement uses a PRNG seeded from the series content, so the
 whole procedure is deterministic: same data in, same anomalies out. When
@@ -37,11 +45,15 @@ GRADER_FLOOR = 0.5
 SPIKE_TRIALS = 3
 SHIFT_TRIALS = 2
 DROPOUT_TRIALS = 2
+TREND_TRIALS = 2
 SPIKE_SCALE = 6.0
 SHIFT_SCALE = 4.0
 DROPOUT_SCALE = 5.0
+TREND_SCALE = 4.0
 DROPOUT_RUN = 3
 SHIFT_HIT_WINDOW = 3
+SLOPE_MIN_WINDOW = 9
+SLOPE_MAX_WINDOW = 101
 
 ScoreFunction = Callable[[list[float], int], list[float]]
 
@@ -110,10 +122,51 @@ def forecast_interval_scores(values: list[float], season: int) -> list[float]:
     return [0.0] * warmup + [value / scale for value in best_residuals]
 
 
+def local_slope_scores(values: list[float], season: int) -> list[float]:
+    """Deviation of the *local slope* from the series' typical slope.
+
+    The other three detectors all ask whether a value is where it should
+    be; a trend anomaly keeps every value in range and changes only how
+    fast the series moves. Scoring the rolling median of first
+    differences against the median slope flags the whole stretch that
+    drifts at the wrong rate, not merely its onset — and taking medians
+    keeps a lone spike (one large difference, immediately undone) from
+    reading as a change in slope.
+    """
+    if len(values) < 3:
+        return [0.0] * len(values)
+    differences = [values[index + 1] - values[index]
+                   for index in range(len(values) - 1)]
+    # A slope is only visible once enough differences are averaged: the
+    # noise of a windowed slope falls as 1/sqrt(window), so the window
+    # scales with the series (and covers whole seasons when there is
+    # one) instead of sitting at the fixed width a point detector wants.
+    window = max(SLOPE_MIN_WINDOW,
+                 min(len(values) // 20, SLOPE_MAX_WINDOW))
+    if season > 1:
+        window = max(window, 2 * season + 1)
+    window = min(window, max(3, len(differences)))
+    if window % 2 == 0:
+        window += 1
+    half = window // 2
+    slopes = [
+        median(differences[max(0, index - half): index + half + 1])
+        for index in range(len(differences))
+    ]
+    centre = median(slopes)
+    deviations = [slope - centre for slope in slopes]
+    scale = _robust_scale(deviations)
+    scores = [deviation / scale for deviation in deviations]
+    # Differences are one shorter than values: carry the last score so
+    # every observation is scored.
+    return scores + [scores[-1]]
+
+
 #: Selection order doubles as the tie-break: simpler detectors first.
 DETECTORS: dict[str, ScoreFunction] = {
     "robust_zscore": robust_zscore_scores,
     "rolling_median_residual": rolling_median_scores,
+    "local_slope": local_slope_scores,
     "forecast_interval": forecast_interval_scores,
 }
 
@@ -166,6 +219,27 @@ def _flagged(scores: list[float], threshold: float) -> set[int]:
     return {index for index, score in enumerate(scores) if abs(score) >= threshold}
 
 
+def _false_alarms(stray: set[int]) -> int:
+    """Count stray flags as *events*, not points.
+
+    Recall is measured per planted anomaly — one trial, one hit — so
+    precision must be measured the same way. Counting every stray point
+    separately punishes a detector whose response is inherently wide
+    (a slope detector marks the whole stretch that drifts, not one
+    index) by roughly the width of its window, which would keep such a
+    detector from ever winning selection no matter how well it worked.
+    Contiguous stray flags are one false alarm.
+    """
+    if not stray:
+        return 0
+    ordered = sorted(stray)
+    runs = 1
+    for previous, current in zip(ordered, ordered[1:]):
+        if current - previous > 1:
+            runs += 1
+    return runs
+
+
 def _injection_trials(
     values: list[float], season: int, rng: random.Random,
 ) -> list[dict[str, Any]]:
@@ -198,6 +272,24 @@ def _injection_trials(
         trials.append({"family": "dropout", "indices": indices,
                        "deltas": [-DROPOUT_SCALE * scale] * DROPOUT_RUN,
                        "hit_indices": set(range(onset - 1, onset + DROPOUT_RUN + 1))})
+    # Long enough to be a slope change rather than a step.
+    ramp_length = max(5, min(n // 8, 64))
+    for _ in range(TREND_TRIALS):
+        if warmup >= n - ramp_length:
+            break
+        onset = rng.randrange(warmup, n - ramp_length)
+        sign = rng.choice((-1.0, 1.0))
+        total = sign * TREND_SCALE * scale
+        # A slope change, not a step: the series drifts at the wrong rate
+        # across the ramp and keeps the level it reached.
+        indices = list(range(onset, n))
+        deltas = [
+            total * min(1.0, (index - onset + 1) / ramp_length)
+            for index in indices
+        ]
+        trials.append({"family": "trend_shift", "indices": indices,
+                       "deltas": deltas,
+                       "hit_indices": set(range(onset, onset + ramp_length))})
     return trials
 
 
@@ -220,27 +312,55 @@ def grade_detectors(
         try:
             clean_flags = _flagged(score_function(values, season), threshold)
             hits, false_positives = 0, 0
+            by_family: dict[str, list[int]] = {}
             for trial in trials:
                 injected = list(values)
                 for index, delta in zip(trial["indices"], trial["deltas"]):
                     injected[index] += delta
                 novel = _flagged(score_function(injected, season), threshold) - clean_flags
-                if novel & trial["hit_indices"]:
-                    hits += 1
-                false_positives += len(novel - trial["hit_indices"] - set(trial["indices"]))
+                strays = _false_alarms(
+                    novel - trial["hit_indices"] - set(trial["indices"])
+                )
+                caught = bool(novel & trial["hit_indices"])
+                hits += int(caught)
+                false_positives += strays
+                counts = by_family.setdefault(trial["family"], [0, 0, 0])
+                counts[0] += int(caught)
+                counts[1] += 1
+                counts[2] += strays
         except Exception as exc:
             # A detector that cannot run scores zero and discloses why —
             # it must not take the whole evaluation down with it.
             grades[name] = {"precision": 0.0, "recall": 0.0, "f1": 0.0,
+                            "macro_f1": 0.0, "families": {},
                             "trials": len(trials), "false_positives": 0,
                             "error": str(exc)}
             continue
         recall = hits / len(trials) if trials else 0.0
         precision = hits / (hits + false_positives) if hits + false_positives else 0.0
         f1 = (2 * precision * recall / (precision + recall)) if precision + recall else 0.0
+        families = {}
+        for family, (caught, total, strays) in sorted(by_family.items()):
+            family_recall = caught / total if total else 0.0
+            family_precision = (caught / (caught + strays)
+                                if caught + strays else 0.0)
+            family_f1 = (2 * family_precision * family_recall
+                         / (family_precision + family_recall)
+                         if family_precision + family_recall else 0.0)
+            families[family] = {"precision": round(family_precision, 4),
+                                "recall": round(family_recall, 4),
+                                "f1": round(family_f1, 4), "trials": total}
+        # Selection uses the macro average, not the pooled score: a
+        # detector blind to one family would otherwise be crowned by
+        # averaging that blindness away against families it handles,
+        # which is exactly how a series whose anomalies are slope
+        # changes ends up labelled by a detector that cannot see them.
+        macro_f1 = (sum(entry["f1"] for entry in families.values())
+                    / len(families)) if families else 0.0
         grades[name] = {
             "precision": round(precision, 4), "recall": round(recall, 4),
-            "f1": round(f1, 4), "trials": len(trials),
+            "f1": round(f1, 4), "macro_f1": round(macro_f1, 4),
+            "families": families, "trials": len(trials),
             "false_positives": false_positives,
         }
     return {
@@ -249,11 +369,12 @@ def grade_detectors(
             "seed": _content_seed(values),
             "families": {
                 "spike": SPIKE_TRIALS, "level_shift": SHIFT_TRIALS,
-                "dropout": DROPOUT_TRIALS,
+                "dropout": DROPOUT_TRIALS, "trend_shift": TREND_TRIALS,
             },
+            "families_planted": sorted({trial["family"] for trial in trials}),
             "magnitudes_in_robust_scale": {
                 "spike": SPIKE_SCALE, "level_shift": SHIFT_SCALE,
-                "dropout": DROPOUT_SCALE,
+                "dropout": DROPOUT_SCALE, "trend_shift": TREND_SCALE,
             },
         },
     }
@@ -324,16 +445,31 @@ def detect_anomalies(
         selection_basis = "label_f1"
     else:
         ranking = grades
-        selection_basis = "synthetic_injection_f1"
+        selection_basis = "synthetic_injection_macro_f1"
     order = list({**DETECTORS, **(extra_detectors or {})})
-    selected = max(order, key=lambda name: (ranking[name]["f1"], -order.index(name)))
+    # Label selection has no families to average; synthetic selection
+    # ranks on coverage across every planted family.
+    score_key = "f1" if label_indices else "macro_f1"
+    selected = max(order,
+                   key=lambda name: (ranking[name][score_key], -order.index(name)))
     scores = {**DETECTORS, **(extra_detectors or {})}[selected](values, season)
     anomalies = [
         {"timestamp": timestamps[index], "value": values[index],
          "score": round(score, 4)}
         for index, score in enumerate(scores) if abs(score) >= threshold
     ]
-    best_f1 = ranking[selected]["f1"]
+    best_f1 = ranking[selected][score_key]
+    planted = grading["injection"]["families_planted"]
+    # What the grade vouches for is exactly the families the grader
+    # planted. A detector that recovers spikes says nothing about
+    # anomaly kinds nobody tested it on, so the scope of the evidence
+    # travels with the verdict instead of being implied by it.
+    scope = (
+        "The grade covers planted "
+        + ", ".join(planted)
+        + " anomalies only; kinds outside those families were not tested "
+          "in this series and are not vouched for."
+    ) if not label_indices and planted else None
     if best_f1 < GRADER_FLOOR:
         support = SupportAssessment(
             "conditionally_supported",
@@ -343,7 +479,9 @@ def detect_anomalies(
                 f"with F1 {best_f1:.2f} (< {GRADER_FLOOR}); real detections "
                 "in this series' noise carry the same doubt.",
             )],
-            sensitivity={"threshold": threshold, "selection_basis": selection_basis},
+            assumptions=[scope] if scope else [],
+            sensitivity={"threshold": threshold, "selection_basis": selection_basis,
+                         "graded_families": planted},
         )
     else:
         support = SupportAssessment(
@@ -353,8 +491,10 @@ def detect_anomalies(
                 "No point exceeded the detection threshold; absence of "
                 "anomalies is a conclusion, not a failure.",
             )],
+            assumptions=[scope] if scope else [],
             sensitivity={"threshold": threshold, "selection_basis": selection_basis,
-                         "selected_f1": best_f1},
+                         "selected_f1": best_f1,
+                         "graded_families": planted},
         )
     result = {
         "detector": selected,

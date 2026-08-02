@@ -178,3 +178,19 @@ relative to 3.11 — so goldens are captured and byte-checked on 3.12+,
 and value-checked to 1e-9 relative tolerance on 3.11. Artifact IDs hash
 inputs and parameters, never outputs, so they are identical across
 interpreter versions.
+
+- Trend-shift anomaly coverage + graded-scope disclosure, additive:
+  `aion.anomaly` gains a fourth candidate detector, `local_slope`
+  (deviation of the windowed median first difference from the series'
+  typical slope), and the injection grader gains a fourth family,
+  `trend_shift` (a ramped slope change of `TREND_SCALE` robust-scale
+  units, `TREND_TRIALS` per run). The three existing detectors and
+  three existing families are unchanged. Every anomaly result's support
+  now carries `sensitivity.graded_families` and, for synthetic-injection
+  selection, an assumption naming those families — the grade vouches for
+  the kinds the grader planted and says so, instead of implying
+  coverage of kinds nobody tested. Detector selection is unchanged in
+  mechanism (best F1, ties to the earlier candidate), but a series whose
+  anomalies are slope changes can now select a detector able to find
+  them, so previously-empty detections may become non-empty. Forecast
+  artifacts, forecast goldens, and artifact IDs are unaffected.

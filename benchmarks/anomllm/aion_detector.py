@@ -73,11 +73,22 @@ def intervals_to_vector(intervals: list[Any], length: int) -> list[int]:
     return vector
 
 
-def binary_f1(truth: list[int], prediction: list[int]) -> float:
+def binary_f1(truth: list[int], prediction: list[int]) -> float | None:
+    """Pointwise F1, or ``None`` where F1 is undefined.
+
+    More than half of AnomLLM's synthetic series carry no anomaly at
+    all. Scoring a correct "nothing here" as F1 0.0 — as this did —
+    buries a detector's real performance under a pile of zeros it earned
+    by being right. An empty truth with an empty prediction is not a
+    failure and not a success either: it is outside what F1 measures, so
+    it is excluded and counted separately.
+    """
     true_positive = sum(1 for t, p in zip(truth, prediction) if t and p)
     predicted = sum(prediction)
     actual = sum(truth)
-    if predicted == 0 or actual == 0 or true_positive == 0:
+    if actual == 0:
+        return None if predicted == 0 else 0.0
+    if predicted == 0 or true_positive == 0:
         return 0.0
     precision = true_positive / predicted
     recall = true_positive / actual
@@ -163,6 +174,7 @@ def run_aion_condition(
         records_path or results_dir / f"{variant_name}.aionbench.jsonl"
     )
     f1_scores: list[float] = []
+    clean_correct = 0
     supported = 0
     for number, series in enumerate(dataset["series"], start=1):
         values = series_values(series)
@@ -198,7 +210,11 @@ def run_aion_condition(
                 intervals_to_vector(truth, len(values)),
                 intervals_to_vector(intervals, len(values)),
             )
-            f1_scores.append(f1)
+            if f1 is None:
+                # Correctly quiet on a series with nothing to find.
+                clean_correct += 1
+            else:
+                f1_scores.append(f1)
         records.write(RunRecord(
             task_id=custom_id,
             success=bool(detection.get("detector")),
@@ -215,6 +231,8 @@ def run_aion_condition(
         "condition": f"{model_dir}/{variant_name}",
         "series": len(dataset["series"]),
         "supported": supported,
+        "scored_series": len(f1_scores),
+        "clean_series_correctly_silent": clean_correct,
         "mean_pointwise_f1_adapter_estimate": (
             sum(f1_scores) / len(f1_scores) if f1_scores else None
         ),
