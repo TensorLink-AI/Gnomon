@@ -175,9 +175,15 @@ def main() -> int:
                         help="comma list of run names to execute")
     parser.add_argument("--continue-on-error", action="store_true",
                         help="keep going when a run exits non-zero")
+    parser.add_argument("--output-root", default=None,
+                        help="override the config's output_root, for running "
+                             "the same config twice in different environments "
+                             "(e.g. with and without TSFM sandboxes installed)")
     args = parser.parse_args()
 
     config = load_config(Path(args.config))
+    if args.output_root:
+        config["output_root"] = args.output_root
     args_config_path = args.config
     runs = config.get("runs") or []
     if not runs:

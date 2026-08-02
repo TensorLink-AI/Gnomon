@@ -150,6 +150,21 @@ def mean_absolute_error(actual: list[float], predicted: list[float]) -> float:
     return sum(abs(a - p) for a, p in zip(actual[:n], predicted[:n])) / n
 
 
+#: Nominal coverage the adaptive level is steered toward, matching the
+#: 80% interval the rest of the pipeline publishes.
+ADAPTIVE_TARGET_COVERAGE = 0.8
+
+#: Step size per outcome. Small enough that one unusual horizon cannot move
+#: the published width far, large enough to correct a persistent bias within
+#: a few dozen scored forecasts.
+ADAPTIVE_LEARNING_RATE = 0.02
+
+#: Bounds on the working miscoverage level, so a run of outcomes cannot drive
+#: intervals to zero width or to uselessness.
+MIN_ADAPTIVE_ALPHA = 0.01
+MAX_ADAPTIVE_ALPHA = 0.5
+
+
 def mase_score(
     actual: list[float], predicted: list[float], naive_error: float | None,
 ) -> float | None:
@@ -291,6 +306,26 @@ class TrackingStore:
 
                 CREATE INDEX IF NOT EXISTS idx_perf_model
                     ON model_performance(project, model);
+
+                -- Adaptive-conformal state, kept as an append-only log rather
+                -- than a mutable current value. Each row carries the
+                -- known_time of the outcome that caused it, so a replay at
+                -- `--as-of T` reads only what was known by T and reproduces
+                -- the interval that was actually published then. A single
+                -- mutable alpha would make every historical run
+                -- irreproducible the moment a new outcome arrived.
+                CREATE TABLE IF NOT EXISTS conformal_adaptation (
+                    project TEXT NOT NULL,
+                    scope TEXT NOT NULL,
+                    forecast_id TEXT NOT NULL,
+                    known_time TEXT NOT NULL,
+                    covered INTEGER NOT NULL,
+                    points INTEGER NOT NULL,
+                    PRIMARY KEY (project, scope, forecast_id)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_adaptation_scope
+                    ON conformal_adaptation(project, scope, known_time);
 
                 CREATE TABLE IF NOT EXISTS decisions (
                     decision_id TEXT PRIMARY KEY,
@@ -447,6 +482,78 @@ class TrackingStore:
             ).fetchone()
         return self._row_to_record(row) if row else None
 
+    # ---- Adaptive conformal state ----
+
+    def record_coverage_outcome(
+        self, project: str, scope: str, forecast_id: str,
+        known_time: str, covered: int, points: int,
+    ) -> None:
+        """Append one realised-coverage observation to the adaptation log.
+
+        ``known_time`` is when the *outcome* became knowable, not when it was
+        recorded. That distinction is what makes replay honest: a run at
+        ``--as-of T`` must see exactly the outcomes a forecaster at T could
+        have seen, whatever order they were entered in afterwards.
+        """
+        with self._connect() as conn:
+            conn.execute("""
+                INSERT OR REPLACE INTO conformal_adaptation
+                    (project, scope, forecast_id, known_time, covered, points)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (project, scope, forecast_id, known_time, int(covered), int(points)))
+
+    def coverage_outcomes(
+        self, project: str, scope: str, as_of: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Outcomes known by ``as_of``, oldest first, ties broken by id.
+
+        The ordering is total and content-derived, so the replay below is a
+        pure function of the rows it reads.
+        """
+        query = ("SELECT forecast_id, known_time, covered, points "
+                 "FROM conformal_adaptation WHERE project = ? AND scope = ?")
+        params: list[Any] = [project, scope]
+        if as_of is not None:
+            query += " AND known_time <= ?"
+            params.append(as_of)
+        query += " ORDER BY known_time ASC, forecast_id ASC"
+        with self._connect() as conn:
+            return [dict(row) for row in conn.execute(query, params)]
+
+    def adapted_alpha(
+        self, project: str, scope: str, as_of: str | None = None,
+        target: float = ADAPTIVE_TARGET_COVERAGE,
+        rate: float = ADAPTIVE_LEARNING_RATE,
+    ) -> dict[str, Any]:
+        """Replay the adaptation log into an effective miscoverage level.
+
+        Adaptive conformal inference: after each outcome, move the working
+        level by ``rate`` toward whichever direction the realised coverage
+        was wrong in. Nominal 80% intervals that keep covering 95% of points
+        are too wide, and this is the standard correction.
+
+        The hard part is not the update rule but determinism. This is a fold
+        over an ordered, immutable log filtered by ``known_time``, so the
+        same inputs at the same ``as_of`` produce the same level forever —
+        adding an outcome tomorrow cannot change what a replay of yesterday
+        reports.
+        """
+        outcomes = self.coverage_outcomes(project, scope, as_of)
+        alpha = 1.0 - target
+        for outcome in outcomes:
+            points = int(outcome["points"]) or 1
+            realised = int(outcome["covered"]) / points
+            # err = 1 when the interval missed more than it should have.
+            alpha = alpha + rate * ((1.0 - target) - (1.0 - realised))
+            alpha = min(MAX_ADAPTIVE_ALPHA, max(MIN_ADAPTIVE_ALPHA, alpha))
+        return {
+            "alpha": alpha,
+            "effective_coverage": 1.0 - alpha,
+            "observations": len(outcomes),
+            "as_of": as_of,
+            "basis": "adaptive conformal replay over outcomes known by as_of",
+        }
+
     # ---- Scoring ----
 
     def score_forecast(
@@ -505,6 +612,17 @@ class TrackingStore:
                     record.series, record.horizon, record.frequency,
                     record.task, record.fingerprint,
                 ))
+
+        if cov is not None and q10 and q90:
+            # Feed the adaptation log, stamped with when the outcome became
+            # knowable rather than when it was entered. The forecast's own
+            # horizon end is the earliest instant every scored point existed.
+            points = min(len(actuals), len(q10), len(q90))
+            self.record_coverage_outcome(
+                record.project, record.series or "__default__", forecast_id,
+                known_time=record.cutoff_time or scored_at,
+                covered=round(cov * points), points=points,
+            )
 
         logger.info(
             "Scored forecast %s: MASE=%s MAPE=%.1f%% bias=%.2f coverage=%s drift=%s",

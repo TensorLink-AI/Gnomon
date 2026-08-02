@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Adaptive-conformal state, additive and bitemporal. The tracking store gains
+  a `conformal_adaptation` table and `record_coverage_outcome` /
+  `coverage_outcomes` / `adapted_alpha`. It is an append-only log rather than
+  a mutable current level, and each row carries the `known_time` of the
+  outcome that caused it, so `adapted_alpha(..., as_of=T)` is a fold over the
+  rows known by T: adding an outcome tomorrow cannot change what a replay of
+  yesterday reports, and insertion order is irrelevant. Scoring feeds the log
+  automatically; nothing reads it into a published interval yet.
+- `benchmarks/run_all.py` gains `--output-root`, so one config can be run in
+  two environments (with and without TSFM sandboxes) without editing it.
 - **Additive, with a golden refresh.** Forecast rows and `forecast.csv` now
   carry nine quantile levels (q05, q10, q20, q30, q50, q70, q80, q90, q95).
   `q10`/`q50`/`q90` keep their exact meaning *and their exact values* — they

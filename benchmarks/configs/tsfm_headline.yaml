@@ -1,0 +1,46 @@
+# C3: headline configurations with the foundation-model tier available.
+#
+# HOW THE TIER IS ENABLED — read this before running.
+#
+# There is no `--tsfm` flag, and adding one would misdescribe the system.
+# `evaluate()` requests *every capability-eligible* adapter by default; what
+# decides whether one actually competes is whether a sandbox is installed. So
+# the floor condition and the TSFM condition are the same runs in two
+# different environments, not two different configs:
+#
+#   1. With no sandboxes installed, run this config with
+#      `--output-root results/tsfm-floor`. Every result carries the
+#      "No foundation-model candidate competed" note.
+#   2. `aion tsfm install chronos_bolt_small` (and any others wanted).
+#   3. Run it again into the default `results/tsfm-headline`.
+#   4. Compare the pairs with `python -m benchmarks.report`.
+#
+# The stdlib pool is the floor, not a fallback. A TSFM enters the same
+# selection folds against the same baselines under the same improvement
+# margin as everything else — it wins by measurement or it does not run, and
+# `selection_scores` in each artifact shows what it scored.
+#
+# BEFORE QUOTING A DELTA: check `results[].notes` in the second run. If the
+# "no foundation-model candidate competed" note is still there, no sandbox
+# was found and the two arms are identical — the delta is zero because
+# nothing changed, not because the tier did not help. That note exists so
+# this failure is visible rather than silent.
+model: z-ai/glm-5.2
+output_root: results/tsfm-headline
+defaults:
+  limit: 50
+  temperature: 0.2
+
+runs:
+  - benchmark: mtbench
+    name: mtb
+    args: {subcommand: aion, mode: agent}
+  - benchmark: temporalbench
+    name: tb
+    args: {condition: aion-agent, data_dir: ~/temporalbench, tiers: "T2,T4"}
+  # Free and model-less: the leakage traps exercise the same selection path
+  # at no API cost, so the tier's effect on a structurally-safe run is
+  # measurable without spending anything.
+  - benchmark: leaktrap
+    name: lt
+    args: {subcommand: aion}

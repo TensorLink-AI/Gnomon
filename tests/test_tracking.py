@@ -402,3 +402,94 @@ class TestDegenerateWindowsAreNotSilentlyRescored:
         # averaged together with ratios from other folds.
         assert error_score([0.0, 0.0, 0.0], [1.0, -1.0, 2.0]) is None
         assert error_score([0.0, 0.0, 4.0], [0.0, 0.0, 2.0]) == 0.5
+
+
+class TestAdaptiveConformalReplay:
+    """The update rule is easy; determinism under replay is the point.
+
+    Nominal 80% intervals that keep covering 95% of points are too wide, and
+    adaptive conformal is the standard correction. But an interval published
+    at some past instant must stay reproducible: if the working level were a
+    single mutable number, every historical run would silently change the
+    moment a new outcome arrived, and `--as-of` replay would stop meaning
+    anything.
+    """
+
+    @staticmethod
+    def _store(tmp_path):
+        from aion.tracking import TrackingStore
+
+        return TrackingStore(tmp_path / "adapt.db")
+
+    def test_replay_ignores_outcomes_known_later(self, tmp_path):
+        store = self._store(tmp_path)
+        store.record_coverage_outcome("p", "s", "f1", "2024-01-05", 7, 7)
+        store.record_coverage_outcome("p", "s", "f2", "2024-01-06", 7, 7)
+        early = store.adapted_alpha("p", "s", as_of="2024-01-06")
+
+        # A later outcome arrives. The past must not move.
+        store.record_coverage_outcome("p", "s", "f3", "2024-01-20", 2, 7)
+        assert store.adapted_alpha("p", "s", as_of="2024-01-06") == early
+        assert store.adapted_alpha("p", "s")["observations"] == 3
+
+    def test_insertion_order_does_not_affect_the_result(self, tmp_path):
+        """Outcomes are ordered by when they became knowable, not by when
+        someone got round to entering them."""
+        forward = self._store(tmp_path / "a")
+        backward = self._store(tmp_path / "b")
+        rows = [("f1", "2024-01-05", 7), ("f2", "2024-01-06", 3),
+                ("f3", "2024-01-07", 5)]
+        for forecast_id, known, covered in rows:
+            forward.record_coverage_outcome("p", "s", forecast_id, known, covered, 7)
+        for forecast_id, known, covered in reversed(rows):
+            backward.record_coverage_outcome("p", "s", forecast_id, known, covered, 7)
+        assert forward.adapted_alpha("p", "s") == backward.adapted_alpha("p", "s")
+
+    def test_persistent_over_coverage_narrows_the_interval(self, tmp_path):
+        store = self._store(tmp_path)
+        base = store.adapted_alpha("p", "s")["alpha"]
+        for index in range(40):
+            store.record_coverage_outcome(
+                "p", "s", f"f{index}", f"2024-02-{index % 28 + 1:02d}", 7, 7)
+        assert store.adapted_alpha("p", "s")["alpha"] > base, (
+            "intervals that always cover are too wide; alpha must rise"
+        )
+
+    def test_persistent_under_coverage_widens_the_interval(self, tmp_path):
+        store = self._store(tmp_path)
+        base = store.adapted_alpha("p", "s")["alpha"]
+        for index in range(40):
+            store.record_coverage_outcome(
+                "p", "s", f"f{index}", f"2024-02-{index % 28 + 1:02d}", 2, 7)
+        assert store.adapted_alpha("p", "s")["alpha"] < base
+
+    def test_alpha_stays_within_bounds(self, tmp_path):
+        from aion.tracking import MAX_ADAPTIVE_ALPHA, MIN_ADAPTIVE_ALPHA
+
+        store = self._store(tmp_path)
+        for index in range(500):
+            store.record_coverage_outcome(
+                "p", "s", f"f{index}", f"2024-{index % 12 + 1:02d}-01", 7, 7)
+        alpha = store.adapted_alpha("p", "s")["alpha"]
+        assert MIN_ADAPTIVE_ALPHA <= alpha <= MAX_ADAPTIVE_ALPHA
+
+    def test_scopes_do_not_bleed_into_each_other(self, tmp_path):
+        store = self._store(tmp_path)
+        for index in range(20):
+            store.record_coverage_outcome(
+                "p", "busy", f"f{index}", f"2024-03-{index % 28 + 1:02d}", 7, 7)
+        assert store.adapted_alpha("p", "quiet")["observations"] == 0
+
+    def test_scoring_feeds_the_log(self, tmp_path):
+        store = self._store(tmp_path)
+        store.register(
+            forecast_id="f1", project="p", series="s",
+            cutoff_time="2024-01-04T00:00:00", horizon=3, frequency="D",
+            selected_model="drift", support="supported",
+            artifact_path=str(tmp_path), naive_error=2.0,
+        )
+        store.score_forecast(
+            "f1", actuals=[10.0, 11.0, 12.0], points=[10.0, 11.0, 12.0],
+            q10=[9.0, 10.0, 11.0], q90=[11.0, 12.0, 13.0],
+        )
+        assert store.adapted_alpha("p", "s")["observations"] == 1
