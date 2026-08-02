@@ -1,5 +1,42 @@
 # Integration plan — external design review, August 2026
 
+> **Status: all four phases executed (2026-08-02).** The plan below is kept
+> as written for the record; this section says what actually happened,
+> including where measurement contradicted the design.
+>
+> | item | outcome |
+> |---|---|
+> | B1 per-lead conformal | shipped. CiK rCRPS 0.597 → **0.329** on the identical 33 scored tasks |
+> | A7 gate instrumentation, B5 Wilson veto | shipped |
+> | N1 abstention pricing, C1, D | shipped |
+> | **C2 leakage traps** | shipped. Trap validated at **+80%** oracle advantage; Aion's structural claim proven **30/30** from its own access log |
+> | A6 conditional forecasts | shipped |
+> | A1+A2 typed claims | shipped — bounds admitted, asserted values refused |
+> | A3 effect shapes | shipped. Ablation recovers the planted shape **3/3** |
+> | B3 nine quantile levels | shipped. q10/q50/q90 bit-identical |
+> | A5 shrinkage | **implemented, default off.** Significant evidence *against*: better on 5/28, **p = 0.0009** |
+> | B2 pinball selection | **implemented, default off.** Lost on its own metric (0.891 vs 0.871) |
+> | N2 fold stride | **implemented, default off.** 19/31, p = 0.28 |
+> | B4 adaptive conformal | state shipped, bitemporal and replay-tested; not yet read into a published interval |
+> | C3 TSFM configs | shipped |
+> | **A4 analog pooling** | **killed by its own criterion** — event supply measured at **0%**, threshold was 20% |
+>
+> Three proposals were built, measured, and left switched off. That is the
+> plan working as intended: each has a seam, a recorded measurement, and a
+> stated condition that would change the verdict —
+> [stride](fold-stride-measurement-2026-08.md),
+> [selection loss](selection-loss-measurement-2026-08.md),
+> [shrinkage](shrinkage-admission-measurement-2026-08.md),
+> [analog pooling](analog-pooling-kill-2026-08.md).
+>
+> Two hypotheses of my own were refuted by the tests and are recorded rather
+> than quietly dropped: layering the context effect onto the selected model
+> (double-counts any event a seasonal base already models) and reducing fold
+> stride to relax the four-fold cliff (the cliff is stride-independent, and
+> naive stride reduction leaks into the calibration and test partitions).
+
+---
+
 Design only. Nothing here is implemented; Phase 1 begins after approval.
 
 This plan reorders the review's suggested phasing. The reordering is not
