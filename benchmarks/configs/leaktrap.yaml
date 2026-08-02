@@ -1,0 +1,24 @@
+# Temporal-leakage trap family (C2).
+#
+# Run `oracle-leak` first and read `mean_leak_advantage` before trusting any
+# other row: it validates that reading past the cutoff measurably helps on
+# these tasks. If it does not, the family measures nothing and the control
+# vs aion comparison is void.
+#
+# `aion` and `oracle-leak` use no model and cost nothing. Only `control`
+# calls an API.
+model: z-ai/glm-5.2
+output_root: results/leaktrap
+defaults:
+  limit: 40
+
+runs:
+  - benchmark: leaktrap
+    name: lt-oracle
+    args: {subcommand: oracle-leak}
+  - benchmark: leaktrap
+    name: lt-aion
+    args: {subcommand: aion}
+  - benchmark: leaktrap
+    name: lt-control
+    args: {subcommand: control}

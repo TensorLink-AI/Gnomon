@@ -77,6 +77,13 @@ REGISTRY: dict[str, dict[str, Any]] = {
         "accepts": {"model", "temperature", "output_dir"},
         "limit_flag": "--limit",
     },
+    "leaktrap": {
+        # Tasks are generated from (seed, horizon, history), not downloaded,
+        # so this adapter needs no data directory.
+        "module": "benchmarks.leaktrap.run_leaktrap",
+        "accepts": {"model", "temperature", "output_dir"},
+        "limit_flag": "--limit",
+    },
 }
 
 

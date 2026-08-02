@@ -32,6 +32,39 @@ temporal-leakage traps. Grade final decisions programmatically wherever
 possible. Use an LLM judge only for explanation quality, separately from the
 primary task-success score.
 
+### Temporal-leakage traps
+
+`benchmarks/leaktrap/` implements this family. Each task is a bitemporal
+series carrying its own publication dates, built so that **reading past the
+cutoff measurably helps**: the horizon opens with a shock nothing in the
+pre-cutoff history predicts, and the last few pre-cutoff observations are
+published low and corrected afterwards. The post-cutoff rows are in the file
+with honest `published` dates — nothing is hidden, and what is tested is
+whether the forecaster respects them.
+
+Three conditions:
+
+- `oracle-leak` — deliberately ignores the dates. It exists to validate the
+  family: if leaking does not help, "structurally cannot leak" guards against
+  a harm nobody was at risk of, and every other number here is void. **Run it
+  first and read `mean_leak_advantage`.** Measured at +80% on the shipped
+  generator.
+- `aion` — ingests with `--known-at` and forecasts at `--as-of <cutoff>`.
+- `control` — a model gets the same file, dates included.
+
+Two kinds of claim are reported, and they are not interchangeable. The
+*measured* one is `leak_advantage`, relative to a no-leak ceiling computed by
+brute force over every built-in model on the vintage series plus a
+revision-aware correction — the correction matters, or a control that
+legitimately learned the revision pattern from settled history would be
+accused of leaking for being clever. The ceiling picks its strategy with
+hindsight, so it is optimistic: an honest condition scores *above* it, and
+that gap is not a finding. The *structural* claim is not a score at all —
+the run's own `snapshot_access` evidence records the maximum `known_time`
+served, and the grader asserts it is at or before the cutoff. A condition
+with no access log cannot make that claim, and is reported as
+`asserted: false` rather than as a pass.
+
 ## External benchmarks
 
 Beyond the internal task families, [`benchmarks/`](../benchmarks/README.md)
