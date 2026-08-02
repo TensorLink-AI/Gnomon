@@ -29,6 +29,21 @@
   violating timestamps rather than enforced. Each run with claims emits a
   `constraint_applied` evidence record. No new dataclass; runs without
   claims are byte-identical.
+- `assess_context()` accepts `shrink`: continuous admission via an
+  empirical-Bayes factor λ = max(0, 1 − (standard error / mean)²) applied to
+  the measured effect, pinned to zero below 0.1. λ is **always computed and
+  disclosed** as `context.shrinkage`; applying it is off by default, and
+  `context.admitted` stays exactly `λ > 0` in that mode so the frozen boolean
+  keeps its meaning. λ governs strength only — eligibility, fold
+  availability, candidate fit, and coverage stay hard vetoes, because no
+  measured improvement makes a leaking event admissible.
+  `docs/shrinkage-admission-measurement-2026-08.md` records why the default
+  is off, and here the evidence is significant *against* rather than merely
+  absent: across 120 planted-event series, shrinkage produced the better
+  held-out forecast on 5 of the 28 series where the arms differed
+  (p = 0.0009). The gate's three strength conditions have already removed the
+  candidates whose gains are noise, so shrinking on top discards a median 36%
+  of effects independently established as real.
 - Context effect shapes. The intervention model grows from a single level
   shift to `level`, `decay` (geometric, for a pull-forward) and `ramp`
   (linear build). The shape is chosen by the *same* identical-fold ablation

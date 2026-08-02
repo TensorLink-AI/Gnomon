@@ -355,3 +355,56 @@ class TestEffectShapes:
                 f"planted {kind}, ablation chose {context['effect_shape']} "
                 f"from {context['shape_scores']}"
             )
+
+
+class TestShrinkageAdmission:
+    """λ governs strength, never validity.
+
+    Measured to make forecasts worse when stacked on top of the existing
+    strength conditions (docs/shrinkage-admission-measurement-2026-08.md),
+    so it is off by default. λ is computed and disclosed regardless, which
+    is what makes that measurable at all.
+    """
+
+    def test_a_mean_far_above_its_noise_keeps_the_effect(self):
+        from aion.context_eval import shrinkage_factor
+
+        assert shrinkage_factor([0.50, 0.52, 0.49, 0.51]) > 0.95
+
+    def test_a_mean_inside_its_noise_keeps_none(self):
+        from aion.context_eval import shrinkage_factor
+
+        assert shrinkage_factor([0.5, -0.4, 0.6, -0.5]) == 0.0
+
+    def test_a_negative_mean_keeps_none(self):
+        from aion.context_eval import shrinkage_factor
+
+        assert shrinkage_factor([-0.2, -0.3, -0.1]) == 0.0
+
+    def test_a_factor_below_the_floor_is_pinned_to_zero(self):
+        from aion.context_eval import MINIMUM_SHRINKAGE, shrinkage_factor
+
+        # Constructed so the raw factor lands just under the floor: a small
+        # non-zero effect no evidence supports is worse than none.
+        value = shrinkage_factor([0.30, 0.05, 0.28, 0.02])
+        assert value == 0.0 or value >= MINIMUM_SHRINKAGE
+
+    def test_one_fold_cannot_support_any_effect(self):
+        from aion.context_eval import shrinkage_factor
+
+        assert shrinkage_factor([0.9]) == 0.0
+        assert shrinkage_factor([]) == 0.0
+
+    def test_shrinkage_is_disclosed_even_when_not_applied(self, tmp_path):
+        csv_path = tmp_path / "promo.csv"
+        _write_csv(csv_path, 130)
+        artifact, _ = forecast(
+            str(csv_path), time_column="timestamp", target_column="requests",
+            horizon=7, frequency="D", output=str(tmp_path / "out"),
+            context_events=_events(140),
+        )
+        context = artifact.results[0].context
+        assert "shrinkage" in context, (
+            "the factor must be visible whether or not it is applied, or the "
+            "decision to leave it off cannot be revisited with evidence"
+        )

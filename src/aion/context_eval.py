@@ -37,6 +37,49 @@ COVERAGE_DEGRADATION_LIMIT = 0.1
 CONTEXT_MODEL_NAME = "event_adjusted"
 
 
+#: Below this, a shrinkage factor is pinned to zero rather than applied. A
+#: λ derived from four folds is itself noisy, and a small non-zero effect
+#: that no evidence supports is worse than none: it moves the answer while
+#: being indefensible if asked why.
+MINIMUM_SHRINKAGE = 0.1
+
+
+def shrinkage_factor(improvements: list[float]) -> float:
+    """How much of the measured effect the fold evidence actually supports.
+
+    A binary gate at a fixed margin is high variance when there are four
+    folds to decide on: a candidate just under the line gets nothing and one
+    just over gets everything, on a difference well inside the noise. This
+    is the empirical-Bayes answer to the same question — shrink the effect
+    toward zero in proportion to how much of the observed mean could be
+    sampling noise:
+
+        λ = max(0, 1 − (standard error / mean)²)
+
+    A mean much larger than its own standard error keeps nearly all of the
+    effect; a mean comparable to its noise keeps almost none. Below
+    ``MINIMUM_SHRINKAGE`` it is pinned to zero.
+
+    This governs *strength*, never *validity*. Whether events are eligible,
+    whether folds exist, whether the candidate fits, and whether coverage
+    degraded are correctness conditions and stay binary vetoes: no amount of
+    measured improvement makes a leaking event admissible.
+    """
+    if len(improvements) < 2:
+        return 0.0
+    average = mean(improvements)
+    if average <= 0:
+        return 0.0
+    variance = sum((value - average) ** 2 for value in improvements) / (len(improvements) - 1)
+    standard_error = (variance / len(improvements)) ** 0.5
+    if standard_error <= 0:
+        return 1.0
+    factor = 1.0 - (standard_error / average) ** 2
+    if factor < MINIMUM_SHRINKAGE:
+        return 0.0
+    return min(1.0, factor)
+
+
 def wilson_upper(successes: float, trials: int, z: float = 1.96) -> float:
     """Upper bound of a Wilson score interval for a proportion.
 
@@ -75,6 +118,11 @@ class ContextAssessment:
     # only trustworthy if the measurement is visible.
     effect_shape: str = "level"
     shape_scores: dict[str, float] = field(default_factory=dict)
+    # How much of the measured effect the fold evidence supports, in [0, 1].
+    # Always computed and disclosed; applied only when shrinkage is enabled.
+    # `admitted` remains exactly `shrinkage > 0` in that mode, so the frozen
+    # boolean keeps its meaning.
+    shrinkage: float = 0.0
     # One entry per gate condition evaluated, whether it passed or not, with
     # the number it was decided on. `reasons` says what went wrong in prose;
     # this says what was measured, so admission rates and rejection causes
@@ -106,6 +154,7 @@ class ContextAssessment:
             "mean_improvement": self.mean_improvement,
             "effect_shape": self.effect_shape,
             "shape_scores": self.shape_scores,
+            "shrinkage": self.shrinkage,
             "measured_coverage": self.coverage,
             "gate_checks": self.gate_checks,
         }
@@ -157,6 +206,7 @@ def assess_context(
     season: int,
     minimum_improvement: float,
     base: Evaluation,
+    shrink: bool = False,
 ) -> ContextAssessment:
     eligible, excluded = eligible_events(events, series_name)
     if timestamps and timestamps[0].tzinfo is None:
@@ -378,6 +428,10 @@ def assess_context(
                     f"below the {limit:.1%} policy limit)"),
         )
 
+    # Computed and disclosed whatever the mode, so the number is visible
+    # before anything is decided on it.
+    assessment.shrinkage = shrinkage_factor(improvements)
+
     if assessment.reasons:
         return assessment
 
@@ -389,6 +443,29 @@ def assess_context(
         event_flags(eligible, future_timestamps, final_cutoff),
         selected_shape,
     )
+    if shrink:
+        # Move only as far from the history-only forecast as the fold
+        # evidence supports. `admitted` stays a clean boolean for readers of
+        # the frozen shape -- it is exactly `shrinkage > 0` -- and the factor
+        # sits alongside it.
+        if assessment.shrinkage <= 0:
+            assessment.admitted = False
+            assessment.record_check(
+                "effect_survives_shrinkage", False,
+                measured=0.0, threshold=MINIMUM_SHRINKAGE,
+                detail="the measured improvement is within its own sampling "
+                       "noise, so no part of the effect is supported",
+            )
+            return assessment
+        assessment.record_check(
+            "effect_survives_shrinkage", True,
+            measured=round(assessment.shrinkage, 6), threshold=MINIMUM_SHRINKAGE,
+        )
+        history_only = predict(base.selected_model, values, horizon, season)
+        assessment.points = [
+            plain + assessment.shrinkage * (adjusted - plain)
+            for plain, adjusted in zip(history_only, assessment.points)
+        ]
     if assessment.coverage < 0.7:
         assessment.warnings.append(
             f"Final-test 80% interval coverage was {assessment.coverage:.1%}, below 70%."
