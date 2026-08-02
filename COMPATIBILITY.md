@@ -159,6 +159,26 @@ Error envelope: `{"schema_version", "status": "error", "error": {"code",
   abstention fixtures have no supportable shorter horizon, so their
   messages are identical).
 
+- Per-lead-time conformal intervals, **behaviour change** (Phase 1 of
+  `docs/integration-plan-review-2026-08.md`): interval bounds were the
+  pooled residual quantiles widened by `sqrt(step)`. The pooled
+  residuals span every lead time of a horizon-h fold, so they already
+  contained the growth, and scaling them again double-counted it —
+  measured across 300 synthetic series, coverage was 0.96 against a
+  nominal 0.80, with intervals ~2.5x too wide. Bounds are now split-
+  conformal per lead time: residuals indexed by lead, the finite-sample
+  `ceil((n+1)p)` order statistic instead of an interpolated quantile,
+  the pooled spread borrowed where a lead has fewer than
+  `MIN_RESIDUALS_PER_LEAD` residuals, and half-widths fitted monotone in
+  h. Measured coverage moves to 0.88-0.91 — still conservative, as split
+  conformal guarantees, but no longer by 3x. `q10`/`q50`/`q90` keep
+  their names, meaning, and position; point forecasts, model selection,
+  and artifact IDs are unchanged. Threshold-crossing probabilities
+  follow the same per-lead scaling (their `basis` string says so).
+  `Evaluation` gains `residuals_by_lead`; `interval_bounds` is retained
+  for callers holding one pooled quantile set. Goldens refreshed:
+  quantile columns only.
+
 ## Enforcement
 
 `tests/test_golden_artifacts.py` pins byte-exact `artifact.json` output for

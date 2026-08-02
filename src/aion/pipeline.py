@@ -20,7 +20,12 @@ from .context_eval import CONTEXT_MODEL_NAME, ContextAssessment, assess_context
 from .contracts import AionError, DataSchema, Evidence
 from .covariates import CovariateAssessment, CovariateDataset, assess_covariates
 from .data import Observation, load_observations
-from .evaluation import Evaluation, evaluate, interval_bounds, quantile
+from .evaluation import (
+    Evaluation,
+    conformal_spreads,
+    evaluate,
+    interval_from_spread,
+)
 from .models import MODELS, predict
 from .repair import RepairLog, repair_observations
 from .temporal import detect_season, next_timestamp, validate_and_group
@@ -57,6 +62,9 @@ class SeriesState:
     selected_model: str | None = None
     points: list[float] = field(default_factory=list)
     residuals: list[float] = field(default_factory=list)
+    # Residuals indexed by lead time, when the producing stage measured
+    # them that way; empty means intervals fall back to the pooled spread.
+    residuals_by_lead: dict[int, list[float]] = field(default_factory=dict)
     coverage: float | None = None
     warnings: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
@@ -182,6 +190,7 @@ def evaluate_stage(
     state.warnings = list(assessment.warnings)
     state.notes = list(assessment.notes)
     state.residuals = assessment.residuals
+    state.residuals_by_lead = dict(assessment.residuals_by_lead)
 
 
 def predict_stage(
@@ -213,14 +222,19 @@ def predict_stage(
         holdout = min(horizon, max(1, len(values) // 4))
         origin = len(values) - holdout
         pooled: list[float] = []
+        pooled_by_lead: dict[int, list[float]] = {}
         for name in MODELS:
             try:
                 prediction = predict(name, values[:origin], holdout, season)
-                pooled.extend(a - p for a, p in zip(values[origin:], prediction))
             except ValueError:
-                pass
+                continue
+            for step, (actual, predicted) in enumerate(
+                    zip(values[origin:], prediction), 1):
+                pooled.append(actual - predicted)
+                pooled_by_lead.setdefault(step, []).append(actual - predicted)
         if pooled:
             state.residuals = pooled
+            state.residuals_by_lead = pooled_by_lead
     elif assessment.selected_model in MODELS:
         state.points = predict(assessment.selected_model, values, horizon, season)
     else:
@@ -361,14 +375,25 @@ def threshold_analysis_stage(
     rows: list[dict[str, object]],
     points: list[float],
     residuals: list[float],
-    residual_quantiles: dict[float, float],
+    spreads: dict[int, tuple[float, float, float]],
 ) -> dict[str, object]:
-    """Empirical threshold-crossing analysis from the pooled backtest
-    residuals, recentred and widened exactly like the published intervals."""
-    centre_shift = residual_quantiles[0.5]
+    """Empirical threshold-crossing analysis from the backtest residuals,
+    recentred and scaled exactly like the published intervals.
+
+    The published interval at a lead time is now the measured spread at
+    that lead time, so the crossing probability is computed against the
+    same scaling: pooled residuals rescaled to each lead's half-width
+    rather than stretched by sqrt(step).
+    """
     probabilities: list[float] = []
+    pooled_half = (max(spreads[1][0], spreads[1][2])
+                   if spreads and 1 in spreads else 0.0)
     for step, point in enumerate(points, 1):
-        scale = step ** 0.5
+        low_offset, centre_shift, high_offset = spreads[step]
+        lead_half = max(low_offset, high_offset)
+        # Scale the empirical residual cloud to this lead's measured
+        # spread; with one lead's worth of residuals the ratio is 1.
+        scale = (lead_half / pooled_half) if pooled_half > 1e-12 else 1.0
         above = sum(
             1 for residual in residuals
             if point + centre_shift + (residual - centre_shift) * scale > threshold
@@ -388,7 +413,7 @@ def threshold_analysis_stage(
         "first_timestamp_interval_above": first_timestamp(lambda row: row["q90"] > threshold),
         "first_timestamp_point_below": first_timestamp(lambda row: row["point"] < threshold),
         "first_timestamp_interval_below": first_timestamp(lambda row: row["q10"] < threshold),
-        "basis": "empirical probabilities from pooled backtest residuals with sqrt-horizon widening",
+        "basis": "empirical probabilities from backtest residuals scaled to the per-lead-time conformal spread",
     }
 
 
@@ -403,9 +428,11 @@ def interval_stage(
     threshold_analysis: dict[str, object] | None = None
     support = "unsupported"
     if assessment and assessment.supported and state.points:
-        residual_quantiles = {probability: quantile(state.residuals, probability) for probability in (0.1, 0.5, 0.9)}
+        spreads = conformal_spreads(
+            state.residuals_by_lead, len(state.points), state.residuals,
+        )
         for step, (timestamp, point) in enumerate(zip(state.future_timestamps, state.points), 1):
-            q10, q50, q90 = interval_bounds(point, residual_quantiles, step)
+            q10, q50, q90 = interval_from_spread(point, spreads[step])
             rows.append({
                 "timestamp": timestamp.isoformat(), "point": point,
                 "q10": q10, "q50": q50, "q90": q90,
@@ -413,6 +440,6 @@ def interval_stage(
         support = "degraded" if assessment.degraded else ("supported_ensemble" if state.selected_model == "ensemble" else ("weakly_supported" if state.warnings else "supported"))
         if threshold is not None:
             threshold_analysis = threshold_analysis_stage(
-                threshold, rows, state.points, state.residuals, residual_quantiles,
+                threshold, rows, state.points, state.residuals, spreads,
             )
     return rows, support, threshold_analysis

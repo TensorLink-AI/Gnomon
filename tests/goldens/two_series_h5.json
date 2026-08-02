@@ -61,37 +61,37 @@
         {
           "timestamp": "2026-04-30T00:00:00",
           "point": 288.129904223632,
-          "q10": 285.9733851301008,
-          "q50": 288.1437016020964,
-          "q90": 300.90634369639395
+          "q10": 285.4860645662203,
+          "q50": 288.44206287242184,
+          "q90": 301.1778113569793
         },
         {
           "timestamp": "2026-05-01T00:00:00",
           "point": 285.92454647210474,
-          "q10": 282.8690528612311,
-          "q50": 285.93834385056914,
-          "q90": 303.98744539203847
+          "q10": 283.281609546697,
+          "q50": 286.38663438296874,
+          "q90": 302.24110276835535
         },
         {
           "timestamp": "2026-05-02T00:00:00",
           "point": 285.8269288511569,
-          "q10": 282.0816278316211,
-          "q50": 285.8407262296213,
-          "q90": 307.94627077576183
+          "q10": 283.1503914748063,
+          "q50": 286.2554163110781,
+          "q90": 302.1098846964647
         },
         {
           "timestamp": "2026-05-03T00:00:00",
           "point": 298.6181055553638,
-          "q10": 294.29126998983685,
-          "q50": 298.6319029338282,
-          "q90": 324.15718712242324
+          "q10": 295.73737158905027,
+          "q50": 298.842396425322,
+          "q90": 314.69686481070863
         },
         {
           "timestamp": "2026-05-04T00:00:00",
           "point": 303.0554308932828,
-          "q10": 298.21625310767735,
-          "q50": 303.0692282717472,
-          "q90": 331.60736356709674
+          "q10": 299.8552179731509,
+          "q50": 302.96024280942265,
+          "q90": 318.81471119480926
         }
       ],
       "context": null,
@@ -116,7 +116,7 @@
     },
     {
       "series": "beta",
-      "support": "supported",
+      "support": "weakly_supported",
       "selected_model": "linear_trend",
       "strongest_baseline": "seasonal_naive",
       "selection_scores": {
@@ -144,60 +144,72 @@
         "ttm": null
       },
       "baseline_improvement": 0.20891136861097168,
-      "interval_coverage": 0.8,
-      "warnings": [],
+      "interval_coverage": 0.6,
+      "warnings": [
+        "Final-test 80% interval coverage was 60.0%, below 70%."
+      ],
       "forecast": [
         {
           "timestamp": "2026-04-30T00:00:00",
           "point": 66.03785310734463,
-          "q10": 63.299105356908285,
-          "q50": 66.24762754343487,
-          "q90": 69.19696500473518
+          "q10": 63.14837942313412,
+          "q50": 65.70451977401129,
+          "q90": 68.85462850403077
         },
         {
           "timestamp": "2026-05-01T00:00:00",
           "point": 65.63690840048162,
-          "q10": 61.676842771427985,
-          "q50": 65.84668283657186,
-          "q90": 70.01767587435778
+          "q10": 62.89833186335736,
+          "q50": 65.98166183021836,
+          "q90": 69.13177056023784
         },
         {
           "timestamp": "2026-05-02T00:00:00",
           "point": 65.2359636936186,
-          "q10": 60.338747895400715,
-          "q50": 65.44573812970884,
-          "q90": 70.55414046134716
+          "q10": 62.66215753628142,
+          "q50": 65.74548750314241,
+          "q90": 68.8955962331619
         },
         {
           "timestamp": "2026-05-03T00:00:00",
           "point": 64.83501898675559,
-          "q10": 59.14774904979265,
-          "q50": 65.04479342284583,
-          "q90": 70.94346834544642
+          "q10": 60.93095731257751,
+          "q50": 64.0142872794385,
+          "q90": 67.16439600945799
         },
         {
           "timestamp": "2026-05-04T00:00:00",
           "point": 64.43407427989257,
-          "q10": 58.05075267374305,
-          "q50": 64.64384871598281,
-          "q90": 71.23876776803694
+          "q10": 61.84757075746025,
+          "q50": 65.57256167485056,
+          "q90": 68.72267040487004
         }
       ],
       "context": null,
       "covariates": null,
       "threshold": null,
       "support_assessment": {
-        "status": "supported",
-        "reasons": [],
+        "status": "conditionally_supported",
+        "reasons": [
+          {
+            "code": "warning",
+            "message": "Final-test 80% interval coverage was 60.0%, below 70%."
+          }
+        ],
         "assumptions": [
           "known_time_assumed: the source provides no known-time column, so each observation is treated as known the moment it applies (known_time = valid_time). Revisions and publication lags are invisible to this run."
         ],
         "sensitivity": {
           "baseline_improvement": 0.20891136861097168,
-          "final_test_interval_coverage": 0.8
+          "final_test_interval_coverage": 0.6
         },
-        "recovery_actions": [],
-        "legacy_support": "supported"
+        "recovery_actions": [
+          {
+            "code": "review_warnings",
+            "message": "Inspect the attached warnings; each names the condition under which this forecast holds."
+          }
+        ],
+        "legacy_support": "weakly_supported"
       },
       "notes": [
         "No foundation-model candidate competed: chronos_bolt_mini, chronos_bolt_small, flowstate, moirai2_small, moment_small, toto2_22m, ttm are eligible for this series but no sandbox is installed. Run `aion tsfm install chronos_bolt_mini` to add one; it enters the same folds against the same baselines."
@@ -283,8 +295,10 @@
       "kind": "support_assessment",
       "series": "beta",
       "payload": {
-        "support": "supported",
-        "warnings": []
+        "support": "weakly_supported",
+        "warnings": [
+          "Final-test 80% interval coverage was 60.0%, below 70%."
+        ]
       }
     },
     {

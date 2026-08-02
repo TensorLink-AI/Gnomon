@@ -127,7 +127,7 @@
         "first_timestamp_interval_above": "2026-02-05T00:00:00",
         "first_timestamp_point_below": null,
         "first_timestamp_interval_below": null,
-        "basis": "empirical probabilities from pooled backtest residuals with sqrt-horizon widening"
+        "basis": "empirical probabilities from backtest residuals scaled to the per-lead-time conformal spread"
       },
       "support_assessment": {
         "status": "conditionally_supported",

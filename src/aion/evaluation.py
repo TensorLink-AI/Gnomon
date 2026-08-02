@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass, field
 from statistics import mean
 from typing import Any, Callable
@@ -29,6 +30,10 @@ class Evaluation:
     # On a data-insufficiency abstention: the largest horizon the supplied
     # observations *can* support, so the refusal names an immediate retry.
     max_supportable_horizon: int | None = None
+    # Residuals indexed by lead time (1-based). `residuals` stays the pooled
+    # list every existing caller reads; this is what conformal intervals are
+    # built from.
+    residuals_by_lead: dict[int, list[float]] = field(default_factory=dict)
 
 
 def error_score(actual: list[float], predicted: list[float]) -> float:
@@ -48,17 +53,126 @@ def quantile(values: list[float], probability: float) -> float:
     return ordered[lower] * (1 - weight) + ordered[upper] * weight
 
 
+#: Fewest residuals at one lead time before its own quantiles are trusted;
+#: below this the lead borrows the pooled spread (see `conformal_spreads`).
+MIN_RESIDUALS_PER_LEAD = 8
+
+
+def conformal_quantile(values: list[float], probability: float) -> float:
+    """Finite-sample (split-conformal) quantile.
+
+    The plain interpolated quantile of a handful of residuals is
+    anti-conservative: with five residuals there is no honest 90th
+    percentile, and interpolating between the two largest produces an
+    interval far narrower than the data supports. Conformal prediction's
+    correction is to take the ``ceil((n + 1) * p)``-th order statistic —
+    which for small ``n`` lands on the extreme value rather than inside
+    the sample — so coverage is maintained by widening when evidence is
+    thin instead of pretending to precision.
+    """
+    ordered = sorted(values)
+    n = len(ordered)
+    if n == 0:
+        raise ValueError("no residuals")
+    if n == 1:
+        return ordered[0]
+    if probability >= 0.5:
+        rank = math.ceil((n + 1) * probability)
+        return ordered[min(rank, n) - 1]
+    rank = math.floor((n + 1) * probability)
+    return ordered[max(rank, 1) - 1]
+
+
 def interval_bounds(
     point: float, residual_quantiles: dict[float, float], step: int
 ) -> tuple[float, float, float]:
-    """Interval for forecast step ``step`` (1-based): the median residual shifts
-    the centre, and the spread around it widens with sqrt(step) so uncertainty
-    grows over the horizon instead of staying constant."""
+    """Interval for forecast step ``step`` (1-based) from *pooled* residuals.
+
+    Retained for callers holding one pooled quantile set. The ``sqrt(step)``
+    widening it applies is only correct when the residuals describe a single
+    lead time; residuals pooled across a whole horizon already contain the
+    growth, and widening them again double-counts it. Prefer
+    :func:`conformal_spreads` with :func:`interval_from_spread`, which
+    measures the spread at each lead time instead of assuming its shape.
+    """
     centre = point + residual_quantiles[0.5]
     scale = step ** 0.5
     low = centre + (residual_quantiles[0.1] - residual_quantiles[0.5]) * scale
     high = centre + (residual_quantiles[0.9] - residual_quantiles[0.5]) * scale
     return min(low, centre, high), centre, max(low, centre, high)
+
+
+def _isotonic(values: list[float]) -> list[float]:
+    """Least-squares fit of a non-decreasing sequence (pool-adjacent-violators).
+
+    Uncertainty about a more distant step is not smaller than about a nearer
+    one; with few folds a lead time can nonetheless land below its
+    predecessor by sampling noise alone. Enforcing monotonicity keeps that
+    artefact from producing an interval that narrows with distance, without
+    imposing a functional form on how it grows.
+    """
+    levels = [[value, 1] for value in values]
+    index = 0
+    while index < len(levels) - 1:
+        if levels[index][0] <= levels[index + 1][0] + 1e-12:
+            index += 1
+            continue
+        total = levels[index][0] * levels[index][1] + levels[index + 1][0] * levels[index + 1][1]
+        weight = levels[index][1] + levels[index + 1][1]
+        levels[index] = [total / weight, weight]
+        del levels[index + 1]
+        if index:
+            index -= 1
+    return [level[0] for level in levels for _ in range(int(level[1]))]
+
+
+def conformal_spreads(
+    residuals_by_lead: dict[int, list[float]], horizon: int,
+    pooled: list[float] | None = None,
+) -> dict[int, tuple[float, float, float]]:
+    """Split-conformal offsets (low, median, high) for each lead time.
+
+    Residuals are collected per lead time h, so the interval at h is the
+    measured spread at h — not a pooled spread scaled by an assumed shape.
+    Lead times with too few residuals borrow the pooled set rather than
+    trusting a two-sample quantile, and the half-widths are then fitted
+    monotone in h.
+    """
+    pooled = pooled if pooled is not None else [
+        residual for residuals in residuals_by_lead.values() for residual in residuals
+    ]
+    if not pooled:
+        return {}
+    pooled_quantiles = {p: conformal_quantile(pooled, p) for p in (0.1, 0.5, 0.9)}
+
+    medians: list[float] = []
+    lows: list[float] = []
+    highs: list[float] = []
+    for step in range(1, horizon + 1):
+        residuals = residuals_by_lead.get(step) or []
+        if len(residuals) >= MIN_RESIDUALS_PER_LEAD:
+            quantiles = {p: conformal_quantile(residuals, p) for p in (0.1, 0.5, 0.9)}
+        else:
+            # Too few residuals at this lead to estimate its own tails:
+            # borrow the pooled spread rather than invent precision.
+            quantiles = pooled_quantiles
+        medians.append(quantiles[0.5])
+        lows.append(quantiles[0.5] - quantiles[0.1])
+        highs.append(quantiles[0.9] - quantiles[0.5])
+
+    lows = _isotonic([max(0.0, value) for value in lows])
+    highs = _isotonic([max(0.0, value) for value in highs])
+    return {step + 1: (lows[step], medians[step], highs[step])
+            for step in range(horizon)}
+
+
+def interval_from_spread(
+    point: float, spread: tuple[float, float, float]
+) -> tuple[float, float, float]:
+    """Interval at one lead time from its conformal offsets."""
+    low_offset, median, high_offset = spread
+    centre = point + median
+    return centre - low_offset, centre, centre + high_offset
 
 
 def _origins(length: int, horizon: int, minimum_train: int) -> list[int]:
@@ -448,16 +562,22 @@ def evaluate(
     # for stable quantiles. Folds where the selected model cannot predict
     # (possible for TSFM adapters) simply contribute nothing.
     residuals: list[float] = []
+    residuals_by_lead: dict[int, list[float]] = {}
+
+    def _record(actual: list[float], prediction: list[float]) -> None:
+        for step, (a, p) in enumerate(zip(actual, prediction), 1):
+            residuals.append(a - p)
+            residuals_by_lead.setdefault(step, []).append(a - p)
+
     for origin in selection_origins:
         try:
             prediction = _predict_selected(selected, train_at(origin))
         except Exception:
             continue
-        actual = values[origin : origin + horizon]
-        residuals.extend(a - p for a, p in zip(actual, prediction))
+        _record(values[origin : origin + horizon], prediction)
     calibration_actual = values[calibration_origin : calibration_origin + horizon]
-    residuals.extend(a - p for a, p in zip(calibration_actual, calibration_prediction))
-    residual_quantiles = {p: quantile(residuals, p) for p in (0.1, 0.5, 0.9)}
+    _record(calibration_actual, calibration_prediction)
+    spreads = conformal_spreads(residuals_by_lead, horizon, residuals)
 
     # --- Test ---
     test_scores: dict[str, float | None] = {name: None for name in all_model_names}
@@ -479,10 +599,13 @@ def evaluate(
             test_prediction = predict(strongest_baseline, train_at(test_origin), horizon, season)
         covered = []
         for step, (actual, prediction) in enumerate(zip(test_actual, test_prediction), 1):
-            low, _, high = interval_bounds(prediction, residual_quantiles, step)
+            spread = spreads.get(step)
+            if spread is None:
+                continue
+            low, _, high = interval_from_spread(prediction, spread)
             covered.append(1.0 if low <= actual <= high else 0.0)
-        coverage = mean(covered)
-        if coverage < 0.7:
+        coverage = mean(covered) if covered else None
+        if coverage is not None and coverage < 0.7:
             warnings.append(f"Final-test 80% interval coverage was {coverage:.1%}, below 70%.")
     else:
         warnings.append(
@@ -491,4 +614,5 @@ def evaluate(
         )
     return Evaluation(selected, strongest_baseline, scores, test_scores, improvement,
                       residuals, coverage, warnings, True, degraded,
-                      tsfm_scores=tsfm_scores, notes=notes)
+                      tsfm_scores=tsfm_scores, notes=notes,
+                      residuals_by_lead=residuals_by_lead)

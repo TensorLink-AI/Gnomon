@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Forecast intervals are now split-conformal per lead time. The previous
+  bounds took residuals pooled across a whole horizon and widened them by
+  `sqrt(step)` — but pooled residuals already contain lead-time growth, so
+  the widening double-counted it. Measured over 300 synthetic series,
+  coverage was 0.96 against a nominal 0.80 and intervals were ~2.5x wider
+  than the data supports. Residuals are now indexed by lead time, tails use
+  the finite-sample conformal order statistic rather than an interpolated
+  quantile (with a handful of residuals there is no honest 90th percentile),
+  sparse leads borrow the pooled spread, and half-widths are fitted monotone
+  in the horizon. Coverage measures 0.88-0.91 — conservative by design, not
+  by accident. Intervals still widen with the horizon, now because the
+  residuals at longer leads are wider rather than because a formula says so.
+
 - Anomaly detection covers trend anomalies, and says what its grade
   covers. A fourth detector (`local_slope`) scores how fast the series
   moves rather than where it sits, and the grader plants a fourth family
