@@ -4,6 +4,31 @@ The CLI writes successful machine-readable responses to standard output and
 structured errors to standard error. Success exits with code `0`; Aion
 input/runtime errors exit with code `2`.
 
+Every command below is implemented and reachable in this build. The one
+exception is marked: `aion plan` is gated behind
+`AION_EXPERIMENTAL_PLANNER=1`. Commands that exist only in the design
+documents are listed under [Not currently
+available](#not-currently-available) at the end.
+
+## The five verbs
+
+| Command | Question | Section |
+| --- | --- | --- |
+| `aion forecast` | What happens next? | [↓](#aion-forecast) |
+| `aion investigate` | What changed? | [↓](#aion-investigate) |
+| `aion detect` | What is abnormal? | [↓](#aion-detect) |
+| `aion decide` | What should we do? | [↓](#aion-decide) |
+| `aion monitor` | When should we intervene? | [↓](#aion-monitor) |
+
+## Everything else
+
+`aion capabilities` · `aion inspect` · `aion route` · `aion ingest` ·
+`aion store list` · `aion status` · `aion context prompt|validate` ·
+`aion covariates guide|validate` · `aion mcp serve` ·
+`aion tsfm list|install|install-all|remove` ·
+`aion track actuals|compare|coverage|decision|due|export|leaderboard|list|outcome|performance|relocate|score` ·
+`aion eval compare|episodes` · `aion plan compile|validate|execute`
+
 ## Global options
 
 ```bash
@@ -251,11 +276,6 @@ aion forecast data.csv --time timestamp --target value --horizon 7 > run.json
 Do not infer success from the existence of output text; check the process exit
 code and the response's `status` field.
 
-## Not currently available
-
-Commands described in future-facing design documents—such as `init`, `run`,
-and `share`—are not implemented in v0.2.
-
 ## `aion investigate`
 
 What changed? Changepoint detection, regime-shift vs transient
@@ -391,3 +411,10 @@ aion plan compile --task-type forecast --params '{"input": "data.csv",
 aion plan validate --plan @plan.json
 aion plan execute --plan @plan.json --output aion-output
 ```
+
+## Not currently available
+
+`aion init`, `aion run`, and `aion share` appear in the product
+specification and system design. They are **not implemented**, and no
+mocked version of them is exposed. Ask `aion capabilities` rather than
+either design document when you need to know what this build can do.

@@ -4,7 +4,19 @@
 
 **Version:** 0.1  
 **Date:** 28 July 2026  
-**Status:** Working technical design for MVP implementation
+**Status:** Historical design document — superseded in parts by the shipped runtime
+
+> **Read this as intent, not as description.** It was written before
+> implementation, at v0.1; the runtime is now 0.4.0 and its architecture
+> has moved on — most visibly, the harness now has five verbs, a bitemporal
+> store with `--as-of` replay, typed lineage with a deterministic claim
+> verifier, and a sandboxed TSFM tier, none of which are specified here as
+> built.
+>
+> Interfaces named here may not exist, and existing interfaces may differ.
+> **`aion capabilities` is the source of truth**; the
+> [CLI reference](docs/cli-reference.md) and
+> [documentation index](docs/README.md) describe the current surface.
 
 > **Architecture decision:** Aion uses a deterministic temporal runtime as the source of truth. Hermes Agent or an optional Aion orchestrator may formulate tasks, inspect permitted sources, propose context, select bounded experiments, and interpret results. No LLM is allowed to generate, edit, or override forecast values, evaluation metrics, uncertainty, selection decisions, or abstention.
 

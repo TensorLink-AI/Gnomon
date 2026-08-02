@@ -19,7 +19,7 @@ inventory so a human can decide. This is that inventory, measured
 | PyPI distribution | `aion-forecast` | v0.4.0 tagged; a rename means a new project, and the old name must stay as a redirect shim or installs break |
 | Import package | `aion` (`src/aion/`) | every user's `from aion import forecast` |
 | Console script | `aion` (`[project.scripts]`) | every documented command, every user's shell history and scripts |
-| MCP tool prefix | `aion_*` — 24 tools (`aion_forecast`, `aion_detect_anomalies`, `aion_route`, …) | **frozen by `COMPATIBILITY.md`**; renaming breaks the v0.2 contract outright |
+| MCP tool prefix | `aion_*` — 22 tools (`aion_forecast`, `aion_detect_anomalies`, `aion_route`, …) | **frozen by `COMPATIBILITY.md`**; renaming breaks the v0.2 contract outright |
 | GHCR image | `ghcr.io/tensorlink-ai/aion` | tags `0.4.0`, `0.4` published |
 | Hermes plugin | root `__init__.py`, `plugin.yaml` | `hermes plugins install <repo-url>` resolves by repo root |
 | Store/artifact strings | `store:<dataset>` refs, `forecast_<hex>` ids | ids are content-addressed and salted with the version, not the name — unaffected |
