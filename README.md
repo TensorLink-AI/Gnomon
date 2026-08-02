@@ -338,6 +338,19 @@ v0.1 direction documents —
 [system design](Gnomon_System_Design.md) — which describe features that were
 never built. Check `gnomon capabilities` before believing any of them.
 
+## The name
+
+A gnomon is the shadow-casting rod on a sundial. It computes nothing and
+holds no model of the day — it casts a shadow, and the calibrated dial
+turns that shadow into a time. Two properties carried the name over:
+a sundial reads nothing at night rather than inventing a plausible hour,
+and its honesty is structural rather than reviewed. Misalign a gnomon from
+the celestial pole and it will tell you the wrong time confidently and
+forever, with no internal signal that anything is wrong. Both are things
+this runtime is built to get right: abstention is a complete answer, and
+the `as_of` guarantee is enforced by the snapshot rather than by an agent
+checking its own work.
+
 ## Relation to prior work
 
 Two recent systems share vocabulary with this one. They solve a different
