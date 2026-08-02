@@ -10,3 +10,8 @@ aion-output/
 # secrets
 .env
 .env.*
+
+# Benchmark corpora are downloaded, not versioned. A `git add -A` swept
+# 582 MB of them into history once; GitHub rejects the 290 MB file among
+# them, and nothing in the codebase reads these paths.
+data/
