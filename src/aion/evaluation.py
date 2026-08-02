@@ -252,11 +252,19 @@ def evaluate(
     config: Any = None,
     strict_abstention: bool = False,
     train_at: Callable[[int], list[float]] | None = None,
+    extra_candidates: dict[str, Callable[[int, int], list[float]]] | None = None,
 ) -> Evaluation:
     """``train_at(origin)`` returns the training history for a fold whose
     forecast origin is index ``origin`` — by default a plain prefix slice,
     but a snapshot-backed provider returns the series *as known at* the
-    fold cutoff, which is what makes backtests vintage-honest."""
+    fold cutoff, which is what makes backtests vintage-honest.
+
+    ``extra_candidates`` maps a name to ``predictor(origin, horizon)`` for
+    candidates that need more than this series' own history — a VAR fit
+    across aligned series, say. They are scored on the same folds, against
+    the same baselines, under the same improvement margin as everything
+    else; a candidate that cannot beat the ladder does not get in by being
+    special."""
     if train_at is None:
         train_at = lambda origin: values[:origin]  # noqa: E731
     minimum_train = max(2 * season, 2 * horizon, 8)
@@ -420,6 +428,32 @@ def evaluate(
         else:
             tsfm_scores[name] = None
 
+    # --- Run cross-series candidates on the same selection folds ---
+    extra_candidates = dict(extra_candidates or {})
+    extra_fold_scores: dict[str, list[float | None]] = {name: [] for name in extra_candidates}
+    for name, predictor in extra_candidates.items():
+        for origin in selection_origins:
+            actual = values[origin : origin + horizon]
+            try:
+                forecast = predictor(origin, horizon)
+            except Exception:
+                logger.debug("candidate %s failed on fold at origin %d", name, origin,
+                             exc_info=True)
+                extra_fold_scores[name].append(None)
+                continue
+            if len(forecast) != horizon:
+                extra_fold_scores[name].append(None)
+                continue
+            extra_fold_scores[name].append(error_score(actual, forecast))
+    extra_scores: dict[str, float | None] = {}
+    for name, items in extra_fold_scores.items():
+        valid = [item for item in items if item is not None]
+        extra_scores[name] = (
+            mean(valid) if valid and len(valid) == len(selection_origins) else None
+        )
+        if name not in all_model_names:
+            all_model_names.append(name)
+
     # --- Compute ensemble forecast on selection folds ---
     ensemble_fold_scores: list[float | None] = []
     if ensemble_enabled or meta_model_enabled:
@@ -529,6 +563,9 @@ def evaluate(
     for name, score in tsfm_scores.items():
         if score is not None:
             candidate_scores[name] = score
+    for name, score in extra_scores.items():
+        if score is not None:
+            candidate_scores[name] = score
     if ensemble_score is not None:
         candidate_scores["ensemble"] = ensemble_score
     if meta_model_score is not None:
@@ -541,7 +578,7 @@ def evaluate(
             selected = candidate
 
     # --- Calibration ---
-    all_scores = {**scores, **tsfm_scores}
+    all_scores = {**scores, **tsfm_scores, **extra_scores}
     if ensemble_score is not None:
         all_scores["ensemble"] = ensemble_score
     if meta_model_score is not None:
@@ -583,12 +620,17 @@ def evaluate(
             last_observed=train[-1] if train else 0.0, config=ensemble_cfg,
         )
 
-    def _predict_selected(name: str, train: list[float]) -> list[float]:
-        """Dispatch a prediction to a built-in model, a TSFM, or the ensemble."""
+    def _predict_selected(name: str, train: list[float], origin: int) -> list[float]:
+        """Dispatch a prediction to a built-in model, a TSFM, the ensemble, or
+        a cross-series candidate. ``origin`` is the fold's forecast origin —
+        cross-series candidates need it because their inputs are other series,
+        which ``train`` does not carry."""
         if name in MODELS:
             return predict(name, train, horizon, season)
         if name == "ensemble":
             return _ensemble_predict(train)
+        if name in extra_candidates:
+            return extra_candidates[name](origin, horizon)
         adapter = next((a for a in tsfm_adapters if a.name == name), None)
         if adapter is None:
             raise ValueError(f"no adapter available for {name}")
@@ -597,7 +639,7 @@ def evaluate(
     # Get calibration prediction from the selected model; fall back to the
     # strongest baseline if a TSFM/ensemble selection cannot predict here.
     try:
-        calibration_prediction = _predict_selected(selected, train_at(calibration_origin))
+        calibration_prediction = _predict_selected(selected, train_at(calibration_origin), calibration_origin)
     except Exception as exc:
         if selected not in MODELS:
             logger.warning(
@@ -627,13 +669,13 @@ def evaluate(
 
         for origin in selection_origins:
             try:
-                prediction = _predict_selected(name, train_at(origin))
+                prediction = _predict_selected(name, train_at(origin), origin)
             except Exception:
                 continue
             record(values[origin : origin + horizon], prediction)
         if final_prediction is None:
             try:
-                final_prediction = _predict_selected(name, train_at(calibration_origin))
+                final_prediction = _predict_selected(name, train_at(calibration_origin), calibration_origin)
             except Exception:
                 return pooled, by_lead
         record(values[calibration_origin : calibration_origin + horizon],
@@ -659,14 +701,14 @@ def evaluate(
         for name in {selected, strongest_baseline}:
             try:
                 test_scores[name] = error_score(
-                    test_actual, _predict_selected(name, train_at(test_origin))
+                    test_actual, _predict_selected(name, train_at(test_origin), test_origin)
                 )
             except Exception:
                 logger.debug("model %s failed during test fold", name, exc_info=True)
 
         # Get test prediction for coverage assessment
         try:
-            test_prediction = _predict_selected(selected, train_at(test_origin))
+            test_prediction = _predict_selected(selected, train_at(test_origin), test_origin)
         except Exception:
             test_prediction = predict(strongest_baseline, train_at(test_origin), horizon, season)
         covered = []
@@ -684,7 +726,8 @@ def evaluate(
             "Limited evaluation: no held-out test fold remained, so interval "
             "coverage is unmeasured."
         )
-    return Evaluation(selected, strongest_baseline, scores, test_scores, improvement,
+    return Evaluation(selected, strongest_baseline, {**scores, **extra_scores},
+                      test_scores, improvement,
                       residuals, coverage, warnings, True, degraded,
                       tsfm_scores=tsfm_scores, notes=notes,
                       residuals_by_lead=residuals_by_lead,

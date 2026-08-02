@@ -1,0 +1,9 @@
+
+Background:
+This is the electricity consumption recorded in Kilowatt (kW) in city A.
+
+Constraints:
+None
+
+Scenario:
+Suppose that there is a heat wave in city A from 2013-05-28 12:00:00 for 2 hours, leading to excessive use of air conditioning, and 4 times the usual electricity being consumed. A brief technical issue in the electricity grid caused a major dip of 75% in electricity consumption 2 weeks ago. This issue is not expected to happen again this week.

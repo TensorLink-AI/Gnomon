@@ -1,0 +1,9 @@
+{'adapter': 'AionForecaster_mode=pure_model=none',
+ 'context': None,
+ 'proposal_notes': [],
+ 'proposed_events': [],
+ 'selected_model': 'seasonal_naive',
+ 'strongest_baseline': 'seasonal_naive',
+ 'support': 'supported',
+ 'total_time': 0.03729367256164551,
+ 'warnings': []}

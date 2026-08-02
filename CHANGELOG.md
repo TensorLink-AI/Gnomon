@@ -2,6 +2,39 @@
 
 ## Unreleased
 
+- **Behaviour change.** `--multivariate` no longer overrides the forecast.
+  The VAR(1) candidate is now entered in the selection folds like every other
+  model: scored on the same rolling origins, against the same baselines,
+  under the same improvement margin, with its own fold-separated calibration
+  residuals. Previously it overwrote the univariate point forecast outright
+  for every aligned series — no fold comparison against the models it
+  displaced, no evidence record, and its internal check validated on a
+  trailing window that overlaps the report-only test fold. Consequences:
+  the VAR is now admitted **per series** rather than imposed on all of them,
+  an admitted VAR carries intervals derived from its own residuals rather
+  than a different model's, and every run with `--multivariate` emits a
+  `multivariate_gate` evidence record with the conditions and the one that
+  decided the outcome. `aion.multivariate.forecast_var` is removed;
+  `VarFrame` replaces it.
+- **Behaviour change.** Ensemble prediction intervals are calibrated on the
+  selection and calibration folds instead of a trailing window of the series.
+  The old window overlapped both the calibration fold and the report-only
+  test fold, and pooled across models at a single origin — so it measured
+  model disagreement rather than error by lead time. On a representative
+  series it produced intervals 3.3x too narrow. `--selection-strategy
+  ensemble` now also enters the ensemble in the evaluation rather than only
+  swapping the final forecast; where the ensemble still has no
+  fold-separated residuals, it is declined in favour of the calibrated
+  selected model rather than published with someone else's interval.
+- Foundation-model capability exclusions are notes, not warnings, so they no
+  longer downgrade support to `weakly_supported`. Every adapter has a
+  `min_context_length` of 1, so the live trigger was frequency: `flowstate`
+  supports `min`..`MS`, which downgraded every quarterly and annual series
+  regardless of the evidence behind its forecast.
+- `evaluate()` accepts `extra_candidates`: named predictors that need more
+  than the series' own history (`predictor(origin, horizon)`), scored on the
+  same folds under the same margin. This is how the VAR enters the ladder.
+
 - The context admission gate now reports itself. Every run with context
   events emits a `context_gate` evidence record: how many events were
   supplied, how many survived eligibility, each condition the gate

@@ -27,6 +27,7 @@ from .evaluation import (
     interval_from_spread,
 )
 from .models import MODELS, predict
+from .multivariate import MULTIVARIATE_MODEL_NAME
 from .repair import RepairLog, repair_observations
 from .temporal import detect_season, next_timestamp, validate_and_group
 from .temporal_store import InMemoryTemporalStore, Snapshot, TemporalStore
@@ -160,6 +161,7 @@ def evaluate_stage(
     strict_abstention: bool,
     snapshot: Snapshot | None = None,
     variable: str | None = None,
+    extra_candidates: dict[str, Any] | None = None,
 ) -> None:
     """Separated rolling evaluation: selection folds, calibration fold, test
     fold. With a snapshot, every fold trains on the series *as known at*
@@ -183,6 +185,7 @@ def evaluate_stage(
         config=config,
         strict_abstention=strict_abstention,
         train_at=train_at,
+        extra_candidates=extra_candidates,
     )
     state.assessment = assessment
     state.selected_model = assessment.selected_model
@@ -199,6 +202,7 @@ def predict_stage(
     horizon: int,
     frequency: str,
     selection_strategy: str,
+    extra_candidates: dict[str, Any] | None = None,
 ) -> None:
     """Produce the final point forecast from the selected model, with the
     ensemble path and the TSFM sandbox/in-process fallback chain."""
@@ -245,6 +249,11 @@ def predict_stage(
                                    for step, items in ensemble_by_lead.items()}
     elif assessment.selected_model in MODELS:
         state.points = predict(assessment.selected_model, values, horizon, season)
+    elif extra_candidates and assessment.selected_model in extra_candidates:
+        # A cross-series candidate that won the folds; the final forecast is
+        # refit at the end of the observed history, the same way every fold
+        # forecast was refit at its own origin.
+        state.points = extra_candidates[assessment.selected_model](len(values), horizon)
     else:
         # TSFM selected — use the adapter for the final forecast.
         # Try sandbox first, then in-process.
@@ -277,14 +286,69 @@ def predict_stage(
 
 def multivariate_stage(
     state: SeriesState,
-    multivariate_points: dict[str, list[float]],
-    multivariate_warnings: dict[str, str],
+    *,
+    eligible: bool,
+    minimum_baseline_improvement: float,
+    ineligibility_reason: str | None = None,
+    strongest_correlation: float | None = None,
+    series_count: int = 0,
 ) -> None:
-    """Override the univariate forecast with the VAR forecast when one exists."""
-    if state.name in multivariate_points:
-        state.points = multivariate_points[state.name]
-        state.selected_model = "var"
-        state.warnings.append(multivariate_warnings[state.name])
+    """Record what the cross-series candidate was and how it was decided.
+
+    The VAR does not override anything here. It is entered in `evaluate` as a
+    candidate on the same rolling folds as every other model and admitted only
+    by the same margin rule, so by this point selection has already spoken.
+    Previously this stage overwrote the forecast outright — no fold
+    comparison, no baseline, no evidence record — which made it the one path
+    that could publish a number the admission philosophy never examined.
+    """
+    assessment = state.assessment
+    if assessment is None:
+        return
+    score = assessment.selection_scores.get(MULTIVARIATE_MODEL_NAME)
+    baseline = assessment.strongest_baseline
+    baseline_score = assessment.selection_scores.get(baseline) if baseline else None
+    checks: list[dict[str, Any]] = [{
+        "code": "series_eligible_for_var",
+        "passed": eligible,
+        "measured": series_count,
+        **({"detail": ineligibility_reason} if ineligibility_reason else {}),
+    }]
+    if eligible:
+        checks.append({
+            "code": "var_completed_every_fold",
+            "passed": score is not None,
+            "measured": score,
+        })
+        if score is not None and baseline_score:
+            margin = baseline_score * (1 - minimum_baseline_improvement)
+            checks.append({
+                "code": "var_beats_strongest_baseline_by_margin",
+                "passed": score <= margin,
+                "measured": round(score, 6),
+                "threshold": round(margin, 6),
+            })
+            # Clearing the baseline is not the same as winning: another
+            # candidate can clear it by more. Both are recorded so a
+            # rejection histogram distinguishes "no cross-series signal"
+            # from "cross-series signal, but a univariate model did better".
+            checks.append({
+                "code": "var_is_the_best_candidate",
+                "passed": state.selected_model == MULTIVARIATE_MODEL_NAME,
+                "measured": state.selected_model,
+            })
+    state.evidence.append(Evidence(
+        f"multivariate_gate:{state.name}", "multivariate_gate", state.name,
+        {
+            "series_in_frame": series_count,
+            "strongest_correlation": strongest_correlation,
+            "admitted": state.selected_model == MULTIVARIATE_MODEL_NAME,
+            "checks": checks,
+            "decided_by": next(
+                (check["code"] for check in checks if not check["passed"]), None,
+            ),
+        },
+    ))
 
 
 def context_stage(

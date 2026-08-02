@@ -1,0 +1,9 @@
+
+Background:
+This series represents the occupancy rate (%) captured by a highway sensor. The sensor had a calibration problem starting from 2024-01-11 12:00:00 which resulted in an additive trend in the series that increases by 0.0460 at every hour. At timestep 2024-01-18 00:00:00, the sensor was repaired and this additive trend will disappear.
+
+Constraints:
+None
+
+Scenario:
+None

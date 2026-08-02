@@ -202,28 +202,44 @@ def forecast(
     )
     results: list[SeriesResult] = []
     evidence: list[Evidence] = []
-    multivariate_points: dict[str, list[float]] = {}
-    multivariate_warnings: dict[str, str] = {}
-    if multivariate and len(loaded.groups) > 1:
-        from .multivariate import forecast_var
-        multivariate_points, multivariate_warnings = forecast_var(loaded.groups, horizon)
+    var_frame = None
+    var_ineligible: str | None = None
+    if multivariate:
+        from .multivariate import VarFrame
+        var_frame, var_ineligible = VarFrame.build(loaded.groups)
     for series_name, items in sorted(loaded.groups.items()):
         state = horizon_stage(
             series_name, items, horizon=horizon, frequency=loaded.frequency,
             seasonal_period=seasonal_period,
         )
+        extra_candidates: dict[str, Any] = {}
+        if var_frame is not None and series_name in var_frame.names:
+            from .multivariate import MULTIVARIATE_MODEL_NAME
+            extra_candidates[MULTIVARIATE_MODEL_NAME] = var_frame.predictor(series_name)
         evaluate_stage(
             state, horizon=horizon,
             minimum_baseline_improvement=minimum_baseline_improvement,
             frequency=loaded.frequency, config=config,
             strict_abstention=strict_abstention,
             snapshot=loaded.snapshot, variable=loaded.variable,
+            extra_candidates=extra_candidates,
         )
         predict_stage(
             state, horizon=horizon, frequency=loaded.frequency,
             selection_strategy=selection_strategy,
+            extra_candidates=extra_candidates,
         )
-        multivariate_stage(state, multivariate_points, multivariate_warnings)
+        if multivariate:
+            multivariate_stage(
+                state,
+                eligible=var_frame is not None,
+                minimum_baseline_improvement=minimum_baseline_improvement,
+                ineligibility_reason=var_ineligible,
+                strongest_correlation=(
+                    round(var_frame.strongest_correlation, 4) if var_frame else None
+                ),
+                series_count=len(var_frame.names) if var_frame else len(loaded.groups),
+            )
         if context_events:
             context_stage(
                 state, context_events, horizon=horizon,
