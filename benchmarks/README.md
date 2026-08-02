@@ -1,5 +1,11 @@
 # Benchmarks
 
+Setup (two interpreters, per-benchmark datasets and dependencies, and
+what each arm costs before you start): **[SETUP.md](SETUP.md)**.
+Comparing arms afterwards: `python -m benchmarks.report --root <results dir>`,
+which joins arms on task id, reports matched-subset means with paired
+significance tests, and refuses comparisons whose manifests disagree.
+
 Faithful, locally runnable implementations of published time-series
 reasoning benchmarks, used to measure whether Aion improves an agent —
 and by how much — on evaluations the community already trusts.

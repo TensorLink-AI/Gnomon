@@ -41,6 +41,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from benchmarks.common.manifest import write_manifest  # noqa: E402
+
 # Which shared defaults each adapter's CLI can accept. "limit_flag"
 # names the adapter's closest equivalent of a sample cap.
 REGISTRY: dict[str, dict[str, Any]] = {
@@ -138,6 +142,10 @@ def build_command(run: dict[str, Any], config: dict[str, Any]) -> list[str]:
     return command
 
 
+def benchmark_of(run: dict[str, Any]) -> str | None:
+    return run.get("benchmark")
+
+
 def summary_path(run: dict[str, Any], config: dict[str, Any]) -> Path | None:
     args = run.get("args") or {}
     if "output_dir" in args:
@@ -163,6 +171,7 @@ def main() -> int:
     args = parser.parse_args()
 
     config = load_config(Path(args.config))
+    args_config_path = args.config
     runs = config.get("runs") or []
     if not runs:
         raise SystemExit("config has no 'runs'")
@@ -191,6 +200,23 @@ def main() -> int:
         outcome: dict[str, Any] = {"name": name, "command": printable,
                                    "status": status}
         path = summary_path(run, config)
+        if path is not None:
+            # Record what this arm was, so a later comparison can refuse
+            # to put it next to an arm that answered other questions.
+            args = dict(run.get("args") or {})
+            write_manifest(
+                path.parent,
+                benchmark=benchmark_of(run),
+                run_name=name,
+                condition=(args.get("condition") or args.get("method")
+                           or args.get("mode") or args.get("subcommand")),
+                target=run.get("target") or args.get("indicator"),
+                model=config.get("model"),
+                command=printable,
+                config_path=args_config_path,
+                limit=(config.get("defaults") or {}).get("limit"),
+                status=status,
+            )
         if path and path.exists():
             outcome["summary"] = json.loads(path.read_text(encoding="utf-8"))
         outcomes.append(outcome)

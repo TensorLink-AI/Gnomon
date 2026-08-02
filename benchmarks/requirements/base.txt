@@ -1,0 +1,8 @@
+# Shared by every adapter. The Aion core itself is stdlib-only; these are
+# the benchmark side's own dependencies.
+#
+#   uv venv .venv && uv pip install --python .venv -e . -r benchmarks/requirements/base.txt
+huggingface_hub>=0.30
+pandas>=2.0
+pyarrow>=15          # MTBench and any parquet-shipped dataset
+pytest>=8
