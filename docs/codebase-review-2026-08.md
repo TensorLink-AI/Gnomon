@@ -11,18 +11,22 @@ Findings below are marked **[run]** where a reproduction was executed and
 **[read]** where the finding comes from the code alone.
 
 **Executed:** the README 60-second quickstart; the `docs/getting-started.md`
-and `docs/quickstart-mcp.md` command sequences; all five verbs
-(`forecast`, `investigate`, `detect`, `decide`, `monitor`) plus `inspect`,
-`route`, `capabilities`, `ingest`, `store`, `status`, `track`; a live MCP
-stdio session driven as a JSON-RPC client (initialize / tools/list /
-tools/call, with and without `AION_EXPERIMENTAL_PLANNER=1`); the documented
-Python API snippets verbatim; two persona loops (SRE: forecast → alert
-policy → submit actuals → realised performance; analyst: investigate →
-forecast → decide); all six documented input formats plus Parquet; nine
+and `docs/quickstart-mcp.md` command sequences including the `uvx --from .`
+install path; all five verbs (`forecast`, `investigate`, `detect`, `decide`,
+`monitor`) plus `inspect`, `route`, `capabilities`, `ingest`, `store`,
+`status`, `track list|actuals|performance|compare`, and `plan
+compile|execute`; a live MCP stdio session driven as a JSON-RPC client
+(initialize / tools/list / tools/call, with and without
+`AION_EXPERIMENTAL_PLANNER=1`); the documented Python API snippets verbatim;
+two persona loops (SRE: forecast → alert policy → submit actuals → realised
+performance; analyst: investigate → forecast → decide); the naive no-flags
+path on every command; all six documented input formats plus Parquet; nine
 adversarial inputs (future-dated rows, DST-spanning hourly aware/naive, DST
 daily, unsorted, duplicate timestamps, reverted vintages, leap day,
 month-end, mixed-frequency panel); three covariate vintage regimes (honest,
 same-day, published-after-cutoff); eight abstention-pressure rephrasings;
+a plan replayed at two `as_of` instants against a shared step cache; the
+same content-addressed forecast registered in two tracking projects;
 byte-identity of replayed artifacts under a pinned clock; the test suite
 (443 passed, 1 skipped) and the benchmark suite (85 passed).
 
@@ -33,15 +37,17 @@ byte-identity of replayed artifacts under a pinned clock; the test suite
 and calibration core of `evaluation.py`, the stage graph of `pipeline.py`,
 the macro bodies of `macros.py`, and the config/ensemble/meta-model path.
 
-**Read partially:** `tracking.py` (scoring, adaptation, actuals),
-`tsfm.py` / `tsfm_sandbox.py` (pinning and dispatch), `operators.py`,
-`anomaly.py`, `toolspec.py`.
+**Read partially:** `tracking.py` (scoring, adaptation, actuals, registry
+schema), `tsfm.py` / `tsfm_sandbox.py` (pinning and dispatch),
+`execution.py` (step caching), `operators.py`, `anomaly.py`, `toolspec.py`.
 
 **Not covered:** the `episodes.py` world-simulator internals beyond its
-tests, `context_eval.py`'s gate arithmetic, `multivariate.py`, the
-`plan`/`registry`/`execution` planner internals beyond an end-to-end
-compile-and-validate call, and any TSFM adapter executed for real (no
-sandbox is installed in this environment, so TSFM findings are **[read]**).
+tests, `context_eval.py`'s gate arithmetic, `multivariate.py`,
+`registry.py`'s operator table beyond its entries, and any TSFM adapter
+executed for real (no sandbox is installed in this environment, so TSFM
+findings are **[read]**). Of the docs, `covariates.md`, `installation.md`,
+`containers.md`, `ci-cd.md`, `llm-integrations.md`, `agent-evaluation.md`,
+and `persistent-tracking-design.md` were not diffed against behaviour.
 
 ---
 
@@ -118,6 +124,17 @@ and every sandbox pip spec is unpinned — two of them `git+https://…` with no
 ref — so the same id can denote different weights and different numbers on
 different days [read].
 
+**And there is a cache that outlives the as-of boundary.** The planner's
+per-step cache key is `content_id("step", {"operator", "inputs"})` — it does
+not include `as_of`, though `_execute_step` receives `as_of` and the answer
+depends on it, and the cache directory is shared by every run writing to the
+same output path. Executing a plan against latest data and then replaying the
+same plan at `--as-of 2026-05-01` returns the *latest-data forecast verbatim*
+with `"cached": true`; the replay never touches a snapshot, and its artifact
+records `as_of: 2026-05-01` over numbers computed from data published after
+it [run]. The `run_id` correctly includes `as_of`, which is what makes the
+two runs look distinct while sharing one poisoned cache entry.
+
 The bitemporal store itself can return a wrong historical value: ingestion
 deduplicates by *value*, ignoring `known_time`, so a series revised
 100 → 150 → back to 100 loses its third vintage and replay after the revert
@@ -161,6 +178,8 @@ the output to warn the reader.
 | C6 | Temporal | `evaluation.py:839`; `cli.py`/`toolspec.py` (`minimum_baseline_improvement`) | **[run]** The parameter is unbounded below. At `-5.0` the gate becomes `candidate <= baseline * 6`, and Aion selects `window_average` (0.0752) over `seasonal_naive` (0.0743), reports `baseline_improvement: -0.0124`, and still returns `support: "supported"` with `warnings: []` and no support reason. A caller-supplied parameter silently disables the mandated-baseline rule the README leads with. | Reject `< 0` with a structured error (or clamp to 0), and force `support` to at most `conditionally_supported` with a typed reason whenever `improvement < 0`. |
 | C7 | Temporal | `evaluation.py:692-743` (meta-model); `evaluation.py:655-690` (ensemble) | **[read]** The meta-model is fit on all selection folds by `train_meta_model(mm_fold_forecasts, mm_fold_actuals)` and then scored on **those same folds**, so its selection score is in-sample and competes against its members' honest out-of-sample scores — it wins by construction. `meta_model.py:12-14` claims "trained on the calibration fold and evaluated on the test fold — the same protocol as individual models"; the code does neither. The ensemble has the milder version: each fold's inverse-error weights come from `all_valid_scores`, aggregates computed *across all selection folds including that one*. Both are `enabled: false` by default, which is the only thing holding severity here. | Score the meta-model with leave-one-fold-out refits, or reserve folds it never trains on. Weight the ensemble on fold *i* using scores from folds `< i` only. Correct the docstring either way. |
 | C8 | Temporal | `tsfm.py:351,456,674,746,876`; `tsfm_sandbox.py:67-96` | **[read]** Five of six adapters call `from_pretrained(model_id)` with no `revision` (only FlowState pins `r1.1`), and `TSFM_PIP_SPECS` pins no package version at all — two entries are `git+https://github.com/ibm-granite/granite-tsfm.git` with no ref. The artifact records the model *name*, so a TSFM-selected `forecast_id` does not cover the weights or the library. Two runs with the same id can produce different numbers, and first-write-wins then discards the second. The module docstring cites numpy version conflicts, so the sensitivity is known. | Pin `revision=` on every adapter and `==` every pip spec (or a git ref); resolve the commit hash at load and put it in the id payload and in evidence. |
+| C9 | Temporal | `execution.py:151-155` | **[run]** The planner's step cache key omits `as_of`: `content_id("step", {"operator": step.operator, "inputs": resolved})`. `_execute_step` takes `as_of` and the result depends on it, and `.step-cache/` is shared across every run writing to the same output directory. Verified: the same plan run at latest data and then at `--as-of 2026-05-01` produced identical cache keys, and the replay returned the latest-data forecast with `"cached": true` — a snapshot was never consulted. `run_id` *does* include `as_of`, so the two runs look distinct while sharing one poisoned entry. This is the one place where a documented `--as-of` replay demonstrably reads post-cutoff data. | Put `as_of` (and `store_path`) into the step cache key. Better: key the cache on the resolved snapshot fingerprint, so a cache hit is provably a hit on the same visible data. Add a test that replays one plan at two instants and asserts the results differ. |
+| C10 | Temporal / UX | `tracking.py` (`forecasts` table: `PRIMARY KEY (forecast_id)`) | **[run]** `forecast_id` is content-addressed, so the same forecast registered in a second project **overwrites** the first project's row — project, artifact path, and every realised score move. Verified: a forecast registered and scored under `sre-demo` (MASE 0.893) was reassigned to `win-demo` by a later registration; `aion track list --project sre-demo` then returns `[]` and `aion status` reports empty `model_performance`, while the MASE earned from `sre-demo`'s actuals is now attributed to `win-demo`, whose own actuals scored nothing. This is the evidence base `aion_model_performance` tells agents to read and the router's realised-performance prior consumes. | Make the key `(forecast_id, project, series)` across `forecasts`, `model_performance`, and the adaptation log; migrate existing rows. |
 
 ### High — the agent or user is stuck or misled
 
@@ -185,6 +204,9 @@ the output to warn the reader.
 | H17 | UX | `toolspec.py:585`; `router.py:154` | **[run]** `aion_route` answers "which method for this task?" with `recommendation: null` / `basis: "backtest_required"` on any cold project, and `aion_forecast` has no model parameter at all — so even a non-null recommendation cannot be acted on. The tool's output has no consumer. | Give `aion_forecast` a `candidates`/`model` parameter the router's output feeds, or re-scope `aion_route` to what it does (capability filtering and disclosure) and say so in its description. |
 | H18 | UX | `toolspec.py:308-320`, `567` | **[run]** Two decision lifecycles sit side by side with no deprecation marker: `aion_record_decision` + `aion_resolve_decision` ("whether a decision was correct") and `aion_resolve_outcome` ("bare 'correct' is retired"). The descriptions contradict each other and an agent reading them cold cannot choose. | Mark the v0.2 pair deprecated in its description text, name the replacement, and say which macro produces records for which resolver. |
 | H19 | UX / Temporal | `temporal.py:120-133` | **[run]** An explicit `--frequency` cannot rescue a series whose steps are not in `FREQUENCIES`: `validate_and_group` calls `infer_frequency` per series for its consistency check, which raises `AMBIGUOUS_FREQUENCY` before the requested frequency is ever applied. Month-end data (Jan 31, Feb 28, Mar 31 …) fails even with `--frequency MS`. `docs/data-format.md:63` documents the month-start requirement, but the error names neither the observed step nor the fix, and carries no `repair_options`. | Skip the inference cross-check when a frequency is given explicitly (or validate against the requested one); name the observed modal step in the error and add a `restamp_to_month_start` repair option. |
+| H21 | UX | `cli.py` (`build_parser`) | **[run]** Every command requires `--time` and `--target`; `forecast` also requires `--horizon`. A two-column CSV with one obvious timestamp column and one obvious numeric column still demands both flags. Worse, the failure is a bare argparse error — `rc=2`, plain text on stderr, no JSON envelope, no `code`, no `repair_options` — so the single most common first-run failure is the one error in the product that bypasses the structured error contract entirely. Any agent wrapping the CLI must special-case it. | Infer `--time`/`--target` when the schema is unambiguous and disclose the inference as an assumption; default `--horizon` to one season. Route argparse failures through `AionError("INVALID_ARGUMENTS", …)` so every failure on every surface has the same shape. |
+| H22 | UX | `docs/getting-started.md:13-17`; `install.sh:4-5` | **[run]** Getting-started says `cd /root/Aion && bash install.sh`, but `install.sh` defaults to `VERSION=main` from `TensorLink-AI/Aion` on GitHub — it installs the remote default branch, not the checkout the reader just `cd`'d into. A developer following the doc to test local changes silently runs `main`. (The `uvx --from .` path in `quickstart-mcp.md` *does* build the local checkout and works — verified.) | Add a `--local` / `--from .` mode, and make getting-started use it; or point getting-started at the `uvx --from .` path that already behaves correctly. |
+| H23 | UX | `macros.py` (`investigate_change`); `artifacts.py:96-119` | **[run]** `investigate` answers "what changed?" in model-internal terms: changepoints are reported as `index: 21` with `before_mean`, `after_mean`, `shift`, `relative_gain`, and the sensitivity block carries `standardised_shift` / `standardised_tail_shift`. On the shipped example it returns `explanations: []` with `residual_uncertainty: "No candidate explanation was found; the change stands unexplained."` — honest, but the user asked what changed and gets three changepoints, one of which (`relative_gain: 0.016`) is noise beside the real one (`0.779`). And unlike `forecast`, the artifact is JSON only: no `summary.md`, so there is no human-readable rendering anywhere. | Rank or filter changepoints by `relative_gain` and mark the dominant one; drop the raw `index` in favour of the timestamp; write a `summary.md` for every macro, not just forecasts. |
 | H20 | UX | `docs/quickstart-mcp.md` §4 | **[run]** The documented vintage command (`aion forecast store:requests --horizon 7 --as-of 2026-06-03`) returns `unsupported`/`inconclusive`: `messy_requests_revisions.csv` holds only 10 valid dates. The step that would make it work — ingesting `messy_requests.csv` first — is absent from the docs, and performing it triggers C1 and inverts the vintage history. A new user's first vintage run fails either way. | Ship a revisions fixture with enough history for the documented horizon and make the base ingest an explicit step — after C1 is fixed. |
 
 ### Medium — friction, inconsistency, or a misleading presentation
@@ -213,6 +235,8 @@ the output to warn the reader.
 
 | # | Axis | Location | Finding | Fix |
 |---|---|---|---|---|
+| M18 | UX | `metric_scaling_cache/` | **[run]** Nine binary `.h5` files are tracked in git, while the sibling `inference_cache/` is correctly `.gitignore`d. This is the same class of artefact the two most recent commits on this branch removed ("Untrack the accidentally committed benchmark corpora and result cache"). | `git rm --cached metric_scaling_cache/` and add it to `.gitignore` alongside `inference_cache/`. |
+| M19 | UX | `cli.py` (`track compare`) | **[run]** `aion track compare --a <id> --b <id>` needs two forecast ids and there is no discovery path when `track list` is empty (see C10) — and no `--project` filter on `compare` itself. The "rerun and compare" half of the follow-up loop is reachable only if you already recorded the ids by hand. | Accept `--project` plus `--latest N`, or a `--series` selector, so compare can be reached from where the user actually is. |
 | L1 | UX | `docs/getting-started.md:14,32`; `docs/development.md:19,26` | **[run]** `cd /root/Aion` — a reviewer's local path shipped in the published docs. | Replace with `cd Aion`. |
 | L2 | UX | `cli.py` (parser) | **[run]** Most CLI flags carry no `help=` (`--time`, `--target`, `--horizon`, `--frequency`, `--series`), while the MCP schema documents all of them well. | Reuse the MCP descriptions as `help=` strings. |
 | L3 | UX | `contracts.py:209` | **[run]** `TEMPORAL_LEAKAGE` has repair options but is never raised as an `AionError` code — it appears only as a violation inside `CLAIM_VERIFICATION_FAILED`, which has none. | Attach the options to `CLAIM_VERIFICATION_FAILED`, or surface per-violation options. |
@@ -222,15 +246,59 @@ the output to warn the reader.
 
 ---
 
+## 2.5 Surprises audit
+
+Every place Aion's actual behaviour departs from what a user would assume
+without reading anything. Several are *correct* behaviour — correct-but-
+surprising still needs loud, in-band communication at the moment it happens,
+which is what the "Told?" column tracks.
+
+| # | What a user assumes | What actually happens | Told? | Ref |
+|---|---|---|---|---|
+| S1 | `point` is the forecast — the middle of the interval | `point` is the raw model output; `q50` is bias-corrected. In the README example `point` sits at ≈ the 30th percentile of its own distribution | **No** | H2 |
+| S2 | A 14-day-ahead interval is wider than a 1-day-ahead one | With the usual 3–4 folds every lead borrows the pooled spread; all 14 rows are byte-identical | **No** | H3 |
+| S3 | "80% interval coverage: 100%" means the intervals are well calibrated | It is 14 points from one fold; the number is nearly information-free | **No** | M2 |
+| S4 | `monitor` watches the series | It defines an alert policy once, against one forecast, and exits | **No** | M8 |
+| S5 | `decide` decides | It returns an expected-utility comparison; nothing is actuated | Partly — `decision_rule` is stated | M8 |
+| S6 | `P(exceed)` is the chance of breaching the threshold during the horizon | It is the maximum single-step probability, which is lower | **No** — labelled plainly `exceed` | M1 |
+| S7 | Artifacts land somewhere managed | They land in `./aion-output` in the process CWD, inside the user's clone | Path is returned, but the default is never explained | M10 |
+| S8 | Re-running with different parameters produces a different artifact | If the changed parameter is outside the id payload, first-write-wins silently returns the earlier run's artifact | **No** | C5 |
+| S9 | Registering a forecast in a second project adds a row | It *moves* the row, taking the first project's realised scores with it | **No** | C10 |
+| S10 | `--as-of` replays what was knowable then | True for `forecast` — but a planner step cache hit ignores `as_of` entirely and returns latest-data numbers | **No** — reported only as `"cached": true` | C9 |
+| S11 | A revised value revised back to its original is recorded | The reverted vintage is dropped as a "duplicate" and replay returns the superseded value | Counted as `duplicates_skipped`, which reads like a no-op | C1 |
+| S12 | Daily data from a European or US timezone works | Any DST transition fails the grid check; the suggested repair would shift 31 timestamps | Loudly — but the diagnosis and the offered repair are both wrong | H8 |
+| S13 | Month-end series (Jan 31, Feb 28…) are monthly data | `AMBIGUOUS_FREQUENCY`, and `--frequency MS` does not rescue it | Documented in `data-format.md`; the error itself says neither | H19 |
+| S14 | Rows out of order is a data-quality problem | Silently sorted | **No** | M16 |
+| S15 | Data entirely in the future is suspicious | Forecast and `inspect` both proceed; `inspect` reports `status: valid` | **No** | M6 |
+| S16 | A constraint I declared is enforced on the output | Four of ten quantile columns are clamped; `q95` can exceed a declared `max`, and `q80 > q90` | **No** | C4 |
+| S17 | Setting `minimum_baseline_improvement` low means "be less strict" | Negative values invert the rule; a model that lost the backtest is selected and still reported `supported` | **No** | C6 |
+| S18 | Options in `aion.yaml` change behaviour | ~30 documented keys are parsed and never read, including `evaluation.target_coverage` and `models.statistical.candidates` | **No** | H15 |
+| S19 | Submitting actuals scores my forecast | Columns are guessed positionally and a mismatch returns `{"scored": 0}` — indistinguishable from "nothing due" | **No** | H16 |
+| S20 | `aion forecast data.csv` does something | `rc=2` and a bare argparse error; three flags are mandatory and the error has no JSON envelope | Loudly, but outside the error contract | H21 |
+| S21 | Following getting-started installs what I checked out | `install.sh` installs `main` from GitHub | **No** | H22 |
+| S22 | The Python API is the CLI as a library | It exposes `forecast` and `inspect_dataset`; the other four verbs are undocumented `aion.macros` imports | **No** | H10 |
+
+The pattern: sixteen of twenty-two are communicated nowhere. Aion's
+disclosure instinct is strong where it has been *deliberately* applied
+(`known_time_assumed`, `capability_notes`, the quantile-collapse note) and
+absent everywhere it has not. The cheapest structural fix is to treat the
+support assessment as the single channel for all of it — every surprise above
+is a candidate `SupportReason` with a typed code.
+
+---
+
 ## 3. Top 5 fixes before release
 
-1. **Make identity mean identity (C5, C8).** Every input that changes the
-   answer goes into the content-address payload — action feasibility,
-   detector labels, resolved TSFM commit and library versions — and every
-   TSFM gets a pinned `revision` and `==` pip spec. Add one test that
-   changing any documented parameter changes the id. Until this lands,
-   first-write-wins is not idempotence, it is silent substitution, and the
-   artifact an agent is told to quote can belong to a different run.
+1. **Make identity mean identity (C5, C8, C9, C10).** One root cause, four
+   symptoms: things are keyed by less than determines them. Put `as_of` in
+   the planner's step-cache key — it is the only demonstrated `--as-of` leak
+   in the product and it is three lines. Key the tracking registry on
+   `(forecast_id, project, series)` so a second project cannot steal the
+   first's realised scores. Put every answer-changing input into the
+   `decision`/`anomaly` id payloads, and pin TSFM revisions and pip specs so
+   an id covers the weights. Add one test per family that changing a
+   documented input changes the key. Until this lands, first-write-wins is
+   not idempotence, it is silent substitution.
 2. **Fix the store's dedup rule and re-ship the vintage example (C1, H20).**
    Key on `(valid_time, known_time, value)`, add a revert test, regenerate
    the revisions fixture with enough history for the documented horizon, and
@@ -255,12 +323,14 @@ the output to warn the reader.
    `repair_options` to the remaining 31 codes with a completeness test, and
    make `scored: 0` explain itself.
 
-Two more that are cheap relative to their value: **say that `point` is not
+Three more that are cheap relative to their value: **say that `point` is not
 the median (H2)** — one line of documentation or one line of code, and it
-removes a systematic misreading of every forecast Aion produces; and **give
+removes a systematic misreading of every forecast Aion produces; **give
 agents the store and developers the verbs (H9, H10)** — four MCP parameters,
 two new tools, and four re-exports, after which all three front doors reach
-the same product.
+the same product; and **work the surprises audit (§2.5) as a backlog** —
+sixteen of twenty-two surprises are communicated nowhere, and nearly all of
+them are one typed `SupportReason` each.
 
 ---
 
@@ -321,7 +391,17 @@ Preserve these through any refactor.
 - **Input handling breadth.** CSV, TSV, JSON, JSONL, gzip, and Parquet all
   work, including a European export with semicolon delimiters and
   decimal commas, detected and disclosed rather than guessed. Leap days and
-  arbitrary week-start conventions are handled correctly.
+  arbitrary week-start conventions are handled correctly — a weekly series
+  starting on a Wednesday forecasts Wednesdays.
+- **`uvx --from . aion` works exactly as `docs/quickstart-mcp.md` claims** —
+  the package builds from a clean checkout and runs in one command. The
+  quickstart's install step is the one first-run instruction in the docs
+  that needs no correction.
+- **The verifier fails closed.** `verify_or_raise` raises
+  `CLAIM_VERIFICATION_FAILED` with the full violation list; there is no
+  warn-and-continue path, and `runtime.py:344` applies it to Aion's own
+  forecast lineage, not only to callers'. The gaps in H1 and H5 are about
+  *what* it checks, never about whether it can be bypassed.
 - **Error quality where it exists.** `MISSING_COLUMNS` returns the available
   columns, the missing ones, and a repair option that names the exact next
   tool to call. That is the standard the other 31 codes should meet.
