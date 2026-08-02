@@ -11,19 +11,59 @@ messages only.
 from __future__ import annotations
 
 import json
+import logging
 import sys
 from typing import Any, TextIO
 
 from .contracts import AionError
 from .toolspec import runner_for, visible_tools
 
+logger = logging.getLogger(__name__)
+
 PROTOCOL_VERSION = "2025-06-18"
 SERVER_INFO = {"name": "aion", "version": "0.4.0"}
 
+#: The shape every tool result shares. Tools may publish something tighter
+#: via an `outputSchema` key in their spec; this is the floor, and it is
+#: what makes `structuredContent` checkable rather than merely present.
+ENVELOPE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "schema_version": {"type": "string"},
+        "status": {"type": "string", "enum": ["ok", "error", "complete", "partial"]},
+        "error": {
+            "type": "object",
+            "properties": {
+                "code": {"type": "string"},
+                "message": {"type": "string"},
+                "retryable": {"type": "boolean"},
+                "details": {"type": "object"},
+                "repair_options": {"type": "array", "items": {"type": "object"}},
+            },
+            "required": ["code", "message"],
+        },
+        "support_assessment": {"type": "object"},
+        "artifact_path": {"type": "string"},
+    },
+}
+
 
 def _tool_result(payload: dict[str, Any], is_error: bool) -> dict[str, Any]:
+    """A tool result in both shapes the advertised protocol supports.
+
+    The text block stays exactly as it was, so a client that only reads
+    `content` is unaffected. `structuredContent` carries the same payload
+    as an object, which is what protocol 2025-06-18 exists to allow — an
+    agent should not have to `JSON.parse` a string and validate it against
+    nothing.
+    """
+    text = json.dumps(payload, allow_nan=False)
     return {
-        "content": [{"type": "text", "text": json.dumps(payload, allow_nan=False)}],
+        "content": [{"type": "text", "text": text}],
+        # Round-tripped rather than passed through, so the structured form
+        # is byte-for-byte what the text block says — a tuple in the payload
+        # would otherwise be an array in one and a tuple in the other.
+        "structuredContent": json.loads(text),
         "isError": is_error,
     }
 
@@ -46,6 +86,9 @@ def _handle(message: dict[str, Any]) -> dict[str, Any] | None:
                     "name": tool["name"],
                     "description": tool["description"],
                     "inputSchema": tool["inputSchema"],
+                    # Published so a client can validate `structuredContent`
+                    # rather than trusting it.
+                    "outputSchema": tool.get("outputSchema", ENVELOPE_SCHEMA),
                 }
                 for tool in visible_tools()
             ]
@@ -71,6 +114,22 @@ def _handle(message: dict[str, Any]) -> dict[str, Any] | None:
         except (ValueError, FileNotFoundError) as exc:
             return _tool_result(
                 AionError("TRACKING_ERROR", str(exc)).to_dict(), True,
+            )
+        except Exception as exc:
+            # A bug in a tool must reach the model as a repairable result,
+            # never as a transport error. Anything uncaught used to escape
+            # to the outer handler and become JSON-RPC -32603, which gives
+            # an agent no payload, no repair_options, and no way to
+            # self-correct — a protocol failure standing in for a tool
+            # failure.
+            logger.exception("Unhandled error in tool %s", params.get("name"))
+            return _tool_result(
+                AionError(
+                    "INTERNAL_ERROR",
+                    f"{type(exc).__name__}: {exc}",
+                    {"tool": params.get("name")},
+                ).to_dict(),
+                True,
             )
     return None
 

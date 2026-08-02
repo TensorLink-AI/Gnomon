@@ -51,6 +51,25 @@ MAGNITUDE_PREFIX = "magnitude:"
 BOUND_KINDS = ("min", "max")
 
 
+def _align(bound: datetime, timestamp: datetime) -> tuple[datetime, datetime]:
+    """Make an event bound and a dataset timestamp comparable.
+
+    Context events are required to carry an explicit offset; most datasets
+    are timezone-naive, including every example this repo ships. Comparing
+    the two raised a bare ``TypeError`` out of the forecast, which made the
+    whole context-events feature unreachable for Aion's own examples.
+
+    Mixed awareness is resolved on **wall-clock time**: an event that says
+    it starts at 09:00 is taken to mean 09:00 as the dataset records time.
+    That is the only reading available without knowing the dataset's zone,
+    and it is disclosed rather than assumed silently — see
+    ``pipeline._constraint_stage``.
+    """
+    if (bound.tzinfo is None) == (timestamp.tzinfo is None):
+        return bound, timestamp
+    return bound.replace(tzinfo=None), timestamp.replace(tzinfo=None)
+
+
 @dataclass(frozen=True)
 class Claim:
     event_id: str
@@ -60,8 +79,14 @@ class Claim:
     effective_end: str
 
     def binds(self, timestamp: datetime) -> bool:
-        return (datetime.fromisoformat(self.effective_start) <= timestamp
-                <= datetime.fromisoformat(self.effective_end))
+        start, moment = _align(datetime.fromisoformat(self.effective_start), timestamp)
+        end, _ = _align(datetime.fromisoformat(self.effective_end), timestamp)
+        return start <= moment <= end
+
+    def needs_alignment(self, timestamp: datetime) -> bool:
+        """Whether comparing against ``timestamp`` required dropping a zone."""
+        start = datetime.fromisoformat(self.effective_start)
+        return (start.tzinfo is None) != (timestamp.tzinfo is None)
 
     def project(self, value: float) -> float:
         return max(value, self.value) if self.kind == "min" else min(value, self.value)

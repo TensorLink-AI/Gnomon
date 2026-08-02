@@ -10,15 +10,99 @@ from .contracts import AionError
 
 
 def _common_input(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("input")
-    parser.add_argument("--time", required=True, dest="time_column")
-    parser.add_argument("--target", required=True, dest="target_column")
-    parser.add_argument("--series", dest="series_column")
-    parser.add_argument("--frequency")
+    parser.add_argument(
+        "input",
+        help="Path to a CSV/TSV/JSON/JSONL/Parquet/Excel file, or "
+             "store:<dataset> to read the bitemporal store",
+    )
+    # Not required: inferred from the file when the schema leaves no
+    # choice, and disclosed as an assumption when it is. `aion forecast
+    # data.csv` on an obvious two-column file used to fail with a bare
+    # argparse error, which was the most common first-run failure there is.
+    parser.add_argument(
+        "--time", dest="time_column",
+        help="Timestamp column. Inferred when exactly one column parses as "
+             "timestamps.",
+    )
+    parser.add_argument(
+        "--target", dest="target_column",
+        help="Numeric column to model. Inferred when exactly one non-time "
+             "column parses as numbers.",
+    )
+    parser.add_argument(
+        "--series", dest="series_column",
+        help="Column identifying the series in a panel file; omit for a "
+             "single series",
+    )
+    parser.add_argument(
+        "--frequency",
+        help="Explicit time grid (h, D, W, MS, …). Inferred from the "
+             "observed step when omitted.",
+    )
+
+
+def _resolve_schema(args) -> list[str]:
+    """Fill in ``--time``/``--target`` from the file, or say why it cannot.
+
+    Returns the assumptions made, so the caller can disclose them. An
+    inference nobody is told about is a guess.
+    """
+    if args.time_column and args.target_column:
+        return []
+    source = str(getattr(args, "input", ""))
+    if source.startswith("store:"):
+        raise AionError(
+            "INVALID_ARGUMENTS",
+            "--time and --target are required for store:<dataset> inputs; a "
+            "stored dataset has no file header to infer from.",
+            {"input": source},
+            repair_options=[{
+                "action": "supply_arguments",
+                "description": "Pass --time and --target explicitly, or run "
+                               "`aion store list` to see a dataset's variables.",
+                "arguments": ["--time", "--target"],
+            }],
+        )
+    from .data import infer_schema_columns
+
+    inferred = infer_schema_columns(source)
+    assumptions: list[str] = []
+    for flag, key, candidates_key in (
+        ("--time", "time", "time_candidates"),
+        ("--target", "target", "target_candidates"),
+    ):
+        attribute = "time_column" if key == "time" else "target_column"
+        if getattr(args, attribute):
+            continue
+        chosen = inferred[key]
+        if chosen is None:
+            candidates = inferred[candidates_key]
+            raise AionError(
+                "AMBIGUOUS_SCHEMA",
+                f"{flag} was not supplied and cannot be inferred: "
+                + (f"{len(candidates)} columns qualify ({', '.join(candidates)})."
+                   if candidates else "no column qualifies."),
+                {"argument": flag, "candidates": candidates,
+                 "columns_examined": inferred["time_candidates"]
+                 + inferred["target_candidates"]},
+                repair_options=[{
+                    "action": "supply_arguments",
+                    "description": f"Pass {flag} explicitly."
+                                   + (f" Candidates: {', '.join(candidates)}."
+                                      if candidates else ""),
+                    "arguments": [flag],
+                }],
+            )
+        setattr(args, attribute, chosen)
+        assumptions.append(
+            f"{flag} was not supplied; inferred as {chosen!r}, the only "
+            f"column in the input that qualifies."
+        )
+    return assumptions
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="aion", description="Evidence-backed local forecasting")
+    parser = _StructuredArgumentParser(prog="aion", description="Evidence-backed local forecasting")
     parser.add_argument("--version", action="version", version="aion 0.4.0")
     subcommands = parser.add_subparsers(dest="command", required=True)
 
@@ -31,7 +115,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     forecast_parser = subcommands.add_parser("forecast", help="Run an evaluated forecast")
     _common_input(forecast_parser)
-    forecast_parser.add_argument("--horizon", required=True, type=int)
+    forecast_parser.add_argument(
+        "--horizon", type=int,
+        help="Periods to forecast. Defaults to one seasonal period of the "
+             "inferred grid, disclosed as an assumption.",
+    )
     forecast_parser.add_argument("--output", default="aion-output")
     forecast_parser.add_argument(
         "--minimum-baseline-improvement", type=float, default=0.02,
@@ -164,8 +252,12 @@ def build_parser() -> argparse.ArgumentParser:
     _common_input(decide_parser)
     decide_parser.add_argument("--horizon", required=True, type=int)
     decide_parser.add_argument("--threshold", required=True, type=float)
-    decide_parser.add_argument("--actions", required=True,
-                               help="JSON list of actions, or @path/to/actions.json")
+    decide_parser.add_argument(
+        "--actions", required=True,
+        help=f"JSON list of action objects, or @path/to/actions.json. Each "
+             f"object needs a 'name' and may carry 'feasible' (bool) and "
+             f"'residual_risk' (number). Example: {ACTIONS_EXAMPLE}",
+    )
     decide_parser.add_argument("--utilities",
                                help="JSON {action: {exceed: x, no_exceed: y}}, or @file")
     decide_parser.add_argument("--max-acceptable-risk", type=float, dest="max_acceptable_risk")
@@ -274,6 +366,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     track_actuals.add_argument("--project", required=True)
     track_actuals.add_argument("--file", required=True, help="CSV file with actual values")
+    # Explicit, like every other input path. Guessing positionally turned a
+    # perfectly good `requests,timestamp,host` export into a silent
+    # `{"scored": 0}` with no error and no diagnosis.
+    track_actuals.add_argument(
+        "--time", dest="actuals_time",
+        help="Timestamp column in the actuals file (inferred when obvious)",
+    )
+    track_actuals.add_argument(
+        "--target", dest="actuals_target",
+        help="Value column in the actuals file (inferred when obvious)",
+    )
+    track_actuals.add_argument(
+        "--series", dest="actuals_series",
+        help="Series column, for multi-series projects",
+    )
 
     track_score = track_commands.add_parser(
         "score", help="Score a single forecast against actuals"
@@ -356,18 +463,79 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _json_argument(raw: str | None):
+def _json_argument(raw: str | None, *, argument: str | None = None):
+    """Parse a JSON CLI argument, naming which one failed.
+
+    ``INVALID_JSON_ARGUMENT`` used to say only that "an argument" was not
+    valid JSON, with empty repair options — on a command taking four of
+    them, that is not a diagnosis.
+    """
     if raw is None:
         return None
+    label = f"--{argument}" if argument else "argument"
     if raw.startswith("@"):
         path = Path(raw[1:]).expanduser()
         if not path.is_file():
-            raise AionError("ARGUMENT_FILE_NOT_FOUND", f"File does not exist: {path}")
+            raise AionError(
+                "ARGUMENT_FILE_NOT_FOUND", f"File does not exist: {path}",
+                {"argument": label, "path": str(path)},
+            )
         raw = path.read_text(encoding="utf-8")
     try:
         return json.loads(raw)
     except json.JSONDecodeError as exc:
-        raise AionError("INVALID_JSON_ARGUMENT", f"Argument is not valid JSON: {exc}") from exc
+        raise AionError(
+            "INVALID_JSON_ARGUMENT",
+            f"{label} is not valid JSON: {exc}",
+            {"argument": label, "supplied": raw[:200],
+             "parse_error": str(exc)},
+        ) from exc
+
+
+#: The shape `--actions` takes, matching the MCP schema exactly. The CLI
+#: help used to describe "a JSON list of actions", which read as
+#: `["scale_up", "do_nothing"]` and crashed with an unhandled TypeError
+#: deep in the operator.
+ACTIONS_EXAMPLE = (
+    '[{"name": "scale_up", "feasible": true, "residual_risk": 0.1}, '
+    '{"name": "do_nothing"}]'
+)
+
+
+def _validate_actions(actions: Any) -> list[dict[str, Any]]:
+    """Check `--actions` against the MCP schema before the operator sees it."""
+    if not isinstance(actions, list):
+        raise AionError(
+            "INVALID_ACTIONS",
+            f"--actions must be a JSON list of objects; got "
+            f"{type(actions).__name__}.",
+            {"example": ACTIONS_EXAMPLE, "supplied_type": type(actions).__name__},
+        )
+    problems: list[str] = []
+    for index, action in enumerate(actions):
+        if not isinstance(action, dict):
+            problems.append(
+                f"item {index} is {type(action).__name__}, not an object with a "
+                f"'name'"
+            )
+            continue
+        if "name" not in action:
+            problems.append(f"item {index} has no 'name'")
+        if "feasible" in action and not isinstance(action["feasible"], bool):
+            problems.append(f"item {index}: 'feasible' must be true or false")
+        if "residual_risk" in action:
+            try:
+                float(action["residual_risk"])
+            except (TypeError, ValueError):
+                problems.append(f"item {index}: 'residual_risk' must be a number")
+    if problems:
+        raise AionError(
+            "INVALID_ACTIONS",
+            "--actions does not match the expected shape: "
+            + "; ".join(problems) + ".",
+            {"example": ACTIONS_EXAMPLE, "problems": problems},
+        )
+    return actions
 
 
 def _parse_as_of(raw: str | None):
@@ -394,8 +562,120 @@ def _read_documents(paths: list[str]):
     return documents
 
 
+def _disclose_assumptions(payload, assumptions: list[str]):
+    """Attach CLI-level inferences to every result's support assessment.
+
+    An inference the caller is not told about is a guess. These ride in the
+    same `assumptions` list as `known_time_assumed`, so an agent reading the
+    envelope finds them where it already looks.
+    """
+    if not assumptions or not isinstance(payload, dict):
+        return payload
+    results = payload.get("results")
+    if not isinstance(results, list) or not results:
+        return {**payload, "assumptions": assumptions}
+    decorated = []
+    for result in results:
+        if not isinstance(result, dict):
+            decorated.append(result)
+            continue
+        assessment = dict(result.get("support_assessment") or {})
+        assessment["assumptions"] = list(assessment.get("assumptions", [])) + assumptions
+        decorated.append({**result, "support_assessment": assessment})
+    return {**payload, "results": decorated}
+
+
+def _default_horizon(args) -> int:
+    """One seasonal period of the input's own grid."""
+    from .pipeline import load_stage
+    from .temporal import detect_season
+
+    loaded = load_stage(
+        args.input, time_column=args.time_column,
+        target_column=args.target_column,
+        series_column=getattr(args, "series_column", None),
+        frequency=getattr(args, "frequency", None),
+        as_of=_parse_as_of(getattr(args, "as_of", None)),
+        store_path=getattr(args, "store_path", None),
+    )
+    longest = max(loaded.groups.values(), key=len, default=[])
+    season, _, _ = detect_season([item.value for item in longest], loaded.frequency)
+    return max(1, int(season))
+
+
+class _StructuredArgumentParser(argparse.ArgumentParser):
+    """An argparse parser whose failures obey the error contract.
+
+    A usage error used to exit(2) with plain text on stderr — no JSON
+    envelope, no `code`, no `repair_options` — which made the single most
+    common first-run failure the one error in the product that bypassed the
+    contract entirely. Any agent wrapping the CLI had to special-case it.
+    """
+
+    def error(self, message: str):  # noqa: D102 - argparse override
+        raise _ArgumentError(message, self.prog)
+
+
+class _ArgumentError(Exception):
+    def __init__(self, message: str, prog: str):
+        super().__init__(message)
+        self.message = message
+        self.prog = prog
+
+
+def _argument_error(exc: _ArgumentError) -> AionError:
+    missing = _missing_arguments(exc.message)
+    repairs = []
+    if missing:
+        repairs.append({
+            "action": "supply_arguments",
+            "description": (
+                "Supply the missing argument(s): " + ", ".join(missing) + "."
+            ),
+            "arguments": missing,
+        })
+    repairs.append({
+        "action": "show_usage",
+        "description": f"Run `{exc.prog} --help` for the full argument list.",
+    })
+    return AionError(
+        "INVALID_ARGUMENTS", exc.message,
+        {"command": exc.prog, "missing_arguments": missing},
+        repair_options=repairs,
+    )
+
+
+def _missing_arguments(message: str) -> list[str]:
+    marker = "the following arguments are required:"
+    if marker not in message:
+        return []
+    tail = message.split(marker, 1)[1]
+    return [item.strip() for item in tail.split(",") if item.strip()]
+
+
 def main(argv: Sequence[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    args = None
+    try:
+        args = build_parser().parse_args(argv)
+    except _ArgumentError as exc:
+        print(json.dumps(_argument_error(exc).to_dict(), indent=2), file=sys.stderr)
+        return 2
+    schema_assumptions: list[str] = []
+    try:
+        if hasattr(args, "time_column"):
+            schema_assumptions = _resolve_schema(args)
+        if getattr(args, "horizon", "absent") is None:
+            # One season ahead is the smallest horizon that can show a
+            # seasonal pattern, and it is derivable from the data. Disclosed
+            # like any other inference.
+            args.horizon = _default_horizon(args)
+            schema_assumptions.append(
+                f"--horizon was not supplied; defaulted to {args.horizon}, "
+                f"one seasonal period of the inferred grid."
+            )
+    except AionError as exc:
+        print(json.dumps(exc.to_dict(), indent=2), file=sys.stderr)
+        return 2
     try:
         if args.command == "investigate":
             from .context import load_events_file
@@ -409,7 +689,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 context_events=events, output=args.output,
                 store_path=args.store_path,
             )
-            print(json.dumps({**payload, "artifact_path": str(path)}, indent=2, allow_nan=False))
+            print(json.dumps(_disclose_assumptions(
+                {**payload, "artifact_path": str(path)}, schema_assumptions,
+            ), indent=2, allow_nan=False))
             return 0
         if args.command == "route":
             from .pipeline import load_stage
@@ -443,7 +725,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 threshold=args.threshold, labels=labels, output=args.output,
                 store_path=args.store_path,
             )
-            print(json.dumps({**payload, "artifact_path": str(path)}, indent=2, allow_nan=False))
+            print(json.dumps(_disclose_assumptions(
+                {**payload, "artifact_path": str(path)}, schema_assumptions,
+            ), indent=2, allow_nan=False))
             return 0
         if args.command == "decide":
             from .macros import decide
@@ -452,15 +736,17 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.input, time_column=args.time_column,
                 target_column=args.target_column, horizon=args.horizon,
                 threshold=args.threshold,
-                actions=_json_argument(args.actions) or [],
-                utilities=_json_argument(args.utilities),
+                actions=_validate_actions(_json_argument(args.actions, argument="actions") or []),
+                utilities=_json_argument(args.utilities, argument="utilities"),
                 max_acceptable_risk=args.max_acceptable_risk,
                 series_column=args.series_column, series_name=args.series_name,
                 frequency=args.frequency, as_of=_parse_as_of(args.as_of),
                 project=args.project,
                 output=args.output, store_path=args.store_path,
             )
-            print(json.dumps({**payload, "artifact_path": str(path)}, indent=2, allow_nan=False))
+            print(json.dumps(_disclose_assumptions(
+                {**payload, "artifact_path": str(path)}, schema_assumptions,
+            ), indent=2, allow_nan=False))
             return 0
         if args.command == "status":
             from .tracking import TrackingStore
@@ -478,7 +764,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 project=args.project, output=args.output,
                 store_path=args.store_path,
             )
-            print(json.dumps({**payload, "artifact_path": str(path)}, indent=2, allow_nan=False))
+            print(json.dumps(_disclose_assumptions(
+                {**payload, "artifact_path": str(path)}, schema_assumptions,
+            ), indent=2, allow_nan=False))
             return 0
         if args.command == "plan":
             from .toolspec import (
@@ -487,13 +775,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             if args.plan_command == "compile":
                 payload = _run_compile_task({
                     "task_type": args.task_type,
-                    "params": _json_argument(args.params),
+                    "params": _json_argument(args.params, argument="params"),
                 })
             elif args.plan_command == "validate":
-                payload = _run_validate_plan({"plan": _json_argument(args.plan)})
+                payload = _run_validate_plan({"plan": _json_argument(args.plan, argument="plan")})
             else:
                 payload = _run_execute_plan({
-                    "plan": _json_argument(args.plan),
+                    "plan": _json_argument(args.plan, argument="plan"),
                     "output_dir": args.output,
                     "as_of": args.as_of,
                     "store_path": args.store_path,
@@ -614,7 +902,33 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return 0
 
             elif args.track_command == "actuals":
-                results = store.submit_actuals_csv(args.project, args.file)
+                results = store.submit_actuals_csv(
+                    args.project, args.file,
+                    time_column=args.actuals_time,
+                    target_column=args.actuals_target,
+                    series_column=args.actuals_series,
+                )
+                if not results:
+                    # `scored: 0` on its own is indistinguishable from
+                    # "nothing was due". Say which it is.
+                    import csv as csv_module
+                    with open(args.file, encoding="utf-8-sig", newline="") as handle:
+                        reader = csv_module.DictReader(handle)
+                        columns = reader.fieldnames or []
+                        rows = list(reader)
+                    time_column, _, _ = store._resolve_actuals_columns(
+                        columns, args.actuals_time, args.actuals_target,
+                        args.actuals_series,
+                    )
+                    print(json.dumps({
+                        "schema_version": "0.1",
+                        "status": "ok",
+                        "project": args.project,
+                        **store.explain_unscored(
+                            args.project, [row[time_column] for row in rows],
+                        ),
+                    }, indent=2))
+                    return 0
                 payload = [
                     {
                         "forecast_id": r.forecast_id,
@@ -788,8 +1102,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 artifact = store.resolve_decision_outcome(
                     args.decision_id,
                     realised_scenario=args.realised_scenario,
-                    realised_utilities=_json_argument(args.realised_utilities),
-                    constraint_violations=_json_argument(args.violations),
+                    realised_utilities=_json_argument(args.realised_utilities, argument="realised-utilities"),
+                    constraint_violations=_json_argument(args.violations, argument="violations"),
                     note=args.note,
                 )
                 print(json.dumps(artifact.to_dict(), indent=2, allow_nan=False))
@@ -925,13 +1239,25 @@ def main(argv: Sequence[str] | None = None) -> int:
                 register_artifact(artifact, args.project, str(path))
                 print(f"Registered forecast {artifact.forecast_id} in project '{args.project}'", file=sys.stderr)
 
-        print(json.dumps(payload, indent=2, allow_nan=False))
+        print(json.dumps(_disclose_assumptions(payload, schema_assumptions),
+                         indent=2, allow_nan=False))
         return 0
     except AionError as exc:
         print(json.dumps(exc.to_dict(), indent=2), file=sys.stderr)
         return 2
     except (ValueError, FileNotFoundError) as exc:
         error = AionError("TRACKING_ERROR", str(exc))
+        print(json.dumps(error.to_dict(), indent=2), file=sys.stderr)
+        return 2
+    except Exception as exc:
+        # No `aion` invocation prints a Python traceback. An unexpected
+        # failure is still a failure of the product, and it reaches the
+        # caller in the same envelope as every other one so a wrapper never
+        # has to special-case it.
+        error = AionError(
+            "INTERNAL_ERROR", f"{type(exc).__name__}: {exc}",
+            {"command": getattr(args, "command", None)},
+        )
         print(json.dumps(error.to_dict(), indent=2), file=sys.stderr)
         return 2
 

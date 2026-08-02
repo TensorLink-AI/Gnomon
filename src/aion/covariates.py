@@ -335,7 +335,9 @@ def validate_covariates(
     dataset: CovariateDataset, *, series: str, timestamps: list[datetime],
     future_timestamps: list[datetime], fold_cutoffs: list[datetime],
 ) -> dict[str, Any]:
-    issues: list[dict[str, str]] = []
+    from .contracts import REPAIR_OPTIONS
+
+    issues: list[dict[str, Any]] = []
     coverage: dict[str, dict[str, int]] = {}
     for spec in dataset.specs:
         missing_backtest = 0
@@ -352,12 +354,49 @@ def validate_covariates(
             "missing_backtest_future_points": missing_backtest,
             "missing_final_future_points": missing_future,
         }
+        # The gate is right; the old messages named a count and nothing
+        # else — not why the values were unavailable (published too late)
+        # nor what to change (`known_at` must precede each fold cutoff).
         if missing_backtest:
-            issues.append({"covariate": spec.name, "code": "MISSING_HISTORICAL_VINTAGES",
-                           "message": f"{missing_backtest} fold-time values were unavailable."})
+            issues.append({
+                "covariate": spec.name,
+                "code": "MISSING_HISTORICAL_VINTAGES",
+                "message": (
+                    f"{spec.name}: {missing_backtest} value(s) needed at the "
+                    f"backtest cutoffs had no vintage published in time. A "
+                    f"fold cutting at T may only use rows whose known_at is "
+                    f"at or before T, and this file's earliest known_at for "
+                    f"those points is later. The covariate cannot be "
+                    f"backtested, so it will not be admitted."
+                ),
+                "cause": "published_after_the_fold_cutoff",
+                "remedy": (
+                    "Supply rows whose known_at precedes each fold cutoff "
+                    f"(the cutoffs are listed under selection_fold_cutoffs), "
+                    f"or drop {spec.name} and forecast without it."
+                ),
+                "missing_points": missing_backtest,
+                "fold_cutoffs": [cutoff.isoformat() for cutoff in fold_cutoffs],
+                "repair_options": REPAIR_OPTIONS.get("MISSING_HISTORICAL_VINTAGES", []),
+            })
         if missing_future:
-            issues.append({"covariate": spec.name, "code": "MISSING_FORECAST_VALUES",
-                           "message": f"{missing_future} final-horizon values were unavailable."})
+            issues.append({
+                "covariate": spec.name,
+                "code": "MISSING_FORECAST_VALUES",
+                "message": (
+                    f"{spec.name}: {missing_future} of {len(future_timestamps)} "
+                    f"horizon period(s) have no value knowable at the forecast "
+                    f"origin. A future_known covariate must cover every period "
+                    f"being forecast."
+                ),
+                "cause": "horizon_not_covered",
+                "remedy": (
+                    f"Add rows for the horizon periods with a known_at at or "
+                    f"before {timestamps[-1].isoformat()}."
+                ),
+                "missing_points": missing_future,
+                "repair_options": REPAIR_OPTIONS.get("MISSING_FORECAST_VALUES", []),
+            })
     return {"valid": not issues, "coverage": coverage, "issues": issues}
 
 

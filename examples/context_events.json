@@ -1,0 +1,46 @@
+{
+  "schema_version": "0.1",
+  "events": [
+    {
+      "event_id": "capacity-cap-2026-06",
+      "event_type": "capacity_limit",
+      "entity_scope": ["*"],
+      "effective_start": "2026-06-01T00:00:00+00:00",
+      "effective_end": "2026-06-30T23:59:59+00:00",
+      "known_at": "2026-05-20T09:00:00+00:00",
+      "status": "confirmed",
+      "confidence": 1.0,
+      "attributes": {
+        "claim": {
+          "kind": "max",
+          "value": 360.0,
+          "unit": "requests"
+        },
+        "note": "Rate limiter caps sustained throughput at 360 req/interval. A bound on what is possible, not a prediction of what will happen."
+      },
+      "source": {
+        "type": "runbook",
+        "reference": "ops/runbooks/rate-limiting.md#sustained-cap"
+      },
+      "created_by": "user"
+    },
+    {
+      "event_id": "marketing-push-2026-06",
+      "event_type": "promotion",
+      "entity_scope": ["*"],
+      "effective_start": "2026-06-05T00:00:00+00:00",
+      "effective_end": "2026-06-12T23:59:59+00:00",
+      "known_at": "2026-05-28T12:00:00+00:00",
+      "status": "confirmed",
+      "confidence": 1.0,
+      "attributes": {
+        "note": "A campaign window with no claim attached. Aion measures its effect from history through the context ablation; it is never told what the effect is."
+      },
+      "source": {
+        "type": "calendar",
+        "reference": "marketing/2026-q2-calendar#june-push"
+      },
+      "created_by": "user"
+    }
+  ]
+}

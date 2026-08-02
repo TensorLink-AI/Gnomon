@@ -324,15 +324,161 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
     "ARTIFACT_NOT_FOUND": [
         {"action": "check_path", "description": "Pass the artifact directory returned by the macro (it contains artifact.json)."},
     ],
+
+    # --- Schema and frequency -------------------------------------------
+    "AMBIGUOUS_FREQUENCY": [
+        {"action": "set_frequency", "description": "Pass frequency explicitly; the supported codes are in details.supported."},
+        {"action": "inspect_dataset", "description": "Call aion_inspect to see the observed step between timestamps."},
+        {"action": "restamp_to_month_start", "description": "Month-end dates (Jan 31, Feb 28, …) are not a supported grid. Restamp each observation to the first of its month and pass frequency=MS."},
+    ],
+    "UNSUPPORTED_FREQUENCY": [
+        {"action": "set_frequency", "description": "Use one of the supported codes listed in details.supported."},
+    ],
+    "MIXED_SERIES_FREQUENCIES": [
+        {"action": "split_input", "description": "Forecast each frequency separately; details.per_series names each series' inferred step."},
+        {"action": "set_frequency", "description": "Pass frequency to state which grid every series is on, if the inference is wrong."},
+    ],
+    "AMBIGUOUS_SCHEMA": [
+        {"action": "supply_arguments", "description": "Name the column explicitly; the qualifying candidates are in details.candidates."},
+        {"action": "inspect_dataset", "description": "Call aion_inspect to see every column and its inferred type."},
+    ],
+    "EMPTY_DATASET": [
+        {"action": "check_input", "description": "The file parsed but contained no observations. Confirm it has a header row and at least one data row."},
+        {"action": "check_delimiter", "description": "A mis-detected delimiter produces one column and no usable rows; re-export as comma-separated UTF-8."},
+    ],
+
+    # --- Inputs that do not exist ---------------------------------------
+    "INPUT_NOT_FOUND": [
+        {"action": "check_path", "description": "The path does not exist. Pass a path relative to the working directory, or an absolute one."},
+        {"action": "list_datasets", "description": "For stored data use store:<dataset>; run `aion store list` to see the names."},
+    ],
+    "COVARIATES_NOT_FOUND": [
+        {"action": "check_path", "description": "The covariates path does not exist; details names the resolved path."},
+    ],
+    "CONTEXT_FILE_NOT_FOUND": [
+        {"action": "check_path", "description": "Produce the file with `aion context validate` first; it writes the typed events this flag expects."},
+    ],
+    "DOCUMENT_NOT_FOUND": [
+        {"action": "check_path", "description": "Every --file passed to `aion context prompt` must exist and be readable."},
+    ],
+    "RESPONSE_NOT_FOUND": [
+        {"action": "check_path", "description": "Pass the file containing the model's reply to the context prompt."},
+    ],
+    "ARGUMENT_FILE_NOT_FOUND": [
+        {"action": "check_path", "description": "An @-prefixed argument reads a file; details.path is the path that was tried."},
+    ],
+
+    # --- Malformed arguments ---------------------------------------------
+    "INVALID_ARGUMENTS": [
+        {"action": "supply_arguments", "description": "Supply the arguments named in details.missing_arguments."},
+        {"action": "show_usage", "description": "Run the command with --help for the full argument list."},
+    ],
+    "INVALID_JSON_ARGUMENT": [
+        {"action": "fix_json", "description": "details.argument names which argument failed and details.parse_error says where."},
+        {"action": "use_file", "description": "Pass @path/to/file.json instead of inline JSON to avoid shell quoting problems."},
+    ],
+    "INVALID_ACTIONS": [
+        {"action": "fix_actions", "description": "actions is a list of objects, each with a 'name' and optionally 'feasible' and 'residual_risk'. details.example shows the shape."},
+    ],
+    "INVALID_MINIMUM_IMPROVEMENT": [
+        {"action": "set_minimum_improvement", "description": "Use a value >= 0. Zero means the candidate must merely not be worse than the strongest baseline; the default 0.02 asks for 2% better."},
+    ],
+    "INVALID_PLAN": [
+        {"action": "review_violations", "description": "Each entry in details.violations names the step and the rule it broke."},
+        {"action": "repair_plan", "description": "Call the planner's repair pass, which fixes bounded structural faults automatically."},
+    ],
+    "UNKNOWN_TASK_TYPE": [
+        {"action": "list_task_types", "description": "Use one of the five verbs: forecast, investigate_change, decide, monitor, detect_anomalies."},
+    ],
+    "UNKNOWN_TOOL": [
+        {"action": "list_tools", "description": "Call tools/list for the available tool names; the planner tools appear only with AION_EXPERIMENTAL_PLANNER=1."},
+    ],
+    "OPERATOR_UNAVAILABLE": [
+        {"action": "use_macro", "description": "This operator has no direct runner. Use the macro that owns it, or call it through a plan step."},
+    ],
+
+    # --- Covariates -------------------------------------------------------
+    "INVALID_COVARIATE_MAPPING": [
+        {"action": "set_covariate_mapping", "description": "Each entry is name:type:availability, comma-separated — for example `campaign:binary:future_known`."},
+        {"action": "covariate_guide", "description": "Run `aion covariates guide` for the required format and the cutoffs your file must cover."},
+    ],
+    "INVALID_COVARIATE_TYPE": [
+        {"action": "set_covariate_mapping", "description": "Supported types are continuous and binary."},
+    ],
+    "UNSUPPORTED_COVARIATE_AVAILABILITY": [
+        {"action": "set_covariate_mapping", "description": "Availability must be future_known or past_observed. It is mandatory so a contemporaneous reading is never mistaken for one knowable at a past origin."},
+    ],
+    "UNSUPPORTED_COVARIATES": [
+        {"action": "convert_input", "description": "Covariates currently require CSV input."},
+    ],
+    "MISSING_COVARIATE_COLUMNS": [
+        {"action": "fix_columns", "description": "details.required lists what the mapping asked for and details.available what the file has."},
+    ],
+    "EMPTY_COVARIATES": [
+        {"action": "check_input", "description": "The covariates file parsed but held no rows."},
+    ],
+    "INVALID_COVARIATE_TIMESTAMP": [
+        {"action": "fix_timestamps", "description": "Both the timestamp and known_at columns must be ISO-8601; details names the offending row."},
+    ],
+    "INVALID_COVARIATE_VALUE": [
+        {"action": "fix_target", "description": "Covariate values must be numeric; details names the offending row."},
+    ],
+    "INVALID_BINARY_COVARIATE": [
+        {"action": "fix_target", "description": "A binary covariate takes 0 or 1 only; details names the offending row."},
+    ],
+    "MIXED_COVARIATE_TIMEZONES": [
+        {"action": "align_timezones", "description": "Make timestamp and known_at consistently aware or consistently naive across the whole file."},
+    ],
+    "DUPLICATE_COVARIATE_VINTAGE": [
+        {"action": "deduplicate", "description": "One value per (series, timestamp, known_at). Two rows sharing all three are ambiguous, not a revision — a revision has a later known_at."},
+    ],
+    "MISSING_HISTORICAL_VINTAGES": [
+        {"action": "supply_earlier_known_at", "description": "The covariate's values were published too late to have been knowable at the backtest cutoffs. Each fold needs a row whose known_at precedes that fold's cutoff; details lists the cutoffs that came up empty."},
+        {"action": "covariate_guide", "description": "Run `aion covariates guide` to see the exact cutoffs this dataset and horizon require."},
+        {"action": "drop_covariate", "description": "Forecast without it. A covariate that was not knowable in the past cannot be backtested, and Aion will not pretend otherwise."},
+    ],
+    "MISSING_FORECAST_VALUES": [
+        {"action": "supply_future_values", "description": "A future_known covariate needs a value for every horizon period, published by the forecast origin."},
+    ],
+
+    # --- Context events ---------------------------------------------------
+    "INVALID_CONTEXT_FILE": [
+        {"action": "regenerate", "description": "Produce the file with `aion context validate`, which writes the schema this flag reads."},
+    ],
+    "INVALID_CONTEXT_EVENT": [
+        {"action": "fix_event", "description": "details names the field that failed. Timestamps need an explicit offset, or must match the dataset's naivety."},
+    ],
+    "INVALID_RESPONSE": [
+        {"action": "regenerate", "description": "The model's reply did not parse as the requested JSON. Re-run `aion context prompt` and pass the reply verbatim."},
+    ],
+
+    # --- Internal ---------------------------------------------------------
+    "TRACKING_ERROR": [
+        {"action": "review_message", "description": "The registry rejected the operation; the message states why."},
+    ],
+    "INTERNAL_ERROR": [
+        {"action": "report_bug", "description": "This is a defect in Aion, not in the input. details names the surface and the exception type; please report it with the command that produced it."},
+    ],
+    "QUANTILE_CROSSING": [
+        {"action": "report_bug", "description": "Projected quantiles crossed, which the projection is meant to make impossible. This is a defect in Aion; details carries the offending row."},
+    ],
+    "RESIDUAL_PROVENANCE_MISMATCH": [
+        {"action": "report_bug", "description": "A stage replaced the point forecast without replacing its residuals, so the interval would have described a different model. This is a defect in Aion; details names both models."},
+    ],
 }
 
 
 class AionError(Exception):
-    def __init__(self, code: str, message: str, details: dict[str, Any] | None = None):
+    def __init__(self, code: str, message: str, details: dict[str, Any] | None = None,
+                 repair_options: list[dict[str, Any]] | None = None):
         super().__init__(message)
         self.code = code
         self.message = message
         self.details = details or {}
+        #: Instance-specific repairs, when the useful advice depends on the
+        #: particular failure rather than only on the code. Falls back to
+        #: the code's entry in REPAIR_OPTIONS.
+        self.repair_options = repair_options
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -343,6 +489,10 @@ class AionError(Exception):
                 "message": self.message,
                 "retryable": False,
                 "details": self.details,
-                "repair_options": REPAIR_OPTIONS.get(self.code, []),
+                "repair_options": (
+                    self.repair_options
+                    if self.repair_options is not None
+                    else REPAIR_OPTIONS.get(self.code, [])
+                ),
             },
         }

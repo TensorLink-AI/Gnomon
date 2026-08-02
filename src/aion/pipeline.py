@@ -621,6 +621,17 @@ def _constraint_stage(
     if not claims and not rejected:
         return rows
     projected, applications = apply_claims(rows, claims)
+    if rows and claims:
+        sample = datetime.fromisoformat(str(rows[0]["timestamp"]))
+        if any(claim.needs_alignment(sample) for claim in claims):
+            state.disclosures.append(SupportReason(
+                "context_timezone_aligned",
+                "Context events carry an explicit timezone offset and this "
+                "dataset's timestamps do not (or the reverse). The event "
+                "windows were matched on wall-clock time, which is the only "
+                "reading available without knowing the dataset's zone. Add an "
+                "offset to the dataset's timestamps to remove the assumption.",
+            ))
     state.evidence.append(Evidence(
         f"constraint_applied:{state.name}", "constraint_applied", state.name,
         {

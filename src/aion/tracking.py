@@ -48,6 +48,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator, Sequence
 
+from .contracts import AionError
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -838,8 +840,18 @@ class TrackingStore:
 
         return results
 
-    def submit_actuals_csv(self, project: str, csv_path: str) -> list[ScoreResult]:
-        """Submit actuals from a CSV file and score all unscored forecasts."""
+    def submit_actuals_csv(
+        self, project: str, csv_path: str,
+        time_column: str | None = None, target_column: str | None = None,
+        series_column: str | None = None,
+    ) -> list[ScoreResult]:
+        """Submit actuals from a CSV file and score all unscored forecasts.
+
+        ``time_column`` and ``target_column`` are named rather than guessed
+        positionally when supplied. Guessing by position turned a perfectly
+        good operator export of `requests,timestamp,host` into a silent
+        `{"scored": 0}` — indistinguishable from "nothing was due".
+        """
         path = Path(csv_path).expanduser()
         if not path.exists():
             raise FileNotFoundError(f"Actuals file not found: {path}")
@@ -848,17 +860,9 @@ class TrackingStore:
         with open(path, encoding="utf-8-sig", newline="") as f:
             reader = csv.DictReader(f)
             cols = reader.fieldnames or []
-            # Find timestamp and value columns
-            ts_col = cols[0] if cols else "timestamp"
-            val_col = cols[1] if len(cols) > 1 else "value"
-            series_col = "series" if "series" in cols else None
-            if series_col:
-                ts_col = "timestamp" if "timestamp" in cols else next(
-                    col for col in cols if col != series_col
-                )
-                val_col = "value" if "value" in cols else next(
-                    col for col in cols if col not in {series_col, ts_col}
-                )
+            ts_col, val_col, series_col = self._resolve_actuals_columns(
+                cols, time_column, target_column, series_column,
+            )
             for row in reader:
                 ts = row[ts_col]
                 try:
@@ -872,6 +876,138 @@ class TrackingStore:
 
         logger.info("Loaded %d actuals from %s", len(actuals), path)
         return self.submit_actuals(project, actuals, ts_col, val_col)
+
+    @staticmethod
+    def _resolve_actuals_columns(
+        columns: list[str], time_column: str | None, target_column: str | None,
+        series_column: str | None,
+    ) -> tuple[str, str, str | None]:
+        """Named columns win; otherwise infer, and refuse to guess blind."""
+        missing = [
+            name for name in (time_column, target_column, series_column)
+            if name is not None and name not in columns
+        ]
+        if missing:
+            raise AionError(
+                "MISSING_COLUMNS",
+                f"Actuals file is missing: {', '.join(missing)}",
+                {"available_columns": columns, "missing_columns": missing},
+            )
+        series_col = series_column or ("series" if "series" in columns else None)
+        remaining = [name for name in columns if name != series_col]
+
+        ts_col = time_column
+        if ts_col is None:
+            named = [name for name in remaining
+                     if name.lower() in {"timestamp", "time", "date", "ts"}]
+            if named:
+                ts_col = named[0]
+            elif len(remaining) == 2:
+                # Two columns and no naming convention: position is the only
+                # signal there is, and it is disclosed by being documented.
+                ts_col = remaining[0]
+            else:
+                raise AionError(
+                    "AMBIGUOUS_SCHEMA",
+                    "Cannot tell which column holds the timestamp. Pass "
+                    "--time explicitly.",
+                    {"available_columns": columns, "argument": "--time"},
+                )
+        val_col = target_column
+        if val_col is None:
+            named = [name for name in remaining
+                     if name.lower() in {"value", "actual", "actuals"} and name != ts_col]
+            candidates = [name for name in remaining if name != ts_col]
+            if named:
+                val_col = named[0]
+            elif len(candidates) == 1:
+                val_col = candidates[0]
+            else:
+                raise AionError(
+                    "AMBIGUOUS_SCHEMA",
+                    "Cannot tell which column holds the actual value. Pass "
+                    "--target explicitly.",
+                    {"available_columns": columns, "candidates": candidates,
+                     "argument": "--target"},
+                )
+        return ts_col, val_col, series_col
+
+    def explain_unscored(
+        self, project: str, actual_timestamps: list[str],
+    ) -> dict[str, Any]:
+        """Why nothing scored, in terms a caller can act on.
+
+        `{"scored": 0}` is the failure mode of the exact follow-up loop the
+        product promises, and it was indistinguishable from "nothing was
+        due yet".
+        """
+        forecasts = self.list_forecasts(project, limit=1000)
+        open_forecasts = [record for record in forecasts if not record.scored]
+        normalised = {self._normalise_timestamp(item) for item in actual_timestamps}
+
+        windows: list[dict[str, Any]] = []
+        overlap_total = 0
+        for record in open_forecasts:
+            artifact = Path(record.artifact_path) / "forecast.csv"
+            if not artifact.exists():
+                windows.append({
+                    "forecast_id": record.forecast_id, "series": record.series,
+                    "problem": "artifact_missing", "artifact_path": str(artifact),
+                })
+                continue
+            rows = [
+                row for row in self._load_forecast_csv(artifact)
+                if row.get("series", "__default__") == record.series
+            ]
+            wanted = {self._normalise_timestamp(row["timestamp"]) for row in rows}
+            overlap = wanted & normalised
+            overlap_total += len(overlap)
+            windows.append({
+                "forecast_id": record.forecast_id,
+                "series": record.series,
+                "needs_timestamps": sorted(wanted)[:1] + sorted(wanted)[-1:],
+                "periods_required": len(wanted),
+                "periods_supplied": len(overlap),
+            })
+
+        if not forecasts:
+            reason = f"no forecasts are registered in project {project!r}"
+        elif not open_forecasts:
+            reason = "every registered forecast is already scored"
+        elif overlap_total == 0:
+            reason = (
+                "the supplied actuals do not overlap any open forecast's "
+                "horizon window"
+            )
+        else:
+            reason = (
+                "open forecasts overlap the actuals only partially; a forecast "
+                "scores when every one of its periods has an actual"
+            )
+        supplied = sorted(normalised)
+        return {
+            "scored": 0,
+            "reason": reason,
+            "registered_forecasts": len(forecasts),
+            "open_forecasts": len(open_forecasts),
+            "actuals_supplied": len(normalised),
+            "actuals_window": (
+                {"first": supplied[0], "last": supplied[-1]} if supplied else None
+            ),
+            "open_forecast_windows": windows,
+            "repair_options": [
+                {"action": "check_window",
+                 "description": "Compare actuals_window with each entry's "
+                                "needs_timestamps; a forecast scores only when "
+                                "every period in its horizon has an actual."},
+                {"action": "name_columns",
+                 "description": "If the file's columns were read wrongly, pass "
+                                "--time and --target explicitly."},
+                {"action": "list_open",
+                 "description": "Run `aion track list --project <name>` to see "
+                                "what is awaiting actuals."},
+            ],
+        }
 
     # ---- Performance / Leaderboard ----
 

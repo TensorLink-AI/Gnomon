@@ -327,6 +327,84 @@ def load_observations(
     return observations, fingerprint(path), columns
 
 
+def infer_schema_columns(path_raw: str) -> dict[str, object]:
+    """Guess the time and target columns when the schema is unambiguous.
+
+    "Unambiguous" is strict on purpose: exactly one column whose values all
+    parse as timestamps, and exactly one *other* column whose values all
+    parse as numbers. Anything else returns candidates and no choice, so
+    the caller can say what it could not decide rather than guessing.
+
+    Returns ``{"time": str|None, "target": str|None, "time_candidates":
+    [...], "target_candidates": [...]}``.
+    """
+    from .repair import RepairLog
+
+    path = Path(path_raw).expanduser().resolve()
+    if not path.is_file():
+        raise AionError("INPUT_NOT_FOUND", f"Input file does not exist: {path}")
+    # Inference runs before any column is named, so delimiter detection
+    # cannot key on the mapped columns. Take whichever separator yields the
+    # most header fields — for a single-column result there is nothing to
+    # infer either way.
+    rows, columns = _read_rows(path, "", "", repair="off", log=RepairLog())
+    if len(columns) <= 1 and path.suffix.lower() in {".csv", ".txt", ""}:
+        best = (len(columns), rows, columns)
+        for delimiter in (";", "\t", "|"):
+            try:
+                candidate_rows, candidate_columns = _read_delimited(path, delimiter)
+            except Exception:
+                continue
+            if len(candidate_columns) > best[0]:
+                best = (len(candidate_columns), candidate_rows, candidate_columns)
+        _, rows, columns = best
+    sample = rows[: min(len(rows), 50)]
+    if not sample:
+        raise AionError("EMPTY_DATASET", "The input contains no observations.")
+
+    time_candidates: list[str] = []
+    numeric_candidates: list[str] = []
+    for column in columns:
+        values = [row.get(column) for row in sample]
+        if all(_parses_as_timestamp(value) for value in values):
+            time_candidates.append(column)
+        elif all(_parses_as_number(value) for value in values):
+            numeric_candidates.append(column)
+    return {
+        "time": time_candidates[0] if len(time_candidates) == 1 else None,
+        "target": numeric_candidates[0] if len(numeric_candidates) == 1 else None,
+        "time_candidates": time_candidates,
+        "target_candidates": numeric_candidates,
+    }
+
+
+def _read_delimited(path: Path, delimiter: str) -> tuple[list[dict[str, object]], list[str]]:
+    import io
+    text = path.read_text(encoding="utf-8-sig")
+    reader = csv.DictReader(io.StringIO(text, newline=""), delimiter=delimiter)
+    return list(reader), list(reader.fieldnames or [])
+
+
+def _parses_as_timestamp(value: object) -> bool:
+    if value is None or str(value).strip() == "":
+        return False
+    try:
+        _parse_timestamp(value, 0)
+        return True
+    except Exception:
+        return False
+
+
+def _parses_as_number(value: object) -> bool:
+    if value is None or str(value).strip() == "":
+        return False
+    try:
+        float(str(value).strip().replace(",", "."))
+        return True
+    except (TypeError, ValueError):
+        return False
+
+
 def timezone_name(values: list[datetime]) -> str | None:
     aware = [value.utcoffset() is not None for value in values]
     if any(aware) and not all(aware):

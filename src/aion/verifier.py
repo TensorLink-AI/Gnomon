@@ -246,9 +246,27 @@ def _check_comparison(claim, comparison, evidence_by_id) -> dict[str, Any] | Non
 
 def verify_or_raise(lineage: Lineage, *, as_of: str | None) -> None:
     violations = verify_lineage(lineage, as_of=as_of)
-    if violations:
-        raise AionError(
-            "CLAIM_VERIFICATION_FAILED",
-            f"{len(violations)} claim(s) failed deterministic verification.",
-            {"violations": violations},
-        )
+    if not violations:
+        return
+    # Each violation carries its own repairs, and they are also lifted onto
+    # the error. `TEMPORAL_LEAKAGE` had useful options and was never raised
+    # as a code — it appears only inside this error, which had none — so the
+    # advice existed and could not be reached.
+    from .contracts import REPAIR_OPTIONS
+
+    enriched: list[dict[str, Any]] = []
+    lifted: list[dict[str, Any]] = list(REPAIR_OPTIONS["CLAIM_VERIFICATION_FAILED"])
+    seen = {option["action"] for option in lifted}
+    for violation in violations:
+        options = REPAIR_OPTIONS.get(str(violation.get("code")), [])
+        enriched.append({**violation, "repair_options": options})
+        for option in options:
+            if option["action"] not in seen:
+                seen.add(option["action"])
+                lifted.append(option)
+    raise AionError(
+        "CLAIM_VERIFICATION_FAILED",
+        f"{len(violations)} claim(s) failed deterministic verification.",
+        {"violations": enriched},
+        repair_options=lifted,
+    )

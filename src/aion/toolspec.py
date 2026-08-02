@@ -136,11 +136,34 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
 
 
 def _run_submit_actuals(arguments: dict[str, Any]) -> dict[str, Any]:
+    import csv as csv_module
+
     from .tracking import TrackingStore
-    results = TrackingStore().submit_actuals_csv(
-        str(arguments["project"]), str(arguments["actuals_file"]),
+    store = TrackingStore()
+    project = str(arguments["project"])
+    path = str(arguments["actuals_file"])
+    time_column = arguments.get("time_column")
+    target_column = arguments.get("target_column")
+    series_column = arguments.get("series_column")
+    results = store.submit_actuals_csv(
+        project, path, time_column=time_column,
+        target_column=target_column, series_column=series_column,
     )
-    return {"status": "ok", "scored": len(results),
+    if not results:
+        # A bare `scored: 0` reads as "nothing was due" whether or not
+        # anything was due. Return the diagnosis instead.
+        with open(path, encoding="utf-8-sig", newline="") as handle:
+            reader = csv_module.DictReader(handle)
+            columns = reader.fieldnames or []
+            rows = list(reader)
+        resolved_time, _, _ = store._resolve_actuals_columns(
+            columns, time_column, target_column, series_column,
+        )
+        return {
+            "schema_version": "0.1", "status": "ok", "project": project,
+            **store.explain_unscored(project, [row[resolved_time] for row in rows]),
+        }
+    return {"schema_version": "0.1", "status": "ok", "scored": len(results),
             "results": [item.__dict__ for item in results]}
 
 
@@ -282,9 +305,12 @@ TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "aion_submit_actuals",
-        "description": "Score all due forecasts in a project from complete realised actuals. Panel actuals must include series,timestamp,value.",
+        "description": "Score all due forecasts in a project from complete realised actuals. Panel actuals must include series,timestamp,value. A forecast scores only when every period in its horizon has an actual; when nothing scores, the result explains which window was missing rather than returning a bare zero.",
         "inputSchema": {"type": "object", "properties": {
             "project": {"type": "string"}, "actuals_file": {"type": "string"},
+            "time_column": {"type": "string", "description": "Timestamp column in the actuals file. Inferred from a conventional name or a two-column layout when omitted."},
+            "target_column": {"type": "string", "description": "Realised value column. Inferred when unambiguous."},
+            "series_column": {"type": "string", "description": "Series column, required for multi-series projects."},
         }, "required": ["project", "actuals_file"]},
         "runner": _run_submit_actuals,
     },
