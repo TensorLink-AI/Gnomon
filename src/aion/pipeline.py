@@ -74,6 +74,7 @@ class SeriesState:
     context_assessment: ContextAssessment | None = None
     covariate_assessment: CovariateAssessment | None = None
     adjudication_public: dict[str, object] | None = None
+    conditional_forecasts: list[dict[str, object]] = field(default_factory=list)
     evidence: list[Evidence] = field(default_factory=list)
 
 
@@ -282,6 +283,46 @@ def predict_stage(
             )
             state.selected_model = assessment.strongest_baseline
             state.points = predict(state.selected_model, values, horizon, season)
+
+
+def conditional_stage(
+    state: SeriesState,
+    context_events: list[ContextEvent],
+    *,
+    horizon: int,
+) -> None:
+    """Answer "what if this event happens" for events the gate cannot admit.
+
+    Events without a verifiable source are excluded from backtesting because
+    their `known_at` cannot be shown not to leak — which is right for the
+    forecast, and turns a real question into an abstention. The answer goes
+    in its own list with its own support status; nothing above it changes.
+    """
+    from .conditional import assess_conditional
+
+    assessment = state.assessment
+    if not (assessment and assessment.supported and state.points):
+        return
+    spreads = conformal_spreads(
+        state.residuals_by_lead, len(state.points), state.residuals,
+    )
+    forecasts, excluded = assess_conditional(
+        state.values, state.timestamps, state.future_timestamps,
+        context_events, state.name, horizon, state.season, spreads,
+        state.points,
+    )
+    state.conditional_forecasts = [item.to_public_dict() for item in forecasts]
+    if forecasts or excluded:
+        state.evidence.append(Evidence(
+            f"conditional_forecasts:{state.name}", "conditional_forecasts",
+            state.name,
+            {
+                "produced": len(forecasts),
+                "declined": excluded,
+                "basis": "effect measured from event-active periods in the "
+                         "observed history; never from the event description",
+            },
+        ))
 
 
 def multivariate_stage(

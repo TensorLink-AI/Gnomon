@@ -190,6 +190,39 @@ Error envelope: `{"schema_version", "status": "error", "error": {"code",
   spurious rejections; no previously-rejected-for-cause run is admitted
   on any other condition.
 
+- Conditional forecasts, additive: a result may carry
+  `conditional_forecasts`, a list of answers conditioned on events the
+  admission gate cannot admit (no verifiable source, so not backtestable).
+  Each entry has its own `support: "conditional_on_event"`, `assumptions`,
+  `forecast` rows, `measured_effect`, `effect_standard_error`, and
+  `occurrences_in_history`; runs that produce one also emit a
+  `conditional_forecasts` evidence record naming every declined event and
+  why. The key is **omitted entirely** when empty, so a run that produces no
+  conditional forecast serialises byte-for-byte as it did before the feature
+  existed — the goldens are unchanged and verify this. Every existing field
+  keeps its unconditional value: a v0.2 reader that ignores the key sees what
+  it has always seen.
+
+- Multivariate gate, behaviour change: `--multivariate` no longer overrides
+  the forecast for every aligned series. VAR is a candidate in the selection
+  folds, admitted per series under the same margin as every other model, and
+  each such run emits a `multivariate_gate` evidence record. A caller that
+  passed `--multivariate` and relied on `selected_model == "var"` for all
+  series will now see it only where VAR won. `aion.multivariate.forecast_var`
+  is removed (`VarFrame` replaces it); no MCP tool name or signature changed.
+
+- Ensemble intervals, behaviour change: calibrated on the selection and
+  calibration folds rather than a trailing window overlapping the test fold.
+  Ensemble `q10`/`q90` values change (they were ~3x too narrow on a
+  representative series); `point` values are unchanged. No golden covers the
+  ensemble path.
+
+- Tracking schema, additive: `forecasts.wape` and `model_performance.wape`
+  columns, added by the existing in-place migration; `ScoreResult.wape`,
+  `ForecastRecord.wape`, `ModelPerformance.avg_wape`; a WAPE column in
+  `aion track leaderboard` and `avg_wape` in `track performance --json`.
+  Existing columns and MASE ordering are unchanged.
+
 ## Enforcement
 
 `tests/test_golden_artifacts.py` pins byte-exact `artifact.json` output for

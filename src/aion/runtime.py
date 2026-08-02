@@ -15,6 +15,7 @@ from .models import BASELINES, MODELS
 from .pipeline import (
     LoadedDataset,
     adjudicate_enrichments_stage,
+    conditional_stage,
     context_stage,
     covariate_stage,
     evaluate_stage,
@@ -256,6 +257,11 @@ def forecast(
             adjudicate_enrichments_stage(
                 state, context_events, covariates, horizon=horizon,
             )
+        if context_events:
+            # After every stage that can change the point forecast and its
+            # calibration: a conditional answer is conditioned on the
+            # forecast that was actually selected.
+            conditional_stage(state, context_events, horizon=horizon)
         repair_warnings = repair_log.warnings_for(series_name)
         if repair_warnings:
             state.warnings.extend(repair_warnings)
@@ -273,6 +279,7 @@ def forecast(
             state.covariate_public, threshold_analysis,
             support_assessment.to_dict(),
             notes=state.notes,
+            conditional_forecasts=state.conditional_forecasts,
         )
         results.append(result)
         evidence.extend(state.evidence)

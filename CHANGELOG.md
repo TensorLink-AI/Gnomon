@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Conditional forecasts. An event without a verifiable source cannot be
+  admitted to the forecast — its `known_at` cannot be shown not to leak — so
+  "what if we run the promotion in March?" used to be an abstention. Such
+  events now produce a clearly separated answer in a new
+  `conditional_forecasts` list, each with its own `conditional_on_event`
+  support and stated assumptions. The unconditional forecast is the base and
+  is unchanged, so the difference between the two is the event and nothing
+  else. The effect size is measured from periods in the observed history when
+  an event of the same type was active — never read off the event
+  description — and an event with no precedent is declined with that reason
+  rather than given an invented magnitude. Intervals widen at event-active
+  steps by the standard error of the measured effect, so an effect estimated
+  from three occurrences is visibly less certain than one from thirty. The
+  key is omitted when empty, so existing artifacts are byte-identical.
 - **Behaviour change.** `--multivariate` no longer overrides the forecast.
   The VAR(1) candidate is now entered in the selection folds like every other
   model: scored on the same rolling origins, against the same baselines,
