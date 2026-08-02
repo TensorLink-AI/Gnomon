@@ -327,3 +327,61 @@ class TestEnsembleCalibrationPartitions:
         assert result.support == "supported_ensemble"
         assert result.forecast, "an ensemble forecast must still carry intervals"
         assert all(row["q10"] <= row["point"] <= row["q90"] for row in result.forecast)
+
+
+class TestSelectionStride:
+    """Selection folds and calibration folds answer to different rules.
+
+    Overlapping folds are legitimate for selection -- candidates are still
+    compared on identical windows, and the extra comparisons cut variance.
+    They are not legitimate for calibration: residuals from overlapping
+    windows are dependent, and a conformal quantile that treats n of them as
+    n independent draws is anti-conservative by exactly the amount it
+    over-counts.
+    """
+
+    @staticmethod
+    def _series(count=260):
+        import math
+        return [100 + 20 * math.sin(2 * math.pi * i / 12) + 0.3 * i + (i % 7)
+                for i in range(count)]
+
+    def test_default_is_non_overlapping(self):
+        from aion.evaluation import evaluate
+
+        values = self._series()
+        base = evaluate(values, 12, 12, 0.02, frequency="h")
+        explicit = evaluate(values, 12, 12, 0.02, frequency="h",
+                            selection_stride=12)
+        assert base.selected_model == explicit.selected_model
+        assert base.residuals == explicit.residuals
+
+    def test_stride_does_not_change_calibration_residuals(self):
+        from aion.evaluation import evaluate
+
+        values = self._series()
+        sparse = evaluate(values, 12, 12, 0.02, frequency="h")
+        dense = evaluate(values, 12, 12, 0.02, frequency="h", selection_stride=3)
+        if sparse.selected_model != dense.selected_model:
+            pytest.skip("stride changed the selection; residuals describe "
+                        "different models and are not comparable")
+        assert dense.residuals == sparse.residuals, (
+            "calibration must stay on the non-overlapping skeleton whatever "
+            "stride selection uses"
+        )
+
+    def test_no_selection_fold_reads_the_calibration_or_test_partition(self):
+        from aion.evaluation import _origins, dense_selection_origins
+
+        horizon, season, length = 12, 12, 260
+        minimum_train = max(2 * season, 2 * horizon, 8)
+        origins = _origins(length, horizon, minimum_train)
+        calibration_origin = origins[-2]
+        for stride in (1, 2, 3, 5, 12):
+            dense = dense_selection_origins(minimum_train, origins[:-2][-1], stride)
+            assert dense, stride
+            # Each fold's target window is [origin, origin + horizon).
+            assert max(dense) + horizon <= calibration_origin, (
+                f"stride {stride} lets a selection fold read the calibration "
+                f"partition"
+            )

@@ -200,7 +200,39 @@ def interval_from_spread(
 
 
 def _origins(length: int, horizon: int, minimum_train: int) -> list[int]:
+    """Non-overlapping rolling origins: the partition skeleton.
+
+    Stepping by ``horizon`` makes each fold's target window disjoint from
+    every other, which is what lets the last two be reserved as a
+    calibration and a report-only test fold, and what makes the pooled
+    residuals exchangeable enough for a conformal quantile to mean
+    something. It is also why fold count collapses as the horizon grows —
+    see ``dense_selection_origins``, which buys back selection folds
+    without disturbing this skeleton.
+    """
     return list(range(minimum_train, length - horizon + 1, horizon))
+
+
+def dense_selection_origins(
+    minimum_train: int, last_selection_origin: int, stride: int,
+) -> list[int]:
+    """Selection origins at a finer stride than the horizon.
+
+    Selection compares candidates on identical folds, so overlapping folds
+    are legitimate there: they cut the variance of the comparison without
+    changing what is being compared. They are *not* legitimate for
+    calibration — residuals from overlapping windows are dependent, and
+    treating n of them as n independent draws makes a conformal quantile
+    look better determined than it is, which is precisely how intervals end
+    up anti-conservative.
+
+    So this widens the selection sample only. The window of the last dense
+    origin still ends at the calibration origin, so no selection fold ever
+    reads a point belonging to the calibration or test partitions.
+    """
+    if stride >= 1 and last_selection_origin >= minimum_train:
+        return list(range(minimum_train, last_selection_origin + 1, max(1, stride)))
+    return []
 
 
 def supportable_horizon(length: int, season: int) -> int | None:
@@ -271,6 +303,7 @@ def evaluate(
     strict_abstention: bool = False,
     train_at: Callable[[int], list[float]] | None = None,
     extra_candidates: dict[str, Callable[[int, int], list[float]]] | None = None,
+    selection_stride: int | None = None,
 ) -> Evaluation:
     """``train_at(origin)`` returns the training history for a fold whose
     forecast origin is index ``origin`` — by default a plain prefix slice,
@@ -282,7 +315,13 @@ def evaluate(
     across aligned series, say. They are scored on the same folds, against
     the same baselines, under the same improvement margin as everything
     else; a candidate that cannot beat the ladder does not get in by being
-    special."""
+    special.
+
+    ``selection_stride`` samples selection origins more finely than the
+    horizon (``None`` keeps them non-overlapping, one per horizon). It widens
+    the comparison sample only: calibration residuals are always pooled from
+    the non-overlapping skeleton, and no selection fold reads a point
+    belonging to the calibration or test partitions."""
     if train_at is None:
         train_at = lambda origin: values[:origin]  # noqa: E731
     minimum_train = max(2 * season, 2 * horizon, 8)
@@ -323,6 +362,14 @@ def evaluate(
         test_origin: int | None = origins[-1]
     else:
         selection_origins, calibration_origin, test_origin = origins[:-1], origins[-1], None
+    # Residuals stay on the disjoint skeleton whatever selection does with
+    # its stride: a conformal quantile over dependent residuals is not a
+    # conformal quantile.
+    residual_origins = list(selection_origins)
+    if selection_stride is not None and selection_origins:
+        selection_origins = dense_selection_origins(
+            minimum_train, selection_origins[-1], selection_stride,
+        )
     if degraded:
         warnings.append(
             f"Limited evaluation: only {len(origins)} rolling folds were available; "
@@ -691,7 +738,7 @@ def evaluate(
                 pooled.append(a - p)
                 by_lead.setdefault(step, []).append(a - p)
 
-        for origin in selection_origins:
+        for origin in residual_origins:
             try:
                 prediction = _predict_selected(name, train_at(origin), origin)
             except Exception:

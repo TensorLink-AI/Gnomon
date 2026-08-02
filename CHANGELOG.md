@@ -31,6 +31,16 @@
   `min_context_length` of 1, so the live trigger was frequency: `flowstate`
   supports `min`..`MS`, which downgraded every quarterly and annual series
   regardless of the evidence behind its forecast.
+- `evaluate()` accepts `selection_stride`: selection origins sampled more
+  finely than the horizon, so overlapping selection folds cut comparison
+  variance while calibration residuals stay on the non-overlapping skeleton
+  a conformal quantile needs. The default is unchanged (one origin per
+  horizon) — `docs/fold-stride-measurement-2026-08.md` records why: across
+  140 series the denser stride's choice beat the default's on the held-out
+  test fold 19 times out of 31 changed selections (p = 0.28), for roughly 4x
+  the selection compute. It also does **not** relax the four-fold cliff,
+  which comes from needing calibration and test windows and is
+  stride-independent.
 - `evaluate()` accepts `extra_candidates`: named predictors that need more
   than the series' own history (`predictor(origin, horizon)`), scored on the
   same folds under the same margin. This is how the VAR enters the ladder.
