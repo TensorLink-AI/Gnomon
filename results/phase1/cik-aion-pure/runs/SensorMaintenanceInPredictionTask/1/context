@@ -1,9 +1,0 @@
-
-Background:
-This series represents the occupancy rate (%) captured by a highway sensor.
-
-Constraints:
-None
-
-Scenario:
-Consider that the meter will be offline for maintenance between 2024-01-18 08:00:00 and 2024-01-18 14:00:00, which results in zero readings.
