@@ -7,7 +7,7 @@
 **Status:** Historical direction document — superseded in parts by the shipped runtime
 
 > **Read this as intent, not as description.** It was written before
-> implementation, at v0.1; the runtime is now 0.4.0. Parts of it shipped,
+> implementation, at v0.1; the runtime is now 0.5.0. Parts of it shipped,
 > parts were built differently, and parts — hosted service, sharing,
 > `init`/`run`/`share` commands, automatic model switching — were never
 > built and are not on a committed roadmap.
