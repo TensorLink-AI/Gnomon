@@ -22,7 +22,9 @@ def assess_forecast_support(
     assessment: Evaluation | None,
     *,
     known_time_assumed: bool = False,
+    disclosures: list[SupportReason] | None = None,
 ) -> SupportAssessment:
+    disclosures = list(disclosures or [])
     reasons = [SupportReason("warning", message) for message in warnings]
     assumptions: list[str] = []
     if known_time_assumed:
@@ -40,13 +42,14 @@ def assess_forecast_support(
             if support == "supported_ensemble" else []
         return SupportAssessment(
             "supported", extra + reasons, assumptions, sensitivity, [], support,
+            disclosures,
         )
     if support == "weakly_supported":
         return SupportAssessment(
             "conditionally_supported", reasons, assumptions, sensitivity,
             [SupportReason("review_warnings",
                            "Inspect the attached warnings; each names the condition under which this forecast holds.")],
-            support,
+            support, disclosures,
         )
     if support == "degraded":
         return SupportAssessment(
@@ -56,7 +59,7 @@ def assess_forecast_support(
             assumptions, sensitivity,
             [SupportReason("provide_more_history",
                            "Supply enough observations for separated selection, calibration, and test windows.")],
-            support,
+            support, disclosures,
         )
     # v0.2 "unsupported" is always a data-insufficiency abstention: the
     # evaluation could not run, so the honest status is inconclusive — the
@@ -78,5 +81,5 @@ def assess_forecast_support(
         or [SupportReason("insufficient_evaluation", "The evaluation protocol could not complete.")],
         assumptions, sensitivity,
         recovery,
-        support,
+        support, disclosures,
     )

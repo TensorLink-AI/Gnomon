@@ -273,6 +273,7 @@ def forecast(
         support_assessment = assess_forecast_support(
             support, state.warnings, assessment,
             known_time_assumed=loaded.snapshot.assumed_known_time,
+            disclosures=state.disclosures,
         )
         result = SeriesResult(
             series_name, support, state.selected_model, assessment.strongest_baseline,

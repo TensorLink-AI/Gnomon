@@ -36,6 +36,7 @@ from datetime import datetime
 from typing import Any
 
 from .context import ContextEvent, event_applies
+from .contracts import AionError
 
 #: Reserved key inside `ContextEvent.attributes`.
 CLAIM_KEY = "claim"
@@ -155,6 +156,11 @@ def apply_claims(
     possible, so it belongs after the model has said what it believes, not
     inside the belief. Clamping is monotone and therefore preserves
     q10 <= point <= q90; it is idempotent by construction.
+
+    *Every* emitted quantile is projected, not a fixed list of the three
+    legacy columns. Clamping four of ten levels left a caller's declared
+    `max` violated by q95 and produced a crossed distribution (q80 > q90)
+    that then propagated into `monitor` and `decide`, which read these rows.
     """
     if not claims or not rows:
         return rows, []
@@ -167,9 +173,7 @@ def apply_claims(
             if not claim.binds(timestamp):
                 continue
             changed: dict[str, float] = {}
-            for field in ("q10", "point", "q50", "q90"):
-                if field not in updated:
-                    continue
+            for field in _projectable_fields(updated):
                 before = float(updated[field])
                 after = claim.project(before)
                 if after != before:
@@ -183,5 +187,46 @@ def apply_claims(
                     "timestamp": row["timestamp"],
                     "before": changed,
                 })
+        _assert_monotone(updated)
         projected.append(updated)
     return projected, applications
+
+
+def _projectable_fields(row: dict[str, Any]) -> list[str]:
+    """Every numeric forecast column in a row: `point` and all `q*` levels.
+
+    Derived from the row rather than hard-coded, so a quantile level added
+    later is projected the day it is emitted instead of the day someone
+    remembers to extend a tuple.
+    """
+    fields = ["point"] if "point" in row else []
+    fields.extend(sorted(
+        key for key in row
+        if key.startswith("q") and key[1:].isdigit()
+    ))
+    return fields
+
+
+def _assert_monotone(row: dict[str, Any]) -> None:
+    """Quantile levels must not cross after projection.
+
+    Projection onto an interval is monotone, so this cannot fail for a
+    well-formed row; it is here because the crossing it guards against
+    (q80 > q90 beside a clamped q90) shipped once already.
+    """
+    levels = sorted(
+        (int(key[1:]), key) for key in row
+        if key.startswith("q") and key[1:].isdigit()
+    )
+    previous_value: float | None = None
+    previous_key: str | None = None
+    for _, key in levels:
+        value = float(row[key])
+        if previous_value is not None and value < previous_value - 1e-9:
+            raise AionError(
+                "QUANTILE_CROSSING",
+                f"Projected quantiles cross: {previous_key}={previous_value} "
+                f"exceeds {key}={value}.",
+                {"timestamp": row.get("timestamp"), "row": dict(row)},
+            )
+        previous_value, previous_key = value, key

@@ -36,6 +36,11 @@ class SupportAssessment:
     sensitivity: dict[str, Any] = field(default_factory=dict)
     recovery_actions: list[SupportReason] = field(default_factory=list)
     legacy_support: str | None = None
+    #: Correct-but-surprising facts about how this result was produced.
+    #: A disclosure never changes ``status`` — that is what separates it
+    #: from a reason — but a reader who does not see it will misread the
+    #: numbers. Typed rather than free text so an agent can branch on it.
+    disclosures: list[SupportReason] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

@@ -74,6 +74,12 @@ class CovariateAssessment:
     fold_improvements: dict[str, list[float]] = field(default_factory=dict)
     points: list[float] = field(default_factory=list)
     residuals: list[float] = field(default_factory=list)
+    #: The same residuals indexed by lead time. One calibration fold gives
+    #: one residual per lead, which is below MIN_RESIDUALS_PER_LEAD, so
+    #: every lead correctly borrows this model's own pooled spread. What
+    #: must not happen is inheriting the *base* model's per-lead residuals,
+    #: which describe a different forecast.
+    residuals_by_lead: dict[int, list[float]] = field(default_factory=dict)
     coverage: float | None = None
     warnings: list[str] = field(default_factory=list)
 
@@ -477,6 +483,11 @@ def assess_covariates(
         actual - predicted
         for actual, predicted in zip(values[calibration_origin:calibration_origin + horizon], calibration)
     ]
+    # The calibration fold is walked in lead order, so index i is lead i+1.
+    assessment.residuals_by_lead = {
+        step: [residual]
+        for step, residual in enumerate(assessment.residuals, 1)
+    }
     test = covariate_forecast(
         values[:test_origin], timestamps[:test_origin], timestamps[test_origin:test_origin + horizon],
         dataset, retained, series, timestamps[test_origin - 1], season,

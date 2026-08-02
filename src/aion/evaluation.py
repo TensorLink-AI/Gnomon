@@ -40,10 +40,24 @@ class Evaluation:
     # the override would have nothing fold-separated to widen from.
     ensemble_residuals: list[float] = field(default_factory=list)
     ensemble_residuals_by_lead: dict[int, list[float]] = field(default_factory=dict)
+    # Residuals of the strongest baseline over the same folds, populated
+    # only when the selection is one that can fail at final prediction (a
+    # TSFM or a cross-series candidate). Without these, a fallback would
+    # have to publish the failed model's intervals around the baseline's
+    # points — an interval belonging to a forecast nobody is shown.
+    fallback_residuals: list[float] = field(default_factory=list)
+    fallback_residuals_by_lead: dict[int, list[float]] = field(default_factory=dict)
     # Mean pinball loss per candidate over the selection folds, populated only
     # when `selection_loss="pinball"`. Reported alongside the point scores,
     # never in place of them.
     pinball_scores: dict[str, float | None] = field(default_factory=dict)
+    #: Whether conformal residuals were pooled across the selection folds
+    #: (optimistically narrow, more stable) or restricted to the held-out
+    #: calibration fold (genuine split conformal, noisier). Recorded so the
+    #: result can say which trade it made.
+    residuals_pooled_across_selection: bool = True
+    #: How many origins the published residuals came from.
+    residual_fold_count: int = 0
 
 
 #: The metric every selection decision is made on. Named so that hindsight
@@ -192,6 +206,21 @@ def conformal_spreads(
     highs = _isotonic([max(0.0, value) for value in highs])
     return {step + 1: (lows[step], medians[step], highs[step])
             for step in range(horizon)}
+
+
+def pooled_fallback_leads(
+    residuals_by_lead: dict[int, list[float]], horizon: int,
+) -> list[int]:
+    """Lead times that borrow the pooled spread instead of measuring their own.
+
+    Reported so the pipeline can say so. With the usual three or four folds
+    *every* lead borrows, which makes the 14-step interval exactly as wide
+    as the 1-step one — correct, and invisible unless it is stated.
+    """
+    return [
+        step for step in range(1, horizon + 1)
+        if len(residuals_by_lead.get(step) or []) < MIN_RESIDUALS_PER_LEAD
+    ]
 
 
 def interval_from_spread(
@@ -493,6 +522,18 @@ def evaluate(
     # its stride: a conformal quantile over dependent residuals is not a
     # conformal quantile.
     residual_origins = list(selection_origins)
+    # `evaluation.pool_residuals` (default true): pool the selection folds
+    # with the calibration fold for sample size, accepting a known
+    # optimistic bias. False is genuine split conformal — the calibration
+    # fold only, whose origins selection never saw — and noisier. The key
+    # was documented and never read; it is read here.
+    pool_residuals = True
+    if config is not None:
+        evaluation_config = getattr(config, "evaluation", None)
+        if evaluation_config is not None:
+            pool_residuals = bool(
+                getattr(evaluation_config, "pool_residuals", True)
+            )
     if selection_stride is not None and selection_origins:
         selection_origins = dense_selection_origins(
             minimum_train, selection_origins[-1], selection_stride,
@@ -918,9 +959,22 @@ def evaluate(
     def _pool_residuals(
         name: str, final_prediction: list[float] | None = None,
     ) -> tuple[list[float], dict[int, list[float]]]:
-        """Residuals of *name* over the selection folds and the calibration
-        fold. The test fold is never touched: it reports, it never calibrates.
+        """Residuals of *name* over the calibration fold, and — when
+        ``evaluation.pool_residuals`` is on, as it is by default — the
+        selection folds as well. The test fold is never touched: it reports,
+        it never calibrates.
+
+        **Pooling is not split-conformal, and the direction of the error is
+        known.** The selected model was chosen to minimise error on exactly
+        the selection folds, so its residuals there are optimistically small
+        and pooling them narrows the interval. The calibration fold alone
+        *is* honest split conformal, but at one fold it supplies `horizon`
+        residuals — too few for a stable tail quantile. That trade is the
+        reason the default is what it is, not an oversight.
+        ``evaluation.pool_residuals: false`` selects the honest, noisier
+        alternative; either way the choice is disclosed on every result.
         """
+        origins = residual_origins if pool_residuals else []
         pooled: list[float] = []
         by_lead: dict[int, list[float]] = {}
 
@@ -929,7 +983,7 @@ def evaluate(
                 pooled.append(a - p)
                 by_lead.setdefault(step, []).append(a - p)
 
-        for origin in residual_origins:
+        for origin in origins:
             try:
                 prediction = _predict_selected(name, train_at(origin), origin)
             except Exception:
@@ -954,6 +1008,15 @@ def evaluate(
     ensemble_residuals_by_lead: dict[int, list[float]] = {}
     if ensemble_enabled and selected != "ensemble":
         ensemble_residuals, ensemble_residuals_by_lead = _pool_residuals("ensemble")
+
+    # A TSFM or cross-series candidate can pass the folds and still fail at
+    # the final prediction. Calibrate the baseline it would fall back to on
+    # the same folds now, so the fallback publishes its own intervals rather
+    # than inheriting the failed model's.
+    fallback_residuals: list[float] = []
+    fallback_residuals_by_lead: dict[int, list[float]] = {}
+    if selected not in MODELS and strongest_baseline:
+        fallback_residuals, fallback_residuals_by_lead = _pool_residuals(strongest_baseline)
 
     # --- Test ---
     test_scores: dict[str, float | None] = {name: None for name in all_model_names}
@@ -995,4 +1058,10 @@ def evaluate(
                       residuals_by_lead=residuals_by_lead,
                       ensemble_residuals=ensemble_residuals,
                       ensemble_residuals_by_lead=ensemble_residuals_by_lead,
-                      pinball_scores=pinball_scores)
+                      fallback_residuals=fallback_residuals,
+                      fallback_residuals_by_lead=fallback_residuals_by_lead,
+                      pinball_scores=pinball_scores,
+                      residuals_pooled_across_selection=pool_residuals,
+                      residual_fold_count=(
+                          len(residual_origins) + 1 if pool_residuals else 1
+                      ))

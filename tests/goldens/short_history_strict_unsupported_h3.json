@@ -75,7 +75,8 @@
             "message": "Supply more observations, or lower the horizon, so rolling evaluation can run."
           }
         ],
-        "legacy_support": "unsupported"
+        "legacy_support": "unsupported",
+        "disclosures": []
       },
       "notes": []
     }

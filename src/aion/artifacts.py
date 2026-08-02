@@ -48,6 +48,11 @@ def write_artifact(
         extra = [quantile_key(level) for level in QUANTILE_LEVELS
                  if quantile_key(level) in present
                  and quantile_key(level) not in core]
+        # `point` is the raw model output and every quantile is recentred on
+        # the median residual, so the two are not the same number. The gap
+        # ships as a column rather than being left for the reader to derive.
+        if "point_bias_correction" in present:
+            extra.append("point_bias_correction")
         with (temporary / "forecast.csv").open("w", encoding="utf-8", newline="") as handle:
             writer = csv.DictWriter(handle, fieldnames=core + extra)
             writer.writeheader()
@@ -63,7 +68,13 @@ def write_artifact(
                 f"- Strongest baseline: {result.strongest_baseline or 'none'}",
             ])
             if result.interval_coverage is not None:
-                lines.append(f"- Final-test 80% interval coverage: {result.interval_coverage:.1%}")
+                # The count belongs beside the rate: one test fold of
+                # `horizon` points makes "100%" nearly information-free.
+                lines.append(
+                    f"- Final-test 80% interval coverage: "
+                    f"{result.interval_coverage:.1%} "
+                    f"({len(result.forecast)} points, one fold)"
+                )
             if result.selected_model == "last_value" and result.forecast:
                 lines.append(
                     "- Note: no model beat the last-value baseline on backtest; "
@@ -71,6 +82,11 @@ def write_artifact(
                 )
             lines.extend(f"- Warning: {warning}" for warning in result.warnings)
             lines.extend(f"- Note: {note}" for note in result.notes)
+            # Correct-but-surprising facts read here or nowhere: a human
+            # reading summary.md is exactly the reader who would otherwise
+            # take `point` for the median or a flat interval for a bug.
+            for disclosure in (result.support_assessment or {}).get("disclosures", []):
+                lines.append(f"- Disclosure ({disclosure['code']}): {disclosure['message']}")
             if result.threshold:
                 lines.extend([
                     "", f"### Threshold {result.threshold['value']}", "",
