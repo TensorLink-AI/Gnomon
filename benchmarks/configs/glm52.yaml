@@ -68,6 +68,10 @@ runs:
   # --- MTBench (git clone Graph-and-Geometric-Learning/MTBench) -------
   # `control` wraps an official script unchanged and manages its own
   # outputs; `gnomon` takes the shared output dir and limit.
+  # CAVEAT: `defaults.limit` reaches only the gnomon subcommand — the
+  # control arm runs the full dataset — so the two summary.json means
+  # are not directly comparable; compare via benchmarks/report.py,
+  # which joins the arms per task (matched subset).
   - benchmark: mtbench
     name: mtb-control
     args:

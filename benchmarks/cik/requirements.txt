@@ -1,4 +1,7 @@
 # The official Context-is-Key benchmark package. Installing it pulls the
 # benchmark's own (heavy) dependency set, including several time-series
 # foundation-model baselines; use a dedicated virtualenv.
-cik-benchmark @ git+https://github.com/ServiceNow/context-is-key-forecasting.git@main
+#
+# Pinned to upstream main as of 2026-08-03 (commit authored 2026-02-11),
+# so two arms installed at different times run the same benchmark code.
+cik-benchmark @ git+https://github.com/ServiceNow/context-is-key-forecasting.git@73f46016f8c5643bf6799ca31875eab3e8d0d075

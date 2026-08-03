@@ -24,6 +24,13 @@ from benchmarks.cik.gnomon_forecaster import (
     events_from_proposals,
     samples_from_quantile_rows,
 )
+from benchmarks.cik.run_cik import (
+    RCRPS_CAP,
+    build_parser,
+    capped_imputed_mean,
+    load_run_extra_info,
+    write_outputs,
+)
 from benchmarks.common.openrouter import extract_json_array
 from benchmarks.common.records import RecordWriter, RunRecord
 
@@ -210,6 +217,115 @@ def test_abstention_carries_reasons():
     error = GnomonAbstained(["insufficient history", "no baseline beaten"])
     assert "GNOMON_ABSTAINED" in str(error)
     assert error.reasons == ["insufficient history", "no baseline beaten"]
+
+
+def test_capped_imputed_mean_matches_official_rule():
+    """Official aggregation (upstream compile_roi_results.py, CAP = 5):
+    per-run RCRPS clipped to the cap, missing runs imputed at the cap."""
+    assert RCRPS_CAP == 5.0
+    assert capped_imputed_mean([0.5, 7.0], 0) == (0.5 + 5.0) / 2
+    assert capped_imputed_mean([1.0], 3) == (1.0 + 3 * 5.0) / 4
+    assert capped_imputed_mean([], 2) == 5.0
+    assert capped_imputed_mean([], 0) is None
+    # Upstream maps NaN and negative entries to the cap as failures.
+    assert capped_imputed_mean([float("nan"), -1.0], 0) == 5.0
+
+
+def test_capped_imputed_mean_never_rewards_abstention():
+    """Abstaining on a bad run must not beat scoring it: the imputed
+    value is the cap, the worst any scored run can contribute."""
+    all_scored = capped_imputed_mean([0.2, 4.9], 0)
+    abstained_on_worst = capped_imputed_mean([0.2], 1)
+    assert abstained_on_worst >= all_scored
+    # Contrast: the scored-only mean is flattered by dropping the run.
+    assert (0.2 + 4.9) / 2 > 0.2
+
+
+def test_load_run_extra_info_reads_pprint_dumps(tmp_path):
+    from pprint import pformat
+
+    run_dir = tmp_path / "DemoTask" / "1"
+    run_dir.mkdir(parents=True)
+    (run_dir / "extra_info").write_text(
+        pformat({"total_time": 12.5, "llm_usage": {"cost_usd": 0.1}}),
+        encoding="utf-8",
+    )
+    assert load_run_extra_info(tmp_path, "DemoTask", 1) == {
+        "total_time": 12.5, "llm_usage": {"cost_usd": 0.1},
+    }
+    assert load_run_extra_info(tmp_path, "DemoTask", 2) == {}
+    (run_dir / "extra_info").write_text("<not literal python>",
+                                        encoding="utf-8")
+    assert load_run_extra_info(tmp_path, "DemoTask", 1) == {}
+
+
+class _StubMethod:
+    cache_name = "StubMethod"
+
+
+def _cik_args(**overrides):
+    import argparse
+
+    values = {"method": "gnomon-pure", "model": None, "seeds": 2}
+    values.update(overrides)
+    return argparse.Namespace(**values)
+
+
+_CIK_RESULTS = {
+    "DemoTask": [
+        {"seed": 1, "score": 0.5},
+        {"seed": 2, "score": 7.0},  # above the cap
+        {"seed": 3, "error": "GNOMON_ABSTAINED: unsupported frequency"},
+        {"seed": 4, "error": "boom"},
+        {"seed": 5, "score": float("nan")},  # non-finite counts as an error
+    ],
+}
+
+
+def test_write_outputs_reports_both_aggregates(tmp_path):
+    write_outputs(_CIK_RESULTS, _StubMethod(), _cik_args(), tmp_path)
+    summary = json.loads((tmp_path / "summary.json").read_text())
+    assert summary["runs_scored"] == 2
+    assert summary["runs_abstained"] == 1
+    assert summary["runs_errored"] == 2
+    assert summary["mean_rcrps_scored_only"] == (0.5 + 7.0) / 2
+    # 0.5 kept, 7.0 capped at 5, three unscored runs imputed at 5.
+    assert summary["mean_rcrps_capped_imputed"] == (0.5 + 4 * 5.0) / 5
+    assert "mean_rcrps" not in summary  # the old ambiguous key is gone
+
+
+def test_write_outputs_rerun_does_not_duplicate_jsonl_rows(tmp_path):
+    write_outputs(_CIK_RESULTS, _StubMethod(), _cik_args(), tmp_path)
+    write_outputs(_CIK_RESULTS, _StubMethod(), _cik_args(), tmp_path)
+    rows = (tmp_path / "gnomonbench.jsonl").read_text().splitlines()
+    assert len(rows) == len(_CIK_RESULTS["DemoTask"])
+
+
+def test_write_outputs_populates_latency_from_official_dumps(tmp_path):
+    from pprint import pformat
+
+    run_dir = tmp_path / "runs" / "DemoTask" / "1"
+    run_dir.mkdir(parents=True)
+    (run_dir / "extra_info").write_text(pformat({"total_time": 3.25}),
+                                        encoding="utf-8")
+    write_outputs(_CIK_RESULTS, _StubMethod(), _cik_args(), tmp_path)
+    rows = [json.loads(line) for line in
+            (tmp_path / "gnomonbench.jsonl").read_text().splitlines()]
+    by_task = {row["task_id"]: row for row in rows}
+    assert by_task["DemoTask-seed1"]["latency_seconds"] == 3.25
+    # No dump (abstained/errored runs never write one) stays at zero.
+    assert by_task["DemoTask-seed3"]["latency_seconds"] == 0.0
+    # Cost is not derivable per run from the adapters' cumulative
+    # accounting, so it must stay at the schema zero, not a guess.
+    assert all(row["cost_usd"] == 0.0 for row in rows)
+
+
+def test_fail_on_invalid_defaults_to_the_official_true():
+    base = ["--method", "control", "--model", "x/y", "--output-dir", "out"]
+    parser = build_parser()
+    assert parser.parse_args(base).fail_on_invalid is True
+    assert parser.parse_args(base + ["--no-fail-on-invalid"]) \
+        .fail_on_invalid is False
 
 
 def test_flagged_indices_merge_into_half_open_intervals():

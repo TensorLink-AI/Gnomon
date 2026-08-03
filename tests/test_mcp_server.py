@@ -50,6 +50,8 @@ def test_initialize_list_and_call() -> None:
         "gnomon_status", "gnomon_resolve_outcome", "gnomon_route",
         # The bitemporal store, previously reachable only from the CLI.
         "gnomon_ingest", "gnomon_list_datasets",
+        # The proposer-calibration ledger (tracking schema 5).
+        "gnomon_proposer_skill",
     }
     call = by_id[3]["result"]
     assert call["isError"] is False

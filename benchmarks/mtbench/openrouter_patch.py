@@ -10,7 +10,23 @@ model through one ``OPENROUTER_API_KEY``.
 
 The patched functions preserve each original's return shape (message
 object with ``.content`` vs. plain string), because the official scripts
-depend on those shapes.
+depend on those shapes: ``send_to_openai_chatgpt`` and
+``send_to_openai_o1`` return ``response.choices[0].message`` upstream, so
+their replacements return a message-like object; the rest return plain
+strings. One upstream inconsistency is preserved rather than repaired:
+upstream ``send_to_deepseek_r1`` returns a plain string while its script
+dispatch reads ``.content`` off the result, so the r1 branch fails the
+same way under the patch as it does upstream.
+
+Protocol deltas, disclosed: the patched functions ignore the
+``max_tokens``/``temperature``/``timeout`` arguments the official
+scripts pass (upstream's chatgpt default is ``max_tokens=100``) and use
+the shared client's configuration instead (``max_tokens=4096``, the
+``--temperature`` given to the adapter). The shared client also retries
+transient HTTP errors with exponential backoff and escalates the token
+budget when a reasoning model returns an empty, length-truncated
+completion — behaviour upstream lacks. These deltas reduce spurious
+control failures; they never touch prompts, parsing, or scoring.
 """
 
 from __future__ import annotations
@@ -63,6 +79,34 @@ def _stub_vendor_sdks() -> None:
                 setattr(sys.modules[parent], child, module)
 
 
+def build_send_functions(client: Any) -> dict[str, Any]:
+    """OpenRouter-backed replacements keyed by official function name.
+
+    Upstream ``send_to_openai_chatgpt`` and ``send_to_openai_o1`` return
+    ``response.choices[0].message`` — their scripts read ``.content`` off
+    the result — so those two get a message-like object. The others
+    return plain strings, including ``send_to_deepseek_r1``, whose
+    upstream string return already contradicts its script dispatch.
+    """
+    def _text(content: str, *_args: Any, **_ignored: Any) -> str:
+        return client.completions(
+            [{"role": "user", "content": content}], n=1
+        )[0]
+
+    def _message(content, model=None, max_tokens=None,
+                 temperature=None, timeout=None):
+        return SimpleNamespace(content=_text(content))
+
+    return {
+        "send_to_openai_chatgpt": _message,
+        "send_to_openai_o1": _message,
+        "send_to_anthropic_claude": _text,
+        "send_to_google_gemini": _text,
+        "send_to_deepseek": _text,
+        "send_to_deepseek_r1": _text,
+    }
+
+
 def install(mtbench_root: Path, openrouter_model: str,
             temperature: float = 0.7) -> OpenRouterClient:
     """Import ``evaluation.api_call`` from the checkout and replace its
@@ -75,24 +119,9 @@ def install(mtbench_root: Path, openrouter_model: str,
     client = OpenRouterClient(openrouter_model, temperature=temperature,
                               max_tokens=4096)
     api_call = importlib.import_module("evaluation.api_call")
-
-    def _text(content: str, max_tokens=None, **_ignored) -> str:
-        return client.completions(
-            [{"role": "user", "content": content}], n=1
-        )[0]
-
-    # Official callers use `.content` on this one (it returns a message
-    # object); every other send function returns a plain string.
-    def send_message_object(content, model=None, max_tokens=None,
-                            temperature=None, timeout=None):
-        return SimpleNamespace(content=_text(content))
-
-    api_call.send_to_openai_chatgpt = send_message_object
-    for name in ("send_to_anthropic_claude", "send_to_google_gemini",
-                 "send_to_deepseek", "send_to_deepseek_r1",
-                 "send_to_openai_o1"):
+    for name, replacement in build_send_functions(client).items():
         if hasattr(api_call, name):
-            setattr(api_call, name, lambda content, *a, _f=_text, **k: _f(content))
+            setattr(api_call, name, replacement)
     return client
 
 

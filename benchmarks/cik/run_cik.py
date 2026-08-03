@@ -26,8 +26,15 @@ Then compare the completion/safety view::
         --baseline results/cik-control/gnomonbench.jsonl \
         --treatment results/cik-gnomon/gnomonbench.jsonl
 
-The headline CiK number is the mean RCRPS written to ``summary.json``;
-the official per-run scores are in ``scores.csv``.
+The headline CiK number is ``mean_rcrps_capped_imputed`` in
+``summary.json``: per-run RCRPS capped at 5.0 and every abstained or
+errored run imputed at 5.0, matching the official aggregation's
+cap-and-impute rule (``compile_roi_results.py`` upstream), so an
+abstention can never improve it. ``mean_rcrps_scored_only`` (the
+uncapped mean over scored runs only) is reported beside it and is NOT
+comparable to published numbers. Both local aggregates are unweighted
+over runs — the official per-task weighting is not reproduced here; the
+official per-run scores are in ``scores.csv``.
 """
 
 from __future__ import annotations
@@ -41,9 +48,57 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from benchmarks.common.manifest import write_manifest  # noqa: E402
 from benchmarks.common.records import RecordWriter, RunRecord  # noqa: E402
 
 ABSTAIN_MARKER = "GNOMON_ABSTAINED"
+
+#: The official aggregation cap (``CAP = 5`` in the upstream
+#: ``compile_roi_results.py``): per-run RCRPS above it is clipped to it,
+#: and runs with no score are imputed at it.
+RCRPS_CAP = 5.0
+
+
+def capped_imputed_mean(
+    scores: list[float], unscored_runs: int, cap: float = RCRPS_CAP
+) -> float | None:
+    """Official-style aggregate: mean over ALL runs, capped and imputed.
+
+    Every score is clipped to ``cap`` and every unscored run (abstained
+    or errored) counts as ``cap``, so a missing forecast can never
+    improve the aggregate. The upstream script also treats NaN and
+    negative entries as failures at the cap; RCRPS is non-negative by
+    construction, so that branch only matters for corrupt score files.
+    Unweighted over runs: the official per-task weights are not
+    reproduced here.
+    """
+    values = [min(s, cap) if s >= 0 and math.isfinite(s) else cap
+              for s in scores]
+    values.extend([cap] * unscored_runs)
+    if not values:
+        return None
+    return sum(values) / len(values)
+
+
+def load_run_extra_info(runs_dir: Path, task_name: str, seed) -> dict:
+    """Parse the official per-run ``extra_info`` dump, if present.
+
+    ``cik_benchmark.evaluation.evaluate_task`` writes each run's
+    ``extra_info`` with ``pprint``; both adapters put only literals in
+    it, so ``ast.literal_eval`` reads it back. Abstained and errored
+    runs never produce the file; anything unparseable yields ``{}``
+    rather than failing result collection.
+    """
+    import ast
+
+    path = runs_dir / task_name / str(seed) / "extra_info"
+    if not path.exists():
+        return {}
+    try:
+        parsed = ast.literal_eval(path.read_text(encoding="utf-8"))
+    except (ValueError, SyntaxError, MemoryError, RecursionError):
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
 
 
 def build_method(args):
@@ -55,7 +110,7 @@ def build_method(args):
         return OpenRouterDirectPrompt(
             openrouter_model=args.model,
             temperature=args.temperature,
-            fail_on_invalid=False,
+            fail_on_invalid=args.fail_on_invalid,
         )
     from benchmarks.cik.gnomon_forecaster import GnomonForecaster
 
@@ -106,12 +161,29 @@ def run(args) -> int:
         )
 
     write_outputs(results, method, args, output_dir)
+    write_manifest(
+        output_dir,
+        benchmark="cik",
+        condition=args.method,
+        model=args.model,
+        command=" ".join(sys.argv),
+        seeds=args.seeds,
+        n_samples=n_samples,
+        task_filter=args.task_filter,
+        fail_on_invalid=args.fail_on_invalid if args.method == "control" else None,
+        status="ok",
+    )
     return 0
 
 
 def write_outputs(results: dict, method, args, output_dir: Path) -> None:
     scores_path = output_dir / "scores.csv"
-    jsonl = RecordWriter(output_dir / "gnomonbench.jsonl")
+    records_path = output_dir / "gnomonbench.jsonl"
+    # RecordWriter appends; a rerun into the same output dir must replace
+    # the previous run's rows (as scores.csv does), not accumulate them.
+    records_path.unlink(missing_ok=True)
+    jsonl = RecordWriter(records_path)
+    runs_dir = output_dir / "runs"
     is_gnomon = args.method != "control"
 
     scored: list[float] = []
@@ -136,11 +208,22 @@ def write_outputs(results: dict, method, args, output_dir: Path) -> None:
                 writer.writerow(
                     [task_name, seed, score if finite else "", error]
                 )
+                extra_info = load_run_extra_info(runs_dir, task_name, seed)
+                latency = extra_info.get("total_time")
                 jsonl.write(RunRecord(
                     task_id=f"{task_name}-seed{seed}",
                     success=finite,
                     appropriate_abstention=abstained,
+                    # One gnomon.forecast call per gnomon run; the control
+                    # calls no tools. Per-run cost stays 0: both adapters
+                    # only report cost accumulated across the whole client
+                    # lifetime, and faking a per-run split would be worse
+                    # than the zero.
                     tool_calls=1 if is_gnomon else 0,
+                    latency_seconds=(
+                        float(latency)
+                        if isinstance(latency, (int, float)) else 0.0
+                    ),
                     extra={"rcrps": float(score) if finite else None,
                            "method": method.cache_name},
                 ))
@@ -154,10 +237,23 @@ def write_outputs(results: dict, method, args, output_dir: Path) -> None:
         "runs_scored": len(scored),
         "runs_abstained": abstentions,
         "runs_errored": errors,
-        "mean_rcrps": sum(scored) / len(scored) if scored else None,
+        "rcrps_cap": RCRPS_CAP,
+        "mean_rcrps_capped_imputed": capped_imputed_mean(
+            scored, abstentions + errors
+        ),
+        "mean_rcrps_scored_only": (
+            sum(scored) / len(scored) if scored else None
+        ),
         "note": (
-            "mean_rcrps averages scored runs only; abstentions and errors "
-            "are reported separately and must be disclosed next to it"
+            "mean_rcrps_capped_imputed follows the official aggregation "
+            "rule (cap per-run RCRPS at 5.0, impute every abstained or "
+            "errored run at 5.0), so abstention can never improve it; it "
+            "is the number to put next to published means. "
+            "mean_rcrps_scored_only averages scored runs only and is "
+            "flattered by abstention — never quote it without the "
+            "abstention and error counts beside it. Both are unweighted "
+            "over runs; the official per-task weighting is not "
+            "reproduced here."
         ),
     }
     (output_dir / "summary.json").write_text(
@@ -168,7 +264,7 @@ def write_outputs(results: dict, method, args, output_dir: Path) -> None:
     print(f"GnomonBench rows: {jsonl.path} ({jsonl.count} rows)")
 
 
-def main() -> int:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -186,6 +282,15 @@ def main() -> int:
     parser.add_argument("--n-samples", type=int, default=None,
                         help="Forecast samples per run (default: official)")
     parser.add_argument("--temperature", type=float, default=1.0)
+    parser.add_argument(
+        "--fail-on-invalid", action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Control condition only: error the run when rejection sampling "
+             "cannot collect n_samples valid forecasts (the official "
+             "DirectPrompt default). --no-fail-on-invalid scores the run on "
+             "however many valid forecasts were collected — a protocol "
+             "deviation that must be disclosed",
+    )
     parser.add_argument("--task-filter", default=None,
                         help="Only run tasks whose class name contains this")
     parser.add_argument(
@@ -198,6 +303,11 @@ def main() -> int:
     parser.add_argument("--no-cache", action="store_true",
                         help="Disable the official result cache")
     parser.add_argument("--output-dir", required=True)
+    return parser
+
+
+def main() -> int:
+    parser = build_parser()
     args = parser.parse_args()
     if args.method == "gnomon-agent" and not args.model:
         parser.error("--model is required for gnomon-agent")

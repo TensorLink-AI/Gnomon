@@ -297,9 +297,16 @@ def evaluate_stage(
                 if item.valid_time <= cutoff
             ]
 
+    # `models.tsfm.candidates` restricts which foundation models may
+    # compete; an empty list is the unconfigured default (all eligible).
+    # This key was parsed and documented but never passed, so listing
+    # candidates in gnomon.yaml silently did nothing.
+    tsfm_candidates = list(getattr(getattr(config, "models", None),
+                                   "tsfm_candidates", None) or []) or None
     assessment = evaluate(
         state.values, horizon, state.season, minimum_baseline_improvement,
         frequency=frequency,
+        tsfm_names=tsfm_candidates,
         config=config,
         strict_abstention=strict_abstention,
         train_at=train_at,
@@ -451,8 +458,11 @@ def conditional_stage(
     assessment = state.assessment
     if not (assessment and assessment.supported and state.points):
         return
+    # Same centring as the published rows, so a what-if interval is never
+    # shifted against the forecast interval it conditions on.
     spreads = conformal_spreads(
         state.residuals_by_lead, len(state.points), state.residuals,
+        recentre=not assessment.degraded,
     )
     forecasts, excluded = assess_conditional(
         state.values, state.timestamps, state.future_timestamps,
@@ -540,6 +550,33 @@ def multivariate_stage(
     ))
 
 
+def _record_enrichment_counterfactual(state: SeriesState) -> None:
+    """Persist the history-only point path an enrichment is about to replace.
+
+    The tracking ledger's realised-lift score needs error(base) −
+    error(published) when actuals arrive, and until now the base path was
+    computed during adjudication and discarded. Emitted only when an
+    enrichment is actually admitted, so an enrichment-free artifact is
+    byte-identical; same precedent as `future_context_applied`'s
+    history-only counterfactual.
+    """
+    if not state.points:
+        return
+    state.evidence.append(Evidence(
+        f"enrichment_counterfactual:{state.name}", "enrichment_counterfactual",
+        state.name,
+        {
+            "base_model": state.selected_model,
+            "points": [float(value) for value in state.points],
+            "timestamps": [moment.isoformat()
+                           for moment in state.future_timestamps],
+            "basis": "the history-only forecast as it stood before the "
+                     "admitted enrichment replaced it; tracking scores "
+                     "realised lift against it when actuals arrive",
+        },
+    ))
+
+
 def context_stage(
     state: SeriesState,
     context_events: list[ContextEvent],
@@ -580,6 +617,7 @@ def context_stage(
         },
     ))
     if context.admitted and apply:
+        _record_enrichment_counterfactual(state)
         state.selected_model = CONTEXT_MODEL_NAME
         state.points = context.points
         state.residuals = context.residuals
@@ -650,6 +688,7 @@ def adjudicate_enrichments_stage(
          "covariates_fingerprint": covariates.fingerprint},
     ))
     if result.winner != "base":
+        _record_enrichment_counterfactual(state)
         state.selected_model = result.selected_model
         state.points = result.points
         state.residuals = result.residuals
@@ -839,9 +878,24 @@ def _forecast_disclosures(
         ))
 
     # H3 / S2. When every lead borrows the pooled spread, the interval does
-    # not widen with distance — the 14-step is exactly the 1-step.
+    # not widen with distance — the 14-step is exactly the 1-step. Not a
+    # defect to repair by scaling: whole-horizon pooled residuals already
+    # contain multi-step dispersion, so a lead-growth multiplier
+    # double-counts it (measured: √lead widening pushed 80%-nominal
+    # coverage to 94.9% — results/short-history-guardrail/HYPOTHESIS.md).
     horizon = len(rows)
     borrowed = pooled_fallback_leads(state.residuals_by_lead, horizon)
+    assessment = state.assessment
+    if assessment is not None and assessment.degraded:
+        disclosures.append(SupportReason(
+            "point_recentring_suppressed",
+            "Quantiles are centred on the model's point path: the usual "
+            "recentring on the median backtest residual is suppressed "
+            "because on a fold-starved run that median is a location "
+            "estimate from too few folds (measured at ~1σ of the series' "
+            "step-to-step moves, in an effectively random direction). "
+            "`point_bias_correction` is 0 on every row.",
+        ))
     if horizon and len(borrowed) == horizon:
         disclosures.append(SupportReason(
             "constant_interval_width",
@@ -1024,15 +1078,24 @@ def interval_stage(
     threshold_analysis: dict[str, object] | None = None
     support = "unsupported"
     if assessment and assessment.supported and state.points:
+        # Fold-starved (degraded) runs centre the quantiles on the point
+        # path instead of the median residual — a ≤ 2-fold location
+        # estimate measured at ≈ 1σ in a coin-flip direction. That
+        # suppression alone restores near-nominal coverage (79% pooled
+        # against 80% nominal on the 50-series benchmark); the flat
+        # borrowed band is left unscaled because whole-horizon pooled
+        # residuals already contain multi-step dispersion. With enough
+        # folds the recentring keeps its evidence and nothing changes.
         spreads = conformal_spreads(
             state.residuals_by_lead, len(state.points), state.residuals,
-            target_coverage,
+            target_coverage, recentre=not assessment.degraded,
         )
         # The full quantile set comes from the same residuals and the same
         # fit; q10/q50/q90 are the identical order statistics they always
         # were, so the additional levels are strictly additional.
         level_spreads = conformal_quantile_spreads(
             state.residuals_by_lead, len(state.points), state.residuals,
+            recentre=not assessment.degraded,
         )
         for step, (timestamp, point) in enumerate(zip(state.future_timestamps, state.points), 1):
             q10, q50, q90 = interval_from_spread(point, spreads[step])

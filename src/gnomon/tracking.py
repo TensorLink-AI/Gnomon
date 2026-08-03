@@ -386,11 +386,100 @@ _TABLE_DEFINITIONS: dict[str, str] = {
             created_at TEXT NOT NULL
         );
     """,
+    # --- The per-proposer calibration ledger (schema 5) ----------------
+    # One row per context-event proposal per tracked forecast. The
+    # proposal_key is content-addressed from what was *claimed* (type,
+    # window, scope, source) — not from the run-local event id, which is
+    # positional and unstable across runs — so the same claim re-proposed
+    # against a later forecast joins to the same identity.
+    "event_proposals": """
+        CREATE TABLE IF NOT EXISTS event_proposals (
+            proposal_key TEXT NOT NULL,
+            project TEXT NOT NULL,
+            forecast_id TEXT NOT NULL,
+            series TEXT NOT NULL,
+            event_id TEXT,
+            event_type TEXT,
+            proposer_id TEXT NOT NULL,
+            proposer_kind TEXT,
+            source_type TEXT,
+            source_reference TEXT,
+            status TEXT,
+            confidence REAL,
+            known_at TEXT,
+            effective_start TEXT,
+            effective_end TEXT,
+            created_at TEXT NOT NULL,
+            PRIMARY KEY (project, forecast_id, series, proposal_key)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_event_proposals_proposer
+            ON event_proposals(project, proposer_id, event_type);
+    """,
+    # The gate's verdict per proposal, lifted out of the write-only
+    # evidence.jsonl. `admitted` is the ablation gate's decision for the
+    # event set; `published` is whether the enrichment actually reached
+    # the published forecast (adjudication can admit at the gate and
+    # still lose the ladder).
+    "event_admissions": """
+        CREATE TABLE IF NOT EXISTS event_admissions (
+            proposal_key TEXT NOT NULL,
+            project TEXT NOT NULL,
+            forecast_id TEXT NOT NULL,
+            series TEXT NOT NULL,
+            admitted INTEGER NOT NULL,
+            published INTEGER NOT NULL,
+            lane TEXT NOT NULL,
+            decided_by TEXT,
+            exclusion_reason TEXT,
+            mean_improvement REAL,
+            shrinkage REAL,
+            effect_shape TEXT,
+            created_at TEXT NOT NULL,
+            PRIMARY KEY (project, forecast_id, series, proposal_key)
+        );
+    """,
+    # Realised outcomes, written when actuals arrive. `realised_lift_wape`
+    # is error(history-only counterfactual) − error(published), in the
+    # selection currency (WAPE): positive means the admitted events
+    # helped. Attribution is set-level — the gate admits the event *set*,
+    # so every admitted proposal on a forecast shares its lift, and the
+    # column says so. `direction_hit` and `brier` stay NULL until a
+    # proposal carries a direction or a resolvable occurrence claim.
+    "event_outcomes": """
+        CREATE TABLE IF NOT EXISTS event_outcomes (
+            proposal_key TEXT NOT NULL,
+            project TEXT NOT NULL,
+            forecast_id TEXT NOT NULL,
+            series TEXT NOT NULL,
+            resolved_at TEXT NOT NULL,
+            base_model TEXT,
+            published_model TEXT,
+            base_wape REAL,
+            published_wape REAL,
+            realised_lift_wape REAL,
+            direction_hit INTEGER,
+            brier REAL,
+            attribution TEXT NOT NULL DEFAULT 'event_set',
+            PRIMARY KEY (project, forecast_id, series, proposal_key)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_event_outcomes_project
+            ON event_outcomes(project);
+    """,
 }
 
 #: Bumped to 4 when ``forecasts`` and ``model_performance`` gained their
-#: composite keys.
-SCHEMA_VERSION = "4"
+#: composite keys; to 5 when the proposer-calibration ledger tables
+#: (event_proposals / event_admissions / event_outcomes) were added.
+SCHEMA_VERSION = "5"
+
+#: Empirical-Bayes shrinkage strength for proposer skill: a proposer's
+#: mean lift is pulled toward 0 (and a hit rate toward 0.5) with the
+#: weight of this many pseudo-observations, so one lucky resolved call
+#: cannot mint a skilled proposer. The existing leaderboard's plain AVG
+#: has no such guard; this table does not repeat that defect.
+PROPOSER_SKILL_SHRINKAGE = 10.0
 
 
 class TrackingStore:
@@ -842,8 +931,206 @@ class TrackingStore:
                 series=record.series,
             )
             results.append(result)
+            try:
+                self._resolve_event_outcomes(record, matched_actuals, result)
+            except Exception:
+                # An unresolvable ledger row must not block forecast scoring;
+                # the outcome stays open and a later submit can retry it.
+                logger.warning("Event-outcome resolution failed for %s",
+                               record.forecast_id, exc_info=True)
 
         return results
+
+    # -- The per-proposer calibration ledger --------------------------------
+
+    def record_event_proposals(
+        self, project: str, forecast_id: str, series: str,
+        proposals: list[dict[str, Any]],
+    ) -> int:
+        """Record context-event proposals and their gate verdicts.
+
+        Each entry carries the proposal's claim fields plus its
+        ``admission`` sub-dict (see ``register_artifact``). Idempotent per
+        (project, forecast_id, series, proposal_key).
+        """
+        created_at = datetime.now(timezone.utc).isoformat()
+        written = 0
+        with self._connect() as conn:
+            for item in proposals:
+                admission = item.get("admission") or {}
+                conn.execute(
+                    """
+                    INSERT OR REPLACE INTO event_proposals
+                        (proposal_key, project, forecast_id, series, event_id,
+                         event_type, proposer_id, proposer_kind, source_type,
+                         source_reference, status, confidence, known_at,
+                         effective_start, effective_end, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (item["proposal_key"], project, forecast_id, series,
+                     item.get("event_id"), item.get("event_type"),
+                     item.get("proposer_id") or "user",
+                     item.get("proposer_kind"),
+                     item.get("source_type"), item.get("source_reference"),
+                     item.get("status"), item.get("confidence"),
+                     item.get("known_at"), item.get("effective_start"),
+                     item.get("effective_end"), created_at),
+                )
+                conn.execute(
+                    """
+                    INSERT OR REPLACE INTO event_admissions
+                        (proposal_key, project, forecast_id, series, admitted,
+                         published, lane, decided_by, exclusion_reason,
+                         mean_improvement, shrinkage, effect_shape, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (item["proposal_key"], project, forecast_id, series,
+                     int(bool(admission.get("admitted"))),
+                     int(bool(admission.get("published"))),
+                     admission.get("lane", "fold_gate"),
+                     admission.get("decided_by"),
+                     admission.get("exclusion_reason"),
+                     admission.get("mean_improvement"),
+                     admission.get("shrinkage"),
+                     admission.get("effect_shape"), created_at),
+                )
+                written += 1
+        return written
+
+    def _resolve_event_outcomes(
+        self, record: ForecastRecord, matched_actuals: list[float],
+        score: "ScoreResult",
+    ) -> int:
+        """Score this forecast's published event proposals against actuals.
+
+        The realised lift needs the history-only counterfactual the
+        pipeline recorded at admission time (`enrichment_counterfactual`
+        evidence); without it — or without any published proposal — there
+        is nothing to attribute and nothing is written.
+        """
+        with self._connect() as conn:
+            published = conn.execute(
+                "SELECT proposal_key FROM event_admissions "
+                "WHERE project = ? AND forecast_id = ? AND series = ? "
+                "AND published = 1",
+                (record.project, record.forecast_id, record.series),
+            ).fetchall()
+        if not published:
+            return 0
+        counterfactual: list[float] | None = None
+        base_model: str | None = None
+        evidence_path = Path(record.artifact_path or "") / "evidence.jsonl"
+        if evidence_path.exists():
+            for line in evidence_path.read_text(encoding="utf-8").splitlines():
+                try:
+                    item = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if (item.get("kind") == "enrichment_counterfactual"
+                        and item.get("series") == record.series):
+                    payload = item.get("payload") or {}
+                    raw = payload.get("points") or []
+                    counterfactual = [float(value) for value in raw]
+                    base_model = payload.get("base_model")
+                    break
+        if not counterfactual or len(counterfactual) != len(matched_actuals):
+            logger.info(
+                "No usable counterfactual for %s: outcomes stay open",
+                record.forecast_id,
+            )
+            return 0
+        from .evaluation import error_score
+        base_wape = error_score(matched_actuals, counterfactual)
+        published_wape = score.wape
+        lift = (base_wape - published_wape
+                if base_wape is not None and published_wape is not None
+                else None)
+        resolved_at = datetime.now(timezone.utc).isoformat()
+        with self._connect() as conn:
+            for row in published:
+                conn.execute(
+                    """
+                    INSERT OR REPLACE INTO event_outcomes
+                        (proposal_key, project, forecast_id, series,
+                         resolved_at, base_model, published_model, base_wape,
+                         published_wape, realised_lift_wape, direction_hit,
+                         brier, attribution)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL,
+                            'event_set')
+                    """,
+                    (row["proposal_key"], record.project, record.forecast_id,
+                     record.series, resolved_at, base_model,
+                     record.selected_model, base_wape, published_wape, lift),
+                )
+        return len(published)
+
+    def proposer_skill(
+        self, project: str, proposer_id: str | None = None,
+        event_type: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Shrunk per-(proposer, event-type) skill from resolved outcomes.
+
+        ``shrunk_lift`` pulls the mean realised lift toward 0 with
+        ``PROPOSER_SKILL_SHRINKAGE`` pseudo-observations, and
+        ``shrunk_hit_rate`` pulls the directional hit rate toward 0.5, so
+        small-n cells cannot outrank measured ones. Cold start is explicit:
+        a proposer with no resolved outcomes has ``shrunk_lift`` 0.
+        """
+        clauses = ["p.project = ?"]
+        parameters: list[Any] = [project]
+        if proposer_id is not None:
+            clauses.append("p.proposer_id = ?")
+            parameters.append(proposer_id)
+        if event_type is not None:
+            clauses.append("p.event_type = ?")
+            parameters.append(event_type)
+        query = f"""
+            SELECT p.proposer_id, p.proposer_kind, p.event_type,
+                   COUNT(*) AS proposals,
+                   SUM(COALESCE(a.admitted, 0)) AS admitted,
+                   SUM(COALESCE(a.published, 0)) AS published,
+                   COUNT(o.realised_lift_wape) AS resolved,
+                   SUM(o.realised_lift_wape) AS total_lift,
+                   SUM(o.direction_hit) AS direction_hits,
+                   COUNT(o.direction_hit) AS direction_calls
+            FROM event_proposals p
+            LEFT JOIN event_admissions a
+                ON a.project = p.project AND a.forecast_id = p.forecast_id
+               AND a.series = p.series AND a.proposal_key = p.proposal_key
+            LEFT JOIN event_outcomes o
+                ON o.project = p.project AND o.forecast_id = p.forecast_id
+               AND o.series = p.series AND o.proposal_key = p.proposal_key
+            WHERE {' AND '.join(clauses)}
+            GROUP BY p.proposer_id, p.proposer_kind, p.event_type
+            ORDER BY p.proposer_id, p.event_type
+        """
+        k = PROPOSER_SKILL_SHRINKAGE
+        rows: list[dict[str, Any]] = []
+        with self._connect() as conn:
+            for row in conn.execute(query, parameters):
+                resolved = row["resolved"] or 0
+                total_lift = row["total_lift"] or 0.0
+                calls = row["direction_calls"] or 0
+                hits = row["direction_hits"] or 0
+                rows.append({
+                    "proposer_id": row["proposer_id"],
+                    "proposer_kind": row["proposer_kind"],
+                    "event_type": row["event_type"],
+                    "proposals": row["proposals"],
+                    "admitted": row["admitted"] or 0,
+                    "published": row["published"] or 0,
+                    "resolved": resolved,
+                    "mean_lift_wape": (total_lift / resolved
+                                       if resolved else None),
+                    "shrunk_lift_wape": total_lift / (resolved + k),
+                    "direction_calls": calls,
+                    "shrunk_hit_rate": (hits + 0.5 * k) / (calls + k),
+                    "shrinkage_k": k,
+                    "note": ("observational, set-level attribution: the "
+                             "gate admits event sets, so co-admitted "
+                             "proposals share one measured lift"),
+                })
+        return rows
 
     def submit_actuals_csv(
         self, project: str, csv_path: str,
@@ -1565,8 +1852,94 @@ class TrackingStore:
         )
 
 
-def register_artifact(artifact: Any, project: str, artifact_path: str) -> list[str]:
-    """Register every series in a completed artifact for any integration surface."""
+def proposal_key(series: str, event: Any) -> str:
+    """Content-address a proposal by what was *claimed*.
+
+    Deliberately version-independent (unlike ``ids.content_id``, which
+    salts with ``GNOMON_VERSION``): a proposer's track record must survive
+    a Gnomon upgrade, or every release resets every ledger. Run-local
+    event ids are positional (``event_llm_00``) and never part of the key.
+    """
+    import hashlib
+
+    from .ids import canonical_json
+
+    source = getattr(event, "source", None)
+    payload = {
+        "series": series,
+        "event_type": event.event_type,
+        "effective_start": event.effective_start,
+        "effective_end": event.effective_end,
+        "entity_scope": sorted(event.entity_scope or ()),
+        "source": ({"type": source.type, "reference": source.reference}
+                   if source else None),
+    }
+    digest = hashlib.sha256(
+        b"event_proposal\x00" + canonical_json(payload).encode("utf-8")
+    )
+    return digest.hexdigest()[:16]
+
+
+def _proposal_rows(series: str, result: Any, evidence: list[Any],
+                   context_events: list[Any]) -> list[dict[str, Any]]:
+    """Ledger rows for one series: each supplied event, joined to the gate
+    verdict already recorded in the artifact's evidence."""
+    from .adjudication import COMBINED_MODEL_NAME
+    from .context_eval import CONTEXT_MODEL_NAME
+
+    ablation: dict[str, Any] = {}
+    gate: dict[str, Any] = {}
+    for item in evidence:
+        if item.evidence_id == f"context_ablation:{series}":
+            ablation = item.payload or {}
+        elif item.evidence_id == f"context_gate:{series}":
+            gate = item.payload or {}
+    admitted_ids = set(ablation.get("events_used") or []) if ablation.get("admitted") else set()
+    eligible_ids = set(ablation.get("events_used") or [])
+    exclusions = {entry.get("event_id"): entry.get("reason")
+                  for entry in (ablation.get("events_excluded") or [])}
+    influenced = result.selected_model in (CONTEXT_MODEL_NAME, COMBINED_MODEL_NAME)
+    rows: list[dict[str, Any]] = []
+    for event in context_events:
+        proposer = (event.attributes or {}).get("proposer") or {}
+        admitted = event.event_id in admitted_ids
+        rows.append({
+            "proposal_key": proposal_key(series, event),
+            "event_id": event.event_id,
+            "event_type": event.event_type,
+            "proposer_id": (proposer.get("proposer_id")
+                            or proposer.get("model")
+                            or event.created_by),
+            "proposer_kind": proposer.get("kind") or event.created_by,
+            "source_type": event.source.type if event.source else None,
+            "source_reference": event.source.reference if event.source else None,
+            "status": event.status,
+            "confidence": event.confidence,
+            "known_at": event.known_at,
+            "effective_start": event.effective_start,
+            "effective_end": event.effective_end,
+            "admission": {
+                "admitted": admitted,
+                "published": admitted and influenced,
+                "lane": "fold_gate",
+                "decided_by": gate.get("decided_by"),
+                "exclusion_reason": exclusions.get(event.event_id) if event.event_id not in eligible_ids else None,
+                "mean_improvement": ablation.get("mean_improvement"),
+                "shrinkage": ablation.get("shrinkage"),
+                "effect_shape": ablation.get("effect_shape"),
+            },
+        })
+    return rows
+
+
+def register_artifact(artifact: Any, project: str, artifact_path: str,
+                      context_events: list[Any] | None = None) -> list[str]:
+    """Register every series in a completed artifact for any integration surface.
+
+    ``context_events`` are the events the run was given, if the caller has
+    them: each becomes a ledger row in ``event_proposals`` /
+    ``event_admissions``, joined to the gate verdicts the artifact already
+    recorded, so proposals can be scored when actuals arrive."""
     from .data import load_observations
     from .temporal import default_season
 
@@ -1605,4 +1978,10 @@ def register_artifact(artifact: Any, project: str, artifact_path: str) -> list[s
             fingerprint=fingerprint_json(values, schema.frequency),
         )
         registered.append(tracking_id)
+        if context_events:
+            store.record_event_proposals(
+                project, tracking_id, result.series,
+                _proposal_rows(result.series, result, artifact.evidence,
+                               context_events),
+            )
     return registered
