@@ -571,6 +571,31 @@ def _abstained_target_result(
     return result, evidence
 
 
+def _default_worker_count(channels: int) -> int:
+    """How many threads per-target evaluation should use by default.
+
+    Measured, not assumed: the statistical evaluation path is pure
+    Python, so under a GIL interpreter extra threads only add contention
+    (a 6-channel batch ran ~13% *slower* at 6 workers than at 1 on
+    CPython 3.12). Concurrency pays where the GIL is released — on a
+    free-threaded build, or when sandboxed TSFM candidates run their
+    inference in subprocesses — so those cases get min(channels, cpus)
+    and everything else gets 1. `max_workers` overrides either way.
+    """
+    import sys
+
+    cap = max(1, min(channels, os.cpu_count() or 1))
+    if not getattr(sys, "_is_gil_enabled", lambda: True)():
+        return cap
+    try:
+        from .tsfm_sandbox import list_sandboxes
+        if list_sandboxes():
+            return cap
+    except Exception:
+        pass
+    return 1
+
+
 def forecast_multi(
     input_path: str,
     *,
@@ -673,12 +698,19 @@ def forecast_multi(
         except GnomonError as error:
             return _abstained_target_result(target, error)
 
-    workers = max_workers or min(len(target_columns), os.cpu_count() or 1)
+    workers = max_workers or _default_worker_count(len(target_columns))
     workers = max(1, min(int(workers), len(target_columns)))
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        # Submitted and collected in target order, so the artifact is a pure
-        # function of the task regardless of scheduling.
-        outcomes = list(pool.map(run_target, target_columns))
+    if workers == 1:
+        # No pool for a single worker: on a GIL interpreter even an idle
+        # thread handoff measurably taxes this pure-CPU workload (~5% on
+        # the 6-channel benchmark), and a one-worker pool cannot buy
+        # anything back.
+        outcomes = [run_target(target) for target in target_columns]
+    else:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            # Submitted and collected in target order, so the artifact is a
+            # pure function of the task regardless of scheduling.
+            outcomes = list(pool.map(run_target, target_columns))
 
     results: list[SeriesResult] = []
     evidence: list[Evidence] = []

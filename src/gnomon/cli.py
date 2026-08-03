@@ -1598,8 +1598,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 register_artifact(artifact, args.project, str(path))
                 print(f"Registered forecast {artifact.forecast_id} in project '{args.project}'", file=sys.stderr)
 
-        print(json.dumps(_disclose_assumptions(payload, schema_assumptions),
-                         indent=2, allow_nan=False))
+        decorated = _disclose_assumptions(payload, schema_assumptions)
+        if isinstance(payload, dict) and payload.get("format") == "brief":
+            # Compact JSON is the point of brief mode: same content, no
+            # pretty-printing to pay tokens for.
+            print(json.dumps(decorated, separators=(",", ":"), allow_nan=False))
+        else:
+            print(json.dumps(decorated, indent=2, allow_nan=False))
         return 0
     except GnomonError as exc:
         print(json.dumps(exc.to_dict(), indent=2), file=sys.stderr)
