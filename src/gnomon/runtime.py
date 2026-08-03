@@ -553,7 +553,13 @@ def capabilities() -> dict[str, object]:
             "future_events": {
                 "flag": "context.future_events",
                 "default": "off",
-                "enabled": future_events_on,
+                # The loaded config file's setting. Config is honoured where
+                # config is consumed: `gnomon forecast` (with or without
+                # --config) and the Python API's `config=` parameter. MCP
+                # tool calls and the decide/monitor macros do not read
+                # gnomon.yaml — for any setting, not only this one — so the
+                # lane is off there regardless of this value.
+                "enabled_in_config": future_events_on,
                 "event_classes": ["constraint", "deterministic_override"],
                 "admission": (
                     "textual verifiability: a quoted source span, "

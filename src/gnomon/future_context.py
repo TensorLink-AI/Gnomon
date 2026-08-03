@@ -111,8 +111,15 @@ def recent_window(season: int, horizon: int) -> int:
 # the only thing that turns text into a number Gnomon will apply.
 # --------------------------------------------------------------------------
 
-#: A number with optional sign, thousands separators, and decimals.
-_NUMBER = r"[-+]?\d{1,3}(?:,\d{3})+(?:\.\d+)?|[-+]?\d+(?:\.\d+)?"
+#: A number with optional sign, thousands separators, decimals, and a
+#: scientific exponent. The exponent is part of the number, not optional
+#: decoration: reading "1e9" as 1 would apply a bound a billion times
+#: tighter than the text states.
+_EXP = r"(?:[eE][-+]?\d+)?"
+_NUMBER = (
+    rf"[-+]?\d{{1,3}}(?:,\d{{3}})+(?:\.\d+)?{_EXP}"
+    rf"|[-+]?\d+(?:\.\d+)?{_EXP}"
+)
 _N = f"(?:{_NUMBER})"
 
 
@@ -123,10 +130,23 @@ def _to_float(text: str) -> float:
 #: (pattern, handler) pairs, tried in order; every match contributes to the
 #: bound, so "between 0 and 340" yields both sides from one pattern while
 #: "at least 5 and will not exceed 60" yields one side from each.
+#: "between 10 and 20 August" is a date range, not a bound on values; a
+#: number immediately followed by a month name or a clock marker is part
+#: of a date, and the range patterns refuse to read it as a bound. The
+#: leading (?!\d) pins the captured number to its full width — without it
+#: the engine backtracks "20" down to "2" so the month guard never sees
+#: "August".
+_NOT_A_DATE = (
+    r"(?!\d)"
+    r"(?!\s*(?:(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|"
+    r"june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|"
+    r"nov(?:ember)?|dec(?:ember)?|am|pm|o'?clock)\b|:\d))"
+)
+
 _RANGE_PATTERNS = [
-    rf"(?:between|from)\s+({_N})\s+(?:and|to|through)\s+({_N})",
-    rf"(?:within|in)\s+(?:the\s+)?range\s+(?:of\s+)?({_N})\s+(?:and|to|through)\s+({_N})",
-    rf"range\s+of\s+({_N})\s+(?:and|to)\s+({_N})",
+    rf"(?:between|from)\s+({_N})\s+(?:and|to|through)\s+({_N}){_NOT_A_DATE}",
+    rf"(?:within|in)\s+(?:the\s+)?range\s+(?:of\s+)?({_N})\s+(?:and|to|through)\s+({_N}){_NOT_A_DATE}",
+    rf"range\s+of\s+({_N})\s+(?:and|to)\s+({_N}){_NOT_A_DATE}",
     # Interval notation: "in [0, 340]" / "within (0, 340)".
     rf"(?:in|within)\s+[\[\(]\s*({_N})\s*,\s*({_N})\s*[\]\)]",
 ]
@@ -241,6 +261,8 @@ _OVERRIDE_VALUE_PATTERNS = [
     rf"(?:will|shall)\s+be\s+({_N})\b",
     rf"(?:drops?|falls?|goes?|go|reduced?)\s+to\s+({_N})",
     rf"(?:at\s+a\s+(?:constant\s+)?(?:value|rate|level)\s+of)\s+({_N})",
+    rf"(?:remains?|remaining|stay(?:s|ing)?)\s+at\s+({_N})",
+    rf"(?:held\s+)?constant\s+at\s+({_N})",
 ]
 
 
@@ -403,7 +425,7 @@ def assess_future_events(
                 detail="effective_start/effective_end do not form a window",
             )
             continue
-        start, end = window
+        start, _ = window
 
         # The lane is for the structurally untestable only. A window that
         # touches the observed history could be fold-tested, so it goes to

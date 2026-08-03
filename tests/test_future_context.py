@@ -43,6 +43,9 @@ START = datetime(2026, 1, 1, tzinfo=timezone.utc)
     ("at least 40 units will be produced", 40.0, None),
     ("the level will not drop below 7.5", 7.5, None),
     ("stays above 100", 100.0, None),
+    # scientific notation is the whole number, not its mantissa
+    ("the count will not exceed 1e9", None, 1e9),
+    ("at least 2.5e-3", 2.5e-3, None),
 ])
 def test_bound_spans_parse_to_the_stated_numbers(span, minimum, maximum):
     bound, problem = parse_bound_span(span)
@@ -67,6 +70,25 @@ def test_cik_style_bound_phrasings_parse(span, minimum, maximum):
     assert problem is None
     assert bound.minimum == minimum
     assert bound.maximum == maximum
+
+
+@pytest.mark.parametrize("span", [
+    "the outage lasts between 10 and 20 August",
+    "closed from 9 and 11 pm",
+    "maintenance between 8 and 10:30",
+])
+def test_date_and_clock_ranges_are_not_read_as_bounds(span):
+    bound, problem = parse_bound_span(span)
+    assert bound is None, f"{span!r} parsed as {bound}"
+
+
+@pytest.mark.parametrize("span, value", [
+    ("output remains at 40 for the whole window", 40.0),
+    ("the feed is held constant at 12.5", 12.5),
+])
+def test_more_override_phrasings_parse(span, value):
+    parsed, problem = parse_override_span(span)
+    assert problem is None and parsed == value
 
 
 def test_a_cross_pattern_empty_bound_is_rejected():
@@ -526,4 +548,8 @@ def test_capabilities_report_the_flag_and_the_event_classes():
     assert future["flag"] == "context.future_events"
     assert future["default"] == "off"
     assert future["event_classes"] == ["constraint", "deterministic_override"]
+    # The field names what it measures — the loaded config file's setting —
+    # because config is only consumed by the forecast verb and the Python
+    # API, and a bare "enabled" would overstate its reach.
+    assert future["enabled_in_config"] is False
     assert payload["features"]["future_context_events"] is True
