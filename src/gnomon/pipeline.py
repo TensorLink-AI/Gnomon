@@ -297,9 +297,16 @@ def evaluate_stage(
                 if item.valid_time <= cutoff
             ]
 
+    # `models.tsfm.candidates` restricts which foundation models may
+    # compete; an empty list is the unconfigured default (all eligible).
+    # This key was parsed and documented but never passed, so listing
+    # candidates in gnomon.yaml silently did nothing.
+    tsfm_candidates = list(getattr(getattr(config, "models", None),
+                                   "tsfm_candidates", None) or []) or None
     assessment = evaluate(
         state.values, horizon, state.season, minimum_baseline_improvement,
         frequency=frequency,
+        tsfm_names=tsfm_candidates,
         config=config,
         strict_abstention=strict_abstention,
         train_at=train_at,

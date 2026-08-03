@@ -58,9 +58,15 @@ logger = logging.getLogger(__name__)
 # Configuration: where to store sandbox venvs
 # ---------------------------------------------------------------------------
 
-SANDBOX_ROOT = Path(
-    os.environ.get("GNOMON_TSFM_SANDBOX_ROOT", "")
-) or Path.home() / ".cache" / "gnomon-tsfm-venvs"
+# `Path("") or default` never falls through — Path("") is PosixPath('.'),
+# which is truthy — so the old expression rooted every sandbox in whatever
+# directory the process happened to be started from, and `gnomon
+# capabilities` answered differently per cwd. Test the string, not the Path.
+_SANDBOX_ROOT_OVERRIDE = os.environ.get("GNOMON_TSFM_SANDBOX_ROOT", "")
+SANDBOX_ROOT = (
+    Path(_SANDBOX_ROOT_OVERRIDE) if _SANDBOX_ROOT_OVERRIDE
+    else Path.home() / ".cache" / "gnomon-tsfm-venvs"
+)
 
 # Each TSFM's pip-install spec. The key must match the adapter name in
 # tsfm.py. Every spec is exact — ``==`` for PyPI, a tag for git.
@@ -231,12 +237,29 @@ WORKER_SCRIPT = textwrap.dedent("""\
     import sys
     import traceback
 
+    # {model_id: commit sha} from the parent's TSFM_REVISIONS, delivered in
+    # the request. Loading without it would fetch whatever the Hub serves
+    # today — numbers the parent's content-addressed forecast_id (which
+    # records the *pinned* revision) could not honestly cover.
+    REVISIONS = {}
+
+
+    def pinned(model_id):
+        revision = REVISIONS.get(model_id)
+        if not revision:
+            raise RuntimeError(
+                "no pinned revision supplied for %r; refusing an unpinned "
+                "weight load" % model_id
+            )
+        return revision
+
 
     def main():
         request = json.load(sys.stdin)
         tsfm_name = request["tsfm_name"]
         mode = request.get("mode", "predict")
         history = request["history"]
+        REVISIONS.update(request.get("revisions") or {})
 
         try:
             if mode == "reconstruct":
@@ -287,7 +310,8 @@ WORKER_SCRIPT = textwrap.dedent("""\
         }[name]
 
         pipeline = BaseChronosPipeline.from_pretrained(
-            model_id, device_map="cpu", torch_dtype=torch.float32,
+            model_id, revision=pinned(model_id), device_map="cpu",
+            torch_dtype=torch.float32,
         )
         context = torch.tensor(history, dtype=torch.float32)
         forecast = pipeline.predict(
@@ -317,7 +341,9 @@ WORKER_SCRIPT = textwrap.dedent("""\
         import torch
         from toto2 import Toto2Model
 
-        model = Toto2Model.from_pretrained("Datadog/Toto-2.0-22m")
+        model = Toto2Model.from_pretrained(
+            "Datadog/Toto-2.0-22m", revision=pinned("Datadog/Toto-2.0-22m"),
+        )
         model = model.to("cpu").eval()
 
         target = torch.tensor(history, dtype=torch.float32)
@@ -352,8 +378,11 @@ WORKER_SCRIPT = textwrap.dedent("""\
         import torch
         from tsfm_public import FlowStateForPrediction
 
+        # A branch name ("r1.1") can move under a fixed label; the parent's
+        # pinned commit cannot.
         predictor = FlowStateForPrediction.from_pretrained(
-            "ibm-granite/granite-timeseries-flowstate-r1", revision="r1.1",
+            "ibm-granite/granite-timeseries-flowstate-r1",
+            revision=pinned("ibm-granite/granite-timeseries-flowstate-r1"),
         ).to("cpu")
 
         scale_map = {"h": 1.0, "D": 3.43, "W": 0.46, "MS": 2.0}
@@ -387,6 +416,7 @@ WORKER_SCRIPT = textwrap.dedent("""\
 
         model = TinyTimeMixerForPrediction.from_pretrained(
             "ibm-granite/granite-timeseries-ttm-r2",
+            revision=pinned("ibm-granite/granite-timeseries-ttm-r2"),
         )
 
         ctx_len = min(len(history), 512)
@@ -410,7 +440,10 @@ WORKER_SCRIPT = textwrap.dedent("""\
         from gluonts.dataset.split import split
         from uni2ts.model.moirai import Moirai2Forecast, Moirai2Module
 
-        module = Moirai2Module.from_pretrained("Salesforce/moirai-2.0-R-small")
+        module = Moirai2Module.from_pretrained(
+            "Salesforce/moirai-2.0-R-small",
+            revision=pinned("Salesforce/moirai-2.0-R-small"),
+        )
         model = Moirai2Forecast(
             module=module,
             prediction_length=horizon,
@@ -450,6 +483,7 @@ WORKER_SCRIPT = textwrap.dedent("""\
 
         model = MOMENTPipeline.from_pretrained(
             "AutonLab/MOMENT-1-small",
+            revision=pinned("AutonLab/MOMENT-1-small"),
             model_kwargs={"task_name": "forecasting", "forecast_horizon": horizon},
         )
         model.init()
@@ -491,6 +525,7 @@ WORKER_SCRIPT = textwrap.dedent("""\
 
         model = MOMENTPipeline.from_pretrained(
             "AutonLab/MOMENT-1-small",
+            revision=pinned("AutonLab/MOMENT-1-small"),
             model_kwargs={"task_name": "reconstruction"},
         )
         model.init()
@@ -515,6 +550,7 @@ WORKER_SCRIPT = textwrap.dedent("""\
 
         model = MOMENTPipeline.from_pretrained(
             "AutonLab/MOMENT-1-small",
+            revision=pinned("AutonLab/MOMENT-1-small"),
             model_kwargs={"task_name": "embedding"},
         )
         model.init()
@@ -613,6 +649,13 @@ class SubprocessAdapter:
 
         request["tsfm_name"] = self.name
         request["frequency"] = self.frequency
+        # The worker refuses to load weights without these: the forecast id
+        # records the pinned revisions (`resolved_weights`), so the load
+        # must be at exactly those commits or the id would attest weights
+        # the run never used.
+        from .tsfm import resolved_weights
+
+        request["revisions"] = resolved_weights(self.name)
 
         try:
             proc = subprocess.run(

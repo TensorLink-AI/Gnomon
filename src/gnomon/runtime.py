@@ -910,7 +910,12 @@ def capabilities() -> dict[str, object]:
             "baselines": sorted(BASELINES),
             "statistical": sorted(name for name in MODELS if name not in BASELINES),
             "context": ["event_adjusted"],
-            "tsfm": installed_tsfms(),
+            # Adapters that can actually run right now: importable
+            # in-process or with a ready sandbox. `installed_tsfms()` alone
+            # reported [] after a successful `gnomon tsfm install`, because
+            # it requires torch importable in the *main* process — which
+            # the sandbox model exists to avoid.
+            "tsfm": sorted(set(installed_tsfms()) | set(list_sandboxes())),
             "tsfm_available": available_tsfms(),
             "tsfm_sandboxes": list_sandboxes(),
             "tsfm_capabilities": capability_matrix(),
