@@ -45,6 +45,47 @@ accepted.
 > guardrail's existence and default. *Falsifier:* any 30/7 artifact
 > whose selection statistics appear without their n.
 
+## Addendum: H-G5, registered after H-G1's falsification, before the fix
+
+The first benchmark run (recorded in RESULTS.md) falsified H-G1: the
+guarded run scored MSE 4.56 / MAPE 2.09% against thresholds 3.0 / 1.8%.
+The isolating measurement found the cause **outside the simulated
+mechanism**: the guardrail's point path scores MSE 2.995 ≈ the
+simulation's 2.98, but the published q50 recentres every quantile on
+the median of the pooled residuals — at 30/7 a location estimate from
+14 selection-optimistic residuals, measured at mean |shift| 0.84
+(≈ 1σ of the series' daily moves) in a coin-flip direction, making the
+q50 path worse than the point path on 33 of 50 tasks. That is the same
+defect class the guardrail exists for: an unevidenced location move at
+fold-starved history, and E3's tilt geometry already showed ~1σ
+coin-flip tilts destroy value.
+
+The fix to be implemented after this registration: on **degraded runs
+only**, quantiles are centred on the model's point path
+(`point_bias_correction` becomes 0, disclosed); recentring is untouched
+wherever separated folds exist. Predictions, frozen now:
+
+> **H-G5a.** On the 50-task benchmark, the guarded run's q50 equals its
+> point path on every task; filtered mean MSE lands in **[2.90, 3.05]**
+> and mean MAPE **≤ 1.80%**, with 0 abstentions.
+> *Falsifier:* any nonzero `point_bias_correction` on a degraded run,
+> or MSE/MAPE outside those bounds.
+>
+> **H-G5b.** Task-level: every `last_value` selection is an exact tie
+> with the raw floor; every non-tie traces to a `seasonal_naive`
+> selection (a disclosed, fold-scored choice), with losses-vs-floor
+> ≤ 10 of 50.
+> *Falsifier:* a non-tie on a `last_value` task, or > 10 losses.
+>
+> **H-G5c.** Coverage stays inside H-G3's registered bands after the
+> centring change: pooled in [74%, 93%], step-1 ≤ 88%, step-7 ≥ 60%.
+> *Falsifier:* any band violated — in particular pooled < 74% would
+> mean the recentring was load-bearing for coverage and the fix must be
+> rethought (e.g. cap the shift rather than suppress it), not shipped.
+>
+> **H-G5d.** Series with ≥ 4 rolling origins remain byte-identical.
+> *Falsifier:* any diff.
+
 ## Analysis plan
 
 Identical to the exploration run: all 50 tasks, defaults, synthetic
