@@ -22,6 +22,25 @@
   where the gate rejected 100% of proposed events (see
   `results/future-context-ab/HYPOTHESIS.md`, pre-registered).
 
+- Two flag-independent consistency fixes in the caller-claims lane,
+  surfaced by the same review that hardened the new lane (artifact IDs
+  are unchanged by both; no golden moves):
+  - Threshold-crossing probabilities now centre on the published point
+    path read back from the rows. Previously they centred on the
+    pre-clamp points, so a capacity cap at the threshold still reported
+    near-certain exceedance of a value the published rows never exceed —
+    the constraint stage was explicitly ordered before the threshold
+    stage "so the threshold analysis sees the same numbers the caller
+    will", and the probabilities were the one output that didn't.
+  - A clamped row restates its own `point_bias_correction`. The row
+    promises `pbc == q50 - point`; a clamp that moved one of them
+    without restating the gap shipped a row that lied about itself.
+
+- `gnomon context validate` discards a model-supplied `claim` attribute,
+  exactly as it discards a model-supplied `source_span`. The
+  caller-claims channel applies its number with no span parsing at all;
+  that authority is the caller's, never the model's.
+
 - **Renamed from Aion to Gnomon, and bumped to 0.5.0.** The old name
   collided with AION (Zhan et al., arXiv:2605.25045) and could not be
   claimed on PyPI. Every public identifier moved: distribution

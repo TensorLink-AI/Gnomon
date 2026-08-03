@@ -127,60 +127,75 @@ def _to_float(text: str) -> float:
     return float(text.replace(",", ""))
 
 
-#: (pattern, handler) pairs, tried in order; every match contributes to the
-#: bound, so "between 0 and 340" yields both sides from one pattern while
-#: "at least 5 and will not exceed 60" yields one side from each.
-#: "between 10 and 20 August" is a date range, not a bound on values; a
-#: number immediately followed by a month name or a clock marker is part
-#: of a date, and the range patterns refuse to read it as a bound. The
-#: leading (?!\d) pins the captured number to its full width — without it
-#: the engine backtracks "20" down to "2" so the month guard never sees
-#: "August".
-_NOT_A_DATE = (
+#: Guard applied immediately after every captured number.
+#:
+#: - ``(?!\d)`` pins the capture to its full width — without it the engine
+#:   backtracks "20" down to "2" so the guards below never see what
+#:   follows the real number.
+#: - A percent marker means the quantity is relative to a base the span
+#:   does not state; reading "90% of capacity" as an absolute 90 applies
+#:   a number the text never stated, so the pattern refuses the match.
+#: - A month name or clock marker means the number is part of a date
+#:   ("between 10 and 20 August", "below 5:30 pm levels"), not a bound
+#:   on values.
+_AFTER_NUMBER = (
     r"(?!\d)"
+    r"(?!\s*(?:%|percent\b|pct\b))"
     r"(?!\s*(?:(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|"
     r"june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|"
     r"nov(?:ember)?|dec(?:ember)?|am|pm|o'?clock)\b|:\d))"
 )
 
 _RANGE_PATTERNS = [
-    rf"(?:between|from)\s+({_N})\s+(?:and|to|through)\s+({_N}){_NOT_A_DATE}",
-    rf"(?:within|in)\s+(?:the\s+)?range\s+(?:of\s+)?({_N})\s+(?:and|to|through)\s+({_N}){_NOT_A_DATE}",
-    rf"range\s+of\s+({_N})\s+(?:and|to)\s+({_N}){_NOT_A_DATE}",
+    rf"(?<!not\s)(?:between|from)\s+({_N}){_AFTER_NUMBER}\s+(?:and|to|through)\s+({_N}){_AFTER_NUMBER}",
+    rf"(?:within|in)\s+(?:the\s+)?range\s+(?:of\s+)?({_N}){_AFTER_NUMBER}\s+(?:and|to|through)\s+({_N}){_AFTER_NUMBER}",
+    rf"range\s+of\s+({_N}){_AFTER_NUMBER}\s+(?:and|to)\s+({_N}){_AFTER_NUMBER}",
     # Interval notation: "in [0, 340]" / "within (0, 340)".
     rf"(?:in|within)\s+[\[\(]\s*({_N})\s*,\s*({_N})\s*[\]\)]",
 ]
 
+#: A negation, possibly with a word or two between it and the direction
+#: ("will not under any pressure exceed" is beyond its reach; "cannot
+#: climb above" and "won't ever go over" are not).
+_NEGATION = (
+    r"(?:cannot|can\s*not|can't|will\s+not|won't|shall\s+not|must\s+not|"
+    r"does\s+not|doesn't|is\s+not|isn't|never|not|no)"
+)
+
+#: Negated direction phrases, matched before anything else: "will not stay
+#: below X" states a floor, and reading its tail ("stay below X") as a
+#: ceiling inverts the claim. Each match consumes its region of the span
+#: so the un-negated patterns cannot re-read the same words.
+_NEGATED_MIN_PATTERNS = [
+    rf"{_NEGATION}\s+(?:\w+\s+){{0,2}}below\s+({_N}){_AFTER_NUMBER}",
+    rf"{_NEGATION}\s+(?:\w+\s+){{0,2}}(?:less|lower|smaller|fewer)\s+than\s+({_N}){_AFTER_NUMBER}",
+]
+
+_NEGATED_MAX_PATTERNS = [
+    rf"{_NEGATION}\s+(?:\w+\s+){{0,2}}(?:above|over|beyond|past)\s+({_N}){_AFTER_NUMBER}",
+    rf"{_NEGATION}\s+(?:\w+\s+){{0,2}}(?:exceed(?:s|ing)?|surpass(?:es|ing)?|"
+    rf"(?:more|greater|higher|larger)\s+than)\s+({_N}){_AFTER_NUMBER}",
+]
+
 _MAX_PATTERNS = [
-    rf"(?:cannot|can\s*not|can't|will\s+not|won't|shall\s+not|must\s+not|does\s+not|never)\s+"
-    rf"(?:exceed|surpass|go\s+(?:above|over|past)|rise\s+above|be\s+(?:more|greater|higher|larger)\s+than)\s+({_N})",
-    rf"(?:not|never)\s+(?:to\s+)?exceed(?:ing)?\s+({_N})",
     # CiK's constraint tasks state bounds in exactly this voice.
-    rf"bounded\s+(?:above|from\s+above)\s+by\s+({_N})",
-    rf"(?:less\s+than\s+or\s+equal\s+to|at\s+or\s+below|smaller\s+than\s+or\s+equal\s+to)\s+({_N})",
-    rf"(?:at\s+most|no\s+more\s+than|not\s+more\s+than|no\s+greater\s+than|no\s+higher\s+than)\s+({_N})",
-    rf"(?:stays?|stay(?:ing)?|remains?|remain(?:ing)?|kept?|keeps?)\s+(?:below|under|at\s+or\s+below)\s+({_N})",
-    # Bare "below X" is a max only when it is not the tail of a min phrase
-    # like "will not drop below X"; the lookbehinds keep it out of those.
-    rf"(?<!drop\s)(?<!drops\s)(?<!fall\s)(?<!falls\s)(?<!dip\s)(?<!dips\s)"
-    rf"(?<!go\s)(?<!goes\s)(?<!not\s)(?:below|under|less\s+than)\s+({_N})",
-    rf"(?:capped?\s+at|cap\s+of|ceiling\s+of|a?\s*maximum\s+(?:value\s+)?of|max(?:imum)?\s+of)\s+({_N})",
-    rf"(?:<=|≤)\s*({_N})",
+    rf"bounded\s+(?:above|from\s+above)\s+by\s+({_N}){_AFTER_NUMBER}",
+    rf"(?:less\s+than\s+or\s+equal\s+to|at\s+or\s+below|smaller\s+than\s+or\s+equal\s+to)\s+({_N}){_AFTER_NUMBER}",
+    rf"(?:at\s+most|no\s+more\s+than|not\s+more\s+than|no\s+greater\s+than|no\s+higher\s+than)\s+({_N}){_AFTER_NUMBER}",
+    rf"(?:stays?|stay(?:ing)?|remains?|remain(?:ing)?|kept?|keeps?)\s+(?:below|under|at\s+or\s+below)\s+({_N}){_AFTER_NUMBER}",
+    rf"(?:below|under|less\s+than)\s+({_N}){_AFTER_NUMBER}",
+    rf"(?:capped?\s+at|cap\s+of|ceiling\s+of|a?\s*maximum\s+(?:value\s+)?of|max(?:imum)?\s+of)\s+({_N}){_AFTER_NUMBER}",
+    rf"(?:<=|≤)\s*({_N}){_AFTER_NUMBER}",
 ]
 
 _MIN_PATTERNS = [
-    rf"(?:cannot|can\s*not|can't|will\s+not|won't|shall\s+not|must\s+not|does\s+not|never)\s+"
-    rf"(?:fall|drop|go|dip)\s+below\s+({_N})",
-    rf"bounded\s+(?:below|from\s+below)\s+by\s+({_N})",
-    rf"(?:greater\s+than\s+or\s+equal\s+to|at\s+or\s+above|larger\s+than\s+or\s+equal\s+to)\s+({_N})",
-    rf"(?:at\s+least|no\s+less\s+than|not\s+less\s+than|no\s+lower\s+than)\s+({_N})",
-    rf"(?:stays?|stay(?:ing)?|remains?|remain(?:ing)?|kept?|keeps?)\s+(?:above|at\s+or\s+above)\s+({_N})",
-    # Bare "above X" is a min only when it is not the tail of a max phrase
-    # like "will not rise above X".
-    rf"(?<!rise\s)(?<!rises\s)(?<!go\s)(?<!goes\s)(?<!not\s)"
-    rf"(?:above|over|more\s+than|greater\s+than)\s+({_N})",
-    rf"(?:a?\s*minimum\s+(?:value\s+)?of|min(?:imum)?\s+of|floor\s+of)\s+({_N})",
-    rf"(?:>=|≥)\s*({_N})",
+    rf"bounded\s+(?:below|from\s+below)\s+by\s+({_N}){_AFTER_NUMBER}",
+    rf"(?:greater\s+than\s+or\s+equal\s+to|at\s+or\s+above|larger\s+than\s+or\s+equal\s+to)\s+({_N}){_AFTER_NUMBER}",
+    rf"(?:at\s+least|no\s+less\s+than|not\s+less\s+than|no\s+lower\s+than)\s+({_N}){_AFTER_NUMBER}",
+    rf"(?:stays?|stay(?:ing)?|remains?|remain(?:ing)?|kept?|keeps?)\s+(?:above|at\s+or\s+above)\s+({_N}){_AFTER_NUMBER}",
+    rf"(?:above|over|more\s+than|greater\s+than)\s+({_N}){_AFTER_NUMBER}",
+    rf"(?:a?\s*minimum\s+(?:value\s+)?of|min(?:imum)?\s+of|floor\s+of)\s+({_N}){_AFTER_NUMBER}",
+    rf"(?:>=|≥)\s*({_N}){_AFTER_NUMBER}",
 ]
 
 #: Phrasings that state non-negativity without a digit.
@@ -204,28 +219,51 @@ def parse_bound_span(span: str) -> tuple[ParsedBound | None, str | None]:
     Every number returned came from the span itself; the proposal's own
     ``claimed_bound`` is only ever used as a cross-check, never as a
     source.
+
+    Matching is region-consuming: each successful match claims its slice
+    of the span, and later patterns skip anything overlapping a claimed
+    slice. Without this, "no more than 60" reads twice — once correctly
+    as a ceiling ("no more than 60") and once, by the bare pattern, as a
+    floor ("more than 60") — and the phantom side either falsely fails
+    the history check or pins the forecast to a degenerate [60, 60] band.
+    Negated phrases run first for the same reason: "will not stay below
+    100" is a floor, and the un-negated "stay below 100" inside it must
+    never be read as a ceiling.
     """
     text = " ".join(str(span).split())
+    consumed: list[tuple[int, int]] = []
+
+    def first_match(patterns: list[str]) -> re.Match | None:
+        for pattern in patterns:
+            for match in re.finditer(pattern, text, re.IGNORECASE):
+                if any(match.start() < end and match.end() > start
+                       for start, end in consumed):
+                    continue
+                consumed.append((match.start(), match.end()))
+                return match
+        return None
+
     minimum: float | None = None
     maximum: float | None = None
-    for pattern in _RANGE_PATTERNS:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            low, high = sorted((_to_float(match.group(1)), _to_float(match.group(2))))
-            minimum, maximum = low, high
-            break
+    range_match = first_match(_RANGE_PATTERNS)
+    if range_match:
+        minimum, maximum = sorted(
+            (_to_float(range_match.group(1)), _to_float(range_match.group(2)))
+        )
+    negated_min = first_match(_NEGATED_MIN_PATTERNS) if minimum is None else None
+    if negated_min:
+        minimum = _to_float(negated_min.group(1))
+    negated_max = first_match(_NEGATED_MAX_PATTERNS) if maximum is None else None
+    if negated_max:
+        maximum = _to_float(negated_max.group(1))
     if maximum is None:
-        for pattern in _MAX_PATTERNS:
-            match = re.search(pattern, text, re.IGNORECASE)
-            if match:
-                maximum = _to_float(match.group(1))
-                break
+        match = first_match(_MAX_PATTERNS)
+        if match:
+            maximum = _to_float(match.group(1))
     if minimum is None:
-        for pattern in _MIN_PATTERNS:
-            match = re.search(pattern, text, re.IGNORECASE)
-            if match:
-                minimum = _to_float(match.group(1))
-                break
+        match = first_match(_MIN_PATTERNS)
+        if match:
+            minimum = _to_float(match.group(1))
     if minimum is None and _NON_NEGATIVE.search(text):
         minimum = 0.0
     if minimum is None and re.search(
@@ -257,12 +295,19 @@ _ZERO_STATES = re.compile(
 )
 
 _OVERRIDE_VALUE_PATTERNS = [
-    rf"(?:set|fixed|held|pinned|kept)\s+(?:to|at)\s+({_N})",
-    rf"(?:will|shall)\s+be\s+({_N})\b",
-    rf"(?:drops?|falls?|goes?|go|reduced?)\s+to\s+({_N})",
-    rf"(?:at\s+a\s+(?:constant\s+)?(?:value|rate|level)\s+of)\s+({_N})",
-    rf"(?:remains?|remaining|stay(?:s|ing)?)\s+at\s+({_N})",
-    rf"(?:held\s+)?constant\s+at\s+({_N})",
+    rf"(?:set|fixed|held|pinned|kept)\s+(?:to|at)\s+({_N}){_AFTER_NUMBER}",
+    rf"(?:will|shall)\s+be\s+({_N}){_AFTER_NUMBER}",
+    rf"(?:drops?|falls?|goes?|go|reduced?)\s+to\s+({_N}){_AFTER_NUMBER}",
+    rf"(?:at\s+a\s+(?:constant\s+)?(?:value|rate|level)\s+of)\s+({_N}){_AFTER_NUMBER}",
+    rf"(?:remains?|remaining|stay(?:s|ing)?)\s+at\s+({_N}){_AFTER_NUMBER}",
+    rf"(?:held\s+)?constant\s+at\s+({_N}){_AFTER_NUMBER}",
+    # A quantified stop/close verb states a level, not a shutdown: "the
+    # index closes at 340" is 340. When the number is a clock time
+    # ("stops at 5:30 pm"), _AFTER_NUMBER refuses the read and the verb
+    # falls through to the zero-state list, where "stops at 5:30 pm"
+    # correctly means the value is 0 inside the stated window.
+    rf"(?:closes?|closing|stops?|stopping|halts?|halting|settles?|settling|"
+    rf"holds?|holding)\s+at\s+({_N}){_AFTER_NUMBER}",
 ]
 
 
@@ -473,6 +518,7 @@ def assess_future_events(
         if admitted is not None:
             assessment.admitted.append(admitted)
 
+    _reject_conflicting_overrides(assessment)
     _reject_contradicted_overrides(assessment)
     for item in assessment.admitted:
         assessment.checks.append({
@@ -492,6 +538,49 @@ def _windows_overlap(left: FutureEvent, right: FutureEvent) -> bool:
         datetime.fromisoformat(left.effective_end),
     )
     return left_start <= right_end and right_start <= left_end
+
+
+def _reject_conflicting_overrides(assessment: FutureContextAssessment) -> None:
+    """Reject every override that overlaps another with a different value.
+
+    Two admitted overrides stating different values for the same steps are
+    the context contradicting itself, and resolving them by list order
+    would make the published numbers depend on the order the proposer
+    happened to emit them. Neither claim outranks the other, so both are
+    rejected and the contradiction recorded. Equal-valued overlaps are
+    left alone — they agree.
+    """
+    overrides = [item for item in assessment.admitted
+                 if item.event_class == "override"]
+    conflicted: dict[str, str] = {}
+    for index, left in enumerate(overrides):
+        for right in overrides[index + 1:]:
+            if not _windows_overlap(left, right):
+                continue
+            if abs(float(left.value) - float(right.value)) <= 1e-9:
+                continue
+            for item, other in ((left, right), (right, left)):
+                conflicted.setdefault(item.event_id, (
+                    f"the stated value {item.value} overlaps {other.event_id}, "
+                    f"which states {other.value} for the same steps; the "
+                    f"context contradicts itself and neither claim outranks "
+                    f"the other, so both are rejected"
+                ))
+    if not conflicted:
+        return
+    for event_id, detail in conflicted.items():
+        assessment.checks.append({
+            "event_id": event_id, "event_class": "override",
+            "code": "overrides_agree_where_they_overlap",
+            "passed": False, "detail": detail,
+        })
+        assessment.rejected.append({
+            "event_id": event_id, "event_class": "override",
+            "code": "overrides_agree_where_they_overlap",
+            "reason": detail,
+        })
+    assessment.admitted = [item for item in assessment.admitted
+                           if item.event_id not in conflicted]
 
 
 def _reject_contradicted_overrides(assessment: FutureContextAssessment) -> None:
@@ -696,7 +785,20 @@ def apply_future_events(
         steps = _covered_steps(event, projected)
         if not steps:
             continue
-        boundary = {steps[0], steps[-1]}
+        # Widening marks the window's true edges, where a stated schedule
+        # is most likely to be off by a step. The first covered step is
+        # always the window's opening edge (the lane only admits windows
+        # starting after the observed history). The last covered step is
+        # its closing edge only when the window actually ends inside the
+        # horizon — a window running past the horizon has no closing edge
+        # here, and its final visible step is interior.
+        boundary = {steps[0]}
+        window_end, horizon_end = _align(
+            datetime.fromisoformat(event.effective_end),
+            datetime.fromisoformat(str(projected[-1]["timestamp"])),
+        )
+        if window_end <= horizon_end:
+            boundary.add(steps[-1])
         for index in steps:
             row = projected[index]
             value = float(event.value)

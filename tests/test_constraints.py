@@ -10,6 +10,8 @@ LLM's say-so into a forecast number.
 import csv
 import math
 import sys
+
+import pytest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -169,6 +171,39 @@ class TestEndToEnd:
                       if item.kind == "constraint_applied")
         assert record.payload["claims_applied"] == 1
         assert record.payload["clamps"], "an applied clamp must be recorded"
+
+    def test_a_clamped_row_restates_its_own_bias_correction(self, tmp_path):
+        """The row promises pbc == q50 - point; a clamp that moves one of
+        them without restating the gap ships a row that lies about
+        itself."""
+        path = tmp_path / "series.csv"
+        _series(path)
+        artifact, _ = forecast(
+            str(path), time_column="timestamp", target_column="value",
+            horizon=12, context_events=[_event("max", 200.0)],
+            output=str(tmp_path / "out"),
+        )
+        for row in artifact.results[0].forecast:
+            assert row["point_bias_correction"] == pytest.approx(
+                row["q50"] - row["point"]
+            )
+
+    def test_threshold_probabilities_describe_the_clamped_rows(self, tmp_path):
+        """Crossing probabilities centre on the published (clamped) point
+        path. Centred on the unclamped path, a cap at the threshold still
+        reported near-certain exceedance of a value the published rows
+        never exceed."""
+        path = tmp_path / "series.csv"
+        _series(path)
+        cap = 200.0
+        artifact, _ = forecast(
+            str(path), time_column="timestamp", target_column="value",
+            horizon=12, context_events=[_event("max", cap)],
+            threshold=cap, output=str(tmp_path / "out"),
+        )
+        result = artifact.results[0]
+        assert all(row["point"] <= cap for row in result.forecast)
+        assert max(result.threshold["probability_above"]) < 0.9
 
     def test_a_cap_the_history_breaches_is_refused_not_enforced(self, tmp_path):
         path = tmp_path / "series.csv"

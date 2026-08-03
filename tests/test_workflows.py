@@ -126,6 +126,22 @@ def test_a_model_supplied_source_span_is_never_trusted() -> None:
     assert "not verbatim" in result["rejected"][0]["problems"][0]
 
 
+def test_a_model_supplied_claim_attribute_is_discarded() -> None:
+    """The caller-claims channel applies its number with no span parsing
+    at all — that authority is the caller's, never the model's. An LLM
+    smuggling `{"claim": ...}` through attributes would put its own
+    number straight onto every quantile."""
+    smuggled = {
+        **CONSTRAINT_PROPOSAL,
+        "attributes": {"claim": {"kind": "min", "value": 5000},
+                       "note": "kept"},
+    }
+    result = parse_context_response({"events": [smuggled]}, [BOUND_DOCUMENT])
+    attributes = result["events"][0]["attributes"]
+    assert "claim" not in attributes
+    assert attributes["note"] == "kept"  # only reserved channels are stripped
+
+
 def test_ordinary_events_do_not_gain_a_source_span() -> None:
     result = parse_context_response({"events": [PROPOSAL]}, [DOCUMENT])
     assert "source_span" not in result["events"][0]["attributes"]

@@ -7,19 +7,26 @@ confirmed or refuted.
 
 ## What ran
 
-- The full Gnomon suite plus the new lane's tests: **682 passed, 2
-  skipped** in `tests/` (was 627 before the feature; the 55 new tests
-  cover span parsing — including CiK's "bounded above/below by",
-  "less than or equal to", `≤`/`≥`, interval-notation, and positivity
-  phrasings — suspect-claim rejection against recent history, rejection
-  of an override that contradicts an admitted constraint, clamp and
-  override-window correctness including boundary widening, the
-  `context_trusted` support downgrade, threshold-analysis consistency
-  with the published rows, the history-only counterfactual in evidence,
-  and ID-payload stability with the flag off) and **89 passed** in
-  `benchmarks/tests/` (including the adapter's verbatim-quote check and
-  the cache-name separation between flag-on and flag-off conditions).
-  Golden artifacts are byte-identical with the flag off.
+- The full Gnomon suite plus the new lane's tests: **714 passed, 2
+  skipped** in `tests/` (was 627 before the feature; the lane's own file
+  carries 80 tests) and **90 passed** in `benchmarks/tests/`. Coverage
+  includes: span parsing (CiK's "bounded above/below by", "less than or
+  equal to", `≤`/`≥`, interval notation, positivity; negation resolution
+  so "no more than 60" and "will not stay below 100" read on the stated
+  side; refusal of percentages, date/clock ranges, and truncated
+  scientific notation); suspect-claim rejection against recent history;
+  rejection of overrides that contradict an admitted constraint or each
+  other (order-independent); clamp and override-window correctness
+  including true-edge-only boundary widening; the `context_trusted`
+  support downgrade; threshold-analysis and `point_bias_correction`
+  consistency with the published rows; the history-only counterfactual
+  in evidence; ID-payload stability with the flag off; the general
+  workflow's verbatim-quote-to-`source_span` chain with model-supplied
+  `source_span`/`claim` attributes discarded; and the adapter's
+  verbatim-quote, overlong-span, and cache-separation checks. An
+  adversarial review of the full diff was run and every confirmed
+  finding fixed and pinned by a test. Golden artifacts are
+  byte-identical with the flag off.
 - Nothing else. No CiK task was executed under either condition.
 
 ## Why the CiK treatment arm did not run

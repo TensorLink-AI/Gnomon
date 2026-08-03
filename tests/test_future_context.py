@@ -91,6 +91,57 @@ def test_more_override_phrasings_parse(span, value):
     assert problem is None and parsed == value
 
 
+@pytest.mark.parametrize("span, minimum, maximum", [
+    # A negated ceiling must not also read as a floor ("more than 60").
+    ("no more than 60", None, 60.0),
+    ("no greater than 60 units", None, 60.0),
+    ("the load cannot be more than 500", None, 500.0),
+    # Negation reaches verbs the un-negated lists never enumerated.
+    ("temperatures cannot climb above 40", None, 40.0),
+    ("it won't ever go past 75", None, 75.0),
+    # A negated "stay below" is a floor, not a ceiling.
+    ("the level will not stay below 100", 100.0, None),
+    ("never dips below 12", 12.0, None),
+])
+def test_negated_phrasings_resolve_to_the_stated_side(span, minimum, maximum):
+    bound, problem = parse_bound_span(span)
+    assert problem is None, f"{span!r} rejected: {problem}"
+    assert bound.minimum == minimum
+    assert bound.maximum == maximum
+
+
+@pytest.mark.parametrize("span", [
+    # Relative to a base the span does not state; an absolute read would
+    # apply a number the text never stated.
+    "output will not exceed 90% of nominal capacity",
+    "demand stays below 75 percent of the peak",
+    "values remain between 10% and 20%",
+    # A clock time is not a bound on values.
+    "values stay below 5:30 pm levels",
+])
+def test_relative_and_clock_quantities_are_rejected_not_misread(span):
+    bound, problem = parse_bound_span(span)
+    assert bound is None, f"{span!r} parsed as {bound}"
+
+
+def test_a_quantified_close_verb_states_the_number_not_zero():
+    parsed, problem = parse_override_span(
+        "the index closes at 340 for the maintenance week"
+    )
+    assert problem is None and parsed == 340.0
+
+
+def test_a_clock_quantified_stop_verb_still_means_zero():
+    parsed, problem = parse_override_span("production stops at 5:30 pm each day")
+    assert problem is None and parsed == 0.0
+
+
+def test_percent_override_values_are_rejected_not_misread():
+    parsed, problem = parse_override_span("production will be 50% of capacity")
+    assert parsed is None
+    assert "estimated rather than stated" in problem
+
+
 def test_a_cross_pattern_empty_bound_is_rejected():
     bound, problem = parse_bound_span(
         "values are at least 100 and will not exceed 50"
@@ -242,6 +293,54 @@ def test_an_override_contradicting_an_admitted_constraint_is_rejected():
     rejection = next(r for r in assessment.rejected if r["event_id"] == "o1")
     assert rejection["code"] == "override_respects_admitted_constraints"
     assert "contradicts itself" in rejection["reason"]
+
+
+def test_overlapping_overrides_with_different_values_reject_each_other():
+    """Order-independent by construction: neither claim outranks the
+    other, so resolving them by proposal order would let the proposer's
+    emission order change the published numbers."""
+    events = [
+        _event("o1", "override:outage", FUTURE[0], FUTURE[3],
+               {"source_span": "the plant is offline"}),
+        _event("o2", "override:trial", FUTURE[2], FUTURE[5],
+               {"source_span": "throughput will be 120 during the trial"}),
+    ]
+    forward = assess_future_events(events, "s", HISTORY, TIMESTAMPS, FUTURE, 7)
+    reverse = assess_future_events(list(reversed(events)), "s", HISTORY,
+                                   TIMESTAMPS, FUTURE, 7)
+    for assessment in (forward, reverse):
+        assert not assessment.admitted
+        codes = {item["code"] for item in assessment.rejected}
+        assert codes == {"overrides_agree_where_they_overlap"}
+        assert {item["event_id"] for item in assessment.rejected} == {"o1", "o2"}
+
+
+def test_overlapping_overrides_with_the_same_value_agree():
+    events = [
+        _event("o1", "override:outage", FUTURE[0], FUTURE[3],
+               {"source_span": "the plant is offline"}),
+        _event("o2", "override:strike", FUTURE[2], FUTURE[5],
+               {"source_span": "production is halted by the strike"}),
+    ]
+    assessment = assess_future_events(events, "s", HISTORY, TIMESTAMPS, FUTURE, 7)
+    assert {e.event_id for e in assessment.admitted} == {"o1", "o2"}
+
+
+def test_a_window_running_past_the_horizon_has_no_closing_boundary():
+    """The last visible step of a longer window is interior, not an edge:
+    schedule-edge uncertainty exists where the stated window ends, and
+    this one ends weeks after the horizon does."""
+    admitted = [FutureEvent(
+        "o1", "override", FUTURE[3].isoformat(),
+        (FUTURE[-1] + timedelta(days=40)).isoformat(),
+        "the plant is offline", value=0.0,
+    )]
+    projected, _ = apply_future_events(_rows(), admitted)
+    # opening edge: widened union
+    assert projected[3]["q90"] > 0.0
+    # every later step, including the horizon's last, is interior
+    for index in range(4, len(projected)):
+        assert projected[index]["q10"] == projected[index]["q90"] == 0.0
 
 
 def test_a_compatible_override_and_constraint_are_both_admitted():

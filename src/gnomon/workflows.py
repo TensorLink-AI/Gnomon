@@ -165,6 +165,15 @@ def parse_context_response(
         # only ever set from the quote verified below. A model-supplied one
         # bypasses that verification, so it is discarded, never trusted.
         attributes.pop("source_span", None)
+        # `claim` is the caller-claims channel (`constraints.py`): a bound
+        # asserted on the caller's own authority and applied with no span
+        # parsing at all. That authority is the caller's, never the
+        # model's — an LLM writing `{"claim": {"kind": "min", "value": N}}`
+        # would put its own number straight onto every quantile, which is
+        # the one thing no workflow output may do. Model-proposed bounds
+        # go through `constraint:*` events, whose numbers are re-parsed
+        # from the verified quote.
+        attributes.pop("claim", None)
         quote = str(proposal.get("evidence_quote", ""))
         if quote:
             attributes["evidence_quote"] = quote

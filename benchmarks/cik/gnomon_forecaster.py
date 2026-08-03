@@ -214,6 +214,17 @@ def events_from_proposals(
                 # off): an unverifiable quote is not attached, and the event
                 # proceeds as an ordinary proposal for the fold gate.
                 pass
+            elif len(span.strip()) > 1000:
+                # Rejected rather than truncated: a truncation after the
+                # verbatim check can cut a number mid-digits, handing the
+                # engine's parser a figure ("10" from "1000000") that the
+                # context does state as a substring but never as a value.
+                notes.append(
+                    f"proposal {number} rejected: source_span exceeds 1000 "
+                    f"characters; quote the single sentence that states the "
+                    f"bound or value"
+                )
+                continue
             elif _normalise(span) not in normalised_context:
                 notes.append(
                     f"proposal {number} rejected: source_span is not a "
@@ -221,7 +232,7 @@ def events_from_proposals(
                 )
                 continue
             else:
-                attributes["source_span"] = span.strip()[:1000]
+                attributes["source_span"] = span.strip()
         event = ContextEvent(
             event_id=f"cik-{task_name}-evt{number}",
             event_type=str(raw.get("event_type", "")).strip() or "context_event",

@@ -148,6 +148,27 @@ def test_source_spans_must_quote_the_context_verbatim():
     assert any("not a verbatim quote" in note for note in notes)
 
 
+def test_overlong_spans_are_rejected_not_truncated():
+    """Truncating after the verbatim check can cut a number mid-digits,
+    handing the parser a figure the context states only as a substring."""
+    window_start = "2024-01-01T00:00:00+00:00"
+    long_span = "values will stay between 0 and " + "9" * 1000
+    context = f"Constraints: {long_span}.\n"
+    events, notes = events_from_proposals(
+        [{
+            "event_type": "constraint:bounds",
+            "effective_start": "2024-02-01T00:00:00+00:00",
+            "effective_end": "2024-02-05T00:00:00+00:00",
+            "source_span": long_span,
+        }],
+        task_name="DemoTask", known_at=window_start,
+        window_start=window_start, window_end="2024-03-01T00:00:00+00:00",
+        context_text=context,
+    )
+    assert not events
+    assert any("exceeds 1000 characters" in note for note in notes)
+
+
 def test_spans_are_not_attached_when_the_lane_is_off():
     window_start = "2024-01-01T00:00:00+00:00"
     events, notes = events_from_proposals(
