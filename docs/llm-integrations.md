@@ -19,7 +19,11 @@ its own model; `gnomon context validate` grounds and validates the response
 into typed context events. The Hermes plugin wires this through the host's
 `ctx.llm` facade, so no API key is ever configured on the Gnomon side. Events
 enter a forecast only through the deterministic admission gate
-(identical-fold ablation).
+(identical-fold ablation) — or, behind `context.future_events: on`, through
+the textual-verifiability lane for future-dated `constraint:*`/`override:*`
+events, whose numbers are re-parsed deterministically from evidence quotes
+verified verbatim against the caller's own documents. Forecasts that lane
+influences report the distinct `context_trusted` support state.
 
 ## Is OpenRouter a planned option?
 

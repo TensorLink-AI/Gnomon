@@ -252,6 +252,12 @@ def build_parser() -> argparse.ArgumentParser:
     prompt_parser.add_argument("--file", action="append", required=True, dest="files")
     prompt_parser.add_argument("--series", action="append", default=[], dest="series_names")
     prompt_parser.add_argument("--timezone", default="+00:00")
+    prompt_parser.add_argument(
+        "--future-events", action="store_true", default=None,
+        help="Also describe the future-dated constraint/override classes "
+             "(context.future_events lane). Defaults to the loaded config's "
+             "context.future_events setting.",
+    )
     validate_parser = context_commands.add_parser(
         "validate", help="Ground and validate an LLM context response into typed events"
     )
@@ -1348,8 +1354,13 @@ def main(argv: Sequence[str] | None = None) -> int:
 
             documents = _read_documents(args.files)
             if args.context_command == "prompt":
+                future_events = args.future_events
+                if future_events is None:
+                    from .config import load_config
+                    future_events = load_config().context.future_events
                 payload = build_context_investigation_prompt(
-                    documents, args.series_names, args.timezone
+                    documents, args.series_names, args.timezone,
+                    future_events=bool(future_events),
                 )
             else:
                 response_path = Path(args.response).expanduser()

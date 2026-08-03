@@ -443,6 +443,61 @@ def test_threshold_analysis_describes_the_published_rows(tmp_path):
     assert probabilities[3] < 0.5
 
 
+def test_general_purpose_path_from_document_to_trusted_forecast(tmp_path):
+    """The lane is not benchmark furniture: a caller's own document, run
+    through the stock `gnomon context prompt`/`validate` workflow and the
+    ordinary forecast entry point, reaches `context_trusted` with no
+    benchmark code involved. The verified evidence_quote is the span."""
+    from gnomon.context import event_from_dict
+    from gnomon.workflows import DocumentRef, parse_context_response
+
+    csv_path = tmp_path / "series.csv"
+    _write_csv(csv_path)
+    h_start = START + timedelta(days=120)
+    document = DocumentRef(
+        name="ops.md",
+        content=(
+            "Written 2026-01-01. Next week the plant is offline for "
+            "scheduled maintenance. Design capacity: values will stay "
+            "between 0 and 340 units."
+        ),
+        source_type="planning_file",
+        reference="/notes/ops.md",
+    )
+    llm_response = {"events": [
+        {
+            "document_index": 0,
+            "event_type": "constraint:capacity",
+            "entity_scope": ["*"],
+            "effective_start": h_start.isoformat(),
+            "effective_end": (h_start + timedelta(days=6)).isoformat(),
+            "known_at": START.isoformat(),
+            "evidence_quote": "values will stay between 0 and 340 units",
+        },
+        {
+            "document_index": 0,
+            "event_type": "override:maintenance",
+            "entity_scope": ["*"],
+            "effective_start": (h_start + timedelta(days=2)).isoformat(),
+            "effective_end": (h_start + timedelta(days=4)).isoformat(),
+            "known_at": START.isoformat(),
+            "evidence_quote": "the plant is offline for scheduled maintenance",
+        },
+    ]}
+    validated = parse_context_response(llm_response, [document])
+    assert not validated["rejected"]
+    events = [event_from_dict(item) for item in validated["events"]]
+    artifact, _ = forecast(
+        str(csv_path), time_column="timestamp", target_column="value",
+        horizon=7, frequency="D", output=str(tmp_path / "out"),
+        context_events=events, config=_flag_on_config(),
+    )
+    result = artifact.results[0]
+    assert result.support == "context_trusted"
+    assert len(result.future_context["admitted"]) == 2
+    assert result.forecast[3]["point"] == 0.0
+
+
 # -- config and capabilities -------------------------------------------------
 
 def test_config_parses_on_off(tmp_path):
