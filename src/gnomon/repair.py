@@ -423,7 +423,7 @@ def _repair_series(
     log: RepairLog,
 ) -> list["Observation"]:
     from .data import Observation
-    from .temporal import infer_frequency, next_timestamp, normalise_frequency, FREQUENCIES
+    from .temporal import frequency_step, infer_frequency, next_timestamp, normalise_frequency
 
     total = len(items)
     # Duplicates, walking file order so "last row wins" is well defined.
@@ -475,7 +475,7 @@ def _repair_series(
         if target is not None and target != "W":
             rounder = (
                 _round_to_month_start if target == "MS"
-                else lambda value: _round_to_unit(value, FREQUENCIES[target])
+                else lambda value: _round_to_unit(value, frequency_step(target))
             )
             resnapped: dict[datetime, Observation] = {}
             for item in kept:

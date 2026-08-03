@@ -1941,7 +1941,7 @@ def register_artifact(artifact: Any, project: str, artifact_path: str,
     ``event_admissions``, joined to the gate verdicts the artifact already
     recorded, so proposals can be scored when actuals arrive."""
     from .data import load_observations
-    from .temporal import SEASONS
+    from .temporal import default_season
 
     schema = artifact.task.schema
     observations, _, _ = load_observations(
@@ -1957,7 +1957,7 @@ def register_artifact(artifact: Any, project: str, artifact_path: str,
     registered: list[str] = []
     for result in artifact.results:
         values = histories[result.series]
-        season = SEASONS[schema.frequency]
+        season = default_season(schema.frequency)
         lag = season if len(values) > season else 1
         errors = [abs(values[index] - values[index - lag])
                   for index in range(lag, len(values))]

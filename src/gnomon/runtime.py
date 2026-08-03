@@ -238,6 +238,7 @@ def _series_result(
     target_coverage: float,
     repair_log: Any,
     future_events: bool = False,
+    best_effort: bool = False,
 ) -> tuple[SeriesResult, list[Evidence]]:
     """Run one series through the full stage pipeline.
 
@@ -308,6 +309,9 @@ def _series_result(
         target_coverage=target_coverage,
         future_events=future_events,
     )
+    if best_effort and support == "unsupported" and not rows and state.values:
+        from .pipeline import best_effort_stage
+        rows, support = best_effort_stage(state)
     assessment = state.assessment
     from .support import assess_forecast_support
     support_assessment = assess_forecast_support(
@@ -365,6 +369,7 @@ def forecast(
     threshold: float | None = None,
     config: Any = None,
     strict_abstention: bool = False,
+    best_effort: bool = False,
     seasonal_period: int | None = None,
     selection_strategy: str = "best",
     multivariate: bool = False,
@@ -459,6 +464,7 @@ def forecast(
             adjudicating=adjudicating, threshold=threshold,
             target_coverage=target_coverage, repair_log=repair_log,
             future_events=future_events_enabled,
+            best_effort=best_effort,
         )
         if result.future_context and result.future_context.get("admitted"):
             future_context_admitted[series_name] = list(
@@ -524,6 +530,10 @@ def forecast(
         # The default level is absent from the payload so IDs predating the
         # repair layer are unchanged.
         id_payload["repair"] = repair
+    if best_effort:
+        # Flag-on only, like future_context below: every flag-off ID —
+        # including all pre-existing ones — is byte-identical.
+        id_payload["best_effort"] = True
     if selected_weights:
         # Absent when no TSFM was selected, so ids for baseline and
         # statistical selections are unchanged by this addition.
@@ -632,6 +642,7 @@ def forecast_multi(
     threshold: float | None = None,
     config: Any = None,
     strict_abstention: bool = False,
+    best_effort: bool = False,
     seasonal_period: int | None = None,
     selection_strategy: str = "best",
     clock: Clock | None = None,
@@ -730,6 +741,7 @@ def forecast_multi(
                 context_events=None, covariates=None, adjudicating=False,
                 threshold=threshold, target_coverage=target_coverage,
                 repair_log=repair_logs[target],
+                best_effort=best_effort,
             )
         except GnomonError as error:
             return _abstained_target_result(target, error)
@@ -810,6 +822,8 @@ def forecast_multi(
     from .repair import REPAIR_SAFE
     if repair != REPAIR_SAFE:
         id_payload["repair"] = repair
+    if best_effort:
+        id_payload["best_effort"] = True
     if selected_weights:
         id_payload["model_weights"] = selected_weights
     forecast_id = content_id("forecast", id_payload)
@@ -876,6 +890,14 @@ def capabilities() -> dict[str, object]:
         },
         "frequencies": sorted(SEASONS),
         "frequency_descriptions": dict(FREQUENCY_DESCRIPTIONS),
+        # Named codes are not the whole grid: any strictly regular
+        # whole-second step shorter than one day is accepted, written
+        # <N>s / <N>min / <N>h and inferred automatically when the series
+        # has exactly one unique spacing.
+        "general_frequencies": {
+            "pattern": r"^[1-9]\d*(s|min|h)$",
+            "description": "any whole-second step shorter than one day",
+        },
         "context_events": {
             "fold_validated": {
                 "model": "event_adjusted",
@@ -971,6 +993,7 @@ def capabilities() -> dict[str, object]:
             "covariate_ablation": True, "enrichment_adjudication": True,
             "season_detection": True, "ensemble_forecasting": True,
             "multivariate_var": True, "strict_abstention": True,
+            "best_effort_fallback": True,
             "multi_target_batching": True, "brief_output": True,
         },
         "forecast_surface": {

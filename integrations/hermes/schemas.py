@@ -27,8 +27,8 @@ _INPUT_PROPERTIES = {
     },
     "frequency": {
         "type": "string",
-        "enum": ["min", "5min", "15min", "30min", "h", "D", "W", "MS"],
-        "description": "Observation frequency: min/5min/15min/30min (minutes), h (hourly), D (daily), W (weekly), MS (month-start). Omit to let Gnomon infer it; ambiguity fails loudly rather than guessing.",
+        "pattern": "^([1-9][0-9]*)?(s|min|h)$|^(D|W|MS)$",
+        "description": "Observation frequency: s (seconds), min (minutes), h (hourly), D (daily), W (weekly), MS (month-start), or any whole-second sub-daily step as <N>s, <N>min, or <N>h (e.g. 5min, 90s, 2h). Omit to let Gnomon infer it; ambiguity fails loudly rather than guessing.",
     },
 }
 

@@ -212,6 +212,13 @@ def build_parser() -> argparse.ArgumentParser:
              "when there is too little history for rolling evaluation",
     )
     forecast_parser.add_argument(
+        "--best-effort", action="store_true",
+        help="When the evaluation abstains for lack of history, still "
+             "publish a clearly labelled naive fallback (support "
+             "best_effort, NO RELIABLE FORECAST warning) instead of empty "
+             "results; the abstention's reasons are preserved verbatim",
+    )
+    forecast_parser.add_argument(
         "--as-of", dest="as_of",
         help="Replay instant: use only data known at or before this ISO timestamp",
     )
@@ -1564,6 +1571,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 threshold=args.threshold,
                 config=load_config(getattr(args, "config", None)),
                 strict_abstention=args.strict_abstention,
+                best_effort=getattr(args, "best_effort", False),
                 seasonal_period=args.seasonal_period,
                 selection_strategy="ensemble" if args.ensemble else args.selection_strategy,
                 as_of=_parse_as_of(getattr(args, "as_of", None)),
@@ -1606,6 +1614,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 context_events=events, threshold=args.threshold,
                 covariates=covariates,
                 config=config, strict_abstention=args.strict_abstention,
+                best_effort=getattr(args, "best_effort", False),
                 seasonal_period=args.seasonal_period,
                 selection_strategy="ensemble" if args.ensemble else args.selection_strategy,
                 multivariate=args.multivariate,

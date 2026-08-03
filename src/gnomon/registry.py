@@ -145,8 +145,12 @@ _COMMON_INPUT: dict[str, Any] = {
     "target_column": {"type": "string", "description": "Name of the numeric column."},
     "series_column": {"type": "string", "description": "Optional column identifying independent series."},
     "frequency": {
-        "type": "string", "enum": ["min", "5min", "15min", "30min", "h", "D", "W", "MS"],
-        "description": "Observation frequency; omit to infer.",
+        "type": "string", "pattern": "^([1-9][0-9]*)?(s|min|h)$|^(D|W|MS)$",
+        "description": (
+            "Observation frequency: s/min/h/D/W/MS, or any whole-second "
+            "sub-daily step as <N>s, <N>min, or <N>h (e.g. 7min, 90s, 2h). "
+            "Omit to infer."
+        ),
     },
     "as_of": {"type": "string", "description": (
         "Optional ISO instant: use only data known at or before this moment "
