@@ -19,10 +19,12 @@ verifiability**:
 - a deterministic parser re-extracts every number from the span, and a
   span that does not literally state the claimed bound or value is
   rejected;
-- for constraint events, the recent observed history must not already
-  violate the claimed bound — a bound the series demonstrably breaches
-  is describing a different quantity, or is wrong, and either way the
-  claim is suspect;
+- for constraint events, recent history's relation to the bound is
+  recorded as disclosure, never used to reject: the effective window is
+  guaranteed to lie entirely after the observed history, so past
+  breaches carry no evidence against a forward-scoped claim — an
+  announced cap is informative precisely when history breaches it, and
+  a bound history already respects changes nothing;
 - the event's effective window must lie entirely after the observed
   window. An event that overlaps history *can* be fold-tested, so it
   belongs to the ablation gate, and a fold-tested failure stays
@@ -51,8 +53,8 @@ What this lane deliberately does **not** verify is the span's provenance:
 Gnomon never sees the source document, so whether the quoted span
 actually appears in it is the calling harness's check (the CiK adapter
 performs it). What Gnomon guarantees is that every number it applies is
-stated by the span it was handed, is internally consistent, and does not
-contradict the recent history.
+stated by the span it was handed and is internally consistent, with its
+relation to recent history disclosed in the assessment.
 
 A forecast influenced by this lane is disclosed three ways: its support
 drops to ``context_trusted`` (weaker than any fold-backed state), the
@@ -433,9 +435,11 @@ class FutureContextAssessment:
             "by_class": self.class_counts(),
             "admission_basis": (
                 "textual verifiability: numbers re-parsed from the quoted "
-                "source span, never taken from the proposal; recent history "
-                "checked for consistency; fold ablation deliberately not "
-                "applicable — these windows have no historical precedent"
+                "source span, never taken from the proposal; recent "
+                "history's relation to a claimed bound disclosed, never "
+                "used to reject a forward-scoped claim; fold ablation "
+                "deliberately not applicable — these windows have no "
+                "historical precedent"
             ),
         }
 
@@ -696,22 +700,34 @@ def _admit_constraint(
                 )
                 return None
 
-    violations = [
-        timestamp.isoformat()
-        for value, timestamp in zip(recent_values, recent_timestamps)
+    # History's relation to the bound is disclosure, not a gate. The
+    # window_is_future_only check has already guaranteed the window lies
+    # entirely after the observed history, so past breaches are no
+    # evidence against a forward-scoped claim: an announced cap is
+    # informative precisely when history breaches it, and a bound history
+    # already respects changes nothing. Rejecting on breach inverted the
+    # lane — it admitted only the uninformative.
+    breaches = sum(
+        1 for value in recent_values
         if (bound.minimum is not None and value < bound.minimum)
         or (bound.maximum is not None and value > bound.maximum)
-    ][:5]
-    if violations:
-        assessment.record_check(
-            event, "constraint", "recent_history_respects_bound", False,
-            detail=(
-                f"recent history already violates the claimed bound "
-                f"[{bound.minimum}, {bound.maximum}] at {', '.join(violations)}; "
-                f"the claim is suspect and is not applied"
-            ),
+    )
+    if breaches:
+        detail = (
+            f"recent history breaches the claimed bound "
+            f"[{bound.minimum}, {bound.maximum}] at {breaches} of "
+            f"{len(recent_values)} recent points; the window is entirely "
+            f"in the future, so the bound is admitted and expected to bind"
         )
-        return None
+    else:
+        detail = (
+            f"recent history already respects the claimed bound "
+            f"[{bound.minimum}, {bound.maximum}]; admitted, expected to "
+            f"bind weakly if at all"
+        )
+    assessment.record_check(
+        event, "constraint", "history_relation_disclosed", True, detail=detail,
+    )
 
     return FutureEvent(
         event.event_id, "constraint", event.effective_start,

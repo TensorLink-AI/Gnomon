@@ -752,12 +752,16 @@ def _constraint_stage(
     state: SeriesState,
     context_events: list[ContextEvent],
     rows: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], list["Claim"]]:
     """Project the forecast onto bounds the caller says the domain has.
 
     Rejections are recorded as loudly as applications: a bound the training
     window already breaches is describing a different quantity, and silently
     dropping it would leave the caller believing it was enforced.
+
+    The applied claims are returned so a later stage that rewrites rows
+    (an admitted override window) can be projected onto the same feasible
+    region: a caller's domain bound outranks every later influence.
     """
     from .constraints import apply_claims, collect_claims
 
@@ -765,7 +769,7 @@ def _constraint_stage(
         context_events, state.name, state.values, state.timestamps,
     )
     if not claims and not rejected:
-        return rows
+        return rows, claims
     projected, applications = apply_claims(rows, claims)
     if rows and claims:
         sample = datetime.fromisoformat(str(rows[0]["timestamp"]))
@@ -790,6 +794,39 @@ def _constraint_stage(
                      "to satisfy a claim",
         },
     ))
+    return projected, claims
+
+
+def _reassert_claims_stage(
+    state: SeriesState,
+    claims: list["Claim"],
+    rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Re-project rewritten rows onto the caller's feasibility bounds.
+
+    An admitted override window replaces forecast values with a value
+    stated in quoted text, and that value may lie outside a bound the
+    caller declared as a domain fact. The caller's bound has the stronger
+    provenance — a domain feasibility statement outranks trusted text —
+    so it is re-asserted last, and the correction is disclosed rather
+    than left as a silent contradiction between two admitted inputs.
+    An emitted row never breaches a bound the artifact says was applied.
+    """
+    from .constraints import apply_claims
+
+    projected, applications = apply_claims(rows, claims)
+    if applications:
+        state.evidence.append(Evidence(
+            f"constraint_reasserted:{state.name}", "constraint_reasserted",
+            state.name,
+            {
+                "clamps": applications,
+                "basis": "a later stage moved emitted values outside a "
+                         "caller-declared feasibility bound; the bound is "
+                         "re-asserted because a domain fact outranks every "
+                         "text-trusted influence",
+            },
+        ))
     return projected
 
 
@@ -1117,13 +1154,16 @@ def interval_stage(
         # after the model has said what it believes and before anything reads
         # the rows, so the threshold analysis below sees the same numbers the
         # caller will.
+        claims = []
         if context_events:
-            rows = _constraint_stage(state, context_events, rows)
+            rows, claims = _constraint_stage(state, context_events, rows)
         future_influenced = False
         if future_events and context_events:
             rows, future_influenced = _future_context_stage(
                 state, context_events, rows,
             )
+            if future_influenced and claims:
+                rows = _reassert_claims_stage(state, claims, rows)
         support = "degraded" if assessment.degraded else ("supported_ensemble" if state.selected_model == "ensemble" else ("weakly_supported" if state.warnings else "supported"))
         if future_influenced:
             # Whatever the fold-backed status would have said, this forecast
