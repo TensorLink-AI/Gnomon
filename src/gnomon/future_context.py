@@ -183,6 +183,12 @@ _MAX_PATTERNS = [
     rf"(?:less\s+than\s+or\s+equal\s+to|at\s+or\s+below|smaller\s+than\s+or\s+equal\s+to)\s+({_N}){_AFTER_NUMBER}",
     rf"(?:at\s+most|no\s+more\s+than|not\s+more\s+than|no\s+greater\s+than|no\s+higher\s+than)\s+({_N}){_AFTER_NUMBER}",
     rf"(?:stays?|stay(?:ing)?|remains?|remain(?:ing)?|kept?|keeps?)\s+(?:below|under|at\s+or\s+below)\s+({_N}){_AFTER_NUMBER}",
+    # Bare "below X" is a bound only when it is not the tail of an
+    # excursion description ("occasionally dips below 5 in winter" states
+    # a low, not a ceiling). The negated forms ("will not drop below")
+    # were already claimed by _NEGATED_MIN_PATTERNS before this runs.
+    rf"(?<!drop\s)(?<!drops\s)(?<!fall\s)(?<!falls\s)(?<!dip\s)(?<!dips\s)"
+    rf"(?<!go\s)(?<!goes\s)(?<!went\s)(?<!sink\s)(?<!sinks\s)(?<!not\s)"
     rf"(?:below|under|less\s+than)\s+({_N}){_AFTER_NUMBER}",
     rf"(?:capped?\s+at|cap\s+of|ceiling\s+of|a?\s*maximum\s+(?:value\s+)?of|max(?:imum)?\s+of)\s+({_N}){_AFTER_NUMBER}",
     rf"(?:<=|≤)\s*({_N}){_AFTER_NUMBER}",
@@ -193,6 +199,12 @@ _MIN_PATTERNS = [
     rf"(?:greater\s+than\s+or\s+equal\s+to|at\s+or\s+above|larger\s+than\s+or\s+equal\s+to)\s+({_N}){_AFTER_NUMBER}",
     rf"(?:at\s+least|no\s+less\s+than|not\s+less\s+than|no\s+lower\s+than)\s+({_N}){_AFTER_NUMBER}",
     rf"(?:stays?|stay(?:ing)?|remains?|remain(?:ing)?|kept?|keeps?)\s+(?:above|at\s+or\s+above)\s+({_N}){_AFTER_NUMBER}",
+    # Bare "above X" is a bound only when it is not the tail of an
+    # excursion description ("rises above 100 during rush hour" states a
+    # high, not a floor). Negated forms went to _NEGATED_MAX_PATTERNS.
+    rf"(?<!rise\s)(?<!rises\s)(?<!rose\s)(?<!climb\s)(?<!climbs\s)"
+    rf"(?<!jump\s)(?<!jumps\s)(?<!spike\s)(?<!spikes\s)"
+    rf"(?<!go\s)(?<!goes\s)(?<!went\s)(?<!not\s)"
     rf"(?:above|over|more\s+than|greater\s+than)\s+({_N}){_AFTER_NUMBER}",
     rf"(?:a?\s*minimum\s+(?:value\s+)?of|min(?:imum)?\s+of|floor\s+of)\s+({_N}){_AFTER_NUMBER}",
     rf"(?:>=|≥)\s*({_N}){_AFTER_NUMBER}",
@@ -322,6 +334,18 @@ def parse_override_span(span: str) -> tuple[float | None, str | None]:
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
             return _to_float(match.group(1)), None
+    if re.search(rf"{_N}(?!\d)\s*(?:%|percent\b|pct\b)", text, re.IGNORECASE):
+        # "reduced to 50% while the line is partially shut down" states a
+        # partial level relative to a base the span does not give. The
+        # percentage cannot be bound to an absolute value, and the zero
+        # word beside it describes the partial shutdown, not the output —
+        # falling through to the zero-state list would apply 0 against a
+        # stated non-zero level.
+        return None, (
+            "the source span quantifies the state as a percentage of an "
+            "unstated base; a relative quantity cannot be bound to an "
+            "absolute override value"
+        )
     if re.search(r"(?:drops?|falls?|goes?|go|set|reduced?)\s+to\s+zero", text,
                  re.IGNORECASE) or _ZERO_STATES.search(text):
         return 0.0, None

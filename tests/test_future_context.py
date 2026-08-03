@@ -124,6 +124,34 @@ def test_relative_and_clock_quantities_are_rejected_not_misread(span):
     assert bound is None, f"{span!r} parsed as {bound}"
 
 
+@pytest.mark.parametrize("span", [
+    # Excursion descriptions state that values visit a level, not that
+    # the level bounds them; reading them as bounds inverts the claim.
+    "flow occasionally dips below 5 in winter",
+    "the level falls below 5 whenever the plant idles",
+    "demand often drops below 20 overnight",
+    "traffic rises above 100 during rush hour",
+    "the series goes above 100 in summer",
+    "temperatures climb above 30 in July",
+])
+def test_excursion_descriptions_are_not_read_as_bounds(span):
+    bound, problem = parse_bound_span(span)
+    assert bound is None, f"{span!r} parsed as {bound}"
+
+
+@pytest.mark.parametrize("span", [
+    # A percent-quantified state must reject outright: the zero word
+    # beside it describes the partial shutdown, not the output level.
+    "output reduced to 50% while the line is partially shut down",
+    "production will be 30% of normal while unit 2 is offline",
+    "the plant runs at 50% capacity and one line is halted",
+])
+def test_percent_quantified_states_never_fall_through_to_zero(span):
+    parsed, problem = parse_override_span(span)
+    assert parsed is None, f"{span!r} parsed as {parsed}"
+    assert "percentage of an unstated base" in problem
+
+
 def test_a_quantified_close_verb_states_the_number_not_zero():
     parsed, problem = parse_override_span(
         "the index closes at 340 for the maintenance week"
@@ -139,7 +167,7 @@ def test_a_clock_quantified_stop_verb_still_means_zero():
 def test_percent_override_values_are_rejected_not_misread():
     parsed, problem = parse_override_span("production will be 50% of capacity")
     assert parsed is None
-    assert "estimated rather than stated" in problem
+    assert "percentage of an unstated base" in problem
 
 
 def test_a_cross_pattern_empty_bound_is_rejected():
