@@ -42,6 +42,17 @@ from .operators import _robust_scale, inconclusive
 MIN_DETECTION_HISTORY = 16
 DEFAULT_THRESHOLD = 3.5
 GRADER_FLOOR = 0.5
+#: A detector whose flags cover more than this fraction of the observed
+#: series is not detecting anomalies — anomalies are rare by definition;
+#: at this density the detector is tracking the series' own structure
+#: (a seasonal cycle the scorer failed to remove). The grader excludes
+#: clean-series flags from injection scoring so pre-existing anomalies
+#: cannot punish a candidate, which means density on the real series is
+#: otherwise invisible to selection: a detector firing on half the
+#: series can win the grade and then ship every one of those flags.
+#: This bound is the counterweight — dense candidates are disqualified
+#: from synthetic selection, and the density is recorded in the grade.
+MAX_PLAUSIBLE_FLAG_FRACTION = 0.2
 SPIKE_TRIALS = 3
 SHIFT_TRIALS = 2
 DROPOUT_TRIALS = 2
@@ -357,11 +368,14 @@ def grade_detectors(
         # changes ends up labelled by a detector that cannot see them.
         macro_f1 = (sum(entry["f1"] for entry in families.values())
                     / len(families)) if families else 0.0
+        clean_fraction = len(clean_flags) / len(values) if values else 0.0
         grades[name] = {
             "precision": round(precision, 4), "recall": round(recall, 4),
             "f1": round(f1, 4), "macro_f1": round(macro_f1, 4),
             "families": families, "trials": len(trials),
             "false_positives": false_positives,
+            "clean_flag_fraction": round(clean_fraction, 4),
+            "dense_on_observed": clean_fraction > MAX_PLAUSIBLE_FLAG_FRACTION,
         }
     return {
         "grades": grades,
@@ -450,6 +464,31 @@ def detect_anomalies(
     # Label selection has no families to average; synthetic selection
     # ranks on coverage across every planted family.
     score_key = "f1" if label_indices else "macro_f1"
+    if not label_indices:
+        # Synthetic grading cannot see density on the observed series
+        # (clean-series flags are deliberately excluded from injection
+        # scoring), so implausibly dense candidates are disqualified
+        # here. Label selection keeps every candidate: user labels
+        # measure real-series precision directly, flag by flag.
+        eligible = [name for name in order
+                    if not grades[name].get("dense_on_observed")]
+        if not eligible:
+            return {
+                "anomalies": [], "detector": None,
+                "selection_basis": "synthetic_injection_macro_f1",
+                "detector_grades": grades,
+                "injection": grading["injection"],
+                "support": inconclusive(
+                    "no_plausible_detector",
+                    "Every candidate detector flags more than "
+                    f"{MAX_PLAUSIBLE_FLAG_FRACTION:.0%} of the observed "
+                    "series, which is the series' own structure, not "
+                    "anomalies. Reporting those flags would be noise.",
+                    "Check the seasonal period, or supply labelled "
+                    "anomalies so selection can be graded against them.",
+                ).to_dict(),
+            }
+        order = eligible
     selected = max(order,
                    key=lambda name: (ranking[name][score_key], -order.index(name)))
     scores = {**DETECTORS, **(extra_detectors or {})}[selected](values, season)
