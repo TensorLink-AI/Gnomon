@@ -139,9 +139,19 @@ def build_context_investigation_prompt(
 
 
 def parse_context_response(
-    raw: dict[str, Any], documents: list[DocumentRef]
+    raw: dict[str, Any], documents: list[DocumentRef],
+    proposer: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Ground, validate, and split proposed events into accepted/rejected."""
+    """Ground, validate, and split proposed events into accepted/rejected.
+
+    ``proposer`` is the caller-supplied identity of whatever produced the
+    raw response — e.g. ``{"proposer_id": "openrouter:deepseek/...",
+    "kind": "llm", "model": "...", "run_id": "..."}`` — recorded on each
+    accepted event so the tracking ledger can aggregate skill per
+    proposer. Caller-supplied, never model-supplied: a model writing its
+    own ``proposer`` attribute would let it impersonate a proposer with an
+    earned track record, so that key is discarded like ``source_span``.
+    """
     accepted: list[dict[str, Any]] = []
     rejected: list[dict[str, Any]] = []
     proposals = raw.get("events") if isinstance(raw, dict) else None
@@ -174,6 +184,10 @@ def parse_context_response(
         # go through `constraint:*` events, whose numbers are re-parsed
         # from the verified quote.
         attributes.pop("claim", None)
+        # `proposer` is ledger identity (see docstring): caller-set only.
+        attributes.pop("proposer", None)
+        if proposer:
+            attributes["proposer"] = dict(proposer)
         quote = str(proposal.get("evidence_quote", ""))
         if quote:
             attributes["evidence_quote"] = quote

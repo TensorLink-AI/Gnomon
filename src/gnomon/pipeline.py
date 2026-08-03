@@ -550,6 +550,33 @@ def multivariate_stage(
     ))
 
 
+def _record_enrichment_counterfactual(state: SeriesState) -> None:
+    """Persist the history-only point path an enrichment is about to replace.
+
+    The tracking ledger's realised-lift score needs error(base) −
+    error(published) when actuals arrive, and until now the base path was
+    computed during adjudication and discarded. Emitted only when an
+    enrichment is actually admitted, so an enrichment-free artifact is
+    byte-identical; same precedent as `future_context_applied`'s
+    history-only counterfactual.
+    """
+    if not state.points:
+        return
+    state.evidence.append(Evidence(
+        f"enrichment_counterfactual:{state.name}", "enrichment_counterfactual",
+        state.name,
+        {
+            "base_model": state.selected_model,
+            "points": [float(value) for value in state.points],
+            "timestamps": [moment.isoformat()
+                           for moment in state.future_timestamps],
+            "basis": "the history-only forecast as it stood before the "
+                     "admitted enrichment replaced it; tracking scores "
+                     "realised lift against it when actuals arrive",
+        },
+    ))
+
+
 def context_stage(
     state: SeriesState,
     context_events: list[ContextEvent],
@@ -590,6 +617,7 @@ def context_stage(
         },
     ))
     if context.admitted and apply:
+        _record_enrichment_counterfactual(state)
         state.selected_model = CONTEXT_MODEL_NAME
         state.points = context.points
         state.residuals = context.residuals
@@ -660,6 +688,7 @@ def adjudicate_enrichments_stage(
          "covariates_fingerprint": covariates.fingerprint},
     ))
     if result.winner != "base":
+        _record_enrichment_counterfactual(state)
         state.selected_model = result.selected_model
         state.points = result.points
         state.residuals = result.residuals

@@ -2,6 +2,45 @@
 
 ## Unreleased
 
+- **Per-proposer calibration ledger** (tracking schema **5**; additive
+  tables, existing stores migrate by creation). Context-event proposals
+  now leave a scoreable record: `register_artifact` accepts the run's
+  `context_events` and writes `event_proposals` / `event_admissions`
+  rows joined to the gate verdicts the artifact already recorded (CLI
+  `--project` runs and the MCP forecast tool pass them automatically);
+  the pipeline persists the history-only point path as
+  `enrichment_counterfactual` evidence when an enrichment is admitted
+  (previously computed during adjudication and discarded); and
+  `submit_actuals` resolves `event_outcomes` with the realised lift —
+  error(counterfactual) − error(published), in WAPE, attributed
+  set-level because the gate admits event sets. `gnomon track
+  proposers` and the `gnomon_proposer_skill` MCP tool report skill
+  shrunk toward no-skill priors (k = 10 pseudo-observations; hit rates
+  toward 0.5), so small-n cells cannot outrank measured ones. Proposal
+  identity is content-addressed from the *claim* (type, window, scope,
+  source) and version-independent, so ledgers survive upgrades;
+  `parse_context_response` accepts a caller-supplied `proposer`
+  identity and discards any model-written one (the impersonation
+  channel), recorded under `attributes.proposer` only when given.
+  **No proposal earns forecast influence from these numbers** — the
+  ledger is the measurement substrate the news-regime design
+  (docs/design/news-regime.md, mechanisms c–d) requires before any
+  influence lane may be built; enrichment-free artifacts are
+  byte-identical.
+
+- **TSFM tier truthfulness fixes** (no artifact changes): the sandbox
+  root no longer resolves to the current working directory
+  (`Path("")` is truthy), so sandboxes land in the documented
+  `~/.cache/gnomon-tsfm-venvs` and `gnomon capabilities` stops
+  answering per-cwd; sandbox workers now load Hub weights at exactly
+  the pinned revisions the forecast id records (`resolved_weights`
+  travels in the worker request; a missing pin is a refusal, and
+  FlowState's movable `r1.1` branch pin is replaced by its commit);
+  `capabilities()["models"]["tsfm"]` includes ready sandboxes instead
+  of reporting `[]` after a successful `gnomon tsfm install`; and
+  `models.tsfm.candidates` actually restricts the competing pool
+  (it was parsed, documented, and never passed to `evaluate`).
+
 - **Short-history guardrail** (always on, degraded runs only; no flag —
   the change is that under-powered evidence is no longer acted on as if
   it ranked anything). Below 2 disjoint selection folds the selection

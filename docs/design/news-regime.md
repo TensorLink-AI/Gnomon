@@ -607,3 +607,39 @@ falsified and are reported as such; H-G2/G4/G5a/G5b/G6/G7 hold. The
 follow-on prediction above (official MTBench re-run within ~0.5 MAPE of
 control) is now testable on any machine with the official data and an
 LLM key.
+
+## Roadmap status (as implemented on this branch)
+
+1. **(a) Short-history honesty — DONE** (see Build outcome above and
+   `results/short-history-guardrail/`).
+2. **TSFM truthfulness — DONE**: sandbox root cwd bug, worker revision
+   pinning, sandbox-aware `capabilities()["models"]["tsfm"]`, and
+   `models.tsfm.candidates` threading (§1.4's findings 1–4). Still
+   known-dead and deliberately untouched: `resolve_tsfm_backend`,
+   `backends.sandbox.venv_root` / `auto_install` (finding 5) — wiring
+   them is config plumbing, not truthfulness. **E2b remains blocked**
+   here (Hub egress denied) and registered for a Hub-enabled machine.
+3. **(d) Calibration ledger — DONE** (tracking schema 5):
+   `event_proposals` / `event_admissions` / `event_outcomes`,
+   content-addressed version-independent proposal keys, the persisted
+   `enrichment_counterfactual`, realised-lift resolution on
+   `submit_actuals`, shrunk `proposer_skill` (k = 10) via `gnomon track
+   proposers` + MCP. Deviations from the §(d) spec, with reasons:
+   proposer identity travels in `attributes.proposer` (caller-set,
+   model-forgery discarded) rather than as a new `ContextEvent` field,
+   because a dataclass field would enter `event.__dict__` and change
+   the forecast-id payload of every event-carrying run;
+   `direction_hit`/`brier` columns exist but stay NULL until proposals
+   carry directions (mechanism c) or resolvable occurrence claims; and
+   skill-in-artifact disclosure is deferred to the first lane that
+   grants influence from skill — today no lane does, so there is no
+   influenced artifact to disclose in, and disclosure lives on the
+   tracking surfaces with an explicit "no proposal earns influence"
+   warning.
+4. **(b) Population event studies — NOT BUILT, gate unfireable here**:
+   the prerequisite corpus study needs the HF-hosted MTBench raw
+   corpus; egress policy denies the host.
+5. **(c) Directional tilts — NOT BUILT, by design**: activates only on
+   ledger evidence (shrunk p̂ ≥ 0.70 over ≥ 50 resolved directional
+   calls). The ledger now exists to accumulate exactly that evidence;
+   its `direction_hit` column is the gate's future input.
