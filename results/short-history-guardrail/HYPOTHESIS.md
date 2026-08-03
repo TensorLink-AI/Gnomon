@@ -86,6 +86,43 @@ wherever separated folds exist. Predictions, frozen now:
 > **H-G5d.** Series with ≥ 4 rolling origins remain byte-identical.
 > *Falsifier:* any diff.
 
+## Addendum: H-G6, registered after H-G5c's falsification, before the fix
+
+H-G5's run held on the point path (H-G5a/b) and byte-identity (H-G5d)
+but falsified H-G5c on the conservative side: pooled coverage 94.9%
+against the ≤ 93% cap, step-1 at 92% against ≤ 88%. Measuring the
+alternatives on the same rows: the mean-lead-anchored schedule
+√(step/4) gives 75.4% pooled (under nominal at every step), and the
+**unwidened** point-centred band gives **79.1% pooled** (per-step 92,
+88, 78, 80, 68, 78, 70) — essentially nominal. The attribution is now
+clean: the original 82% → 44% per-step decay that motivated the
+widening was mostly the *recentring wobble* compounding with lead, not
+missing dispersion growth; and the pooled residuals, drawn from
+whole-horizon folds, already contain multi-step dispersion — so any
+lead-growth multiplier on them double-counts (the caveat
+`interval_bounds`'s own docstring records). Theory and measurement now
+agree on the smaller mechanism.
+
+The fix to be implemented after this registration: **remove the √step
+widening entirely** (and its parameter — a shipped-but-unused knob is
+its own defect class in this codebase); the degraded-run interval
+geometry is centring suppression plus the flat pooled band, disclosed
+by the existing `constant_interval_width` code extended with the
+double-count rationale. Predictions, frozen now:
+
+> **H-G6a.** Pooled q10–q90 coverage on the 50-task benchmark lands in
+> **[74%, 88%]**, with every per-step value ≥ 60% — the measured 79.1%
+> ± sampling noise (n=50/step ⇒ ~±11 pts per step).
+> *Falsifier:* pooled outside the band or any step < 60%.
+>
+> **H-G6b.** The point-path results are untouched by interval
+> geometry: filtered mean MSE and MAPE identical to H-G5a's run
+> (2.995 / 1.71%), 0 abstentions.
+> *Falsifier:* any change in the point/q50 path metrics.
+>
+> **H-G6c.** Series with ≥ 4 rolling origins remain byte-identical.
+> *Falsifier:* any diff.
+
 ## Analysis plan
 
 Identical to the exploration run: all 50 tasks, defaults, synthetic
