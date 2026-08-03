@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **Frequency grid widened: `s` (1 second) and `10min` (10 minutes).** The
+  CiK abstention analysis found 45 task-seeds refused with
+  `AMBIGUOUS_FREQUENCY` on data with exactly one unique spacing across the
+  whole series — solar irradiance at a 10-minute step, sensor channels at a
+  1-second step. Those refusals came from a missing grid entry, not from any
+  property of the data; inference on a perfectly regular series should never
+  be called ambiguous. Both codes flow through inference, validation, repair
+  snapping, season defaults (`s`: 60, a minute cycle; `10min`: 144, a daily
+  cycle), the CLI, and the MCP/registry/Hermes tool schemas. Aliases: `S`,
+  `1s`, `sec`, `second`; `10T`, `10m`. Regular data at a spacing the grid
+  still does not carry (e.g. 10 seconds) keeps failing loudly.
+
 - **Verifiable future-context events** (`gnomon.future_context`), behind
   `context.future_events` (default **off**). Two typed event classes whose
   admission is by textual verifiability instead of fold ablation, for

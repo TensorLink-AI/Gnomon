@@ -43,8 +43,10 @@ provided offset but does not currently accept a separate named-timezone option.
 
 | Code | Meaning | Default seasonal period |
 | --- | --- | ---: |
+| `s` | 1 second | 60 (minute cycle) |
 | `min` | 1 minute | 60 (hourly cycle) |
 | `5min` | 5 minutes | 288 (daily cycle) |
+| `10min` | 10 minutes | 144 (daily cycle) |
 | `15min` | 15 minutes | 96 (daily cycle) |
 | `30min` | 30 minutes | 48 (daily cycle) |
 | `h` | Hourly | 24 |
@@ -52,8 +54,9 @@ provided offset but does not currently accept a separate named-timezone option.
 | `W` | Weekly | 52 |
 | `MS` | Month start | 12 |
 
-Aliases such as `hourly`, `daily`, `weekly`, `monthly`, and market-style
-candle codes (`1m`, `5m`, `15m`, `30m`, `1h`, `T`, `5T`, …) are accepted. When
+Aliases such as `hourly`, `daily`, `weekly`, `monthly`, `1s`, and market-style
+candle codes (`1m`, `5m`, `10m`, `15m`, `30m`, `1h`, `T`, `5T`, …) are
+accepted. When
 `--frequency` is omitted, Gnomon infers a supported frequency from timestamp
 differences. Supplying it explicitly is preferable in automation. Data at
 other granularities (for example 10-second sensor readings) must be resampled

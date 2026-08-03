@@ -145,7 +145,7 @@ _COMMON_INPUT: dict[str, Any] = {
     "target_column": {"type": "string", "description": "Name of the numeric column."},
     "series_column": {"type": "string", "description": "Optional column identifying independent series."},
     "frequency": {
-        "type": "string", "enum": ["min", "5min", "15min", "30min", "h", "D", "W", "MS"],
+        "type": "string", "enum": ["s", "min", "5min", "10min", "15min", "30min", "h", "D", "W", "MS"],
         "description": "Observation frequency; omit to infer.",
     },
     "as_of": {"type": "string", "description": (

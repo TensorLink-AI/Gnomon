@@ -9,23 +9,26 @@ from .data import Observation, timezone_name
 
 
 FREQUENCIES: dict[str, timedelta] = {
+    "s": timedelta(seconds=1),
     "min": timedelta(minutes=1),
     "5min": timedelta(minutes=5),
+    "10min": timedelta(minutes=10),
     "15min": timedelta(minutes=15),
     "30min": timedelta(minutes=30),
     "h": timedelta(hours=1),
     "D": timedelta(days=1),
     "W": timedelta(weeks=1),
 }
-# Dominant cycle per frequency: hourly for 1-minute data (a daily cycle of
-# 1440 would demand days of history), daily for the coarser intraday steps.
-SEASONS = {"min": 60, "5min": 288, "15min": 96, "30min": 48,
-           "h": 24, "D": 7, "W": 52, "MS": 12}
+# Dominant cycle per frequency: a minute cycle for 1-second data and an
+# hourly cycle for 1-minute data (a daily cycle of 86400 or 1440 would
+# demand days of history), daily for the coarser intraday steps.
+SEASONS = {"s": 60, "min": 60, "5min": 288, "10min": 144, "15min": 96,
+           "30min": 48, "h": 24, "D": 7, "W": 52, "MS": 12}
 
 FREQUENCY_DESCRIPTIONS = {
-    "min": "1 minute", "5min": "5 minutes", "15min": "15 minutes",
-    "30min": "30 minutes", "h": "hourly", "D": "daily", "W": "weekly",
-    "MS": "month start",
+    "s": "1 second", "min": "1 minute", "5min": "5 minutes",
+    "10min": "10 minutes", "15min": "15 minutes", "30min": "30 minutes",
+    "h": "hourly", "D": "daily", "W": "weekly", "MS": "month start",
 }
 
 
@@ -66,8 +69,10 @@ def normalise_frequency(value: str) -> str:
                "day": "D", "daily": "D", "1d": "D", "1D": "D",
                "week": "W", "weekly": "W", "1w": "W",
                "month": "MS", "monthly": "MS", "M": "MS", "1M": "MS",
+               "S": "s", "1s": "s", "sec": "s", "second": "s",
                "T": "min", "1T": "min", "1min": "min", "minute": "min", "1m": "min",
                "5T": "5min", "5m": "5min",
+               "10T": "10min", "10m": "10min",
                "15T": "15min", "15m": "15min",
                "30T": "30min", "30m": "30min"}
     result = aliases.get(value, value)

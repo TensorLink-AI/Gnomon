@@ -62,7 +62,7 @@ gnomon inspect INPUT --time COLUMN --target COLUMN [OPTIONS]
 | `--time COLUMN` | Yes | Timestamp column. |
 | `--target COLUMN` | Yes | Numeric target column. |
 | `--series COLUMN` | No | Independent-series identifier. |
-| `--frequency CODE` | No | `min`, `5min`, `15min`, `30min`, `h`, `D`, `W`, or `MS`; inferred when omitted. |
+| `--frequency CODE` | No | `s`, `min`, `5min`, `10min`, `15min`, `30min`, `h`, `D`, `W`, or `MS`; inferred when omitted. |
 
 Inspection returns the source SHA-256 fingerprint, resolved schema, columns,
 series names, observation counts, and date ranges.
@@ -155,7 +155,7 @@ gnomon forecast INPUT [--time COLUMN] [--target COLUMN[,COLUMN…]] [--horizon N
 | `--time COLUMN` | Inferred | Timestamp column; inference refuses when ambiguous. |
 | `--target COLUMN[,COLUMN…]` | Inferred | Numeric column(s) to model; a comma list or `auto` batches several columns into one run. |
 | `--series COLUMN` | None | Independent-series identifier. |
-| `--frequency CODE` | Inferred | `min`, `5min`, `15min`, `30min`, `h`, `D`, `W`, or `MS`. |
+| `--frequency CODE` | Inferred | `s`, `min`, `5min`, `10min`, `15min`, `30min`, `h`, `D`, `W`, or `MS`. |
 | `--horizon N` | One seasonal period | Number of future periods; must be at least one. |
 | `--brief` | Off | Compact stdout; disclosures verbatim; artifact unchanged. |
 | `--output DIR` | `gnomon-output` | Parent directory for immutable run directories. |
