@@ -215,6 +215,21 @@ def forecast_payload(analysis: dict[str, Any]) -> tuple[dict[str, list[float]], 
 MCQ_ABSTAIN = "ABSTAIN"
 
 
+def _abstain_sentinel(options: list[Any]) -> str:
+    """A sentinel guaranteed not to match any option.
+
+    Scoring compares strip+lower normalised strings, so a hypothetical
+    option that normalises to ``abstain`` would make the plain sentinel
+    score CORRECT — the guarantee is enforced here per question, not
+    assumed of the dataset.
+    """
+    normalised = {str(option).strip().lower() for option in options}
+    sentinel = MCQ_ABSTAIN
+    while sentinel.strip().lower() in normalised:
+        sentinel += "-"
+    return sentinel
+
+
 def uncertain_mcq(row: dict[str, Any]) -> tuple[dict[str, str], list[str]]:
     """Pure-mode choice answers: 'Uncertain' where the options allow it.
 
@@ -231,6 +246,6 @@ def uncertain_mcq(row: dict[str, Any]) -> tuple[dict[str, str], list[str]]:
         if uncertain is not None:
             answers[key] = uncertain
         else:
-            answers[key] = MCQ_ABSTAIN
+            answers[key] = _abstain_sentinel(options)
             abstained.append(f"mcq/{key}: no Uncertain option")
     return answers, abstained

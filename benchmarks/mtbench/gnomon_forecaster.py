@@ -88,6 +88,10 @@ def _resolve_mape() -> tuple[Any, str]:
         except ImportError:
             _MAPE = (None, "local mirror of calculate_mape "
                            "(official checkout not on sys.path)")
+        except Exception as error:  # noqa: BLE001 — a broken checkout
+            # must not kill the run; the summary discloses the fallback.
+            _MAPE = (None, "local mirror of calculate_mape "
+                           f"(official import failed: {error})")
     return _MAPE
 
 
@@ -120,6 +124,11 @@ def sample_metrics(truth: list[float], prediction: list[float]) -> dict[str, flo
         )
     mse = sum((t - p) ** 2 for t, p in zip(truth, prediction)) / len(truth)
     mae = sum(abs(t - p) for t, p in zip(truth, prediction)) / len(truth)
+    if mse != mse or mae != mae:
+        # A NaN slipped through float() parsing (JSON NaN); such a sample
+        # would otherwise evade every counter: NaN mse is neither > the
+        # failure limit nor summable into a mean.
+        raise ValueError("prediction or truth contains a non-finite value")
     return {"mse": mse, "mae": mae, "rmse": mse ** 0.5,
             "mape": official_mape(truth, prediction)}
 
@@ -290,7 +299,11 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
     output_dir.mkdir(parents=True, exist_ok=True)
     details_dir = output_dir / "output_details"
     details_dir.mkdir(exist_ok=True)
-    records = RecordWriter(output_dir / "gnomonbench.jsonl")
+    records_path = output_dir / "gnomonbench.jsonl"
+    # RecordWriter appends; a rerun into the same output dir must replace
+    # the previous run's rows (as summary.json is), not accumulate them.
+    records_path.unlink(missing_ok=True)
+    records = RecordWriter(records_path)
 
     cumulative = {"mse": [], "mae": [], "rmse": [], "mape": []}
     per_sample: list[dict[str, Any]] = []
@@ -315,7 +328,9 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
             prediction = outcome["prediction"]
             try:
                 metrics = sample_metrics(truth, prediction)
-            except ValueError as error:
+            except Exception as error:  # noqa: BLE001 — one bad sample
+                # (or an official calculate_mape crash on odd input) must
+                # cost that sample an error record, not the whole run.
                 errored += 1
                 entry.update({"error": str(error)})
                 records.write(RunRecord(
@@ -349,9 +364,12 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
             else:
                 for key, value in (("mse", mse), ("mae", mae),
                                    ("rmse", rmse), ("mape", mape)):
-                    if value != value:  # NaN: all-zero truth leaves MAPE
-                        mape_undefined += 1  # undefined; a NaN would
-                        continue  # poison the cumulative mean silently
+                    # Only MAPE can be NaN here (all-zero truth leaves it
+                    # undefined; sample_metrics rejects non-finite inputs)
+                    # and a NaN would poison the cumulative mean silently.
+                    if key == "mape" and value != value:
+                        mape_undefined += 1
+                        continue
                     cumulative[key].append(value)
             records.write(RunRecord(
                 task_id=sample["filename"], success=not is_failed,

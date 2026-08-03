@@ -92,8 +92,15 @@ def bounded_evidence(digest: dict[str, Any],
     and, if that is still not enough, top-level entries are dropped
     largest-first with the dropped keys named in the result.
     Deterministic: the same digest always yields the same string.
+    Non-finite numbers become null so the output is always spec-valid
+    JSON; the budget is best-effort — the residual skeleton (the
+    ``truncated``/``dropped`` markers) can exceed a budget smaller than
+    itself, far below any real configuration.
     """
-    digest = json.loads(json.dumps(digest, default=str))  # private deep copy
+    # Private deep copy; parse_constant turns NaN/Infinity into null so
+    # the output stays spec-valid JSON whatever the stats contain.
+    digest = json.loads(json.dumps(digest, default=str),
+                        parse_constant=lambda _: None)
     text = json.dumps(digest)
     if len(text) <= budget:
         return text
@@ -237,7 +244,11 @@ def main() -> int:
     output_dir = Path(args.output_dir)
     details_dir = output_dir / "details"
     details_dir.mkdir(parents=True, exist_ok=True)
-    records = RecordWriter(output_dir / "gnomonbench.jsonl")
+    records_path = output_dir / "gnomonbench.jsonl"
+    # RecordWriter appends; a rerun into the same output dir must replace
+    # the previous run's rows (as summary.json is), not accumulate them.
+    records_path.unlink(missing_ok=True)
+    records = RecordWriter(records_path)
 
     choice_by_tier: dict[str, list[int]] = {}
     choice_rows_by_tier: dict[str, int] = {}
@@ -339,8 +350,10 @@ def main() -> int:
             "forecast_metrics_utils.py; choice accuracy is this adapter's "
             "LOCAL case-insensitive exact match against the official "
             "labels. The *_scored_only means average scored rows only — "
-            "abstained and errored rows are not in them, so they are "
-            "unmatched-subset numbers; compare arms through "
+            "fully-abstained and errored rows are not in them (rows with "
+            "PARTIAL channel abstentions are, scored on the channels "
+            "present, and Uncertain/sentinel choice answers count as "
+            "wrong), so they are unmatched-subset numbers; compare arms through "
             "benchmarks/report.py's matched join, not by subtracting "
             "summaries. success on T2/T4 records completion (the official "
             "module returned metrics), not accuracy — per-row SMAPE lives "

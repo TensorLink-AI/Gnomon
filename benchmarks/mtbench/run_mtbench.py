@@ -78,8 +78,8 @@ def main() -> int:
         print(json.dumps({"llm_usage": client.usage_summary}, indent=2))
         return 0
 
-    if args.mode == "agent" and not args.model:
-        parser.error("--model is required for --mode agent")
+    if args.mode in ("agent", "tools") and not args.model:
+        parser.error(f"--model is required for --mode {args.mode}")
     from benchmarks.mtbench.gnomon_forecaster import run
 
     summary = run(

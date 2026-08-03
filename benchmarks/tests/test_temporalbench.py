@@ -72,6 +72,17 @@ def test_uncertain_mcq_uses_option_casing():
     assert scored["correct"] == 0 and scored["total"] == 1
 
 
+def test_abstain_sentinel_never_matches_an_option():
+    # Pathological option set containing "abstain" itself: the sentinel
+    # must still score wrong, not luck into a correct match.
+    row = {"mcq": {"q1": {"options": ["higher", "Abstain", "ABSTAIN-"]}}}
+    answers, abstained = uncertain_mcq(row)
+    assert answers["q1"].strip().lower() not in {"higher", "abstain", "abstain-"}
+    assert abstained == ["mcq/q1: no Uncertain option"]
+    scored = score_mcq({"mcq": {"q1": {"label": "Abstain"}}}, answers)
+    assert scored["correct"] == 0 and scored["total"] == 1
+
+
 class _StubOfficialMetrics:
     """Stands in for the dataset's forecast_metrics_utils.py (not
     shipped with the repo): records every call, returns fixed metrics."""
@@ -90,7 +101,7 @@ def test_score_forecast_full_abstention_never_calls_official_module():
            "input": {"history": {"hr": [0.0, 1.0]}}}
     for empty_forecast in (None, {}, {"hr": []}):
         metrics, flag = score_forecast(row, empty_forecast, stub)
-        assert metrics is None and flag == "abstained"
+        assert metrics is None and flag == "no_forecast"
     assert stub.calls == []  # an abstention must not become a scoring error
 
 
@@ -98,7 +109,7 @@ def test_score_forecast_multichannel_abstention_short_circuits():
     stub = _StubOfficialMetrics()
     row = {"ground_truth": {"hr": [1.0], "spo2": [2.0]}, "input": {}}
     metrics, flag = score_forecast(row, {}, stub)
-    assert metrics is None and flag == "abstained"
+    assert metrics is None and flag == "no_forecast"
     assert stub.calls == []
 
 
@@ -108,7 +119,7 @@ def test_score_forecast_partial_abstention_names_missing_channels():
            "input": {"history": {"hr": [0.0], "spo2": [2.0]}}}
     metrics, flag = score_forecast(row, {"hr": [1.5, 2.5], "spo2": []}, stub)
     assert metrics == {"SMAPE": 12.5}
-    assert flag == "abstained_channels=spo2"
+    assert flag == "missing_channels=spo2"
     (_, forecast, kwargs), = stub.calls  # only the channels that exist
     assert forecast == {"hr": [1.5, 2.5]}
     assert kwargs["history_series"] == {"hr": [0.0], "spo2": [2.0]}

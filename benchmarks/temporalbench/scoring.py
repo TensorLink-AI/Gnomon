@@ -72,12 +72,14 @@ def score_forecast(
 
     A fully absent forecast (no forecast at all, or every channel
     abstained) never reaches the official module: metrics are ``None``
-    with flag ``"abstained"``, so an abstention cannot surface as a
-    scoring error. A PARTIAL forecast still goes through the official
-    module with the channels that exist, and the flag names the
-    abstained channels; whether the official module penalizes or ignores
-    the missing channels is upstream-defined — this adapter only reports
-    which were missing.
+    with flag ``"no_forecast"``, so an abstention cannot surface as a
+    scoring error. The flag is deliberately neutral — a control answer
+    whose forecast field is malformed takes the same path, and only the
+    record's ``appropriate_abstention`` says whether an actual abstention
+    happened. A PARTIAL forecast still goes through the official module
+    with the channels that exist, and the flag names the missing
+    channels; whether the official module penalizes or ignores them is
+    upstream-defined — this adapter only reports which were missing.
     """
     ground_truth = row.get("ground_truth")
     if ground_truth is None:
@@ -92,7 +94,7 @@ def score_forecast(
         forecast_values = (forecast or {}).get(only_key) \
             if isinstance(forecast, dict) else forecast
         if not forecast_values:
-            return None, "abstained"
+            return None, "no_forecast"
         return official_metrics.compute_forecast_metrics(
             gt_values, forecast_values,
             dataset_name=row.get("source_dataset"),
@@ -103,18 +105,18 @@ def score_forecast(
             if isinstance(forecast, dict) else {}
         abstained = [key for key in ground_truth if key not in present]
         if not present:
-            return None, "abstained"
+            return None, "no_forecast"
         metrics, flag = official_metrics.compute_forecast_metrics(
             ground_truth, present,
             dataset_name=row.get("source_dataset"),
             history_series=history or None,
         )
         if abstained:
-            missing = "abstained_channels=" + ",".join(abstained)
+            missing = "missing_channels=" + ",".join(abstained)
             flag = f"{flag}; {missing}" if flag else missing
         return metrics, flag
     if not forecast:
-        return None, "abstained"
+        return None, "no_forecast"
     return official_metrics.compute_forecast_metrics(
         ground_truth, forecast,
         dataset_name=row.get("source_dataset"),

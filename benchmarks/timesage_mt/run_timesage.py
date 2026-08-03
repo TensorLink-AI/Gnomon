@@ -119,7 +119,11 @@ def main() -> int:
     output_dir = Path(args.output_dir)
     transcripts_dir = output_dir / "transcripts"
     transcripts_dir.mkdir(parents=True, exist_ok=True)
-    records = RecordWriter(output_dir / "gnomonbench.jsonl")
+    records_path = output_dir / "gnomonbench.jsonl"
+    # RecordWriter appends; a rerun into the same output dir must replace
+    # the previous run's rows (as summary.json is), not accumulate them.
+    records_path.unlink(missing_ok=True)
+    records = RecordWriter(records_path)
 
     counts = {"mechanical_pass": 0, "mechanical_fail": 0,
               "judge_pass": 0, "judge_fail": 0, "unscored": 0}
