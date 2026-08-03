@@ -1,0 +1,178 @@
+# Pre-registered hypotheses: short-history guardrail + lead-time widening
+
+Registered 2026-08-03 at the commit that implements the feature, **before**
+the benchmark run. Restated verbatim from
+`docs/design/news-regime.md` ("Pre-registered hypotheses for build
+item 1"), where they were frozen at commit `fe39738` before any
+implementation existed. The 50-task surrogate and scripts in
+`results/news-regime-explore/` are the fixed benchmark
+(`scripts/build_tasks.py` seed 20260803 +
+`scripts/run_experiments.py`). Both mechanisms were *simulated* in the
+exploration session (`results/news-regime-explore/iterate_analysis.json`:
+guardrail 2.98 MSE / 1.69% MAPE; √step-anchored-1 widening 89.7%
+pooled), so these are predictions that the integrated implementation
+reproduces the simulation — an implementation that misses them differs
+from the simulated mechanism in a way that must be explained, not
+accepted.
+
+> **H-G1 (guardrail closes the self-inflicted gap).** With the
+> fold-starved selection guardrail on, gnomon-pure on the 50-task
+> surrogate scores filtered mean MSE ≤ 3.0 and mean MAPE ≤ 1.8%
+> (from 7.42 / 2.37%; floor is 2.56 / 1.61%), with abstention count
+> unchanged (0) and wins-vs-floor not worse than 16/50.
+> *Falsifier:* MSE > 3.0, or any new abstention, or a single task where
+> the guarded forecast is > 10% worse MSE than the raw floor without a
+> disclosed reason.
+>
+> **H-G2 (long history untouched).** On every series in the existing
+> golden set with ≥ 4 rolling origins, artifacts are byte-identical
+> (IDs and bodies).
+> *Falsifier:* any diff.
+>
+> **H-G3 (intervals honest with lead).** With √step widening anchored
+> at step 1 (the schedule selected by the second-pass rule search,
+> which measured 89.7% pooled / 88% step-7 / 82% step-1 in simulation)
+> active at short history, the implemented lane reproduces the
+> simulation within noise: pooled q10–q90 coverage on the 50-task
+> surrogate in **[74%, 93%]**, step-7 ≥ 60%, step-1 ≤ 88%.
+> *Falsifier:* pooled < 74% (under-covers), pooled > 93% (blanket
+> over-widening beyond the simulated schedule), step-7 < 60%, or
+> step-1 > 88%.
+>
+> **H-G4 (disclosure names the power).** Every degraded-run artifact
+> carries `selection_fold_count` and a `selection_underpowered` typed
+> reason when the guardrail acted; `gnomon capabilities` states the
+> guardrail's existence and default. *Falsifier:* any 30/7 artifact
+> whose selection statistics appear without their n.
+
+## Addendum: H-G5, registered after H-G1's falsification, before the fix
+
+The first benchmark run (recorded in RESULTS.md) falsified H-G1: the
+guarded run scored MSE 4.56 / MAPE 2.09% against thresholds 3.0 / 1.8%.
+The isolating measurement found the cause **outside the simulated
+mechanism**: the guardrail's point path scores MSE 2.995 ≈ the
+simulation's 2.98, but the published q50 recentres every quantile on
+the median of the pooled residuals — at 30/7 a location estimate from
+14 selection-optimistic residuals, measured at mean |shift| 0.84
+(≈ 1σ of the series' daily moves) in a coin-flip direction, making the
+q50 path worse than the point path on 33 of 50 tasks. That is the same
+defect class the guardrail exists for: an unevidenced location move at
+fold-starved history, and E3's tilt geometry already showed ~1σ
+coin-flip tilts destroy value.
+
+The fix to be implemented after this registration: on **degraded runs
+only**, quantiles are centred on the model's point path
+(`point_bias_correction` becomes 0, disclosed); recentring is untouched
+wherever separated folds exist. Predictions, frozen now:
+
+> **H-G5a.** On the 50-task benchmark, the guarded run's q50 equals its
+> point path on every task; filtered mean MSE lands in **[2.90, 3.05]**
+> and mean MAPE **≤ 1.80%**, with 0 abstentions.
+> *Falsifier:* any nonzero `point_bias_correction` on a degraded run,
+> or MSE/MAPE outside those bounds.
+>
+> **H-G5b.** Task-level: every `last_value` selection is an exact tie
+> with the raw floor; every non-tie traces to a `seasonal_naive`
+> selection (a disclosed, fold-scored choice), with losses-vs-floor
+> ≤ 10 of 50.
+> *Falsifier:* a non-tie on a `last_value` task, or > 10 losses.
+>
+> **H-G5c.** Coverage stays inside H-G3's registered bands after the
+> centring change: pooled in [74%, 93%], step-1 ≤ 88%, step-7 ≥ 60%.
+> *Falsifier:* any band violated — in particular pooled < 74% would
+> mean the recentring was load-bearing for coverage and the fix must be
+> rethought (e.g. cap the shift rather than suppress it), not shipped.
+>
+> **H-G5d.** Series with ≥ 4 rolling origins remain byte-identical.
+> *Falsifier:* any diff.
+
+## Addendum: H-G6, registered after H-G5c's falsification, before the fix
+
+H-G5's run held on the point path (H-G5a/b) and byte-identity (H-G5d)
+but falsified H-G5c on the conservative side: pooled coverage 94.9%
+against the ≤ 93% cap, step-1 at 92% against ≤ 88%. Measuring the
+alternatives on the same rows: the mean-lead-anchored schedule
+√(step/4) gives 75.4% pooled (under nominal at every step), and the
+**unwidened** point-centred band gives **79.1% pooled** (per-step 92,
+88, 78, 80, 68, 78, 70) — essentially nominal. The attribution is now
+clean: the original 82% → 44% per-step decay that motivated the
+widening was mostly the *recentring wobble* compounding with lead, not
+missing dispersion growth; and the pooled residuals, drawn from
+whole-horizon folds, already contain multi-step dispersion — so any
+lead-growth multiplier on them double-counts (the caveat
+`interval_bounds`'s own docstring records). Theory and measurement now
+agree on the smaller mechanism.
+
+The fix to be implemented after this registration: **remove the √step
+widening entirely** (and its parameter — a shipped-but-unused knob is
+its own defect class in this codebase); the degraded-run interval
+geometry is centring suppression plus the flat pooled band, disclosed
+by the existing `constant_interval_width` code extended with the
+double-count rationale. Predictions, frozen now:
+
+> **H-G6a.** Pooled q10–q90 coverage on the 50-task benchmark lands in
+> **[74%, 88%]**, with every per-step value ≥ 60% — the measured 79.1%
+> ± sampling noise (n=50/step ⇒ ~±11 pts per step).
+> *Falsifier:* pooled outside the band or any step < 60%.
+>
+> **H-G6b.** The point-path results are untouched by interval
+> geometry: filtered mean MSE and MAPE identical to H-G5a's run
+> (2.995 / 1.71%), 0 abstentions.
+> *Falsifier:* any change in the point/q50 path metrics.
+>
+> **H-G6c.** Series with ≥ 4 rolling origins remain byte-identical.
+> *Falsifier:* any diff.
+
+## Addendum: H-G7, registered after the trend-fixture regression, before the fix
+
+Implementing H-G6 surfaced a real cost of the hard baseline lock that
+the near-martingale benchmark could not see: on `examples/
+daily_requests.csv` — a perfect +3/day linear trend with 3 rolling
+origins — the lock forces `last_value`, the point-centred band covers
+3 of 7 test points (0.43, honestly measured and downgraded by the
+existing out-of-band machinery), and the lineage claim drops to
+descriptive, failing `test_contracts_v2::test_forecast_emits_verified_
+lineage`. The repo's own fixture encodes the case the design doc's
+*other* registered option — a fold-count-scaled margin — exists for:
+a deterministic trend produces overwhelming single-fold evidence,
+noise produces incremental evidence.
+
+Measured on both regimes before choosing (margin = required single-fold
+improvement over the strongest baseline): on the 50 near-martingale
+tasks, margin 0.25 lets 17 noise picks through (MSE 5.61), 0.50 lets 7
+(3.66), **0.75 lets 0 (MSE 2.981, identical to the hard lock)**; on the
+trend fixture, `drift` clears even the 0.75 bar (its single-fold error
+is near zero). The fix to be implemented after this registration:
+below 2 disjoint selection folds, a candidate is selectable only by
+beating the strongest baseline by **≥ 75%** on the single fold
+(`SINGLE_FOLD_SELECTION_MARGIN = 0.75`); otherwise the baseline is
+published with the existing `selection_underpowered` machinery. The
+lightweight single-trailing-holdout path keeps the hard lock: its
+holdout can be a single observation, too thin for any escape hatch.
+Predictions, frozen now:
+
+> **H-G7a.** The 50-task benchmark is unchanged within noise: zero
+> non-baseline selections, filtered mean MSE in [2.90, 3.05], MAPE
+> ≤ 1.80%, 0 abstentions; pooled coverage stays in H-G6a's [74%, 88%].
+> *Falsifier:* any non-baseline selection on the benchmark, or any
+> H-G6a band violated.
+>
+> **H-G7b.** The trend fixture recovers: `daily_requests` selects
+> `drift` again, its measured test coverage returns to the verifiable
+> band, and `test_contracts_v2::test_forecast_emits_verified_lineage`
+> passes unmodified.
+> *Falsifier:* a baseline pick on the fixture, or the test still failing.
+>
+> **H-G7c.** Series with ≥ 4 rolling origins remain byte-identical.
+> *Falsifier:* any diff.
+
+## Analysis plan
+
+Identical to the exploration run: all 50 tasks, defaults, synthetic
+daily axis, official metric block with the `mse > 100` filter reported
+beside every mean; abstentions counted; per-task win/loss pairs beside
+means. H-G2 is checked by the golden suite plus a direct pre/post
+artifact byte-diff on a ≥ 4-origin series. RESULTS.md reports each
+hypothesis against its frozen threshold, harm cases individually
+(any task > 10% worse MSE than the raw floor), and nothing is
+post-hoc filtered.

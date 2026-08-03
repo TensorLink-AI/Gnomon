@@ -2,6 +2,67 @@
 
 ## Unreleased
 
+- **Per-proposer calibration ledger** (tracking schema **5**; additive
+  tables, existing stores migrate by creation). Context-event proposals
+  now leave a scoreable record: `register_artifact` accepts the run's
+  `context_events` and writes `event_proposals` / `event_admissions`
+  rows joined to the gate verdicts the artifact already recorded (CLI
+  `--project` runs and the MCP forecast tool pass them automatically);
+  the pipeline persists the history-only point path as
+  `enrichment_counterfactual` evidence when an enrichment is admitted
+  (previously computed during adjudication and discarded); and
+  `submit_actuals` resolves `event_outcomes` with the realised lift —
+  error(counterfactual) − error(published), in WAPE, attributed
+  set-level because the gate admits event sets. `gnomon track
+  proposers` and the `gnomon_proposer_skill` MCP tool report skill
+  shrunk toward no-skill priors (k = 10 pseudo-observations; hit rates
+  toward 0.5), so small-n cells cannot outrank measured ones. Proposal
+  identity is content-addressed from the *claim* (type, window, scope,
+  source) and version-independent, so ledgers survive upgrades;
+  `parse_context_response` accepts a caller-supplied `proposer`
+  identity and discards any model-written one (the impersonation
+  channel), recorded under `attributes.proposer` only when given.
+  **No proposal earns forecast influence from these numbers** — the
+  ledger is the measurement substrate the news-regime design
+  (docs/design/news-regime.md, mechanisms c–d) requires before any
+  influence lane may be built; enrichment-free artifacts are
+  byte-identical.
+
+- **TSFM tier truthfulness fixes** (no artifact changes): the sandbox
+  root no longer resolves to the current working directory
+  (`Path("")` is truthy), so sandboxes land in the documented
+  `~/.cache/gnomon-tsfm-venvs` and `gnomon capabilities` stops
+  answering per-cwd; sandbox workers now load Hub weights at exactly
+  the pinned revisions the forecast id records (`resolved_weights`
+  travels in the worker request; a missing pin is a refusal, and
+  FlowState's movable `r1.1` branch pin is replaced by its commit);
+  `capabilities()["models"]["tsfm"]` includes ready sandboxes instead
+  of reporting `[]` after a successful `gnomon tsfm install`; and
+  `models.tsfm.candidates` actually restricts the competing pool
+  (it was parsed, documented, and never passed to `evaluate`).
+
+- **Short-history guardrail** (always on, degraded runs only; no flag —
+  the change is that under-powered evidence is no longer acted on as if
+  it ranked anything). Below 2 disjoint selection folds the selection
+  margin rises to a measured 75% single-fold improvement bar: zero of 50
+  near-martingale 30-point benchmark series produced a spurious win that
+  large, while a plain linear trend clears it easily — so noise stops
+  winning and deterministic structure still can. Candidates that miss
+  the bar stay in the artifact as evidence with a
+  `selection_underpowered` typed reason and `selection_fold_count` in
+  sensitivity; a candidate that clears it is disclosed as a single-fold
+  selection. Degraded runs also centre quantiles on the point path
+  (`point_bias_correction` = 0, disclosed as
+  `point_recentring_suppressed`): the median-residual recentring at ≤ 2
+  folds measured as a ~1σ shift in a coin-flip direction. On the
+  pre-registered 50-series benchmark this took gnomon-pure from
+  MSE 7.42 / MAPE 2.37% to 2.995 / 1.71% (`last_value` floor:
+  2.56 / 1.61%) and pooled q10–q90 coverage from 63.7% to 79.1% against
+  the 80% nominal (`results/short-history-guardrail/`, three registered
+  iterations with falsifications reported). Runs with ≥ 4 rolling
+  origins are byte-identical, IDs included; the three degraded goldens
+  are deliberately refreshed.
+
 - **Verifiable future-context events** (`gnomon.future_context`), behind
   `context.future_events` (default **off**). Two typed event classes whose
   admission is by textual verifiability instead of fold ablation, for

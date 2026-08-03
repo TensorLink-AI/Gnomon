@@ -245,6 +245,7 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
         from .tracking import register_artifact
         payload["tracking_ids"] = register_artifact(
             artifact, str(arguments["project"]), str(path),
+            context_events=events,
         )
         payload["project"] = str(arguments["project"])
     return payload
@@ -345,6 +346,21 @@ def _run_model_performance(arguments: dict[str, Any]) -> dict[str, Any]:
         rows = [item.__dict__ for item in store.leaderboard(str(arguments["project"]))]
     return {"status": "ok", "performance": rows,
             "warning": "Historical telemetry is observational, not causal."}
+
+
+def _run_proposer_skill(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .tracking import TrackingStore
+    rows = TrackingStore().proposer_skill(
+        str(arguments["project"]),
+        proposer_id=(str(arguments["proposer_id"])
+                     if arguments.get("proposer_id") else None),
+        event_type=(str(arguments["event_type"])
+                    if arguments.get("event_type") else None),
+    )
+    return {"status": "ok", "proposers": rows,
+            "warning": ("Observational, set-level attribution; shrunk "
+                        "toward no-skill priors. No proposal currently "
+                        "earns forecast influence from these numbers.")}
 
 
 def _run_record_decision(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -877,6 +893,20 @@ TOOLS.extend([
             "artifact_path": {"type": "string", "description": "Artifact directory returned by a macro."},
         }, "required": ["artifact_path"]},
         "runner": _run_explain_run,
+    },
+    {
+        "name": "gnomon_proposer_skill",
+        "description": ("Shrunk per-proposer, per-event-type skill from "
+                        "resolved context-event proposals (realised lift vs "
+                        "the history-only counterfactual, in WAPE). "
+                        "Observational; attribution is set-level because the "
+                        "admission gate decides on event sets."),
+        "inputSchema": {"type": "object", "properties": {
+            "project": {"type": "string"},
+            "proposer_id": {"type": "string"},
+            "event_type": {"type": "string"},
+        }, "required": ["project"]},
+        "runner": _run_proposer_skill,
     },
 ])
 

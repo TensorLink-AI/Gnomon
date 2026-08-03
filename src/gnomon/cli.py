@@ -519,6 +519,16 @@ def build_parser() -> argparse.ArgumentParser:
     track_leaderboard.add_argument("--task",
                                    help="Restrict to one task (e.g. forecast, detect_anomalies)")
 
+    track_proposers = track_commands.add_parser(
+        "proposers",
+        help="Shrunk per-proposer skill from resolved context-event proposals",
+    )
+    track_proposers.add_argument("--project", required=True)
+    track_proposers.add_argument("--proposer", default=None,
+                                 help="Restrict to one proposer id")
+    track_proposers.add_argument("--event-type", default=None,
+                                 help="Restrict to one event type")
+
     track_due = track_commands.add_parser(
         "due", help="List open forecasts whose horizon has completed"
     )
@@ -1391,6 +1401,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print()
                 return 0
 
+            elif args.track_command == "proposers":
+                print(json.dumps(store.proposer_skill(
+                    args.project, proposer_id=args.proposer,
+                    event_type=args.event_type,
+                ), indent=2))
+                return 0
+
             elif args.track_command == "due":
                 print(json.dumps(store.due_forecasts(args.project), indent=2))
                 return 0
@@ -1606,7 +1623,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             # Auto-register in tracking store if --project is set
             if getattr(args, "project", None):
                 from .tracking import register_artifact
-                register_artifact(artifact, args.project, str(path))
+                register_artifact(artifact, args.project, str(path),
+                                  context_events=events)
                 print(f"Registered forecast {artifact.forecast_id} in project '{args.project}'", file=sys.stderr)
 
         decorated = _disclose_assumptions(payload, schema_assumptions)

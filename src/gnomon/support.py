@@ -49,6 +49,11 @@ def assess_forecast_support(
             sensitivity["baseline_improvement"] = assessment.improvement
         if assessment.coverage is not None:
             sensitivity["final_test_interval_coverage"] = assessment.coverage
+        # A selection statistic without its sample size reads as evidence
+        # whatever its n; on a fold-starved run the n is the story. Only on
+        # degraded runs, so fully-evidenced artifacts are byte-unchanged.
+        if assessment.degraded and assessment.selection_fold_count:
+            sensitivity["selection_fold_count"] = assessment.selection_fold_count
 
     # A coverage failure is its own typed reason, prepended so that no
     # branch below can drop it. `degraded` used to replace the reason list
@@ -157,10 +162,21 @@ def assess_forecast_support(
         # `reasons` already carries the coverage failure at its head when
         # there is one, so the degraded reason is added beside it, never
         # in place of it.
+        degraded_reasons = [SupportReason(
+            "degraded_evaluation",
+            "Model selection ran without separated calibration and test folds.")]
+        if assessment is not None and assessment.selection_guardrail_applied:
+            degraded_reasons.append(SupportReason(
+                "selection_underpowered",
+                f"Candidates were scored on {assessment.selection_fold_count} "
+                f"selection fold{'s' if assessment.selection_fold_count != 1 else ''} "
+                f"— too few to rank them, so the strongest baseline "
+                f"({assessment.strongest_baseline}) was published and the "
+                f"candidate scores are evidence, not a ranking.",
+            ))
         return SupportAssessment(
             "conditionally_supported",
-            [SupportReason("degraded_evaluation",
-                           "Model selection ran without separated calibration and test folds.")] + reasons,
+            degraded_reasons + reasons,
             assumptions, sensitivity,
             [SupportReason("provide_more_history",
                            "Supply enough observations for separated selection, calibration, and test windows.")],

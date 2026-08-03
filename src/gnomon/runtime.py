@@ -910,7 +910,12 @@ def capabilities() -> dict[str, object]:
             "baselines": sorted(BASELINES),
             "statistical": sorted(name for name in MODELS if name not in BASELINES),
             "context": ["event_adjusted"],
-            "tsfm": installed_tsfms(),
+            # Adapters that can actually run right now: importable
+            # in-process or with a ready sandbox. `installed_tsfms()` alone
+            # reported [] after a successful `gnomon tsfm install`, because
+            # it requires torch importable in the *main* process — which
+            # the sandbox model exists to avoid.
+            "tsfm": sorted(set(installed_tsfms()) | set(list_sandboxes())),
             "tsfm_available": available_tsfms(),
             "tsfm_sandboxes": list_sandboxes(),
             "tsfm_capabilities": capability_matrix(),
@@ -924,6 +929,27 @@ def capabilities() -> dict[str, object]:
             ),
         },
         **registry_capabilities(),
+        "short_history": {
+            # Behavior at fold-starved history, always on (not a flag): the
+            # trust contract is that under-powered evidence is not acted on
+            # as if it ranked anything.
+            "selection_guardrail": (
+                "below 2 disjoint selection folds the selection margin "
+                "rises to 75%: a candidate is selectable only by cutting "
+                "the strongest baseline's single-fold error by more than "
+                "three-quarters (deterministic structure, not fold luck); "
+                "otherwise the baseline is published with a "
+                "'selection_underpowered' reason and selection_fold_count "
+                "in sensitivity"
+            ),
+            "point_recentring": (
+                "on degraded runs, quantiles are centred on the model's "
+                "point path (point_bias_correction = 0) instead of the "
+                "median backtest residual, whose few-fold location "
+                "estimate measured as noise; disclosed as "
+                "'point_recentring_suppressed'"
+            ),
+        },
         "experimental": {"planner": os.environ.get("GNOMON_EXPERIMENTAL_PLANNER") == "1"},
         "features": {
             "inspection": True, "forecasting": True, "separated_evaluation": True,
@@ -935,6 +961,8 @@ def capabilities() -> dict[str, object]:
             "claim_verifier": True,
             "residual_intervals": True, "horizon_widened_intervals": True,
             "threshold_analysis": True, "degraded_evaluation": True,
+            "short_history_selection_guardrail": True,
+            "short_history_point_centred_intervals": True,
             "project_mode": True, "actual_scoring": True,
             "decision_outcomes": True, "agent_treatment_control_eval": True,
             "context_events": True, "future_context_events": True,

@@ -244,7 +244,9 @@ def test_registry_migrates_a_schema_3_database(tmp_path):
         forecasts_sql = conn.execute(
             "SELECT sql FROM sqlite_master WHERE name = 'forecasts'"
         ).fetchone()[0]
-    assert version == "4"
+    from gnomon.tracking import SCHEMA_VERSION
+
+    assert version == SCHEMA_VERSION
     assert "PRIMARY KEY (forecast_id, project, series)" in forecasts_sql
 
     # And the migrated store behaves like a new one.

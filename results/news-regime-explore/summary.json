@@ -1,0 +1,77 @@
+{
+  "tasks": 50,
+  "gnomon_abstained": 0,
+  "e2a_eligibility_at_30_7_D": {
+    "eligible": [
+      "chronos_bolt_mini",
+      "chronos_bolt_small",
+      "flowstate",
+      "moirai2_small",
+      "moment_small",
+      "toto2_22m",
+      "ttm"
+    ],
+    "exclusions": {}
+  },
+  "e1_floor": {
+    "failed_official_filter": 0,
+    "mean_mse": 2.557066142857145,
+    "mean_mape": 1.60538609512584
+  },
+  "e1_gnomon_pure": {
+    "failed_official_filter": 0,
+    "mean_mse": 7.42112583762598,
+    "mean_mape": 2.365541913073314,
+    "selected_models": [
+      "drift",
+      "ets",
+      "last_value",
+      "linear_trend",
+      "seasonal_naive",
+      "theta",
+      "window_average"
+    ],
+    "support_states": [
+      "degraded"
+    ],
+    "wins_vs_floor_mse": 16,
+    "losses_vs_floor_mse": 34
+  },
+  "e3_oracle_tilts": {
+    "0.5": {
+      "mean_mse": 1.9881001893911643,
+      "mean_mape": 1.3314141548673748,
+      "mse_reduction_vs_floor": 0.22250732741322252,
+      "tasks_improved": 40,
+      "tasks_worsened": 10
+    },
+    "1.0": {
+      "mean_mse": 1.92517149514041,
+      "mean_mape": 1.2784155349288493,
+      "mse_reduction_vs_floor": 0.24711705228347586,
+      "tasks_improved": 35,
+      "tasks_worsened": 15
+    },
+    "2.0": {
+      "mean_mse": 3.3174258842845505,
+      "mean_mape": 1.711741596926105,
+      "mse_reduction_vs_floor": -0.29735630560491305,
+      "tasks_improved": 24,
+      "tasks_worsened": 26
+    }
+  },
+  "e4_coverage": {
+    "nominal": 0.8,
+    "pooled": 0.6371428571428571,
+    "n_observations": 350,
+    "per_step": [
+      0.82,
+      0.76,
+      0.64,
+      0.64,
+      0.6,
+      0.56,
+      0.44
+    ]
+  }
+}
