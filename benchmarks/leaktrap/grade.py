@@ -35,7 +35,7 @@ the best honest play, not the most obvious one.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from .tasks import REVISION_LAG, TrapTask
@@ -183,8 +183,15 @@ def structural_assertion(evidence: list[dict[str, Any]],
         return {"asserted": False,
                 "reason": "snapshot_access recorded no known_time values"}
     # Compare as datetimes, not strings: lexicographic max over ISO stamps
-    # only works while every record uses one uniform format.
-    maximum = max(datetime.fromisoformat(value) for value in touched)
+    # only works while every record uses one uniform format. A naive
+    # stamp is treated as UTC rather than crashing the whole run on a
+    # naive/aware comparison — gnomon emits uniform +00:00 stamps, so
+    # this branch only guards malformed evidence.
+    parsed = [datetime.fromisoformat(value) for value in touched]
+    maximum = max(
+        p if p.tzinfo is not None else p.replace(tzinfo=timezone.utc)
+        for p in parsed
+    )
     return {
         "asserted": True,
         "max_known_time": maximum.isoformat(),

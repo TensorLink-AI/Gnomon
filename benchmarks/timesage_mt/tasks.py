@@ -118,7 +118,8 @@ def read_visible_series(task: TimeSageTask) -> tuple[list[str], dict[str, list[f
         payload = task.raw.get("time_series_json")
         rows = json.loads(payload) if isinstance(payload, str) else (payload or [])
         rows_visible = task.visibility.get("rows_visible")
-        if isinstance(rows_visible, int) and rows_visible > 0:
+        if (isinstance(rows_visible, int) and not isinstance(rows_visible, bool)
+                and rows_visible > 0):
             rows = rows[:rows_visible]
         text = json.dumps(rows)
     if not rows:

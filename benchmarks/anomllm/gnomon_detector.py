@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import json
 import pickle
+import re
 import sys
 import time
 from datetime import datetime, timedelta, timezone
@@ -100,6 +101,11 @@ def binary_f1(truth: list[int], prediction: list[int]) -> float:
     precision = true_positive / predicted
     recall = true_positive / actual
     return 2 * precision * recall / (precision + recall)
+
+
+#: Variant names whose files upstream ``postprocess_configs`` rescales
+#: (every integer multiplied by an inverse scale) at aggregation time.
+RESCALED_VARIANT = re.compile(r"^[01]shot-text-s\d+(?:\.\d+)?(?:-cot)?$")
 
 
 def default_records_path(
@@ -203,6 +209,14 @@ def run_gnomon_condition(
     ``gnomonbench/`` tree (never under ``results/``, which the official
     aggregator sweeps), and returns a run summary.
     """
+    # Enforced here, not just at the CLI: the official aggregator
+    # rescales every integer in files under these variant names,
+    # silently corrupting full-resolution indices.
+    if RESCALED_VARIANT.match(variant_name):
+        raise ValueError(
+            f"variant name {variant_name!r} triggers upstream "
+            f"postprocess_configs index rescaling; pick another name"
+        )
     dataset = load_eval_dataset(anomllm_root, data_name)
     results_dir = anomllm_root / "results" / "synthetic" / data_name / model_dir
     results_dir.mkdir(parents=True, exist_ok=True)
@@ -210,12 +224,16 @@ def run_gnomon_condition(
     if results_path.exists():
         results_path.unlink()
 
-    records = RecordWriter(shield_from_official_scoring(
+    sidecar_path = shield_from_official_scoring(
         records_path
         or default_records_path(anomllm_root, data_name, model_dir,
                                 variant_name),
         anomllm_root,
-    ))
+    )
+    # RecordWriter appends; a rerun must replace the previous run's
+    # sidecar rows just as it replaces the official predictions file.
+    sidecar_path.unlink(missing_ok=True)
+    records = RecordWriter(sidecar_path)
     f1_scores: list[float] = []
     clean_correct = 0
     supported = 0

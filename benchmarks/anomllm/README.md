@@ -106,10 +106,10 @@ it tracks the official table; `result_agg.py` stays authoritative.
 
 Control (official LLM runner), per run:
 
-- `results/synthetic/<data>/<model>/<variant>.jsonl` and a
-  `*_requests.jsonl` cache — written by the official `online_api.py`,
-  untouched by us. No GnomonBench records: the control's rows come from
-  official code this adapter does not modify.
+- `results/synthetic/<data>/<model>/<variant>.jsonl` — written by the
+  official `online_api.py`, untouched by us. No GnomonBench records:
+  the control's rows come from official code this adapter does not
+  modify.
 - `gnomonbench/synthetic/<data>/<model, slashes flattened>/manifest.json`
   — provenance for the control arm.
 

@@ -33,7 +33,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import subprocess
 import sys
 from pathlib import Path
@@ -41,6 +40,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from benchmarks.anomllm.gnomon_detector import (  # noqa: E402
+    RESCALED_VARIANT,
     default_records_path,
     run_gnomon_condition,
 )
@@ -55,7 +55,6 @@ DATASETS = (
 #: names (upstream ``postprocess_configs`` in src/config.py), every
 #: integer in a stored response is multiplied by 1/scale before scoring,
 #: because those variants prompt the LLM on a 0.3-subsampled series.
-RESCALED_VARIANT = re.compile(r"^[01]shot-text-s\d+(?:\.\d+)?(?:-cot)?$")
 
 
 def gnomon_variant_name(name: str) -> str:

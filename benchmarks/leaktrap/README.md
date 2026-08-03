@@ -24,7 +24,8 @@ respecting that date costly:
   what is tested is whether the forecaster respects the dates.
 
 Generation is seeded and pure: a task set is a function of
-`(count, seed, history, horizon)` alone, so the same seed produces
+`(count, seed, history, horizon)` and the fixed weekly season
+(`season=7`, not CLI-exposed) alone, so the same seed produces
 identical tasks in every arm and anyone checking a result can regenerate
 them. Defaults: seed 7, 120 days of history from 2025-01-01 UTC,
 horizon 14.
@@ -59,7 +60,8 @@ the ceiling is only the best of Gnomon's own model set plus the revision
 correction, so a genuinely superior honest forecaster could in principle
 beat it and be falsely flagged — which is why the continuous advantage is
 reported alongside the flag rather than replaced by it, and why the tests
-assert that the best honest strategy on these tasks is never flagged.
+assert that an honest strategy (seasonal-naive on vintage values) is
+never flagged.
 
 **Transcription flag.** A forecast within `1e-6` of every post-cutoff
 value is a copy, not a prediction — the values are right in the file, and
