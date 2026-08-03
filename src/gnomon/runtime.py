@@ -643,6 +643,18 @@ def forecast_multi(
             "for a single target.",
             {"target_columns": list(target_columns)},
         )
+    if len(set(target_columns)) != len(target_columns):
+        # Result series and evidence records are keyed by target name, so a
+        # repeated name would collide identifiers inside one artifact.
+        duplicates = sorted({
+            name for name in target_columns if target_columns.count(name) > 1
+        })
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            f"target_columns names the same column more than once: "
+            f"{', '.join(duplicates)}.",
+            {"duplicates": duplicates, "target_columns": list(target_columns)},
+        )
     if candidates:
         config = _restrict_candidates(config, candidates)
     if repair not in REPAIR_LEVELS:

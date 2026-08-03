@@ -433,19 +433,22 @@ def resolve_target_spec(
     the MCP tool so both surfaces expand identically.
     """
     if spec.strip().lower() == "auto":
-        inferred = infer_schema_columns(input_path)
-        excluded = {time_column, series_column} | set(inferred["time_candidates"])
-        targets = [
-            column for column in inferred["target_candidates"]
-            if column not in excluded
-        ]
+        if input_path.startswith("store:"):
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "--target auto expands against a wide file's columns; a "
+                "store dataset holds a single variable and has no header to "
+                "expand from. Name the variable directly.",
+                {"input": input_path},
+            )
+        targets, examined = _auto_target_columns(
+            input_path, time_column, series_column,
+        )
         if not targets:
             raise GnomonError(
                 "AMBIGUOUS_SCHEMA",
                 "--target auto found no numeric non-time column to forecast.",
-                {"argument": "--target",
-                 "time_candidates": inferred["time_candidates"],
-                 "target_candidates": inferred["target_candidates"]},
+                {"argument": "--target", "columns_examined": examined},
                 repair_options=[{
                     "action": "supply_arguments",
                     "description": "Name the target column(s) explicitly with --target.",
@@ -467,6 +470,60 @@ def resolve_target_spec(
             {"supplied": spec},
         )
     return targets
+
+
+def _auto_target_columns(
+    input_path: str,
+    time_column: str | None,
+    series_column: str | None,
+) -> tuple[list[str], list[str]]:
+    """The columns ``--target auto`` expands to, in file order, plus every
+    column examined.
+
+    Numeric candidacy here tolerates missing sentinels (blank, N/A, null,
+    …): a clinical channel with a gap is still a channel, and excluding
+    it silently would hide an abstention the run owes the caller. The
+    per-column result stays honest downstream — the safe repair level
+    drops the sentinel with disclosure, and a resulting grid gap becomes
+    that channel's own IRREGULAR_TIME_GRID abstention, never a silent
+    omission from the batch. Columns with no numeric reading at all
+    (text, pure identifiers, timestamps) are excluded, as is anything
+    the caller named as the time or series column.
+    """
+    from .repair import MISSING_SENTINELS, RepairLog
+
+    path = Path(input_path).expanduser().resolve()
+    if not path.is_file():
+        raise GnomonError("INPUT_NOT_FOUND", f"Input file does not exist: {path}")
+    rows, columns = _read_rows(path, "", "", repair="off", log=RepairLog())
+    if len(columns) <= 1 and path.suffix.lower() in {".csv", ".txt", ""}:
+        best = (len(columns), rows, columns)
+        for delimiter in (";", "\t", "|"):
+            try:
+                candidate_rows, candidate_columns = _read_delimited(path, delimiter)
+            except Exception:
+                continue
+            if len(candidate_columns) > best[0]:
+                best = (len(candidate_columns), candidate_rows, candidate_columns)
+        _, rows, columns = best
+    sample = rows[: min(len(rows), 50)]
+    if not sample:
+        raise GnomonError("EMPTY_DATASET", "The input contains no observations.")
+    targets: list[str] = []
+    for column in columns:
+        if column in (time_column, series_column):
+            continue
+        values = [row.get(column) for row in sample]
+        if all(_parses_as_timestamp(value) for value in values):
+            continue
+        present = [
+            value for value in values
+            if ("" if value is None else str(value)).strip().lower()
+            not in MISSING_SENTINELS
+        ]
+        if present and all(_parses_as_number(value) for value in present):
+            targets.append(column)
+    return targets, columns
 
 
 def _read_delimited(path: Path, delimiter: str) -> tuple[list[dict[str, object]], list[str]]:

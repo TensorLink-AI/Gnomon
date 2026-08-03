@@ -177,6 +177,67 @@ def test_resolve_target_spec_expands_auto_and_lists(tmp_path):
     assert excinfo.value.code == "INVALID_ARGUMENTS"
 
 
+def test_duplicate_targets_are_refused_at_the_runtime_level(tmp_path):
+    # Result series and evidence records are keyed by target name; a
+    # repeated name would collide identifiers inside one artifact, so the
+    # runtime refuses even though the CLI/MCP spec parser already dedupes.
+    path = tmp_path / "wide.csv"
+    names = _write_wide(path)
+    with pytest.raises(GnomonError) as excinfo:
+        forecast_multi(
+            str(path), time_column="timestamp",
+            target_columns=[names[0], names[0]],
+            horizon=6, output=str(tmp_path / "multi"), clock=CLOCK,
+        )
+    assert excinfo.value.code == "INVALID_ARGUMENTS"
+    assert excinfo.value.details["duplicates"] == [names[0]]
+
+
+def test_auto_includes_channels_with_missing_cells(tmp_path):
+    """A channel with a gap is still a channel. `auto` excluding it
+    silently would hide an abstention the run owes the caller; instead
+    the channel is included and abstains loudly on its own, without
+    blocking the clean ones."""
+    path = tmp_path / "gappy.csv"
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["timestamp", "good", "gappy", "label"])
+        for k in range(60):
+            writer.writerow([
+                (START + timedelta(hours=k)).isoformat(),
+                repr(10.0 + k % 5),
+                "" if k == 30 else repr(20.0 + k % 3),
+                "text",  # never a candidate
+            ])
+    assert resolve_target_spec(str(path), "auto") == ["good", "gappy"]
+    artifact, _ = forecast_multi(
+        str(path), time_column="timestamp", target_columns=["good", "gappy"],
+        horizon=5, output=str(tmp_path / "multi"), clock=CLOCK,
+    )
+    by_series = {result.series: result for result in artifact.results}
+    assert by_series["good"].forecast
+    assert by_series["gappy"].support == "unsupported"
+    assert any("IRREGULAR_TIME_GRID" in warning
+               for warning in by_series["gappy"].warnings)
+
+
+def test_auto_does_not_read_zero_as_missing(tmp_path):
+    path = tmp_path / "zeros.csv"
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["timestamp", "zeroes", "vals"])
+        for day in range(1, 29):
+            writer.writerow([f"2025-01-{day:02d}", 0, 5 + day % 3])
+    assert resolve_target_spec(str(path), "auto") == ["zeroes", "vals"]
+
+
+def test_auto_against_a_store_input_is_a_clear_refusal():
+    with pytest.raises(GnomonError) as excinfo:
+        resolve_target_spec("store:vitals", "auto")
+    assert excinfo.value.code == "INVALID_ARGUMENTS"
+    assert "store" in excinfo.value.message
+
+
 def test_cli_multi_target_and_auto(tmp_path, capsys, monkeypatch):
     from gnomon.cli import main
 
