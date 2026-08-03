@@ -85,6 +85,52 @@ def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
     }
 
 
+def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
+    """The compact forecast payload: q50 path, one q10–q90 interval, the
+    selection, and every disclosure — roughly summary.md as JSON.
+
+    What it drops is bulk only: the extra quantile levels, the raw
+    `point` path beside its bias correction, and the context/covariate
+    gate detail (all still in the artifact on disk, which is written
+    unchanged). What it may never drop is epistemics: the support state,
+    every warning, every abstention reason, every recovery action, and
+    every disclosure ride along verbatim — an abstention serialises the
+    same structured support assessment full mode carries. Hiding
+    disclosures is the one thing this codebase exists to not do.
+    """
+    results = []
+    for item in artifact.results:
+        results.append({
+            "series": item.series,
+            "support": item.support,
+            "selected_model": item.selected_model,
+            "interval_coverage": item.interval_coverage,
+            # Verbatim, never summarised: the same objects full mode carries.
+            "warnings": item.warnings,
+            "support_assessment": item.support_assessment,
+            "notes": item.notes,
+            "forecast": [
+                {"timestamp": row["timestamp"], "q50": row["q50"],
+                 "q10": row["q10"], "q90": row["q90"]}
+                for row in item.forecast
+            ],
+            **({"threshold": item.threshold} if item.threshold else {}),
+        })
+    return {
+        "schema_version": "0.1",
+        "status": "complete",
+        "format": "brief",
+        "forecast_id": artifact.forecast_id,
+        "artifact_path": str(path),
+        "note": (
+            "Brief output: q50 with the q10-q90 interval per step. The full "
+            "artifact (all quantile levels, evidence, lineage) is on disk at "
+            "artifact_path, unchanged."
+        ),
+        "results": results,
+    }
+
+
 def _run_capabilities(arguments: dict[str, Any]) -> dict[str, Any]:
     return capabilities()
 
@@ -192,7 +238,9 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
         repair=arguments.get("repair", "safe"),
         candidates=arguments.get("candidates"),
     )
-    payload = forecast_summary(artifact, path)
+    payload = (brief_summary(artifact, path)
+               if arguments.get("format") == "brief"
+               else forecast_summary(artifact, path))
     if arguments.get("project"):
         from .tracking import register_artifact
         payload["tracking_ids"] = register_artifact(
@@ -243,6 +291,8 @@ def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str
         repair=arguments.get("repair", "safe"),
         candidates=arguments.get("candidates"),
     )
+    if arguments.get("format") == "brief":
+        return brief_summary(artifact, path)
     return forecast_summary(artifact, path)
 
 
@@ -370,6 +420,15 @@ TOOLS: list[dict[str, Any]] = [
                     "disclosed in its own result and never blocks the others."
                 )},
                 "horizon": {"type": "integer", "description": "Future periods to forecast, in units of the data frequency."},
+                "format": {"type": "string", "enum": ["full", "brief"], "description": (
+                    "Response verbosity (default full). `brief` returns per "
+                    "target the q50 path with one q10-q90 interval, the "
+                    "selected model, and — verbatim, never summarised — the "
+                    "support state, every warning, abstention reason, "
+                    "recovery action, and disclosure. The full artifact is "
+                    "written to disk unchanged either way; only the response "
+                    "payload shrinks."
+                )},
                 "candidates": {"type": "array", "items": {"type": "string"}, "description": "Restrict the model pool to these names — pass `gnomon_route`'s `candidates` or its `recommendation` to act on a routing decision. The mandatory baselines always compete regardless, so a named candidate still has to beat them."},
                 "output_dir": {"type": "string", "description": "Directory for the immutable artifact. Defaults to ./gnomon-output relative to the *server's* working directory, which is often inside the user's repository — pass an explicit path when that matters."},
                 "minimum_baseline_improvement": {"type": "number", "minimum": 0, "description": "Minimum relative improvement over the strongest baseline to select a candidate (default 0.02). Must be >= 0; a negative value would let a model that lost the backtest be selected."},

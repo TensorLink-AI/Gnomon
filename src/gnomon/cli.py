@@ -127,6 +127,13 @@ def build_parser() -> argparse.ArgumentParser:
              "inferred grid, disclosed as an assumption.",
     )
     forecast_parser.add_argument(
+        "--brief", action="store_true",
+        help="Compact stdout: q50 with one q10-q90 interval per step, the "
+             "selected model, and every support state, warning, abstention "
+             "reason, and disclosure verbatim. The full artifact is still "
+             "written to disk unchanged; only stdout shrinks.",
+    )
+    forecast_parser.add_argument(
         "--output", default="gnomon-output",
         help="Artifact directory (default ./gnomon-output, relative to the "
              "working directory — so a run from inside a clone writes into "
@@ -1446,7 +1453,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 repair=args.repair,
                 candidates=getattr(args, "candidates", None),
             )
-            payload = forecast_summary(artifact, path)
+            from .toolspec import brief_summary
+            payload = (brief_summary(artifact, path) if args.brief
+                       else forecast_summary(artifact, path))
         else:
             from .context import load_events_file
             from .runtime import forecast
@@ -1488,7 +1497,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 repair=args.repair,
                 candidates=getattr(args, "candidates", None),
             )
-            payload = forecast_summary(artifact, path)
+            if getattr(args, "brief", False):
+                from .toolspec import brief_summary
+                payload = brief_summary(artifact, path)
+            else:
+                payload = forecast_summary(artifact, path)
 
             # Auto-register in tracking store if --project is set
             if getattr(args, "project", None):
