@@ -36,15 +36,21 @@ constant-width intervals it publishes cover 63.7% instead of the nominal
 80%, decaying to 44% by step 7. Both are self-inflicted and fixable
 without any news mechanism, and fixing them closes most of the official
 gap to the LLM control, whose 2.8% MAPE sits just above the 1.6%
-martingale floor. The news edge worth chasing after that is real but
-thin: a direction-only oracle capped at 1σ is worth 24.7% MSE on this
-regime (and a 2σ cap *destroys* value), which a realistic proposer
-converts to ~7–12%. So the build order is: honesty-preserving selection
-guardrails first, the proposer calibration ledger second (it is the
-measurement substrate every news mechanism needs), capped directional
-tilts third and only as far as measured proposer skill warrants,
-population-level event studies only after a corpus-backed measurement
-study.
+martingale floor. The news edge worth chasing after that is thinner
+than it first looks: a direction-only oracle capped at 1σ is worth
+24.7% MSE on this regime, but wrong directions cost more than right
+ones gain, so the exact break-even hit rate is 0.65 at k=0.5σ and 0.81
+at k=1σ — at a plausible 0.6–0.7 proposer, even optimally-sized tilts
+are worth only 1–3%, and a 2σ cap destroys value for the *oracle*. So
+the build order is: honesty-preserving selection guardrails first
+(simulation-validated: MSE 2.98 vs today's 7.42), the proposer
+calibration ledger second (it is the measurement substrate every news
+mechanism needs, and the only thing that can ever justify a tilt),
+directional tilts *not built* until the ledger measures sustained skill
+above break-even, population-level event studies only after a
+corpus-backed measurement study — they are now the only mechanism with
+headroom above single digits, precisely because magnitude information
+is what a sign cannot carry.
 
 ---
 
@@ -260,12 +266,36 @@ so every mean is over all 50 tasks.
 | E3 | Oracle-direction tilt ceiling, k·σ cap | best k ∈ {1,2}, MSE −20…−50% | k=0.5: −22.3%; **k=1: −24.7%** (holds); **k=2: +29.7% (harm)** |
 | E4 | q10–q90 coverage at 30 pts | [60, 76)% pooled, below nominal 80% | **63.7%** pooled; per-step 82→44% (confirmed) |
 
-Post-hoc diagnostics (labeled, not pre-registered): raising
-`minimum_baseline_improvement` 0.02→0.50 shrinks gnomon-pure MSE 7.42→
-4.32 (never reaching the 2.56 floor — a margin cannot fix a one-fold
-contest); on tasks where `last_value` won selection, gnomon ≈ floor
-(MSE ratio 1.018), so the damage is model choice, not the
-`point_bias_correction` recentring.
+Post-hoc diagnostics (labeled, not pre-registered; first pass plus the
+second-pass `iterate_analysis.json`):
+
+- **Margins can't fix a one-fold contest**: raising
+  `minimum_baseline_improvement` 0.02→0.50 shrinks gnomon-pure MSE
+  7.42→4.32, never reaching the 2.56 floor; on tasks where `last_value`
+  won selection, gnomon ≈ floor (MSE ratio 1.018), so the damage is
+  model choice, not the `point_bias_correction` recentring.
+- **Exact tilt break-even**: wrong-direction tilts are asymmetrically
+  costly (k=1σ: MSE 5.21 wrong vs 1.93 right, floor 2.56). Break-even
+  hit rate **0.654 at k=0.5σ, 0.808 at k=1σ**; with k re-optimized per
+  p, expected reduction is +1.0% (p=0.6), +1.9% (p=0.65), +3.0%
+  (p=0.7) — all far below the 10% build bar. The first-pass "(2p−1) of
+  the oracle" discount was wrong and is corrected here.
+- **Guardrail simulation (H-G1 preview)**: baselines-only selection on
+  the single fold → MSE **2.98** / MAPE **1.69%**, inside the H-G1
+  targets. Even the two-baseline contest is noisy (`seasonal_naive`'s 9
+  fold-wins lose to the raw floor 6-of-9; unconditional `last_value`
+  gives 2.56), so "skip selection entirely below 2 selection folds" is
+  a live design option.
+- **Widening-rule search (H-G3 preview)**: √(step/4) anchored at the
+  mean lead **fails** (narrows early steps; pooled 62.6%); √step
+  anchored at step 1 meets every target (pooled 89.7%, step-7 88%) with
+  disclosed mid-horizon over-coverage (96% at step 4) — the
+  conservative direction.
+- **Bootstrap 95% CIs**: paired gnomon−floor MSE difference
+  [+1.67, +9.40], MAPE difference [+0.36, +1.20] pts — the
+  selection-harm finding is not sampling noise. Pooled coverage CI
+  [53.4%, 73.4%] excludes nominal 80%. Oracle k=1σ absolute reduction
+  CI [0.05, 1.25] — the ceiling exists, its size is uncertain.
 
 Interpretation against the official numbers (qualitative): the control's
 2.8% MAPE sits just above a ~1.6–2% martingale floor — the LLM's "win"
@@ -298,8 +328,14 @@ behavioral, so "louder" alone is the wrong spec. Three changes:
    E1-supported default) select the strongest baseline and report every
    candidate's single-fold score as *unranked evidence*, with a new
    typed reason (`selection_underpowered`) naming the fold count.
-   E1 sizes the prize: floor-level MSE 2.56 vs 7.42 today, on exactly
-   the regime the product bet cares about. Long-history behavior
+   E1 sizes the prize and the simulation validates the target:
+   baselines-only selection on the single fold measures MSE 2.98 /
+   MAPE 1.69% against 7.42 / 2.37% today (floor 2.56 / 1.61%). The
+   simulation also shows the two-baseline fold contest is itself noisy
+   (`seasonal_naive`'s nine single-fold wins lose to the raw floor six
+   times), so the implementation should also evaluate skipping the fold
+   contest entirely below 2 selection folds and taking `last_value`
+   unless the series is measurably seasonal. Long-history behavior
    (origins ≥ 4) is untouched, so existing goldens there stay
    byte-identical.
 2. **Disclose n beside every selection statistic.**
@@ -310,12 +346,16 @@ behavioral, so "louder" alone is the wrong spec. Three changes:
 3. **Lead-time-honest intervals when per-lead residuals are absent.**
    E4: constant-width pooled intervals cover 82% at step 1 and 44% at
    step 7. When `MIN_RESIDUALS_PER_LEAD` (`evaluation.py:99`) is unmet,
-   widen the pooled spread deterministically with lead time (e.g.
-   √(step) scaling anchored at the pooled width's mean lead, the same
-   family as the existing `interval_from_spread` scale factor at
-   `evaluation.py:130-144`) instead of publishing a flat band. Target:
-   pooled coverage into the mid-70s with the step-7 floor ≥ 60%,
-   measured on the same 50-task set.
+   widen the pooled spread deterministically with lead time — same
+   family as the existing `interval_from_spread` scale factor
+   (`evaluation.py:130-144`). The schedule is measured, not assumed:
+   the second-pass rule search shows anchoring √-growth at the *mean*
+   lead fails (it narrows early steps; pooled coverage drops to 62.6%),
+   while **√step anchored at step 1** (monotone, never narrows) meets
+   every target on the 50-task set — pooled 89.7%, step-7 88% — with
+   mid-horizon over-coverage (96% at step 4) as the disclosed,
+   conservative cost. Build with that schedule and an over-coverage
+   falsifier (H-G3).
 
 ### (b) Population-level event studies — **NEEDS MORE EVIDENCE** (spec below, don't build yet)
 
@@ -323,10 +363,14 @@ This is the only mechanism that could beat the martingale by more than
 the thin directional ceiling — a measured magnitude distribution is
 strictly more informative than a sign — but nothing measured in this
 session establishes that typed-event effect distributions on news-driven
-finance series are stable enough to admit from. E3's modest ceiling
-warns that the *aggregate* signal is small; population magnitudes could
-still be materially better on the subset of typed, high-salience events
-(earnings, guidance, M&A), and only a corpus study can say.
+finance series are stable enough to admit from. The tilt break-even
+result sharpens the case both ways: a sign alone cannot be worth more
+than single digits at plausible skill, so magnitude distributions are
+where the remaining headroom lives — and the same asymmetric-penalty
+geometry will apply to a *mis-signed* population effect, so the corpus
+study must measure sign stability per event type, not just median
+magnitude. Only a corpus study can say whether typed, high-salience
+events (earnings, guidance, M&A) clear that bar.
 
 **Prerequisite experiment** (pre-register before building anything): on
 a Hub-enabled machine with the MTBench raw corpus (20k labeled finance
@@ -351,25 +395,41 @@ was measured, but on *other* series); counterfactual and one guarded ID
 key as per the constraints. Corpus provenance (id + hash) must appear in
 the artifact, or the number is unauditable.
 
-### (c) Volatility-capped directional tilts — **BUILD, gated and capped, after (d)**
+### (c) Volatility-capped directional tilts — **DON'T BUILD NOW; re-evaluate from ledger data**
 
-E3 sizes it: oracle ceiling 24.7% MSE at k=1σ, 22.3% at 0.5σ, **harm at
-2σ**. A real proposer at directional hit rate p earns ≈ (2p−1) of the
-oracle gain at small k: p=0.65 → ~7–8% (below the pre-registered 10%
-build bar), p=0.75 → ~12% (above). Therefore: build the mechanism, but
-influence must be **earned through measured p**, which is exactly
-mechanism (d) — cold-start proposals get zero tilt (variance-only
-admission: the proposal may widen intervals, never move the point), and
-the tilt activates only once the ledger shows p significantly > 0.5 for
-that proposer × event-type, with k mapped from measured p (never from
-the LLM's stated confidence) and hard-capped at 1σ — the 2σ result is
-the reason the cap is a contract, not a tuning knob. LLM proposes sign +
-event type only (enum fields in `CONTEXT_RESPONSE_SCHEMA`,
-`workflows.py:39-66`, whitelisted as enums per the
-`attributes.pop` discipline); σ is `_robust_scale` of the detrended
-history (`operators.py:43-46`); shape machinery reused
-(`context_model.py:67-94`). New support state (`directional_tilt`),
-counterfactual, one guarded ID key, capability line — per constraints.
+E3's oracle ceiling (24.7% MSE at k=1σ) is not the decision-relevant
+number, and the second-pass exact computation retires the first-pass
+"(2p−1) of the oracle" shortcut: because a wrong-direction tilt costs
+more than a right-direction tilt gains (k=1σ: MSE 5.21 wrong vs 1.93
+right, floor 2.56), the **break-even hit rate is 0.654 at k=0.5σ and
+0.808 at k=1σ**, and even with the cap re-optimized per skill level the
+expected gain is **+1% at p=0.6, +2% at p=0.65, +3% at p=0.7** — all
+far below the pre-registered 10% build bar, and *negative* below
+p ≈ 0.65 at any useful k. Published evidence on LLM directional
+accuracy for multi-day equity moves from news clusters well under 0.7.
+
+Position: do not build the tilt lane on today's evidence. What survives
+into the roadmap:
+
+- **The measurement comes first.** Mechanism (d)'s ledger records
+  `direction_hit` per resolved proposal at zero risk (variance-only
+  admission — a proposal may widen intervals, never move the point). If
+  a proposer × event-type cell sustains **shrunk p̂ ≥ 0.70 over ≥ 50
+  resolved calls** (frozen threshold, chosen above the k=0.5σ
+  break-even with margin), the tilt lane becomes worth building —
+  as a flag-off lane whose k is mapped from measured p̂
+  (∝ (2p̂−1), hard-capped at 1σ; the 2σ oracle harm makes the cap a
+  contract), never from stated confidence.
+- **The design sketch is retained** for that contingency (sign + type
+  as enum fields in `CONTEXT_RESPONSE_SCHEMA` per the `attributes.pop`
+  discipline, `workflows.py:39-66,167,176`; σ = `_robust_scale` of the
+  detrended history, `operators.py:43-46`; `directional_tilt` support
+  state, counterfactual, one guarded ID key), but no code is written
+  until the ledger produces a cell above threshold.
+- **Corollary**: magnitude-bearing mechanisms — (b), and TSFMs if E2b
+  surprises — are now the only news paths with headroom above single
+  digits on this regime, because a sign is worth at most the break-even
+  geometry allows.
 
 ### (d) Per-proposer calibration ledger — **BUILD, second** (it is the substrate for (b) and (c))
 
@@ -411,18 +471,20 @@ top of the existing store (new tables in `_TABLE_DEFINITIONS`,
 - Cold-start policy (shared with (c)): no resolved outcomes → no point
   influence, variance-only admission.
 
-### (e) Disclosed mixtures — **DON'T BUILD standalone; fold into (c)'s disclosure**
+### (e) Disclosed mixtures — **DON'T BUILD standalone; it is the disclosure format of any influence lane**
 
 The future-context lane already established the pattern a mixture needs:
 the history-only counterfactual persisted in evidence
-(`pipeline.py:778,788-805`) plus a distinct support state. Once (c)
-exists, a news-tilted forecast always ships with its history-only
-counterfactual and the tilt parameters (sign, k, σ, proposer skill) —
-that *is* the disclosed mixture, with the mixing weight (k from measured
-p) computed by Gnomon, never by the LLM. A separate
+(`pipeline.py:788-805`) plus a distinct support state. If (c) is ever
+built, a news-tilted forecast ships with its history-only counterfactual
+and the tilt parameters (sign, k, σ, proposer skill) — that *is* the
+disclosed mixture, with the mixing weight computed by Gnomon from
+measured skill, never by the LLM; a (b) lane disclosing the population
+distribution and its counterfactual is the same shape. A separate
 mixture-of-forecasts object would add an artifact concept without adding
 information; skip it unless a customer asks for tunable blending, and
-revisit only with a measured case that blending beats the k-capped tilt.
+revisit only with a measured case that blending beats the parameterized
+influence it would blend.
 
 ### TSFM tier (cross-cutting from §1.4) — fix truthfulness before capability
 
@@ -451,21 +513,30 @@ and cheap to run on a Hub-enabled machine.
    persisted counterfactual path, `direction_hit`/`realised_lift`/
    `brier`, shrunk skill view, skill-in-artifact disclosure. Depends on
    nothing above; prerequisite for 4 and 5.
-4. **(c) Volatility-capped directional tilts** behind
-   `context.directional_tilts` (default off): sign+type proposals,
-   k ≤ 1σ hard cap, influence keyed to ledger skill, `directional_tilt`
-   support state, counterfactual, guarded ID key. Includes (e) as its
-   disclosure format.
-5. **(b) Population event studies**: first the corpus measurement study
+4. **(b) Population event studies**: first the corpus measurement study
    (pre-registered, MTBench raw corpus), build the `event_studies`
-   lane only for event types passing the stability bar.
+   lane only for event types passing the stability bar. After the tilt
+   break-even result, this is the only news mechanism with measured
+   headroom above single digits.
+5. **(c) Volatility-capped directional tilts** — *contingent, not
+   scheduled*: build only when the ledger shows a proposer ×
+   event-type cell with shrunk p̂ ≥ 0.70 over ≥ 50 resolved calls
+   (break-even at k=0.5σ is 0.654). If built: flag-off lane, k ∝
+   (2p̂−1) capped at 1σ, `directional_tilt` support state,
+   counterfactual, guarded ID key. Includes (e) as its disclosure
+   format.
 
 ## Pre-registered hypotheses for build item 1 (ready to hand off)
 
 To be re-registered verbatim in `results/short-history-guardrail/
 HYPOTHESIS.md` at the implementing commit, before any run; the 50-task
 surrogate and scripts in `results/news-regime-explore/` are the fixed
-benchmark; thresholds frozen now:
+benchmark. Both mechanisms were simulated in this session
+(`iterate_analysis.json`: guardrail 2.98 / 1.69%; √step-anchored-1
+widening 89.7% pooled), so these are predictions that the *integrated
+implementation* reproduces the simulation — an implementation that
+misses them differs from the simulated mechanism in a way that must be
+explained, not accepted. Thresholds frozen now:
 
 > **H-G1 (guardrail closes the self-inflicted gap).** With the
 > fold-starved selection guardrail on, gnomon-pure on the 50-task
@@ -481,12 +552,15 @@ benchmark; thresholds frozen now:
 > (IDs and bodies).
 > *Falsifier:* any diff.
 >
-> **H-G3 (intervals honest with lead).** With deterministic lead-time
-> widening active at short history, pooled q10–q90 coverage on the
-> 50-task surrogate rises from 63.7% to ≥ 74%, and step-7 coverage
-> from 44% to ≥ 60%, while step-1 coverage stays ≤ 88% (no blanket
-> over-widening).
-> *Falsifier:* pooled < 74%, or step-7 < 60%, or step-1 > 88%.
+> **H-G3 (intervals honest with lead).** With √step widening anchored
+> at step 1 (the schedule selected by the second-pass rule search,
+> which measured 89.7% pooled / 88% step-7 / 82% step-1 in simulation)
+> active at short history, the implemented lane reproduces the
+> simulation within noise: pooled q10–q90 coverage on the 50-task
+> surrogate in **[74%, 93%]**, step-7 ≥ 60%, step-1 ≤ 88%.
+> *Falsifier:* pooled < 74% (under-covers), pooled > 93% (blanket
+> over-widening beyond the simulated schedule), step-7 < 60%, or
+> step-1 > 88%.
 >
 > **H-G4 (disclosure names the power).** Every degraded-run artifact
 > carries `selection_fold_count` and a `selection_underpowered` typed
@@ -494,7 +568,10 @@ benchmark; thresholds frozen now:
 > guardrail's existence and default. *Falsifier:* any 30/7 artifact
 > whose selection statistics appear without their n.
 
-Prediction of the follow-on (not a commitment): items 1+2 alone should
-put a re-run of the official MTBench Gnomon arm within ~0.5 MAPE points
-of the LLM control, at which point the remaining gap *is* the news
-edge, and items 3–5 compete for it with measured, disclosed influence.
+Prediction of the follow-on (not a commitment): item 1 alone should put
+a re-run of the official MTBench Gnomon arm within ~0.5 MAPE points of
+the LLM control (the guardrail simulation's 1.69% MAPE sits inside the
+floor-to-control band), at which point the remaining gap *is* the news
+edge — bounded, on this evidence, at a few tenths of a MAPE point —
+and items 3–5 compete for it with measured, disclosed influence rather
+than asserted confidence.

@@ -63,13 +63,14 @@ window's daily diffs, constant shift on the `last_value` floor:
 
 - **H-E3a holds on the margin**: best k is 1.0 (registered set {1, 2}),
   reduction 24.7% is inside the registered [20%, 50%].
-- **H-E3b build threshold passed** (24.7% ≥ 10%) — but barely two-fold
-  clear of it after the registered oracle discount: a real proposer at
-  p = 0.65 directional accuracy earns ≈ (2p−1) = 30% of the oracle gain
-  at small k ⇒ ≈ **7–8% MSE**, *below* the 10% build bar; p = 0.75 ⇒
-  ≈ 12%, just above. The ceiling is real but thin, and **k = 2σ
-  actively destroys value** — any build must cap at ≤ 1σ and must
-  measure the proposer's directional hit rate before granting influence.
+- **H-E3b build threshold passed by the oracle** (24.7% ≥ 10%) — but
+  the oracle is not the decision-relevant number. The registered
+  analysis plan required discounting to a realistic proposer; the
+  first-pass linear (2p−1) discount understated the cost of wrong
+  directions, and the exact computation (second-pass analysis below)
+  gives break-even hit rates of 0.654 (k=0.5σ) and 0.808 (k=1σ), with
+  single-digit expected gains at plausible skill. **k = 2σ actively
+  destroys value even for the oracle.**
 
 ## E4 — Interval honesty at 30 points
 
@@ -95,9 +96,55 @@ Empirical q10–q90 coverage, all 50 tasks × 7 steps (350 obs), nominal 80%:
    the raw floor is MSE ratio 1.018 (mean |q50₁ − last| ≈ 0.43σ). The
    damage is model choice, not the residual recentring.
 
+## Second-pass analyses (labeled post-hoc; `iterate_analysis.json`)
+
+Run after the first version of this file, to firm up the positions the
+first pass left resting on approximations.
+
+1. **Exact tilt break-even (replaces the linear (2p−1) discount).** The
+   wrong-direction tilt is computable exactly per task, and the penalty
+   is asymmetric: at k=1σ, mean MSE is 1.93 tilted right but **5.21
+   tilted wrong** (floor 2.56). Expected MSE at hit rate p is
+   p·right + (1−p)·wrong, giving break-even **p\* = 0.654 at k=0.5σ**
+   and **p\* = 0.808 at k=1σ**. At p = 0.6, every k in the grid is net
+   *harmful*; even with k re-optimized per p (p-scaled check), the
+   expected reduction is **+1.0% (p=0.6, k=0.2σ), +1.9% (p=0.65,
+   k=0.35σ), +3.0% (p=0.7, k=0.5σ)** — all far below the pre-registered
+   10% build bar. The first-pass claim "p=0.75 earns ≈12%" was wrong:
+   the (2p−1) discount ignores the asymmetric wrong-direction penalty.
+   Directional tilts on this regime are worth single-digit percent at
+   plausible skill, and negative below p ≈ 0.65.
+2. **Guardrail simulation (H-G1 preview).** Selecting only among the
+   mandated baselines on the single selection fold, then forecasting
+   from full history: mean MSE **2.98**, MAPE **1.69%** — inside the
+   H-G1 targets (≤ 3.0 / ≤ 1.8%). Caveat: even this two-way contest is
+   noisy — `seasonal_naive` wins the fold 9/50 times and those picks
+   lose to the raw floor 6-of-9; unconditional `last_value` would give
+   2.56. The build should treat "skip selection entirely below 2
+   selection folds" as a live design option, not just a margin change.
+3. **Widening-rule search (H-G3 preview).** The design's first proposed
+   schedule (√(step/4), anchored at the mean lead) **fails** — it
+   narrows steps 1–3 and lowers pooled coverage to 62.6%. √step
+   anchored at step 1 (never narrows) meets every H-G3 target: pooled
+   **89.7%**, step-1 82%, step-7 **88%** — at the cost of mid-horizon
+   over-coverage (96% at step 4). Over-coverage is the conservative,
+   trust-safe direction, but the build registration should add an upper
+   falsifier (pooled ≤ 93%) and disclose the tendency.
+4. **Bootstrap 95% CIs (10k task-level resamples, seed 20260803).**
+   Floor mean MSE [1.36, 4.34], MAPE [1.26%, 2.06%]; gnomon-pure MSE
+   [3.78, 12.11], MAPE [1.91%, 2.88%]; **paired** gnomon−floor MSE
+   difference **[+1.67, +9.40]** and MAPE difference **[+0.36, +1.20]
+   points** — both exclude zero, so the E1 selection-harm finding is
+   not sampling noise. Pooled coverage CI [53.4%, 73.4%] excludes the
+   nominal 80%. Oracle k=1σ absolute MSE reduction CI [0.05, 1.25]
+   excludes zero but is wide — the ceiling exists; its size is
+   uncertain.
+
 ## Files
 
 - `summary.json` — E1/E2a/E3/E4 aggregates (versioned).
 - `margin_sweep.json` — post-hoc diagnostic (versioned).
+- `iterate_analysis.json` — second-pass analyses: tilt break-even,
+  guardrail and widening simulations, bootstrap CIs (versioned).
 - `raw/` — 50 per-task records incl. quantile rows (untracked,
   regenerable via `scripts/build_tasks.py` + `scripts/run_experiments.py`).
