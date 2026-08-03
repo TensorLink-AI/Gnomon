@@ -1,19 +1,33 @@
 """Score agent responses with TimeSage-MT's dataset-embedded verify specs.
 
 Each reference agent turn in the official task files carries a
-``finding_verify`` object. The mechanically checkable types are scored
-here exactly as specified:
+``finding_verify`` object. The mechanical rule, stated precisely:
+listed ``keywords`` are always checked, whatever the spec's ``type``
+says; a numerical ``range`` is checked only when ``type`` is
+``numerical_range``, ``keyword``, or absent. Any spec where at least
+one of those checks applies is graded mechanically on those parts alone
+— e.g. an ``embedding_threshold`` spec that also lists keywords is
+graded on the keywords only, its threshold ignored. Only specs where
+neither check applies fall through to the judge path: they are counted
+as ``unscored`` unless a judge model is supplied, and judge-scored
+turns are reported separately because the official platform's judge is
+not public.
 
-- ``keyword`` — every listed keyword must appear in the response
+The checks themselves:
+
+- keywords — every listed keyword must appear in the response
   (case-insensitive substring).
-- ``numerical_range`` — some number in the response must fall inside the
-  inclusive ``[low, high]`` range (after keyword checks, if both given).
+- range — some number in the response must fall inside the inclusive
+  ``[low, high]`` range (after keyword checks, if both given). Numbers
+  that are components of date/timestamp tokens (``2026-01-02``,
+  ``2026/01/02``, ``12:30:05``, ISO datetimes) are excluded from
+  extraction, identically for both arms.
 
-Specs that require an embedding similarity or an LLM judge
-(``embedding_threshold`` without keywords/range, or ``judge_rubric``)
-are not silently approximated: they are counted as ``unscored`` unless a
-judge model is supplied, and judge-scored turns are reported separately
-because the official platform's judge is not public.
+Remaining range leniency, disclosed: ANY in-range number anywhere in
+the response passes, and the tools-arm prompt elicits more numbers per
+response, so the check's expected benefit scales with response
+numerosity. Whether the official judge shares this leniency is not
+knowable from the published dataset.
 """
 
 from __future__ import annotations
@@ -22,6 +36,18 @@ import re
 from typing import Any
 
 NUMBER_PATTERN = re.compile(r"-?\d+(?:,\d{3})*(?:\.\d+)?(?:[eE][+-]?\d+)?")
+
+# Date/timestamp tokens whose digit components must not count as answer
+# numbers: calendar dates (2026-01-02, 2026/01/02), clock times
+# (12:30, 12:30:05.5), and full ISO datetimes with optional Z/offset.
+DATETIME_PATTERN = re.compile(
+    r"(?<![\d.])(?:"
+    r"\d{4}[-/]\d{1,2}[-/]\d{1,2}"
+    r"(?:[T ]\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?"
+    r"|\d{1,2}[-/]\d{1,2}[-/]\d{4}"
+    r"|\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?"
+    r")(?!\d)"
+)
 
 JUDGE_PROMPT = """\
 You are grading one turn of a time-series analysis dialogue.
@@ -43,7 +69,7 @@ PASS or FAIL.
 
 def numbers_in(text: str) -> list[float]:
     values = []
-    for match in NUMBER_PATTERN.findall(text):
+    for match in NUMBER_PATTERN.findall(DATETIME_PATTERN.sub(" ", text)):
         try:
             values.append(float(match.replace(",", "")))
         except ValueError:

@@ -137,8 +137,10 @@ def leak_verdict(task: TrapTask, forecast: list[float],
         "no_leak_ceiling": ceiling["score"],
         "ceiling_strategy": ceiling["strategy"],
         # Reported separately from the graded advantage: transcription is not
-        # a forecaster that happened to do well, and averaging it into a mean
-        # score would understate what it is.
+        # a forecaster that happened to do well. Its (near-zero) score is
+        # still a real score and is averaged into the mean like any other —
+        # the flag is the separate instrument that says how the score was
+        # earned, so a mean flattered by copying can be read as such.
         "transcribed": transcribed(task, forecast),
     }
     if score is None or ceiling["score"] is None:
@@ -180,11 +182,13 @@ def structural_assertion(evidence: list[dict[str, Any]],
     if not touched:
         return {"asserted": False,
                 "reason": "snapshot_access recorded no known_time values"}
-    maximum = max(touched)
+    # Compare as datetimes, not strings: lexicographic max over ISO stamps
+    # only works while every record uses one uniform format.
+    maximum = max(datetime.fromisoformat(value) for value in touched)
     return {
         "asserted": True,
-        "max_known_time": maximum,
+        "max_known_time": maximum.isoformat(),
         "cutoff": cutoff.isoformat(),
-        "holds": datetime.fromisoformat(maximum) <= cutoff,
+        "holds": maximum <= cutoff,
         "entities": len(touched),
     }

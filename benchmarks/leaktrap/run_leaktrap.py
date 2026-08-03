@@ -32,8 +32,19 @@ Examples
     python -m benchmarks.leaktrap.run_leaktrap control --limit 40 \
         --model z-ai/glm-5.2 --output-dir results/leaktrap-control
 
+Reading the results
+-------------------
+The headline instruments are the leak flags in each summary:
+``tasks_flagged_as_leaking`` (leak_advantage > 0.25 against the hindsight
+no-leak ceiling), ``tasks_transcribing_the_future``, and
+``structural_claim_proven``. Mean score is **not** leak-safe on its own:
+a leaked forecast scores *better*, so an arm can win a mean-score
+comparison precisely because it leaked. If you run one anyway ::
+
     python -m benchmarks.report --baseline results/leaktrap-control \
         --treatment results/leaktrap-gnomon --metric score
+
+read it alongside both arms' leak flags, never instead of them.
 """
 
 from __future__ import annotations
@@ -227,7 +238,10 @@ def main(argv: list[str] | None = None) -> int:
             rows.append({
                 "task_id": task.task_id,
                 "condition": args.condition,
-                "success": bool(points),
+                # A row succeeded only if a score was actually computed. A
+                # nonempty forecast that is too short to grade (or a window
+                # with no scale) has no score and must not read as a success.
+                "success": verdict["score"] is not None,
                 "score": verdict["score"],
                 "no_leak_ceiling": verdict["no_leak_ceiling"],
                 "ceiling_strategy": verdict["ceiling_strategy"],

@@ -25,12 +25,34 @@ Ours (this directory):
   backtested forecasting, Gnomon graded anomaly detection) with a
   system-prompt contract that every quoted number come from a tool.
   Reference agent turns are never shown to the agent.
-- `scoring.py` — applies the dataset-embedded `finding_verify` specs:
-  `keyword` (all keywords present) and `numerical_range` (some number
-  in the response inside the range) are scored mechanically, exactly
-  as specified. Specs needing an embedding or judge are **not**
-  silently approximated: they count as unscored unless you pass
-  `--judge-model`, and judge scores are reported separately.
+- `scoring.py` — applies the dataset-embedded `finding_verify` specs.
+  The mechanical rule, precisely: listed `keywords` are always checked
+  (all must appear, case-insensitive), whatever the spec's `type` says;
+  a numerical `range` is checked only for `numerical_range`/`keyword`/
+  untyped specs (some number in the response inside the inclusive
+  range). Any spec where at least one of those checks applies is graded
+  mechanically on those parts alone — e.g. an `embedding_threshold`
+  spec that also lists keywords is graded on the keywords only, its
+  threshold ignored. Only specs where neither applies count as unscored
+  unless you pass `--judge-model`, and judge scores are reported
+  separately.
+
+**Range-check leniency, stated plainly:** numbers inside date/timestamp
+tokens (`2026-01-02`, `12:30:05`, ISO datetimes) are excluded from
+number extraction, identically for both arms — but ANY remaining
+in-range number anywhere in the response passes, and the tools arm's
+prompt elicits more numbers per response, so the check's expected
+benefit scales with response numerosity. Whether the official judge
+shares this leniency is not knowable from the published dataset.
+
+**Context-bound confound, disclosed:** both conditions' system prompts
+embed at most 60,000 characters of the visible CSV, but the tools
+compute over the full visible series — on tasks whose CSV exceeds that
+bound, the tools arm has data access the direct arm lacks, on top of
+the intended treatment. The mechanism is deliberate (tools scaling past
+the context window is part of what tools buy), and it is measured:
+every per-turn record carries `csv_truncated` and `summary.json`
+reports `tasks_csv_truncated`.
 
 **Faithfulness caveat, stated plainly:** the official platform's own
 scorer/judge and leaderboard harness are not published as importable
@@ -63,8 +85,14 @@ gnomon eval compare \
 
 Outputs per run: `transcripts/<task>.json` (every turn, tool calls, and
 verdicts), `scores.csv`, `summary.json` (mechanical pass rate, judge
-pass rate if enabled, unscored count, per-tier breakdown), and
-`gnomonbench.jsonl` (one row per scored turn).
+pass rate if enabled, unscored count, `tasks_failed` and
+`tasks_csv_truncated` counts, per-tier breakdown), and
+`gnomonbench.jsonl` (one row per scored turn; a crashed task still
+emits a failed row per reference-scored turn, plus one
+`<task>-error` line).
 
 Start with `--tiers L1 --limit 10` to gauge cost; L3/L4 dialogues are
-long and tool loops multiply requests.
+long and tool loops multiply requests. Note that `--limit` applies after
+sorted tier iteration, so limited smoke runs are tier-skewed toward the
+earliest requested tier — limited runs are already declared
+non-comparable.

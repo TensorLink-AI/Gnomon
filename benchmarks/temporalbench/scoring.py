@@ -4,9 +4,11 @@ Forecast metrics are computed by the dataset's own
 ``forecast_metrics_utils.compute_forecast_metrics`` — the official
 reference implementation, imported unmodified (including the weighted
 OW metrics it applies to multi-channel MIMIC rows, with the row's
-history supplied for the naive scales). Choice answers are exact-match
-against the labels embedded in the rows, case-insensitive on the
-option string.
+history supplied for the naive scales). Choice answers are scored by
+THIS module's own case-insensitive exact match against the labels
+embedded in the rows — a local convention, not the official choice
+scorer; its equivalence to the leaderboard's choice scoring is
+unverified (disclosed in this adapter's README).
 """
 
 from __future__ import annotations
@@ -67,6 +69,15 @@ def score_forecast(
     Multi-channel ground truth goes through the official module as a
     dict-of-series (OW metrics for MIMIC, with history for the naive
     scales); single-target rows are scored on the main channel.
+
+    A fully absent forecast (no forecast at all, or every channel
+    abstained) never reaches the official module: metrics are ``None``
+    with flag ``"abstained"``, so an abstention cannot surface as a
+    scoring error. A PARTIAL forecast still goes through the official
+    module with the channels that exist, and the flag names the
+    abstained channels; whether the official module penalizes or ignores
+    the missing channels is upstream-defined — this adapter only reports
+    which were missing.
     """
     ground_truth = row.get("ground_truth")
     if ground_truth is None:
@@ -80,11 +91,30 @@ def score_forecast(
         (only_key, gt_values), = ground_truth.items()
         forecast_values = (forecast or {}).get(only_key) \
             if isinstance(forecast, dict) else forecast
+        if not forecast_values:
+            return None, "abstained"
         return official_metrics.compute_forecast_metrics(
             gt_values, forecast_values,
             dataset_name=row.get("source_dataset"),
             history_series=history or None,
         )
+    if isinstance(ground_truth, dict):
+        present = {key: values for key, values in forecast.items() if values} \
+            if isinstance(forecast, dict) else {}
+        abstained = [key for key in ground_truth if key not in present]
+        if not present:
+            return None, "abstained"
+        metrics, flag = official_metrics.compute_forecast_metrics(
+            ground_truth, present,
+            dataset_name=row.get("source_dataset"),
+            history_series=history or None,
+        )
+        if abstained:
+            missing = "abstained_channels=" + ",".join(abstained)
+            flag = f"{flag}; {missing}" if flag else missing
+        return metrics, flag
+    if not forecast:
+        return None, "abstained"
     return official_metrics.compute_forecast_metrics(
         ground_truth, forecast,
         dataset_name=row.get("source_dataset"),

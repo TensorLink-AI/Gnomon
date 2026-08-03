@@ -104,7 +104,12 @@ def read_visible_series(task: TimeSageTask) -> tuple[list[str], dict[str, list[f
     """Read the visible CSV: (timestamps, numeric columns, csv text).
 
     Falls back to the task JSON's serialized payload when the per-task
-    CSV is absent from the snapshot.
+    CSV is absent from the snapshot. The official CSV is already limited
+    to the visibility contract, but the JSON payload is not — so the
+    fallback enforces ``visibility_contract.rows_visible`` here, before
+    anything downstream sees the rows, and serializes exactly the rows
+    it returns: the prompt text and the tools always operate on the same
+    truncated series.
     """
     if task.visible_csv and task.visible_csv.exists():
         text = task.visible_csv.read_text(encoding="utf-8")
@@ -112,7 +117,10 @@ def read_visible_series(task: TimeSageTask) -> tuple[list[str], dict[str, list[f
     else:
         payload = task.raw.get("time_series_json")
         rows = json.loads(payload) if isinstance(payload, str) else (payload or [])
-        text = json.dumps(rows[:50])
+        rows_visible = task.visibility.get("rows_visible")
+        if isinstance(rows_visible, int) and rows_visible > 0:
+            rows = rows[:rows_visible]
+        text = json.dumps(rows)
     if not rows:
         return [], {}, text
     columns = list(rows[0].keys())
