@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+- **Future-context lane: forward-scoped bounds, defensive projection,
+  triageable rejections** (all behind `context.future_events`; flag-off
+  runs stay byte-identical). Three changes from the first CiK treatment
+  run's gate diagnostics. (1) A constraint span that scopes its bound to
+  the forecast window ("in the forecast, the values are bounded above by
+  5.45" — CiK's constraint-task voice) no longer fails
+  `recent_history_respects_bound`: the claim asserts nothing about the
+  observed past, so history breaching the bound is its premise, not a
+  contradiction; the skip is recorded in the gate evidence. (2) A
+  constraint whose claim fails admission but whose span states the bound
+  verbatim is now projected onto the emitted quantiles *defensively*:
+  the claim stays rejected, no admission is recorded and the support
+  status is untouched — the act is a `defensive_bound_applied`
+  disclosure with the pre-projection rows preserved in new
+  `future_context_defensive` evidence, and admitted events (applied
+  after it) outrank a distrusted bound where they disagree. Defensive
+  projections enter the artifact ID payload only when they fire. (3)
+  Span-parse rejections now carry the rejected `source_span`, and
+  `benchmarks/cik/triage_future_context.py` buckets them
+  deterministically into prompt-side vs parser-side causes (each parser
+  gap printed verbatim as a regression test candidate). The
+  pre-registered A/B is amended accordingly, dated, in
+  `results/future-context-ab/HYPOTHESIS.md` (H1 thresholds unchanged;
+  H4 restated for the defensive projection).
+
 - **General frequencies: any whole-second sub-daily step.** The named grid
   is now a set of defaults rather than the boundary. Inference accepts any
   strictly regular series — one unique spacing — at a whole-second step

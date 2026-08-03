@@ -104,8 +104,12 @@ events (same JSON objects, two extra fields):
 The engine re-parses every number from your quoted span with a
 deterministic parser and rejects any span that does not literally state
 the bound or value, any span that does not appear in the context, and any
-bound the recent history already violates. Never paraphrase inside
-source_span, and never put numbers you computed yourself anywhere.
+bound the recent history already violates — unless the sentence itself
+scopes the bound to the forecast window ("in the forecast, the values are
+bounded above by X"), which history cannot contradict. When the context
+scopes a bound that way, quote the WHOLE sentence including the scoping
+phrase. Never paraphrase inside source_span, and never put numbers you
+computed yourself anywhere.
 """
 
 

@@ -97,6 +97,44 @@ model, same seeds, matched task-seeds against the existing
 - No post-hoc filtering of tasks, seeds, or event classes. If the run
   cannot be executed in full, RESULTS.md states exactly what ran.
 
+## Amendment 1 (2026-08-03, before the next treatment run)
+
+Gate diagnostics from the first treatment run's `future_context_gate`
+evidence motivated two changes to the **intervention** (not to any H1
+threshold, which stand as registered):
+
+1. **Forward-scoped bounds bypass the history check.** CiK's
+   constraint tasks state bounds in the voice "Suppose that in the
+   forecast, the values are bounded above by 5.45" — a claim about the
+   prediction window only, whose premise is that history sits elsewhere.
+   `recent_history_respects_bound` was rejecting these (observed on
+   13–17 runs, concentrated in the worst-scoring task class), which is a
+   misreading of the claim's scope, not a suspect claim. A span that
+   scopes its bound to the forecast window now skips the consistency
+   check, with the skip recorded in the gate evidence.
+2. **Defensive projection of rejected-but-verbatim bounds.** RCRPS
+   penalises emitting values that violate a bound stated in the context
+   text regardless of whether we believed it. A constraint whose claim
+   fails admission but whose span states the bound verbatim is now
+   recorded as `defensive` and the emitted quantiles are projected onto
+   it: no admission, no support change, its own
+   `future_context_defensive` evidence and `defensive_bound_applied`
+   disclosure. Rejection still settles belief; it no longer forces the
+   published rows to contradict the context text.
+
+**H4 is restated accordingly** (same intent, new letter): on task-seeds
+where the lane neither admits an event *nor applies a defensive
+projection*, per-run RCRPS is unchanged from the flag-off arm. A
+defensive projection that fires is expected to *reduce* the RCRPS
+constraint-violation term; any run where it increases that term relative
+to flag-off is a harm case and is reported individually, exactly as the
+H1 violation clause already requires for admitted events.
+
+Rejection records now carry the rejected `source_span`, so the next
+run's span rejections are triageable
+(`benchmarks/cik/triage_future_context.py`) into prompt-side vs
+parser-side causes without re-running the proposer.
+
 ## Out of scope (future work, deliberately not built)
 
 Soft directional effects ("demand will increase"), cross-series analog

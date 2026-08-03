@@ -19,6 +19,7 @@ from gnomon.config import GnomonConfig
 from gnomon.context import ContextEvent, ContextSource
 from gnomon.future_context import (
     FutureEvent,
+    apply_defensive_bounds,
     apply_future_events,
     assess_future_events,
     parse_bound_span,
@@ -261,6 +262,91 @@ def test_history_violating_a_claimed_bound_rejects_the_claim():
     assert not assessment.admitted
     assert assessment.rejected[0]["code"] == "recent_history_respects_bound"
     assert "suspect" in assessment.rejected[0]["reason"]
+    # the rejected quote travels with the verdict, so a run's rejections
+    # are triageable from the evidence alone
+    assert assessment.rejected[0]["source_span"] == "the value will not exceed 150"
+
+
+def test_a_forward_scoped_bound_is_admitted_despite_history_breaching_it():
+    """CiK's constraint tasks state bounds in exactly this voice. The claim
+    is about the prediction window only, so history breaching the bound is
+    the scenario's premise, not evidence against the claim — the
+    consistency check is vacuous by the claim's own terms."""
+    events = [_event("c1", "constraint:cap", H_START, H_END,
+                     {"source_span": "Suppose that in the forecast, the "
+                                     "values are bounded above by 5.45"})]
+    assessment = assess_future_events(events, "s", HISTORY, TIMESTAMPS, FUTURE, 7)
+    assert [e.event_id for e in assessment.admitted] == ["c1"]
+    assert assessment.admitted[0].maximum == 5.45
+    assert not assessment.defensive
+    # the skip is recorded, not silent
+    skip = next(check for check in assessment.checks
+                if check["code"] == "recent_history_respects_bound")
+    assert skip["passed"] is True
+    assert "forecast window" in skip["detail"]
+
+
+@pytest.mark.parametrize("span", [
+    "in the forecast, the values are bounded above by 150",
+    "during the prediction window the series stays below 150",
+    "predicted values will not exceed 150",
+    "future values are capped at 150",
+    "over the forecast horizon the load is at most 150",
+    "going forward, output remains below 150",
+    "from now on the count is no more than 150",
+])
+def test_forward_scoped_phrasings_bypass_the_history_check(span):
+    # HISTORY sits at 200-206, so every one of these bounds is breached by
+    # the observed past — and every span scopes its claim to the future.
+    events = [_event("c1", "constraint:cap", H_START, H_END,
+                     {"source_span": span})]
+    assessment = assess_future_events(events, "s", HISTORY, TIMESTAMPS, FUTURE, 7)
+    assert [e.event_id for e in assessment.admitted] == ["c1"], \
+        f"{span!r} was not admitted: {assessment.rejected}"
+    assert assessment.admitted[0].maximum == 150.0
+
+
+def test_an_unscoped_suspect_bound_stays_rejected_but_is_kept_defensively():
+    events = [_event("c1", "constraint:bounds", H_START, H_END,
+                     {"source_span": "the value will not exceed 150"})]
+    assessment = assess_future_events(events, "s", HISTORY, TIMESTAMPS, FUTURE, 7)
+    assert not assessment.admitted
+    assert [item.event_id for item in assessment.defensive] == ["c1"]
+    assert assessment.defensive[0].maximum == 150.0
+    recorded = next(check for check in assessment.checks
+                    if check["code"] == "defensive_bound_recorded")
+    assert "asserts nothing" in recorded["detail"]
+
+
+def test_a_claim_span_mismatch_keeps_the_spans_bound_defensively():
+    events = [_event("c1", "constraint:bounds", H_START, H_END,
+                     {"source_span": "the value will not exceed 500",
+                      "claimed_bound": {"max": 400}})]
+    assessment = assess_future_events(events, "s", HISTORY, TIMESTAMPS, FUTURE, 7)
+    assert not assessment.admitted
+    assert assessment.rejected[0]["code"] == "claim_matches_span"
+    # the defensive bound is the span's number, never the proposal's claim
+    assert assessment.defensive[0].maximum == 500.0
+
+
+def test_a_fold_gate_constraint_still_guards_the_horizon_defensively():
+    events = [_event("c1", "constraint:bounds",
+                     TIMESTAMPS[-1] - timedelta(days=3), H_END,
+                     {"source_span": "values stay between 0 and 340"})]
+    assessment = assess_future_events(events, "s", HISTORY, TIMESTAMPS, FUTURE, 7)
+    assert not assessment.admitted
+    assert assessment.rejected[0]["code"] == "window_is_future_only"
+    assert assessment.defensive[0].maximum == 340.0
+
+
+def test_a_rejected_override_records_no_defensive_bound():
+    events = [_event("o1", "override:cut", H_START, H_END,
+                     {"source_span": "output will be reduced significantly"})]
+    assessment = assess_future_events(events, "s", HISTORY, TIMESTAMPS, FUTURE, 7)
+    assert not assessment.admitted and not assessment.defensive
+    assert assessment.rejected[0]["code"] == "span_states_the_value"
+    assert assessment.rejected[0]["source_span"] == \
+        "output will be reduced significantly"
 
 
 def test_a_window_overlapping_history_is_sent_to_the_fold_gate():
@@ -450,6 +536,49 @@ def test_no_admitted_events_is_a_strict_no_op():
     assert projected is rows and applications == []
 
 
+def test_defensive_bounds_clamp_like_constraints_and_are_labelled():
+    defensive = [FutureEvent(
+        "c1", "constraint", FUTURE[1].isoformat(), FUTURE[3].isoformat(),
+        "will not exceed 205", maximum=205.0,
+    )]
+    projected, applications = apply_defensive_bounds(_rows(), defensive)
+    for index in (1, 2, 3):
+        assert projected[index]["q90"] == 205.0
+    # outside the window: untouched
+    assert projected[0]["q90"] == 210.0
+    assert projected[4]["q90"] == 214.0
+    assert applications
+    assert all(entry["event_class"] == "defensive_bound"
+               for entry in applications)
+
+
+def test_no_defensive_bounds_is_a_strict_no_op():
+    rows = _rows()
+    projected, applications = apply_defensive_bounds(rows, [])
+    assert projected is rows and applications == []
+
+
+def test_an_admitted_override_outranks_a_distrusted_defensive_bound():
+    """Pipeline order: the defensive projection runs before admitted
+    events, so a claim the lane actually admitted — here a stated
+    override value — wins over a rejected bound where they disagree."""
+    events = [
+        _event("c1", "constraint:cap", H_START, H_END,
+               {"source_span": "the value will not exceed 100"}),
+        _event("o1", "override:trial", FUTURE[2], FUTURE[4],
+               {"source_span": "throughput will be 120 during the trial"}),
+    ]
+    assessment = assess_future_events(events, "s", HISTORY, TIMESTAMPS, FUTURE, 7)
+    assert [e.event_id for e in assessment.admitted] == ["o1"]
+    assert [e.event_id for e in assessment.defensive] == ["c1"]
+    rows, _ = apply_defensive_bounds(_rows(), assessment.defensive)
+    rows, _ = apply_future_events(rows, assessment.admitted)
+    # outside the override window the defensive bound holds
+    assert rows[0]["q90"] == 100.0
+    # inside it, the admitted stated value wins over the distrusted bound
+    assert rows[3]["point"] == 120.0 and rows[3]["q90"] == 120.0
+
+
 # -- end-to-end wiring -------------------------------------------------------
 
 def _write_csv(path, days=120):
@@ -548,7 +677,11 @@ def test_flag_off_is_byte_identical_to_a_run_without_the_feature(tmp_path):
                    for item in no_config.evidence)
 
 
-def test_flag_on_with_nothing_admitted_leaves_the_forecast_alone(tmp_path):
+def test_a_suspect_bound_is_not_believed_but_is_not_breached_either(tmp_path):
+    """Rejection settles belief, not output. The claim stays rejected and
+    the support stays fold-backed — the projection is a disclosure, not a
+    downgrade — but the published rows are projected onto the stated bound
+    rather than contradicting the context text in print."""
     csv_path = tmp_path / "series.csv"
     _write_csv(csv_path)
     h_start = START + timedelta(days=120)
@@ -561,12 +694,75 @@ def test_flag_on_with_nothing_admitted_leaves_the_forecast_alone(tmp_path):
     gated, _ = forecast(str(csv_path), output=str(tmp_path / "b"),
                         context_events=suspect, config=_flag_on_config(), **kwargs)
     result = gated.results[0]
+    # belief: rejected, not admitted, support not downgraded
     assert result.support == baseline.results[0].support
-    assert [row["point"] for row in result.forecast] == \
-        [row["point"] for row in baseline.results[0].forecast]
-    # the rejection is still disclosed
+    assert not result.future_context["admitted"]
     assert result.future_context["rejected"][0]["code"] == \
         "recent_history_respects_bound"
+    # output: no published quantile breaches the stated bound
+    assert all(float(row["q90"]) <= 150.0 for row in result.forecast)
+    # the act is disclosed with the pre-projection rows beside it
+    defensive = [item for item in gated.evidence
+                 if item.kind == "future_context_defensive"]
+    assert len(defensive) == 1
+    counterfactual = defensive[0].payload["history_only_counterfactual"]
+    assert [row["point"] for row in counterfactual] == \
+        [row["point"] for row in baseline.results[0].forecast]
+    disclosures = result.support_assessment["disclosures"]
+    assert any(item["code"] == "defensive_bound_applied"
+               for item in disclosures)
+
+
+def test_a_suspect_bound_that_never_binds_changes_nothing_but_evidence(tmp_path):
+    """A defensive bound the forecast already respects is a strict no-op on
+    the rows: no clamp fires, no disclosure is added, support is
+    untouched. The gate evidence still records the decision."""
+    csv_path = tmp_path / "series.csv"
+    _write_csv(csv_path)
+    h_start = START + timedelta(days=120)
+    # Rejected on the claim/span mismatch — before any history check — with
+    # a bound far above the forecast, so the recorded projection never binds.
+    suspect = [_event("c1", "constraint:cap", h_start, h_start + timedelta(days=6),
+                      {"source_span": "the value will not exceed 100000",
+                       "claimed_bound": {"max": 99999}})]
+    kwargs = dict(
+        time_column="timestamp", target_column="value", horizon=7, frequency="D",
+    )
+    baseline, _ = forecast(str(csv_path), output=str(tmp_path / "a"), **kwargs)
+    gated, _ = forecast(str(csv_path), output=str(tmp_path / "b"),
+                        context_events=suspect, config=_flag_on_config(), **kwargs)
+    result = gated.results[0]
+    assert result.future_context["rejected"][0]["code"] == "claim_matches_span"
+    assert [row["point"] for row in result.forecast] == \
+        [row["point"] for row in baseline.results[0].forecast]
+    defensive = [item for item in gated.evidence
+                 if item.kind == "future_context_defensive"]
+    assert len(defensive) == 1
+    assert defensive[0].payload["applications"] == []
+    disclosures = result.support_assessment["disclosures"]
+    assert not any(item["code"] == "defensive_bound_applied"
+                   for item in disclosures)
+
+
+def test_a_forward_scoped_cik_bound_is_admitted_end_to_end(tmp_path):
+    """The exact CiK constraint-task voice: history sits far above the
+    stated cap, and that is the scenario's premise, not a contradiction."""
+    csv_path = tmp_path / "series.csv"
+    _write_csv(csv_path)
+    h_start = START + timedelta(days=120)
+    events = [_event("c1", "constraint:cap", h_start, h_start + timedelta(days=6),
+                     {"source_span": "Suppose that in the forecast, the "
+                                     "values are bounded above by 5.45"})]
+    artifact, _ = forecast(
+        str(csv_path), time_column="timestamp", target_column="value",
+        horizon=7, frequency="D", output=str(tmp_path / "out"),
+        context_events=events, config=_flag_on_config(),
+    )
+    result = artifact.results[0]
+    assert result.support == "context_trusted"
+    assert result.future_context["admitted"][0]["maximum"] == 5.45
+    assert not result.future_context["defensive"]
+    assert all(float(row["q90"]) <= 5.45 for row in result.forecast)
 
 
 def test_threshold_analysis_describes_the_published_rows(tmp_path):

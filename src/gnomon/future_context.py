@@ -22,7 +22,12 @@ verifiability**:
 - for constraint events, the recent observed history must not already
   violate the claimed bound — a bound the series demonstrably breaches
   is describing a different quantity, or is wrong, and either way the
-  claim is suspect;
+  claim is suspect. The one exception is a span that itself scopes the
+  bound to the forecast window ("in the forecast, the values are
+  bounded above by 5.45"): such a claim asserts nothing about the
+  observed past, so history breaching the bound is the claim's premise,
+  not a contradiction, and the consistency check is vacuous by the
+  claim's own terms;
 - the event's effective window must lie entirely after the observed
   window. An event that overlaps history *can* be fold-tested, so it
   belongs to the ablation gate, and a fold-tested failure stays
@@ -46,6 +51,18 @@ Two event classes, and only two:
     value (the window's edges are where a stated schedule is most likely
     to be off by a step); residual-based uncertainty elsewhere is
     unchanged.
+
+A constraint claim that fails admission is still not breached in the
+published rows when its span states the bound verbatim. Rejection means
+the lane will not *believe* the claim — no support downgrade is earned
+by it, no admission is recorded — but publishing quantiles beyond a
+bound the context text literally states would contradict that text in
+print. Such bounds are recorded as **defensive** and the emitted
+quantiles are projected onto them, disclosed as a separate epistemic
+act (`future_context_defensive` evidence and a
+``defensive_bound_applied`` disclosure) that asserts nothing about the
+claim's truth: the fold-backed rows as they stood before the projection
+are preserved beside it.
 
 What this lane deliberately does **not** verify is the span's provenance:
 Gnomon never sees the source document, so whether the quoted span
@@ -217,6 +234,31 @@ _NON_NEGATIVE = re.compile(
     r"|non-?negative",
     re.IGNORECASE,
 )
+
+#: Phrasings that scope a bound to the prediction window ("Suppose that in
+#: the forecast, the values are bounded above by 5.45" — CiK's constraint
+#: tasks state bounds in exactly this voice). A claim scoped this way
+#: asserts nothing about the observed past, so the recent-history
+#: consistency check cannot contradict it — history breaching the bound is
+#: the scenario's premise. Deliberately short, like `_ZERO_STATES`: a
+#: reader must not be able to honestly dispute that the span restricts its
+#: claim to the future.
+_FORWARD_SCOPE = re.compile(
+    r"\b(?:in|for|during|over|throughout|within)\s+(?:the\s+)?"
+    r"(?:forecast(?:ing)?|prediction|projection)"
+    r"(?:\s+(?:window|period|horizon|interval))?\b"
+    r"|\b(?:forecast(?:ed)?|predicted|projected|future)\s+"
+    r"(?:values?|levels?|readings?|series|data)\b"
+    r"|\bgoing\s+forward\b"
+    r"|\bfrom\s+(?:now|this\s+point)\s+(?:on(?:ward)?s?|forward)\b",
+    re.IGNORECASE,
+)
+
+
+def bound_scope_is_forward(span: str) -> str | None:
+    """The phrase scoping this span's claim to the forecast window, if any."""
+    match = _FORWARD_SCOPE.search(" ".join(str(span).split()))
+    return match.group(0) if match else None
 
 
 @dataclass(frozen=True)
@@ -395,22 +437,37 @@ class FutureContextAssessment:
     considered: bool
     admitted: list[FutureEvent] = field(default_factory=list)
     rejected: list[dict[str, Any]] = field(default_factory=list)
+    #: Constraint bounds whose claims failed admission but whose spans
+    #: state the bound verbatim. Not believed — they earn no support
+    #: downgrade and no admission — but the published quantiles are
+    #: projected onto them anyway, because emitting numbers beyond a bound
+    #: the context text literally states would contradict that text.
+    defensive: list[FutureEvent] = field(default_factory=list)
     checks: list[dict[str, Any]] = field(default_factory=list)
 
     def record_check(self, event: ContextEvent, event_class: str, code: str,
-                     passed: bool, *, detail: str | None = None) -> None:
+                     passed: bool, *, detail: str | None = None,
+                     span: str | None = None) -> None:
         entry: dict[str, Any] = {
             "event_id": event.event_id, "event_class": event_class,
             "code": code, "passed": passed,
         }
         if detail:
             entry["detail"] = detail
+        if span is not None:
+            # The rejected span travels with the verdict so a rejection is
+            # triageable from the evidence alone (was the quote bad, or the
+            # parser?) without re-running the proposer.
+            entry["source_span"] = span
         self.checks.append(entry)
         if not passed:
-            self.rejected.append({
+            rejection: dict[str, Any] = {
                 "event_id": event.event_id, "event_class": event_class,
                 "code": code, "reason": detail or code,
-            })
+            }
+            if span is not None:
+                rejection["source_span"] = span
+            self.rejected.append(rejection)
 
     def class_counts(self) -> dict[str, dict[str, int]]:
         counts = {
@@ -429,13 +486,20 @@ class FutureContextAssessment:
             "considered": self.considered,
             "admitted": [item.to_public_dict() for item in self.admitted],
             "rejected": self.rejected,
+            "defensive": [item.to_public_dict() for item in self.defensive],
             "checks": self.checks,
             "by_class": self.class_counts(),
             "admission_basis": (
                 "textual verifiability: numbers re-parsed from the quoted "
                 "source span, never taken from the proposal; recent history "
-                "checked for consistency; fold ablation deliberately not "
-                "applicable — these windows have no historical precedent"
+                "checked for consistency, except where the span scopes its "
+                "bound to the forecast window and so asserts nothing history "
+                "could contradict; fold ablation deliberately not applicable "
+                "— these windows have no historical precedent. A rejected "
+                "constraint whose span states its bound verbatim is listed "
+                "under 'defensive': not believed, but the published "
+                "quantiles are projected onto it rather than contradicting "
+                "the context text in print"
             ),
         }
 
@@ -511,6 +575,13 @@ def assess_future_events(
                     "not this lane"
                 ),
             )
+            if event_class == "constraint":
+                # Belief is the ablation gate's question now, but the span
+                # still states a bound over horizon steps this window
+                # covers; those steps are kept inside it defensively.
+                _record_defensive_bound(
+                    assessment, event, code="window_is_future_only",
+                )
             continue
 
         probe = Claim(event.event_id, "min", 0.0,
@@ -664,6 +735,47 @@ def _claimed_number(raw: Any) -> float | None:
         return None
 
 
+def _record_defensive_bound(
+    assessment: FutureContextAssessment,
+    event: ContextEvent,
+    *,
+    code: str,
+    bound: ParsedBound | None = None,
+) -> None:
+    """Keep a rejected-but-verbatim bound for the defensive projection.
+
+    Rejection settled belief: the claim is not admitted and earns no
+    influence on the forecast's support. But the span still states the
+    bound literally, and rows published beyond it would contradict the
+    context text in print. The bound is recorded so the emitted quantiles
+    can be projected onto it — a defensive act, disclosed as such, that
+    asserts nothing about the claim's truth.
+    """
+    span = (event.attributes or {}).get(SOURCE_SPAN_KEY)
+    if not isinstance(span, str) or not span.strip():
+        return
+    if bound is None:
+        bound, _ = parse_bound_span(span)
+    if bound is None:
+        return
+    assessment.defensive.append(FutureEvent(
+        event.event_id, "constraint", event.effective_start,
+        event.effective_end, span,
+        minimum=bound.minimum, maximum=bound.maximum,
+    ))
+    assessment.checks.append({
+        "event_id": event.event_id, "event_class": "constraint",
+        "code": "defensive_bound_recorded", "passed": True,
+        "detail": (
+            f"the claim failed admission ({code}), and rejected it stays; "
+            f"but the span states the bound [{bound.minimum}, "
+            f"{bound.maximum}] verbatim, so the emitted quantiles are "
+            f"projected onto it anyway — a defensive act that asserts "
+            f"nothing about the claim's truth"
+        ),
+    })
+
+
 def _admit_constraint(
     assessment: FutureContextAssessment,
     event: ContextEvent,
@@ -675,6 +787,7 @@ def _admit_constraint(
     if bound is None:
         assessment.record_check(
             event, "constraint", "span_states_the_bound", False, detail=problem,
+            span=span,
         )
         return None
 
@@ -693,25 +806,56 @@ def _admit_constraint(
                         f"the span parses to {side}={parsed_side}; the span is "
                         f"the only admissible source of numbers"
                     ),
+                    span=span,
+                )
+                # The proposal's number is wrong, but the span's own bound
+                # is still stated verbatim — and it, never the claim, is
+                # what the defensive projection uses.
+                _record_defensive_bound(
+                    assessment, event, code="claim_matches_span", bound=bound,
                 )
                 return None
 
-    violations = [
-        timestamp.isoformat()
-        for value, timestamp in zip(recent_values, recent_timestamps)
-        if (bound.minimum is not None and value < bound.minimum)
-        or (bound.maximum is not None and value > bound.maximum)
-    ][:5]
-    if violations:
+    forward_scope = bound_scope_is_forward(span)
+    if forward_scope is not None:
+        # "In the forecast, the values are bounded above by 5.45" makes an
+        # assertion about the prediction window only. History breaching
+        # the bound is that claim's premise, not a contradiction of it, so
+        # the consistency check is vacuous by the claim's own terms — and
+        # skipping it is recorded, not silent.
         assessment.record_check(
-            event, "constraint", "recent_history_respects_bound", False,
+            event, "constraint", "recent_history_respects_bound", True,
             detail=(
-                f"recent history already violates the claimed bound "
-                f"[{bound.minimum}, {bound.maximum}] at {', '.join(violations)}; "
-                f"the claim is suspect and is not applied"
+                f"the span scopes the bound to the forecast window "
+                f"({forward_scope!r}), so it asserts nothing about the "
+                f"observed history and history cannot contradict it; the "
+                f"consistency check is vacuous for a forward-scoped claim"
             ),
+            span=span,
         )
-        return None
+    else:
+        violations = [
+            timestamp.isoformat()
+            for value, timestamp in zip(recent_values, recent_timestamps)
+            if (bound.minimum is not None and value < bound.minimum)
+            or (bound.maximum is not None and value > bound.maximum)
+        ][:5]
+        if violations:
+            assessment.record_check(
+                event, "constraint", "recent_history_respects_bound", False,
+                detail=(
+                    f"recent history already violates the claimed bound "
+                    f"[{bound.minimum}, {bound.maximum}] at "
+                    f"{', '.join(violations)}; "
+                    f"the claim is suspect and is not applied"
+                ),
+                span=span,
+            )
+            _record_defensive_bound(
+                assessment, event, code="recent_history_respects_bound",
+                bound=bound,
+            )
+            return None
 
     return FutureEvent(
         event.event_id, "constraint", event.effective_start,
@@ -729,6 +873,7 @@ def _admit_override(
     if value is None:
         assessment.record_check(
             event, "override", "span_states_the_value", False, detail=problem,
+            span=span,
         )
         return None
     claimed_raw = (event.attributes or {}).get(CLAIMED_VALUE_KEY)
@@ -742,6 +887,7 @@ def _admit_override(
                     f"parses to {value}; the span is the only admissible "
                     f"source of numbers"
                 ),
+                span=span,
             )
             return None
     return FutureEvent(
@@ -768,6 +914,36 @@ def _quantile_keys(row: dict[str, Any]) -> list[tuple[int, str]]:
         (int(key[1:]), key) for key in row
         if key.startswith("q") and key[1:].isdigit()
     )
+
+
+def apply_defensive_bounds(
+    rows: list[dict[str, Any]],
+    defensive: list[FutureEvent],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Project the emitted rows onto rejected-but-verbatim bounds.
+
+    The same monotone, idempotent projection as an admitted constraint,
+    applied for a different reason: not because the claim is believed —
+    it was rejected, and rejected it stays — but because publishing
+    quantiles beyond a bound the context text states verbatim would
+    contradict that text in print. Runs before admitted events so an
+    admitted claim (a stated override value, an admitted bound) always
+    outranks a distrusted one where they disagree.
+    """
+    if not defensive or not rows:
+        return rows, []
+    claims: list[Claim] = []
+    for event in defensive:
+        if event.minimum is not None:
+            claims.append(Claim(event.event_id, "min", event.minimum,
+                                event.effective_start, event.effective_end))
+        if event.maximum is not None:
+            claims.append(Claim(event.event_id, "max", event.maximum,
+                                event.effective_start, event.effective_end))
+    projected, applications = apply_claims(rows, claims)
+    return projected, [
+        {"event_class": "defensive_bound", **entry} for entry in applications
+    ]
 
 
 def apply_future_events(

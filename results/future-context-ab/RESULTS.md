@@ -5,6 +5,14 @@ Written 2026-08-03 against `HYPOTHESIS.md`, at the commit that implements
 the feature. Nothing below is a score, and no hypothesis is claimed
 confirmed or refuted.
 
+*Later the same day:* a first treatment run was executed on the machine
+that holds the CiK environment; its artifacts are not versioned here.
+Its gate diagnostics (rejection-code counts, the violation term's share
+of the worst task class) motivated the dated Amendment 1 in
+`HYPOTHESIS.md`. The matched task-seed comparison this file exists to
+hold has still not been written, and nothing in this file's findings
+changes until it is — against the amended intervention, on a fresh run.
+
 ## What ran
 
 - The full Gnomon suite plus the new lane's tests: **714 passed, 2

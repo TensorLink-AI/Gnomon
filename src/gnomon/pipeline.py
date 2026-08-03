@@ -805,7 +805,11 @@ def _future_context_stage(
     gate record, the history-only counterfactual rows preserved beside
     every application, and the public dict the result carries.
     """
-    from .future_context import apply_future_events, assess_future_events
+    from .future_context import (
+        apply_defensive_bounds,
+        apply_future_events,
+        assess_future_events,
+    )
 
     assessment = assess_future_events(
         context_events, state.name, state.values, state.timestamps,
@@ -814,7 +818,16 @@ def _future_context_stage(
     if not assessment.considered:
         return rows, False
     applications: list[dict[str, Any]] = []
-    counterfactual = [dict(row) for row in rows] if assessment.admitted else None
+    touched = bool(assessment.admitted or assessment.defensive)
+    counterfactual = [dict(row) for row in rows] if touched else None
+    defensive_applications: list[dict[str, Any]] = []
+    if assessment.defensive:
+        # Before the admitted events, so an admitted claim — a stated
+        # override value, an admitted bound — always outranks a distrusted
+        # bound where they disagree.
+        rows, defensive_applications = apply_defensive_bounds(
+            rows, assessment.defensive,
+        )
     if assessment.admitted:
         rows, applications = apply_future_events(rows, assessment.admitted)
     state.future_context_public = assessment.to_public_dict()
@@ -822,7 +835,8 @@ def _future_context_stage(
         f"future_context_gate:{state.name}", "future_context_gate", state.name,
         {**state.future_context_public,
          "events_admitted": len(assessment.admitted),
-         "events_rejected": len(assessment.rejected)},
+         "events_rejected": len(assessment.rejected),
+         "events_defensive": len(assessment.defensive)},
     ))
     if assessment.admitted:
         state.evidence.append(Evidence(
@@ -842,6 +856,47 @@ def _future_context_stage(
                 ),
             },
         ))
+    if assessment.defensive:
+        state.evidence.append(Evidence(
+            f"future_context_defensive:{state.name}",
+            "future_context_defensive", state.name,
+            {
+                "applications": defensive_applications,
+                # One counterfactual per lane pass: when admitted events
+                # also fired it lives in future_context_applied beside
+                # them, and duplicating the rows here would double the
+                # artifact for no information.
+                "history_only_counterfactual": (
+                    None if assessment.admitted else counterfactual
+                ),
+                "basis": (
+                    "these bounds were rejected — the claims are not "
+                    "believed, no admission is recorded, and the support "
+                    "status is not downgraded by them — but each span "
+                    "states its bound verbatim, and publishing quantiles "
+                    "beyond it would contradict the context text in print. "
+                    "The emitted quantiles are projected onto the stated "
+                    "bounds; the rows as they stood before the lane are "
+                    "the history-only counterfactual (in "
+                    "future_context_applied when admitted events also "
+                    "fired)."
+                ),
+            },
+        ))
+        if defensive_applications:
+            steps = len({entry["timestamp"] for entry in defensive_applications})
+            state.disclosures.append(SupportReason(
+                "defensive_bound_applied",
+                f"The published quantiles were projected onto a bound the "
+                f"context text states verbatim even though its claim failed "
+                f"admission ({steps} horizon step"
+                f"{'s' if steps != 1 else ''} moved). The projection asserts "
+                f"nothing about the claim: the fold-backed rows as they "
+                f"stood before it are preserved in the "
+                f"future_context_defensive evidence, and every moved number "
+                f"is recorded there. Set context.future_events: off to "
+                f"remove it.",
+            ))
     return rows, bool(assessment.admitted)
 
 

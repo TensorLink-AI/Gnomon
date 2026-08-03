@@ -60,8 +60,25 @@ verbatim `source_span`s for stated bounds (`constraint:*`) and stated
 deterministic windows (`override:*`). The adapter verifies each span is a
 verbatim quote of the task context before Gnomon sees it; Gnomon then
 re-parses the numbers deterministically and applies its own admission
-checks. Influenced runs report support `context_trusted`. The A/B for
+checks. Influenced runs report support `context_trusted`. A span that
+scopes its bound to the forecast window ("in the forecast, the values
+are bounded above by X" — CiK's constraint-task voice) is exempt from
+the recent-history consistency check, which such a claim cannot
+contradict; and a constraint whose claim fails admission but whose span
+states the bound verbatim is still applied *defensively* — the emitted
+quantiles never breach a bound the context text states, disclosed in
+`future_context_defensive` evidence without any admission or support
+change. The A/B for
 this flag is pre-registered in `results/future-context-ab/HYPOTHESIS.md`.
+
+After a `--future-context` run, triage the gate's span rejections —
+prompt problem vs parser gap, decided deterministically from the
+recorded spans:
+
+```bash
+python -m benchmarks.cik.triage_future_context results/cik-gpt4o-gnomon \
+    --json results/cik-gpt4o-gnomon/triage.json
+```
 
 ## Setup
 

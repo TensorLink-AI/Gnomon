@@ -14,6 +14,14 @@ Every series receives one of five statuses (six with
 | `unsupported` | There was insufficient evaluation history (the warning states the exact required and available counts) or no baseline completed every selection fold. No forecast rows are emitted. |
 | `context_trusted` | Reachable only behind `context.future_events: on`: the forecast was influenced by future-dated constraint/override events admitted on textual verifiability, which no fold ever tested. Weaker than every fold-backed status; the history-only counterfactual is in the `future_context_applied` evidence. |
 
+One future-context act deliberately does **not** move the status: a
+constraint whose claim failed admission but whose quoted span states the
+bound verbatim is applied *defensively* — the published quantiles are
+projected onto the stated bound rather than contradicting the context
+text in print. The claim stays rejected, the support stays fold-backed,
+and the act is carried as a `defensive_bound_applied` disclosure with
+the pre-projection rows in the `future_context_defensive` evidence.
+
 Each result additionally carries a `support_assessment` — a five-state
 harness-wide status (`supported` / `conditionally_supported` /
 `inconclusive` / `unsupported` / `invalid`) with typed reasons,

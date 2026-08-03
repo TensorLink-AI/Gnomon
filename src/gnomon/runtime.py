@@ -444,6 +444,7 @@ def forecast(
         getattr(getattr(config, "context", None), "future_events", False)
     )
     future_context_admitted: dict[str, list[dict[str, object]]] = {}
+    future_context_defensive: dict[str, list[dict[str, object]]] = {}
     results: list[SeriesResult] = []
     evidence: list[Evidence] = []
     var_frame = None
@@ -469,6 +470,10 @@ def forecast(
         if result.future_context and result.future_context.get("admitted"):
             future_context_admitted[series_name] = list(
                 result.future_context["admitted"]  # type: ignore[arg-type]
+            )
+        if result.future_context and result.future_context.get("defensive"):
+            future_context_defensive[series_name] = list(
+                result.future_context["defensive"]  # type: ignore[arg-type]
             )
         results.append(result)
         evidence.extend(series_evidence)
@@ -543,10 +548,16 @@ def forecast(
         # is on, so every flag-off ID — including all pre-existing ones —
         # is byte-identical. When on, the ID covers both the flag and the
         # events that actually influenced the numbers.
-        id_payload["future_context"] = {
+        future_payload: dict[str, object] = {
             "enabled": True,
             "admitted": future_context_admitted,
         }
+        if future_context_defensive:
+            # Key present only when a defensive projection influenced the
+            # published rows, so flag-on IDs from runs where nothing was
+            # projected defensively are unchanged by this addition.
+            future_payload["defensive"] = future_context_defensive
+        id_payload["future_context"] = future_payload
     forecast_id = content_id("forecast", id_payload)
     artifact = ForecastArtifact(
         "0.1", forecast_id, clock.now().isoformat(),
