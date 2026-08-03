@@ -254,3 +254,53 @@ def test_mtbench_sample_loading_and_bar_axis(tmp_path):
     assert start.startswith("2020-01-01") and end.startswith("2020-01-03")
     assert "+00:00" in lines[1]
     assert OFFICIAL_MSE_FAILURE_LIMIT == 100.0
+
+
+def _write_multi_tier_fixture(root: Path, counts: dict) -> None:
+    for tier, count in counts.items():
+        tier_dir = root / "MT_Bench" / tier
+        tier_dir.mkdir(parents=True)
+        for number in range(1, count + 1):
+            task = {
+                "id": f"{tier}_general_{number:03d}", "tier": tier,
+                "domain": None, "dialogue": [], "visibility_contract": {},
+            }
+            (tier_dir / f"{tier}_general_{number:03d}.json").write_text(
+                json.dumps(task))
+
+
+def test_limit_is_stratified_across_tiers(tmp_path):
+    """tasks[:limit] on a tier-sorted list made --limit silently defeat
+    --tiers: every limited run was L1-only. The limit must sample every
+    requested tier."""
+    _write_multi_tier_fixture(
+        tmp_path, {"L1": 5, "L2": 5, "L3": 5, "L4": 5})
+    tasks = load_tasks(tmp_path, limit=6)
+    assert len(tasks) == 6
+    by_tier = {}
+    for task in tasks:
+        by_tier[task.tier] = by_tier.get(task.tier, 0) + 1
+    assert set(by_tier) == {"L1", "L2", "L3", "L4"}
+    # extra slots go to the earliest tiers; each tier keeps sorted order
+    assert by_tier == {"L1": 2, "L2": 2, "L3": 1, "L4": 1}
+    assert [task.task_id for task in tasks if task.tier == "L1"] == \
+        ["L1_general_001", "L1_general_002"]
+    # deterministic: same inputs, same selection
+    assert [task.task_id for task in tasks] == \
+        [task.task_id for task in load_tasks(tmp_path, limit=6)]
+
+
+def test_limit_larger_than_a_tier_spills_to_the_others(tmp_path):
+    _write_multi_tier_fixture(tmp_path, {"L1": 2, "L2": 8})
+    tasks = load_tasks(tmp_path, limit=7)
+    by_tier = {}
+    for task in tasks:
+        by_tier[task.tier] = by_tier.get(task.tier, 0) + 1
+    assert by_tier == {"L1": 2, "L2": 5}
+
+
+def test_limit_of_zero_or_none_keeps_everything(tmp_path):
+    _write_multi_tier_fixture(tmp_path, {"L1": 3, "L2": 3})
+    assert len(load_tasks(tmp_path)) == 6
+    assert len(load_tasks(tmp_path, limit=None)) == 6
+    assert len(load_tasks(tmp_path, limit=100)) == 6

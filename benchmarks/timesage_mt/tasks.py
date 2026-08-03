@@ -95,9 +95,40 @@ def load_tasks(
             f"No TimeSage-MT task files under {data_dir}/MT_Bench. "
             "Run with --download or pass the dataset snapshot directory."
         )
-    if limit:
-        tasks = tasks[:limit]
+    if limit and limit < len(tasks):
+        tasks = _stratified_head(tasks, limit)
     return tasks
+
+
+def _stratified_head(tasks: list[TimeSageTask], limit: int) -> list[TimeSageTask]:
+    """Spread a task limit across tiers instead of head-truncating.
+
+    ``tasks[:limit]`` on a tier-sorted list silently reduced every
+    limited run to the earliest requested tier — ``--limit`` defeated
+    ``--tiers`` and every result was L1. The limit now takes tasks
+    round-robin across the tiers present (extra slots go to earlier
+    tiers), keeping each tier's sorted order and the overall
+    tier-grouped order, so a limited run still samples every tier it
+    asked for. Deterministic: same tasks, same limit, same selection.
+    """
+    by_tier: dict[str, list[TimeSageTask]] = {}
+    for task in tasks:
+        by_tier.setdefault(task.tier, []).append(task)
+    taken = {tier: 0 for tier in by_tier}
+    remaining = limit
+    while remaining > 0:
+        progressed = False
+        for tier, members in by_tier.items():
+            if remaining == 0:
+                break
+            if taken[tier] < len(members):
+                taken[tier] += 1
+                remaining -= 1
+                progressed = True
+        if not progressed:
+            break
+    return [task for tier, members in by_tier.items()
+            for task in members[:taken[tier]]]
 
 
 def read_visible_series(task: TimeSageTask) -> tuple[list[str], dict[str, list[float]], str]:

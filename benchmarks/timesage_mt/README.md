@@ -92,7 +92,8 @@ emits a failed row per reference-scored turn, plus one
 `<task>-error` line).
 
 Start with `--tiers L1 --limit 10` to gauge cost; L3/L4 dialogues are
-long and tool loops multiply requests. Note that `--limit` applies after
-sorted tier iteration, so limited smoke runs are tier-skewed toward the
-earliest requested tier — limited runs are already declared
+long and tool loops multiply requests. `--limit` is stratified: it takes
+tasks round-robin across the requested tiers (extra slots to earlier
+tiers), so a limited run samples every tier it asked for instead of
+silently reducing to the earliest. Limited runs are still declared
 non-comparable.
