@@ -924,6 +924,22 @@ def capabilities() -> dict[str, object]:
             ),
         },
         **registry_capabilities(),
+        "short_history": {
+            # Behavior at fold-starved history, always on (not a flag): the
+            # trust contract is that under-powered evidence is not acted on
+            # as if it ranked anything.
+            "selection_guardrail": (
+                "below 2 disjoint selection folds, candidates are scored "
+                "but not selectable; the strongest baseline is published "
+                "with a 'selection_underpowered' reason and "
+                "selection_fold_count in sensitivity"
+            ),
+            "interval_widening": (
+                "on degraded runs, lead times that borrow the pooled "
+                "residual spread are widened by sqrt(lead), anchored at "
+                "step 1; disclosed as 'lead_time_widened_intervals'"
+            ),
+        },
         "experimental": {"planner": os.environ.get("GNOMON_EXPERIMENTAL_PLANNER") == "1"},
         "features": {
             "inspection": True, "forecasting": True, "separated_evaluation": True,
@@ -935,6 +951,8 @@ def capabilities() -> dict[str, object]:
             "claim_verifier": True,
             "residual_intervals": True, "horizon_widened_intervals": True,
             "threshold_analysis": True, "degraded_evaluation": True,
+            "short_history_selection_guardrail": True,
+            "lead_time_widened_intervals": True,
             "project_mode": True, "actual_scoring": True,
             "decision_outcomes": True, "agent_treatment_control_eval": True,
             "context_events": True, "future_context_events": True,

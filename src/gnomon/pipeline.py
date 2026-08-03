@@ -451,8 +451,11 @@ def conditional_stage(
     assessment = state.assessment
     if not (assessment and assessment.supported and state.points):
         return
+    # Same widening as the published rows, so a what-if interval is never
+    # narrower than the forecast interval it conditions on.
     spreads = conformal_spreads(
         state.residuals_by_lead, len(state.points), state.residuals,
+        widen_borrowed=assessment.degraded,
     )
     forecasts, excluded = assess_conditional(
         state.values, state.timestamps, state.future_timestamps,
@@ -838,11 +841,26 @@ def _forecast_disclosures(
             f"gap as `point_bias_correction`.",
         ))
 
-    # H3 / S2. When every lead borrows the pooled spread, the interval does
-    # not widen with distance — the 14-step is exactly the 1-step.
+    # H3 / S2. Lead times without enough residuals borrow the pooled
+    # spread. On a degraded run the borrowed half-widths are widened by
+    # √lead (see `conformal_spreads`); otherwise the interval does not
+    # widen with distance — the 14-step is exactly the 1-step.
     horizon = len(rows)
     borrowed = pooled_fallback_leads(state.residuals_by_lead, horizon)
-    if horizon and len(borrowed) == horizon:
+    assessment = state.assessment
+    widened = bool(borrowed) and assessment is not None and assessment.degraded
+    if widened:
+        disclosures.append(SupportReason(
+            "lead_time_widened_intervals",
+            f"{len(borrowed)} of {horizon} lead times lack the "
+            f"{MIN_RESIDUALS_PER_LEAD} residuals needed to resolve their own "
+            f"spread; their pooled spread is widened deterministically by "
+            f"√lead-time (anchored at step 1, never narrowing). The schedule "
+            f"is a conservative default measured to slightly over-cover the "
+            f"mid-horizon; more folds — a longer history relative to the "
+            f"horizon — would let each lead measure its own.",
+        ))
+    elif horizon and len(borrowed) == horizon:
         disclosures.append(SupportReason(
             "constant_interval_width",
             f"Interval width is constant across the horizon: no lead time "
@@ -954,15 +972,20 @@ def interval_stage(
     threshold_analysis: dict[str, object] | None = None
     support = "unsupported"
     if assessment and assessment.supported and state.points:
+        # Fold-starved (degraded) runs widen borrowed leads by √h instead of
+        # publishing a flat band: measured on 30-point series, the flat band
+        # covered 82% at step 1 decaying to 44% at step 7 against a nominal
+        # 80%. With enough folds nothing borrows and nothing changes.
         spreads = conformal_spreads(
             state.residuals_by_lead, len(state.points), state.residuals,
-            target_coverage,
+            target_coverage, widen_borrowed=assessment.degraded,
         )
         # The full quantile set comes from the same residuals and the same
         # fit; q10/q50/q90 are the identical order statistics they always
         # were, so the additional levels are strictly additional.
         level_spreads = conformal_quantile_spreads(
             state.residuals_by_lead, len(state.points), state.residuals,
+            widen_borrowed=assessment.degraded,
         )
         for step, (timestamp, point) in enumerate(zip(state.future_timestamps, state.points), 1):
             q10, q50, q90 = interval_from_spread(point, spreads[step])

@@ -48,3 +48,7 @@ results/future-context-ab/cik-*
 !results/news-regime-explore/
 results/news-regime-explore/raw/
 
+# And the guardrail build's pre-registration and write-up, same rule.
+!results/short-history-guardrail/
+results/short-history-guardrail/raw/
+

@@ -28,7 +28,7 @@
     {
       "series": "__default__",
       "support": "degraded",
-      "selected_model": "drift",
+      "selected_model": "last_value",
       "strongest_baseline": "last_value",
       "selection_scores": {
         "last_value": 0.07947019867549669,
@@ -42,7 +42,7 @@
       "test_scores": {
         "last_value": 0.06217616580310881,
         "seasonal_naive": null,
-        "drift": 0.0,
+        "drift": null,
         "linear_trend": null,
         "window_average": null,
         "theta": null,
@@ -54,109 +54,110 @@
         "toto2_22m": null,
         "ttm": null
       },
-      "baseline_improvement": 1.0,
+      "baseline_improvement": 0.0,
       "interval_coverage": 1.0,
       "warnings": [
-        "Limited evaluation: only 3 rolling folds were available; 42 observations enable fully separated selection, calibration, and test windows."
+        "Limited evaluation: only 3 rolling folds were available; 42 observations enable fully separated selection, calibration, and test windows.",
+        "Selection under-powered: only 1 disjoint selection fold was available, too few to rank candidates. The strongest baseline (last_value) is published; candidate scores are reported as evidence, not a ranking. 42 observations enable a ranked contest."
       ],
       "forecast": [
         {
           "timestamp": "2026-02-05T00:00:00",
-          "point": 205.0,
+          "point": 202.0,
           "q10": 205.0,
-          "q50": 205.0,
-          "q90": 205.0,
-          "point_bias_correction": 0.0,
+          "q50": 214.0,
+          "q90": 223.0,
+          "point_bias_correction": 12.0,
           "q05": 205.0,
-          "q20": 205.0,
-          "q30": 205.0,
-          "q70": 205.0,
-          "q80": 205.0,
-          "q95": 205.0
+          "q20": 208.0,
+          "q30": 208.0,
+          "q70": 220.0,
+          "q80": 220.0,
+          "q95": 223.0
         },
         {
           "timestamp": "2026-02-06T00:00:00",
-          "point": 208.0,
-          "q10": 208.0,
-          "q50": 208.0,
-          "q90": 208.0,
-          "point_bias_correction": 0.0,
-          "q05": 208.0,
-          "q20": 208.0,
-          "q30": 208.0,
-          "q70": 208.0,
-          "q80": 208.0,
-          "q95": 208.0
+          "point": 202.0,
+          "q10": 201.27207793864216,
+          "q50": 214.0,
+          "q90": 226.72792206135784,
+          "point_bias_correction": 12.0,
+          "q05": 201.27207793864216,
+          "q20": 205.51471862576142,
+          "q30": 205.51471862576142,
+          "q70": 222.48528137423858,
+          "q80": 222.48528137423858,
+          "q95": 226.72792206135784
         },
         {
           "timestamp": "2026-02-07T00:00:00",
-          "point": 211.0,
-          "q10": 211.0,
-          "q50": 211.0,
-          "q90": 211.0,
-          "point_bias_correction": 0.0,
-          "q05": 211.0,
-          "q20": 211.0,
-          "q30": 211.0,
-          "q70": 211.0,
-          "q80": 211.0,
-          "q95": 211.0
+          "point": 202.0,
+          "q10": 198.4115427318801,
+          "q50": 214.0,
+          "q90": 229.5884572681199,
+          "point_bias_correction": 12.0,
+          "q05": 198.4115427318801,
+          "q20": 203.60769515458674,
+          "q30": 203.60769515458674,
+          "q70": 224.39230484541326,
+          "q80": 224.39230484541326,
+          "q95": 229.5884572681199
         },
         {
           "timestamp": "2026-02-08T00:00:00",
-          "point": 214.0,
-          "q10": 214.0,
+          "point": 202.0,
+          "q10": 196.0,
           "q50": 214.0,
-          "q90": 214.0,
-          "point_bias_correction": 0.0,
-          "q05": 214.0,
-          "q20": 214.0,
-          "q30": 214.0,
-          "q70": 214.0,
-          "q80": 214.0,
-          "q95": 214.0
+          "q90": 232.0,
+          "point_bias_correction": 12.0,
+          "q05": 196.0,
+          "q20": 202.0,
+          "q30": 202.0,
+          "q70": 226.0,
+          "q80": 226.0,
+          "q95": 232.0
         },
         {
           "timestamp": "2026-02-09T00:00:00",
-          "point": 217.0,
-          "q10": 217.0,
-          "q50": 217.0,
-          "q90": 217.0,
-          "point_bias_correction": 0.0,
-          "q05": 217.0,
-          "q20": 217.0,
-          "q30": 217.0,
-          "q70": 217.0,
-          "q80": 217.0,
-          "q95": 217.0
+          "point": 202.0,
+          "q10": 193.87538820250188,
+          "q50": 214.0,
+          "q90": 234.12461179749812,
+          "point_bias_correction": 12.0,
+          "q05": 193.87538820250188,
+          "q20": 200.58359213500125,
+          "q30": 200.58359213500125,
+          "q70": 227.41640786499875,
+          "q80": 227.41640786499875,
+          "q95": 234.12461179749812
         },
         {
           "timestamp": "2026-02-10T00:00:00",
-          "point": 220.0,
-          "q10": 220.0,
-          "q50": 220.0,
-          "q90": 220.0,
-          "point_bias_correction": 0.0,
-          "q05": 220.0,
-          "q20": 220.0,
-          "q30": 220.0,
-          "q70": 220.0,
-          "q80": 220.0,
-          "q95": 220.0
+          "point": 202.0,
+          "q10": 191.9545923149514,
+          "q50": 214.0,
+          "q90": 236.0454076850486,
+          "point_bias_correction": 12.0,
+          "q05": 191.9545923149514,
+          "q20": 199.30306154330094,
+          "q30": 199.30306154330094,
+          "q70": 228.69693845669906,
+          "q80": 228.69693845669906,
+          "q95": 236.0454076850486
         },
         {
           "timestamp": "2026-02-11T00:00:00",
-          "point": 223.0,
-          "q10": 223.0,
-          "q50": 223.0,
-          "q90": 223.0,
-          "point_bias_correction": 0.0,
-          "q05": 223.0,
-          "q20": 223.0,
-          "q30": 223.0,
-          "q70": 223.0,
-          "q80": 223.0,
-          "q95": 223.0
+          "point": 202.0,
+          "q10": 190.18823820041868,
+          "q50": 214.0,
+          "q90": 237.81176179958132,
+          "point_bias_correction": 12.0,
+          "q05": 190.18823820041868,
+          "q20": 198.12549213361245,
+          "q30": 198.12549213361245,
+          "q70": 229.87450786638755,
+          "q80": 229.87450786638755,
+          "q95": 237.81176179958132
         }
       ],
       "context": null,
@@ -186,16 +187,25 @@
             "message": "Model selection ran without separated calibration and test folds."
           },
           {
+            "code": "selection_underpowered",
+            "message": "Candidates were scored on 1 selection fold \u2014 too few to rank them, so the strongest baseline (last_value) was published and the candidate scores are evidence, not a ranking."
+          },
+          {
             "code": "warning",
             "message": "Limited evaluation: only 3 rolling folds were available; 42 observations enable fully separated selection, calibration, and test windows."
+          },
+          {
+            "code": "warning",
+            "message": "Selection under-powered: only 1 disjoint selection fold was available, too few to rank candidates. The strongest baseline (last_value) is published; candidate scores are reported as evidence, not a ranking. 42 observations enable a ranked contest."
           }
         ],
         "assumptions": [
           "known_time_assumed: the source provides no known-time column, so each observation is treated as known the moment it applies (known_time = valid_time). Revisions and publication lags are invisible to this run."
         ],
         "sensitivity": {
-          "baseline_improvement": 1.0,
-          "final_test_interval_coverage": 1.0
+          "baseline_improvement": 0.0,
+          "final_test_interval_coverage": 1.0,
+          "selection_fold_count": 1
         },
         "recovery_actions": [
           {
@@ -206,8 +216,12 @@
         "legacy_support": "degraded",
         "disclosures": [
           {
-            "code": "constant_interval_width",
-            "message": "Interval width is constant across the horizon: no lead time has the 8 residuals needed to resolve its own spread, so every lead borrows the pooled set. Uncertainty is not modelled as growing with distance here. More folds \u2014 a longer history relative to the horizon \u2014 would let each lead measure its own."
+            "code": "point_is_not_the_median",
+            "message": "`point` is the selected model's raw output; every quantile is recentred on the median backtest residual, so `q50` differs from `point` by up to 12 (25% of the 80% interval width). Each row carries the gap as `point_bias_correction`."
+          },
+          {
+            "code": "lead_time_widened_intervals",
+            "message": "7 of 7 lead times lack the 8 residuals needed to resolve their own spread; their pooled spread is widened deterministically by \u221alead-time (anchored at step 1, never narrowing). The schedule is a conservative default measured to slightly over-cover the mid-horizon; more folds \u2014 a longer history relative to the horizon \u2014 would let each lead measure its own."
           },
           {
             "code": "conformal_residuals_pooled_across_selection",
@@ -247,7 +261,7 @@
         "test_scores": {
           "last_value": 0.06217616580310881,
           "seasonal_naive": null,
-          "drift": 0.0,
+          "drift": null,
           "linear_trend": null,
           "window_average": null,
           "theta": null,
@@ -260,9 +274,9 @@
           "ttm": null
         },
         "measured_interval_coverage": 1.0,
-        "baseline_improvement": 1.0,
+        "baseline_improvement": 0.0,
         "strongest_baseline": "last_value",
-        "selected_model": "drift",
+        "selected_model": "last_value",
         "residuals_pooled_across_selection": true,
         "residual_fold_count": 2
       }
@@ -274,7 +288,8 @@
       "payload": {
         "support": "degraded",
         "warnings": [
-          "Limited evaluation: only 3 rolling folds were available; 42 observations enable fully separated selection, calibration, and test windows."
+          "Limited evaluation: only 3 rolling folds were available; 42 observations enable fully separated selection, calibration, and test windows.",
+          "Selection under-powered: only 1 disjoint selection fold was available, too few to rank candidates. The strongest baseline (last_value) is published; candidate scores are reported as evidence, not a ranking. 42 observations enable a ranked contest."
         ]
       }
     },
@@ -291,7 +306,7 @@
           {
             "entity": "__default__",
             "variable": "requests",
-            "reads": 14,
+            "reads": 13,
             "max_known_time": "2026-02-04T00:00:00"
           }
         ]
