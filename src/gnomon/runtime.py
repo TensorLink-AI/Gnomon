@@ -929,15 +929,20 @@ def capabilities() -> dict[str, object]:
             # trust contract is that under-powered evidence is not acted on
             # as if it ranked anything.
             "selection_guardrail": (
-                "below 2 disjoint selection folds, candidates are scored "
-                "but not selectable; the strongest baseline is published "
-                "with a 'selection_underpowered' reason and "
-                "selection_fold_count in sensitivity"
+                "below 2 disjoint selection folds the selection margin "
+                "rises to 75%: a candidate is selectable only by cutting "
+                "the strongest baseline's single-fold error by more than "
+                "three-quarters (deterministic structure, not fold luck); "
+                "otherwise the baseline is published with a "
+                "'selection_underpowered' reason and selection_fold_count "
+                "in sensitivity"
             ),
-            "interval_widening": (
-                "on degraded runs, lead times that borrow the pooled "
-                "residual spread are widened by sqrt(lead), anchored at "
-                "step 1; disclosed as 'lead_time_widened_intervals'"
+            "point_recentring": (
+                "on degraded runs, quantiles are centred on the model's "
+                "point path (point_bias_correction = 0) instead of the "
+                "median backtest residual, whose few-fold location "
+                "estimate measured as noise; disclosed as "
+                "'point_recentring_suppressed'"
             ),
         },
         "experimental": {"planner": os.environ.get("GNOMON_EXPERIMENTAL_PLANNER") == "1"},
@@ -952,7 +957,7 @@ def capabilities() -> dict[str, object]:
             "residual_intervals": True, "horizon_widened_intervals": True,
             "threshold_analysis": True, "degraded_evaluation": True,
             "short_history_selection_guardrail": True,
-            "lead_time_widened_intervals": True,
+            "short_history_point_centred_intervals": True,
             "project_mode": True, "actual_scoring": True,
             "decision_outcomes": True, "agent_treatment_control_eval": True,
             "context_events": True, "future_context_events": True,

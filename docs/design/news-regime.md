@@ -575,3 +575,35 @@ floor-to-control band), at which point the remaining gap *is* the news
 edge — bounded, on this evidence, at a few tenths of a MAPE point —
 and items 3–5 compete for it with measured, disclosed influence rather
 than asserted confidence.
+
+## Build outcome (added after implementation; see `results/short-history-guardrail/`)
+
+Build item 1 was implemented in this branch over three registered
+iterations, each falsification explained before the next fix was
+registered. The mechanism that survived measurement differs from the
+spec above in two instructive ways:
+
+1. **The hard baseline lock became a fold-count-scaled margin**
+   (`SINGLE_FOLD_SELECTION_MARGIN = 0.75`): the lock regressed the
+   repo's own perfect-trend fixture (`daily_requests` → forced
+   `last_value`, test coverage 0.43), and a 75% single-fold bar was
+   measured to admit zero spurious wins on the 50 near-martingales
+   while a deterministic trend clears it easily. This was the design's
+   own registered alternative; the fixture picked between them.
+2. **The √step widening was removed, not tuned.** H-G1's falsification
+   isolated a *fourth* instance of the unevidenced-influence class this
+   document is about: the median-residual recentring
+   (`point_bias_correction`) is a ~1σ coin-flip tilt at ≤ 2 folds.
+   Suppressing it alone restored near-nominal coverage (79.1% vs 80%),
+   revealing that the 82→44% per-step decay that motivated the widening
+   was mostly recentring wobble — and that whole-horizon pooled
+   residuals already contain multi-step dispersion, so any lead-growth
+   multiplier double-counts.
+
+Final benchmark state: gnomon-pure MSE 7.42 → 2.995 (floor 2.56), MAPE
+2.37% → 1.71% (floor 1.61%), pooled coverage 63.7% → 79.1% (nominal
+80%); ≥ 4-origin runs byte-identical throughout. H-G1 and H-G5c were
+falsified and are reported as such; H-G2/G4/G5a/G5b/G6/G7 hold. The
+follow-on prediction above (official MTBench re-run within ~0.5 MAPE of
+control) is now testable on any machine with the official data and an
+LLM key.

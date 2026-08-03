@@ -58,44 +58,44 @@
         {
           "timestamp": "2026-03-07T00:00:00",
           "point": 110.0,
-          "q10": 112.0,
-          "q50": 112.0,
-          "q90": 112.0,
-          "point_bias_correction": 2.0,
-          "q05": 112.0,
-          "q20": 112.0,
-          "q30": 112.0,
-          "q70": 112.0,
-          "q80": 112.0,
-          "q95": 112.0
+          "q10": 110.0,
+          "q50": 110.0,
+          "q90": 110.0,
+          "point_bias_correction": 0.0,
+          "q05": 110.0,
+          "q20": 110.0,
+          "q30": 110.0,
+          "q70": 110.0,
+          "q80": 110.0,
+          "q95": 110.0
         },
         {
           "timestamp": "2026-03-08T00:00:00",
           "point": 110.0,
-          "q10": 112.0,
-          "q50": 112.0,
-          "q90": 112.0,
-          "point_bias_correction": 2.0,
-          "q05": 112.0,
-          "q20": 112.0,
-          "q30": 112.0,
-          "q70": 112.0,
-          "q80": 112.0,
-          "q95": 112.0
+          "q10": 110.0,
+          "q50": 110.0,
+          "q90": 110.0,
+          "point_bias_correction": 0.0,
+          "q05": 110.0,
+          "q20": 110.0,
+          "q30": 110.0,
+          "q70": 110.0,
+          "q80": 110.0,
+          "q95": 110.0
         },
         {
           "timestamp": "2026-03-09T00:00:00",
           "point": 110.0,
-          "q10": 112.0,
-          "q50": 112.0,
-          "q90": 112.0,
-          "point_bias_correction": 2.0,
-          "q05": 112.0,
-          "q20": 112.0,
-          "q30": 112.0,
-          "q70": 112.0,
-          "q80": 112.0,
-          "q95": 112.0
+          "q10": 110.0,
+          "q50": 110.0,
+          "q90": 110.0,
+          "point_bias_correction": 0.0,
+          "q05": 110.0,
+          "q20": 110.0,
+          "q30": 110.0,
+          "q70": 110.0,
+          "q80": 110.0,
+          "q95": 110.0
         }
       ],
       "context": null,
@@ -136,12 +136,12 @@
         "legacy_support": "degraded",
         "disclosures": [
           {
-            "code": "point_is_not_the_median",
-            "message": "`point` is the selected model's raw output; every quantile is recentred on the median backtest residual, so `q50` differs from `point` by up to 2 (0% of the 80% interval width). Each row carries the gap as `point_bias_correction`."
+            "code": "point_recentring_suppressed",
+            "message": "Quantiles are centred on the model's point path: the usual recentring on the median backtest residual is suppressed because on a fold-starved run that median is a location estimate from too few folds (measured at ~1\u03c3 of the series' step-to-step moves, in an effectively random direction). `point_bias_correction` is 0 on every row."
           },
           {
-            "code": "lead_time_widened_intervals",
-            "message": "3 of 3 lead times lack the 8 residuals needed to resolve their own spread; their pooled spread is widened deterministically by \u221alead-time (anchored at step 1, never narrowing). The schedule is a conservative default measured to slightly over-cover the mid-horizon; more folds \u2014 a longer history relative to the horizon \u2014 would let each lead measure its own."
+            "code": "constant_interval_width",
+            "message": "Interval width is constant across the horizon: no lead time has the 8 residuals needed to resolve its own spread, so every lead borrows the pooled set. Uncertainty is not modelled as growing with distance here. More folds \u2014 a longer history relative to the horizon \u2014 would let each lead measure its own."
           },
           {
             "code": "conformal_residuals_pooled_across_selection",

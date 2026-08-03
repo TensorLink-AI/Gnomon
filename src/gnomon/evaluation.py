@@ -108,6 +108,14 @@ def quantile(values: list[float], probability: float) -> float:
 #: below this the lead borrows the pooled spread (see `conformal_spreads`).
 MIN_RESIDUALS_PER_LEAD = 8
 
+#: The single-fold selection bar: below two disjoint selection folds, a
+#: candidate is selectable only by beating the strongest baseline's error
+#: by this fraction on the one fold. Chosen by measurement, not taste:
+#: zero of 50 near-martingale 30-point series produced a spurious win
+#: this large, while a plain linear trend clears it easily
+#: (results/short-history-guardrail/HYPOTHESIS.md, H-G7).
+SINGLE_FOLD_SELECTION_MARGIN = 0.75
+
 
 def conformal_quantile(values: list[float], probability: float) -> float:
     """Finite-sample (split-conformal) quantile.
@@ -234,7 +242,7 @@ def conformal_spreads(
     residuals_by_lead: dict[int, list[float]], horizon: int,
     pooled: list[float] | None = None,
     target_coverage: float = DEFAULT_TARGET_COVERAGE,
-    widen_borrowed: bool = False,
+    recentre: bool = True,
 ) -> dict[int, tuple[float, float, float]]:
     """Split-conformal offsets (low, median, high) for each lead time.
 
@@ -242,21 +250,28 @@ def conformal_spreads(
     measured spread at h — not a pooled spread scaled by an assumed shape.
     Lead times with too few residuals borrow the pooled set rather than
     trusting a two-sample quantile, and the half-widths are then fitted
-    monotone in h.
+    monotone in h. The borrowed band is deliberately *not* scaled with
+    the lead: pooled residuals come from whole-horizon folds, so their
+    spread already contains multi-step dispersion, and a lead-growth
+    multiplier on top double-counts it (measured: √h widening pushed
+    80%-nominal coverage to 94.9% on fold-starved series —
+    results/short-history-guardrail/HYPOTHESIS.md, H-G6).
 
     ``target_coverage`` is the nominal central coverage: 0.80 by default,
     which is what q10/q90 have always meant, and settable through
     ``evaluation.uncertainty.target_coverage`` — a documented key that was
     parsed and never read.
 
-    ``widen_borrowed`` scales a *borrowed* lead's half-widths by √h. The
-    pooled residuals mostly describe short leads, so a flat borrowed band
-    under-covers late steps badly on fold-starved series — measured at
-    82% → 44% across a 7-step horizon against a nominal 80%
-    (results/news-regime-explore/RESULTS.md, E4). Anchoring at step 1
-    never narrows anything; mid-horizon over-coverage is the disclosed,
-    conservative cost. Off by default: with enough folds each lead
-    measures its own spread and existing artifacts stay byte-identical.
+    ``recentre=False`` zeroes the median component, so intervals built
+    from these spreads centre on the model's point path instead of
+    shifting by the median residual. On fold-starved runs that median is
+    a location estimate from one or two folds of selection-optimistic
+    residuals — measured at ≈ 1σ of the series' daily moves in a
+    coin-flip direction, making the published path worse than the raw
+    point path on 33 of 50 short benchmark series
+    (results/short-history-guardrail/HYPOTHESIS.md, H-G5). On by
+    default: with separated folds the recentring has evidence behind it
+    and existing artifacts stay byte-identical.
     """
     pooled = pooled if pooled is not None else [
         residual for residuals in residuals_by_lead.values() for residual in residuals
@@ -271,18 +286,16 @@ def conformal_spreads(
     highs: list[float] = []
     for step in range(1, horizon + 1):
         residuals = residuals_by_lead.get(step) or []
-        borrowed = len(residuals) < MIN_RESIDUALS_PER_LEAD
-        if not borrowed:
+        if len(residuals) >= MIN_RESIDUALS_PER_LEAD:
             quantiles = {p: conformal_quantile(residuals, p) for p in levels}
         else:
             # Too few residuals at this lead to estimate its own tails:
             # borrow the pooled spread rather than invent precision.
             quantiles = pooled_quantiles
-        scale = step ** 0.5 if (borrowed and widen_borrowed) else 1.0
         lower, middle, upper = levels
-        medians.append(quantiles[middle])
-        lows.append((quantiles[middle] - quantiles[lower]) * scale)
-        highs.append((quantiles[upper] - quantiles[middle]) * scale)
+        medians.append(quantiles[middle] if recentre else 0.0)
+        lows.append(quantiles[middle] - quantiles[lower])
+        highs.append(quantiles[upper] - quantiles[middle])
 
     lows = _isotonic([max(0.0, value) for value in lows])
     highs = _isotonic([max(0.0, value) for value in highs])
@@ -329,7 +342,7 @@ def conformal_quantile_spreads(
     residuals_by_lead: dict[int, list[float]], horizon: int,
     pooled: list[float] | None = None,
     levels: tuple[float, ...] = QUANTILE_LEVELS,
-    widen_borrowed: bool = False,
+    recentre: bool = True,
 ) -> dict[int, dict[float, float]]:
     """Split-conformal offset from the point forecast, per lead and level.
 
@@ -355,20 +368,17 @@ def conformal_quantile_spreads(
     medians: list[float] = []
     for step in range(1, horizon + 1):
         residuals = residuals_by_lead.get(step) or []
-        borrowed = len(residuals) < MIN_RESIDUALS_PER_LEAD
-        if not borrowed:
+        if len(residuals) >= MIN_RESIDUALS_PER_LEAD:
             quantiles = {level: conformal_quantile(residuals, level) for level in levels}
         else:
             quantiles = pooled_quantiles
-        # Same √h widening of borrowed leads as `conformal_spreads`, so the
-        # additional levels stay consistent with the q10/q50/q90 they sit
-        # between.
-        scale = step ** 0.5 if (borrowed and widen_borrowed) else 1.0
-        medians.append(quantiles[0.5])
+        # `recentre=False` mirrors `conformal_spreads`: offsets stay, the
+        # median location moves to the point path.
+        medians.append(quantiles[0.5] if recentre else 0.0)
         for level in levels:
             # Signed distance from the median, so the isotonic fit below acts
             # on a half-width rather than on a level that may trend.
-            by_level[level].append((quantiles[level] - quantiles[0.5]) * scale)
+            by_level[level].append(quantiles[level] - quantiles[0.5])
 
     fitted: dict[float, list[float]] = {}
     for level in levels:
@@ -1054,27 +1064,46 @@ def evaluate(
                                     if name not in BASELINES}
 
     # A ranked contest needs at least two disjoint selection folds. On one
-    # fold the winner is mostly noise: measured on 50 near-martingale
-    # 30-point series, single-fold selection at the default margin picked a
-    # non-baseline on 39 and ran 2.9x the MSE of `last_value`
-    # (results/news-regime-explore/RESULTS.md, E1). Dense overlapping
-    # origins do not count — they lower comparison variance without adding
-    # independent evidence — so the gate reads the disjoint skeleton.
-    selection_guardrail_applied = bool(candidate_scores) and len(residual_origins) < 2
+    # fold an incremental winner is mostly noise: measured on 50
+    # near-martingale 30-point series, single-fold selection at the
+    # default margin picked a non-baseline on 39 and ran 2.9x the MSE of
+    # `last_value` (results/news-regime-explore/RESULTS.md, E1). So below
+    # two folds the margin scales up to SINGLE_FOLD_SELECTION_MARGIN:
+    # only overwhelming evidence — a candidate that cuts the baseline's
+    # error by more than three-quarters, the signature of a deterministic
+    # structure like a trend rather than of fold luck (zero of the 50
+    # near-martingale tasks cleared it; a plain linear trend clears it
+    # easily) — can select on one fold. Dense overlapping origins do not
+    # count: they lower comparison variance without adding independent
+    # evidence, so the gate reads the disjoint skeleton.
+    single_fold = len(residual_origins) < 2
+    margin = max(minimum_improvement, SINGLE_FOLD_SELECTION_MARGIN) if single_fold else minimum_improvement
+    if candidate_scores:
+        candidate = min(candidate_scores, key=candidate_scores.get)  # type: ignore[arg-type]
+        candidate_score = candidate_scores[candidate]
+        if baseline_score > 0 and candidate_score <= baseline_score * (1 - margin):
+            selected = candidate
+    selection_guardrail_applied = (
+        bool(candidate_scores) and single_fold and selected == strongest_baseline
+    )
     if selection_guardrail_applied:
         warnings.append(
             f"Selection under-powered: only {len(residual_origins)} disjoint "
-            f"selection fold was available, too few to rank candidates. The "
-            f"strongest baseline ({strongest_baseline}) is published; "
-            f"candidate scores are reported as evidence, not a ranking. "
-            f"{minimum_train + 4 * horizon} observations enable a ranked "
-            f"contest."
+            f"selection fold was available, too few to rank candidates. No "
+            f"candidate beat the strongest baseline ({strongest_baseline}) "
+            f"by the {SINGLE_FOLD_SELECTION_MARGIN:.0%} single-fold margin, "
+            f"so the baseline is published; candidate scores are reported "
+            f"as evidence, not a ranking. {minimum_train + 4 * horizon} "
+            f"observations enable a ranked contest."
         )
-    elif candidate_scores:
-        candidate = min(candidate_scores, key=candidate_scores.get)  # type: ignore[arg-type]
-        candidate_score = candidate_scores[candidate]
-        if baseline_score > 0 and candidate_score <= baseline_score * (1 - minimum_improvement):
-            selected = candidate
+    elif single_fold and selected != strongest_baseline:
+        warnings.append(
+            f"Single-fold selection: {selected} beat the strongest baseline "
+            f"({strongest_baseline}) by more than "
+            f"{SINGLE_FOLD_SELECTION_MARGIN:.0%} on the one available fold "
+            f"— evidence strong enough to clear the raised short-history "
+            f"margin, but still a single comparison."
+        )
 
     # --- Calibration ---
     all_scores = {**scores, **tsfm_scores, **extra_scores}
@@ -1207,12 +1236,12 @@ def evaluate(
         return pooled, by_lead
 
     residuals, residuals_by_lead = _pool_residuals(selected, calibration_prediction)
-    # Degraded runs publish √h-widened borrowed leads (see
+    # Degraded runs publish intervals centred on the point path (see
     # `conformal_spreads`); measuring test-fold coverage on the same
-    # widened spreads keeps the measurement about the interval a reader
-    # actually gets.
+    # spreads keeps the measurement about the interval a reader actually
+    # gets.
     spreads = conformal_spreads(residuals_by_lead, horizon, residuals,
-                                widen_borrowed=degraded)
+                                recentre=not degraded)
 
     # The `--ensemble` override can force the ensemble even when it did not win
     # selection. Calibrate it here, on the same folds, so the override never

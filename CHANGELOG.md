@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+- **Short-history guardrail** (always on, degraded runs only; no flag —
+  the change is that under-powered evidence is no longer acted on as if
+  it ranked anything). Below 2 disjoint selection folds the selection
+  margin rises to a measured 75% single-fold improvement bar: zero of 50
+  near-martingale 30-point benchmark series produced a spurious win that
+  large, while a plain linear trend clears it easily — so noise stops
+  winning and deterministic structure still can. Candidates that miss
+  the bar stay in the artifact as evidence with a
+  `selection_underpowered` typed reason and `selection_fold_count` in
+  sensitivity; a candidate that clears it is disclosed as a single-fold
+  selection. Degraded runs also centre quantiles on the point path
+  (`point_bias_correction` = 0, disclosed as
+  `point_recentring_suppressed`): the median-residual recentring at ≤ 2
+  folds measured as a ~1σ shift in a coin-flip direction. On the
+  pre-registered 50-series benchmark this took gnomon-pure from
+  MSE 7.42 / MAPE 2.37% to 2.995 / 1.71% (`last_value` floor:
+  2.56 / 1.61%) and pooled q10–q90 coverage from 63.7% to 79.1% against
+  the 80% nominal (`results/short-history-guardrail/`, three registered
+  iterations with falsifications reported). Runs with ≥ 4 rolling
+  origins are byte-identical, IDs included; the three degraded goldens
+  are deliberately refreshed.
+
 - **Verifiable future-context events** (`gnomon.future_context`), behind
   `context.future_events` (default **off**). Two typed event classes whose
   admission is by textual verifiability instead of fold ablation, for
