@@ -14,7 +14,7 @@ from .contracts import GnomonError
 from .data import fingerprint
 from .evaluation import Evaluation, error_score, quantile
 from .models import MODELS, predict
-from .temporal import SEASONS, next_timestamp, validate_and_group
+from .temporal import default_season, next_timestamp, validate_and_group
 
 
 @dataclass(frozen=True)
@@ -239,7 +239,7 @@ def covariate_guide(
         input_path, time_column, target_column, series_column
     )
     groups, resolved_frequency, zone = validate_and_group(observations, frequency)
-    season = SEASONS[resolved_frequency]
+    season = default_season(resolved_frequency)
     series_payload: list[dict[str, Any]] = []
     for series, items in sorted(groups.items()):
         timestamps = [item.timestamp for item in items]

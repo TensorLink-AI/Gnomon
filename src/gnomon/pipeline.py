@@ -931,6 +931,76 @@ def assert_residual_provenance(state: SeriesState) -> None:
         )
 
 
+#: The disclosure attached to every best-effort fallback — verbatim in the
+#: warnings, so no rendering of the result can drop it.
+NO_RELIABLE_FORECAST = (
+    "NO RELIABLE FORECAST: the evaluation protocol could not run on this "
+    "history, so no model was selected and no accuracy was measured. These "
+    "rows are a last-value fallback with dispersion-scaled intervals, "
+    "published only because best-effort mode was explicitly requested. "
+    "Treat them as a disclosed placeholder, not a prediction."
+)
+
+
+def best_effort_stage(state: SeriesState) -> tuple[list[dict[str, object]], str]:
+    """A disclosed naive fallback for a data-insufficiency abstention.
+
+    Runs only when the caller explicitly asked for it and the evaluation
+    abstained. The point path is the most defensible naive answer — the
+    last observed value, flat — and the intervals are the dispersion of the
+    observed one-step differences scaled by the square root of the lead
+    time: a textbook random-walk band, not a calibrated quantile. Nothing
+    here was selected by a backtest or measured on a fold, and the result
+    says so three ways: support ``best_effort``, the NO RELIABLE FORECAST
+    warning verbatim, and a descriptive (never predictive) lineage claim.
+    """
+    from statistics import NormalDist, stdev
+
+    from .evaluation import QUANTILE_LEVELS, quantile_key
+
+    values = state.values
+    horizon = len(state.future_timestamps)
+    points = predict("last_value", values, horizon, state.season)
+    diffs = [right - left for left, right in zip(values, values[1:])]
+    if len(diffs) >= 2:
+        sigma = stdev(diffs)
+    elif diffs:
+        sigma = abs(diffs[0])
+    else:
+        sigma = 0.0
+    normal = NormalDist()
+    rows: list[dict[str, object]] = []
+    for step, (timestamp, point) in enumerate(
+        zip(state.future_timestamps, points), 1,
+    ):
+        scale = sigma * step ** 0.5
+        row: dict[str, object] = {
+            "timestamp": timestamp.isoformat(), "point": point,
+            "q10": point + normal.inv_cdf(0.1) * scale,
+            "q50": point,
+            "q90": point + normal.inv_cdf(0.9) * scale,
+            "point_bias_correction": 0.0,
+        }
+        for level in QUANTILE_LEVELS:
+            key = quantile_key(level)
+            if key not in row:
+                row[key] = point + normal.inv_cdf(level) * scale
+        rows.append(row)
+    state.warnings.append(NO_RELIABLE_FORECAST)
+    if sigma == 0.0:
+        state.warnings.append(
+            "The history shows no dispersion to scale intervals from, so "
+            "every quantile equals the point value."
+        )
+    state.disclosures.append(SupportReason(
+        "best_effort_fallback",
+        "The forecast rows are a last-value fallback with random-walk "
+        "intervals, published under --best-effort after the evaluation "
+        "abstained; the abstention's reasons are preserved in the warnings.",
+    ))
+    return rows, "best_effort"
+
+
 def interval_stage(
     state: SeriesState,
     *,

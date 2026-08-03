@@ -2,6 +2,36 @@
 
 ## Unreleased
 
+- **General frequencies: any whole-second sub-daily step.** The named grid
+  is now a set of defaults rather than the boundary. Inference accepts any
+  strictly regular series — one unique spacing — at a whole-second step
+  shorter than one day, canonicalised as `<N>s`/`<N>min`/`<N>h` (`60s` is
+  `min`, `120min` is `2h`), and the same codes are accepted explicitly via
+  `--frequency` and the tool schemas (enum → pattern). Default seasonal
+  periods derive from the one rule the curated table already encoded — the
+  daily cycle when it fits in 288 lags, else hourly, else a minute cycle —
+  which reproduces every hand-picked value exactly. `AMBIGUOUS_FREQUENCY`
+  now means what it says: its message and details distinguish "spacing
+  varies" from "regular but unrepresentable step" (sub-second, or a day or
+  more without being exactly `D`/`W`/`MS` — a fixed 48-hour duration and
+  "every second calendar day" diverge at the first DST transition, so
+  Gnomon refuses to guess). An unusual step with gaps also stays a refusal:
+  it is indistinguishable from a heavier grid with jitter.
+
+- **`--best-effort`: an abstention with numbers attached (default off).**
+  When the evaluation abstains for lack of history — the CiK bucket where
+  six monthly points meet a seven-step horizon — the run can now publish a
+  clearly labelled naive fallback instead of empty results, for callers
+  that must have numbers: the last observed value carried flat, with
+  random-walk intervals scaled from the history's dispersion. Nothing about
+  it claims accuracy, three ways: support `best_effort` (additive enum
+  value), a verbatim `NO RELIABLE FORECAST` warning beside the abstention's
+  original reasons (the supportable horizon included), and a descriptive —
+  never predictive — lineage claim, so the verifier's calibration gate is
+  unreachable from a fallback. The support assessment stays `inconclusive`
+  with the same recovery actions as the plain abstention. Flag-off runs are
+  byte-identical, IDs included (the payload carries the flag only when on).
+
 - **Frequency grid widened: `s` (1 second) and `10min` (10 minutes).** The
   CiK abstention analysis found 45 task-seeds refused with
   `AMBIGUOUS_FREQUENCY` on data with exactly one unique spacing across the

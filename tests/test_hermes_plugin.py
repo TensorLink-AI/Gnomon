@@ -245,11 +245,11 @@ def test_root_init_reexports_plugin_entry_points() -> None:
     assert module.check_gnomon_available is not None
 
 
-def test_frequency_enum_matches_runtime_toolspec() -> None:
+def test_frequency_pattern_matches_runtime_toolspec() -> None:
     from gnomon.toolspec import _INPUT_PROPERTIES as runtime_properties
 
-    plugin_enum = plugin.GNOMON_FORECAST_SCHEMA["parameters"]["properties"]["frequency"]["enum"]
-    assert plugin_enum == runtime_properties["frequency"]["enum"]
+    plugin_frequency = plugin.GNOMON_FORECAST_SCHEMA["parameters"]["properties"]["frequency"]
+    assert plugin_frequency["pattern"] == runtime_properties["frequency"]["pattern"]
 
 
 def test_forecast_handler_forwards_threshold(tmp_path, monkeypatch) -> None:

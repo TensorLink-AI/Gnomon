@@ -169,6 +169,9 @@ def assess_forecast_support(
     # v0.2 "unsupported" is always a data-insufficiency abstention: the
     # evaluation could not run, so the honest status is inconclusive — the
     # evidence does not argue against forecasting, it is simply absent.
+    # "best_effort" is the same abstention with disclosed fallback rows
+    # attached, so it shares the status and the recovery path; the rows
+    # change what was published, not what the evidence supports.
     recovery = [SupportReason("provide_more_history",
                               "Supply more observations, or lower the horizon, so rolling evaluation can run.")]
     reachable = assessment.max_supportable_horizon if assessment is not None else None
@@ -180,10 +183,20 @@ def assess_forecast_support(
             f"Retry with horizon {reachable} or less: the observations "
             f"already supplied support evaluation at that horizon.",
         ))
+    insufficiency = (
+        [SupportReason("insufficient_evaluation", message) for message in warnings]
+        or [SupportReason("insufficient_evaluation", "The evaluation protocol could not complete.")]
+    )
+    if support == "best_effort":
+        insufficiency.insert(0, SupportReason(
+            "no_reliable_forecast",
+            "The published rows are a best-effort fallback, not a "
+            "supported forecast: nothing was selected by a backtest and "
+            "nothing was measured on a fold.",
+        ))
     return SupportAssessment(
         "inconclusive",
-        [SupportReason("insufficient_evaluation", message) for message in warnings]
-        or [SupportReason("insufficient_evaluation", "The evaluation protocol could not complete.")],
+        insufficiency,
         assumptions, sensitivity,
         recovery,
         support, disclosures,

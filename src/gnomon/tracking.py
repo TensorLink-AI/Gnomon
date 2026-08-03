@@ -1568,7 +1568,7 @@ class TrackingStore:
 def register_artifact(artifact: Any, project: str, artifact_path: str) -> list[str]:
     """Register every series in a completed artifact for any integration surface."""
     from .data import load_observations
-    from .temporal import SEASONS
+    from .temporal import default_season
 
     schema = artifact.task.schema
     observations, _, _ = load_observations(
@@ -1584,7 +1584,7 @@ def register_artifact(artifact: Any, project: str, artifact_path: str) -> list[s
     registered: list[str] = []
     for result in artifact.results:
         values = histories[result.series]
-        season = SEASONS[schema.frequency]
+        season = default_season(schema.frequency)
         lag = season if len(values) > season else 1
         errors = [abs(values[index] - values[index - lag])
                   for index in range(lag, len(values))]

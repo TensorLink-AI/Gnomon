@@ -62,7 +62,7 @@ gnomon inspect INPUT --time COLUMN --target COLUMN [OPTIONS]
 | `--time COLUMN` | Yes | Timestamp column. |
 | `--target COLUMN` | Yes | Numeric target column. |
 | `--series COLUMN` | No | Independent-series identifier. |
-| `--frequency CODE` | No | `s`, `min`, `5min`, `10min`, `15min`, `30min`, `h`, `D`, `W`, or `MS`; inferred when omitted. |
+| `--frequency CODE` | No | Named codes (`s`, `min`, `5min`, `10min`, `15min`, `30min`, `h`, `D`, `W`, `MS`) or any whole-second sub-daily step (`10s`, `7min`, `2h`, …); inferred when omitted. |
 
 Inspection returns the source SHA-256 fingerprint, resolved schema, columns,
 series names, observation counts, and date ranges.
@@ -118,6 +118,17 @@ Short histories use a single trailing holdout and return `degraded` forecasts
 by default. Pass `--strict-abstention` to retain empty-result abstention when
 separated rolling evaluation is unavailable.
 
+When even the degraded path cannot run — the horizon exceeds what the
+history can support at all — the run abstains with empty results. Pass
+`--best-effort` to publish a clearly labelled naive fallback instead: the
+last observed value carried flat, with random-walk intervals scaled from
+the history's dispersion. The result reports support `best_effort`, carries
+a verbatim `NO RELIABLE FORECAST` warning beside the abstention's original
+reasons (including the horizon that *would* be supportable), and its
+lineage claim is descriptive, never predictive — the numbers exist for
+callers that must have numbers, and nothing about them claims measured
+accuracy. Off by default; flag-off artifacts are byte-identical.
+
 Forecast controls:
 
 - `--seasonal-period N` overrides autocorrelation-based season detection.
@@ -155,7 +166,7 @@ gnomon forecast INPUT [--time COLUMN] [--target COLUMN[,COLUMN…]] [--horizon N
 | `--time COLUMN` | Inferred | Timestamp column; inference refuses when ambiguous. |
 | `--target COLUMN[,COLUMN…]` | Inferred | Numeric column(s) to model; a comma list or `auto` batches several columns into one run. |
 | `--series COLUMN` | None | Independent-series identifier. |
-| `--frequency CODE` | Inferred | `s`, `min`, `5min`, `10min`, `15min`, `30min`, `h`, `D`, `W`, or `MS`. |
+| `--frequency CODE` | Inferred | Named codes (`s`, `min`, `5min`, `10min`, `15min`, `30min`, `h`, `D`, `W`, `MS`) or any whole-second sub-daily step (`10s`, `7min`, `2h`, …). |
 | `--horizon N` | One seasonal period | Number of future periods; must be at least one. |
 | `--brief` | Off | Compact stdout; disclosures verbatim; artifact unchanged. |
 | `--output DIR` | `gnomon-output` | Parent directory for immutable run directories. |

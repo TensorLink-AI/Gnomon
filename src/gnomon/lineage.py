@@ -155,6 +155,28 @@ def build_forecast_lineage(
     for result in artifact.results:
         evaluation_id = f"evaluation:{result.series}"
         support_id = f"support:{result.series}"
+        if result.forecast and result.support == "best_effort":
+            # Rows exist, but nothing was measured: the evaluation abstained
+            # and the rows are a disclosed naive fallback published on
+            # explicit request. The claim class is descriptive — never
+            # predictive — so the verifier's calibration gate cannot be
+            # satisfied by numbers no fold ever tested.
+            lineage.claims.append(ClaimRecord(
+                claim_id=f"claim:best_effort:{result.series}",
+                claim_class="descriptive",
+                statement=(
+                    f"No reliable forecast exists for series {result.series}: "
+                    "the evaluation protocol could not run. The published "
+                    f"{len(result.forecast)} rows are a last-value fallback "
+                    "with dispersion-scaled intervals, requested via "
+                    "best-effort mode; they carry no measured accuracy and "
+                    "no probability weight."
+                ),
+                subject=result.series,
+                evidence_ids=(evaluation_id, support_id),
+                artifact_ids=(artifact.forecast_id, dataset_id),
+            ))
+            continue
         if result.forecast:
             # A probability-bearing claim needs calibration that measured
             # up, not merely a calibration record that exists. Outside the

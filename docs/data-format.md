@@ -54,14 +54,31 @@ provided offset but does not currently accept a separate named-timezone option.
 | `W` | Weekly | 52 |
 | `MS` | Month start | 12 |
 
+The named codes are defaults, not the boundary: **any whole-second step
+shorter than one day is supported**, written `<N>s`, `<N>min`, or `<N>h`
+(for example `10s`, `7min`, `90s`, `2h`). Every duration has one canonical
+spelling — named codes win, then the largest unit that divides the step
+evenly, so `60s` is `min`, `600s` is `10min`, and `120min` is `2h`. The
+default seasonal period for a general step follows the same rule the table
+above encodes: the daily cycle when it fits in 288 lags, else hourly, else
+a minute cycle; a step fitting no natural cycle assumes no seasonality and
+relies on measured autocorrelation alone.
+
 Aliases such as `hourly`, `daily`, `weekly`, `monthly`, `1s`, and market-style
 candle codes (`1m`, `5m`, `10m`, `15m`, `30m`, `1h`, `T`, `5T`, …) are
-accepted. When
-`--frequency` is omitted, Gnomon infers a supported frequency from timestamp
-differences. Supplying it explicitly is preferable in automation. Data at
-other granularities (for example 10-second sensor readings) must be resampled
-to a supported frequency first, e.g. with pandas:
-`df.resample("5min").last()`.
+accepted. When `--frequency` is omitted, Gnomon infers the frequency from
+timestamp differences: a named step is inferred from the most common
+spacing (gaps are then named by the grid validator, or filled by
+`--repair aggressive`), while a general step is inferred only when the
+series has exactly one unique spacing — an unusual step with gaps is
+indistinguishable from a heavier grid with jitter, so it fails loudly
+instead of guessing. Supplying `--frequency` explicitly is preferable in
+automation.
+
+Steps of a day or more stay named-only (`D`, `W`, `MS`): a fixed 48-hour
+duration and "every second calendar day" diverge at the first DST
+transition, and Gnomon refuses to guess which one is meant. Sub-second
+steps are not supported.
 
 Month-start data must use the first day of each month. Weekly data is any exact
 seven-day sequence; Gnomon does not impose a particular weekday.

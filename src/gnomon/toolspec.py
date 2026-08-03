@@ -22,10 +22,11 @@ _INPUT_PROPERTIES: dict[str, Any] = {
     "series_column": {"type": "string", "description": "Optional column identifying independent series."},
     "frequency": {
         "type": "string",
-        "enum": ["s", "min", "5min", "10min", "15min", "30min", "h", "D", "W", "MS"],
+        "pattern": "^([1-9][0-9]*)?(s|min|h)$|^(D|W|MS)$",
         "description": (
-            "Observation frequency: s (seconds), min/5min/10min/15min/30min "
-            "(minutes), h (hourly), D (daily), W (weekly), MS (month start). "
+            "Observation frequency: s (seconds), min (minutes), h (hourly), "
+            "D (daily), W (weekly), MS (month start), or any whole-second "
+            "sub-daily step as <N>s, <N>min, or <N>h (e.g. 5min, 90s, 2h). "
             "Omit to infer; ambiguity fails loudly."
         ),
     },

@@ -8,7 +8,11 @@ from typing import Any, Literal
 # `context.future_events: on`: the forecast was influenced by future-dated
 # context admitted on textual verifiability rather than fold ablation, so
 # its warrant is weaker than any fold-backed state.
-Support = Literal["supported", "weakly_supported", "degraded", "supported_ensemble", "unsupported", "context_trusted"]
+# `best_effort` is additive and reachable only behind `--best-effort`: the
+# evaluation abstained, and the published rows are a disclosed naive
+# fallback carrying no measured accuracy — an abstention with numbers
+# attached, not a weaker grade of forecast.
+Support = Literal["supported", "weakly_supported", "degraded", "supported_ensemble", "unsupported", "context_trusted", "best_effort"]
 
 # The harness-wide vocabulary. ``Support`` above is the frozen v0.2 enum;
 # new code speaks these.

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 from typing import Any
@@ -31,6 +32,78 @@ FREQUENCY_DESCRIPTIONS = {
     "h": "hourly", "D": "daily", "W": "weekly", "MS": "month start",
 }
 
+#: General frequency codes: any whole-second step shorter than one day,
+#: written ``<N>s``/``<N>min``/``<N>h`` (``T`` is the pandas minute alias).
+#: Steps of a day or more stay named-only: a fixed 48-hour duration and
+#: "every second calendar day" diverge at the first DST transition, and
+#: Gnomon refuses to guess which one the caller meant.
+_GENERAL_CODE = re.compile(r"^([1-9]\d*)(s|min|h|T)$")
+_UNIT_SECONDS = {"s": 1, "min": 60, "T": 60, "h": 3600}
+_DAY_SECONDS = 86400
+
+
+def canonical_code(step: timedelta) -> str | None:
+    """The canonical frequency code for a fixed step, or ``None``.
+
+    Named codes win (60 seconds is ``min``, never ``60s``), then the largest
+    unit that divides the step evenly, so every representable duration has
+    exactly one spelling. ``None`` means the step is not representable: below
+    one second, not a whole number of seconds, or a day or more without
+    being exactly the calendar step ``D`` or ``W``.
+    """
+    for code, duration in FREQUENCIES.items():
+        if step == duration:
+            return code
+    total = step.total_seconds()
+    if total < 1 or total != int(total) or total >= _DAY_SECONDS:
+        return None
+    seconds = int(total)
+    if seconds % 3600 == 0:
+        return f"{seconds // 3600}h"
+    if seconds % 60 == 0:
+        return f"{seconds // 60}min"
+    return f"{seconds}s"
+
+
+def frequency_step(frequency: str) -> timedelta | None:
+    """The fixed duration of one grid step; ``None`` for the calendar-only
+    code ``MS``, whose step has no fixed duration."""
+    if frequency in FREQUENCIES:
+        return FREQUENCIES[frequency]
+    found = _GENERAL_CODE.match(frequency)
+    if found:
+        return timedelta(seconds=int(found.group(1)) * _UNIT_SECONDS[found.group(2)])
+    return None
+
+
+#: Natural cycles a general step's default season is derived from, in the
+#: preference order the curated SEASONS table encodes: the daily cycle when
+#: it fits (5min -> 288), else hourly (min -> 60, because 1440 daily lags
+#: would demand days of history), else a minute cycle (s -> 60). The cap is
+#: the largest curated value; a cycle needing more lags falls through to
+#: the next shorter one.
+_SEASON_CYCLES = (_DAY_SECONDS, 3600, 60)
+_MAX_DEFAULT_SEASON = 288
+
+
+def default_season(frequency: str) -> int:
+    """The fallback seasonal period for any supported frequency code.
+
+    Curated codes read the SEASONS table; general codes apply the rule the
+    table itself follows. A step that fits no natural cycle (nothing between
+    2 and 288 lags) gets 1 — no seasonality assumed — and season detection
+    then rests on measured autocorrelation alone.
+    """
+    if frequency in SEASONS:
+        return SEASONS[frequency]
+    step = frequency_step(frequency)
+    if step is not None:
+        for cycle in _SEASON_CYCLES:
+            ratio = round(cycle / step.total_seconds())
+            if 2 <= ratio <= _MAX_DEFAULT_SEASON:
+                return ratio
+    return 1
+
 
 def detect_season(values: list[float], frequency: str) -> tuple[int, float, str]:
     """Detect a repeat period from autocorrelation, falling back to frequency.
@@ -39,7 +112,7 @@ def detect_season(values: list[float], frequency: str) -> tuple[int, float, str]
     the search to at least two observed cycles avoids choosing unsupported
     long lags, while lag 1 is excluded because trend commonly dominates it.
     """
-    fallback = SEASONS[frequency]
+    fallback = default_season(frequency)
     if len(values) < 8:
         return fallback, 0.0, "frequency_default"
     # Remove a least-squares line first: otherwise a trend creates large,
@@ -76,14 +149,21 @@ def normalise_frequency(value: str) -> str:
                "15T": "15min", "15m": "15min",
                "30T": "30min", "30m": "30min"}
     result = aliases.get(value, value)
-    if result not in SEASONS:
-        raise GnomonError(
-            "UNSUPPORTED_FREQUENCY",
-            f"Unsupported frequency: {value}. Supported: "
-            + ", ".join(f"{code} ({FREQUENCY_DESCRIPTIONS[code]})" for code in SEASONS),
-            {"supported": sorted(SEASONS)},
-        )
-    return result
+    if result in SEASONS:
+        return result
+    step = frequency_step(result)
+    if step is not None:
+        code = canonical_code(step)
+        if code is not None:
+            return code
+    raise GnomonError(
+        "UNSUPPORTED_FREQUENCY",
+        f"Unsupported frequency: {value}. Supported: "
+        + ", ".join(f"{code} ({FREQUENCY_DESCRIPTIONS[code]})" for code in SEASONS)
+        + "; or any regular sub-daily step as <N>s, <N>min, or <N>h "
+          "(e.g. 90s, 7min, 2h).",
+        {"supported": sorted(SEASONS), "general_pattern": _GENERAL_CODE.pattern},
+    )
 
 
 def _month_step(left: datetime, right: datetime) -> bool:
@@ -103,11 +183,34 @@ def infer_frequency(timestamps: list[datetime]) -> str:
     for code, duration in FREQUENCIES.items():
         if step == duration:
             return code
+    # Beyond the named grid, inference accepts exactly one shape: a strictly
+    # regular series — one unique spacing — at a representable step. A named
+    # step tolerates gaps here because the grid validator names them next
+    # and repair can fill them; an unusual step with gaps is indistinguishable
+    # from a heavier grid with jitter, so it stays a refusal.
+    regular = len(counts) == 1
+    if regular:
+        code = canonical_code(step)
+        if code is not None:
+            return code
+        raise GnomonError(
+            "AMBIGUOUS_FREQUENCY",
+            f"The series is perfectly regular but its step ({step}) is not a "
+            "supported grid: steps must be a whole number of seconds shorter "
+            "than one day, or exactly the calendar codes D, W, or MS. "
+            "Resample the data to a representable step.",
+            {"supported": sorted(SEASONS), "observed_step": str(step),
+             "observed_step_seconds": step.total_seconds(), "regular": True},
+        )
     raise GnomonError(
         "AMBIGUOUS_FREQUENCY",
-        "Could not infer a supported regular frequency. Supported: "
-        + ", ".join(f"{code} ({FREQUENCY_DESCRIPTIONS[code]})" for code in SEASONS),
-        {"supported": sorted(SEASONS)},
+        "Could not infer a regular frequency: the spacing between "
+        f"consecutive timestamps varies (most common step: {step}, "
+        f"{len(counts)} distinct spacings). Pass an explicit frequency — a "
+        "named code or any whole-second sub-daily step as <N>s/<N>min/<N>h — "
+        "or repair the grid upstream.",
+        {"supported": sorted(SEASONS), "observed_step": str(step),
+         "distinct_spacings": len(counts), "regular": False},
     )
 
 
@@ -132,8 +235,9 @@ def next_timestamp(value: datetime, frequency: str) -> datetime:
             return value + FREQUENCIES[frequency]
         naive = value.replace(tzinfo=None) + FREQUENCIES[frequency]
         return _relocalise(naive, value)
-    if frequency in FREQUENCIES:
-        return value + FREQUENCIES[frequency]
+    step = frequency_step(frequency)
+    if step is not None:
+        return value + step
     year, month = value.year, value.month + 1
     if month == 13:
         year, month = year + 1, 1
@@ -176,9 +280,9 @@ def is_regular_step(left: datetime, right: datetime, frequency: str) -> bool:
         naive_left = left.replace(tzinfo=None)
         naive_right = right.replace(tzinfo=None)
         return _month_step(naive_left, naive_right)
-    if frequency not in FREQUENCIES:
+    step = frequency_step(frequency)
+    if step is None:
         return next_timestamp(left, frequency) == right
-    step = FREQUENCIES[frequency]
     if frequency in CALENDAR_FREQUENCIES and left.tzinfo is not None:
         return right.replace(tzinfo=None) - left.replace(tzinfo=None) == step
     return right - left == step
@@ -190,9 +294,9 @@ def _modal_step_description(timestamps: list[datetime]) -> str:
         return "unknown"
     steps = Counter(right - left for left, right in zip(timestamps, timestamps[1:]))
     step, _ = steps.most_common(1)[0]
-    for code, duration in FREQUENCIES.items():
-        if step == duration:
-            return f"{FREQUENCY_DESCRIPTIONS.get(code, code)} ({step})"
+    code = canonical_code(step)
+    if code is not None:
+        return f"{FREQUENCY_DESCRIPTIONS.get(code, code)} ({step})"
     return str(step)
 
 
