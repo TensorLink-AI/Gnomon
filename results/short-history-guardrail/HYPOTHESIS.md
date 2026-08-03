@@ -123,6 +123,49 @@ double-count rationale. Predictions, frozen now:
 > **H-G6c.** Series with ≥ 4 rolling origins remain byte-identical.
 > *Falsifier:* any diff.
 
+## Addendum: H-G7, registered after the trend-fixture regression, before the fix
+
+Implementing H-G6 surfaced a real cost of the hard baseline lock that
+the near-martingale benchmark could not see: on `examples/
+daily_requests.csv` — a perfect +3/day linear trend with 3 rolling
+origins — the lock forces `last_value`, the point-centred band covers
+3 of 7 test points (0.43, honestly measured and downgraded by the
+existing out-of-band machinery), and the lineage claim drops to
+descriptive, failing `test_contracts_v2::test_forecast_emits_verified_
+lineage`. The repo's own fixture encodes the case the design doc's
+*other* registered option — a fold-count-scaled margin — exists for:
+a deterministic trend produces overwhelming single-fold evidence,
+noise produces incremental evidence.
+
+Measured on both regimes before choosing (margin = required single-fold
+improvement over the strongest baseline): on the 50 near-martingale
+tasks, margin 0.25 lets 17 noise picks through (MSE 5.61), 0.50 lets 7
+(3.66), **0.75 lets 0 (MSE 2.981, identical to the hard lock)**; on the
+trend fixture, `drift` clears even the 0.75 bar (its single-fold error
+is near zero). The fix to be implemented after this registration:
+below 2 disjoint selection folds, a candidate is selectable only by
+beating the strongest baseline by **≥ 75%** on the single fold
+(`SINGLE_FOLD_SELECTION_MARGIN = 0.75`); otherwise the baseline is
+published with the existing `selection_underpowered` machinery. The
+lightweight single-trailing-holdout path keeps the hard lock: its
+holdout can be a single observation, too thin for any escape hatch.
+Predictions, frozen now:
+
+> **H-G7a.** The 50-task benchmark is unchanged within noise: zero
+> non-baseline selections, filtered mean MSE in [2.90, 3.05], MAPE
+> ≤ 1.80%, 0 abstentions; pooled coverage stays in H-G6a's [74%, 88%].
+> *Falsifier:* any non-baseline selection on the benchmark, or any
+> H-G6a band violated.
+>
+> **H-G7b.** The trend fixture recovers: `daily_requests` selects
+> `drift` again, its measured test coverage returns to the verifiable
+> band, and `test_contracts_v2::test_forecast_emits_verified_lineage`
+> passes unmodified.
+> *Falsifier:* a baseline pick on the fixture, or the test still failing.
+>
+> **H-G7c.** Series with ≥ 4 rolling origins remain byte-identical.
+> *Falsifier:* any diff.
+
 ## Analysis plan
 
 Identical to the exploration run: all 50 tasks, defaults, synthetic
