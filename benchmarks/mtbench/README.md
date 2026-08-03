@@ -20,7 +20,14 @@ Ours (this directory):
   `evaluation.api_call` *in memory* before an official script runs, so
   any of their `--model` branches is served by one OpenRouter model
   through `OPENROUTER_API_KEY` instead of four separate pasted keys.
-  Return shapes are preserved; the scripts never know the difference.
+  Return shapes are preserved (`send_to_openai_chatgpt` and
+  `send_to_openai_o1` return message-like objects, the rest strings);
+  prompts, parsing, and scoring are untouched. Known protocol deltas,
+  disclosed in the module docstring: the patched functions use the
+  shared client's `max_tokens=4096` and the adapter's `--temperature`
+  instead of whatever the script passes, and the client retries
+  transient HTTP errors and escalates the budget on empty
+  length-truncated completions — upstream does neither.
 - `gnomon_forecaster.py` — the Gnomon treatment for the two task families
   whose answer is a numeric trajectory: finance price forecasting
   (`--indicator time`) and weather temperature forecasting. Reads the
@@ -72,7 +79,20 @@ python -m benchmarks.mtbench.run_mtbench gnomon \
     --mode agent --model openai/gpt-4o
 ```
 
+Both subcommands default to the same temperature (0.7, upstream's
+chatgpt default); the ground rules require the two arms of a comparison
+to share it, so configs should set it explicitly for both.
+
 Outputs: `summary.json` (official-style mean MSE/MAE/RMSE/MAPE over
-samples passing the official filter, plus abstention counts),
-`output_details/` per sample, and `gnomonbench.jsonl` for
-`gnomon eval compare` against a control run.
+samples passing the official filter, plus abstention/error counts and
+which MAPE implementation scored the run), `output_details/` per
+sample, and `gnomonbench.jsonl` for the treatment arm. The control arm
+emits no GnomonBench records — the official script writes its own
+result files — so treatment-vs-control comparison goes through
+`benchmarks/report.py`, which joins the two arms per task via its
+`output_details` loader, not `gnomon eval compare`. Note also that
+`benchmarks/run_all.py` injects `--limit` only into the treatment
+subcommand: a config pairing a full-dataset control with a limited
+treatment produces two `summary.json` means that are not directly
+comparable; the per-task matched join in `report.py` is the comparison
+path.

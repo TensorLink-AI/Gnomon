@@ -61,7 +61,9 @@ def main() -> int:
                       default="pure")
     gnomon.add_argument("--model", default=None,
                       help="OpenRouter model id (required for agent/tools modes)")
-    gnomon.add_argument("--temperature", type=float, default=1.0)
+    # Same default as the control arm: the ground rules require identical
+    # temperature across the two conditions of a comparison.
+    gnomon.add_argument("--temperature", type=float, default=0.7)
     gnomon.add_argument("--limit", type=int, default=None)
 
     args = parser.parse_args()

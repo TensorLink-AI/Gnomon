@@ -72,19 +72,56 @@ if you cannot place it confidently.
 """
 
 
+def _resolve_mape() -> tuple[Any, str]:
+    """The MAPE implementation in use, resolved once per process.
+
+    The official ``evaluation.utils.calculate_mape`` wins whenever the
+    checkout is on ``sys.path``; otherwise the local mirror of the same
+    nonzero-masked formula is used and the summary must say so.
+    """
+    global _MAPE
+    if _MAPE is None:
+        try:
+            from evaluation.utils import calculate_mape  # type: ignore
+
+            _MAPE = (calculate_mape, "official evaluation.utils.calculate_mape")
+        except ImportError:
+            _MAPE = (None, "local mirror of calculate_mape "
+                           "(official checkout not on sys.path)")
+    return _MAPE
+
+
+_MAPE: tuple[Any, str] | None = None
+
+
 def official_mape(y_true: list[float], y_pred: list[float]) -> float:
     """MAPE exactly as ``evaluation.utils.calculate_mape``: imported from
     the official checkout when it is on ``sys.path``, otherwise the same
-    nonzero-masked formula."""
-    try:
-        from evaluation.utils import calculate_mape  # type: ignore
+    nonzero-masked formula — including its all-zero-truth behaviour,
+    where the mean over an empty mask is NaN, not 0."""
+    implementation, _ = _resolve_mape()
+    if implementation is not None:
+        return float(implementation(y_true, y_pred))
+    pairs = [(t, p) for t, p in zip(y_true, y_pred) if t != 0]
+    if not pairs:
+        return float("nan")
+    return 100.0 * sum(abs((t - p) / t) for t, p in pairs) / len(pairs)
 
-        return float(calculate_mape(y_true, y_pred))
-    except Exception:
-        pairs = [(t, p) for t, p in zip(y_true, y_pred) if t != 0]
-        if not pairs:
-            return 0.0
-        return 100.0 * sum(abs((t - p) / t) for t, p in pairs) / len(pairs)
+
+def sample_metrics(truth: list[float], prediction: list[float]) -> dict[str, float]:
+    """The official metric block (``value_prediction.py``), verbatim math.
+
+    A wrong-length prediction is an error, never a silent truncation:
+    ``zip`` would quietly drop the tail and understate the error.
+    """
+    if len(prediction) != len(truth):
+        raise ValueError(
+            f"prediction has {len(prediction)} steps, horizon is {len(truth)}"
+        )
+    mse = sum((t - p) ** 2 for t, p in zip(truth, prediction)) / len(truth)
+    mae = sum(abs(t - p) for t, p in zip(truth, prediction)) / len(truth)
+    return {"mse": mse, "mae": mae, "rmse": mse ** 0.5,
+            "mape": official_mape(truth, prediction)}
 
 
 def _article_text(value: Any) -> Any:
@@ -240,7 +277,7 @@ def forecast_sample(sample: dict[str, Any], *, mode: str,
 
 def run(dataset_folder: Path, output_dir: Path, *, mode: str,
         openrouter_model: str | None, mtbench_root: Path | None,
-        temperature: float = 1.0, limit: int | None = None,
+        temperature: float = 0.7, limit: int | None = None,
         work_dir: str | None = None) -> dict[str, Any]:
     if mtbench_root is not None and str(mtbench_root) not in sys.path:
         sys.path.insert(0, str(mtbench_root))
@@ -257,7 +294,7 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
 
     cumulative = {"mse": [], "mae": [], "rmse": [], "mape": []}
     per_sample: list[dict[str, Any]] = []
-    abstained = failed = 0
+    abstained = failed = errored = mape_undefined = 0
     for sample in samples:
         started = time.time()
         outcome = forecast_sample(sample, mode=mode, client=client,
@@ -276,11 +313,23 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
             ))
         else:
             prediction = outcome["prediction"]
-            # Official metric block (value_prediction.py), verbatim math.
-            mse = sum((t - p) ** 2 for t, p in zip(truth, prediction)) / len(truth)
-            mae = sum(abs(t - p) for t, p in zip(truth, prediction)) / len(truth)
-            rmse = mse ** 0.5
-            mape = official_mape(truth, prediction)
+            try:
+                metrics = sample_metrics(truth, prediction)
+            except ValueError as error:
+                errored += 1
+                entry.update({"error": str(error)})
+                records.write(RunRecord(
+                    task_id=sample["filename"], success=False, tool_calls=1,
+                    latency_seconds=round(elapsed, 3),
+                    extra={"error": str(error)},
+                ))
+                per_sample.append(entry)
+                (details_dir / sample["filename"]).write_text(
+                    json.dumps(entry, indent=2) + "\n", encoding="utf-8"
+                )
+                continue
+            mse, mae = metrics["mse"], metrics["mae"]
+            rmse, mape = metrics["rmse"], metrics["mape"]
             is_failed = mse > OFFICIAL_MSE_FAILURE_LIMIT
             entry.update({
                 "ground_truth": truth, "predict": prediction,
@@ -300,6 +349,9 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
             else:
                 for key, value in (("mse", mse), ("mae", mae),
                                    ("rmse", rmse), ("mape", mape)):
+                    if value != value:  # NaN: all-zero truth leaves MAPE
+                        mape_undefined += 1  # undefined; a NaN would
+                        continue  # poison the cumulative mean silently
                     cumulative[key].append(value)
             records.write(RunRecord(
                 task_id=sample["filename"], success=not is_failed,
@@ -321,13 +373,16 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
         "samples": len(samples),
         "scored": scored,
         "abstained": abstained,
+        "errored": errored,
         "failed_official_filter": failed,
+        "mape_undefined": mape_undefined,
+        "mape_implementation": _resolve_mape()[1],
         **{f"mean_{key}": (sum(values) / len(values) if values else None)
            for key, values in cumulative.items()},
         "note": (
             "means follow the official aggregation (samples past the "
-            "official mse filter); abstained and filtered counts must be "
-            "reported next to them"
+            "official mse filter); abstained, errored, filtered and "
+            "mape_undefined counts must be reported next to them"
         ),
     }
     if client is not None:
