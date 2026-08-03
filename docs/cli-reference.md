@@ -194,6 +194,14 @@ gnomon context validate --response response.json --file launches.md --file holid
 from the model's claims), rejects non-verbatim evidence quotes, and marks
 whether each event is admissible for backtesting.
 
+With `context.future_events: on` (or `prompt --future-events`), the prompt
+also describes the two future-dated typed classes — `constraint:*` stated
+bounds and `override:*` stated states — and `validate` copies each
+verified evidence quote into the `source_span` the lane's deterministic
+parser reads. A model-supplied `source_span` is always discarded: only a
+quote verified verbatim against your documents can carry a number into
+the forecast.
+
 ## `gnomon covariates`
 
 Ask Gnomon for the point-in-time format and exact fold cutoffs:

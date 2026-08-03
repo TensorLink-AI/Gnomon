@@ -195,6 +195,13 @@ def build_forecast_lineage(
                     f"{result.interval_coverage:.1%}, so the intervals are "
                     f"reported without probability weight."
                 )
+            if result.support == "context_trusted":
+                statement += (
+                    " The forecast was influenced by future-dated context "
+                    "events admitted on textual verification, not fold "
+                    "ablation; the history-only counterfactual is in the "
+                    "future_context_applied evidence."
+                )
             lineage.claims.append(ClaimRecord(
                 claim_id=f"claim:forecast:{result.series}",
                 claim_class="predictive" if calibrated else "descriptive",

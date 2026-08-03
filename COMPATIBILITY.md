@@ -54,7 +54,11 @@ Each forecast artifact is an immutable directory `<output>/<forecast_id>/`:
 - `summary.md` — human-readable, not machine-parsed; content may evolve freely.
 
 Support values: `supported`, `weakly_supported`, `degraded`,
-`supported_ensemble`, `unsupported`.
+`supported_ensemble`, `unsupported`. Additive and reachable only behind
+`context.future_events: on` (off by default): `context_trusted` — the
+forecast was influenced by future-dated context events admitted on
+textual verifiability rather than fold ablation. A client that never
+turns the flag on never sees it.
 
 Error envelope: `{"schema_version", "status": "error", "error": {"code",
 "message", "retryable", "details"}}`.

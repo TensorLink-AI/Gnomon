@@ -2,7 +2,8 @@
 
 ## Support status
 
-Every series receives one of five statuses:
+Every series receives one of five statuses (six with
+`context.future_events: on` — see the last row):
 
 | Status | Meaning |
 | --- | --- |
@@ -11,6 +12,7 @@ Every series receives one of five statuses:
 | `degraded` | A forecast was produced from a limited evaluation (single trailing holdout instead of separated selection, calibration, and test windows). |
 | `supported_ensemble` | An inverse-error-weighted ensemble of eligible models beat the strongest baseline. |
 | `unsupported` | There was insufficient evaluation history (the warning states the exact required and available counts) or no baseline completed every selection fold. No forecast rows are emitted. |
+| `context_trusted` | Reachable only behind `context.future_events: on`: the forecast was influenced by future-dated constraint/override events admitted on textual verifiability, which no fold ever tested. Weaker than every fold-backed status; the history-only counterfactual is in the `future_context_applied` evidence. |
 
 Each result additionally carries a `support_assessment` — a five-state
 harness-wide status (`supported` / `conditionally_supported` /

@@ -60,8 +60,11 @@ def build_method(args):
     from benchmarks.cik.gnomon_forecaster import GnomonForecaster
 
     mode = "agent" if args.method == "gnomon-agent" else "pure"
+    if args.future_context and mode != "agent":
+        raise SystemExit("--future-context requires --method gnomon-agent")
     return GnomonForecaster(
-        mode=mode, openrouter_model=args.model, temperature=args.temperature
+        mode=mode, openrouter_model=args.model, temperature=args.temperature,
+        future_context=args.future_context,
     )
 
 
@@ -185,6 +188,12 @@ def main() -> int:
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--task-filter", default=None,
                         help="Only run tasks whose class name contains this")
+    parser.add_argument(
+        "--future-context", action="store_true",
+        help="Enable Gnomon's context.future_events lane (gnomon-agent only): "
+             "the proposer may quote constraint/override spans, admitted by "
+             "textual verification instead of fold ablation",
+    )
     parser.add_argument("--max-parallel", type=int, default=1)
     parser.add_argument("--no-cache", action="store_true",
                         help="Disable the official result cache")

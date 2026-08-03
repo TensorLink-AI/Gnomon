@@ -194,6 +194,7 @@ def apply_claims(
     for row in rows:
         timestamp = datetime.fromisoformat(str(row["timestamp"]))
         updated = dict(row)
+        row_changed = False
         for claim in claims:
             if not claim.binds(timestamp):
                 continue
@@ -205,6 +206,7 @@ def apply_claims(
                     changed[field] = before
                     updated[field] = after
             if changed:
+                row_changed = True
                 applications.append({
                     "event_id": claim.event_id,
                     "kind": claim.kind,
@@ -212,6 +214,13 @@ def apply_claims(
                     "timestamp": row["timestamp"],
                     "before": changed,
                 })
+        if row_changed and {"point", "q50", "point_bias_correction"} <= updated.keys():
+            # The row promises pbc == q50 - point; a clamp that moves one
+            # of them without restating the gap ships a row that lies
+            # about itself.
+            updated["point_bias_correction"] = (
+                float(updated["q50"]) - float(updated["point"])
+            )
         _assert_monotone(updated)
         projected.append(updated)
     return projected, applications

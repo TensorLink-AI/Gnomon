@@ -119,6 +119,93 @@ def test_events_are_backtest_admissible():
     assert events and backtest_admissible(events[0])
 
 
+def test_source_spans_must_quote_the_context_verbatim():
+    """The future-context lane's provenance check lives in this adapter:
+    Gnomon never sees the source document, so a span that is not a
+    verbatim quote must be dropped before the engine does."""
+    window_start = "2024-01-01T00:00:00+00:00"
+    window_end = "2024-03-01T00:00:00+00:00"
+    context = "Constraints: values will stay between 0 and 340 units.\n"
+    base = {
+        "effective_start": "2024-02-01T00:00:00+00:00",
+        "effective_end": "2024-02-05T00:00:00+00:00",
+    }
+    proposals = [
+        {**base, "event_type": "constraint:bounds",
+         "source_span": "values will STAY between 0   and 340 units"},
+        {**base, "event_type": "constraint:bounds",
+         "source_span": "values are capped at 340"},  # a paraphrase
+    ]
+    events, notes = events_from_proposals(
+        proposals, task_name="DemoTask", known_at=window_start,
+        window_start=window_start, window_end=window_end,
+        context_text=context,
+    )
+    assert len(events) == 1
+    assert events[0].attributes["source_span"] == (
+        "values will STAY between 0   and 340 units"
+    )
+    assert any("not a verbatim quote" in note for note in notes)
+
+
+def test_overlong_spans_are_rejected_not_truncated():
+    """Truncating after the verbatim check can cut a number mid-digits,
+    handing the parser a figure the context states only as a substring."""
+    window_start = "2024-01-01T00:00:00+00:00"
+    long_span = "values will stay between 0 and " + "9" * 1000
+    context = f"Constraints: {long_span}.\n"
+    events, notes = events_from_proposals(
+        [{
+            "event_type": "constraint:bounds",
+            "effective_start": "2024-02-01T00:00:00+00:00",
+            "effective_end": "2024-02-05T00:00:00+00:00",
+            "source_span": long_span,
+        }],
+        task_name="DemoTask", known_at=window_start,
+        window_start=window_start, window_end="2024-03-01T00:00:00+00:00",
+        context_text=context,
+    )
+    assert not events
+    assert any("exceeds 1000 characters" in note for note in notes)
+
+
+def test_spans_are_not_attached_when_the_lane_is_off():
+    window_start = "2024-01-01T00:00:00+00:00"
+    events, notes = events_from_proposals(
+        [{
+            "event_type": "constraint:bounds",
+            "effective_start": "2024-02-01T00:00:00+00:00",
+            "effective_end": "2024-02-05T00:00:00+00:00",
+            "source_span": "anything at all",
+        }],
+        task_name="DemoTask", known_at=window_start,
+        window_start=window_start, window_end="2024-03-01T00:00:00+00:00",
+    )
+    assert events and "source_span" not in events[0].attributes
+    assert notes == []
+
+
+def test_future_context_requires_agent_mode():
+    import pytest
+
+    from benchmarks.cik.gnomon_forecaster import GnomonForecaster
+
+    with pytest.raises(ValueError, match="future_context"):
+        GnomonForecaster(mode="pure", future_context=True)
+
+
+def test_future_context_changes_the_cache_name():
+    """The official result cache must never serve a flag-off run to a
+    flag-on condition or vice versa."""
+    from benchmarks.cik.gnomon_forecaster import GnomonForecaster
+
+    off = GnomonForecaster(mode="agent", openrouter_model="x/y")
+    on = GnomonForecaster(mode="agent", openrouter_model="x/y",
+                          future_context=True)
+    assert off.cache_name != on.cache_name
+    assert on.cache_name.endswith("_future=on")
+
+
 def test_abstention_carries_reasons():
     error = GnomonAbstained(["insufficient history", "no baseline beaten"])
     assert "GNOMON_ABSTAINED" in str(error)

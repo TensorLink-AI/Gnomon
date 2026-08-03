@@ -68,7 +68,11 @@ CONTEXT_RESPONSE_SCHEMA: dict[str, Any] = {
 
 def build_context_investigation_prompt(
     documents: list[DocumentRef], series_names: list[str], default_timezone: str = "+00:00",
+    future_events: bool = False,
 ) -> dict[str, Any]:
+    """``future_events`` mirrors ``context.future_events``: when the run
+    that will consume these events has the lane on, the prompt also
+    describes the two future-dated typed classes it admits."""
     document_block = "\n\n".join(
         f"<document index={index} name={document.name!r}>\n{document.content}\n</document>"
         for index, document in enumerate(documents)
@@ -93,8 +97,29 @@ def build_context_investigation_prompt(
         f"5. entity_scope names affected series from: {series_list}. Use "
         "[\"*\"] only when the event clearly affects every series.\n"
         "6. Do not speculate. Fewer, well-grounded events beat many weak "
-        "ones. Return {\"events\": []} when nothing qualifies.\n\n"
-        "Respond with JSON matching the provided schema.\n\n"
+        "ones. Return {\"events\": []} when nothing qualifies.\n"
+    )
+    if future_events:
+        instructions += (
+            "\nTwo additional typed classes are admitted for FUTURE-dated "
+            "statements (their windows must lie entirely after the observed "
+            "history):\n"
+            "- A stated numeric bound on future values (\"between A and B\", "
+            "\"will not exceed X\", \"cannot be negative\"): use event_type "
+            "\"constraint:<label>\" and make evidence_quote the verbatim "
+            "sentence stating the bound, dated over the forecast window.\n"
+            "- A stated deterministic state for a stated window (\"offline "
+            "Tue-Thu\", \"closed\", \"output drops to 0\"): use event_type "
+            "\"override:<label>\" and make evidence_quote the verbatim "
+            "sentence stating the state or value, dated over exactly the "
+            "stated window.\n"
+            "The engine re-parses every number from the quoted sentence with "
+            "a deterministic parser; a quote that does not literally state "
+            "the bound or value is rejected. Never compute or estimate a "
+            "number yourself.\n"
+        )
+    instructions += (
+        "\nRespond with JSON matching the provided schema.\n\n"
         f"{document_block}"
     )
     return {
@@ -136,15 +161,35 @@ def parse_context_response(
             continue
         document = documents[document_index]
         attributes = dict(proposal.get("attributes") or {})
+        # `source_span` is the future-context lane's provenance field and is
+        # only ever set from the quote verified below. A model-supplied one
+        # bypasses that verification, so it is discarded, never trusted.
+        attributes.pop("source_span", None)
+        # `claim` is the caller-claims channel (`constraints.py`): a bound
+        # asserted on the caller's own authority and applied with no span
+        # parsing at all. That authority is the caller's, never the
+        # model's — an LLM writing `{"claim": {"kind": "min", "value": N}}`
+        # would put its own number straight onto every quantile, which is
+        # the one thing no workflow output may do. Model-proposed bounds
+        # go through `constraint:*` events, whose numbers are re-parsed
+        # from the verified quote.
+        attributes.pop("claim", None)
         quote = str(proposal.get("evidence_quote", ""))
         if quote:
             attributes["evidence_quote"] = quote
         if quote and quote not in document.content:
             rejected.append({"proposal": proposal, "problems": ["evidence_quote is not verbatim from the cited document"]})
             continue
+        event_type = str(proposal.get("event_type", ""))
+        if quote and (event_type.startswith("constraint:")
+                      or event_type.startswith("override:")):
+            # The quote has just been verified verbatim against the caller's
+            # document, which is exactly the check `source_span` exists to
+            # carry; the lane's deterministic parser takes it from here.
+            attributes["source_span"] = quote
         event = ContextEvent(
             event_id=f"event_llm_{index:02d}",
-            event_type=str(proposal.get("event_type", "")),
+            event_type=event_type,
             entity_scope=tuple(str(item) for item in proposal.get("entity_scope", ())),
             effective_start=str(proposal.get("effective_start", "")),
             effective_end=str(proposal.get("effective_end", "")),

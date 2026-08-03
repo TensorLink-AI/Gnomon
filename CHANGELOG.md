@@ -2,6 +2,45 @@
 
 ## Unreleased
 
+- **Verifiable future-context events** (`gnomon.future_context`), behind
+  `context.future_events` (default **off**). Two typed event classes whose
+  admission is by textual verifiability instead of fold ablation, for
+  events that are structurally untestable on history (future-dated, no
+  overlap with the observed window): `constraint:*` bounds parsed
+  deterministically from a quoted source span and projected onto the
+  emitted quantiles, and `override:*` stated states (value from the text,
+  never estimated) that set their window's steps with boundary-widened
+  intervals. The proposer never supplies a number that is applied; a
+  claimed bound must re-parse from the span; a bound the recent history
+  already violates is rejected as suspect. Fold-testable events still go
+  through the ablation gate, and a fold-tested failure stays rejected.
+  Disclosure: influenced forecasts report the new (flag-gated, additive)
+  support value `context_trusted`, record the history-only counterfactual
+  in `future_context_applied` evidence, and carry the admitted events in
+  the artifact-ID payload — absent when the flag is off, so every existing
+  ID and golden artifact is byte-identical. Motivated by the CiK result
+  where the gate rejected 100% of proposed events (see
+  `results/future-context-ab/HYPOTHESIS.md`, pre-registered).
+
+- Two flag-independent consistency fixes in the caller-claims lane,
+  surfaced by the same review that hardened the new lane (artifact IDs
+  are unchanged by both; no golden moves):
+  - Threshold-crossing probabilities now centre on the published point
+    path read back from the rows. Previously they centred on the
+    pre-clamp points, so a capacity cap at the threshold still reported
+    near-certain exceedance of a value the published rows never exceed —
+    the constraint stage was explicitly ordered before the threshold
+    stage "so the threshold analysis sees the same numbers the caller
+    will", and the probabilities were the one output that didn't.
+  - A clamped row restates its own `point_bias_correction`. The row
+    promises `pbc == q50 - point`; a clamp that moved one of them
+    without restating the gap shipped a row that lied about itself.
+
+- `gnomon context validate` discards a model-supplied `claim` attribute,
+  exactly as it discards a model-supplied `source_span`. The
+  caller-claims channel applies its number with no span parsing at all;
+  that authority is the caller's, never the model's.
+
 - **Multi-target batching, additive.** One invocation forecasts several
   columns of a wide file: `gnomon forecast data.csv --target hr,spo2,resp`
   (comma list) or `--target auto` (every numeric non-time column); the MCP
