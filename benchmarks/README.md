@@ -18,22 +18,38 @@ Every adapter in this directory obeys three rules:
    metrics come from the official benchmark code, installed or checked
    out unmodified. Nothing here reimplements a metric that the official
    package can compute; where the official scorer runs, it scores every
-   condition, including Gnomon's.
+   condition, including Gnomon's. Where a scorer *cannot* run over a
+   condition (upstream fuses LLM calls and scoring in one script, or a
+   metric module is not published), the local stand-in is disclosed in
+   that benchmark's README — MTBench's treatment mirrors the official
+   metric block, TemporalBench's choice questions are graded by a local
+   exact match (its forecast metrics do run the dataset's own module),
+   and TimeSage-MT's judge is local because the official one is not
+   public.
 2. **OpenRouter is the single LLM source.** Every condition that needs a
-   model reads `OPENROUTER_API_KEY` and takes a full OpenRouter model id
-   (e.g. `openai/gpt-4o`, `anthropic/claude-sonnet-4`), so control and
-   treatment always use the same model through the same provider.
+   model routes completions through OpenRouter and takes a full
+   OpenRouter model id (e.g. `openai/gpt-4o`,
+   `anthropic/claude-sonnet-4`), so control and treatment always use the
+   same model through the same provider. Most adapters read
+   `OPENROUTER_API_KEY` directly; AnomLLM's control instead points the
+   official code's own `credentials.yml` mechanism at OpenRouter so the
+   upstream code stays untouched (disclosed in its README).
 3. **Adapter decisions are disclosed.** Where Gnomon's output shape and a
    benchmark's expected input differ (e.g. quantiles vs. sample paths),
    the conversion is deterministic, documented in the module docstring,
    and applied identically across runs. Abstentions are recorded as
    abstentions — never papered over with fabricated numbers.
 
-Each run emits two artifacts: the benchmark's **official results** (its
-own file formats and scores — the headline numbers), and an
-**GnomonBench JSONL** file per condition so `gnomon eval compare` can report
-the treatment/control uplift and safety view described in
-[docs/agent-evaluation.md](../docs/agent-evaluation.md).
+Each run emits the benchmark's **official results** (its own file
+formats and scores — the headline numbers), and, wherever the adapter
+owns the run loop, a **GnomonBench JSONL** file per condition so
+`gnomon eval compare` can report the treatment/control uplift and
+safety view described in
+[docs/agent-evaluation.md](../docs/agent-evaluation.md). Two controls
+are the exception: MTBench's and AnomLLM's control arms execute the
+official scripts, which write only their own result files — for those,
+cross-arm comparison goes through the official tables and
+`benchmarks/report.py`'s per-task join, not `gnomon eval compare`.
 
 ## Implemented benchmarks
 
@@ -43,7 +59,7 @@ the treatment/control uplift and safety view described in
 | [AnomLLM](anomllm/) (ICLR 2025, "Can LLMs Understand Time Series Anomalies?") | Anomaly detection on controlled synthetic series; scored by F1 and affiliation-F1 | `benchmarks/anomllm` |
 | [MTBench](mtbench/) (2025) | Temporal reasoning and QA over paired financial/weather series and news; forecasting scored by MSE/MAPE | `benchmarks/mtbench` |
 | [TimeSage-MT](timesage_mt/) (2026) | Multi-turn agentic time series analysis with per-turn verifiable answers across 4 tiers | `benchmarks/timesage_mt` |
-| [TemporalBench](temporalbench/) (2026) | Four-tier contextual and event-informed reasoning (T1 understanding → T4 event-conditioned prediction); scored by the dataset's own metric module | `benchmarks/temporalbench` |
+| [TemporalBench](temporalbench/) (2026) | Four-tier contextual and event-informed reasoning (T1 understanding → T4 event-conditioned prediction); forecasts scored by the dataset's own metric module, choice questions by a disclosed local exact match | `benchmarks/temporalbench` |
 
 All five were selected because they exercise what Gnomon owns — context
 admission under a leakage gate, calibrated intervals, graded detection,
@@ -52,6 +68,18 @@ an LLM's ability to read raw number sequences. See each subdirectory's
 README for setup, the exact conditions, and any faithfulness caveats
 (TimeSage-MT's official judge is not public; its README explains what
 is and is not comparable).
+
+One internally-authored benchmark sits alongside the five published
+adapters:
+
+| Benchmark | What it measures | Adapter |
+| --- | --- | --- |
+| [LeakTrap](leaktrap/) (internal) | Temporal-leakage traps: whether a forecaster respects publication dates when peeking would score better; graded by a hindsight no-leak ceiling, transcription detection, and a structural snapshot assertion | `benchmarks/leaktrap` |
+
+LeakTrap is ours, not a community benchmark — its numbers validate
+Gnomon's bitemporal contract and are not comparable to anything
+published. Its README covers the trap construction, the three arms
+(control / gnomon / oracle-leak), and how to read the leak flags.
 
 ## Conditions
 
@@ -109,9 +137,14 @@ READMEs).
 
 ## Comparing against published results
 
-Because every adapter scores with the benchmark's official metric
-implementation, our summaries are directly comparable to the papers'
-tables and leaderboards — under the official protocol only:
+Where an adapter scores with the benchmark's official metric
+implementation, per-run scores are directly comparable to the papers'
+tables and leaderboards — but only under the official protocol, and
+only for the summary key each benchmark's README designates as
+published-comparable (aggregation can differ from the official one
+even when per-run scores are official; CiK's README documents its
+capped/imputed aggregate, and TemporalBench's choice accuracy is a
+local grading whose equivalence to the leaderboard's is unverified):
 
 - full official task set (a `--limit`/`--task-filter` smoke run is
   **not** comparable to a published number),

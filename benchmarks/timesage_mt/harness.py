@@ -18,6 +18,15 @@ Two agent conditions, matched turn-for-turn on the same tasks:
 
 Reference agent turns from the task files are never shown to the agent;
 only user turns enter the conversation.
+
+Known confound, disclosed: the system prompt embeds at most
+``MAX_CSV_CHARS`` characters of the visible CSV for BOTH conditions, but
+the tools compute over the full visible series. On tasks whose CSV
+exceeds that bound the tools arm therefore has data access the direct
+arm lacks, on top of the intended treatment. The mechanism is kept —
+tools scaling past the context window is arguably part of what tools
+buy — but it is measured: every per-turn record carries a
+``csv_truncated`` flag and the run summary counts affected tasks.
 """
 
 from __future__ import annotations
@@ -129,9 +138,15 @@ class ToolBox:
         self.work_dir = work_dir
         self.calls = 0
 
+    @property
+    def csv_truncated(self) -> bool:
+        """True when the prompt CSV is cut at ``MAX_CSV_CHARS`` while the
+        tools still see the full series (the disclosed access confound)."""
+        return len(self.csv_text) > MAX_CSV_CHARS
+
     def bounded_csv(self) -> str:
         text = self.csv_text
-        if len(text) > MAX_CSV_CHARS:
+        if self.csv_truncated:
             text = text[:MAX_CSV_CHARS] + "\n... (truncated for context)"
         return text
 
@@ -391,5 +406,6 @@ def run_dialogue(
             "question": user_turn.get("text", ""),
             "response": response_text,
             "tool_calls": tool_trace,
+            "csv_truncated": toolbox.csv_truncated,
         })
     return records

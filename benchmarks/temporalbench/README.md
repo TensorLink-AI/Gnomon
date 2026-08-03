@@ -21,15 +21,23 @@ Official (from the dataset, used as published):
 - **all forecast metrics**: the dataset ships
   `forecast_metrics_utils.py` (the authors' reference implementation,
   including the weighted OW metrics for multi-channel MIMIC rows); this
-  adapter imports that file unmodified and scores every condition with
-  it. Choice questions are exact-match against the embedded labels.
+  adapter imports that file unmodified and scores every condition's
+  forecasts with it.
+
+Ours, and disclosed as such: **choice scoring is local**. ONLY the
+forecast metrics go through the official module. T1/T3/MCQ answers are
+graded by this adapter's own case-insensitive exact match against the
+labels embedded in the rows (`scoring.py`); whether that is equivalent
+to the official/leaderboard choice scoring is unverified. Treat choice
+accuracies as this adapter's numbers — comparable across the conditions
+here, not necessarily to the leaderboard.
 
 Ours (this directory) — the three conditions:
 
 | Condition | LLM | Numbers produced by |
 | --- | --- | --- |
 | `control` | official prompt verbatim via OpenRouter | the LLM |
-| `gnomon-pure` (T2/T4) | none | Gnomon; MCQs answered `Uncertain` |
+| `gnomon-pure` (T2/T4) | none | Gnomon; MCQs answered `Uncertain`, or the `ABSTAIN` sentinel (scores wrong) where no such option exists |
 | `gnomon-agent` | answers choice questions given Gnomon's evidence | Gnomon — forecast arrays in the final answer are Gnomon's, not editable by the model |
 
 Disclosed adapter decisions (see `gnomon_runner.py`): rows carry
@@ -38,7 +46,11 @@ channel on a synthetic regular hourly axis (index-based metrics — the
 axis never enters the score); nulls go through Gnomon's disclosed repair
 layer; channels Gnomon abstains on stay absent and the row is recorded as
 an abstention; `gnomon-pure` answers MCQs with the option sets' own
-`Uncertain` — an honest abstention, reported as such.
+`Uncertain` — an honest abstention, reported as such. Questions whose
+option set has no `Uncertain` are answered with the `ABSTAIN` sentinel,
+which matches no real option and therefore deterministically scores
+wrong (recorded as an abstention — never a guess that could luck into
+the label).
 
 ## Setup and run
 
@@ -70,8 +82,11 @@ gnomon eval compare --baseline results/tb-control/gnomonbench.jsonl \
 ```
 
 `--datasets` filters by source (e.g. `--datasets MIMIC`). Outputs:
-`summary.json` (per-tier choice accuracy, mean official forecast
-metrics, abstention counts), `details/` per row, `gnomonbench.jsonl`.
+`summary.json` (per-tier choice accuracy and mean official forecast
+metrics — both over scored rows only, as their `*_scored_only` names
+say; abstained and errored rows are excluded, so compare arms via
+`benchmarks/report.py`'s matched join), `details/` per row,
+`gnomonbench.jsonl`, `manifest.json` (run provenance).
 
 Notes: the benchmark is new (Feb 2026) and its README announces
 human-annotated updates — re-download before comparing across dates.

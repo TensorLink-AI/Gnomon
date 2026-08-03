@@ -19,11 +19,20 @@ Two modes, both scored by the untouched official RCRPS metric:
 
 Adapter decisions, disclosed:
 
-- CiK provides three quantities per horizon step once Gnomon has run:
-  q10/q50/q90. RCRPS is estimated from samples, so samples are drawn
-  deterministically from the piecewise-linear inverse CDF through those
-  quantiles, with flat tails clamped at q10/q90 (conservative: no
-  invented tail spread). See :func:`samples_from_quantile_rows`.
+- Gnomon emits three quantities per horizon step: q10/q50/q90. RCRPS is
+  estimated from samples, so samples are drawn deterministically from
+  the piecewise-linear inverse CDF through those quantiles, clamped at
+  q10/q90. Two consequences for RCRPS, which is computed on sample
+  paths, must be disclosed. First, the paths are comonotonic: each
+  sample sits at the same probability level at every step, so
+  per-timestep CRPS is unaffected but the joint distribution over paths
+  is degenerate. Second, clamping means no sample ever lies beyond the
+  outer quantiles, so a constraint that would only be violated in the
+  tails can never be violated by these samples — the clamping can
+  SUPPRESS RCRPS's constraint-violation penalty relative to a sampler
+  with real tails. For that penalty term the conversion can favor this
+  adapter; it is not self-penalizing. See
+  :func:`samples_from_quantile_rows`.
 - CiK context text is benchmark-supplied ground truth available at
   forecast time, so proposed events carry a verifiable source of type
   ``dataset`` referencing the task's context, with ``known_at`` set to
@@ -115,8 +124,14 @@ def samples_from_quantile_rows(
 
     Uses stratified probabilities ``(i + 0.5) / n_samples`` mapped through
     the piecewise-linear inverse CDF defined by the three quantiles.
-    Probabilities beyond the outer quantiles clamp to q10/q90, which
-    understates tail spread rather than inventing it.
+    Probabilities beyond the outer quantiles clamp to q10/q90.
+
+    Disclosed biases (see the module docstring): sample paths are
+    comonotonic — sample ``i`` sits at probability ``(i + 0.5) /
+    n_samples`` at every step — so the joint distribution over paths is
+    degenerate; and the clamp keeps every sample inside [q10, q90], which
+    can suppress RCRPS's constraint-violation penalty in the treatment's
+    favor compared to a sampler with real tails.
 
     Returns a list of ``n_samples`` trajectories, each of length
     ``len(rows)``.

@@ -30,6 +30,22 @@ def test_numbers_in_handles_formats():
     assert 24.0 in values
 
 
+def test_numbers_in_excludes_date_and_time_tokens():
+    text = ("Peak on 2026-01-02 (also written 2026/01/02 or 02/01/2026) "
+            "at 12:30:05, ISO 2026-01-02T12:30:05+00:00 and "
+            "2026-01-02 12:30:05Z; value 42 and CV 0.81.")
+    assert numbers_in(text) == [42.0, 0.81]
+
+
+def test_numerical_range_not_satisfied_by_timestamps():
+    verify = {"type": "numerical_range", "keywords": [],
+              "range": [2000.0, 2100.0]}
+    assert score_mechanical(
+        verify, "The anomaly is at 2026-01-02 03:00:00.") is False
+    # A bare number of the same magnitude still counts.
+    assert score_mechanical(verify, "The peak value is 2026.") is True
+
+
 def test_mechanical_keyword_requires_all():
     verify = {"type": "keyword", "keywords": ["24", "daily"], "range": None}
     assert score_mechanical(verify, "A strong DAILY cycle with period 24.") is True
@@ -102,6 +118,117 @@ def test_toolbox_series_stats_and_unknown_column(tmp_path):
     assert round(stats["mean"], 2) == 51.33
     assert "error" in toolbox.call("series_stats", {"column": "nope"})
     assert "error" in toolbox.call("no_such_tool", {})
+
+
+def _fallback_task(rows, rows_visible=None):
+    """Synthetic task with no per-task CSV, exercising the
+    time_series_json fallback in read_visible_series."""
+    return TimeSageTask(
+        task_id="L1_fallback_001", tier="L1", domain=None,
+        dialogue=[{"turn_id": 1, "role": "user", "text": "Profile this."}],
+        visibility=(
+            {"rows_visible": rows_visible} if rows_visible is not None else {}
+        ),
+        visible_csv=None,
+        raw={"time_series_json": json.dumps(rows)},
+    )
+
+
+def test_fallback_series_enforces_visibility_contract():
+    rows = [{"date": f"2023-01-{day:02d} 00:00:00", "value": float(day)}
+            for day in range(1, 7)]
+    task = _fallback_task(rows, rows_visible=3)
+    timestamps, columns, text = read_visible_series(task)
+    # Post-horizon rows never reach the tools...
+    assert len(timestamps) == 3
+    assert columns["value"] == [1.0, 2.0, 3.0]
+    # ...and the prompt text is exactly the rows the tools see.
+    assert json.loads(text) == rows[:3]
+    assert "2023-01-04" not in text
+
+
+def test_fallback_series_without_contract_keeps_prompt_tool_parity():
+    rows = [{"date": f"2023-03-{1 + i // 24:02d} {i % 24:02d}:00:00",
+             "value": float(i)} for i in range(72)]
+    timestamps, columns, text = read_visible_series(_fallback_task(rows))
+    assert len(timestamps) == 72
+    assert columns["value"][-1] == 71.0
+    # No hidden cap: the serialized prompt payload matches the tool rows.
+    assert json.loads(text) == rows
+
+
+def test_toolbox_reports_prompt_csv_truncation():
+    from benchmarks.timesage_mt.harness import MAX_CSV_CHARS, ToolBox
+
+    small = ToolBox(_fallback_task(
+        [{"date": "2023-01-01 00:00:00", "value": 1.0}]))
+    assert small.csv_truncated is False
+    assert small.bounded_csv() == small.csv_text
+
+    rows = [{"date": f"2023-{1 + i // 28:02d}-{1 + i % 28:02d} 00:00:00",
+             "value": float(i)} for i in range(2000)]
+    big = ToolBox(_fallback_task(rows))
+    assert len(big.csv_text) > MAX_CSV_CHARS
+    assert big.csv_truncated is True
+    assert big.bounded_csv().endswith("(truncated for context)")
+    # The tools still see the full series — the disclosed confound.
+    assert len(big.columns["value"]) == 2000
+
+
+def test_run_dialogue_records_carry_truncation_flag(tmp_path):
+    _write_timesage_fixture(tmp_path)
+    from benchmarks.timesage_mt.harness import run_dialogue
+
+    class _StubMessage:
+        content = "All quiet."
+        tool_calls = None
+
+    class _StubChoice:
+        message = _StubMessage()
+
+    class _StubResponse:
+        choices = [_StubChoice()]
+
+    class _StubClient:
+        def chat(self, messages, n=1, tools=None, tool_choice=None):
+            return _StubResponse()
+
+    records = run_dialogue(load_tasks(tmp_path)[0], _StubClient(),
+                           condition="direct")
+    assert len(records) == 1
+    assert records[0]["response"] == "All quiet."
+    assert records[0]["csv_truncated"] is False
+
+
+def test_failed_task_turns_keyed_like_scored_turns():
+    from benchmarks.timesage_mt.run_timesage import scorable_turns_on_failure
+
+    task = TimeSageTask(
+        task_id="L2_x_007", tier="L2", domain=None,
+        dialogue=[
+            {"turn_id": 1, "role": "user", "text": "q1"},
+            {"turn_id": 2, "role": "agent",
+             "finding_verify": {"type": "numerical_range", "keywords": [],
+                                "range": [0.0, 1.0]}},
+            {"turn_id": 3, "role": "user", "text": "q2"},
+            {"turn_id": 4, "role": "agent",
+             "finding_verify": {"type": "semantic", "keywords": [],
+                                "range": None, "embedding_threshold": 0.9}},
+            {"turn_id": 5, "role": "user", "text": "q3"},
+            {"turn_id": 6, "role": "agent", "text": "no verify spec"},
+        ],
+        visibility={}, visible_csv=None, raw={},
+    )
+    # Turn keys match the scored-turn scheme, so failed tasks stay in
+    # the denominator and join per-turn against the other arm.
+    assert scorable_turns_on_failure(task, judge_available=False) == [
+        ("L2_x_007-turn1", "mechanical"),
+        ("L2_x_007-turn3", "unscored"),
+    ]
+    assert scorable_turns_on_failure(task, judge_available=True) == [
+        ("L2_x_007-turn1", "mechanical"),
+        ("L2_x_007-turn3", "judge"),
+    ]
 
 
 def test_official_mape_fallback_masks_zeros():

@@ -46,8 +46,11 @@ cp /path/to/Gnomon/benchmarks/anomllm/credentials.example.yml credentials.yml
 # edit credentials.yml: add your OpenRouter key for each model you'll run
 ```
 
-Gnomon itself needs no extra dependencies beyond numpy-free stdlib — the
-adapter reads the benchmark's `data.pkl` directly.
+The adapter's own code is stdlib-only, but the benchmark's `data.pkl`
+stores numpy arrays, so numpy must be importable in the environment that
+runs the Gnomon condition — unpickling fails without it. Anything that
+can `import numpy` suffices; none of the rest of the AnomLLM environment
+is needed for the treatment arm.
 
 ## Run
 
@@ -70,7 +73,48 @@ cd ~/AnomLLM && python src/result_agg.py --data_name point \
 Repeat `--data` over `point`, `range`, `freq`, `trend`, `flat-trend`,
 `noisy-point`, `noisy-freq` for the full suite.
 
-Each Gnomon run also writes `<variant>.gnomonbench.jsonl` next to the
-predictions (per-series success/abstention/latency rows plus an adapter
-F1 preview) for `gnomon eval compare`; the official aggregator remains the
-authoritative scorer.
+`--variant-name` (default `detect`) labels Gnomon's results file. Names
+matching upstream's rescaling pattern — `0shot-text-s0.3`,
+`1shot-text-s0.3`, and their `-cot` forms — are rejected with an error:
+for exactly those names, the official aggregator's `postprocess_configs`
+multiplies every integer in the stored responses by the inverse scale
+(they denote prompts over a 0.3-subsampled series), which would silently
+corrupt Gnomon's full-resolution indices.
+
+## What each arm emits, and how they compare
+
+Treatment (Gnomon), per run:
+
+- `results/synthetic/<data>/gnomon/<variant>.jsonl` — predictions in the
+  official row format, scored by `result_agg.py`.
+- `gnomonbench/synthetic/<data>/gnomon/<variant>.gnomonbench.jsonl` —
+  the adapter's own per-series records (success/abstention/latency plus
+  an F1 preview). This sidecar deliberately lives *outside* `results/`:
+  upstream's `collect_results` sweeps that whole tree and scores every
+  `*.jsonl` whose name lacks `requests`, and a sidecar placed there once
+  rendered a phantom all-zero variant in the official table. Should a
+  custom `records_path` point back under `results/`, the adapter inserts
+  `requests` into the filename so the official filter skips it.
+- `manifest.json` next to the sidecar — run provenance in the same
+  format `benchmarks/run_all.py` records.
+
+The summary's F1 preview follows the official convention — a clean
+series with an empty prediction scores 1.0 and is included in the mean
+(reported as `preview_mean_pointwise_f1_official_convention`, with
+correct silences also counted as `clean_series_correctly_silent`) — so
+it tracks the official table; `result_agg.py` stays authoritative.
+
+Control (official LLM runner), per run:
+
+- `results/synthetic/<data>/<model>/<variant>.jsonl` — written by the
+  official `online_api.py`, untouched by us. No GnomonBench records:
+  the control's rows come from official code this adapter does not
+  modify.
+- `gnomonbench/synthetic/<data>/<model, slashes flattened>/manifest.json`
+  — provenance for the control arm.
+
+Because only the treatment arm has GnomonBench records,
+treatment-vs-control comparison for this benchmark does **not** go
+through `gnomon eval compare` (which needs those records on both sides).
+Both arms meet in the official `result_agg.py` table instead — one row
+per condition, scored by identical code over the same series ids.

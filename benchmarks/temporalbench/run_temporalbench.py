@@ -14,6 +14,15 @@ Conditions
                 questions. Forecast arrays in the final answer are the
                 Gnomon arrays — the model cannot edit them.
 
+Success semantics
+-----------------
+On T2/T4 the per-record ``success`` boolean records COMPLETION — the
+official metric module returned metrics for the row — not forecast
+accuracy, so a success-rate uplift on those tiers measures completion
+rate only. Forecast accuracy lives in the per-row SMAPE under each
+record's ``extra`` and in the summary's scored-rows-only metric means;
+compare arms with ``benchmarks/report.py``'s matched join.
+
 Examples
 --------
 ::
@@ -46,6 +55,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from benchmarks.common.manifest import write_manifest  # noqa: E402
 from benchmarks.common.openrouter import OpenRouterClient  # noqa: E402
 from benchmarks.common.records import RecordWriter, RunRecord  # noqa: E402
 from benchmarks.temporalbench import gnomon_runner, scoring  # noqa: E402
@@ -69,6 +79,69 @@ forecast is required in the output, reproduce these arrays exactly.
 
 """
 
+EVIDENCE_BUDGET = 40_000
+
+
+def bounded_evidence(digest: dict[str, Any],
+                     budget: int = EVIDENCE_BUDGET) -> str:
+    """Serialize the evidence digest to at most ``budget`` characters of
+    VALID JSON. A plain ``json.dumps(digest)[:budget]`` could cut the
+    text mid-token and hand the agent malformed evidence, so instead the
+    largest entries are progressively shrunk — long forecast arrays keep
+    a prefix plus summary stats under a ``"truncated": true`` marker —
+    and, if that is still not enough, top-level entries are dropped
+    largest-first with the dropped keys named in the result.
+    Deterministic: the same digest always yields the same string.
+    Non-finite numbers become null so the output is always spec-valid
+    JSON; the budget is best-effort — the residual skeleton (the
+    ``truncated``/``dropped`` markers) can exceed a budget smaller than
+    itself, far below any real configuration.
+    """
+    # Private deep copy; parse_constant turns NaN/Infinity into null so
+    # the output stays spec-valid JSON whatever the stats contain.
+    digest = json.loads(json.dumps(digest, default=str),
+                        parse_constant=lambda _: None)
+    text = json.dumps(digest)
+    if len(text) <= budget:
+        return text
+    keep = 24  # leading forecast values kept verbatim when shrinking
+    forecasts = digest.get("forecasts")
+    if isinstance(forecasts, dict):
+        by_size = sorted(
+            forecasts, key=lambda k: (-len(json.dumps(forecasts[k])), k)
+        )
+        for key in by_size:
+            entry = forecasts[key]
+            values = entry.get("values") if isinstance(entry, dict) else None
+            if not (isinstance(values, list) and len(values) > keep):
+                continue
+            numeric = [v for v in values if isinstance(v, (int, float))]
+            entry["values"] = values[:keep]
+            entry["truncated"] = True
+            entry["values_total"] = len(values)
+            if numeric:
+                entry["values_stats"] = {
+                    "min": min(numeric), "max": max(numeric),
+                    "mean": round(sum(numeric) / len(numeric), 6),
+                }
+            text = json.dumps(digest)
+            if len(text) <= budget:
+                return text
+    dropped: list[str] = []
+    digest["truncated"] = True
+    digest["dropped"] = dropped
+    droppable = sorted(
+        (k for k in digest if k not in ("truncated", "dropped")),
+        key=lambda k: (-len(json.dumps(digest[k])), k),
+    )
+    for key in droppable:
+        del digest[key]
+        dropped.append(key)
+        text = json.dumps(digest)
+        if len(text) <= budget:
+            return text
+    return json.dumps(digest)
+
 
 def answer_row(row: dict[str, Any], condition: str,
                client: OpenRouterClient | None) -> dict[str, Any]:
@@ -85,10 +158,10 @@ def answer_row(row: dict[str, Any], condition: str,
         if tier not in ("T2", "T4"):
             raise ValueError("gnomon-pure covers tiers T2 and T4 only")
         forecast, abstained = gnomon_runner.forecast_payload(analysis)
+        mcq, mcq_abstained = gnomon_runner.uncertain_mcq(row)
         return {
-            "answer": {"forecast": forecast,
-                       "mcq": gnomon_runner.uncertain_mcq(row)},
-            "abstained": abstained, "analysis": analysis,
+            "answer": {"forecast": forecast, "mcq": mcq},
+            "abstained": abstained + mcq_abstained, "analysis": analysis,
         }
 
     # gnomon-agent: evidence digest + official prompt; LLM answers choices.
@@ -101,7 +174,7 @@ def answer_row(row: dict[str, Any], condition: str,
         for key, outcome in analysis.get("channels", {}).items()
     }
     prompt = AGENT_PREAMBLE.format(
-        evidence=json.dumps(digest)[:40_000]
+        evidence=bounded_evidence(digest)
     ) + row["prompt"]
     completion = client.completions(
         [{"role": "user", "content": prompt}], n=1
@@ -171,35 +244,56 @@ def main() -> int:
     output_dir = Path(args.output_dir)
     details_dir = output_dir / "details"
     details_dir.mkdir(parents=True, exist_ok=True)
-    records = RecordWriter(output_dir / "gnomonbench.jsonl")
+    records_path = output_dir / "gnomonbench.jsonl"
+    # RecordWriter appends; a rerun into the same output dir must replace
+    # the previous run's rows (as summary.json is), not accumulate them.
+    records_path.unlink(missing_ok=True)
+    records = RecordWriter(records_path)
 
     choice_by_tier: dict[str, list[int]] = {}
+    choice_rows_by_tier: dict[str, int] = {}
     forecast_metrics_acc: dict[str, list[float]] = {}
-    abstained_rows = errored = 0
+    abstained_rows = errored = forecast_rows_scored = 0
     total = 0
     for row in iter_rows(data_dir, tiers=tiers or TIERS,
                          datasets=datasets, limit=args.limit):
         total += 1
         row_id = row.get("id", f"row{total}")
         started = time.time()
+        # Answering and scoring fail separately: a scoring exception must
+        # not swallow an answer that abstained — the abstention flag has
+        # to survive into the record either way.
         try:
             outcome = answer_row(row, args.condition, client)
-            verdict = score_row(row, outcome["answer"], official_metrics)
         except Exception as error:
             errored += 1
             records.write(RunRecord(task_id=row_id, success=False,
-                                    extra={"error": str(error)[:400]}))
+                                    extra={"error": str(error)[:400],
+                                           "error_stage": "answer"}))
+            continue
+        try:
+            verdict = score_row(row, outcome["answer"], official_metrics)
+        except Exception as error:
+            errored += 1
+            records.write(RunRecord(
+                task_id=row_id, success=False,
+                appropriate_abstention=bool(outcome.get("abstained")),
+                extra={"error": str(error)[:400], "error_stage": "score",
+                       "abstained": outcome.get("abstained")},
+            ))
             continue
         elapsed = time.time() - started
 
         choice = verdict.get("choice") or {}
         tier = verdict["tier"]
         if choice.get("total"):
+            choice_rows_by_tier[tier] = choice_rows_by_tier.get(tier, 0) + 1
             choice_by_tier.setdefault(tier, []).extend(
                 [1] * choice["correct"] + [0] * (choice["total"] - choice["correct"])
             )
         metrics = verdict.get("forecast_metrics")
         if metrics:
+            forecast_rows_scored += 1
             for key, value in metrics.items():
                 if isinstance(value, (int, float)):
                     forecast_metrics_acc.setdefault(key, []).append(float(value))
@@ -239,26 +333,50 @@ def main() -> int:
         "rows": total,
         "rows_errored": errored,
         "rows_with_abstentions": abstained_rows,
-        "choice_accuracy_by_tier": {
+        "choice_accuracy_by_tier_scored_only": {
             tier: sum(flags) / len(flags)
             for tier, flags in sorted(choice_by_tier.items())
         },
-        "forecast_metrics_mean": {
+        "choice_rows_scored_by_tier": dict(sorted(choice_rows_by_tier.items())),
+        "forecast_metrics_mean_scored_only": {
             key: sum(values) / len(values)
             for key, values in sorted(forecast_metrics_acc.items())
             if values and key in ("MAPE", "MAE", "RMSE", "SMAPE",
                                   "OW_sMAPE", "OW_RMSSE", "OW_MASE")
         },
+        "forecast_rows_scored": forecast_rows_scored,
         "note": (
             "forecast metrics computed by the dataset's official "
-            "forecast_metrics_utils.py; choice accuracy is exact-match "
-            "against the official labels"
+            "forecast_metrics_utils.py; choice accuracy is this adapter's "
+            "LOCAL case-insensitive exact match against the official "
+            "labels. The *_scored_only means average scored rows only — "
+            "fully-abstained and errored rows are not in them (rows with "
+            "PARTIAL channel abstentions are, scored on the channels "
+            "present, and Uncertain/sentinel choice answers count as "
+            "wrong), so they are unmatched-subset numbers; compare arms through "
+            "benchmarks/report.py's matched join, not by subtracting "
+            "summaries. success on T2/T4 records completion (the official "
+            "module returned metrics), not accuracy — per-row SMAPE lives "
+            "in each record's extra."
         ),
     }
     if client is not None:
         summary["llm_usage"] = client.usage_summary
     (output_dir / "summary.json").write_text(
         json.dumps(summary, indent=2) + "\n", encoding="utf-8"
+    )
+    # Provenance beside the results on direct CLI runs too, mirroring
+    # run_all.py's field conventions (run_all overwrites this with its
+    # own manifest when it is the caller).
+    write_manifest(
+        output_dir,
+        benchmark="temporalbench",
+        condition=args.condition,
+        model=args.model,
+        target="tiers=" + ",".join(tiers or TIERS)
+               + (";datasets=" + ",".join(datasets) if datasets else ""),
+        command=" ".join(sys.argv),
+        limit=args.limit,
     )
     print(json.dumps(summary, indent=2))
     return 0

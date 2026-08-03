@@ -24,9 +24,10 @@ Control (direct answering) vs. treatment (Gnomon tool loop), same model::
         --baseline results/timesage-direct/gnomonbench.jsonl \
         --treatment results/timesage-gnomon/gnomonbench.jsonl
 
-Scoring: mechanical checks (keyword / numerical_range) are applied
-exactly as the task files specify. Turns whose spec needs an embedding
-or judge are counted as unscored unless ``--judge-model`` is given, and
+Scoring: any spec that lists keywords or a checkable numerical range is
+graded mechanically on those parts alone (see ``scoring.py`` for the
+precise rule and its disclosed leniency). Turns whose spec has neither
+are counted as unscored unless ``--judge-model`` is given, and
 judge-based passes are reported separately — the official platform's
 judge is not public, so those numbers are not leaderboard-comparable.
 """
@@ -45,7 +46,39 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from benchmarks.common.openrouter import OpenRouterClient  # noqa: E402
 from benchmarks.common.records import RecordWriter, RunRecord  # noqa: E402
 from benchmarks.timesage_mt import harness, scoring  # noqa: E402
-from benchmarks.timesage_mt.tasks import TIERS, download, load_tasks  # noqa: E402
+from benchmarks.timesage_mt.tasks import (  # noqa: E402
+    TIERS,
+    TimeSageTask,
+    download,
+    load_tasks,
+)
+
+
+def scorable_turns_on_failure(
+    task: TimeSageTask, *, judge_available: bool
+) -> list[tuple[str, str]]:
+    """What a crashed dialogue still owes the score books.
+
+    One ``(turn_key, bucket)`` per reference turn carrying a
+    ``finding_verify`` spec, where ``turn_key`` is the same
+    ``{task_id}-turn{n}`` a scored run would emit — so failed tasks stay
+    in pass-rate denominators and join against the other arm per turn —
+    and ``bucket`` is ``mechanical`` (spec has a mechanically checkable
+    part), ``judge`` (needs a judge, one is supplied) or ``unscored``
+    (needs a judge, none supplied).
+    """
+    owed: list[tuple[str, str]] = []
+    for user_turn in task.user_turns:
+        turn_id = user_turn.get("turn_id")
+        reference = task.reference_turn_after(turn_id or 0)
+        verify = (reference or {}).get("finding_verify")
+        if not verify:
+            continue
+        mechanical = scoring.score_mechanical(verify, "") is not None
+        bucket = "mechanical" if mechanical else (
+            "judge" if judge_available else "unscored")
+        owed.append((f"{task.task_id}-turn{turn_id}", bucket))
+    return owed
 
 
 def main() -> int:
@@ -86,12 +119,18 @@ def main() -> int:
     output_dir = Path(args.output_dir)
     transcripts_dir = output_dir / "transcripts"
     transcripts_dir.mkdir(parents=True, exist_ok=True)
-    records = RecordWriter(output_dir / "gnomonbench.jsonl")
+    records_path = output_dir / "gnomonbench.jsonl"
+    # RecordWriter appends; a rerun into the same output dir must replace
+    # the previous run's rows (as summary.json is), not accumulate them.
+    records_path.unlink(missing_ok=True)
+    records = RecordWriter(records_path)
 
     counts = {"mechanical_pass": 0, "mechanical_fail": 0,
               "judge_pass": 0, "judge_fail": 0, "unscored": 0}
     per_tier: dict[str, list[bool]] = {}
     rows: list[list] = []
+    tasks_failed = 0
+    tasks_csv_truncated = 0
     for index, task in enumerate(tasks, start=1):
         print(f"[{index}/{len(tasks)}] {task.task_id}")
         started = time.time()
@@ -101,12 +140,37 @@ def main() -> int:
             )
         except Exception as error:
             print(f"  task failed: {error}")
+            message = str(error)[:500]
+            tasks_failed += 1
+            # One task-level error line, keyed off the turn-id namespace
+            # so it can never collide with a scored turn.
             records.write(RunRecord(
-                task_id=task.task_id, success=False,
-                extra={"error": str(error)[:500]},
+                task_id=f"{task.task_id}-error", success=False,
+                extra={"error": message, "tier": task.tier},
             ))
+            # Every turn the task would have scored still counts: a
+            # failed record per reference-scored turn, keyed exactly
+            # like a scored one, in the pass-rate denominator.
+            for turn_key, bucket in scorable_turns_on_failure(
+                task, judge_available=judge is not None
+            ):
+                if bucket == "unscored":
+                    counts["unscored"] += 1
+                    continue
+                counts[f"{bucket}_fail"] += 1
+                per_tier.setdefault(task.tier, []).append(False)
+                rows.append([task.task_id, task.tier,
+                             turn_key.rsplit("-turn", 1)[1],
+                             "task_error", False, 0])
+                records.write(RunRecord(
+                    task_id=turn_key, success=False,
+                    extra={"basis": "task_error", "tier": task.tier,
+                           "error": message},
+                ))
             continue
         elapsed = time.time() - started
+        if turn_records and turn_records[0].get("csv_truncated"):
+            tasks_csv_truncated += 1
 
         task_transcript = {"task_id": task.task_id, "tier": task.tier,
                            "condition": args.condition, "turns": []}
@@ -129,7 +193,8 @@ def main() -> int:
                     task_id=turn_key, success=bool(verdict["passed"]),
                     tool_calls=len(record["tool_calls"]),
                     latency_seconds=round(elapsed / max(len(turn_records), 1), 3),
-                    extra={"basis": verdict["basis"], "tier": task.tier},
+                    extra={"basis": verdict["basis"], "tier": task.tier,
+                           "csv_truncated": bool(record.get("csv_truncated"))},
                 ))
             else:
                 counts["unscored"] += 1
@@ -151,6 +216,8 @@ def main() -> int:
         "judge_model": args.judge_model,
         "tiers": list(tiers or TIERS),
         "tasks": len(tasks),
+        "tasks_failed": tasks_failed,
+        "tasks_csv_truncated": tasks_csv_truncated,
         "mechanical_turns": mechanical_total,
         "mechanical_pass_rate": (counts["mechanical_pass"] / mechanical_total
                                  if mechanical_total else None),
@@ -164,9 +231,11 @@ def main() -> int:
         },
         "llm_usage": client.usage_summary,
         "note": (
-            "mechanical scores follow the official finding_verify specs; "
-            "judge scores use a local judge and are not comparable to the "
-            "official leaderboard"
+            "mechanical scores apply the checkable parts of the official "
+            "finding_verify specs (see scoring.py for the precise rule); "
+            "a failed task counts every reference-scored turn as a "
+            "failure; judge scores use a local judge and are not "
+            "comparable to the official leaderboard"
         ),
     }
     (output_dir / "summary.json").write_text(

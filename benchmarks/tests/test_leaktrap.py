@@ -9,7 +9,7 @@ first-class condition rather than a debugging aid.
 """
 
 import sys
-from datetime import timedelta
+from datetime import timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -134,6 +134,30 @@ class TestStructuralAssertion:
         }]
         assert structural_assertion(evidence, task.cutoff)["holds"] is True
 
+    def test_timestamps_are_compared_as_datetimes_not_strings(self):
+        """Mixed offsets must be ordered chronologically. Here the string
+        maximum is a pre-cutoff read (its +10:00 offset sorts high), while
+        the chronological maximum is a post-cutoff read — a string compare
+        would call this run clean."""
+        task = generate_task(0, seed=5)
+        early = (task.cutoff + timedelta(hours=2)).astimezone(
+            timezone(timedelta(hours=10))) - timedelta(hours=4)
+        late = task.cutoff + timedelta(hours=1)
+        evidence = [{
+            "kind": "snapshot_access",
+            "payload": {"accesses": [
+                {"entity": "a", "variable": "value",
+                 "max_known_time": early.isoformat()},
+                {"entity": "b", "variable": "value",
+                 "max_known_time": late.isoformat()},
+            ]},
+        }]
+        assert early.isoformat() > late.isoformat()  # the string-order trap
+        assert early < late                          # the chronological truth
+        verdict = structural_assertion(evidence, task.cutoff)
+        assert verdict["holds"] is False
+        assert verdict["max_known_time"] == late.isoformat()
+
 
 class TestScoring:
     def test_wape_declines_a_scaleless_window(self):
@@ -146,12 +170,45 @@ class TestScoring:
         assert wape(actual, predicted) == error_score(actual, predicted)
 
 
+class TestRunnerRows:
+    def test_success_means_a_score_was_computed(self, tmp_path, monkeypatch):
+        """A nonempty forecast that is too short to grade has no score, and
+        must not be recorded as a success — `success` tracks `score is not
+        None`, not `the arm produced something`."""
+        import json
+
+        import benchmarks.leaktrap.run_leaktrap as runner
+
+        monkeypatch.setattr(runner, "_oracle_forecast", lambda task: [1.0])
+        out = tmp_path / "short"
+        assert runner.main(["oracle-leak", "--limit", "1",
+                            "--output-dir", str(out)]) == 0
+        row = json.loads((out / "gnomonbench.jsonl").read_text().splitlines()[0])
+        assert row["score"] is None
+        assert row["success"] is False
+
+    def test_a_graded_forecast_is_a_success(self, tmp_path):
+        import json
+
+        from benchmarks.leaktrap.run_leaktrap import main
+
+        out = tmp_path / "graded"
+        assert main(["oracle-leak", "--limit", "1",
+                     "--output-dir", str(out)]) == 0
+        row = json.loads((out / "gnomonbench.jsonl").read_text().splitlines()[0])
+        assert row["score"] is not None
+        assert row["success"] is True
+
+
 class TestTranscriptionDetection:
     """Reproducing the post-cutoff rows is a copy, not a forecast.
 
     It is the simplest form the leak takes — the values are right there in
     the file — and it needs no ceiling to detect, so it is reported as its
-    own count rather than averaged into a mean score.
+    own count. The (near-zero) score of a transcribed forecast is still a
+    real score and does go into the mean like any other; the count exists
+    alongside the mean so that a mean flattered by copying can be read as
+    such.
     """
 
     def test_verbatim_reproduction_is_caught(self):

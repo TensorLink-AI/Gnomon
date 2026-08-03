@@ -11,7 +11,12 @@ client that passes any OpenRouter model identifier through unchanged, so
 the same control can be run with e.g. ``openai/gpt-4o`` or
 ``anthropic/claude-sonnet-4``.
 
-Nothing about prompting, parsing, retry counts, or scoring is overridden.
+Nothing about prompting, parsing, retry counts, or scoring is overridden
+here. ``DirectPrompt`` configuration (notably ``fail_on_invalid``, official
+default ``True``) is passed through from the runner; ``run_cik.py`` keeps
+the official default and exposes ``--no-fail-on-invalid`` as a disclosed
+deviation. ``constrained_decoding`` is forced off because OpenRouter offers
+no equivalent of the official local-inference constrained decoder.
 """
 
 from __future__ import annotations

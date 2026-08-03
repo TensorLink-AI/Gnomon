@@ -6,8 +6,17 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from benchmarks.temporalbench.gnomon_runner import _observed, uncertain_mcq
-from benchmarks.temporalbench.scoring import score_mcq, score_t1, score_t3
+from benchmarks.temporalbench.gnomon_runner import (
+    MCQ_ABSTAIN,
+    _observed,
+    uncertain_mcq,
+)
+from benchmarks.temporalbench.scoring import (
+    score_forecast,
+    score_mcq,
+    score_t1,
+    score_t3,
+)
 from benchmarks.temporalbench.tasks import extract_json_object, prompt_input_arrays
 
 
@@ -52,9 +61,106 @@ def test_score_mcq_matches_labels():
 def test_uncertain_mcq_uses_option_casing():
     row = {"mcq": {"q1": {"options": ["Higher", "Lower", "Uncertain"]},
                    "q2": {"options": ["fixed", "shifting", "no"]}}}
-    answers = uncertain_mcq(row)
+    answers, abstained = uncertain_mcq(row)
     assert answers["q1"] == "Uncertain"
-    assert answers["q2"] == "fixed"  # no Uncertain option: first option
+    # No Uncertain option: the ABSTAIN sentinel, which matches no real
+    # option and so deterministically scores wrong — never options[0],
+    # which would luck into the label ~1/n of the time.
+    assert answers["q2"] == MCQ_ABSTAIN
+    assert abstained == ["mcq/q2: no Uncertain option"]
+    scored = score_mcq({"mcq": {"q2": {"label": "fixed"}}}, answers)
+    assert scored["correct"] == 0 and scored["total"] == 1
+
+
+def test_abstain_sentinel_never_matches_an_option():
+    # Pathological option set containing "abstain" itself: the sentinel
+    # must still score wrong, not luck into a correct match.
+    row = {"mcq": {"q1": {"options": ["higher", "Abstain", "ABSTAIN-"]}}}
+    answers, abstained = uncertain_mcq(row)
+    assert answers["q1"].strip().lower() not in {"higher", "abstain", "abstain-"}
+    assert abstained == ["mcq/q1: no Uncertain option"]
+    scored = score_mcq({"mcq": {"q1": {"label": "Abstain"}}}, answers)
+    assert scored["correct"] == 0 and scored["total"] == 1
+
+
+class _StubOfficialMetrics:
+    """Stands in for the dataset's forecast_metrics_utils.py (not
+    shipped with the repo): records every call, returns fixed metrics."""
+
+    def __init__(self):
+        self.calls = []
+
+    def compute_forecast_metrics(self, ground_truth, forecast, **kwargs):
+        self.calls.append((ground_truth, forecast, kwargs))
+        return {"SMAPE": 12.5}, None
+
+
+def test_score_forecast_full_abstention_never_calls_official_module():
+    stub = _StubOfficialMetrics()
+    row = {"ground_truth": {"hr": [1.0, 2.0]},
+           "input": {"history": {"hr": [0.0, 1.0]}}}
+    for empty_forecast in (None, {}, {"hr": []}):
+        metrics, flag = score_forecast(row, empty_forecast, stub)
+        assert metrics is None and flag == "no_forecast"
+    assert stub.calls == []  # an abstention must not become a scoring error
+
+
+def test_score_forecast_multichannel_abstention_short_circuits():
+    stub = _StubOfficialMetrics()
+    row = {"ground_truth": {"hr": [1.0], "spo2": [2.0]}, "input": {}}
+    metrics, flag = score_forecast(row, {}, stub)
+    assert metrics is None and flag == "no_forecast"
+    assert stub.calls == []
+
+
+def test_score_forecast_partial_abstention_names_missing_channels():
+    stub = _StubOfficialMetrics()
+    row = {"ground_truth": {"hr": [1.0, 2.0], "spo2": [3.0, 4.0]},
+           "input": {"history": {"hr": [0.0], "spo2": [2.0]}}}
+    metrics, flag = score_forecast(row, {"hr": [1.5, 2.5], "spo2": []}, stub)
+    assert metrics == {"SMAPE": 12.5}
+    assert flag == "missing_channels=spo2"
+    (_, forecast, kwargs), = stub.calls  # only the channels that exist
+    assert forecast == {"hr": [1.5, 2.5]}
+    assert kwargs["history_series"] == {"hr": [0.0], "spo2": [2.0]}
+
+
+def test_score_forecast_scored_row_passes_through():
+    stub = _StubOfficialMetrics()
+    row = {"ground_truth": {"hr": [1.0, 2.0]}, "input": {}}
+    metrics, flag = score_forecast(row, {"hr": [1.1, 2.1]}, stub)
+    assert metrics == {"SMAPE": 12.5} and flag is None
+    (ground_truth, forecast, _), = stub.calls
+    assert ground_truth == [1.0, 2.0] and forecast == [1.1, 2.1]
+
+
+def test_bounded_evidence_stays_valid_json_within_budget():
+    import json
+
+    from benchmarks.temporalbench.run_temporalbench import bounded_evidence
+
+    digest = {"main_key": "hr",
+              "season": {"period": 24, "strength": 0.8, "basis": "acf"},
+              "forecasts": {
+                  "hr": {"support": "supported", "selected_model": "m",
+                         "values": [float(i) for i in range(5000)]},
+                  "spo2": {"support": "supported", "selected_model": "m",
+                           "values": [97.0] * 4000},
+              }}
+    text = bounded_evidence(digest, budget=2000)
+    assert len(text) <= 2000
+    parsed = json.loads(text)  # never cut mid-token
+    truncated = parsed["forecasts"]["hr"]
+    assert truncated["truncated"] is True
+    assert truncated["values_total"] == 5000
+    assert truncated["values"] == [float(i) for i in range(24)]
+    assert truncated["values_stats"]["min"] == 0.0
+    # Deterministic, and a digest already under budget passes through whole.
+    assert bounded_evidence(digest, budget=2000) == text
+    assert json.loads(bounded_evidence(digest, budget=200_000)) == digest
+
+    tiny = json.loads(bounded_evidence(digest, budget=120))
+    assert tiny["truncated"] is True and "forecasts" in tiny["dropped"]
 
 
 def test_observed_keeps_only_recorded_readings():

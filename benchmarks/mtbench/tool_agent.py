@@ -112,15 +112,19 @@ TOOL_SPECS = [
                     "context_events": {
                         "type": "array",
                         "description": "Typed dated claims from the article. Never numeric predictions.",
+                        # These property names must match what
+                        # benchmarks.cik.gnomon_forecaster.events_from_proposals
+                        # accepts — a mismatch silently rejects every event.
                         "items": {
                             "type": "object",
                             "properties": {
-                                "name": {"type": "string"},
-                                "start": {"type": "string", "description": "ISO date within the window"},
-                                "end": {"type": "string"},
-                                "description": {"type": "string"},
+                                "event_type": {"type": "string", "description": "Short category, e.g. earnings_report"},
+                                "effective_start": {"type": "string", "description": "ISO timestamp within the window"},
+                                "effective_end": {"type": "string", "description": "ISO timestamp within the window"},
+                                "confidence": {"type": "number", "description": "0.0-1.0"},
+                                "rationale": {"type": "string"},
                             },
-                            "required": ["name", "start"],
+                            "required": ["event_type", "effective_start", "effective_end"],
                         },
                     },
                     "note": {"type": "string", "description": "Why this run"},

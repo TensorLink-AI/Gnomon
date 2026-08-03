@@ -20,9 +20,12 @@ Adapter decisions, disclosed:
   which is recorded as an abstention, not papered over.
 - In ``gnomon-pure`` mode multiple-choice questions are answered
   ``Uncertain`` where the option exists (an honest abstention — T2/T4
-  option sets include it); rows without such an option score those
-  questions as wrong. The agent mode hands choices to an LLM that sees
-  Gnomon's computed evidence.
+  option sets include it); questions without such an option are answered
+  with the :data:`MCQ_ABSTAIN` sentinel, which exact-matches no real
+  option and therefore deterministically scores wrong — never a lucky
+  hit on a real option. Those questions are recorded as abstentions in
+  the row's bookkeeping. The agent mode hands choices to an LLM that
+  sees Gnomon's computed evidence.
 """
 
 from __future__ import annotations
@@ -205,12 +208,44 @@ def forecast_payload(analysis: dict[str, Any]) -> tuple[dict[str, list[float]], 
     return forecast, abstained
 
 
-def uncertain_mcq(row: dict[str, Any]) -> dict[str, str]:
-    """Pure-mode choice answers: 'Uncertain' where the options allow it."""
+#: Sentinel answered when an MCQ has no ``Uncertain`` option. It never
+#: exact-matches a real option string, so the question deterministically
+#: scores wrong — answering ``options[0]`` instead would coincidentally
+#: match the label about 1/n of the time, quietly inflating accuracy.
+MCQ_ABSTAIN = "ABSTAIN"
+
+
+def _abstain_sentinel(options: list[Any]) -> str:
+    """A sentinel guaranteed not to match any option.
+
+    Scoring compares strip+lower normalised strings, so a hypothetical
+    option that normalises to ``abstain`` would make the plain sentinel
+    score CORRECT — the guarantee is enforced here per question, not
+    assumed of the dataset.
+    """
+    normalised = {str(option).strip().lower() for option in options}
+    sentinel = MCQ_ABSTAIN
+    while sentinel.strip().lower() in normalised:
+        sentinel += "-"
+    return sentinel
+
+
+def uncertain_mcq(row: dict[str, Any]) -> tuple[dict[str, str], list[str]]:
+    """Pure-mode choice answers: 'Uncertain' where the options allow it.
+
+    Questions whose option set has no ``Uncertain`` entry are answered
+    with the :data:`MCQ_ABSTAIN` sentinel, so they score wrong
+    deterministically instead of guessing. The second return value lists
+    those question keys for the row's abstention bookkeeping.
+    """
     answers: dict[str, str] = {}
+    abstained: list[str] = []
     for key, entry in (row.get("mcq") or {}).items():
         options = entry.get("options") or []
         uncertain = next((o for o in options if str(o).lower() == "uncertain"), None)
-        answers[key] = uncertain if uncertain is not None else str(options[0]) \
-            if options else "Uncertain"
-    return answers
+        if uncertain is not None:
+            answers[key] = uncertain
+        else:
+            answers[key] = _abstain_sentinel(options)
+            abstained.append(f"mcq/{key}: no Uncertain option")
+    return answers, abstained

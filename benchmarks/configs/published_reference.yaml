@@ -27,12 +27,16 @@ cik:
     # - {system: "Llama-3.1-405B DirectPrompt", value: 0.000,
     #    source: "https://servicenow.github.io/context-is-key-forecasting/ (retrieved YYYY-MM-DD)"}
   ours:
+    # mean_rcrps_capped_imputed is the published-comparable key: per-run
+    # RCRPS capped at 5 with abstained/errored runs imputed at 5, per the
+    # official aggregation. mean_rcrps_scored_only drops abstentions and
+    # must never be placed next to published numbers.
     - {system: "gnomon-pure (ours)",
        summary: results/glm52/cik-pure/summary.json,
-       key: mean_rcrps}
+       key: mean_rcrps_capped_imputed}
     - {system: "glm-5.2 + gnomon-agent (ours)",
        summary: results/glm52/cik-agent/summary.json,
-       key: mean_rcrps}
+       key: mean_rcrps_capped_imputed}
 
 temporalbench_t2_smape:
   metric: T2 SMAPE (forecast)
