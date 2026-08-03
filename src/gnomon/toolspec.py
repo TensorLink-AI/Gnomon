@@ -160,6 +160,9 @@ def _run_validate_covariates(arguments: dict[str, Any]) -> dict[str, Any]:
 
 
 def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
+    target_spec = str(arguments["target_column"])
+    if "," in target_spec or target_spec.strip().lower() == "auto":
+        return _run_forecast_multi(arguments, target_spec)
     events = None
     if arguments.get("context_events_file"):
         events = load_events_file(arguments["context_events_file"])
@@ -197,6 +200,50 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
         )
         payload["project"] = str(arguments["project"])
     return payload
+
+
+def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str, Any]:
+    """The multi-target branch of gnomon_forecast: a comma list or `auto`
+    in target_column batches several columns into one run and one
+    combined artifact — same numbers per channel as separate calls."""
+    from .contracts import GnomonError
+    from .data import resolve_target_spec
+    from .runtime import forecast_multi
+
+    targets = resolve_target_spec(
+        str(arguments["input"]), target_spec,
+        time_column=arguments.get("time_column"),
+        series_column=arguments.get("series_column"),
+    )
+    if len(targets) == 1:
+        return _run_forecast({**arguments, "target_column": targets[0]})
+    unsupported = [
+        name for name in (
+            "series_column", "context_events_file", "covariates_file", "project",
+        ) if arguments.get(name)
+    ]
+    if unsupported:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            f"{', '.join(unsupported)} cannot be combined with a "
+            f"multi-target target_column yet; run those channels one "
+            f"target at a time.",
+            {"unsupported_with_multi_target": unsupported, "targets": targets},
+        )
+    artifact, path = forecast_multi(
+        str(arguments["input"]),
+        time_column=arguments["time_column"],
+        target_columns=targets,
+        frequency=arguments.get("frequency"),
+        horizon=int(arguments["horizon"]),
+        as_of=_parse_as_of(arguments.get("as_of")),
+        output=arguments.get("output_dir") or "gnomon-output",
+        minimum_baseline_improvement=float(arguments.get("minimum_baseline_improvement", 0.02)),
+        threshold=float(arguments["threshold"]) if arguments.get("threshold") is not None else None,
+        repair=arguments.get("repair", "safe"),
+        candidates=arguments.get("candidates"),
+    )
+    return forecast_summary(artifact, path)
 
 
 def _run_submit_actuals(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -312,6 +359,16 @@ TOOLS: list[dict[str, Any]] = [
             "properties": {
                 **_INPUT_PROPERTIES,
                 **_REPLAY_PROPERTIES,
+                "target_column": {"type": "string", "description": (
+                    "Name of the numeric column to forecast. Also accepts a "
+                    "comma list (`hr,spo2,resp`) or `auto` (every numeric "
+                    "non-time column) to batch several columns of a wide "
+                    "file into one run — one shared load pass, channels "
+                    "evaluated concurrently, one combined artifact with a "
+                    "result per column. Each channel's numbers are identical "
+                    "to a single-target run; a channel that abstains is "
+                    "disclosed in its own result and never blocks the others."
+                )},
                 "horizon": {"type": "integer", "description": "Future periods to forecast, in units of the data frequency."},
                 "candidates": {"type": "array", "items": {"type": "string"}, "description": "Restrict the model pool to these names — pass `gnomon_route`'s `candidates` or its `recommendation` to act on a routing decision. The mandatory baselines always compete regardless, so a named candidate still has to beat them."},
                 "output_dir": {"type": "string", "description": "Directory for the immutable artifact. Defaults to ./gnomon-output relative to the *server's* working directory, which is often inside the user's repository — pass an explicit path when that matters."},

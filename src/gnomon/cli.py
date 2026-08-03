@@ -27,7 +27,9 @@ def _common_input(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--target", dest="target_column",
         help="Numeric column to model. Inferred when exactly one non-time "
-             "column parses as numbers.",
+             "column parses as numbers. `gnomon forecast` also takes a "
+             "comma list (hr,spo2,resp) or `auto` (every numeric non-time "
+             "column) to batch several columns in one run.",
     )
     parser.add_argument(
         "--series", dest="series_column",
@@ -742,14 +744,56 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(_argument_error(exc).to_dict(), indent=2), file=sys.stderr)
         return 2
     schema_assumptions: list[str] = []
+    multi_targets: list[str] | None = None
     try:
+        if (
+            args.command == "forecast" and args.target_column
+            and ("," in args.target_column
+                 or args.target_column.strip().lower() == "auto")
+        ):
+            from .data import resolve_target_spec
+
+            spec = args.target_column
+            targets = resolve_target_spec(
+                args.input, spec,
+                time_column=args.time_column,
+                series_column=args.series_column,
+            )
+            if spec.strip().lower() == "auto":
+                schema_assumptions.append(
+                    f"--target auto expanded to every numeric non-time "
+                    f"column: {', '.join(targets)}."
+                )
+            if len(targets) == 1:
+                # A one-column expansion is a single-target run, byte-
+                # identical to naming the column directly.
+                args.target_column = targets[0]
+            else:
+                multi_targets = targets
         if hasattr(args, "time_column"):
-            schema_assumptions = _resolve_schema(args)
+            if multi_targets:
+                # Only the time column may still need inference; the target
+                # spec is already resolved. Borrow the first target so the
+                # resolver sees a real column name.
+                original = args.target_column
+                args.target_column = multi_targets[0]
+                schema_assumptions = (
+                    _resolve_schema(args) + schema_assumptions
+                )
+                args.target_column = original
+            else:
+                schema_assumptions = _resolve_schema(args) + schema_assumptions
         if getattr(args, "horizon", "absent") is None:
             # One season ahead is the smallest horizon that can show a
             # seasonal pattern, and it is derivable from the data. Disclosed
             # like any other inference.
-            args.horizon = _default_horizon(args)
+            if multi_targets:
+                original = args.target_column
+                args.target_column = multi_targets[0]
+                args.horizon = _default_horizon(args)
+                args.target_column = original
+            else:
+                args.horizon = _default_horizon(args)
             schema_assumptions.append(
                 f"--horizon was not supplied; defaulted to {args.horizon}, "
                 f"one seasonal period of the inferred grid."
@@ -1360,6 +1404,49 @@ def main(argv: Sequence[str] | None = None) -> int:
                 except json.JSONDecodeError as exc:
                     raise GnomonError("INVALID_RESPONSE", f"LLM response is not valid JSON: {exc}") from exc
                 payload = parse_context_response(raw, documents)
+        elif args.command == "forecast" and multi_targets:
+            from .config import load_config
+            from .runtime import forecast_multi
+            from .toolspec import forecast_summary
+
+            unsupported = [
+                (flag, present) for flag, present in (
+                    ("--series", args.series_column),
+                    ("--multivariate", args.multivariate),
+                    ("--context", args.context_file),
+                    ("--covariates", args.covariates),
+                    ("--project", getattr(args, "project", None)),
+                ) if present
+            ]
+            if unsupported:
+                flags = ", ".join(flag for flag, _ in unsupported)
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    f"{flags} cannot be combined with a multi-target "
+                    f"--target yet; run those channels one target at a time.",
+                    {"unsupported_with_multi_target": [f for f, _ in unsupported],
+                     "targets": multi_targets},
+                    repair_options=[{
+                        "action": "split_invocation",
+                        "description": "Drop the flag(s), or invoke gnomon "
+                                       "forecast once per target column.",
+                    }],
+                )
+            artifact, path = forecast_multi(
+                args.input, time_column=args.time_column,
+                target_columns=multi_targets, horizon=args.horizon,
+                frequency=args.frequency, output=args.output,
+                minimum_baseline_improvement=args.minimum_baseline_improvement,
+                threshold=args.threshold,
+                config=load_config(getattr(args, "config", None)),
+                strict_abstention=args.strict_abstention,
+                seasonal_period=args.seasonal_period,
+                selection_strategy="ensemble" if args.ensemble else args.selection_strategy,
+                as_of=_parse_as_of(getattr(args, "as_of", None)),
+                repair=args.repair,
+                candidates=getattr(args, "candidates", None),
+            )
+            payload = forecast_summary(artifact, path)
         else:
             from .context import load_events_file
             from .runtime import forecast

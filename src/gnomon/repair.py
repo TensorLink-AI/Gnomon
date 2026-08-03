@@ -97,6 +97,15 @@ class RepairLog:
         if example is not None and isinstance(examples, list) and len(examples) < 3:
             examples.append(example)
 
+    def clone(self) -> "RepairLog":
+        """An independent copy. A multi-target run records the shared
+        file-level reads once, then forks a log per target so each
+        column's repairs are disclosed on that column alone."""
+        copy = RepairLog()
+        for key, entry in self._entries.items():
+            copy._entries[key] = {**entry, "examples": list(entry["examples"])}
+        return copy
+
     def has_actions(self) -> bool:
         return bool(self._entries)
 

@@ -176,6 +176,7 @@ def _load_lenient(
     series_column: str | None,
     level: str,
     log: "RepairLog",
+    default_series: str = "__default__",
 ) -> list[Observation]:
     """The repair-enabled row loop: identical to the strict loop for clean
     cells, lenient — with disclosure — where the strict loop would raise."""
@@ -199,7 +200,7 @@ def _load_lenient(
         ):
             log.record("blank_row_skipped", "Fully blank rows were skipped.")
             continue
-        series = str(row.get(series_column, "")) if series_column else "__default__"
+        series = str(row.get(series_column, "")) if series_column else default_series
         try:
             value, tier = parse_number(raw_target, comma_role)
         except ValueError as exc:
@@ -296,7 +297,45 @@ def load_observations(
     from .repair import RepairLog
     log = repair_log if repair_log is not None else RepairLog()
     rows, columns = _read_rows(path, time_column, target_column, repair, log)
+    observations = observations_from_rows(
+        rows, columns, time_column, target_column, series_column,
+        repair=repair, repair_log=log,
+    )
+    return observations, fingerprint(path), columns
 
+
+def read_input_rows(
+    input_path: str, time_column: str, target_column: str,
+    *, repair: str = "off", repair_log: "RepairLog | None" = None,
+) -> tuple[list[dict[str, object]], list[str], str]:
+    """One shared read of a file's rows, for callers that will extract
+    several target columns from the same table. Returns (rows, columns,
+    fingerprint); pair with :func:`observations_from_rows` per target."""
+    path = Path(input_path).expanduser().resolve()
+    if not path.is_file():
+        raise GnomonError("INPUT_NOT_FOUND", f"Input file does not exist: {path}")
+    from .repair import RepairLog
+    log = repair_log if repair_log is not None else RepairLog()
+    rows, columns = _read_rows(path, time_column, target_column, repair, log)
+    return rows, columns, fingerprint(path)
+
+
+def observations_from_rows(
+    rows: list[dict[str, object]],
+    columns: list[str],
+    time_column: str,
+    target_column: str,
+    series_column: str | None,
+    *,
+    repair: str = "off",
+    repair_log: "RepairLog | None" = None,
+    default_series: str = "__default__",
+) -> list[Observation]:
+    """Extract one target column's observations from already-read rows —
+    the tail of :func:`load_observations`, shared so a multi-target run
+    reads the file once and parses each column through identical code."""
+    from .repair import RepairLog
+    log = repair_log if repair_log is not None else RepairLog()
     required = [time_column, target_column] + ([series_column] if series_column else [])
     missing = [column for column in required if column not in columns]
     if missing:
@@ -307,6 +346,7 @@ def load_observations(
     if repair != "off":
         observations = _load_lenient(
             rows, time_column, target_column, series_column, repair, log,
+            default_series,
         )
     else:
         observations = []
@@ -318,13 +358,13 @@ def load_observations(
                     "INVALID_TARGET", f"Target is not numeric on row {row_number}.",
                     {"row": row_number, "value": row.get(target_column)},
                 ) from exc
-            series = str(row[series_column]) if series_column else "__default__"
+            series = str(row[series_column]) if series_column else default_series
             observations.append(
                 Observation(_parse_timestamp(row[time_column], row_number), value, series)
             )
     if not observations:
         raise GnomonError("EMPTY_DATASET", "The input contains no observations.")
-    return observations, fingerprint(path), columns
+    return observations
 
 
 def infer_schema_columns(path_raw: str) -> dict[str, object]:
@@ -376,6 +416,57 @@ def infer_schema_columns(path_raw: str) -> dict[str, object]:
         "time_candidates": time_candidates,
         "target_candidates": numeric_candidates,
     }
+
+
+def resolve_target_spec(
+    input_path: str,
+    spec: str,
+    *,
+    time_column: str | None = None,
+    series_column: str | None = None,
+) -> list[str]:
+    """Expand a ``--target`` spec into concrete column names.
+
+    ``auto`` becomes every numeric non-time column of the file; a comma
+    list becomes the named columns in the order given; anything else is a
+    single column name, passed through untouched. Shared by the CLI and
+    the MCP tool so both surfaces expand identically.
+    """
+    if spec.strip().lower() == "auto":
+        inferred = infer_schema_columns(input_path)
+        excluded = {time_column, series_column} | set(inferred["time_candidates"])
+        targets = [
+            column for column in inferred["target_candidates"]
+            if column not in excluded
+        ]
+        if not targets:
+            raise GnomonError(
+                "AMBIGUOUS_SCHEMA",
+                "--target auto found no numeric non-time column to forecast.",
+                {"argument": "--target",
+                 "time_candidates": inferred["time_candidates"],
+                 "target_candidates": inferred["target_candidates"]},
+                repair_options=[{
+                    "action": "supply_arguments",
+                    "description": "Name the target column(s) explicitly with --target.",
+                    "arguments": ["--target"],
+                }],
+            )
+        return targets
+    targets = [item.strip() for item in spec.split(",") if item.strip()]
+    if len(targets) != len(set(targets)):
+        duplicates = sorted({name for name in targets if targets.count(name) > 1})
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            f"--target names the same column more than once: {', '.join(duplicates)}.",
+            {"duplicates": duplicates},
+        )
+    if not targets:
+        raise GnomonError(
+            "INVALID_ARGUMENTS", "--target was supplied but names no column.",
+            {"supplied": spec},
+        )
+    return targets
 
 
 def _read_delimited(path: Path, delimiter: str) -> tuple[list[dict[str, object]], list[str]]:

@@ -83,6 +83,68 @@ def forecast_channel(values: list[float | None], horizon: int,
     }
 
 
+def forecast_channels(
+    channels: dict[str, list[float | None]], horizon: int,
+    work_dir: str | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Batched Gnomon forecasts for several channels in ONE invocation.
+
+    One wide CSV, one shared load pass, per-channel evaluation run
+    concurrently by ``forecast_multi`` — each channel's numbers are
+    identical to a ``forecast_channel`` call (the parity is pinned by
+    Gnomon's own tests), so the benchmark metrics are unchanged; only the
+    wall clock is. Channels keep their own consecutive synthetic axes:
+    a shorter channel's trailing cells are blank, which the safe repair
+    level drops as absent observations (disclosed, non-assumptive), so
+    the values each channel models are exactly the single-call ones. An
+    abstaining channel reports its own reason and never blocks the rest.
+    """
+    from gnomon.contracts import GnomonError
+    from gnomon.runtime import forecast_multi
+
+    observed = {key: _observed(values) for key, values in channels.items()}
+    keys = list(observed)
+    length = max((len(values) for values in observed.values()), default=0)
+    if len(keys) < 2 or length == 0 or "timestamp" in keys:
+        return {key: forecast_channel(channels[key], horizon, work_dir)
+                for key in channels}
+    run_dir = Path(tempfile.mkdtemp(prefix="tb-gnomon-", dir=work_dir))
+    csv_path = run_dir / "history.csv"
+    with csv_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["timestamp"] + keys)
+        for position in range(length):
+            writer.writerow(
+                [(EPOCH + position * STEP).isoformat()]
+                + [repr(observed[key][position]) if position < len(observed[key])
+                   else "" for key in keys]
+            )
+    try:
+        artifact, _ = forecast_multi(
+            str(csv_path), time_column="timestamp", target_columns=keys,
+            horizon=horizon, frequency="h",
+            output=str(run_dir / "gnomon-output"),
+        )
+    except GnomonError as error:
+        reason = f"{error.code}: {error.message}"
+        return {key: {"abstained": True, "reason": reason} for key in keys}
+    outcomes: dict[str, dict[str, Any]] = {}
+    for result in artifact.results:
+        if result.support == "unsupported" or not result.forecast:
+            outcomes[result.series] = {
+                "abstained": True,
+                "reason": "; ".join(str(w) for w in result.warnings) or "unsupported",
+            }
+        else:
+            outcomes[result.series] = {
+                "abstained": False,
+                "support": result.support,
+                "selected_model": result.selected_model,
+                "values": [float(r.get("q50", r["point"])) for r in result.forecast],
+            }
+    return outcomes
+
+
 def analyse_row(row: dict[str, Any], work_dir: str | None = None) -> dict[str, Any]:
     """Deterministic Gnomon evidence for one row: per-channel forecasts
     (T2/T4), plus season/anomaly/stats findings on the main channel."""
@@ -119,11 +181,15 @@ def analyse_row(row: dict[str, Any], work_dir: str | None = None) -> dict[str, A
             "min": min(main_values), "max": max(main_values),
         }
     if row.get("tier") in ("T2", "T4") and horizon > 0:
-        for key in target_keys:
-            if key in arrays:
-                analysis["channels"][key] = forecast_channel(
-                    arrays[key], horizon, work_dir
-                )
+        # One batched invocation for every channel instead of one run per
+        # channel: same per-channel numbers, one shared load, concurrent
+        # evaluation. forecast_channels falls back to the single-channel
+        # path when only one channel needs forecasting.
+        wanted = {key: arrays[key] for key in target_keys if key in arrays}
+        if wanted:
+            analysis["channels"].update(
+                forecast_channels(wanted, horizon, work_dir)
+            )
     return analysis
 
 
