@@ -21,6 +21,11 @@ Adapter decisions, disclosed:
   truth would run it.
 - Flagged points are converted to the benchmark's half-open
   ``{"start": s, "end": e}`` intervals by merging consecutive indices.
+- The adapter's own GnomonBench sidecar goes to ``gnomonbench/synthetic/
+  <name>/<model>/`` in the checkout — outside ``results/``, which the
+  official aggregator sweeps for every non-``requests`` ``*.jsonl``. A
+  sidecar written under ``results/`` once showed up in the official
+  table as a phantom all-zero variant.
 """
 
 from __future__ import annotations
@@ -73,26 +78,59 @@ def intervals_to_vector(intervals: list[Any], length: int) -> list[int]:
     return vector
 
 
-def binary_f1(truth: list[int], prediction: list[int]) -> float | None:
-    """Pointwise F1, or ``None`` where F1 is undefined.
+def binary_f1(truth: list[int], prediction: list[int]) -> float:
+    """Pointwise F1 under the official AnomLLM convention.
 
     More than half of AnomLLM's synthetic series carry no anomaly at
-    all. Scoring a correct "nothing here" as F1 0.0 — as this did —
-    buries a detector's real performance under a pile of zeros it earned
-    by being right. An empty truth with an empty prediction is not a
-    failure and not a success either: it is outside what F1 measures, so
-    it is excluded and counted separately.
+    all, and the official ``compute_metrics`` scores a clean series with
+    an empty prediction as every metric = 1.0, included in the mean. The
+    preview follows the same convention — an earlier version excluded
+    those series from the mean instead, which made the preview read
+    systematically lower than the official table. Correct silence is
+    still tallied separately (``clean_series_correctly_silent``) so it
+    stays visible rather than dissolving into the mean.
     """
     true_positive = sum(1 for t, p in zip(truth, prediction) if t and p)
     predicted = sum(prediction)
     actual = sum(truth)
-    if actual == 0:
-        return None if predicted == 0 else 0.0
-    if predicted == 0 or true_positive == 0:
+    if actual == 0 and predicted == 0:
+        return 1.0
+    if actual == 0 or predicted == 0 or true_positive == 0:
         return 0.0
     precision = true_positive / predicted
     recall = true_positive / actual
     return 2 * precision * recall / (precision + recall)
+
+
+def default_records_path(
+    anomllm_root: Path, data_name: str, model_dir: str, variant_name: str
+) -> Path:
+    """Where the adapter's own GnomonBench sidecar lands: a parallel
+    ``gnomonbench/`` tree, deliberately outside ``results/``.
+
+    Upstream's ``collect_results`` walks everything under ``results/``
+    and scores every ``*.jsonl`` whose name lacks ``requests`` as a
+    model variant. A sidecar written there once rendered a phantom
+    all-zero "gnomon" row in the official table, so the sidecar's
+    default home is outside the tree the official aggregator owns.
+    """
+    return (anomllm_root / "gnomonbench" / "synthetic" / data_name
+            / model_dir / f"{variant_name}.gnomonbench.jsonl")
+
+
+def shield_from_official_scoring(path: Path, anomllm_root: Path) -> Path:
+    """Belt and braces for caller-supplied sidecar paths: any path that
+    still lands inside the official ``results/`` tree gets ``requests``
+    inserted into its filename, which upstream's ``collect_results``
+    filter (``'requests' not in file``) skips instead of scoring."""
+    path = Path(path)
+    try:
+        path.resolve().relative_to((anomllm_root / "results").resolve())
+    except ValueError:
+        return path
+    if "requests" in path.name:
+        return path
+    return path.with_name(f"{path.stem}.requests{path.suffix}")
 
 
 def load_eval_dataset(anomllm_root: Path, data_name: str) -> dict[str, list[Any]]:
@@ -161,7 +199,9 @@ def run_gnomon_condition(
     """Produce the Gnomon prediction file for one dataset.
 
     Writes ``results/synthetic/<data>/<model_dir>/<variant>.jsonl`` inside
-    the AnomLLM checkout and returns a run summary.
+    the AnomLLM checkout, a GnomonBench sidecar under the adapter-owned
+    ``gnomonbench/`` tree (never under ``results/``, which the official
+    aggregator sweeps), and returns a run summary.
     """
     dataset = load_eval_dataset(anomllm_root, data_name)
     results_dir = anomllm_root / "results" / "synthetic" / data_name / model_dir
@@ -170,9 +210,12 @@ def run_gnomon_condition(
     if results_path.exists():
         results_path.unlink()
 
-    records = RecordWriter(
-        records_path or results_dir / f"{variant_name}.gnomonbench.jsonl"
-    )
+    records = RecordWriter(shield_from_official_scoring(
+        records_path
+        or default_records_path(anomllm_root, data_name, model_dir,
+                                variant_name),
+        anomllm_root,
+    ))
     f1_scores: list[float] = []
     clean_correct = 0
     supported = 0
@@ -206,15 +249,15 @@ def run_gnomon_condition(
         f1 = None
         truth = ground_truth_intervals(dataset["anom"][number - 1])
         if truth is not None:
-            f1 = binary_f1(
-                intervals_to_vector(truth, len(values)),
-                intervals_to_vector(intervals, len(values)),
-            )
-            if f1 is None:
-                # Correctly quiet on a series with nothing to find.
+            truth_vector = intervals_to_vector(truth, len(values))
+            prediction_vector = intervals_to_vector(intervals, len(values))
+            f1 = binary_f1(truth_vector, prediction_vector)
+            f1_scores.append(f1)
+            if sum(truth_vector) == 0 and sum(prediction_vector) == 0:
+                # Correctly quiet on a series with nothing to find —
+                # scores 1.0 under the official convention, and counted
+                # here so the silence stays visible in the summary.
                 clean_correct += 1
-            else:
-                f1_scores.append(f1)
         records.write(RunRecord(
             task_id=custom_id,
             success=bool(detection.get("detector")),
@@ -233,14 +276,17 @@ def run_gnomon_condition(
         "supported": supported,
         "scored_series": len(f1_scores),
         "clean_series_correctly_silent": clean_correct,
-        "mean_pointwise_f1_adapter_estimate": (
+        "preview_mean_pointwise_f1_official_convention": (
             sum(f1_scores) / len(f1_scores) if f1_scores else None
         ),
         "results_file": str(results_path),
         "gnomonbench_file": str(records.path),
         "note": (
             "Official scores come from result_agg.py in the AnomLLM "
-            "checkout; the adapter F1 estimate is a convenience preview."
+            "checkout. The preview mean follows the official convention "
+            "— a clean series with an empty prediction scores 1.0 and "
+            "is included in the mean — so it tracks the official table; "
+            "result_agg.py remains the authoritative scorer."
         ),
     }
     return summary

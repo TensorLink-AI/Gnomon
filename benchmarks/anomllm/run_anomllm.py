@@ -33,18 +33,50 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from benchmarks.anomllm.gnomon_detector import run_gnomon_condition  # noqa: E402
+from benchmarks.anomllm.gnomon_detector import (  # noqa: E402
+    default_records_path,
+    run_gnomon_condition,
+)
+from benchmarks.common.manifest import write_manifest  # noqa: E402
 
 DATASETS = (
     "point", "range", "freq", "trend", "flat-trend",
     "noisy-point", "noisy-freq",
 )
+
+#: Variant names the official aggregator postprocesses: for exactly these
+#: names (upstream ``postprocess_configs`` in src/config.py), every
+#: integer in a stored response is multiplied by 1/scale before scoring,
+#: because those variants prompt the LLM on a 0.3-subsampled series.
+RESCALED_VARIANT = re.compile(r"^[01]shot-text-s\d+(?:\.\d+)?(?:-cot)?$")
+
+
+def gnomon_variant_name(name: str) -> str:
+    """Argparse type for ``--variant-name``: rejects names upstream
+    silently rescales.
+
+    Gnomon's predictions are full-resolution indices. A results file
+    named like a scaled prompt variant would have every index multiplied
+    by the inverse scale at aggregation time — no error, just wrong
+    scores — so the collision is refused up front.
+    """
+    if RESCALED_VARIANT.match(name):
+        raise argparse.ArgumentTypeError(
+            f"variant name {name!r} collides with an upstream rescaling "
+            "variant: postprocess_configs (src/config.py in the AnomLLM "
+            "checkout) multiplies every integer in files with that exact "
+            "name by the inverse scale before scoring, which would "
+            "silently corrupt Gnomon's full-resolution indices. Pick a "
+            "name outside the [01]shot-text-sN[-cot] pattern."
+        )
+    return name
 
 
 def run_control(anomllm_root: Path, data: str, model: str, variant: str) -> int:
@@ -75,7 +107,9 @@ def main() -> int:
     parser.add_argument("--threshold", type=float, default=None,
                         help="Gnomon detection threshold (default: Gnomon's)")
     parser.add_argument("--variant-name", default="detect",
-                        help="Variant label for Gnomon's results file")
+                        type=gnomon_variant_name,
+                        help="Variant label for Gnomon's results file "
+                             "(names upstream would rescale are rejected)")
     parser.add_argument("--skip-gnomon", action="store_true",
                         help="Only run the control condition")
     parser.add_argument("--control-model", default=None,
@@ -92,16 +126,48 @@ def main() -> int:
         )
 
     exit_code = 0
+    command = " ".join(
+        [sys.executable, "-m", "benchmarks.anomllm.run_anomllm"]
+        + sys.argv[1:]
+    )
     if not args.skip_gnomon:
         summary = run_gnomon_condition(
             anomllm_root, args.data,
             threshold=args.threshold, variant_name=args.variant_name,
         )
         print(json.dumps(summary, indent=2))
+        # Same provenance run_all.py records, next to the sidecar, so a
+        # later comparison can refuse arms that answered other questions.
+        write_manifest(
+            Path(summary["gnomonbench_file"]).parent,
+            benchmark="anomllm",
+            run_name=f"anomllm-{args.data}",
+            condition=f"gnomon/{args.variant_name}",
+            target=args.data,
+            command=command,
+            status="ok",
+        )
 
     if args.control_model:
         exit_code = run_control(
             anomllm_root, args.data, args.control_model, args.control_variant
+        )
+        # The control's predictions live in the official results tree,
+        # owned by upstream code; its provenance still gets an
+        # adapter-owned home in the gnomonbench/ tree.
+        control_dir = default_records_path(
+            anomllm_root, args.data,
+            args.control_model.replace("/", "--"), args.control_variant,
+        ).parent
+        write_manifest(
+            control_dir,
+            benchmark="anomllm",
+            run_name=f"anomllm-{args.data}",
+            condition=f"control/{args.control_variant}",
+            target=args.data,
+            model=args.control_model,
+            command=command,
+            status="ok" if exit_code == 0 else f"exit {exit_code}",
         )
 
     print(

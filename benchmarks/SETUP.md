@@ -73,6 +73,12 @@ cd ~/AnomLLM && PYTHONPATH=src python src/data/synthetic.py --generate \
 # ...repeat per split/family, or run the official synthesize.sh for all.
 ```
 
+**LeakTrap** (internal) needs no dataset: tasks are generated
+deterministically from the seed at run time, so all three arms see
+identical series. It runs from the main environment via
+`benchmarks/configs/leaktrap.yaml`; only the control arm spends LLM
+tokens.
+
 **CiK** — its own interpreter:
 
 ```bash
