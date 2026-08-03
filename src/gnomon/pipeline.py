@@ -82,6 +82,10 @@ class SeriesState:
     covariate_public: dict[str, object] | None = None
     context_assessment: ContextAssessment | None = None
     covariate_assessment: CovariateAssessment | None = None
+    #: The future-context lane's public record, set only when
+    #: `context.future_events` is on and a namespaced event applied to this
+    #: series (gnomon.future_context).
+    future_context_public: dict[str, object] | None = None
     adjudication_public: dict[str, object] | None = None
     conditional_forecasts: list[dict[str, object]] = field(default_factory=list)
     #: Typed, correct-but-surprising facts for the support assessment.
@@ -678,6 +682,58 @@ def _constraint_stage(
     return projected
 
 
+def _future_context_stage(
+    state: SeriesState,
+    context_events: list[ContextEvent],
+    rows: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], bool]:
+    """The textual-verifiability lane for future-dated events.
+
+    Runs only behind `context.future_events: on`. Admission and effects
+    are `gnomon.future_context`'s; this stage owns the disclosure: the
+    gate record, the history-only counterfactual rows preserved beside
+    every application, and the public dict the result carries.
+    """
+    from .future_context import apply_future_events, assess_future_events
+
+    assessment = assess_future_events(
+        context_events, state.name, state.values, state.timestamps,
+        state.future_timestamps, state.season,
+    )
+    if not assessment.considered:
+        return rows, False
+    applications: list[dict[str, Any]] = []
+    counterfactual = [dict(row) for row in rows] if assessment.admitted else None
+    if assessment.admitted:
+        rows, applications = apply_future_events(rows, assessment.admitted)
+    state.future_context_public = assessment.to_public_dict()
+    state.evidence.append(Evidence(
+        f"future_context_gate:{state.name}", "future_context_gate", state.name,
+        {**state.future_context_public,
+         "events_admitted": len(assessment.admitted),
+         "events_rejected": len(assessment.rejected)},
+    ))
+    if assessment.admitted:
+        state.evidence.append(Evidence(
+            f"future_context_applied:{state.name}", "future_context_applied",
+            state.name,
+            {
+                "applications": applications,
+                "history_only_counterfactual": counterfactual,
+                "support": "context_trusted",
+                "basis": (
+                    "admitted on textual verifiability, not fold ablation: "
+                    "constraint bounds project the emitted quantiles onto "
+                    "the stated feasible region; override windows take the "
+                    "stated value with boundary-widened intervals. The "
+                    "counterfactual rows are the forecast as it stood "
+                    "before this lane touched it."
+                ),
+            },
+        ))
+    return rows, bool(assessment.admitted)
+
+
 def _forecast_disclosures(
     state: SeriesState,
     rows: list[dict[str, object]],
@@ -809,11 +865,16 @@ def interval_stage(
     threshold: float | None,
     context_events: list[ContextEvent] | None = None,
     target_coverage: float = DEFAULT_TARGET_COVERAGE,
+    future_events: bool = False,
 ) -> tuple[list[dict[str, object]], str, dict[str, object] | None]:
     """Residual-quantile intervals, the support status, and threshold analysis.
 
     ``target_coverage`` is the nominal central coverage the interval
     carries, from ``evaluation.uncertainty.target_coverage``.
+    ``future_events`` enables the textual-verifiability lane for
+    future-dated context events (`context.future_events`); a forecast it
+    influences reports ``context_trusted`` support instead of any
+    fold-backed state.
     """
     assert_residual_provenance(state)
     assessment = state.assessment
@@ -853,7 +914,17 @@ def interval_stage(
         # caller will.
         if context_events:
             rows = _constraint_stage(state, context_events, rows)
+        future_influenced = False
+        if future_events and context_events:
+            rows, future_influenced = _future_context_stage(
+                state, context_events, rows,
+            )
         support = "degraded" if assessment.degraded else ("supported_ensemble" if state.selected_model == "ensemble" else ("weakly_supported" if state.warnings else "supported"))
+        if future_influenced:
+            # Whatever the fold-backed status would have said, this forecast
+            # now rests partly on trusted text; the weaker warrant is the
+            # honest one, and the fold facts survive in the reasons.
+            support = "context_trusted"
         if threshold is not None:
             threshold_analysis = threshold_analysis_stage(
                 threshold, rows, state.points, state.residuals, spreads,

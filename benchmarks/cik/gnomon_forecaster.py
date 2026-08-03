@@ -77,6 +77,28 @@ Rules:
 - If the context describes no time-locatable event, return [].
 """
 
+FUTURE_EVENT_INSTRUCTIONS = """\
+
+Additionally, when the context STATES a numeric bound on future values, or
+a deterministic state for a future window, you may propose these typed
+events (same JSON objects, two extra fields):
+
+- Constraint (a stated bound such as "between 0 and 340" or "will not
+  exceed X"): set "event_type" to "constraint:<label>" and add
+  "source_span": "<the sentence from the context, quoted VERBATIM, that
+  states the bound>". Date it over the forecast window only.
+- Deterministic override (a stated state such as "offline", "closed", or
+  "output drops to 0" for a stated window): set "event_type" to
+  "override:<label>" and add "source_span": "<the verbatim sentence
+  stating the state or value>". Date it over exactly the stated window.
+
+The engine re-parses every number from your quoted span with a
+deterministic parser and rejects any span that does not literally state
+the bound or value, any span that does not appear in the context, and any
+bound the recent history already violates. Never paraphrase inside
+source_span, and never put numbers you computed yourself anywhere.
+"""
+
 
 class GnomonAbstained(RuntimeError):
     """Gnomon refused to produce a forecast; there are no numbers to score."""
@@ -140,6 +162,10 @@ def build_context_text(task_instance: Any) -> str:
     return "\n".join(parts)
 
 
+def _normalise(text: str) -> str:
+    return " ".join(str(text).split()).casefold()
+
+
 def events_from_proposals(
     proposals: list[Any],
     *,
@@ -147,12 +173,19 @@ def events_from_proposals(
     known_at: str,
     window_start: str,
     window_end: str,
+    context_text: str | None = None,
 ) -> tuple[list[Any], list[str]]:
     """Convert LLM proposals into validated ``ContextEvent`` objects.
 
     Malformed proposals are dropped with a note instead of failing the
     run: a bad proposal is the LLM's failure, and the treatment's answer
     to that is falling back to the history-only forecast.
+
+    ``context_text`` is required for a proposal carrying a ``source_span``:
+    Gnomon never sees the source document, so verifying that the quoted
+    span actually appears in it (whitespace- and case-normalised) is this
+    adapter's job. A span that is not in the context is dropped here and
+    never reaches the engine.
     """
     from datetime import datetime
 
@@ -160,6 +193,7 @@ def events_from_proposals(
 
     window_start_dt = datetime.fromisoformat(window_start)
     window_end_dt = datetime.fromisoformat(window_end)
+    normalised_context = _normalise(context_text) if context_text else ""
     events: list[Any] = []
     notes: list[str] = []
     for number, raw in enumerate(proposals[:MAX_EVENTS], start=1):
@@ -170,6 +204,24 @@ def events_from_proposals(
             confidence = float(raw.get("confidence", 1.0))
         except (TypeError, ValueError):
             confidence = 1.0
+        attributes: dict[str, Any] = {
+            "rationale": str(raw.get("rationale", ""))[:500],
+        }
+        span = raw.get("source_span")
+        if isinstance(span, str) and span.strip():
+            if context_text is None:
+                # No context to verify against (the future-context lane is
+                # off): an unverifiable quote is not attached, and the event
+                # proceeds as an ordinary proposal for the fold gate.
+                pass
+            elif _normalise(span) not in normalised_context:
+                notes.append(
+                    f"proposal {number} rejected: source_span is not a "
+                    f"verbatim quote from the task context"
+                )
+                continue
+            else:
+                attributes["source_span"] = span.strip()[:1000]
         event = ContextEvent(
             event_id=f"cik-{task_name}-evt{number}",
             event_type=str(raw.get("event_type", "")).strip() or "context_event",
@@ -178,7 +230,7 @@ def events_from_proposals(
             effective_end=str(raw.get("effective_end", "")),
             known_at=known_at,
             confidence=min(max(confidence, 0.0), 1.0),
-            attributes={"rationale": str(raw.get("rationale", ""))[:500]},
+            attributes=attributes,
             source=ContextSource("dataset", f"cik:{task_name}#context"),
             created_by="llm",
         )
@@ -217,13 +269,20 @@ class GnomonForecaster:
         *,
         temperature: float = 1.0,
         work_dir: str | None = None,
+        future_context: bool = False,
     ) -> None:
         if mode not in ("pure", "agent"):
             raise ValueError("mode must be 'pure' or 'agent'")
         if mode == "agent" and not openrouter_model:
             raise ValueError("mode='agent' requires an OpenRouter model id")
+        if future_context and mode != "agent":
+            raise ValueError(
+                "future_context only makes sense with mode='agent': there is "
+                "no proposer to quote spans in pure mode"
+            )
         self.mode = mode
         self.openrouter_model = openrouter_model
+        self.future_context = future_context
         self.client = (
             OpenRouterClient(openrouter_model, temperature=temperature)
             if mode == "agent"
@@ -235,7 +294,8 @@ class GnomonForecaster:
     @property
     def cache_name(self) -> str:
         model = (self.openrouter_model or "none").replace("/", "-")
-        return f"GnomonForecaster_mode={self.mode}_model={model}"
+        suffix = "_future=on" if self.future_context else ""
+        return f"GnomonForecaster_mode={self.mode}_model={model}{suffix}"
 
     def __str__(self) -> str:
         return self.cache_name
@@ -262,6 +322,14 @@ class GnomonForecaster:
         from gnomon import forecast as gnomon_forecast
         from gnomon.contracts import GnomonError
 
+        config = None
+        if self.future_context:
+            # A fresh config object, never the shared default: the flag is
+            # this run's treatment condition, not a process-wide setting.
+            from gnomon.config import GnomonConfig
+
+            config = GnomonConfig()
+            config.context.future_events = True
         try:
             artifact, _ = gnomon_forecast(
                 str(csv_path),
@@ -270,6 +338,7 @@ class GnomonForecaster:
                 horizon=horizon,
                 output=str(run_dir / "gnomon-output"),
                 context_events=events or None,
+                config=config,
             )
         except GnomonError as error:
             raise GnomonAbstained([f"{error.code}: {error.message}"]) from error
@@ -290,6 +359,7 @@ class GnomonForecaster:
             "strongest_baseline": result.strongest_baseline,
             "warnings": list(result.warnings),
             "context": result.context,
+            "future_context": result.future_context,
             "proposed_events": [event.event_id for event in events],
             "proposal_notes": proposal_notes,
             "total_time": time.time() - started,
@@ -346,6 +416,8 @@ class GnomonForecaster:
             window_start=window_start,
             window_end=window_end,
         )
+        if self.future_context:
+            instructions += FUTURE_EVENT_INSTRUCTIONS
         prompt = (
             f"{instructions}\n"
             f"History window: {timestamps[0]} to {timestamps[-1]} "
@@ -369,4 +441,5 @@ class GnomonForecaster:
             known_at=window_start,
             window_start=window_start,
             window_end=window_end,
+            context_text=context if self.future_context else None,
         )

@@ -137,6 +137,15 @@ class EvaluationConfig:
 
 
 @dataclass
+class ContextConfig:
+    #: Admit future-dated constraint/override context events by textual
+    #: verifiability (`gnomon.future_context`). Off by default: with the
+    #: flag off the lane does not run, no artifact gains an ID-payload
+    #: key, and every existing ID is byte-identical.
+    future_events: bool = False
+
+
+@dataclass
 class OutputConfig:
     #: `artifact.json` and `lineage.json` have no switch: the artifact is
     #: the run's identity and the lineage is what the verifier checked, so
@@ -154,6 +163,7 @@ class GnomonConfig:
     meta_model: MetaModelConfig = field(default_factory=MetaModelConfig)
     llm: LLMConfig = field(default_factory=LLMConfig)
     evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
+    context: ContextConfig = field(default_factory=ContextConfig)
     output: OutputConfig = field(default_factory=OutputConfig)
     _source_path: str | None = None
 
@@ -434,6 +444,14 @@ def _parse_config(raw: dict[str, Any]) -> GnomonConfig:
         target_coverage=target_coverage,
     )
 
+    # Context
+    context_raw = _section(raw, "context")
+    cfg.context = ContextConfig(
+        future_events=_parse_on_off(
+            context_raw.get("future_events", False), "context.future_events",
+        ),
+    )
+
     # Output
     out_raw = _section(raw, "output")
     cfg.output = OutputConfig(
@@ -443,6 +461,24 @@ def _parse_config(raw: dict[str, Any]) -> GnomonConfig:
     )
 
     return cfg
+
+
+def _parse_on_off(raw: Any, key: str) -> bool:
+    """A flag written as on/off (or a plain boolean). Anything else is an
+    error, not a silent default — a mistyped value that quietly meant
+    "off" would hide the very behaviour change the flag discloses."""
+    if isinstance(raw, bool):
+        return raw
+    if isinstance(raw, str) and raw.strip().lower() in ("on", "true", "yes"):
+        return True
+    if isinstance(raw, str) and raw.strip().lower() in ("off", "false", "no"):
+        return False
+    from .contracts import GnomonError
+    raise GnomonError(
+        "UNSUPPORTED_CONFIG_KEY",
+        f"{key} must be on or off; got {raw!r}.",
+        {"keys": [key], "supplied": raw, "supported": ["on", "off"]},
+    )
 
 
 def _parse_api_providers(

@@ -68,6 +68,44 @@ def assess_forecast_support(
             f"carry probability weight.",
         ))
 
+    if support == "context_trusted":
+        # The forecast was influenced by future-dated context admitted on
+        # textual verifiability (`context.future_events`), which no fold
+        # ever tested. Weaker than any fold-backed status by design; the
+        # evaluation facts stay visible in the reasons rather than being
+        # displaced by the downgrade.
+        trust_reasons = [SupportReason(
+            "unbacktested_context_admitted",
+            "Future-dated context events were admitted by textual "
+            "verification — a quoted source span whose numbers a "
+            "deterministic parser re-extracted — not by fold ablation: "
+            "their windows have no historical precedent to ablate. The "
+            "forecast as it stood before these events is recorded as the "
+            "history-only counterfactual in the future_context_applied "
+            "evidence.",
+        )]
+        if assessment is not None and assessment.degraded:
+            trust_reasons.append(SupportReason(
+                "degraded_evaluation",
+                "Model selection ran without separated calibration and "
+                "test folds.",
+            ))
+        recovery = [SupportReason(
+            "compare_counterfactual",
+            "Compare against the history-only counterfactual in the "
+            "evidence; set context.future_events: off to remove the "
+            "influence entirely.",
+        )]
+        if miscalibrated:
+            recovery.append(SupportReason(
+                "treat_intervals_as_indicative",
+                "Use the point path and the model comparison; do not read "
+                "the intervals as calibrated probabilities.",
+            ))
+        return SupportAssessment(
+            "conditionally_supported", trust_reasons + reasons, assumptions,
+            sensitivity, recovery, support, disclosures,
+        )
     if support in ("supported", "supported_ensemble"):
         extra: list[SupportReason] = []
         status = "supported"

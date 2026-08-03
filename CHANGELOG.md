@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+- **Verifiable future-context events** (`gnomon.future_context`), behind
+  `context.future_events` (default **off**). Two typed event classes whose
+  admission is by textual verifiability instead of fold ablation, for
+  events that are structurally untestable on history (future-dated, no
+  overlap with the observed window): `constraint:*` bounds parsed
+  deterministically from a quoted source span and projected onto the
+  emitted quantiles, and `override:*` stated states (value from the text,
+  never estimated) that set their window's steps with boundary-widened
+  intervals. The proposer never supplies a number that is applied; a
+  claimed bound must re-parse from the span; a bound the recent history
+  already violates is rejected as suspect. Fold-testable events still go
+  through the ablation gate, and a fold-tested failure stays rejected.
+  Disclosure: influenced forecasts report the new (flag-gated, additive)
+  support value `context_trusted`, record the history-only counterfactual
+  in `future_context_applied` evidence, and carry the admitted events in
+  the artifact-ID payload — absent when the flag is off, so every existing
+  ID and golden artifact is byte-identical. Motivated by the CiK result
+  where the gate rejected 100% of proposed events (see
+  `results/future-context-ab/HYPOTHESIS.md`, pre-registered).
+
 - **Renamed from Aion to Gnomon, and bumped to 0.5.0.** The old name
   collided with AION (Zhan et al., arXiv:2605.25045) and could not be
   claimed on PyPI. Every public identifier moved: distribution

@@ -299,6 +299,13 @@ def forecast(
         minimum_baseline_improvement=minimum_baseline_improvement,
         as_of=as_of.isoformat() if as_of else None,
     )
+    # The textual-verifiability lane for future-dated context events.
+    # Resolved once, here, so the flag has exactly one meaning per run and
+    # the ID payload below can state it.
+    future_events_enabled = bool(
+        getattr(getattr(config, "context", None), "future_events", False)
+    )
+    future_context_admitted: dict[str, list[dict[str, object]]] = {}
     results: list[SeriesResult] = []
     evidence: list[Evidence] = []
     var_frame = None
@@ -366,7 +373,12 @@ def forecast(
         rows, support, threshold_analysis = interval_stage(
             state, threshold=threshold, context_events=context_events,
             target_coverage=target_coverage,
+            future_events=future_events_enabled,
         )
+        if state.future_context_public and state.future_context_public.get("admitted"):
+            future_context_admitted[series_name] = list(
+                state.future_context_public["admitted"]  # type: ignore[arg-type]
+            )
         assessment = state.assessment
         from .support import assess_forecast_support
         support_assessment = assess_forecast_support(
@@ -383,6 +395,7 @@ def forecast(
             support_assessment.to_dict(),
             notes=state.notes,
             conditional_forecasts=state.conditional_forecasts,
+            future_context=state.future_context_public,
         )
         results.append(result)
         evidence.extend(state.evidence)
@@ -468,6 +481,15 @@ def forecast(
         # Absent when no TSFM was selected, so ids for baseline and
         # statistical selections are unchanged by this addition.
         id_payload["model_weights"] = selected_weights
+    if future_events_enabled:
+        # Same pattern as model_weights: the key exists only when the flag
+        # is on, so every flag-off ID — including all pre-existing ones —
+        # is byte-identical. When on, the ID covers both the flag and the
+        # events that actually influenced the numbers.
+        id_payload["future_context"] = {
+            "enabled": True,
+            "admitted": future_context_admitted,
+        }
     forecast_id = content_id("forecast", id_payload)
     artifact = ForecastArtifact(
         "0.1", forecast_id, clock.now().isoformat(),
@@ -505,6 +527,13 @@ def capabilities() -> dict[str, object]:
     from .registry import registry_capabilities
     from .tsfm import available_tsfms, capability_matrix, installed_tsfms
     from .tsfm_sandbox import list_sandboxes
+    try:
+        from .config import load_config
+        future_events_on = bool(load_config().context.future_events)
+    except Exception:
+        # A malformed config file must not make capabilities unreportable;
+        # the flag reads as its default.
+        future_events_on = False
     return {
         "schema_version": "0.1",
         "runtime_version": "0.5.0",
@@ -515,6 +544,30 @@ def capabilities() -> dict[str, object]:
         },
         "frequencies": sorted(SEASONS),
         "frequency_descriptions": dict(FREQUENCY_DESCRIPTIONS),
+        "context_events": {
+            "fold_validated": {
+                "model": "event_adjusted",
+                "effect_shapes": ["level", "decay", "ramp"],
+                "admission": "identical-fold ablation with known-at gating",
+            },
+            "future_events": {
+                "flag": "context.future_events",
+                "default": "off",
+                "enabled": future_events_on,
+                "event_classes": ["constraint", "deterministic_override"],
+                "admission": (
+                    "textual verifiability: a quoted source span, "
+                    "deterministic re-parsing of its numbers, and a "
+                    "recent-history consistency check — only for windows "
+                    "with no overlap with the observed history"
+                ),
+                "disclosure": (
+                    "influenced forecasts report support "
+                    "'context_trusted' and carry the history-only "
+                    "counterfactual in evidence"
+                ),
+            },
+        },
         "models": {
             "baselines": sorted(BASELINES),
             "statistical": sorted(name for name in MODELS if name not in BASELINES),
@@ -546,7 +599,8 @@ def capabilities() -> dict[str, object]:
             "threshold_analysis": True, "degraded_evaluation": True,
             "project_mode": True, "actual_scoring": True,
             "decision_outcomes": True, "agent_treatment_control_eval": True,
-            "context_events": True, "llm_workflow_prompts": True, "sharing": False,
+            "context_events": True, "future_context_events": True,
+            "llm_workflow_prompts": True, "sharing": False,
             "future_known_covariates": True, "point_in_time_covariates": True,
             "covariate_ablation": True, "enrichment_adjudication": True,
             "season_detection": True, "ensemble_forecasting": True,

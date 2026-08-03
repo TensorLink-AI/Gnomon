@@ -250,6 +250,26 @@ evaluation:
     target_coverage: 0.80
 
 # ---------------------------------------------------------------------------
+# Context — how proposed context events may enter a forecast
+# ---------------------------------------------------------------------------
+context:
+  # off (default): every context event must earn its influence through the
+  #   fold-ablation gate. Events whose windows lie entirely in the future
+  #   have no folds to prove themselves on and are rejected.
+  # on: adds a second, typed lane for exactly that class — future-dated
+  #   `constraint:*` and `override:*` events admitted by textual
+  #   verifiability: a quoted source span, deterministic re-parsing of its
+  #   numbers (the proposer never supplies a number that is applied), and
+  #   a recent-history consistency check. Constraints clamp the emitted
+  #   quantiles onto the stated feasible region; overrides set the stated
+  #   window to the stated value with boundary-widened intervals. A
+  #   forecast this lane influences reports support `context_trusted`,
+  #   carries its history-only counterfactual in evidence, and gains a
+  #   `future_context` key in its artifact-ID payload. Events that could
+  #   be fold-tested still go through the ablation gate either way.
+  future_events: off
+
+# ---------------------------------------------------------------------------
 # Output — control artifact generation
 # ---------------------------------------------------------------------------
 output:

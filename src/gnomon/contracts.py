@@ -4,7 +4,11 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
 
-Support = Literal["supported", "weakly_supported", "degraded", "supported_ensemble", "unsupported"]
+# `context_trusted` is additive and reachable only behind
+# `context.future_events: on`: the forecast was influenced by future-dated
+# context admitted on textual verifiability rather than fold ablation, so
+# its warrant is weaker than any fold-backed state.
+Support = Literal["supported", "weakly_supported", "degraded", "supported_ensemble", "unsupported", "context_trusted"]
 
 # The harness-wide vocabulary. ``Support`` above is the frozen v0.2 enum;
 # new code speaks these.
@@ -213,6 +217,12 @@ class SeriesResult:
     # field above keeps its unconditional value, so a reader that ignores this
     # key sees what it has always seen.
     conditional_forecasts: list[dict[str, Any]] = field(default_factory=list)
+    # The future-context lane's decisions (gnomon.future_context), present
+    # only when `context.future_events: on` considered at least one
+    # namespaced event. Additive on the same terms as
+    # `conditional_forecasts`: absent, the result serialises byte-identically
+    # to a build without the feature.
+    future_context: dict[str, Any] | None = None
 
 
 @dataclass
@@ -235,6 +245,8 @@ class ForecastArtifact:
             # freeze verifiable byte-for-byte rather than by inspection.
             if not result.get("conditional_forecasts"):
                 result.pop("conditional_forecasts", None)
+            if not result.get("future_context"):
+                result.pop("future_context", None)
         return payload
 
 

@@ -44,6 +44,15 @@ Ours (this directory):
 | `gnomon-pure` | none (context ignored) | Gnomon |
 | `gnomon-agent` | proposes typed context events only | Gnomon |
 
+`gnomon-agent` additionally accepts `--future-context`, which turns on
+Gnomon's `context.future_events` lane: the proposer may also quote
+verbatim `source_span`s for stated bounds (`constraint:*`) and stated
+deterministic windows (`override:*`). The adapter verifies each span is a
+verbatim quote of the task context before Gnomon sees it; Gnomon then
+re-parses the numbers deterministically and applies its own admission
+checks. Influenced runs report support `context_trusted`. The A/B for
+this flag is pre-registered in `results/future-context-ab/HYPOTHESIS.md`.
+
 ## Setup
 
 ```bash
