@@ -76,6 +76,44 @@ level can read the file.
 
 ## `gnomon forecast`
 
+The minimal invocation is the whole invocation for most files:
+
+```bash
+gnomon forecast data.csv
+```
+
+Three flags are inferred, and every inference is disclosed in the
+response's `assumptions` — an inference nobody is told about is a guess:
+
+- `--time` is inferred when exactly one column parses as timestamps.
+- `--target` is inferred when exactly one non-time column parses as
+  numbers.
+- `--horizon` defaults to one seasonal period of the inferred grid.
+- `--frequency` is inferred from the observed step between timestamps.
+
+Inference refuses — with an `AMBIGUOUS_SCHEMA` error naming the candidate
+columns and the minimal working invocation — when more than one column
+qualifies. It never guesses between two plausible readings.
+
+To batch several columns of a wide file into one run, pass a comma list
+or `auto`:
+
+```bash
+gnomon forecast vitals.csv --target hr,spo2,resp
+gnomon forecast vitals.csv --target auto     # every numeric non-time column
+```
+
+One shared load pass; the channels evaluate concurrently and land in one
+artifact, one result per column, each with its own support state. A
+channel that abstains is disclosed in its own result and never blocks
+the others. Per-channel numbers are identical to single-target runs.
+
+`--brief` shrinks stdout to the q50 path with one q10–q90 interval per
+step, plus — verbatim, never summarised — the support state and every
+warning, abstention reason, recovery action, and disclosure. The full
+artifact is written to disk unchanged; the default stdout format is also
+unchanged.
+
 Short histories use a single trailing holdout and return `degraded` forecasts
 by default. Pass `--strict-abstention` to retain empty-result abstention when
 separated rolling evaluation is unavailable.
@@ -109,14 +147,17 @@ Runs validation, rolling evaluation, model selection, calibration, support
 assessment, final forecasting, and artifact persistence:
 
 ```bash
-gnomon forecast INPUT --time COLUMN --target COLUMN --horizon N [OPTIONS]
+gnomon forecast INPUT [--time COLUMN] [--target COLUMN[,COLUMN…]] [--horizon N] [OPTIONS]
 ```
 
 | Option | Default | Meaning |
 | --- | --- | --- |
+| `--time COLUMN` | Inferred | Timestamp column; inference refuses when ambiguous. |
+| `--target COLUMN[,COLUMN…]` | Inferred | Numeric column(s) to model; a comma list or `auto` batches several columns into one run. |
 | `--series COLUMN` | None | Independent-series identifier. |
 | `--frequency CODE` | Inferred | `min`, `5min`, `15min`, `30min`, `h`, `D`, `W`, or `MS`. |
-| `--horizon N` | Required | Number of future periods; must be at least one. |
+| `--horizon N` | One seasonal period | Number of future periods; must be at least one. |
+| `--brief` | Off | Compact stdout; disclosures verbatim; artifact unchanged. |
 | `--output DIR` | `gnomon-output` | Parent directory for immutable run directories. |
 | `--minimum-baseline-improvement FLOAT` | `0.02` | Fractional improvement required before selecting a candidate over the strongest baseline. |
 | `--context FILE` | None | Validated context-events JSON (output of `gnomon context validate`). |

@@ -148,6 +148,78 @@ def load_stage(
     )
 
 
+def load_stage_multi(
+    input_path: str,
+    *,
+    time_column: str,
+    target_columns: list[str],
+    frequency: str | None,
+    as_of: datetime | None = None,
+    repair: str = "off",
+) -> tuple[dict[str, "LoadedDataset | GnomonError"], dict[str, RepairLog], str, list[str]]:
+    """One shared file read, one :class:`LoadedDataset` per target column.
+
+    Each target's parse runs through the same code as a single-target
+    ``load_stage``, so a batched channel and a sequential run of that
+    channel see identical observations. A target whose column cannot be
+    loaded maps to its ``GnomonError`` instead of a dataset — the caller
+    turns that into a per-channel abstention rather than a failed run.
+    Series names are the target column names, which is what keeps
+    evidence and result identifiers distinct in the combined artifact.
+    """
+    from .data import observations_from_rows, read_input_rows
+
+    if input_path.startswith(STORE_SCHEME):
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "Multi-target batching reads several columns of one wide file; "
+            "a store dataset holds a single variable. Forecast store inputs "
+            "one variable at a time.",
+            {"input": input_path},
+        )
+    shared_log = RepairLog()
+    rows, columns, source_fingerprint = read_input_rows(
+        input_path, time_column, target_columns[0],
+        repair=repair, repair_log=shared_log,
+    )
+    datasets: dict[str, LoadedDataset | GnomonError] = {}
+    logs: dict[str, RepairLog] = {}
+    for target in target_columns:
+        log = shared_log.clone()
+        logs[target] = log
+        try:
+            raw_observations = observations_from_rows(
+                rows, columns, time_column, target, None,
+                repair=repair, repair_log=log, default_series=target,
+            )
+            raw_observations = repair_observations(raw_observations, frequency, repair, log)
+            _record_reordering(raw_observations, log)
+            store, _ = InMemoryTemporalStore.from_plain_observations(
+                raw_observations, target, source_fingerprint,
+            )
+            snapshot = store.snapshot(as_of)
+            observations = [
+                Observation(item.valid_time, item.value, entity)
+                for entity in snapshot.entities()
+                for item in snapshot.series(entity, target)
+            ]
+            if not observations:
+                raise GnomonError(
+                    "EMPTY_SNAPSHOT",
+                    "No observations are known at or before the requested as_of instant.",
+                    {"as_of": as_of.isoformat() if as_of else "latest"},
+                )
+            groups, resolved_frequency, zone = validate_and_group(observations, frequency)
+            schema = DataSchema(time_column, target, None, resolved_frequency, zone)
+            datasets[target] = LoadedDataset(
+                source_fingerprint, columns, groups, resolved_frequency, zone,
+                schema, snapshot, target,
+            )
+        except GnomonError as error:
+            datasets[target] = error
+    return datasets, logs, source_fingerprint, columns
+
+
 def _record_reordering(observations: list[Observation], log: "RepairLog") -> None:
     """Note when the input arrived out of chronological order.
 

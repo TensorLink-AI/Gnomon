@@ -27,7 +27,9 @@ def _common_input(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--target", dest="target_column",
         help="Numeric column to model. Inferred when exactly one non-time "
-             "column parses as numbers.",
+             "column parses as numbers. `gnomon forecast` also takes a "
+             "comma list (hr,spo2,resp) or `auto` (every numeric non-time "
+             "column) to batch several columns in one run.",
     )
     parser.add_argument(
         "--series", dest="series_column",
@@ -77,12 +79,24 @@ def _resolve_schema(args) -> list[str]:
         chosen = inferred[key]
         if chosen is None:
             candidates = inferred[candidates_key]
+            command = getattr(args, "command", "forecast") or "forecast"
+            # The smallest invocation that would actually run, built from
+            # this file: only the refused flag needs a value, because
+            # everything else is inferred. An error that dumps the full
+            # flag list teaches the long path; this teaches the short one.
+            minimal = (
+                f"gnomon {command} {source} {flag} "
+                + ("<" + "|".join(candidates) + ">" if candidates else "<column>")
+            )
             raise GnomonError(
                 "AMBIGUOUS_SCHEMA",
                 f"{flag} was not supplied and cannot be inferred: "
                 + (f"{len(candidates)} columns qualify ({', '.join(candidates)})."
-                   if candidates else "no column qualifies."),
+                   if candidates else "no column qualifies.")
+                + f" Minimal working invocation: `{minimal}` — every other "
+                  f"flag is inferred from the file.",
                 {"argument": flag, "candidates": candidates,
+                 "suggested_invocation": minimal,
                  "columns_examined": inferred["time_candidates"]
                  + inferred["target_candidates"]},
                 repair_options=[{
@@ -91,7 +105,11 @@ def _resolve_schema(args) -> list[str]:
                                    + (f" Candidates: {', '.join(candidates)}."
                                       if candidates else ""),
                     "arguments": [flag],
-                }],
+                }] + ([{
+                    "action": "forecast_all_candidates",
+                    "description": "Or batch every numeric column in one "
+                                   "run: pass --target auto.",
+                }] if flag == "--target" and command == "forecast" else []),
             )
         setattr(args, attribute, chosen)
         assumptions.append(
@@ -123,6 +141,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--horizon", type=int,
         help="Periods to forecast. Defaults to one seasonal period of the "
              "inferred grid, disclosed as an assumption.",
+    )
+    forecast_parser.add_argument(
+        "--brief", action="store_true",
+        help="Compact stdout: q50 with one q10-q90 interval per step, the "
+             "selected model, and every support state, warning, abstention "
+             "reason, and disclosure verbatim. The full artifact is still "
+             "written to disk unchanged; only stdout shrinks.",
     )
     forecast_parser.add_argument(
         "--output", default="gnomon-output",
@@ -710,8 +735,65 @@ class _ArgumentError(Exception):
         self.prog = prog
 
 
+#: What an agent guessing a flag name usually means. Lexical distance
+#: cannot recover `--column` -> `--target`; these pairs can.
+_FLAG_SYNONYMS: dict[str, str] = {
+    "--column": "--target", "--col": "--target", "--value": "--target",
+    "--field": "--target", "--metric": "--target",
+    "--date": "--time", "--timestamp": "--time", "--time-column": "--time",
+    "--index": "--time", "--datetime": "--time",
+    "--group": "--series", "--group-by": "--series", "--id": "--series",
+    "--entity": "--series", "--channel": "--series",
+    "--periods": "--horizon", "--steps": "--horizon", "--length": "--horizon",
+    "--freq": "--frequency", "--interval": "--frequency",
+    "--out": "--output", "--output-dir": "--output", "--dir": "--output",
+}
+
+
+def _all_known_flags() -> list[str]:
+    """Every option string the CLI accepts, across all subcommands."""
+    flags: set[str] = set()
+
+    def walk(parser: argparse.ArgumentParser) -> None:
+        flags.update(
+            option for option in parser._option_string_actions
+            if option.startswith("--")
+        )
+        for action in parser._actions:
+            if isinstance(action, argparse._SubParsersAction):
+                for sub in action.choices.values():
+                    walk(sub)
+
+    walk(build_parser())
+    return sorted(flags)
+
+
+def _suggest_flags(message: str) -> list[tuple[str, str]]:
+    """(unknown, suggestion) pairs for an `unrecognized arguments` failure."""
+    marker = "unrecognized arguments:"
+    if marker not in message:
+        return []
+    import difflib
+
+    known = _all_known_flags()
+    suggestions: list[tuple[str, str]] = []
+    for token in message.split(marker, 1)[1].split():
+        if not token.startswith("--"):
+            continue
+        unknown = token.split("=", 1)[0]
+        synonym = _FLAG_SYNONYMS.get(unknown.lower())
+        if synonym:
+            suggestions.append((unknown, synonym))
+            continue
+        close = difflib.get_close_matches(unknown, known, n=1, cutoff=0.75)
+        if close:
+            suggestions.append((unknown, close[0]))
+    return suggestions
+
+
 def _argument_error(exc: _ArgumentError) -> GnomonError:
     missing = _missing_arguments(exc.message)
+    suggestions = _suggest_flags(exc.message)
     repairs = []
     if missing:
         repairs.append({
@@ -721,13 +803,29 @@ def _argument_error(exc: _ArgumentError) -> GnomonError:
             ),
             "arguments": missing,
         })
+    for unknown, suggestion in suggestions:
+        repairs.append({
+            "action": "rename_flag",
+            "description": f"Replace {unknown} with {suggestion}.",
+            "arguments": [suggestion],
+        })
     repairs.append({
         "action": "show_usage",
         "description": f"Run `{exc.prog} --help` for the full argument list.",
     })
+    message = exc.message
+    if suggestions:
+        message += " " + " ".join(
+            f"Did you mean {suggestion} instead of {unknown}?"
+            for unknown, suggestion in suggestions
+        )
     return GnomonError(
-        "INVALID_ARGUMENTS", exc.message,
-        {"command": exc.prog, "missing_arguments": missing},
+        "INVALID_ARGUMENTS", message,
+        {"command": exc.prog, "missing_arguments": missing,
+         **({"flag_suggestions": [
+             {"unknown": unknown, "suggestion": suggestion}
+             for unknown, suggestion in suggestions
+         ]} if suggestions else {})},
         repair_options=repairs,
     )
 
@@ -748,14 +846,56 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(_argument_error(exc).to_dict(), indent=2), file=sys.stderr)
         return 2
     schema_assumptions: list[str] = []
+    multi_targets: list[str] | None = None
     try:
+        if (
+            args.command == "forecast" and args.target_column
+            and ("," in args.target_column
+                 or args.target_column.strip().lower() == "auto")
+        ):
+            from .data import resolve_target_spec
+
+            spec = args.target_column
+            targets = resolve_target_spec(
+                args.input, spec,
+                time_column=args.time_column,
+                series_column=args.series_column,
+            )
+            if spec.strip().lower() == "auto":
+                schema_assumptions.append(
+                    f"--target auto expanded to every numeric non-time "
+                    f"column: {', '.join(targets)}."
+                )
+            if len(targets) == 1:
+                # A one-column expansion is a single-target run, byte-
+                # identical to naming the column directly.
+                args.target_column = targets[0]
+            else:
+                multi_targets = targets
         if hasattr(args, "time_column"):
-            schema_assumptions = _resolve_schema(args)
+            if multi_targets:
+                # Only the time column may still need inference; the target
+                # spec is already resolved. Borrow the first target so the
+                # resolver sees a real column name.
+                original = args.target_column
+                args.target_column = multi_targets[0]
+                schema_assumptions = (
+                    _resolve_schema(args) + schema_assumptions
+                )
+                args.target_column = original
+            else:
+                schema_assumptions = _resolve_schema(args) + schema_assumptions
         if getattr(args, "horizon", "absent") is None:
             # One season ahead is the smallest horizon that can show a
             # seasonal pattern, and it is derivable from the data. Disclosed
             # like any other inference.
-            args.horizon = _default_horizon(args)
+            if multi_targets:
+                original = args.target_column
+                args.target_column = multi_targets[0]
+                args.horizon = _default_horizon(args)
+                args.target_column = original
+            else:
+                args.horizon = _default_horizon(args)
             schema_assumptions.append(
                 f"--horizon was not supplied; defaulted to {args.horizon}, "
                 f"one seasonal period of the inferred grid."
@@ -1371,6 +1511,51 @@ def main(argv: Sequence[str] | None = None) -> int:
                 except json.JSONDecodeError as exc:
                     raise GnomonError("INVALID_RESPONSE", f"LLM response is not valid JSON: {exc}") from exc
                 payload = parse_context_response(raw, documents)
+        elif args.command == "forecast" and multi_targets:
+            from .config import load_config
+            from .runtime import forecast_multi
+            from .toolspec import forecast_summary
+
+            unsupported = [
+                (flag, present) for flag, present in (
+                    ("--series", args.series_column),
+                    ("--multivariate", args.multivariate),
+                    ("--context", args.context_file),
+                    ("--covariates", args.covariates),
+                    ("--project", getattr(args, "project", None)),
+                ) if present
+            ]
+            if unsupported:
+                flags = ", ".join(flag for flag, _ in unsupported)
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    f"{flags} cannot be combined with a multi-target "
+                    f"--target yet; run those channels one target at a time.",
+                    {"unsupported_with_multi_target": [f for f, _ in unsupported],
+                     "targets": multi_targets},
+                    repair_options=[{
+                        "action": "split_invocation",
+                        "description": "Drop the flag(s), or invoke gnomon "
+                                       "forecast once per target column.",
+                    }],
+                )
+            artifact, path = forecast_multi(
+                args.input, time_column=args.time_column,
+                target_columns=multi_targets, horizon=args.horizon,
+                frequency=args.frequency, output=args.output,
+                minimum_baseline_improvement=args.minimum_baseline_improvement,
+                threshold=args.threshold,
+                config=load_config(getattr(args, "config", None)),
+                strict_abstention=args.strict_abstention,
+                seasonal_period=args.seasonal_period,
+                selection_strategy="ensemble" if args.ensemble else args.selection_strategy,
+                as_of=_parse_as_of(getattr(args, "as_of", None)),
+                repair=args.repair,
+                candidates=getattr(args, "candidates", None),
+            )
+            from .toolspec import brief_summary
+            payload = (brief_summary(artifact, path) if args.brief
+                       else forecast_summary(artifact, path))
         else:
             from .context import load_events_file
             from .runtime import forecast
@@ -1412,7 +1597,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 repair=args.repair,
                 candidates=getattr(args, "candidates", None),
             )
-            payload = forecast_summary(artifact, path)
+            if getattr(args, "brief", False):
+                from .toolspec import brief_summary
+                payload = brief_summary(artifact, path)
+            else:
+                payload = forecast_summary(artifact, path)
 
             # Auto-register in tracking store if --project is set
             if getattr(args, "project", None):
@@ -1420,8 +1609,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 register_artifact(artifact, args.project, str(path))
                 print(f"Registered forecast {artifact.forecast_id} in project '{args.project}'", file=sys.stderr)
 
-        print(json.dumps(_disclose_assumptions(payload, schema_assumptions),
-                         indent=2, allow_nan=False))
+        decorated = _disclose_assumptions(payload, schema_assumptions)
+        if isinstance(payload, dict) and payload.get("format") == "brief":
+            # Compact JSON is the point of brief mode: same content, no
+            # pretty-printing to pay tokens for.
+            print(json.dumps(decorated, separators=(",", ":"), allow_nan=False))
+        else:
+            print(json.dumps(decorated, indent=2, allow_nan=False))
         return 0
     except GnomonError as exc:
         print(json.dumps(exc.to_dict(), indent=2), file=sys.stderr)

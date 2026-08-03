@@ -41,6 +41,52 @@
   caller-claims channel applies its number with no span parsing at all;
   that authority is the caller's, never the model's.
 
+- **Multi-target batching, additive.** One invocation forecasts several
+  columns of a wide file: `gnomon forecast data.csv --target hr,spo2,resp`
+  (comma list) or `--target auto` (every numeric non-time column); the MCP
+  `gnomon_forecast` tool accepts the same specs in `target_column`. One
+  shared load pass, per-target evaluation on a thread pool (worker count
+  adapts to whether the interpreter can actually parallelise the work —
+  under a GIL the statistical path runs one worker, because measured
+  contention made more workers slower, not faster; sandboxed-TSFM and
+  free-threaded runs use `min(channels, cpus)`), one combined artifact
+  reusing the `results[]` shape with one entry per target column. Each
+  channel's numbers are identical to a single-target run (pinned by parity
+  tests), the artifact is identical at any worker count (pinned), and a
+  channel that fails to load or abstains is disclosed verbatim in its own
+  result — code, message, repair options — without blocking the others.
+  Single-target invocations are byte-identical to before (goldens
+  unchanged); multi-target IDs hash the ordered target list, which no
+  single-target payload can collide with. The TemporalBench adapter now
+  batches all of a row's channels into one run and the TimeSage toolbox
+  accepts a comma list of columns — same benchmark numbers, fewer
+  invocations (measured 4.0x wall-clock on a 240-row 6-channel file where
+  invocation overhead dominates; parity within noise when backtests
+  dominate).
+- **Brief output mode, additive.** `gnomon forecast --brief` (CLI) and
+  `format: "brief"` (MCP) shrink the response to the q50 path with one
+  q10–q90 interval per step, the selected model, and — verbatim, never
+  summarised — the support state, every warning, abstention reason,
+  recovery action, and disclosure; an abstention serialises the same
+  structured support assessment as full mode, and tests pin that nothing
+  epistemic can be dropped. The full artifact is written to disk
+  unchanged, and the default stdout format is untouched. Brief stdout is
+  compact JSON (no pretty-printing); a 6-channel horizon-24 response
+  shrank from ~46 KB to ~28 KB, a single-channel horizon-7 one from
+  ~5.7 KB to ~3.1 KB.
+- **Discoverability, additive.** `AMBIGUOUS_SCHEMA` errors now include a
+  minimal working invocation built from the actual file (only the refused
+  flag needs a value; everything else is inferred) plus the candidate
+  columns, and offer `--target auto` when the ambiguity is the target.
+  Unrecognized flags get a nearest-valid suggestion (`--column` → "did
+  you mean --target?"), via a synonym table plus a typo fallback, in the
+  message, `details.flag_suggestions`, and `repair_options`. README and
+  `docs/cli-reference.md` lead the forecast examples with the minimal
+  invocation and state which flags are inferred and when inference
+  refuses; `gnomon capabilities` reports `multi_target_batching` and
+  `brief_output` under `features` plus a machine-readable
+  `forecast_surface` block.
+
 - **Renamed from Aion to Gnomon, and bumped to 0.5.0.** The old name
   collided with AION (Zhan et al., arXiv:2605.25045) and could not be
   claimed on PyPI. Every public identifier moved: distribution

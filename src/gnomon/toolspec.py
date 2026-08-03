@@ -85,6 +85,52 @@ def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
     }
 
 
+def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
+    """The compact forecast payload: q50 path, one q10–q90 interval, the
+    selection, and every disclosure — roughly summary.md as JSON.
+
+    What it drops is bulk only: the extra quantile levels, the raw
+    `point` path beside its bias correction, and the context/covariate
+    gate detail (all still in the artifact on disk, which is written
+    unchanged). What it may never drop is epistemics: the support state,
+    every warning, every abstention reason, every recovery action, and
+    every disclosure ride along verbatim — an abstention serialises the
+    same structured support assessment full mode carries. Hiding
+    disclosures is the one thing this codebase exists to not do.
+    """
+    results = []
+    for item in artifact.results:
+        results.append({
+            "series": item.series,
+            "support": item.support,
+            "selected_model": item.selected_model,
+            "interval_coverage": item.interval_coverage,
+            # Verbatim, never summarised: the same objects full mode carries.
+            "warnings": item.warnings,
+            "support_assessment": item.support_assessment,
+            "notes": item.notes,
+            "forecast": [
+                {"timestamp": row["timestamp"], "q50": row["q50"],
+                 "q10": row["q10"], "q90": row["q90"]}
+                for row in item.forecast
+            ],
+            **({"threshold": item.threshold} if item.threshold else {}),
+        })
+    return {
+        "schema_version": "0.1",
+        "status": "complete",
+        "format": "brief",
+        "forecast_id": artifact.forecast_id,
+        "artifact_path": str(path),
+        "note": (
+            "Brief output: q50 with the q10-q90 interval per step. The full "
+            "artifact (all quantile levels, evidence, lineage) is on disk at "
+            "artifact_path, unchanged."
+        ),
+        "results": results,
+    }
+
+
 def _run_capabilities(arguments: dict[str, Any]) -> dict[str, Any]:
     return capabilities()
 
@@ -160,6 +206,9 @@ def _run_validate_covariates(arguments: dict[str, Any]) -> dict[str, Any]:
 
 
 def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
+    target_spec = str(arguments["target_column"])
+    if "," in target_spec or target_spec.strip().lower() == "auto":
+        return _run_forecast_multi(arguments, target_spec)
     events = None
     if arguments.get("context_events_file"):
         events = load_events_file(arguments["context_events_file"])
@@ -189,7 +238,9 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
         repair=arguments.get("repair", "safe"),
         candidates=arguments.get("candidates"),
     )
-    payload = forecast_summary(artifact, path)
+    payload = (brief_summary(artifact, path)
+               if arguments.get("format") == "brief"
+               else forecast_summary(artifact, path))
     if arguments.get("project"):
         from .tracking import register_artifact
         payload["tracking_ids"] = register_artifact(
@@ -197,6 +248,52 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
         )
         payload["project"] = str(arguments["project"])
     return payload
+
+
+def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str, Any]:
+    """The multi-target branch of gnomon_forecast: a comma list or `auto`
+    in target_column batches several columns into one run and one
+    combined artifact — same numbers per channel as separate calls."""
+    from .contracts import GnomonError
+    from .data import resolve_target_spec
+    from .runtime import forecast_multi
+
+    targets = resolve_target_spec(
+        str(arguments["input"]), target_spec,
+        time_column=arguments.get("time_column"),
+        series_column=arguments.get("series_column"),
+    )
+    if len(targets) == 1:
+        return _run_forecast({**arguments, "target_column": targets[0]})
+    unsupported = [
+        name for name in (
+            "series_column", "context_events_file", "covariates_file", "project",
+        ) if arguments.get(name)
+    ]
+    if unsupported:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            f"{', '.join(unsupported)} cannot be combined with a "
+            f"multi-target target_column yet; run those channels one "
+            f"target at a time.",
+            {"unsupported_with_multi_target": unsupported, "targets": targets},
+        )
+    artifact, path = forecast_multi(
+        str(arguments["input"]),
+        time_column=arguments["time_column"],
+        target_columns=targets,
+        frequency=arguments.get("frequency"),
+        horizon=int(arguments["horizon"]),
+        as_of=_parse_as_of(arguments.get("as_of")),
+        output=arguments.get("output_dir") or "gnomon-output",
+        minimum_baseline_improvement=float(arguments.get("minimum_baseline_improvement", 0.02)),
+        threshold=float(arguments["threshold"]) if arguments.get("threshold") is not None else None,
+        repair=arguments.get("repair", "safe"),
+        candidates=arguments.get("candidates"),
+    )
+    if arguments.get("format") == "brief":
+        return brief_summary(artifact, path)
+    return forecast_summary(artifact, path)
 
 
 def _run_submit_actuals(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -312,7 +409,26 @@ TOOLS: list[dict[str, Any]] = [
             "properties": {
                 **_INPUT_PROPERTIES,
                 **_REPLAY_PROPERTIES,
+                "target_column": {"type": "string", "description": (
+                    "Name of the numeric column to forecast. Also accepts a "
+                    "comma list (`hr,spo2,resp`) or `auto` (every numeric "
+                    "non-time column) to batch several columns of a wide "
+                    "file into one run — one shared load pass, channels "
+                    "evaluated concurrently, one combined artifact with a "
+                    "result per column. Each channel's numbers are identical "
+                    "to a single-target run; a channel that abstains is "
+                    "disclosed in its own result and never blocks the others."
+                )},
                 "horizon": {"type": "integer", "description": "Future periods to forecast, in units of the data frequency."},
+                "format": {"type": "string", "enum": ["full", "brief"], "description": (
+                    "Response verbosity (default full). `brief` returns per "
+                    "target the q50 path with one q10-q90 interval, the "
+                    "selected model, and — verbatim, never summarised — the "
+                    "support state, every warning, abstention reason, "
+                    "recovery action, and disclosure. The full artifact is "
+                    "written to disk unchanged either way; only the response "
+                    "payload shrinks."
+                )},
                 "candidates": {"type": "array", "items": {"type": "string"}, "description": "Restrict the model pool to these names — pass `gnomon_route`'s `candidates` or its `recommendation` to act on a routing decision. The mandatory baselines always compete regardless, so a named candidate still has to beat them."},
                 "output_dir": {"type": "string", "description": "Directory for the immutable artifact. Defaults to ./gnomon-output relative to the *server's* working directory, which is often inside the user's repository — pass an explicit path when that matters."},
                 "minimum_baseline_improvement": {"type": "number", "minimum": 0, "description": "Minimum relative improvement over the strongest baseline to select a candidate (default 0.02). Must be >= 0; a negative value would let a model that lost the backtest be selected."},

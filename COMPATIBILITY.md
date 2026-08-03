@@ -371,3 +371,27 @@ interpreter versions.
   with the rename. Artifact IDs do move, because they are salted with the
   runtime version and the version bumped — the same thing any release does;
   they are not salted with the project name.
+
+- Multi-target batching + brief output, **additive**: `gnomon forecast
+  --target` additionally accepts a comma list (`hr,spo2,resp`) or `auto`;
+  the MCP `gnomon_forecast` `target_column` accepts the same specs, and
+  the tool gains an optional `format: "full" | "brief"` property.
+  A plain single column behaves exactly as before — single-target
+  artifacts are byte-identical and the goldens did not move. A
+  multi-target run writes one combined artifact in the existing
+  `results[]` shape (one entry per target column, `series` = the column
+  name); its `forecast_id` hashes the ordered target list, a JSON array
+  that cannot collide with any single-target (string) payload. In the
+  combined artifact `task.schema.target_column` carries the comma-joined
+  list, and per-target repair/snapshot evidence is keyed
+  `data_repair:<target>` / merged under the single `snapshot` record.
+  Multi-target does not yet combine with `--series`, `--multivariate`,
+  `--context`, `--covariates`, `--project`, or `store:` inputs; those
+  combinations fail loudly with `INVALID_ARGUMENTS` instead of guessing.
+  `--brief` / `format: "brief"` change only the response payload (compact
+  JSON; support state, warnings, abstention reasons, recovery actions,
+  and disclosures verbatim); the artifact directory and the default
+  response format are unchanged. `AMBIGUOUS_SCHEMA` and argparse-level
+  `INVALID_ARGUMENTS` errors gained additive detail fields
+  (`suggested_invocation`, `flag_suggestions`) and repair options; no
+  existing envelope key changed.
