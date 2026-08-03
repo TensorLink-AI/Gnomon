@@ -837,5 +837,31 @@ def capabilities() -> dict[str, object]:
             "covariate_ablation": True, "enrichment_adjudication": True,
             "season_detection": True, "ensemble_forecasting": True,
             "multivariate_var": True, "strict_abstention": True,
+            "multi_target_batching": True, "brief_output": True,
+        },
+        "forecast_surface": {
+            # Machine-readable notes on the two agent-facing additions, so a
+            # host can discover them without reading prose.
+            "multi_target_batching": {
+                "cli": "--target hr,spo2,resp or --target auto",
+                "mcp": "target_column accepts a comma list or 'auto'",
+                "semantics": (
+                    "One shared load pass; per-target evaluation runs "
+                    "concurrently; one combined artifact with a result per "
+                    "column. Per-channel numbers are identical to "
+                    "single-target runs, and an abstaining channel never "
+                    "blocks the others."
+                ),
+            },
+            "brief_output": {
+                "cli": "--brief",
+                "mcp": "format: 'brief'",
+                "semantics": (
+                    "q50 with one q10-q90 interval per step, plus the "
+                    "support state, warnings, abstention reasons, recovery "
+                    "actions, and disclosures verbatim. The on-disk "
+                    "artifact is unchanged."
+                ),
+            },
         },
     }

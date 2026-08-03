@@ -79,12 +79,24 @@ def _resolve_schema(args) -> list[str]:
         chosen = inferred[key]
         if chosen is None:
             candidates = inferred[candidates_key]
+            command = getattr(args, "command", "forecast") or "forecast"
+            # The smallest invocation that would actually run, built from
+            # this file: only the refused flag needs a value, because
+            # everything else is inferred. An error that dumps the full
+            # flag list teaches the long path; this teaches the short one.
+            minimal = (
+                f"gnomon {command} {source} {flag} "
+                + ("<" + "|".join(candidates) + ">" if candidates else "<column>")
+            )
             raise GnomonError(
                 "AMBIGUOUS_SCHEMA",
                 f"{flag} was not supplied and cannot be inferred: "
                 + (f"{len(candidates)} columns qualify ({', '.join(candidates)})."
-                   if candidates else "no column qualifies."),
+                   if candidates else "no column qualifies.")
+                + f" Minimal working invocation: `{minimal}` — every other "
+                  f"flag is inferred from the file.",
                 {"argument": flag, "candidates": candidates,
+                 "suggested_invocation": minimal,
                  "columns_examined": inferred["time_candidates"]
                  + inferred["target_candidates"]},
                 repair_options=[{
@@ -93,7 +105,11 @@ def _resolve_schema(args) -> list[str]:
                                    + (f" Candidates: {', '.join(candidates)}."
                                       if candidates else ""),
                     "arguments": [flag],
-                }],
+                }] + ([{
+                    "action": "forecast_all_candidates",
+                    "description": "Or batch every numeric column in one "
+                                   "run: pass --target auto.",
+                }] if flag == "--target" and command == "forecast" else []),
             )
         setattr(args, attribute, chosen)
         assumptions.append(
@@ -713,8 +729,65 @@ class _ArgumentError(Exception):
         self.prog = prog
 
 
+#: What an agent guessing a flag name usually means. Lexical distance
+#: cannot recover `--column` -> `--target`; these pairs can.
+_FLAG_SYNONYMS: dict[str, str] = {
+    "--column": "--target", "--col": "--target", "--value": "--target",
+    "--field": "--target", "--metric": "--target",
+    "--date": "--time", "--timestamp": "--time", "--time-column": "--time",
+    "--index": "--time", "--datetime": "--time",
+    "--group": "--series", "--group-by": "--series", "--id": "--series",
+    "--entity": "--series", "--channel": "--series",
+    "--periods": "--horizon", "--steps": "--horizon", "--length": "--horizon",
+    "--freq": "--frequency", "--interval": "--frequency",
+    "--out": "--output", "--output-dir": "--output", "--dir": "--output",
+}
+
+
+def _all_known_flags() -> list[str]:
+    """Every option string the CLI accepts, across all subcommands."""
+    flags: set[str] = set()
+
+    def walk(parser: argparse.ArgumentParser) -> None:
+        flags.update(
+            option for option in parser._option_string_actions
+            if option.startswith("--")
+        )
+        for action in parser._actions:
+            if isinstance(action, argparse._SubParsersAction):
+                for sub in action.choices.values():
+                    walk(sub)
+
+    walk(build_parser())
+    return sorted(flags)
+
+
+def _suggest_flags(message: str) -> list[tuple[str, str]]:
+    """(unknown, suggestion) pairs for an `unrecognized arguments` failure."""
+    marker = "unrecognized arguments:"
+    if marker not in message:
+        return []
+    import difflib
+
+    known = _all_known_flags()
+    suggestions: list[tuple[str, str]] = []
+    for token in message.split(marker, 1)[1].split():
+        if not token.startswith("--"):
+            continue
+        unknown = token.split("=", 1)[0]
+        synonym = _FLAG_SYNONYMS.get(unknown.lower())
+        if synonym:
+            suggestions.append((unknown, synonym))
+            continue
+        close = difflib.get_close_matches(unknown, known, n=1, cutoff=0.75)
+        if close:
+            suggestions.append((unknown, close[0]))
+    return suggestions
+
+
 def _argument_error(exc: _ArgumentError) -> GnomonError:
     missing = _missing_arguments(exc.message)
+    suggestions = _suggest_flags(exc.message)
     repairs = []
     if missing:
         repairs.append({
@@ -724,13 +797,29 @@ def _argument_error(exc: _ArgumentError) -> GnomonError:
             ),
             "arguments": missing,
         })
+    for unknown, suggestion in suggestions:
+        repairs.append({
+            "action": "rename_flag",
+            "description": f"Replace {unknown} with {suggestion}.",
+            "arguments": [suggestion],
+        })
     repairs.append({
         "action": "show_usage",
         "description": f"Run `{exc.prog} --help` for the full argument list.",
     })
+    message = exc.message
+    if suggestions:
+        message += " " + " ".join(
+            f"Did you mean {suggestion} instead of {unknown}?"
+            for unknown, suggestion in suggestions
+        )
     return GnomonError(
-        "INVALID_ARGUMENTS", exc.message,
-        {"command": exc.prog, "missing_arguments": missing},
+        "INVALID_ARGUMENTS", message,
+        {"command": exc.prog, "missing_arguments": missing,
+         **({"flag_suggestions": [
+             {"unknown": unknown, "suggestion": suggestion}
+             for unknown, suggestion in suggestions
+         ]} if suggestions else {})},
         repair_options=repairs,
     )
 
