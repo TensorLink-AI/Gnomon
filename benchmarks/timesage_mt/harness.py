@@ -92,7 +92,7 @@ TOOL_SPECS = [
         "type": "function",
         "function": {
             "name": "gnomon_forecast",
-            "description": "Gnomon's backtested forecast for a numeric column: model selected against mandatory baselines, per-step point and q10/q50/q90, support status. Abstains when history cannot carry the forecast.",
+            "description": "Gnomon's backtested forecast for a numeric column: model selected against mandatory baselines, per-step point and q10/q50/q90, support status. Abstains when history cannot carry the forecast. Pass several columns comma-separated (e.g. 'hr,spo2') to forecast them all in one batched call; each column gets its own result and support status.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -224,6 +224,9 @@ class ToolBox:
         from gnomon import forecast as gnomon_forecast
         from gnomon.contracts import GnomonError
 
+        requested = [name.strip() for name in str(column).split(",") if name.strip()]
+        if len(requested) > 1:
+            return self._gnomon_forecast_batched(requested, int(horizon))
         csv_path = self._write_csv(column)
         try:
             artifact, _ = gnomon_forecast(
@@ -244,6 +247,52 @@ class ToolBox:
             "warnings": [str(w) for w in result.warnings],
             "forecast": result.forecast[:64],
         }
+
+    def _gnomon_forecast_batched(self, columns: list[str],
+                                 horizon: int) -> dict[str, Any]:
+        """Several columns in one batched Gnomon run: one shared load,
+        concurrent per-column evaluation, per-column results identical to
+        separate calls. An abstaining column reports its own reason."""
+        from gnomon.contracts import GnomonError
+        from gnomon.runtime import forecast_multi
+
+        aware = self._aware_timestamps()
+        values = {name: self._column(name) for name in columns}
+        if not aware or any(len(aware) != len(items) for items in values.values()):
+            raise ValueError("visible series has no parseable regular time axis")
+        run_dir = Path(tempfile.mkdtemp(prefix="timesage-gnomon-", dir=self.work_dir))
+        path = run_dir / "visible.csv"
+        with path.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.writer(handle)
+            writer.writerow(["timestamp"] + columns)
+            for position, timestamp in enumerate(aware):
+                writer.writerow([timestamp] + [
+                    repr(float(values[name][position])) for name in columns
+                ])
+        try:
+            artifact, _ = forecast_multi(
+                str(path), time_column="timestamp", target_columns=columns,
+                horizon=horizon, output=str(run_dir / "gnomon-output"),
+            )
+        except GnomonError as error:
+            return {"abstained": True, "code": error.code,
+                    "message": error.message}
+        by_column: dict[str, Any] = {}
+        for result in artifact.results:
+            if result.support == "unsupported" or not result.forecast:
+                by_column[result.series] = {
+                    "abstained": True,
+                    "warnings": [str(w) for w in result.warnings],
+                }
+            else:
+                by_column[result.series] = {
+                    "abstained": False, "support": result.support,
+                    "selected_model": result.selected_model,
+                    "strongest_baseline": result.strongest_baseline,
+                    "warnings": [str(w) for w in result.warnings],
+                    "forecast": result.forecast[:64],
+                }
+        return {"batched": True, "columns": by_column}
 
     def gnomon_detect_anomalies(self, column: str,
                               threshold: float | None = None) -> dict[str, Any]:

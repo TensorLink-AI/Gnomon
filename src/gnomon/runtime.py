@@ -8,7 +8,7 @@ from typing import Any
 
 from .artifacts import write_artifact
 from .context import ContextEvent
-from .contracts import Evidence, ForecastArtifact, ForecastTask, SeriesResult
+from .contracts import DataSchema, Evidence, ForecastArtifact, ForecastTask, SeriesResult
 from .covariates import CovariateDataset
 from .ids import SYSTEM_CLOCK, Clock, content_id
 from .models import BASELINES, MODELS
@@ -217,6 +217,136 @@ def _restrict_candidates(config: Any, candidates: list[str]):
     return resolved
 
 
+def _series_result(
+    series_name: str,
+    items: list,
+    *,
+    loaded: LoadedDataset,
+    horizon: int,
+    seasonal_period: int | None,
+    minimum_baseline_improvement: float,
+    config: Any,
+    strict_abstention: bool,
+    selection_strategy: str,
+    multivariate: bool,
+    var_frame: Any,
+    var_ineligible: str | None,
+    context_events: list[ContextEvent] | None,
+    covariates: CovariateDataset | None,
+    adjudicating: bool,
+    threshold: float | None,
+    target_coverage: float,
+    repair_log: Any,
+) -> tuple[SeriesResult, list[Evidence]]:
+    """Run one series through the full stage pipeline.
+
+    This is the loop body of :func:`forecast`, extracted behaviour-for-
+    behaviour so a multi-target run can execute it once per channel —
+    concurrently, since channels are independent — without touching the
+    numerics. Returns the series result and its evidence in the exact
+    order the single-target loop emitted them.
+    """
+    state = horizon_stage(
+        series_name, items, horizon=horizon, frequency=loaded.frequency,
+        seasonal_period=seasonal_period,
+    )
+    extra_candidates: dict[str, Any] = {}
+    if var_frame is not None and series_name in var_frame.names:
+        from .multivariate import MULTIVARIATE_MODEL_NAME
+        extra_candidates[MULTIVARIATE_MODEL_NAME] = var_frame.predictor(series_name)
+    evaluate_stage(
+        state, horizon=horizon,
+        minimum_baseline_improvement=minimum_baseline_improvement,
+        frequency=loaded.frequency, config=config,
+        strict_abstention=strict_abstention,
+        snapshot=loaded.snapshot, variable=loaded.variable,
+        extra_candidates=extra_candidates,
+    )
+    predict_stage(
+        state, horizon=horizon, frequency=loaded.frequency,
+        selection_strategy=selection_strategy,
+        extra_candidates=extra_candidates,
+    )
+    if multivariate:
+        multivariate_stage(
+            state,
+            eligible=var_frame is not None,
+            minimum_baseline_improvement=minimum_baseline_improvement,
+            ineligibility_reason=var_ineligible,
+            strongest_correlation=(
+                round(var_frame.strongest_correlation, 4) if var_frame else None
+            ),
+            series_count=len(var_frame.names) if var_frame else len(loaded.groups),
+        )
+    if context_events:
+        context_stage(
+            state, context_events, horizon=horizon,
+            minimum_baseline_improvement=minimum_baseline_improvement,
+            apply=not adjudicating,
+        )
+    if covariates:
+        covariate_stage(
+            state, covariates, horizon=horizon,
+            minimum_baseline_improvement=minimum_baseline_improvement,
+            apply=not adjudicating,
+        )
+    if adjudicating:
+        adjudicate_enrichments_stage(
+            state, context_events, covariates, horizon=horizon,
+        )
+    if context_events:
+        # After every stage that can change the point forecast and its
+        # calibration: a conditional answer is conditioned on the
+        # forecast that was actually selected.
+        conditional_stage(state, context_events, horizon=horizon)
+    repair_warnings = repair_log.warnings_for(series_name)
+    if repair_warnings:
+        state.warnings.extend(repair_warnings)
+    rows, support, threshold_analysis = interval_stage(
+        state, threshold=threshold, context_events=context_events,
+        target_coverage=target_coverage,
+    )
+    assessment = state.assessment
+    from .support import assess_forecast_support
+    support_assessment = assess_forecast_support(
+        support, state.warnings, assessment,
+        known_time_assumed=loaded.snapshot.assumed_known_time,
+        disclosures=state.disclosures,
+        measured_coverage=state.coverage,
+    )
+    result = SeriesResult(
+        series_name, support, state.selected_model, assessment.strongest_baseline,
+        assessment.selection_scores, assessment.test_scores, assessment.improvement,
+        state.coverage, state.warnings, rows, state.context_public,
+        state.covariate_public, threshold_analysis,
+        support_assessment.to_dict(),
+        notes=state.notes,
+        conditional_forecasts=state.conditional_forecasts,
+    )
+    evidence = list(state.evidence)
+    evidence.extend([
+        Evidence(f"evaluation:{series_name}", "rolling_evaluation", series_name, {
+            "partitioning": "selection folds, then calibration fold, then final test fold",
+            "selection_scores": assessment.selection_scores,
+            "test_scores": assessment.test_scores,
+            # The verifier gates probability-bearing claims on these,
+            # so they have to be *in* the calibration record rather
+            # than only in the result beside it.
+            "measured_interval_coverage": state.coverage,
+            "baseline_improvement": assessment.improvement,
+            "strongest_baseline": assessment.strongest_baseline,
+            "selected_model": state.selected_model,
+            "residuals_pooled_across_selection":
+                assessment.residuals_pooled_across_selection,
+            "residual_fold_count": assessment.residual_fold_count,
+        }),
+        Evidence(f"support:{series_name}", "support_assessment", series_name, {
+            "support": support, "warnings": state.warnings,
+        }),
+    ])
+    return result, evidence
+
+
 def forecast(
     input_path: str,
     *,
@@ -307,105 +437,20 @@ def forecast(
         from .multivariate import VarFrame
         var_frame, var_ineligible = VarFrame.build(loaded.groups)
     for series_name, items in sorted(loaded.groups.items()):
-        state = horizon_stage(
-            series_name, items, horizon=horizon, frequency=loaded.frequency,
+        result, series_evidence = _series_result(
+            series_name, items, loaded=loaded, horizon=horizon,
             seasonal_period=seasonal_period,
-        )
-        extra_candidates: dict[str, Any] = {}
-        if var_frame is not None and series_name in var_frame.names:
-            from .multivariate import MULTIVARIATE_MODEL_NAME
-            extra_candidates[MULTIVARIATE_MODEL_NAME] = var_frame.predictor(series_name)
-        evaluate_stage(
-            state, horizon=horizon,
             minimum_baseline_improvement=minimum_baseline_improvement,
-            frequency=loaded.frequency, config=config,
-            strict_abstention=strict_abstention,
-            snapshot=loaded.snapshot, variable=loaded.variable,
-            extra_candidates=extra_candidates,
-        )
-        predict_stage(
-            state, horizon=horizon, frequency=loaded.frequency,
+            config=config, strict_abstention=strict_abstention,
             selection_strategy=selection_strategy,
-            extra_candidates=extra_candidates,
-        )
-        if multivariate:
-            multivariate_stage(
-                state,
-                eligible=var_frame is not None,
-                minimum_baseline_improvement=minimum_baseline_improvement,
-                ineligibility_reason=var_ineligible,
-                strongest_correlation=(
-                    round(var_frame.strongest_correlation, 4) if var_frame else None
-                ),
-                series_count=len(var_frame.names) if var_frame else len(loaded.groups),
-            )
-        if context_events:
-            context_stage(
-                state, context_events, horizon=horizon,
-                minimum_baseline_improvement=minimum_baseline_improvement,
-                apply=not adjudicating,
-            )
-        if covariates:
-            covariate_stage(
-                state, covariates, horizon=horizon,
-                minimum_baseline_improvement=minimum_baseline_improvement,
-                apply=not adjudicating,
-            )
-        if adjudicating:
-            adjudicate_enrichments_stage(
-                state, context_events, covariates, horizon=horizon,
-            )
-        if context_events:
-            # After every stage that can change the point forecast and its
-            # calibration: a conditional answer is conditioned on the
-            # forecast that was actually selected.
-            conditional_stage(state, context_events, horizon=horizon)
-        repair_warnings = repair_log.warnings_for(series_name)
-        if repair_warnings:
-            state.warnings.extend(repair_warnings)
-        rows, support, threshold_analysis = interval_stage(
-            state, threshold=threshold, context_events=context_events,
-            target_coverage=target_coverage,
-        )
-        assessment = state.assessment
-        from .support import assess_forecast_support
-        support_assessment = assess_forecast_support(
-            support, state.warnings, assessment,
-            known_time_assumed=loaded.snapshot.assumed_known_time,
-            disclosures=state.disclosures,
-            measured_coverage=state.coverage,
-        )
-        result = SeriesResult(
-            series_name, support, state.selected_model, assessment.strongest_baseline,
-            assessment.selection_scores, assessment.test_scores, assessment.improvement,
-            state.coverage, state.warnings, rows, state.context_public,
-            state.covariate_public, threshold_analysis,
-            support_assessment.to_dict(),
-            notes=state.notes,
-            conditional_forecasts=state.conditional_forecasts,
+            multivariate=multivariate, var_frame=var_frame,
+            var_ineligible=var_ineligible,
+            context_events=context_events, covariates=covariates,
+            adjudicating=adjudicating, threshold=threshold,
+            target_coverage=target_coverage, repair_log=repair_log,
         )
         results.append(result)
-        evidence.extend(state.evidence)
-        evidence.extend([
-            Evidence(f"evaluation:{series_name}", "rolling_evaluation", series_name, {
-                "partitioning": "selection folds, then calibration fold, then final test fold",
-                "selection_scores": assessment.selection_scores,
-                "test_scores": assessment.test_scores,
-                # The verifier gates probability-bearing claims on these,
-                # so they have to be *in* the calibration record rather
-                # than only in the result beside it.
-                "measured_interval_coverage": state.coverage,
-                "baseline_improvement": assessment.improvement,
-                "strongest_baseline": assessment.strongest_baseline,
-                "selected_model": state.selected_model,
-                "residuals_pooled_across_selection":
-                    assessment.residuals_pooled_across_selection,
-                "residual_fold_count": assessment.residual_fold_count,
-            }),
-            Evidence(f"support:{series_name}", "support_assessment", series_name, {
-                "support": support, "warnings": state.warnings,
-            }),
-        ])
+        evidence.extend(series_evidence)
     if repair_log.has_actions():
         evidence.append(Evidence(
             "data_repair", "data_repair", "__all__",
@@ -491,6 +536,291 @@ def forecast(
     )
 
 
+def _abstained_target_result(
+    target: str, error: Any,
+) -> tuple[SeriesResult, list[Evidence]]:
+    """An honest per-channel abstention for a target whose column could
+    not be loaded or evaluated. The error is carried verbatim — code and
+    message in the warnings and the typed reasons, its repair options as
+    recovery actions — so one bad channel is disclosed, not fatal, and
+    never silently dropped."""
+    from .contracts import REPAIR_OPTIONS, SupportAssessment, SupportReason
+
+    message = f"{error.code}: {error.message}"
+    repairs = (
+        error.repair_options if error.repair_options is not None
+        else REPAIR_OPTIONS.get(error.code, [])
+    )
+    assessment = SupportAssessment(
+        "unsupported",
+        reasons=[SupportReason(error.code, error.message)],
+        recovery_actions=[
+            SupportReason(str(option.get("action", "repair")),
+                          str(option.get("description", "")))
+            for option in repairs
+        ],
+        legacy_support="unsupported",
+    )
+    result = SeriesResult(
+        target, "unsupported", None, None, {}, {}, None, None,
+        [message], [], support_assessment=assessment.to_dict(),
+    )
+    evidence = [Evidence(f"support:{target}", "support_assessment", target, {
+        "support": "unsupported", "warnings": [message],
+    })]
+    return result, evidence
+
+
+def _default_worker_count(channels: int) -> int:
+    """How many threads per-target evaluation should use by default.
+
+    Measured, not assumed: the statistical evaluation path is pure
+    Python, so under a GIL interpreter extra threads only add contention
+    (a 6-channel batch ran ~13% *slower* at 6 workers than at 1 on
+    CPython 3.12). Concurrency pays where the GIL is released — on a
+    free-threaded build, or when sandboxed TSFM candidates run their
+    inference in subprocesses — so those cases get min(channels, cpus)
+    and everything else gets 1. `max_workers` overrides either way.
+    """
+    import sys
+
+    cap = max(1, min(channels, os.cpu_count() or 1))
+    if not getattr(sys, "_is_gil_enabled", lambda: True)():
+        return cap
+    try:
+        from .tsfm_sandbox import list_sandboxes
+        if list_sandboxes():
+            return cap
+    except Exception:
+        pass
+    return 1
+
+
+def forecast_multi(
+    input_path: str,
+    *,
+    time_column: str,
+    target_columns: list[str],
+    horizon: int,
+    frequency: str | None = None,
+    output: str = "gnomon-output",
+    minimum_baseline_improvement: float = 0.02,
+    threshold: float | None = None,
+    config: Any = None,
+    strict_abstention: bool = False,
+    seasonal_period: int | None = None,
+    selection_strategy: str = "best",
+    clock: Clock | None = None,
+    as_of: datetime | None = None,
+    repair: str = "safe",
+    candidates: list[str] | None = None,
+    max_workers: int | None = None,
+) -> tuple[ForecastArtifact, Path]:
+    """Forecast several columns of one wide file in a single run.
+
+    One shared load pass, then per-target evaluation on a thread pool —
+    the channels are independent, so concurrency cannot change any
+    number, and the artifact is identical at any worker count. One
+    combined artifact carries one result per target column, each with
+    its own support state; a channel that abstains is disclosed in its
+    result and never blocks the others.
+
+    Epistemics are untouched: each channel runs the exact single-target
+    stage pipeline. Single-target invocations keep using
+    :func:`forecast` and produce byte-identical artifacts to before.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    from .contracts import GnomonError
+    from .pipeline import load_stage_multi
+    from .repair import REPAIR_LEVELS
+
+    clock = clock or SYSTEM_CLOCK
+    if len(target_columns) < 2:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "forecast_multi needs at least two target columns; use forecast() "
+            "for a single target.",
+            {"target_columns": list(target_columns)},
+        )
+    if len(set(target_columns)) != len(target_columns):
+        # Result series and evidence records are keyed by target name, so a
+        # repeated name would collide identifiers inside one artifact.
+        duplicates = sorted({
+            name for name in target_columns if target_columns.count(name) > 1
+        })
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            f"target_columns names the same column more than once: "
+            f"{', '.join(duplicates)}.",
+            {"duplicates": duplicates, "target_columns": list(target_columns)},
+        )
+    if candidates:
+        config = _restrict_candidates(config, candidates)
+    if repair not in REPAIR_LEVELS:
+        raise GnomonError(
+            "INVALID_REPAIR_LEVEL",
+            f"repair must be one of {', '.join(REPAIR_LEVELS)}.",
+            {"requested": repair, "supported": list(REPAIR_LEVELS)},
+        )
+    if horizon < 1:
+        raise GnomonError("INVALID_HORIZON", "Horizon must be at least one period.")
+    if selection_strategy == "ensemble":
+        import copy as _copy
+        from .config import load_config as _load_config
+        config = _copy.deepcopy(config) if config is not None else _load_config()
+        config.ensemble.enabled = True
+    from .evaluation import DEFAULT_TARGET_COVERAGE
+    target_coverage = DEFAULT_TARGET_COVERAGE
+    if config is not None and getattr(config, "evaluation", None) is not None:
+        target_coverage = float(
+            getattr(config.evaluation, "target_coverage", DEFAULT_TARGET_COVERAGE)
+        )
+
+    datasets, repair_logs, source_fingerprint, _columns = load_stage_multi(
+        input_path, time_column=time_column, target_columns=list(target_columns),
+        frequency=frequency, as_of=as_of, repair=repair,
+    )
+    loaded_any = [item for item in datasets.values() if isinstance(item, LoadedDataset)]
+    if not loaded_any:
+        # Every channel failed to load: the file itself is the problem, and
+        # the first error is the diagnosis.
+        first_error = next(iter(datasets.values()))
+        raise first_error  # type: ignore[misc]
+    resolved_frequency = loaded_any[0].frequency
+    timezone_name = loaded_any[0].timezone
+
+    def run_target(target: str) -> tuple[SeriesResult, list[Evidence]]:
+        loaded_or_error = datasets[target]
+        if isinstance(loaded_or_error, GnomonError):
+            return _abstained_target_result(target, loaded_or_error)
+        try:
+            return _series_result(
+                target, loaded_or_error.groups[target],
+                loaded=loaded_or_error, horizon=horizon,
+                seasonal_period=seasonal_period,
+                minimum_baseline_improvement=minimum_baseline_improvement,
+                config=config, strict_abstention=strict_abstention,
+                selection_strategy=selection_strategy,
+                multivariate=False, var_frame=None, var_ineligible=None,
+                context_events=None, covariates=None, adjudicating=False,
+                threshold=threshold, target_coverage=target_coverage,
+                repair_log=repair_logs[target],
+            )
+        except GnomonError as error:
+            return _abstained_target_result(target, error)
+
+    workers = max_workers or _default_worker_count(len(target_columns))
+    workers = max(1, min(int(workers), len(target_columns)))
+    if workers == 1:
+        # No pool for a single worker: on a GIL interpreter even an idle
+        # thread handoff measurably taxes this pure-CPU workload (~5% on
+        # the 6-channel benchmark), and a one-worker pool cannot buy
+        # anything back.
+        outcomes = [run_target(target) for target in target_columns]
+    else:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            # Submitted and collected in target order, so the artifact is a
+            # pure function of the task regardless of scheduling.
+            outcomes = list(pool.map(run_target, target_columns))
+
+    results: list[SeriesResult] = []
+    evidence: list[Evidence] = []
+    for result, series_evidence in outcomes:
+        results.append(result)
+        evidence.extend(series_evidence)
+    for target in target_columns:
+        log = repair_logs.get(target)
+        if log is not None and log.has_actions():
+            evidence.append(Evidence(
+                f"data_repair:{target}", "data_repair", target,
+                {"level": repair, **log.summary()},
+            ))
+    accesses: list[dict[str, object]] = []
+    for target in target_columns:
+        item = datasets[target]
+        if isinstance(item, LoadedDataset):
+            summary = item.snapshot.access_summary()
+            accesses.extend(summary.get("accesses", []))  # type: ignore[arg-type]
+    evidence.append(Evidence("snapshot", "snapshot_access", "__all__", {
+        "as_of": as_of.isoformat() if as_of else "latest",
+        "known_time_assumed": loaded_any[0].snapshot.assumed_known_time,
+        "known_time_provenance": loaded_any[0].snapshot.known_time_provenance,
+        "source_ref": source_fingerprint,
+        "accesses": accesses,
+    }))
+    from .tsfm import resolved_weights
+    selected_weights = {
+        model: weights
+        for model in sorted({
+            item.selected_model for item in results if item.selected_model
+        })
+        if (weights := resolved_weights(model))
+    }
+    if selected_weights:
+        evidence.append(Evidence(
+            "model_weights", "model_weights", "__all__",
+            {"pinned_revisions": selected_weights},
+        ))
+    id_payload: dict[str, object] = {
+        "source": source_fingerprint,
+        "as_of": as_of.isoformat() if as_of else None,
+        # `target` is the ordered list of columns — a JSON array, which no
+        # single-target payload (a string) can collide with, so existing
+        # forecast IDs are untouched.
+        "schema": {
+            "time": time_column, "target": list(target_columns), "series": None,
+            "frequency": resolved_frequency, "timezone": timezone_name,
+        },
+        "horizon": horizon,
+        "minimum_baseline_improvement": minimum_baseline_improvement,
+        "threshold": threshold,
+        "seasonal_period": seasonal_period,
+        "selection_strategy": selection_strategy,
+        "multivariate": False,
+        "strict_abstention": strict_abstention,
+        "context_events": None,
+        "covariates": None,
+        "config": _config_fingerprint(config),
+    }
+    from .repair import REPAIR_SAFE
+    if repair != REPAIR_SAFE:
+        id_payload["repair"] = repair
+    if selected_weights:
+        id_payload["model_weights"] = selected_weights
+    forecast_id = content_id("forecast", id_payload)
+    task = ForecastTask(
+        str(Path(input_path).expanduser().resolve()),
+        DataSchema(time_column, ",".join(target_columns), None,
+                   resolved_frequency, timezone_name),
+        horizon,
+        minimum_baseline_improvement=minimum_baseline_improvement,
+        as_of=as_of.isoformat() if as_of else None,
+    )
+    artifact = ForecastArtifact(
+        "0.1", forecast_id, clock.now().isoformat(),
+        "complete", task, source_fingerprint, results, evidence,
+    )
+    from .contracts import forecast_task
+    from .lineage import build_forecast_lineage
+    from .verifier import verify_or_raise
+    temporal_task = forecast_task(
+        task.input_path, time_column=time_column,
+        target_column=",".join(target_columns),
+        horizon=horizon, series_column=None, frequency=resolved_frequency,
+        threshold=threshold,
+        minimum_baseline_improvement=minimum_baseline_improvement,
+        as_of=task.as_of,
+    )
+    lineage = build_forecast_lineage(artifact, temporal_task)
+    # No response leaves the process unverified — including our own.
+    verify_or_raise(lineage, as_of=task.as_of)
+    return artifact, write_artifact(
+        artifact, output, lineage=lineage.to_dict(),
+        output_config=getattr(config, "output", None),
+    )
+
+
 def _has_module(name: str) -> bool:
     from importlib.util import find_spec
     return find_spec(name) is not None
@@ -551,5 +881,31 @@ def capabilities() -> dict[str, object]:
             "covariate_ablation": True, "enrichment_adjudication": True,
             "season_detection": True, "ensemble_forecasting": True,
             "multivariate_var": True, "strict_abstention": True,
+            "multi_target_batching": True, "brief_output": True,
+        },
+        "forecast_surface": {
+            # Machine-readable notes on the two agent-facing additions, so a
+            # host can discover them without reading prose.
+            "multi_target_batching": {
+                "cli": "--target hr,spo2,resp or --target auto",
+                "mcp": "target_column accepts a comma list or 'auto'",
+                "semantics": (
+                    "One shared load pass; per-target evaluation runs "
+                    "concurrently; one combined artifact with a result per "
+                    "column. Per-channel numbers are identical to "
+                    "single-target runs, and an abstaining channel never "
+                    "blocks the others."
+                ),
+            },
+            "brief_output": {
+                "cli": "--brief",
+                "mcp": "format: 'brief'",
+                "semantics": (
+                    "q50 with one q10-q90 interval per step, plus the "
+                    "support state, warnings, abstention reasons, recovery "
+                    "actions, and disclosures verbatim. The on-disk "
+                    "artifact is unchanged."
+                ),
+            },
         },
     }

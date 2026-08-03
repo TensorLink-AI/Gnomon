@@ -62,3 +62,32 @@ def test_observed_keeps_only_recorded_readings():
     # not reach the forecaster as a repeat of the previous one.
     assert _observed([None, 1.0, None, 3.0]) == [1.0, 3.0]
     assert _observed([None, None]) == []
+
+
+def test_forecast_channels_matches_per_channel_runs(tmp_path):
+    """The batched adapter path must publish exactly the per-channel
+    numbers the sequential path did — same forecasts, same abstentions —
+    because the benchmark's metrics may not move, only its wall clock."""
+    import math
+
+    from benchmarks.temporalbench.gnomon_runner import (
+        forecast_channel, forecast_channels,
+    )
+
+    channels = {
+        # Different lengths and interior nulls, like real clinical rows.
+        "hr": [70 + 5 * math.sin(2 * math.pi * k / 24) for k in range(96)],
+        "spo2": [97.0 + (0.2 if k % 7 else -0.3) for k in range(80)],
+        "resp": [None] * 4 + [16 + math.sin(2 * math.pi * k / 24)
+                              for k in range(90)],
+        "empty": [None, None, None],
+    }
+    horizon = 12
+    batched = forecast_channels(channels, horizon, work_dir=str(tmp_path))
+    for key, values in channels.items():
+        single = forecast_channel(values, horizon, work_dir=str(tmp_path))
+        assert batched[key].get("abstained") == single.get("abstained"), key
+        if not single.get("abstained"):
+            assert batched[key]["values"] == single["values"], key
+            assert batched[key]["selected_model"] == single["selected_model"], key
+            assert batched[key]["support"] == single["support"], key

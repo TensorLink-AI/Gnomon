@@ -32,6 +32,11 @@ right and this file is a bug.
 
 ## Hook it to your agent (60 seconds)
 
+The MCP server is the preferred surface for agents: the same runtime and
+the same contract as the CLI, without shell quoting, with JSON Schemas
+the host can validate against, and with structured errors that carry
+machine-readable repair options.
+
 ```bash
 git clone https://github.com/TensorLink-AI/Gnomon && cd Gnomon
 
@@ -105,6 +110,16 @@ fluently. Gnomon is a harness:
 bash install.sh --local          # --local installs this checkout
 gnomon tsfm install chronos_bolt_mini   # optional: adds a foundation-model candidate
 
+gnomon forecast examples/daily_requests.csv --horizon 3
+```
+
+That is the whole invocation: `--time`, `--target`, and `--frequency` are
+inferred when the file leaves no choice (and each inference is disclosed
+in the response's assumptions — omit `--horizon` too and it defaults to
+one seasonal period). Inference refuses, naming the candidate columns,
+whenever more than one column qualifies; the explicit flags always work:
+
+```bash
 gnomon inspect examples/daily_requests.csv \
   --time timestamp --target requests --frequency D
 
@@ -232,6 +247,19 @@ gnomon forecast observations.csv \
   --time timestamp --target requests --series service_id \
   --horizon 7 --frequency D
 ```
+
+Wide files with several numeric columns batch into one run — one shared
+load pass, channels evaluated concurrently, one artifact with a result
+(and its own support state) per column:
+
+```bash
+gnomon forecast vitals.csv --target hr,spo2,resp --horizon 14
+gnomon forecast vitals.csv --target auto --horizon 14   # every numeric column
+```
+
+Add `--brief` for compact stdout: the q50 path with one q10–q90 interval,
+plus every warning, abstention reason, and disclosure verbatim — the full
+artifact on disk is unchanged.
 
 The default `--repair safe` normalises cell text only (formats, currency,
 sentinels); `--repair aggressive` opts into structural fixes (gap
