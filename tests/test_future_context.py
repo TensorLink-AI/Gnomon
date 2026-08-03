@@ -51,6 +51,32 @@ def test_bound_spans_parse_to_the_stated_numbers(span, minimum, maximum):
     assert bound.maximum == maximum
 
 
+@pytest.mark.parametrize("span, minimum, maximum", [
+    # CiK's constraint tasks state bounds in exactly this voice.
+    ("the forecast values are bounded above by 340", None, 340.0),
+    ("the values are bounded below by 12", 12.0, None),
+    ("values are less than or equal to 0.98", None, 0.98),
+    ("readings are greater than or equal to 5", 5.0, None),
+    ("values lie in [0, 340]", 0.0, 340.0),
+    ("the series is ≤ 96", None, 96.0),
+    ("the series is >= 3", 3.0, None),
+    ("the measured values are always positive", 0.0, None),
+])
+def test_cik_style_bound_phrasings_parse(span, minimum, maximum):
+    bound, problem = parse_bound_span(span)
+    assert problem is None
+    assert bound.minimum == minimum
+    assert bound.maximum == maximum
+
+
+def test_a_cross_pattern_empty_bound_is_rejected():
+    bound, problem = parse_bound_span(
+        "values are at least 100 and will not exceed 50"
+    )
+    assert bound is None
+    assert "empty" in problem
+
+
 @pytest.mark.parametrize("span", [
     "demand is expected to be strong",
     "values may change considerably",
@@ -175,6 +201,36 @@ def test_events_outside_the_namespaces_are_not_this_lanes_business():
                      {"source_span": "a big promotion"})]
     assessment = assess_future_events(events, "s", HISTORY, TIMESTAMPS, FUTURE, 7)
     assert not assessment.considered
+
+
+def test_an_override_contradicting_an_admitted_constraint_is_rejected():
+    """Both claims came from the same context; if they disagree, the
+    context contradicts itself. The constraint — the weaker claim — is
+    kept, and the override is rejected rather than clamped into a value
+    nobody stated."""
+    events = [
+        _event("c1", "constraint:floor", H_START, H_END,
+               {"source_span": "output will not drop below 50"}),
+        _event("o1", "override:closure", FUTURE[2], FUTURE[4],
+               {"source_span": "the plant is offline"}),
+    ]
+    history = [60.0 + (day % 5) for day in range(60)]
+    assessment = assess_future_events(events, "s", history, TIMESTAMPS, FUTURE, 7)
+    assert [e.event_id for e in assessment.admitted] == ["c1"]
+    rejection = next(r for r in assessment.rejected if r["event_id"] == "o1")
+    assert rejection["code"] == "override_respects_admitted_constraints"
+    assert "contradicts itself" in rejection["reason"]
+
+
+def test_a_compatible_override_and_constraint_are_both_admitted():
+    events = [
+        _event("c1", "constraint:cap", H_START, H_END,
+               {"source_span": "values stay between 0 and 340"}),
+        _event("o1", "override:closure", FUTURE[2], FUTURE[4],
+               {"source_span": "the plant is offline"}),
+    ]
+    assessment = assess_future_events(events, "s", HISTORY, TIMESTAMPS, FUTURE, 7)
+    assert {e.event_id for e in assessment.admitted} == {"c1", "o1"}
 
 
 def test_a_window_beyond_the_horizon_is_rejected():
@@ -362,6 +418,29 @@ def test_flag_on_with_nothing_admitted_leaves_the_forecast_alone(tmp_path):
     # the rejection is still disclosed
     assert result.future_context["rejected"][0]["code"] == \
         "recent_history_respects_bound"
+
+
+def test_threshold_analysis_describes_the_published_rows(tmp_path):
+    """An overridden window must not report crossing probabilities for the
+    forecast the lane replaced: monitor and decide read these numbers."""
+    csv_path = tmp_path / "series.csv"
+    _write_csv(csv_path)
+    h_start = START + timedelta(days=120)
+    override = [_event("o1", "override:maintenance",
+                       h_start + timedelta(days=2), h_start + timedelta(days=4),
+                       {"source_span": "the plant is offline"})]
+    artifact, _ = forecast(
+        str(csv_path), time_column="timestamp", target_column="value",
+        horizon=7, frequency="D", output=str(tmp_path / "out"),
+        context_events=override, config=_flag_on_config(), threshold=100.0,
+    )
+    result = artifact.results[0]
+    assert result.forecast[3]["point"] == 0.0
+    probabilities = result.threshold["probability_above"]
+    # untouched steps forecast ~230-300, far above the threshold
+    assert probabilities[0] > 0.5
+    # the interior override step is the stated 0, far below it
+    assert probabilities[3] < 0.5
 
 
 # -- config and capabilities -------------------------------------------------

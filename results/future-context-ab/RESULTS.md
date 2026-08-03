@@ -7,15 +7,19 @@ confirmed or refuted.
 
 ## What ran
 
-- The full Gnomon suite plus the new lane's tests: **670 passed, 2
-  skipped** in `tests/` (was 627 before the feature; the 43 new tests
-  cover span parsing, suspect-claim rejection against recent history,
-  clamp and override-window correctness including boundary widening, the
-  `context_trusted` support downgrade, the history-only counterfactual in
-  evidence, and ID-payload stability with the flag off) and **89 passed**
-  in `benchmarks/tests/` (including the adapter's verbatim-quote check
-  and the cache-name separation between flag-on and flag-off
-  conditions). Golden artifacts are byte-identical with the flag off.
+- The full Gnomon suite plus the new lane's tests: **682 passed, 2
+  skipped** in `tests/` (was 627 before the feature; the 55 new tests
+  cover span parsing — including CiK's "bounded above/below by",
+  "less than or equal to", `≤`/`≥`, interval-notation, and positivity
+  phrasings — suspect-claim rejection against recent history, rejection
+  of an override that contradicts an admitted constraint, clamp and
+  override-window correctness including boundary widening, the
+  `context_trusted` support downgrade, threshold-analysis consistency
+  with the published rows, the history-only counterfactual in evidence,
+  and ID-payload stability with the flag off) and **89 passed** in
+  `benchmarks/tests/` (including the adapter's verbatim-quote check and
+  the cache-name separation between flag-on and flag-off conditions).
+  Golden artifacts are byte-identical with the flag off.
 - Nothing else. No CiK task was executed under either condition.
 
 ## Why the CiK treatment arm did not run

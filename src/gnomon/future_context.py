@@ -127,12 +127,17 @@ _RANGE_PATTERNS = [
     rf"(?:between|from)\s+({_N})\s+(?:and|to|through)\s+({_N})",
     rf"(?:within|in)\s+(?:the\s+)?range\s+(?:of\s+)?({_N})\s+(?:and|to|through)\s+({_N})",
     rf"range\s+of\s+({_N})\s+(?:and|to)\s+({_N})",
+    # Interval notation: "in [0, 340]" / "within (0, 340)".
+    rf"(?:in|within)\s+[\[\(]\s*({_N})\s*,\s*({_N})\s*[\]\)]",
 ]
 
 _MAX_PATTERNS = [
     rf"(?:cannot|can\s*not|can't|will\s+not|won't|shall\s+not|must\s+not|does\s+not|never)\s+"
     rf"(?:exceed|surpass|go\s+(?:above|over|past)|rise\s+above|be\s+(?:more|greater|higher|larger)\s+than)\s+({_N})",
     rf"(?:not|never)\s+(?:to\s+)?exceed(?:ing)?\s+({_N})",
+    # CiK's constraint tasks state bounds in exactly this voice.
+    rf"bounded\s+(?:above|from\s+above)\s+by\s+({_N})",
+    rf"(?:less\s+than\s+or\s+equal\s+to|at\s+or\s+below|smaller\s+than\s+or\s+equal\s+to)\s+({_N})",
     rf"(?:at\s+most|no\s+more\s+than|not\s+more\s+than|no\s+greater\s+than|no\s+higher\s+than)\s+({_N})",
     rf"(?:stays?|stay(?:ing)?|remains?|remain(?:ing)?|kept?|keeps?)\s+(?:below|under|at\s+or\s+below)\s+({_N})",
     # Bare "below X" is a max only when it is not the tail of a min phrase
@@ -140,11 +145,14 @@ _MAX_PATTERNS = [
     rf"(?<!drop\s)(?<!drops\s)(?<!fall\s)(?<!falls\s)(?<!dip\s)(?<!dips\s)"
     rf"(?<!go\s)(?<!goes\s)(?<!not\s)(?:below|under|less\s+than)\s+({_N})",
     rf"(?:capped?\s+at|cap\s+of|ceiling\s+of|a?\s*maximum\s+(?:value\s+)?of|max(?:imum)?\s+of)\s+({_N})",
+    rf"(?:<=|≤)\s*({_N})",
 ]
 
 _MIN_PATTERNS = [
     rf"(?:cannot|can\s*not|can't|will\s+not|won't|shall\s+not|must\s+not|does\s+not|never)\s+"
     rf"(?:fall|drop|go|dip)\s+below\s+({_N})",
+    rf"bounded\s+(?:below|from\s+below)\s+by\s+({_N})",
+    rf"(?:greater\s+than\s+or\s+equal\s+to|at\s+or\s+above|larger\s+than\s+or\s+equal\s+to)\s+({_N})",
     rf"(?:at\s+least|no\s+less\s+than|not\s+less\s+than|no\s+lower\s+than)\s+({_N})",
     rf"(?:stays?|stay(?:ing)?|remains?|remain(?:ing)?|kept?|keeps?)\s+(?:above|at\s+or\s+above)\s+({_N})",
     # Bare "above X" is a min only when it is not the tail of a max phrase
@@ -152,6 +160,7 @@ _MIN_PATTERNS = [
     rf"(?<!rise\s)(?<!rises\s)(?<!go\s)(?<!goes\s)(?<!not\s)"
     rf"(?:above|over|more\s+than|greater\s+than)\s+({_N})",
     rf"(?:a?\s*minimum\s+(?:value\s+)?of|min(?:imum)?\s+of|floor\s+of)\s+({_N})",
+    rf"(?:>=|≥)\s*({_N})",
 ]
 
 #: Phrasings that state non-negativity without a digit.
@@ -198,6 +207,14 @@ def parse_bound_span(span: str) -> tuple[ParsedBound | None, str | None]:
                 minimum = _to_float(match.group(1))
                 break
     if minimum is None and _NON_NEGATIVE.search(text):
+        minimum = 0.0
+    if minimum is None and re.search(
+        r"(?:are|is|remains?|stays?)\s+(?:always\s+)?(?:strictly\s+)?positive",
+        text, re.IGNORECASE,
+    ):
+        # "values are positive" states a floor of zero. The conservative
+        # reading (0, not "some epsilon above 0") is the only one with a
+        # stated number in it.
         minimum = 0.0
     if minimum is None and maximum is None:
         return None, "the source span does not state a parseable bound"
@@ -432,12 +449,77 @@ def assess_future_events(
         else:
             admitted = _admit_override(assessment, event, span)
         if admitted is not None:
-            assessment.checks.append({
-                "event_id": event.event_id, "event_class": event_class,
-                "code": "admitted", "passed": True,
-            })
             assessment.admitted.append(admitted)
+
+    _reject_contradicted_overrides(assessment)
+    for item in assessment.admitted:
+        assessment.checks.append({
+            "event_id": item.event_id, "event_class": item.event_class,
+            "code": "admitted", "passed": True,
+        })
     return assessment
+
+
+def _windows_overlap(left: FutureEvent, right: FutureEvent) -> bool:
+    left_start, right_end = _align(
+        datetime.fromisoformat(left.effective_start),
+        datetime.fromisoformat(right.effective_end),
+    )
+    right_start, left_end = _align(
+        datetime.fromisoformat(right.effective_start),
+        datetime.fromisoformat(left.effective_end),
+    )
+    return left_start <= right_end and right_start <= left_end
+
+
+def _reject_contradicted_overrides(assessment: FutureContextAssessment) -> None:
+    """Drop overrides whose stated value breaches an admitted constraint.
+
+    Both claims came from the same context, so if they disagree the
+    context contradicts itself and at least one of them is wrong. Neither
+    resolution that keeps the override is honest: clamping its value into
+    the bound would publish a number nobody stated, and publishing it
+    unclamped would breach a bound the same text states. Rejecting the
+    override keeps the constraint — the weaker, safer claim — and records
+    the contradiction.
+    """
+    constraints = [item for item in assessment.admitted
+                   if item.event_class == "constraint"]
+    if not constraints:
+        return
+    kept: list[FutureEvent] = []
+    for item in assessment.admitted:
+        if item.event_class != "override":
+            kept.append(item)
+            continue
+        conflict = next(
+            (bound for bound in constraints
+             if _windows_overlap(bound, item)
+             and ((bound.minimum is not None and item.value < bound.minimum)
+                  or (bound.maximum is not None and item.value > bound.maximum))),
+            None,
+        )
+        if conflict is None:
+            kept.append(item)
+            continue
+        detail = (
+            f"the stated override value {item.value} breaches the admitted "
+            f"constraint [{conflict.minimum}, {conflict.maximum}] from "
+            f"{conflict.event_id} over an overlapping window; the context "
+            f"contradicts itself, so the override is rejected and the "
+            f"constraint kept"
+        )
+        assessment.checks.append({
+            "event_id": item.event_id, "event_class": "override",
+            "code": "override_respects_admitted_constraints",
+            "passed": False, "detail": detail,
+        })
+        assessment.rejected.append({
+            "event_id": item.event_id, "event_class": "override",
+            "code": "override_respects_admitted_constraints",
+            "reason": detail,
+        })
+    assessment.admitted = kept
 
 
 def _claimed_number(raw: Any) -> float | None:

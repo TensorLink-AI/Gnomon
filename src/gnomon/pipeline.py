@@ -926,7 +926,13 @@ def interval_stage(
             # honest one, and the fold facts survive in the reasons.
             support = "context_trusted"
         if threshold is not None:
+            # The published point path, read back from the rows: a clamp or
+            # an admitted override has already moved them, and a crossing
+            # probability centred on a point nobody is being shown would
+            # contradict the rows beside it. Identical to `state.points`
+            # when nothing projected.
             threshold_analysis = threshold_analysis_stage(
-                threshold, rows, state.points, state.residuals, spreads,
+                threshold, rows, [float(row["point"]) for row in rows],
+                state.residuals, spreads,
             )
     return rows, support, threshold_analysis
