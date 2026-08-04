@@ -79,7 +79,25 @@ review found 63 further grammar gaps (44 bare value+window "0.2 from
 maxima) and only 11 genuinely unparseable date-only events ("the
 weather will become clear"). Those 63 shapes were then covered in a
 second grammar round, each pinned verbatim in
-`tests/test_preflight.py`.
+`tests/test_preflight.py`, and the re-measurement confirmed the floor —
+same 153 rejections across all three classifications:
+
+| bucket | pre-fix | round 1 (`2c3e7f7`) | round 2 (`cae6a3c`) |
+| --- | --- | --- | --- |
+| `parses_now` | 0 | 68 | **131** |
+| `numeric_no_parse` | 142 | 74 | 11 |
+| `non_numeric_claim` | 11 | 11 | 11 |
+
+92.3% of the numeric residue recovered. The remaining 11
+`numeric_no_parse` are all date-only events whose digits are
+timestamps ("2024-05-27 is a holiday", "the sensor was repaired and
+this additive trend will disappear") — no value is stated, so no
+numeric grammar admits them; they belong to the fold-ablation gate or
+a structural-effect class this lane deliberately does not have. With
+the zero-state spans recovered, the corrected `_ZERO_STATES` claim now
+holds on the measured data. `non_numeric_claim` is unchanged at 11
+(8× "assume no ATM maintenance", 3× "assume no sensor glitch"), so the
+deferral verdict stands at 7.3%.
 
 ## Post-census correction
 
