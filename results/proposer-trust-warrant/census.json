@@ -1,0 +1,50 @@
+{
+  "runs_seen": 200,
+  "runs_with_future_context_gate": 99,
+  "admitted_by_class": {
+    "override": 10,
+    "constraint": 16
+  },
+  "proposed_event_type_census": {
+    "cik": 189
+  },
+  "rejections_by_code": {
+    "span_states_the_value": 135,
+    "span_states_the_bound": 15,
+    "window_is_future_only": 13
+  },
+  "span_parse_rejections": {
+    "total": 150,
+    "buckets": {
+      "non_numeric_claim": 11,
+      "numeric_no_parse": 139
+    },
+    "examples": {
+      "non_numeric_claim": [
+        "Assume that the ATM will not be in maintenance in the future.",
+        "Assume that the ATM will not be in maintenance in the future.",
+        "Assume that the sensor will not have this glitch in the future.",
+        "Assume that the sensor will not have this glitch in the future.",
+        "Assume that the ATM will not be in maintenance in the future.",
+        "Assume that the ATM will not be in maintenance in the future.",
+        "Assume that the ATM will not be in maintenance in the future.",
+        "Assume that the sensor will not be in maintenance in the future.",
+        "Assume that the ATM will not be in maintenance in the future.",
+        "Assume that the ATM will not be in maintenance in the future."
+      ],
+      "numeric_no_parse": [
+        "4 times the number of usual withdrawals during that period",
+        "But in this case, residents sought to conserve energy and used lesser air conditioning, resulting in excessive usage of only 3 times the usual electricity.",
+        "The maximal fan speed is 3000 rpm",
+        "the maximal pressure is 37.5 Pa",
+        "At 05:27:09, it rapidly and smoothly changes to 1593.0",
+        "At 05:19:57, it rapidly and smoothly changes to 1594.4.",
+        "At 05:20:17, it rapidly and smoothly changes to 285.7.",
+        "The maximal fan speed is 3000 rpm",
+        "the maximal pressure is 37.5 Pa.",
+        "(2022-03-23 00:00:00, 0)"
+      ]
+    }
+  },
+  "reading": "parses_now = recovered by the current grammar; numeric_no_parse = candidate grammar gaps, review the examples; non_numeric_claim = needs a warrant the lane does not have (input to the proposer-trust experiment); span_unrecorded = dump predates span recording, unclassifiable."
+}
