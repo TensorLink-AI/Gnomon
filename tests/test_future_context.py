@@ -333,6 +333,29 @@ def test_a_scaled_claim_on_a_non_positive_baseline_is_rejected():
         "will not exceed 3 times the usual level"
 
 
+def test_a_span_about_a_covariate_never_overrides_the_target():
+    """The 2026-08 paired spot-check's largest regression, verbatim: the
+    round-2 grammar read a covariate's stated value perfectly and
+    applied it to the forecast target, disclosed as context_trusted.
+    Parsing a number says nothing about what the number refers to; a
+    span that names a foreign referent is rejected before any parse."""
+    events = [_event("o1", "override:covariate", H_START, H_END,
+                     {"source_span": "the covariate X_0 takes a value of "
+                                     "0.2051 from 2028-04-23 to 2028-05-05"})]
+    assessment = assess_future_events(events, "s", HISTORY, TIMESTAMPS, FUTURE, 7)
+    assert not assessment.admitted
+    rejection = assessment.rejected[0]
+    assert rejection["code"] == "span_describes_the_target"
+    assert "covariates lane" in rejection["reason"]
+    # the same statement about the target itself still admits
+    events = [_event("o2", "override:level", H_START, H_END,
+                     {"source_span": "takes a value of 0.2051 "
+                                     "from 2028-04-23 to 2028-05-05"})]
+    assessment = assess_future_events(events, "s", HISTORY, TIMESTAMPS, FUTURE, 7)
+    assert [e.event_id for e in assessment.admitted] == ["o2"]
+    assert assessment.admitted[0].value == 0.2051
+
+
 def test_a_window_overlapping_history_is_sent_to_the_fold_gate():
     events = [_event("c1", "constraint:bounds",
                      TIMESTAMPS[-1] - timedelta(days=3), H_END,

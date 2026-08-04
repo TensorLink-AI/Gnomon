@@ -195,6 +195,21 @@ _NEGATED_MAX_PATTERNS = [
     rf"(?:more|greater|higher|larger)\s+than)\s+({_N}){_AFTER_NUMBER}",
 ]
 
+#: A span that says outright it describes a *different* quantity than
+#: the one being forecast. Parsing a number says nothing about what the
+#: number refers to: "the covariate X_0 takes a value of 0.0553" parses
+#: perfectly and must never override the forecast target — measured as
+#: the largest single regression in the 2026-08 paired spot-checks
+#: (an admitted covariate value applied to the target, 1000× worse than
+#: control, disclosed as context_trusted). Curated and deterministic:
+#: only wording that names the foreign referent explicitly; spans about
+#: other variables that do not say so remain the proposer's
+#: entity-scope responsibility.
+_FOREIGN_REFERENT = re.compile(
+    r"\bcovariates?\b|\bexogenous\b|\bregressors?\b|\binput\s+variables?\b",
+    re.IGNORECASE,
+)
+
 #: Baseline words a relative multiple may reference. The multiplier is
 #: the text's number; the level it scales is resolved deterministically
 #: at admission time (the recent-window median) and disclosed — a model
@@ -704,6 +719,20 @@ def assess_future_events(
                     "no source span: this lane admits nothing that cannot "
                     "quote the text stating it"
                 ),
+            )
+            continue
+
+        if _FOREIGN_REFERENT.search(span):
+            assessment.record_check(
+                event, event_class, "span_describes_the_target", False,
+                detail=(
+                    "the span describes a covariate/exogenous variable, "
+                    "not the forecast target; a number parsed from it "
+                    "would be applied to the wrong series. Supply future "
+                    "covariate values through the covariates lane, where "
+                    "they are admitted by leakage-safe ablation."
+                ),
+                source_span=span,
             )
             continue
 

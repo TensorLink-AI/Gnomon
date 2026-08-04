@@ -45,6 +45,35 @@ census already establishes at zero cost.
 proceeds as a targeted A/B under the pre-run terms below, registered
 before that run exists.
 
+## Score-level spot checks (2026-08-04, matched seeds, three cases)
+
+Three matched-run deltas from the paired spot-check, each a different
+lesson; scores quoted only as per-run deltas, never as arm means:
+
+1. **DirectNormalIrradianceFromCloudStatus seed 1** (control 0.0364,
+   Gnomon 0.7615): "the weather will become clear/cloudy" statements
+   carry the whole answer and no lane can express them. Not a missing
+   verb: a categorical state whose level implication is unknown is a
+   *future-known covariate*, and the covariates lane — leakage-safe
+   ablation and all — is its existing home. The roadmap item is wiring
+   covariate proposals into the adapter, not a new event class.
+2. **SensorTrendAccumulationTask seed 1** (control 0.0250, Gnomon
+   0.7838): the cessation sentence, proposed as an override and
+   correctly rejected — while the engine keeps extrapolating a drift
+   the text says has stopped, at `supported`. One unexpressible
+   sentence costs ~0.76 RCRPS. The class is rare (2 spans in 355 runs)
+   but expensive per instance, which is the measured motivation for
+   the targeted A/B below.
+3. **FullCausalContextExplicitEquationBivarLinSVAR seed 1** (control
+   0.0010, Gnomon 1.0491): three admitted overrides applied a
+   *covariate's* stated values to the forecast target, disclosed as
+   context_trusted — the largest single regression in the matched set,
+   and caused by the grammar fix: the pre-fix parser could not read
+   the spans at all. Fixed the same day: spans that name a foreign
+   referent ("the covariate X_0 …") are rejected before any parse
+   (`span_describes_the_target`), and the proposer instructions say
+   so. Parsing a number says nothing about what the number refers to.
+
 ## Pre-run terms for the targeted A/B
 
 1. **Scope.** The task families whose contexts contain cessation

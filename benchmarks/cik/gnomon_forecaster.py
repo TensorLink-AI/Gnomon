@@ -113,6 +113,10 @@ context. A stated multiple of the "usual" level is resolved by the
 engine against the recent history's median — never estimate the result
 yourself. Never paraphrase inside source_span, and never put numbers you
 computed yourself anywhere.
+
+Only quote spans that describe THE VARIABLE BEING FORECAST. A span
+stating a covariate's value ("the covariate X_0 takes a value of ...")
+is rejected by the engine: applying it would override the wrong series.
 """
 
 STRUCTURAL_EVENT_INSTRUCTIONS = """\
