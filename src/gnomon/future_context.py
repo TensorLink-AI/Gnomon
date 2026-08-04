@@ -400,19 +400,30 @@ class FutureContextAssessment:
     checks: list[dict[str, Any]] = field(default_factory=list)
 
     def record_check(self, event: ContextEvent, event_class: str, code: str,
-                     passed: bool, *, detail: str | None = None) -> None:
+                     passed: bool, *, detail: str | None = None,
+                     source_span: str | None = None) -> None:
         entry: dict[str, Any] = {
             "event_id": event.event_id, "event_class": event_class,
             "code": code, "passed": passed,
         }
         if detail:
             entry["detail"] = detail
+        if source_span:
+            # The span that failed rides with the verdict. Without it a
+            # rejection cannot be classified afterwards (parser too
+            # narrow, or claim genuinely non-numeric?) and the proposer
+            # cannot see which quote to repair — 176 of 220 measured
+            # rejections were unclassifiable for exactly this reason.
+            entry["source_span"] = source_span
         self.checks.append(entry)
         if not passed:
-            self.rejected.append({
+            rejection: dict[str, Any] = {
                 "event_id": event.event_id, "event_class": event_class,
                 "code": code, "reason": detail or code,
-            })
+            }
+            if source_span:
+                rejection["source_span"] = source_span
+            self.rejected.append(rejection)
 
     def class_counts(self) -> dict[str, dict[str, int]]:
         counts = {
@@ -678,7 +689,8 @@ def _admit_constraint(
     bound, problem = parse_bound_span(span)
     if bound is None:
         assessment.record_check(
-            event, "constraint", "span_states_the_bound", False, detail=problem,
+            event, "constraint", "span_states_the_bound", False,
+            detail=problem, source_span=span,
         )
         return None
 
@@ -744,7 +756,8 @@ def _admit_override(
     value, problem = parse_override_span(span)
     if value is None:
         assessment.record_check(
-            event, "override", "span_states_the_value", False, detail=problem,
+            event, "override", "span_states_the_value", False,
+            detail=problem, source_span=span,
         )
         return None
     claimed_raw = (event.attributes or {}).get(CLAIMED_VALUE_KEY)
