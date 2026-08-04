@@ -101,6 +101,51 @@ def test_cli_writes_json(tmp_path: Path, capsys):
     assert printed["runs_seen"] == 1
 
 
+def test_classifier_reads_artifact_dumps_from_a_real_run(tmp_path: Path):
+    """Abstained CiK runs write no extra_info, but the artifact with the
+    gate record is written before the adapter abstains. The classifier
+    must read artifact.json the runtime actually produces — this test
+    uses a real flag-on forecast so the shape cannot drift."""
+    import csv
+    from datetime import datetime, timedelta
+
+    from gnomon.config import GnomonConfig
+    from gnomon.context import ContextEvent, ContextSource
+    from gnomon.runtime import forecast
+
+    start = datetime(2026, 1, 1)
+    source = tmp_path / "series.csv"
+    with source.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["timestamp", "value"])
+        for day in range(120):
+            writer.writerow([(start + timedelta(days=day)).isoformat(),
+                             200 + day % 7])
+    h_start = start + timedelta(days=120)
+    event = ContextEvent(
+        event_id="e1", event_type="constraint:cap", entity_scope=("*",),
+        effective_start=h_start.isoformat() + "+00:00",
+        effective_end=(h_start + timedelta(days=6)).isoformat() + "+00:00",
+        known_at=start.isoformat() + "+00:00",
+        attributes={"source_span": "output may be limited at some point"},
+        source=ContextSource("dataset", "test#census"), created_by="llm",
+    )
+    config = GnomonConfig()
+    config.context.future_events = True
+    work = tmp_path / "work" / "cik-gnomon-x" / "1"
+    work.mkdir(parents=True)
+    forecast(str(source), time_column="timestamp", target_column="value",
+             horizon=7, frequency="D", output=str(work / "gnomon-output"),
+             context_events=[event], config=config)
+
+    summary = classify([tmp_path / "work"])
+    assert summary["runs_seen"] == 1
+    assert summary["runs_with_future_context_gate"] == 1
+    assert summary["rejections_by_code"] == {"span_states_the_bound": 1}
+    assert summary["span_parse_rejections"]["buckets"] == {
+        "non_numeric_claim": 1}
+
+
 def test_rejections_now_record_the_offending_span(tmp_path: Path):
     """End-to-end: the gate record a run writes carries the rejected span,
     so future dumps are classifiable without guessing."""

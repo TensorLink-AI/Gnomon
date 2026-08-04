@@ -30,12 +30,25 @@ Rejections whose code is not a span-parse failure (window overlaps
 history, claim contradicts span, contradictory overrides) are counted
 under their own code: they are proposer errors by construction.
 
+Two dump sources are read, because abstained runs — half of CiK — never
+produce an ``extra_info`` file, while the Gnomon artifact (with the full
+gate record in its evidence) is written even when the adapter then
+abstains:
+
+- ``runs/<task>/<seed>/extra_info`` under an output directory (scored
+  runs only);
+- ``**/gnomon-output/<forecast_id>/artifact.json`` under a work
+  directory (the
+  adapter's ``cik-gnomon-*`` temp dirs; every run that reached the
+  forecast, scored or abstained). Set ``TMPDIR`` when launching the run
+  so these land somewhere collectable.
+
+Pass output directories OR the work directory, not both slices of the
+same run set: the same run's gate would then be counted twice.
+
 Usage:
     python -m benchmarks.cik.classify_rejections RUN_DIR [RUN_DIR ...] \
         [--examples 5] [--json out.json]
-
-RUN_DIR is a CiK output directory containing ``runs/<task>/<seed>/
-extra_info``, or the ``runs`` directory itself.
 """
 
 from __future__ import annotations
@@ -55,8 +68,14 @@ SPAN_PARSE_CODES = {"span_states_the_bound", "span_states_the_value"}
 _DIGITS = re.compile(r"\d")
 
 
-def iter_extra_info(roots: list[Path]):
-    """Yield (path, parsed extra_info dict) for every dump under roots."""
+def iter_gate_records(roots: list[Path]):
+    """Yield ``(path, gate_dict | None, proposed_event_ids)`` per run dump.
+
+    ``extra_info`` dumps carry the gate under ``future_context``;
+    artifact dumps carry it as ``future_context_gate`` evidence. A run
+    with no gate (control, or the flag off) yields ``None`` so callers
+    can still count it.
+    """
     for root in roots:
         base = root / "runs" if (root / "runs").is_dir() else root
         for path in sorted(base.glob("*/*/extra_info")):
@@ -65,7 +84,29 @@ def iter_extra_info(roots: list[Path]):
             except (SyntaxError, ValueError, OSError):
                 continue
             if isinstance(parsed, dict):
-                yield path, parsed
+                gate = parsed.get("future_context")
+                yield path, gate if isinstance(gate, dict) else None, [
+                    str(item) for item in parsed.get("proposed_events", [])
+                ]
+        for path in sorted(base.glob("**/gnomon-output/*/artifact.json")):
+            try:
+                parsed = json.loads(path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                continue
+            if not isinstance(parsed, dict):
+                continue
+            gates = [
+                item.get("payload") for item in parsed.get("evidence", [])
+                if isinstance(item, dict)
+                and item.get("kind") == "future_context_gate"
+                and isinstance(item.get("payload"), dict)
+            ]
+            gate = gates[0] if gates else None
+            proposed = [] if gate is None else [
+                str(check.get("event_id"))
+                for check in gate.get("checks", [])
+            ]
+            yield path, gate, sorted(set(proposed))
 
 
 def classify_span(span: str) -> str:
@@ -90,10 +131,9 @@ def classify(roots: list[Path], example_limit: int = 5) -> dict[str, Any]:
     examples: dict[str, list[str]] = defaultdict(list)
     proposed_event_types = Counter()
 
-    for path, info in iter_extra_info(roots):
+    for path, gate, proposed_events in iter_gate_records(roots):
         runs_seen += 1
-        gate = info.get("future_context")
-        if not isinstance(gate, dict):
+        if gate is None:
             continue
         runs_with_gate += 1
         for item in gate.get("admitted", []):
@@ -111,7 +151,7 @@ def classify(roots: list[Path], example_limit: int = 5) -> dict[str, Any]:
             span_buckets[bucket] += 1
             if len(examples[bucket]) < example_limit:
                 examples[bucket].append(str(span))
-        for event_id in info.get("proposed_events", []):
+        for event_id in proposed_events:
             proposed_event_types[str(event_id).split("-")[0]] += 1
 
     span_total = sum(span_buckets.values())
