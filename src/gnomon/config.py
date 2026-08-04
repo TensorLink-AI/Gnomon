@@ -143,6 +143,12 @@ class ContextConfig:
     #: flag off the lane does not run, no artifact gains an ID-payload
     #: key, and every existing ID is byte-identical.
     future_events: bool = False
+    #: Admit LLM-classified structural events (`structural:<label>`,
+    #: v1 menu: trend_ceases) — the model classifies from a closed menu
+    #: and never supplies a number; every applied quantity is derived
+    #: from Gnomon's own emitted path. Same byte-identity guarantee when
+    #: off. Experimental: results/structural-effects/HYPOTHESIS.md.
+    structural_events: bool = False
 
 
 @dataclass
@@ -449,6 +455,10 @@ def _parse_config(raw: dict[str, Any]) -> GnomonConfig:
     cfg.context = ContextConfig(
         future_events=_parse_on_off(
             context_raw.get("future_events", False), "context.future_events",
+        ),
+        structural_events=_parse_on_off(
+            context_raw.get("structural_events", False),
+            "context.structural_events",
         ),
     )
 

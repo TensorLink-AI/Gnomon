@@ -834,11 +834,16 @@ def _future_context_stage(
     state: SeriesState,
     context_events: list[ContextEvent],
     rows: list[dict[str, Any]],
+    *,
+    allow_future: bool = True,
+    allow_structural: bool = False,
 ) -> tuple[list[dict[str, Any]], bool]:
     """The textual-verifiability lane for future-dated events.
 
-    Runs only behind `context.future_events: on`. Admission and effects
-    are `gnomon.future_context`'s; this stage owns the disclosure: the
+    Runs only behind `context.future_events: on` (constraint/override
+    classes) and `context.structural_events: on` (LLM-classified
+    structural effects). Admission and effects are
+    `gnomon.future_context`'s; this stage owns the disclosure: the
     gate record, the history-only counterfactual rows preserved beside
     every application, and the public dict the result carries.
     """
@@ -847,6 +852,7 @@ def _future_context_stage(
     assessment = assess_future_events(
         context_events, state.name, state.values, state.timestamps,
         state.future_timestamps, state.season,
+        allow_future=allow_future, allow_structural=allow_structural,
     )
     if not assessment.considered:
         return rows, False
@@ -873,9 +879,11 @@ def _future_context_stage(
                     "admitted on textual verifiability, not fold ablation: "
                     "constraint bounds project the emitted quantiles onto "
                     "the stated feasible region; override windows take the "
-                    "stated value with boundary-widened intervals. The "
-                    "counterfactual rows are the forecast as it stood "
-                    "before this lane touched it."
+                    "stated value with boundary-widened intervals; "
+                    "structural effects derive every quantity from the "
+                    "emitted path itself (trend_ceases removes the path's "
+                    "own fitted drift). The counterfactual rows are the "
+                    "forecast as it stood before this lane touched it."
                 ),
             },
         ))
@@ -1099,13 +1107,16 @@ def interval_stage(
     context_events: list[ContextEvent] | None = None,
     target_coverage: float = DEFAULT_TARGET_COVERAGE,
     future_events: bool = False,
+    structural_events: bool = False,
 ) -> tuple[list[dict[str, object]], str, dict[str, object] | None]:
     """Residual-quantile intervals, the support status, and threshold analysis.
 
     ``target_coverage`` is the nominal central coverage the interval
     carries, from ``evaluation.uncertainty.target_coverage``.
     ``future_events`` enables the textual-verifiability lane for
-    future-dated context events (`context.future_events`); a forecast it
+    future-dated context events (`context.future_events`);
+    ``structural_events`` additionally admits the LLM-classified
+    structural class (`context.structural_events`). A forecast either
     influences reports ``context_trusted`` support instead of any
     fold-backed state.
     """
@@ -1158,9 +1169,11 @@ def interval_stage(
         if context_events:
             rows, claims = _constraint_stage(state, context_events, rows)
         future_influenced = False
-        if future_events and context_events:
+        if (future_events or structural_events) and context_events:
             rows, future_influenced = _future_context_stage(
                 state, context_events, rows,
+                allow_future=future_events,
+                allow_structural=structural_events,
             )
             if future_influenced and claims:
                 rows = _reassert_claims_stage(state, claims, rows)

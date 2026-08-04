@@ -238,6 +238,7 @@ def _series_result(
     target_coverage: float,
     repair_log: Any,
     future_events: bool = False,
+    structural_events: bool = False,
     best_effort: bool = False,
 ) -> tuple[SeriesResult, list[Evidence]]:
     """Run one series through the full stage pipeline.
@@ -308,6 +309,7 @@ def _series_result(
         state, threshold=threshold, context_events=context_events,
         target_coverage=target_coverage,
         future_events=future_events,
+        structural_events=structural_events,
     )
     if best_effort and support == "unsupported" and not rows and state.values:
         from .pipeline import best_effort_stage
@@ -443,6 +445,9 @@ def forecast(
     future_events_enabled = bool(
         getattr(getattr(config, "context", None), "future_events", False)
     )
+    structural_events_enabled = bool(
+        getattr(getattr(config, "context", None), "structural_events", False)
+    )
     future_context_admitted: dict[str, list[dict[str, object]]] = {}
     results: list[SeriesResult] = []
     evidence: list[Evidence] = []
@@ -464,6 +469,7 @@ def forecast(
             adjudicating=adjudicating, threshold=threshold,
             target_coverage=target_coverage, repair_log=repair_log,
             future_events=future_events_enabled,
+            structural_events=structural_events_enabled,
             best_effort=best_effort,
         )
         if result.future_context and result.future_context.get("admitted"):
@@ -538,15 +544,19 @@ def forecast(
         # Absent when no TSFM was selected, so ids for baseline and
         # statistical selections are unchanged by this addition.
         id_payload["model_weights"] = selected_weights
-    if future_events_enabled:
-        # Same pattern as model_weights: the key exists only when the flag
+    if future_events_enabled or structural_events_enabled:
+        # Same pattern as model_weights: the key exists only when a flag
         # is on, so every flag-off ID — including all pre-existing ones —
         # is byte-identical. When on, the ID covers both the flag and the
-        # events that actually influenced the numbers.
+        # events that actually influenced the numbers. With only
+        # future_events on the payload is unchanged from before the
+        # structural class existed, so those IDs are stable too.
         id_payload["future_context"] = {
             "enabled": True,
             "admitted": future_context_admitted,
         }
+        if structural_events_enabled:
+            id_payload["future_context"]["structural_enabled"] = True
     forecast_id = content_id("forecast", id_payload)
     artifact = ForecastArtifact(
         "0.1", forecast_id, clock.now().isoformat(),
@@ -875,11 +885,16 @@ def capabilities() -> dict[str, object]:
     from .tsfm_sandbox import list_sandboxes
     try:
         from .config import load_config
-        future_events_on = bool(load_config().context.future_events)
+        _capabilities_config = load_config()
+        future_events_on = bool(_capabilities_config.context.future_events)
+        structural_events_on = bool(
+            getattr(_capabilities_config.context, "structural_events", False)
+        )
     except Exception:
         # A malformed config file must not make capabilities unreportable;
-        # the flag reads as its default.
+        # the flags read as their defaults.
         future_events_on = False
+        structural_events_on = False
     return {
         "schema_version": "0.1",
         "runtime_version": "0.5.0",
@@ -916,16 +931,37 @@ def capabilities() -> dict[str, object]:
                 "enabled_in_config": future_events_on,
                 "event_classes": ["constraint", "deterministic_override"],
                 "admission": (
-                    "textual verifiability: a quoted source span, "
-                    "deterministic re-parsing of its numbers, and a "
-                    "recent-history consistency check — only for windows "
-                    "with no overlap with the observed history"
+                    "textual verifiability: a quoted source span and "
+                    "deterministic re-parsing of its numbers (absolute, "
+                    "or multiples/percentages of the recent-window "
+                    "median) — only for windows with no overlap with "
+                    "the observed history; history's relation to a "
+                    "bound is disclosed, never used to reject"
                 ),
                 "disclosure": (
                     "influenced forecasts report support "
                     "'context_trusted' and carry the history-only "
                     "counterfactual in evidence"
                 ),
+            },
+            "structural_events": {
+                "flag": "context.structural_events",
+                "default": "off",
+                "enabled_in_config": structural_events_on,
+                "event_classes": ["structural"],
+                "effects": ["trend_ceases"],
+                "admission": (
+                    "LLM-classified from a closed effect menu with a "
+                    "quoted source span; no numeric parse — the class "
+                    "carries no number, and every applied quantity is "
+                    "derived from Gnomon's own emitted path"
+                ),
+                "disclosure": (
+                    "same as future_events: support 'context_trusted', "
+                    "history-only counterfactual, admitted events in "
+                    "the artifact ID payload"
+                ),
+                "experimental": "results/structural-effects/HYPOTHESIS.md",
             },
         },
         "models": {

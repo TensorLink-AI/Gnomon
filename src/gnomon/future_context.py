@@ -92,11 +92,21 @@ from .context import ContextEvent, event_applies
 #: one reads ``source_span``.
 CONSTRAINT_PREFIX = "constraint:"
 OVERRIDE_PREFIX = "override:"
+STRUCTURAL_PREFIX = "structural:"
 
 #: Reserved keys inside ``ContextEvent.attributes``.
 SOURCE_SPAN_KEY = "source_span"
 CLAIMED_BOUND_KEY = "claimed_bound"
 CLAIMED_VALUE_KEY = "claimed_value"
+EFFECT_KEY = "effect"
+
+#: The closed menu of structural effects an LLM may classify a span
+#: into (results/structural-effects/HYPOTHESIS.md). Classification is
+#: delegated; numbers never are: every quantity a structural effect
+#: applies is derived from Gnomon's own emitted path. One entry per
+#: measured instance of the class — the menu grows by census evidence,
+#: not by anticipation.
+STRUCTURAL_EFFECTS = ("trend_ceases",)
 
 #: Support state for a forecast this lane influenced: trusted text, not
 #: fold proof. Deliberately weaker than every fold-backed state.
@@ -499,13 +509,14 @@ class FutureEvent:
     """One admitted event, with every number the lane will apply."""
 
     event_id: str
-    event_class: str  # "constraint" | "override"
+    event_class: str  # "constraint" | "override" | "structural"
     effective_start: str
     effective_end: str
     source_span: str
     minimum: float | None = None
     maximum: float | None = None
     value: float | None = None
+    effect: str | None = None
 
     def to_public_dict(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -518,6 +529,8 @@ class FutureEvent:
         if self.event_class == "constraint":
             payload["minimum"] = self.minimum
             payload["maximum"] = self.maximum
+        elif self.event_class == "structural":
+            payload["effect"] = self.effect
         else:
             payload["value"] = self.value
         return payload
@@ -562,6 +575,7 @@ class FutureContextAssessment:
         counts = {
             "constraint": {"admitted": 0, "rejected": 0},
             "override": {"admitted": 0, "rejected": 0},
+            "structural": {"admitted": 0, "rejected": 0},
         }
         for item in self.admitted:
             counts[item.event_class]["admitted"] += 1
@@ -593,6 +607,8 @@ def _classify(event: ContextEvent) -> str | None:
         return "constraint"
     if event.event_type.startswith(OVERRIDE_PREFIX):
         return "override"
+    if event.event_type.startswith(STRUCTURAL_PREFIX):
+        return "structural"
     return None
 
 
@@ -614,6 +630,9 @@ def assess_future_events(
     timestamps: list[datetime],
     future_timestamps: list[datetime],
     season: int,
+    *,
+    allow_future: bool = True,
+    allow_structural: bool = True,
 ) -> FutureContextAssessment:
     """Run every namespaced event through the lane's admission checks.
 
@@ -632,6 +651,13 @@ def assess_future_events(
     for event in events:
         event_class = _classify(event)
         if event_class is None or not event_applies(event, series_name):
+            continue
+        # A class whose flag is off is ignored exactly as an unclassified
+        # event is — no record, no rejection — so flag-off behaviour is
+        # byte-identical to the class never having existed.
+        if event_class == "structural" and not allow_structural:
+            continue
+        if event_class in ("constraint", "override") and not allow_future:
             continue
         assessment.considered = True
 
@@ -685,6 +711,8 @@ def assess_future_events(
             admitted = _admit_constraint(
                 assessment, event, span, window_values, window_timestamps,
             )
+        elif event_class == "structural":
+            admitted = _admit_structural(assessment, event, span)
         else:
             admitted = _admit_override(assessment, event, span, window_values)
         if admitted is not None:
@@ -1032,9 +1060,104 @@ def _admit_override(
     )
 
 
+def _admit_structural(
+    assessment: FutureContextAssessment,
+    event: ContextEvent,
+    span: str,
+) -> FutureEvent | None:
+    """Admit an LLM-classified structural event from the closed menu.
+
+    There is deliberately no span parse here: the class carries no
+    number, and classification — which phrasing of a concept the span
+    is — is exactly what is delegated to the model
+    (results/structural-effects/HYPOTHESIS.md). What stays checkable is
+    checked: the effect must come from the closed menu, and every
+    quantity the effect applies is later derived from Gnomon's own
+    emitted path, never from the proposal.
+    """
+    effect = (event.attributes or {}).get(EFFECT_KEY)
+    if effect not in STRUCTURAL_EFFECTS:
+        assessment.record_check(
+            event, "structural", "effect_supported", False,
+            detail=(
+                f"effect {effect!r} is not in the closed menu "
+                f"({', '.join(STRUCTURAL_EFFECTS)}); a structural event "
+                f"must classify its span into a supported effect"
+            ),
+            source_span=span,
+        )
+        return None
+    return FutureEvent(
+        event.event_id, "structural", event.effective_start,
+        event.effective_end, span, effect=str(effect),
+    )
+
+
 # --------------------------------------------------------------------------
 # Application
 # --------------------------------------------------------------------------
+
+def _path_slope(points: list[float]) -> float:
+    """Least-squares slope of the emitted point path, per step."""
+    n = len(points)
+    if n < 2:
+        return 0.0
+    x_mean = (n - 1) / 2
+    y_mean = sum(points) / n
+    denominator = sum((index - x_mean) ** 2 for index in range(n))
+    if denominator <= 0:
+        return 0.0
+    return sum((index - x_mean) * (point - y_mean)
+               for index, point in enumerate(points)) / denominator
+
+
+def _apply_structural(
+    rows: list[dict[str, Any]],
+    events: list[FutureEvent],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Apply ``trend_ceases``: remove the emitted path's own drift.
+
+    The slope is fitted to the path Gnomon already produced — never to
+    the proposal, never to a model's say-so — and each covered step k
+    has slope × (k − k₀) subtracted from its point and every quantile.
+    A pure location shift: interval widths, quantile ordering, and the
+    point-to-median gap are all untouched. The first covered step keeps
+    its value (the cessation starts there; continuity is preserved),
+    and a path with no drift makes the whole effect a measured no-op.
+    Steps already adjusted by one event are skipped by later ones, so
+    overlapping cessation events cannot remove the drift twice.
+    """
+    points = [float(row["point"]) for row in rows]
+    slope = _path_slope(points)
+    adjusted = [dict(row) for row in rows]
+    applications: list[dict[str, Any]] = []
+    touched: set[int] = set()
+    for event in events:
+        steps = [index for index in _covered_steps(event, adjusted)
+                 if index not in touched]
+        if not steps:
+            continue
+        first = steps[0]
+        for index in steps:
+            delta = slope * (index - first)
+            row = adjusted[index]
+            before = {"point": row.get("point")}
+            row["point"] = float(row["point"]) - delta
+            for _, key in _quantile_keys(row):
+                row[key] = float(row[key]) - delta
+            touched.add(index)
+            applications.append({
+                "event_class": "structural",
+                "event_id": event.event_id,
+                "effect": event.effect,
+                "timestamp": row["timestamp"],
+                "slope_removed": slope,
+                "delta": -delta,
+                "before": before,
+            })
+            _assert_monotone(row)
+    return adjusted, applications
+
 
 def _covered_steps(event: FutureEvent, rows: list[dict[str, Any]]) -> list[int]:
     claim = Claim(event.event_id, "min", 0.0,
@@ -1069,6 +1192,15 @@ def apply_future_events(
     if not admitted or not rows:
         return rows, []
     applications: list[dict[str, Any]] = []
+
+    structural = [event for event in admitted
+                  if event.event_class == "structural"]
+    if structural:
+        # Structural effects reshape the base path first, so a stated
+        # bound still clamps the result and a stated override still
+        # wins inside its window.
+        rows, structural_applications = _apply_structural(rows, structural)
+        applications.extend(structural_applications)
 
     claims: list[Claim] = []
     for event in admitted:

@@ -115,6 +115,25 @@ yourself. Never paraphrase inside source_span, and never put numbers you
 computed yourself anywhere.
 """
 
+STRUCTURAL_EVENT_INSTRUCTIONS = """\
+
+Additionally, when the context STATES that a structural feature of the
+observed series will cease — for example that a repaired sensor's
+spurious trend will stop continuing — you may propose a structural
+event (same JSON object, two extra fields):
+
+- Set "event_type" to "structural:<label>", add "source_span": "<the
+  verbatim sentence stating the cessation>", and add "effect" chosen
+  from this exact menu: "trend_ceases" (the observed drift stops
+  continuing; the engine removes its own forecast's fitted drift — you
+  supply no number, ever). Date it over the forecast window the
+  cessation covers.
+
+Use a structural event only for stated cessations of something visible
+in the history. A stated bound is a constraint; a stated level is an
+override; "assume nothing unusual happens" needs no event at all.
+"""
+
 
 class GnomonAbstained(RuntimeError):
     """Gnomon refused to produce a forecast; there are no numbers to score."""
@@ -255,6 +274,11 @@ def events_from_proposals(
                 continue
             else:
                 attributes["source_span"] = span.strip()
+        effect = raw.get("effect")
+        if isinstance(effect, str) and effect.strip():
+            # Passed through for the structural class; the engine's closed
+            # menu is the validator, not this adapter.
+            attributes["effect"] = effect.strip()
         event = ContextEvent(
             event_id=f"cik-{task_name}-evt{number}",
             event_type=str(raw.get("event_type", "")).strip() or "context_event",
@@ -303,6 +327,7 @@ class GnomonForecaster:
         temperature: float = 1.0,
         work_dir: str | None = None,
         future_context: bool = False,
+        structural_context: bool = False,
     ) -> None:
         if mode not in ("pure", "agent"):
             raise ValueError("mode must be 'pure' or 'agent'")
@@ -313,9 +338,15 @@ class GnomonForecaster:
                 "future_context only makes sense with mode='agent': there is "
                 "no proposer to quote spans in pure mode"
             )
+        if structural_context and not future_context:
+            raise ValueError(
+                "structural_context rides on the future-context lane; enable "
+                "future_context with it"
+            )
         self.mode = mode
         self.openrouter_model = openrouter_model
         self.future_context = future_context
+        self.structural_context = structural_context
         self.client = (
             OpenRouterClient(openrouter_model, temperature=temperature)
             if mode == "agent"
@@ -328,6 +359,8 @@ class GnomonForecaster:
     def cache_name(self) -> str:
         model = (self.openrouter_model or "none").replace("/", "-")
         suffix = "_future=on" if self.future_context else ""
+        if self.structural_context:
+            suffix += "_structural=on"
         return f"GnomonForecaster_mode={self.mode}_model={model}{suffix}"
 
     def __str__(self) -> str:
@@ -363,6 +396,7 @@ class GnomonForecaster:
 
             config = GnomonConfig()
             config.context.future_events = True
+            config.context.structural_events = self.structural_context
         try:
             artifact, _ = gnomon_forecast(
                 str(csv_path),
@@ -451,6 +485,8 @@ class GnomonForecaster:
         )
         if self.future_context:
             instructions += FUTURE_EVENT_INSTRUCTIONS
+        if self.structural_context:
+            instructions += STRUCTURAL_EVENT_INSTRUCTIONS
         prompt = (
             f"{instructions}\n"
             f"History window: {timestamps[0]} to {timestamps[-1]} "

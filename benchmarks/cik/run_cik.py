@@ -117,9 +117,12 @@ def build_method(args):
     mode = "agent" if args.method == "gnomon-agent" else "pure"
     if args.future_context and mode != "agent":
         raise SystemExit("--future-context requires --method gnomon-agent")
+    if args.structural_context and not args.future_context:
+        raise SystemExit("--structural-context requires --future-context")
     return GnomonForecaster(
         mode=mode, openrouter_model=args.model, temperature=args.temperature,
         future_context=args.future_context,
+        structural_context=args.structural_context,
     )
 
 
@@ -298,6 +301,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Enable Gnomon's context.future_events lane (gnomon-agent only): "
              "the proposer may quote constraint/override spans, admitted by "
              "textual verification instead of fold ablation",
+    )
+    parser.add_argument(
+        "--structural-context", action="store_true",
+        help="Additionally enable context.structural_events (requires "
+             "--future-context): the proposer may classify stated cessations "
+             "into the closed structural-effect menu (trend_ceases); every "
+             "applied quantity is derived from Gnomon's own emitted path. "
+             "Experimental: results/structural-effects/HYPOTHESIS.md",
     )
     parser.add_argument("--max-parallel", type=int, default=1)
     parser.add_argument("--no-cache", action="store_true",
