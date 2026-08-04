@@ -1,0 +1,48 @@
+{
+  "runs_seen": 355,
+  "runs_with_future_context_gate": 118,
+  "admitted_by_class": {
+    "override": 146,
+    "constraint": 32
+  },
+  "proposed_event_type_census": {
+    "cik": 258
+  },
+  "rejections_by_code": {
+    "span_states_the_value": 22,
+    "window_is_future_only": 50,
+    "override_respects_admitted_constraints": 4,
+    "overrides_agree_where_they_overlap": 4
+  },
+  "span_parse_rejections": {
+    "total": 22,
+    "buckets": {
+      "non_numeric_claim": 15,
+      "numeric_no_parse": 7
+    },
+    "examples": {
+      "non_numeric_claim": [
+        "Assume that the ATM will not be in maintenance in the future.",
+        "Assume that the ATM will not be in maintenance in the future.",
+        "Assume that the ATM will not be in maintenance in the future.",
+        "Assume that the sensor will not be in maintenance in the future.",
+        "Assume that the ATM will not be in maintenance in the future.",
+        "Assume that the sensor will not have this glitch in the future.",
+        "Assume that the sensor will not be in maintenance in the future.",
+        "Assume that the sensor will not be in maintenance in the future.",
+        "Assume that the ATM will not be in maintenance in the future.",
+        "Assume that the ATM will not be in maintenance in the future."
+      ],
+      "numeric_no_parse": [
+        "At 2022-01-25 14:00:00, we expect that the weather will become cloudy.",
+        "At 2022-01-25 16:00:00, we expect that the weather will become clear.",
+        "At 2022-01-25 17:00:00, we expect that the weather will become cloudy.",
+        "At timestep 2024-04-24 13:00:00, the sensor was repaired and this additive trend will disappear.",
+        "At 2022-01-25 14:00:00, we expect that the weather will become cloudy.",
+        "At 2022-01-25 16:00:00, we expect that the weather will become clear.",
+        "At 2022-01-25 17:00:00, we expect that the weather will become cloudy."
+      ]
+    }
+  },
+  "reading": "parses_now = recovered by the current grammar; numeric_no_parse = candidate grammar gaps, review the examples; non_numeric_claim = needs a warrant the lane does not have (input to the proposer-trust experiment); span_unrecorded = dump predates span recording, unclassifiable."
+}

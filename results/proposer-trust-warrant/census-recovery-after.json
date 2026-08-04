@@ -1,0 +1,63 @@
+{
+  "runs_seen": 220,
+  "runs_with_future_context_gate": 100,
+  "admitted_by_class": {
+    "override": 10,
+    "constraint": 16
+  },
+  "proposed_event_type_census": {
+    "cik": 192
+  },
+  "rejections_by_code": {
+    "span_states_the_value": 136,
+    "span_states_the_bound": 17,
+    "window_is_future_only": 13
+  },
+  "span_parse_rejections": {
+    "total": 153,
+    "buckets": {
+      "non_numeric_claim": 11,
+      "parses_now": 131,
+      "numeric_no_parse": 11
+    },
+    "examples": {
+      "non_numeric_claim": [
+        "Assume that the ATM will not be in maintenance in the future.",
+        "Assume that the ATM will not be in maintenance in the future.",
+        "Assume that the sensor will not have this glitch in the future.",
+        "Assume that the sensor will not have this glitch in the future.",
+        "Assume that the ATM will not be in maintenance in the future.",
+        "Assume that the ATM will not be in maintenance in the future.",
+        "Assume that the ATM will not be in maintenance in the future.",
+        "Assume that the sensor will not be in maintenance in the future.",
+        "Assume that the ATM will not be in maintenance in the future.",
+        "Assume that the ATM will not be in maintenance in the future."
+      ],
+      "parses_now": [
+        "4 times the number of usual withdrawals during that period",
+        "But in this case, residents sought to conserve energy and used lesser air conditioning, resulting in excessive usage of only 3 times the usual electricity.",
+        "The maximal fan speed is 3000 rpm",
+        "the maximal pressure is 37.5 Pa",
+        "At 05:27:09, it rapidly and smoothly changes to 1593.0",
+        "At 05:19:57, it rapidly and smoothly changes to 1594.4.",
+        "At 05:20:17, it rapidly and smoothly changes to 285.7.",
+        "The maximal fan speed is 3000 rpm",
+        "the maximal pressure is 37.5 Pa.",
+        "(2022-03-23 00:00:00, 0)"
+      ],
+      "numeric_no_parse": [
+        "At timestep 2024-03-18 14:00:00, the sensor was repaired and this additive trend will disappear.",
+        "At timestep 2024-01-15 11:00:00, the sensor was repaired and this additive trend will disappear.",
+        "Note that 2024-05-27 is a holiday due to Memorial Day.",
+        "At 2022-07-15 06:00:00, we expect that the weather will become clear.",
+        "At 2022-07-15 07:00:00, we expect that the weather will become cloudy.",
+        "At 2022-07-15 10:00:00, we expect that the weather will become clear.",
+        "At 2022-07-15 18:00:00, we expect that the weather will become cloudy.",
+        "At 2022-08-11 11:00:00, we expect that the weather will become cloudy.",
+        "At 2022-08-11 12:00:00, we expect that the weather will become clear.",
+        "At 2022-08-11 13:00:00, we expect that the weather will become cloudy."
+      ]
+    }
+  },
+  "reading": "parses_now = recovered by the current grammar; numeric_no_parse = candidate grammar gaps, review the examples; non_numeric_claim = needs a warrant the lane does not have (input to the proposer-trust experiment); span_unrecorded = dump predates span recording, unclassifiable."
+}
