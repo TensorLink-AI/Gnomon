@@ -53,6 +53,16 @@ Ours (this directory):
 | `control` | official DirectPrompt via OpenRouter | the LLM |
 | `gnomon-pure` | none (context ignored) | Gnomon |
 | `gnomon-agent` | proposes typed context events only | Gnomon |
+| `gnomon-router` | chooses per task: Gnomon or itself | whichever it chose |
+
+`gnomon-router` measures the realistic deployment posture — Gnomon as a
+tool the agent may call or skip — where the other arms measure mandatory
+use and no use. The model routes each task before forecasting, falls
+back to answering directly when Gnomon abstains (reading the support
+signal), and the decision, rationale, and any fallback are recorded in
+each run's `extra_info`. A routed win is evidence about the *tool-using
+agent*, never about Gnomon's own forecasting quality on its own — the
+win can come entirely from knowing when not to call.
 
 `gnomon-agent` additionally accepts `--future-context`, which turns on
 Gnomon's `context.future_events` lane: the proposer may also quote

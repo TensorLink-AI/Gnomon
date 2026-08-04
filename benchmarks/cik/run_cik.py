@@ -112,13 +112,24 @@ def build_method(args):
             temperature=args.temperature,
             fail_on_invalid=args.fail_on_invalid,
         )
+    if args.structural_context and not args.future_context:
+        raise SystemExit("--structural-context requires --future-context")
+    if args.method == "gnomon-router":
+        from benchmarks.cik.router import RoutedForecaster
+
+        if not args.model:
+            raise SystemExit("--method gnomon-router requires --model")
+        return RoutedForecaster(
+            args.model, temperature=args.temperature,
+            future_context=args.future_context,
+            structural_context=args.structural_context,
+            fail_on_invalid=args.fail_on_invalid,
+        )
     from benchmarks.cik.gnomon_forecaster import GnomonForecaster
 
     mode = "agent" if args.method == "gnomon-agent" else "pure"
     if args.future_context and mode != "agent":
         raise SystemExit("--future-context requires --method gnomon-agent")
-    if args.structural_context and not args.future_context:
-        raise SystemExit("--structural-context requires --future-context")
     return GnomonForecaster(
         mode=mode, openrouter_model=args.model, temperature=args.temperature,
         future_context=args.future_context,
@@ -218,11 +229,16 @@ def write_outputs(results: dict, method, args, output_dir: Path) -> None:
                     success=finite,
                     appropriate_abstention=abstained,
                     # One gnomon.forecast call per gnomon run; the control
-                    # calls no tools. Per-run cost stays 0: both adapters
-                    # only report cost accumulated across the whole client
-                    # lifetime, and faking a per-run split would be worse
-                    # than the zero.
-                    tool_calls=1 if is_gnomon else 0,
+                    # calls no tools, and a routed run that chose (or fell
+                    # back to) the direct path made none either. Per-run
+                    # cost stays 0: the adapters only report cost
+                    # accumulated across the whole client lifetime, and
+                    # faking a per-run split would be worse than the zero.
+                    tool_calls=(
+                        1 if is_gnomon
+                        and extra_info.get("route", "gnomon") == "gnomon"
+                        else 0
+                    ),
                     latency_seconds=(
                         float(latency)
                         if isinstance(latency, (int, float)) else 0.0
@@ -274,7 +290,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--method",
         required=True,
-        choices=["control", "gnomon-pure", "gnomon-agent"],
+        choices=["control", "gnomon-pure", "gnomon-agent", "gnomon-router"],
+        help="gnomon-router: the model chooses per task between calling "
+             "Gnomon and answering directly, with fallback to direct on "
+             "abstention; the routing decision is recorded per run",
     )
     parser.add_argument(
         "--model",
