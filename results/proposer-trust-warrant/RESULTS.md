@@ -1,5 +1,18 @@
 # Result: precondition not met — the experiment is not run
 
+**FINAL (2026-08-04, completed grid).** The full 355-run census
+(`results/structural-effects/census-full.json`, run at `0c9a63e`)
+confirms the deferral under the amended rule: 15 `non_numeric_claim`
+spans, 14 excluded as absence-of-intervention statements by the
+registered embodiment test, **1 genuine warrant-requiring instance
+against the ≥ 40 threshold**. Per `AMENDMENT-2026-08-04.md`, this
+outcome is final for this data; any future case must come from new
+evidence, not reinterpretation. The one genuine instance (a stated
+structural cessation) is pursued under its own registration,
+`results/structural-effects/`.
+
+---
+
 Census run 2026-08-04 against `HYPOTHESIS.md` (registered at `e442593`).
 Outcome recorded per the registration's own rule: *"Precondition census
 < 25% and < 40 instances → the experiment is **not run**; recording that
