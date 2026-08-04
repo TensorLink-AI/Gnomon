@@ -78,6 +78,9 @@ while the extended-grid run was in flight, before its data was read.
 
 ## Recovery measurement (2026-08-04, same dumps, parser the only variable)
 
+Raw summaries: `census-recovery-before.json` /
+`census-recovery-after.json` in this directory.
+
 Re-classifying the same census dumps after the first grammar change
 (attributive bounds, multiples-of-baseline, narrated changes, point
 tuples) — 220 dumps, 153 span-parse rejections:
