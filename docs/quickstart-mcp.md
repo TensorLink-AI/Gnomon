@@ -87,8 +87,10 @@ dataset reports `known_time_provenance: partially_assumed`.
 
 Primary macros: `gnomon_forecast`, `gnomon_investigate_change`, `gnomon_decide`,
 `gnomon_monitor`. Support: `gnomon_capabilities`, `gnomon_inspect`,
-`gnomon_get_artifact`, `gnomon_explain_run`, covariate tools, and the tracking
-lifecycle (`gnomon_submit_actuals`, `gnomon_list_open_forecasts`,
+`gnomon_get_artifact`, `gnomon_explain_run`, `gnomon_preflight_context`
+(dry-run admission for proposed context events, with the accepted span
+grammar in the response), covariate tools, and the tracking lifecycle
+(`gnomon_submit_actuals`, `gnomon_list_open_forecasts`,
 `gnomon_model_performance`, decision record/resolve).
 
 ## Migrating from v0.2

@@ -199,6 +199,20 @@ def assess_forecast_support(
             f"Retry with horizon {reachable} or less: the observations "
             f"already supplied support evaluation at that horizon.",
         ))
+    if support == "unsupported":
+        # The disclosed fallback lane exists, but a caller who has never
+        # read the CLI reference cannot know that. The refusal teaches
+        # the path so recovery takes one step, not prior knowledge; the
+        # default stays off and the fallback stays labelled.
+        recovery.append(SupportReason(
+            "retry_best_effort",
+            "If rows are needed at this horizon anyway, retry with "
+            "best_effort enabled (`--best-effort` on the CLI, "
+            "`best_effort: true` on the Python API and the MCP forecast "
+            "tool): a naive fallback is published with support "
+            "`best_effort` and a NO RELIABLE FORECAST warning — "
+            "disclosed rows, never a supported forecast.",
+        ))
     insufficiency = (
         [SupportReason("insufficient_evaluation", message) for message in warnings]
         or [SupportReason("insufficient_evaluation", "The evaluation protocol could not complete.")]

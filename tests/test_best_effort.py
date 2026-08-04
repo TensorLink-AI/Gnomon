@@ -144,3 +144,58 @@ def test_degenerate_history_yields_flat_intervals_with_a_warning(tmp_path: Path)
     assert result.support == "best_effort"
     assert all(row["q10"] == row["q90"] == row["point"] for row in result.forecast)
     assert any("no dispersion" in warning for warning in result.warnings)
+
+
+def test_the_refusal_teaches_the_best_effort_path(tmp_path: Path) -> None:
+    """An agent that has never read the CLI reference must learn the
+    fallback lane from the refusal itself: the recovery actions name
+    best_effort and how to enable it on every surface."""
+    artifact, _ = cik_bucket_three(tmp_path)
+    assessment = artifact.results[0].support_assessment
+    recovery = {reason["code"]: reason["message"]
+                for reason in assessment["recovery_actions"]}
+    assert "retry_best_effort" in recovery
+    assert "best_effort: true" in recovery["retry_best_effort"]
+    assert "--best-effort" in recovery["retry_best_effort"]
+
+
+def test_the_best_effort_run_does_not_advertise_itself(tmp_path: Path) -> None:
+    """Once the fallback is already published, telling the caller to retry
+    with the flag would be noise."""
+    artifact, _ = cik_bucket_three(tmp_path, best_effort=True)
+    assessment = artifact.results[0].support_assessment
+    recovery = [reason["code"] for reason in assessment["recovery_actions"]]
+    assert "retry_best_effort" not in recovery
+
+
+def test_best_effort_is_reachable_from_the_mcp_tool(tmp_path: Path) -> None:
+    """The MCP forecast tool is the primary agent front door; the lane
+    must be one argument away, not CLI-only."""
+    from gnomon.toolspec import runner_for, visible_tools
+
+    source = tmp_path / "monthly.csv"
+    write_monthly(source, 6)
+    arguments = {
+        "input": str(source), "time_column": "timestamp",
+        "target_column": "value", "horizon": 7,
+        "output_dir": str(tmp_path / "out"),
+    }
+    runner = runner_for("gnomon_forecast")
+    refused = runner(dict(arguments))
+    result = refused["results"][0]
+    assert result["support"] == "unsupported"
+    assert result["forecast_rows"] == 0
+    codes = [reason["code"] for reason in
+             result["support_assessment"]["recovery_actions"]]
+    assert "retry_best_effort" in codes
+
+    published = runner({**arguments, "output_dir": str(tmp_path / "out2"),
+                        "best_effort": True})
+    result = published["results"][0]
+    assert result["support"] == "best_effort"
+    assert result["forecast_rows"] == 7
+    assert NO_RELIABLE_FORECAST in result["warnings"]
+
+    spec = next(tool for tool in visible_tools()
+                if tool["name"] == "gnomon_forecast")
+    assert "best_effort" in spec["inputSchema"]["properties"]

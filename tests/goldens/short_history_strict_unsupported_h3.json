@@ -73,6 +73,10 @@
           {
             "code": "provide_more_history",
             "message": "Supply more observations, or lower the horizon, so rolling evaluation can run."
+          },
+          {
+            "code": "retry_best_effort",
+            "message": "If rows are needed at this horizon anyway, retry with best_effort enabled (`--best-effort` on the CLI, `best_effort: true` on the Python API and the MCP forecast tool): a naive fallback is published with support `best_effort` and a NO RELIABLE FORECAST warning \u2014 disclosed rows, never a supported forecast."
           }
         ],
         "legacy_support": "unsupported",

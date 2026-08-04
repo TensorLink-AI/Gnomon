@@ -238,6 +238,7 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
         threshold=float(arguments["threshold"]) if arguments.get("threshold") is not None else None,
         repair=arguments.get("repair", "safe"),
         candidates=arguments.get("candidates"),
+        best_effort=bool(arguments.get("best_effort", False)),
     )
     payload = (brief_summary(artifact, path)
                if arguments.get("format") == "brief"
@@ -292,10 +293,27 @@ def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str
         threshold=float(arguments["threshold"]) if arguments.get("threshold") is not None else None,
         repair=arguments.get("repair", "safe"),
         candidates=arguments.get("candidates"),
+        best_effort=bool(arguments.get("best_effort", False)),
     )
     if arguments.get("format") == "brief":
         return brief_summary(artifact, path)
     return forecast_summary(artifact, path)
+
+
+def _run_preflight_context(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .preflight import preflight_context_events
+
+    events = load_events_file(arguments["context_events_file"])
+    return preflight_context_events(
+        str(arguments["input"]),
+        time_column=arguments["time_column"],
+        target_column=arguments["target_column"],
+        horizon=int(arguments["horizon"]),
+        context_events=events,
+        series_column=arguments.get("series_column"),
+        frequency=arguments.get("frequency"),
+        repair=arguments.get("repair", "safe"),
+    )
 
 
 def _run_submit_actuals(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -458,6 +476,14 @@ TOOLS: list[dict[str, Any]] = [
                 "covariate_known_at_column": {"type": "string", "description": "Availability timestamp column (default known_at)."},
                 "covariate_series_column": {"type": "string", "description": "Optional series column in the covariate CSV."},
                 "repair": {"type": "string", "enum": ["off", "safe", "aggressive"], "description": "Messy-data handling (default safe): off rejects anything non-strict; safe normalises cell text with disclosure; aggressive additionally fills gaps, snaps timestamps, and resolves conflicts — capped, and every fix is reported in evidence and warnings."},
+                "best_effort": {"type": "boolean", "description": (
+                    "When the evaluation cannot support the requested "
+                    "horizon (default false: an honest abstention with "
+                    "recovery actions), publish a naive fallback anyway — "
+                    "disclosed as support `best_effort` with a NO RELIABLE "
+                    "FORECAST warning and a descriptive, never predictive, "
+                    "lineage claim. Never changes a supported forecast."
+                )},
             },
             "required": ["input", "time_column", "target_column", "horizon"],
         },
@@ -591,6 +617,30 @@ TOOLS: list[dict[str, Any]] = [
             "required": [],
         },
         "runner": _run_list_datasets,
+    },
+    {
+        "name": "gnomon_preflight_context",
+        "description": (
+            "Dry-run the admission checks for proposed context events "
+            "against the actual data, before spending a forecast. Returns "
+            "one verdict per event — would_influence, rejected (with the "
+            "typed reason), or ablation_gated (fold admission is measured, "
+            "not predictable) — plus the span grammar the parser accepts, "
+            "so a rejected proposal can be repaired and resubmitted in one "
+            "step. Deterministic verdicts here are the verdicts the "
+            "forecast will reach on the same data; nothing is written."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                **_INPUT_PROPERTIES,
+                "horizon": {"type": "integer", "description": "Future periods the events would apply to, in units of the data frequency."},
+                "context_events_file": {"type": "string", "description": "Context-events JSON file to preflight (the output of `gnomon context validate`, or the same shape)."},
+                "repair": {"type": "string", "enum": ["off", "safe", "aggressive"], "description": "Messy-data handling, matched to what the forecast will use (default safe)."},
+            },
+            "required": ["input", "time_column", "target_column", "horizon", "context_events_file"],
+        },
+        "runner": _run_preflight_context,
     },
 ]
 

@@ -295,6 +295,22 @@ def build_parser() -> argparse.ArgumentParser:
     )
     validate_parser.add_argument("--response", required=True)
     validate_parser.add_argument("--file", action="append", required=True, dest="files")
+    preflight_parser = context_commands.add_parser(
+        "preflight",
+        help="Dry-run admission for proposed context events against the data, "
+             "before spending a forecast",
+    )
+    _common_input(preflight_parser)
+    preflight_parser.add_argument("--horizon", type=int, required=True)
+    preflight_parser.add_argument(
+        "--events", dest="events_file", required=True,
+        help="Context-events JSON to preflight (output of `gnomon context "
+             "validate`, or the same shape)",
+    )
+    preflight_parser.add_argument(
+        "--repair", choices=["off", "safe", "aggressive"], default="safe",
+        help="Messy-data handling, matched to what the forecast will use",
+    )
 
     investigate_parser = subcommands.add_parser(
         "investigate", help="What changed? Changepoints, regimes, anomalies, ranked explanations"
@@ -1513,6 +1529,20 @@ def main(argv: Sequence[str] | None = None) -> int:
                     covariate_known_at_column=args.covariate_known_at,
                     covariate_series_column=args.covariate_series,
                 )
+        elif args.command == "context" and args.context_command == "preflight":
+            from .context import load_events_file
+            from .preflight import preflight_context_events
+
+            payload = preflight_context_events(
+                args.input,
+                time_column=args.time_column,
+                target_column=args.target_column,
+                horizon=args.horizon,
+                context_events=load_events_file(args.events_file),
+                series_column=args.series_column,
+                frequency=args.frequency,
+                repair=args.repair,
+            )
         elif args.command == "context":
             from .workflows import build_context_investigation_prompt, parse_context_response
 

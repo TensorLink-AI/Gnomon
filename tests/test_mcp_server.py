@@ -52,6 +52,8 @@ def test_initialize_list_and_call() -> None:
         "gnomon_ingest", "gnomon_list_datasets",
         # The proposer-calibration ledger (tracking schema 5).
         "gnomon_proposer_skill",
+        # Admission dry-run: rejection as a repair loop, not a post-mortem.
+        "gnomon_preflight_context",
     }
     call = by_id[3]["result"]
     assert call["isError"] is False

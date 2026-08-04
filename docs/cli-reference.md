@@ -199,11 +199,22 @@ gnomon context prompt --file launches.md --file holidays.md --series api-prod
 # run instructions on your model, save the JSON response, then:
 gnomon context validate --response response.json --file launches.md --file holidays.md
 # → {"events": [...], "rejected": [...]} — feed to `gnomon forecast --context`
+gnomon context preflight data.csv --time timestamp --target value \
+  --horizon 14 --events events.json
+# → one verdict per event (would_influence / rejected / ablation_gated),
+#   plus the span grammar the parser accepts — before spending a forecast
 ```
 
 `validate` grounds each event's source from the document metadata (never
 from the model's claims), rejects non-verbatim evidence quotes, and marks
 whether each event is admissible for backtesting.
+
+`preflight` dry-runs the deterministic admission checks — the
+future-context lane and caller-supplied claims — against the actual data
+and returns typed rejection reasons beside the accepted grammar, so a
+rejected proposal is repaired and resubmitted instead of discovered in
+the evidence after a spent run. Fold-ablation admission is a measurement
+and is reported as `ablation_gated`, never predicted.
 
 With `context.future_events: on` (or `prompt --future-events`), the prompt
 also describes the two future-dated typed classes — `constraint:*` stated
