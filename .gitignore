@@ -42,6 +42,10 @@ metric_scaling_cache/
 !results/future-context-ab/
 results/future-context-ab/cik-*
 
+# Except the proposer-trust warrant registration: the hypothesis is
+# versioned before the experiment exists, which is the point of it.
+!results/proposer-trust-warrant/
+
 # And except the news-regime exploration: pre-registration, summaries, and
 # the scripts that regenerate them are versioned; per-task raw outputs are
 # not (same rule as the benchmark corpora — regenerable, and bulky).
