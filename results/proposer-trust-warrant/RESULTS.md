@@ -55,10 +55,13 @@ was wrong on the measured grid: proposals fail because the parser is
 narrow.
 
 Reopening condition, per the partial-grid caveat: finishing the task
-grid (tasks 38–71) could move the 7.3%. If the completed census crosses
-either threshold (≥ 25% of span rejections or ≥ 40 instances), this
-registration reopens exactly as written — no redesign, no threshold
-adjustment.
+grid (tasks 38–71) could move the count. The reopening test is the
+amended, denominator-free rule in `AMENDMENT-2026-08-04.md` — the
+original share-of-rejections test was voided after the grammar fixes
+collapsed its denominator (19 span-parse rejections where the
+threshold was calibrated against ~150), which made it measure residue
+composition instead of warrant demand. The amendment was registered
+while the extended-grid run was in flight, before its data was read.
 
 ## Recovery measurement (2026-08-04, same dumps, parser the only variable)
 
