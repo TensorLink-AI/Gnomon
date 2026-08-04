@@ -46,6 +46,9 @@ results/future-context-ab/cik-*
 # versioned before the experiment exists, which is the point of it.
 !results/proposer-trust-warrant/
 
+# Same rule for the structural-effects registration.
+!results/structural-effects/
+
 # And except the news-regime exploration: pre-registration, summaries, and
 # the scripts that regenerate them are versioned; per-task raw outputs are
 # not (same rule as the benchmark corpora — regenerable, and bulky).
