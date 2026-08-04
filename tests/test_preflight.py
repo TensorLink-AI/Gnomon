@@ -15,7 +15,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from gnomon.context import ContextEvent, ContextSource
-from gnomon.future_context import parse_bound_span, parse_override_span
+from gnomon.future_context import (
+    parse_bound_span,
+    parse_override_scale,
+    parse_override_span,
+)
 from gnomon.preflight import ACCEPTED_SPAN_EXAMPLES, preflight_context_events
 
 START = datetime(2026, 1, 1)
@@ -117,7 +121,8 @@ def test_every_grammar_example_actually_parses():
         assert bound is not None, (span, problem)
     for span in ACCEPTED_SPAN_EXAMPLES["override"]:
         value, problem = parse_override_span(span)
-        assert value is not None, (span, problem)
+        scale, _ = parse_override_scale(span)
+        assert value is not None or scale is not None, (span, problem)
 
 
 def test_preflight_is_reachable_from_the_mcp_tool(tmp_path: Path):

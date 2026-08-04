@@ -18,7 +18,11 @@ verifiability**:
   that is applied;
 - a deterministic parser re-extracts every number from the span, and a
   span that does not literally state the claimed bound or value is
-  rejected;
+  rejected. A span may state its number as a multiple of a baseline
+  ("4 times the usual withdrawals"): the multiplier is the span's, and
+  the baseline is resolved deterministically as the recent-window
+  median, with the arithmetic disclosed — still no model-supplied
+  number anywhere;
 - for constraint events, recent history's relation to the bound is
   recorded as disclosure, never used to reject: the effective window is
   guaranteed to lie entirely after the observed history, so past
@@ -76,6 +80,8 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
+
+from statistics import median
 
 from .constraints import Claim, _align, _assert_monotone, apply_claims
 from .context import ContextEvent, event_applies
@@ -179,6 +185,36 @@ _NEGATED_MAX_PATTERNS = [
     rf"(?:more|greater|higher|larger)\s+than)\s+({_N}){_AFTER_NUMBER}",
 ]
 
+#: Baseline words a relative multiple may reference. The multiplier is
+#: the text's number; the level it scales is resolved deterministically
+#: at admission time (the recent-window median) and disclosed — a model
+#: never estimates it.
+_BASELINE = r"(?:usual|normal|typical|average|baseline)"
+
+#: "<N> times the (number of) usual <thing>" — captures the multiplier.
+_TIMES_BASELINE = (
+    rf"({_N}){_AFTER_NUMBER}\s*(?:times|x|×)\s+"
+    rf"(?:the\s+|its\s+|their\s+)?(?:\w+[\s-]+){{0,4}}?{_BASELINE}\b"
+)
+
+#: Directional multiples-of-baseline. These must be matched BEFORE the
+#: absolute patterns: "will not exceed 3 times the usual level" contains
+#: "not exceed 3", which the absolute negated pattern would happily read
+#: as an absolute ceiling of 3 — off from the truth by the whole
+#: baseline. Region consumption makes the order load-bearing.
+_MAX_SCALE_PATTERNS = [
+    rf"{_NEGATION}\s+(?:\w+\s+){{0,2}}(?:exceed(?:s|ing)?|surpass(?:es|ing)?|"
+    rf"(?:more|greater|higher|larger)\s+than)\s+{_TIMES_BASELINE}",
+    rf"(?:at\s+most|no\s+more\s+than|up\s+to|as\s+(?:high|much)\s+as)\s+{_TIMES_BASELINE}",
+    rf"(?:stays?|stay(?:ing)?|remains?|remain(?:ing)?|kept?|keeps?)\s+(?:below|under)\s+{_TIMES_BASELINE}",
+]
+
+_MIN_SCALE_PATTERNS = [
+    rf"{_NEGATION}\s+(?:\w+\s+){{0,2}}(?:below|(?:less|lower|smaller|fewer)\s+than)\s+{_TIMES_BASELINE}",
+    rf"(?:at\s+least|no\s+less\s+than)\s+{_TIMES_BASELINE}",
+    rf"(?:stays?|stay(?:ing)?|remains?|remain(?:ing)?)\s+above\s+{_TIMES_BASELINE}",
+]
+
 _MAX_PATTERNS = [
     # CiK's constraint tasks state bounds in exactly this voice.
     rf"bounded\s+(?:above|from\s+above)\s+by\s+({_N}){_AFTER_NUMBER}",
@@ -193,6 +229,13 @@ _MAX_PATTERNS = [
     rf"(?<!go\s)(?<!goes\s)(?<!went\s)(?<!sink\s)(?<!sinks\s)(?<!not\s)"
     rf"(?:below|under|less\s+than)\s+({_N}){_AFTER_NUMBER}",
     rf"(?:capped?\s+at|cap\s+of|ceiling\s+of|a?\s*maximum\s+(?:value\s+)?of|max(?:imum)?\s+of)\s+({_N}){_AFTER_NUMBER}",
+    # Attributive: "the maximal fan speed is 3000 rpm". The superlative
+    # names the bounded quantity and the copula states the number; a
+    # trailing unit is fine (the number guard only refuses percent and
+    # date/clock suffixes). Present/future forms only — "the maximum
+    # yesterday was 200" describes history, not a bound.
+    rf"(?:maximal|maximum|max|peak|highest(?:\s+possible)?)\s+"
+    rf"(?:[\w-]+\s+){{0,4}}?(?:is|are|will\s+be|=|:)\s*({_N}){_AFTER_NUMBER}",
     rf"(?:<=|≤)\s*({_N}){_AFTER_NUMBER}",
 ]
 
@@ -209,6 +252,9 @@ _MIN_PATTERNS = [
     rf"(?<!go\s)(?<!goes\s)(?<!went\s)(?<!not\s)"
     rf"(?:above|over|more\s+than|greater\s+than)\s+({_N}){_AFTER_NUMBER}",
     rf"(?:a?\s*minimum\s+(?:value\s+)?of|min(?:imum)?\s+of|floor\s+of)\s+({_N}){_AFTER_NUMBER}",
+    # Attributive: "the minimal operating pressure is 12 Pa".
+    rf"(?:minimal|minimum|min|lowest(?:\s+possible)?)\s+"
+    rf"(?:[\w-]+\s+){{0,4}}?(?:is|are|will\s+be|=|:)\s*({_N}){_AFTER_NUMBER}",
     rf"(?:>=|≥)\s*({_N}){_AFTER_NUMBER}",
 ]
 
@@ -225,6 +271,13 @@ _NON_NEGATIVE = re.compile(
 class ParsedBound:
     minimum: float | None
     maximum: float | None
+    #: Multiples of a baseline the span references but does not state
+    #: numerically ("will not exceed 3 times the usual level"). The
+    #: multiplier is the span's; admission resolves the baseline
+    #: deterministically (recent-window median) and discloses the
+    #: arithmetic before anything is applied.
+    minimum_scale: float | None = None
+    maximum_scale: float | None = None
 
 
 def parse_bound_span(span: str) -> tuple[ParsedBound | None, str | None]:
@@ -264,6 +317,19 @@ def parse_bound_span(span: str) -> tuple[ParsedBound | None, str | None]:
         minimum, maximum = sorted(
             (_to_float(range_match.group(1)), _to_float(range_match.group(2)))
         )
+    # Scaled bounds consume their region before the absolute patterns
+    # run: "will not exceed 3 times the usual level" must never be read
+    # as an absolute ceiling of 3.
+    maximum_scale: float | None = None
+    minimum_scale: float | None = None
+    if maximum is None:
+        scale_match = first_match(_MAX_SCALE_PATTERNS)
+        if scale_match:
+            maximum_scale = _to_float(scale_match.group(1))
+    if minimum is None:
+        scale_match = first_match(_MIN_SCALE_PATTERNS)
+        if scale_match:
+            minimum_scale = _to_float(scale_match.group(1))
     negated_min = first_match(_NEGATED_MIN_PATTERNS) if minimum is None else None
     if negated_min:
         minimum = _to_float(negated_min.group(1))
@@ -288,14 +354,15 @@ def parse_bound_span(span: str) -> tuple[ParsedBound | None, str | None]:
         # reading (0, not "some epsilon above 0") is the only one with a
         # stated number in it.
         minimum = 0.0
-    if minimum is None and maximum is None:
+    if minimum is None and maximum is None \
+            and minimum_scale is None and maximum_scale is None:
         return None, "the source span does not state a parseable bound"
     if minimum is not None and maximum is not None and minimum > maximum:
         return None, (
             f"the parsed bound is empty: minimum {minimum} exceeds "
             f"maximum {maximum}"
         )
-    return ParsedBound(minimum, maximum), None
+    return ParsedBound(minimum, maximum, minimum_scale, maximum_scale), None
 
 
 #: Words that state a zero state without a digit. Deliberately short:
@@ -354,6 +421,25 @@ def parse_override_span(span: str) -> tuple[float | None, str | None]:
     return None, (
         "the source span does not state the override value; a value that "
         "is estimated rather than stated is not admissible"
+    )
+
+
+def parse_override_scale(span: str) -> tuple[float | None, str | None]:
+    """Extract a stated multiple-of-baseline level for an override window.
+
+    "4 times the number of usual withdrawals" states a level as a
+    multiple: the multiplier is the span's number; the baseline it
+    scales is resolved deterministically at admission (the recent-window
+    median) and the arithmetic is disclosed. A model still never
+    supplies a number that is applied.
+    """
+    text = " ".join(str(span).split())
+    match = re.search(_TIMES_BASELINE, text, re.IGNORECASE)
+    if match:
+        return _to_float(match.group(1)), None
+    return None, (
+        "the source span does not state a multiple of a usual/normal/"
+        "typical level"
     )
 
 
@@ -553,7 +639,7 @@ def assess_future_events(
                 assessment, event, span, window_values, window_timestamps,
             )
         else:
-            admitted = _admit_override(assessment, event, span)
+            admitted = _admit_override(assessment, event, span, window_values)
         if admitted is not None:
             assessment.admitted.append(admitted)
 
@@ -679,6 +765,81 @@ def _claimed_number(raw: Any) -> float | None:
         return None
 
 
+def _usual_level(recent_values: list[float]) -> float | None:
+    """The deterministic reading of "the usual level": the recent-window
+    median — robust to the excursions that usually motivate the claim,
+    and the same window every other admission check reads."""
+    if not recent_values:
+        return None
+    return float(median(recent_values))
+
+
+def _resolve_scaled_bound(
+    assessment: FutureContextAssessment,
+    event: ContextEvent,
+    span: str,
+    bound: ParsedBound,
+    recent_values: list[float],
+) -> tuple[ParsedBound | None, dict[str, float]]:
+    """Turn a multiple-of-baseline bound into absolute numbers, disclosed.
+
+    Returns the absolute bound and, per side, the span's multiplier (so
+    a claimed_bound cross-check can accept either faithful reading). A
+    bound with no scaled side passes through untouched.
+    """
+    if bound.minimum_scale is None and bound.maximum_scale is None:
+        return bound, {}
+    baseline = _usual_level(recent_values)
+    if baseline is None or baseline <= 0:
+        described = "absent" if baseline is None else f"{baseline:g}"
+        assessment.record_check(
+            event, "constraint", "baseline_resolvable", False,
+            detail=(
+                f"the span states a multiple of the usual level, but the "
+                f"recent-window median is {described}; scaling a "
+                f"non-positive baseline would invert or degenerate the "
+                f"bound, so the claim is not applied"
+            ),
+            source_span=span,
+        )
+        return None, {}
+    minimum, maximum = bound.minimum, bound.maximum
+    resolved: dict[str, float] = {}
+    arithmetic: list[str] = []
+    if bound.minimum_scale is not None:
+        minimum = bound.minimum_scale * baseline
+        resolved["min"] = bound.minimum_scale
+        arithmetic.append(
+            f"min = {bound.minimum_scale:g} × {baseline:g} = {minimum:g}")
+    if bound.maximum_scale is not None:
+        maximum = bound.maximum_scale * baseline
+        resolved["max"] = bound.maximum_scale
+        arithmetic.append(
+            f"max = {bound.maximum_scale:g} × {baseline:g} = {maximum:g}")
+    if minimum is not None and maximum is not None and minimum > maximum:
+        assessment.record_check(
+            event, "constraint", "baseline_resolvable", False,
+            detail=(
+                f"resolving the span's multiplier against the recent-window "
+                f"median ({baseline:g}) yields an empty bound: minimum "
+                f"{minimum:g} exceeds maximum {maximum:g}"
+            ),
+            source_span=span,
+        )
+        return None, {}
+    assessment.record_check(
+        event, "constraint", "relative_bound_resolved", True,
+        detail=(
+            f"the span's multiplier scaled the recent-window median "
+            f"({baseline:g}): {'; '.join(arithmetic)}. The multiplier is "
+            f"the text's; the baseline is Gnomon's statistic, never a "
+            f"model's estimate"
+        ),
+        source_span=span,
+    )
+    return ParsedBound(minimum, maximum), resolved
+
+
 def _admit_constraint(
     assessment: FutureContextAssessment,
     event: ContextEvent,
@@ -694,14 +855,26 @@ def _admit_constraint(
         )
         return None
 
+    bound, resolved = _resolve_scaled_bound(
+        assessment, event, span, bound, recent_values,
+    )
+    if bound is None:
+        return None
+
     claimed = (event.attributes or {}).get(CLAIMED_BOUND_KEY)
     if isinstance(claimed, dict):
         for side, parsed_side in (("min", bound.minimum), ("max", bound.maximum)):
             if side not in claimed:
                 continue
             claimed_value = _claimed_number(claimed.get(side))
-            if claimed_value is None or parsed_side is None or \
-                    abs(claimed_value - parsed_side) > 1e-9:
+            # For a scaled bound the proposal may faithfully claim either
+            # the resolved value or the span's multiplier; both are the
+            # same reading of the same text.
+            acceptable = [parsed_side, resolved.get(side)]
+            if claimed_value is None or not any(
+                target is not None and abs(claimed_value - target) <= 1e-9
+                for target in acceptable
+            ):
                 assessment.record_check(
                     event, "constraint", "claim_matches_span", False,
                     detail=(
@@ -752,8 +925,38 @@ def _admit_override(
     assessment: FutureContextAssessment,
     event: ContextEvent,
     span: str,
+    recent_values: list[float],
 ) -> FutureEvent | None:
     value, problem = parse_override_span(span)
+    scale: float | None = None
+    if value is None:
+        scale, _ = parse_override_scale(span)
+        if scale is not None:
+            baseline = _usual_level(recent_values)
+            if baseline is None or baseline <= 0:
+                described = "absent" if baseline is None else f"{baseline:g}"
+                assessment.record_check(
+                    event, "override", "baseline_resolvable", False,
+                    detail=(
+                        f"the span states a multiple of the usual level, "
+                        f"but the recent-window median is {described}; "
+                        f"scaling a non-positive baseline would invert the "
+                        f"stated level, so the claim is not applied"
+                    ),
+                    source_span=span,
+                )
+                return None
+            value = scale * baseline
+            assessment.record_check(
+                event, "override", "relative_value_resolved", True,
+                detail=(
+                    f"the span's multiplier scaled the recent-window median: "
+                    f"{scale:g} × {baseline:g} = {value:g}. The multiplier "
+                    f"is the text's; the baseline is Gnomon's statistic, "
+                    f"never a model's estimate"
+                ),
+                source_span=span,
+            )
     if value is None:
         assessment.record_check(
             event, "override", "span_states_the_value", False,
@@ -763,7 +966,10 @@ def _admit_override(
     claimed_raw = (event.attributes or {}).get(CLAIMED_VALUE_KEY)
     if claimed_raw is not None:
         claimed = _claimed_number(claimed_raw)
-        if claimed is None or abs(claimed - value) > 1e-9:
+        acceptable = [value] + ([scale] if scale is not None else [])
+        if claimed is None or not any(
+            abs(claimed - target) <= 1e-9 for target in acceptable
+        ):
             assessment.record_check(
                 event, "override", "claim_matches_span", False,
                 detail=(

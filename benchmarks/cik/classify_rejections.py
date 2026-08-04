@@ -111,11 +111,16 @@ def iter_gate_records(roots: list[Path]):
 
 def classify_span(span: str) -> str:
     """Bucket one recorded rejected span against the current parser."""
-    from gnomon.future_context import parse_bound_span, parse_override_span
+    from gnomon.future_context import (
+        parse_bound_span,
+        parse_override_scale,
+        parse_override_span,
+    )
 
     bound, _ = parse_bound_span(span)
     value, _ = parse_override_span(span)
-    if bound is not None or value is not None:
+    scale, _ = parse_override_scale(span)
+    if bound is not None or value is not None or scale is not None:
         return "parses_now"
     if _DIGITS.search(span):
         return "numeric_no_parse"

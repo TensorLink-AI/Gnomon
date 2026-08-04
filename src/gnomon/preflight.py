@@ -47,11 +47,14 @@ ACCEPTED_SPAN_EXAMPLES: dict[str, list[str]] = {
         "will not drop below 10",
         "at least 25",
         "cannot be negative",
+        "the maximal fan speed is 3000 rpm",
+        "will not exceed 3 times the usual level",
     ],
     "override": [
         "the plant is offline for scheduled maintenance",
         "output reduced to 120 while the line is partially shut down",
         "production drops to zero during the strike",
+        "4 times the number of usual withdrawals",
     ],
 }
 

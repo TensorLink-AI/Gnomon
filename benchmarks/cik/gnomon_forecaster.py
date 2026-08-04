@@ -92,20 +92,27 @@ Additionally, when the context STATES a numeric bound on future values, or
 a deterministic state for a future window, you may propose these typed
 events (same JSON objects, two extra fields):
 
-- Constraint (a stated bound such as "between 0 and 340" or "will not
-  exceed X"): set "event_type" to "constraint:<label>" and add
-  "source_span": "<the sentence from the context, quoted VERBATIM, that
-  states the bound>". Date it over the forecast window only.
-- Deterministic override (a stated state such as "offline", "closed", or
-  "output drops to 0" for a stated window): set "event_type" to
+- Constraint (a stated bound such as "between 0 and 340", "will not
+  exceed X", "the maximal fan speed is 3000 rpm", or a stated multiple
+  like "will not exceed 3 times the usual level"): set "event_type" to
+  "constraint:<label>" and add "source_span": "<the sentence from the
+  context, quoted VERBATIM, that states the bound>". Date it over the
+  forecast window only. A bound the history breaches is fine — an
+  announced cap is informative precisely then.
+- Deterministic override (a stated state such as "offline", "closed",
+  "output drops to 0", or a stated multiple like "4 times the usual
+  withdrawals" for a stated window): set "event_type" to
   "override:<label>" and add "source_span": "<the verbatim sentence
-  stating the state or value>". Date it over exactly the stated window.
+  stating the state, value, or multiple>". Date it over exactly the
+  stated window.
 
 The engine re-parses every number from your quoted span with a
 deterministic parser and rejects any span that does not literally state
-the bound or value, any span that does not appear in the context, and any
-bound the recent history already violates. Never paraphrase inside
-source_span, and never put numbers you computed yourself anywhere.
+the bound, value, or multiple, and any span that does not appear in the
+context. A stated multiple of the "usual" level is resolved by the
+engine against the recent history's median — never estimate the result
+yourself. Never paraphrase inside source_span, and never put numbers you
+computed yourself anywhere.
 """
 
 

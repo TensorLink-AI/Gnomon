@@ -280,6 +280,59 @@ def test_history_respecting_a_forward_bound_still_admits_it():
     assert disclosure and "respects" in disclosure[0]["detail"]
 
 
+def test_an_attributive_bound_with_a_unit_is_admitted():
+    # The 2026-08 census: 139/150 rejected spans stated a number the
+    # parser could not read. "The maximal fan speed is 3000 rpm" is one
+    # of the two dominant shapes.
+    events = [_event("c1", "constraint:speed", H_START, H_END,
+                     {"source_span": "The maximal fan speed is 3000 rpm"})]
+    assessment = assess_future_events(events, "s", HISTORY, TIMESTAMPS, FUTURE, 7)
+    assert [e.event_id for e in assessment.admitted] == ["c1"]
+    assert assessment.admitted[0].maximum == 3000.0
+
+
+def test_a_scaled_bound_resolves_against_the_recent_median():
+    # The other dominant census shape: a multiple of a baseline the span
+    # references but does not state. The multiplier is the text's; the
+    # baseline is the recent-window median, disclosed.
+    from statistics import median
+    events = [_event("c1", "constraint:surge", H_START, H_END,
+                     {"source_span": "will not exceed 3 times the usual level"})]
+    assessment = assess_future_events(events, "s", HISTORY, TIMESTAMPS, FUTURE, 7)
+    assert [e.event_id for e in assessment.admitted] == ["c1"]
+    baseline = median(HISTORY[-14:])  # recent_window(7, 7) = 14
+    assert assessment.admitted[0].maximum == 3 * baseline
+    disclosure = [check for check in assessment.checks
+                  if check["code"] == "relative_bound_resolved"]
+    assert disclosure and disclosure[0]["passed"]
+    assert "median" in disclosure[0]["detail"]
+
+
+def test_a_scaled_override_resolves_against_the_recent_median():
+    from statistics import median
+    events = [_event("o1", "override:surge", H_START, H_END,
+                     {"source_span": "4 times the number of usual withdrawals"})]
+    assessment = assess_future_events(events, "s", HISTORY, TIMESTAMPS, FUTURE, 7)
+    assert [e.event_id for e in assessment.admitted] == ["o1"]
+    baseline = median(HISTORY[-14:])
+    assert assessment.admitted[0].value == 4 * baseline
+    disclosure = [check for check in assessment.checks
+                  if check["code"] == "relative_value_resolved"]
+    assert disclosure and disclosure[0]["passed"]
+
+
+def test_a_scaled_claim_on_a_non_positive_baseline_is_rejected():
+    # Scaling a non-positive median would invert the claim's meaning.
+    history = [-5.0 + (day % 3) for day in range(60)]
+    events = [_event("c1", "constraint:surge", H_START, H_END,
+                     {"source_span": "will not exceed 3 times the usual level"})]
+    assessment = assess_future_events(events, "s", history, TIMESTAMPS, FUTURE, 7)
+    assert not assessment.admitted
+    assert assessment.rejected[0]["code"] == "baseline_resolvable"
+    assert assessment.rejected[0]["source_span"] == \
+        "will not exceed 3 times the usual level"
+
+
 def test_a_window_overlapping_history_is_sent_to_the_fold_gate():
     events = [_event("c1", "constraint:bounds",
                      TIMESTAMPS[-1] - timedelta(days=3), H_END,
