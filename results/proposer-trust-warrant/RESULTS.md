@@ -59,3 +59,35 @@ grid (tasks 38–71) could move the 7.3%. If the completed census crosses
 either threshold (≥ 25% of span rejections or ≥ 40 instances), this
 registration reopens exactly as written — no redesign, no threshold
 adjustment.
+
+## Recovery measurement (2026-08-04, same dumps, parser the only variable)
+
+Re-classifying the same census dumps after the first grammar change
+(attributive bounds, multiples-of-baseline, narrated changes, point
+tuples) — 220 dumps, 153 span-parse rejections:
+
+| bucket | before | after |
+| --- | --- | --- |
+| `parses_now` | 0 | 68 |
+| `numeric_no_parse` | 142 | 74 |
+| `non_numeric_claim` | 11 | 11 |
+
+47.9% of the numeric residue recovered. Of the 74 remaining, manual
+review found 63 further grammar gaps (44 bare value+window "0.2 from
+05:34:29 until 05:34:46", 7 covariate-narration "takes a value of
+0.2051", 5 percent-of-usual, 5 zero-state phrasings, 2 conditional
+maxima) and only 11 genuinely unparseable date-only events ("the
+weather will become clear"). Those 63 shapes were then covered in a
+second grammar round, each pinned verbatim in
+`tests/test_preflight.py`.
+
+## Post-census correction
+
+`HYPOTHESIS.md`'s background asserts stated closures already parse as
+an override of 0. The census showed the claim was broader than the
+code: `_ZERO_STATES` matched a curated noun list ("no production/
+output/traffic/flow/generation") that did not include "no withdrawals",
+so five zero-state spans sat in the residue. The noun list is extended
+(still curated — a bare "no \\w+" would misread "no change" as a value
+of 0). The correction does not affect the deferral: these spans need
+grammar, not a warrant.

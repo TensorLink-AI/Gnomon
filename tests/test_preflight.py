@@ -137,6 +137,37 @@ def test_census_sensor_shapes_state_their_values():
     assert value != 5.0
 
 
+def test_residue_shapes_from_the_recovery_measurement():
+    """The 2026-08 recovery measurement's residue, pinned verbatim: 63 of
+    74 remaining rejections were grammar gaps, dominated by bare
+    value+window spans. Each shape here was an actual rejected span."""
+    assert parse_override_span("0.2 from 05:34:29 until 05:34:46")[0] == 0.2
+    assert parse_override_span(
+        "the covariate X_0 takes a value of 0.2051 "
+        "from 2028-04-23 to 2028-05-05")[0] == 0.2051
+    assert parse_override_scale(
+        "there is 10.0% of the usual traffic "
+        "from 2024-01-15 15:00:00 for 6 hours")[0] == 0.1
+    # "no <activity>" states a count of zero — the census caught
+    # "no withdrawals" slipping the shorter curated noun list
+    assert parse_override_span(
+        "resulting in no withdrawals during that period")[0] == 0.0
+    bound, _ = parse_bound_span(
+        "At full load (=1), the fan turns at a maximum speed of 3000 rpm.")
+    assert bound is not None and bound.maximum == 3000.0
+    # what must stay out: a delta, an unchanged level, a bare percent of
+    # an unstated base, and a date-only event with no stated value
+    assert parse_override_span("increased by 5 from 2024-01-01")[0] is None
+    assert parse_override_span("no change from 2024-01-01 onwards")[0] is None
+    assert parse_override_span(
+        "reduced to 50% while the line is partially shut down")[0] is None
+    assert parse_override_scale(
+        "reduced to 50% while the line is partially shut down")[0] is None
+    assert parse_bound_span(
+        "At 2022-07-15 06:00:00, we expect that the weather will "
+        "become clear.")[0] is None
+
+
 def test_preflight_is_reachable_from_the_mcp_tool(tmp_path: Path):
     from gnomon.context import event_to_dict
     from gnomon.toolspec import runner_for, visible_tools

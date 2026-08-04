@@ -49,14 +49,19 @@ ACCEPTED_SPAN_EXAMPLES: dict[str, list[str]] = {
         "cannot be negative",
         "the maximal fan speed is 3000 rpm",
         "will not exceed 3 times the usual level",
+        "the fan turns at a maximum speed of 3000 rpm",
     ],
     "override": [
         "the plant is offline for scheduled maintenance",
         "output reduced to 120 while the line is partially shut down",
         "production drops to zero during the strike",
         "4 times the number of usual withdrawals",
+        "10.0% of the usual traffic",
         "it rapidly and smoothly changes to 1593.0",
         "(2022-03-23 00:00:00, 0)",
+        "0.2 from 05:34:29 until 05:34:46",
+        "takes a value of 0.2051 from 2028-04-23 to 2028-05-05",
+        "no withdrawals during that period",
     ],
 }
 

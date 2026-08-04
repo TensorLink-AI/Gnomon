@@ -191,11 +191,25 @@ _NEGATED_MAX_PATTERNS = [
 #: never estimates it.
 _BASELINE = r"(?:usual|normal|typical|average|baseline)"
 
-#: "<N> times the (number of) usual <thing>" — captures the multiplier.
-_TIMES_BASELINE = (
-    rf"({_N}){_AFTER_NUMBER}\s*(?:times|x|×)\s+"
-    rf"(?:the\s+|its\s+|their\s+)?(?:\w+[\s-]+){{0,4}}?{_BASELINE}\b"
+#: A stated multiple or percentage of a baseline: "<N> times the (number
+#: of) usual <thing>", "<N>% of the usual <thing>". Exactly one of the
+#: named groups matches; ``_scale_from`` turns either into a multiplier
+#: (percent divides by 100). Percent is admissible here — unlike the
+#: bare "90% of capacity" the number guard refuses — because the base is
+#: stated: it is the usual level, which admission resolves
+#: deterministically.
+_SCALED_BASELINE = (
+    rf"(?:(?P<times>{_N}){_AFTER_NUMBER}\s*(?:times|x|×)\s+|"
+    rf"(?P<pct>{_N})\s*(?:%|percent\b|pct\b)\s+of\s+)"
+    rf"(?:the\s+|its\s+|their\s+)?(?:[\w-]+\s+){{0,4}}?{_BASELINE}\b"
 )
+
+
+def _scale_from(match: re.Match) -> float:
+    groups = match.groupdict()
+    if groups.get("pct") is not None:
+        return _to_float(groups["pct"]) / 100.0
+    return _to_float(groups["times"])
 
 #: Directional multiples-of-baseline. These must be matched BEFORE the
 #: absolute patterns: "will not exceed 3 times the usual level" contains
@@ -204,15 +218,15 @@ _TIMES_BASELINE = (
 #: baseline. Region consumption makes the order load-bearing.
 _MAX_SCALE_PATTERNS = [
     rf"{_NEGATION}\s+(?:\w+\s+){{0,2}}(?:exceed(?:s|ing)?|surpass(?:es|ing)?|"
-    rf"(?:more|greater|higher|larger)\s+than)\s+{_TIMES_BASELINE}",
-    rf"(?:at\s+most|no\s+more\s+than|up\s+to|as\s+(?:high|much)\s+as)\s+{_TIMES_BASELINE}",
-    rf"(?:stays?|stay(?:ing)?|remains?|remain(?:ing)?|kept?|keeps?)\s+(?:below|under)\s+{_TIMES_BASELINE}",
+    rf"(?:more|greater|higher|larger)\s+than)\s+{_SCALED_BASELINE}",
+    rf"(?:at\s+most|no\s+more\s+than|up\s+to|as\s+(?:high|much)\s+as)\s+{_SCALED_BASELINE}",
+    rf"(?:stays?|stay(?:ing)?|remains?|remain(?:ing)?|kept?|keeps?)\s+(?:below|under)\s+{_SCALED_BASELINE}",
 ]
 
 _MIN_SCALE_PATTERNS = [
-    rf"{_NEGATION}\s+(?:\w+\s+){{0,2}}(?:below|(?:less|lower|smaller|fewer)\s+than)\s+{_TIMES_BASELINE}",
-    rf"(?:at\s+least|no\s+less\s+than)\s+{_TIMES_BASELINE}",
-    rf"(?:stays?|stay(?:ing)?|remains?|remain(?:ing)?)\s+above\s+{_TIMES_BASELINE}",
+    rf"{_NEGATION}\s+(?:\w+\s+){{0,2}}(?:below|(?:less|lower|smaller|fewer)\s+than)\s+{_SCALED_BASELINE}",
+    rf"(?:at\s+least|no\s+less\s+than)\s+{_SCALED_BASELINE}",
+    rf"(?:stays?|stay(?:ing)?|remains?|remain(?:ing)?)\s+above\s+{_SCALED_BASELINE}",
 ]
 
 _MAX_PATTERNS = [
@@ -228,7 +242,9 @@ _MAX_PATTERNS = [
     rf"(?<!drop\s)(?<!drops\s)(?<!fall\s)(?<!falls\s)(?<!dip\s)(?<!dips\s)"
     rf"(?<!go\s)(?<!goes\s)(?<!went\s)(?<!sink\s)(?<!sinks\s)(?<!not\s)"
     rf"(?:below|under|less\s+than)\s+({_N}){_AFTER_NUMBER}",
-    rf"(?:capped?\s+at|cap\s+of|ceiling\s+of|a?\s*maximum\s+(?:value\s+)?of|max(?:imum)?\s+of)\s+({_N}){_AFTER_NUMBER}",
+    # "a maximum speed of 3000 rpm" — up to three words may name the
+    # bounded quantity between the superlative and "of".
+    rf"(?:capped?\s+at|cap\s+of|ceiling\s+of|a?\s*max(?:imum|imal)?\s+(?:[\w-]+\s+){{0,3}}?of)\s+({_N}){_AFTER_NUMBER}",
     # Attributive: "the maximal fan speed is 3000 rpm". The superlative
     # names the bounded quantity and the copula states the number; a
     # trailing unit is fine (the number guard only refuses percent and
@@ -251,7 +267,7 @@ _MIN_PATTERNS = [
     rf"(?<!jump\s)(?<!jumps\s)(?<!spike\s)(?<!spikes\s)"
     rf"(?<!go\s)(?<!goes\s)(?<!went\s)(?<!not\s)"
     rf"(?:above|over|more\s+than|greater\s+than)\s+({_N}){_AFTER_NUMBER}",
-    rf"(?:a?\s*minimum\s+(?:value\s+)?of|min(?:imum)?\s+of|floor\s+of)\s+({_N}){_AFTER_NUMBER}",
+    rf"(?:a?\s*min(?:imum|imal)?\s+(?:[\w-]+\s+){{0,3}}?of|floor\s+of)\s+({_N}){_AFTER_NUMBER}",
     # Attributive: "the minimal operating pressure is 12 Pa".
     rf"(?:minimal|minimum|min|lowest(?:\s+possible)?)\s+"
     rf"(?:[\w-]+\s+){{0,4}}?(?:is|are|will\s+be|=|:)\s*({_N}){_AFTER_NUMBER}",
@@ -325,11 +341,11 @@ def parse_bound_span(span: str) -> tuple[ParsedBound | None, str | None]:
     if maximum is None:
         scale_match = first_match(_MAX_SCALE_PATTERNS)
         if scale_match:
-            maximum_scale = _to_float(scale_match.group(1))
+            maximum_scale = _scale_from(scale_match)
     if minimum is None:
         scale_match = first_match(_MIN_SCALE_PATTERNS)
         if scale_match:
-            minimum_scale = _to_float(scale_match.group(1))
+            minimum_scale = _scale_from(scale_match)
     negated_min = first_match(_NEGATED_MIN_PATTERNS) if minimum is None else None
     if negated_min:
         minimum = _to_float(negated_min.group(1))
@@ -371,7 +387,14 @@ def parse_bound_span(span: str) -> tuple[ParsedBound | None, str | None]:
 _ZERO_STATES = re.compile(
     r"\b(?:offline|closed|closes|closing|shut\s*down|shuts\s*down|halted|"
     r"halts|halt|stopped|stops|suspended|suspends|out\s+of\s+service|"
-    r"no\s+(?:production|output|traffic|flow|generation)|zero)\b",
+    # "no <activity>" states a count of zero. Still a curated noun list,
+    # never a bare "no \w+": "no change" or "no increase" state that the
+    # level is unchanged, which is not a value of 0. The 2026-08 census
+    # caught "no withdrawals" slipping through the shorter list.
+    r"no\s+(?:production|output|traffic|flow|generation|withdrawals?|"
+    r"transactions?|sales|arrivals?|departures?|rides?|trips?|requests?|"
+    r"visitors?|customers?|passengers?|calls?|orders?|deliveries|"
+    r"operations?|activity|usage|demand|consumption)|zero)\b",
     re.IGNORECASE,
 )
 
@@ -398,6 +421,18 @@ _OVERRIDE_VALUE_PATTERNS = [
     # A quoted (timestamp, value) pair — contexts state future points
     # verbatim as tuples; the trailing number is the stated value.
     rf"\(\s*\d{{4}}-\d{{2}}-\d{{2}}[^,()]*,\s*({_N}){_AFTER_NUMBER}\s*\)",
+    # "takes a value of 0.2051 from 2028-04-23 to 2028-05-05" — the
+    # covariate-narration voice. The parser only vouches that the span
+    # states the number; whether the event points at the right series
+    # is the proposer's entity_scope, as with every other pattern.
+    rf"(?:takes?|taking|assumes?|assuming)\s+(?:on\s+)?(?:a\s+|the\s+)?"
+    rf"(?:constant\s+)?value\s+of\s+({_N}){_AFTER_NUMBER}",
+    # A bare value with a stated window: "0.2 from 05:34:29 until
+    # 05:34:46". The window rides on the event's effective dates; only
+    # the level is read here. "by 5 from Monday" is a delta, not a
+    # level, and the lookbehind keeps it out.
+    rf"(?<!by\s)({_N}){_AFTER_NUMBER}\s+(?:from|between|starting\s+at)\s+"
+    rf"(?:\d{{4}}-\d{{2}}-\d{{2}}|\d{{1,2}}:\d{{2}})",
 ]
 
 
@@ -437,18 +472,21 @@ def parse_override_scale(span: str) -> tuple[float | None, str | None]:
     """Extract a stated multiple-of-baseline level for an override window.
 
     "4 times the number of usual withdrawals" states a level as a
-    multiple: the multiplier is the span's number; the baseline it
-    scales is resolved deterministically at admission (the recent-window
-    median) and the arithmetic is disclosed. A model still never
-    supplies a number that is applied.
+    multiple; "10.0% of the usual traffic" states the same thing in
+    percent notation (the base is stated — it is the usual level — so
+    the bare-percent refusal does not apply). Either way the multiplier
+    is the span's number; the baseline it scales is resolved
+    deterministically at admission (the recent-window median) and the
+    arithmetic is disclosed. A model still never supplies a number that
+    is applied.
     """
     text = " ".join(str(span).split())
-    match = re.search(_TIMES_BASELINE, text, re.IGNORECASE)
+    match = re.search(_SCALED_BASELINE, text, re.IGNORECASE)
     if match:
-        return _to_float(match.group(1)), None
+        return _scale_from(match), None
     return None, (
-        "the source span does not state a multiple of a usual/normal/"
-        "typical level"
+        "the source span does not state a multiple or percentage of a "
+        "usual/normal/typical level"
     )
 
 
