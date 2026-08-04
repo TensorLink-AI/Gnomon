@@ -213,6 +213,18 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
     events = None
     if arguments.get("context_events_file"):
         events = load_events_file(arguments["context_events_file"])
+    config = None
+    if arguments.get("future_events") or arguments.get("structural_events"):
+        # MCP tool calls do not read gnomon.yaml — deliberately, for every
+        # setting — so the admission lanes must be reachable as explicit
+        # per-call parameters or they are unreachable from the agent
+        # surface entirely (the same gap best_effort had).
+        from .config import GnomonConfig
+
+        config = GnomonConfig()
+        config.context.future_events = bool(arguments.get("future_events"))
+        config.context.structural_events = bool(
+            arguments.get("structural_events"))
     covariates = None
     if arguments.get("covariates_file"):
         from .covariates import load_covariates
@@ -239,6 +251,7 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
         repair=arguments.get("repair", "safe"),
         candidates=arguments.get("candidates"),
         best_effort=bool(arguments.get("best_effort", False)),
+        config=config,
     )
     payload = (brief_summary(artifact, path)
                if arguments.get("format") == "brief"
@@ -483,6 +496,24 @@ TOOLS: list[dict[str, Any]] = [
                     "disclosed as support `best_effort` with a NO RELIABLE "
                     "FORECAST warning and a descriptive, never predictive, "
                     "lineage claim. Never changes a supported forecast."
+                )},
+                "future_events": {"type": "boolean", "description": (
+                    "Admit future-dated constraint:/override: context "
+                    "events from context_events_file by textual "
+                    "verifiability (default false). Spans are re-parsed "
+                    "deterministically; an influenced forecast reports "
+                    "support `context_trusted` and carries a history-only "
+                    "counterfactual in evidence. Dry-run admission first "
+                    "with gnomon_preflight_context."
+                )},
+                "structural_events": {"type": "boolean", "description": (
+                    "Additionally admit LLM-classified structural: events "
+                    "(closed effect menu, v1: trend_ceases) from "
+                    "context_events_file (default false). The proposer "
+                    "classifies; every applied quantity is derived from "
+                    "the forecast's own emitted path — no model-supplied "
+                    "numbers. Experimental: "
+                    "results/structural-effects/HYPOTHESIS.md."
                 )},
             },
             "required": ["input", "time_column", "target_column", "horizon"],

@@ -213,3 +213,40 @@ def test_preflight_is_reachable_from_the_cli(tmp_path: Path, capsys):
     assert printed["status"] == "ok"
     assert {entry["outcome"] for entry in printed["series"][0]["events"]} == \
         {"would_influence", "rejected", "ablation_gated"}
+
+
+def test_admission_lanes_are_reachable_from_the_mcp_tool(tmp_path: Path, ):
+    """MCP tool calls do not read gnomon.yaml, so the admission lanes must
+    be per-call parameters or they are unreachable from the primary agent
+    surface — the same gap best_effort had."""
+    from gnomon.context import event_to_dict
+    from gnomon.toolspec import runner_for, visible_tools
+
+    source = tmp_path / "series.csv"
+    _write_csv(source)
+    events_file = tmp_path / "events.json"
+    events_file.write_text(json.dumps({
+        "schema_version": "0.1",
+        "events": [event_to_dict(_event(
+            "c1", "constraint:cap",
+            {"source_span": "the value will not exceed 150"}))],
+    }))
+    runner = runner_for("gnomon_forecast")
+    arguments = {
+        "input": str(source), "time_column": "timestamp",
+        "target_column": "value", "horizon": 7,
+        "context_events_file": str(events_file),
+    }
+    without = runner({**arguments, "output_dir": str(tmp_path / "a")})
+    assert without["results"][0]["support"] != "context_trusted"
+    with_lane = runner({**arguments, "output_dir": str(tmp_path / "b"),
+                        "future_events": True})
+    result = with_lane["results"][0]
+    assert result["support"] == "context_trusted"
+    # the newly admitted bound binds the emitted numbers
+    assert all(row["q90"] <= 150.0 + 1e-9
+               for row in result["forecast_preview"])
+    spec = next(tool for tool in visible_tools()
+                if tool["name"] == "gnomon_forecast")
+    assert "future_events" in spec["inputSchema"]["properties"]
+    assert "structural_events" in spec["inputSchema"]["properties"]
