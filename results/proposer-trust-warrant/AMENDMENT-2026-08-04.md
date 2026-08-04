@@ -60,6 +60,30 @@ The amended rule is strictly no easier than the original pair: it
 keeps the harder of the two original tests and narrows what counts
 toward it.
 
+## Clarification (registered same day, before any task-38+ record was read)
+
+Adjudicating the prefix's 15 `non_numeric_claim` spans surfaced a
+borderline case the exclusion's wording does not settle: *"the sensor
+was repaired and this additive trend will disappear"* — no negation
+word, but arguably an absence claim. The operative test is hereby
+fixed, and it is not the phrasing:
+
+> **An instance is excluded iff a history-only forecast already
+> embodies the claim.** "Assume no future maintenance" is excluded
+> because the default forecast, seeing no maintenance effect in
+> history, already behaves as if it is true. "This additive trend will
+> disappear" is **genuine** because the trend is in the observed
+> history and the default forecast will extrapolate it — the claim
+> contradicts the default rather than restating it.
+
+By this test the prefix yields **1 genuine instance of 40 required**.
+Ruled toward counting, not away from it. A separate observation for
+the closing analysis, which must not affect the count: claims of this
+structural-cessation shape are textually verifiable statements of a
+definite effect, so even a reopening driven by them may argue for a
+structural-effect verb in the existing lane rather than for proposer
+trust — but that question is only reachable if the count reaches 40.
+
 ## What this amendment may not do
 
 It may not be revised again after the extended-grid data is read. If
