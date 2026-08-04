@@ -55,6 +55,8 @@ ACCEPTED_SPAN_EXAMPLES: dict[str, list[str]] = {
         "output reduced to 120 while the line is partially shut down",
         "production drops to zero during the strike",
         "4 times the number of usual withdrawals",
+        "it rapidly and smoothly changes to 1593.0",
+        "(2022-03-23 00:00:00, 0)",
     ],
 }
 

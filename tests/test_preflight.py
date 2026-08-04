@@ -125,6 +125,18 @@ def test_every_grammar_example_actually_parses():
         assert value is not None or scale is not None, (span, problem)
 
 
+def test_census_sensor_shapes_state_their_values():
+    """The two sensor-family shapes from the 2026-08 census: a narrated
+    level change and a quoted (timestamp, value) tuple. Both state the
+    number verbatim; the parser must read exactly it."""
+    assert parse_override_span(
+        "At 05:27:09, it rapidly and smoothly changes to 1593.0")[0] == 1593.0
+    assert parse_override_span("(2022-03-23 00:00:00, 0)")[0] == 0.0
+    # a clock time after the movement verb is not a level
+    value, _ = parse_override_span("it changes to 5:30 pm operation")
+    assert value != 5.0
+
+
 def test_preflight_is_reachable_from_the_mcp_tool(tmp_path: Path):
     from gnomon.context import event_to_dict
     from gnomon.toolspec import runner_for, visible_tools

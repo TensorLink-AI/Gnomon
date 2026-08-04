@@ -31,10 +31,20 @@ spans that **do state a number, in a shape the parser cannot read**:
 - "3 times the usual electricity" — same
 - "The maximal fan speed is 3000 rpm" — an attributive bound
 - "the maximal pressure is 37.5 Pa" — same
+- "it rapidly and smoothly changes to 1593.0" — a narrated level change
+- "(2022-03-23 00:00:00, 0)" — a quoted (timestamp, value) pair
 
 Nobody needs to be trusted for these; the number is in the text. The
-roadmap is therefore a **grammar fix** (multiples-of-baseline and
-attributive bounds), not a new warrant.
+roadmap is therefore a **grammar fix** (multiples-of-baseline,
+attributive bounds, narrated level changes, quoted point tuples), not a
+new warrant.
+
+The 11 `non_numeric_claim` spans undercut the hypothesis further: every
+one is an "assume that X will **not** happen" statement (no maintenance,
+no glitch) — the absence of an intervention, which a history-only
+forecast already assumes and no warrant of any kind is needed for. The
+count of genuine directional claims ("demand will be higher") on the
+measured grid is zero.
 
 ## Status
 

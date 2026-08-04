@@ -389,6 +389,15 @@ _OVERRIDE_VALUE_PATTERNS = [
     # correctly means the value is 0 inside the stated window.
     rf"(?:closes?|closing|stops?|stopping|halts?|halting|settles?|settling|"
     rf"holds?|holding)\s+at\s+({_N}){_AFTER_NUMBER}",
+    # A stated level change: "it rapidly and smoothly changes to 1593.0".
+    # The sensor task families narrate interventions in exactly this
+    # voice; the number after the movement verb is the stated new level.
+    rf"(?:changes?|changing|shifts?|shifting|switches?|switching|jumps?|"
+    rf"jumping|moves?|moving|rises?|rising|climbs?|climbing)\s+to\s+"
+    rf"({_N}){_AFTER_NUMBER}",
+    # A quoted (timestamp, value) pair — contexts state future points
+    # verbatim as tuples; the trailing number is the stated value.
+    rf"\(\s*\d{{4}}-\d{{2}}-\d{{2}}[^,()]*,\s*({_N}){_AFTER_NUMBER}\s*\)",
 ]
 
 
