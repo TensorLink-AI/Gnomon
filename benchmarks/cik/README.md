@@ -55,14 +55,23 @@ Ours (this directory):
 | `gnomon-agent` | proposes typed context events only | Gnomon |
 | `gnomon-router` | chooses per task: Gnomon or itself | whichever it chose |
 
-`gnomon-router` measures the realistic deployment posture — Gnomon as a
-tool the agent may call or skip — where the other arms measure mandatory
-use and no use. The model routes each task before forecasting, falls
-back to answering directly when Gnomon abstains (reading the support
-signal), and the decision, rationale, and any fallback are recorded in
-each run's `extra_info`. A routed win is evidence about the *tool-using
-agent*, never about Gnomon's own forecasting quality on its own — the
-win can come entirely from knowing when not to call.
+`gnomon-router` approximates the deployment posture where Gnomon is
+optional, but be precise about what it is: **prose-routed dispatch, not
+tool calling**. The model answers one plain-text classification
+question ("gnomon or direct?"), Python branches on a regex of the
+reply, and if the branch went to Gnomon the model additionally quotes
+context sentences — it never sees a tool schema, never sees the
+forecast, and cannot re-call. The decision, rationale, and any
+abstention fallback are recorded in each run's `extra_info`. Before
+spending forecasts on this arm, dry-run the decision with
+`route_survey.py` — a router that picks one arm ~100% of the time is a
+constant, and the arm then measures nothing the agent arm doesn't.
+
+A routed win is evidence about the *routed pipeline*, never about
+Gnomon's own forecasting quality — it can come entirely from knowing
+when not to call. The genuine tool-calling posture (real schemas over
+`gnomon mcp serve`, the model reads results and may re-call, preflight
+as a repair loop) is a different adapter and is specced separately.
 
 `gnomon-agent` additionally accepts `--future-context`, which turns on
 Gnomon's `context.future_events` lane: the proposer may also quote

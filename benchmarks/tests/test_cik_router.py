@@ -134,3 +134,24 @@ def test_cache_name_carries_the_flag_state():
     router = _router(_Client('{"route": "gnomon", "why": "n"}'))
     assert router.cache_name == \
         "RoutedForecaster_mode=agent_model=x-y_future=on"
+
+
+def test_route_survey_tally_flags_a_constant_router():
+    from benchmarks.cik.route_survey import tally
+
+    constant = [{"task": f"T{i}", "seed": 1, "route": "gnomon", "why": "x"}
+                for i in range(20)]
+    summary = tally(constant)
+    assert summary["degenerate"] is True
+    assert summary["dominant_share"] == 1.0
+    assert summary["tasks_with_split_decisions"] == []
+
+    mixed = constant[:10] + [
+        {"task": "T1", "seed": 2, "route": "direct", "why": "weather words"},
+        {"task": "W", "seed": 1, "route": "direct", "why": "qualitative"},
+    ]
+    summary = tally(mixed)
+    assert summary["degenerate"] is False
+    assert summary["routes"] == {"gnomon": 10, "direct": 2}
+    assert "T1" in summary["tasks_with_split_decisions"]
+    assert summary["rationale_samples"]["direct"][0]["why"] == "weather words"

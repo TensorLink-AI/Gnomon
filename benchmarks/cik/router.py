@@ -41,26 +41,37 @@ from benchmarks.cik.gnomon_forecaster import (  # noqa: E402
     build_context_text,
 )
 
+#: Deliberately symmetric: the first version of this prompt described
+#: gnomon in glowing terms and direct in two dismissive clauses, and the
+#: measured result was a constant function — 68 of 68 runs chose gnomon.
+#: A router that always picks one arm is not a router. The prompt now
+#: names the concrete condition under which each choice wins and asks
+#: for a one-sentence analysis of the context before the decision.
 ROUTING_INSTRUCTIONS = """\
-You are about to produce a probabilistic forecast for a time series. You
-have two ways to do it. Choose the one likelier to minimise forecast
-error for THIS task, then answer with a single JSON object.
+You are about to produce a probabilistic forecast for a time series.
+Two methods are available. Decide which will produce the lower forecast
+error for THIS task, then reply with a single JSON object.
 
-(a) "gnomon" — a statistical forecasting engine. You hand it the
-history and may quote context sentences that state numeric bounds,
-levels, multiples of the usual level, or stated cessations of an
-observed trend; it verifies every number deterministically and refuses
-what it cannot verify. Strengths: calibrated intervals, disciplined
-model selection, honest abstention, structurally incapable of leaking
-future data. Weaknesses: context whose meaning is qualitative (weather
-states, unquantified events) cannot influence it.
+"gnomon" — a statistical engine that forecasts from the numeric
+history. Context sentences that STATE NUMBERS (bounds, levels,
+multiples of the usual level, stated trend cessations) can influence
+it, verified deterministically. Context that is qualitative — weather
+states, unquantified events, cause-effect descriptions without numbers
+— has ZERO influence on it, no matter how decisive it is.
 
-(b) "direct" — you write the forecast yourself from the context and
-history. Strengths: free-form reasoning about any context. Weaknesses:
-no calibration machinery, no verification.
+"direct" — you write the forecast yourself from the full context and
+history, with free-form reasoning but no calibration machinery.
 
-Respond with exactly: {"route": "gnomon" or "direct", "why": "<one
-sentence>"}
+Choose "direct" when the qualitative content of the context determines
+the future shape (state changes like clear/cloudy, described regime
+switches, causal explanations that carry the answer without stating
+values). Choose "gnomon" when the future mostly follows the numeric
+history, or when the decisive context states numbers it can verify.
+
+Reply with exactly:
+{"contains": "<one sentence: what the context contains>",
+ "route": "gnomon" or "direct",
+ "why": "<one sentence>"}
 """
 
 _ROUTE_PATTERN = re.compile(r'"route"\s*:\s*"(gnomon|direct)"', re.IGNORECASE)
