@@ -15,6 +15,41 @@ from .context import load_events_file
 from .contracts import ForecastArtifact
 from .runtime import capabilities, forecast, inspect_dataset
 
+#: The inline event channel, shared by every tool that accepts context
+#: events. Complete enough that a model holding only this schema can
+#: construct a valid event — that is the point of it existing.
+_CONTEXT_EVENTS_PROPERTY: dict[str, Any] = {
+    "context_events": {
+        "type": "array",
+        "description": (
+            "Context events supplied inline — the same objects a "
+            "context-events file carries, for callers without a "
+            "filesystem. Concatenated with context_events_file when both "
+            "are given; both channels validate against the same "
+            "contract, loudly. Admission is separate and strict "
+            "(constraint:/override:/structural: events need the "
+            "future_events/structural_events flags and a verbatim "
+            "source_span) — dry-run with gnomon_preflight_context first."
+        ),
+        "items": {
+            "type": "object",
+            "properties": {
+                "event_id": {"type": "string", "description": "Unique id for this event."},
+                "event_type": {"type": "string", "description": "Namespaced type: constraint:<label> (stated bound), override:<label> (stated level/state), structural:<label> (stated cessation, with attributes.effect), or a plain type for the fold-ablation gate."},
+                "entity_scope": {"type": "array", "items": {"type": "string"}, "description": "Series names the event applies to; [\"*\"] for all."},
+                "effective_start": {"type": "string", "description": "ISO-8601 with an explicit timezone offset."},
+                "effective_end": {"type": "string", "description": "ISO-8601 with an explicit offset; must not precede effective_start."},
+                "known_at": {"type": "string", "description": "When the information became knowable; ISO-8601 with an explicit offset."},
+                "attributes": {"type": "object", "description": "Per-class payload: source_span (the sentence, quoted VERBATIM, that states the claim — the only admissible source of numbers), effect (structural menu, e.g. trend_ceases), or claim ({kind: min|max, value: number})."},
+                "source": {"type": "object", "properties": {"type": {"type": "string"}, "reference": {"type": "string"}}, "description": "Where the information came from."},
+                "created_by": {"type": "string", "description": "user | llm | pipeline."},
+            },
+            "required": ["event_id", "event_type", "entity_scope",
+                         "effective_start", "effective_end", "known_at"],
+        },
+    },
+}
+
 _INPUT_PROPERTIES: dict[str, Any] = {
     "input": {"type": "string", "description": "Path to a local CSV, TSV, JSON, JSONL, Parquet, or Excel file of time-series observations, or `store:<dataset>` to read a dataset from the bitemporal store (see gnomon_list_datasets)."},
     "time_column": {"type": "string", "description": "Name of the timestamp column."},
@@ -206,13 +241,37 @@ def _run_validate_covariates(arguments: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def _context_events_from(arguments: dict[str, Any]):
+    """Events from the file channel, the inline channel, or both.
+
+    The inline channel exists because an MCP client holds no
+    filesystem: with a file-only parameter the admission lanes were
+    unreachable from the published tool surface — a model could be
+    told about future_events and still have no way to supply an event.
+    Both channels validate loudly through the same contract check.
+    """
+    from .context import events_from_list
+    from .contracts import GnomonError
+
+    events = None
+    if arguments.get("context_events_file"):
+        events = load_events_file(arguments["context_events_file"])
+    inline = arguments.get("context_events")
+    if inline is not None:
+        if not isinstance(inline, list):
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "context_events must be an array of event objects",
+            )
+        events = (events or []) + events_from_list(inline)
+    return events
+
+
 def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
     target_spec = str(arguments["target_column"])
     if "," in target_spec or target_spec.strip().lower() == "auto":
         return _run_forecast_multi(arguments, target_spec)
-    events = None
-    if arguments.get("context_events_file"):
-        events = load_events_file(arguments["context_events_file"])
+    events = _context_events_from(arguments)
     config = None
     if arguments.get("future_events") or arguments.get("structural_events"):
         # MCP tool calls do not read gnomon.yaml — deliberately, for every
@@ -283,7 +342,8 @@ def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str
         return _run_forecast({**arguments, "target_column": targets[0]})
     unsupported = [
         name for name in (
-            "series_column", "context_events_file", "covariates_file", "project",
+            "series_column", "context_events_file", "context_events",
+            "covariates_file", "project",
         ) if arguments.get(name)
     ]
     if unsupported:
@@ -314,9 +374,16 @@ def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str
 
 
 def _run_preflight_context(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .contracts import GnomonError
     from .preflight import preflight_context_events
 
-    events = load_events_file(arguments["context_events_file"])
+    events = _context_events_from(arguments)
+    if not events:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "Supply events to preflight: context_events (inline array) or "
+            "context_events_file.",
+        )
     return preflight_context_events(
         str(arguments["input"]),
         time_column=arguments["time_column"],
@@ -481,6 +548,7 @@ TOOLS: list[dict[str, Any]] = [
                 "output_dir": {"type": "string", "description": "Directory for the immutable artifact. Defaults to ./gnomon-output relative to the *server's* working directory, which is often inside the user's repository — pass an explicit path when that matters."},
                 "minimum_baseline_improvement": {"type": "number", "minimum": 0, "description": "Minimum relative improvement over the strongest baseline to select a candidate (default 0.02). Must be >= 0; a negative value would let a model that lost the backtest be selected."},
                 "context_events_file": {"type": "string", "description": "Optional validated context-events JSON file (the output of `gnomon context validate`)."},
+                **_CONTEXT_EVENTS_PROPERTY,
                 "threshold": {"type": "number", "description": "Optional decision threshold: the result reports when and how likely the forecast crosses this value."},
                 "project": {"type": "string", "description": "Optional tracking project. When set, register the forecast for realised scoring."},
                 "covariates_file": {"type": "string", "description": "Local CSV containing point-in-time covariate vintages."},
@@ -667,9 +735,10 @@ TOOLS: list[dict[str, Any]] = [
                 **_INPUT_PROPERTIES,
                 "horizon": {"type": "integer", "description": "Future periods the events would apply to, in units of the data frequency."},
                 "context_events_file": {"type": "string", "description": "Context-events JSON file to preflight (the output of `gnomon context validate`, or the same shape)."},
+                **_CONTEXT_EVENTS_PROPERTY,
                 "repair": {"type": "string", "enum": ["off", "safe", "aggressive"], "description": "Messy-data handling, matched to what the forecast will use (default safe)."},
             },
-            "required": ["input", "time_column", "target_column", "horizon", "context_events_file"],
+            "required": ["input", "time_column", "target_column", "horizon"],
         },
         "runner": _run_preflight_context,
     },
@@ -684,11 +753,8 @@ def _parse_as_of(raw: Any):
 
 
 def _run_investigate_change(arguments: dict[str, Any]) -> dict[str, Any]:
-    from .context import load_events_file
     from .macros import investigate_change
-    events = None
-    if arguments.get("context_events_file"):
-        events = load_events_file(arguments["context_events_file"])
+    events = _context_events_from(arguments)
     payload, path = investigate_change(
         arguments["input"],
         time_column=arguments["time_column"],

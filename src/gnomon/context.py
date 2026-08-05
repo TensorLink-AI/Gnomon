@@ -130,13 +130,34 @@ def event_from_dict(raw: dict[str, Any]) -> ContextEvent:
     )
 
 
+def events_from_list(raw_events: list) -> list[ContextEvent]:
+    """Build and structurally validate events from raw dicts, loudly.
+
+    Shared by the file loader and the inline ``context_events`` tool
+    argument: an MCP client holds no filesystem, so the tool surface
+    must accept events directly or the admission lanes are unreachable
+    from it. Any invalid event fails the whole batch; silently dropping
+    a proposed event would hide it from the admission record.
+    """
+    events = [event_from_dict(item) for item in raw_events]
+    problems = {
+        event.event_id or f"index {index}": event_problems
+        for index, event in enumerate(events)
+        if (event_problems := validate_context_event(event))
+    }
+    if problems:
+        raise GnomonError(
+            "INVALID_CONTEXT_EVENT", "One or more context events violate the contract.",
+            {"problems": problems},
+        )
+    return events
+
+
 def load_events_file(path: str) -> list[ContextEvent]:
     """Load and structurally validate a context-events JSON file.
 
     The file format is ``{"schema_version": "0.1", "events": [...]}`` — the
-    exact shape ``gnomon context validate`` emits. Any invalid event fails the
-    whole file loudly; silently dropping a proposed event would hide it from
-    the admission record.
+    exact shape ``gnomon context validate`` emits.
     """
     file = Path(path).expanduser()
     if not file.is_file():
@@ -151,18 +172,7 @@ def load_events_file(path: str) -> list[ContextEvent]:
             "INVALID_CONTEXT_FILE",
             'Context events file must be an object with an "events" array.',
         )
-    events = [event_from_dict(item) for item in raw_events]
-    problems = {
-        event.event_id or f"index {index}": event_problems
-        for index, event in enumerate(events)
-        if (event_problems := validate_context_event(event))
-    }
-    if problems:
-        raise GnomonError(
-            "INVALID_CONTEXT_EVENT", "One or more context events violate the contract.",
-            {"problems": problems},
-        )
-    return events
+    return events_from_list(raw_events)
 
 
 def backtest_admissible(event: ContextEvent) -> bool:

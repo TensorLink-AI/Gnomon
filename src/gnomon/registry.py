@@ -180,6 +180,11 @@ MACROS: dict[str, MacroSpec] = {
                         "Optional validated context-events JSON (output of "
                         "`gnomon context validate`) to rank as concurrent events."
                     )},
+                    "context_events": {"type": "array", "description": (
+                        "The same events supplied inline, for callers "
+                        "without a filesystem; see gnomon_forecast's "
+                        "context_events for the item shape."
+                    ), "items": {"type": "object"}},
                 },
                 "required": ["input", "time_column", "target_column"],
             },

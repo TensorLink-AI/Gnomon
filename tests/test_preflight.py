@@ -250,3 +250,109 @@ def test_admission_lanes_are_reachable_from_the_mcp_tool(tmp_path: Path, ):
                 if tool["name"] == "gnomon_forecast")
     assert "future_events" in spec["inputSchema"]["properties"]
     assert "structural_events" in spec["inputSchema"]["properties"]
+
+
+def _inline_events():
+    from gnomon.context import event_to_dict
+    return [event_to_dict(_event(
+        "c1", "constraint:cap",
+        {"source_span": "the value will not exceed 150"}))]
+
+
+def test_inline_context_events_reach_the_forecast_tool(tmp_path: Path):
+    """An MCP client holds no filesystem. With a file-only parameter the
+    admission lanes were unreachable from the published tool surface —
+    a model could be told about future_events and still have no way to
+    supply an event. The inline channel closes that."""
+    from gnomon.toolspec import runner_for
+
+    source = tmp_path / "series.csv"
+    _write_csv(source)
+    runner = runner_for("gnomon_forecast")
+    payload = runner({
+        "input": str(source), "time_column": "timestamp",
+        "target_column": "value", "horizon": 7,
+        "output_dir": str(tmp_path / "out"),
+        "context_events": _inline_events(),
+        "future_events": True,
+    })
+    result = payload["results"][0]
+    assert result["support"] == "context_trusted"
+    assert all(row["q90"] <= 150.0 + 1e-9
+               for row in result["forecast_preview"])
+
+
+def test_inline_events_reach_the_preflight_tool(tmp_path: Path):
+    from gnomon.toolspec import runner_for
+
+    source = tmp_path / "series.csv"
+    _write_csv(source)
+    payload = runner_for("gnomon_preflight_context")({
+        "input": str(source), "time_column": "timestamp",
+        "target_column": "value", "horizon": 7,
+        "context_events": _inline_events(),
+    })
+    (series,) = payload["series"]
+    assert series["events"][0]["outcome"] == "would_influence"
+
+
+def test_both_channels_concatenate(tmp_path: Path):
+    from gnomon.context import event_to_dict
+    from gnomon.toolspec import runner_for
+
+    source = tmp_path / "series.csv"
+    _write_csv(source)
+    events_file = tmp_path / "events.json"
+    events_file.write_text(json.dumps({
+        "schema_version": "0.1",
+        "events": [event_to_dict(_event(
+            "from-file", "constraint:cap",
+            {"source_span": "values stay between 0 and 340"}))],
+    }))
+    payload = runner_for("gnomon_preflight_context")({
+        "input": str(source), "time_column": "timestamp",
+        "target_column": "value", "horizon": 7,
+        "context_events_file": str(events_file),
+        "context_events": _inline_events(),
+    })
+    (series,) = payload["series"]
+    assert {entry["event_id"] for entry in series["events"]} == \
+        {"from-file", "c1"}
+
+
+def test_invalid_inline_event_fails_loudly_with_problems(tmp_path: Path):
+    import pytest
+
+    from gnomon.contracts import GnomonError
+    from gnomon.toolspec import runner_for
+
+    source = tmp_path / "series.csv"
+    _write_csv(source)
+    bad = [{"event_id": "e1", "event_type": "constraint:cap",
+            "entity_scope": ["*"],
+            "effective_start": "not-a-date",
+            "effective_end": "also-not", "known_at": "nope"}]
+    with pytest.raises(GnomonError) as caught:
+        runner_for("gnomon_preflight_context")({
+            "input": str(source), "time_column": "timestamp",
+            "target_column": "value", "horizon": 7,
+            "context_events": bad,
+        })
+    assert caught.value.code == "INVALID_CONTEXT_EVENT"
+    assert "e1" in caught.value.details["problems"]
+
+
+def test_preflight_without_any_events_says_what_to_supply(tmp_path: Path):
+    import pytest
+
+    from gnomon.contracts import GnomonError
+    from gnomon.toolspec import runner_for
+
+    source = tmp_path / "series.csv"
+    _write_csv(source)
+    with pytest.raises(GnomonError) as caught:
+        runner_for("gnomon_preflight_context")({
+            "input": str(source), "time_column": "timestamp",
+            "target_column": "value", "horizon": 7,
+        })
+    assert "context_events" in caught.value.message
