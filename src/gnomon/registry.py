@@ -139,7 +139,13 @@ class MacroSpec:
 _COMMON_INPUT: dict[str, Any] = {
     "input": {"type": "string", "description": (
         "Path to a local CSV/Parquet file, or store:<dataset> for a dataset "
-        "ingested into the bitemporal store."
+        "ingested into the bitemporal store. Callers without a filesystem "
+        "pass `observations` inline instead."
+    )},
+    "observations": {"type": "array", "items": {"type": "object"}, "description": (
+        "The observations supplied inline, for callers without a "
+        "filesystem: row objects keyed by your column names. "
+        "Mutually exclusive with `input`."
     )},
     "time_column": {"type": "string", "description": "Name of the timestamp column."},
     "target_column": {"type": "string", "description": "Name of the numeric column."},
@@ -186,7 +192,7 @@ MACROS: dict[str, MacroSpec] = {
                         "context_events for the item shape."
                     ), "items": {"type": "object"}},
                 },
-                "required": ["input", "time_column", "target_column"],
+                "required": ["time_column", "target_column"],
             },
         ),
         MacroSpec(
@@ -214,7 +220,7 @@ MACROS: dict[str, MacroSpec] = {
                         "the synthetic grader."
                     )},
                 },
-                "required": ["input", "time_column", "target_column"],
+                "required": ["time_column", "target_column"],
             },
         ),
         MacroSpec(
@@ -259,7 +265,7 @@ MACROS: dict[str, MacroSpec] = {
                         "for realised-outcome scoring (regret, calibration)."
                     )},
                 },
-                "required": ["input", "time_column", "target_column", "horizon", "threshold", "actions"],
+                "required": ["time_column", "target_column", "horizon", "threshold", "actions"],
             },
         ),
         MacroSpec(
@@ -284,7 +290,7 @@ MACROS: dict[str, MacroSpec] = {
                     "miss_cost": {"type": "number", "description": "Cost of a missed exceedance."},
                     "project": {"type": "string", "description": "Optional tracking project to register the underlying forecast in."},
                 },
-                "required": ["input", "time_column", "target_column", "horizon", "threshold"],
+                "required": ["time_column", "target_column", "horizon", "threshold"],
             },
         ),
     ]

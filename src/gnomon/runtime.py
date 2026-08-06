@@ -1031,6 +1031,7 @@ def capabilities() -> dict[str, object]:
             "multivariate_var": True, "strict_abstention": True,
             "best_effort_fallback": True,
             "multi_target_batching": True, "brief_output": True,
+            "inline_data_channels": True,
         },
         "forecast_surface": {
             # Machine-readable notes on the two agent-facing additions, so a
@@ -1054,6 +1055,22 @@ def capabilities() -> dict[str, object]:
                     "support state, warnings, abstention reasons, recovery "
                     "actions, and disclosures verbatim. The on-disk "
                     "artifact is unchanged."
+                ),
+            },
+            "inline_data_channels": {
+                "mcp": (
+                    "observations (rows, replaces input), context_events "
+                    "(concatenates with context_events_file), covariates "
+                    "(rows, excludes covariates_file), actuals (rows, "
+                    "excludes actuals_file)"
+                ),
+                "semantics": (
+                    "Every file parameter on the tool surface has an "
+                    "inline array equivalent, so a caller without a "
+                    "filesystem can reach the whole engine. Both channels "
+                    "of each pair run the identical validation; inline "
+                    "content is fingerprinted for evidence just as files "
+                    "are."
                 ),
             },
         },

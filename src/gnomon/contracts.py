@@ -433,6 +433,9 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
     "EMPTY_COVARIATES": [
         {"action": "check_input", "description": "The covariates file parsed but held no rows."},
     ],
+    "INVALID_COVARIATE_ROW": [
+        {"action": "fix_columns", "description": "Each inline covariate row must be an object keyed by column name; the message names the offending row."},
+    ],
     "INVALID_COVARIATE_TIMESTAMP": [
         {"action": "fix_timestamps", "description": "Both the timestamp and known_at columns must be ISO-8601; details names the offending row."},
     ],

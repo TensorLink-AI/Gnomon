@@ -50,8 +50,47 @@ _CONTEXT_EVENTS_PROPERTY: dict[str, Any] = {
     },
 }
 
+#: The inline covariate channel, shared by every tool that accepts
+#: point-in-time covariates. Mutually exclusive with covariates_file;
+#: covariate_mapping stays required either way.
+_COVARIATES_PROPERTY: dict[str, Any] = {
+    "covariates": {
+        "type": "array",
+        "description": (
+            "Point-in-time covariate vintages supplied inline, for "
+            "callers without a filesystem: row objects with the "
+            "covariate time column (default `timestamp`, when the value "
+            "applies), the known-at column (default `known_at`, when it "
+            "became knowable), and one key per covariate named in "
+            "covariate_mapping. Same validation and admission gate as "
+            "covariates_file; mutually exclusive with it."
+        ),
+        "items": {"type": "object"},
+    },
+}
+
+#: The inline data channel, shared by every tool that reads observations.
+#: The same reason context_events and covariates have one: an MCP client
+#: holds no filesystem, and a path-only `input` makes every data-reading
+#: tool unreachable for it.
+_OBSERVATIONS_PROPERTY: dict[str, Any] = {
+    "observations": {
+        "type": "array",
+        "description": (
+            "The observations supplied inline, for callers without a "
+            "filesystem: an array of row objects keyed by your column "
+            "names (time_column, target_column, and optionally "
+            "series_column), e.g. "
+            '[{"timestamp": "2024-01-01T00:00:00+00:00", "value": 12.5}]. '
+            "Mutually exclusive with `input`."
+        ),
+        "items": {"type": "object"},
+    },
+}
+
 _INPUT_PROPERTIES: dict[str, Any] = {
-    "input": {"type": "string", "description": "Path to a local CSV, TSV, JSON, JSONL, Parquet, or Excel file of time-series observations, or `store:<dataset>` to read a dataset from the bitemporal store (see gnomon_list_datasets)."},
+    "input": {"type": "string", "description": "Path to a local CSV, TSV, JSON, JSONL, Parquet, or Excel file of time-series observations, or `store:<dataset>` to read a dataset from the bitemporal store (see gnomon_list_datasets). Callers without a filesystem pass `observations` inline instead."},
+    **_OBSERVATIONS_PROPERTY,
     "time_column": {"type": "string", "description": "Name of the timestamp column."},
     "target_column": {"type": "string", "description": "Name of the numeric column to forecast."},
     "series_column": {"type": "string", "description": "Optional column identifying independent series."},
@@ -228,16 +267,79 @@ def _run_covariate_guide(arguments: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def _covariates_from(arguments: dict[str, Any]):
+    """The covariate dataset from the file channel or the inline channel.
+
+    Mutually exclusive rather than concatenated (unlike context events):
+    two covariate datasets have no defined merge, and silently preferring
+    one would hide the other from the admission record.
+    """
+    from .contracts import GnomonError
+
+    file_path = arguments.get("covariates_file")
+    inline = arguments.get("covariates")
+    if not file_path and inline is None:
+        if arguments.get("covariate_mapping"):
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "covariate_mapping was given without covariate rows: supply "
+                "covariates (inline array) or covariates_file.",
+            )
+        return None
+    if file_path and inline is not None:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "Provide covariates_file or inline covariates, not both.",
+        )
+    mapping = arguments.get("covariate_mapping")
+    if not mapping:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "covariate_mapping (name:type:future_known entries) is required "
+            "with covariates or covariates_file.",
+        )
+    from .covariates import covariates_from_rows, load_covariates
+
+    kwargs = {
+        "time_column": arguments.get("covariate_time_column", "timestamp"),
+        "known_at_column": arguments.get("covariate_known_at_column", "known_at"),
+        "series_column": arguments.get("covariate_series_column"),
+    }
+    if file_path:
+        return load_covariates(file_path, mapping, **kwargs)
+    if not isinstance(inline, list):
+        raise GnomonError(
+            "INVALID_ARGUMENTS", "covariates must be an array of row objects.",
+        )
+    return covariates_from_rows(inline, mapping, **kwargs)
+
+
 def _run_validate_covariates(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .contracts import GnomonError
     from .covariates import validate_covariate_file
+
+    inline = arguments.get("covariates")
+    if not arguments.get("covariates_file") and inline is None:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "Supply covariates to validate: covariates (inline rows) or "
+            "covariates_file.",
+        )
+    if arguments.get("covariates_file") and inline is not None:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "Provide covariates_file or inline covariates, not both.",
+        )
     return validate_covariate_file(
-        arguments["input"], arguments["covariates_file"], arguments["covariate_mapping"],
+        arguments["input"], arguments.get("covariates_file"),
+        arguments["covariate_mapping"],
         time_column=arguments["time_column"], target_column=arguments["target_column"],
         horizon=int(arguments["horizon"]), series_column=arguments.get("series_column"),
         frequency=arguments.get("frequency"),
         covariate_time_column=arguments.get("covariate_time_column", "timestamp"),
         covariate_known_at_column=arguments.get("covariate_known_at_column", "known_at"),
         covariate_series_column=arguments.get("covariate_series_column"),
+        covariate_rows=inline,
     )
 
 
@@ -284,15 +386,7 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
         config.context.future_events = bool(arguments.get("future_events"))
         config.context.structural_events = bool(
             arguments.get("structural_events"))
-    covariates = None
-    if arguments.get("covariates_file"):
-        from .covariates import load_covariates
-        covariates = load_covariates(
-            arguments["covariates_file"], arguments["covariate_mapping"],
-            time_column=arguments.get("covariate_time_column", "timestamp"),
-            known_at_column=arguments.get("covariate_known_at_column", "known_at"),
-            series_column=arguments.get("covariate_series_column"),
-        )
+    covariates = _covariates_from(arguments)
     artifact, path = forecast(
         arguments["input"],
         time_column=arguments["time_column"],
@@ -343,7 +437,7 @@ def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str
     unsupported = [
         name for name in (
             "series_column", "context_events_file", "context_events",
-            "covariates_file", "project",
+            "covariates_file", "covariates", "project",
         ) if arguments.get(name)
     ]
     if unsupported:
@@ -396,12 +490,77 @@ def _run_preflight_context(arguments: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def _actual_tuples(raw_rows: Any) -> list[tuple]:
+    """Inline actuals rows -> the (series?, timestamp, value) tuples the
+    tracking store scores. Loud on malformed rows: a silently dropped
+    actual would surface as 'nothing was due', which is the exact
+    ambiguity the store's diagnosis machinery exists to prevent."""
+    import math
+
+    from .contracts import GnomonError
+
+    if not isinstance(raw_rows, list) or not raw_rows:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "actuals must be a non-empty array of {timestamp, value, series?} objects.",
+        )
+    tuples: list[tuple] = []
+    for index, row in enumerate(raw_rows, 1):
+        if not isinstance(row, dict) or not row.get("timestamp"):
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                f"actuals[{index}] must be an object with a timestamp.",
+            )
+        try:
+            value = float(row["value"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                f"actuals[{index}].value must be a finite number.",
+            ) from exc
+        if not math.isfinite(value):
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                f"actuals[{index}].value must be a finite number.",
+            )
+        timestamp = str(row["timestamp"])
+        if row.get("series"):
+            tuples.append((str(row["series"]), timestamp, value))
+        else:
+            tuples.append((timestamp, value))
+    return tuples
+
+
 def _run_submit_actuals(arguments: dict[str, Any]) -> dict[str, Any]:
     import csv as csv_module
 
+    from .contracts import GnomonError
     from .tracking import TrackingStore
     store = TrackingStore()
     project = str(arguments["project"])
+    inline = arguments.get("actuals")
+    if inline is not None and arguments.get("actuals_file"):
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "Provide actuals_file or inline actuals, not both.",
+        )
+    if inline is not None:
+        tuples = _actual_tuples(inline)
+        results = store.submit_actuals(project, tuples)
+        if not results:
+            return {
+                "schema_version": "0.1", "status": "ok", "project": project,
+                **store.explain_unscored(
+                    project, [item[-2] for item in tuples]),
+            }
+        return {"schema_version": "0.1", "status": "ok",
+                "scored": len(results),
+                "results": [item.__dict__ for item in results]}
+    if not arguments.get("actuals_file"):
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "Supply actuals to score: actuals (inline array) or actuals_file.",
+        )
     path = str(arguments["actuals_file"])
     time_column = arguments.get("time_column")
     target_column = arguments.get("target_column")
@@ -501,7 +660,7 @@ TOOLS: list[dict[str, Any]] = [
         "inputSchema": {
             "type": "object",
             "properties": {**_INPUT_PROPERTIES, **_REPLAY_PROPERTIES},
-            "required": ["input", "time_column", "target_column"],
+            "required": ["time_column", "target_column"],
         },
         "runner": _run_inspect,
     },
@@ -552,6 +711,7 @@ TOOLS: list[dict[str, Any]] = [
                 "threshold": {"type": "number", "description": "Optional decision threshold: the result reports when and how likely the forecast crosses this value."},
                 "project": {"type": "string", "description": "Optional tracking project. When set, register the forecast for realised scoring."},
                 "covariates_file": {"type": "string", "description": "Local CSV containing point-in-time covariate vintages."},
+                **_COVARIATES_PROPERTY,
                 "covariate_mapping": {"type": "string", "description": "Comma-separated name:type:future_known entries."},
                 "covariate_time_column": {"type": "string", "description": "Valid-at column (default timestamp)."},
                 "covariate_known_at_column": {"type": "string", "description": "Availability timestamp column (default known_at)."},
@@ -584,7 +744,7 @@ TOOLS: list[dict[str, Any]] = [
                     "results/structural-effects/HYPOTHESIS.md."
                 )},
             },
-            "required": ["input", "time_column", "target_column", "horizon"],
+            "required": ["time_column", "target_column", "horizon"],
         },
         "runner": _run_forecast,
     },
@@ -594,7 +754,7 @@ TOOLS: list[dict[str, Any]] = [
         "inputSchema": {"type": "object", "properties": {
             **_INPUT_PROPERTIES,
             "horizon": {"type": "integer"},
-        }, "required": ["input", "time_column", "target_column", "horizon"]},
+        }, "required": ["time_column", "target_column", "horizon"]},
         "runner": _run_covariate_guide,
     },
     {
@@ -604,11 +764,12 @@ TOOLS: list[dict[str, Any]] = [
             **_INPUT_PROPERTIES,
             "horizon": {"type": "integer"},
             "covariates_file": {"type": "string"},
+            **_COVARIATES_PROPERTY,
             "covariate_mapping": {"type": "string"},
             "covariate_time_column": {"type": "string"},
             "covariate_known_at_column": {"type": "string"},
             "covariate_series_column": {"type": "string"},
-        }, "required": ["input", "time_column", "target_column", "horizon", "covariates_file", "covariate_mapping"]},
+        }, "required": ["time_column", "target_column", "horizon", "covariate_mapping"]},
         "runner": _run_validate_covariates,
     },
     {
@@ -620,22 +781,29 @@ TOOLS: list[dict[str, Any]] = [
             "output_dir": {"type": "string"},
             "minimum_baseline_improvement": {"type": "number", "minimum": 0},
             "covariates_file": {"type": "string"},
+            **_COVARIATES_PROPERTY,
             "covariate_mapping": {"type": "string"},
             "covariate_time_column": {"type": "string"},
             "covariate_known_at_column": {"type": "string"},
             "covariate_series_column": {"type": "string"},
-        }, "required": ["input", "time_column", "target_column", "horizon", "covariates_file", "covariate_mapping"]},
+        }, "required": ["time_column", "target_column", "horizon", "covariate_mapping"]},
         "runner": _run_forecast,
     },
     {
         "name": "gnomon_submit_actuals",
         "description": "Score all due forecasts in a project from complete realised actuals. Panel actuals must include series,timestamp,value. A forecast scores only when every period in its horizon has an actual; when nothing scores, the result explains which window was missing rather than returning a bare zero.",
         "inputSchema": {"type": "object", "properties": {
-            "project": {"type": "string"}, "actuals_file": {"type": "string"},
+            "project": {"type": "string"},
+            "actuals_file": {"type": "string", "description": "CSV of realised values. Callers without a filesystem pass `actuals` inline instead."},
+            "actuals": {"type": "array", "items": {"type": "object"}, "description": (
+                "Realised values supplied inline: objects of "
+                "{timestamp, value, series?}. Mutually exclusive with "
+                "actuals_file."
+            )},
             "time_column": {"type": "string", "description": "Timestamp column in the actuals file. Inferred from a conventional name or a two-column layout when omitted."},
             "target_column": {"type": "string", "description": "Realised value column. Inferred when unambiguous."},
             "series_column": {"type": "string", "description": "Series column, required for multi-series projects."},
-        }, "required": ["project", "actuals_file"]},
+        }, "required": ["project"]},
         "runner": _run_submit_actuals,
     },
     {
@@ -687,7 +855,8 @@ TOOLS: list[dict[str, Any]] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "input": {"type": "string", "description": "Path to the CSV to ingest."},
+                "input": {"type": "string", "description": "Path to the CSV to ingest. Callers without a filesystem pass `observations` inline instead."},
+                **_OBSERVATIONS_PROPERTY,
                 "dataset": {"type": "string", "description": "Dataset name; read it back as `store:<dataset>`."},
                 "time_column": {"type": "string", "description": "Valid-time column: when the value applies."},
                 "target_column": {"type": "string", "description": "Numeric value column."},
@@ -696,7 +865,7 @@ TOOLS: list[dict[str, Any]] = [
                 "variable": {"type": "string", "description": "Name to store the measure under (defaults to target_column)."},
                 "store_path": {"type": "string", "description": "Override the temporal-store path."},
             },
-            "required": ["input", "dataset", "time_column", "target_column"],
+            "required": ["dataset", "time_column", "target_column"],
         },
         "runner": _run_ingest,
     },
@@ -738,7 +907,7 @@ TOOLS: list[dict[str, Any]] = [
                 **_CONTEXT_EVENTS_PROPERTY,
                 "repair": {"type": "string", "enum": ["off", "safe", "aggressive"], "description": "Messy-data handling, matched to what the forecast will use (default safe)."},
             },
-            "required": ["input", "time_column", "target_column", "horizon"],
+            "required": ["time_column", "target_column", "horizon"],
         },
         "runner": _run_preflight_context,
     },
@@ -1015,7 +1184,8 @@ TOOLS.extend([
             "narrows the contest but never decides it."
         ),
         "inputSchema": {"type": "object", "properties": {
-            "input": {"type": "string", "description": "Path to a CSV/Parquet file or store:<dataset>."},
+            "input": {"type": "string", "description": "Path to a CSV/Parquet file or store:<dataset>. Callers without a filesystem pass `observations` inline instead."},
+            **_OBSERVATIONS_PROPERTY,
             "time_column": {"type": "string"},
             "target_column": {"type": "string"},
             "series_column": {"type": "string"},
@@ -1027,7 +1197,7 @@ TOOLS.extend([
                 "Tracking project: consults the realised-performance prior and "
                 "records the routing decision for replay."
             )},
-        }, "required": ["input", "time_column", "target_column"]},
+        }, "required": ["time_column", "target_column"]},
         "runner": _run_route,
     },
     {
@@ -1146,8 +1316,68 @@ def visible_tools() -> list[dict[str, Any]]:
     return TOOLS + (PLANNER_TOOLS if planner_enabled() else [])
 
 
+def _materialise_observations(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Turn the inline ``observations`` array into a temp-file ``input``.
+
+    The rows become a CSV in a fresh temp directory and the call
+    proceeds exactly as a file-based one — same loaders, same repair
+    ladder, same fingerprinting — so the inline channel can never
+    develop separate semantics from the file channel.
+    """
+    rows = arguments.get("observations")
+    if rows is None:
+        return arguments
+    from .contracts import GnomonError
+
+    if arguments.get("input"):
+        raise GnomonError(
+            "INVALID_ARGUMENTS", "Provide input or observations, not both.",
+        )
+    if (not isinstance(rows, list) or not rows
+            or not all(isinstance(row, dict) and row for row in rows)):
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "observations must be a non-empty array of row objects keyed "
+            "by column name.",
+        )
+    import csv
+    import tempfile
+    from pathlib import Path
+
+    columns: list[str] = []
+    for row in rows:
+        for key in row:
+            if key not in columns:
+                columns.append(str(key))
+    path = Path(tempfile.mkdtemp(prefix="gnomon-inline-")) / "observations.csv"
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=columns, restval="")
+        writer.writeheader()
+        writer.writerows(rows)
+    passed = {key: value for key, value in arguments.items()
+              if key != "observations"}
+    return {**passed, "input": str(path)}
+
+
 def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
     for tool in visible_tools():
         if tool["name"] == name:
-            return tool["runner"]
+            runner = tool["runner"]
+            takes_data = "observations" in (
+                tool.get("inputSchema", {}).get("properties") or {})
+
+            def wrapped(arguments: dict[str, Any], _runner=runner,
+                        _takes_data=takes_data) -> dict[str, Any]:
+                if _takes_data and not arguments.get("input") \
+                        and arguments.get("observations") is None:
+                    from .contracts import GnomonError
+
+                    raise GnomonError(
+                        "INVALID_ARGUMENTS",
+                        "Supply the data: input (a file path or "
+                        "store:<dataset>) or observations (inline rows).",
+                    )
+                return _runner(_materialise_observations(arguments))
+
+            return wrapped
     return None
