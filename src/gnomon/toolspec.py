@@ -91,8 +91,18 @@ _OBSERVATIONS_PROPERTY: dict[str, Any] = {
 _INPUT_PROPERTIES: dict[str, Any] = {
     "input": {"type": "string", "description": "Path to a local CSV, TSV, JSON, JSONL, Parquet, or Excel file of time-series observations, or `store:<dataset>` to read a dataset from the bitemporal store (see gnomon_list_datasets). Callers without a filesystem pass `observations` inline instead."},
     **_OBSERVATIONS_PROPERTY,
-    "time_column": {"type": "string", "description": "Name of the timestamp column."},
-    "target_column": {"type": "string", "description": "Name of the numeric column to forecast."},
+    "time_column": {"type": "string", "description": (
+        "Name of the timestamp column. Omit to infer: when exactly one "
+        "column parses as timestamps it is chosen and disclosed as an "
+        "assumption; ambiguity fails loudly, naming the candidates. "
+        "Required for store:<dataset> inputs."
+    )},
+    "target_column": {"type": "string", "description": (
+        "Name of the numeric column to forecast. Omit to infer: when "
+        "exactly one non-time column parses as numbers it is chosen and "
+        "disclosed as an assumption; ambiguity fails loudly, naming the "
+        "candidates. Required for store:<dataset> inputs."
+    )},
     "series_column": {"type": "string", "description": "Optional column identifying independent series."},
     "frequency": {
         "type": "string",
@@ -130,6 +140,152 @@ _REPLAY_PROPERTIES: dict[str, Any] = {
 }
 
 FORECAST_PREVIEW_ROWS = 12
+
+#: Tools whose missing time_column/target_column are inferred from the file
+#: when it leaves no choice — the same set of verbs the CLI infers for.
+#: gnomon_ingest is deliberately absent: a write to the store under guessed
+#: columns would persist the guess.
+_SCHEMA_INFERENCE_TOOLS: frozenset[str] = frozenset({
+    "gnomon_inspect", "gnomon_forecast", "gnomon_covariate_guide",
+    "gnomon_validate_covariates", "gnomon_propose_covariates",
+    "gnomon_preflight_context", "gnomon_route",
+    "gnomon_investigate_change", "gnomon_detect_anomalies",
+    "gnomon_decide", "gnomon_monitor",
+})
+
+
+def disclose_assumptions(payload: Any, assumptions: list[str]) -> Any:
+    """Attach caller-level inferences to every result's support assessment.
+
+    An inference the caller is not told about is a guess. These ride in the
+    same `assumptions` list as `known_time_assumed`, so an agent reading the
+    envelope finds them where it already looks. Payloads without a results
+    list carry them at the top level instead.
+    """
+    if not assumptions or not isinstance(payload, dict):
+        return payload
+    results = payload.get("results")
+    if not isinstance(results, list) or not results:
+        return {**payload, "assumptions": assumptions}
+    decorated = []
+    for result in results:
+        if not isinstance(result, dict):
+            decorated.append(result)
+            continue
+        assessment = dict(result.get("support_assessment") or {})
+        assessment["assumptions"] = list(assessment.get("assumptions", [])) + assumptions
+        decorated.append({**result, "support_assessment": assessment})
+    return {**payload, "results": decorated}
+
+
+def _resolve_schema_arguments(
+    arguments: dict[str, Any], tool_name: str,
+) -> tuple[dict[str, Any], list[str]]:
+    """Fill ``time_column``/``target_column`` from the file, or say why not.
+
+    The CLI learned this in v0.4 because a bare missing-argument failure on
+    an obvious two-column file was the most common first-run failure there
+    is; the tool surface had kept the old behaviour. Same rules as the CLI:
+    strict inference (exactly one column qualifies), every inference
+    disclosed as an assumption, ambiguity refused with the candidates named
+    — in tool-parameter vocabulary, not CLI flags."""
+    if arguments.get("time_column") and arguments.get("target_column"):
+        return arguments, []
+    from .contracts import GnomonError
+
+    source = str(arguments.get("input") or "")
+    missing = [name for name in ("time_column", "target_column")
+               if not arguments.get(name)]
+    if source.startswith("store:"):
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "time_column and target_column are required for store:<dataset> "
+            "inputs; a stored dataset has no file header to infer from.",
+            {"input": source, "missing_parameters": missing},
+            repair_options=[{
+                "action": "supply_arguments",
+                "description": "Pass time_column and target_column "
+                               "explicitly; gnomon_list_datasets shows each "
+                               "dataset's variables.",
+                "arguments": missing,
+            }],
+        )
+    from .data import infer_schema_columns
+
+    inferred = infer_schema_columns(source)
+    resolved = dict(arguments)
+    assumptions: list[str] = []
+    for parameter, key, candidates_key in (
+        ("time_column", "time", "time_candidates"),
+        ("target_column", "target", "target_candidates"),
+    ):
+        if resolved.get(parameter):
+            continue
+        chosen = inferred[key]
+        if chosen is None:
+            candidates = list(inferred[candidates_key])
+            repairs: list[dict[str, Any]] = [{
+                "action": "supply_arguments",
+                "description": f"Pass {parameter} explicitly."
+                               + (f" Candidates: {', '.join(candidates)}."
+                                  if candidates else ""),
+                "arguments": [parameter],
+            }]
+            if parameter == "target_column" and tool_name == "gnomon_forecast":
+                repairs.append({
+                    "action": "forecast_all_candidates",
+                    "description": "Or batch every numeric column in one "
+                                   "run: pass target_column \"auto\".",
+                })
+            raise GnomonError(
+                "AMBIGUOUS_SCHEMA",
+                f"{parameter} was not supplied and cannot be inferred: "
+                + (f"{len(candidates)} columns qualify "
+                   f"({', '.join(candidates)})."
+                   if candidates else "no column qualifies.")
+                + f" Pass {parameter} explicitly; every other parameter is "
+                  f"inferred from the file.",
+                {"parameter": parameter, "candidates": candidates,
+                 "columns_examined": list(inferred["time_candidates"])
+                 + list(inferred["target_candidates"])},
+                repair_options=repairs,
+            )
+        resolved[parameter] = chosen
+        assumptions.append(
+            f"{parameter} was not supplied; inferred as {chosen!r}, the only "
+            f"column in the input that qualifies."
+        )
+    return resolved, assumptions
+
+
+def _default_forecast_horizon(arguments: dict[str, Any]) -> int:
+    """One seasonal period of the input's own grid — the CLI's default."""
+    from .pipeline import load_stage
+    from .temporal import detect_season
+
+    target_spec = str(arguments["target_column"])
+    if "," in target_spec or target_spec.strip().lower() == "auto":
+        # Borrow one concrete column so the loader sees a real name; the
+        # grid and season are shared across a wide file's channels.
+        from .data import resolve_target_spec
+
+        target_spec = resolve_target_spec(
+            str(arguments["input"]), target_spec,
+            time_column=arguments.get("time_column"),
+            series_column=arguments.get("series_column"),
+        )[0]
+    loaded = load_stage(
+        arguments["input"],
+        time_column=arguments["time_column"],
+        target_column=target_spec,
+        series_column=arguments.get("series_column"),
+        frequency=arguments.get("frequency"),
+        as_of=_parse_as_of(arguments.get("as_of")),
+        store_path=arguments.get("store_path"),
+    )
+    longest = max(loaded.groups.values(), key=len, default=[])
+    season, _, _ = detect_season([item.value for item in longest], loaded.frequency)
+    return max(1, int(season))
 
 
 def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
@@ -660,7 +816,7 @@ TOOLS: list[dict[str, Any]] = [
         "inputSchema": {
             "type": "object",
             "properties": {**_INPUT_PROPERTIES, **_REPLAY_PROPERTIES},
-            "required": ["time_column", "target_column"],
+            "required": [],
         },
         "runner": _run_inspect,
     },
@@ -691,9 +847,15 @@ TOOLS: list[dict[str, Any]] = [
                     "evaluated concurrently, one combined artifact with a "
                     "result per column. Each channel's numbers are identical "
                     "to a single-target run; a channel that abstains is "
-                    "disclosed in its own result and never blocks the others."
+                    "disclosed in its own result and never blocks the others. "
+                    "Omit to infer when exactly one non-time column parses "
+                    "as numbers; the inference is disclosed as an assumption."
                 )},
-                "horizon": {"type": "integer", "description": "Future periods to forecast, in units of the data frequency."},
+                "horizon": {"type": "integer", "description": (
+                    "Future periods to forecast, in units of the data "
+                    "frequency. Omit to default to one seasonal period of "
+                    "the inferred grid, disclosed as an assumption."
+                )},
                 "format": {"type": "string", "enum": ["full", "brief"], "description": (
                     "Response verbosity (default full). `brief` returns per "
                     "target the q50 path with one q10-q90 interval, the "
@@ -745,7 +907,7 @@ TOOLS: list[dict[str, Any]] = [
                     "results/structural-effects/HYPOTHESIS.md."
                 )},
             },
-            "required": ["time_column", "target_column", "horizon"],
+            "required": [],
         },
         "runner": _run_forecast,
     },
@@ -755,7 +917,7 @@ TOOLS: list[dict[str, Any]] = [
         "inputSchema": {"type": "object", "properties": {
             **_INPUT_PROPERTIES,
             "horizon": {"type": "integer"},
-        }, "required": ["time_column", "target_column", "horizon"]},
+        }, "required": ["horizon"]},
         "runner": _run_covariate_guide,
     },
     {
@@ -770,7 +932,7 @@ TOOLS: list[dict[str, Any]] = [
             "covariate_time_column": {"type": "string"},
             "covariate_known_at_column": {"type": "string"},
             "covariate_series_column": {"type": "string"},
-        }, "required": ["time_column", "target_column", "horizon", "covariate_mapping"]},
+        }, "required": ["horizon", "covariate_mapping"]},
         "runner": _run_validate_covariates,
     },
     {
@@ -787,7 +949,7 @@ TOOLS: list[dict[str, Any]] = [
             "covariate_time_column": {"type": "string"},
             "covariate_known_at_column": {"type": "string"},
             "covariate_series_column": {"type": "string"},
-        }, "required": ["time_column", "target_column", "horizon", "covariate_mapping"]},
+        }, "required": ["horizon", "covariate_mapping"]},
         "runner": _run_forecast,
     },
     {
@@ -908,7 +1070,7 @@ TOOLS: list[dict[str, Any]] = [
                 **_CONTEXT_EVENTS_PROPERTY,
                 "repair": {"type": "string", "enum": ["off", "safe", "aggressive"], "description": "Messy-data handling, matched to what the forecast will use (default safe)."},
             },
-            "required": ["time_column", "target_column", "horizon"],
+            "required": ["horizon"],
         },
         "runner": _run_preflight_context,
     },
@@ -1198,7 +1360,7 @@ TOOLS.extend([
                 "Tracking project: consults the realised-performance prior and "
                 "records the routing decision for replay."
             )},
-        }, "required": ["time_column", "target_column"]},
+        }, "required": []},
         "runner": _run_route,
     },
     {
@@ -1368,7 +1530,7 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
                 tool.get("inputSchema", {}).get("properties") or {})
 
             def wrapped(arguments: dict[str, Any], _runner=runner,
-                        _takes_data=takes_data) -> dict[str, Any]:
+                        _takes_data=takes_data, _name=name) -> dict[str, Any]:
                 if _takes_data and not arguments.get("input") \
                         and arguments.get("observations") is None:
                     from .contracts import GnomonError
@@ -1378,7 +1540,22 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
                         "Supply the data: input (a file path or "
                         "store:<dataset>) or observations (inline rows).",
                     )
-                return _runner(_materialise_observations(arguments))
+                arguments = _materialise_observations(arguments)
+                assumptions: list[str] = []
+                if _name in _SCHEMA_INFERENCE_TOOLS:
+                    arguments, assumptions = _resolve_schema_arguments(
+                        arguments, _name)
+                if _name == "gnomon_forecast" \
+                        and arguments.get("horizon") is None:
+                    # One season ahead is the smallest horizon that can show
+                    # a seasonal pattern, and it is derivable from the data.
+                    horizon = _default_forecast_horizon(arguments)
+                    arguments = {**arguments, "horizon": horizon}
+                    assumptions.append(
+                        f"horizon was not supplied; defaulted to {horizon}, "
+                        f"one seasonal period of the inferred grid."
+                    )
+                return disclose_assumptions(_runner(arguments), assumptions)
 
             return wrapped
     return None

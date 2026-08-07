@@ -86,7 +86,13 @@ dataset reports `known_time_provenance: partially_assumed`.
 ## Tool surface
 
 Primary macros: `gnomon_forecast`, `gnomon_investigate_change`, `gnomon_decide`,
-`gnomon_monitor`. Support: `gnomon_capabilities`, `gnomon_inspect`,
+`gnomon_monitor`. The data-reading tools infer the way the CLI does:
+`time_column`, `target_column`, and (for forecasts) `horizon` may be
+omitted, are filled only when the file leaves no choice, and every
+inference is disclosed in the result's `support_assessment.assumptions` —
+`{"input": "data.csv"}` is a complete first `gnomon_forecast` call.
+Ambiguity fails loudly with the candidate columns and machine-readable
+repair options; `store:<dataset>` inputs still need the explicit columns. Support: `gnomon_capabilities`, `gnomon_inspect`,
 `gnomon_get_artifact`, `gnomon_explain_run`, `gnomon_preflight_context`
 (dry-run admission for proposed context events, with the accepted span
 grammar in the response), covariate tools, and the tracking lifecycle

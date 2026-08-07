@@ -130,9 +130,37 @@ def test_missing_cli_returns_structured_error_without_raising(monkeypatch) -> No
     assert payload["error"]["code"] == "GNOMON_NOT_INSTALLED"
 
 
-def test_missing_arguments_rejected_before_subprocess() -> None:
-    payload = json.loads(plugin.handle_gnomon_forecast({"input": "x.csv"}))
+def test_missing_input_rejected_before_subprocess() -> None:
+    payload = json.loads(plugin.handle_gnomon_forecast({}))
     assert payload["error"]["code"] == "INVALID_ARGUMENTS"
+    assert "input" in payload["error"]["message"]
+
+
+def test_forecast_omits_flags_for_the_cli_to_infer(monkeypatch) -> None:
+    """A bare input forwards no --time/--target/--horizon: the CLI infers
+    them when the file leaves no choice and discloses each inference."""
+    captured = {}
+
+    def fake_run(cli_args):
+        captured["args"] = cli_args
+        return {"status": "complete"}
+
+    monkeypatch.setattr(plugin.tools, "_run_gnomon", fake_run)
+    plugin.handle_gnomon_forecast({"input": "data.csv"})
+    assert captured["args"][:2] == ["forecast", "data.csv"]
+    for flag in ("--time", "--target", "--horizon"):
+        assert flag not in captured["args"]
+
+
+def test_forecast_infers_schema_end_to_end(tmp_path) -> None:
+    payload = json.loads(plugin.handle_gnomon_forecast({
+        "input": str(REPO_ROOT / "examples" / "daily_requests.csv"),
+        "output_dir": str(tmp_path),
+    }))
+    assert payload["status"] == "complete"
+    assumptions = payload["results"][0]["support_assessment"]["assumptions"]
+    assert any("--time" in item for item in assumptions)
+    assert any("--horizon" in item for item in assumptions)
 
 
 class _FakeStructuredResult:

@@ -708,26 +708,11 @@ def _read_documents(paths: list[str]):
 
 
 def _disclose_assumptions(payload, assumptions: list[str]):
-    """Attach CLI-level inferences to every result's support assessment.
+    """CLI-level inferences ride in the support assessment; one definition,
+    shared with the tool surface, which infers the same way."""
+    from .toolspec import disclose_assumptions
 
-    An inference the caller is not told about is a guess. These ride in the
-    same `assumptions` list as `known_time_assumed`, so an agent reading the
-    envelope finds them where it already looks.
-    """
-    if not assumptions or not isinstance(payload, dict):
-        return payload
-    results = payload.get("results")
-    if not isinstance(results, list) or not results:
-        return {**payload, "assumptions": assumptions}
-    decorated = []
-    for result in results:
-        if not isinstance(result, dict):
-            decorated.append(result)
-            continue
-        assessment = dict(result.get("support_assessment") or {})
-        assessment["assumptions"] = list(assessment.get("assumptions", [])) + assumptions
-        decorated.append({**result, "support_assessment": assessment})
-    return {**payload, "results": decorated}
+    return disclose_assumptions(payload, assumptions)
 
 
 def _default_horizon(args) -> int:

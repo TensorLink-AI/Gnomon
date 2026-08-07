@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+- **The tool surface infers the schema the way the CLI does, additive.**
+  `gnomon forecast data.csv` has worked without flags since v0.4 — exactly
+  one column parses as timestamps, exactly one other as numbers, every
+  inference disclosed — but the MCP tools, the surface the README calls
+  preferred for agents, still hard-required `time_column`, `target_column`,
+  and (for forecasts) `horizon`. Now the same eleven data-reading tools the
+  CLI infers for (`gnomon_inspect`, `gnomon_forecast`, the four verb
+  macros, `gnomon_route`, `gnomon_preflight_context`, and the three
+  covariate tools) accept a bare `input` (or inline `observations`):
+  missing columns are filled only when the file leaves no choice, the
+  inference rides in `support_assessment.assumptions` (or a top-level
+  `assumptions` for payloads without results), and `gnomon_forecast`
+  additionally defaults `horizon` to one seasonal period of the inferred
+  grid, disclosed the same way. Ambiguity still refuses — now with
+  `AMBIGUOUS_SCHEMA` errors that speak tool-parameter names
+  (`target_column`, candidates listed, `target_column: "auto"` offered for
+  forecasts) instead of CLI flags an MCP client cannot pass.
+  `store:<dataset>` inputs still require explicit columns (no header to
+  infer from), and `gnomon_ingest` never infers: a write to the store
+  under guessed columns would persist the guess. Every previously valid
+  call is untouched — this only widens what is accepted — and explicit
+  arguments disclose nothing. The Hermes plugin follows suit: its schema
+  copies drop the same `required` entries and its handlers forward
+  `--time`/`--target`/`--horizon` only when supplied, letting the CLI it
+  wraps do the inferring and disclosing.
+
 - **General frequencies: any whole-second sub-daily step.** The named grid
   is now a set of defaults rather than the boundary. Inference accepts any
   strictly regular series — one unique spacing — at a whole-second step
