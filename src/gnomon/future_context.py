@@ -562,7 +562,8 @@ class FutureContextAssessment:
 
     def record_check(self, event: ContextEvent, event_class: str, code: str,
                      passed: bool, *, detail: str | None = None,
-                     source_span: str | None = None) -> None:
+                     source_span: str | None = None,
+                     data: dict[str, Any] | None = None) -> None:
         entry: dict[str, Any] = {
             "event_id": event.event_id, "event_class": event_class,
             "code": code, "passed": passed,
@@ -576,6 +577,13 @@ class FutureContextAssessment:
             # cannot see which quote to repair — 176 of 220 measured
             # rejections were unclassifiable for exactly this reason.
             entry["source_span"] = source_span
+        if data:
+            # The quantities the check compared, machine-readable. Same
+            # lesson as source_span: a census over 355 runs found 50
+            # window_is_future_only rejections that could not be told
+            # apart (proposer misdating vs boundary artifact vs timezone
+            # reading) because the record kept only prose.
+            entry["data"] = data
         self.checks.append(entry)
         if not passed:
             rejection: dict[str, Any] = {
@@ -584,6 +592,8 @@ class FutureContextAssessment:
             }
             if source_span:
                 rejection["source_span"] = source_span
+            if data:
+                rejection["data"] = data
             self.rejected.append(rejection)
 
     def class_counts(self) -> dict[str, dict[str, int]]:
@@ -683,7 +693,7 @@ def assess_future_events(
                 detail="effective_start/effective_end do not form a window",
             )
             continue
-        start, _ = window
+        start, end = window
 
         # The lane is for the structurally untestable only. A window that
         # touches the observed history could be fold-tested, so it goes to
@@ -692,6 +702,7 @@ def assess_future_events(
         # fallback.
         aligned_start, aligned_last = _align(start, last_observed)
         if aligned_start <= aligned_last:
+            aligned_end, _ = _align(end, last_observed)
             assessment.record_check(
                 event, event_class, "window_is_future_only", False,
                 detail=(
@@ -699,6 +710,17 @@ def assess_future_events(
                     "is fold-testable; it must go through the ablation gate, "
                     "not this lane"
                 ),
+                data={
+                    "effective_start": event.effective_start,
+                    "effective_end": event.effective_end,
+                    "last_observed": last_observed.isoformat(),
+                    "overlap_seconds": (
+                        aligned_last - aligned_start).total_seconds(),
+                    "window_entirely_historical": aligned_end <= aligned_last,
+                    "mixed_timezone_alignment": (
+                        (start.tzinfo is None) != (last_observed.tzinfo is None)
+                    ),
+                },
             )
             continue
 
