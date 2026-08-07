@@ -949,12 +949,15 @@ def capabilities() -> dict[str, object]:
                 "default": "off",
                 "enabled_in_config": structural_events_on,
                 "event_classes": ["structural"],
-                "effects": ["trend_ceases"],
+                "effects": ["trend_ceases", "level_matches_seasonal_high",
+                            "level_matches_seasonal_low"],
                 "admission": (
                     "LLM-classified from a closed effect menu with a "
                     "quoted source span; no numeric parse — the class "
                     "carries no number, and every applied quantity is "
-                    "derived from Gnomon's own emitted path"
+                    "derived from Gnomon's own data (the emitted path "
+                    "for trend_ceases; per-phase envelope quantiles of "
+                    "the observed history for the regime effects)"
                 ),
                 "disclosure": (
                     "same as future_events: support 'context_trusted', "

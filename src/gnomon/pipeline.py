@@ -880,9 +880,11 @@ def _future_context_stage(
                     "constraint bounds project the emitted quantiles onto "
                     "the stated feasible region; override windows take the "
                     "stated value with boundary-widened intervals; "
-                    "structural effects derive every quantity from the "
-                    "emitted path itself (trend_ceases removes the path's "
-                    "own fitted drift). The counterfactual rows are the "
+                    "structural effects derive every quantity from "
+                    "Gnomon's own data (trend_ceases removes the path's "
+                    "own fitted drift; the seasonal-regime effects move "
+                    "covered steps onto the history's per-phase envelope "
+                    "quantiles). The counterfactual rows are the "
                     "forecast as it stood before this lane touched it."
                 ),
             },

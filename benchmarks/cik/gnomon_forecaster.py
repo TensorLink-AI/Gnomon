@@ -121,21 +121,33 @@ is rejected by the engine: applying it would override the wrong series.
 
 STRUCTURAL_EVENT_INSTRUCTIONS = """\
 
-Additionally, when the context STATES that a structural feature of the
-observed series will cease — for example that a repaired sensor's
-spurious trend will stop continuing — you may propose a structural
-event (same JSON object, two extra fields):
+Additionally, when the context STATES a structural fact about the
+series' own behaviour — a cessation, or a dated qualitative state that
+names which part of the observed history the future will resemble —
+you may propose a structural event (same JSON object, two extra
+fields): set "event_type" to "structural:<label>", add "source_span":
+"<the verbatim sentence>", and add "effect" from this exact menu:
 
-- Set "event_type" to "structural:<label>", add "source_span": "<the
-  verbatim sentence stating the cessation>", and add "effect" chosen
-  from this exact menu: "trend_ceases" (the observed drift stops
-  continuing; the engine removes its own forecast's fitted drift — you
-  supply no number, ever). Date it over the forecast window the
-  cessation covers.
+- "trend_ceases" — the observed drift stops continuing (e.g. a
+  repaired sensor's spurious trend). The engine removes its own
+  forecast's fitted drift.
+- "level_matches_seasonal_high" — the context states the series enters
+  its high regime for a dated window (e.g. "the weather will become
+  clear" for solar output, full production resumes). The engine moves
+  covered steps onto the per-phase HIGH envelope of the observed
+  history.
+- "level_matches_seasonal_low" — the stated low regime (e.g. overcast
+  or rain suppressing output, curtailed operation). Per-phase LOW
+  envelope, same construction.
 
-Use a structural event only for stated cessations of something visible
-in the history. A stated bound is a constraint; a stated level is an
-override; "assume nothing unusual happens" needs no event at all.
+You supply no number, ever — the engine computes every applied value
+from its own data. Date the event over exactly the stated window.
+
+Use a structural event only for stated facts about behaviour visible
+in the history. A stated numeric bound is a constraint; a stated
+numeric level is an override; "assume nothing unusual happens" needs
+no event at all; a state the history never exhibited cannot be
+resolved and will be rejected.
 """
 
 

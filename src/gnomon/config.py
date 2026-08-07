@@ -144,10 +144,12 @@ class ContextConfig:
     #: key, and every existing ID is byte-identical.
     future_events: bool = False
     #: Admit LLM-classified structural events (`structural:<label>`,
-    #: v1 menu: trend_ceases) — the model classifies from a closed menu
-    #: and never supplies a number; every applied quantity is derived
-    #: from Gnomon's own emitted path. Same byte-identity guarantee when
-    #: off. Experimental: results/structural-effects/HYPOTHESIS.md.
+    #: menu: trend_ceases, level_matches_seasonal_high/_low) — the model
+    #: classifies from a closed menu and never supplies a number; every
+    #: applied quantity is derived from Gnomon's own data. Same
+    #: byte-identity guarantee when off. Experimental:
+    #: results/structural-effects/HYPOTHESIS.md and
+    #: results/seasonal-regime-effects/HYPOTHESIS.md.
     structural_events: bool = False
 
 

@@ -40,7 +40,7 @@ _CONTEXT_EVENTS_PROPERTY: dict[str, Any] = {
                 "effective_start": {"type": "string", "description": "ISO-8601 with an explicit timezone offset."},
                 "effective_end": {"type": "string", "description": "ISO-8601 with an explicit offset; must not precede effective_start."},
                 "known_at": {"type": "string", "description": "When the information became knowable; ISO-8601 with an explicit offset."},
-                "attributes": {"type": "object", "description": "Per-class payload: source_span (the sentence, quoted VERBATIM, that states the claim — the only admissible source of numbers), effect (structural menu, e.g. trend_ceases), or claim ({kind: min|max, value: number})."},
+                "attributes": {"type": "object", "description": "Per-class payload: source_span (the sentence, quoted VERBATIM, that states the claim — the only admissible source of numbers), effect (structural menu: trend_ceases, level_matches_seasonal_high, level_matches_seasonal_low), or claim ({kind: min|max, value: number})."},
                 "source": {"type": "object", "properties": {"type": {"type": "string"}, "reference": {"type": "string"}}, "description": "Where the information came from."},
                 "created_by": {"type": "string", "description": "user | llm | pipeline."},
             },
@@ -736,7 +736,8 @@ TOOLS: list[dict[str, Any]] = [
                 )},
                 "structural_events": {"type": "boolean", "description": (
                     "Additionally admit LLM-classified structural: events "
-                    "(closed effect menu, v1: trend_ceases) from "
+                    "(closed effect menu: trend_ceases and the "
+                    "seasonal-regime levels) from "
                     "context_events_file (default false). The proposer "
                     "classifies; every applied quantity is derived from "
                     "the forecast's own emitted path — no model-supplied "

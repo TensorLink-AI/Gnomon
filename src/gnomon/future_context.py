@@ -106,7 +106,18 @@ EFFECT_KEY = "effect"
 #: applies is derived from Gnomon's own emitted path. One entry per
 #: measured instance of the class — the menu grows by census evidence,
 #: not by anticipation.
-STRUCTURAL_EFFECTS = ("trend_ceases",)
+STRUCTURAL_EFFECTS = (
+    "trend_ceases",
+    "level_matches_seasonal_high",
+    "level_matches_seasonal_low",
+)
+
+#: The per-phase envelope quantile each regime effect resolves against
+#: the observed history (results/seasonal-regime-effects/HYPOTHESIS.md).
+REGIME_EFFECT_QUANTILES = {
+    "level_matches_seasonal_high": 0.9,
+    "level_matches_seasonal_low": 0.1,
+}
 
 #: Support state for a forecast this lane influenced: trusted text, not
 #: fold proof. Deliberately weaker than every fold-backed state.
@@ -532,6 +543,11 @@ class FutureEvent:
     maximum: float | None = None
     value: float | None = None
     effect: str | None = None
+    #: Regime effects only: the engine-resolved per-future-step target
+    #: levels (per-phase envelope quantiles of the observed history),
+    #: aligned to the forecast grid. Resolved at admission, like scaled
+    #: bounds, so the application stage touches no history.
+    levels: tuple[float, ...] | None = None
 
     def to_public_dict(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -546,6 +562,8 @@ class FutureEvent:
             payload["maximum"] = self.maximum
         elif self.event_class == "structural":
             payload["effect"] = self.effect
+            if self.levels is not None:
+                payload["resolved_levels"] = list(self.levels)
         else:
             payload["value"] = self.value
         return payload
@@ -763,7 +781,10 @@ def assess_future_events(
                 assessment, event, span, window_values, window_timestamps,
             )
         elif event_class == "structural":
-            admitted = _admit_structural(assessment, event, span)
+            admitted = _admit_structural(
+                assessment, event, span, values=values, season=season,
+                future_count=len(future_timestamps),
+            )
         else:
             admitted = _admit_override(assessment, event, span, window_values)
         if admitted is not None:
@@ -1111,10 +1132,31 @@ def _admit_override(
     )
 
 
+def _seasonal_envelope(
+    values: list[float], season: int, probability: float,
+) -> list[float] | None:
+    """Per-phase quantile of the observed history; None when the history
+    cannot support a profile (no season, or fewer than two full cycles).
+    Deliberately no fallback to a global quantile: a profile the history
+    cannot support is not resolved from somewhere else."""
+    from .evaluation import quantile
+
+    if season < 2 or len(values) < 2 * season:
+        return None
+    return [
+        float(quantile(values[phase::season], probability))
+        for phase in range(season)
+    ]
+
+
 def _admit_structural(
     assessment: FutureContextAssessment,
     event: ContextEvent,
     span: str,
+    *,
+    values: list[float],
+    season: int,
+    future_count: int,
 ) -> FutureEvent | None:
     """Admit an LLM-classified structural event from the closed menu.
 
@@ -1138,9 +1180,31 @@ def _admit_structural(
             source_span=span,
         )
         return None
+    levels: tuple[float, ...] | None = None
+    if effect in REGIME_EFFECT_QUANTILES:
+        # Resolved at admission, like scaled bounds: the model named
+        # which part of the history the future resembles; the numbers
+        # are quantiles of the engine's own observed data.
+        profile = _seasonal_envelope(
+            values, season, REGIME_EFFECT_QUANTILES[effect])
+        if profile is None:
+            assessment.record_check(
+                event, "structural", "seasonal_profile_resolvable", False,
+                detail=(
+                    f"a regime effect needs a detected season of at least 2 "
+                    f"and two full observed cycles to resolve the per-phase "
+                    f"envelope (season={season}, observations={len(values)})"
+                ),
+                source_span=span,
+            )
+            return None
+        levels = tuple(
+            profile[(len(values) + step) % season]
+            for step in range(future_count)
+        )
     return FutureEvent(
         event.event_id, "structural", event.effective_start,
-        event.effective_end, span, effect=str(effect),
+        event.effective_end, span, effect=str(effect), levels=levels,
     )
 
 
@@ -1166,17 +1230,25 @@ def _apply_structural(
     rows: list[dict[str, Any]],
     events: list[FutureEvent],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Apply ``trend_ceases``: remove the emitted path's own drift.
+    """Apply the structural menu; every applied number is engine-derived.
 
-    The slope is fitted to the path Gnomon already produced — never to
-    the proposal, never to a model's say-so — and each covered step k
-    has slope × (k − k₀) subtracted from its point and every quantile.
-    A pure location shift: interval widths, quantile ordering, and the
-    point-to-median gap are all untouched. The first covered step keeps
-    its value (the cessation starts there; continuity is preserved),
-    and a path with no drift makes the whole effect a measured no-op.
-    Steps already adjusted by one event are skipped by later ones, so
-    overlapping cessation events cannot remove the drift twice.
+    ``trend_ceases``: the slope is fitted to the path Gnomon already
+    produced — never to the proposal, never to a model's say-so — and
+    each covered step k has slope × (k − k₀) subtracted from its point
+    and every quantile. The first covered step keeps its value
+    (continuity), and a driftless path makes the effect a measured
+    no-op.
+
+    ``level_matches_seasonal_high`` / ``low``: each covered step lands
+    on its phase's envelope level (per-phase q90/q10 of the observed
+    history, resolved at admission). The level *jump* at the window
+    edge is the claimed semantics — a stated regime change, unlike a
+    cessation, is discontinuous by nature.
+
+    Both are pure per-step location shifts: interval widths, quantile
+    ordering, and the point-to-median gap are untouched. Steps already
+    adjusted by one event are skipped by later ones, so overlapping
+    structural events cannot adjust a step twice.
     """
     points = [float(row["point"]) for row in rows]
     slope = _path_slope(points)
@@ -1190,22 +1262,35 @@ def _apply_structural(
             continue
         first = steps[0]
         for index in steps:
-            delta = slope * (index - first)
             row = adjusted[index]
             before = {"point": row.get("point")}
-            row["point"] = float(row["point"]) - delta
-            for _, key in _quantile_keys(row):
-                row[key] = float(row[key]) - delta
-            touched.add(index)
-            applications.append({
+            record: dict[str, Any] = {
                 "event_class": "structural",
                 "event_id": event.event_id,
                 "effect": event.effect,
                 "timestamp": row["timestamp"],
-                "slope_removed": slope,
-                "delta": -delta,
                 "before": before,
-            })
+            }
+            if event.effect in REGIME_EFFECT_QUANTILES:
+                # The covered step lands on its phase's envelope level;
+                # quantiles translate with it, so the interval width is
+                # the engine's own, relocated. Levels were resolved at
+                # admission and are aligned to the forecast grid.
+                if event.levels is None or index >= len(event.levels):
+                    continue
+                delta = float(event.levels[index]) - float(row["point"])
+                record["target_level"] = float(event.levels[index])
+            else:
+                # trend_ceases: remove the emitted path's own drift from
+                # the first covered step onward (continuity preserved).
+                delta = -slope * (index - first)
+                record["slope_removed"] = slope
+            row["point"] = float(row["point"]) + delta
+            for _, key in _quantile_keys(row):
+                row[key] = float(row[key]) + delta
+            touched.add(index)
+            record["delta"] = delta
+            applications.append(record)
             _assert_monotone(row)
     return adjusted, applications
 

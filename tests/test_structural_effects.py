@@ -248,3 +248,94 @@ def test_flag_off_is_byte_identical(tmp_path: Path):
     assert with_events.results[0].future_context is None
     assert not any(item.kind.startswith("future_context")
                    for item in with_events.evidence)
+
+
+# -- seasonal-regime effects (results/seasonal-regime-effects/) --------------
+# HISTORY is 200 + (day % 7): every phase bucket is constant, so the
+# per-phase envelope (any quantile) is exactly 200 + phase, and the first
+# future step is phase 60 % 7 == 4.
+
+EXPECTED_LEVELS = tuple(float(200 + (60 + step) % 7) for step in range(7))
+CLEAR_SPAN = "At the window start, the weather will become clear."
+
+
+def _regime_event(effect="level_matches_seasonal_high", event_id="r1"):
+    return _event(event_id, "structural:regime",
+                  {"source_span": CLEAR_SPAN, "effect": effect})
+
+
+def test_a_regime_event_resolves_the_envelope_at_admission():
+    assessment = assess_future_events(
+        [_regime_event()], "s", HISTORY, TIMESTAMPS, FUTURE, 7)
+    admitted, = assessment.admitted
+    assert admitted.effect == "level_matches_seasonal_high"
+    assert admitted.levels == EXPECTED_LEVELS
+    assert admitted.to_public_dict()["resolved_levels"] == list(EXPECTED_LEVELS)
+
+
+def test_high_and_low_read_different_envelope_quantiles():
+    # Phase buckets alternate 100/110, so the high envelope must sit
+    # strictly above the low one at every step.
+    history = [100.0 + (10.0 if (day // 7) % 2 == 0 else 0.0)
+               for day in range(60)]
+    high, = assess_future_events(
+        [_regime_event("level_matches_seasonal_high")],
+        "s", history, TIMESTAMPS, FUTURE, 7).admitted
+    low, = assess_future_events(
+        [_regime_event("level_matches_seasonal_low")],
+        "s", history, TIMESTAMPS, FUTURE, 7).admitted
+    assert all(h > l for h, l in zip(high.levels, low.levels))
+
+
+def test_an_unresolvable_profile_is_rejected_not_defaulted():
+    # Season 1: no phase structure to resolve.
+    assessment = assess_future_events(
+        [_regime_event()], "s", HISTORY, TIMESTAMPS, FUTURE, 1)
+    assert not assessment.admitted
+    rejection, = assessment.rejected
+    assert rejection["code"] == "seasonal_profile_resolvable"
+
+    # Fewer than two full cycles.
+    assessment = assess_future_events(
+        [_regime_event()], "s", HISTORY[:10], TIMESTAMPS[:10], FUTURE, 7)
+    assert not assessment.admitted
+    assert assessment.rejected[0]["code"] == "seasonal_profile_resolvable"
+
+
+def test_covered_steps_land_on_the_envelope_with_widths_preserved():
+    rows = _rows([300.0 + index for index in range(7)])
+    event = FutureEvent(
+        "r1", "structural",
+        (H_START + timedelta(days=2)).isoformat() + "+00:00",
+        (H_START + timedelta(days=4)).isoformat() + "+00:00",
+        CLEAR_SPAN, effect="level_matches_seasonal_high",
+        levels=EXPECTED_LEVELS,
+    )
+    projected, applications = apply_future_events(rows, [event])
+    for index in (2, 3, 4):
+        row = projected[index]
+        assert row["point"] == EXPECTED_LEVELS[index]
+        assert row["q90"] - row["q10"] == 4.0  # width untouched
+        assert row["q50"] == row["point"]
+    for index in (0, 1, 5, 6):
+        assert projected[index] == rows[index]
+    assert [item["target_level"] for item in applications] \
+        == [EXPECTED_LEVELS[index] for index in (2, 3, 4)]
+    assert all(item["effect"] == "level_matches_seasonal_high"
+               for item in applications)
+
+
+def test_a_step_is_never_adjusted_twice_across_effects():
+    rows = _rows([300.0 + 5.0 * index for index in range(7)])
+    cessation = _structural(end=H_START + timedelta(days=3))
+    regime = FutureEvent(
+        "r1", "structural", H_START.isoformat() + "+00:00",
+        H_END.isoformat() + "+00:00", CLEAR_SPAN,
+        effect="level_matches_seasonal_high", levels=EXPECTED_LEVELS,
+    )
+    projected, applications = apply_future_events(rows, [cessation, regime])
+    # Steps 0-3 belong to the cessation; the regime only gets 4-6.
+    assert [item["event_id"] for item in applications] \
+        == ["s1"] * 4 + ["r1"] * 3
+    for index in (4, 5, 6):
+        assert projected[index]["point"] == EXPECTED_LEVELS[index]

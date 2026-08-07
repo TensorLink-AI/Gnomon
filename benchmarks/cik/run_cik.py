@@ -345,7 +345,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--structural-context", action="store_true",
         help="Additionally enable context.structural_events (requires "
              "--future-context): the proposer may classify stated cessations "
-             "into the closed structural-effect menu (trend_ceases); every "
+             "into the closed structural-effect menu (trend_ceases, "
+             "level_matches_seasonal_high/_low); every "
              "applied quantity is derived from Gnomon's own emitted path. "
              "Experimental: results/structural-effects/HYPOTHESIS.md",
     )
