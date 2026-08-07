@@ -395,3 +395,25 @@ interpreter versions.
   `INVALID_ARGUMENTS` errors gained additive detail fields
   (`suggested_invocation`, `flag_suggestions`) and repair options; no
   existing envelope key changed.
+
+- Tool-surface schema inference, **relaxation** (a widening of what is
+  accepted; every previously valid call is untouched): the eleven
+  data-reading tools the CLI already infers for — `gnomon_inspect`,
+  `gnomon_forecast`, `gnomon_investigate_change`, `gnomon_detect_anomalies`,
+  `gnomon_decide`, `gnomon_monitor`, `gnomon_route`,
+  `gnomon_preflight_context`, `gnomon_covariate_guide`,
+  `gnomon_validate_covariates`, `gnomon_propose_covariates` — no longer
+  list `time_column`/`target_column` in their JSON-Schema `required`, and
+  `gnomon_forecast` no longer requires `horizon`. Omitted values are
+  filled by the CLI's strict inference (exactly one column qualifies, or
+  a refusal naming the candidates), the forecast horizon defaults to one
+  seasonal period, and every inference is disclosed in
+  `support_assessment.assumptions` (or a top-level `assumptions` key on
+  payloads without `results[]` — additive either way). Calls that pass
+  the parameters explicitly produce byte-identical behaviour, and their
+  responses carry no new keys. `store:<dataset>` inputs still require the
+  explicit columns; `gnomon_ingest`'s requirements are unchanged.
+  Refusals for omitted-but-uninferable parameters use the existing
+  `AMBIGUOUS_SCHEMA` / `INVALID_ARGUMENTS` envelope with additive detail
+  fields (`parameter`, `candidates`, `columns_examined`,
+  `missing_parameters`) and repair options phrased as tool parameters.

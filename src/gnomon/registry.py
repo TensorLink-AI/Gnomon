@@ -147,8 +147,18 @@ _COMMON_INPUT: dict[str, Any] = {
         "filesystem: row objects keyed by your column names. "
         "Mutually exclusive with `input`."
     )},
-    "time_column": {"type": "string", "description": "Name of the timestamp column."},
-    "target_column": {"type": "string", "description": "Name of the numeric column."},
+    "time_column": {"type": "string", "description": (
+        "Name of the timestamp column. Omit to infer: when exactly one "
+        "column parses as timestamps it is chosen and disclosed as an "
+        "assumption; ambiguity fails loudly, naming the candidates. "
+        "Required for store:<dataset> inputs."
+    )},
+    "target_column": {"type": "string", "description": (
+        "Name of the numeric column. Omit to infer: when exactly one "
+        "non-time column parses as numbers it is chosen and disclosed as "
+        "an assumption; ambiguity fails loudly, naming the candidates. "
+        "Required for store:<dataset> inputs."
+    )},
     "series_column": {"type": "string", "description": "Optional column identifying independent series."},
     "frequency": {
         "type": "string", "pattern": "^([1-9][0-9]*)?(s|min|h)$|^(D|W|MS)$",
@@ -192,7 +202,7 @@ MACROS: dict[str, MacroSpec] = {
                         "context_events for the item shape."
                     ), "items": {"type": "object"}},
                 },
-                "required": ["time_column", "target_column"],
+                "required": [],
             },
         ),
         MacroSpec(
@@ -220,7 +230,7 @@ MACROS: dict[str, MacroSpec] = {
                         "the synthetic grader."
                     )},
                 },
-                "required": ["time_column", "target_column"],
+                "required": [],
             },
         ),
         MacroSpec(
@@ -265,7 +275,7 @@ MACROS: dict[str, MacroSpec] = {
                         "for realised-outcome scoring (regret, calibration)."
                     )},
                 },
-                "required": ["time_column", "target_column", "horizon", "threshold", "actions"],
+                "required": ["horizon", "threshold", "actions"],
             },
         ),
         MacroSpec(
@@ -290,7 +300,7 @@ MACROS: dict[str, MacroSpec] = {
                     "miss_cost": {"type": "number", "description": "Cost of a missed exceedance."},
                     "project": {"type": "string", "description": "Optional tracking project to register the underlying forecast in."},
                 },
-                "required": ["time_column", "target_column", "horizon", "threshold"],
+                "required": ["horizon", "threshold"],
             },
         ),
     ]
