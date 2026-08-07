@@ -15,11 +15,20 @@ _INPUT_PROPERTIES = {
     },
     "time_column": {
         "type": "string",
-        "description": "Name of the timestamp column.",
+        "description": (
+            "Name of the timestamp column. Omit to let Gnomon infer it when "
+            "exactly one column parses as timestamps; the inference is "
+            "disclosed in the result's assumptions, and ambiguity fails "
+            "loudly with the candidate columns."
+        ),
     },
     "target_column": {
         "type": "string",
-        "description": "Name of the numeric column to forecast.",
+        "description": (
+            "Name of the numeric column to forecast. Omit to let Gnomon "
+            "infer it when exactly one non-time column parses as numbers; "
+            "disclosed and refused the same way as time_column."
+        ),
     },
     "series_column": {
         "type": "string",
@@ -53,7 +62,7 @@ GNOMON_INSPECT_SCHEMA = {
     "parameters": {
         "type": "object",
         "properties": dict(_INPUT_PROPERTIES),
-        "required": ["input", "time_column", "target_column"],
+        "required": ["input"],
     },
 }
 
@@ -75,7 +84,11 @@ GNOMON_FORECAST_SCHEMA = {
             **_INPUT_PROPERTIES,
             "horizon": {
                 "type": "integer",
-                "description": "Number of future periods to forecast, in units of the data frequency.",
+                "description": (
+                    "Number of future periods to forecast, in units of the "
+                    "data frequency. Omit to default to one seasonal period "
+                    "of the inferred grid, disclosed as an assumption."
+                ),
             },
             "output_dir": {
                 "type": "string",
@@ -121,7 +134,7 @@ GNOMON_FORECAST_SCHEMA = {
                 ),
             },
         },
-        "required": ["input", "time_column", "target_column", "horizon"],
+        "required": ["input"],
     },
 }
 
@@ -130,7 +143,7 @@ GNOMON_COVARIATE_GUIDE_SCHEMA = {
     "description": "Return temporal constraints and the point-in-time CSV contract. You decide what to fetch; Gnomon defines how to represent it.",
     "parameters": {"type": "object", "properties": {
         **_INPUT_PROPERTIES, "horizon": {"type": "integer"},
-    }, "required": ["input", "time_column", "target_column", "horizon"]},
+    }, "required": ["input", "horizon"]},
 }
 
 GNOMON_VALIDATE_COVARIATES_SCHEMA = {
@@ -143,7 +156,7 @@ GNOMON_VALIDATE_COVARIATES_SCHEMA = {
         "covariate_time_column": {"type": "string"},
         "covariate_known_at_column": {"type": "string"},
         "covariate_series_column": {"type": "string"},
-    }, "required": ["input", "time_column", "target_column", "horizon", "covariates_file", "covariate_mapping"]},
+    }, "required": ["input", "horizon", "covariates_file", "covariate_mapping"]},
 }
 
 GNOMON_PROPOSE_COVARIATES_SCHEMA = {
@@ -153,8 +166,7 @@ GNOMON_PROPOSE_COVARIATES_SCHEMA = {
     "parameters": {
         **GNOMON_FORECAST_SCHEMA["parameters"],
         "required": [
-            "input", "time_column", "target_column", "horizon",
-            "covariates_file", "covariate_mapping",
+            "input", "horizon", "covariates_file", "covariate_mapping",
         ],
     },
 }
@@ -263,7 +275,7 @@ GNOMON_INVESTIGATE_SCHEMA = {
                 "description": "Directory for the immutable artifact (default ./gnomon-output).",
             },
         },
-        "required": ["input", "time_column", "target_column"],
+        "required": ["input"],
     },
 }
 
@@ -298,7 +310,7 @@ GNOMON_DECIDE_SCHEMA = {
             "as_of": {"type": "string", "description": "Optional ISO instant for historical replay."},
             "output_dir": {"type": "string", "description": "Directory for the immutable artifact (default ./gnomon-output)."},
         },
-        "required": ["input", "time_column", "target_column", "horizon", "threshold", "actions"],
+        "required": ["input", "horizon", "threshold", "actions"],
     },
 }
 
@@ -323,6 +335,6 @@ GNOMON_MONITOR_SCHEMA = {
             "as_of": {"type": "string", "description": "Optional ISO instant for historical replay."},
             "output_dir": {"type": "string", "description": "Directory for the immutable artifact (default ./gnomon-output)."},
         },
-        "required": ["input", "time_column", "target_column", "horizon", "threshold"],
+        "required": ["input", "horizon", "threshold"],
     },
 }

@@ -23,7 +23,10 @@
   infer from), and `gnomon_ingest` never infers: a write to the store
   under guessed columns would persist the guess. Every previously valid
   call is untouched — this only widens what is accepted — and explicit
-  arguments disclose nothing.
+  arguments disclose nothing. The Hermes plugin follows suit: its schema
+  copies drop the same `required` entries and its handlers forward
+  `--time`/`--target`/`--horizon` only when supplied, letting the CLI it
+  wraps do the inferring and disclosing.
 
 - **General frequencies: any whole-second sub-daily step.** The named grid
   is now a set of defaults rather than the boundary. Inference accepts any
