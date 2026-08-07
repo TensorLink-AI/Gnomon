@@ -48,6 +48,7 @@ results/future-context-ab/cik-*
 
 # Same rule for the structural-effects registration.
 !results/structural-effects/
+!results/seasonal-regime-effects/
 
 # And except the news-regime exploration: pre-registration, summaries, and
 # the scripts that regenerate them are versioned; per-task raw outputs are
