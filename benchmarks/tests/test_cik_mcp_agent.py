@@ -215,10 +215,43 @@ def test_submitting_an_unknown_artifact_is_repairable(tmp_path):
 
 
 def test_malformed_quantiles_are_repairable(tmp_path):
+    def recover(messages):
+        payload = _last_tool_payload(messages)
+        assert payload["accepted"] is False
+        # The rejection names the received length, not just the rule.
+        assert "got 2" in payload["message"]
+        return {"tool_calls": [("submit_forecast", {"quantiles": QUANTILES})]}
+
     forecaster = _forecaster(
         [{"tool_calls": [("submit_forecast",
                           {"quantiles": QUANTILES[:2]})]},  # wrong length
-         {"tool_calls": [("submit_forecast", {"quantiles": QUANTILES})]}],
+         recover],
+        tmp_path,
+    )
+    _, extra = forecaster(_task(), 1)
+    assert extra["route"] == "direct"
+
+
+def test_dict_of_arrays_quantiles_rejection_names_the_shape(tmp_path):
+    # The natural wrong shape: parallel per-quantile arrays. The
+    # rejection must say what arrived and show the accepted form, or a
+    # model resends it until the rounds cap becomes an abstention.
+    columnar = {
+        "q10": [row["q10"] for row in QUANTILES],
+        "q50": [row["q50"] for row in QUANTILES],
+        "q90": [row["q90"] for row in QUANTILES],
+    }
+
+    def recover(messages):
+        payload = _last_tool_payload(messages)
+        assert payload["accepted"] is False
+        assert "keys [q10, q50, q90]" in payload["message"]
+        assert "one entry per step" in payload["message"]
+        return {"tool_calls": [("submit_forecast", {"quantiles": QUANTILES})]}
+
+    forecaster = _forecaster(
+        [{"tool_calls": [("submit_forecast", {"quantiles": columnar})]},
+         recover],
         tmp_path,
     )
     _, extra = forecaster(_task(), 1)

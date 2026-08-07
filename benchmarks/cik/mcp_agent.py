@@ -605,9 +605,24 @@ class _Run:
         return rows
 
     def _quantile_problems(self, quantiles: Any) -> str | None:
-        if not isinstance(quantiles, list) or len(quantiles) != self.horizon:
+        # A rejection must name what was received, or the model retries
+        # the same shape until the rounds cap converts it to an
+        # abstention (observed: 10 identical rejections on a dry run).
+        if isinstance(quantiles, dict):
+            keys = ", ".join(sorted(str(key) for key in quantiles))
             return (f"quantiles must be a list of exactly {self.horizon} "
-                    f"objects (one per horizon step)")
+                    f"{{q10, q50, q90}} objects (one per horizon step); got "
+                    f"a single object with keys [{keys}]. Parallel per-"
+                    f"quantile arrays are not accepted — send "
+                    f'[{{"q10": ..., "q50": ..., "q90": ...}}, ...] with '
+                    f"one entry per step.")
+        if not isinstance(quantiles, list):
+            return (f"quantiles must be a list of exactly {self.horizon} "
+                    f"objects (one per horizon step); got "
+                    f"{type(quantiles).__name__}")
+        if len(quantiles) != self.horizon:
+            return (f"quantiles must be a list of exactly {self.horizon} "
+                    f"objects (one per horizon step); got {len(quantiles)}")
         import math
 
         for index, row in enumerate(quantiles):
@@ -616,7 +631,8 @@ class _Run:
             for key in ("q10", "q50", "q90"):
                 value = row.get(key)
                 if not isinstance(value, (int, float)) or not math.isfinite(value):
-                    return f"quantiles[{index}].{key} must be a finite number"
+                    return (f"quantiles[{index}].{key} must be a finite "
+                            f"number; got {value!r:.60}")
         return None
 
     # -- result ------------------------------------------------------------
