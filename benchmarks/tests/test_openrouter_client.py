@@ -161,3 +161,14 @@ def test_full_batch_from_provider_is_not_fanned_out(monkeypatch):
     response = client.chat(MESSAGES, n=3)
     assert len(response.choices) == 3
     assert client.usage_summary["requests"] == 1
+
+
+def test_client_survives_pickling_for_the_worker_pool():
+    # evaluate_all_tasks pickles the baseline to reach its pool; the
+    # accounting lock must not travel with it.
+    import pickle
+
+    client = OpenRouterClient("test/model", api_key="k")
+    clone = pickle.loads(pickle.dumps(client))
+    clone._account({"usage": {"prompt_tokens": 1, "completion_tokens": 2}})
+    assert clone.total_requests == 1

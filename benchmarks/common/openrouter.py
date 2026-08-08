@@ -266,6 +266,19 @@ class OpenRouterClient:
             )
         return texts
 
+    def __getstate__(self) -> dict[str, Any]:
+        # evaluate_all_tasks pickles the baseline (and this client with
+        # it) to reach its worker pool; a lock cannot cross the process
+        # boundary. Each worker gets a fresh lock, which is also
+        # correct: accounting is per-process.
+        state = self.__dict__.copy()
+        del state["_usage_lock"]
+        return state
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        self.__dict__.update(state)
+        self._usage_lock = threading.Lock()
+
     def _account(self, parsed: dict[str, Any]) -> None:
         usage = parsed.get("usage") or {}
         with self._usage_lock:
