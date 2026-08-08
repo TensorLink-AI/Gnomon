@@ -1549,18 +1549,21 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
                         "Supply the data: input (a file path or "
                         "store:<dataset>) or observations (inline rows).",
                     )
-                # Which channels carried caller-typed rows, noted before
-                # materialisation erases the distinction. Inline data is a
-                # first-class channel — validated, fingerprinted, repaired
-                # exactly like a file — but a file at least existed outside
-                # this conversation; rows the model typed did not, and a
-                # reader weighing the numbers is owed that fact.
+                # Which channels carried caller-typed *measurements*, noted
+                # before materialisation erases the distinction. Inline data
+                # is a first-class channel — validated, fingerprinted,
+                # repaired exactly like a file — but a file at least existed
+                # outside this conversation; rows the model typed did not,
+                # and a reader weighing the numbers is owed that fact.
+                # Context events are deliberately absent: they are claims,
+                # not measurements — always caller-authored, whatever the
+                # channel — and their trust story is the source field and
+                # the admission gate, not the file/inline distinction.
                 inline_channels = [
                     label for key, label in (
                         ("observations", "observations"),
                         ("covariates", "covariate vintages"),
                         ("actuals", "actuals"),
-                        ("context_events", "context events"),
                     ) if isinstance(arguments.get(key), list)
                 ]
                 arguments = _materialise_observations(arguments)

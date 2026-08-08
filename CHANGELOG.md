@@ -47,6 +47,16 @@
   `forecast_id` under first-write-wins. A pool restricted via
   `gnomon.yaml` is disclosed identically.
 
+- **Structural event failures are named, not blamed on the source.**
+  `events_excluded` used to report every structurally invalid event as
+  "no verifiable source" — an event rejected for a bad `expected_shape`
+  was told to fix its source. Exclusion reasons now quote the actual
+  contract violations. Relatedly, `parse_mapping` accepts the covariate
+  mapping as a list of entries alongside the documented comma-joined
+  string: an agent handing a JSON array is guessing the unambiguous
+  thing, and the previous behaviour was a raw `AttributeError` with no
+  repair path.
+
 - **Context-event proposers may nominate an effect shape.** The event
   attribute `expected_shape` (`level` | `decay` | `ramp`) narrows the
   ablation's shape contest to the nominated shape — one comparison

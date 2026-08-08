@@ -123,14 +123,20 @@ class CovariateAssessment:
         }
 
 
-def parse_mapping(raw: str) -> tuple[CovariateSpec, ...]:
+def parse_mapping(raw: str | list[str] | tuple[str, ...]) -> tuple[CovariateSpec, ...]:
     """Parse name:type:availability entries.
 
     Availability is mandatory so contemporaneous observations cannot be
     accidentally treated as values known at a historical forecast origin.
+
+    Accepts the comma-separated string the schema documents or a list of
+    entries — an agent handing a JSON array where a joined string was
+    documented is guessing the unambiguous thing, and the answer is the
+    same either way; crashing on the guess was a dead end.
     """
+    items = raw.split(",") if isinstance(raw, str) else [str(item) for item in raw]
     specs: list[CovariateSpec] = []
-    for item in raw.split(","):
+    for item in items:
         parts = [part.strip() for part in item.split(":")]
         if len(parts) != 3:
             raise GnomonError(

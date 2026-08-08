@@ -23,7 +23,12 @@ from datetime import datetime
 from statistics import mean
 from typing import Any
 
-from .context import ContextEvent, backtest_admissible, event_applies
+from .context import (
+    ContextEvent,
+    backtest_admissible,
+    event_applies,
+    validate_context_event,
+)
 from .context_model import EFFECT_SHAPES, event_adjusted
 from .evaluation import (
     Evaluation,
@@ -178,6 +183,16 @@ def eligible_events(
     for event in events:
         if not event_applies(event, series_name):
             excluded.append({"event_id": event.event_id, "reason": "scope does not include this series"})
+        elif problems := validate_context_event(event):
+            # `backtest_admissible` folds structural validity into its
+            # verdict, but reporting every structural failure as "no
+            # verifiable source" misnames the actual problem — an event
+            # rejected for a bad `expected_shape` was told to fix its
+            # source. Name what was measured.
+            excluded.append({
+                "event_id": event.event_id,
+                "reason": "fails the event contract: " + "; ".join(problems),
+            })
         elif not backtest_admissible(event):
             excluded.append({
                 "event_id": event.event_id,

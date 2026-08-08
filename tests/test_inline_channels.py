@@ -298,3 +298,17 @@ def test_file_runs_carry_no_provenance_key(tmp_path):
     assert "provenance" not in artifact["task"]
     assumptions = payload["results"][0]["support_assessment"]["assumptions"]
     assert not any("supplied inline" in item for item in assumptions)
+
+
+def test_covariate_mapping_accepts_the_list_form():
+    """The schema documents a comma-joined string; an agent handing a JSON
+    array is guessing the unambiguous thing. Both parse identically —
+    crashing on the guess was a dead end (raw AttributeError, no repair)."""
+    from gnomon.covariates import parse_mapping
+
+    joined = parse_mapping("load:continuous:future_known,promo:binary:future_known")
+    listed = parse_mapping(["load:continuous:future_known",
+                            "promo:binary:future_known"])
+    assert joined == listed
+    with pytest.raises(GnomonError):
+        parse_mapping(["load:continuous"])  # still the typed error
