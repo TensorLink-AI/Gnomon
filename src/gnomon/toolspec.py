@@ -1210,11 +1210,24 @@ def _run_monitor(arguments: dict[str, Any]) -> dict[str, Any]:
 def _run_get_artifact(arguments: dict[str, Any]) -> dict[str, Any]:
     from pathlib import Path
     from .artifacts import read_artifact
+    from .versioning import RUNTIME_VERSION
     directory = Path(arguments["artifact_path"])
+    artifact = read_artifact(directory)
     payload: dict[str, Any] = {
         "schema_version": "0.1",
-        "artifact": read_artifact(directory),
+        "artifact": artifact,
     }
+    stored = artifact.get("runtime_version")
+    if stored != RUNTIME_VERSION:
+        # The agent is told to quote artifacts verbatim, so an artifact
+        # computed by another build must say so where the quoting happens.
+        payload["runtime_note"] = (
+            f"This artifact was produced by runtime "
+            f"{stored or 'pre-0.5.0 (unstamped)'}; the running build is "
+            f"{RUNTIME_VERSION}. Ids cover the runtime version, so "
+            f"re-running the task will produce a fresh artifact under a "
+            f"new id rather than updating this one."
+        )
     lineage_path = directory / "lineage.json"
     if arguments.get("include_lineage") and lineage_path.is_file():
         import json as _json

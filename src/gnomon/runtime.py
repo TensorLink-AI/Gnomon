@@ -10,6 +10,7 @@ from .artifacts import write_artifact
 from .context import ContextEvent
 from .contracts import DataSchema, Evidence, ForecastArtifact, ForecastTask, SeriesResult
 from .covariates import CovariateDataset
+from .versioning import RUNTIME_VERSION
 from .ids import SYSTEM_CLOCK, Clock, content_id
 from .models import BASELINES, MODELS
 from .pipeline import (
@@ -587,6 +588,7 @@ def forecast(
         "context_events": [event.__dict__ for event in context_events] if context_events else None,
         "covariates": {"source": covariates.fingerprint, "specs": [str(spec) for spec in covariates.specs]} if covariates else None,
         "config": _config_fingerprint(config),
+        "runtime_version": RUNTIME_VERSION,
     }
     if repair != REPAIR_SAFE:
         # The default level is absent from the payload so IDs predating the
@@ -621,6 +623,7 @@ def forecast(
             input_provenance
             or ("store" if input_path.startswith("store:") else None)
         ),
+        runtime_version=RUNTIME_VERSION,
     )
     from .contracts import forecast_task
     from .lineage import build_forecast_lineage
@@ -889,6 +892,7 @@ def forecast_multi(
         "context_events": None,
         "covariates": None,
         "config": _config_fingerprint(config),
+        "runtime_version": RUNTIME_VERSION,
     }
     from .repair import REPAIR_SAFE
     if repair != REPAIR_SAFE:
@@ -913,6 +917,7 @@ def forecast_multi(
             input_provenance
             or ("store" if input_path.startswith("store:") else None)
         ),
+        runtime_version=RUNTIME_VERSION,
     )
     from .contracts import forecast_task
     from .lineage import build_forecast_lineage
@@ -962,7 +967,7 @@ def capabilities() -> dict[str, object]:
         structural_events_on = False
     return {
         "schema_version": "0.1",
-        "runtime_version": "0.5.0",
+        "runtime_version": RUNTIME_VERSION,
         "interfaces": {"cli": True, "python": True, "mcp": True, "http": False},
         "inputs": {
             "csv": True, "tsv": True, "json": True, "jsonl": True,

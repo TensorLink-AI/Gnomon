@@ -346,6 +346,15 @@ Error envelope: `{"schema_version", "status": "error", "error": {"code",
   run no longer shares a `forecast_id` with an open-contest run over the
   same file. Ids of unrestricted runs are unchanged.
 
+- Runtime-versioned ids, id-changing: every artifact id payload (and the
+  planner step cache key) includes `versioning.RUNTIME_VERSION`, so ids
+  change once per release and a stale artifact can never answer for a
+  newer build under first-write-wins. `artifact.json` gains
+  `runtime_version` (additive); `gnomon_get_artifact` gains
+  `runtime_note` when the stored stamp differs from the running build.
+  Stored tracking rows keep their ids. Goldens regenerated (id + field
+  only; float bytes untouched).
+
 - Context shape nomination, additive: events accept
   `attributes.expected_shape` (`level` | `decay` | `ramp`), which narrows
   the ablation's shape contest to the nominated shape; a losing nomination

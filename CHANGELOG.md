@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- **Artifact ids cover the runtime version: a different build is a
+  different answerer.** Every artifact id payload (forecast, and the
+  investigation/decision/monitor/anomaly macros) now includes
+  `versioning.RUNTIME_VERSION`, and the planner's step cache keys it too.
+  Content ids previously named only the question — same file, same task,
+  same id — so after a code fix the stale artifact kept answering under
+  the fixed build's identity: observed live when `decide` served the
+  pre-fix threshold artifact (`P(above 340) = 0.61` on disk, 0.0714 from
+  every fresh run) because first-write-wins kept the old file. Artifacts
+  stay immutable — a new build writes a new id rather than overwriting —
+  and `artifact.json` carries the stamp (`runtime_version`, additive).
+  `gnomon_get_artifact` adds a `runtime_note` when serving an artifact
+  produced by a different or pre-stamp build, since agents are told to
+  quote artifacts verbatim. **Ids change once per release** (this is the
+  point); tracking rows keep their stored ids and are unaffected. Goldens
+  are updated by textual patch — id and new field only — so their
+  3.12-generated float bytes stay byte-exact on CI; `__version__` and
+  `gnomon capabilities` now read the same constant.
+
 - **Every caller-settable parameter is classified, and moving an evidence
   rule now always leaves a trace.** `contracts.PARAMETER_AUTHORITY` tags
   each front-door parameter as *intent* (what the caller wants — free),

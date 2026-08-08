@@ -253,12 +253,18 @@ class ForecastArtifact:
     #: exists only here: the inline channel materialises to a temp file
     #: before the loaders see it, so nothing downstream can recover it.
     input_provenance: str | None = None
+    #: The build that computed these numbers (`versioning.RUNTIME_VERSION`).
+    #: Part of the forecast id's identity, and stamped here so a reader
+    #: can tell which build produced what it is quoting.
+    runtime_version: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
         provenance = payload.pop("input_provenance", None)
         if provenance:
             payload["task"]["provenance"] = provenance
+        if not payload.get("runtime_version"):
+            payload.pop("runtime_version", None)
         for result in payload.get("results", []):
             # Additive keys appear only when they carry something. A run that
             # produced no conditional forecast serialises exactly as it did

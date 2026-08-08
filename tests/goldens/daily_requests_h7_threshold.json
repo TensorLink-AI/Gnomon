@@ -1,6 +1,6 @@
 {
   "schema_version": "0.1",
-  "forecast_id": "forecast_5ed0801532ffd4d2",
+  "forecast_id": "forecast_a15be670ac91d28a",
   "created_at": "2026-07-01T00:00:00+00:00",
   "status": "complete",
   "task": {
@@ -308,5 +308,6 @@
         ]
       }
     }
-  ]
+  ],
+  "runtime_version": "0.5.0"
 }

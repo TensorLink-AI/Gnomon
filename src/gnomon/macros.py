@@ -39,6 +39,7 @@ from .operators import (
 )
 from .pipeline import load_stage
 from .verifier import verify_or_raise
+from .versioning import RUNTIME_VERSION
 
 
 def _series_payloads(loaded) -> dict[str, tuple[list[datetime], list[float]]]:
@@ -324,6 +325,7 @@ def investigate_change(
             ))
 
     artifact_id = content_id("investigation", {
+        "runtime_version": RUNTIME_VERSION,
         "source": loaded.source_fingerprint,
         "as_of": task.as_of,
         "series": sorted(payloads),
@@ -336,6 +338,7 @@ def investigate_change(
     created_at = clock.now().isoformat()
     payload = {
         "schema_version": "0.1",
+        "runtime_version": RUNTIME_VERSION,
         "investigation_id": artifact_id,
         "created_at": created_at,
         "status": "complete",
@@ -475,6 +478,7 @@ def decide(
             }
 
     decision_id = content_id("decision", {
+        "runtime_version": RUNTIME_VERSION,
         "forecast": artifact.forecast_id,
         "series": result.series,
         "threshold": threshold,
@@ -490,6 +494,7 @@ def decide(
     })
     payload = {
         "schema_version": "0.1",
+        "runtime_version": RUNTIME_VERSION,
         "decision_id": decision_id,
         "created_at": created_at,
         "status": "complete",
@@ -679,6 +684,7 @@ def monitor(
         })
 
     monitor_id = content_id("monitor", {
+        "runtime_version": RUNTIME_VERSION,
         "forecast": artifact.forecast_id,
         "threshold": threshold,
         "alert_cost": alert_cost, "miss_cost": miss_cost,
@@ -686,6 +692,7 @@ def monitor(
     })
     payload = {
         "schema_version": "0.1",
+        "runtime_version": RUNTIME_VERSION,
         "monitor_id": monitor_id,
         "created_at": created_at,
         "status": "complete",
@@ -844,6 +851,7 @@ def detect_anomalies(
                     artifact_ids=(),
                 ))
     artifact_id = content_id("anomaly", {
+        "runtime_version": RUNTIME_VERSION,
         "source": loaded.source_fingerprint,
         "as_of": task.as_of,
         "series": sorted(payloads),
@@ -857,6 +865,7 @@ def detect_anomalies(
     created_at = clock.now().isoformat()
     payload = {
         "schema_version": "0.1",
+        "runtime_version": RUNTIME_VERSION,
         "anomaly_id": artifact_id,
         "created_at": created_at,
         "status": "complete",
