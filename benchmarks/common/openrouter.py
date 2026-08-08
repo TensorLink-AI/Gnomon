@@ -174,7 +174,10 @@ class OpenRouterClient:
                     tool_choice=tool_choice,
                 )
 
-            with ThreadPoolExecutor(max_workers=min(8, missing)) as pool:
+            # All singles at once: a wave of 24 multi-minute requests
+            # serialised 8 at a time triples the batch latency for no
+            # protection — 429s are retryable with backoff.
+            with ThreadPoolExecutor(max_workers=min(32, missing)) as pool:
                 extras = list(pool.map(one_more, range(missing)))
             merged = list(response.choices)
             for extra in extras:
