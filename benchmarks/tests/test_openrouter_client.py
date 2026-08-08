@@ -132,3 +132,32 @@ def test_usage_summary_discloses_escalations(monkeypatch):
     summary = client.usage_summary
     assert summary["truncation_escalations"] == 1
     assert summary["requests"] == 2
+
+
+def test_provider_ignoring_n_is_fanned_out_to_singles(monkeypatch):
+    # Measured against OpenRouter: providers may return one choice for
+    # any requested n. The client must make up the shortfall with
+    # concurrent single-sample requests, not hand back a short batch
+    # for DirectPrompt to collect one retry at a time.
+    replies = [_response(f"sample-{i}") for i in range(5)]
+    client, transport = _client(monkeypatch, replies, max_tokens=8000)
+    response = client.chat(MESSAGES, n=5)
+    contents = sorted(c.message.content for c in response.choices)
+    assert contents == sorted(f"sample-{i}" for i in range(5))
+    assert [c.index for c in response.choices] == [0, 1, 2, 3, 4]
+    assert client.usage_summary["requests"] == 5
+
+
+def test_full_batch_from_provider_is_not_fanned_out(monkeypatch):
+    batch = {
+        "choices": [
+            {"message": {"content": f"s{i}", "role": "assistant"},
+             "finish_reason": "stop"}
+            for i in range(3)
+        ],
+        "usage": {"prompt_tokens": 10, "completion_tokens": 20},
+    }
+    client, transport = _client(monkeypatch, [batch], max_tokens=8000)
+    response = client.chat(MESSAGES, n=3)
+    assert len(response.choices) == 3
+    assert client.usage_summary["requests"] == 1

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -98,6 +99,9 @@ class OpenRouterClient:
         self.max_tokens = max_tokens
         self.max_retries = max_retries
         self.timeout = timeout
+        # chat() may fan out concurrent single-sample requests when a
+        # provider ignores ``n``; accounting must not lose updates.
+        self._usage_lock = threading.Lock()
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
         self.total_cost_usd = 0.0
@@ -141,7 +145,7 @@ class OpenRouterClient:
                 tools=tools, tool_choice=tool_choice,
             )
             if not _truncated_empty(response) or budget >= MAX_TOKENS_CEILING:
-                return response
+                break
             budget = min(budget * TRUNCATION_ESCALATION_FACTOR,
                          MAX_TOKENS_CEILING)
             self.truncation_escalations += 1
@@ -150,6 +154,35 @@ class OpenRouterClient:
                 # keep the larger budget so only the first call pays for
                 # the discovery.
                 self.max_tokens = budget
+        missing = n - len(response.choices)
+        if missing > 0:
+            # OpenRouter providers may ignore ``n`` and return a single
+            # choice (measured: n=3 -> 1 choice on both BaseTen and
+            # DeepInfra for deepseek-v4-flash). DirectPrompt's rejection
+            # sampling then collects samples one request at a time and
+            # spends its whole retry budget doing it — a 25x slowdown
+            # that presents as endpoint degradation. Independent
+            # single-sample requests at the same temperature are the
+            # same sampling protocol as one n-sample request; issue the
+            # shortfall concurrently and merge.
+            from concurrent.futures import ThreadPoolExecutor
+
+            def one_more(_: int) -> Any:
+                return self.chat(
+                    messages, n=1, temperature=temperature,
+                    max_tokens=max_tokens, tools=tools,
+                    tool_choice=tool_choice,
+                )
+
+            with ThreadPoolExecutor(max_workers=min(8, missing)) as pool:
+                extras = list(pool.map(one_more, range(missing)))
+            merged = list(response.choices)
+            for extra in extras:
+                merged.extend(extra.choices)
+            for index, choice in enumerate(merged):
+                choice.index = index
+            response.choices = merged
+        return response
 
     def _request(
         self,
@@ -235,12 +268,14 @@ class OpenRouterClient:
 
     def _account(self, parsed: dict[str, Any]) -> None:
         usage = parsed.get("usage") or {}
-        self.total_prompt_tokens += int(usage.get("prompt_tokens") or 0)
-        self.total_completion_tokens += int(usage.get("completion_tokens") or 0)
-        cost = usage.get("cost")
-        if isinstance(cost, (int, float)):
-            self.total_cost_usd += float(cost)
-        self.total_requests += 1
+        with self._usage_lock:
+            self.total_prompt_tokens += int(usage.get("prompt_tokens") or 0)
+            self.total_completion_tokens += int(
+                usage.get("completion_tokens") or 0)
+            cost = usage.get("cost")
+            if isinstance(cost, (int, float)):
+                self.total_cost_usd += float(cost)
+            self.total_requests += 1
 
     @property
     def usage_summary(self) -> dict[str, Any]:
