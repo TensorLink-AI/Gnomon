@@ -2,6 +2,65 @@
 
 ## Unreleased
 
+- **Every caller-settable parameter is classified, and moving an evidence
+  rule now always leaves a trace.** `contracts.PARAMETER_AUTHORITY` tags
+  each front-door parameter as *intent* (what the caller wants — free),
+  *data* (what the caller's data is — validated and disclosed), or
+  *epistemic* (what counts as evidence — priced), and
+  `tests/test_parameter_authority.py` walks the CLI parser and the MCP
+  schemas so a new parameter cannot reach a front door unclassified.
+  The one unpriced epistemic knob is now priced: a
+  `minimum_baseline_improvement` below the default 0.02 weakens the
+  mandated-baseline gate, so the run carries a typed
+  `nonstandard_evaluation` reason and its support is capped at
+  `conditionally_supported`; above the default it is disclosed without a
+  cap, and negative values were already refused
+  (`INVALID_MINIMUM_IMPROVEMENT`). `EPISTEMIC_TRACES` records, per
+  epistemic parameter, exactly where the artifact discloses the deviation
+  — repair, forced ensembles, best-effort, and the context lanes were
+  already priced; the table makes the promise auditable.
+
+- **Artifacts record the channel the data arrived through.** The task
+  block now carries `provenance: "inline"` when the observations were
+  typed by the caller through the MCP `observations` channel (and
+  `"store"` for bitemporal-store reads); file runs serialise
+  byte-identically, with no key. Inline rows were already validated,
+  fingerprinted, and repaired exactly like a file — but a file at least
+  existed outside the conversation, and a reader weighing the numbers is
+  owed the difference: an agent cannot invent a forecast, and until now
+  nothing recorded that it may have invented the history. Every tool
+  response built on inline rows (observations, covariates, actuals, or
+  context events) also carries the fact in
+  `support_assessment.assumptions`. Support is *not* downgraded — the
+  caller's file was always the caller's word too; the fix is that the
+  channel is visible, not that one channel is pretended trustworthy.
+  (Also fixed here: the schema-inference branch of the MCP wrapper was
+  overwriting assumptions accumulated before it, so channel notes and
+  inference notes now compose.)
+
+- **A restricted candidate pool is disclosed and cannot share an id with
+  an open contest.** `--candidates` runs now carry a
+  `candidate_pool_restricted` support reason naming the pool (support is
+  not capped — the mandatory baselines compete regardless), and
+  `statistical_candidates` joins the config fingerprint, so a restricted
+  run and an open run over the same file no longer collide on one
+  `forecast_id` under first-write-wins. A pool restricted via
+  `gnomon.yaml` is disclosed identically.
+
+- **Context-event proposers may nominate an effect shape.** The event
+  attribute `expected_shape` (`level` | `decay` | `ramp`) narrows the
+  ablation's shape contest to the nominated shape — one comparison
+  instead of three, strictly *less* room to look good by luck — and the
+  nominated shape must still beat the history-only baseline on identical
+  folds or the event is excluded outright, never silently switched to a
+  shape that fits. Conflicting nominations across events cancel and the
+  full contest runs. The artifact records `nominated_shape` beside
+  `effect_shape` and `shape_scores` (absent when nothing was nominated,
+  so existing artifacts are unchanged); an unknown shape is a structural
+  contract violation named by `validate_context_event`. The proposer
+  ledger can attribute shape-nomination skill later without a schema
+  change, since the nomination rides in the admission evidence.
+
 - **Threshold-crossing probabilities describe the published quantiles
   again.** `threshold_analysis_stage` recentres the backtest residual
   cloud by its own median before comparing it to the threshold, pinning

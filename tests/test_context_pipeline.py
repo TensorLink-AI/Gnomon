@@ -408,3 +408,98 @@ class TestShrinkageAdmission:
             "the factor must be visible whether or not it is applied, or the "
             "decision to leave it off cannot be revisited with evidence"
         )
+
+
+# -- expected_shape: nomination narrows the contest, never picks the winner --
+
+def _shaped_events(length_with_future: int, shape: str | None,
+                   alternate: str | None = None) -> list[ContextEvent]:
+    """The promo calendar, with a shape nomination on each event. When
+    ``alternate`` is given, every second event nominates it instead —
+    a conflicting panel."""
+    events = _events(length_with_future)
+    out = []
+    for index, event in enumerate(events):
+        nominated = alternate if (alternate and index % 2) else shape
+        attributes = {"expected_shape": nominated} if nominated else {}
+        out.append(ContextEvent(
+            event_id=event.event_id, event_type=event.event_type,
+            entity_scope=event.entity_scope,
+            effective_start=event.effective_start,
+            effective_end=event.effective_end,
+            known_at=event.known_at, source=event.source,
+            attributes=attributes,
+        ))
+    return out
+
+
+def test_nominated_shape_narrows_the_contest(tmp_path) -> None:
+    """One nomination, one comparison: the ablation scores only the
+    nominated shape against the history-only baseline, and the artifact
+    records both the nomination and the narrowed contest."""
+    csv_path = tmp_path / "promo.csv"
+    _write_csv(csv_path, 130)
+    artifact, _ = forecast(
+        str(csv_path), time_column="timestamp", target_column="requests",
+        horizon=7, frequency="D", output=str(tmp_path / "out"),
+        context_events=_shaped_events(140, "level"),
+    )
+    context = artifact.results[0].context
+    assert context["admitted"] is True
+    assert context["nominated_shape"] == "level"
+    assert context["effect_shape"] == "level"
+    assert set(context["shape_scores"]) == {"level"}, (
+        "a nomination must narrow the contest, not merely bias it"
+    )
+
+
+def test_conflicting_nominations_run_the_full_contest(tmp_path) -> None:
+    """Proposers who disagree cancel out: the full three-shape contest
+    runs and no nomination is recorded."""
+    csv_path = tmp_path / "promo.csv"
+    _write_csv(csv_path, 130)
+    artifact, _ = forecast(
+        str(csv_path), time_column="timestamp", target_column="requests",
+        horizon=7, frequency="D", output=str(tmp_path / "out"),
+        context_events=_shaped_events(140, "level", alternate="decay"),
+    )
+    context = artifact.results[0].context
+    assert "nominated_shape" not in context
+    assert len(context["shape_scores"]) > 1
+
+
+def test_nominated_shape_that_cannot_win_is_excluded_not_switched(tmp_path) -> None:
+    """Events with no real effect, nominated as `decay`: the gate refuses
+    admission rather than quietly trying the other shapes."""
+    csv_path = tmp_path / "flat.csv"
+    with open(csv_path, "w", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["timestamp", "requests"])
+        for day in range(130):
+            writer.writerow([
+                (START + timedelta(days=day)).isoformat(), 100.0 + 0.5 * day,
+            ])
+    artifact, _ = forecast(
+        str(csv_path), time_column="timestamp", target_column="requests",
+        horizon=7, frequency="D", output=str(tmp_path / "out"),
+        context_events=_shaped_events(140, "decay"),
+    )
+    context = artifact.results[0].context
+    assert context["admitted"] is False
+    assert context["nominated_shape"] == "decay"
+    assert set(context["shape_scores"]) <= {"decay"}
+
+
+def test_invalid_expected_shape_is_a_contract_violation() -> None:
+    from gnomon.context import validate_context_event
+
+    event = ContextEvent(
+        event_id="promo", event_type="promotion", entity_scope=("*",),
+        effective_start=START.isoformat(),
+        effective_end=(START + timedelta(days=1)).isoformat(),
+        known_at=(START - timedelta(days=1)).isoformat(),
+        source=ContextSource("calendar", "promo-calendar.ics"),
+        attributes={"expected_shape": "spike"},
+    )
+    problems = validate_context_event(event)
+    assert any("expected_shape" in problem for problem in problems)

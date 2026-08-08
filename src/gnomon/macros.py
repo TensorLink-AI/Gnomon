@@ -75,6 +75,27 @@ def _task_dict(task: TemporalTask) -> dict[str, Any]:
     return asdict(task)
 
 
+def _stamp_provenance(task_payload: dict[str, Any], input_path: str,
+                      input_provenance: str | None) -> dict[str, Any]:
+    """The channel the observations arrived through, on the persisted task.
+
+    Emitted only when it is not the implied default — a caller's file — so
+    existing artifacts serialise byte-identically. ``store`` is derivable
+    from the ref; ``inline`` is not: the inline channel materialises to a
+    temp file before the loaders see it, so the tool layer is the only
+    place that still knows, and it passes the fact down here. Applied to
+    the artifact payload only, never to id material — the channel does not
+    change the answer, so it must not change the id.
+    """
+    provenance = input_provenance or (
+        "store" if str(input_path).startswith("store:") else None
+    )
+    if provenance:
+        for source in task_payload.get("sources") or []:
+            source["provenance"] = provenance
+    return task_payload
+
+
 def _event_payload(event: Any) -> Any:
     """Context events as id material, matching ``runtime.forecast``."""
     return getattr(event, "__dict__", event)
@@ -117,6 +138,7 @@ def investigate_change(
     output: str = "gnomon-output",
     store_path: str | None = None,
     clock: Clock | None = None,
+    input_provenance: str | None = None,
 ) -> tuple[dict[str, Any], Path]:
     clock = clock or SYSTEM_CLOCK
     loaded = load_stage(
@@ -317,7 +339,7 @@ def investigate_change(
         "investigation_id": artifact_id,
         "created_at": created_at,
         "status": "complete",
-        "task": _task_dict(task),
+        "task": _stamp_provenance(_task_dict(task), input_path, input_provenance),
         "source_fingerprint": loaded.source_fingerprint,
         "results": results,
     }
@@ -356,6 +378,7 @@ def decide(
     output: str = "gnomon-output",
     store_path: str | None = None,
     clock: Clock | None = None,
+    input_provenance: str | None = None,
 ) -> tuple[dict[str, Any], Path]:
     """Scenario generation → feasible actions → uncertainty propagation →
     constraints/costs (degraded without utilities) → choose or abstain.
@@ -470,7 +493,7 @@ def decide(
         "decision_id": decision_id,
         "created_at": created_at,
         "status": "complete",
-        "task": _task_dict(task),
+        "task": _stamp_provenance(_task_dict(task), input_path, input_provenance),
         "series": result.series,
         "forecast_id": artifact.forecast_id,
         "forecast_artifact_path": str(forecast_dir),
@@ -579,6 +602,7 @@ def monitor(
     output: str = "gnomon-output",
     store_path: str | None = None,
     clock: Clock | None = None,
+    input_provenance: str | None = None,
 ) -> tuple[dict[str, Any], Path]:
     """Trigger definition → sequential risk estimation → alert-cost-aware
     thresholding, building on the tracking store's open-forecast lifecycle."""
@@ -665,7 +689,7 @@ def monitor(
         "monitor_id": monitor_id,
         "created_at": created_at,
         "status": "complete",
-        "task": _task_dict(task),
+        "task": _stamp_provenance(_task_dict(task), input_path, input_provenance),
         "forecast_id": artifact.forecast_id,
         "forecast_artifact_path": str(forecast_dir),
         "triggers": triggers,
@@ -726,6 +750,7 @@ def detect_anomalies(
     output: str = "gnomon-output",
     store_path: str | None = None,
     clock: Clock | None = None,
+    input_provenance: str | None = None,
 ) -> tuple[dict[str, Any], Path]:
     """Graded anomaly detection: candidate detectors compete on a
     synthetic-injection grader (or on supplied labels), the winner labels
@@ -835,7 +860,7 @@ def detect_anomalies(
         "anomaly_id": artifact_id,
         "created_at": created_at,
         "status": "complete",
-        "task": _task_dict(task),
+        "task": _stamp_provenance(_task_dict(task), input_path, input_provenance),
         "source_fingerprint": loaded.source_fingerprint,
         "threshold": detection_threshold,
         "results": results,

@@ -98,6 +98,15 @@ def validate_context_event(event: ContextEvent) -> list[str]:
         problems.append("confidence must be between 0 and 1")
     if event.source is not None and not event.source.reference:
         problems.append("source.reference must be non-empty when a source is given")
+    expected_shape = (event.attributes or {}).get("expected_shape")
+    if expected_shape is not None:
+        from .context_model import EFFECT_SHAPES
+        if str(expected_shape) not in EFFECT_SHAPES:
+            problems.append(
+                f"expected_shape must be one of {', '.join(EFFECT_SHAPES)}; "
+                f"got {expected_shape!r}. A nomination narrows the shape "
+                f"contest; it cannot invent a shape."
+            )
     return problems
 
 

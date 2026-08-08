@@ -174,10 +174,31 @@ def _config_fingerprint(config: Any) -> dict[str, object] | None:
         "meta_model": asdict(meta_model) if meta_model is not None and is_dataclass(meta_model) and meta_model.enabled else None,
         "api_providers": sorted(api.providers) if api is not None and api.enabled else None,
         "tsfm_candidates": sorted(getattr(models, "tsfm_candidates", None) or []) or None,
+        # A restricted statistical pool changes which models compete, so it
+        # must change the forecast id: without it, a `candidates` run and an
+        # open-contest run over the same file collided on one id, and
+        # first-write-wins served whichever artifact landed first.
+        "statistical_candidates": sorted(
+            getattr(models, "statistical_candidates", None) or []) or None,
     }
     if all(value is None for value in payload.values()):
         return None
     return payload
+
+
+def _restricted_pool(config: Any) -> list[str] | None:
+    """The caller-narrowed candidate pool, or ``None`` when the contest is
+    open. Reads the config rather than a threaded flag so a restriction set
+    in `gnomon.yaml` is disclosed exactly like one passed as `candidates`."""
+    models = getattr(config, "models", None) if config is not None else None
+    if models is None:
+        return None
+    statistical = getattr(models, "statistical_candidates", None)
+    if not statistical:
+        # `tsfm_candidates` alone is not a restriction: listing TSFMs is how
+        # they become available at all, and an empty list is the default.
+        return None
+    return sorted(set(statistical) | set(getattr(models, "tsfm_candidates", None) or []))
 
 
 def _restrict_candidates(config: Any, candidates: list[str]):
@@ -315,13 +336,47 @@ def _series_result(
         from .pipeline import best_effort_stage
         rows, support = best_effort_stage(state)
     assessment = state.assessment
-    from .support import assess_forecast_support
+    from .support import assess_forecast_support, disclose_epistemic_deviation
     support_assessment = assess_forecast_support(
         support, state.warnings, assessment,
         known_time_assumed=loaded.snapshot.assumed_known_time,
         disclosures=state.disclosures,
         measured_coverage=state.coverage,
     )
+    from .contracts import DEFAULT_MINIMUM_BASELINE_IMPROVEMENT, SupportReason
+    if minimum_baseline_improvement != DEFAULT_MINIMUM_BASELINE_IMPROVEMENT:
+        # A caller-chosen evidence rule is not the documented one. Below the
+        # default the mandated-baseline gate is weaker, so the verdict is
+        # capped; above it the gate is stricter and the deviation only needs
+        # to be visible. (Negative values never reach here — `evaluate`
+        # refuses them as INVALID_MINIMUM_IMPROVEMENT.)
+        lowered = minimum_baseline_improvement < DEFAULT_MINIMUM_BASELINE_IMPROVEMENT
+        support_assessment = disclose_epistemic_deviation(
+            support_assessment,
+            SupportReason(
+                "nonstandard_evaluation",
+                f"minimum_baseline_improvement was "
+                f"{'lowered' if lowered else 'raised'} to "
+                f"{minimum_baseline_improvement} from the default "
+                f"{DEFAULT_MINIMUM_BASELINE_IMPROVEMENT}: the mandated-"
+                f"baseline gate is {'weaker' if lowered else 'stricter'} "
+                f"than documented.",
+            ),
+            cap=lowered,
+        )
+    restricted_pool = _restricted_pool(config)
+    if restricted_pool is not None:
+        support_assessment = disclose_epistemic_deviation(
+            support_assessment,
+            SupportReason(
+                "candidate_pool_restricted",
+                f"The candidate pool was restricted by the caller to "
+                f"{', '.join(restricted_pool) or 'baselines only'}; the "
+                f"mandatory baselines competed regardless, so the selection "
+                f"is honest within a narrowed contest.",
+            ),
+            cap=False,
+        )
     result = SeriesResult(
         series_name, support, state.selected_model, assessment.strongest_baseline,
         assessment.selection_scores, assessment.test_scores, assessment.improvement,
@@ -380,6 +435,7 @@ def forecast(
     store_path: str | None = None,
     repair: str = "safe",
     candidates: list[str] | None = None,
+    input_provenance: str | None = None,
 ) -> tuple[ForecastArtifact, Path]:
     clock = clock or SYSTEM_CLOCK
     if candidates:
@@ -561,6 +617,10 @@ def forecast(
     artifact = ForecastArtifact(
         "0.1", forecast_id, clock.now().isoformat(),
         "complete", task, loaded.source_fingerprint, results, evidence,
+        input_provenance=(
+            input_provenance
+            or ("store" if input_path.startswith("store:") else None)
+        ),
     )
     from .contracts import forecast_task
     from .lineage import build_forecast_lineage
@@ -660,6 +720,7 @@ def forecast_multi(
     repair: str = "safe",
     candidates: list[str] | None = None,
     max_workers: int | None = None,
+    input_provenance: str | None = None,
 ) -> tuple[ForecastArtifact, Path]:
     """Forecast several columns of one wide file in a single run.
 
@@ -848,6 +909,10 @@ def forecast_multi(
     artifact = ForecastArtifact(
         "0.1", forecast_id, clock.now().isoformat(),
         "complete", task, source_fingerprint, results, evidence,
+        input_provenance=(
+            input_provenance
+            or ("store" if input_path.startswith("store:") else None)
+        ),
     )
     from .contracts import forecast_task
     from .lineage import build_forecast_lineage

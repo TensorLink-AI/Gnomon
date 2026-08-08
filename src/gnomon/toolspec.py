@@ -561,6 +561,7 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
         candidates=arguments.get("candidates"),
         best_effort=bool(arguments.get("best_effort", False)),
         config=config,
+        input_provenance=arguments.get("input_provenance"),
     )
     payload = (brief_summary(artifact, path)
                if arguments.get("format") == "brief"
@@ -617,6 +618,7 @@ def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str
         repair=arguments.get("repair", "safe"),
         candidates=arguments.get("candidates"),
         best_effort=bool(arguments.get("best_effort", False)),
+        input_provenance=arguments.get("input_provenance"),
     )
     if arguments.get("format") == "brief":
         return brief_summary(artifact, path)
@@ -1096,6 +1098,7 @@ def _run_investigate_change(arguments: dict[str, Any]) -> dict[str, Any]:
         as_of=_parse_as_of(arguments.get("as_of")),
         context_events=events,
         output=arguments.get("output_dir") or "gnomon-output",
+        input_provenance=arguments.get("input_provenance"),
     )
     return {**payload, "artifact_path": str(path)}
 
@@ -1137,6 +1140,7 @@ def _run_detect_anomalies(arguments: dict[str, Any]) -> dict[str, Any]:
                    if arguments.get("threshold") is not None else None),
         labels=arguments.get("labels"),
         output=arguments.get("output_dir") or "gnomon-output",
+        input_provenance=arguments.get("input_provenance"),
     )
     return {**payload, "artifact_path": str(path)}
 
@@ -1161,6 +1165,7 @@ def _run_decide(arguments: dict[str, Any]) -> dict[str, Any]:
         as_of=_parse_as_of(arguments.get("as_of")),
         project=arguments.get("project"),
         output=arguments.get("output_dir") or "gnomon-output",
+        input_provenance=arguments.get("input_provenance"),
     )
     return {**payload, "artifact_path": str(path)}
 
@@ -1197,6 +1202,7 @@ def _run_monitor(arguments: dict[str, Any]) -> dict[str, Any]:
         as_of=_parse_as_of(arguments.get("as_of")),
         project=arguments.get("project"),
         output=arguments.get("output_dir") or "gnomon-output",
+        input_provenance=arguments.get("input_provenance"),
     )
     return {**payload, "artifact_path": str(path)}
 
@@ -1519,7 +1525,10 @@ def _materialise_observations(arguments: dict[str, Any]) -> dict[str, Any]:
         writer.writerows(rows)
     passed = {key: value for key, value in arguments.items()
               if key != "observations"}
-    return {**passed, "input": str(path)}
+    # The temp file erases the channel; this is the last place that knows
+    # the rows were typed by the caller rather than read from their disk,
+    # and the artifact's task block wants the fact (`provenance: inline`).
+    return {**passed, "input": str(path), "input_provenance": "inline"}
 
 
 def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
@@ -1540,11 +1549,33 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
                         "Supply the data: input (a file path or "
                         "store:<dataset>) or observations (inline rows).",
                     )
+                # Which channels carried caller-typed rows, noted before
+                # materialisation erases the distinction. Inline data is a
+                # first-class channel — validated, fingerprinted, repaired
+                # exactly like a file — but a file at least existed outside
+                # this conversation; rows the model typed did not, and a
+                # reader weighing the numbers is owed that fact.
+                inline_channels = [
+                    label for key, label in (
+                        ("observations", "observations"),
+                        ("covariates", "covariate vintages"),
+                        ("actuals", "actuals"),
+                        ("context_events", "context events"),
+                    ) if isinstance(arguments.get(key), list)
+                ]
                 arguments = _materialise_observations(arguments)
                 assumptions: list[str] = []
+                if inline_channels:
+                    assumptions.append(
+                        f"{' and '.join(inline_channels)} were supplied "
+                        f"inline by the caller; Gnomon validated their shape "
+                        f"and fingerprinted their content, but cannot attest "
+                        f"their origin."
+                    )
                 if _name in _SCHEMA_INFERENCE_TOOLS:
-                    arguments, assumptions = _resolve_schema_arguments(
+                    arguments, inferred = _resolve_schema_arguments(
                         arguments, _name)
+                    assumptions.extend(inferred)
                 if _name == "gnomon_forecast" \
                         and arguments.get("horizon") is None:
                     # One season ahead is the smallest horizon that can show

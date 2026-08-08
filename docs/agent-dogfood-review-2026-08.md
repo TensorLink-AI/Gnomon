@@ -5,6 +5,13 @@
 > `test_evaluate_threshold_risk_matches_the_rows_it_reads`), and note 2
 > (`--cost-ratio` flag discovery) is addressed; see `CHANGELOG.md`
 > (Unreleased). Notes 3 (time-column inference under-explains) remain open.
+>
+> The follow-up boundary review also landed on this branch: parameter
+> authority classification with priced epistemic deviations
+> (`contracts.PARAMETER_AUTHORITY`, `tests/test_parameter_authority.py`),
+> input provenance on artifacts (`provenance: inline`/`store`),
+> candidate-restriction disclosure plus the `statistical_candidates`
+> fingerprint fix, and `expected_shape` nomination on context events.
 
 An agent (Claude, running in Claude Code) was pointed at this repository with
 no prior context and asked for its thoughts on using Gnomon as its tool. This

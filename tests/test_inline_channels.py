@@ -233,3 +233,68 @@ def test_submit_actuals_channel_misuse_is_loud(monkeypatch):
     with pytest.raises(GnomonError) as caught:
         runner({"project": "p", "actuals": [{"timestamp": _stamp(1)}]})
     assert "finite number" in caught.value.message
+
+
+# -- provenance: the artifact records the channel ---------------------------
+
+def test_inline_observations_stamp_provenance_and_assumption(tmp_path):
+    """A forecast built on rows the caller typed says so, twice: a
+    `provenance: inline` field on the persisted task, and an assumption in
+    the response. A file at least existed outside the conversation; inline
+    rows did not, and a reader weighing the numbers is owed the fact."""
+    import json
+    from pathlib import Path
+
+    payload = runner_for("gnomon_forecast")({
+        "observations": _observation_rows(), "time_column": "timestamp",
+        "target_column": "value", "horizon": 3,
+        "output_dir": str(tmp_path),
+    })
+    assert payload["status"] == "complete"
+    assumptions = payload["results"][0]["support_assessment"]["assumptions"]
+    assert any("supplied inline" in item for item in assumptions)
+    artifact = json.loads(
+        (Path(payload["artifact_path"]) / "artifact.json").read_text()
+    )
+    assert artifact["task"]["provenance"] == "inline"
+
+
+def test_inline_monitor_stamps_provenance_on_task_sources(tmp_path):
+    import json
+    from pathlib import Path
+
+    payload = runner_for("gnomon_monitor")({
+        "observations": _observation_rows(), "time_column": "timestamp",
+        "target_column": "value", "horizon": 3, "threshold": 100.0,
+        "output_dir": str(tmp_path),
+    })
+    artifact = json.loads(
+        (Path(payload["artifact_path"]) / "artifact.json").read_text()
+    )
+    assert all(source["provenance"] == "inline"
+               for source in artifact["task"]["sources"])
+
+
+def test_file_runs_carry_no_provenance_key(tmp_path):
+    """The implied default is not serialised: artifacts from file runs are
+    byte-identical to what they were before the field existed."""
+    import csv
+    import json
+    from pathlib import Path
+
+    source = tmp_path / "series.csv"
+    with source.open("w", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=["timestamp", "value"])
+        writer.writeheader()
+        writer.writerows(_observation_rows())
+    payload = runner_for("gnomon_forecast")({
+        "input": str(source), "time_column": "timestamp",
+        "target_column": "value", "horizon": 3,
+        "output_dir": str(tmp_path / "out"),
+    })
+    artifact = json.loads(
+        (Path(payload["artifact_path"]) / "artifact.json").read_text()
+    )
+    assert "provenance" not in artifact["task"]
+    assumptions = payload["results"][0]["support_assessment"]["assumptions"]
+    assert not any("supplied inline" in item for item in assumptions)

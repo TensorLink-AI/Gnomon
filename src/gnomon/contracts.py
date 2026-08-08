@@ -95,6 +95,14 @@ class DataSourceRef:
     frequency: str | None = None
 
 
+#: The documented mandated-baseline margin. Every surface that accepts
+#: `minimum_baseline_improvement` defaults to this; a run that moves it is
+#: running a different evidence rule than the one the README documents, and
+#: `runtime._series_result` discloses the deviation (capping support when
+#: the move weakens the gate).
+DEFAULT_MINIMUM_BASELINE_IMPROVEMENT = 0.02
+
+
 @dataclass(frozen=True)
 class ForecastSpec:
     """Requested-output spec for the forecasting verb."""
@@ -102,7 +110,7 @@ class ForecastSpec:
     horizon: int
     quantiles: tuple[float, ...] = (0.1, 0.5, 0.9)
     threshold: float | None = None
-    minimum_baseline_improvement: float = 0.02
+    minimum_baseline_improvement: float = DEFAULT_MINIMUM_BASELINE_IMPROVEMENT
 
 
 @dataclass(frozen=True)
@@ -239,9 +247,18 @@ class ForecastArtifact:
     source_fingerprint: str
     results: list[SeriesResult]
     evidence: list[Evidence] = field(default_factory=list)
+    #: The channel the observations arrived through: "store" or "inline".
+    #: ``None`` means the implied default — a caller's file — and is not
+    #: serialised, so pre-existing artifacts stay byte-identical. "inline"
+    #: exists only here: the inline channel materialises to a temp file
+    #: before the loaders see it, so nothing downstream can recover it.
+    input_provenance: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
+        provenance = payload.pop("input_provenance", None)
+        if provenance:
+            payload["task"]["provenance"] = provenance
         for result in payload.get("results", []):
             # Additive keys appear only when they carry something. A run that
             # produced no conditional forecast serialises exactly as it did
@@ -528,3 +545,116 @@ class GnomonError(Exception):
                 ),
             },
         }
+
+
+# ---------------------------------------------------------------------------
+# Parameter authority
+# ---------------------------------------------------------------------------
+#
+# Every caller-settable parameter answers one of three questions, and which
+# question decides how much ceremony moving it deserves:
+#
+#   intent      What does the caller want computed or reported? Horizon,
+#               threshold, costs, utilities, output locations. Free — a
+#               preference cannot make a number wrong.
+#   data        What is the caller's data, and where is it? Column mappings,
+#               frequency, the input itself. Validated and disclosed when
+#               inferred, but the data was always the caller's word.
+#   epistemic   What counts as evidence, and how strictly is it judged?
+#               The mandated-baseline margin, the repair ladder, forced
+#               selection strategies. Moving one of these off its default
+#               MUST leave a trace in the artifact — a typed support reason,
+#               a distinct support state, or a structured refusal —
+#               because it changes the meaning of every number downstream.
+#
+# `tests/test_parameter_authority.py` walks the CLI parser and the MCP tool
+# schemas and asserts every parameter is classified here, and that every
+# epistemic parameter names the trace that prices it. A new parameter that
+# reaches a front door unclassified fails CI: the classification is the
+# design review.
+
+PARAMETER_AUTHORITY: dict[str, str] = {
+    # -- intent ------------------------------------------------------------
+    "horizon": "intent", "threshold": "intent", "alert_cost": "intent",
+    "miss_cost": "intent", "actions": "intent", "utilities": "intent",
+    "max_acceptable_risk": "intent", "task": "intent", "task_type": "intent",
+    "project": "intent", "output": "intent", "output_dir": "intent",
+    "workdir": "intent", "store_path": "intent", "as_of": "intent",
+    "scope": "intent", "format": "intent", "brief": "intent",
+    "jsonl": "intent", "include_lineage": "intent", "limit": "intent",
+    "latest": "intent", "note": "intent", "name": "intent",
+    "action": "intent", "expected_outcome": "intent",
+    "actual_outcome": "intent", "correct": "intent",
+    "decision_id": "intent", "forecast_id": "intent",
+    "forecast_a": "intent", "forecast_b": "intent",
+    "artifact_path": "intent", "model": "intent", "params": "intent",
+    "plan": "intent", "proposer": "intent", "proposer_id": "intent",
+    "realised_scenario": "intent", "realised_utilities": "intent",
+    "response": "intent", "treatment": "intent", "baseline": "intent",
+    "trials": "intent", "event_type": "intent", "config": "intent",
+    "version": "intent", "violations": "intent",
+    "constraint_violations": "intent",
+    # -- data --------------------------------------------------------------
+    "input": "data", "observations": "data", "file": "data", "files": "data",
+    "dataset": "data", "time_column": "data", "target_column": "data",
+    "series_column": "data", "frequency": "data", "timezone": "data",
+    "known_at_column": "data", "seasonal_period": "data",
+    "series": "data", "series_name": "data", "series_names": "data",
+    "variable": "data", "labels": "data",
+    "covariates": "data", "covariates_file": "data",
+    "covariate_time": "data", "covariate_series": "data",
+    "covariate_known_at": "data", "covariate_mapping": "data",
+    "covariate_time_column": "data", "covariate_series_column": "data",
+    "covariate_known_at_column": "data",
+    "actuals": "data", "actuals_file": "data", "actuals_time": "data",
+    "actuals_target": "data", "actuals_series": "data",
+    "context_file": "data", "events_file": "data",
+    "context_events": "data", "context_events_file": "data",
+    # -- epistemic ---------------------------------------------------------
+    "minimum_baseline_improvement": "epistemic",
+    "repair": "epistemic",
+    "selection_strategy": "epistemic",
+    "ensemble": "epistemic",
+    "strict_abstention": "epistemic",
+    "best_effort": "epistemic",
+    "candidates": "epistemic",
+    "multivariate": "epistemic",
+    "future_events": "epistemic",
+    "structural_events": "epistemic",
+}
+
+#: The trace each epistemic parameter leaves when moved off its default.
+#: An entry here is a promise the artifact keeps; the completeness test
+#: only checks the promise exists, the named tests check it is kept.
+EPISTEMIC_TRACES: dict[str, str] = {
+    "minimum_baseline_improvement": (
+        "negative values refused (INVALID_MINIMUM_IMPROVEMENT); below-default "
+        "values disclosed as a `nonstandard_evaluation` reason and support "
+        "capped at conditionally_supported"),
+    "repair": (
+        "non-safe levels downgrade support (weakly_supported) and list every "
+        "fix as evidence; EXCESSIVE_REPAIR refuses beyond the cap"),
+    "selection_strategy": (
+        "a forced ensemble that did not win the backtest is disclosed as "
+        "`ensemble_forced` and capped at conditionally_supported"),
+    "ensemble": ("CLI alias of selection_strategy=ensemble; same trace"),
+    "strict_abstention": (
+        "stricter only — turns degraded evaluation into typed abstention; "
+        "the refusal itself is the trace"),
+    "best_effort": (
+        "distinct `best_effort` support state, NO RELIABLE FORECAST warning "
+        "verbatim, descriptive-only lineage claim"),
+    "candidates": (
+        "restriction disclosed as a `candidate_pool_restricted` reason; "
+        "baselines compete regardless; unknown names refused (UNKNOWN_MODEL); "
+        "the restricted pool enters the config fingerprint, so the id "
+        "cannot collide with an unrestricted run"),
+    "multivariate": (
+        "adds the VAR candidate to the contest; selection and baseline gate "
+        "unchanged, the scored pool in the artifact is the trace"),
+    "future_events": (
+        "default-off config flag; influenced forecasts carry the distinct "
+        "`context_trusted` support state"),
+    "structural_events": (
+        "default-off; same `context_trusted` pricing as future_events"),
+}
