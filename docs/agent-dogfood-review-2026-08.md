@@ -1,5 +1,11 @@
 # Agent dogfood review — an LLM agent uses Gnomon cold, 2026-08-07
 
+> **Status 2026-08-08:** F1 and F2 are fixed on this branch, with tests
+> (`test_threshold_probabilities_agree_with_published_quantiles`,
+> `test_evaluate_threshold_risk_matches_the_rows_it_reads`), and note 2
+> (`--cost-ratio` flag discovery) is addressed; see `CHANGELOG.md`
+> (Unreleased). Notes 3 (time-column inference under-explains) remain open.
+
 An agent (Claude, running in Claude Code) was pointed at this repository with
 no prior context and asked for its thoughts on using Gnomon as its tool. This
 is the write-up: what the first-contact experience was like, what held up,

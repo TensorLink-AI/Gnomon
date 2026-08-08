@@ -2,6 +2,44 @@
 
 ## Unreleased
 
+- **Threshold-crossing probabilities describe the published quantiles
+  again.** `threshold_analysis_stage` recentres the backtest residual
+  cloud by its own median before comparing it to the threshold, pinning
+  the cloud's location to `point + centre_shift` — the published q50 —
+  under either recentring policy. Previously the cloud was shifted by
+  `centre_shift` alone, which was correct only while recentring was on;
+  once fold-starved runs began suppressing recentring (`centre_shift` = 0)
+  the probabilities kept the model's median backtest error while the
+  intervals discarded it, and the README's own monitor scenario published
+  `P(above 340) = 0.61` in the same artifact as `q80 = point + 6.1`
+  (`first_timestamp_point_above: null` beside a per-step exceedance
+  probability of 0.61). On that scenario the probability is now 0.0714,
+  coherent with the quantiles beside it; the 20× miss-cost alert still
+  fires, now for the right reason (the cost ratio sets the alert bar at
+  0.048). Fold-rich recentred runs are unchanged up to the difference
+  between the per-lead and pooled medians. Every `monitor` and `decide`
+  payload on short-history series inherits the fix. Found by an agent
+  dogfooding the README (`docs/agent-dogfood-review-2026-08.md`, F1).
+
+- **`evaluate_threshold_risk` runs.** The plan operator passed
+  probability-keyed residual quantiles where `threshold_analysis_stage`
+  expects step-keyed spreads, so every invocation raised `KeyError: 1` —
+  surfaced through plan execution as an unrepairable
+  `OPERATOR_ERROR: "1"`. It had no test and can never have completed. The
+  spreads are now read off the forecast rows themselves
+  (`q50 − q10`, `q50 − point`, `q90 − q50` per row), so its probabilities
+  agree with the quantiles printed beside them under whatever recentring
+  policy produced the rows (F2 in the same review, now tested).
+
+- **`--cost-ratio` is understood as a guess for the cost pair.** The
+  README frames monitor costs as a ratio ("costs us 20x a false alarm"),
+  so `--cost-ratio` is the natural first flag to try; lexical distance
+  cannot map it to `--alert-cost`/`--miss-cost`. The flag-synonym table
+  now supports one-to-many replacements: the structured error suggests
+  both flags and the `rename_flag` repair carries them as arguments
+  (a ratio of R is `--alert-cost 1 --miss-cost R`). `--cost`, `--costs`,
+  `--false-alarm-cost`, and `--penalty` are mapped alongside.
+
 - **The tool surface infers the schema the way the CLI does, additive.**
   `gnomon forecast data.csv` has worked without flags since v0.4 — exactly
   one column parses as timestamps, exactly one other as numbers, every
