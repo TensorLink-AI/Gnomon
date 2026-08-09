@@ -144,24 +144,33 @@ def bounded_evidence(digest: dict[str, Any],
 
 
 def answer_row(row: dict[str, Any], condition: str,
-               client: OpenRouterClient | None) -> dict[str, Any]:
-    """Produce the row's answer object under the given condition."""
+               client: OpenRouterClient | None,
+               best_effort: bool = False) -> dict[str, Any]:
+    """Produce the row's answer object under the given condition.
+
+    ``channel_support`` in the result maps each forecast channel to its
+    Gnomon support label; with ``best_effort`` enabled it is how a
+    disclosed-fallback channel stays distinguishable from a supported
+    one all the way into the details records and the summary.
+    """
     if condition == "control":
         completion = client.completions(
             [{"role": "user", "content": row["prompt"]}], n=1
         )[0]
-        return {"answer": extract_json_object(completion), "abstained": []}
+        return {"answer": extract_json_object(completion), "abstained": [],
+                "channel_support": {}}
 
-    analysis = gnomon_runner.analyse_row(row)
+    analysis = gnomon_runner.analyse_row(row, best_effort=best_effort)
     tier = row.get("tier")
     if condition == "gnomon-pure":
         if tier not in ("T2", "T4"):
             raise ValueError("gnomon-pure covers tiers T2 and T4 only")
-        forecast, abstained = gnomon_runner.forecast_payload(analysis)
+        forecast, abstained, support = gnomon_runner.forecast_payload(analysis)
         mcq, mcq_abstained = gnomon_runner.uncertain_mcq(row)
         return {
             "answer": {"forecast": forecast, "mcq": mcq},
             "abstained": abstained + mcq_abstained, "analysis": analysis,
+            "channel_support": support,
         }
 
     # gnomon-agent: evidence digest + official prompt; LLM answers choices.
@@ -181,10 +190,12 @@ def answer_row(row: dict[str, Any], condition: str,
     )[0]
     answer = extract_json_object(completion)
     abstained: list[str] = []
+    support: dict[str, str] = {}
     if tier in ("T2", "T4"):
-        forecast, abstained = gnomon_runner.forecast_payload(analysis)
+        forecast, abstained, support = gnomon_runner.forecast_payload(analysis)
         answer["forecast"] = forecast  # Gnomon owns the numbers.
-    return {"answer": answer, "abstained": abstained, "analysis": analysis}
+    return {"answer": answer, "abstained": abstained, "analysis": analysis,
+            "channel_support": support}
 
 
 def score_row(row: dict[str, Any], answer: dict[str, Any],
@@ -218,6 +229,17 @@ def main() -> int:
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--temperature", type=float, default=0.2)
     parser.add_argument("--output-dir", default=None)
+    parser.add_argument(
+        "--best-effort", action="store_true",
+        help="Gnomon conditions only: enable the engine's disclosed "
+             "best-effort fallback on channels that would abstain "
+             "(sparse channels like MIMIC's temperature_c). Fallback "
+             "rows carry support 'best_effort' and a NO RELIABLE "
+             "FORECAST warning — they are not supported forecasts, and "
+             "the summary reports the support-label mix beside every "
+             "score that includes them. Default off: an abstention "
+             "stays an abstention unless explicitly traded for a "
+             "labeled fallback.")
     args = parser.parse_args()
 
     data_dir = Path(args.data_dir).expanduser().resolve()
@@ -230,6 +252,8 @@ def main() -> int:
         parser.error("--condition and --output-dir are required to run")
     if args.condition != "gnomon-pure" and not args.model:
         parser.error("--model is required for this condition")
+    if args.best_effort and args.condition == "control":
+        parser.error("--best-effort applies to the Gnomon conditions only")
 
     tiers = tuple(t.strip() for t in args.tiers.split(",") if t.strip() in TIERS)
     if args.condition == "gnomon-pure":
@@ -254,6 +278,10 @@ def main() -> int:
     choice_rows_by_tier: dict[str, int] = {}
     forecast_metrics_acc: dict[str, list[float]] = {}
     abstained_rows = errored = forecast_rows_scored = 0
+    # Coverage beside every figure: how many channel forecasts each
+    # number rests on, by support label, plus the abstained channels.
+    support_mix: dict[str, int] = {}
+    channels_abstained = 0
     total = 0
     for row in iter_rows(data_dir, tiers=tiers or TIERS,
                          datasets=datasets, limit=args.limit):
@@ -264,7 +292,8 @@ def main() -> int:
         # not swallow an answer that abstained — the abstention flag has
         # to survive into the record either way.
         try:
-            outcome = answer_row(row, args.condition, client)
+            outcome = answer_row(row, args.condition, client,
+                                 best_effort=args.best_effort)
         except Exception as error:
             errored += 1
             records.write(RunRecord(task_id=row_id, success=False,
@@ -299,6 +328,12 @@ def main() -> int:
                     forecast_metrics_acc.setdefault(key, []).append(float(value))
         if outcome.get("abstained"):
             abstained_rows += 1
+        channel_support = outcome.get("channel_support") or {}
+        for label in channel_support.values():
+            support_mix[label] = support_mix.get(label, 0) + 1
+        channels_abstained += sum(
+            1 for reason in outcome.get("abstained") or []
+            if not reason.startswith("mcq/"))
 
         success = bool(metrics) if tier in ("T2", "T4") else (
             choice.get("total", 0) > 0 and choice["correct"] == choice["total"]
@@ -312,11 +347,17 @@ def main() -> int:
                    "choice_correct": choice.get("correct"),
                    "choice_total": choice.get("total"),
                    "smape": (metrics or {}).get("SMAPE")
-                   or (metrics or {}).get("OW_sMAPE")},
+                   or (metrics or {}).get("OW_sMAPE"),
+                   **({"channel_support": channel_support}
+                      if channel_support else {})},
         ))
         (details_dir / f"{row_id}.json").write_text(
             json.dumps({"verdict": verdict,
                         "abstained": outcome.get("abstained"),
+                        # Support labels beside the arrays: a
+                        # best_effort channel is a disclosed fallback,
+                        # and score_per_channel reports the mix.
+                        "channel_support": channel_support or None,
                         "answer": outcome["answer"]}, indent=2,
                        default=str) + "\n",
             encoding="utf-8",
@@ -345,6 +386,9 @@ def main() -> int:
                                   "OW_sMAPE", "OW_RMSSE", "OW_MASE")
         },
         "forecast_rows_scored": forecast_rows_scored,
+        "best_effort": args.best_effort,
+        "forecast_channel_support_mix": dict(sorted(support_mix.items())),
+        "forecast_channels_abstained": channels_abstained,
         "note": (
             "forecast metrics computed by the dataset's official "
             "forecast_metrics_utils.py; choice accuracy is this adapter's "
@@ -354,10 +398,16 @@ def main() -> int:
             "PARTIAL channel abstentions are, scored on the channels "
             "present, and Uncertain/sentinel choice answers count as "
             "wrong), so they are unmatched-subset numbers; compare arms through "
-            "benchmarks/report.py's matched join, not by subtracting "
-            "summaries. success on T2/T4 records completion (the official "
-            "module returned metrics), not accuracy — per-row SMAPE lives "
-            "in each record's extra."
+            "the per-channel path (benchmarks/temporalbench/"
+            "score_per_channel.py) or benchmarks/report.py's matched "
+            "join, not by subtracting summaries. success on T2/T4 "
+            "records completion (the official module returned metrics), "
+            "not accuracy — per-row SMAPE lives in each record's extra. "
+            "forecast_channel_support_mix and forecast_channels_abstained "
+            "are the coverage every forecast figure rests on; quote them "
+            "beside it. Any best_effort count in the mix is disclosed "
+            "fallback rows (NO RELIABLE FORECAST), not supported "
+            "forecasts."
         ),
     }
     if client is not None:
@@ -377,6 +427,12 @@ def main() -> int:
                + (";datasets=" + ",".join(datasets) if datasets else ""),
         command=" ".join(sys.argv),
         limit=args.limit,
+        # Not part of `target`: best_effort changes the condition's
+        # behaviour, not the task set, so it must not make report.py
+        # refuse a control-vs-treatment join. It still has to be visible
+        # in provenance, hence its own field (None keeps old manifests
+        # byte-identical).
+        best_effort=args.best_effort or None,
     )
     print(json.dumps(summary, indent=2))
     return 0

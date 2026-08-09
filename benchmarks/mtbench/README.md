@@ -39,6 +39,26 @@ Ours (this directory):
   values only); Gnomon's q50 path is the point forecast; in `agent` mode
   the news text goes to an OpenRouter model that may propose typed
   context events for Gnomon's admission gate — never numbers.
+- `tool_agent.py` (`--mode tools`) — the model gets the history and the
+  article plus a tool loop over Gnomon, and `submit_forecast` has
+  exactly two honest exits, mirroring the CiK MCP arm
+  (`docs/design/cik-mcp-tool-arm.md`): a `forecast_ref` from a
+  `gnomon_forecast` run in that sample, whose trajectory is used
+  **verbatim** (the model cannot edit a digit), or the model's own
+  `values` — a plain point trajectory, one number per horizon step,
+  matching the MSE/MAPE scorer's shape (no quantile triples: MTBench
+  scores a point path). `forecast_ref: "none"` abstains. Every sample
+  records its route — `gnomon` (submitted a ref), `informed-direct`
+  (own values after at least one tool call), `direct` (own values, no
+  tool calls) — and `engine_abstentions`, the count of Gnomon
+  abstentions the model saw in that run, so a model answer written past
+  a Gnomon refusal is always labeled, never laundered into a Gnomon
+  number or a silent guess; `summary.json` aggregates the route counts.
+  Earlier revisions had only the ref exit, which forced every engine
+  abstention to score as a benchmark abstention; the CiK two-arm
+  evidence (on all 96 engine-abstention runs the model's own reasoned
+  forecast beat both abstaining and the engine's best-effort fallback)
+  motivated the second exit.
 
 MTBench's QA/MCQA/trend/correlation tasks run under the control path
 only for now: they grade text answers, and their official scripts

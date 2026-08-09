@@ -22,8 +22,12 @@ Adapter decisions, disclosed:
   admission gate accepts or rejects — the same contract as the CiK
   adapter. ``pure`` mode ignores the text entirely.
 - In ``tools`` mode the model gets the history and the article and
-  drives Gnomon through a tool loop, then submits one computed run as its
-  answer; it never writes numbers. See ``tool_agent``.
+  drives Gnomon through a tool loop, then finishes through one of two
+  honest exits: a computed run's ``forecast_ref`` (used verbatim) or its
+  own ``values`` — never an edit of a Gnomon number. The route
+  (``gnomon`` / ``informed-direct`` / ``direct``) and the count of
+  engine abstentions the model saw are recorded per sample and
+  aggregated in the summary. See ``tool_agent``.
 - If Gnomon abstains on a sample, the sample is recorded as an abstention
   and excluded from cumulative metrics — exactly how the official
   scripts treat their own failed samples, but visible in the summary.
@@ -308,6 +312,13 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
     cumulative = {"mse": [], "mae": [], "rmse": [], "mape": []}
     per_sample: list[dict[str, Any]] = []
     abstained = failed = errored = mape_undefined = 0
+    routes: dict[str, int] = {}
+    # `tools` mode: keep the loop auditable — which exit the model took,
+    # how many runs it computed, every call it made, and how often the
+    # engine abstained under it.
+    tool_keys = ("route", "forecast_ref", "forecasts_computed",
+                 "tool_calls", "engine_abstentions", "submit_reasoning",
+                 "trace")
     for sample in samples:
         started = time.time()
         outcome = forecast_sample(sample, mode=mode, client=client,
@@ -315,14 +326,22 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
         elapsed = time.time() - started
         truth = [float(v) for v in sample["output_window"]]
         entry: dict[str, Any] = {"filename": sample["filename"]}
+        if outcome.get("route"):
+            routes[outcome["route"]] = routes.get(outcome["route"], 0) + 1
         if outcome["abstained"]:
             abstained += 1
             entry.update({"abstained": True, "reasons": outcome["reasons"]})
+            for key in tool_keys:
+                if outcome.get(key) is not None:
+                    entry[key] = outcome[key]
             records.write(RunRecord(
                 task_id=sample["filename"], success=False,
                 appropriate_abstention=True, tool_calls=1,
                 latency_seconds=round(elapsed, 3),
-                extra={"reasons": outcome["reasons"]},
+                extra={"reasons": outcome["reasons"],
+                       **({"engine_abstentions": outcome["engine_abstentions"]}
+                          if outcome.get("engine_abstentions") is not None
+                          else {})},
             ))
         else:
             prediction = outcome["prediction"]
@@ -333,6 +352,9 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
                 # cost that sample an error record, not the whole run.
                 errored += 1
                 entry.update({"error": str(error)})
+                for key in tool_keys:
+                    if outcome.get(key) is not None:
+                        entry[key] = outcome[key]
                 records.write(RunRecord(
                     task_id=sample["filename"], success=False, tool_calls=1,
                     latency_seconds=round(elapsed, 3),
@@ -353,10 +375,7 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
                 "selected_model": outcome["selected_model"],
                 "events": outcome["events"],
             })
-            # `tools` mode: keep the loop auditable — which run the model
-            # submitted, how many it computed, and every call it made.
-            for key in ("forecast_ref", "forecasts_computed", "tool_calls",
-                        "submit_reasoning", "trace"):
+            for key in tool_keys:
                 if outcome.get(key) is not None:
                     entry[key] = outcome[key]
             if is_failed:
@@ -375,7 +394,9 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
                 task_id=sample["filename"], success=not is_failed,
                 tool_calls=1, latency_seconds=round(elapsed, 3),
                 extra={"mse": mse, "mape": mape,
-                       "support": outcome["support"]},
+                       "support": outcome["support"],
+                       **({"route": outcome["route"]}
+                          if outcome.get("route") else {})},
             ))
         per_sample.append(entry)
         (details_dir / sample["filename"]).write_text(
@@ -401,8 +422,15 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
             "means follow the official aggregation (samples past the "
             "official mse filter); abstained, errored, filtered and "
             "mape_undefined counts must be reported next to them"
+            + (". routes counts submissions per exit: gnomon = a Gnomon "
+               "trajectory verbatim, informed-direct/direct = the model's "
+               "own values (after/without tool use) — model-written "
+               "numbers are never mixed unlabeled into Gnomon's"
+               if mode == "tools" else "")
         ),
     }
+    if mode == "tools":
+        summary["routes"] = dict(sorted(routes.items()))
     if client is not None:
         summary["llm_usage"] = client.usage_summary
     (output_dir / "summary.json").write_text(

@@ -197,3 +197,63 @@ def test_forecast_channels_matches_per_channel_runs(tmp_path):
             assert batched[key]["values"] == single["values"], key
             assert batched[key]["selected_model"] == single["selected_model"], key
             assert batched[key]["support"] == single["support"], key
+
+
+def test_forecast_payload_carries_support_labels():
+    from benchmarks.temporalbench.gnomon_runner import forecast_payload
+
+    analysis = {"channels": {
+        "hr": {"abstained": False, "support": "supported",
+               "values": [70.0, 71.0]},
+        "temperature_c": {"abstained": False, "support": "best_effort",
+                          "values": [36.8, 36.8]},
+        "resp": {"abstained": True, "reason": "too short"},
+    }}
+    forecast, abstained, support = forecast_payload(analysis)
+    assert set(forecast) == {"hr", "temperature_c"}
+    assert abstained == ["resp: too short"]
+    # The label travels with the values: a best_effort channel is a
+    # disclosed fallback, and every score built on it must say so.
+    assert support == {"hr": "supported", "temperature_c": "best_effort"}
+
+
+def test_best_effort_turns_a_sparse_channel_abstention_into_labeled_rows(tmp_path):
+    # A sparse channel (MIMIC's temperature_c pattern): too few readings
+    # for the evaluation protocol. Default: an honest abstention. With
+    # best_effort: the engine's disclosed fallback, labeled as such —
+    # never silently mixed in with supported forecasts.
+    from benchmarks.temporalbench.gnomon_runner import forecast_channel
+
+    sparse = [36.5, 36.7, None, 36.6, 36.8, None, 36.9]
+    horizon = 4
+    default = forecast_channel(sparse, horizon, work_dir=str(tmp_path))
+    assert default["abstained"] is True
+
+    fallback = forecast_channel(sparse, horizon, work_dir=str(tmp_path),
+                                best_effort=True)
+    assert fallback["abstained"] is False
+    assert fallback["support"] == "best_effort"
+    assert len(fallback["values"]) == horizon
+
+
+def test_score_per_channel_loader_reads_support_labels(tmp_path):
+    import json as _json
+
+    from benchmarks.temporalbench.score_per_channel import load_forecasts
+
+    details = tmp_path / "details"
+    details.mkdir()
+    (details / "row1.json").write_text(_json.dumps({
+        "answer": {"forecast": {"hr": [1.0, 2.0], "temperature_c": [36.8]}},
+        "channel_support": {"hr": "supported",
+                            "temperature_c": "best_effort"},
+    }), encoding="utf-8")
+    (details / "row2.json").write_text(_json.dumps({
+        "answer": {"forecast": {"hr": [3.0]}},   # a control-style record:
+    }), encoding="utf-8")                        # no support labels
+
+    forecasts, support = load_forecasts(tmp_path)
+    assert forecasts["row1"] == {"hr": [1.0, 2.0], "temperature_c": [36.8]}
+    assert support["row1"] == {"hr": "supported",
+                               "temperature_c": "best_effort"}
+    assert "row2" in forecasts and "row2" not in support
