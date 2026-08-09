@@ -39,6 +39,7 @@ Ours (this directory) — the three conditions:
 | `control` | official prompt verbatim via OpenRouter | the LLM |
 | `gnomon-pure` (T2/T4) | none | Gnomon; MCQs answered `Uncertain`, or the `ABSTAIN` sentinel (scores wrong) where no such option exists |
 | `gnomon-agent` | answers choice questions given Gnomon's evidence | Gnomon — forecast arrays in the final answer are Gnomon's, not editable by the model |
+| `gnomon-mcp` (T2/T4) | drives the real `gnomon mcp serve` tool surface itself | per channel: a Gnomon artifact used verbatim, or the model's own values labeled `model` — the route is recorded per channel |
 
 Disclosed adapter decisions (see `gnomon_runner.py`): rows carry
 index-aligned arrays rather than regular timestamps, so Gnomon models each
@@ -51,6 +52,79 @@ option set has no `Uncertain` are answered with the `ABSTAIN` sentinel,
 which matches no real option and therefore deterministically scores
 wrong (recorded as an abstention — never a guess that could luck into
 the label).
+
+`gnomon-mcp` (see `mcp_agent.py`) is the arm that measures how an
+actual MCP agent uses Gnomon — the other Gnomon conditions run the
+engine in the harness. Per row it writes the channels to one wide CSV
+on the same synthetic hourly axis as every other condition, starts a
+real `gnomon mcp serve` subprocess jailed to the run directory (the
+session, verbatim tool-spec conversion, and path jail are reused from
+`benchmarks/cik/mcp_agent.py`, per `docs/design/cik-mcp-tool-arm.md`),
+and hands the model the official prompt verbatim plus every server
+tool unpruned. `submit_answer` takes, per channel, exactly one of: an
+`artifact_path` from a `gnomon_forecast` call in that run — used
+byte-for-byte, and the artifact's own `target_column` must match the
+channel, so a run cannot be mislabeled onto another channel — or the
+model's own `values` (labeled `model`), or an abstention (explicit or
+by omission). An artifact whose run abstained (`support:
+"unsupported"`) is rejected at submission with the honest options
+restated, including retrying the tool with `best_effort: true`: on
+this arm the *model* decides whether to take the engine's labeled
+fallback (which is why the harness `--best-effort` flag does not apply
+here). Per-channel routes (`gnomon` / `informed-direct` / `direct` /
+`abstain`) and support labels flow into `details/`, the GnomonBench
+records, `summary.json`'s `forecast_channel_routes`, and
+`score_per_channel.py`'s support mix. A breached cap (10 rounds, 24
+tool calls, 250k tokens) abstains the whole row with the cap named —
+never a silent fallback.
+
+`--best-effort` (`gnomon-pure`/`gnomon-agent` only, **default off**) passes
+Gnomon's own best-effort flag through: a channel that would abstain
+publishes the engine's disclosed naive fallback instead, labeled
+`support: "best_effort"` and carrying Gnomon's NO RELIABLE FORECAST
+warning. Those rows are **not** supported forecasts; every consumer
+keeps the label — each details record and GnomonBench record carries
+`channel_support`, `summary.json` reports
+`forecast_channel_support_mix`, and `score_per_channel.py` prints the
+mix beside the compared scores. The flag exists because the official
+all-channels rule voids a record over one abstained channel (see
+"Comparing arms" below), so best-effort coverage of sparse channels is
+the only way to keep the *official headline number* populated for an
+abstaining arm; it stays off by default because trading an abstention
+for unsupported numbers must be an explicit, labeled choice, never the
+silent one.
+
+## Comparing arms
+
+The official all-channels rule scores a multi-channel record only when
+**every** ground-truth channel is forecast; one missing channel voids
+the record (`metric_flag: missing_channel`). That is the leaderboard's
+rule and each arm's `summary.json` keeps reporting that official number
+— it is the headline and it must not disappear. But it cannot compare
+an abstaining arm against one that never abstains: on the MIMIC split
+Gnomon abstained on the sparse `temperature_c` channel in 44 of 48
+records (MIMIC charts temperature every few hours, so its history is
+far shorter than heart rate's), which voided 38 otherwise-complete
+records and left exactly one record comparable across arms.
+
+Cross-arm comparison therefore goes through the **per-channel path**:
+
+```bash
+python -m benchmarks.temporalbench.score_per_channel \
+    --data-dir ~/temporalbench \
+    --baseline results/tb-control --treatment results/tb-gnomon
+```
+
+It scores, with the dataset's own metric module (nothing reimplemented),
+the intersection of channels both arms forecast in each record, and
+prints **coverage beside every figure**: how many records and channel
+slots each number rests on, which channels either arm skipped (counted
+and named, never dropped silently), and the support-label mix of the
+compared channels. Quote a per-channel figure together with its
+coverage or not at all — a subset mean without its n is meaningless.
+The record-level `summary.json` coverage fields
+(`forecast_channel_support_mix`, `forecast_channels_abstained`,
+`forecast_rows_scored`) serve the same rule for the official number.
 
 ## Setup and run
 
@@ -71,6 +145,12 @@ python -m benchmarks.temporalbench.run_temporalbench \
     --data-dir ~/temporalbench --condition gnomon-agent \
     --model openai/gpt-4o --tiers T2,T4 --limit 50 \
     --output-dir results/tb-gnomon
+
+# The tool-use arm: the model drives the real MCP server itself:
+python -m benchmarks.temporalbench.run_temporalbench \
+    --data-dir ~/temporalbench --condition gnomon-mcp \
+    --model openai/gpt-4o --tiers T2,T4 --limit 50 \
+    --output-dir results/tb-mcp
 
 # The no-LLM floor (free):
 python -m benchmarks.temporalbench.run_temporalbench \

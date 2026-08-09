@@ -1,27 +1,37 @@
-"""Per-channel TemporalBench scoring, so a sparse channel stops voiding a row.
+"""Per-channel TemporalBench scoring — THE way to compare arms here.
 
 The official metric aggregates all channels of a MIMIC record: its
 ``_align_series_dict`` returns "not aligned" the moment one ground-truth
 channel is absent from a prediction, and the whole record scores nothing
 (``metric_flag: missing_channel``). That rule is right for the official
-leaderboard — a forecast of 5 of 6 vitals is not a forecast of the record.
+leaderboard — a forecast of 5 of 6 vitals is not a forecast of the record
+— and each arm's ``summary.json`` keeps reporting that official
+all-channels number: it is the headline the leaderboard uses and it
+never disappears.
 
-It is the wrong rule for comparing an arm that abstains against one that
-never does. In the DeepSeek V4 Flash run Gnomon forecast 218 of 288
-channels, but abstained on ``temperature_c`` in 44 of 48 records (MIMIC
-charts temperature every few hours, so its history is far shorter than
-heart rate's). One sparse channel voided 38 otherwise-complete records,
-and the official metric could compare exactly one record across arms.
-
-This script computes the same official metrics on a declared subset: for
-each record, the intersection of channels both arms forecast. The metric
-code is the dataset's own ``_compute_ow_metrics`` — nothing is
-reimplemented. Coverage is reported next to every number, because a
-number over a subset means nothing without it.
+But it is the wrong rule for *comparing* an arm that abstains against
+one that never does. In the DeepSeek V4 Flash run Gnomon forecast 218 of
+288 channels, but abstained on ``temperature_c`` in 44 of 48 records
+(MIMIC charts temperature every few hours, so its history is far shorter
+than heart rate's). One sparse channel voided 38 otherwise-complete
+records, and the official metric could compare exactly one record across
+arms. So cross-arm comparison goes through this script (see the README's
+"Comparing arms" section): the same official metrics, computed on a
+declared subset — for each record, the intersection of channels both
+arms forecast. The metric code is the dataset's own
+``_compute_ow_metrics`` — nothing is reimplemented. Coverage (how many
+records and channels each number rests on) is reported next to every
+figure, because a number over a subset means nothing without it; quote
+the two together or not at all.
 
 Output is a paired per-channel table plus the paired record-level OW
 metrics over the intersection. Channels either arm skipped are counted
-and named, never dropped silently.
+and named, never dropped silently. Where an arm's details records carry
+per-channel support labels (Gnomon arms write ``channel_support``; a
+run with ``--best-effort`` labels its disclosed fallback rows
+``best_effort``), the support mix over the compared channels is printed
+beside the scores — best_effort rows carry a NO RELIABLE FORECAST
+disclosure and are not supported forecasts.
 """
 
 from __future__ import annotations
@@ -52,9 +62,12 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_forecasts(arm_dir: Path) -> dict[str, dict]:
-    """Map task id -> the arm's per-channel forecast dict."""
+def load_forecasts(arm_dir: Path) -> tuple[dict[str, dict], dict[str, dict]]:
+    """Map task id -> the arm's per-channel forecast dict, plus task id ->
+    per-channel support labels where the arm recorded them (Gnomon arms
+    write ``channel_support``; LLM control answers carry no labels)."""
     out: dict[str, dict] = {}
+    support: dict[str, dict] = {}
     details = arm_dir / "details"
     for path in sorted(details.glob("*.json")):
         record = json.loads(path.read_text())
@@ -63,7 +76,10 @@ def load_forecasts(arm_dir: Path) -> dict[str, dict]:
             name: values for name, values in forecast.items()
             if isinstance(values, (list, tuple)) and values
         }
-    return out
+        labels = record.get("channel_support")
+        if isinstance(labels, dict):
+            support[path.stem] = {str(k): str(v) for k, v in labels.items()}
+    return out, support
 
 
 def load_truth(data_dir: Path) -> dict[str, dict]:
@@ -115,13 +131,18 @@ def main() -> int:
     metrics_module = load_official_metrics(data_dir)
 
     truth_by_id = load_truth(data_dir)
-    base = load_forecasts(Path(args.baseline).expanduser())
-    treat = load_forecasts(Path(args.treatment).expanduser())
+    base, base_support = load_forecasts(Path(args.baseline).expanduser())
+    treat, treat_support = load_forecasts(Path(args.treatment).expanduser())
 
     shared_ids = sorted(set(base) & set(treat) & set(truth_by_id))
     per_channel: dict[str, list[tuple[float, float]]] = {}
     record_rows = []
     coverage = {"base_only": 0, "treat_only": 0, "both": 0, "neither": 0}
+    # Support-label mix over the channels actually scored, per arm:
+    # best_effort rows are disclosed fallbacks and must never blend
+    # invisibly into a compared number.
+    base_mix: dict[str, int] = {}
+    treat_mix: dict[str, int] = {}
 
     for task_id in shared_ids:
         entry = truth_by_id[task_id]
@@ -145,6 +166,11 @@ def main() -> int:
         if not b_sum or not t_sum:
             continue
 
+        for channel in both:
+            b_label = (base_support.get(task_id) or {}).get(channel, "unlabeled")
+            t_label = (treat_support.get(task_id) or {}).get(channel, "unlabeled")
+            base_mix[b_label] = base_mix.get(b_label, 0) + 1
+            treat_mix[t_label] = treat_mix.get(t_label, 0) + 1
         record_rows.append({
             "task_id": task_id,
             "channels": both,
@@ -192,9 +218,22 @@ def main() -> int:
               f"{s['treatment_median']:11.4f} "
               f"{s['treatment_wins']:>6d}/{s['n']:<4d}")
 
+    def mix_line(mix: dict[str, int]) -> str:
+        return ", ".join(f"{label} {count}"
+                         for label, count in sorted(mix.items())) or "(none)"
+
+    print()
+    print("support-label mix over the compared channel scores "
+          "(best_effort = disclosed fallback rows carrying NO RELIABLE "
+          "FORECAST, not supported forecasts; unlabeled = the arm "
+          "records no support labels):")
+    print(f"  baseline:  {mix_line(base_mix)}")
+    print(f"  treatment: {mix_line(treat_mix)}")
+
     if args.json:
         print(json.dumps({
             "coverage": coverage,
+            "support_mix": {"baseline": base_mix, "treatment": treat_mix},
             "per_channel": {c: summarise(p) for c, p in per_channel.items()},
             "records": record_rows,
         }, indent=2))

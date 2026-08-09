@@ -39,6 +39,46 @@ Ours (this directory):
   values only); Gnomon's q50 path is the point forecast; in `agent` mode
   the news text goes to an OpenRouter model that may propose typed
   context events for Gnomon's admission gate — never numbers.
+- `tool_agent.py` (`--mode tools`) — the model gets the history and the
+  article plus a tool loop over Gnomon, and `submit_forecast` has
+  exactly two honest exits, mirroring the CiK MCP arm
+  (`docs/design/cik-mcp-tool-arm.md`): a `forecast_ref` from a
+  `gnomon_forecast` run in that sample, whose trajectory is used
+  **verbatim** (the model cannot edit a digit), or the model's own
+  `values` — a plain point trajectory, one number per horizon step,
+  matching the MSE/MAPE scorer's shape (no quantile triples: MTBench
+  scores a point path). `forecast_ref: "none"` abstains. Every sample
+  records its route — `gnomon` (submitted a ref), `informed-direct`
+  (own values after at least one tool call), `direct` (own values, no
+  tool calls) — and `engine_abstentions`, the count of Gnomon
+  abstentions the model saw in that run, so a model answer written past
+  a Gnomon refusal is always labeled, never laundered into a Gnomon
+  number or a silent guess; `summary.json` aggregates the route counts.
+  Earlier revisions had only the ref exit, which forced every engine
+  abstention to score as a benchmark abstention; the CiK two-arm
+  evidence (on all 96 engine-abstention runs the model's own reasoned
+  forecast beat both abstaining and the engine's best-effort fallback)
+  motivated the second exit.
+- `mcp_agent.py` (`--mode mcp`) — the raw counterpart of `tools`: the
+  model holds every tool a real `gnomon mcp serve` subprocess publishes,
+  **verbatim** (file paths, argument schemas, typed errors — nothing
+  pruned or paraphrased), jailed to the run directory; the session,
+  tool-spec conversion, and path jail are reused from
+  `benchmarks/cik/mcp_agent.py` per `docs/design/cik-mcp-tool-arm.md`.
+  `submit_forecast` has three exits: an `artifact_path` from a
+  `gnomon_forecast` call in that run (used byte-for-byte), the model's
+  own `values`, or `abstain: true`. An artifact whose run abstained
+  (`support: "unsupported"`) is rejected at submission with the honest
+  options restated, including retrying with `best_effort: true` — the
+  model itself decides whether to take the engine's labeled fallback,
+  and the label travels into the outcome. The same route taxonomy and
+  `engine_abstentions` disclosure as `tools` mode apply (here
+  `engine_abstentions` counts unsupported artifacts the model's
+  forecast calls produced); a breached cap (10 rounds, 24 tool calls,
+  250k tokens) abstains the sample with the cap named. Running `tools`
+  and `mcp` on the same samples isolates what the real tool surface's
+  friction costs — the curated arm measures routing and selection, the
+  raw arm measures operating Gnomon as MCP agents actually meet it.
 
 MTBench's QA/MCQA/trend/correlation tasks run under the control path
 only for now: they grade text answers, and their official scripts
@@ -77,6 +117,17 @@ python -m benchmarks.mtbench.run_mtbench gnomon \
     --dataset-folder ~/MTBench/data/processed/finance/aligned_in30days_out7days \
     --output-dir results/mtbench-gnomon-agent \
     --mode agent --model openai/gpt-4o
+```
+
+The tool-use arms — `--mode tools` (curated wrappers) and `--mode mcp`
+(the real `gnomon mcp serve` surface) — take the same flags:
+
+```bash
+python -m benchmarks.mtbench.run_mtbench gnomon \
+    --mtbench-root ~/MTBench \
+    --dataset-folder ~/MTBench/data/processed/finance/aligned_in30days_out7days \
+    --output-dir results/mtbench-gnomon-mcp \
+    --mode mcp --model openai/gpt-4o
 ```
 
 Both subcommands default to the same temperature (0.7, upstream's

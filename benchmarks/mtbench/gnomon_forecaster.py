@@ -22,8 +22,18 @@ Adapter decisions, disclosed:
   admission gate accepts or rejects — the same contract as the CiK
   adapter. ``pure`` mode ignores the text entirely.
 - In ``tools`` mode the model gets the history and the article and
-  drives Gnomon through a tool loop, then submits one computed run as its
-  answer; it never writes numbers. See ``tool_agent``.
+  drives Gnomon through a tool loop, then finishes through one of two
+  honest exits: a computed run's ``forecast_ref`` (used verbatim) or its
+  own ``values`` — never an edit of a Gnomon number. The route
+  (``gnomon`` / ``informed-direct`` / ``direct``) and the count of
+  engine abstentions the model saw are recorded per sample and
+  aggregated in the summary. See ``tool_agent``.
+- ``mcp`` mode is the raw counterpart of ``tools``: the model holds the
+  real ``gnomon mcp serve`` tool surface verbatim (file paths, argument
+  schemas, typed errors) and drives the engine itself, with the same
+  three exits and the same route/abstention bookkeeping. Running both
+  modes on the same samples isolates what the real surface's friction
+  costs. See ``mcp_agent``.
 - If Gnomon abstains on a sample, the sample is recorded as an abstention
   and excluded from cumulative metrics — exactly how the official
   scripts treat their own failed samples, but visible in the summary.
@@ -243,6 +253,11 @@ def forecast_sample(sample: dict[str, Any], *, mode: str,
 
         return run_sample(sample, client, work_dir=work_dir)
 
+    if mode == "mcp":
+        from benchmarks.mtbench.mcp_agent import run_sample_mcp
+
+        return run_sample_mcp(sample, client, work_dir=work_dir)
+
     values = [float(v) for v in sample["input_window"]]
     horizon = len(sample["output_window"])
     run_dir = Path(tempfile.mkdtemp(prefix="mtbench-gnomon-", dir=work_dir))
@@ -291,7 +306,7 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
     if mtbench_root is not None and str(mtbench_root) not in sys.path:
         sys.path.insert(0, str(mtbench_root))
     client = (OpenRouterClient(openrouter_model, temperature=temperature)
-              if mode in ("agent", "tools") else None)
+              if mode in ("agent", "tools", "mcp") else None)
     samples = load_samples(dataset_folder)
     if limit:
         samples = samples[:limit]
@@ -308,6 +323,13 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
     cumulative = {"mse": [], "mae": [], "rmse": [], "mape": []}
     per_sample: list[dict[str, Any]] = []
     abstained = failed = errored = mape_undefined = 0
+    routes: dict[str, int] = {}
+    # `tools` mode: keep the loop auditable — which exit the model took,
+    # how many runs it computed, every call it made, and how often the
+    # engine abstained under it.
+    tool_keys = ("route", "forecast_ref", "artifact_path",
+                 "forecasts_computed", "tool_calls", "engine_abstentions",
+                 "submit_reasoning", "trace")
     for sample in samples:
         started = time.time()
         outcome = forecast_sample(sample, mode=mode, client=client,
@@ -315,14 +337,22 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
         elapsed = time.time() - started
         truth = [float(v) for v in sample["output_window"]]
         entry: dict[str, Any] = {"filename": sample["filename"]}
+        if outcome.get("route"):
+            routes[outcome["route"]] = routes.get(outcome["route"], 0) + 1
         if outcome["abstained"]:
             abstained += 1
             entry.update({"abstained": True, "reasons": outcome["reasons"]})
+            for key in tool_keys:
+                if outcome.get(key) is not None:
+                    entry[key] = outcome[key]
             records.write(RunRecord(
                 task_id=sample["filename"], success=False,
                 appropriate_abstention=True, tool_calls=1,
                 latency_seconds=round(elapsed, 3),
-                extra={"reasons": outcome["reasons"]},
+                extra={"reasons": outcome["reasons"],
+                       **({"engine_abstentions": outcome["engine_abstentions"]}
+                          if outcome.get("engine_abstentions") is not None
+                          else {})},
             ))
         else:
             prediction = outcome["prediction"]
@@ -333,6 +363,9 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
                 # cost that sample an error record, not the whole run.
                 errored += 1
                 entry.update({"error": str(error)})
+                for key in tool_keys:
+                    if outcome.get(key) is not None:
+                        entry[key] = outcome[key]
                 records.write(RunRecord(
                     task_id=sample["filename"], success=False, tool_calls=1,
                     latency_seconds=round(elapsed, 3),
@@ -353,10 +386,7 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
                 "selected_model": outcome["selected_model"],
                 "events": outcome["events"],
             })
-            # `tools` mode: keep the loop auditable — which run the model
-            # submitted, how many it computed, and every call it made.
-            for key in ("forecast_ref", "forecasts_computed", "tool_calls",
-                        "submit_reasoning", "trace"):
+            for key in tool_keys:
                 if outcome.get(key) is not None:
                     entry[key] = outcome[key]
             if is_failed:
@@ -375,7 +405,9 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
                 task_id=sample["filename"], success=not is_failed,
                 tool_calls=1, latency_seconds=round(elapsed, 3),
                 extra={"mse": mse, "mape": mape,
-                       "support": outcome["support"]},
+                       "support": outcome["support"],
+                       **({"route": outcome["route"]}
+                          if outcome.get("route") else {})},
             ))
         per_sample.append(entry)
         (details_dir / sample["filename"]).write_text(
@@ -401,8 +433,16 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
             "means follow the official aggregation (samples past the "
             "official mse filter); abstained, errored, filtered and "
             "mape_undefined counts must be reported next to them"
+            + (". routes counts submissions per exit: gnomon = a Gnomon "
+               "trajectory verbatim, informed-direct/direct = the model's "
+               "own values (after/without tool use), abstain = an honest "
+               "abstention — model-written numbers are never mixed "
+               "unlabeled into Gnomon's"
+               if mode in ("tools", "mcp") else "")
         ),
     }
+    if mode in ("tools", "mcp"):
+        summary["routes"] = dict(sorted(routes.items()))
     if client is not None:
         summary["llm_usage"] = client.usage_summary
     (output_dir / "summary.json").write_text(
