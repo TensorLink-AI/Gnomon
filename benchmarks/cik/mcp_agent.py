@@ -36,7 +36,17 @@ from benchmarks.common.openrouter import OpenRouterClient  # noqa: E402
 MAX_ROUNDS = 10
 MAX_MCP_CALLS = 24
 MAX_RUN_TOKENS = 250_000
-MAX_WALL_SECONDS = 600.0
+# A runaway agent is bounded by the three caps above; this one exists
+# only to stop a hung endpoint from parking a worker forever, so it must
+# sit above the latency an honest run can incur. At 600s it did not: it
+# ended 29 of 355 runs in the two-arm comparison, and the runs it ended
+# averaged 0-6 MCP calls out of 24 -- slow providers, not loops (one
+# `route=direct` run spent 765s inside a single request). Meanwhile the
+# CiK DirectPrompt baseline those runs are scored against carries no
+# wall-clock cap at all and took a median 2965s per run, 90 of its 91
+# scored runs exceeding 600s. A cap that the baseline would fail 99% of
+# the time is not a budget guard, it is a handicap on one arm.
+MAX_WALL_SECONDS = 7200.0
 
 #: Arguments whose values are filesystem paths by contract: these must
 #: resolve inside the jail no matter what. Every OTHER string argument
@@ -415,7 +425,16 @@ class _Run:
             "trace": self.trace,
             "total_time": time.time() - self.started,
         }
+        # CiK task instances carry no `seed` attribute and the forecaster
+        # is one object shared across every task-seed, so `seed` is "x"
+        # for all five runs of a task: writing to one name silently kept
+        # the last run and discarded four (103 traces survived 355 runs).
+        # A trace is diagnostic evidence; losing it costs a diagnosis.
         path = trace_dir / f"{name}-seed{seed}.json"
+        suffix = 1
+        while path.exists():
+            suffix += 1
+            path = trace_dir / f"{name}-seed{seed}.{suffix}.json"
         path.write_text(json.dumps(payload, indent=2, default=str) + "\n",
                         encoding="utf-8")
 
