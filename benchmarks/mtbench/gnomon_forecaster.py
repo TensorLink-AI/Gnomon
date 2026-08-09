@@ -28,6 +28,12 @@ Adapter decisions, disclosed:
   (``gnomon`` / ``informed-direct`` / ``direct``) and the count of
   engine abstentions the model saw are recorded per sample and
   aggregated in the summary. See ``tool_agent``.
+- ``mcp`` mode is the raw counterpart of ``tools``: the model holds the
+  real ``gnomon mcp serve`` tool surface verbatim (file paths, argument
+  schemas, typed errors) and drives the engine itself, with the same
+  three exits and the same route/abstention bookkeeping. Running both
+  modes on the same samples isolates what the real surface's friction
+  costs. See ``mcp_agent``.
 - If Gnomon abstains on a sample, the sample is recorded as an abstention
   and excluded from cumulative metrics — exactly how the official
   scripts treat their own failed samples, but visible in the summary.
@@ -247,6 +253,11 @@ def forecast_sample(sample: dict[str, Any], *, mode: str,
 
         return run_sample(sample, client, work_dir=work_dir)
 
+    if mode == "mcp":
+        from benchmarks.mtbench.mcp_agent import run_sample_mcp
+
+        return run_sample_mcp(sample, client, work_dir=work_dir)
+
     values = [float(v) for v in sample["input_window"]]
     horizon = len(sample["output_window"])
     run_dir = Path(tempfile.mkdtemp(prefix="mtbench-gnomon-", dir=work_dir))
@@ -295,7 +306,7 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
     if mtbench_root is not None and str(mtbench_root) not in sys.path:
         sys.path.insert(0, str(mtbench_root))
     client = (OpenRouterClient(openrouter_model, temperature=temperature)
-              if mode in ("agent", "tools") else None)
+              if mode in ("agent", "tools", "mcp") else None)
     samples = load_samples(dataset_folder)
     if limit:
         samples = samples[:limit]
@@ -316,9 +327,9 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
     # `tools` mode: keep the loop auditable — which exit the model took,
     # how many runs it computed, every call it made, and how often the
     # engine abstained under it.
-    tool_keys = ("route", "forecast_ref", "forecasts_computed",
-                 "tool_calls", "engine_abstentions", "submit_reasoning",
-                 "trace")
+    tool_keys = ("route", "forecast_ref", "artifact_path",
+                 "forecasts_computed", "tool_calls", "engine_abstentions",
+                 "submit_reasoning", "trace")
     for sample in samples:
         started = time.time()
         outcome = forecast_sample(sample, mode=mode, client=client,
@@ -424,12 +435,13 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
             "mape_undefined counts must be reported next to them"
             + (". routes counts submissions per exit: gnomon = a Gnomon "
                "trajectory verbatim, informed-direct/direct = the model's "
-               "own values (after/without tool use) — model-written "
-               "numbers are never mixed unlabeled into Gnomon's"
-               if mode == "tools" else "")
+               "own values (after/without tool use), abstain = an honest "
+               "abstention — model-written numbers are never mixed "
+               "unlabeled into Gnomon's"
+               if mode in ("tools", "mcp") else "")
         ),
     }
-    if mode == "tools":
+    if mode in ("tools", "mcp"):
         summary["routes"] = dict(sorted(routes.items()))
     if client is not None:
         summary["llm_usage"] = client.usage_summary
