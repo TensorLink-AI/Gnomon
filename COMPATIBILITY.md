@@ -324,6 +324,47 @@ Error envelope: `{"schema_version", "status": "error", "error": {"code",
   `decisions.forecast_id` foreign key is dropped, because SQLite requires a
   uniquely-indexed parent key.
 
+- Parameter authority, additive: `contracts.PARAMETER_AUTHORITY` classifies
+  every front-door parameter (intent / data / epistemic) and
+  `EPISTEMIC_TRACES` names where each epistemic parameter's deviation is
+  disclosed. New support reasons `nonstandard_evaluation` (a
+  below-default `minimum_baseline_improvement` also caps `supported` to
+  `conditionally_supported`; above-default discloses without a cap) and
+  `candidate_pool_restricted` (never caps — the baselines still compete).
+  Runs at the defaults serialise byte-identically.
+
+- Input provenance, additive: the artifact `task` block gains
+  `provenance: "inline" | "store"` — absent for file runs, so existing
+  artifacts are unchanged. Tool responses built on inline
+  observations/covariates/actuals carry the channel in
+  `support_assessment.assumptions`. Context events are deliberately
+  exempt: they are claims, not measurements, and their trust story is the
+  source field and the admission gate.
+
+- Forecast ids, narrowing: the config fingerprint in the forecast id
+  payload gains `statistical_candidates`, so a `candidates`-restricted
+  run no longer shares a `forecast_id` with an open-contest run over the
+  same file. Ids of unrestricted runs are unchanged.
+
+- Runtime-versioned ids, id-changing: every artifact id payload (and the
+  planner step cache key) includes `versioning.RUNTIME_VERSION`, so ids
+  change once per release and a stale artifact can never answer for a
+  newer build under first-write-wins. `artifact.json` gains
+  `runtime_version` (additive); `gnomon_get_artifact` gains
+  `runtime_note` when the stored stamp differs from the running build.
+  Stored tracking rows keep their ids. Goldens regenerated (id + field
+  only; float bytes untouched).
+
+- Context shape nomination, additive: events accept
+  `attributes.expected_shape` (`level` | `decay` | `ramp`), which narrows
+  the ablation's shape contest to the nominated shape; a losing nomination
+  is an exclusion, never a silent switch, and conflicting nominations
+  cancel. `context` results gain `nominated_shape` (absent when nothing
+  was nominated); an unknown shape is an `INVALID_CONTEXT_EVENT`
+  structural violation on the loading surfaces and a named exclusion on
+  the direct API. `events_excluded` reasons now name structural contract
+  failures instead of reporting every invalid event as lacking a source.
+
 ## Enforcement
 
 `tests/test_golden_artifacts.py` pins byte-exact `artifact.json` output for

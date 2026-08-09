@@ -231,3 +231,24 @@ def assess_forecast_support(
         recovery,
         support, disclosures,
     )
+
+
+def disclose_epistemic_deviation(
+    assessment: SupportAssessment, reason: SupportReason, *, cap: bool,
+) -> SupportAssessment:
+    """Stamp a non-default evidence rule onto an already-built assessment.
+
+    An epistemic parameter moved off its default (see
+    ``contracts.PARAMETER_AUTHORITY``) changes what the numbers mean, so
+    the deviation rides in ``reasons`` where an agent already looks. With
+    ``cap=True`` — the parameter was moved in the lax direction — a
+    ``supported`` verdict is additionally capped at
+    ``conditionally_supported``: the evidence may be fine, but it was
+    judged by a weaker rule than the one the documentation promises.
+    Applied after assembly so every branch of
+    :func:`assess_forecast_support` is covered by construction.
+    """
+    assessment.reasons = [reason] + list(assessment.reasons)
+    if cap and assessment.status == "supported":
+        assessment.status = "conditionally_supported"
+    return assessment

@@ -754,8 +754,11 @@ class _ArgumentError(Exception):
 
 
 #: What an agent guessing a flag name usually means. Lexical distance
-#: cannot recover `--column` -> `--target`; these pairs can.
-_FLAG_SYNONYMS: dict[str, str] = {
+#: cannot recover `--column` -> `--target`; these pairs can. A tuple value
+#: means the guessed flag maps to several real ones (a cost *ratio* is the
+#: README's framing — "costs us 20x a false alarm" — and a ratio of R is
+#: `--alert-cost 1 --miss-cost R`).
+_FLAG_SYNONYMS: dict[str, str | tuple[str, ...]] = {
     "--column": "--target", "--col": "--target", "--value": "--target",
     "--field": "--target", "--metric": "--target",
     "--date": "--time", "--timestamp": "--time", "--time-column": "--time",
@@ -765,6 +768,10 @@ _FLAG_SYNONYMS: dict[str, str] = {
     "--periods": "--horizon", "--steps": "--horizon", "--length": "--horizon",
     "--freq": "--frequency", "--interval": "--frequency",
     "--out": "--output", "--output-dir": "--output", "--dir": "--output",
+    "--cost-ratio": ("--alert-cost", "--miss-cost"),
+    "--cost": ("--alert-cost", "--miss-cost"),
+    "--costs": ("--alert-cost", "--miss-cost"),
+    "--false-alarm-cost": "--alert-cost", "--penalty": "--miss-cost",
 }
 
 
@@ -786,26 +793,30 @@ def _all_known_flags() -> list[str]:
     return sorted(flags)
 
 
-def _suggest_flags(message: str) -> list[tuple[str, str]]:
-    """(unknown, suggestion) pairs for an `unrecognized arguments` failure."""
+def _suggest_flags(message: str) -> list[tuple[str, tuple[str, ...]]]:
+    """(unknown, replacement flags) pairs for an `unrecognized arguments`
+    failure. The replacement is a tuple: usually one flag, several when the
+    guessed flag folds two real ones together (`--cost-ratio`)."""
     marker = "unrecognized arguments:"
     if marker not in message:
         return []
     import difflib
 
     known = _all_known_flags()
-    suggestions: list[tuple[str, str]] = []
+    suggestions: list[tuple[str, tuple[str, ...]]] = []
     for token in message.split(marker, 1)[1].split():
         if not token.startswith("--"):
             continue
         unknown = token.split("=", 1)[0]
         synonym = _FLAG_SYNONYMS.get(unknown.lower())
         if synonym:
-            suggestions.append((unknown, synonym))
+            suggestions.append((
+                unknown, synonym if isinstance(synonym, tuple) else (synonym,),
+            ))
             continue
         close = difflib.get_close_matches(unknown, known, n=1, cutoff=0.75)
         if close:
-            suggestions.append((unknown, close[0]))
+            suggestions.append((unknown, (close[0],)))
     return suggestions
 
 
@@ -821,11 +832,11 @@ def _argument_error(exc: _ArgumentError) -> GnomonError:
             ),
             "arguments": missing,
         })
-    for unknown, suggestion in suggestions:
+    for unknown, replacement in suggestions:
         repairs.append({
             "action": "rename_flag",
-            "description": f"Replace {unknown} with {suggestion}.",
-            "arguments": [suggestion],
+            "description": f"Replace {unknown} with {' and '.join(replacement)}.",
+            "arguments": list(replacement),
         })
     repairs.append({
         "action": "show_usage",
@@ -834,15 +845,15 @@ def _argument_error(exc: _ArgumentError) -> GnomonError:
     message = exc.message
     if suggestions:
         message += " " + " ".join(
-            f"Did you mean {suggestion} instead of {unknown}?"
-            for unknown, suggestion in suggestions
+            f"Did you mean {' and '.join(replacement)} instead of {unknown}?"
+            for unknown, replacement in suggestions
         )
     return GnomonError(
         "INVALID_ARGUMENTS", message,
         {"command": exc.prog, "missing_arguments": missing,
          **({"flag_suggestions": [
-             {"unknown": unknown, "suggestion": suggestion}
-             for unknown, suggestion in suggestions
+             {"unknown": unknown, "suggestion": " ".join(replacement)}
+             for unknown, replacement in suggestions
          ]} if suggestions else {})},
         repair_options=repairs,
     )

@@ -11,6 +11,16 @@ from .contracts import GnomonError
 
 CURRENT_SCHEMA_VERSION = "0.1"
 
+#: The runtime's own version, and part of every artifact id's identity.
+#: A content id names a question *and its answerer*: the same task run by
+#: a different build is a different computation, and letting the two share
+#: an id lets first-write-wins serve one build's numbers as the other's —
+#: measured live when a threshold-probability fix left a stale artifact
+#: answering `decide` with the pre-fix 0.61 under the post-fix id. Bump on
+#: release; artifacts carry the stamp so a reader can tell which build
+#: produced what it is quoting.
+RUNTIME_VERSION = "0.5.0"
+
 # The version immediately before the current one; None while the current
 # version is the first ever published.
 PREVIOUS_SCHEMA_VERSION: str | None = None
