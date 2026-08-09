@@ -57,6 +57,26 @@ def test_unknown_subcommand_is_structured(capsys):
     assert error["repair_options"]
 
 
+def test_cost_ratio_guess_is_mapped_to_the_cost_pair(tmp_path, capsys):
+    """The README frames monitor costs as a ratio ("costs us 20x a false
+    alarm"), so `--cost-ratio` is the natural first guess; it must map to
+    the `--alert-cost`/`--miss-cost` pair, which lexical distance cannot
+    recover."""
+    code = main([
+        "monitor", str(_csv(tmp_path)), "--horizon", "7",
+        "--threshold", "150", "--cost-ratio", "20",
+    ])
+    assert code == 2
+    error = _error(capsys)
+    assert error["code"] == "INVALID_ARGUMENTS"
+    (suggestion,) = error["details"]["flag_suggestions"]
+    assert suggestion["unknown"] == "--cost-ratio"
+    assert "--alert-cost" in suggestion["suggestion"]
+    assert "--miss-cost" in suggestion["suggestion"]
+    rename = next(o for o in error["repair_options"] if o["action"] == "rename_flag")
+    assert rename["arguments"] == ["--alert-cost", "--miss-cost"]
+
+
 # -- H21: the naive path works --------------------------------------------
 
 def test_forecast_with_no_flags_infers_and_discloses(tmp_path, capsys):

@@ -22,6 +22,7 @@ from typing import Any
 from .artifacts import write_json_artifact
 from .contracts import GnomonError
 from .ids import SYSTEM_CLOCK, Clock, content_id
+from .versioning import RUNTIME_VERSION
 from .plan import LOAD_OPERATOR, MACRO_OPERATORS, TemporalPlan, validate_plan
 from .registry import OPERATORS
 
@@ -155,6 +156,10 @@ def execute_plan(
             cache_key = content_id("step", {
                 "operator": step.operator,
                 "inputs": resolved,
+                # A cache entry computed by a different build is the same
+                # stale-answer bug as an artifact id collision: the code is
+                # part of the answerer's identity.
+                "runtime_version": RUNTIME_VERSION,
                 "as_of": as_of.isoformat() if as_of else None,
                 "store_path": store_path,
             })

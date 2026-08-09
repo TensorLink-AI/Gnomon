@@ -9,6 +9,7 @@ from gnomon.operators import (
     cross_correlation,
     difference,
     evaluate_actions,
+    evaluate_threshold_risk,
     event_study,
     regime_detection,
     resample_aggregate,
@@ -138,6 +139,35 @@ def test_simulate_scenario_shift_and_scale():
     result = simulate_scenario(rows, [{"type": "scale", "value": 2.0}])
     assert result["rows"][0]["q10"] == 180.0
     assert result["support"]["status"] == "conditionally_supported"
+
+
+def test_evaluate_threshold_risk_matches_the_rows_it_reads():
+    """The operator previously passed probability-keyed quantiles where
+    step-keyed spreads were expected and raised KeyError on every
+    invocation. Now the spreads come from the rows themselves, so the
+    probabilities must agree with the quantiles printed beside them:
+    small above a row's q90, large above its q10."""
+    residuals = [-5.0, -3.0, -1.0, 0.0, 1.0, 2.0, 3.0, 5.0]
+    rows = [
+        {"timestamp": f"t{i}", "point": p, "q10": p - 4.0, "q50": p, "q90": p + 4.0}
+        for i, p in enumerate([100.0, 101.0], 1)
+    ]
+    points = [row["point"] for row in rows]
+
+    result = evaluate_threshold_risk(rows, points, residuals, 104.0)
+    assert result["support"]["status"] == "supported"
+    probabilities = result["risk"]["probability_above"]
+    assert len(probabilities) == 2
+    assert all(0.0 <= p <= 1.0 for p in probabilities)
+    assert probabilities[0] <= 0.3  # threshold sits at row 1's q90
+    assert result["peak_step_probability"] == max(probabilities)
+
+    below = evaluate_threshold_risk(rows, points, residuals, 96.0)
+    assert below["risk"]["probability_above"][0] >= 0.7  # at row 1's q10
+
+    empty = evaluate_threshold_risk(rows, points, [], 104.0)
+    assert empty["risk"] is None
+    assert empty["support"]["status"] == "inconclusive"
 
 
 def test_evaluate_actions_degraded_without_utilities():

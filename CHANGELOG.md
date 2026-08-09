@@ -2,6 +2,158 @@
 
 ## Unreleased
 
+- **Artifact ids cover the runtime version: a different build is a
+  different answerer.** Every artifact id payload (forecast, and the
+  investigation/decision/monitor/anomaly macros) now includes
+  `versioning.RUNTIME_VERSION`, and the planner's step cache keys it too.
+  Content ids previously named only the question — same file, same task,
+  same id — so after a code fix the stale artifact kept answering under
+  the fixed build's identity: observed live when `decide` served the
+  pre-fix threshold artifact (`P(above 340) = 0.61` on disk, 0.0714 from
+  every fresh run) because first-write-wins kept the old file. Artifacts
+  stay immutable — a new build writes a new id rather than overwriting —
+  and `artifact.json` carries the stamp (`runtime_version`, additive).
+  `gnomon_get_artifact` adds a `runtime_note` when serving an artifact
+  produced by a different or pre-stamp build, since agents are told to
+  quote artifacts verbatim. **Ids change once per release** (this is the
+  point); tracking rows keep their stored ids and are unaffected. Goldens
+  are updated by textual patch — id and new field only — so their
+  3.12-generated float bytes stay byte-exact on CI; `__version__` and
+  `gnomon capabilities` now read the same constant.
+
+- **Every caller-settable parameter is classified, and moving an evidence
+  rule now always leaves a trace.** `contracts.PARAMETER_AUTHORITY` tags
+  each front-door parameter as *intent* (what the caller wants — free),
+  *data* (what the caller's data is — validated and disclosed), or
+  *epistemic* (what counts as evidence — priced), and
+  `tests/test_parameter_authority.py` walks the CLI parser and the MCP
+  schemas so a new parameter cannot reach a front door unclassified.
+  The one unpriced epistemic knob is now priced: a
+  `minimum_baseline_improvement` below the default 0.02 weakens the
+  mandated-baseline gate, so the run carries a typed
+  `nonstandard_evaluation` reason and its support is capped at
+  `conditionally_supported`; above the default it is disclosed without a
+  cap, and negative values were already refused
+  (`INVALID_MINIMUM_IMPROVEMENT`). `EPISTEMIC_TRACES` records, per
+  epistemic parameter, exactly where the artifact discloses the deviation
+  — repair, forced ensembles, best-effort, and the context lanes were
+  already priced; the table makes the promise auditable.
+
+- **Artifacts record the channel the data arrived through.** The task
+  block now carries `provenance: "inline"` when the observations were
+  typed by the caller through the MCP `observations` channel (and
+  `"store"` for bitemporal-store reads); file runs serialise
+  byte-identically, with no key. Inline rows were already validated,
+  fingerprinted, and repaired exactly like a file — but a file at least
+  existed outside the conversation, and a reader weighing the numbers is
+  owed the difference: an agent cannot invent a forecast, and until now
+  nothing recorded that it may have invented the history. Every tool
+  response built on inline rows (observations, covariates, actuals, or
+  context events) also carries the fact in
+  `support_assessment.assumptions`. Support is *not* downgraded — the
+  caller's file was always the caller's word too; the fix is that the
+  channel is visible, not that one channel is pretended trustworthy.
+  (Also fixed here: the schema-inference branch of the MCP wrapper was
+  overwriting assumptions accumulated before it, so channel notes and
+  inference notes now compose.)
+
+- **A restricted candidate pool is disclosed and cannot share an id with
+  an open contest.** `--candidates` runs now carry a
+  `candidate_pool_restricted` support reason naming the pool (support is
+  not capped — the mandatory baselines compete regardless), and
+  `statistical_candidates` joins the config fingerprint, so a restricted
+  run and an open run over the same file no longer collide on one
+  `forecast_id` under first-write-wins. A pool restricted via
+  `gnomon.yaml` is disclosed identically.
+
+- **Structural event failures are named, not blamed on the source.**
+  `events_excluded` used to report every structurally invalid event as
+  "no verifiable source" — an event rejected for a bad `expected_shape`
+  was told to fix its source. Exclusion reasons now quote the actual
+  contract violations. Relatedly, `parse_mapping` accepts the covariate
+  mapping as a list of entries alongside the documented comma-joined
+  string: an agent handing a JSON array is guessing the unambiguous
+  thing, and the previous behaviour was a raw `AttributeError` with no
+  repair path.
+
+- **Context-event proposers may nominate an effect shape.** The event
+  attribute `expected_shape` (`level` | `decay` | `ramp`) narrows the
+  ablation's shape contest to the nominated shape — one comparison
+  instead of three, strictly *less* room to look good by luck — and the
+  nominated shape must still beat the history-only baseline on identical
+  folds or the event is excluded outright, never silently switched to a
+  shape that fits. Conflicting nominations across events cancel and the
+  full contest runs. The artifact records `nominated_shape` beside
+  `effect_shape` and `shape_scores` (absent when nothing was nominated,
+  so existing artifacts are unchanged); an unknown shape is a structural
+  contract violation named by `validate_context_event`. The proposer
+  ledger can attribute shape-nomination skill later without a schema
+  change, since the nomination rides in the admission evidence.
+
+- **Threshold-crossing probabilities describe the published quantiles
+  again.** `threshold_analysis_stage` recentres the backtest residual
+  cloud by its own median before comparing it to the threshold, pinning
+  the cloud's location to `point + centre_shift` — the published q50 —
+  under either recentring policy. Previously the cloud was shifted by
+  `centre_shift` alone, which was correct only while recentring was on;
+  once fold-starved runs began suppressing recentring (`centre_shift` = 0)
+  the probabilities kept the model's median backtest error while the
+  intervals discarded it, and the README's own monitor scenario published
+  `P(above 340) = 0.61` in the same artifact as `q80 = point + 6.1`
+  (`first_timestamp_point_above: null` beside a per-step exceedance
+  probability of 0.61). On that scenario the probability is now 0.0714,
+  coherent with the quantiles beside it; the 20× miss-cost alert still
+  fires, now for the right reason (the cost ratio sets the alert bar at
+  0.048). Fold-rich recentred runs are unchanged up to the difference
+  between the per-lead and pooled medians. Every `monitor` and `decide`
+  payload on short-history series inherits the fix. Found by an agent
+  dogfooding the README (`docs/agent-dogfood-review-2026-08.md`, F1).
+
+- **`evaluate_threshold_risk` runs.** The plan operator passed
+  probability-keyed residual quantiles where `threshold_analysis_stage`
+  expects step-keyed spreads, so every invocation raised `KeyError: 1` —
+  surfaced through plan execution as an unrepairable
+  `OPERATOR_ERROR: "1"`. It had no test and can never have completed. The
+  spreads are now read off the forecast rows themselves
+  (`q50 − q10`, `q50 − point`, `q90 − q50` per row), so its probabilities
+  agree with the quantiles printed beside them under whatever recentring
+  policy produced the rows (F2 in the same review, now tested).
+
+- **`--cost-ratio` is understood as a guess for the cost pair.** The
+  README frames monitor costs as a ratio ("costs us 20x a false alarm"),
+  so `--cost-ratio` is the natural first flag to try; lexical distance
+  cannot map it to `--alert-cost`/`--miss-cost`. The flag-synonym table
+  now supports one-to-many replacements: the structured error suggests
+  both flags and the `rename_flag` repair carries them as arguments
+  (a ratio of R is `--alert-cost 1 --miss-cost R`). `--cost`, `--costs`,
+  `--false-alarm-cost`, and `--penalty` are mapped alongside.
+
+- **The tool surface infers the schema the way the CLI does, additive.**
+  `gnomon forecast data.csv` has worked without flags since v0.4 — exactly
+  one column parses as timestamps, exactly one other as numbers, every
+  inference disclosed — but the MCP tools, the surface the README calls
+  preferred for agents, still hard-required `time_column`, `target_column`,
+  and (for forecasts) `horizon`. Now the same eleven data-reading tools the
+  CLI infers for (`gnomon_inspect`, `gnomon_forecast`, the four verb
+  macros, `gnomon_route`, `gnomon_preflight_context`, and the three
+  covariate tools) accept a bare `input` (or inline `observations`):
+  missing columns are filled only when the file leaves no choice, the
+  inference rides in `support_assessment.assumptions` (or a top-level
+  `assumptions` for payloads without results), and `gnomon_forecast`
+  additionally defaults `horizon` to one seasonal period of the inferred
+  grid, disclosed the same way. Ambiguity still refuses — now with
+  `AMBIGUOUS_SCHEMA` errors that speak tool-parameter names
+  (`target_column`, candidates listed, `target_column: "auto"` offered for
+  forecasts) instead of CLI flags an MCP client cannot pass.
+  `store:<dataset>` inputs still require explicit columns (no header to
+  infer from), and `gnomon_ingest` never infers: a write to the store
+  under guessed columns would persist the guess. Every previously valid
+  call is untouched — this only widens what is accepted — and explicit
+  arguments disclose nothing. The Hermes plugin follows suit: its schema
+  copies drop the same `required` entries and its handlers forward
+  `--time`/`--target`/`--horizon` only when supplied, letting the CLI it
+  wraps do the inferring and disclosing.
+
 - **General frequencies: any whole-second sub-daily step.** The named grid
   is now a set of defaults rather than the boundary. Inference accepts any
   strictly regular series — one unique spacing — at a whole-second step

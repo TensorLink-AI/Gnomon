@@ -23,6 +23,7 @@ from .data import Observation, load_observations
 from .evaluation import (
     DEFAULT_TARGET_COVERAGE,
     Evaluation,
+    conformal_quantile,
     conformal_quantile_spreads,
     conformal_spreads,
     evaluate,
@@ -715,10 +716,20 @@ def threshold_analysis_stage(
     that lead time, so the crossing probability is computed against the
     same scaling: pooled residuals rescaled to each lead's half-width
     rather than stretched by sqrt(step).
+
+    The cloud is recentred by *its own median*, not by `centre_shift`:
+    subtracting the median pins the scaled cloud's location to
+    `point + centre_shift` — the published q50 — under either recentring
+    policy. When recentring is suppressed, `centre_shift` is 0 while the
+    raw residuals still carry the model's median backtest error, and
+    subtracting the shift alone left the probabilities contradicting the
+    quantiles printed beside them: the README example published
+    P(above 340) = 0.61 in the same artifact as q80 = point + 6.1.
     """
     probabilities: list[float] = []
     pooled_half = (max(spreads[1][0], spreads[1][2])
                    if spreads and 1 in spreads else 0.0)
+    residual_centre = conformal_quantile(residuals, 0.5) if residuals else 0.0
     for step, point in enumerate(points, 1):
         low_offset, centre_shift, high_offset = spreads[step]
         lead_half = max(low_offset, high_offset)
@@ -727,7 +738,7 @@ def threshold_analysis_stage(
         scale = (lead_half / pooled_half) if pooled_half > 1e-12 else 1.0
         above = sum(
             1 for residual in residuals
-            if point + centre_shift + (residual - centre_shift) * scale > threshold
+            if point + centre_shift + (residual - residual_centre) * scale > threshold
         )
         probabilities.append(round(above / len(residuals), 4))
 

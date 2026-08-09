@@ -18,13 +18,18 @@ function of the history and the flags:
 ``ramp``        the effect builds linearly across the active window.
 
 The shape is **chosen by the same identical-fold ablation that decides
-whether context is admitted at all**, never by the caller — a caller who
-could name the shape could fit a story to the data, and the whole point of
-the gate is that context earns its place by measurement. Because three
-shapes on the same folds is three chances to look good by luck, the winning
-shape must beat the *history-only* baseline, not merely beat the other
-shapes; `context_eval` enforces that, and applies its single-fold guard to
-the winner.
+whether context is admitted at all**, never asserted by the caller — a
+caller who could pick the winner could fit a story to the data, and the
+whole point of the gate is that context earns its place by measurement.
+What a proposer *may* do is nominate one via the event attribute
+`expected_shape`: the contest then narrows to that shape alone — one
+comparison instead of three, strictly less room to look good by luck — and
+the nominated shape still has to beat the history-only baseline or the
+event is excluded outright, never silently switched to a shape that fits.
+Because three shapes on the same folds is three chances to look good by
+luck, the winning shape must beat the *history-only* baseline, not merely
+beat the other shapes; `context_eval` enforces that, and applies its
+single-fold guard to the winner.
 """
 
 from __future__ import annotations
