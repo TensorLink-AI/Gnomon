@@ -13,6 +13,12 @@ Conditions
                 prompt plus that evidence and answers only the choice
                 questions. Forecast arrays in the final answer are the
                 Gnomon arrays — the model cannot edit them.
+``gnomon-mcp``    T2/T4 only: the tool-use arm. The model holds the real
+                ``gnomon mcp serve`` tool surface verbatim (see
+                ``mcp_agent.py``) and drives the engine itself; per
+                channel it submits a Gnomon artifact (used verbatim), its
+                own values (labeled ``model``), or abstains — the route
+                is recorded per channel.
 
 Success semantics
 -----------------
@@ -160,6 +166,16 @@ def answer_row(row: dict[str, Any], condition: str,
         return {"answer": extract_json_object(completion), "abstained": [],
                 "channel_support": {}}
 
+    if condition == "gnomon-mcp":
+        if row.get("tier") not in ("T2", "T4"):
+            raise ValueError("gnomon-mcp covers tiers T2 and T4 only")
+        from benchmarks.temporalbench.mcp_agent import run_row
+
+        # best_effort is deliberately not passed: on this arm the model
+        # itself decides whether to request the engine's labeled
+        # fallback via the gnomon_forecast tool — the realistic path.
+        return run_row(row, client)
+
     analysis = gnomon_runner.analyse_row(row, best_effort=best_effort)
     tier = row.get("tier")
     if condition == "gnomon-pure":
@@ -221,7 +237,8 @@ def main() -> int:
     parser.add_argument("--data-dir", required=True)
     parser.add_argument("--download", action="store_true")
     parser.add_argument("--condition",
-                        choices=["control", "gnomon-pure", "gnomon-agent"])
+                        choices=["control", "gnomon-pure", "gnomon-agent",
+                                 "gnomon-mcp"])
     parser.add_argument("--model", default=None, help="OpenRouter model id")
     parser.add_argument("--tiers", default="T1,T2,T3,T4")
     parser.add_argument("--datasets", default=None,
@@ -254,9 +271,13 @@ def main() -> int:
         parser.error("--model is required for this condition")
     if args.best_effort and args.condition == "control":
         parser.error("--best-effort applies to the Gnomon conditions only")
+    if args.best_effort and args.condition == "gnomon-mcp":
+        parser.error("--best-effort does not apply to gnomon-mcp: the model "
+                     "decides itself whether to request the engine's "
+                     "labeled fallback via the gnomon_forecast tool")
 
     tiers = tuple(t.strip() for t in args.tiers.split(",") if t.strip() in TIERS)
-    if args.condition == "gnomon-pure":
+    if args.condition in ("gnomon-pure", "gnomon-mcp"):
         tiers = tuple(t for t in tiers if t in ("T2", "T4")) or ("T2", "T4")
     datasets = (tuple(d.strip() for d in args.datasets.split(","))
                 if args.datasets else None)
@@ -281,6 +302,9 @@ def main() -> int:
     # Coverage beside every figure: how many channel forecasts each
     # number rests on, by support label, plus the abstained channels.
     support_mix: dict[str, int] = {}
+    # gnomon-mcp: per-channel routes (gnomon / informed-direct / direct
+    # / abstain) so the exits stay separable in analysis.
+    route_mix: dict[str, int] = {}
     channels_abstained = 0
     total = 0
     for row in iter_rows(data_dir, tiers=tiers or TIERS,
@@ -331,6 +355,9 @@ def main() -> int:
         channel_support = outcome.get("channel_support") or {}
         for label in channel_support.values():
             support_mix[label] = support_mix.get(label, 0) + 1
+        channel_route = outcome.get("channel_route") or {}
+        for route in channel_route.values():
+            route_mix[route] = route_mix.get(route, 0) + 1
         channels_abstained += sum(
             1 for reason in outcome.get("abstained") or []
             if not reason.startswith("mcq/"))
@@ -349,7 +376,9 @@ def main() -> int:
                    "smape": (metrics or {}).get("SMAPE")
                    or (metrics or {}).get("OW_sMAPE"),
                    **({"channel_support": channel_support}
-                      if channel_support else {})},
+                      if channel_support else {}),
+                   **({"channel_route": channel_route}
+                      if channel_route else {})},
         ))
         (details_dir / f"{row_id}.json").write_text(
             json.dumps({"verdict": verdict,
@@ -358,6 +387,10 @@ def main() -> int:
                         # best_effort channel is a disclosed fallback,
                         # and score_per_channel reports the mix.
                         "channel_support": channel_support or None,
+                        # gnomon-mcp only: which exit each channel took
+                        # and what the model did with the tools.
+                        "channel_route": channel_route or None,
+                        "mcp": outcome.get("mcp"),
                         "answer": outcome["answer"]}, indent=2,
                        default=str) + "\n",
             encoding="utf-8",
@@ -389,6 +422,8 @@ def main() -> int:
         "best_effort": args.best_effort,
         "forecast_channel_support_mix": dict(sorted(support_mix.items())),
         "forecast_channels_abstained": channels_abstained,
+        **({"forecast_channel_routes": dict(sorted(route_mix.items()))}
+           if route_mix else {}),
         "note": (
             "forecast metrics computed by the dataset's official "
             "forecast_metrics_utils.py; choice accuracy is this adapter's "
@@ -407,7 +442,8 @@ def main() -> int:
             "are the coverage every forecast figure rests on; quote them "
             "beside it. Any best_effort count in the mix is disclosed "
             "fallback rows (NO RELIABLE FORECAST), not supported "
-            "forecasts."
+            "forecasts; a 'model' count is gnomon-mcp channels the model "
+            "wrote itself (see forecast_channel_routes)."
         ),
     }
     if client is not None:
