@@ -13,12 +13,16 @@ Conditions
                 prompt plus that evidence and answers only the choice
                 questions. Forecast arrays in the final answer are the
                 Gnomon arrays — the model cannot edit them.
-``gnomon-mcp``    T2/T4 only: the tool-use arm. The model holds the real
+``gnomon-mcp``    the tool-use arm, on every tier. The model holds the real
                 ``gnomon mcp serve`` tool surface verbatim (see
-                ``mcp_agent.py``) and drives the engine itself; per
-                channel it submits a Gnomon artifact (used verbatim), its
-                own values (labeled ``model``), or abstains — the route
-                is recorded per channel.
+                ``mcp_agent.py``) and drives the engine itself. On T2/T4
+                it submits, per channel, a Gnomon artifact (used
+                verbatim), its own values (labeled ``model``), or an
+                abstention — the route is recorded per channel. On T1/T3
+                there is nothing to forecast, so the same surface is
+                offered with the tier's own answer shape: whether tool
+                access helps a question-answering tier is measured, not
+                assumed either way by pruning the tools to fit.
 
 Success semantics
 -----------------
@@ -167,14 +171,16 @@ def answer_row(row: dict[str, Any], condition: str,
                 "channel_support": {}}
 
     if condition == "gnomon-mcp":
-        if row.get("tier") not in ("T2", "T4"):
-            raise ValueError("gnomon-mcp covers tiers T2 and T4 only")
-        from benchmarks.temporalbench.mcp_agent import run_row
+        from benchmarks.temporalbench.mcp_agent import mcq_row, run_row
 
         # best_effort is deliberately not passed: on this arm the model
         # itself decides whether to request the engine's labeled
         # fallback via the gnomon_forecast tool — the realistic path.
-        return run_row(row, client)
+        # T1/T3 carry no forecast channels, so they take the same
+        # session with the tier's own answer shape.
+        if row.get("tier") in ("T2", "T4"):
+            return run_row(row, client)
+        return mcq_row(row, client)
 
     analysis = gnomon_runner.analyse_row(row, best_effort=best_effort)
     tier = row.get("tier")
@@ -240,6 +246,13 @@ def main() -> int:
                         choices=["control", "gnomon-pure", "gnomon-agent",
                                  "gnomon-mcp"])
     parser.add_argument("--model", default=None, help="OpenRouter model id")
+    parser.add_argument(
+        "--base-url", default=None,
+        help="OpenAI-compatible chat-completions endpoint to send the "
+             "model's requests to (default: $OPENROUTER_BASE_URL, else "
+             "OpenRouter). The resolved endpoint is recorded in "
+             "summary.json's llm_usage and in the run manifest: the same "
+             "model id served from elsewhere is a different measurement.")
     parser.add_argument("--tiers", default="T1,T2,T3,T4")
     parser.add_argument("--datasets", default=None,
                         help="Comma list of source datasets to keep")
@@ -277,13 +290,17 @@ def main() -> int:
                      "labeled fallback via the gnomon_forecast tool")
 
     tiers = tuple(t.strip() for t in args.tiers.split(",") if t.strip() in TIERS)
-    if args.condition in ("gnomon-pure", "gnomon-mcp"):
+    # gnomon-pure produces forecasts and nothing else, so it is a T2/T4
+    # condition by construction. gnomon-mcp is not: the tool surface is
+    # offered on every tier, and whether an agent that can interrogate a
+    # series answers T1/T3 better is a measurement, not an assumption.
+    if args.condition == "gnomon-pure":
         tiers = tuple(t for t in tiers if t in ("T2", "T4")) or ("T2", "T4")
     datasets = (tuple(d.strip() for d in args.datasets.split(","))
                 if args.datasets else None)
     official_metrics = load_official_metrics(data_dir)
     client = (OpenRouterClient(args.model, temperature=args.temperature,
-                               max_tokens=8000)
+                               max_tokens=8000, base_url=args.base_url)
               if args.model else None)
 
     output_dir = Path(args.output_dir)
@@ -298,7 +315,7 @@ def main() -> int:
     choice_by_tier: dict[str, list[int]] = {}
     choice_rows_by_tier: dict[str, int] = {}
     forecast_metrics_acc: dict[str, list[float]] = {}
-    abstained_rows = errored = forecast_rows_scored = 0
+    abstained_rows = errored = forecast_rows_scored = rows_voided = 0
     # Coverage beside every figure: how many channel forecasts each
     # number rests on, by support label, plus the abstained channels.
     support_mix: dict[str, int] = {}
@@ -339,7 +356,16 @@ def main() -> int:
 
         choice = verdict.get("choice") or {}
         tier = verdict["tier"]
-        if choice.get("total"):
+        # A row the harness voided (a breached cap, a run that never
+        # submitted) did not answer the questions wrongly — it did not
+        # answer them. Scoring its empty answer as zero-of-n would report
+        # a harness cap as a model failure and drag the tier mean down by
+        # exactly the rows the harness lost; it is counted as a voided
+        # row instead, and reported as one.
+        voided = outcome.get("row_abstained")
+        if voided:
+            rows_voided += 1
+        if choice.get("total") and not voided:
             choice_rows_by_tier[tier] = choice_rows_by_tier.get(tier, 0) + 1
             choice_by_tier.setdefault(tier, []).extend(
                 [1] * choice["correct"] + [0] * (choice["total"] - choice["correct"])
@@ -358,9 +384,13 @@ def main() -> int:
         channel_route = outcome.get("channel_route") or {}
         for route in channel_route.values():
             route_mix[route] = route_mix.get(route, 0) + 1
-        channels_abstained += sum(
-            1 for reason in outcome.get("abstained") or []
-            if not reason.startswith("mcq/"))
+        # Forecast-channel coverage, so only the tiers that have forecast
+        # channels contribute: a T1/T3 row's abstention is a row that
+        # went unanswered, counted as such, not a channel Gnomon declined.
+        if tier in ("T2", "T4"):
+            channels_abstained += sum(
+                1 for reason in outcome.get("abstained") or []
+                if not reason.startswith("mcq/"))
 
         success = bool(metrics) if tier in ("T2", "T4") else (
             choice.get("total", 0) > 0 and choice["correct"] == choice["total"]
@@ -371,8 +401,9 @@ def main() -> int:
             tool_calls=0 if args.condition == "control" else 1,
             latency_seconds=round(elapsed, 3),
             extra={"tier": tier,
-                   "choice_correct": choice.get("correct"),
-                   "choice_total": choice.get("total"),
+                   "choice_correct": None if voided else choice.get("correct"),
+                   "choice_total": None if voided else choice.get("total"),
+                   **({"row_abstained": voided} if voided else {}),
                    "smape": (metrics or {}).get("SMAPE")
                    or (metrics or {}).get("OW_sMAPE"),
                    **({"channel_support": channel_support}
@@ -407,6 +438,11 @@ def main() -> int:
         "rows": total,
         "rows_errored": errored,
         "rows_with_abstentions": abstained_rows,
+        # Rows the harness ended without an answer (a breached cap, a run
+        # that never submitted). They are in `rows`, out of every
+        # accuracy denominator, and quoted here so the coverage behind
+        # the tier means is visible rather than inferred.
+        "rows_voided_by_harness": rows_voided,
         "choice_accuracy_by_tier_scored_only": {
             tier: sum(flags) / len(flags)
             for tier, flags in sorted(choice_by_tier.items())
@@ -432,7 +468,11 @@ def main() -> int:
             "fully-abstained and errored rows are not in them (rows with "
             "PARTIAL channel abstentions are, scored on the channels "
             "present, and Uncertain/sentinel choice answers count as "
-            "wrong), so they are unmatched-subset numbers; compare arms through "
+            "wrong). Rows the harness voided (rows_voided_by_harness — a "
+            "breached cap, no submission) are out of the choice "
+            "denominators too: an answer the harness never collected is "
+            "not a wrong answer. So they are unmatched-subset numbers; "
+            "compare arms through "
             "the per-channel path (benchmarks/temporalbench/"
             "score_per_channel.py) or benchmarks/report.py's matched "
             "join, not by subtracting summaries. success on T2/T4 "
@@ -463,6 +503,10 @@ def main() -> int:
                + (";datasets=" + ",".join(datasets) if datasets else ""),
         command=" ".join(sys.argv),
         limit=args.limit,
+        # Which endpoint served the model: not part of `target` (it does
+        # not change the task set), but it does change what the score is
+        # a measurement of, so it belongs in provenance.
+        base_url=client.base_url if client is not None else None,
         # Not part of `target`: best_effort changes the condition's
         # behaviour, not the task set, so it must not make report.py
         # refuse a control-vs-treatment join. It still has to be visible
