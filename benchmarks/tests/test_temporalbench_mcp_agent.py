@@ -5,11 +5,14 @@ session is the real server code run in-process (CiK's
 ``InProcessMcpSession``), so the artifact-route tests exercise an actual
 ``gnomon_forecast`` through the real tool surface. Under test: the
 per-channel exits and route taxonomy, the artifact-channel binding
-(an artifact cannot be submitted for a channel it did not forecast),
+(an artifact cannot be submitted for a channel it did not forecast, and
+a batched multi-target artifact binds each channel to its OWN result),
 the engine-abstention story through the tool surface (unsupported
 artifact rejected with the best_effort recovery named, and a
 model-driven ``best_effort: true`` retry accepted with its label), the
-path jail, and caps abstaining the whole row.
+path jail, the token bounds on tool results, the last-call protocol
+that keeps a breached cap from voiding completed work, and the T1/T3
+MCQ contract.
 """
 
 from __future__ import annotations
@@ -24,7 +27,13 @@ from types import SimpleNamespace
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from benchmarks.cik.mcp_agent import InProcessMcpSession
-from benchmarks.temporalbench.mcp_agent import MAX_ROUNDS, run_row
+from benchmarks.temporalbench import mcp_agent
+from benchmarks.temporalbench.mcp_agent import (
+    MAX_ROUNDS,
+    bounded_tool_text,
+    mcq_row,
+    run_row,
+)
 
 
 # -- fixtures ---------------------------------------------------------------
@@ -104,15 +113,24 @@ def _forecast_call(messages, channel: str, horizon: int = 4, **extra):
 VALUES = [97.0, 97.1, 97.2, 97.3]
 
 
-def _run(row, steps, tmp_path, sessions=None):
+def _factory(sessions=None):
     def factory(cwd):
         session = InProcessMcpSession(cwd)
         if sessions is not None:
             sessions.append(session)
         return session
 
+    return factory
+
+
+def _run(row, steps, tmp_path, sessions=None):
     return run_row(row, ScriptedClient(steps),
-                   session_factory=factory, work_dir=str(tmp_path))
+                   session_factory=_factory(sessions), work_dir=str(tmp_path))
+
+
+def _run_mcq(row, steps, tmp_path, sessions=None):
+    return mcq_row(row, ScriptedClient(steps),
+                   session_factory=_factory(sessions), work_dir=str(tmp_path))
 
 
 # -- exits and routes -------------------------------------------------------
@@ -289,21 +307,258 @@ def test_jail_blocks_outside_paths_before_the_server(tmp_path):
     assert sessions[0].calls == []  # the call never reached the server
 
 
-# -- caps abstain the whole row, never fall back ----------------------------
+# -- caps end the run without discarding what it produced -------------------
 
 def test_rounds_cap_abstains_every_channel(tmp_path):
-    steps = [{"content": "Working on it."}, {"content": "Still thinking."}]
+    steps = [{"content": "Working on it."}, {"content": "Still thinking."},
+             {"content": "Still nothing."}]  # the last call, unanswered
     outcome = _run(_row(sparse_temp=False), steps, tmp_path)
     assert outcome["answer"]["forecast"] == {}
     assert set(outcome["channel_route"].values()) == {"abstain"}
     assert all("no submission" in reason for reason in outcome["abstained"])
+    # The row is marked as one the harness voided, so the runner keeps it
+    # out of the accuracy denominators instead of scoring it zero.
+    assert "no submission" in outcome["row_abstained"]
 
 
-def test_token_cap_abstains(tmp_path):
-    steps = [{"content": "hmm", "bump_tokens": 300_000},
-             {"content": "more"}]
+def test_token_cap_keeps_the_answer_the_last_call_produces(tmp_path):
+    """The measured failure this exists for: a run that had done the work
+    was voided by the cap check that ran before its submission."""
+    steps = [
+        {"content": "thinking", "bump_tokens": 600_000},
+        {"tool_calls": [("submit_answer", {
+            "forecast": {"hr": {"values": VALUES},
+                         "spo2": {"values": VALUES}},
+            "mcq": {"q1": "Higher"},
+        })]},
+    ]
+    outcome = _run(_row(sparse_temp=False), steps, tmp_path)
+    assert outcome["answer"]["forecast"]["hr"] == VALUES
+    assert outcome["answer"]["mcq"] == {"q1": "Higher"}
+    assert "cap:tokens" in outcome["last_call"]
+    assert "row_abstained" not in outcome
+
+
+def test_token_cap_abstains_when_the_last_call_answers_in_prose(tmp_path):
+    steps = [{"content": "thinking", "bump_tokens": 600_000},
+             {"content": "I will keep thinking."}]
     outcome = _run(_row(sparse_temp=False), steps, tmp_path)
     assert any("cap:tokens" in reason for reason in outcome["abstained"])
+    assert "cap:tokens" in outcome["row_abstained"]
+
+
+def test_last_call_offers_only_the_submit_tool(tmp_path):
+    """Nothing more may be computed on a spent budget — but the model
+    must still be able to hand over what it already has."""
+    offered = []
+
+    def spend(messages):
+        return {"content": "thinking", "bump_tokens": 600_000}
+
+    def record(messages):
+        return {"content": "no"}
+
+    client = ScriptedClient([spend, record])
+    original = client.chat
+
+    def chat(messages, *, n=1, tools=None, tool_choice=None):
+        offered.append([tool["function"]["name"] for tool in tools or []])
+        return original(messages, n=n, tools=tools, tool_choice=tool_choice)
+
+    client.chat = chat
+    run_row(_row(sparse_temp=False), client,
+            session_factory=_factory(), work_dir=str(tmp_path))
+    assert "gnomon_forecast" in offered[0]
+    assert offered[-1] == ["submit_answer"]
+
+
+def test_spent_tool_budget_does_not_void_the_row(tmp_path, monkeypatch):
+    monkeypatch.setattr(mcp_agent, "MAX_MCP_CALLS", 1)
+
+    def first_call(messages):
+        return {"tool_calls": [_forecast_call(messages, "hr")]}
+
+    def second_call(messages):
+        return {"tool_calls": [_forecast_call(messages, "spo2")]}
+
+    def submit(messages):
+        payload = _last_tool_payload(messages)
+        assert payload["code"] == "TOOL_BUDGET_SPENT"
+        return {"tool_calls": [("submit_answer", {
+            "forecast": {"hr": {"values": VALUES},
+                         "spo2": {"values": VALUES}}, "mcq": {},
+        })]}
+
+    outcome = _run(_row(sparse_temp=False),
+                   [first_call, second_call, submit], tmp_path)
+    assert outcome["answer"]["forecast"]["spo2"] == VALUES
+    assert outcome["mcp"]["calls"] == 1
+
+
+# -- one batched call for every channel -------------------------------------
+
+def test_one_multi_target_artifact_serves_each_of_its_channels(tmp_path):
+    """`target_column: "hr,spo2"` is one run, one artifact, one result
+    per channel — and each channel must bind to its OWN result."""
+    seen = {}
+
+    def batched(messages):
+        return {"tool_calls": [_forecast_call(messages, "hr,spo2")]}
+
+    def submit(messages):
+        payload = _last_tool_payload(messages)
+        seen["path"] = path = payload["artifact_path"]
+        return {"tool_calls": [("submit_answer", {
+            "forecast": {"hr": {"artifact_path": path},
+                         "spo2": {"artifact_path": path}},
+            "mcq": {"q1": "Higher"},
+        })]}
+
+    outcome = _run(_row(sparse_temp=False), [batched, submit], tmp_path)
+    assert outcome["channel_route"] == {"hr": "gnomon", "spo2": "gnomon"}
+    assert outcome["mcp"]["calls"] == 1  # one call, not one per channel
+
+    from gnomon.artifacts import read_artifact
+
+    artifact = read_artifact(seen["path"])
+    by_series = {item["series"]: [float(row["q50"])
+                                  for row in item["forecast"]]
+                 for item in artifact["results"]}
+    assert outcome["answer"]["forecast"]["hr"] == by_series["hr"]
+    assert outcome["answer"]["forecast"]["spo2"] == by_series["spo2"]
+    assert by_series["hr"] != by_series["spo2"]  # not results[0] twice
+
+
+def test_multi_target_artifact_rejected_for_a_channel_it_skipped(tmp_path):
+    def batched(messages):
+        return {"tool_calls": [_forecast_call(messages, "hr,spo2")]}
+
+    def mislabel(messages):
+        payload = _last_tool_payload(messages)
+        return {"tool_calls": [("submit_answer", {
+            "forecast": {"temperature_c":
+                         {"artifact_path": payload["artifact_path"]}},
+        })]}
+
+    def recover(messages):
+        payload = _last_tool_payload(messages)
+        assert payload["accepted"] is False
+        assert any("'hr', 'spo2'" in problem
+                   for problem in payload["problems"])
+        return {"tool_calls": [("submit_answer", {
+            "forecast": {"temperature_c": {"abstain": True}}, "mcq": {},
+        })]}
+
+    outcome = _run(_row(), [batched, mislabel, recover], tmp_path)
+    assert outcome["channel_route"]["temperature_c"] == "abstain"
+
+
+def test_system_prompt_names_the_jail_and_the_batched_call(tmp_path):
+    """Two round-trips the first measured sweep spent on discovery: the
+    run directory (learned by rejection) and the comma list (six calls
+    where one would do)."""
+    seen = {}
+
+    def capture(messages):
+        seen["system"] = messages[0]["content"]
+        return {"tool_calls": [("submit_answer", {
+            "forecast": {"hr": {"values": VALUES},
+                         "spo2": {"values": VALUES}}, "mcq": {},
+        })]}
+
+    _run(_row(sparse_temp=False), [capture], tmp_path)
+    jail = str(Path(_csv_path([{"content": seen["system"]}])).parent)
+    assert f"only read and write inside {jail}" in seen["system"]
+    assert f"output_dir={jail}/gnomon-output" in seen["system"]
+    assert '"hr,spo2"' in seen["system"]
+
+
+# -- tool results are bounded without losing their disclosures --------------
+
+def test_short_tool_results_pass_through_verbatim():
+    text = json.dumps({"status": "ok", "results": [{"forecast": [1, 2, 3]}]})
+    assert bounded_tool_text(text, limit=10_000) == (text, False)
+
+
+def test_long_tool_results_shrink_bulk_and_keep_every_disclosure():
+    payload = {
+        "status": "complete",
+        "artifact_path": "/run/out",
+        "results": [{
+            "series": "hr", "support": "best_effort",
+            "selected_model": "seasonal_naive",
+            "warnings": ["NO RELIABLE FORECAST: " + "w" * 200] * 6,
+            "support_assessment": {"status": "unsupported",
+                                   "recovery": ["extend the history"]},
+            "forecast": [{"timestamp": f"t{i}", "q50": i, "q10": i,
+                          "q90": i, "point": i} for i in range(400)],
+        }],
+    }
+    text = json.dumps(payload)
+    bounded, truncated = bounded_tool_text(text, limit=4_000)
+    assert truncated and len(bounded) <= 4_000
+    result = json.loads(bounded)["results"][0]
+    # Bulk shrunk, and visibly so — never a short list posing as complete.
+    assert result["forecast"]["harness_truncated"] is True
+    assert result["forecast"]["items_total"] == 400
+    assert result["forecast"]["head"][0]["q50"] == 0
+    assert result["forecast"]["tail"][-1]["q50"] == 399
+    # Epistemics verbatim: all six warnings, the assessment, the support
+    # label, and the path to the complete numbers.
+    assert result["warnings"] == payload["results"][0]["warnings"]
+    assert result["support_assessment"] == \
+        payload["results"][0]["support_assessment"]
+    assert result["support"] == "best_effort"
+    assert json.loads(bounded)["artifact_path"] == "/run/out"
+
+
+def test_a_hard_squeeze_stays_parseable_and_keeps_the_disclosures():
+    """Cutting the serialized text would be shorter code and a worse
+    answer: unparseable JSON, with the artifact_path the model needs to
+    submit possibly inside the part that was cut."""
+    payload = {
+        "status": "complete",
+        "artifact_path": "/run/out",
+        "results": [{
+            "series": name, "support": "supported",
+            "warnings": [], "support_assessment": {"status": "ok"},
+            "forecast": [{"timestamp": f"t{i}", "q50": i} for i in range(60)],
+            "evidence": {"folds": [{"model": "x", "score": i}
+                                   for i in range(40)]},
+        } for name in ("hr", "spo2", "resp")],
+    }
+    bounded, truncated = bounded_tool_text(json.dumps(payload), limit=1_500)
+    assert truncated
+    parsed = json.loads(bounded)  # the point of the test
+    assert parsed["artifact_path"] == "/run/out"
+    # Every channel still there with its support label; only bulk left.
+    assert [r["series"] for r in parsed["results"]] == ["hr", "spo2", "resp"]
+    assert all(r["support"] == "supported" for r in parsed["results"])
+    assert parsed["harness_dropped"]  # and it names what went
+    assert all(path.startswith("results[") for path in parsed["harness_dropped"])
+
+
+def test_non_json_tool_output_is_cut_with_the_cut_named():
+    bounded, truncated = bounded_tool_text("x" * 500, limit=100)
+    assert truncated and "cut at 100 characters of 500" in bounded
+
+
+def test_a_truncated_result_is_recorded_in_the_trace(tmp_path, monkeypatch):
+    monkeypatch.setattr(mcp_agent, "MAX_TOOL_RESULT_CHARS", 200)
+
+    def call_forecast(messages):
+        return {"tool_calls": [_forecast_call(messages, "hr")]}
+
+    def submit(messages):
+        return {"tool_calls": [("submit_answer", {
+            "forecast": {"hr": {"values": VALUES},
+                         "spo2": {"values": VALUES}}, "mcq": {},
+        })]}
+
+    outcome = _run(_row(sparse_temp=False), [call_forecast, submit], tmp_path)
+    forecast_step, = [step for step in outcome["mcp"]["tool_sequence"]
+                      if step["tool"] == "gnomon_forecast"]
+    assert forecast_step["truncated"] is True
 
 
 def test_wrong_length_values_rejection_names_the_length(tmp_path):
@@ -324,15 +579,222 @@ def test_wrong_length_values_rejection_names_the_length(tmp_path):
     assert outcome["answer"]["forecast"]["hr"] == VALUES
 
 
+# -- T1/T3: the tier's own answer shape ------------------------------------
+
+def _t1_row() -> dict:
+    return {
+        "id": "tb-mcp-t1", "tier": "T1", "source_dataset": "MIMIC",
+        "prompt": 'Describe the history. Input (JSON): {"hr": [70, 71, 72, '
+                  '73, 74, 75]}\nAnswer trend and volatility.',
+        "labels": {"trend": "upward", "volatility": "increased"},
+    }
+
+
+def _t3_row() -> dict:
+    return {
+        "id": "tb-mcp-t3", "tier": "T3", "source_dataset": "MIMIC",
+        "prompt": 'Answer the pack. Input (JSON): {"hr": [70, 71, 72, 73]}',
+        "pack": [{"options": ["Higher", "Lower"], "label": "Higher"},
+                 {"options": ["Yes", "No"], "label": "No"}],
+    }
+
+
+def test_t1_answers_are_the_fields_the_scorer_reads(tmp_path):
+    from benchmarks.temporalbench.scoring import score_t1
+
+    outcome = _run_mcq(_t1_row(), [
+        {"tool_calls": [("submit_answer", {
+            "answers": {"trend": "Upward", "volatility": "increased"},
+        })]},
+    ], tmp_path)
+    assert outcome["answer"] == {"trend": "Upward", "volatility": "increased"}
+    assert outcome["abstained"] == []
+    assert score_t1(_t1_row(), outcome["answer"])["correct"] == 2
+
+
+def test_t3_answers_are_the_pack_list_in_order(tmp_path):
+    from benchmarks.temporalbench.scoring import score_t3
+
+    outcome = _run_mcq(_t3_row(), [
+        {"tool_calls": [("submit_answer", {"answers": ["Higher", "No"]})]},
+    ], tmp_path)
+    assert outcome["answer"] == {"answers": ["Higher", "No"]}
+    assert score_t3(_t3_row(), outcome["answer"]["answers"])["correct"] == 2
+
+
+def test_mcq_submit_schema_is_the_row_s_own_shape():
+    from benchmarks.temporalbench.mcp_agent import mcq_submit_tool
+
+    t1_tool, _ = mcq_submit_tool(_t1_row())
+    answers = t1_tool["function"]["parameters"]["properties"]["answers"]
+    assert sorted(answers["properties"]) == ["trend", "volatility"]
+    assert sorted(answers["required"]) == ["trend", "volatility"]
+
+    t3_tool, rule = mcq_submit_tool(_t3_row())
+    answers = t3_tool["function"]["parameters"]["properties"]["answers"]
+    assert answers["minItems"] == answers["maxItems"] == 2
+    assert "2 questions" in rule
+
+
+def test_mcq_tiers_hold_the_same_unpruned_tool_surface(tmp_path):
+    """The arm's question is whether tool access helps a question tier;
+    withdrawing the tools would answer it by construction."""
+    seen = {}
+
+    def capture(messages):
+        return {"tool_calls": [("submit_answer", {"answers": {
+            "trend": "upward", "volatility": "increased"}})]}
+
+    client = ScriptedClient([capture])
+    original = client.chat
+
+    def chat(messages, *, n=1, tools=None, tool_choice=None):
+        seen["tools"] = [tool["function"]["name"] for tool in tools]
+        seen["system"] = messages[0]["content"]
+        return original(messages, n=n, tools=tools, tool_choice=tool_choice)
+
+    client.chat = chat
+    mcq_row(_t1_row(), client, session_factory=_factory(),
+            work_dir=str(tmp_path))
+    assert {"gnomon_forecast", "gnomon_detect_anomalies", "gnomon_inspect",
+            "submit_answer"} <= set(seen["tools"])
+    # ...but the forecast contract is absent rather than restated: this
+    # tier has no horizon, no channels, and no artifact exits.
+    assert "horizon" not in seen["system"]
+    assert "artifact_path" not in seen["system"]
+    assert "only read and write inside" in seen["system"]
+
+
+def test_missing_mcq_fields_are_named_once_then_the_answer_stands(tmp_path):
+    def partial(messages):
+        return {"tool_calls": [("submit_answer",
+                                {"answers": {"trend": "upward"}})]}
+
+    def retry(messages):
+        payload = _last_tool_payload(messages)
+        assert payload["accepted"] is False
+        assert "volatility" in payload["problems"][0]
+        return {"tool_calls": [("submit_answer", {"answers": {
+            "trend": "upward", "volatility": "decreased"}})]}
+
+    outcome = _run_mcq(_t1_row(), [partial, retry], tmp_path)
+    assert outcome["answer"]["volatility"] == "decreased"
+
+
+def test_a_second_incomplete_mcq_submission_is_kept_not_voided(tmp_path):
+    """A validator that keeps rejecting turns an answer the model did
+    produce into an abstention — a worse report than a partial answer."""
+    steps = [
+        {"tool_calls": [("submit_answer", {"answers": {"trend": "upward"}})]},
+        {"tool_calls": [("submit_answer", {"answers": {"trend": "upward"}})]},
+    ]
+    outcome = _run_mcq(_t1_row(), steps, tmp_path)
+    assert outcome["answer"] == {"trend": "upward"}
+    assert "volatility" in outcome["submit_problems"][0]
+    assert "row_abstained" not in outcome
+
+
+def test_mcq_row_that_never_submits_is_voided_not_scored_zero(tmp_path):
+    steps = [{"content": "thinking"}, {"content": "still thinking"},
+             {"content": "no answer"}]
+    outcome = _run_mcq(_t1_row(), steps, tmp_path)
+    assert outcome["answer"] == {}
+    assert "no submission" in outcome["row_abstained"]
+
+
 # -- run_temporalbench wiring ----------------------------------------------
 
-def test_answer_row_dispatches_and_restricts_tiers():
-    import pytest
+def test_answer_row_dispatches_every_tier_to_its_mcp_path(monkeypatch):
+    from benchmarks.temporalbench import run_temporalbench
+    from benchmarks.temporalbench.mcp_agent import mcq_row as real_mcq
 
-    from benchmarks.temporalbench.run_temporalbench import answer_row
+    calls = []
+    monkeypatch.setattr(mcp_agent, "run_row",
+                        lambda row, client: calls.append(("forecast", row)))
+    monkeypatch.setattr(mcp_agent, "mcq_row",
+                        lambda row, client: calls.append(("mcq", row)))
+    for tier in ("T1", "T2", "T3", "T4"):
+        run_temporalbench.answer_row({"tier": tier, "prompt": "x"},
+                                     "gnomon-mcp", None)
+    assert [kind for kind, _ in calls] == ["mcq", "forecast", "mcq",
+                                           "forecast"]
+    assert real_mcq is not None  # the tier restriction is gone, not moved
 
-    with pytest.raises(ValueError, match="T2 and T4"):
-        answer_row({"tier": "T1", "prompt": "x"}, "gnomon-mcp", None)
+
+def test_mcp_condition_keeps_the_requested_tiers(tmp_path, monkeypatch):
+    """`--condition gnomon-mcp --tiers T1,T2,T3,T4` must run all four:
+    the arm is no longer T2/T4 by construction."""
+    import benchmarks.temporalbench.run_temporalbench as runner
+
+    seen = {}
+    monkeypatch.setattr(runner, "load_official_metrics", lambda _dir: None)
+    monkeypatch.setattr(runner, "OpenRouterClient",
+                        lambda *a, **k: SimpleNamespace(
+                            base_url="http://x", usage_summary={}))
+
+    def iter_rows(_dir, *, tiers, datasets, limit):
+        seen["tiers"] = tiers
+        return iter(())
+
+    monkeypatch.setattr(runner, "iter_rows", iter_rows)
+    monkeypatch.setattr(sys, "argv", [
+        "run_temporalbench", "--data-dir", str(tmp_path),
+        "--condition", "gnomon-mcp", "--model", "x/y",
+        "--tiers", "T1,T2,T3,T4", "--output-dir", str(tmp_path / "out"),
+    ])
+    assert runner.main() == 0
+    assert seen["tiers"] == ("T1", "T2", "T3", "T4")
+
+
+def test_voided_rows_stay_out_of_the_accuracy_denominators(tmp_path,
+                                                           monkeypatch):
+    """A row the harness ended without an answer is not a wrong answer.
+    Counting it as one reported a token cap as a 0% tier score."""
+    import benchmarks.temporalbench.run_temporalbench as runner
+
+    rows = [{"id": "answered", "tier": "T1", "prompt": "x",
+             "labels": {"trend": "upward"}},
+            {"id": "voided", "tier": "T1", "prompt": "x",
+             "labels": {"trend": "upward"}}]
+    outcomes = {
+        "answered": {"answer": {"trend": "upward"}, "abstained": []},
+        "voided": {"answer": {}, "abstained": ["cap:tokens exceeded"],
+                   "row_abstained": "cap:tokens exceeded"},
+    }
+    monkeypatch.setattr(runner, "load_official_metrics", lambda _dir: None)
+    monkeypatch.setattr(runner, "OpenRouterClient",
+                        lambda *a, **k: SimpleNamespace(
+                            base_url="http://x", usage_summary={}))
+    monkeypatch.setattr(runner, "iter_rows",
+                        lambda _dir, **kwargs: iter(rows))
+    monkeypatch.setattr(runner, "answer_row",
+                        lambda row, *a, **k: outcomes[row["id"]])
+    output = tmp_path / "out"
+    monkeypatch.setattr(sys, "argv", [
+        "run_temporalbench", "--data-dir", str(tmp_path),
+        "--condition", "gnomon-mcp", "--model", "x/y",
+        "--tiers", "T1", "--output-dir", str(output),
+    ])
+    assert runner.main() == 0
+    summary = json.loads((output / "summary.json").read_text())
+    assert summary["rows"] == 2
+    assert summary["rows_voided_by_harness"] == 1
+    # One scored row, answered correctly — not 50% over a denominator
+    # that includes a row nobody answered.
+    assert summary["choice_rows_scored_by_tier"] == {"T1": 1}
+    # ...and a question tier's voided row is not a forecast channel the
+    # engine declined: that counter covers T2/T4 channels only.
+    assert summary["forecast_channels_abstained"] == 0
+    assert summary["choice_accuracy_by_tier_scored_only"] == {"T1": 1.0}
+    records = [json.loads(line) for line in
+               (output / "gnomonbench.jsonl").read_text().splitlines()]
+    voided, = [r for r in records if r["task_id"] == "voided"]
+    assert voided["choice_correct"] is None
+    assert voided["row_abstained"] == "cap:tokens exceeded"
+    assert voided["appropriate_abstention"] is True
+    # Provenance: the endpoint that served the model, in the manifest.
+    manifest = json.loads((output / "manifest.json").read_text())
+    assert manifest["base_url"] == "http://x"
 
 
 def test_rounds_constant_matches_cik_posture():

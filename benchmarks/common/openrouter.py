@@ -2,6 +2,12 @@
 
 All benchmark adapters source their LLM completions from OpenRouter so a
 single ``OPENROUTER_API_KEY`` covers every model under evaluation. The
+endpoint is not hard-wired, though: it speaks the plain
+chat-completions wire format, so any OpenAI-compatible server answers
+it — set ``OPENROUTER_BASE_URL`` (or pass ``base_url=``) to evaluate a
+model that OpenRouter does not host. The resolved endpoint travels with
+the numbers it produced, in ``usage_summary`` and the run manifests.
+The
 client intentionally mirrors the response surface the official CiK
 ``DirectPrompt`` baseline expects (``choices[i].message.content``,
 ``usage.prompt_tokens``, ``usage.completion_tokens``, ``provider``), so it
@@ -23,7 +29,29 @@ import urllib.request
 from types import SimpleNamespace
 from typing import Any
 
-OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+#: OpenRouter's own endpoint, and the default. Any OpenAI-compatible
+#: endpoint works instead — the wire format this client speaks is the
+#: chat-completions one, not an OpenRouter dialect — so the base URL is
+#: overridable per client, or process-wide through
+#: ``OPENROUTER_BASE_URL`` for adapters that construct their own client.
+#: A custom endpoint is provenance, not a detail: every runner records
+#: the resolved base URL in its manifest, because "model X scored Y"
+#: means something different when X was served from somewhere else.
+DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
+
+
+def resolved_base_url(base_url: str | None = None) -> str:
+    """The endpoint to call: explicit argument, else the environment,
+    else OpenRouter. Read per call, not once at import, so a test or a
+    runner can set the variable after this module is imported."""
+    if base_url:
+        return base_url
+    from_env = os.environ.get("OPENROUTER_BASE_URL", "").strip()
+    return from_env or DEFAULT_BASE_URL
+
+
+#: Backwards-compatible module constant (the import-time resolution).
+OPENROUTER_BASE_URL = resolved_base_url()
 DEFAULT_TIMEOUT_SECONDS = 600
 RETRYABLE_STATUS = {408, 409, 429, 500, 502, 503, 504}
 
@@ -75,6 +103,12 @@ class OpenRouterClient:
         ``anthropic/claude-sonnet-4`` or ``qwen/qwen-2.5-72b-instruct``.
     api_key:
         Defaults to the ``OPENROUTER_API_KEY`` environment variable.
+    base_url:
+        Any OpenAI-compatible chat-completions endpoint. Defaults to
+        ``OPENROUTER_BASE_URL`` from the environment, else OpenRouter's
+        own. Whatever it resolves to is reported in ``usage_summary``
+        and the runners' manifests: the endpoint that served a model is
+        part of what a score means.
     """
 
     def __init__(
@@ -82,7 +116,7 @@ class OpenRouterClient:
         model: str,
         *,
         api_key: str | None = None,
-        base_url: str = OPENROUTER_BASE_URL,
+        base_url: str | None = None,
         temperature: float = 1.0,
         max_tokens: int = 10000,
         max_retries: int = 5,
@@ -94,7 +128,7 @@ class OpenRouterClient:
 
             load_env_file()
         self.api_key = api_key or os.environ.get("OPENROUTER_API_KEY", "")
-        self.base_url = base_url.rstrip("/")
+        self.base_url = resolved_base_url(base_url).rstrip("/")
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.max_retries = max_retries
@@ -297,6 +331,9 @@ class OpenRouterClient:
     def usage_summary(self) -> dict[str, Any]:
         return {
             "model": self.model,
+            # Provenance, not decoration: the same model id served from a
+            # different endpoint is a different measurement.
+            "base_url": self.base_url,
             "requests": self.total_requests,
             "prompt_tokens": self.total_prompt_tokens,
             "completion_tokens": self.total_completion_tokens,

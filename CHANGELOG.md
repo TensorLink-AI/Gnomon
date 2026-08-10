@@ -2,6 +2,45 @@
 
 ## Unreleased
 
+- **TemporalBench's MCP arm stopped throwing away the work it had
+  done.** A measured sweep scored 0% on T2 and T4 not because the model
+  answered badly but because every row hit the 250k token cap after five
+  to eight completed tool calls, and the cap check ran *before* the
+  submission check — so answers already produced were voided, then
+  counted as wrong answers in the tier means. Three separate fixes, each
+  independently visible: caps now end tool use rather than the row (a
+  spent budget returns a typed "submit now" result), a run that reaches
+  a cap or the round limit without submitting gets one final message
+  offering `submit_answer` alone, and a row that still produces nothing
+  is marked `row_abstained` — reported in `summary.json`'s
+  `rows_voided_by_harness` and kept **out of the choice denominators**,
+  because an answer the harness never collected is not a wrong answer.
+  The waste that made runs expensive is bounded too: tool results pass
+  through verbatim to 16k characters and then shrink their bulk arrays
+  to head/tail with the totals kept, dropping whole bulk blocks by name
+  if that is not enough — never their support states, warnings,
+  abstention reasons, recovery actions or `artifact_path`, and never by
+  cutting the serialized text, which would hand the model JSON it
+  cannot parse. The prompt now names the run's jail directory (previously learned
+  by rejection, a round per row) and that `gnomon_forecast` batches
+  every channel in one call via a comma list (previously six calls per
+  row). A batched artifact binds each channel to its **own** result, so
+  it can no longer hand every channel the first one's numbers. Cap
+  raised 250k → 500k.
+- **TemporalBench's MCP arm now covers T1 and T3.** The tool surface is
+  offered unpruned on the question tiers — whether an agent that *can*
+  interrogate a series answers descriptive questions better is the
+  measurement, and pruning the tools to fit the tier would settle it by
+  construction — with a prompt that never mentions horizons or channels
+  and a `submit_answer` whose schema is the tier's own answer shape, so
+  a right answer cannot be lost to output formatting.
+- **Benchmarks can query any OpenAI-compatible endpoint.** The client
+  speaks plain chat-completions, so `OPENROUTER_BASE_URL` (or
+  `--base-url` on the TemporalBench runner) points it at a server
+  hosting a model OpenRouter does not, and the resolved endpoint travels
+  into `usage_summary` and the run manifest: the same model id served
+  from elsewhere is a different measurement.
+
 - **Artifact ids cover the runtime version: a different build is a
   different answerer.** Every artifact id payload (forecast, and the
   investigation/decision/monitor/anomaly macros) now includes
