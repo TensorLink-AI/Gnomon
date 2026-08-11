@@ -201,14 +201,25 @@ class StdioMcpSession:
             line = self._proc.stdout.readline()
         finally:
             timer.cancel()
+        # The timer check comes first, whatever readline returned: the
+        # kill can land after a complete line arrives (the call "won" the
+        # race but the server behind it is now dead — the next call would
+        # die on a BrokenPipeError misread as a server crash) or mid-write
+        # (a partial line that json.loads would report as a JSON error
+        # instead of the timeout it is).
+        if timed_out:
+            raise RuntimeError(
+                f"gnomon mcp server did not answer {method} within "
+                f"{self.call_timeout:.0f}s and was killed"
+            )
         if not line:
-            if timed_out:
-                raise RuntimeError(
-                    f"gnomon mcp server did not answer {method} within "
-                    f"{self.call_timeout:.0f}s and was killed"
-                )
             raise RuntimeError("gnomon mcp server closed its stdout")
-        message = json.loads(line)
+        try:
+            message = json.loads(line)
+        except json.JSONDecodeError as error:
+            raise RuntimeError(
+                f"gnomon mcp server sent invalid JSON for {method}: {error}"
+            ) from error
         if "error" in message:
             raise RuntimeError(f"MCP {method} failed: {message['error']}")
         return message["result"]

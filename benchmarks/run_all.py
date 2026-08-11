@@ -43,7 +43,9 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from benchmarks.common.manifest import read_manifest, write_manifest  # noqa: E402
+from benchmarks.common.manifest import (  # noqa: E402
+    MANIFEST_NAME, read_manifest, write_manifest,
+)
 
 # Which shared defaults each adapter's CLI can accept. "limit_flag"
 # names the adapter's closest equivalent of a sample cap.
@@ -207,12 +209,22 @@ def main() -> int:
                              "status": "dry-run"})
             continue
         print(f"[{name}] running: {printable}", flush=True)
+        path = summary_path(run, config)
+        if path is not None:
+            # A manifest already in the output dir is a *previous* run's
+            # record — possibly one this orchestrator wrote itself. For a
+            # child that writes no manifest of its own, the merge below
+            # would read it back as "the adapter's record" and stamp this
+            # run with the previous run's provenance (model, condition,
+            # command...), silently defeating the comparability refusal.
+            # Delete it, so whatever exists after the child exits was
+            # written by the child, during this run.
+            (path.parent / MANIFEST_NAME).unlink(missing_ok=True)
         result = subprocess.run(command, cwd=repo_root)
         status = "ok" if result.returncode == 0 else \
             f"exit {result.returncode}"
         outcome: dict[str, Any] = {"name": name, "command": printable,
                                    "status": status}
-        path = summary_path(run, config)
         if path is not None:
             # Record what this arm was, so a later comparison can refuse
             # to put it next to an arm that answered other questions.
@@ -241,20 +253,28 @@ def main() -> int:
             # the orchestrator contributes what only it knows (run_name,
             # config_path, exit status) plus fallbacks for adapters that
             # write no manifest of their own.
-            # Adapters write their manifest at the end of a successful run,
-            # so it is only trusted as *this* run's record when the child
-            # exited 0; on failure whatever sits there may be a previous
-            # run's manifest, and stale provenance is worse than sparse.
-            adapter_manifest = (read_manifest(path.parent)
-                                if result.returncode == 0 else {})
+            # The stale manifest was deleted before the child launched,
+            # so anything here now was written by the child during this
+            # run — trustworthy even when the child then exited non-zero
+            # (a failure after the manifest write is still this run).
+            adapter_manifest = read_manifest(path.parent)
             merged = {key: value for key, value in orchestrator_view.items()
                       if value is not None}
             merged.update(adapter_manifest)
             merged.update(run_name=name, config_path=args_config_path,
                           status=status)
             write_manifest(path.parent, **merged)
-        if path and path.exists():
-            outcome["summary"] = json.loads(path.read_text(encoding="utf-8"))
+        # Only a successful child's summary is this run's summary: on
+        # failure whatever file exists is a previous run's, and a stale
+        # summary in combined_summary.json misattributes results exactly
+        # the way a stale manifest misattributes provenance. A truncated
+        # file is disclosed instead of aborting the whole orchestration.
+        if path and path.exists() and result.returncode == 0:
+            try:
+                outcome["summary"] = json.loads(
+                    path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as error:
+                outcome["summary_error"] = f"unreadable summary.json: {error}"
         outcomes.append(outcome)
         if result.returncode != 0 and not args.continue_on_error:
             print(f"[{name}] failed; stopping (use --continue-on-error "

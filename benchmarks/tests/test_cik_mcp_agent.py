@@ -389,3 +389,44 @@ def test_stdio_session_kills_a_hung_server_instead_of_blocking_forever():
             session._rpc("initialize", {})
     finally:
         session.close()
+
+
+def test_stdio_session_timeout_mid_write_is_a_timeout_not_a_json_error():
+    # Killing the child mid-write leaves a non-empty partial line;
+    # parsing it first raised JSONDecodeError and the timeout diagnosis
+    # was never reached. The timed_out check must precede json.loads.
+    import sys as _sys
+
+    from benchmarks.cik.mcp_agent import StdioMcpSession
+
+    session = StdioMcpSession(
+        ".",
+        command=[_sys.executable, "-c",
+                 "import sys, time; sys.stdout.write('{\"partial\": ');"
+                 "sys.stdout.flush(); time.sleep(30)"],
+        call_timeout=0.3,
+    )
+    try:
+        with pytest.raises(RuntimeError, match="did not answer"):
+            session._rpc("initialize", {})
+    finally:
+        session.close()
+
+
+def test_stdio_session_reports_invalid_json_as_a_server_fault():
+    import sys as _sys
+
+    from benchmarks.cik.mcp_agent import StdioMcpSession
+
+    session = StdioMcpSession(
+        ".",
+        command=[_sys.executable, "-c",
+                 "import sys, time; print('not json'); sys.stdout.flush();"
+                 "time.sleep(30)"],
+        call_timeout=5.0,
+    )
+    try:
+        with pytest.raises(RuntimeError, match="invalid JSON"):
+            session._rpc("initialize", {})
+    finally:
+        session.close()

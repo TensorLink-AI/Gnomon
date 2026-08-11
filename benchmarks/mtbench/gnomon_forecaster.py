@@ -354,8 +354,12 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
             routes[outcome["route"]] = routes.get(outcome["route"], 0) + 1
         # tools/mcp outcomes carry their real call count; pure/agent make
         # exactly one engine invocation. A constant 1 for the tool arms
-        # made average_tool_calls a constant, not a measurement.
-        calls_made = int(outcome.get("tool_calls") or 1)
+        # made average_tool_calls a constant, not a measurement. Zero is a
+        # real count (the model abstained without ever calling a tool), so
+        # only absence falls back to 1 — `or 1` mapped 0 to 1 on exactly
+        # the rows where the measurement matters most.
+        raw_calls = outcome.get("tool_calls")
+        calls_made = int(raw_calls) if raw_calls is not None else 1
         if outcome["abstained"]:
             abstained += 1
             entry.update({"abstained": True, "reasons": outcome["reasons"]})

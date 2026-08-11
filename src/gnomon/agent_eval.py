@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -22,10 +23,8 @@ def load_runs(path: str) -> list[dict[str, Any]]:
             rows.append(row)
     if not rows:
         raise ValueError(f"No evaluation runs found in {path}")
-    duplicates = sorted({
-        task_id for task_id in (row["task_id"] for row in rows)
-        if sum(1 for row in rows if row["task_id"] == task_id) > 1
-    })
+    counts = Counter(row["task_id"] for row in rows)
+    duplicates = sorted(task_id for task_id, n in counts.items() if n > 1)
     if duplicates:
         # The identical-set check between files compares *sets*, so
         # duplicated ids used to slip through while silently changing the
@@ -73,12 +72,14 @@ def _summary(
         return sum(bool(row.get(key, False)) for row in graded) / count
 
     def numeric(key: str) -> float | None:
-        """Mean over the rows that carry the field; rows without it used
-        to average in as 0 and deflate the figure."""
-        measured = [row for row in graded if key in row]
-        if not measured:
+        """Mean over the rows that measured the field; rows without it
+        used to average in as 0 and deflate the figure. An explicit JSON
+        null is the same absence spelled differently — `float(None or 0)`
+        would average it in as a measured 0.0."""
+        values = [row[key] for row in graded if row.get(key) is not None]
+        if not values:
             return None
-        return sum(float(row[key] or 0) for row in measured) / len(measured)
+        return sum(float(value) for value in values) / len(values)
 
     return {
         "runs": len(rows),
@@ -160,6 +161,20 @@ def compare_runs(baseline_path: str, treatment_path: str) -> dict[str, Any]:
     }
     baseline = _summary(baseline_graded, measured_safety)
     treatment = _summary(treatment_graded, measured_safety)
+    # _summary saw only the pairwise-graded rows, so its counters would
+    # claim nothing was ever voided. Restate them from the full arm:
+    # `runs` is what the arm actually ran, `runs_voided_by_harness` what
+    # the harness ended in *this* arm, `runs_graded` what survived the
+    # pairwise exclusion (smaller than runs minus voided when it was the
+    # other arm's row that was voided).
+    for summary, rows, graded_rows in (
+        (baseline, baseline_rows, baseline_graded),
+        (treatment, treatment_rows, treatment_graded),
+    ):
+        summary["runs"] = len(rows)
+        summary["runs_voided_by_harness"] = sum(
+            1 for row in rows if _voided(row))
+        summary["runs_graded"] = len(graded_rows)
     success_test: dict[str, Any] | None = None
     if baseline["task_success"] is None or treatment["task_success"] is None:
         uplift = None

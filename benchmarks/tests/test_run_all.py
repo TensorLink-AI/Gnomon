@@ -262,3 +262,102 @@ def test_failed_run_does_not_trust_a_stale_adapter_manifest(
     assert manifest["status"] == "exit 3"
     assert "base_url" not in manifest, "stale adapter fields must not survive"
     assert "target" not in manifest
+
+
+def test_manifestless_child_does_not_inherit_the_previous_runs_manifest(
+    tmp_path, monkeypatch,
+):
+    """For a child that writes no manifest of its own (mtbench's control
+    arm runs the official script), the only manifest in the directory is
+    the one run_all wrote for the PREVIOUS run. Re-reading it through the
+    merge stamped run 2 with run 1's provenance — model, condition,
+    command — under status ok, silently defeating the comparability
+    refusal this file exists to feed."""
+    import json
+    import sys
+
+    import benchmarks.run_all as run_all
+    from benchmarks.common.manifest import read_manifest, write_manifest
+
+    directory = tmp_path / "out" / "tb"
+    directory.mkdir(parents=True)
+    # What run_all itself wrote for the previous run of this config.
+    write_manifest(directory, benchmark="temporalbench", model="m1",
+                   condition="old-condition", command="old-cmd",
+                   run_name="tb", status="ok")
+
+    config = {
+        "model": "m2",
+        "output_root": str(tmp_path / "out"),
+        "runs": [
+            {"benchmark": "temporalbench", "name": "tb",
+             "args": {"condition": "control", "data_dir": "~/tb"}},
+        ],
+    }
+    config_path = tmp_path / "cfg.json"
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+
+    class _Result:
+        returncode = 0
+
+    def fake_run(command, cwd=None, **kwargs):
+        if kwargs.get("capture_output"):
+            return real_run(command, cwd=cwd, **kwargs)
+        (directory / "summary.json").write_text('{"ok": true}',
+                                                encoding="utf-8")
+        return _Result()  # child writes a summary but no manifest
+
+    real_run = run_all.subprocess.run
+    monkeypatch.setattr(run_all.subprocess, "run", fake_run)
+    monkeypatch.setattr(sys, "argv",
+                        ["run_all", "--config", str(config_path)])
+    assert run_all.main() == 0
+    manifest = read_manifest(directory)
+    assert manifest["model"] == "m2", "run 2 must not carry run 1's model"
+    assert manifest["condition"] == "control"
+    assert manifest["command"] != "old-cmd"
+
+
+def test_failed_rerun_does_not_ingest_a_stale_summary(tmp_path, monkeypatch):
+    """A rerun whose child fails before writing summary.json must not
+    record the previous run's summary as its own in combined_summary.json
+    — that is the manifest staleness bug with a different file name."""
+    import json
+    import sys
+
+    import benchmarks.run_all as run_all
+
+    directory = tmp_path / "out" / "tb"
+    directory.mkdir(parents=True)
+    (directory / "summary.json").write_text('{"stale": true}',
+                                            encoding="utf-8")
+
+    config = {
+        "model": "m",
+        "output_root": str(tmp_path / "out"),
+        "runs": [
+            {"benchmark": "temporalbench", "name": "tb",
+             "args": {"condition": "control", "data_dir": "~/tb"}},
+        ],
+    }
+    config_path = tmp_path / "cfg.json"
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+
+    class _Result:
+        returncode = 3
+
+    def fake_run(command, cwd=None, **kwargs):
+        if kwargs.get("capture_output"):
+            return real_run(command, cwd=cwd, **kwargs)
+        return _Result()
+
+    real_run = run_all.subprocess.run
+    monkeypatch.setattr(run_all.subprocess, "run", fake_run)
+    monkeypatch.setattr(sys, "argv",
+                        ["run_all", "--config", str(config_path)])
+    assert run_all.main() == 1
+    combined = json.loads(
+        (tmp_path / "out" / "combined_summary.json").read_text())
+    (outcome,) = combined["runs"]
+    assert outcome["status"] == "exit 3"
+    assert "summary" not in outcome, "a failed run has no summary of its own"

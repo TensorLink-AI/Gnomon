@@ -102,9 +102,15 @@ def main() -> int:
                 kept.append(line)
                 done.add(record["custom_id"])
         if dropped:
-            jsonl_fn.write_text(
+            # Rewrite via a sibling temp file + atomic replace: truncating
+            # the results file in place meant a crash mid-rewrite lost
+            # every already-paid-for row (or left a partial JSON line that
+            # crashed the next resume at startup).
+            tmp_fn = jsonl_fn.with_suffix(".jsonl.tmp")
+            tmp_fn.write_text(
                 "".join(entry + "\n" for entry in kept), encoding="utf-8"
             )
+            os.replace(tmp_fn, jsonl_fn)
             print(f"dropped {dropped} null-response row(s) from "
                   f"{jsonl_fn.name}; those series will be retried",
                   flush=True)

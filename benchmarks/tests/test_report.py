@@ -234,6 +234,49 @@ def test_success_rate_is_split_by_basis_when_bases_mix(tmp_path):
     }
 
 
+def test_score_suffix_does_not_invert_higher_better_metrics():
+    # Substring matching made "score" (lower-better for LeakTrap's WAPE)
+    # swallow sklearn-style names: f1_score matched the lower-better list
+    # first and the sign test reported wins for the arm with LOWER F1 —
+    # with direction_recognised true, so no warning disclosed it.
+    from benchmarks.report import metric_direction
+
+    assert metric_direction("f1_score") == (False, True)
+    assert metric_direction("accuracy_score") == (False, True)
+    assert metric_direction("score") == (True, True)  # LeakTrap's WAPE
+    assert metric_direction("f1_loss") == (True, True)  # a loss is a loss
+    assert metric_direction("wape_score") == (True, True)
+    assert metric_direction("elo") == (False, False)  # unrecognised, flagged
+
+
+def test_conflicting_bases_between_arms_are_flagged_not_blended(tmp_path):
+    # Task f1's arms declare different success definitions (a rerun across
+    # a scoring change). Bucketing it under whichever arm carried a label
+    # would blend two definitions under one name; it is excluded from the
+    # split and the conflict disclosed.
+    rows_ctrl = [
+        {"task_id": "f1", "success": True, "success_basis": "completion"},
+        {"task_id": "f2", "success": False, "success_basis": "completion"},
+        {"task_id": "q1", "success": False,
+         "success_basis": "all_choices_correct"},
+    ]
+    rows_treat = [
+        {"task_id": "f1", "success": True,
+         "success_basis": "all_choices_correct"},
+        {"task_id": "f2", "success": True, "success_basis": "completion"},
+        {"task_id": "q1", "success": False,
+         "success_basis": "all_choices_correct"},
+    ]
+    _write_run(tmp_path, "ctrl", rows_ctrl, {"benchmark": "x", "target": "y"})
+    _write_run(tmp_path, "treat", rows_treat, {"benchmark": "x", "target": "y"})
+    result = compare(load_run(tmp_path / "ctrl"), load_run(tmp_path / "treat"))
+    assert result["success_basis_conflicts"]["tasks"] == 1
+    assert result["success_basis_conflicts"]["example"] == "f1"
+    split = result["success_by_basis"]
+    assert split["completion"]["n"] == 1  # f2 only; f1 sits in the flag
+    assert split["all_choices_correct"]["n"] == 1
+
+
 def test_bookkeeping_fields_are_not_swept_as_metrics():
     from benchmarks.report import available_metrics
 

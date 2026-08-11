@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import statistics
 import sys
 from pathlib import Path
@@ -40,32 +41,42 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from benchmarks.common.manifest import incompatibilities, read_manifest  # noqa: E402
 
-#: Direction registry. A metric matches by substring against these token
-#: lists; a name matching neither is NOT silently assumed — it is compared
-#: as higher-better with an explicit `direction_recognised: false` flag on
-#: the entry and a warning in the rendered line. The registry exists
-#: because the old default ("anything unrecognised is higher-better")
-#: silently inverted LeakTrap's `score` (a WAPE, lower-better): the sign
-#: test reported treatment "wins" on the tasks it did worse on.
+#: Direction registry. A metric name is split into tokens (on anything
+#: non-alphanumeric) and matched against these lists; a name matching
+#: neither is NOT silently assumed — it is compared as higher-better with
+#: an explicit `direction_recognised: false` flag on the entry and a
+#: warning in the rendered line. The registry exists because the old
+#: default ("anything unrecognised is higher-better") silently inverted
+#: LeakTrap's `score` (a WAPE, lower-better): the sign test reported
+#: treatment "wins" on the tasks it did worse on.
 LOWER_IS_BETTER = ("mse", "mae", "rmse", "mape", "rcrps", "mase", "smape",
-                   "wape", "crps", "pinball", "loss", "score")
+                   "wape", "crps", "pinball", "loss")
 HIGHER_IS_BETTER = ("f1", "accuracy", "precision", "recall", "auc",
                     "success", "coverage")
+#: "score" alone says nothing about direction (LeakTrap's `score` is a
+#: WAPE; sklearn's `f1_score` is an F1). It decides lower-better only
+#: when no other token already has: `f1_score` is an F1, bare `score`
+#: keeps LeakTrap's lower-better reading.
+LOWER_IF_ALONE = ("score",)
 
 
 def metric_direction(name: str) -> tuple[bool, bool]:
     """``(lower_is_better, recognised)`` for a metric name.
 
-    Lower-better tokens win when a name matches both lists ("f1_loss" is
-    a loss); a name matching neither is treated as higher-better but
-    flagged unrecognised so the caller discloses the assumption instead
-    of printing an inverted comparison as fact.
+    Matching is per-token, not substring, so `f1_score` cannot match
+    a lower-better token buried inside it. Lower-better tokens win when
+    a name carries both ("f1_loss" is a loss); a name matching nothing
+    is treated as higher-better but flagged unrecognised so the caller
+    discloses the assumption instead of printing an inverted comparison
+    as fact.
     """
-    lowered = name.lower()
-    if any(token in lowered for token in LOWER_IS_BETTER):
+    tokens = set(re.split(r"[^a-z0-9]+", name.lower())) - {""}
+    if tokens & set(LOWER_IS_BETTER):
         return True, True
-    if any(token in lowered for token in HIGHER_IS_BETTER):
+    if tokens & set(HIGHER_IS_BETTER):
         return False, True
+    if tokens & set(LOWER_IF_ALONE):
+        return True, True
     return False, False
 
 
@@ -376,11 +387,32 @@ def compare(baseline: dict[str, Any], treatment: dict[str, Any],
             # declare their basis, a pooled rate over mixed bases is a blend,
             # so the per-basis split is reported beside it.
             bases: dict[str, list[str]] = {}
+            conflicted: list[str] = []
             for k in graded:
-                basis = (baseline["tasks"][k].get("success_basis")
-                         or treatment["tasks"][k].get("success_basis"))
+                base_basis = baseline["tasks"][k].get("success_basis")
+                treat_basis = treatment["tasks"][k].get("success_basis")
+                # When the arms declare *different* bases for the same
+                # task (a rerun across a scoring change, a renamed
+                # basis), bucketing by whichever arm happened to carry a
+                # label would blend two success definitions under one
+                # name — the exact ambiguity this split discloses. Such
+                # tasks are excluded from the split and flagged instead.
+                if (base_basis and treat_basis
+                        and str(base_basis) != str(treat_basis)):
+                    conflicted.append(k)
+                    continue
+                basis = base_basis or treat_basis
                 if basis:
                     bases.setdefault(str(basis), []).append(k)
+            if conflicted:
+                result["success_basis_conflicts"] = {
+                    "tasks": len(conflicted),
+                    "example": conflicted[0],
+                    "note": "the two arms grade these tasks under "
+                            "different success definitions; they are "
+                            "excluded from the per-basis split and the "
+                            "pooled rate above blends both",
+                }
             if len(bases) > 1:
                 result["success_by_basis"] = {
                     basis: {

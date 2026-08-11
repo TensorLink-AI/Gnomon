@@ -63,6 +63,15 @@ def test_harness_voided_rows_are_excluded_pairwise(tmp_path):
     assert result["baseline"]["task_success"] == 0.5
     assert result["treatment"]["task_success"] == 1.0
     assert result["absolute_success_uplift"] == 0.5
+    # The per-arm counters describe the arm's file, not the pre-filtered
+    # rows the rates were computed over: the baseline ran 3 tasks, none
+    # voided by its own harness, and 2 survived the pairwise exclusion.
+    assert result["baseline"]["runs"] == 3
+    assert result["baseline"]["runs_voided_by_harness"] == 0
+    assert result["baseline"]["runs_graded"] == 2
+    assert result["treatment"]["runs"] == 3
+    assert result["treatment"]["runs_voided_by_harness"] == 1
+    assert result["treatment"]["runs_graded"] == 2
 
 
 def test_all_tasks_voided_yields_no_uplift_claim(tmp_path):
@@ -149,3 +158,24 @@ def test_rows_missing_latency_do_not_average_in_as_zero(tmp_path):
     assert result["baseline"]["average_latency_seconds"] == 4.0
     assert result["treatment"]["average_latency_seconds"] == 2.0
     assert result["baseline"]["average_cost_usd"] is None
+
+
+def test_null_latency_is_unmeasured_not_a_measured_zero(tmp_path):
+    # An explicit JSON null passes a key-presence check; `float(None or 0)`
+    # then averaged it in as a measured 0.0 — the same deflation the
+    # missing-key fix removed, just spelled differently.
+    baseline = tmp_path / "baseline.jsonl"
+    treatment = tmp_path / "treatment.jsonl"
+    _write(baseline, [
+        {"task_id": "a", "success": True, "latency_seconds": 4.0},
+        {"task_id": "b", "success": True, "latency_seconds": None},
+    ])
+    _write(treatment, [
+        {"task_id": "a", "success": True, "cost_usd": None},
+        {"task_id": "b", "success": True, "cost_usd": None},
+    ])
+
+    result = compare_runs(str(baseline), str(treatment))
+
+    assert result["baseline"]["average_latency_seconds"] == 4.0
+    assert result["treatment"]["average_cost_usd"] is None

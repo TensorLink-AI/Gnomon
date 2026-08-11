@@ -240,3 +240,31 @@ def test_unknown_ref_is_repairable(tmp_path):
         ]), work_dir=str(tmp_path))
     assert result["abstained"] is False
     assert result["route"] == "direct"
+
+
+def test_zero_tool_calls_is_recorded_as_zero_not_one(monkeypatch, tmp_path):
+    # tools/mcp outcomes carry their real call count, and 0 is a real
+    # count: the model abstained without ever invoking a tool.
+    # `int(outcome.get("tool_calls") or 1)` mapped that 0 to 1 on exactly
+    # the rows where the measurement matters most.
+    import json
+
+    from benchmarks.mtbench import gnomon_forecaster as gf
+
+    sample = {"filename": "finance#0001", "output_window": [1.0, 2.0]}
+    monkeypatch.setattr(gf, "load_samples", lambda folder: [sample])
+    monkeypatch.setattr(
+        gf, "forecast_sample",
+        lambda s, *, mode, client, work_dir: {
+            "abstained": True, "reasons": ["declined"],
+            "route": "abstain", "tool_calls": 0,
+        })
+    gf.run(tmp_path, tmp_path / "out", mode="pure",
+           openrouter_model=None, mtbench_root=None)
+    (row_line,) = [
+        line for line in (tmp_path / "out" / "gnomonbench.jsonl")
+        .read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
+    row = json.loads(row_line)
+    assert row["tool_calls"] == 0
+    assert row["appropriate_abstention"] is True
