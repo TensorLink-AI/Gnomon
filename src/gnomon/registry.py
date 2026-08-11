@@ -239,7 +239,14 @@ MACROS: dict[str, MacroSpec] = {
                 "properties": {
                     **_COMMON_INPUT,
                     "horizon": {"type": "integer", "description": "Future periods to forecast."},
-                    "threshold": {"type": "number", "description": "Decision threshold on the target."},
+                    "threshold": {"type": "number", "description": (
+                        "The target value whose crossing defines the two "
+                        "scenarios the actions are compared over (exceed / "
+                        "no_exceed) — e.g. a capacity limit or SLO bound. "
+                        "Required because without it there is no scenario "
+                        "to decide between; a business input from the "
+                        "user, never inferred from the data."
+                    )},
                     "actions": {"type": "array", "items": {"type": "object"}, "description": (
                         "Candidate actions: [{name, feasible?, residual_risk?}]. "
                         "`residual_risk` is the probability-scale risk that "
@@ -281,7 +288,12 @@ MACROS: dict[str, MacroSpec] = {
                 "properties": {
                     **_COMMON_INPUT,
                     "horizon": {"type": "integer", "description": "Future periods to monitor."},
-                    "threshold": {"type": "number", "description": "Trigger threshold on the target."},
+                    "threshold": {"type": "number", "description": (
+                        "The target value whose exceedance the alert rule "
+                        "watches for — e.g. a capacity limit or SLO bound. "
+                        "A business input from the user, never inferred "
+                        "from the data."
+                    )},
                     "alert_cost": {"type": "number", "description": "Cost of an unnecessary alert."},
                     "miss_cost": {"type": "number", "description": "Cost of a missed exceedance."},
                     "project": {"type": "string", "description": "Optional tracking project to register the underlying forecast in."},

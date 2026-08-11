@@ -146,6 +146,20 @@ def route(
         "prior": prior,
         "recommendation": recommendation,
         "basis": basis,
+        # A null recommendation reads as a failure unless the response says
+        # what it means and what to do instead; both cold cases get a note.
+        **({"recommendation_note": (
+            "No realised-performance prior exists for this fingerprint "
+            "(no project supplied, or nothing scored yet), and the router "
+            "never ranks models it has no evidence for. This is the "
+            "expected cold answer, not a failure: pass `candidates` to the "
+            "evaluated run and the backtest decides. A recommendation "
+            "appears once a tracking project accumulates scored history."
+        )} if recommendation is None and basis == "backtest_required" else {}),
+        **({"recommendation_note": (
+            "No candidate passed the verified capability filter for this "
+            "series; `excluded` names each with its reason."
+        )} if basis == "no_eligible_candidates" else {}),
         "override": (
             "Pass an explicit model/detector to bypass the router; "
             "evaluated runs backtest every candidate regardless."

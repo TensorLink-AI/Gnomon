@@ -2,6 +2,34 @@
 
 ## Unreleased
 
+- **Context events on short series warn instead of vanishing.** Supplying
+  `--context` / `context_events_file` on a history too short for four
+  separated rolling folds now adds a `context_not_evaluated` warning
+  naming the observation count that enables ablation (previously the only
+  trace was a gate check buried in the context evidence). The
+  `gnomon_forecast` parameter description states the requirement up front.
+
+- **`covariate_mapping` accepts structured input over MCP.** A list of
+  `{"name", "type", "availability"?}` objects (availability defaults to
+  future_known) is accepted alongside the CLI's
+  `name:type:availability` string on `gnomon_forecast`,
+  `gnomon_validate_covariates`, and `gnomon_propose_covariates` — agents
+  pass objects everywhere else and should not have to mint a bespoke
+  string grammar for one parameter.
+
+- **`gnomon_route`'s cold answer explains itself.** When no realised-
+  performance prior exists, `recommendation` stays null (the router never
+  ranks without evidence) but the response now carries a
+  `recommendation_note` saying this is the expected cold answer and that
+  `candidates` is the actionable output; `no_eligible_candidates` gets its
+  own note pointing at `excluded`. The tool description states the
+  null-until-scored-history semantics.
+
+- **`gnomon_decide`/`gnomon_monitor` `threshold` described as what it is:**
+  the target value defining the exceed/no_exceed scenarios (a capacity
+  limit or SLO bound) — a user-supplied business input, required because
+  without it there is no scenario to decide between.
+
 - **A human surface for `gnomon forecast`.** `--format human` (and `auto`,
   the new default: human on a terminal, JSON in a pipe) renders support,
   the forecast rows, warnings, recovery actions, and assumptions as text;

@@ -208,6 +208,47 @@ def test_missing_pyyaml_refuses_to_ignore_config(tmp_path, monkeypatch) -> None:
     assert excinfo.value.code == "MISSING_OPTIONAL_DEPENDENCY"
 
 
+def test_short_history_context_events_warn_instead_of_silence(tmp_path, capsys) -> None:
+    examples = DATA.parent
+    result = main([
+        "forecast", str(examples / "messy_requests.csv"), "--horizon", "14",
+        "--context", str(examples / "context_events.json"),
+        "--output", str(tmp_path / "out"),
+    ])
+    assert result == 0
+    payload = json.loads(capsys.readouterr().out)
+    warnings = payload["results"][0]["warnings"]
+    context_warnings = [w for w in warnings if w.startswith("context_not_evaluated")]
+    assert context_warnings, warnings
+    # The warning carries the number that fixes it, and the base
+    # evaluation's own warnings survive alongside it.
+    assert "84 observations" in context_warnings[0]
+    assert any(w.startswith("Limited evaluation") for w in warnings)
+
+
+def test_covariate_mapping_accepts_structured_list() -> None:
+    from gnomon.toolspec import _mapping_argument
+
+    assert _mapping_argument("promo:binary:future_known") == "promo:binary:future_known"
+    assert _mapping_argument([
+        {"name": "promo", "type": "binary"},
+        {"name": "temp", "type": "continuous", "availability": "future_known"},
+    ]) == "promo:binary:future_known,temp:continuous:future_known"
+    with pytest.raises(GnomonError) as excinfo:
+        _mapping_argument([{"type": "binary"}])
+    assert excinfo.value.code == "INVALID_COVARIATE_MAPPING"
+
+
+def test_route_explains_null_recommendation(capsys, tmp_path) -> None:
+    result = main(["route", str(DATA)])
+    assert result == 0
+    payload = json.loads(capsys.readouterr().out)
+    decision = payload["decisions"][0]
+    assert decision["recommendation"] is None
+    assert decision["basis"] == "backtest_required"
+    assert "not a failure" in decision["recommendation_note"]
+
+
 def test_decide_and_monitor_accept_config(tmp_path, capsys) -> None:
     config = tmp_path / "gnomon.yaml"
     config.write_text("evaluation:\n  minimum_baseline_improvement: 0.02\n")

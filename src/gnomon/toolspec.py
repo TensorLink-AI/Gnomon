@@ -63,13 +63,26 @@ _COVARIATE_PROPERTIES: dict[str, Any] = {
         "gnomon_covariate_guide first for the exact format and cutoffs "
         "this dataset and horizon require."
     )},
-    "covariate_mapping": {"type": "string", "description": (
-        "Comma-separated name:type:availability entries, e.g. "
-        "`promo:binary:future_known,temperature:continuous:future_known`. "
-        "type is continuous or binary; availability must be future_known "
-        "in this release — a value not knowable ahead of time cannot be "
-        "backtested without leakage."
-    )},
+    "covariate_mapping": {"description": (
+        "The covariates to admit, either as a list of objects — "
+        '[{"name": "promo", "type": "binary"}] — or the equivalent '
+        "comma-separated name:type:availability string "
+        "(`promo:binary:future_known`). type is continuous or binary; "
+        "availability defaults to (and must be) future_known in this "
+        "release — a value not knowable ahead of time cannot be backtested "
+        "without leakage."
+    ), "oneOf": [
+        {"type": "string"},
+        {"type": "array", "items": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "type": {"type": "string", "enum": ["continuous", "binary"]},
+                "availability": {"type": "string", "enum": ["future_known"]},
+            },
+            "required": ["name", "type"],
+        }},
+    ]},
     "covariate_time_column": {"type": "string", "description": (
         "Valid-at column in the covariates file (default timestamp)."
     )},
@@ -237,6 +250,31 @@ def _run_list_datasets(arguments: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _mapping_argument(raw: Any) -> str:
+    """Normalise `covariate_mapping` to the parser's string grammar.
+
+    Agents pass structured arguments everywhere else, so the mapping is
+    accepted both ways: the CLI's `name:type:availability` string, or a
+    list of {name, type, availability?} objects (availability defaults to
+    future_known, the only admitted value in this release)."""
+    if isinstance(raw, list):
+        from .contracts import GnomonError
+        for item in raw:
+            if not isinstance(item, dict) or "name" not in item or "type" not in item:
+                raise GnomonError(
+                    "INVALID_COVARIATE_MAPPING",
+                    "Each covariate_mapping entry needs at least "
+                    '{"name": ..., "type": "continuous"|"binary"}; '
+                    "availability defaults to future_known.",
+                    {"entry": item},
+                )
+        return ",".join(
+            f"{item['name']}:{item['type']}:{item.get('availability', 'future_known')}"
+            for item in raw
+        )
+    return str(raw)
+
+
 def _run_covariate_guide(arguments: dict[str, Any]) -> dict[str, Any]:
     from .covariates import covariate_guide
     return covariate_guide(
@@ -249,7 +287,8 @@ def _run_covariate_guide(arguments: dict[str, Any]) -> dict[str, Any]:
 def _run_validate_covariates(arguments: dict[str, Any]) -> dict[str, Any]:
     from .covariates import validate_covariate_file
     return validate_covariate_file(
-        arguments["input"], arguments["covariates_file"], arguments["covariate_mapping"],
+        arguments["input"], arguments["covariates_file"],
+        _mapping_argument(arguments["covariate_mapping"]),
         time_column=arguments["time_column"], target_column=arguments["target_column"],
         horizon=int(arguments["horizon"]), series_column=arguments.get("series_column"),
         frequency=arguments.get("frequency"),
@@ -270,7 +309,8 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
     if arguments.get("covariates_file"):
         from .covariates import load_covariates
         covariates = load_covariates(
-            arguments["covariates_file"], arguments["covariate_mapping"],
+            arguments["covariates_file"],
+            _mapping_argument(arguments["covariate_mapping"]),
             time_column=arguments.get("covariate_time_column", "timestamp"),
             known_at_column=arguments.get("covariate_known_at_column", "known_at"),
             series_column=arguments.get("covariate_series_column"),
@@ -502,7 +542,14 @@ TOOLS: list[dict[str, Any]] = [
                 "candidates": {"type": "array", "items": {"type": "string"}, "description": "Restrict the model pool to these names — pass `gnomon_route`'s `candidates` or its `recommendation` to act on a routing decision. The mandatory baselines always compete regardless, so a named candidate still has to beat them."},
                 "output_dir": {"type": "string", "description": "Directory for the immutable artifact. Defaults to ./gnomon-output relative to the *server's* working directory, which is often inside the user's repository — pass an explicit path when that matters."},
                 "minimum_baseline_improvement": {"type": "number", "minimum": 0, "description": "Minimum relative improvement over the strongest baseline to select a candidate (default 0.02). Must be >= 0; a negative value would let a model that lost the backtest be selected."},
-                "context_events_file": {"type": "string", "description": "Optional validated context-events JSON file (the output of `gnomon context validate`)."},
+                "context_events_file": {"type": "string", "description": (
+                    "Optional validated context-events JSON file (the "
+                    "output of `gnomon context validate`). The ablation "
+                    "gate needs four separated rolling folds, so short "
+                    "histories (roughly < seasonal warmup + 4x horizon "
+                    "observations) record the events but cannot apply "
+                    "them — disclosed as a context_not_evaluated warning."
+                )},
                 "threshold": {"type": "number", "description": "Optional decision threshold: the result reports when and how likely the forecast crosses this value."},
                 "project": {"type": "string", "description": "Optional tracking project. When set, register the forecast for realised scoring."},
                 **_COVARIATE_PROPERTIES,
@@ -931,12 +978,14 @@ TOOLS.extend([
             "Which method for this task on this data? A disclosed, advisory "
             "routing decision: verified capability filter, then a realised-"
             "performance prior from the tracking store when enough scored "
-            "history exists (never claimed cold), with the series fingerprint "
-            "and every exclusion reason in the output. Feed `candidates` (or "
-            "`recommendation`) to `gnomon_forecast`'s `candidates` parameter to "
-            "act on the answer. Evaluated runs still backtest whatever pool "
-            "they are given against the mandatory baselines, so routing "
-            "narrows the contest but never decides it."
+            "history exists — never claimed cold, so `recommendation` is "
+            "null until a tracking project has scored history for this "
+            "fingerprint (the response's `recommendation_note` says so). "
+            "The cold answer is still actionable: feed `candidates` to "
+            "`gnomon_forecast`'s `candidates` parameter and the backtest "
+            "decides. Evaluated runs still backtest whatever pool they are "
+            "given against the mandatory baselines, so routing narrows the "
+            "contest but never decides it."
         ),
         "inputSchema": {"type": "object", "properties": {
             **_INPUT_PROPERTIES,

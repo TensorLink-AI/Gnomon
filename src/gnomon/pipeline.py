@@ -594,6 +594,25 @@ def context_stage(
     )
     state.context_assessment = context
     state.context_public = context.to_public_dict()
+    # Events the caller went to the trouble of supplying must never be
+    # ignored in silence. When the ablation gate cannot even run — the
+    # history is too short for four separated folds — say so as a warning
+    # with the number that fixes it, not only as a buried gate check.
+    if context_events and not context.admitted:
+        blocking = next(
+            (check for check in context.gate_checks if not check["passed"]),
+            None,
+        )
+        if blocking and blocking["code"] == "separated_folds_available":
+            needed = max(2 * state.season, 2 * horizon, 8) + 4 * horizon
+            state.warnings.append(
+                "context_not_evaluated: the supplied context events were "
+                "not applied — the history supports fewer than four rolling "
+                "folds, and the ablation gate needs fully separated "
+                f"selection, calibration, and test folds. {needed} "
+                f"observations (have {len(state.values)}) enable context "
+                "ablation at this horizon."
+            )
     state.evidence.append(Evidence(
         f"context_ablation:{state.name}", "context_ablation", state.name,
         state.context_public,
