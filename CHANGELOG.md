@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **The tier label is verifier-enforced (Change 4).** Support-assessment
+  evidence carries per-row tier counts, and any lineage claim about a
+  series whose published rows include `best_effort` tiers must cite that
+  evidence and name the tier in its statement —
+  `SUB_SUPPORTED_UNLABELLED` otherwise, rejected before the response
+  leaves the process exactly like an uncalibrated probability claim.
+  The production fallback and horizon-split claims satisfy the check by
+  construction.
+
 - **Plain-language confidence headline (Change 3).** Every forecast
   response (full and brief) and every `summary.md` (first line) now
   carries a required `headline`: one deterministic, template-generated

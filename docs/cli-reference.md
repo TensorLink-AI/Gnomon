@@ -119,15 +119,26 @@ by default. Pass `--strict-abstention` to retain empty-result abstention when
 separated rolling evaluation is unavailable.
 
 When even the degraded path cannot run — the horizon exceeds what the
-history can support at all — the run abstains with empty results. Pass
-`--best-effort` to publish a clearly labelled naive fallback instead: the
-last observed value carried flat, with random-walk intervals scaled from
-the history's dispersion. The result reports support `best_effort`, carries
-a verbatim `NO RELIABLE FORECAST` warning beside the abstention's original
-reasons (including the horizon that *would* be supportable), and its
-lineage claim is descriptive, never predictive — the numbers exist for
-callers that must have numbers, and nothing about them claims measured
-accuracy. Off by default; flag-off artifacts are byte-identical.
+history can support at all — the default (`--minimum-support
+best_effort`) still answers, honestly graded: the largest supportable
+horizon prefix is evaluated by the same stages and guardrails as any run
+at that horizon and published at the tier it earned, and the remainder is
+a clearly labelled naive fallback (last observed value carried flat,
+random-walk intervals scaled from the history's dispersion). A typed
+`horizon_split` reason names both ranges, every row carries a `tier`
+column, the verbatim `NO RELIABLE FORECAST` warning rides beside the
+abstention's original reasons, the response `headline` names the weakest
+tier present, and the lineage claim is descriptive, never predictive —
+nothing about the fallback rows claims measured accuracy, and the
+verifier rejects any claim quoting them without their tier.
+
+`--minimum-support supported` (or `conditionally_supported`) is the
+publication floor for operators who want refusals: the evaluation runs
+identically, and anything below the floor becomes a typed abstention with
+`below_minimum_support` / `lower_minimum_support` in its reasons and
+recovery. `--best-effort` remains accepted as a deprecated alias of the
+default floor. No tier is easier to earn than before — the floor chooses
+which rung is published, never how rungs are graded.
 
 Forecast controls:
 

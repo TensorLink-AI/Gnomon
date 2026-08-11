@@ -99,6 +99,19 @@ Omit `output_dir`: artifacts go to the server's default, reported by
 hosts should start the server with its working directory inside the
 writable jail so the disclosed default is the allowed path.
 
+## Graduated support
+
+`gnomon_forecast` answers by default at the highest tier the evidence
+achieves (`minimum_support: "best_effort"`): a fully evaluated forecast,
+an evaluated prefix plus a labelled naive remainder (`horizon_split`),
+or a naive extrapolation alone. Every row carries a `tier`
+(`supported` / `conditionally_supported` / `best_effort`), the response
+`headline` is one deterministic sentence naming the weakest tier
+present — safe to relay verbatim — and the verifier rejects any claim
+quoting a sub-supported value without its tier. Pass
+`minimum_support: "supported"` for the strict refusal with typed
+recovery; a series where nothing is computable still abstains.
+
 ## Response sizes
 
 Tool responses are budgeted (`RESPONSE_BUDGET_BYTES`, reported by

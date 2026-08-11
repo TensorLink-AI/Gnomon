@@ -51,13 +51,25 @@ by at least 2%. When baseline error is exactly zero, Gnomon retains the baseline
 Gnomon distinguishes two failure classes:
 
 - invalid data or task: a structured error and exit code `2`;
-- valid data but inadequate forecasting evidence: a complete artifact with
-  `unsupported` support and no future values.
+- valid data but inadequate forecasting evidence: under the default
+  `minimum_support: best_effort` floor, a graded answer — the largest
+  supportable horizon prefix at whatever tier its own evaluation earned,
+  and the remainder as a labelled naive fallback (a `horizon_split`
+  reason names both ranges; every row carries a `tier` field; the
+  response's `headline` names the weakest tier present). With
+  `minimum_support: supported` (or `conditionally_supported`), a
+  complete artifact with `unsupported` support and no future values.
 
-This prevents a plausible-looking forecast from being returned when the
-evaluation contract cannot be satisfied.
+Nothing about how tiers are earned changed with the graduated default:
+fold minimums, separation requirements, and selection guardrails grade
+exactly as before — the floor only chooses which rung is published. The
+deterministic verifier additionally rejects any claim quoting a
+sub-supported value without its tier label, so a plausible-looking
+unlabelled forecast cannot be returned when the evaluation contract
+was not satisfied.
 
-An abstention is never a dead end. Alongside `provide_more_history`, the
+An abstention (from a raised floor, or a series where nothing is
+computable) is never a dead end. Alongside `provide_more_history`, the
 support assessment computes the largest horizon the supplied observations
 *can* support and, when one exists, names it as a `reduce_horizon`
 recovery action (and in the warning text: "retry with `--horizon N`") —
