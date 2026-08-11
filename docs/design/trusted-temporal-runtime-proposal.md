@@ -306,3 +306,40 @@ governed views over one trusted forecasting contract rather than
 separate features competing for maturity — and it makes "Gnomon owns
 every number" a property of the architecture rather than an aspiration
 of the README.
+
+## Positioning decision (2026-08-11)
+
+Recorded after review: Gnomon is positioned as **infrastructure agents
+use**, built from two primitives under one contract —
+
+1. **A bitemporal data layer for agents.** Ingest, vintages, `--as-of`
+   replay, and the access record. Useful independently of any
+   forecast: it is the primitive that makes an agent's answer to
+   "what did we know then?" honest. This is the differentiated asset;
+   it is sold as its own capability, not as forecasting plumbing.
+2. **A forecast engine agents can be trusted with.** Backtested
+   selection, calibrated intervals, explicit abstention, artifacts
+   that cannot be misquoted. The framing is capability-first — the
+   restraint machinery is the reason an agent is *allowed* the
+   capability, not the headline.
+
+Everything else — `investigate`, `monitor`, `decide`, tracking — is a
+recipe or accountability feature composed on those primitives, which
+is what the line counts already show they are.
+
+The infra positioning binds the project to infra discipline: surface
+stability (the Aion→Gnomon break was the one allowed; semver and
+deprecation windows from here), tokens-and-latency-per-call treated as
+an SLO rather than a benchmark curiosity, the MCP toolspec reviewed as
+the product API, and installation via PyPI as the precondition for
+every other improvement reaching anyone. Under this positioning, a
+silently dropped channel in a trimmed response is a sev-1, not a
+review finding.
+
+Working one-line pitch: *"Gnomon is the numbers layer for agents:
+point-in-time-correct temporal data and backtested forecasts with
+calibrated uncertainty — every value computed, evidenced, and
+impossible to misquote."* Positioning is validated the same way
+everything else in this repository is: externally — put the installed
+package in front of operators who run agents against real metrics,
+and measure which capability they reach for.
