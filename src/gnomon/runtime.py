@@ -542,6 +542,16 @@ def _series_result(
             f"the result the evidence already supports.",
         ))
         rows, support, threshold_analysis = [], "unsupported", None
+    if threshold is not None and rows and support == "best_effort":
+        # A requested analysis that cannot run must say so, not vanish:
+        # threshold-crossing probabilities need calibrated residuals, which
+        # best_effort and horizon-split rows do not have.
+        state.notes.append(
+            f"threshold {threshold} was requested but no crossing analysis "
+            f"is reported: exceedance probabilities require calibrated "
+            f"residuals, which best_effort rows (and the fallback range of "
+            f"a horizon split) do not have."
+        )
     # The unstrippable label: every published row names its tier, uniform
     # on a single-tier forecast, changing at the split point on a split
     # one — one shape, no special cases for consumers.
@@ -1388,6 +1398,8 @@ def capabilities() -> dict[str, object]:
             "season_detection": True, "ensemble_forecasting": True,
             "multivariate_var": True, "strict_abstention": True,
             "best_effort_fallback": True,
+            "graduated_support": True, "horizon_split": True,
+            "row_tier_labels": True, "forecast_headline": True,
             "multi_target_batching": True, "brief_output": True,
             "inline_data_channels": True,
         },

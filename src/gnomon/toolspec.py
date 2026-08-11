@@ -396,6 +396,10 @@ def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
                 "selected_model": item.selected_model,
                 "interval_coverage": item.interval_coverage,
                 "warnings": item.warnings,
+                # Epistemic disclosures ride in every format: brief already
+                # carried notes; full dropping them meant the verbose mode
+                # disclosed less than the compact one.
+                "notes": item.notes,
                 "forecast_preview": item.forecast[:FORECAST_PREVIEW_ROWS],
                 "forecast_rows": len(item.forecast),
                 "threshold": item.threshold,

@@ -417,12 +417,27 @@ def decide(
 
     if not result.forecast or not result.threshold:
         evaluation: dict[str, Any] = {"evaluations": [], "selected": None}
-        support = inconclusive(
-            "forecast_abstained",
-            "The underlying forecast abstained, so exceedance risk cannot be "
-            "grounded; no decision is offered.",
-            "Provide more history or lower the horizon, then re-run.",
-        ).to_dict()
+        # Two distinct honest refusals: no rows at all, or rows published
+        # below the calibrated tiers (best_effort / horizon split) — which
+        # carry no exceedance probabilities to ground a decision on. A
+        # decision must never rest on naive fallback rows, labelled or not.
+        if result.forecast:
+            support = inconclusive(
+                "forecast_not_calibrated",
+                "The underlying forecast published only sub-supported rows "
+                "(best_effort or a horizon split); they carry no calibrated "
+                "exceedance risk, so no decision is offered. The labelled "
+                "rows remain in the forecast artifact.",
+                "Provide more history or lower the horizon so the forecast "
+                "is fully evaluated, then re-run.",
+            ).to_dict()
+        else:
+            support = inconclusive(
+                "forecast_abstained",
+                "The underlying forecast abstained, so exceedance risk cannot be "
+                "grounded; no decision is offered.",
+                "Provide more history or lower the horizon, then re-run.",
+            ).to_dict()
         scenario_probabilities: dict[str, float] | None = None
         exceedance: dict[str, Any] | None = None
     else:
@@ -636,15 +651,27 @@ def monitor(
     triggers = []
     for result in artifact.results:
         if not result.forecast or not result.threshold:
-            triggers.append({
-                "series": result.series,
-                "armed": False,
-                "support_assessment": inconclusive(
+            if result.forecast:
+                assessment = inconclusive(
+                    "forecast_not_calibrated",
+                    "The underlying forecast published only sub-supported "
+                    "rows (best_effort or a horizon split); sequential risk "
+                    "cannot be estimated from uncalibrated rows, so this "
+                    "trigger is not armed.",
+                    "Provide more history or lower the horizon so the "
+                    "forecast is fully evaluated, then re-run.",
+                )
+            else:
+                assessment = inconclusive(
                     "forecast_abstained",
                     "The underlying forecast abstained; sequential risk cannot "
                     "be estimated for this series.",
                     "Provide more history, then re-run.",
-                ).to_dict(),
+                )
+            triggers.append({
+                "series": result.series,
+                "armed": False,
+                "support_assessment": assessment.to_dict(),
             })
             continue
         probabilities = result.threshold["probability_above"]

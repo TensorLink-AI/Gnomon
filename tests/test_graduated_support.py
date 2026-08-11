@@ -350,6 +350,62 @@ def test_real_split_and_fallback_artifacts_pass_the_verifier(tmp_path) -> None:
     assert split["results"][0]["support"] == "best_effort"
 
 
+def test_requested_threshold_is_disclosed_not_dropped(tmp_path) -> None:
+    # A threshold on a split/fallback run cannot be analysed (no
+    # calibrated residuals); the absence is a typed note, never silence.
+    from gnomon.toolspec import runner_for
+
+    payload = runner_for("gnomon_forecast")({
+        "input": _short_csv(tmp_path), "horizon": 14, "threshold": 150.0,
+        "output_dir": str(tmp_path / "out"),
+    })
+    result = payload["results"][0]
+    assert result["support"] == "best_effort"
+    assert any("threshold 150.0 was requested" in note
+               for note in result["notes"])
+
+
+def test_decide_and_monitor_never_rest_on_fallback_rows(tmp_path) -> None:
+    # The graduated default gives the embedded forecast labelled rows,
+    # but a decision or alert rule must still refuse: sub-supported rows
+    # carry no calibrated exceedance risk.
+    from gnomon.macros import decide, monitor
+
+    common = dict(time_column="timestamp", target_column="requests",
+                  horizon=14, threshold=150.0)
+    decision, _ = decide(
+        _short_csv(tmp_path), actions=[{"name": "scale_up"}],
+        output=str(tmp_path / "a"), **common)
+    assert decision["scenario_probabilities"] is None
+    codes = {reason["code"] for reason in
+             decision["support_assessment"]["reasons"]}
+    assert "forecast_not_calibrated" in codes
+
+    monitored, _ = monitor(
+        _short_csv(tmp_path), output=str(tmp_path / "b"), **common)
+    trigger = monitored["triggers"][0]
+    assert trigger["armed"] is False
+    codes = {reason["code"] for reason in
+             trigger["support_assessment"]["reasons"]}
+    assert "forecast_not_calibrated" in codes
+
+
+def test_headline_caveat_is_one_sentence(tmp_path) -> None:
+    from gnomon.support import forecast_headline
+
+    headline = forecast_headline(
+        "degraded",
+        {"status": "conditionally_supported",
+         "reasons": [{"code": "degraded_evaluation",
+                      "message": "First sentence here. Second sentence "
+                                 "that should not appear. Third."}],
+         "sensitivity": {}},
+        [{"timestamp": "2026-01-08T00:00:00", "tier": "conditionally_supported"}],
+    )
+    assert headline.endswith("with caveats: First sentence here.")
+    assert "Second sentence" not in headline
+
+
 def test_capabilities_report_the_default_floor() -> None:
     from gnomon.runtime import capabilities
 

@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- **Graduated-support iteration: decisions never rest on fallback rows,
+  and requested analyses never vanish silently.** `gnomon_decide` /
+  `gnomon_monitor` on a sub-supported forecast now refuse with the
+  accurate `forecast_not_calibrated` reason (the forecast published
+  labelled rows — it did not abstain — but uncalibrated rows carry no
+  exceedance risk to ground a decision or alert rule). A `threshold`
+  requested on a best_effort or split forecast is disclosed as a typed
+  note instead of being dropped. The full response format now carries
+  `notes` (brief already did — the verbose mode disclosed less than the
+  compact one). Multi-sentence caveats contribute only their first
+  sentence to the headline. `capabilities.features` gains
+  `graduated_support`, `horizon_split`, `row_tier_labels`, and
+  `forecast_headline`.
+
 - **The tier label is verifier-enforced (Change 4).** Support-assessment
   evidence carries per-row tier counts, and any lineage claim about a
   series whose published rows include `best_effort` tiers must cite that

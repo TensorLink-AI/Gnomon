@@ -106,7 +106,10 @@ def forecast_headline(
          if reason.get("code") != "warning"),
         reasons[0]["message"] if reasons else "see the typed reasons.",
     )
-    return f"Forecast through {end} with caveats: {caveat}"
+    # The headline is one sentence; a multi-sentence reason contributes
+    # its first sentence and the typed reasons carry the rest.
+    first_sentence = caveat.split(". ")[0].rstrip(".") + "."
+    return f"Forecast through {end} with caveats: {first_sentence}"
 
 
 def artifact_headline(results: list) -> str:
