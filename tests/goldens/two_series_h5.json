@@ -450,13 +450,13 @@
           {
             "entity": "alpha",
             "variable": "value",
-            "reads": 68,
+            "reads": 2,
             "max_known_time": "2026-04-29T00:00:00"
           },
           {
             "entity": "beta",
             "variable": "value",
-            "reads": 77,
+            "reads": 2,
             "max_known_time": "2026-04-29T00:00:00"
           }
         ]

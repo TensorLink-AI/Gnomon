@@ -96,6 +96,88 @@ def test_gaps_at_an_unusual_step_still_refuse() -> None:
     assert raised.value.code == "AMBIGUOUS_FREQUENCY"
 
 
+def _month_starts(count: int, skip: set[int] = frozenset()) -> list[datetime]:
+    stamps = []
+    year, month = 2010, 1
+    for index in range(count):
+        if index not in skip:
+            stamps.append(datetime(year, month, 1))
+        month += 1
+        if month > 12:
+            year, month = year + 1, 1
+    return stamps
+
+
+def test_month_start_with_a_missing_month_infers_ms() -> None:
+    """Real monthly feeds drop the odd month; a single hole must route to
+    the grid validator (which names the gap, with repair options) rather
+    than demote the series to AMBIGUOUS_FREQUENCY."""
+    assert infer_frequency(_month_starts(48, skip={11})) == "MS"
+
+
+def test_month_start_with_several_missing_months_infers_ms() -> None:
+    assert infer_frequency(_month_starts(60, skip={5, 20, 21, 40})) == "MS"
+
+
+def test_yearly_january_data_is_not_mistaken_for_monthly() -> None:
+    stamps = [datetime(2000 + index, 1, 1) for index in range(20)]
+    with pytest.raises(GnomonError) as raised:
+        infer_frequency(stamps)
+    assert raised.value.code == "AMBIGUOUS_FREQUENCY"
+
+
+def test_quarterly_data_is_not_mistaken_for_monthly() -> None:
+    stamps = [datetime(2010 + index // 4, 3 * (index % 4) + 1, 1)
+              for index in range(24)]
+    with pytest.raises(GnomonError) as raised:
+        infer_frequency(stamps)
+    assert raised.value.code == "AMBIGUOUS_FREQUENCY"
+
+
+def test_first_of_month_at_varying_times_is_not_a_month_grid() -> None:
+    stamps = _month_starts(24, skip={7})
+    stamps = [stamp + timedelta(hours=index % 3)
+              for index, stamp in enumerate(stamps)]
+    with pytest.raises(GnomonError) as raised:
+        infer_frequency(stamps)
+    assert raised.value.code == "AMBIGUOUS_FREQUENCY"
+
+
+def _daily_observations(days: list[datetime]) -> list:
+    from gnomon.data import Observation
+
+    return [Observation(timestamp=stamp, value=float(index), series="yield")
+            for index, stamp in enumerate(days)]
+
+
+def test_business_day_gap_is_named_in_the_grid_refusal() -> None:
+    """Business-day data (market series) infers a daily grid and then hits
+    the weekend hole; the refusal must say the skipped days are weekends so
+    the caller learns the shape of the data, not just its first gap."""
+    from gnomon.temporal import validate_and_group
+
+    weekdays = [stamp for stamp in _stamps(timedelta(days=1), 21)
+                if stamp.weekday() < 5]
+    with pytest.raises(GnomonError) as raised:
+        validate_and_group(_daily_observations(weekdays), None)
+    assert raised.value.code == "IRREGULAR_TIME_GRID"
+    assert raised.value.details["gap_weekend_only"] is True
+    assert "business-day" in raised.value.message
+
+
+def test_midweek_gap_is_not_called_a_weekend() -> None:
+    from gnomon.temporal import validate_and_group
+
+    stamps = _stamps(timedelta(days=1), 14)
+    removed = next(stamp for stamp in stamps if stamp.weekday() == 2)
+    stamps.remove(removed)
+    with pytest.raises(GnomonError) as raised:
+        validate_and_group(_daily_observations(stamps), "D")
+    assert raised.value.code == "IRREGULAR_TIME_GRID"
+    assert "gap_weekend_only" not in raised.value.details
+    assert "business-day" not in raised.value.message
+
+
 @pytest.mark.parametrize(
     ("alias", "code"),
     [("S", "s"), ("1s", "s"), ("sec", "s"), ("second", "s"),

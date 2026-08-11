@@ -144,7 +144,7 @@
           {
             "entity": "__default__",
             "variable": "value",
-            "reads": 1,
+            "reads": 2,
             "max_known_time": "2026-03-06T00:00:00"
           }
         ]

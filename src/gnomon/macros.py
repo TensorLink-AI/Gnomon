@@ -141,12 +141,13 @@ def investigate_change(
     store_path: str | None = None,
     clock: Clock | None = None,
     input_provenance: str | None = None,
+    regrid: str | None = None,
 ) -> tuple[dict[str, Any], Path]:
     clock = clock or SYSTEM_CLOCK
     loaded = load_stage(
         input_path, time_column=time_column, target_column=target_column,
         series_column=series_column, frequency=frequency,
-        as_of=as_of, store_path=store_path,
+        as_of=as_of, store_path=store_path, regrid=regrid,
     )
     task = TemporalTask(
         objective=f"Investigate what changed in {target_column}",
@@ -401,6 +402,7 @@ def decide(
     store_path: str | None = None,
     clock: Clock | None = None,
     input_provenance: str | None = None,
+    regrid: str | None = None,
 ) -> tuple[dict[str, Any], Path]:
     """Scenario generation → feasible actions → uncertainty propagation →
     constraints/costs (degraded without utilities) → choose or abstain.
@@ -412,7 +414,7 @@ def decide(
         input_path, time_column=time_column, target_column=target_column,
         horizon=horizon, series_column=series_column, frequency=frequency,
         threshold=threshold, output=output, as_of=as_of,
-        store_path=store_path, clock=clock,
+        store_path=store_path, clock=clock, regrid=regrid,
     )
     candidates = [item for item in artifact.results
                   if series_name is None or item.series == series_name]
@@ -642,6 +644,7 @@ def monitor(
     store_path: str | None = None,
     clock: Clock | None = None,
     input_provenance: str | None = None,
+    regrid: str | None = None,
 ) -> tuple[dict[str, Any], Path]:
     """Trigger definition → sequential risk estimation → alert-cost-aware
     thresholding, building on the tracking store's open-forecast lifecycle."""
@@ -651,7 +654,7 @@ def monitor(
         input_path, time_column=time_column, target_column=target_column,
         horizon=horizon, series_column=series_column, frequency=frequency,
         threshold=threshold, output=output, as_of=as_of,
-        store_path=store_path, clock=clock,
+        store_path=store_path, clock=clock, regrid=regrid,
     )
     task = TemporalTask(
         objective=f"Monitor {target_column} for exceedance of {threshold}",
@@ -804,6 +807,7 @@ def detect_anomalies(
     store_path: str | None = None,
     clock: Clock | None = None,
     input_provenance: str | None = None,
+    regrid: str | None = None,
 ) -> tuple[dict[str, Any], Path]:
     """Graded anomaly detection: candidate detectors compete on a
     synthetic-injection grader (or on supplied labels), the winner labels
@@ -823,7 +827,7 @@ def detect_anomalies(
     loaded = load_stage(
         input_path, time_column=time_column, target_column=target_column,
         series_column=series_column, frequency=frequency,
-        as_of=as_of, store_path=store_path,
+        as_of=as_of, store_path=store_path, regrid=regrid,
     )
     task = TemporalTask(
         objective=f"Detect anomalies in {target_column}",
