@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+- **Long-series anomaly detection is fast.** Detector selection is
+  graded on the trailing `MAX_GRADING_HISTORY` (1,024) observations —
+  stretched to cover four seasonal periods — instead of injecting into
+  full copies of the series, and the one-step forecaster inside
+  `forecast_interval` refits on a sliding `MAX_FORECAST_TRAIN_HISTORY`
+  (512) window instead of an ever-growing prefix. A 3,652-row daily
+  series drops from ~90 s to ~7 s with the same detector selected and
+  the same anomalies found. The selected detector still scores every
+  observation; when the grading window applies it is recorded under
+  `injection.grading_window` and disclosed as a support assumption.
+  The seasonal robust z-score also now precomputes per-phase medians
+  (identical scores, no more quadratic pass).
+
+- **Covariate mappings accept structured objects.** `covariate_mapping`
+  takes the documented `name:type:future_known` packed string, an array
+  of such entries, or an array of `{"name", "type", "availability"}`
+  objects — mixed freely; `parse_mapping` treats every spelling
+  identically and the MCP schemas document all three. Errors name the
+  missing or unknown object keys.
+
+- **`investigate_change` records the caller's hypothesis.** New optional
+  `suspected_cause` free-text parameter (MCP, Python API, and CLI
+  `--suspected-cause`): recorded verbatim in the payload and artifact
+  with an explicit `influence: "none"` disclosure, so the hypothesis
+  travels with the finding without steering detection or explanation
+  ranking. A dated suspicion still belongs in `context_events`, where it
+  is ranked as a concurrent-event explanation. Supplying it changes the
+  investigation id; omitting it leaves existing ids byte-identical.
+
 - **Graduated-support iteration: decisions never rest on fallback rows,
   and requested analyses never vanish silently.** `gnomon_decide` /
   `gnomon_monitor` on a sub-supported forecast now refuse with the

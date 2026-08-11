@@ -123,25 +123,53 @@ class CovariateAssessment:
         }
 
 
-def parse_mapping(raw: str | list[str] | tuple[str, ...]) -> tuple[CovariateSpec, ...]:
-    """Parse name:type:availability entries.
+def parse_mapping(
+    raw: str | list[str | dict[str, Any]] | tuple[str | dict[str, Any], ...],
+) -> tuple[CovariateSpec, ...]:
+    """Parse covariate mapping entries.
 
     Availability is mandatory so contemporaneous observations cannot be
     accidentally treated as values known at a historical forecast origin.
 
-    Accepts the comma-separated string the schema documents or a list of
-    entries — an agent handing a JSON array where a joined string was
-    documented is guessing the unambiguous thing, and the answer is the
-    same either way; crashing on the guess was a dead end.
+    Accepts the comma-separated ``name:type:availability`` string the
+    schema documents, a list of such entries, or a list of objects with
+    ``name``/``type``/``availability`` keys — the packed string was a
+    constant source of agent guesswork, and every one of these spellings
+    states the same three facts. Entry kinds may be mixed in one list.
     """
-    items = raw.split(",") if isinstance(raw, str) else [str(item) for item in raw]
+    items: list[Any]
+    if isinstance(raw, str):
+        items = raw.split(",")
+    else:
+        items = list(raw)
     specs: list[CovariateSpec] = []
     for item in items:
-        parts = [part.strip() for part in item.split(":")]
+        if isinstance(item, dict):
+            unknown = set(item) - {"name", "type", "availability"}
+            if unknown:
+                raise GnomonError(
+                    "INVALID_COVARIATE_MAPPING",
+                    "Covariate mapping objects take name, type, and "
+                    f"availability; got unknown key(s) {sorted(unknown)}.",
+                )
+            parts = [str(item.get(key, "") or "").strip()
+                     for key in ("name", "type", "availability")]
+            if not all(parts):
+                missing = [key for key, part in
+                           zip(("name", "type", "availability"), parts)
+                           if not part]
+                raise GnomonError(
+                    "INVALID_COVARIATE_MAPPING",
+                    "Covariate mapping objects need name, type, and "
+                    f"availability; missing {missing}.",
+                )
+        else:
+            parts = [part.strip() for part in str(item).split(":")]
         if len(parts) != 3:
             raise GnomonError(
                 "INVALID_COVARIATE_MAPPING",
-                "Each mapping must be name:type:availability; availability must be future_known.",
+                "Each mapping must be name:type:availability (or an object "
+                "with those keys); availability must be future_known.",
             )
         name, value_type, availability = parts
         if value_type not in {"continuous", "binary"}:

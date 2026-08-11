@@ -328,6 +328,10 @@ def build_parser() -> argparse.ArgumentParser:
     _common_input(investigate_parser)
     investigate_parser.add_argument("--context", dest="context_file",
                                     help="Validated context-events JSON to rank as concurrent events")
+    investigate_parser.add_argument(
+        "--suspected-cause", dest="suspected_cause",
+        help="Free-text hypothesis of what changed, recorded verbatim in the "
+             "artifact for the audit trail (does not influence the analysis)")
     investigate_parser.add_argument("--as-of", dest="as_of")
     investigate_parser.add_argument("--output", default="gnomon-output")
     investigate_parser.add_argument("--store-path", dest="store_path")
@@ -963,7 +967,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.input, time_column=args.time_column,
                 target_column=args.target_column, series_column=args.series_column,
                 frequency=args.frequency, as_of=_parse_as_of(args.as_of),
-                context_events=events, output=args.output,
+                context_events=events,
+                suspected_cause=args.suspected_cause,
+                output=args.output,
                 store_path=args.store_path,
             )
             print(json.dumps(_disclose_assumptions(

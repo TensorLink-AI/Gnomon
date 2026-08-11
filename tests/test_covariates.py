@@ -145,3 +145,42 @@ def test_capabilities_are_adapter_level_and_machine_actionable() -> None:
     assert eligible == []
     assert all("future-known" in reasons[0] for reasons in excluded.values())
     assert capabilities()["features"]["point_in_time_covariates"] is True
+
+
+def test_mapping_accepts_objects_and_mixed_entries() -> None:
+    specs = parse_mapping([
+        {"name": "campaign", "type": "binary", "availability": "future_known"},
+        "temperature:continuous:future_known",
+    ])
+    assert [spec.name for spec in specs] == ["campaign", "temperature"]
+    assert specs[0].value_type == "binary"
+    assert specs[0].availability == "future_known"
+    assert parse_mapping("campaign:binary:future_known") == parse_mapping(
+        [{"name": "campaign", "type": "binary", "availability": "future_known"}]
+    )
+
+
+def test_mapping_object_missing_key_names_it() -> None:
+    with pytest.raises(GnomonError) as exc:
+        parse_mapping([{"name": "campaign", "type": "binary"}])
+    assert exc.value.code == "INVALID_COVARIATE_MAPPING"
+    assert "availability" in exc.value.message
+
+
+def test_mapping_object_rejects_unknown_keys() -> None:
+    with pytest.raises(GnomonError) as exc:
+        parse_mapping([{"name": "campaign", "kind": "binary",
+                        "availability": "future_known"}])
+    assert exc.value.code == "INVALID_COVARIATE_MAPPING"
+    assert "kind" in exc.value.message
+
+
+def test_mapping_objects_validate_like_strings() -> None:
+    with pytest.raises(GnomonError) as exc:
+        parse_mapping([{"name": "campaign", "type": "categorical",
+                        "availability": "future_known"}])
+    assert exc.value.code == "INVALID_COVARIATE_TYPE"
+    with pytest.raises(GnomonError) as exc:
+        parse_mapping([{"name": "campaign", "type": "binary",
+                        "availability": "observed"}])
+    assert exc.value.code == "UNSUPPORTED_COVARIATE_AVAILABILITY"

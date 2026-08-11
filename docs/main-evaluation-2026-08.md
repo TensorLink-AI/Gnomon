@@ -219,3 +219,11 @@ claimed (24 → 17, not 24 → 20). The genuinely open items after
 correction: TSFM install unreachable over MCP, free-text investigation
 context, anomaly training speed, and covariate mappings as packed
 strings.
+
+**Post-verification follow-up (same branch):** three of those four are
+addressed by commits after this evaluation — anomaly detector selection
+is graded on a trailing window (~90 s → ~7 s on 3,652 rows, disclosed in
+the output), `covariate_mapping` accepts `{name, type, availability}`
+objects alongside the packed string, and `investigate_change` gained a
+free-text `suspected_cause` recorded verbatim with an explicit
+non-influence disclosure. TSFM install over MCP remains open.

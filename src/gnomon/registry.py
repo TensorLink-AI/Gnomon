@@ -201,6 +201,15 @@ MACROS: dict[str, MacroSpec] = {
                         "without a filesystem; see gnomon_forecast's "
                         "context_events for the item shape."
                     ), "items": {"type": "object"}},
+                    "suspected_cause": {"type": "string", "description": (
+                        "Optional free text: what you suspect changed and "
+                        "why (e.g. 'pricing change rolled out May 12'). "
+                        "Recorded verbatim in the payload and artifact so "
+                        "the hypothesis travels with the finding; it does "
+                        "not influence detection or explanation ranking. "
+                        "A suspicion with a date belongs in context_events "
+                        "too, where it is ranked as a concurrent event."
+                    )},
                 },
                 "required": [],
             },

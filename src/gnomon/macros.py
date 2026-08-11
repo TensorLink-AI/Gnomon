@@ -136,6 +136,7 @@ def investigate_change(
     frequency: str | None = None,
     as_of: datetime | None = None,
     context_events: list[Any] | None = None,
+    suspected_cause: str | None = None,
     output: str = "gnomon-output",
     store_path: str | None = None,
     clock: Clock | None = None,
@@ -334,6 +335,9 @@ def investigate_change(
             [_event_payload(event) for event in context_events]
             if context_events else None
         ),
+        # Only present when supplied, so every pre-existing investigation
+        # keeps its id byte-identical.
+        **({"suspected_cause": suspected_cause} if suspected_cause else {}),
     })
     created_at = clock.now().isoformat()
     payload = {
@@ -346,6 +350,21 @@ def investigate_change(
         "source_fingerprint": loaded.source_fingerprint,
         "results": results,
     }
+    if suspected_cause:
+        # The caller's hypothesis rides with the finding it prompted — but
+        # a stated suspicion must never steer what the data says, so its
+        # non-influence is part of the record, not an implementation detail.
+        payload["suspected_cause"] = {
+            "text": suspected_cause,
+            "influence": "none",
+            "note": (
+                "Recorded verbatim for the audit trail. Detection, "
+                "classification, and explanation ranking are computed from "
+                "the data and supplied context events alone; to have a "
+                "dated suspicion ranked as a candidate explanation, supply "
+                "it as a context event."
+            ),
+        }
     lineage, dataset_id = _base_lineage(task, loaded, artifact_id, "investigation", created_at)
     lineage.evidence.extend(evidence_records)
     lineage.claims.extend([

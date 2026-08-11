@@ -303,3 +303,56 @@ def test_labelled_selection_keeps_dense_candidates_eligible():
     )
     assert result["selection_basis"] == "label_f1"
     assert result["detector"] != "everything"
+
+
+class TestGradingWindow:
+    """Long series are graded on a trailing window; short series in full."""
+
+    def test_short_series_grades_in_full(self):
+        grading = grade_detectors(_seasonal_series(96, 12), 12)
+        assert "grading_window" not in grading["injection"]
+
+    def test_long_series_grades_on_trailing_window(self, monkeypatch):
+        import gnomon.anomaly as anomaly
+        monkeypatch.setattr(anomaly, "MAX_GRADING_HISTORY", 64)
+        values = _seasonal_series(160, 12)
+        grading = grade_detectors(values, 12)
+        assert grading["injection"]["grading_window"] == {
+            "observations": 64, "of": 160, "placement": "trailing",
+        }
+        # Windowed grading is exactly grading of the trailing slice: same
+        # seed, same trials, same grades.
+        trailing = grade_detectors(values[-64:], 12)
+        assert "grading_window" not in trailing["injection"]
+        assert trailing["grades"] == grading["grades"]
+        assert trailing["injection"]["seed"] == grading["injection"]["seed"]
+
+    def test_window_stretches_to_cover_long_seasons(self, monkeypatch):
+        import gnomon.anomaly as anomaly
+        monkeypatch.setattr(anomaly, "MAX_GRADING_HISTORY", 64)
+        # 4 seasons of 30 > 64: the window must span whole cycles.
+        values = _seasonal_series(300, 30)
+        grading = grade_detectors(values, 30)
+        assert grading["injection"]["grading_window"]["observations"] == 120
+
+    def test_selected_detector_scores_full_series_with_disclosure(self, monkeypatch):
+        import gnomon.anomaly as anomaly
+        monkeypatch.setattr(anomaly, "MAX_GRADING_HISTORY", 64)
+        values = _seasonal_series(200, 12)
+        values[30] += 40.0  # planted well before the grading window
+        result = detect_anomalies(
+            [str(i) for i in range(len(values))], values, season=12,
+        )
+        assert len(result["scores"]) == len(values)
+        assert any(item["timestamp"] == "30" for item in result["anomalies"])
+        assert any("trailing 64 of 200" in note
+                   for note in result["support"]["assumptions"])
+
+    def test_no_disclosure_without_window(self):
+        values = _seasonal_series(96, 12)
+        values[40] += 25.0
+        result = detect_anomalies(
+            [str(i) for i in range(len(values))], values, season=12,
+        )
+        assert not any("trailing" in note
+                       for note in result["support"]["assumptions"])

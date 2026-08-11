@@ -186,7 +186,7 @@ gnomon forecast INPUT [--time COLUMN] [--target COLUMN[,COLUMN…]] [--horizon N
 | `--threshold VALUE` | None | Decision threshold: the result reports when and how likely the forecast crosses this value. |
 | `--project NAME` | None | Register each forecast series for later realised scoring. |
 | `--covariates FILE` | None | Local point-in-time covariate CSV. |
-| `--covariate-mapping MAP` | None | Required `name:type:future_known` entries. |
+| `--covariate-mapping MAP` | None | Required `name:type:future_known` entries (the MCP tools also accept arrays of `{name, type, availability}` objects). |
 | `--covariate-time COLUMN` | `timestamp` | Covariate valid-at column. |
 | `--covariate-known-at COLUMN` | `known_at` | Covariate availability column. |
 | `--covariate-series COLUMN` | None | Optional panel-series key. |
@@ -375,7 +375,15 @@ classification, anomaly scores, and ranked associational explanations:
 gnomon investigate data.csv --time timestamp --target value
 gnomon investigate data.csv --time timestamp --target value \
   --context events.json --as-of 2026-06-01
+gnomon investigate data.csv --time timestamp --target value \
+  --suspected-cause "pricing change rolled out May 12"
 ```
+
+`--suspected-cause` records your hypothesis verbatim in the payload and
+artifact so it travels with the finding; it never influences detection or
+explanation ranking (the record says so: `influence: "none"`). A suspicion
+with a date belongs in `--context` events too, where it is ranked as a
+concurrent-event explanation.
 
 ## `gnomon detect`
 
@@ -394,6 +402,11 @@ gnomon detect data.csv --time timestamp --target value \
 
 With `--labels` (known anomaly timestamps), detector selection uses label
 F1 instead of the synthetic grader.
+
+Long series stay fast: selection is graded on the trailing 1,024
+observations (stretched to cover four seasonal periods), while the winning
+detector scores every observation. When the window applies it is recorded
+under `injection.grading_window` and disclosed as a support assumption.
 
 The grade covers the families the grader planted and nothing else. Each
 result's support carries `graded_families` and, under synthetic selection,
