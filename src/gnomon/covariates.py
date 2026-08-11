@@ -123,14 +123,20 @@ class CovariateAssessment:
         }
 
 
-def parse_mapping(raw: str) -> tuple[CovariateSpec, ...]:
+def parse_mapping(raw: str | list[str] | tuple[str, ...]) -> tuple[CovariateSpec, ...]:
     """Parse name:type:availability entries.
 
     Availability is mandatory so contemporaneous observations cannot be
     accidentally treated as values known at a historical forecast origin.
+
+    Accepts the comma-separated string the schema documents or a list of
+    entries — an agent handing a JSON array where a joined string was
+    documented is guessing the unambiguous thing, and the answer is the
+    same either way; crashing on the guess was a dead end.
     """
+    items = raw.split(",") if isinstance(raw, str) else [str(item) for item in raw]
     specs: list[CovariateSpec] = []
-    for item in raw.split(","):
+    for item in items:
         parts = [part.strip() for part in item.split(":")]
         if len(parts) != 3:
             raise GnomonError(
@@ -167,6 +173,70 @@ def _timestamp(raw: Any, *, column: str, row: int) -> datetime:
         ) from exc
 
 
+def _rows_from_dicts(
+    dict_rows: list[dict[str, Any]], specs: tuple[CovariateSpec, ...], *,
+    time_column: str, known_at_column: str, series_column: str | None,
+    first_row_number: int,
+) -> list[CovariateRow]:
+    """Validate raw row mappings into ``CovariateRow``s, loudly.
+
+    Shared by the CSV loader and the inline ``covariates`` tool argument
+    so both channels enforce the identical contract; ``first_row_number``
+    keeps error messages pointing at the caller's own numbering (a CSV's
+    first data row is line 2, an inline array's is item 1).
+    """
+    required = [time_column, known_at_column, *[spec.name for spec in specs]]
+    if series_column:
+        required.append(series_column)
+    rows: list[CovariateRow] = []
+    row_keys: set[tuple[str, datetime, datetime]] = set()
+    for number, raw in enumerate(dict_rows, first_row_number):
+        if not isinstance(raw, dict):
+            raise GnomonError(
+                "INVALID_COVARIATE_ROW", f"Covariate row {number} is not an object.",
+            )
+        missing = [name for name in required if raw.get(name) is None]
+        if missing:
+            raise GnomonError(
+                "MISSING_COVARIATE_COLUMNS",
+                f"Covariate columns are missing on row {number}: {', '.join(missing)}",
+                {"required": required, "row": number},
+            )
+        valid_at = _timestamp(raw.get(time_column), column=time_column, row=number)
+        known_at = _timestamp(raw.get(known_at_column), column=known_at_column, row=number)
+        if (valid_at.tzinfo is None) != (known_at.tzinfo is None):
+            raise GnomonError("MIXED_COVARIATE_TIMEZONES", "valid_at and known_at must use compatible timezones.")
+        values: dict[str, float] = {}
+        for spec in specs:
+            try:
+                value = float(raw[spec.name])
+            except (TypeError, ValueError) as exc:
+                raise GnomonError(
+                    "INVALID_COVARIATE_VALUE",
+                    f"Covariate {spec.name!r} is not numeric on row {number}.",
+                ) from exc
+            if not math.isfinite(value):
+                raise GnomonError(
+                    "INVALID_COVARIATE_VALUE",
+                    f"Covariate {spec.name!r} must be finite on row {number}.",
+                )
+            if spec.value_type == "binary" and value not in (0.0, 1.0):
+                raise GnomonError("INVALID_BINARY_COVARIATE", f"{spec.name!r} must contain only 0 or 1.")
+            values[spec.name] = value
+        series = str(raw[series_column]) if series_column else "__default__"
+        key = (series, valid_at, known_at)
+        if key in row_keys:
+            raise GnomonError(
+                "DUPLICATE_COVARIATE_VINTAGE",
+                f"Duplicate series/valid_at/known_at key on row {number}.",
+            )
+        row_keys.add(key)
+        rows.append(CovariateRow(valid_at, known_at, series, values))
+    if not rows:
+        raise GnomonError("EMPTY_COVARIATES", "No covariate rows were supplied.")
+    return rows
+
+
 def load_covariates(
     path_raw: str, mapping: str, *, time_column: str = "timestamp",
     known_at_column: str = "known_at", series_column: str | None = None,
@@ -190,42 +260,43 @@ def load_covariates(
                 f"Covariate columns are missing: {', '.join(missing)}",
                 {"required": required, "available": columns},
             )
-        rows: list[CovariateRow] = []
-        row_keys: set[tuple[str, datetime, datetime]] = set()
-        for number, raw in enumerate(reader, 2):
-            valid_at = _timestamp(raw.get(time_column), column=time_column, row=number)
-            known_at = _timestamp(raw.get(known_at_column), column=known_at_column, row=number)
-            if (valid_at.tzinfo is None) != (known_at.tzinfo is None):
-                raise GnomonError("MIXED_COVARIATE_TIMEZONES", "valid_at and known_at must use compatible timezones.")
-            values: dict[str, float] = {}
-            for spec in specs:
-                try:
-                    value = float(raw[spec.name])
-                except (TypeError, ValueError) as exc:
-                    raise GnomonError(
-                        "INVALID_COVARIATE_VALUE",
-                        f"Covariate {spec.name!r} is not numeric on row {number}.",
-                    ) from exc
-                if not math.isfinite(value):
-                    raise GnomonError(
-                        "INVALID_COVARIATE_VALUE",
-                        f"Covariate {spec.name!r} must be finite on row {number}.",
-                    )
-                if spec.value_type == "binary" and value not in (0.0, 1.0):
-                    raise GnomonError("INVALID_BINARY_COVARIATE", f"{spec.name!r} must contain only 0 or 1.")
-                values[spec.name] = value
-            series = str(raw[series_column]) if series_column else "__default__"
-            key = (series, valid_at, known_at)
-            if key in row_keys:
-                raise GnomonError(
-                    "DUPLICATE_COVARIATE_VINTAGE",
-                    f"Duplicate series/valid_at/known_at key on row {number}.",
-                )
-            row_keys.add(key)
-            rows.append(CovariateRow(valid_at, known_at, series, values))
-    if not rows:
-        raise GnomonError("EMPTY_COVARIATES", "The covariates file contains no rows.")
+        rows = _rows_from_dicts(
+            list(reader), specs, time_column=time_column,
+            known_at_column=known_at_column, series_column=series_column,
+            first_row_number=2,
+        )
     return CovariateDataset(str(path), fingerprint(path), specs, rows)
+
+
+def covariates_from_rows(
+    raw_rows: list[Any], mapping: str, *, time_column: str = "timestamp",
+    known_at_column: str = "known_at", series_column: str | None = None,
+) -> CovariateDataset:
+    """Build a covariate dataset from inline row objects.
+
+    The inline channel exists for the same reason ``context_events``
+    has one: an MCP client holds no filesystem, so a file-only
+    parameter makes the whole covariate lane unreachable from the tool
+    surface. Validation is the exact code the CSV loader runs; the
+    fingerprint hashes the row content so evidence stays checkable.
+    """
+    import hashlib
+    import json
+
+    if not isinstance(raw_rows, list) or not raw_rows:
+        raise GnomonError(
+            "EMPTY_COVARIATES", "covariates must be a non-empty array of row objects.",
+        )
+    specs = parse_mapping(mapping)
+    rows = _rows_from_dicts(
+        raw_rows, specs, time_column=time_column,
+        known_at_column=known_at_column, series_column=series_column,
+        first_row_number=1,
+    )
+    digest = hashlib.sha256(
+        json.dumps(raw_rows, sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()
+    return CovariateDataset("inline", digest, specs, rows)
 
 
 def covariate_guide(
@@ -280,12 +351,13 @@ def covariate_guide(
 
 
 def validate_covariate_file(
-    input_path: str, covariates_path: str, mapping: str, *,
+    input_path: str, covariates_path: str | None, mapping: str, *,
     time_column: str, target_column: str, horizon: int,
     series_column: str | None = None, frequency: str | None = None,
     covariate_time_column: str = "timestamp",
     covariate_known_at_column: str = "known_at",
     covariate_series_column: str | None = None,
+    covariate_rows: list[Any] | None = None,
 ) -> dict[str, Any]:
     from .data import load_observations
 
@@ -297,11 +369,18 @@ def validate_covariate_file(
         input_path, time_column, target_column, series_column
     )
     groups, resolved_frequency, _ = validate_and_group(observations, frequency)
-    dataset = load_covariates(
-        covariates_path, mapping, time_column=covariate_time_column,
-        known_at_column=covariate_known_at_column,
-        series_column=covariate_series_column,
-    )
+    if covariates_path:
+        dataset = load_covariates(
+            covariates_path, mapping, time_column=covariate_time_column,
+            known_at_column=covariate_known_at_column,
+            series_column=covariate_series_column,
+        )
+    else:
+        dataset = covariates_from_rows(
+            covariate_rows or [], mapping, time_column=covariate_time_column,
+            known_at_column=covariate_known_at_column,
+            series_column=covariate_series_column,
+        )
     guide_by_series = {item["series"]: item for item in guide["series"]}
     validations: list[dict[str, Any]] = []
     for series, items in sorted(groups.items()):

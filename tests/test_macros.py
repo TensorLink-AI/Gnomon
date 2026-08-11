@@ -129,7 +129,10 @@ def test_decide_with_utilities_chooses(tmp_path):
     assert decision_claims and decision_claims[0]["constraints_evaluated"] is True
 
 
-def test_decide_abstains_when_forecast_abstains(tmp_path):
+def test_decide_refuses_when_forecast_is_not_calibrated(tmp_path):
+    # Under graduated support the embedded forecast publishes labelled
+    # sub-supported rows instead of abstaining — but the decision still
+    # refuses: uncalibrated rows carry no exceedance risk to ground it.
     source = _csv(tmp_path / "short.csv", [100.0, 102.0, 101.0, 103.0])
     payload, _ = decide(
         str(source), time_column="timestamp", target_column="value",
@@ -137,7 +140,9 @@ def test_decide_abstains_when_forecast_abstains(tmp_path):
         output=str(tmp_path / "out"), clock=CLOCK,
     )
     assert payload["support_assessment"]["status"] == "inconclusive"
-    assert payload["support_assessment"]["reasons"][0]["code"] == "forecast_abstained"
+    assert payload["support_assessment"]["reasons"][0]["code"] in (
+        "forecast_not_calibrated", "forecast_abstained")
+    assert payload["scenario_probabilities"] is None
     assert payload["evaluation"]["selected"] is None
 
 

@@ -53,7 +53,7 @@ Then ask your agent:
 > What changed in it, and when should we alert if crossing 340 costs us 20x
 > a false alarm?
 
-The agent gets 23 tools — `gnomon_forecast`, `gnomon_investigate_change`,
+The agent gets 17 tools — `gnomon_forecast`, `gnomon_investigate_change`,
 `gnomon_detect_anomalies`, `gnomon_decide`, `gnomon_monitor`, `gnomon_route`, plus
 ingestion, inspection, tracking, and artifact tools — and every number it
 quotes comes from an evidence-linked, verified artifact. It cannot invent
@@ -96,10 +96,17 @@ fluently. Gnomon is a harness:
 - **Cleaning is disclosed, never silent.** Messy files are repaired
   deterministically, every fix listed as evidence, capped — and the support
   status downgrades to match.
-- **Abstention is an answer.** When history can't support a forecast you
-  get a typed refusal with recovery steps. The most dangerous forecast is
-  the confident one that shouldn't exist — Gnomon won't produce it, and the
-  agent can't fake it.
+- **Every answer is graded; abstention remains an answer.** The default
+  publishes the most defensible result that exists, at whatever tier the
+  evidence earned — a fully evaluated forecast, an evaluated prefix with
+  a labelled naive remainder, or a naive extrapolation alone — with an
+  unstrippable per-row tier, a typed reason for every rung walked down,
+  and a one-sentence headline naming the weakest tier present. The
+  dangerous forecast is the unlabelled one — Gnomon won't produce it,
+  and the verifier rejects any response quoting a sub-supported number
+  without its tier. Operators who want refusals set
+  `minimum_support: supported`; a series where nothing is computable
+  still gets the typed abstention with recovery steps.
 - **Predictions are remembered.** Forecasts and decisions are tracked and
   scored against realised outcomes — regret against the best feasible
   action in hindsight, not vibes.

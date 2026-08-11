@@ -15,10 +15,94 @@ from .context import load_events_file
 from .contracts import ForecastArtifact
 from .runtime import capabilities, forecast, inspect_dataset
 
+#: The inline event channel, shared by every tool that accepts context
+#: events. Complete enough that a model holding only this schema can
+#: construct a valid event — that is the point of it existing.
+_CONTEXT_EVENTS_PROPERTY: dict[str, Any] = {
+    "context_events": {
+        "type": "array",
+        "description": (
+            "Context events supplied inline — the same objects a "
+            "context-events file carries, for callers without a "
+            "filesystem. Concatenated with context_events_file when both "
+            "are given; both channels validate against the same "
+            "contract, loudly. Admission is separate and strict "
+            "(constraint:/override:/structural: events need the "
+            "future_events/structural_events flags and a verbatim "
+            "source_span) — dry-run with gnomon_preflight_context first."
+        ),
+        "items": {
+            "type": "object",
+            "properties": {
+                "event_id": {"type": "string", "description": "Unique id for this event."},
+                "event_type": {"type": "string", "description": "Namespaced type: constraint:<label> (stated bound), override:<label> (stated level/state), structural:<label> (stated cessation, with attributes.effect), or a plain type for the fold-ablation gate."},
+                "entity_scope": {"type": "array", "items": {"type": "string"}, "description": "Series names the event applies to; [\"*\"] for all."},
+                "effective_start": {"type": "string", "description": "ISO-8601 with an explicit timezone offset."},
+                "effective_end": {"type": "string", "description": "ISO-8601 with an explicit offset; must not precede effective_start."},
+                "known_at": {"type": "string", "description": "When the information became knowable; ISO-8601 with an explicit offset."},
+                "attributes": {"type": "object", "description": "Per-class payload: source_span (the sentence, quoted VERBATIM, that states the claim — the only admissible source of numbers), effect (structural menu: trend_ceases, level_matches_seasonal_high, level_matches_seasonal_low), or claim ({kind: min|max, value: number})."},
+                "source": {"type": "object", "properties": {"type": {"type": "string"}, "reference": {"type": "string"}}, "description": "Where the information came from."},
+                "created_by": {"type": "string", "description": "user | llm | pipeline."},
+            },
+            "required": ["event_id", "event_type", "entity_scope",
+                         "effective_start", "effective_end", "known_at"],
+        },
+    },
+}
+
+#: The inline covariate channel, shared by every tool that accepts
+#: point-in-time covariates. Mutually exclusive with covariates_file;
+#: covariate_mapping stays required either way.
+_COVARIATES_PROPERTY: dict[str, Any] = {
+    "covariates": {
+        "type": "array",
+        "description": (
+            "Point-in-time covariate vintages supplied inline, for "
+            "callers without a filesystem: row objects with the "
+            "covariate time column (default `timestamp`, when the value "
+            "applies), the known-at column (default `known_at`, when it "
+            "became knowable), and one key per covariate named in "
+            "covariate_mapping. Same validation and admission gate as "
+            "covariates_file; mutually exclusive with it."
+        ),
+        "items": {"type": "object"},
+    },
+}
+
+#: The inline data channel, shared by every tool that reads observations.
+#: The same reason context_events and covariates have one: an MCP client
+#: holds no filesystem, and a path-only `input` makes every data-reading
+#: tool unreachable for it.
+_OBSERVATIONS_PROPERTY: dict[str, Any] = {
+    "observations": {
+        "type": "array",
+        "description": (
+            "The observations supplied inline, for callers without a "
+            "filesystem: an array of row objects keyed by your column "
+            "names (time_column, target_column, and optionally "
+            "series_column), e.g. "
+            '[{"timestamp": "2024-01-01T00:00:00+00:00", "value": 12.5}]. '
+            "Mutually exclusive with `input`."
+        ),
+        "items": {"type": "object"},
+    },
+}
+
 _INPUT_PROPERTIES: dict[str, Any] = {
-    "input": {"type": "string", "description": "Path to a local CSV, TSV, JSON, JSONL, Parquet, or Excel file of time-series observations, or `store:<dataset>` to read a dataset from the bitemporal store (see gnomon_list_datasets)."},
-    "time_column": {"type": "string", "description": "Name of the timestamp column."},
-    "target_column": {"type": "string", "description": "Name of the numeric column to forecast."},
+    "input": {"type": "string", "description": "Path to a local CSV, TSV, JSON, JSONL, Parquet, or Excel file of time-series observations, or `store:<dataset>` to read a dataset from the bitemporal store (see gnomon_list_datasets). Callers without a filesystem pass `observations` inline instead."},
+    **_OBSERVATIONS_PROPERTY,
+    "time_column": {"type": "string", "description": (
+        "Name of the timestamp column. Omit to infer: when exactly one "
+        "column parses as timestamps it is chosen and disclosed as an "
+        "assumption; ambiguity fails loudly, naming the candidates. "
+        "Required for store:<dataset> inputs."
+    )},
+    "target_column": {"type": "string", "description": (
+        "Name of the numeric column to forecast. Omit to infer: when "
+        "exactly one non-time column parses as numbers it is chosen and "
+        "disclosed as an assumption; ambiguity fails loudly, naming the "
+        "candidates. Required for store:<dataset> inputs."
+    )},
     "series_column": {"type": "string", "description": "Optional column identifying independent series."},
     "frequency": {
         "type": "string",
@@ -57,17 +141,254 @@ _REPLAY_PROPERTIES: dict[str, Any] = {
 
 FORECAST_PREVIEW_ROWS = 12
 
+#: Hard ceiling on a tool response's serialised size. Tuned to hold a
+#: single-series brief forecast (~5KB with its full support assessment)
+#: with headroom; anything past it is bulk, and bulk lives in the
+#: artifact. The trim never touches the epistemic contract — see
+#: _PROTECTED_KEYS.
+RESPONSE_BUDGET_BYTES = 8192
+
+#: Subtrees that are the contract and are never trimmed, wherever they
+#: appear: support state, warnings, abstention payloads, disclosed
+#: assumptions, and structured error/repair options. A response may
+#: therefore exceed the budget when its epistemics alone do — that is
+#: deliberate; the budget disciplines bulk, not honesty.
+_PROTECTED_KEYS = frozenset({
+    "support", "support_assessment", "warnings", "assumptions", "reasons",
+    "recovery_actions", "disclosures", "notes", "error", "repair_options",
+})
+
+_TRIM_HEAD = 3
+_TRIM_TAIL = 2
+
+
+def _trim_bulk(node: Any, path: str, trimmed: list[dict[str, Any]]) -> Any:
+    """Head/tail-trim long arrays outside the protected subtrees."""
+    if isinstance(node, dict):
+        return {
+            key: (value if key in _PROTECTED_KEYS
+                  else _trim_bulk(value, f"{path}.{key}" if path else str(key),
+                                  trimmed))
+            for key, value in node.items()
+        }
+    if isinstance(node, list) and len(node) > _TRIM_HEAD + _TRIM_TAIL:
+        record: dict[str, Any] = {
+            "path": path, "total": len(node),
+            "kept": f"first {_TRIM_HEAD}, last {_TRIM_TAIL}",
+        }
+        if all(isinstance(item, (int, float)) and not isinstance(item, bool)
+               for item in node):
+            record["summary"] = {
+                "min": min(node), "max": max(node),
+                "mean": round(sum(node) / len(node), 6),
+            }
+        trimmed.append(record)
+        return node[:_TRIM_HEAD] + node[-_TRIM_TAIL:]
+    if isinstance(node, list):
+        return [_trim_bulk(item, f"{path}[{index}]", trimmed)
+                for index, item in enumerate(node)]
+    return node
+
+
+def enforce_response_budget(payload: Any) -> Any:
+    """Trim a runner's response to RESPONSE_BUDGET_BYTES.
+
+    Within budget, the payload passes untouched. Over it, long arrays
+    outside the protected subtrees are cut to their first/last entries
+    (numeric ones with min/max/mean alongside), `truncated: true` is set,
+    and a note points at the artifact for the complete data. Error
+    envelopes are never trimmed — repair options are the recovery path."""
+    if not isinstance(payload, dict) or payload.get("status") == "error" \
+            or "error" in payload:
+        return payload
+    import json as json_module
+    try:
+        raw = json_module.dumps(payload, default=str)
+    except (TypeError, ValueError):
+        return payload
+    if len(raw) <= RESPONSE_BUDGET_BYTES:
+        return payload
+    trimmed: list[dict[str, Any]] = []
+    result = _trim_bulk(payload, "", trimmed)
+    artifact_path = payload.get("artifact_path")
+    where = (f"the artifact at {artifact_path}" if artifact_path
+             else "the on-disk artifact or store")
+    result["truncated"] = True
+    result["truncation"] = {
+        "budget_bytes": RESPONSE_BUDGET_BYTES,
+        "trimmed": trimmed,
+        "note": (
+            f"Response exceeded the {RESPONSE_BUDGET_BYTES}-byte budget; "
+            f"long arrays keep their first {_TRIM_HEAD} and last "
+            f"{_TRIM_TAIL} entries. Support assessments, warnings, and "
+            f"assumptions are never trimmed. The complete data lives in "
+            f"{where}."
+        ),
+    }
+    return result
+
+#: Tools whose missing time_column/target_column are inferred from the file
+#: when it leaves no choice — the same set of verbs the CLI infers for.
+#: gnomon_ingest is deliberately absent: a write to the store under guessed
+#: columns would persist the guess.
+_SCHEMA_INFERENCE_TOOLS: frozenset[str] = frozenset({
+    "gnomon_inspect", "gnomon_forecast", "gnomon_covariate_guide",
+    "gnomon_validate_covariates", "gnomon_propose_covariates",
+    "gnomon_preflight_context", "gnomon_route",
+    "gnomon_investigate_change", "gnomon_detect_anomalies",
+    "gnomon_decide", "gnomon_monitor",
+})
+
+
+def disclose_assumptions(payload: Any, assumptions: list[str]) -> Any:
+    """Attach caller-level inferences to every result's support assessment.
+
+    An inference the caller is not told about is a guess. These ride in the
+    same `assumptions` list as `known_time_assumed`, so an agent reading the
+    envelope finds them where it already looks. Payloads without a results
+    list carry them at the top level instead.
+    """
+    if not assumptions or not isinstance(payload, dict):
+        return payload
+    results = payload.get("results")
+    if not isinstance(results, list) or not results:
+        return {**payload, "assumptions": assumptions}
+    decorated = []
+    for result in results:
+        if not isinstance(result, dict):
+            decorated.append(result)
+            continue
+        assessment = dict(result.get("support_assessment") or {})
+        assessment["assumptions"] = list(assessment.get("assumptions", [])) + assumptions
+        decorated.append({**result, "support_assessment": assessment})
+    return {**payload, "results": decorated}
+
+
+def _resolve_schema_arguments(
+    arguments: dict[str, Any], tool_name: str,
+) -> tuple[dict[str, Any], list[str]]:
+    """Fill ``time_column``/``target_column`` from the file, or say why not.
+
+    The CLI learned this in v0.4 because a bare missing-argument failure on
+    an obvious two-column file was the most common first-run failure there
+    is; the tool surface had kept the old behaviour. Same rules as the CLI:
+    strict inference (exactly one column qualifies), every inference
+    disclosed as an assumption, ambiguity refused with the candidates named
+    — in tool-parameter vocabulary, not CLI flags."""
+    if arguments.get("time_column") and arguments.get("target_column"):
+        return arguments, []
+    from .contracts import GnomonError
+
+    source = str(arguments.get("input") or "")
+    missing = [name for name in ("time_column", "target_column")
+               if not arguments.get(name)]
+    if source.startswith("store:"):
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "time_column and target_column are required for store:<dataset> "
+            "inputs; a stored dataset has no file header to infer from.",
+            {"input": source, "missing_parameters": missing},
+            repair_options=[{
+                "action": "supply_arguments",
+                "description": "Pass time_column and target_column "
+                               "explicitly; gnomon_list_datasets shows each "
+                               "dataset's variables.",
+                "arguments": missing,
+            }],
+        )
+    from .data import infer_schema_columns
+
+    inferred = infer_schema_columns(source)
+    resolved = dict(arguments)
+    assumptions: list[str] = []
+    for parameter, key, candidates_key in (
+        ("time_column", "time", "time_candidates"),
+        ("target_column", "target", "target_candidates"),
+    ):
+        if resolved.get(parameter):
+            continue
+        chosen = inferred[key]
+        if chosen is None:
+            candidates = list(inferred[candidates_key])
+            repairs: list[dict[str, Any]] = [{
+                "action": "supply_arguments",
+                "description": f"Pass {parameter} explicitly."
+                               + (f" Candidates: {', '.join(candidates)}."
+                                  if candidates else ""),
+                "arguments": [parameter],
+            }]
+            if parameter == "target_column" and tool_name == "gnomon_forecast":
+                repairs.append({
+                    "action": "forecast_all_candidates",
+                    "description": "Or batch every numeric column in one "
+                                   "run: pass target_column \"auto\".",
+                })
+            raise GnomonError(
+                "AMBIGUOUS_SCHEMA",
+                f"{parameter} was not supplied and cannot be inferred: "
+                + (f"{len(candidates)} columns qualify "
+                   f"({', '.join(candidates)})."
+                   if candidates else "no column qualifies.")
+                + f" Pass {parameter} explicitly; every other parameter is "
+                  f"inferred from the file.",
+                {"parameter": parameter, "candidates": candidates,
+                 "columns_examined": list(inferred["time_candidates"])
+                 + list(inferred["target_candidates"])},
+                repair_options=repairs,
+            )
+        resolved[parameter] = chosen
+        assumptions.append(
+            f"{parameter} was not supplied; inferred as {chosen!r}, the only "
+            f"column in the input that qualifies."
+        )
+    return resolved, assumptions
+
+
+def _default_forecast_horizon(arguments: dict[str, Any]) -> int:
+    """One seasonal period of the input's own grid — the CLI's default."""
+    from .pipeline import load_stage
+    from .temporal import detect_season
+
+    target_spec = str(arguments["target_column"])
+    if "," in target_spec or target_spec.strip().lower() == "auto":
+        # Borrow one concrete column so the loader sees a real name; the
+        # grid and season are shared across a wide file's channels.
+        from .data import resolve_target_spec
+
+        target_spec = resolve_target_spec(
+            str(arguments["input"]), target_spec,
+            time_column=arguments.get("time_column"),
+            series_column=arguments.get("series_column"),
+        )[0]
+    loaded = load_stage(
+        arguments["input"],
+        time_column=arguments["time_column"],
+        target_column=target_spec,
+        series_column=arguments.get("series_column"),
+        frequency=arguments.get("frequency"),
+        as_of=_parse_as_of(arguments.get("as_of")),
+        store_path=arguments.get("store_path"),
+    )
+    longest = max(loaded.groups.values(), key=len, default=[])
+    season, _, _ = detect_season([item.value for item in longest], loaded.frequency)
+    return max(1, int(season))
+
 
 def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
     """The compact forecast payload shared by the CLI and every adapter.
 
     The first forecast rows are inlined so an agent can quote numbers without
     a second read; the full series always lives in forecast.csv."""
+    from .support import artifact_headline
     return {
         "schema_version": "0.1",
         "status": "complete",
         "forecast_id": artifact.forecast_id,
         "artifact_path": str(path),
+        # One deterministic sentence, template-generated from the
+        # assessment, naming the weakest tier present — the sentence an
+        # agent may relay verbatim. Required in every format.
+        "headline": artifact_headline(artifact.results),
         "results": [
             {
                 "series": item.series, "support": item.support,
@@ -75,6 +396,10 @@ def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
                 "selected_model": item.selected_model,
                 "interval_coverage": item.interval_coverage,
                 "warnings": item.warnings,
+                # Epistemic disclosures ride in every format: brief already
+                # carried notes; full dropping them meant the verbose mode
+                # disclosed less than the compact one.
+                "notes": item.notes,
                 "forecast_preview": item.forecast[:FORECAST_PREVIEW_ROWS],
                 "forecast_rows": len(item.forecast),
                 "threshold": item.threshold,
@@ -112,17 +437,24 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
             "notes": item.notes,
             "forecast": [
                 {"timestamp": row["timestamp"], "q50": row["q50"],
-                 "q10": row["q10"], "q90": row["q90"]}
+                 "q10": row["q10"], "q90": row["q90"],
+                 # The unstrippable label rides on every row in every
+                 # format; brief may drop quantile levels, never the tier.
+                 **({"tier": row["tier"]} if "tier" in row else {})}
                 for row in item.forecast
             ],
+            # The row count survives even when the budget trims the rows.
+            "forecast_rows": len(item.forecast),
             **({"threshold": item.threshold} if item.threshold else {}),
         })
+    from .support import artifact_headline
     return {
         "schema_version": "0.1",
         "status": "complete",
         "format": "brief",
         "forecast_id": artifact.forecast_id,
         "artifact_path": str(path),
+        "headline": artifact_headline(artifact.results),
         "note": (
             "Brief output: q50 with the q10-q90 interval per step. The full "
             "artifact (all quantile levels, evidence, lineage) is on disk at "
@@ -193,35 +525,126 @@ def _run_covariate_guide(arguments: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def _covariates_from(arguments: dict[str, Any]):
+    """The covariate dataset from the file channel or the inline channel.
+
+    Mutually exclusive rather than concatenated (unlike context events):
+    two covariate datasets have no defined merge, and silently preferring
+    one would hide the other from the admission record.
+    """
+    from .contracts import GnomonError
+
+    file_path = arguments.get("covariates_file")
+    inline = arguments.get("covariates")
+    if not file_path and inline is None:
+        if arguments.get("covariate_mapping"):
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "covariate_mapping was given without covariate rows: supply "
+                "covariates (inline array) or covariates_file.",
+            )
+        return None
+    if file_path and inline is not None:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "Provide covariates_file or inline covariates, not both.",
+        )
+    mapping = arguments.get("covariate_mapping")
+    if not mapping:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "covariate_mapping (name:type:future_known entries) is required "
+            "with covariates or covariates_file.",
+        )
+    from .covariates import covariates_from_rows, load_covariates
+
+    kwargs = {
+        "time_column": arguments.get("covariate_time_column", "timestamp"),
+        "known_at_column": arguments.get("covariate_known_at_column", "known_at"),
+        "series_column": arguments.get("covariate_series_column"),
+    }
+    if file_path:
+        return load_covariates(file_path, mapping, **kwargs)
+    if not isinstance(inline, list):
+        raise GnomonError(
+            "INVALID_ARGUMENTS", "covariates must be an array of row objects.",
+        )
+    return covariates_from_rows(inline, mapping, **kwargs)
+
+
 def _run_validate_covariates(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .contracts import GnomonError
     from .covariates import validate_covariate_file
+
+    inline = arguments.get("covariates")
+    if not arguments.get("covariates_file") and inline is None:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "Supply covariates to validate: covariates (inline rows) or "
+            "covariates_file.",
+        )
+    if arguments.get("covariates_file") and inline is not None:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "Provide covariates_file or inline covariates, not both.",
+        )
     return validate_covariate_file(
-        arguments["input"], arguments["covariates_file"], arguments["covariate_mapping"],
+        arguments["input"], arguments.get("covariates_file"),
+        arguments["covariate_mapping"],
         time_column=arguments["time_column"], target_column=arguments["target_column"],
         horizon=int(arguments["horizon"]), series_column=arguments.get("series_column"),
         frequency=arguments.get("frequency"),
         covariate_time_column=arguments.get("covariate_time_column", "timestamp"),
         covariate_known_at_column=arguments.get("covariate_known_at_column", "known_at"),
         covariate_series_column=arguments.get("covariate_series_column"),
+        covariate_rows=inline,
     )
+
+
+def _context_events_from(arguments: dict[str, Any]):
+    """Events from the file channel, the inline channel, or both.
+
+    The inline channel exists because an MCP client holds no
+    filesystem: with a file-only parameter the admission lanes were
+    unreachable from the published tool surface — a model could be
+    told about future_events and still have no way to supply an event.
+    Both channels validate loudly through the same contract check.
+    """
+    from .context import events_from_list
+    from .contracts import GnomonError
+
+    events = None
+    if arguments.get("context_events_file"):
+        events = load_events_file(arguments["context_events_file"])
+    inline = arguments.get("context_events")
+    if inline is not None:
+        if not isinstance(inline, list):
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "context_events must be an array of event objects",
+            )
+        events = (events or []) + events_from_list(inline)
+    return events
 
 
 def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
     target_spec = str(arguments["target_column"])
     if "," in target_spec or target_spec.strip().lower() == "auto":
         return _run_forecast_multi(arguments, target_spec)
-    events = None
-    if arguments.get("context_events_file"):
-        events = load_events_file(arguments["context_events_file"])
-    covariates = None
-    if arguments.get("covariates_file"):
-        from .covariates import load_covariates
-        covariates = load_covariates(
-            arguments["covariates_file"], arguments["covariate_mapping"],
-            time_column=arguments.get("covariate_time_column", "timestamp"),
-            known_at_column=arguments.get("covariate_known_at_column", "known_at"),
-            series_column=arguments.get("covariate_series_column"),
-        )
+    events = _context_events_from(arguments)
+    config = None
+    if arguments.get("future_events") or arguments.get("structural_events"):
+        # MCP tool calls do not read gnomon.yaml — deliberately, for every
+        # setting — so the admission lanes must be reachable as explicit
+        # per-call parameters or they are unreachable from the agent
+        # surface entirely (the same gap best_effort had).
+        from .config import GnomonConfig
+
+        config = GnomonConfig()
+        config.context.future_events = bool(arguments.get("future_events"))
+        config.context.structural_events = bool(
+            arguments.get("structural_events"))
+    covariates = _covariates_from(arguments)
     artifact, path = forecast(
         arguments["input"],
         time_column=arguments["time_column"],
@@ -238,10 +661,17 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
         threshold=float(arguments["threshold"]) if arguments.get("threshold") is not None else None,
         repair=arguments.get("repair", "safe"),
         candidates=arguments.get("candidates"),
+        best_effort=bool(arguments.get("best_effort", False)),
+        minimum_support=str(arguments.get("minimum_support")
+                            or "best_effort"),
+        config=config,
+        input_provenance=arguments.get("input_provenance"),
     )
-    payload = (brief_summary(artifact, path)
-               if arguments.get("format") == "brief"
-               else forecast_summary(artifact, path))
+    # Brief is the default: the full multi-quantile payload is opt-in
+    # (format="full"), and the artifact on disk is identical either way.
+    payload = (forecast_summary(artifact, path)
+               if arguments.get("format") == "full"
+               else brief_summary(artifact, path))
     if arguments.get("project"):
         from .tracking import register_artifact
         payload["tracking_ids"] = register_artifact(
@@ -269,7 +699,8 @@ def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str
         return _run_forecast({**arguments, "target_column": targets[0]})
     unsupported = [
         name for name in (
-            "series_column", "context_events_file", "covariates_file", "project",
+            "series_column", "context_events_file", "context_events",
+            "covariates_file", "covariates", "project",
         ) if arguments.get(name)
     ]
     if unsupported:
@@ -292,18 +723,110 @@ def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str
         threshold=float(arguments["threshold"]) if arguments.get("threshold") is not None else None,
         repair=arguments.get("repair", "safe"),
         candidates=arguments.get("candidates"),
+        best_effort=bool(arguments.get("best_effort", False)),
+        minimum_support=str(arguments.get("minimum_support")
+                            or "best_effort"),
+        input_provenance=arguments.get("input_provenance"),
     )
-    if arguments.get("format") == "brief":
-        return brief_summary(artifact, path)
-    return forecast_summary(artifact, path)
+    if arguments.get("format") == "full":
+        return forecast_summary(artifact, path)
+    return brief_summary(artifact, path)
+
+
+def _run_preflight_context(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .contracts import GnomonError
+    from .preflight import preflight_context_events
+
+    events = _context_events_from(arguments)
+    if not events:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "Supply events to preflight: context_events (inline array) or "
+            "context_events_file.",
+        )
+    return preflight_context_events(
+        str(arguments["input"]),
+        time_column=arguments["time_column"],
+        target_column=arguments["target_column"],
+        horizon=int(arguments["horizon"]),
+        context_events=events,
+        series_column=arguments.get("series_column"),
+        frequency=arguments.get("frequency"),
+        repair=arguments.get("repair", "safe"),
+    )
+
+
+def _actual_tuples(raw_rows: Any) -> list[tuple]:
+    """Inline actuals rows -> the (series?, timestamp, value) tuples the
+    tracking store scores. Loud on malformed rows: a silently dropped
+    actual would surface as 'nothing was due', which is the exact
+    ambiguity the store's diagnosis machinery exists to prevent."""
+    import math
+
+    from .contracts import GnomonError
+
+    if not isinstance(raw_rows, list) or not raw_rows:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "actuals must be a non-empty array of {timestamp, value, series?} objects.",
+        )
+    tuples: list[tuple] = []
+    for index, row in enumerate(raw_rows, 1):
+        if not isinstance(row, dict) or not row.get("timestamp"):
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                f"actuals[{index}] must be an object with a timestamp.",
+            )
+        try:
+            value = float(row["value"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                f"actuals[{index}].value must be a finite number.",
+            ) from exc
+        if not math.isfinite(value):
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                f"actuals[{index}].value must be a finite number.",
+            )
+        timestamp = str(row["timestamp"])
+        if row.get("series"):
+            tuples.append((str(row["series"]), timestamp, value))
+        else:
+            tuples.append((timestamp, value))
+    return tuples
 
 
 def _run_submit_actuals(arguments: dict[str, Any]) -> dict[str, Any]:
     import csv as csv_module
 
+    from .contracts import GnomonError
     from .tracking import TrackingStore
     store = TrackingStore()
     project = str(arguments["project"])
+    inline = arguments.get("actuals")
+    if inline is not None and arguments.get("actuals_file"):
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "Provide actuals_file or inline actuals, not both.",
+        )
+    if inline is not None:
+        tuples = _actual_tuples(inline)
+        results = store.submit_actuals(project, tuples)
+        if not results:
+            return {
+                "schema_version": "0.1", "status": "ok", "project": project,
+                **store.explain_unscored(
+                    project, [item[-2] for item in tuples]),
+            }
+        return {"schema_version": "0.1", "status": "ok",
+                "scored": len(results),
+                "results": [item.__dict__ for item in results]}
+    if not arguments.get("actuals_file"):
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "Supply actuals to score: actuals (inline array) or actuals_file.",
+        )
     path = str(arguments["actuals_file"])
     time_column = arguments.get("time_column")
     target_column = arguments.get("target_column")
@@ -403,23 +926,29 @@ TOOLS: list[dict[str, Any]] = [
         "inputSchema": {
             "type": "object",
             "properties": {**_INPUT_PROPERTIES, **_REPLAY_PROPERTIES},
-            "required": ["input", "time_column", "target_column"],
+            "required": [],
         },
         "runner": _run_inspect,
     },
     {
         "name": "gnomon_forecast",
         "description": (
-            "Run Gnomon's evaluated forecast: baselines and candidates are "
-            "backtested on rolling folds; each series gets a selected model or "
-            "an unsupported abstention. Context events (from `gnomon context "
-            "validate`) and covariates are admitted only when they demonstrate "
+            "Forecast one column — or several in ONE call: pass "
+            "`target_column` as a comma list (`\"cpu,mem,requests\"`) or "
+            "`\"auto\"` (every numeric non-time column) and each channel "
+            "gets its own evaluated result in a single combined response. "
+            "Never call this once per column of the same file; the batch "
+            "form shares one load pass and one artifact. "
+            "Baselines and candidates are backtested on rolling folds; "
+            "each series gets a selected model or an unsupported "
+            "abstention. Context events (from `gnomon context validate`) "
+            "and covariates are admitted only when they demonstrate "
             "stable lift on identical folds; when both are supplied, an "
-            "adjudication ladder picks the best of base, context, covariates, "
-            "or their combination and records the comparison as evidence. "
-            "Read forecast.csv / summary.md in the returned "
-            "artifact directory for the numbers and quote them verbatim; never "
-            "invent values for an unsupported series."
+            "adjudication ladder picks the best of base, context, "
+            "covariates, or their combination and records the comparison "
+            "as evidence. Read forecast.csv / summary.md in the returned "
+            "artifact directory for the numbers and quote them verbatim; "
+            "never invent values for an unsupported series."
         ),
         "inputSchema": {
             "type": "object",
@@ -427,126 +956,145 @@ TOOLS: list[dict[str, Any]] = [
                 **_INPUT_PROPERTIES,
                 **_REPLAY_PROPERTIES,
                 "target_column": {"type": "string", "description": (
-                    "Name of the numeric column to forecast. Also accepts a "
-                    "comma list (`hr,spo2,resp`) or `auto` (every numeric "
-                    "non-time column) to batch several columns of a wide "
-                    "file into one run — one shared load pass, channels "
-                    "evaluated concurrently, one combined artifact with a "
-                    "result per column. Each channel's numbers are identical "
-                    "to a single-target run; a channel that abstains is "
-                    "disclosed in its own result and never blocks the others."
+                    "Name of the numeric column to forecast — or the batch "
+                    "form: a comma list (`\"cpu,mem,requests\"`) or "
+                    "`\"auto\"` (every numeric non-time column) forecasts "
+                    "several columns of a wide file in one call: one "
+                    "shared load pass, channels evaluated concurrently, "
+                    "one combined artifact with a result per column. Each "
+                    "channel's numbers are identical to a single-target "
+                    "run; a channel that abstains is disclosed in its own "
+                    "result and never blocks the others. Omit to infer "
+                    "when exactly one non-time column parses as numbers; "
+                    "the inference is disclosed as an assumption."
                 )},
-                "horizon": {"type": "integer", "description": "Future periods to forecast, in units of the data frequency."},
+                "horizon": {"type": "integer", "description": (
+                    "Future periods to forecast, in units of the data "
+                    "frequency. Omit to default to one seasonal period of "
+                    "the inferred grid, disclosed as an assumption."
+                )},
                 "format": {"type": "string", "enum": ["full", "brief"], "description": (
-                    "Response verbosity (default full). `brief` returns per "
-                    "target the q50 path with one q10-q90 interval, the "
-                    "selected model, and — verbatim, never summarised — the "
-                    "support state, every warning, abstention reason, "
-                    "recovery action, and disclosure. The full artifact is "
-                    "written to disk unchanged either way; only the response "
-                    "payload shrinks."
+                    "Response verbosity (default brief): the q50 path with "
+                    "one q10-q90 interval per step, the selected model, and "
+                    "— verbatim, never summarised — the support state, "
+                    "every warning, abstention reason, recovery action, and "
+                    "disclosure. Pass `full` only when you need every "
+                    "quantile level inline; the artifact on disk always "
+                    "carries everything, whichever format you pick."
                 )},
                 "candidates": {"type": "array", "items": {"type": "string"}, "description": "Restrict the model pool to these names — pass `gnomon_route`'s `candidates` or its `recommendation` to act on a routing decision. The mandatory baselines always compete regardless, so a named candidate still has to beat them."},
-                "output_dir": {"type": "string", "description": "Directory for the immutable artifact. Defaults to ./gnomon-output relative to the *server's* working directory, which is often inside the user's repository — pass an explicit path when that matters."},
+                "output_dir": {"type": "string", "description": (
+                    "Directory for the immutable artifact. Omit it to use "
+                    "the server default reported by gnomon_capabilities "
+                    "(workspace.default_output_dir) — do not guess a path; "
+                    "a jailed host refuses paths outside its workspace."
+                )},
                 "minimum_baseline_improvement": {"type": "number", "minimum": 0, "description": "Minimum relative improvement over the strongest baseline to select a candidate (default 0.02). Must be >= 0; a negative value would let a model that lost the backtest be selected."},
                 "context_events_file": {"type": "string", "description": "Optional validated context-events JSON file (the output of `gnomon context validate`)."},
+                **_CONTEXT_EVENTS_PROPERTY,
                 "threshold": {"type": "number", "description": "Optional decision threshold: the result reports when and how likely the forecast crosses this value."},
                 "project": {"type": "string", "description": "Optional tracking project. When set, register the forecast for realised scoring."},
-                "covariates_file": {"type": "string", "description": "Local CSV containing point-in-time covariate vintages."},
-                "covariate_mapping": {"type": "string", "description": "Comma-separated name:type:future_known entries."},
+                "covariates_file": {"type": "string", "description": (
+                    "Local CSV of point-in-time covariate vintages: one "
+                    "row per (timestamp, known_at), where timestamp is "
+                    "when the value applies and known_at is when that "
+                    "vintage became available — a backtest fold only uses "
+                    "rows with known_at at or before its cutoff. Validate "
+                    "first with gnomon_validate_covariates."
+                )},
+                **_COVARIATES_PROPERTY,
+                "covariate_mapping": {"type": "string", "description": "Comma-separated name:type:future_known entries; type is continuous or binary."},
                 "covariate_time_column": {"type": "string", "description": "Valid-at column (default timestamp)."},
                 "covariate_known_at_column": {"type": "string", "description": "Availability timestamp column (default known_at)."},
                 "covariate_series_column": {"type": "string", "description": "Optional series column in the covariate CSV."},
                 "repair": {"type": "string", "enum": ["off", "safe", "aggressive"], "description": "Messy-data handling (default safe): off rejects anything non-strict; safe normalises cell text with disclosure; aggressive additionally fills gaps, snaps timestamps, and resolves conflicts — capped, and every fix is reported in evidence and warnings."},
+                "minimum_support": {"type": "string",
+                                    "enum": ["supported",
+                                             "conditionally_supported",
+                                             "best_effort"],
+                                    "description": (
+                    "Publication floor (default best_effort). The "
+                    "evaluation runs exactly as always; the result is "
+                    "published at the highest tier the evidence achieves "
+                    "at or above this floor. best_effort always answers "
+                    "unless nothing is computable at all (a naive fallback "
+                    "is published with support `best_effort` and a NO "
+                    "RELIABLE FORECAST warning); `supported` restores the "
+                    "strict refusal with typed recovery when only lower "
+                    "tiers are achievable. No tier gets easier to earn."
+                )},
+                "best_effort": {"type": "boolean", "description": (
+                    "DEPRECATED — subsumed by minimum_support: `true` maps "
+                    "to minimum_support 'best_effort', which is now the "
+                    "default; an explicit minimum_support wins over this "
+                    "flag. Kept accepted for v0.2 callers."
+                )},
+                "future_events": {"type": "boolean", "description": (
+                    "Admit future-dated constraint:/override: context "
+                    "events from context_events_file by textual "
+                    "verifiability (default false). Spans are re-parsed "
+                    "deterministically; an influenced forecast reports "
+                    "support `context_trusted` and carries a history-only "
+                    "counterfactual in evidence. Dry-run admission first "
+                    "with gnomon_preflight_context."
+                )},
+                "structural_events": {"type": "boolean", "description": (
+                    "Additionally admit LLM-classified structural: events "
+                    "(closed effect menu: trend_ceases and the "
+                    "seasonal-regime levels) from "
+                    "context_events_file (default false). The proposer "
+                    "classifies; every applied quantity is derived from "
+                    "the forecast's own emitted path — no model-supplied "
+                    "numbers. Experimental: "
+                    "results/structural-effects/HYPOTHESIS.md."
+                )},
             },
-            "required": ["input", "time_column", "target_column", "horizon"],
+            "required": [],
         },
         "runner": _run_forecast,
     },
     {
-        "name": "gnomon_covariate_guide",
-        "description": "Return point-in-time format, forecast dates, and fold cutoffs. Gnomon does not suggest what data to fetch.",
-        "inputSchema": {"type": "object", "properties": {
-            **_INPUT_PROPERTIES,
-            "horizon": {"type": "integer"},
-        }, "required": ["input", "time_column", "target_column", "horizon"]},
-        "runner": _run_covariate_guide,
-    },
-    {
         "name": "gnomon_validate_covariates",
-        "description": "Validate local covariate vintages for format, final-horizon coverage, and availability at every selection cutoff.",
+        "description": (
+            "Validate local covariate vintages for format, final-horizon "
+            "coverage, and availability at every selection cutoff. Format "
+            "contract: one row per (timestamp, known_at) — timestamp is "
+            "when a value applies, known_at is when that exact vintage "
+            "became available, and a backtest fold may only use rows with "
+            "known_at at or before its cutoff. Mapping grammar: "
+            "name:type:future_known with type continuous or binary. "
+            "Validation failures name the exact cutoffs that came up "
+            "empty; pass the same covariate arguments to gnomon_forecast "
+            "to run the leakage-safe ablation."
+        ),
         "inputSchema": {"type": "object", "properties": {
             **_INPUT_PROPERTIES,
             "horizon": {"type": "integer"},
             "covariates_file": {"type": "string"},
+            **_COVARIATES_PROPERTY,
             "covariate_mapping": {"type": "string"},
             "covariate_time_column": {"type": "string"},
             "covariate_known_at_column": {"type": "string"},
             "covariate_series_column": {"type": "string"},
-        }, "required": ["input", "time_column", "target_column", "horizon", "covariates_file", "covariate_mapping"]},
+        }, "required": ["horizon", "covariate_mapping"]},
         "runner": _run_validate_covariates,
-    },
-    {
-        "name": "gnomon_propose_covariates",
-        "description": "Evaluate a local point-in-time covariate proposal through leakage-safe ablation and produce a forecast only when it earns admission.",
-        "inputSchema": {"type": "object", "properties": {
-            **_INPUT_PROPERTIES,
-            "horizon": {"type": "integer"},
-            "output_dir": {"type": "string"},
-            "minimum_baseline_improvement": {"type": "number", "minimum": 0},
-            "covariates_file": {"type": "string"},
-            "covariate_mapping": {"type": "string"},
-            "covariate_time_column": {"type": "string"},
-            "covariate_known_at_column": {"type": "string"},
-            "covariate_series_column": {"type": "string"},
-        }, "required": ["input", "time_column", "target_column", "horizon", "covariates_file", "covariate_mapping"]},
-        "runner": _run_forecast,
     },
     {
         "name": "gnomon_submit_actuals",
         "description": "Score all due forecasts in a project from complete realised actuals. Panel actuals must include series,timestamp,value. A forecast scores only when every period in its horizon has an actual; when nothing scores, the result explains which window was missing rather than returning a bare zero.",
         "inputSchema": {"type": "object", "properties": {
-            "project": {"type": "string"}, "actuals_file": {"type": "string"},
+            "project": {"type": "string"},
+            "actuals_file": {"type": "string", "description": "CSV of realised values. Callers without a filesystem pass `actuals` inline instead."},
+            "actuals": {"type": "array", "items": {"type": "object"}, "description": (
+                "Realised values supplied inline: objects of "
+                "{timestamp, value, series?}. Mutually exclusive with "
+                "actuals_file."
+            )},
             "time_column": {"type": "string", "description": "Timestamp column in the actuals file. Inferred from a conventional name or a two-column layout when omitted."},
             "target_column": {"type": "string", "description": "Realised value column. Inferred when unambiguous."},
             "series_column": {"type": "string", "description": "Series column, required for multi-series projects."},
-        }, "required": ["project", "actuals_file"]},
-        "runner": _run_submit_actuals,
-    },
-    {
-        "name": "gnomon_list_open_forecasts",
-        "description": "List unscored forecasts and distinguish horizons that are due from those still awaiting observations.",
-        "inputSchema": {"type": "object", "properties": {
-            "project": {"type": "string"},
-        }, "required": []},
-        "runner": _run_open_forecasts,
-    },
-    {
-        "name": "gnomon_model_performance",
-        "description": "Read descriptive realised model performance for a project. Do not treat observational rankings as causal evidence.",
-        "inputSchema": {"type": "object", "properties": {
-            "project": {"type": "string"}, "model": {"type": "string"},
         }, "required": ["project"]},
-        "runner": _run_model_performance,
-    },
-    {
-        "name": "gnomon_record_decision",
-        "description": ("DEPRECATED (v0.2 lifecycle) — prefer `gnomon_decide`, which produces a DecisionArtifact that `gnomon_resolve_outcome` scores against realised utility and regret. This pair records a free-text action and a later yes/no verdict, which cannot express \"a costly precaution was rational even though the adverse event never occurred\". Kept for v0.2 compatibility. Link an agent decision and expected outcome to a tracked forecast."),
-        "inputSchema": {"type": "object", "properties": {
-            "decision_id": {"type": "string"}, "project": {"type": "string"},
-            "forecast_id": {"type": "string"}, "action": {"type": "string"},
-            "expected_outcome": {"type": "string"},
-        }, "required": ["decision_id", "project", "forecast_id", "action", "expected_outcome"]},
-        "runner": _run_record_decision,
-    },
-    {
-        "name": "gnomon_resolve_decision",
-        "description": ("DEPRECATED (v0.2 lifecycle) — resolves records made by `gnomon_record_decision` only. Bare `correct` is retired: prefer `gnomon_decide` + `gnomon_resolve_outcome`, which report realised utility, regret against the best feasible action in hindsight, and ex-ante optimality separately. Record the realised business outcome and whether a previously recorded agent decision was correct."),
-        "inputSchema": {"type": "object", "properties": {
-            "decision_id": {"type": "string"}, "actual_outcome": {"type": "string"},
-            "correct": {"type": "boolean"},
-        }, "required": ["decision_id", "actual_outcome", "correct"]},
-        "runner": _run_resolve_decision,
+        "runner": _run_submit_actuals,
     },
     {
         "name": "gnomon_ingest",
@@ -562,7 +1110,8 @@ TOOLS: list[dict[str, Any]] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "input": {"type": "string", "description": "Path to the CSV to ingest."},
+                "input": {"type": "string", "description": "Path to the CSV to ingest. Callers without a filesystem pass `observations` inline instead."},
+                **_OBSERVATIONS_PROPERTY,
                 "dataset": {"type": "string", "description": "Dataset name; read it back as `store:<dataset>`."},
                 "time_column": {"type": "string", "description": "Valid-time column: when the value applies."},
                 "target_column": {"type": "string", "description": "Numeric value column."},
@@ -571,7 +1120,7 @@ TOOLS: list[dict[str, Any]] = [
                 "variable": {"type": "string", "description": "Name to store the measure under (defaults to target_column)."},
                 "store_path": {"type": "string", "description": "Override the temporal-store path."},
             },
-            "required": ["input", "dataset", "time_column", "target_column"],
+            "required": ["dataset", "time_column", "target_column"],
         },
         "runner": _run_ingest,
     },
@@ -592,6 +1141,31 @@ TOOLS: list[dict[str, Any]] = [
         },
         "runner": _run_list_datasets,
     },
+    {
+        "name": "gnomon_preflight_context",
+        "description": (
+            "Dry-run the admission checks for proposed context events "
+            "against the actual data, before spending a forecast. Returns "
+            "one verdict per event — would_influence, rejected (with the "
+            "typed reason), or ablation_gated (fold admission is measured, "
+            "not predictable) — plus the span grammar the parser accepts, "
+            "so a rejected proposal can be repaired and resubmitted in one "
+            "step. Deterministic verdicts here are the verdicts the "
+            "forecast will reach on the same data; nothing is written."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                **_INPUT_PROPERTIES,
+                "horizon": {"type": "integer", "description": "Future periods the events would apply to, in units of the data frequency."},
+                "context_events_file": {"type": "string", "description": "Context-events JSON file to preflight (the output of `gnomon context validate`, or the same shape)."},
+                **_CONTEXT_EVENTS_PROPERTY,
+                "repair": {"type": "string", "enum": ["off", "safe", "aggressive"], "description": "Messy-data handling, matched to what the forecast will use (default safe)."},
+            },
+            "required": ["horizon"],
+        },
+        "runner": _run_preflight_context,
+    },
 ]
 
 
@@ -603,11 +1177,8 @@ def _parse_as_of(raw: Any):
 
 
 def _run_investigate_change(arguments: dict[str, Any]) -> dict[str, Any]:
-    from .context import load_events_file
     from .macros import investigate_change
-    events = None
-    if arguments.get("context_events_file"):
-        events = load_events_file(arguments["context_events_file"])
+    events = _context_events_from(arguments)
     payload, path = investigate_change(
         arguments["input"],
         time_column=arguments["time_column"],
@@ -617,6 +1188,7 @@ def _run_investigate_change(arguments: dict[str, Any]) -> dict[str, Any]:
         as_of=_parse_as_of(arguments.get("as_of")),
         context_events=events,
         output=arguments.get("output_dir") or "gnomon-output",
+        input_provenance=arguments.get("input_provenance"),
     )
     return {**payload, "artifact_path": str(path)}
 
@@ -658,6 +1230,7 @@ def _run_detect_anomalies(arguments: dict[str, Any]) -> dict[str, Any]:
                    if arguments.get("threshold") is not None else None),
         labels=arguments.get("labels"),
         output=arguments.get("output_dir") or "gnomon-output",
+        input_provenance=arguments.get("input_provenance"),
     )
     return {**payload, "artifact_path": str(path)}
 
@@ -682,13 +1255,38 @@ def _run_decide(arguments: dict[str, Any]) -> dict[str, Any]:
         as_of=_parse_as_of(arguments.get("as_of")),
         project=arguments.get("project"),
         output=arguments.get("output_dir") or "gnomon-output",
+        input_provenance=arguments.get("input_provenance"),
     )
     return {**payload, "artifact_path": str(path)}
 
 
 def _run_status(arguments: dict[str, Any]) -> dict[str, Any]:
     from .tracking import TrackingStore
-    return TrackingStore().status(arguments.get("project"))
+
+    section = str(arguments.get("section") or "all")
+    if section == "open_forecasts":
+        # Byte-compatible with the retired gnomon_list_open_forecasts.
+        return _run_open_forecasts(arguments)
+    if section == "performance":
+        # Byte-compatible with the retired gnomon_model_performance,
+        # including its project requirement.
+        if not arguments.get("project"):
+            from .contracts import GnomonError
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "section='performance' needs a project: realised "
+                "performance is recorded per tracking project.",
+            )
+        return _run_model_performance(arguments)
+    status = TrackingStore().status(arguments.get("project"))
+    if section == "decisions":
+        return {
+            "schema_version": status["schema_version"],
+            "project": status["project"],
+            "unresolved_decisions": status["unresolved_decisions"],
+            "decision_summary": status["decision_summary"],
+        }
+    return status
 
 
 def _run_resolve_outcome(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -718,6 +1316,7 @@ def _run_monitor(arguments: dict[str, Any]) -> dict[str, Any]:
         as_of=_parse_as_of(arguments.get("as_of")),
         project=arguments.get("project"),
         output=arguments.get("output_dir") or "gnomon-output",
+        input_provenance=arguments.get("input_provenance"),
     )
     return {**payload, "artifact_path": str(path)}
 
@@ -725,11 +1324,24 @@ def _run_monitor(arguments: dict[str, Any]) -> dict[str, Any]:
 def _run_get_artifact(arguments: dict[str, Any]) -> dict[str, Any]:
     from pathlib import Path
     from .artifacts import read_artifact
+    from .versioning import RUNTIME_VERSION
     directory = Path(arguments["artifact_path"])
+    artifact = read_artifact(directory)
     payload: dict[str, Any] = {
         "schema_version": "0.1",
-        "artifact": read_artifact(directory),
+        "artifact": artifact,
     }
+    stored = artifact.get("runtime_version")
+    if stored != RUNTIME_VERSION:
+        # The agent is told to quote artifacts verbatim, so an artifact
+        # computed by another build must say so where the quoting happens.
+        payload["runtime_note"] = (
+            f"This artifact was produced by runtime "
+            f"{stored or 'pre-0.5.0 (unstamped)'}; the running build is "
+            f"{RUNTIME_VERSION}. Ids cover the runtime version, so "
+            f"re-running the task will produce a fresh artifact under a "
+            f"new id rather than updating this one."
+        )
     lineage_path = directory / "lineage.json"
     if arguments.get("include_lineage") and lineage_path.is_file():
         import json as _json
@@ -823,12 +1435,33 @@ TOOLS.extend([
     {
         "name": "gnomon_status",
         "description": (
-            "Pollable status: open forecasts, due horizons, unresolved "
-            "decisions, and realised-performance summaries. Descriptive "
-            "evidence an agent can cite — never causal."
+            "The one tracking read: open forecasts, due horizons, "
+            "unresolved decisions, and realised-performance summaries. "
+            "Narrow with `section` (open_forecasts / performance / "
+            "decisions) to get exactly what the retired standalone tools "
+            "returned. Descriptive evidence an agent can cite — never "
+            "causal; do not treat observational rankings as causal "
+            "evidence."
         ),
         "inputSchema": {"type": "object", "properties": {
-            "project": {"type": "string", "description": "Optional project filter."},
+            "project": {"type": "string", "description": (
+                "Optional project filter; required for "
+                "section='performance'."
+            )},
+            "section": {"type": "string",
+                        "enum": ["open_forecasts", "performance",
+                                 "decisions", "all"],
+                        "description": (
+                            "Slice to return (default all). open_forecasts: "
+                            "unscored forecasts with due horizons; "
+                            "performance: realised per-model performance "
+                            "for a project; decisions: unresolved decisions "
+                            "and the resolution summary."
+                        )},
+            "model": {"type": "string", "description": (
+                "With section='performance': narrow to one model's "
+                "realised runs."
+            )},
         }, "required": []},
         "runner": _run_status,
     },
@@ -868,7 +1501,8 @@ TOOLS.extend([
             "narrows the contest but never decides it."
         ),
         "inputSchema": {"type": "object", "properties": {
-            "input": {"type": "string", "description": "Path to a CSV/Parquet file or store:<dataset>."},
+            "input": {"type": "string", "description": "Path to a CSV/Parquet file or store:<dataset>. Callers without a filesystem pass `observations` inline instead."},
+            **_OBSERVATIONS_PROPERTY,
             "time_column": {"type": "string"},
             "target_column": {"type": "string"},
             "series_column": {"type": "string"},
@@ -880,7 +1514,7 @@ TOOLS.extend([
                 "Tracking project: consults the realised-performance prior and "
                 "records the routing decision for replay."
             )},
-        }, "required": ["input", "time_column", "target_column"]},
+        }, "required": []},
         "runner": _run_route,
     },
     {
@@ -894,20 +1528,6 @@ TOOLS.extend([
             "artifact_path": {"type": "string", "description": "Artifact directory returned by a macro."},
         }, "required": ["artifact_path"]},
         "runner": _run_explain_run,
-    },
-    {
-        "name": "gnomon_proposer_skill",
-        "description": ("Shrunk per-proposer, per-event-type skill from "
-                        "resolved context-event proposals (realised lift vs "
-                        "the history-only counterfactual, in WAPE). "
-                        "Observational; attribution is set-level because the "
-                        "admission gate decides on event sets."),
-        "inputSchema": {"type": "object", "properties": {
-            "project": {"type": "string"},
-            "proposer_id": {"type": "string"},
-            "event_type": {"type": "string"},
-        }, "required": ["project"]},
-        "runner": _run_proposer_skill,
     },
 ])
 
@@ -993,14 +1613,263 @@ PLANNER_TOOLS: list[dict[str, Any]] = [
 ]
 
 
+def v02_compat_enabled() -> bool:
+    import os
+    return os.environ.get("GNOMON_V02_COMPAT") == "1"
+
+
+#: Tools retired from the default surface, off by default but never
+#: silently removed: GNOMON_V02_COMPAT=1 restores every entry, schemas and
+#: behaviour unchanged. Each is deprecated, superseded by a surviving tool,
+#: or too rarely needed in a session to earn a slot on a surface that
+#: competes for model attention.
+V02_COMPAT_TOOLS: list[dict[str, Any]] = [
+    {
+        "name": "gnomon_record_decision",
+        "description": ("Link a free-text agent decision and expected "
+                        "outcome to a tracked forecast (v0.2 lifecycle; "
+                        "superseded by gnomon_decide)."),
+        "inputSchema": {"type": "object", "properties": {
+            "decision_id": {"type": "string"}, "project": {"type": "string"},
+            "forecast_id": {"type": "string"}, "action": {"type": "string"},
+            "expected_outcome": {"type": "string"},
+        }, "required": ["decision_id", "project", "forecast_id", "action", "expected_outcome"]},
+        "runner": _run_record_decision,
+    },
+    {
+        "name": "gnomon_resolve_decision",
+        "description": ("Record the realised outcome and a yes/no verdict "
+                        "for a v0.2 decision record (superseded by "
+                        "gnomon_resolve_outcome)."),
+        "inputSchema": {"type": "object", "properties": {
+            "decision_id": {"type": "string"}, "actual_outcome": {"type": "string"},
+            "correct": {"type": "boolean"},
+        }, "required": ["decision_id", "actual_outcome", "correct"]},
+        "runner": _run_resolve_decision,
+    },
+    {
+        "name": "gnomon_list_open_forecasts",
+        "description": ("List unscored forecasts and due horizons "
+                        "(superseded by gnomon_status "
+                        "section='open_forecasts')."),
+        "inputSchema": {"type": "object", "properties": {
+            "project": {"type": "string"},
+        }, "required": []},
+        "runner": _run_open_forecasts,
+    },
+    {
+        "name": "gnomon_model_performance",
+        "description": ("Read realised per-model performance for a project "
+                        "(superseded by gnomon_status "
+                        "section='performance'; observational, never "
+                        "causal)."),
+        "inputSchema": {"type": "object", "properties": {
+            "project": {"type": "string"}, "model": {"type": "string"},
+        }, "required": ["project"]},
+        "runner": _run_model_performance,
+    },
+    {
+        "name": "gnomon_covariate_guide",
+        "description": ("Return point-in-time covariate format, forecast "
+                        "dates, and this dataset's fold cutoffs (the "
+                        "static format contract now lives in "
+                        "gnomon_validate_covariates' description)."),
+        "inputSchema": {"type": "object", "properties": {
+            **_INPUT_PROPERTIES,
+            "horizon": {"type": "integer"},
+        }, "required": ["horizon"]},
+        "runner": _run_covariate_guide,
+    },
+    {
+        "name": "gnomon_propose_covariates",
+        "description": ("Covariate-admission entry to the evaluated "
+                        "forecast (same runner as gnomon_forecast, which "
+                        "accepts every covariate argument directly)."),
+        "inputSchema": {"type": "object", "properties": {
+            **_INPUT_PROPERTIES,
+            "horizon": {"type": "integer"},
+            "output_dir": {"type": "string"},
+            "minimum_baseline_improvement": {"type": "number", "minimum": 0},
+            "covariates_file": {"type": "string"},
+            **_COVARIATES_PROPERTY,
+            "covariate_mapping": {"type": "string"},
+            "covariate_time_column": {"type": "string"},
+            "covariate_known_at_column": {"type": "string"},
+            "covariate_series_column": {"type": "string"},
+        }, "required": ["horizon", "covariate_mapping"]},
+        "runner": _run_forecast,
+    },
+    {
+        "name": "gnomon_proposer_skill",
+        "description": ("Shrunk per-proposer, per-event-type skill from "
+                        "resolved context-event proposals (realised lift vs "
+                        "the history-only counterfactual, in WAPE). "
+                        "Observational; attribution is set-level because the "
+                        "admission gate decides on event sets."),
+        "inputSchema": {"type": "object", "properties": {
+            "project": {"type": "string"},
+            "proposer_id": {"type": "string"},
+            "event_type": {"type": "string"},
+        }, "required": ["project"]},
+        "runner": _run_proposer_skill,
+    },
+]
+
+
+#: Task profiles: named subsets of the default surface for hosts that know
+#: what kind of session they are running. A narrowed profile narrows
+#: everything — compat and planner tools appear only under `full` (their
+#: gates still apply there). Selected by `gnomon mcp serve --profile` or
+#: the GNOMON_MCP_PROFILE env var; capabilities reports the active one.
+_CORE_PROFILE = frozenset({
+    "gnomon_capabilities", "gnomon_inspect", "gnomon_forecast",
+    "gnomon_investigate_change", "gnomon_detect_anomalies",
+    "gnomon_get_artifact", "gnomon_explain_run",
+})
+PROFILES: dict[str, frozenset[str]] = {
+    "core": _CORE_PROFILE,
+    "decision": _CORE_PROFILE | {
+        "gnomon_decide", "gnomon_monitor", "gnomon_route",
+        "gnomon_status", "gnomon_resolve_outcome",
+    },
+    "data": _CORE_PROFILE | {
+        "gnomon_ingest", "gnomon_list_datasets", "gnomon_submit_actuals",
+    },
+}
+
+
+def active_profile() -> str:
+    import os
+    name = os.environ.get("GNOMON_MCP_PROFILE", "full")
+    if name != "full" and name not in PROFILES:
+        raise ValueError(
+            f"Unknown GNOMON_MCP_PROFILE {name!r}; expected one of "
+            f"{sorted(PROFILES)} or 'full'."
+        )
+    return name
+
+
 def visible_tools() -> list[dict[str, Any]]:
-    """The tool surface as gated for this process: macros always; the raw
-    planner only behind GNOMON_EXPERIMENTAL_PLANNER=1."""
-    return TOOLS + (PLANNER_TOOLS if planner_enabled() else [])
+    """The tool surface as gated for this process: the active profile's
+    subset of the macros; the v0.2 compat tools only behind
+    GNOMON_V02_COMPAT=1; the raw planner only behind
+    GNOMON_EXPERIMENTAL_PLANNER=1 (both only under the full profile)."""
+    tools = (TOOLS
+             + (V02_COMPAT_TOOLS if v02_compat_enabled() else [])
+             + (PLANNER_TOOLS if planner_enabled() else []))
+    profile = active_profile()
+    if profile == "full":
+        return tools
+    allowed = PROFILES[profile]
+    return [tool for tool in tools if tool["name"] in allowed]
+
+
+def _materialise_observations(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Turn the inline ``observations`` array into a temp-file ``input``.
+
+    The rows become a CSV in a fresh temp directory and the call
+    proceeds exactly as a file-based one — same loaders, same repair
+    ladder, same fingerprinting — so the inline channel can never
+    develop separate semantics from the file channel.
+    """
+    rows = arguments.get("observations")
+    if rows is None:
+        return arguments
+    from .contracts import GnomonError
+
+    if arguments.get("input"):
+        raise GnomonError(
+            "INVALID_ARGUMENTS", "Provide input or observations, not both.",
+        )
+    if (not isinstance(rows, list) or not rows
+            or not all(isinstance(row, dict) and row for row in rows)):
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "observations must be a non-empty array of row objects keyed "
+            "by column name.",
+        )
+    import csv
+    import tempfile
+    from pathlib import Path
+
+    columns: list[str] = []
+    for row in rows:
+        for key in row:
+            if key not in columns:
+                columns.append(str(key))
+    path = Path(tempfile.mkdtemp(prefix="gnomon-inline-")) / "observations.csv"
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=columns, restval="")
+        writer.writeheader()
+        writer.writerows(rows)
+    passed = {key: value for key, value in arguments.items()
+              if key != "observations"}
+    # The temp file erases the channel; this is the last place that knows
+    # the rows were typed by the caller rather than read from their disk,
+    # and the artifact's task block wants the fact (`provenance: inline`).
+    return {**passed, "input": str(path), "input_provenance": "inline"}
 
 
 def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
     for tool in visible_tools():
         if tool["name"] == name:
-            return tool["runner"]
+            runner = tool["runner"]
+            takes_data = "observations" in (
+                tool.get("inputSchema", {}).get("properties") or {})
+
+            def wrapped(arguments: dict[str, Any], _runner=runner,
+                        _takes_data=takes_data, _name=name) -> dict[str, Any]:
+                if _takes_data and not arguments.get("input") \
+                        and arguments.get("observations") is None:
+                    from .contracts import GnomonError
+
+                    raise GnomonError(
+                        "INVALID_ARGUMENTS",
+                        "Supply the data: input (a file path or "
+                        "store:<dataset>) or observations (inline rows).",
+                    )
+                # Which channels carried caller-typed *measurements*, noted
+                # before materialisation erases the distinction. Inline data
+                # is a first-class channel — validated, fingerprinted,
+                # repaired exactly like a file — but a file at least existed
+                # outside this conversation; rows the model typed did not,
+                # and a reader weighing the numbers is owed that fact.
+                # Context events are deliberately absent: they are claims,
+                # not measurements — always caller-authored, whatever the
+                # channel — and their trust story is the source field and
+                # the admission gate, not the file/inline distinction.
+                inline_channels = [
+                    label for key, label in (
+                        ("observations", "observations"),
+                        ("covariates", "covariate vintages"),
+                        ("actuals", "actuals"),
+                    ) if isinstance(arguments.get(key), list)
+                ]
+                arguments = _materialise_observations(arguments)
+                assumptions: list[str] = []
+                if inline_channels:
+                    assumptions.append(
+                        f"{' and '.join(inline_channels)} were supplied "
+                        f"inline by the caller; Gnomon validated their shape "
+                        f"and fingerprinted their content, but cannot attest "
+                        f"their origin."
+                    )
+                if _name in _SCHEMA_INFERENCE_TOOLS:
+                    arguments, inferred = _resolve_schema_arguments(
+                        arguments, _name)
+                    assumptions.extend(inferred)
+                if _name == "gnomon_forecast" \
+                        and arguments.get("horizon") is None:
+                    # One season ahead is the smallest horizon that can show
+                    # a seasonal pattern, and it is derivable from the data.
+                    horizon = _default_forecast_horizon(arguments)
+                    arguments = {**arguments, "horizon": horizon}
+                    assumptions.append(
+                        f"horizon was not supplied; defaulted to {horizon}, "
+                        f"one seasonal period of the inferred grid."
+                    )
+                return enforce_response_budget(
+                    disclose_assumptions(_runner(arguments), assumptions))
+
+            return wrapped
     return None

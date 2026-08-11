@@ -42,6 +42,14 @@ metric_scaling_cache/
 !results/future-context-ab/
 results/future-context-ab/cik-*
 
+# Except the proposer-trust warrant registration: the hypothesis is
+# versioned before the experiment exists, which is the point of it.
+!results/proposer-trust-warrant/
+
+# Same rule for the structural-effects registration.
+!results/structural-effects/
+!results/seasonal-regime-effects/
+
 # And except the news-regime exploration: pre-registration, summaries, and
 # the scripts that regenerate them are versioned; per-task raw outputs are
 # not (same rule as the benchmark corpora — regenerable, and bulky).
@@ -52,3 +60,12 @@ results/news-regime-explore/raw/
 !results/short-history-guardrail/
 results/short-history-guardrail/raw/
 
+
+# Root-level run scratch: per-machine census JSONs, arm run directories,
+# their *-work task trees, and downloaded model checkpoints. The citable
+# versions of these live under results/<registration>/ and are
+# un-ignored above; these loose copies were drowning every git status.
+/census*.json
+/*-work/
+/results-*/
+/models/

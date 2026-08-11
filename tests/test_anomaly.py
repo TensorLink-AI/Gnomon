@@ -230,3 +230,76 @@ def test_support_names_the_families_the_grade_covers():
     assert "trend_shift" in families
     assert any("not vouched for" in assumption
                for assumption in support["assumptions"]), support["assumptions"]
+
+
+def _anomllm_trend_series(n: int = 1000) -> list[float]:
+    """Deterministic AnomLLM-shaped trend series: a period-50 sine on a
+    piecewise trend (slope 3/n normally, 10/n in the anomaly window),
+    normalised to [-1, 1] like the benchmark's generator."""
+    values, level = [], 0.0
+    for step in range(n):
+        slope = 10.0 if 600 <= step < 700 else 3.0
+        level += slope / n
+        values.append(math.sin(2 * math.pi * 0.02 * step) + level)
+    low, high = min(values), max(values)
+    return [2 * (value - low) / (high - low) - 1 for value in values]
+
+
+def test_seasonal_structure_is_not_reported_as_anomalies():
+    """With the season misdetected (24 against a true period of 50),
+    rolling_median_residual grades best on injections while flagging
+    ~half the observed series — its clean-series flags are excluded from
+    injection scoring, so density was invisible to selection. A dense
+    candidate must be disqualified, not crowned."""
+    values = _anomllm_trend_series()
+    result = detect_anomalies([str(i) for i in range(len(values))], values,
+                              season=24)
+    grades = result["detector_grades"]
+    assert grades["rolling_median_residual"]["dense_on_observed"] is True
+    assert grades["rolling_median_residual"]["clean_flag_fraction"] > 0.4
+    assert result["detector"] != "rolling_median_residual"
+    assert len(result["anomalies"]) < 100
+
+
+def test_grades_record_clean_series_flag_density():
+    values = _seasonal_series()
+    grading = grade_detectors(values, 12)
+    for grade in grading["grades"].values():
+        assert 0.0 <= grade["clean_flag_fraction"] <= 1.0
+        assert grade["dense_on_observed"] == (
+            grade["clean_flag_fraction"] > 0.2
+        )
+    assert any(not grade["dense_on_observed"]
+               for grade in grading["grades"].values())
+
+
+def test_all_candidates_dense_abstains_instead_of_reporting_noise(monkeypatch):
+    import gnomon.anomaly as anomaly_module
+
+    def everything(values, season):
+        return [10.0] * len(values)
+
+    monkeypatch.setattr(anomaly_module, "DETECTORS",
+                        {"everything": everything})
+    values = _seasonal_series()
+    result = detect_anomalies([str(i) for i in range(len(values))], values,
+                              season=12)
+    assert result["detector"] is None
+    assert result["anomalies"] == []
+    assert result["support"]["status"] == "inconclusive"
+    assert result["support"]["reasons"][0]["code"] == "no_plausible_detector"
+    assert result["detector_grades"]["everything"]["dense_on_observed"] is True
+
+
+def test_labelled_selection_keeps_dense_candidates_eligible():
+    """User labels measure real-series precision flag by flag, so density
+    needs no separate guard there — and a dense detector simply loses on
+    label F1."""
+    values = _seasonal_series()
+    result = detect_anomalies(
+        [str(i) for i in range(len(values))], values, season=12,
+        label_indices=[40],
+        extra_detectors={"everything": lambda v, s: [10.0] * len(v)},
+    )
+    assert result["selection_basis"] == "label_f1"
+    assert result["detector"] != "everything"

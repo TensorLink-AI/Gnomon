@@ -21,6 +21,109 @@ from .contracts import (
 from .evaluation import Evaluation
 from .temporal_store import KNOWN_TIME_ASSUMED_WARNING
 
+#: The publication tiers, weakest first. These grade what is *published*,
+#: not how any tier is earned — the fold minimums, separation
+#: requirements, and guardrails that earn each rung are untouched by the
+#: graduated-support default. `minimum_support` is a floor over this
+#: order: the evaluation runs exactly as always, then the result is
+#: published at the highest tier the evidence achieved that clears the
+#: floor, or abstains.
+PUBLICATION_TIERS = ("best_effort", "conditionally_supported", "supported")
+TIER_ORDER = {name: rank for rank, name in enumerate(PUBLICATION_TIERS)}
+DEFAULT_MINIMUM_SUPPORT = "best_effort"
+
+
+def achieved_tier(status: str, has_rows: bool) -> str | None:
+    """The publication tier a result's assessment status earned.
+
+    ``None`` when nothing was published. Rows published from an
+    ``inconclusive`` assessment are the disclosed fallback — best_effort
+    by construction."""
+    if not has_rows:
+        return None
+    if status in ("supported", "conditionally_supported"):
+        return status
+    return "best_effort"
+
+
+def forecast_headline(
+    support: str,
+    assessment: dict | None,
+    rows: list[dict],
+) -> str:
+    """One deterministic plain-language sentence: what can be trusted.
+
+    Generated from the assessment by fixed templates — never by an LLM —
+    always naming the weakest tier present. It supplements the typed
+    reasons (which remain untouched beside it); it is the one sentence an
+    agent is allowed to relay verbatim."""
+    assessment = assessment or {}
+    status = assessment.get("status")
+    reasons = assessment.get("reasons") or []
+    sensitivity = assessment.get("sensitivity") or {}
+    if not rows:
+        first = reasons[0]["message"] if reasons else (
+            "the evaluation could not run.")
+        return f"No forecast published: {first}"
+    end = str(rows[-1].get("timestamp"))
+    split = next((reason for reason in reasons
+                  if reason.get("code") == "horizon_split"), None)
+    if split is not None:
+        boundary = sensitivity.get("supported_horizon")
+        if isinstance(boundary, int) and 0 < boundary < len(rows):
+            prefix_end = str(rows[boundary - 1].get("timestamp"))
+            remainder_start = str(rows[boundary].get("timestamp"))
+        else:  # defensive: the reason still names the ranges
+            prefix_end, remainder_start = end, end
+        prefix_tier = str(rows[0].get("tier", "conditionally_supported"))
+        return (
+            f"Higher-confidence through {prefix_end} ({prefix_tier}); "
+            f"{remainder_start}-{end} is a naive extrapolation, not an "
+            f"evaluated forecast."
+        )
+    if support == "best_effort":
+        observations = sensitivity.get("observations")
+        source = (f"from {observations} observations"
+                  if observations is not None else "from this history")
+        return (
+            f"No evaluated forecast is possible {source}; this is a naive "
+            f"extrapolation for orientation only."
+        )
+    if status == "supported":
+        improvement = sensitivity.get("baseline_improvement")
+        if improvement is not None:
+            return (
+                f"High-confidence forecast through {end}: the selected "
+                f"model beat the strongest baseline by "
+                f"{float(improvement):.0%} on separated evaluation folds."
+            )
+        return (
+            f"High-confidence forecast through {end}, selected on "
+            f"separated evaluation folds against the mandatory baselines."
+        )
+    caveat = next(
+        (reason["message"] for reason in reasons
+         if reason.get("code") != "warning"),
+        reasons[0]["message"] if reasons else "see the typed reasons.",
+    )
+    # The headline is one sentence; a multi-sentence reason contributes
+    # its first sentence and the typed reasons carry the rest.
+    first_sentence = caveat.split(". ")[0].rstrip(".") + "."
+    return f"Forecast through {end} with caveats: {first_sentence}"
+
+
+def artifact_headline(results: list) -> str:
+    """The artifact-level headline: one series' sentence verbatim, or the
+    per-series sentences joined, weakest tier still named by each."""
+    lines = []
+    for result in results:
+        text = forecast_headline(
+            result.support, result.support_assessment, result.forecast,
+        )
+        lines.append(text if len(results) == 1
+                     else f"{result.series}: {text}")
+    return " | ".join(lines)
+
 
 def assess_forecast_support(
     support: str,
@@ -199,6 +302,19 @@ def assess_forecast_support(
             f"Retry with horizon {reachable} or less: the observations "
             f"already supplied support evaluation at that horizon.",
         ))
+    if support == "unsupported":
+        # The disclosed fallback lane exists, but a caller who has never
+        # read the CLI reference cannot know that. The refusal teaches
+        # the path so recovery takes one step, not prior knowledge; the
+        # fallback stays labelled wherever it is published.
+        recovery.append(SupportReason(
+            "retry_best_effort",
+            "If rows are needed at this horizon anyway, retry with "
+            "minimum_support 'best_effort' (the default; `--minimum-support "
+            "best_effort` on the CLI): a naive fallback is published with "
+            "support `best_effort` and a NO RELIABLE FORECAST warning — "
+            "disclosed rows, never a supported forecast.",
+        ))
     insufficiency = (
         [SupportReason("insufficient_evaluation", message) for message in warnings]
         or [SupportReason("insufficient_evaluation", "The evaluation protocol could not complete.")]
@@ -217,3 +333,24 @@ def assess_forecast_support(
         recovery,
         support, disclosures,
     )
+
+
+def disclose_epistemic_deviation(
+    assessment: SupportAssessment, reason: SupportReason, *, cap: bool,
+) -> SupportAssessment:
+    """Stamp a non-default evidence rule onto an already-built assessment.
+
+    An epistemic parameter moved off its default (see
+    ``contracts.PARAMETER_AUTHORITY``) changes what the numbers mean, so
+    the deviation rides in ``reasons`` where an agent already looks. With
+    ``cap=True`` — the parameter was moved in the lax direction — a
+    ``supported`` verdict is additionally capped at
+    ``conditionally_supported``: the evidence may be fine, but it was
+    judged by a weaker rule than the one the documentation promises.
+    Applied after assembly so every branch of
+    :func:`assess_forecast_support` is covered by construction.
+    """
+    assessment.reasons = [reason] + list(assessment.reasons)
+    if cap and assessment.status == "supported":
+        assessment.status = "conditionally_supported"
+    return assessment

@@ -33,7 +33,14 @@ Every adapter in this directory obeys three rules:
    same model through the same provider. Most adapters read
    `OPENROUTER_API_KEY` directly; AnomLLM's control instead points the
    official code's own `credentials.yml` mechanism at OpenRouter so the
-   upstream code stays untouched (disclosed in its README).
+   upstream code stays untouched (disclosed in its README). The client
+   speaks plain chat-completions, so a model OpenRouter does not host
+   can be evaluated through any OpenAI-compatible endpoint
+   (`OPENROUTER_BASE_URL`, or `--base-url` where the adapter exposes
+   it). That is provenance, not a detail: the endpoint travels into
+   `summary.json`'s `llm_usage` and the run manifest, because the same
+   model id served from elsewhere is a different measurement — and both
+   arms of a comparison must come from the same one.
 3. **Adapter decisions are disclosed.** Where Gnomon's output shape and a
    benchmark's expected input differ (e.g. quantiles vs. sample paths),
    the conversion is deterministic, documented in the module docstring,
@@ -102,6 +109,11 @@ abstention and error counts, never without them.
   model. Export it, or put it in an untracked `.env` file (`KEY=value`
   lines) in the working directory or repository root — a real
   environment variable always wins over the file.
+- `OPENROUTER_BASE_URL` — optional. Any OpenAI-compatible
+  chat-completions endpoint; defaults to OpenRouter's own. Set it (with
+  that endpoint's key in `OPENROUTER_API_KEY`) to evaluate a model
+  OpenRouter does not host. The resolved endpoint is recorded with the
+  results.
 - Gnomon importable (`bash install.sh`, `uv tool install .`, or
   `PYTHONPATH=src` from the repository root).
 - Per-benchmark dependencies are deliberately not part of Gnomon's own

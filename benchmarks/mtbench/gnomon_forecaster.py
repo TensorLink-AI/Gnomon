@@ -22,8 +22,18 @@ Adapter decisions, disclosed:
   admission gate accepts or rejects — the same contract as the CiK
   adapter. ``pure`` mode ignores the text entirely.
 - In ``tools`` mode the model gets the history and the article and
-  drives Gnomon through a tool loop, then submits one computed run as its
-  answer; it never writes numbers. See ``tool_agent``.
+  drives Gnomon through a tool loop, then finishes through one of two
+  honest exits: a computed run's ``forecast_ref`` (used verbatim) or its
+  own ``values`` — never an edit of a Gnomon number. The route
+  (``gnomon`` / ``informed-direct`` / ``direct``) and the count of
+  engine abstentions the model saw are recorded per sample and
+  aggregated in the summary. See ``tool_agent``.
+- ``mcp`` mode is the raw counterpart of ``tools``: the model holds the
+  real ``gnomon mcp serve`` tool surface verbatim (file paths, argument
+  schemas, typed errors) and drives the engine itself, with the same
+  three exits and the same route/abstention bookkeeping. Running both
+  modes on the same samples isolates what the real surface's friction
+  costs. See ``mcp_agent``.
 - If Gnomon abstains on a sample, the sample is recorded as an abstention
   and excluded from cumulative metrics — exactly how the official
   scripts treat their own failed samples, but visible in the summary.
@@ -43,6 +53,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from benchmarks.cik.gnomon_forecaster import events_from_proposals  # noqa: E402
+from benchmarks.common.manifest import write_manifest  # noqa: E402
 from benchmarks.common.openrouter import (  # noqa: E402
     OpenRouterClient,
     extract_json_array,
@@ -243,6 +254,11 @@ def forecast_sample(sample: dict[str, Any], *, mode: str,
 
         return run_sample(sample, client, work_dir=work_dir)
 
+    if mode == "mcp":
+        from benchmarks.mtbench.mcp_agent import run_sample_mcp
+
+        return run_sample_mcp(sample, client, work_dir=work_dir)
+
     values = [float(v) for v in sample["input_window"]]
     horizon = len(sample["output_window"])
     run_dir = Path(tempfile.mkdtemp(prefix="mtbench-gnomon-", dir=work_dir))
@@ -262,6 +278,12 @@ def forecast_sample(sample: dict[str, Any], *, mode: str,
             horizon=horizon, frequency="D",
             output=str(run_dir / "gnomon-output"),
             context_events=events or None,
+            # The benchmark's measured condition is the pre-graduated
+            # engine: degraded results published, abstention possible. The
+            # engine's default floor is now best_effort, so the condition
+            # is pinned explicitly rather than drifting with the default —
+            # otherwise "abstained" would silently change meaning.
+            minimum_support="conditionally_supported",
         )
     except GnomonError as error:
         return {"abstained": True,
@@ -291,7 +313,7 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
     if mtbench_root is not None and str(mtbench_root) not in sys.path:
         sys.path.insert(0, str(mtbench_root))
     client = (OpenRouterClient(openrouter_model, temperature=temperature)
-              if mode in ("agent", "tools") else None)
+              if mode in ("agent", "tools", "mcp") else None)
     samples = load_samples(dataset_folder)
     if limit:
         samples = samples[:limit]
@@ -306,8 +328,21 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
     records = RecordWriter(records_path)
 
     cumulative = {"mse": [], "mae": [], "rmse": [], "mape": []}
+    # The same metrics with the official mse>100 failure filter NOT
+    # applied. The filtered means mirror the official aggregation and stay
+    # the headline; these sit beside them because the filter deletes
+    # catastrophic misses from the mean, and a mean that cannot get worse
+    # when the forecasts do is not safe to read alone.
+    unfiltered = {"mse": [], "mae": [], "rmse": [], "mape": []}
     per_sample: list[dict[str, Any]] = []
     abstained = failed = errored = mape_undefined = 0
+    routes: dict[str, int] = {}
+    # `tools` mode: keep the loop auditable — which exit the model took,
+    # how many runs it computed, every call it made, and how often the
+    # engine abstained under it.
+    tool_keys = ("route", "forecast_ref", "artifact_path",
+                 "forecasts_computed", "tool_calls", "engine_abstentions",
+                 "submit_reasoning", "trace")
     for sample in samples:
         started = time.time()
         outcome = forecast_sample(sample, mode=mode, client=client,
@@ -315,14 +350,26 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
         elapsed = time.time() - started
         truth = [float(v) for v in sample["output_window"]]
         entry: dict[str, Any] = {"filename": sample["filename"]}
+        if outcome.get("route"):
+            routes[outcome["route"]] = routes.get(outcome["route"], 0) + 1
+        # tools/mcp outcomes carry their real call count; pure/agent make
+        # exactly one engine invocation. A constant 1 for the tool arms
+        # made average_tool_calls a constant, not a measurement.
+        calls_made = int(outcome.get("tool_calls") or 1)
         if outcome["abstained"]:
             abstained += 1
             entry.update({"abstained": True, "reasons": outcome["reasons"]})
+            for key in tool_keys:
+                if outcome.get(key) is not None:
+                    entry[key] = outcome[key]
             records.write(RunRecord(
                 task_id=sample["filename"], success=False,
-                appropriate_abstention=True, tool_calls=1,
+                appropriate_abstention=True, tool_calls=calls_made,
                 latency_seconds=round(elapsed, 3),
-                extra={"reasons": outcome["reasons"]},
+                extra={"reasons": outcome["reasons"],
+                       **({"engine_abstentions": outcome["engine_abstentions"]}
+                          if outcome.get("engine_abstentions") is not None
+                          else {})},
             ))
         else:
             prediction = outcome["prediction"]
@@ -333,8 +380,12 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
                 # cost that sample an error record, not the whole run.
                 errored += 1
                 entry.update({"error": str(error)})
+                for key in tool_keys:
+                    if outcome.get(key) is not None:
+                        entry[key] = outcome[key]
                 records.write(RunRecord(
-                    task_id=sample["filename"], success=False, tool_calls=1,
+                    task_id=sample["filename"], success=False,
+                    tool_calls=calls_made,
                     latency_seconds=round(elapsed, 3),
                     extra={"error": str(error)},
                 ))
@@ -353,29 +404,30 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
                 "selected_model": outcome["selected_model"],
                 "events": outcome["events"],
             })
-            # `tools` mode: keep the loop auditable — which run the model
-            # submitted, how many it computed, and every call it made.
-            for key in ("forecast_ref", "forecasts_computed", "tool_calls",
-                        "submit_reasoning", "trace"):
+            for key in tool_keys:
                 if outcome.get(key) is not None:
                     entry[key] = outcome[key]
             if is_failed:
                 failed += 1
-            else:
-                for key, value in (("mse", mse), ("mae", mae),
-                                   ("rmse", rmse), ("mape", mape)):
-                    # Only MAPE can be NaN here (all-zero truth leaves it
-                    # undefined; sample_metrics rejects non-finite inputs)
-                    # and a NaN would poison the cumulative mean silently.
-                    if key == "mape" and value != value:
+            for key, value in (("mse", mse), ("mae", mae),
+                               ("rmse", rmse), ("mape", mape)):
+                # Only MAPE can be NaN here (all-zero truth leaves it
+                # undefined; sample_metrics rejects non-finite inputs)
+                # and a NaN would poison the cumulative mean silently.
+                if key == "mape" and value != value:
+                    if not is_failed:
                         mape_undefined += 1
-                        continue
+                    continue
+                unfiltered[key].append(value)
+                if not is_failed:
                     cumulative[key].append(value)
             records.write(RunRecord(
                 task_id=sample["filename"], success=not is_failed,
-                tool_calls=1, latency_seconds=round(elapsed, 3),
+                tool_calls=calls_made, latency_seconds=round(elapsed, 3),
                 extra={"mse": mse, "mape": mape,
-                       "support": outcome["support"]},
+                       "support": outcome["support"],
+                       **({"route": outcome["route"]}
+                          if outcome.get("route") else {})},
             ))
         per_sample.append(entry)
         (details_dir / sample["filename"]).write_text(
@@ -397,15 +449,46 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
         "mape_implementation": _resolve_mape()[1],
         **{f"mean_{key}": (sum(values) / len(values) if values else None)
            for key, values in cumulative.items()},
+        **{f"mean_{key}_unfiltered": (sum(values) / len(values)
+                                      if values else None)
+           for key, values in unfiltered.items()},
         "note": (
             "means follow the official aggregation (samples past the "
-            "official mse filter); abstained, errored, filtered and "
+            "official mse filter); the *_unfiltered means include the "
+            "filtered samples, because a mean that deletes its worst "
+            "cases cannot be read alone; abstained, errored, filtered and "
             "mape_undefined counts must be reported next to them"
+            + (". routes counts submissions per exit: gnomon = a Gnomon "
+               "trajectory verbatim, informed-direct/direct = the model's "
+               "own values (after/without tool use), abstain = an honest "
+               "abstention — model-written numbers are never mixed "
+               "unlabeled into Gnomon's"
+               if mode in ("tools", "mcp") else "")
         ),
     }
+    if mode in ("tools", "mcp"):
+        summary["routes"] = dict(sorted(routes.items()))
     if client is not None:
         summary["llm_usage"] = client.usage_summary
     (output_dir / "summary.json").write_text(
         json.dumps(summary, indent=2) + "\n", encoding="utf-8"
+    )
+    # Provenance beside the results on direct CLI runs too: the dataset
+    # folder is the task set, so it is the `target` a comparison must
+    # agree on — recorded as the folder's last two path components
+    # (e.g. finance/aligned_in30days_out7days), which identify the family
+    # without baking in a machine-specific absolute path that would make
+    # same-dataset runs from two checkouts refuse to compare. (The
+    # control arm runs the official script, which owns its own output
+    # tree; its manifest still comes from run_all.)
+    write_manifest(
+        output_dir,
+        benchmark="mtbench",
+        condition=f"gnomon-{mode}",
+        model=openrouter_model,
+        target="/".join(Path(dataset_folder).parts[-2:]),
+        command=" ".join(sys.argv),
+        limit=limit,
+        base_url=client.base_url if client is not None else None,
     )
     return summary

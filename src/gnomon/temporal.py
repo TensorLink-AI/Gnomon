@@ -85,6 +85,14 @@ def frequency_step(frequency: str) -> timedelta | None:
 _SEASON_CYCLES = (_DAY_SECONDS, 3600, 60)
 _MAX_DEFAULT_SEASON = 288
 
+#: How far the autocorrelation season search looks when the frequency's
+#: default would stop it short. 366 keeps weekly-in-hourly (168) and
+#: yearly-in-daily (365) periods findable, and any arbitrary period a
+#: synthetic or sensor series carries, while bounding the O(n * lags)
+#: scan. A longer true period still needs len(values) // 2 >= period —
+#: two full observed cycles — before it can be chosen at all.
+_SEASON_SEARCH_CAP = 366
+
 
 def default_season(frequency: str) -> int:
     """The fallback seasonal period for any supported frequency code.
@@ -125,7 +133,13 @@ def detect_season(values: list[float], frequency: str) -> tuple[int, float, str]
     denominator = sum(value * value for value in centred)
     if denominator <= 1e-12:
         return fallback, 0.0, "frequency_default"
-    maximum = min(len(values) // 2, max(fallback * 2, 2))
+    # The search must reach beyond the calendar default: a true period the
+    # frequency never anticipated (a 50-step oscillation on an hourly axis,
+    # a yearly cycle in daily data) is invisible if the scan stops at twice
+    # the default, and every season-aware detector downstream then runs on
+    # the wrong period. The cap bounds the O(n * lags) scan; len // 2
+    # still requires two full observed cycles for any period chosen.
+    maximum = min(len(values) // 2, max(fallback * 2, _SEASON_SEARCH_CAP))
     acf = [0.0]
     for lag in range(1, maximum + 1):
         acf.append(sum(centred[i] * centred[i - lag] for i in range(lag, len(values))) / denominator)

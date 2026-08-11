@@ -254,13 +254,106 @@ def test_a_constraint_with_a_consistent_span_is_admitted():
     assert admitted.minimum == 0.0 and admitted.maximum == 340.0
 
 
-def test_history_violating_a_claimed_bound_rejects_the_claim():
+def test_history_breaching_a_forward_bound_admits_it_with_disclosure():
+    # History runs 200-207; the claimed cap is 150. The window is entirely
+    # in the future, so past breaches are exactly when the bound is
+    # informative — it must be admitted, with the breach disclosed.
     events = [_event("c1", "constraint:bounds", H_START, H_END,
                      {"source_span": "the value will not exceed 150"})]
     assessment = assess_future_events(events, "s", HISTORY, TIMESTAMPS, FUTURE, 7)
+    assert [e.event_id for e in assessment.admitted] == ["c1"]
+    assert assessment.admitted[0].maximum == 150.0
+    assert not assessment.rejected
+    disclosure = [check for check in assessment.checks
+                  if check["code"] == "history_relation_disclosed"]
+    assert disclosure and disclosure[0]["passed"]
+    assert "breaches" in disclosure[0]["detail"]
+
+
+def test_history_respecting_a_forward_bound_still_admits_it():
+    events = [_event("c1", "constraint:bounds", H_START, H_END,
+                     {"source_span": "values stay between 0 and 340"})]
+    assessment = assess_future_events(events, "s", HISTORY, TIMESTAMPS, FUTURE, 7)
+    assert [e.event_id for e in assessment.admitted] == ["c1"]
+    disclosure = [check for check in assessment.checks
+                  if check["code"] == "history_relation_disclosed"]
+    assert disclosure and "respects" in disclosure[0]["detail"]
+
+
+def test_an_attributive_bound_with_a_unit_is_admitted():
+    # The 2026-08 census: 139/150 rejected spans stated a number the
+    # parser could not read. "The maximal fan speed is 3000 rpm" is one
+    # of the two dominant shapes.
+    events = [_event("c1", "constraint:speed", H_START, H_END,
+                     {"source_span": "The maximal fan speed is 3000 rpm"})]
+    assessment = assess_future_events(events, "s", HISTORY, TIMESTAMPS, FUTURE, 7)
+    assert [e.event_id for e in assessment.admitted] == ["c1"]
+    assert assessment.admitted[0].maximum == 3000.0
+
+
+def test_a_scaled_bound_resolves_against_the_recent_median():
+    # The other dominant census shape: a multiple of a baseline the span
+    # references but does not state. The multiplier is the text's; the
+    # baseline is the recent-window median, disclosed.
+    from statistics import median
+    events = [_event("c1", "constraint:surge", H_START, H_END,
+                     {"source_span": "will not exceed 3 times the usual level"})]
+    assessment = assess_future_events(events, "s", HISTORY, TIMESTAMPS, FUTURE, 7)
+    assert [e.event_id for e in assessment.admitted] == ["c1"]
+    baseline = median(HISTORY[-14:])  # recent_window(7, 7) = 14
+    assert assessment.admitted[0].maximum == 3 * baseline
+    disclosure = [check for check in assessment.checks
+                  if check["code"] == "relative_bound_resolved"]
+    assert disclosure and disclosure[0]["passed"]
+    assert "median" in disclosure[0]["detail"]
+
+
+def test_a_scaled_override_resolves_against_the_recent_median():
+    from statistics import median
+    events = [_event("o1", "override:surge", H_START, H_END,
+                     {"source_span": "4 times the number of usual withdrawals"})]
+    assessment = assess_future_events(events, "s", HISTORY, TIMESTAMPS, FUTURE, 7)
+    assert [e.event_id for e in assessment.admitted] == ["o1"]
+    baseline = median(HISTORY[-14:])
+    assert assessment.admitted[0].value == 4 * baseline
+    disclosure = [check for check in assessment.checks
+                  if check["code"] == "relative_value_resolved"]
+    assert disclosure and disclosure[0]["passed"]
+
+
+def test_a_scaled_claim_on_a_non_positive_baseline_is_rejected():
+    # Scaling a non-positive median would invert the claim's meaning.
+    history = [-5.0 + (day % 3) for day in range(60)]
+    events = [_event("c1", "constraint:surge", H_START, H_END,
+                     {"source_span": "will not exceed 3 times the usual level"})]
+    assessment = assess_future_events(events, "s", history, TIMESTAMPS, FUTURE, 7)
     assert not assessment.admitted
-    assert assessment.rejected[0]["code"] == "recent_history_respects_bound"
-    assert "suspect" in assessment.rejected[0]["reason"]
+    assert assessment.rejected[0]["code"] == "baseline_resolvable"
+    assert assessment.rejected[0]["source_span"] == \
+        "will not exceed 3 times the usual level"
+
+
+def test_a_span_about_a_covariate_never_overrides_the_target():
+    """The 2026-08 paired spot-check's largest regression, verbatim: the
+    round-2 grammar read a covariate's stated value perfectly and
+    applied it to the forecast target, disclosed as context_trusted.
+    Parsing a number says nothing about what the number refers to; a
+    span that names a foreign referent is rejected before any parse."""
+    events = [_event("o1", "override:covariate", H_START, H_END,
+                     {"source_span": "the covariate X_0 takes a value of "
+                                     "0.2051 from 2028-04-23 to 2028-05-05"})]
+    assessment = assess_future_events(events, "s", HISTORY, TIMESTAMPS, FUTURE, 7)
+    assert not assessment.admitted
+    rejection = assessment.rejected[0]
+    assert rejection["code"] == "span_describes_the_target"
+    assert "covariates lane" in rejection["reason"]
+    # the same statement about the target itself still admits
+    events = [_event("o2", "override:level", H_START, H_END,
+                     {"source_span": "takes a value of 0.2051 "
+                                     "from 2028-04-23 to 2028-05-05"})]
+    assessment = assess_future_events(events, "s", HISTORY, TIMESTAMPS, FUTURE, 7)
+    assert [e.event_id for e in assessment.admitted] == ["o2"]
+    assert assessment.admitted[0].value == 0.2051
 
 
 def test_a_window_overlapping_history_is_sent_to_the_fold_gate():
@@ -513,6 +606,42 @@ def test_flag_on_downgrades_support_and_records_the_counterfactual(tmp_path):
     assert gate[0].payload["by_class"]["override"]["admitted"] == 1
 
 
+def test_a_caller_bound_outranks_an_admitted_override(tmp_path):
+    """An override value stated in text must not breach a domain bound the
+    caller declared: the bound is re-asserted after the override window is
+    applied, and the correction is disclosed as evidence."""
+    csv_path = tmp_path / "series.csv"
+    _write_csv(csv_path)
+    h_start = START + timedelta(days=120)
+    events = [
+        _event("cap-1", "constraint:capacity", h_start,
+               h_start + timedelta(days=6),
+               {"claim": {"kind": "max", "value": 250.0}}),
+        _event("override-1", "override:reduced",
+               h_start + timedelta(days=2), h_start + timedelta(days=4),
+               {"source_span": "output reduced to 300 while the line is "
+                               "partially shut down"}),
+    ]
+    artifact, _ = forecast(
+        str(csv_path), time_column="timestamp", target_column="value",
+        horizon=7, frequency="D", output=str(tmp_path / "out"),
+        context_events=events, config=_flag_on_config(),
+    )
+    result = artifact.results[0]
+    # the override was admitted at its stated 300...
+    admitted = {item["event_id"] for item in result.future_context["admitted"]}
+    assert "override-1" in admitted
+    # ...but no emitted number breaches the caller's declared max
+    for row in result.forecast:
+        assert float(row["point"]) <= 250.0 + 1e-9
+        assert float(row["q90"]) <= 250.0 + 1e-9
+    assert result.forecast[3]["point"] == 250.0
+    reasserted = [item for item in artifact.evidence
+                  if item.kind == "constraint_reasserted"]
+    assert len(reasserted) == 1
+    assert reasserted[0].payload["clamps"]
+
+
 def test_flag_on_enters_the_admitted_events_into_the_artifact_id(tmp_path):
     csv_path = tmp_path / "series.csv"
     _write_csv(csv_path)
@@ -553,7 +682,7 @@ def test_flag_on_with_nothing_admitted_leaves_the_forecast_alone(tmp_path):
     _write_csv(csv_path)
     h_start = START + timedelta(days=120)
     suspect = [_event("c1", "constraint:cap", h_start, h_start + timedelta(days=6),
-                      {"source_span": "the value will not exceed 150"})]
+                      {"source_span": "the value may be limited at some point"})]
     kwargs = dict(
         time_column="timestamp", target_column="value", horizon=7, frequency="D",
     )
@@ -566,7 +695,7 @@ def test_flag_on_with_nothing_admitted_leaves_the_forecast_alone(tmp_path):
         [row["point"] for row in baseline.results[0].forecast]
     # the rejection is still disclosed
     assert result.future_context["rejected"][0]["code"] == \
-        "recent_history_respects_bound"
+        "span_states_the_bound"
 
 
 def test_threshold_analysis_describes_the_published_rows(tmp_path):

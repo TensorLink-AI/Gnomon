@@ -153,3 +153,100 @@ def test_no_penalized_mean_when_nothing_was_abstained(tmp_path):
     result = compare(load_run(tmp_path / "ctrl"), load_run(tmp_path / "treat"),
                      metric="mse")
     assert "penalized" not in result["metrics"]["mse"]
+
+
+def test_score_is_lower_is_better(tmp_path):
+    # LeakTrap's `score` is a WAPE. The old higher-is-better default
+    # inverted the sign test: a treatment with uniformly LOWER error was
+    # reported with zero wins.
+    _write_run(tmp_path, "ctrl",
+               [{"task_id": f"t{i}", "score": 10.0} for i in range(6)],
+               {"benchmark": "leakage-trap", "target": "y"})
+    _write_run(tmp_path, "treat",
+               [{"task_id": f"t{i}", "score": 5.0} for i in range(6)],
+               {"benchmark": "leakage-trap", "target": "y"})
+    result = compare(load_run(tmp_path / "ctrl"), load_run(tmp_path / "treat"),
+                     metric="score")
+    entry = result["metrics"]["score"]
+    assert entry["lower_is_better"] is True
+    assert entry["direction_recognised"] is True
+    assert entry["test"]["treatment_wins"] == 6
+
+
+def test_unrecognised_metric_direction_is_flagged_not_assumed_silently(tmp_path):
+    _write_run(tmp_path, "ctrl",
+               [{"task_id": f"t{i}", "wibble": 10.0} for i in range(4)],
+               {"benchmark": "x", "target": "y"})
+    _write_run(tmp_path, "treat",
+               [{"task_id": f"t{i}", "wibble": 5.0} for i in range(4)],
+               {"benchmark": "x", "target": "y"})
+    result = compare(load_run(tmp_path / "ctrl"), load_run(tmp_path / "treat"),
+                     metric="wibble")
+    entry = result["metrics"]["wibble"]
+    assert entry["direction_recognised"] is False
+    assert "inverted" in entry["direction_warning"]
+
+
+def test_harness_voided_rows_stay_out_of_the_success_test(tmp_path):
+    # Task b was voided by the harness in the treatment arm (a breached
+    # cap). Counting it as a failure reported a harness cap as a model
+    # failure; it is excluded pairwise and counted instead.
+    _write_run(tmp_path, "ctrl",
+               [{"task_id": "a", "success": True},
+                {"task_id": "b", "success": True}],
+               {"benchmark": "x", "target": "y"})
+    _write_run(tmp_path, "treat",
+               [{"task_id": "a", "success": True},
+                {"task_id": "b", "success": False,
+                 "row_abstained": "cap:tokens exceeded"}],
+               {"benchmark": "x", "target": "y"})
+    result = compare(load_run(tmp_path / "ctrl"), load_run(tmp_path / "treat"))
+    assert result["success_voided_excluded"] == {
+        "pairs": 1, "baseline_voided": 0, "treatment_voided": 1,
+        "basis": result["success_voided_excluded"]["basis"],
+    }
+    assert result["success_rate"] == {"baseline": 1.0, "treatment": 1.0}
+    assert result["success_test"]["n"] == 1
+
+
+def test_success_rate_is_split_by_basis_when_bases_mix(tmp_path):
+    # TemporalBench T2/T4 success = completion; T1/T3 = all choices
+    # correct. A pooled rate blends the two, so the split is reported.
+    rows_ctrl = [
+        {"task_id": "f1", "success": True, "success_basis": "completion"},
+        {"task_id": "f2", "success": False, "success_basis": "completion"},
+        {"task_id": "q1", "success": False,
+         "success_basis": "all_choices_correct"},
+    ]
+    rows_treat = [
+        {"task_id": "f1", "success": True, "success_basis": "completion"},
+        {"task_id": "f2", "success": True, "success_basis": "completion"},
+        {"task_id": "q1", "success": False,
+         "success_basis": "all_choices_correct"},
+    ]
+    _write_run(tmp_path, "ctrl", rows_ctrl, {"benchmark": "x", "target": "y"})
+    _write_run(tmp_path, "treat", rows_treat, {"benchmark": "x", "target": "y"})
+    result = compare(load_run(tmp_path / "ctrl"), load_run(tmp_path / "treat"))
+    split = result["success_by_basis"]
+    assert split["completion"] == {"n": 2, "baseline": 0.5, "treatment": 1.0}
+    assert split["all_choices_correct"] == {
+        "n": 1, "baseline": 0.0, "treatment": 0.0,
+    }
+
+
+def test_bookkeeping_fields_are_not_swept_as_metrics():
+    from benchmarks.report import available_metrics
+
+    tasks = {"t1": {"task_id": "t1", "score": 0.4, "shock": 0.25,
+                    "no_leak_ceiling": 0.5, "leak_advantage": 0.2,
+                    "choice_total": 3, "tool_calls": 5,
+                    "latency_seconds": 2.0}}
+    assert available_metrics(tasks) == ["score"]
+
+
+def test_derived_metrics_refuse_a_wrong_length_prediction():
+    # zip would score the overlap and understate the error; the adapters'
+    # own scorers refuse the same condition, so the join must too.
+    assert derived_metrics(
+        {"ground_truth": [1.0, 2.0, 3.0], "predict": [1.0, 2.0]}
+    ) == {}

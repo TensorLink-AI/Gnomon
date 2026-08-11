@@ -1,6 +1,6 @@
 {
   "schema_version": "0.1",
-  "forecast_id": "forecast_c7b7fa6b9879b548",
+  "forecast_id": "forecast_b5a78f2fd4243b66",
   "created_at": "2026-07-01T00:00:00+00:00",
   "status": "complete",
   "task": {
@@ -73,6 +73,10 @@
           {
             "code": "provide_more_history",
             "message": "Supply more observations, or lower the horizon, so rolling evaluation can run."
+          },
+          {
+            "code": "retry_best_effort",
+            "message": "If rows are needed at this horizon anyway, retry with minimum_support 'best_effort' (the default; `--minimum-support best_effort` on the CLI): a naive fallback is published with support `best_effort` and a NO RELIABLE FORECAST warning \u2014 disclosed rows, never a supported forecast."
           }
         ],
         "legacy_support": "unsupported",
@@ -122,7 +126,9 @@
         "support": "unsupported",
         "warnings": [
           "Need at least 20 observations (have 6) for separated selection and calibration windows; 26 observations enable fully separated selection, calibration, and test windows."
-        ]
+        ],
+        "row_tiers": {},
+        "minimum_support": "best_effort"
       }
     },
     {
@@ -144,5 +150,6 @@
         ]
       }
     }
-  ]
+  ],
+  "runtime_version": "0.5.0"
 }

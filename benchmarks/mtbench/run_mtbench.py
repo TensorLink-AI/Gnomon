@@ -57,10 +57,11 @@ def main() -> int:
     gnomon.add_argument("--dataset-folder", required=True,
                       help="Official processed dataset folder of task JSONs")
     gnomon.add_argument("--output-dir", required=True)
-    gnomon.add_argument("--mode", choices=["pure", "agent", "tools"],
+    gnomon.add_argument("--mode", choices=["pure", "agent", "tools", "mcp"],
                       default="pure")
     gnomon.add_argument("--model", default=None,
-                      help="OpenRouter model id (required for agent/tools modes)")
+                      help="OpenRouter model id (required for "
+                           "agent/tools/mcp modes)")
     # Same default as the control arm: the ground rules require identical
     # temperature across the two conditions of a comparison.
     gnomon.add_argument("--temperature", type=float, default=0.7)
@@ -78,7 +79,7 @@ def main() -> int:
         print(json.dumps({"llm_usage": client.usage_summary}, indent=2))
         return 0
 
-    if args.mode in ("agent", "tools") and not args.model:
+    if args.mode in ("agent", "tools", "mcp") and not args.model:
         parser.error(f"--model is required for --mode {args.mode}")
     from benchmarks.mtbench.gnomon_forecaster import run
 

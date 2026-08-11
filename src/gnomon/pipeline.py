@@ -23,6 +23,7 @@ from .data import Observation, load_observations
 from .evaluation import (
     DEFAULT_TARGET_COVERAGE,
     Evaluation,
+    conformal_quantile,
     conformal_quantile_spreads,
     conformal_spreads,
     evaluate,
@@ -715,10 +716,20 @@ def threshold_analysis_stage(
     that lead time, so the crossing probability is computed against the
     same scaling: pooled residuals rescaled to each lead's half-width
     rather than stretched by sqrt(step).
+
+    The cloud is recentred by *its own median*, not by `centre_shift`:
+    subtracting the median pins the scaled cloud's location to
+    `point + centre_shift` — the published q50 — under either recentring
+    policy. When recentring is suppressed, `centre_shift` is 0 while the
+    raw residuals still carry the model's median backtest error, and
+    subtracting the shift alone left the probabilities contradicting the
+    quantiles printed beside them: the README example published
+    P(above 340) = 0.61 in the same artifact as q80 = point + 6.1.
     """
     probabilities: list[float] = []
     pooled_half = (max(spreads[1][0], spreads[1][2])
                    if spreads and 1 in spreads else 0.0)
+    residual_centre = conformal_quantile(residuals, 0.5) if residuals else 0.0
     for step, point in enumerate(points, 1):
         low_offset, centre_shift, high_offset = spreads[step]
         lead_half = max(low_offset, high_offset)
@@ -727,7 +738,7 @@ def threshold_analysis_stage(
         scale = (lead_half / pooled_half) if pooled_half > 1e-12 else 1.0
         above = sum(
             1 for residual in residuals
-            if point + centre_shift + (residual - centre_shift) * scale > threshold
+            if point + centre_shift + (residual - residual_centre) * scale > threshold
         )
         probabilities.append(round(above / len(residuals), 4))
 
@@ -752,12 +763,16 @@ def _constraint_stage(
     state: SeriesState,
     context_events: list[ContextEvent],
     rows: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], list["Claim"]]:
     """Project the forecast onto bounds the caller says the domain has.
 
     Rejections are recorded as loudly as applications: a bound the training
     window already breaches is describing a different quantity, and silently
     dropping it would leave the caller believing it was enforced.
+
+    The applied claims are returned so a later stage that rewrites rows
+    (an admitted override window) can be projected onto the same feasible
+    region: a caller's domain bound outranks every later influence.
     """
     from .constraints import apply_claims, collect_claims
 
@@ -765,7 +780,7 @@ def _constraint_stage(
         context_events, state.name, state.values, state.timestamps,
     )
     if not claims and not rejected:
-        return rows
+        return rows, claims
     projected, applications = apply_claims(rows, claims)
     if rows and claims:
         sample = datetime.fromisoformat(str(rows[0]["timestamp"]))
@@ -790,6 +805,39 @@ def _constraint_stage(
                      "to satisfy a claim",
         },
     ))
+    return projected, claims
+
+
+def _reassert_claims_stage(
+    state: SeriesState,
+    claims: list["Claim"],
+    rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Re-project rewritten rows onto the caller's feasibility bounds.
+
+    An admitted override window replaces forecast values with a value
+    stated in quoted text, and that value may lie outside a bound the
+    caller declared as a domain fact. The caller's bound has the stronger
+    provenance — a domain feasibility statement outranks trusted text —
+    so it is re-asserted last, and the correction is disclosed rather
+    than left as a silent contradiction between two admitted inputs.
+    An emitted row never breaches a bound the artifact says was applied.
+    """
+    from .constraints import apply_claims
+
+    projected, applications = apply_claims(rows, claims)
+    if applications:
+        state.evidence.append(Evidence(
+            f"constraint_reasserted:{state.name}", "constraint_reasserted",
+            state.name,
+            {
+                "clamps": applications,
+                "basis": "a later stage moved emitted values outside a "
+                         "caller-declared feasibility bound; the bound is "
+                         "re-asserted because a domain fact outranks every "
+                         "text-trusted influence",
+            },
+        ))
     return projected
 
 
@@ -797,11 +845,16 @@ def _future_context_stage(
     state: SeriesState,
     context_events: list[ContextEvent],
     rows: list[dict[str, Any]],
+    *,
+    allow_future: bool = True,
+    allow_structural: bool = False,
 ) -> tuple[list[dict[str, Any]], bool]:
     """The textual-verifiability lane for future-dated events.
 
-    Runs only behind `context.future_events: on`. Admission and effects
-    are `gnomon.future_context`'s; this stage owns the disclosure: the
+    Runs only behind `context.future_events: on` (constraint/override
+    classes) and `context.structural_events: on` (LLM-classified
+    structural effects). Admission and effects are
+    `gnomon.future_context`'s; this stage owns the disclosure: the
     gate record, the history-only counterfactual rows preserved beside
     every application, and the public dict the result carries.
     """
@@ -810,6 +863,7 @@ def _future_context_stage(
     assessment = assess_future_events(
         context_events, state.name, state.values, state.timestamps,
         state.future_timestamps, state.season,
+        allow_future=allow_future, allow_structural=allow_structural,
     )
     if not assessment.considered:
         return rows, False
@@ -836,9 +890,13 @@ def _future_context_stage(
                     "admitted on textual verifiability, not fold ablation: "
                     "constraint bounds project the emitted quantiles onto "
                     "the stated feasible region; override windows take the "
-                    "stated value with boundary-widened intervals. The "
-                    "counterfactual rows are the forecast as it stood "
-                    "before this lane touched it."
+                    "stated value with boundary-widened intervals; "
+                    "structural effects derive every quantity from "
+                    "Gnomon's own data (trend_ceases removes the path's "
+                    "own fitted drift; the seasonal-regime effects move "
+                    "covered steps onto the history's per-phase envelope "
+                    "quantiles). The counterfactual rows are the "
+                    "forecast as it stood before this lane touched it."
                 ),
             },
         ))
@@ -991,8 +1049,9 @@ NO_RELIABLE_FORECAST = (
     "NO RELIABLE FORECAST: the evaluation protocol could not run on this "
     "history, so no model was selected and no accuracy was measured. These "
     "rows are a last-value fallback with dispersion-scaled intervals, "
-    "published only because best-effort mode was explicitly requested. "
-    "Treat them as a disclosed placeholder, not a prediction."
+    "published because the request's minimum_support floor admits "
+    "best_effort rows. Treat them as a disclosed placeholder, not a "
+    "prediction."
 )
 
 
@@ -1049,8 +1108,9 @@ def best_effort_stage(state: SeriesState) -> tuple[list[dict[str, object]], str]
     state.disclosures.append(SupportReason(
         "best_effort_fallback",
         "The forecast rows are a last-value fallback with random-walk "
-        "intervals, published under --best-effort after the evaluation "
-        "abstained; the abstention's reasons are preserved in the warnings.",
+        "intervals, published because the minimum_support floor admits "
+        "best_effort rows after the evaluation abstained; the abstention's "
+        "reasons are preserved in the warnings.",
     ))
     return rows, "best_effort"
 
@@ -1062,13 +1122,16 @@ def interval_stage(
     context_events: list[ContextEvent] | None = None,
     target_coverage: float = DEFAULT_TARGET_COVERAGE,
     future_events: bool = False,
+    structural_events: bool = False,
 ) -> tuple[list[dict[str, object]], str, dict[str, object] | None]:
     """Residual-quantile intervals, the support status, and threshold analysis.
 
     ``target_coverage`` is the nominal central coverage the interval
     carries, from ``evaluation.uncertainty.target_coverage``.
     ``future_events`` enables the textual-verifiability lane for
-    future-dated context events (`context.future_events`); a forecast it
+    future-dated context events (`context.future_events`);
+    ``structural_events`` additionally admits the LLM-classified
+    structural class (`context.structural_events`). A forecast either
     influences reports ``context_trusted`` support instead of any
     fold-backed state.
     """
@@ -1117,13 +1180,18 @@ def interval_stage(
         # after the model has said what it believes and before anything reads
         # the rows, so the threshold analysis below sees the same numbers the
         # caller will.
+        claims = []
         if context_events:
-            rows = _constraint_stage(state, context_events, rows)
+            rows, claims = _constraint_stage(state, context_events, rows)
         future_influenced = False
-        if future_events and context_events:
+        if (future_events or structural_events) and context_events:
             rows, future_influenced = _future_context_stage(
                 state, context_events, rows,
+                allow_future=future_events,
+                allow_structural=structural_events,
             )
+            if future_influenced and claims:
+                rows = _reassert_claims_stage(state, claims, rows)
         support = "degraded" if assessment.degraded else ("supported_ensemble" if state.selected_model == "ensemble" else ("weakly_supported" if state.warnings else "supported"))
         if future_influenced:
             # Whatever the fold-backed status would have said, this forecast

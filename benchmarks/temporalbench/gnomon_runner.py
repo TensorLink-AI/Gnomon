@@ -17,7 +17,22 @@ Adapter decisions, disclosed:
   entries either way, so the alignment of the forecast is unchanged.
 - Forecasts are Gnomon's q50 path per channel. A channel Gnomon abstains on
   stays absent — the official scorer then reports the row as missing,
-  which is recorded as an abstention, not papered over.
+  which is recorded as an abstention, not papered over. Under the
+  official all-channels rule one absent channel voids the whole record
+  (measured on the MIMIC split: abstentions on the sparse
+  ``temperature_c`` channel voided 38 otherwise-complete records and
+  left one comparable record), so cross-arm comparison goes through
+  ``score_per_channel.py`` — see that module and the README.
+- ``best_effort`` (opt-in, default off, ``--best-effort`` on the
+  runner) passes Gnomon's own best-effort flag through: a channel that
+  would abstain publishes the engine's disclosed naive fallback rows
+  instead, labeled ``support: "best_effort"`` and carrying Gnomon's NO
+  RELIABLE FORECAST warning. Those rows are not supported forecasts,
+  so every consumer of the per-channel outcomes keeps the support
+  label, and the runner reports the support-label mix beside any score
+  that includes them. Off by default because publishing unsupported
+  numbers unlabeled-by-default would be exactly the laundering the
+  abstention contract forbids.
 - In ``gnomon-pure`` mode multiple-choice questions are answered
   ``Uncertain`` where the option exists (an honest abstention — T2/T4
   option sets include it); questions without such an option are answered
@@ -53,8 +68,15 @@ def _observed(values: list[float | None]) -> list[float]:
 
 
 def forecast_channel(values: list[float | None], horizon: int,
-                     work_dir: str | None = None) -> dict[str, Any]:
-    """Gnomon forecast for one channel on the synthetic hourly axis."""
+                     work_dir: str | None = None,
+                     best_effort: bool = False) -> dict[str, Any]:
+    """Gnomon forecast for one channel on the synthetic hourly axis.
+
+    With ``best_effort`` the engine's disclosed fallback lane is enabled:
+    a channel that would abstain returns rows labeled ``support:
+    "best_effort"`` instead — not a supported forecast, and the label
+    must travel with the values everywhere they are scored.
+    """
     from gnomon import forecast as gnomon_forecast
     from gnomon.contracts import GnomonError
 
@@ -71,6 +93,13 @@ def forecast_channel(values: list[float | None], horizon: int,
             str(csv_path), time_column="timestamp", target_column="value",
             horizon=horizon, frequency="h",
             output=str(run_dir / "gnomon-output"),
+            # The benchmark's two arms are the strict engine (abstention
+            # possible, degraded results still published — the pre-
+            # graduated default) and the disclosed fallback lane. The
+            # engine's own default floor is now best_effort, so the strict
+            # arm pins the old behaviour explicitly.
+            minimum_support=("best_effort" if best_effort
+                             else "conditionally_supported"),
         )
     except GnomonError as error:
         return {"abstained": True, "reason": f"{error.code}: {error.message}"}
@@ -88,7 +117,7 @@ def forecast_channel(values: list[float | None], horizon: int,
 
 def forecast_channels(
     channels: dict[str, list[float | None]], horizon: int,
-    work_dir: str | None = None,
+    work_dir: str | None = None, best_effort: bool = False,
 ) -> dict[str, dict[str, Any]]:
     """Batched Gnomon forecasts for several channels in ONE invocation.
 
@@ -109,7 +138,8 @@ def forecast_channels(
     keys = list(observed)
     length = max((len(values) for values in observed.values()), default=0)
     if len(keys) < 2 or length == 0 or "timestamp" in keys:
-        return {key: forecast_channel(channels[key], horizon, work_dir)
+        return {key: forecast_channel(channels[key], horizon, work_dir,
+                                      best_effort=best_effort)
                 for key in channels}
     run_dir = Path(tempfile.mkdtemp(prefix="tb-gnomon-", dir=work_dir))
     csv_path = run_dir / "history.csv"
@@ -127,6 +157,8 @@ def forecast_channels(
             str(csv_path), time_column="timestamp", target_columns=keys,
             horizon=horizon, frequency="h",
             output=str(run_dir / "gnomon-output"),
+            minimum_support=("best_effort" if best_effort
+                             else "conditionally_supported"),
         )
     except GnomonError as error:
         reason = f"{error.code}: {error.message}"
@@ -148,7 +180,8 @@ def forecast_channels(
     return outcomes
 
 
-def analyse_row(row: dict[str, Any], work_dir: str | None = None) -> dict[str, Any]:
+def analyse_row(row: dict[str, Any], work_dir: str | None = None,
+                best_effort: bool = False) -> dict[str, Any]:
     """Deterministic Gnomon evidence for one row: per-channel forecasts
     (T2/T4), plus season/anomaly/stats findings on the main channel."""
     from gnomon.anomaly import detect_anomalies
@@ -191,21 +224,33 @@ def analyse_row(row: dict[str, Any], work_dir: str | None = None) -> dict[str, A
         wanted = {key: arrays[key] for key in target_keys if key in arrays}
         if wanted:
             analysis["channels"].update(
-                forecast_channels(wanted, horizon, work_dir)
+                forecast_channels(wanted, horizon, work_dir,
+                                  best_effort=best_effort)
             )
     return analysis
 
 
-def forecast_payload(analysis: dict[str, Any]) -> tuple[dict[str, list[float]], list[str]]:
-    """Collect Gnomon-owned forecast arrays; list channels that abstained."""
+def forecast_payload(
+    analysis: dict[str, Any],
+) -> tuple[dict[str, list[float]], list[str], dict[str, str]]:
+    """Collect Gnomon-owned forecast arrays; list channels that abstained.
+
+    The third element maps each forecast channel to its support label
+    (``supported`` / ``interval_only`` / ``best_effort`` / ...), so the
+    label always travels with the values: a ``best_effort`` channel is a
+    disclosed fallback carrying NO RELIABLE FORECAST, not a supported
+    forecast, and any score that includes it must say so.
+    """
     forecast: dict[str, list[float]] = {}
     abstained: list[str] = []
+    support: dict[str, str] = {}
     for key, outcome in analysis.get("channels", {}).items():
         if outcome.get("abstained"):
             abstained.append(f"{key}: {outcome.get('reason')}")
         else:
             forecast[key] = outcome["values"]
-    return forecast, abstained
+            support[key] = str(outcome.get("support"))
+    return forecast, abstained, support
 
 
 #: Sentinel answered when an MCQ has no ``Uncertain`` option. It never

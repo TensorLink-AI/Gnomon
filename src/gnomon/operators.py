@@ -467,7 +467,6 @@ def evaluate_threshold_risk(
     rows: list[dict[str, Any]], points: list[float], residuals: list[float],
     threshold: float,
 ) -> dict[str, Any]:
-    from .evaluation import quantile
     if not residuals:
         return {"risk": None, "support": inconclusive(
             "no_calibration_residuals",
@@ -475,8 +474,20 @@ def evaluate_threshold_risk(
             "Run an evaluated forecast first.",
         ).to_dict()}
     from .pipeline import threshold_analysis_stage
-    residual_quantiles = {p: quantile(residuals, p) for p in (0.1, 0.5, 0.9)}
-    analysis = threshold_analysis_stage(threshold, rows, points, residuals, residual_quantiles)
+    # Per-lead spreads read off the rows themselves, so the probabilities
+    # describe the quantiles printed beside them under whatever recentring
+    # policy produced those rows. (This call previously passed quantiles
+    # keyed by probability where step-keyed spreads were expected and
+    # raised KeyError on every invocation.)
+    spreads = {
+        step: (
+            float(row["q50"]) - float(row["q10"]),
+            float(row["q50"]) - float(row["point"]),
+            float(row["q90"]) - float(row["q50"]),
+        )
+        for step, row in enumerate(rows, 1)
+    }
+    analysis = threshold_analysis_stage(threshold, rows, points, residuals, spreads)
     peak = max(analysis["probability_above"]) if analysis["probability_above"] else 0.0
     return {"risk": analysis, "peak_step_probability": peak,
             "support": SupportAssessment(

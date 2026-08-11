@@ -69,6 +69,11 @@ def write_artifact(
         # ships as a column rather than being left for the reader to derive.
         if "point_bias_correction" in present:
             extra.append("point_bias_correction")
+        # The unstrippable label: every published row names its tier, in
+        # the CSV exactly as in the payload. Uniform forecasts repeat one
+        # value; a horizon split changes it at the split point.
+        if "tier" in present:
+            extra.append("tier")
         if write_forecast_csv:
             with (temporary / "forecast.csv").open("w", encoding="utf-8", newline="") as handle:
                 writer = csv.DictWriter(handle, fieldnames=core + extra)
@@ -76,7 +81,11 @@ def write_artifact(
                 for result in artifact.results:
                     for row in result.forecast:
                         writer.writerow({"series": result.series, **row})
-        lines = [f"# Forecast {artifact.forecast_id}", ""]
+        from .support import artifact_headline
+        # The headline is the summary's first line: the one deterministic
+        # sentence naming the weakest tier present, safe to relay verbatim.
+        lines = [artifact_headline(artifact.results), "",
+                 f"# Forecast {artifact.forecast_id}", ""]
         for result in artifact.results:
             lines.extend([
                 f"## {result.series}", "",

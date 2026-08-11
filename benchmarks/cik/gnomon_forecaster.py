@@ -92,20 +92,62 @@ Additionally, when the context STATES a numeric bound on future values, or
 a deterministic state for a future window, you may propose these typed
 events (same JSON objects, two extra fields):
 
-- Constraint (a stated bound such as "between 0 and 340" or "will not
-  exceed X"): set "event_type" to "constraint:<label>" and add
-  "source_span": "<the sentence from the context, quoted VERBATIM, that
-  states the bound>". Date it over the forecast window only.
-- Deterministic override (a stated state such as "offline", "closed", or
-  "output drops to 0" for a stated window): set "event_type" to
+- Constraint (a stated bound such as "between 0 and 340", "will not
+  exceed X", "the maximal fan speed is 3000 rpm", or a stated multiple
+  like "will not exceed 3 times the usual level"): set "event_type" to
+  "constraint:<label>" and add "source_span": "<the sentence from the
+  context, quoted VERBATIM, that states the bound>". Date it over the
+  forecast window only. A bound the history breaches is fine — an
+  announced cap is informative precisely then.
+- Deterministic override (a stated state such as "offline", "closed",
+  "output drops to 0", or a stated multiple like "4 times the usual
+  withdrawals" for a stated window): set "event_type" to
   "override:<label>" and add "source_span": "<the verbatim sentence
-  stating the state or value>". Date it over exactly the stated window.
+  stating the state, value, or multiple>". Date it over exactly the
+  stated window.
 
 The engine re-parses every number from your quoted span with a
 deterministic parser and rejects any span that does not literally state
-the bound or value, any span that does not appear in the context, and any
-bound the recent history already violates. Never paraphrase inside
-source_span, and never put numbers you computed yourself anywhere.
+the bound, value, or multiple, and any span that does not appear in the
+context. A stated multiple of the "usual" level is resolved by the
+engine against the recent history's median — never estimate the result
+yourself. Never paraphrase inside source_span, and never put numbers you
+computed yourself anywhere.
+
+Only quote spans that describe THE VARIABLE BEING FORECAST. A span
+stating a covariate's value ("the covariate X_0 takes a value of ...")
+is rejected by the engine: applying it would override the wrong series.
+"""
+
+STRUCTURAL_EVENT_INSTRUCTIONS = """\
+
+Additionally, when the context STATES a structural fact about the
+series' own behaviour — a cessation, or a dated qualitative state that
+names which part of the observed history the future will resemble —
+you may propose a structural event (same JSON object, two extra
+fields): set "event_type" to "structural:<label>", add "source_span":
+"<the verbatim sentence>", and add "effect" from this exact menu:
+
+- "trend_ceases" — the observed drift stops continuing (e.g. a
+  repaired sensor's spurious trend). The engine removes its own
+  forecast's fitted drift.
+- "level_matches_seasonal_high" — the context states the series enters
+  its high regime for a dated window (e.g. "the weather will become
+  clear" for solar output, full production resumes). The engine moves
+  covered steps onto the per-phase HIGH envelope of the observed
+  history.
+- "level_matches_seasonal_low" — the stated low regime (e.g. overcast
+  or rain suppressing output, curtailed operation). Per-phase LOW
+  envelope, same construction.
+
+You supply no number, ever — the engine computes every applied value
+from its own data. Date the event over exactly the stated window.
+
+Use a structural event only for stated facts about behaviour visible
+in the history. A stated numeric bound is a constraint; a stated
+numeric level is an override; "assume nothing unusual happens" needs
+no event at all; a state the history never exhibited cannot be
+resolved and will be rejected.
 """
 
 
@@ -248,6 +290,11 @@ def events_from_proposals(
                 continue
             else:
                 attributes["source_span"] = span.strip()
+        effect = raw.get("effect")
+        if isinstance(effect, str) and effect.strip():
+            # Passed through for the structural class; the engine's closed
+            # menu is the validator, not this adapter.
+            attributes["effect"] = effect.strip()
         event = ContextEvent(
             event_id=f"cik-{task_name}-evt{number}",
             event_type=str(raw.get("event_type", "")).strip() or "context_event",
@@ -296,6 +343,7 @@ class GnomonForecaster:
         temperature: float = 1.0,
         work_dir: str | None = None,
         future_context: bool = False,
+        structural_context: bool = False,
     ) -> None:
         if mode not in ("pure", "agent"):
             raise ValueError("mode must be 'pure' or 'agent'")
@@ -306,9 +354,16 @@ class GnomonForecaster:
                 "future_context only makes sense with mode='agent': there is "
                 "no proposer to quote spans in pure mode"
             )
+        if structural_context and not future_context:
+            raise ValueError(
+                "structural_context rides on the future-context lane; enable "
+                "future_context with it"
+            )
         self.mode = mode
         self.openrouter_model = openrouter_model
+        self.temperature = temperature
         self.future_context = future_context
+        self.structural_context = structural_context
         self.client = (
             OpenRouterClient(openrouter_model, temperature=temperature)
             if mode == "agent"
@@ -321,6 +376,16 @@ class GnomonForecaster:
     def cache_name(self) -> str:
         model = (self.openrouter_model or "none").replace("/", "-")
         suffix = "_future=on" if self.future_context else ""
+        if self.structural_context:
+            suffix += "_structural=on"
+        if self.mode == "agent":
+            # Temperature changes the proposer's generations, so it is part
+            # of what a cached result is a result *of*. It was missing —
+            # the official cache reuses entries by this name, so two agent
+            # runs at different temperatures silently shared results.
+            # Irrelevant in pure mode (no LLM), so pure cache names are
+            # unchanged.
+            suffix += f"_temperature={self.temperature:g}"
         return f"GnomonForecaster_mode={self.mode}_model={model}{suffix}"
 
     def __str__(self) -> str:
@@ -356,6 +421,7 @@ class GnomonForecaster:
 
             config = GnomonConfig()
             config.context.future_events = True
+            config.context.structural_events = self.structural_context
         try:
             artifact, _ = gnomon_forecast(
                 str(csv_path),
@@ -365,6 +431,10 @@ class GnomonForecaster:
                 output=str(run_dir / "gnomon-output"),
                 context_events=events or None,
                 config=config,
+                # Pin the pre-graduated condition: the benchmark's
+                # abstention accounting must not drift with the engine's
+                # new best_effort default floor.
+                minimum_support="conditionally_supported",
             )
         except GnomonError as error:
             raise GnomonAbstained([f"{error.code}: {error.message}"]) from error
@@ -444,6 +514,8 @@ class GnomonForecaster:
         )
         if self.future_context:
             instructions += FUTURE_EVENT_INSTRUCTIONS
+        if self.structural_context:
+            instructions += STRUCTURAL_EVENT_INSTRUCTIONS
         prompt = (
             f"{instructions}\n"
             f"History window: {timestamps[0]} to {timestamps[-1]} "

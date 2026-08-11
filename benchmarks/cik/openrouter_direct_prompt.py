@@ -62,16 +62,24 @@ class OpenRouterDirectPrompt(DirectPrompt):
             **kwargs,
         )
 
-    def get_client(self):
-        def client(model, messages, n=1, max_tokens=10000, temperature=None):
-            return self._client.chat(
-                messages,
-                n=n,
-                max_tokens=max_tokens,
-                temperature=temperature,
-            )
+    def _call(self, model, messages, n=1, max_tokens=10000, temperature=None):
+        return self._client.chat(
+            messages,
+            n=n,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
 
-        return client
+    def get_client(self):
+        # A bound method, not a closure. ``DirectPrompt.__init__`` assigns
+        # this to ``self.client``, and ``evaluate_all_tasks`` pickles the
+        # baseline to reach its worker pool — a local function is
+        # unpicklable, so any ``--max-parallel > 1`` control run died at
+        # launch with "Can't pickle local object". Signature and call path
+        # are unchanged (``inspect.signature`` drops ``self``, so
+        # DirectPrompt's ``future_timestamps`` probe still takes the same
+        # branch); only the object's picklability differs.
+        return self._call
 
     @property
     def usage_summary(self):

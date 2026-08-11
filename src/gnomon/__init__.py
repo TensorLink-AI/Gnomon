@@ -31,4 +31,4 @@ __all__ = [
     "TemporalStore",
     "TrackingStore",
 ]
-__version__ = "0.5.0"
+from .versioning import RUNTIME_VERSION as __version__  # noqa: E402

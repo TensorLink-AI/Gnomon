@@ -43,6 +43,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from benchmarks.common.manifest import write_manifest  # noqa: E402
 from benchmarks.common.openrouter import OpenRouterClient  # noqa: E402
 from benchmarks.common.records import RecordWriter, RunRecord  # noqa: E402
 from benchmarks.timesage_mt import harness, scoring  # noqa: E402
@@ -240,6 +241,20 @@ def main() -> int:
     }
     (output_dir / "summary.json").write_text(
         json.dumps(summary, indent=2) + "\n", encoding="utf-8"
+    )
+    # Provenance beside the results on direct CLI runs too: without it a
+    # comparison of two timesage arms could only ever be "assumed
+    # comparable" — report.py had no manifest to check.
+    write_manifest(
+        output_dir,
+        benchmark="timesage-mt",
+        condition=args.condition,
+        model=args.model,
+        target="tiers=" + ",".join(tiers or TIERS),
+        command=" ".join(sys.argv),
+        limit=args.limit,
+        judge_model=args.judge_model,
+        base_url=client.base_url,
     )
     print(json.dumps(summary, indent=2))
     return 0

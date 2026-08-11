@@ -18,11 +18,17 @@ verifiability**:
   that is applied;
 - a deterministic parser re-extracts every number from the span, and a
   span that does not literally state the claimed bound or value is
-  rejected;
-- for constraint events, the recent observed history must not already
-  violate the claimed bound — a bound the series demonstrably breaches
-  is describing a different quantity, or is wrong, and either way the
-  claim is suspect;
+  rejected. A span may state its number as a multiple of a baseline
+  ("4 times the usual withdrawals"): the multiplier is the span's, and
+  the baseline is resolved deterministically as the recent-window
+  median, with the arithmetic disclosed — still no model-supplied
+  number anywhere;
+- for constraint events, recent history's relation to the bound is
+  recorded as disclosure, never used to reject: the effective window is
+  guaranteed to lie entirely after the observed history, so past
+  breaches carry no evidence against a forward-scoped claim — an
+  announced cap is informative precisely when history breaches it, and
+  a bound history already respects changes nothing;
 - the event's effective window must lie entirely after the observed
   window. An event that overlaps history *can* be fold-tested, so it
   belongs to the ablation gate, and a fold-tested failure stays
@@ -51,8 +57,8 @@ What this lane deliberately does **not** verify is the span's provenance:
 Gnomon never sees the source document, so whether the quoted span
 actually appears in it is the calling harness's check (the CiK adapter
 performs it). What Gnomon guarantees is that every number it applies is
-stated by the span it was handed, is internally consistent, and does not
-contradict the recent history.
+stated by the span it was handed and is internally consistent, with its
+relation to recent history disclosed in the assessment.
 
 A forecast influenced by this lane is disclosed three ways: its support
 drops to ``context_trusted`` (weaker than any fold-backed state), the
@@ -75,6 +81,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from statistics import median
+
 from .constraints import Claim, _align, _assert_monotone, apply_claims
 from .context import ContextEvent, event_applies
 
@@ -84,11 +92,32 @@ from .context import ContextEvent, event_applies
 #: one reads ``source_span``.
 CONSTRAINT_PREFIX = "constraint:"
 OVERRIDE_PREFIX = "override:"
+STRUCTURAL_PREFIX = "structural:"
 
 #: Reserved keys inside ``ContextEvent.attributes``.
 SOURCE_SPAN_KEY = "source_span"
 CLAIMED_BOUND_KEY = "claimed_bound"
 CLAIMED_VALUE_KEY = "claimed_value"
+EFFECT_KEY = "effect"
+
+#: The closed menu of structural effects an LLM may classify a span
+#: into (results/structural-effects/HYPOTHESIS.md). Classification is
+#: delegated; numbers never are: every quantity a structural effect
+#: applies is derived from Gnomon's own emitted path. One entry per
+#: measured instance of the class — the menu grows by census evidence,
+#: not by anticipation.
+STRUCTURAL_EFFECTS = (
+    "trend_ceases",
+    "level_matches_seasonal_high",
+    "level_matches_seasonal_low",
+)
+
+#: The per-phase envelope quantile each regime effect resolves against
+#: the observed history (results/seasonal-regime-effects/HYPOTHESIS.md).
+REGIME_EFFECT_QUANTILES = {
+    "level_matches_seasonal_high": 0.9,
+    "level_matches_seasonal_low": 0.1,
+}
 
 #: Support state for a forecast this lane influenced: trusted text, not
 #: fold proof. Deliberately weaker than every fold-backed state.
@@ -177,6 +206,65 @@ _NEGATED_MAX_PATTERNS = [
     rf"(?:more|greater|higher|larger)\s+than)\s+({_N}){_AFTER_NUMBER}",
 ]
 
+#: A span that says outright it describes a *different* quantity than
+#: the one being forecast. Parsing a number says nothing about what the
+#: number refers to: "the covariate X_0 takes a value of 0.0553" parses
+#: perfectly and must never override the forecast target — measured as
+#: the largest single regression in the 2026-08 paired spot-checks
+#: (an admitted covariate value applied to the target, 1000× worse than
+#: control, disclosed as context_trusted). Curated and deterministic:
+#: only wording that names the foreign referent explicitly; spans about
+#: other variables that do not say so remain the proposer's
+#: entity-scope responsibility.
+_FOREIGN_REFERENT = re.compile(
+    r"\bcovariates?\b|\bexogenous\b|\bregressors?\b|\binput\s+variables?\b",
+    re.IGNORECASE,
+)
+
+#: Baseline words a relative multiple may reference. The multiplier is
+#: the text's number; the level it scales is resolved deterministically
+#: at admission time (the recent-window median) and disclosed — a model
+#: never estimates it.
+_BASELINE = r"(?:usual|normal|typical|average|baseline)"
+
+#: A stated multiple or percentage of a baseline: "<N> times the (number
+#: of) usual <thing>", "<N>% of the usual <thing>". Exactly one of the
+#: named groups matches; ``_scale_from`` turns either into a multiplier
+#: (percent divides by 100). Percent is admissible here — unlike the
+#: bare "90% of capacity" the number guard refuses — because the base is
+#: stated: it is the usual level, which admission resolves
+#: deterministically.
+_SCALED_BASELINE = (
+    rf"(?:(?P<times>{_N}){_AFTER_NUMBER}\s*(?:times|x|×)\s+|"
+    rf"(?P<pct>{_N})\s*(?:%|percent\b|pct\b)\s+of\s+)"
+    rf"(?:the\s+|its\s+|their\s+)?(?:[\w-]+\s+){{0,4}}?{_BASELINE}\b"
+)
+
+
+def _scale_from(match: re.Match) -> float:
+    groups = match.groupdict()
+    if groups.get("pct") is not None:
+        return _to_float(groups["pct"]) / 100.0
+    return _to_float(groups["times"])
+
+#: Directional multiples-of-baseline. These must be matched BEFORE the
+#: absolute patterns: "will not exceed 3 times the usual level" contains
+#: "not exceed 3", which the absolute negated pattern would happily read
+#: as an absolute ceiling of 3 — off from the truth by the whole
+#: baseline. Region consumption makes the order load-bearing.
+_MAX_SCALE_PATTERNS = [
+    rf"{_NEGATION}\s+(?:\w+\s+){{0,2}}(?:exceed(?:s|ing)?|surpass(?:es|ing)?|"
+    rf"(?:more|greater|higher|larger)\s+than)\s+{_SCALED_BASELINE}",
+    rf"(?:at\s+most|no\s+more\s+than|up\s+to|as\s+(?:high|much)\s+as)\s+{_SCALED_BASELINE}",
+    rf"(?:stays?|stay(?:ing)?|remains?|remain(?:ing)?|kept?|keeps?)\s+(?:below|under)\s+{_SCALED_BASELINE}",
+]
+
+_MIN_SCALE_PATTERNS = [
+    rf"{_NEGATION}\s+(?:\w+\s+){{0,2}}(?:below|(?:less|lower|smaller|fewer)\s+than)\s+{_SCALED_BASELINE}",
+    rf"(?:at\s+least|no\s+less\s+than)\s+{_SCALED_BASELINE}",
+    rf"(?:stays?|stay(?:ing)?|remains?|remain(?:ing)?)\s+above\s+{_SCALED_BASELINE}",
+]
+
 _MAX_PATTERNS = [
     # CiK's constraint tasks state bounds in exactly this voice.
     rf"bounded\s+(?:above|from\s+above)\s+by\s+({_N}){_AFTER_NUMBER}",
@@ -190,7 +278,16 @@ _MAX_PATTERNS = [
     rf"(?<!drop\s)(?<!drops\s)(?<!fall\s)(?<!falls\s)(?<!dip\s)(?<!dips\s)"
     rf"(?<!go\s)(?<!goes\s)(?<!went\s)(?<!sink\s)(?<!sinks\s)(?<!not\s)"
     rf"(?:below|under|less\s+than)\s+({_N}){_AFTER_NUMBER}",
-    rf"(?:capped?\s+at|cap\s+of|ceiling\s+of|a?\s*maximum\s+(?:value\s+)?of|max(?:imum)?\s+of)\s+({_N}){_AFTER_NUMBER}",
+    # "a maximum speed of 3000 rpm" — up to three words may name the
+    # bounded quantity between the superlative and "of".
+    rf"(?:capped?\s+at|cap\s+of|ceiling\s+of|a?\s*max(?:imum|imal)?\s+(?:[\w-]+\s+){{0,3}}?of)\s+({_N}){_AFTER_NUMBER}",
+    # Attributive: "the maximal fan speed is 3000 rpm". The superlative
+    # names the bounded quantity and the copula states the number; a
+    # trailing unit is fine (the number guard only refuses percent and
+    # date/clock suffixes). Present/future forms only — "the maximum
+    # yesterday was 200" describes history, not a bound.
+    rf"(?:maximal|maximum|max|peak|highest(?:\s+possible)?)\s+"
+    rf"(?:[\w-]+\s+){{0,4}}?(?:is|are|will\s+be|=|:)\s*({_N}){_AFTER_NUMBER}",
     rf"(?:<=|≤)\s*({_N}){_AFTER_NUMBER}",
 ]
 
@@ -206,7 +303,10 @@ _MIN_PATTERNS = [
     rf"(?<!jump\s)(?<!jumps\s)(?<!spike\s)(?<!spikes\s)"
     rf"(?<!go\s)(?<!goes\s)(?<!went\s)(?<!not\s)"
     rf"(?:above|over|more\s+than|greater\s+than)\s+({_N}){_AFTER_NUMBER}",
-    rf"(?:a?\s*minimum\s+(?:value\s+)?of|min(?:imum)?\s+of|floor\s+of)\s+({_N}){_AFTER_NUMBER}",
+    rf"(?:a?\s*min(?:imum|imal)?\s+(?:[\w-]+\s+){{0,3}}?of|floor\s+of)\s+({_N}){_AFTER_NUMBER}",
+    # Attributive: "the minimal operating pressure is 12 Pa".
+    rf"(?:minimal|minimum|min|lowest(?:\s+possible)?)\s+"
+    rf"(?:[\w-]+\s+){{0,4}}?(?:is|are|will\s+be|=|:)\s*({_N}){_AFTER_NUMBER}",
     rf"(?:>=|≥)\s*({_N}){_AFTER_NUMBER}",
 ]
 
@@ -223,6 +323,13 @@ _NON_NEGATIVE = re.compile(
 class ParsedBound:
     minimum: float | None
     maximum: float | None
+    #: Multiples of a baseline the span references but does not state
+    #: numerically ("will not exceed 3 times the usual level"). The
+    #: multiplier is the span's; admission resolves the baseline
+    #: deterministically (recent-window median) and discloses the
+    #: arithmetic before anything is applied.
+    minimum_scale: float | None = None
+    maximum_scale: float | None = None
 
 
 def parse_bound_span(span: str) -> tuple[ParsedBound | None, str | None]:
@@ -262,6 +369,19 @@ def parse_bound_span(span: str) -> tuple[ParsedBound | None, str | None]:
         minimum, maximum = sorted(
             (_to_float(range_match.group(1)), _to_float(range_match.group(2)))
         )
+    # Scaled bounds consume their region before the absolute patterns
+    # run: "will not exceed 3 times the usual level" must never be read
+    # as an absolute ceiling of 3.
+    maximum_scale: float | None = None
+    minimum_scale: float | None = None
+    if maximum is None:
+        scale_match = first_match(_MAX_SCALE_PATTERNS)
+        if scale_match:
+            maximum_scale = _scale_from(scale_match)
+    if minimum is None:
+        scale_match = first_match(_MIN_SCALE_PATTERNS)
+        if scale_match:
+            minimum_scale = _scale_from(scale_match)
     negated_min = first_match(_NEGATED_MIN_PATTERNS) if minimum is None else None
     if negated_min:
         minimum = _to_float(negated_min.group(1))
@@ -286,14 +406,15 @@ def parse_bound_span(span: str) -> tuple[ParsedBound | None, str | None]:
         # reading (0, not "some epsilon above 0") is the only one with a
         # stated number in it.
         minimum = 0.0
-    if minimum is None and maximum is None:
+    if minimum is None and maximum is None \
+            and minimum_scale is None and maximum_scale is None:
         return None, "the source span does not state a parseable bound"
     if minimum is not None and maximum is not None and minimum > maximum:
         return None, (
             f"the parsed bound is empty: minimum {minimum} exceeds "
             f"maximum {maximum}"
         )
-    return ParsedBound(minimum, maximum), None
+    return ParsedBound(minimum, maximum, minimum_scale, maximum_scale), None
 
 
 #: Words that state a zero state without a digit. Deliberately short:
@@ -302,7 +423,14 @@ def parse_bound_span(span: str) -> tuple[ParsedBound | None, str | None]:
 _ZERO_STATES = re.compile(
     r"\b(?:offline|closed|closes|closing|shut\s*down|shuts\s*down|halted|"
     r"halts|halt|stopped|stops|suspended|suspends|out\s+of\s+service|"
-    r"no\s+(?:production|output|traffic|flow|generation)|zero)\b",
+    # "no <activity>" states a count of zero. Still a curated noun list,
+    # never a bare "no \w+": "no change" or "no increase" state that the
+    # level is unchanged, which is not a value of 0. The 2026-08 census
+    # caught "no withdrawals" slipping through the shorter list.
+    r"no\s+(?:production|output|traffic|flow|generation|withdrawals?|"
+    r"transactions?|sales|arrivals?|departures?|rides?|trips?|requests?|"
+    r"visitors?|customers?|passengers?|calls?|orders?|deliveries|"
+    r"operations?|activity|usage|demand|consumption)|zero)\b",
     re.IGNORECASE,
 )
 
@@ -320,6 +448,27 @@ _OVERRIDE_VALUE_PATTERNS = [
     # correctly means the value is 0 inside the stated window.
     rf"(?:closes?|closing|stops?|stopping|halts?|halting|settles?|settling|"
     rf"holds?|holding)\s+at\s+({_N}){_AFTER_NUMBER}",
+    # A stated level change: "it rapidly and smoothly changes to 1593.0".
+    # The sensor task families narrate interventions in exactly this
+    # voice; the number after the movement verb is the stated new level.
+    rf"(?:changes?|changing|shifts?|shifting|switches?|switching|jumps?|"
+    rf"jumping|moves?|moving|rises?|rising|climbs?|climbing)\s+to\s+"
+    rf"({_N}){_AFTER_NUMBER}",
+    # A quoted (timestamp, value) pair — contexts state future points
+    # verbatim as tuples; the trailing number is the stated value.
+    rf"\(\s*\d{{4}}-\d{{2}}-\d{{2}}[^,()]*,\s*({_N}){_AFTER_NUMBER}\s*\)",
+    # "takes a value of 0.2051 from 2028-04-23 to 2028-05-05" — the
+    # covariate-narration voice. The parser only vouches that the span
+    # states the number; whether the event points at the right series
+    # is the proposer's entity_scope, as with every other pattern.
+    rf"(?:takes?|taking|assumes?|assuming)\s+(?:on\s+)?(?:a\s+|the\s+)?"
+    rf"(?:constant\s+)?value\s+of\s+({_N}){_AFTER_NUMBER}",
+    # A bare value with a stated window: "0.2 from 05:34:29 until
+    # 05:34:46". The window rides on the event's effective dates; only
+    # the level is read here. "by 5 from Monday" is a delta, not a
+    # level, and the lookbehind keeps it out.
+    rf"(?<!by\s)({_N}){_AFTER_NUMBER}\s+(?:from|between|starting\s+at)\s+"
+    rf"(?:\d{{4}}-\d{{2}}-\d{{2}}|\d{{1,2}}:\d{{2}})",
 ]
 
 
@@ -355,6 +504,28 @@ def parse_override_span(span: str) -> tuple[float | None, str | None]:
     )
 
 
+def parse_override_scale(span: str) -> tuple[float | None, str | None]:
+    """Extract a stated multiple-of-baseline level for an override window.
+
+    "4 times the number of usual withdrawals" states a level as a
+    multiple; "10.0% of the usual traffic" states the same thing in
+    percent notation (the base is stated — it is the usual level — so
+    the bare-percent refusal does not apply). Either way the multiplier
+    is the span's number; the baseline it scales is resolved
+    deterministically at admission (the recent-window median) and the
+    arithmetic is disclosed. A model still never supplies a number that
+    is applied.
+    """
+    text = " ".join(str(span).split())
+    match = re.search(_SCALED_BASELINE, text, re.IGNORECASE)
+    if match:
+        return _scale_from(match), None
+    return None, (
+        "the source span does not state a multiple or percentage of a "
+        "usual/normal/typical level"
+    )
+
+
 # --------------------------------------------------------------------------
 # Admission
 # --------------------------------------------------------------------------
@@ -364,13 +535,19 @@ class FutureEvent:
     """One admitted event, with every number the lane will apply."""
 
     event_id: str
-    event_class: str  # "constraint" | "override"
+    event_class: str  # "constraint" | "override" | "structural"
     effective_start: str
     effective_end: str
     source_span: str
     minimum: float | None = None
     maximum: float | None = None
     value: float | None = None
+    effect: str | None = None
+    #: Regime effects only: the engine-resolved per-future-step target
+    #: levels (per-phase envelope quantiles of the observed history),
+    #: aligned to the forecast grid. Resolved at admission, like scaled
+    #: bounds, so the application stage touches no history.
+    levels: tuple[float, ...] | None = None
 
     def to_public_dict(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -383,6 +560,10 @@ class FutureEvent:
         if self.event_class == "constraint":
             payload["minimum"] = self.minimum
             payload["maximum"] = self.maximum
+        elif self.event_class == "structural":
+            payload["effect"] = self.effect
+            if self.levels is not None:
+                payload["resolved_levels"] = list(self.levels)
         else:
             payload["value"] = self.value
         return payload
@@ -398,24 +579,46 @@ class FutureContextAssessment:
     checks: list[dict[str, Any]] = field(default_factory=list)
 
     def record_check(self, event: ContextEvent, event_class: str, code: str,
-                     passed: bool, *, detail: str | None = None) -> None:
+                     passed: bool, *, detail: str | None = None,
+                     source_span: str | None = None,
+                     data: dict[str, Any] | None = None) -> None:
         entry: dict[str, Any] = {
             "event_id": event.event_id, "event_class": event_class,
             "code": code, "passed": passed,
         }
         if detail:
             entry["detail"] = detail
+        if source_span:
+            # The span that failed rides with the verdict. Without it a
+            # rejection cannot be classified afterwards (parser too
+            # narrow, or claim genuinely non-numeric?) and the proposer
+            # cannot see which quote to repair — 176 of 220 measured
+            # rejections were unclassifiable for exactly this reason.
+            entry["source_span"] = source_span
+        if data:
+            # The quantities the check compared, machine-readable. Same
+            # lesson as source_span: a census over 355 runs found 50
+            # window_is_future_only rejections that could not be told
+            # apart (proposer misdating vs boundary artifact vs timezone
+            # reading) because the record kept only prose.
+            entry["data"] = data
         self.checks.append(entry)
         if not passed:
-            self.rejected.append({
+            rejection: dict[str, Any] = {
                 "event_id": event.event_id, "event_class": event_class,
                 "code": code, "reason": detail or code,
-            })
+            }
+            if source_span:
+                rejection["source_span"] = source_span
+            if data:
+                rejection["data"] = data
+            self.rejected.append(rejection)
 
     def class_counts(self) -> dict[str, dict[str, int]]:
         counts = {
             "constraint": {"admitted": 0, "rejected": 0},
             "override": {"admitted": 0, "rejected": 0},
+            "structural": {"admitted": 0, "rejected": 0},
         }
         for item in self.admitted:
             counts[item.event_class]["admitted"] += 1
@@ -433,9 +636,11 @@ class FutureContextAssessment:
             "by_class": self.class_counts(),
             "admission_basis": (
                 "textual verifiability: numbers re-parsed from the quoted "
-                "source span, never taken from the proposal; recent history "
-                "checked for consistency; fold ablation deliberately not "
-                "applicable — these windows have no historical precedent"
+                "source span, never taken from the proposal; recent "
+                "history's relation to a claimed bound disclosed, never "
+                "used to reject a forward-scoped claim; fold ablation "
+                "deliberately not applicable — these windows have no "
+                "historical precedent"
             ),
         }
 
@@ -445,6 +650,8 @@ def _classify(event: ContextEvent) -> str | None:
         return "constraint"
     if event.event_type.startswith(OVERRIDE_PREFIX):
         return "override"
+    if event.event_type.startswith(STRUCTURAL_PREFIX):
+        return "structural"
     return None
 
 
@@ -466,6 +673,9 @@ def assess_future_events(
     timestamps: list[datetime],
     future_timestamps: list[datetime],
     season: int,
+    *,
+    allow_future: bool = True,
+    allow_structural: bool = True,
 ) -> FutureContextAssessment:
     """Run every namespaced event through the lane's admission checks.
 
@@ -485,6 +695,13 @@ def assess_future_events(
         event_class = _classify(event)
         if event_class is None or not event_applies(event, series_name):
             continue
+        # A class whose flag is off is ignored exactly as an unclassified
+        # event is — no record, no rejection — so flag-off behaviour is
+        # byte-identical to the class never having existed.
+        if event_class == "structural" and not allow_structural:
+            continue
+        if event_class in ("constraint", "override") and not allow_future:
+            continue
         assessment.considered = True
 
         window = _parse_window(event)
@@ -494,7 +711,7 @@ def assess_future_events(
                 detail="effective_start/effective_end do not form a window",
             )
             continue
-        start, _ = window
+        start, end = window
 
         # The lane is for the structurally untestable only. A window that
         # touches the observed history could be fold-tested, so it goes to
@@ -503,6 +720,7 @@ def assess_future_events(
         # fallback.
         aligned_start, aligned_last = _align(start, last_observed)
         if aligned_start <= aligned_last:
+            aligned_end, _ = _align(end, last_observed)
             assessment.record_check(
                 event, event_class, "window_is_future_only", False,
                 detail=(
@@ -510,6 +728,17 @@ def assess_future_events(
                     "is fold-testable; it must go through the ablation gate, "
                     "not this lane"
                 ),
+                data={
+                    "effective_start": event.effective_start,
+                    "effective_end": event.effective_end,
+                    "last_observed": last_observed.isoformat(),
+                    "overlap_seconds": (
+                        aligned_last - aligned_start).total_seconds(),
+                    "window_entirely_historical": aligned_end <= aligned_last,
+                    "mixed_timezone_alignment": (
+                        (start.tzinfo is None) != (last_observed.tzinfo is None)
+                    ),
+                },
             )
             continue
 
@@ -533,12 +762,31 @@ def assess_future_events(
             )
             continue
 
+        if _FOREIGN_REFERENT.search(span):
+            assessment.record_check(
+                event, event_class, "span_describes_the_target", False,
+                detail=(
+                    "the span describes a covariate/exogenous variable, "
+                    "not the forecast target; a number parsed from it "
+                    "would be applied to the wrong series. Supply future "
+                    "covariate values through the covariates lane, where "
+                    "they are admitted by leakage-safe ablation."
+                ),
+                source_span=span,
+            )
+            continue
+
         if event_class == "constraint":
             admitted = _admit_constraint(
                 assessment, event, span, window_values, window_timestamps,
             )
+        elif event_class == "structural":
+            admitted = _admit_structural(
+                assessment, event, span, values=values, season=season,
+                future_count=len(future_timestamps),
+            )
         else:
-            admitted = _admit_override(assessment, event, span)
+            admitted = _admit_override(assessment, event, span, window_values)
         if admitted is not None:
             assessment.admitted.append(admitted)
 
@@ -664,6 +912,81 @@ def _claimed_number(raw: Any) -> float | None:
         return None
 
 
+def _usual_level(recent_values: list[float]) -> float | None:
+    """The deterministic reading of "the usual level": the recent-window
+    median — robust to the excursions that usually motivate the claim,
+    and the same window every other admission check reads."""
+    if not recent_values:
+        return None
+    return float(median(recent_values))
+
+
+def _resolve_scaled_bound(
+    assessment: FutureContextAssessment,
+    event: ContextEvent,
+    span: str,
+    bound: ParsedBound,
+    recent_values: list[float],
+) -> tuple[ParsedBound | None, dict[str, float]]:
+    """Turn a multiple-of-baseline bound into absolute numbers, disclosed.
+
+    Returns the absolute bound and, per side, the span's multiplier (so
+    a claimed_bound cross-check can accept either faithful reading). A
+    bound with no scaled side passes through untouched.
+    """
+    if bound.minimum_scale is None and bound.maximum_scale is None:
+        return bound, {}
+    baseline = _usual_level(recent_values)
+    if baseline is None or baseline <= 0:
+        described = "absent" if baseline is None else f"{baseline:g}"
+        assessment.record_check(
+            event, "constraint", "baseline_resolvable", False,
+            detail=(
+                f"the span states a multiple of the usual level, but the "
+                f"recent-window median is {described}; scaling a "
+                f"non-positive baseline would invert or degenerate the "
+                f"bound, so the claim is not applied"
+            ),
+            source_span=span,
+        )
+        return None, {}
+    minimum, maximum = bound.minimum, bound.maximum
+    resolved: dict[str, float] = {}
+    arithmetic: list[str] = []
+    if bound.minimum_scale is not None:
+        minimum = bound.minimum_scale * baseline
+        resolved["min"] = bound.minimum_scale
+        arithmetic.append(
+            f"min = {bound.minimum_scale:g} × {baseline:g} = {minimum:g}")
+    if bound.maximum_scale is not None:
+        maximum = bound.maximum_scale * baseline
+        resolved["max"] = bound.maximum_scale
+        arithmetic.append(
+            f"max = {bound.maximum_scale:g} × {baseline:g} = {maximum:g}")
+    if minimum is not None and maximum is not None and minimum > maximum:
+        assessment.record_check(
+            event, "constraint", "baseline_resolvable", False,
+            detail=(
+                f"resolving the span's multiplier against the recent-window "
+                f"median ({baseline:g}) yields an empty bound: minimum "
+                f"{minimum:g} exceeds maximum {maximum:g}"
+            ),
+            source_span=span,
+        )
+        return None, {}
+    assessment.record_check(
+        event, "constraint", "relative_bound_resolved", True,
+        detail=(
+            f"the span's multiplier scaled the recent-window median "
+            f"({baseline:g}): {'; '.join(arithmetic)}. The multiplier is "
+            f"the text's; the baseline is Gnomon's statistic, never a "
+            f"model's estimate"
+        ),
+        source_span=span,
+    )
+    return ParsedBound(minimum, maximum), resolved
+
+
 def _admit_constraint(
     assessment: FutureContextAssessment,
     event: ContextEvent,
@@ -674,8 +997,15 @@ def _admit_constraint(
     bound, problem = parse_bound_span(span)
     if bound is None:
         assessment.record_check(
-            event, "constraint", "span_states_the_bound", False, detail=problem,
+            event, "constraint", "span_states_the_bound", False,
+            detail=problem, source_span=span,
         )
+        return None
+
+    bound, resolved = _resolve_scaled_bound(
+        assessment, event, span, bound, recent_values,
+    )
+    if bound is None:
         return None
 
     claimed = (event.attributes or {}).get(CLAIMED_BOUND_KEY)
@@ -684,8 +1014,14 @@ def _admit_constraint(
             if side not in claimed:
                 continue
             claimed_value = _claimed_number(claimed.get(side))
-            if claimed_value is None or parsed_side is None or \
-                    abs(claimed_value - parsed_side) > 1e-9:
+            # For a scaled bound the proposal may faithfully claim either
+            # the resolved value or the span's multiplier; both are the
+            # same reading of the same text.
+            acceptable = [parsed_side, resolved.get(side)]
+            if claimed_value is None or not any(
+                target is not None and abs(claimed_value - target) <= 1e-9
+                for target in acceptable
+            ):
                 assessment.record_check(
                     event, "constraint", "claim_matches_span", False,
                     detail=(
@@ -696,22 +1032,34 @@ def _admit_constraint(
                 )
                 return None
 
-    violations = [
-        timestamp.isoformat()
-        for value, timestamp in zip(recent_values, recent_timestamps)
+    # History's relation to the bound is disclosure, not a gate. The
+    # window_is_future_only check has already guaranteed the window lies
+    # entirely after the observed history, so past breaches are no
+    # evidence against a forward-scoped claim: an announced cap is
+    # informative precisely when history breaches it, and a bound history
+    # already respects changes nothing. Rejecting on breach inverted the
+    # lane — it admitted only the uninformative.
+    breaches = sum(
+        1 for value in recent_values
         if (bound.minimum is not None and value < bound.minimum)
         or (bound.maximum is not None and value > bound.maximum)
-    ][:5]
-    if violations:
-        assessment.record_check(
-            event, "constraint", "recent_history_respects_bound", False,
-            detail=(
-                f"recent history already violates the claimed bound "
-                f"[{bound.minimum}, {bound.maximum}] at {', '.join(violations)}; "
-                f"the claim is suspect and is not applied"
-            ),
+    )
+    if breaches:
+        detail = (
+            f"recent history breaches the claimed bound "
+            f"[{bound.minimum}, {bound.maximum}] at {breaches} of "
+            f"{len(recent_values)} recent points; the window is entirely "
+            f"in the future, so the bound is admitted and expected to bind"
         )
-        return None
+    else:
+        detail = (
+            f"recent history already respects the claimed bound "
+            f"[{bound.minimum}, {bound.maximum}]; admitted, expected to "
+            f"bind weakly if at all"
+        )
+    assessment.record_check(
+        event, "constraint", "history_relation_disclosed", True, detail=detail,
+    )
 
     return FutureEvent(
         event.event_id, "constraint", event.effective_start,
@@ -724,17 +1072,51 @@ def _admit_override(
     assessment: FutureContextAssessment,
     event: ContextEvent,
     span: str,
+    recent_values: list[float],
 ) -> FutureEvent | None:
     value, problem = parse_override_span(span)
+    scale: float | None = None
+    if value is None:
+        scale, _ = parse_override_scale(span)
+        if scale is not None:
+            baseline = _usual_level(recent_values)
+            if baseline is None or baseline <= 0:
+                described = "absent" if baseline is None else f"{baseline:g}"
+                assessment.record_check(
+                    event, "override", "baseline_resolvable", False,
+                    detail=(
+                        f"the span states a multiple of the usual level, "
+                        f"but the recent-window median is {described}; "
+                        f"scaling a non-positive baseline would invert the "
+                        f"stated level, so the claim is not applied"
+                    ),
+                    source_span=span,
+                )
+                return None
+            value = scale * baseline
+            assessment.record_check(
+                event, "override", "relative_value_resolved", True,
+                detail=(
+                    f"the span's multiplier scaled the recent-window median: "
+                    f"{scale:g} × {baseline:g} = {value:g}. The multiplier "
+                    f"is the text's; the baseline is Gnomon's statistic, "
+                    f"never a model's estimate"
+                ),
+                source_span=span,
+            )
     if value is None:
         assessment.record_check(
-            event, "override", "span_states_the_value", False, detail=problem,
+            event, "override", "span_states_the_value", False,
+            detail=problem, source_span=span,
         )
         return None
     claimed_raw = (event.attributes or {}).get(CLAIMED_VALUE_KEY)
     if claimed_raw is not None:
         claimed = _claimed_number(claimed_raw)
-        if claimed is None or abs(claimed - value) > 1e-9:
+        acceptable = [value] + ([scale] if scale is not None else [])
+        if claimed is None or not any(
+            abs(claimed - target) <= 1e-9 for target in acceptable
+        ):
             assessment.record_check(
                 event, "override", "claim_matches_span", False,
                 detail=(
@@ -750,9 +1132,168 @@ def _admit_override(
     )
 
 
+def _seasonal_envelope(
+    values: list[float], season: int, probability: float,
+) -> list[float] | None:
+    """Per-phase quantile of the observed history; None when the history
+    cannot support a profile (no season, or fewer than two full cycles).
+    Deliberately no fallback to a global quantile: a profile the history
+    cannot support is not resolved from somewhere else."""
+    from .evaluation import quantile
+
+    if season < 2 or len(values) < 2 * season:
+        return None
+    return [
+        float(quantile(values[phase::season], probability))
+        for phase in range(season)
+    ]
+
+
+def _admit_structural(
+    assessment: FutureContextAssessment,
+    event: ContextEvent,
+    span: str,
+    *,
+    values: list[float],
+    season: int,
+    future_count: int,
+) -> FutureEvent | None:
+    """Admit an LLM-classified structural event from the closed menu.
+
+    There is deliberately no span parse here: the class carries no
+    number, and classification — which phrasing of a concept the span
+    is — is exactly what is delegated to the model
+    (results/structural-effects/HYPOTHESIS.md). What stays checkable is
+    checked: the effect must come from the closed menu, and every
+    quantity the effect applies is later derived from Gnomon's own
+    emitted path, never from the proposal.
+    """
+    effect = (event.attributes or {}).get(EFFECT_KEY)
+    if effect not in STRUCTURAL_EFFECTS:
+        assessment.record_check(
+            event, "structural", "effect_supported", False,
+            detail=(
+                f"effect {effect!r} is not in the closed menu "
+                f"({', '.join(STRUCTURAL_EFFECTS)}); a structural event "
+                f"must classify its span into a supported effect"
+            ),
+            source_span=span,
+        )
+        return None
+    levels: tuple[float, ...] | None = None
+    if effect in REGIME_EFFECT_QUANTILES:
+        # Resolved at admission, like scaled bounds: the model named
+        # which part of the history the future resembles; the numbers
+        # are quantiles of the engine's own observed data.
+        profile = _seasonal_envelope(
+            values, season, REGIME_EFFECT_QUANTILES[effect])
+        if profile is None:
+            assessment.record_check(
+                event, "structural", "seasonal_profile_resolvable", False,
+                detail=(
+                    f"a regime effect needs a detected season of at least 2 "
+                    f"and two full observed cycles to resolve the per-phase "
+                    f"envelope (season={season}, observations={len(values)})"
+                ),
+                source_span=span,
+            )
+            return None
+        levels = tuple(
+            profile[(len(values) + step) % season]
+            for step in range(future_count)
+        )
+    return FutureEvent(
+        event.event_id, "structural", event.effective_start,
+        event.effective_end, span, effect=str(effect), levels=levels,
+    )
+
+
 # --------------------------------------------------------------------------
 # Application
 # --------------------------------------------------------------------------
+
+def _path_slope(points: list[float]) -> float:
+    """Least-squares slope of the emitted point path, per step."""
+    n = len(points)
+    if n < 2:
+        return 0.0
+    x_mean = (n - 1) / 2
+    y_mean = sum(points) / n
+    denominator = sum((index - x_mean) ** 2 for index in range(n))
+    if denominator <= 0:
+        return 0.0
+    return sum((index - x_mean) * (point - y_mean)
+               for index, point in enumerate(points)) / denominator
+
+
+def _apply_structural(
+    rows: list[dict[str, Any]],
+    events: list[FutureEvent],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Apply the structural menu; every applied number is engine-derived.
+
+    ``trend_ceases``: the slope is fitted to the path Gnomon already
+    produced — never to the proposal, never to a model's say-so — and
+    each covered step k has slope × (k − k₀) subtracted from its point
+    and every quantile. The first covered step keeps its value
+    (continuity), and a driftless path makes the effect a measured
+    no-op.
+
+    ``level_matches_seasonal_high`` / ``low``: each covered step lands
+    on its phase's envelope level (per-phase q90/q10 of the observed
+    history, resolved at admission). The level *jump* at the window
+    edge is the claimed semantics — a stated regime change, unlike a
+    cessation, is discontinuous by nature.
+
+    Both are pure per-step location shifts: interval widths, quantile
+    ordering, and the point-to-median gap are untouched. Steps already
+    adjusted by one event are skipped by later ones, so overlapping
+    structural events cannot adjust a step twice.
+    """
+    points = [float(row["point"]) for row in rows]
+    slope = _path_slope(points)
+    adjusted = [dict(row) for row in rows]
+    applications: list[dict[str, Any]] = []
+    touched: set[int] = set()
+    for event in events:
+        steps = [index for index in _covered_steps(event, adjusted)
+                 if index not in touched]
+        if not steps:
+            continue
+        first = steps[0]
+        for index in steps:
+            row = adjusted[index]
+            before = {"point": row.get("point")}
+            record: dict[str, Any] = {
+                "event_class": "structural",
+                "event_id": event.event_id,
+                "effect": event.effect,
+                "timestamp": row["timestamp"],
+                "before": before,
+            }
+            if event.effect in REGIME_EFFECT_QUANTILES:
+                # The covered step lands on its phase's envelope level;
+                # quantiles translate with it, so the interval width is
+                # the engine's own, relocated. Levels were resolved at
+                # admission and are aligned to the forecast grid.
+                if event.levels is None or index >= len(event.levels):
+                    continue
+                delta = float(event.levels[index]) - float(row["point"])
+                record["target_level"] = float(event.levels[index])
+            else:
+                # trend_ceases: remove the emitted path's own drift from
+                # the first covered step onward (continuity preserved).
+                delta = -slope * (index - first)
+                record["slope_removed"] = slope
+            row["point"] = float(row["point"]) + delta
+            for _, key in _quantile_keys(row):
+                row[key] = float(row[key]) + delta
+            touched.add(index)
+            record["delta"] = delta
+            applications.append(record)
+            _assert_monotone(row)
+    return adjusted, applications
+
 
 def _covered_steps(event: FutureEvent, rows: list[dict[str, Any]]) -> list[int]:
     claim = Claim(event.event_id, "min", 0.0,
@@ -787,6 +1328,15 @@ def apply_future_events(
     if not admitted or not rows:
         return rows, []
     applications: list[dict[str, Any]] = []
+
+    structural = [event for event in admitted
+                  if event.event_class == "structural"]
+    if structural:
+        # Structural effects reshape the base path first, so a stated
+        # bound still clamps the result and a stated override still
+        # wins inside its window.
+        rows, structural_applications = _apply_structural(rows, structural)
+        applications.extend(structural_applications)
 
     claims: list[Claim] = []
     for event in admitted:

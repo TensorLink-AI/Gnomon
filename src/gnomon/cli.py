@@ -212,11 +212,21 @@ def build_parser() -> argparse.ArgumentParser:
              "when there is too little history for rolling evaluation",
     )
     forecast_parser.add_argument(
+        "--minimum-support", dest="minimum_support",
+        choices=("supported", "conditionally_supported", "best_effort"),
+        default=None,
+        help="Publication floor (default best_effort): the evaluation runs "
+             "exactly as always, and the result is published at the "
+             "highest tier the evidence achieves at or above the floor — "
+             "best_effort always answers with labelled rows unless nothing "
+             "is computable; supported restores the strict refusal with "
+             "typed recovery. No tier gets easier to earn.",
+    )
+    forecast_parser.add_argument(
         "--best-effort", action="store_true",
-        help="When the evaluation abstains for lack of history, still "
-             "publish a clearly labelled naive fallback (support "
-             "best_effort, NO RELIABLE FORECAST warning) instead of empty "
-             "results; the abstention's reasons are preserved verbatim",
+        help="Deprecated: subsumed by --minimum-support best_effort, which "
+             "is now the default; an explicit --minimum-support wins. Kept "
+             "accepted for v0.2 callers.",
     )
     forecast_parser.add_argument(
         "--as-of", dest="as_of",
@@ -295,6 +305,22 @@ def build_parser() -> argparse.ArgumentParser:
     )
     validate_parser.add_argument("--response", required=True)
     validate_parser.add_argument("--file", action="append", required=True, dest="files")
+    preflight_parser = context_commands.add_parser(
+        "preflight",
+        help="Dry-run admission for proposed context events against the data, "
+             "before spending a forecast",
+    )
+    _common_input(preflight_parser)
+    preflight_parser.add_argument("--horizon", type=int, required=True)
+    preflight_parser.add_argument(
+        "--events", dest="events_file", required=True,
+        help="Context-events JSON to preflight (output of `gnomon context "
+             "validate`, or the same shape)",
+    )
+    preflight_parser.add_argument(
+        "--repair", choices=["off", "safe", "aggressive"], default="safe",
+        help="Messy-data handling, matched to what the forecast will use",
+    )
 
     investigate_parser = subcommands.add_parser(
         "investigate", help="What changed? Changepoints, regimes, anomalies, ranked explanations"
@@ -410,7 +436,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     mcp_parser = subcommands.add_parser("mcp", help="Model Context Protocol server")
     mcp_commands = mcp_parser.add_subparsers(dest="mcp_command", required=True)
-    mcp_commands.add_parser("serve", help="Serve Gnomon tools over stdio MCP")
+    mcp_serve = mcp_commands.add_parser(
+        "serve", help="Serve Gnomon tools over stdio MCP"
+    )
+    mcp_serve.add_argument(
+        "--profile", choices=("core", "decision", "data", "full"),
+        default=None,
+        help="Tool subset to expose (default full): core = the five "
+             "analytical verbs plus inspection and artifact reads; "
+             "decision adds decide/monitor/route/status/resolve_outcome; "
+             "data adds ingest/list_datasets/submit_actuals. "
+             "`gnomon capabilities` reports the active profile.",
+    )
 
     tsfm_parser = subcommands.add_parser(
         "tsfm", help="Manage TSFM sandbox environments (isolated venvs per model)"
@@ -692,26 +729,11 @@ def _read_documents(paths: list[str]):
 
 
 def _disclose_assumptions(payload, assumptions: list[str]):
-    """Attach CLI-level inferences to every result's support assessment.
+    """CLI-level inferences ride in the support assessment; one definition,
+    shared with the tool surface, which infers the same way."""
+    from .toolspec import disclose_assumptions
 
-    An inference the caller is not told about is a guess. These ride in the
-    same `assumptions` list as `known_time_assumed`, so an agent reading the
-    envelope finds them where it already looks.
-    """
-    if not assumptions or not isinstance(payload, dict):
-        return payload
-    results = payload.get("results")
-    if not isinstance(results, list) or not results:
-        return {**payload, "assumptions": assumptions}
-    decorated = []
-    for result in results:
-        if not isinstance(result, dict):
-            decorated.append(result)
-            continue
-        assessment = dict(result.get("support_assessment") or {})
-        assessment["assumptions"] = list(assessment.get("assumptions", [])) + assumptions
-        decorated.append({**result, "support_assessment": assessment})
-    return {**payload, "results": decorated}
+    return disclose_assumptions(payload, assumptions)
 
 
 def _default_horizon(args) -> int:
@@ -753,8 +775,11 @@ class _ArgumentError(Exception):
 
 
 #: What an agent guessing a flag name usually means. Lexical distance
-#: cannot recover `--column` -> `--target`; these pairs can.
-_FLAG_SYNONYMS: dict[str, str] = {
+#: cannot recover `--column` -> `--target`; these pairs can. A tuple value
+#: means the guessed flag maps to several real ones (a cost *ratio* is the
+#: README's framing — "costs us 20x a false alarm" — and a ratio of R is
+#: `--alert-cost 1 --miss-cost R`).
+_FLAG_SYNONYMS: dict[str, str | tuple[str, ...]] = {
     "--column": "--target", "--col": "--target", "--value": "--target",
     "--field": "--target", "--metric": "--target",
     "--date": "--time", "--timestamp": "--time", "--time-column": "--time",
@@ -764,6 +789,10 @@ _FLAG_SYNONYMS: dict[str, str] = {
     "--periods": "--horizon", "--steps": "--horizon", "--length": "--horizon",
     "--freq": "--frequency", "--interval": "--frequency",
     "--out": "--output", "--output-dir": "--output", "--dir": "--output",
+    "--cost-ratio": ("--alert-cost", "--miss-cost"),
+    "--cost": ("--alert-cost", "--miss-cost"),
+    "--costs": ("--alert-cost", "--miss-cost"),
+    "--false-alarm-cost": "--alert-cost", "--penalty": "--miss-cost",
 }
 
 
@@ -785,26 +814,30 @@ def _all_known_flags() -> list[str]:
     return sorted(flags)
 
 
-def _suggest_flags(message: str) -> list[tuple[str, str]]:
-    """(unknown, suggestion) pairs for an `unrecognized arguments` failure."""
+def _suggest_flags(message: str) -> list[tuple[str, tuple[str, ...]]]:
+    """(unknown, replacement flags) pairs for an `unrecognized arguments`
+    failure. The replacement is a tuple: usually one flag, several when the
+    guessed flag folds two real ones together (`--cost-ratio`)."""
     marker = "unrecognized arguments:"
     if marker not in message:
         return []
     import difflib
 
     known = _all_known_flags()
-    suggestions: list[tuple[str, str]] = []
+    suggestions: list[tuple[str, tuple[str, ...]]] = []
     for token in message.split(marker, 1)[1].split():
         if not token.startswith("--"):
             continue
         unknown = token.split("=", 1)[0]
         synonym = _FLAG_SYNONYMS.get(unknown.lower())
         if synonym:
-            suggestions.append((unknown, synonym))
+            suggestions.append((
+                unknown, synonym if isinstance(synonym, tuple) else (synonym,),
+            ))
             continue
         close = difflib.get_close_matches(unknown, known, n=1, cutoff=0.75)
         if close:
-            suggestions.append((unknown, close[0]))
+            suggestions.append((unknown, (close[0],)))
     return suggestions
 
 
@@ -820,11 +853,11 @@ def _argument_error(exc: _ArgumentError) -> GnomonError:
             ),
             "arguments": missing,
         })
-    for unknown, suggestion in suggestions:
+    for unknown, replacement in suggestions:
         repairs.append({
             "action": "rename_flag",
-            "description": f"Replace {unknown} with {suggestion}.",
-            "arguments": [suggestion],
+            "description": f"Replace {unknown} with {' and '.join(replacement)}.",
+            "arguments": list(replacement),
         })
     repairs.append({
         "action": "show_usage",
@@ -833,15 +866,15 @@ def _argument_error(exc: _ArgumentError) -> GnomonError:
     message = exc.message
     if suggestions:
         message += " " + " ".join(
-            f"Did you mean {suggestion} instead of {unknown}?"
-            for unknown, suggestion in suggestions
+            f"Did you mean {' and '.join(replacement)} instead of {unknown}?"
+            for unknown, replacement in suggestions
         )
     return GnomonError(
         "INVALID_ARGUMENTS", message,
         {"command": exc.prog, "missing_arguments": missing,
          **({"flag_suggestions": [
-             {"unknown": unknown, "suggestion": suggestion}
-             for unknown, suggestion in suggestions
+             {"unknown": unknown, "suggestion": " ".join(replacement)}
+             for unknown, replacement in suggestions
          ]} if suggestions else {})},
         repair_options=repairs,
     )
@@ -1055,6 +1088,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "mcp":
             from .mcp_server import serve
 
+            if getattr(args, "profile", None):
+                # The env var is the single source the gates read, so the
+                # flag and a pre-set variable cannot disagree silently.
+                import os
+                os.environ["GNOMON_MCP_PROFILE"] = args.profile
             return serve()
         if args.command == "tsfm":
             from .tsfm import available_tsfms, installed_tsfms
@@ -1513,6 +1551,20 @@ def main(argv: Sequence[str] | None = None) -> int:
                     covariate_known_at_column=args.covariate_known_at,
                     covariate_series_column=args.covariate_series,
                 )
+        elif args.command == "context" and args.context_command == "preflight":
+            from .context import load_events_file
+            from .preflight import preflight_context_events
+
+            payload = preflight_context_events(
+                args.input,
+                time_column=args.time_column,
+                target_column=args.target_column,
+                horizon=args.horizon,
+                context_events=load_events_file(args.events_file),
+                series_column=args.series_column,
+                frequency=args.frequency,
+                repair=args.repair,
+            )
         elif args.command == "context":
             from .workflows import build_context_investigation_prompt, parse_context_response
 
@@ -1572,6 +1624,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 config=load_config(getattr(args, "config", None)),
                 strict_abstention=args.strict_abstention,
                 best_effort=getattr(args, "best_effort", False),
+                minimum_support=getattr(args, "minimum_support", None)
+                or "best_effort",
                 seasonal_period=args.seasonal_period,
                 selection_strategy="ensemble" if args.ensemble else args.selection_strategy,
                 as_of=_parse_as_of(getattr(args, "as_of", None)),
@@ -1615,6 +1669,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 covariates=covariates,
                 config=config, strict_abstention=args.strict_abstention,
                 best_effort=getattr(args, "best_effort", False),
+                minimum_support=getattr(args, "minimum_support", None)
+                or "best_effort",
                 seasonal_period=args.seasonal_period,
                 selection_strategy="ensemble" if args.ensemble else args.selection_strategy,
                 multivariate=args.multivariate,

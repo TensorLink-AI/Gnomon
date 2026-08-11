@@ -139,10 +139,26 @@ class MacroSpec:
 _COMMON_INPUT: dict[str, Any] = {
     "input": {"type": "string", "description": (
         "Path to a local CSV/Parquet file, or store:<dataset> for a dataset "
-        "ingested into the bitemporal store."
+        "ingested into the bitemporal store. Callers without a filesystem "
+        "pass `observations` inline instead."
     )},
-    "time_column": {"type": "string", "description": "Name of the timestamp column."},
-    "target_column": {"type": "string", "description": "Name of the numeric column."},
+    "observations": {"type": "array", "items": {"type": "object"}, "description": (
+        "The observations supplied inline, for callers without a "
+        "filesystem: row objects keyed by your column names. "
+        "Mutually exclusive with `input`."
+    )},
+    "time_column": {"type": "string", "description": (
+        "Name of the timestamp column. Omit to infer: when exactly one "
+        "column parses as timestamps it is chosen and disclosed as an "
+        "assumption; ambiguity fails loudly, naming the candidates. "
+        "Required for store:<dataset> inputs."
+    )},
+    "target_column": {"type": "string", "description": (
+        "Name of the numeric column. Omit to infer: when exactly one "
+        "non-time column parses as numbers it is chosen and disclosed as "
+        "an assumption; ambiguity fails loudly, naming the candidates. "
+        "Required for store:<dataset> inputs."
+    )},
     "series_column": {"type": "string", "description": "Optional column identifying independent series."},
     "frequency": {
         "type": "string", "pattern": "^([1-9][0-9]*)?(s|min|h)$|^(D|W|MS)$",
@@ -180,8 +196,13 @@ MACROS: dict[str, MacroSpec] = {
                         "Optional validated context-events JSON (output of "
                         "`gnomon context validate`) to rank as concurrent events."
                     )},
+                    "context_events": {"type": "array", "description": (
+                        "The same events supplied inline, for callers "
+                        "without a filesystem; see gnomon_forecast's "
+                        "context_events for the item shape."
+                    ), "items": {"type": "object"}},
                 },
-                "required": ["input", "time_column", "target_column"],
+                "required": [],
             },
         ),
         MacroSpec(
@@ -209,7 +230,7 @@ MACROS: dict[str, MacroSpec] = {
                         "the synthetic grader."
                     )},
                 },
-                "required": ["input", "time_column", "target_column"],
+                "required": [],
             },
         ),
         MacroSpec(
@@ -254,7 +275,7 @@ MACROS: dict[str, MacroSpec] = {
                         "for realised-outcome scoring (regret, calibration)."
                     )},
                 },
-                "required": ["input", "time_column", "target_column", "horizon", "threshold", "actions"],
+                "required": ["horizon", "threshold", "actions"],
             },
         ),
         MacroSpec(
@@ -279,7 +300,7 @@ MACROS: dict[str, MacroSpec] = {
                     "miss_cost": {"type": "number", "description": "Cost of a missed exceedance."},
                     "project": {"type": "string", "description": "Optional tracking project to register the underlying forecast in."},
                 },
-                "required": ["input", "time_column", "target_column", "horizon", "threshold"],
+                "required": ["horizon", "threshold"],
             },
         ),
     ]

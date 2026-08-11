@@ -1,6 +1,6 @@
 {
   "schema_version": "0.1",
-  "forecast_id": "forecast_d17b67c02a09fd4d",
+  "forecast_id": "forecast_9ce77d1eedc6f917",
   "created_at": "2026-07-01T00:00:00+00:00",
   "status": "complete",
   "task": {
@@ -73,7 +73,8 @@
           "q30": 205.0,
           "q70": 205.0,
           "q80": 205.0,
-          "q95": 205.0
+          "q95": 205.0,
+          "tier": "conditionally_supported"
         },
         {
           "timestamp": "2026-02-06T00:00:00",
@@ -87,7 +88,8 @@
           "q30": 208.0,
           "q70": 208.0,
           "q80": 208.0,
-          "q95": 208.0
+          "q95": 208.0,
+          "tier": "conditionally_supported"
         },
         {
           "timestamp": "2026-02-07T00:00:00",
@@ -101,7 +103,8 @@
           "q30": 211.0,
           "q70": 211.0,
           "q80": 211.0,
-          "q95": 211.0
+          "q95": 211.0,
+          "tier": "conditionally_supported"
         },
         {
           "timestamp": "2026-02-08T00:00:00",
@@ -115,7 +118,8 @@
           "q30": 214.0,
           "q70": 214.0,
           "q80": 214.0,
-          "q95": 214.0
+          "q95": 214.0,
+          "tier": "conditionally_supported"
         },
         {
           "timestamp": "2026-02-09T00:00:00",
@@ -129,7 +133,8 @@
           "q30": 217.0,
           "q70": 217.0,
           "q80": 217.0,
-          "q95": 217.0
+          "q95": 217.0,
+          "tier": "conditionally_supported"
         },
         {
           "timestamp": "2026-02-10T00:00:00",
@@ -143,7 +148,8 @@
           "q30": 220.0,
           "q70": 220.0,
           "q80": 220.0,
-          "q95": 220.0
+          "q95": 220.0,
+          "tier": "conditionally_supported"
         },
         {
           "timestamp": "2026-02-11T00:00:00",
@@ -157,7 +163,8 @@
           "q30": 223.0,
           "q70": 223.0,
           "q80": 223.0,
-          "q95": 223.0
+          "q95": 223.0,
+          "tier": "conditionally_supported"
         }
       ],
       "context": null,
@@ -270,7 +277,11 @@
         "warnings": [
           "Limited evaluation: only 3 rolling folds were available; 42 observations enable fully separated selection, calibration, and test windows.",
           "Single-fold selection: drift beat the strongest baseline (last_value) by more than 75% on the one available fold \u2014 evidence strong enough to clear the raised short-history margin, but still a single comparison."
-        ]
+        ],
+        "row_tiers": {
+          "conditionally_supported": 7
+        },
+        "minimum_support": "best_effort"
       }
     },
     {
@@ -292,5 +303,6 @@
         ]
       }
     }
-  ]
+  ],
+  "runtime_version": "0.5.0"
 }

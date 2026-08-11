@@ -83,18 +83,76 @@ the revision that produced it. `gnomon ingest` says so on any file without
 `--known-at`, via the `known_time_assumed` warning, and the resulting
 dataset reports `known_time_provenance: partially_assumed`.
 
+## Profiles
+
+`gnomon mcp serve --profile core` exposes only the analytical verbs plus
+inspection and artifact reads; `decision` adds the decide/monitor/route/
+status/resolve_outcome lifecycle; `data` adds the bitemporal store and
+actuals scoring; `full` (default) is everything. `gnomon capabilities`
+reports the active profile under `mcp_profile`.
+
+## Where artifacts land
+
+Omit `output_dir`: artifacts go to the server's default, reported by
+`gnomon_capabilities` under `workspace.default_output_dir` (the resolved
+`./gnomon-output` next to the server's working directory). Sandboxed
+hosts should start the server with its working directory inside the
+writable jail so the disclosed default is the allowed path.
+
+## Graduated support
+
+`gnomon_forecast` answers by default at the highest tier the evidence
+achieves (`minimum_support: "best_effort"`): a fully evaluated forecast,
+an evaluated prefix plus a labelled naive remainder (`horizon_split`),
+or a naive extrapolation alone. Every row carries a `tier`
+(`supported` / `conditionally_supported` / `best_effort`), the response
+`headline` is one deterministic sentence naming the weakest tier
+present — safe to relay verbatim — and the verifier rejects any claim
+quoting a sub-supported value without its tier. Pass
+`minimum_support: "supported"` for the strict refusal with typed
+recovery; a series where nothing is computable still abstains.
+
+## Response sizes
+
+Tool responses are budgeted (`RESPONSE_BUDGET_BYTES`, reported by
+`gnomon capabilities` under `forecast_surface.response_budget`).
+`gnomon_forecast` answers in `brief` format by default — the q50 path
+with one q10–q90 interval per step plus the complete support assessment;
+pass `format: "full"` for every quantile level inline. Any response over
+the budget trims its long arrays to first/last entries, sets
+`truncated: true`, and points at the artifact, which always carries the
+complete data. Support assessments, warnings, assumptions, and
+error/repair payloads are never trimmed.
+
 ## Tool surface
 
 Primary macros: `gnomon_forecast`, `gnomon_investigate_change`, `gnomon_decide`,
-`gnomon_monitor`. Support: `gnomon_capabilities`, `gnomon_inspect`,
-`gnomon_get_artifact`, `gnomon_explain_run`, covariate tools, and the tracking
-lifecycle (`gnomon_submit_actuals`, `gnomon_list_open_forecasts`,
-`gnomon_model_performance`, decision record/resolve).
+`gnomon_monitor`. The data-reading tools infer the way the CLI does:
+`time_column`, `target_column`, and (for forecasts) `horizon` may be
+omitted, are filled only when the file leaves no choice, and every
+inference is disclosed in the result's `support_assessment.assumptions` —
+`{"input": "data.csv"}` is a complete first `gnomon_forecast` call.
+Ambiguity fails loudly with the candidate columns and machine-readable
+repair options; `store:<dataset>` inputs still need the explicit columns. Support: `gnomon_capabilities`, `gnomon_inspect`,
+`gnomon_get_artifact`, `gnomon_explain_run`, `gnomon_preflight_context`
+(dry-run admission for proposed context events, with the accepted span
+grammar in the response), `gnomon_validate_covariates` (its description
+carries the point-in-time format contract; `gnomon_forecast` takes every
+covariate argument directly), and the tracking lifecycle
+(`gnomon_submit_actuals` to score, `gnomon_status` to read — its
+`section` parameter returns the open-forecast, performance, or decision
+slice on its own).
 
 ## Migrating from v0.2
 
-Nothing breaks: every v0.2 tool name, schema, and the `gnomon_forecast`
-contract are preserved (see `COMPATIBILITY.md`). New in this release:
+Every v0.2 tool name, schema, and the `gnomon_forecast` contract are
+preserved (see `COMPATIBILITY.md`), but the deprecated decision pair
+(`gnomon_record_decision` / `gnomon_resolve_decision`) is no longer on
+the default surface — tools compete for model attention, and these two
+argued for their own replacement in every session. Start the server with
+`GNOMON_V02_COMPAT=1` to restore them, schemas and behaviour unchanged;
+`gnomon capabilities` reports the state under `compat.v02_tools`.
+New in this release:
 the three additional macros, `store:<dataset>` inputs, `as_of` replay,
 `support_assessment` on every result, `lineage.json` in artifacts, and
 machine-readable `repair_options` on every structured error.

@@ -11,13 +11,26 @@ the article — plus a tool loop over Gnomon: summary statistics, season
 detection, anomaly detection, and forecasting, which it may run
 repeatedly with different typed context events drawn from the article.
 
-The contract that keeps this honest: **the model never writes numbers**.
-Every ``gnomon_forecast`` result is registered under a reference id, and
-the run ends when the model calls ``submit_forecast`` with one of those
-ids. The submitted trajectory is the one Gnomon computed, byte for byte.
-The article influences the answer through which events the model
-proposes and which run it selects — not by editing digits. A model that
-submits nothing is recorded as an abstention, never as a guess.
+The contract that keeps this honest, the same one the CiK MCP arm uses
+(``docs/design/cik-mcp-tool-arm.md``): **the model never EDITS a Gnomon
+number**. ``submit_forecast`` has exactly two productive exits — a
+``forecast_ref`` from a ``gnomon_forecast`` run, whose trajectory is
+used byte for byte, or the model's own ``values``, one number per
+horizon step, labeled as the model's. The route is recorded per run
+(``gnomon`` / ``informed-direct`` / ``direct``) so the exits stay
+separable in analysis, and every Gnomon abstention the model saw is
+counted in ``engine_abstentions`` — a refusal the model answered past
+is disclosed, never laundered into an unlabeled guess. A model that
+submits nothing, or submits ``forecast_ref: "none"``, is recorded as an
+abstention.
+
+An earlier revision had only the ref exit, so every Gnomon abstention
+was forced to become a benchmark abstention (scored as maximum
+failure). The CiK comparison measured what that costs: on the 96 runs
+where the engine abstained, the model's own reasoned forecast (RCRPS
+0.111) beat both the engine's ``--best-effort`` fallback (0.190) and
+abstaining outright (5.0 imputed). The second exit exists so this arm
+can express that route; the route label is what keeps it honest.
 """
 
 from __future__ import annotations
@@ -41,29 +54,36 @@ MAX_TOOL_ROUNDS = 8
 MAX_TEXT_CHARS = 6000
 
 SYSTEM = """\
-You are a careful financial time series analyst working under a strict
-contract: you never write forecast numbers yourself. Numbers come from
-tools that compute them.
+You are a careful financial time series analyst. You are given a
+stock's recent price history and the news article published over that
+window; your job is to produce the best {horizon}-step forecast of the
+price you can, then submit it.
 
-You are given a stock's recent price history and the news article
-published over that window. Your job is to produce the best {horizon}-step
-forecast of the price you can, using the tools:
+You have tools from Gnomon, a deterministic forecasting engine, and you
+may use them or ignore them — your only obligation is to end by calling
+`submit_forecast`:
 
 - Inspect the series (`series_stats`, `detect_season`,
   `gnomon_detect_anomalies`) as needed.
-- Call `gnomon_forecast` to compute a forecast. You may pass
+- Call `gnomon_forecast` to compute a backtested forecast. You may pass
   `context_events` — typed, dated claims you extract from the article
   (never numbers you invent). Gnomon tests each event against a
   leakage-safe ablation gate and reports whether it was admitted; an
   event that does not earn its place is rejected and the forecast falls
-  back to history alone.
-- Call `gnomon_forecast` more than once if you want to compare a
-  history-only run against an event-informed one.
-- Finish by calling `submit_forecast` with the `forecast_ref` of the run
-  you judge best. That run's trajectory becomes your answer.
+  back to history alone. You may run it more than once to compare a
+  history-only run against an event-informed one. The engine abstains
+  when the history cannot carry its evaluation protocol.
 
-If every forecast attempt abstains, call `submit_forecast` with
-`forecast_ref: "none"` and say why. Do not invent a trajectory.
+Two ways to finish:
+- Submit the `forecast_ref` of the run you judge best: that run's
+  trajectory becomes your answer verbatim; you cannot edit it.
+- Submit your own `values` (exactly {horizon} numbers, one per step):
+  your numbers, your responsibility.
+
+An engine abstention is not your abstention: you may still reason from
+the history and the article and submit your own `values`. If you judge
+that no defensible forecast exists at all, call `submit_forecast` with
+`forecast_ref: "none"` and say why.
 """
 
 USER = """\
@@ -136,14 +156,24 @@ TOOL_SPECS = [
         "type": "function",
         "function": {
             "name": "submit_forecast",
-            "description": "Submit the forecast run whose trajectory is your final answer. Its numbers are used verbatim; you cannot edit them.",
+            "description": (
+                "End the run with your answer. Exactly one of two exits: "
+                "forecast_ref (from a gnomon_forecast result in THIS run; "
+                "its trajectory is used verbatim — you cannot edit it) or "
+                "values (your own point forecast, exactly one number per "
+                "horizon step). Pass forecast_ref 'none' to abstain."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "forecast_ref": {"type": "string", "description": "A forecast_ref from gnomon_forecast, or 'none' to abstain."},
+                    "values": {
+                        "type": "array",
+                        "items": {"type": "number"},
+                        "description": "Your own forecast: exactly one number per horizon step.",
+                    },
                     "reasoning": {"type": "string"},
                 },
-                "required": ["forecast_ref"],
             },
         },
     },
@@ -161,8 +191,18 @@ class ToolBox:
         self.sample_name = sample_name
         self.work_dir = work_dir
         self.calls = 0
+        #: Analysis/forecast calls only (submit_forecast excluded): the
+        #: basis of the direct vs informed-direct route split.
+        self.analysis_calls = 0
+        #: Gnomon abstentions the model saw during this run. Nonzero on a
+        #: run that ends route=informed-direct means the model answered
+        #: past an engine refusal — disclosed, never hidden.
+        self.engine_abstentions = 0
         self.forecasts: dict[str, dict[str, Any]] = {}
+        #: A forecast_ref, "own" (model-written values), or "none".
         self.submitted: str | None = None
+        self.submitted_values: list[float] | None = None
+        self.route: str | None = None
         self.submit_reasoning: str | None = None
         self.notes: list[str] = []
 
@@ -195,6 +235,8 @@ class ToolBox:
         }.get(name)
         if handler is None:
             return {"error": f"unknown tool {name}"}
+        if name != "submit_forecast":
+            self.analysis_calls += 1
         try:
             return handler(**arguments)
         except TypeError as error:
@@ -262,13 +304,21 @@ class ToolBox:
                 horizon=self.horizon, frequency="D",
                 output=str(csv_path.parent / "gnomon-output"),
                 context_events=events or None,
+                # The benchmark's measured condition is the pre-graduated
+                # engine: degraded results published, abstention possible,
+                # the model decides what to do with it. The engine's own
+                # default floor is now best_effort, so the condition is
+                # pinned explicitly rather than drifting with the default.
+                minimum_support="conditionally_supported",
             )
         except GnomonError as error:
+            self.engine_abstentions += 1
             return {"abstained": True, "code": error.code,
                     "message": error.message,
                     "proposal_notes": proposal_notes}
         result = artifact.results[0]
         if result.support == "unsupported" or not result.forecast:
+            self.engine_abstentions += 1
             return {"abstained": True,
                     "warnings": [str(w) for w in result.warnings],
                     "proposal_notes": proposal_notes}
@@ -298,18 +348,61 @@ class ToolBox:
             "forecast": [round(v, 4) for v in trajectory],
         }
 
-    def submit_forecast(self, forecast_ref: str,
+    def _values_problems(self, values: Any) -> str | None:
+        # A rejection must name what was received, or the model retries
+        # the same shape until the rounds cap converts it to an
+        # abstention (the lesson CiK's quantile rejections learned).
+        import math
+
+        if not isinstance(values, list):
+            return (f"values must be a list of exactly {self.horizon} "
+                    f"numbers (one per horizon step); got "
+                    f"{type(values).__name__}")
+        if len(values) != self.horizon:
+            return (f"values must be a list of exactly {self.horizon} "
+                    f"numbers (one per horizon step); got {len(values)}")
+        for index, value in enumerate(values):
+            if isinstance(value, bool) or not isinstance(value, (int, float)) \
+                    or not math.isfinite(value):
+                return (f"values[{index}] must be a finite number; "
+                        f"got {value!r:.60}")
+        return None
+
+    def submit_forecast(self, forecast_ref: str | None = None,
+                        values: Any = None,
                         reasoning: str | None = None) -> dict[str, Any]:
-        self.submit_reasoning = reasoning
+        if self.submitted is not None:
+            return {"error": "a forecast was already submitted; the first "
+                             "accepted submission stands"}
         if forecast_ref == "none":
+            if values is not None:
+                return {"error": "forecast_ref 'none' abstains; it cannot "
+                                 "be combined with values"}
+            self.submit_reasoning = reasoning
             self.submitted = "none"
             return {"accepted": True, "abstained": True}
-        if forecast_ref not in self.forecasts:
-            return {"error": f"unknown forecast_ref {forecast_ref!r}; "
-                             f"available: {sorted(self.forecasts)}"}
-        self.submitted = forecast_ref
-        return {"accepted": True, "forecast_ref": forecast_ref,
-                "steps": len(self.forecasts[forecast_ref]["trajectory"])}
+        if (forecast_ref is None) == (values is None):
+            return {"error": "provide exactly one of forecast_ref or values"}
+        if forecast_ref is not None:
+            if forecast_ref not in self.forecasts:
+                return {"error": f"unknown forecast_ref {forecast_ref!r}; "
+                                 f"available: {sorted(self.forecasts)}"}
+            self.submit_reasoning = reasoning
+            self.submitted = forecast_ref
+            self.route = "gnomon"
+            return {"accepted": True, "route": "gnomon",
+                    "forecast_ref": forecast_ref,
+                    "steps": len(self.forecasts[forecast_ref]["trajectory"])}
+        problems = self._values_problems(values)
+        if problems:
+            return {"error": problems}
+        self.submit_reasoning = reasoning
+        self.submitted = "own"
+        self.submitted_values = [float(v) for v in values]
+        self.route = ("direct" if self.analysis_calls == 0
+                      else "informed-direct")
+        return {"accepted": True, "route": self.route,
+                "steps": len(self.submitted_values)}
 
 
 def _tool_calls_as_dicts(message: Any) -> list[dict[str, Any]]:
@@ -356,7 +449,9 @@ def run_sample(sample: dict[str, Any], client: OpenRouterClient,
             messages.append({
                 "role": "user",
                 "content": "Submit your answer by calling submit_forecast "
-                           "with a forecast_ref (or 'none' to abstain).",
+                           "— a forecast_ref from a gnomon_forecast run, "
+                           "your own values (one number per step), or "
+                           "forecast_ref 'none' to abstain.",
             })
             continue
         messages.append({"role": "assistant",
@@ -375,25 +470,42 @@ def run_sample(sample: dict[str, Any], client: OpenRouterClient,
         if toolbox.submitted:
             break
 
+    common = {
+        "forecasts_computed": len(toolbox.forecasts),
+        "engine_abstentions": toolbox.engine_abstentions,
+        "submit_reasoning": toolbox.submit_reasoning,
+        "tool_calls": toolbox.calls,
+        "trace": trace,
+        "proposal_notes": toolbox.notes,
+    }
     if not toolbox.submitted or toolbox.submitted == "none":
         reasons = ["model submitted no forecast"] if not toolbox.submitted \
             else ["model abstained after tool use"]
         return {"abstained": True, "reasons": reasons + toolbox.notes,
-                "tool_calls": toolbox.calls, "trace": trace,
-                "proposal_notes": toolbox.notes}
-
+                **common}
+    if toolbox.submitted == "own":
+        # The model's own numbers, labeled as such: the route is what
+        # separates a reasoned answer past an engine abstention from a
+        # Gnomon-computed one in analysis.
+        return {
+            "abstained": False,
+            "prediction": toolbox.submitted_values,
+            "route": toolbox.route,
+            "support": None,
+            "selected_model": None,
+            "context": None,
+            "events": [],
+            **common,
+        }
     chosen = toolbox.forecasts[toolbox.submitted]
     return {
         "abstained": False,
         "prediction": chosen["trajectory"],
+        "route": "gnomon",
         "support": chosen["support"],
         "selected_model": chosen["selected_model"],
         "context": chosen["context"],
         "events": chosen["events"],
         "forecast_ref": toolbox.submitted,
-        "forecasts_computed": len(toolbox.forecasts),
-        "submit_reasoning": toolbox.submit_reasoning,
-        "tool_calls": toolbox.calls,
-        "trace": trace,
-        "proposal_notes": toolbox.notes,
+        **common,
     }

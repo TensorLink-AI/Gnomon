@@ -53,6 +53,31 @@ Ours (this directory):
 | `control` | official DirectPrompt via OpenRouter | the LLM |
 | `gnomon-pure` | none (context ignored) | Gnomon |
 | `gnomon-agent` | proposes typed context events only | Gnomon |
+| `gnomon-mcp` | holds Gnomon's real MCP tools, uses them or not | Gnomon (verbatim artifact) or the LLM, labeled per run |
+| `gnomon-router` | retired: one-shot prose routing | whichever it chose |
+
+`gnomon-mcp` is the integrated "agent chooses" arm
+(`docs/design/cik-mcp-tool-arm.md`, `mcp_agent.py`): every tool
+`gnomon mcp serve` publishes is handed to the model verbatim, results
+(including typed errors with repair options) come back unedited, and
+the run ends with `submit_forecast` — either an `artifact_path` whose
+trajectory is used byte-for-byte, or the model's own per-step
+quantiles. The route is classified from the transcript afterwards
+(`gnomon` / `direct` / `informed-direct`), caps (10 rounds, 24 calls,
+250k tokens, 600 s) abstain rather than fall back, and a path jail
+keeps the model away from the cached benchmark datasets. Per-run
+transcripts land in `<output-dir>/mcp-traces/`.
+
+`gnomon-router` is the superseded one-shot arm: **prose-routed
+dispatch, not tool calling**. The model answers one classification
+question, a regex branches on the reply, and it never sees a forecast
+or gets a second turn — measured consequence: a constant routing
+function on the first prompt, and blind 0/4 losses on the matched
+seeds of the second. Its code, `route_survey.py` gate, and records
+stay for the record; use `gnomon-mcp` for the optional-Gnomon posture.
+On any arm, a routed/optional win is evidence about the *pipeline*,
+never about Gnomon's own forecasting quality — it can come entirely
+from knowing when not to call.
 
 `gnomon-agent` additionally accepts `--future-context`, which turns on
 Gnomon's `context.future_events` lane: the proposer may also quote
@@ -95,6 +120,10 @@ python -m benchmarks.cik.run_cik --method gnomon-agent \
 # Harness floor: no LLM anywhere
 python -m benchmarks.cik.run_cik --method gnomon-pure \
     --output-dir results/cik-gnomon-pure
+
+# Integrated arm: real MCP tools, the model chooses
+python -m benchmarks.cik.run_cik --method gnomon-mcp \
+    --model openai/gpt-4o --output-dir results/cik-gpt4o-mcp
 
 # Quick pass on a task family while iterating
 python -m benchmarks.cik.run_cik --method gnomon-pure \

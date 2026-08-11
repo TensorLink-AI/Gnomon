@@ -112,6 +112,34 @@ def build_method(args):
             temperature=args.temperature,
             fail_on_invalid=args.fail_on_invalid,
         )
+    if args.method == "gnomon-mcp":
+        if not args.model:
+            raise SystemExit("--method gnomon-mcp requires --model")
+        if args.future_context or args.structural_context:
+            raise SystemExit(
+                "gnomon-mcp takes no lane flags: the model chooses its own "
+                "tool arguments (future_events, structural_events, ...) "
+                "per call"
+            )
+        from benchmarks.cik.mcp_agent import McpAgentForecaster
+
+        return McpAgentForecaster(
+            args.model, temperature=args.temperature,
+            trace_dir=Path(args.output_dir) / "mcp-traces",
+        )
+    if args.structural_context and not args.future_context:
+        raise SystemExit("--structural-context requires --future-context")
+    if args.method == "gnomon-router":
+        from benchmarks.cik.router import RoutedForecaster
+
+        if not args.model:
+            raise SystemExit("--method gnomon-router requires --model")
+        return RoutedForecaster(
+            args.model, temperature=args.temperature,
+            future_context=args.future_context,
+            structural_context=args.structural_context,
+            fail_on_invalid=args.fail_on_invalid,
+        )
     from benchmarks.cik.gnomon_forecaster import GnomonForecaster
 
     mode = "agent" if args.method == "gnomon-agent" else "pure"
@@ -120,6 +148,7 @@ def build_method(args):
     return GnomonForecaster(
         mode=mode, openrouter_model=args.model, temperature=args.temperature,
         future_context=args.future_context,
+        structural_context=args.structural_context,
     )
 
 
@@ -215,11 +244,18 @@ def write_outputs(results: dict, method, args, output_dir: Path) -> None:
                     success=finite,
                     appropriate_abstention=abstained,
                     # One gnomon.forecast call per gnomon run; the control
-                    # calls no tools. Per-run cost stays 0: both adapters
-                    # only report cost accumulated across the whole client
-                    # lifetime, and faking a per-run split would be worse
-                    # than the zero.
-                    tool_calls=1 if is_gnomon else 0,
+                    # calls no tools, and a routed run that chose (or fell
+                    # back to) the direct path made none either. Per-run
+                    # cost stays 0: the adapters only report cost
+                    # accumulated across the whole client lifetime, and
+                    # faking a per-run split would be worse than the zero.
+                    tool_calls=(
+                        int(extra_info["mcp_calls"])
+                        if "mcp_calls" in extra_info
+                        else 1 if is_gnomon
+                        and extra_info.get("route", "gnomon") == "gnomon"
+                        else 0
+                    ),
                     latency_seconds=(
                         float(latency)
                         if isinstance(latency, (int, float)) else 0.0
@@ -271,7 +307,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--method",
         required=True,
-        choices=["control", "gnomon-pure", "gnomon-agent"],
+        choices=["control", "gnomon-pure", "gnomon-agent", "gnomon-router",
+                 "gnomon-mcp"],
+        help="gnomon-mcp: the model holds Gnomon's real MCP tools and "
+             "chooses per task whether to use them; the route is "
+             "classified from the transcript "
+             "(docs/design/cik-mcp-tool-arm.md). gnomon-router is the "
+             "retired one-shot routing arm, kept for the record",
     )
     parser.add_argument(
         "--model",
@@ -298,6 +340,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Enable Gnomon's context.future_events lane (gnomon-agent only): "
              "the proposer may quote constraint/override spans, admitted by "
              "textual verification instead of fold ablation",
+    )
+    parser.add_argument(
+        "--structural-context", action="store_true",
+        help="Additionally enable context.structural_events (requires "
+             "--future-context): the proposer may classify stated cessations "
+             "into the closed structural-effect menu (trend_ceases, "
+             "level_matches_seasonal_high/_low); every "
+             "applied quantity is derived from Gnomon's own emitted path. "
+             "Experimental: results/structural-effects/HYPOTHESIS.md",
     )
     parser.add_argument("--max-parallel", type=int, default=1)
     parser.add_argument("--no-cache", action="store_true",

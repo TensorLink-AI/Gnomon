@@ -23,7 +23,12 @@ from datetime import datetime
 from statistics import mean
 from typing import Any
 
-from .context import ContextEvent, backtest_admissible, event_applies
+from .context import (
+    ContextEvent,
+    backtest_admissible,
+    event_applies,
+    validate_context_event,
+)
 from .context_model import EFFECT_SHAPES, event_adjusted
 from .evaluation import (
     Evaluation,
@@ -118,6 +123,12 @@ class ContextAssessment:
     # only trustworthy if the measurement is visible.
     effect_shape: str = "level"
     shape_scores: dict[str, float] = field(default_factory=dict)
+    # The shape the proposer nominated via `expected_shape`, when exactly
+    # one was named across the eligible events. A nomination narrows the
+    # contest to that shape alone — one comparison instead of three, so
+    # *less* room to look good by luck — and a nominated shape that loses
+    # is an honest exclusion, never a silent switch to a shape that fits.
+    nominated_shape: str | None = None
     # How much of the measured effect the fold evidence supports, in [0, 1].
     # Always computed and disclosed; applied only when shrinkage is enabled.
     # `admitted` remains exactly `shrinkage > 0` in that mode, so the frozen
@@ -157,6 +168,10 @@ class ContextAssessment:
             "shrinkage": self.shrinkage,
             "measured_coverage": self.coverage,
             "gate_checks": self.gate_checks,
+            # Additive: absent unless a shape was nominated, so artifacts
+            # from nomination-free runs serialise exactly as before.
+            **({"nominated_shape": self.nominated_shape}
+               if self.nominated_shape else {}),
         }
 
 
@@ -168,6 +183,16 @@ def eligible_events(
     for event in events:
         if not event_applies(event, series_name):
             excluded.append({"event_id": event.event_id, "reason": "scope does not include this series"})
+        elif problems := validate_context_event(event):
+            # `backtest_admissible` folds structural validity into its
+            # verdict, but reporting every structural failure as "no
+            # verifiable source" misnames the actual problem — an event
+            # rejected for a bad `expected_shape` was told to fix its
+            # source. Name what was measured.
+            excluded.append({
+                "event_id": event.event_id,
+                "reason": "fails the event contract: " + "; ".join(problems),
+            })
         elif not backtest_admissible(event):
             excluded.append({
                 "event_id": event.event_id,
@@ -292,8 +317,23 @@ def assess_context(
         origin: predict(base.selected_model, values[:origin], horizon, season)
         for origin in selection_origins
     }
+    # A proposer who read "3-day promotion, expect pull-forward" holds real
+    # prior knowledge about the effect's shape. `expected_shape` lets it in
+    # as a *nomination*: the contest narrows to that shape alone — one
+    # comparison instead of three, strictly less room to fit a story — and
+    # the nominated shape still has to beat the history-only baseline on
+    # identical folds. Conflicting nominations across events cancel out and
+    # the full contest runs; a caller still cannot pick the winner, only
+    # shrink the field.
+    nominations = {
+        str(event.attributes.get("expected_shape"))
+        for event in eligible
+        if event.attributes.get("expected_shape")
+    }
+    nominated = nominations.pop() if len(nominations) == 1 else None
+    contested_shapes = (nominated,) if nominated else EFFECT_SHAPES
     by_shape: dict[str, list[float]] = {}
-    for shape in EFFECT_SHAPES:
+    for shape in contested_shapes:
         improvements: list[float] = []
         failed: str | None = None
         for origin in selection_origins:
@@ -328,6 +368,14 @@ def assess_context(
             )
         if failed is None:
             by_shape[shape] = improvements
+        elif shape == nominated:
+            # An honest exclusion, named: switching silently to a shape
+            # that fits would hand the fishing back to the gate.
+            return _reject(
+                "candidate_fits_every_fold", failed,
+                f"the nominated effect shape ({nominated}) failed a "
+                f"selection fold: {failed}",
+            )
         elif shape == "level":
             # The level shape is the one the gate has always used; if it
             # cannot fit, no shape can, and the reason is the honest one.
@@ -353,6 +401,7 @@ def assess_context(
         effect_shape=selected_shape,
         shape_scores={name: round(mean(scores), 6)
                       for name, scores in by_shape.items()},
+        nominated_shape=nominated,
     )
 
     assessment.record_check(

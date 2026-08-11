@@ -1,0 +1,728 @@
+"""The integrated arm: Gnomon as real MCP tools the model may use or skip.
+
+Spec: ``docs/design/cik-mcp-tool-arm.md``. The routing decision the
+``gnomon-router`` arm asked the model to declare is made here implicitly
+and observably: the model holds every tool ``gnomon mcp serve``
+publishes, verbatim, plus one harness tool (``submit_forecast``), and
+whether it calls Gnomon at all is read from the transcript afterwards.
+
+The honesty contract, restated for a free choice: the model never EDITS
+a Gnomon number — a submitted artifact is used byte-for-byte or not at
+all — and every self-written number is labeled by the route taxonomy
+(``gnomon`` / ``direct`` / ``informed-direct``). A breached cap or a
+missing submission is a disclosed abstention, never a silent fallback.
+"""
+
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from benchmarks.cik.gnomon_forecaster import (  # noqa: E402
+    GnomonAbstained,
+    GnomonForecaster,
+    build_context_text,
+    samples_from_quantile_rows,
+)
+from benchmarks.common.openrouter import OpenRouterClient  # noqa: E402
+
+MAX_ROUNDS = 10
+MAX_MCP_CALLS = 24
+MAX_RUN_TOKENS = 250_000
+#: Bump when the system prompt, the caps, or the submit contract change:
+#: the official cache reuses results by cache_name, and a cached run made
+#: under an older contract is a different measurement wearing the same
+#: name. Version 2 marks the first release where the cache name carries
+#: this and the sampling temperature at all.
+#: Version 3: the MCP surface itself changed under the arm — 17-tool
+#: default surface, brief-by-default forecasts, the headline field, and
+#: response-budget truncation — so rows cached under version 2 measured
+#: a different contract.
+MCP_CONTRACT_VERSION = 3
+# A runaway agent is bounded by the three caps above; this one exists
+# only to stop a hung endpoint from parking a worker forever, so it must
+# sit above the latency an honest run can incur. At 600s it did not: it
+# ended 29 of 355 runs in the two-arm comparison, and the runs it ended
+# averaged 0-6 MCP calls out of 24 -- slow providers, not loops (one
+# `route=direct` run spent 765s inside a single request). Meanwhile the
+# CiK DirectPrompt baseline those runs are scored against carries no
+# wall-clock cap at all and took a median 2965s per run, 90 of its 91
+# scored runs exceeding 600s. A cap that the baseline would fail 99% of
+# the time is not a budget guard, it is a handicap on one arm.
+MAX_WALL_SECONDS = 7200.0
+
+#: Arguments whose values are filesystem paths by contract: these must
+#: resolve inside the jail no matter what. Every OTHER string argument
+#: is rejected only if it resolves to an existing path outside the jail
+#: (so a quoted source_span containing "/" stays admissible).
+PATH_ARGUMENT_NAMES = frozenset({
+    "input", "output_dir", "context_events_file", "covariates_file",
+    "actuals_file", "store_path", "artifact_dir", "path", "file",
+    "events_file", "plan_file",
+})
+
+SUBMIT_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "submit_forecast",
+        "description": (
+            "End the run with your answer. Exactly one of two exits: "
+            "artifact_path (a path returned by a successful "
+            "gnomon_forecast call in THIS run; its trajectory is used "
+            "verbatim — you cannot edit it) or quantiles (your own "
+            "per-step forecast, one {q10, q50, q90} object per horizon "
+            "step). Not submitting is recorded as an abstention."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "artifact_path": {
+                    "type": "string",
+                    "description": "artifact_path from a gnomon_forecast result in this run.",
+                },
+                "quantiles": {
+                    "type": "array",
+                    "description": "Your own forecast: exactly one object per horizon step.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "q10": {"type": "number"},
+                            "q50": {"type": "number"},
+                            "q90": {"type": "number"},
+                        },
+                        "required": ["q10", "q50", "q90"],
+                    },
+                },
+                "reasoning": {"type": "string", "description": "Why this answer."},
+            },
+        },
+    },
+}
+
+#: Symmetric by construction — the router arm's first prompt was a
+#: Gnomon sales pitch and measured as a constant function. This one
+#: names what each path is good at and lets the transcript record the
+#: choice.
+SYSTEM = """\
+You are producing a probabilistic forecast for a time series task. You
+have tools from "gnomon", a deterministic forecasting engine, and you
+may use them or ignore them — your only obligation is to end by calling
+`submit_forecast` with the best answer you can produce.
+
+What the engine offers: backtested model selection and calibrated
+uncertainty computed from the numeric history, and deterministic
+verification of context sentences that STATE numbers (bounds, levels,
+multiples of the usual level, stated trend cessations) supplied as
+typed context events. What it cannot do: use qualitative context —
+weather states, unquantified events, causal descriptions without
+numbers — no matter how decisive; you can reason about those yourself.
+
+Two ways to finish:
+- Submit `artifact_path` from a `gnomon_forecast` result: that
+  artifact's trajectory becomes your answer verbatim.
+- Submit your own `quantiles` (one {{q10, q50, q90}} per step): your
+  numbers, your responsibility.
+
+The history file is at {csv_path} (columns: timestamp, value). Forecast
+horizon: {horizon} steps, {future_start} to {future_end}. Tool errors
+return typed codes and repair options; you may fix arguments and retry
+within the caps ({max_rounds} rounds, {max_calls} tool calls).
+"""
+
+USER = """\
+Task context:
+{context}
+
+Numeric history ({n_obs} observations, oldest first, also on disk at
+{csv_path}):
+{history}
+
+Produce the best {horizon}-step probabilistic forecast, then call
+submit_forecast.
+"""
+
+
+class StdioMcpSession:
+    """Newline-delimited JSON-RPC client over a `gnomon mcp serve` child.
+
+    The subprocess runs with the jail as its working directory, so any
+    relative path that slips through argument screening still lands
+    inside the jail.
+
+    Every call carries a timeout: ``readline`` on a wedged server blocks
+    forever, and the runners' own caps (rounds, calls, tokens, wall
+    clock) are all checked *between* reads, so a single hung call used to
+    stall an entire sequential run with no summary ever written. On
+    timeout the child is killed and the call raises; the runners already
+    treat transport death as a disclosed harness failure.
+    """
+
+    #: Generous per-call ceiling: a real gnomon_forecast over a large file
+    #: (TSFM sandboxes included) finishes well inside this; only a hung
+    #: server does not.
+    DEFAULT_CALL_TIMEOUT_SECONDS = 600.0
+
+    def __init__(self, cwd: str | Path, command: list[str] | None = None,
+                 call_timeout: float | None = None):
+        self._proc = subprocess.Popen(
+            command or [sys.executable, "-m", "gnomon", "mcp", "serve"],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL, cwd=str(cwd), text=True,
+        )
+        self._next_id = 0
+        self.call_timeout = (self.DEFAULT_CALL_TIMEOUT_SECONDS
+                             if call_timeout is None else float(call_timeout))
+
+    def _rpc(self, method: str, params: dict[str, Any]) -> dict[str, Any]:
+        import threading
+
+        self._next_id += 1
+        request = {"jsonrpc": "2.0", "id": self._next_id,
+                   "method": method, "params": params}
+        assert self._proc.stdin is not None and self._proc.stdout is not None
+        self._proc.stdin.write(json.dumps(request) + "\n")
+        self._proc.stdin.flush()
+        timed_out: list[bool] = []
+
+        def _kill() -> None:
+            timed_out.append(True)
+            self._proc.kill()
+
+        timer = threading.Timer(self.call_timeout, _kill)
+        timer.start()
+        try:
+            line = self._proc.stdout.readline()
+        finally:
+            timer.cancel()
+        if not line:
+            if timed_out:
+                raise RuntimeError(
+                    f"gnomon mcp server did not answer {method} within "
+                    f"{self.call_timeout:.0f}s and was killed"
+                )
+            raise RuntimeError("gnomon mcp server closed its stdout")
+        message = json.loads(line)
+        if "error" in message:
+            raise RuntimeError(f"MCP {method} failed: {message['error']}")
+        return message["result"]
+
+    def initialize(self) -> dict[str, Any]:
+        return self._rpc("initialize", {"protocolVersion": "2025-06-18"})
+
+    def list_tools(self) -> list[dict[str, Any]]:
+        return self._rpc("tools/list", {})["tools"]
+
+    def call_tool(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        return self._rpc("tools/call", {"name": name, "arguments": arguments})
+
+    def close(self) -> None:
+        try:
+            self._proc.terminate()
+            self._proc.wait(timeout=5)
+        except Exception:
+            self._proc.kill()
+
+
+class InProcessMcpSession:
+    """The same server code without a subprocess: calls the server's
+    request handler directly. Used by the unit tests (and usable for
+    smoke runs); the path jail is enforced by the harness either way.
+    """
+
+    def __init__(self, cwd: str | Path | None = None):
+        self.cwd = cwd  # unused; documents interface parity
+        self.calls: list[tuple[str, dict[str, Any]]] = []
+
+    def _handle(self, method: str, params: dict[str, Any]) -> dict[str, Any]:
+        from gnomon.mcp_server import _handle
+
+        result = _handle({"method": method, "params": params})
+        if result is None:
+            raise RuntimeError(f"MCP method not handled: {method}")
+        return result
+
+    def initialize(self) -> dict[str, Any]:
+        return self._handle("initialize", {})
+
+    def list_tools(self) -> list[dict[str, Any]]:
+        return self._handle("tools/list", {})["tools"]
+
+    def call_tool(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        self.calls.append((name, arguments))
+        return self._handle("tools/call", {"name": name, "arguments": arguments})
+
+    def close(self) -> None:
+        pass
+
+
+def openai_tool_specs(mcp_tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """MCP tool entries as chat-completions function specs, verbatim.
+
+    Name, description, and inputSchema pass through untouched — pruning
+    or paraphrasing would hide the confusion this arm exists to measure.
+    ``outputSchema`` is dropped (the chat format has no slot for it);
+    that loss is disclosed in the spec.
+    """
+    return [
+        {"type": "function", "function": {
+            "name": tool["name"],
+            "description": tool["description"],
+            "parameters": tool["inputSchema"],
+        }}
+        for tool in mcp_tools
+    ] + [SUBMIT_TOOL]
+
+
+def _within(path: Path, jail: Path) -> bool:
+    try:
+        path.resolve().relative_to(jail.resolve())
+        return True
+    except ValueError:
+        return False
+
+
+def jail_violations(arguments: Any, jail: Path, key: str = "") -> list[str]:
+    """Every argument value that would reach outside the jail.
+
+    Path-named arguments must resolve inside the jail unconditionally.
+    Any other string is a violation only if it resolves to an EXISTING
+    filesystem entry outside the jail — so free text containing "/"
+    (a quoted span, a unit like "km/h") stays admissible, while the
+    cached benchmark datasets (future windows included) do not.
+    """
+    violations: list[str] = []
+    if isinstance(arguments, dict):
+        for name, value in arguments.items():
+            violations.extend(jail_violations(value, jail, key=name))
+    elif isinstance(arguments, list):
+        for item in arguments:
+            violations.extend(jail_violations(item, jail, key=key))
+    elif isinstance(arguments, str) and arguments:
+        raw = arguments[len("store:"):] if arguments.startswith("store:") else arguments
+        candidate = Path(raw).expanduser()
+        if not candidate.is_absolute():
+            candidate = jail / candidate
+        if key in PATH_ARGUMENT_NAMES:
+            if not _within(candidate, jail):
+                violations.append(f"{key}={arguments!r} resolves outside the run directory")
+        elif ("/" in raw or "\\" in raw or raw.startswith("~")):
+            try:
+                exists = candidate.exists() or Path(raw).expanduser().exists()
+            except OSError:
+                exists = False
+            if exists and not _within(candidate, jail):
+                violations.append(f"{key}={arguments!r} names an existing path outside the run directory")
+    return violations
+
+
+def _task_series(task_instance: Any) -> tuple[list[str], list[float]]:
+    """(timestamps, values) from a task's past window.
+
+    Real CiK tasks carry pandas frames and go through the exact same
+    conversion as the gnomon-agent arm; a task may instead supply
+    ``past_time`` as a plain list of ``(iso_timestamp, value)`` pairs,
+    which is what the pandas-free unit tests use.
+    """
+    past = task_instance.past_time
+    if hasattr(past, "columns"):  # a pandas frame; lists have .index too
+        history = GnomonForecaster._history_frame(task_instance)
+        return ([ts.isoformat() for ts in history.index],
+                [float(v) for v in history["value"].values])
+    return ([str(ts) for ts, _ in past], [float(v) for _, v in past])
+
+
+def _task_future_timestamps(task_instance: Any) -> list[str]:
+    future = task_instance.future_time
+    if hasattr(future, "columns"):
+        import pandas as pd
+
+        index = future.index
+        if isinstance(index, pd.PeriodIndex):
+            index = index.to_timestamp()
+        index = pd.DatetimeIndex(index)
+        if index.tz is None:
+            index = index.tz_localize("UTC")
+        return [ts.isoformat() for ts in index]
+    return [str(ts) for ts in future]
+
+
+def _write_history_csv(timestamps: list[str], values: list[float],
+                       csv_path: Path) -> None:
+    import csv
+
+    with csv_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["timestamp", "value"])
+        for timestamp, value in zip(timestamps, values):
+            writer.writerow([timestamp, repr(float(value))])
+
+
+def _tool_calls_as_dicts(message: Any) -> list[dict[str, Any]]:
+    calls = []
+    for call in getattr(message, "tool_calls", None) or []:
+        calls.append({
+            "id": call.id,
+            "type": "function",
+            "function": {"name": call.function.name,
+                         "arguments": call.function.arguments},
+        })
+    return calls
+
+
+class McpAgentForecaster:
+    """CiK ``Baseline``-compatible callable: the model drives real MCP tools.
+
+    ``session_factory`` and ``client`` are injectable for tests; the
+    defaults spawn a real ``gnomon mcp serve`` subprocess per run and an
+    OpenRouter chat client.
+    """
+
+    __version__ = "0.1.0"
+
+    def __init__(
+        self,
+        openrouter_model: str,
+        *,
+        temperature: float = 1.0,
+        work_dir: str | None = None,
+        trace_dir: str | Path | None = None,
+        client: Any = None,
+        session_factory: Any = None,
+    ) -> None:
+        self.openrouter_model = openrouter_model
+        self.temperature = temperature
+        self.client = client or OpenRouterClient(
+            openrouter_model, temperature=temperature)
+        self.work_dir = work_dir
+        self.trace_dir = Path(trace_dir) if trace_dir else None
+        self.session_factory = session_factory or StdioMcpSession
+
+    @property
+    def cache_name(self) -> str:
+        # Temperature and the arm's contract version are part of what a
+        # cached result measures: without them, a rerun at a different
+        # temperature — or after the prompt/caps changed — silently reused
+        # the old runs' results under the same name.
+        model = self.openrouter_model.replace("/", "-")
+        return (f"McpAgentForecaster_model={model}"
+                f"_temperature={self.temperature:g}"
+                f"_contract={MCP_CONTRACT_VERSION}")
+
+    def __str__(self) -> str:
+        return self.cache_name
+
+    def __call__(self, task_instance: Any, n_samples: int):
+        run = _Run(self, task_instance)
+        try:
+            submission, extra_info = run.drive()
+        finally:
+            run.finish()
+        paths = samples_from_quantile_rows(submission, n_samples)
+        try:
+            import numpy as np
+        except ModuleNotFoundError:
+            # The official benchmark environment always has numpy; the
+            # unit tests run without it and take the same [n, horizon, 1]
+            # shape as nested lists.
+            return [[[value] for value in path] for path in paths], extra_info
+        return np.asarray(paths, dtype=float)[:, :, None], extra_info
+
+
+class _Run:
+    """One task-seed conversation: jail, server, loop, caps, submission."""
+
+    def __init__(self, forecaster: McpAgentForecaster, task_instance: Any):
+        self.forecaster = forecaster
+        self.task = task_instance
+        self.started = time.time()
+        self.jail = Path(tempfile.mkdtemp(
+            prefix="cik-mcp-", dir=forecaster.work_dir)).resolve()
+        self.timestamps, self.values = _task_series(task_instance)
+        self.csv_path = self.jail / "history.csv"
+        _write_history_csv(self.timestamps, self.values, self.csv_path)
+        self.horizon = len(task_instance.future_time)
+        self.session = forecaster.session_factory(self.jail)
+        self.trace: list[dict[str, Any]] = []
+        self.mcp_calls = 0
+        self.artifact_paths: set[str] = set()
+        self.submission: dict[str, Any] | None = None
+        self.tokens_at_start = (forecaster.client.total_prompt_tokens
+                                + forecaster.client.total_completion_tokens)
+
+    # -- lifecycle ---------------------------------------------------------
+    def finish(self) -> None:
+        self.session.close()
+        self._write_trace()
+
+    def _write_trace(self) -> None:
+        trace_dir = self.forecaster.trace_dir
+        if trace_dir is None:
+            return
+        trace_dir.mkdir(parents=True, exist_ok=True)
+        name = getattr(self.task, "name", self.task.__class__.__name__)
+        seed = getattr(self.task, "seed", "x")
+        payload = {
+            "task": str(name), "seed": seed,
+            "mcp_calls": self.mcp_calls,
+            "submitted": (self.submission or {}).get("route"),
+            "trace": self.trace,
+            "total_time": time.time() - self.started,
+        }
+        # CiK task instances carry no `seed` attribute and the forecaster
+        # is one object shared across every task-seed, so `seed` is "x"
+        # for all five runs of a task: writing to one name silently kept
+        # the last run and discarded four (103 traces survived 355 runs).
+        # A trace is diagnostic evidence; losing it costs a diagnosis.
+        path = trace_dir / f"{name}-seed{seed}.json"
+        suffix = 1
+        while path.exists():
+            suffix += 1
+            path = trace_dir / f"{name}-seed{seed}.{suffix}.json"
+        path.write_text(json.dumps(payload, indent=2, default=str) + "\n",
+                        encoding="utf-8")
+
+    # -- caps --------------------------------------------------------------
+    def _run_tokens(self) -> int:
+        client = self.forecaster.client
+        return (client.total_prompt_tokens + client.total_completion_tokens
+                - self.tokens_at_start)
+
+    def _check_budget_caps(self) -> None:
+        if time.time() - self.started > MAX_WALL_SECONDS:
+            self._abstain(f"cap:wall_clock exceeded {MAX_WALL_SECONDS:.0f}s")
+        if self._run_tokens() > MAX_RUN_TOKENS:
+            self._abstain(f"cap:tokens exceeded {MAX_RUN_TOKENS}")
+
+    def _abstain(self, reason: str) -> None:
+        self.trace.append({"abstained": reason})
+        raise GnomonAbstained([reason])
+
+    # -- the loop ----------------------------------------------------------
+    def drive(self) -> tuple[list[dict[str, float]], dict[str, Any]]:
+        self.session.initialize()
+        tools = openai_tool_specs(self.session.list_tools())
+        future_index = _task_future_timestamps(self.task)
+        system = SYSTEM.format(
+            csv_path=str(self.csv_path), horizon=self.horizon,
+            future_start=future_index[0], future_end=future_index[-1],
+            max_rounds=MAX_ROUNDS, max_calls=MAX_MCP_CALLS,
+        )
+        history = "\n".join(
+            f"{ts},{value}" for ts, value in zip(self.timestamps, self.values))
+        context = build_context_text(self.task)
+        messages: list[dict[str, Any]] = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": USER.format(
+                context=context or "(no textual context)",
+                n_obs=len(self.values), csv_path=str(self.csv_path),
+                history=history, horizon=self.horizon,
+            )},
+        ]
+
+        nudged = False
+        for _round in range(MAX_ROUNDS):
+            self._check_budget_caps()
+            response = self.forecaster.client.chat(
+                messages, n=1, tools=tools, tool_choice="auto")
+            message = response.choices[0].message
+            tool_calls = _tool_calls_as_dicts(message)
+            if not tool_calls:
+                messages.append({"role": "assistant",
+                                 "content": message.content or ""})
+                if self.submission:
+                    break
+                if nudged:
+                    self._abstain("no submission: prose answers twice after nudge")
+                nudged = True
+                messages.append({
+                    "role": "user",
+                    "content": "Finish by calling submit_forecast — either "
+                               "an artifact_path from a gnomon_forecast "
+                               "result, or your own quantiles.",
+                })
+                continue
+            messages.append({"role": "assistant",
+                             "content": message.content or None,
+                             "tool_calls": tool_calls})
+            for call in tool_calls:
+                try:
+                    arguments = json.loads(call["function"]["arguments"] or "{}")
+                except json.JSONDecodeError:
+                    arguments = None
+                result = self._dispatch(
+                    call["function"]["name"], arguments)
+                messages.append({"role": "tool", "tool_call_id": call["id"],
+                                 "content": result})
+            if self.submission:
+                break
+        if not self.submission:
+            self._abstain(f"cap:rounds {MAX_ROUNDS} rounds without a submission")
+        return self._resolve_submission()
+
+    # -- dispatch ----------------------------------------------------------
+    def _dispatch(self, name: str, arguments: dict[str, Any] | None) -> str:
+        """Route one tool call; return the tool-message text the model sees."""
+        entry: dict[str, Any] = {"tool": name}
+        self.trace.append(entry)
+        if arguments is None:
+            entry["error"] = "unparseable arguments"
+            return json.dumps({"code": "INVALID_ARGUMENTS",
+                               "message": "Tool arguments were not valid JSON.",
+                               "authored_by": "harness"})
+        if name == "submit_forecast":
+            payload = self._handle_submit(arguments)
+            entry["result"] = payload
+            return json.dumps(payload)
+
+        violations = jail_violations(arguments, self.jail)
+        if violations:
+            entry["jail_violations"] = violations
+            payload = {
+                "code": "PATH_JAIL",
+                "message": "This run may only read and write inside its own "
+                           "run directory. The history file is at "
+                           f"{self.csv_path}.",
+                "violations": violations,
+                "authored_by": "harness",
+            }
+            return json.dumps(payload)
+        if self.mcp_calls >= MAX_MCP_CALLS:
+            self._abstain(f"cap:tool_calls exceeded {MAX_MCP_CALLS}")
+        self.mcp_calls += 1
+        self._check_budget_caps()
+        try:
+            result = self.session.call_tool(name, arguments)
+        except Exception as error:
+            # Transport death is a harness failure, disclosed as such.
+            self._abstain(f"mcp transport failed: {error}")
+        entry["is_error"] = bool(result.get("isError"))
+        structured = result.get("structuredContent") or {}
+        if isinstance(structured, dict):
+            code = (structured.get("error") or {}).get("code") or structured.get("code")
+            if code:
+                entry["code"] = code
+            if not result.get("isError") and structured.get("artifact_path"):
+                self.artifact_paths.add(str(structured["artifact_path"]))
+        # Verbatim: the server's own text block, unedited.
+        content = result.get("content") or []
+        text = content[0].get("text", "") if content else json.dumps(structured)
+        return text
+
+    # -- submission --------------------------------------------------------
+    def _handle_submit(self, arguments: dict[str, Any]) -> dict[str, Any]:
+        if self.submission is not None:
+            return {"accepted": False, "authored_by": "harness",
+                    "message": "A forecast was already submitted; the first "
+                               "accepted submission stands."}
+        artifact_path = arguments.get("artifact_path")
+        quantiles = arguments.get("quantiles")
+        if bool(artifact_path) == bool(quantiles):
+            return {"accepted": False, "authored_by": "harness",
+                    "message": "Provide exactly one of artifact_path or quantiles."}
+        if artifact_path:
+            if str(artifact_path) not in self.artifact_paths:
+                return {"accepted": False, "authored_by": "harness",
+                        "message": "artifact_path was not produced by a "
+                                   "gnomon_forecast call in this run.",
+                        "known_artifact_paths": sorted(self.artifact_paths)}
+            rows = self._artifact_rows(str(artifact_path))
+            if isinstance(rows, str):
+                return {"accepted": False, "authored_by": "harness",
+                        "message": rows}
+            self.submission = {"route": "gnomon", "rows": rows,
+                               "artifact_path": str(artifact_path),
+                               "reasoning": arguments.get("reasoning")}
+            return {"accepted": True, "route": "gnomon"}
+        problems = self._quantile_problems(quantiles)
+        if problems:
+            return {"accepted": False, "authored_by": "harness",
+                    "message": problems}
+        route = "direct" if self.mcp_calls == 0 else "informed-direct"
+        self.submission = {
+            "route": route,
+            "rows": [{"q10": float(row["q10"]), "q50": float(row["q50"]),
+                      "q90": float(row["q90"]),
+                      "point": float(row["q50"])} for row in quantiles],
+            "reasoning": arguments.get("reasoning"),
+        }
+        return {"accepted": True, "route": route}
+
+    def _artifact_rows(self, artifact_path: str) -> list[dict[str, Any]] | str:
+        from gnomon.artifacts import read_artifact
+
+        try:
+            data = read_artifact(artifact_path)
+        except Exception as error:
+            return f"artifact could not be read: {error}"
+        results = data.get("results") or []
+        if not results:
+            return "artifact holds no results"
+        rows = results[0].get("forecast") or []
+        if len(rows) != self.horizon:
+            return (f"artifact horizon is {len(rows)}, task horizon is "
+                    f"{self.horizon}; re-run gnomon_forecast with "
+                    f"horizon={self.horizon}")
+        self._submitted_support = results[0].get("support")
+        self._submitted_model = results[0].get("selected_model")
+        return rows
+
+    def _quantile_problems(self, quantiles: Any) -> str | None:
+        # A rejection must name what was received, or the model retries
+        # the same shape until the rounds cap converts it to an
+        # abstention (observed: 10 identical rejections on a dry run).
+        if isinstance(quantiles, dict):
+            keys = ", ".join(sorted(str(key) for key in quantiles))
+            return (f"quantiles must be a list of exactly {self.horizon} "
+                    f"{{q10, q50, q90}} objects (one per horizon step); got "
+                    f"a single object with keys [{keys}]. Parallel per-"
+                    f"quantile arrays are not accepted — send "
+                    f'[{{"q10": ..., "q50": ..., "q90": ...}}, ...] with '
+                    f"one entry per step.")
+        if not isinstance(quantiles, list):
+            return (f"quantiles must be a list of exactly {self.horizon} "
+                    f"objects (one per horizon step); got "
+                    f"{type(quantiles).__name__}")
+        if len(quantiles) != self.horizon:
+            return (f"quantiles must be a list of exactly {self.horizon} "
+                    f"objects (one per horizon step); got {len(quantiles)}")
+        import math
+
+        for index, row in enumerate(quantiles):
+            if not isinstance(row, dict):
+                return f"quantiles[{index}] is not an object"
+            for key in ("q10", "q50", "q90"):
+                value = row.get(key)
+                if not isinstance(value, (int, float)) or not math.isfinite(value):
+                    return (f"quantiles[{index}].{key} must be a finite "
+                            f"number; got {value!r:.60}")
+        return None
+
+    # -- result ------------------------------------------------------------
+    def _resolve_submission(self) -> tuple[list[dict[str, float]], dict[str, Any]]:
+        assert self.submission is not None
+        extra_info: dict[str, Any] = {
+            "adapter": self.forecaster.cache_name,
+            "route": self.submission["route"],
+            "mcp_calls": self.mcp_calls,
+            "run_tokens": self._run_tokens(),
+            "tool_sequence": [
+                {key: value for key, value in entry.items()
+                 if key in ("tool", "is_error", "code", "jail_violations")}
+                for entry in self.trace
+            ],
+            "submit_reasoning": self.submission.get("reasoning"),
+            "llm_usage": self.forecaster.client.usage_summary,
+            "total_time": time.time() - self.started,
+        }
+        if self.submission["route"] == "gnomon":
+            extra_info["artifact_path"] = self.submission["artifact_path"]
+            extra_info["support"] = getattr(self, "_submitted_support", None)
+            extra_info["selected_model"] = getattr(self, "_submitted_model", None)
+        return self.submission["rows"], extra_info

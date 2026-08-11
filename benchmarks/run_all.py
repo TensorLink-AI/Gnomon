@@ -43,7 +43,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from benchmarks.common.manifest import write_manifest  # noqa: E402
+from benchmarks.common.manifest import read_manifest, write_manifest  # noqa: E402
 
 # Which shared defaults each adapter's CLI can accept. "limit_flag"
 # names the adapter's closest equivalent of a sample cap.
@@ -221,19 +221,38 @@ def main() -> int:
             # `args.dry_run` — so the orchestrator only ever completed a
             # single run.
             run_args = dict(run.get("args") or {})
-            write_manifest(
-                path.parent,
-                benchmark=benchmark_of(run),
-                run_name=name,
-                condition=(run_args.get("condition") or run_args.get("method")
-                           or run_args.get("mode") or run_args.get("subcommand")),
-                target=run.get("target") or run_args.get("indicator"),
-                model=config.get("model"),
-                command=printable,
-                config_path=args_config_path,
-                limit=(config.get("defaults") or {}).get("limit"),
-                status=status,
-            )
+            orchestrator_view = {
+                "benchmark": benchmark_of(run),
+                "condition": (run_args.get("condition") or run_args.get("method")
+                              or run_args.get("mode") or run_args.get("subcommand")),
+                "target": run.get("target") or run_args.get("indicator"),
+                "model": run_args.get("model") or config.get("model"),
+                "command": printable,
+                "limit": run_args.get("limit",
+                                      (config.get("defaults") or {}).get("limit")),
+            }
+            # Merge with the adapter's own manifest instead of replacing it.
+            # The adapter records facts only it knows — base_url, best_effort,
+            # its real target ("tiers=..."), its own condition naming — and
+            # overwriting them dropped exactly the fields report.py's
+            # comparability refusal reads: two orchestrated TemporalBench runs
+            # with different tier sets compared without refusal because both
+            # manifests lost `target`. The adapter's record wins on overlap;
+            # the orchestrator contributes what only it knows (run_name,
+            # config_path, exit status) plus fallbacks for adapters that
+            # write no manifest of their own.
+            # Adapters write their manifest at the end of a successful run,
+            # so it is only trusted as *this* run's record when the child
+            # exited 0; on failure whatever sits there may be a previous
+            # run's manifest, and stale provenance is worse than sparse.
+            adapter_manifest = (read_manifest(path.parent)
+                                if result.returncode == 0 else {})
+            merged = {key: value for key, value in orchestrator_view.items()
+                      if value is not None}
+            merged.update(adapter_manifest)
+            merged.update(run_name=name, config_path=args_config_path,
+                          status=status)
+            write_manifest(path.parent, **merged)
         if path and path.exists():
             outcome["summary"] = json.loads(path.read_text(encoding="utf-8"))
         outcomes.append(outcome)

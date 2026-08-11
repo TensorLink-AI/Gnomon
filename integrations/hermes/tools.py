@@ -98,15 +98,22 @@ def _run_gnomon(cli_args: list[str]) -> dict[str, Any]:
 
 
 def _dataset_args(args: dict[str, Any]) -> list[str] | dict[str, Any]:
-    """Translate shared tool arguments to CLI flags, or return an error payload."""
-    missing = [key for key in ("input", "time_column", "target_column") if not args.get(key)]
-    if missing:
+    """Translate shared tool arguments to CLI flags, or return an error payload.
+
+    ``time_column``/``target_column`` are forwarded only when supplied: the
+    CLI infers them when the file leaves no choice and discloses the
+    inference in the result's assumptions, and its refusal on ambiguity is
+    already a structured error this plugin passes through verbatim."""
+    if not args.get("input"):
         return _error(
             "INVALID_ARGUMENTS",
-            f"Missing required argument(s): {', '.join(missing)}.",
+            "Missing required argument(s): input.",
         )
-    cli = [str(args["input"]), "--time", str(args["time_column"]),
-           "--target", str(args["target_column"])]
+    cli = [str(args["input"])]
+    if args.get("time_column"):
+        cli += ["--time", str(args["time_column"])]
+    if args.get("target_column"):
+        cli += ["--target", str(args["target_column"])]
     if args.get("series_column"):
         cli += ["--series", str(args["series_column"])]
     if args.get("frequency"):
@@ -143,9 +150,10 @@ def handle_gnomon_forecast(args: dict[str, Any], **kwargs: Any) -> str:
     cli = _dataset_args(args)
     if isinstance(cli, dict):
         return json.dumps(cli)
-    if not args.get("horizon"):
-        return json.dumps(_error("INVALID_ARGUMENTS", "Missing required argument: horizon."))
-    cli = ["forecast", *cli, "--horizon", str(int(args["horizon"]))]
+    cli = ["forecast", *cli]
+    if args.get("horizon"):
+        # Omitted: the CLI defaults to one seasonal period and discloses it.
+        cli += ["--horizon", str(int(args["horizon"]))]
     if args.get("output_dir"):
         cli += ["--output", str(args["output_dir"])]
     if args.get("minimum_baseline_improvement") is not None:

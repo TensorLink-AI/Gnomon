@@ -156,11 +156,38 @@ def build_forecast_lineage(
         evaluation_id = f"evaluation:{result.series}"
         support_id = f"support:{result.series}"
         if result.forecast and result.support == "best_effort":
-            # Rows exist, but nothing was measured: the evaluation abstained
-            # and the rows are a disclosed naive fallback published on
-            # explicit request. The claim class is descriptive — never
-            # predictive — so the verifier's calibration gate cannot be
-            # satisfied by numbers no fold ever tested.
+            # Sub-supported rows were published. The claim class is
+            # descriptive — never predictive — so the verifier's
+            # calibration gate cannot be satisfied by numbers no fold ever
+            # tested, and the statement carries the tier label the
+            # verifier requires of every claim quoting such rows.
+            split_reason = next(
+                (reason for reason in
+                 (result.support_assessment or {}).get("reasons", [])
+                 if reason.get("code") == "horizon_split"), None)
+            if split_reason is not None:
+                # A horizon split: the prefix is an evaluated forecast, the
+                # remainder is the fallback. One claim naming both ranges
+                # and both tiers; the prefix's own calibration lives in the
+                # `:prefix` evaluation evidence, deliberately not promoted
+                # to a probability-bearing claim for the merged object.
+                tiers = sorted({str(row.get("tier", "best_effort"))
+                                for row in result.forecast})
+                lineage.claims.append(ClaimRecord(
+                    claim_id=f"claim:horizon_split:{result.series}",
+                    claim_class="descriptive",
+                    statement=(
+                        f"Horizon-split forecast for series "
+                        f"{result.series}: {split_reason.get('message')} "
+                        f"Row tiers present: {', '.join(tiers)}. The "
+                        f"best_effort rows carry no measured accuracy and "
+                        f"no probability weight."
+                    ),
+                    subject=result.series,
+                    evidence_ids=(evaluation_id, support_id),
+                    artifact_ids=(artifact.forecast_id, dataset_id),
+                ))
+                continue
             lineage.claims.append(ClaimRecord(
                 claim_id=f"claim:best_effort:{result.series}",
                 claim_class="descriptive",
@@ -168,8 +195,9 @@ def build_forecast_lineage(
                     f"No reliable forecast exists for series {result.series}: "
                     "the evaluation protocol could not run. The published "
                     f"{len(result.forecast)} rows are a last-value fallback "
-                    "with dispersion-scaled intervals, requested via "
-                    "best-effort mode; they carry no measured accuracy and "
+                    "with dispersion-scaled intervals, published at the "
+                    "best_effort tier under the request's minimum_support "
+                    "floor; they carry no measured accuracy and "
                     "no probability weight."
                 ),
                 subject=result.series,

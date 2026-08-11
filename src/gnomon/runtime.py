@@ -10,6 +10,7 @@ from .artifacts import write_artifact
 from .context import ContextEvent
 from .contracts import DataSchema, Evidence, ForecastArtifact, ForecastTask, SeriesResult
 from .covariates import CovariateDataset
+from .versioning import RUNTIME_VERSION
 from .ids import SYSTEM_CLOCK, Clock, content_id
 from .models import BASELINES, MODELS
 from .pipeline import (
@@ -156,6 +157,43 @@ def inspect_dataset(
     }
 
 
+def _split_prefix(
+    series_name: str, items: list, loaded: Any, reachable: int, *,
+    minimum_baseline_improvement: float, config: Any,
+    selection_strategy: str, seasonal_period: int | None,
+    target_coverage: float,
+):
+    """Evaluate the supportable horizon prefix for an automatic split.
+
+    The same stages, the same floors, the same guardrails as any run at
+    horizon ``reachable`` — nothing is re-graded, only re-requested at
+    the horizon the data already supports. Enrichment stages are not
+    applied here (disclosed by the ``horizon_split`` reason); the prefix
+    is the core evaluated forecast. Returns ``None`` when even the
+    prefix abstains, in which case the caller falls back to the plain
+    best-effort lane."""
+    sub = horizon_stage(
+        series_name, items, horizon=reachable, frequency=loaded.frequency,
+        seasonal_period=seasonal_period,
+    )
+    evaluate_stage(
+        sub, horizon=reachable,
+        minimum_baseline_improvement=minimum_baseline_improvement,
+        frequency=loaded.frequency, config=config, strict_abstention=False,
+        snapshot=loaded.snapshot, variable=loaded.variable,
+    )
+    predict_stage(
+        sub, horizon=reachable, frequency=loaded.frequency,
+        selection_strategy=selection_strategy,
+    )
+    prefix_rows, prefix_support, _ = interval_stage(
+        sub, threshold=None, target_coverage=target_coverage,
+    )
+    if not prefix_rows or prefix_support == "unsupported":
+        return None
+    return sub, prefix_rows, prefix_support
+
+
 def _config_fingerprint(config: Any) -> dict[str, object] | None:
     """The behaviour-relevant subset of the config, for content addressing.
 
@@ -174,10 +212,31 @@ def _config_fingerprint(config: Any) -> dict[str, object] | None:
         "meta_model": asdict(meta_model) if meta_model is not None and is_dataclass(meta_model) and meta_model.enabled else None,
         "api_providers": sorted(api.providers) if api is not None and api.enabled else None,
         "tsfm_candidates": sorted(getattr(models, "tsfm_candidates", None) or []) or None,
+        # A restricted statistical pool changes which models compete, so it
+        # must change the forecast id: without it, a `candidates` run and an
+        # open-contest run over the same file collided on one id, and
+        # first-write-wins served whichever artifact landed first.
+        "statistical_candidates": sorted(
+            getattr(models, "statistical_candidates", None) or []) or None,
     }
     if all(value is None for value in payload.values()):
         return None
     return payload
+
+
+def _restricted_pool(config: Any) -> list[str] | None:
+    """The caller-narrowed candidate pool, or ``None`` when the contest is
+    open. Reads the config rather than a threaded flag so a restriction set
+    in `gnomon.yaml` is disclosed exactly like one passed as `candidates`."""
+    models = getattr(config, "models", None) if config is not None else None
+    if models is None:
+        return None
+    statistical = getattr(models, "statistical_candidates", None)
+    if not statistical:
+        # `tsfm_candidates` alone is not a restriction: listing TSFMs is how
+        # they become available at all, and an empty list is the default.
+        return None
+    return sorted(set(statistical) | set(getattr(models, "tsfm_candidates", None) or []))
 
 
 def _restrict_candidates(config: Any, candidates: list[str]):
@@ -238,7 +297,9 @@ def _series_result(
     target_coverage: float,
     repair_log: Any,
     future_events: bool = False,
+    structural_events: bool = False,
     best_effort: bool = False,
+    minimum_support: str = "best_effort",
 ) -> tuple[SeriesResult, list[Evidence]]:
     """Run one series through the full stage pipeline.
 
@@ -308,18 +369,204 @@ def _series_result(
         state, threshold=threshold, context_events=context_events,
         target_coverage=target_coverage,
         future_events=future_events,
+        structural_events=structural_events,
     )
-    if best_effort and support == "unsupported" and not rows and state.values:
+    split = None
+    split_prefix_tier: str | None = None
+    if (support == "unsupported" and not rows and state.values
+            and minimum_support == "best_effort"
+            and not strict_abstention):
+        # Graduated support: the default floor publishes the most defensible
+        # answer that exists — here the disclosed naive fallback — instead
+        # of abstaining. Nothing about how tiers are earned changed; a
+        # higher minimum_support restores the refusal, `strict_abstention`
+        # keeps its refusal semantics untouched, and a series with no
+        # usable history at all still abstains (the guard above). The
+        # legacy `best_effort` flag maps to this same floor.
         from .pipeline import best_effort_stage
-        rows, support = best_effort_stage(state)
+        reachable = (state.assessment.max_supportable_horizon
+                     if state.assessment is not None else None)
+        if reachable and 0 < reachable < horizon:
+            # Automatic horizon split: the supportable prefix is evaluated
+            # at whatever tier it earns — same stages, same guardrails —
+            # and only the unsupportable remainder falls back.
+            split = _split_prefix(
+                series_name, items, loaded, reachable,
+                minimum_baseline_improvement=minimum_baseline_improvement,
+                config=config, selection_strategy=selection_strategy,
+                seasonal_period=seasonal_period,
+                target_coverage=target_coverage,
+            )
+        else:
+            split = None
+        if split is not None:
+            split_state, split_rows, split_support = split
+            fallback_rows, _ = best_effort_stage(state)
+            rows = split_rows + fallback_rows[len(split_rows):]
+            support = "best_effort"
+        else:
+            rows, support = best_effort_stage(state)
     assessment = state.assessment
-    from .support import assess_forecast_support
-    support_assessment = assess_forecast_support(
-        support, state.warnings, assessment,
-        known_time_assumed=loaded.snapshot.assumed_known_time,
-        disclosures=state.disclosures,
-        measured_coverage=state.coverage,
-    )
+    from .support import assess_forecast_support, disclose_epistemic_deviation
+    if split is not None:
+        # The split assessment carries both ranges explicitly: the prefix's
+        # own reasons and tier, the remainder's fallback status, and the
+        # typed `horizon_split` naming which rows sit where and why.
+        from .support import achieved_tier as _tier
+        prefix_assessment = assess_forecast_support(
+            split_support, split_state.warnings, split_state.assessment,
+            known_time_assumed=loaded.snapshot.assumed_known_time,
+            disclosures=split_state.disclosures,
+            measured_coverage=split_state.coverage,
+        )
+        prefix_tier = _tier(prefix_assessment.status, True)
+        split_prefix_tier = prefix_tier
+        prefix_end = split_rows[-1]["timestamp"]
+        full_end = rows[-1]["timestamp"]
+        from .contracts import SupportAssessment as _SupportAssessment
+        from .contracts import SupportReason as _SupportReason
+        enrichment_note = (
+            " Context events and covariates were not applied on the "
+            "split path; request the supportable horizon directly to "
+            "use them." if (context_events or covariates) else ""
+        )
+        split_reason = _SupportReason(
+            "horizon_split",
+            f"Rows 1-{reachable} (through {prefix_end}) are an evaluated "
+            f"forecast at tier '{prefix_tier}'; rows {reachable + 1}-"
+            f"{horizon} (through {full_end}) are a naive best-effort "
+            f"extrapolation — the evaluation cannot support the full "
+            f"requested horizon.{enrichment_note}",
+        )
+        remainder_reason = _SupportReason(
+            "no_reliable_forecast",
+            f"Rows {reachable + 1}-{horizon} carry no measured accuracy "
+            f"and no probability weight: a last-value fallback with "
+            f"dispersion-scaled intervals.",
+        )
+        support_assessment = _SupportAssessment(
+            ("conditionally_supported"
+             if prefix_assessment.status == "supported"
+             else prefix_assessment.status),
+            [split_reason] + prefix_assessment.reasons + [remainder_reason],
+            prefix_assessment.assumptions,
+            {**prefix_assessment.sensitivity,
+             "supported_horizon": reachable,
+             "requested_horizon": horizon},
+            [_SupportReason(
+                "reduce_horizon",
+                f"Request horizon {reachable} or less for a fully "
+                f"evaluated result.",
+            )],
+            "best_effort",
+            prefix_assessment.disclosures + [
+                item for item in state.disclosures
+                if item not in prefix_assessment.disclosures
+            ],
+        )
+        # The published selection facts are the prefix's — the requested-
+        # horizon evaluation selected nothing. Its coverage is deliberately
+        # not published as the result's: it measures rows 1..N only, and it
+        # stays visible in the sensitivity and the prefix evidence.
+        state.selected_model = split_state.selected_model
+        state.warnings = split_state.warnings + state.warnings
+        state.coverage = None
+        assessment = split_state.assessment
+    else:
+        support_assessment = assess_forecast_support(
+            support, state.warnings, assessment,
+            known_time_assumed=loaded.snapshot.assumed_known_time,
+            disclosures=state.disclosures,
+            measured_coverage=state.coverage,
+        )
+        if support == "best_effort":
+            # The headline for a whole-object fallback names the history
+            # it extrapolates from; the count belongs in the sensitivity
+            # beside the rest of the measured facts.
+            support_assessment.sensitivity["observations"] = len(state.values)
+    from .contracts import DEFAULT_MINIMUM_BASELINE_IMPROVEMENT, SupportReason
+    if minimum_baseline_improvement != DEFAULT_MINIMUM_BASELINE_IMPROVEMENT:
+        # A caller-chosen evidence rule is not the documented one. Below the
+        # default the mandated-baseline gate is weaker, so the verdict is
+        # capped; above it the gate is stricter and the deviation only needs
+        # to be visible. (Negative values never reach here — `evaluate`
+        # refuses them as INVALID_MINIMUM_IMPROVEMENT.)
+        lowered = minimum_baseline_improvement < DEFAULT_MINIMUM_BASELINE_IMPROVEMENT
+        support_assessment = disclose_epistemic_deviation(
+            support_assessment,
+            SupportReason(
+                "nonstandard_evaluation",
+                f"minimum_baseline_improvement was "
+                f"{'lowered' if lowered else 'raised'} to "
+                f"{minimum_baseline_improvement} from the default "
+                f"{DEFAULT_MINIMUM_BASELINE_IMPROVEMENT}: the mandated-"
+                f"baseline gate is {'weaker' if lowered else 'stricter'} "
+                f"than documented.",
+            ),
+            cap=lowered,
+        )
+    restricted_pool = _restricted_pool(config)
+    if restricted_pool is not None:
+        support_assessment = disclose_epistemic_deviation(
+            support_assessment,
+            SupportReason(
+                "candidate_pool_restricted",
+                f"The candidate pool was restricted by the caller to "
+                f"{', '.join(restricted_pool) or 'baselines only'}; the "
+                f"mandatory baselines competed regardless, so the selection "
+                f"is honest within a narrowed contest.",
+            ),
+            cap=False,
+        )
+    from .support import TIER_ORDER, achieved_tier
+    tier = achieved_tier(support_assessment.status, bool(rows))
+    if tier is not None and TIER_ORDER[tier] < TIER_ORDER[minimum_support]:
+        # The publication floor, not the evaluation, refuses this result:
+        # the evidence is what it is, the caller asked not to be shown
+        # anything below the floor. Typed, with the one-step recovery.
+        support_assessment = assess_forecast_support(
+            "unsupported", state.warnings, assessment,
+            known_time_assumed=loaded.snapshot.assumed_known_time,
+            disclosures=state.disclosures,
+        )
+        support_assessment.reasons.insert(0, SupportReason(
+            "below_minimum_support",
+            f"The evidence achieved tier {tier!r}, below the requested "
+            f"minimum_support {minimum_support!r}; nothing was published. "
+            f"The evaluation itself is unchanged — only the publication "
+            f"floor refused the result.",
+        ))
+        support_assessment.recovery_actions.insert(0, SupportReason(
+            "lower_minimum_support",
+            f"Retry with minimum_support {tier!r} (or lower) to publish "
+            f"the result the evidence already supports.",
+        ))
+        rows, support, threshold_analysis = [], "unsupported", None
+    if threshold is not None and rows and support == "best_effort":
+        # A requested analysis that cannot run must say so, not vanish:
+        # threshold-crossing probabilities need calibrated residuals, which
+        # best_effort and horizon-split rows do not have.
+        state.notes.append(
+            f"threshold {threshold} was requested but no crossing analysis "
+            f"is reported: exceedance probabilities require calibrated "
+            f"residuals, which best_effort rows (and the fallback range of "
+            f"a horizon split) do not have."
+        )
+    # The unstrippable label: every published row names its tier, uniform
+    # on a single-tier forecast, changing at the split point on a split
+    # one — one shape, no special cases for consumers.
+    if rows:
+        if split is not None and split_prefix_tier is not None:
+            # Prefix rows carry the tier their own evaluation earned; the
+            # remainder is the fallback, whatever the merged status says.
+            prefix_length = len(split[1])
+            for index, row in enumerate(rows):
+                row["tier"] = (split_prefix_tier if index < prefix_length
+                               else "best_effort")
+        else:
+            uniform_tier = achieved_tier(support_assessment.status, True)
+            for row in rows:
+                row["tier"] = uniform_tier
     result = SeriesResult(
         series_name, support, state.selected_model, assessment.strongest_baseline,
         assessment.selection_scores, assessment.test_scores, assessment.improvement,
@@ -349,9 +596,43 @@ def _series_result(
         }),
         Evidence(f"support:{series_name}", "support_assessment", series_name, {
             "support": support, "warnings": state.warnings,
+            # The per-row tier mix, so the verifier can see from the
+            # evidence alone whether sub-supported rows were published.
+            "row_tiers": _tier_counts(rows),
+            "minimum_support": minimum_support,
         }),
     ])
+    if split is not None:
+        # The prefix's own evaluation record, distinct from the requested-
+        # horizon record above (which documents the abstention): the split
+        # is auditable from evidence, not only from the reasons.
+        split_state = split[0]
+        split_assessment = split_state.assessment
+        evidence.append(Evidence(
+            f"evaluation:{series_name}:prefix", "rolling_evaluation",
+            series_name, {
+                "partitioning": (
+                    "horizon-split prefix at the supportable horizon; "
+                    "selection folds, then calibration fold, then final "
+                    "test fold"),
+                "horizon": len(split[1]),
+                "selection_scores": split_assessment.selection_scores,
+                "test_scores": split_assessment.test_scores,
+                "measured_interval_coverage": split_state.coverage,
+                "baseline_improvement": split_assessment.improvement,
+                "strongest_baseline": split_assessment.strongest_baseline,
+                "selected_model": split_state.selected_model,
+            },
+        ))
     return result, evidence
+
+
+def _tier_counts(rows: list[dict[str, object]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        tier = str(row.get("tier", "unlabelled"))
+        counts[tier] = counts.get(tier, 0) + 1
+    return counts
 
 
 def forecast(
@@ -370,6 +651,7 @@ def forecast(
     config: Any = None,
     strict_abstention: bool = False,
     best_effort: bool = False,
+    minimum_support: str = "best_effort",
     seasonal_period: int | None = None,
     selection_strategy: str = "best",
     multivariate: bool = False,
@@ -378,6 +660,7 @@ def forecast(
     store_path: str | None = None,
     repair: str = "safe",
     candidates: list[str] | None = None,
+    input_provenance: str | None = None,
 ) -> tuple[ForecastArtifact, Path]:
     clock = clock or SYSTEM_CLOCK
     if candidates:
@@ -399,6 +682,15 @@ def forecast(
     if horizon < 1:
         from .contracts import GnomonError
         raise GnomonError("INVALID_HORIZON", "Horizon must be at least one period.")
+    from .support import PUBLICATION_TIERS
+    if minimum_support not in PUBLICATION_TIERS:
+        from .contracts import GnomonError
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            f"minimum_support must be one of {', '.join(PUBLICATION_TIERS)}.",
+            {"requested": minimum_support,
+             "supported": list(PUBLICATION_TIERS)},
+        )
     if selection_strategy == "ensemble":
         # Asking for the ensemble has to enter it in the evaluation, not just
         # swap the final forecast. Otherwise it is never scored on the folds
@@ -443,6 +735,9 @@ def forecast(
     future_events_enabled = bool(
         getattr(getattr(config, "context", None), "future_events", False)
     )
+    structural_events_enabled = bool(
+        getattr(getattr(config, "context", None), "structural_events", False)
+    )
     future_context_admitted: dict[str, list[dict[str, object]]] = {}
     results: list[SeriesResult] = []
     evidence: list[Evidence] = []
@@ -464,7 +759,9 @@ def forecast(
             adjudicating=adjudicating, threshold=threshold,
             target_coverage=target_coverage, repair_log=repair_log,
             future_events=future_events_enabled,
+            structural_events=structural_events_enabled,
             best_effort=best_effort,
+            minimum_support=minimum_support,
         )
         if result.future_context and result.future_context.get("admitted"):
             future_context_admitted[series_name] = list(
@@ -525,6 +822,7 @@ def forecast(
         "context_events": [event.__dict__ for event in context_events] if context_events else None,
         "covariates": {"source": covariates.fingerprint, "specs": [str(spec) for spec in covariates.specs]} if covariates else None,
         "config": _config_fingerprint(config),
+        "runtime_version": RUNTIME_VERSION,
     }
     if repair != REPAIR_SAFE:
         # The default level is absent from the payload so IDs predating the
@@ -534,23 +832,36 @@ def forecast(
         # Flag-on only, like future_context below: every flag-off ID —
         # including all pre-existing ones — is byte-identical.
         id_payload["best_effort"] = True
+    if minimum_support != "best_effort":
+        # The floor changes what is published, so it changes the id; the
+        # default floor is omitted so fully supported runs keep their ids.
+        id_payload["minimum_support"] = minimum_support
     if selected_weights:
         # Absent when no TSFM was selected, so ids for baseline and
         # statistical selections are unchanged by this addition.
         id_payload["model_weights"] = selected_weights
-    if future_events_enabled:
-        # Same pattern as model_weights: the key exists only when the flag
+    if future_events_enabled or structural_events_enabled:
+        # Same pattern as model_weights: the key exists only when a flag
         # is on, so every flag-off ID — including all pre-existing ones —
         # is byte-identical. When on, the ID covers both the flag and the
-        # events that actually influenced the numbers.
+        # events that actually influenced the numbers. With only
+        # future_events on the payload is unchanged from before the
+        # structural class existed, so those IDs are stable too.
         id_payload["future_context"] = {
             "enabled": True,
             "admitted": future_context_admitted,
         }
+        if structural_events_enabled:
+            id_payload["future_context"]["structural_enabled"] = True
     forecast_id = content_id("forecast", id_payload)
     artifact = ForecastArtifact(
         "0.1", forecast_id, clock.now().isoformat(),
         "complete", task, loaded.source_fingerprint, results, evidence,
+        input_provenance=(
+            input_provenance
+            or ("store" if input_path.startswith("store:") else None)
+        ),
+        runtime_version=RUNTIME_VERSION,
     )
     from .contracts import forecast_task
     from .lineage import build_forecast_lineage
@@ -643,6 +954,7 @@ def forecast_multi(
     config: Any = None,
     strict_abstention: bool = False,
     best_effort: bool = False,
+    minimum_support: str = "best_effort",
     seasonal_period: int | None = None,
     selection_strategy: str = "best",
     clock: Clock | None = None,
@@ -650,6 +962,7 @@ def forecast_multi(
     repair: str = "safe",
     candidates: list[str] | None = None,
     max_workers: int | None = None,
+    input_provenance: str | None = None,
 ) -> tuple[ForecastArtifact, Path]:
     """Forecast several columns of one wide file in a single run.
 
@@ -700,6 +1013,15 @@ def forecast_multi(
         )
     if horizon < 1:
         raise GnomonError("INVALID_HORIZON", "Horizon must be at least one period.")
+    from .support import PUBLICATION_TIERS
+    if minimum_support not in PUBLICATION_TIERS:
+        from .contracts import GnomonError
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            f"minimum_support must be one of {', '.join(PUBLICATION_TIERS)}.",
+            {"requested": minimum_support,
+             "supported": list(PUBLICATION_TIERS)},
+        )
     if selection_strategy == "ensemble":
         import copy as _copy
         from .config import load_config as _load_config
@@ -742,6 +1064,7 @@ def forecast_multi(
                 threshold=threshold, target_coverage=target_coverage,
                 repair_log=repair_logs[target],
                 best_effort=best_effort,
+            minimum_support=minimum_support,
             )
         except GnomonError as error:
             return _abstained_target_result(target, error)
@@ -818,12 +1141,17 @@ def forecast_multi(
         "context_events": None,
         "covariates": None,
         "config": _config_fingerprint(config),
+        "runtime_version": RUNTIME_VERSION,
     }
     from .repair import REPAIR_SAFE
     if repair != REPAIR_SAFE:
         id_payload["repair"] = repair
     if best_effort:
         id_payload["best_effort"] = True
+    if minimum_support != "best_effort":
+        # The floor changes what is published, so it changes the id; the
+        # default floor is omitted so fully supported runs keep their ids.
+        id_payload["minimum_support"] = minimum_support
     if selected_weights:
         id_payload["model_weights"] = selected_weights
     forecast_id = content_id("forecast", id_payload)
@@ -838,6 +1166,11 @@ def forecast_multi(
     artifact = ForecastArtifact(
         "0.1", forecast_id, clock.now().isoformat(),
         "complete", task, source_fingerprint, results, evidence,
+        input_provenance=(
+            input_provenance
+            or ("store" if input_path.startswith("store:") else None)
+        ),
+        runtime_version=RUNTIME_VERSION,
     )
     from .contracts import forecast_task
     from .lineage import build_forecast_lineage
@@ -864,6 +1197,27 @@ def _has_module(name: str) -> bool:
     return find_spec(name) is not None
 
 
+def _response_budget_bytes() -> int:
+    # Local import: toolspec imports runtime, so the reverse edge is lazy.
+    from .toolspec import RESPONSE_BUDGET_BYTES
+    return RESPONSE_BUDGET_BYTES
+
+
+def _default_minimum_support() -> str:
+    from .support import DEFAULT_MINIMUM_SUPPORT
+    return DEFAULT_MINIMUM_SUPPORT
+
+
+def _mcp_profile() -> dict[str, object]:
+    # Local import: toolspec imports runtime, so the reverse edge is lazy.
+    from .toolspec import PROFILES, active_profile, visible_tools
+    return {
+        "active": active_profile(),
+        "available": sorted(PROFILES) + ["full"],
+        "visible_tools": [tool["name"] for tool in visible_tools()],
+    }
+
+
 def capabilities() -> dict[str, object]:
     try:
         import pyarrow  # type: ignore[import-not-found]  # noqa: F401
@@ -875,14 +1229,19 @@ def capabilities() -> dict[str, object]:
     from .tsfm_sandbox import list_sandboxes
     try:
         from .config import load_config
-        future_events_on = bool(load_config().context.future_events)
+        _capabilities_config = load_config()
+        future_events_on = bool(_capabilities_config.context.future_events)
+        structural_events_on = bool(
+            getattr(_capabilities_config.context, "structural_events", False)
+        )
     except Exception:
         # A malformed config file must not make capabilities unreportable;
-        # the flag reads as its default.
+        # the flags read as their defaults.
         future_events_on = False
+        structural_events_on = False
     return {
         "schema_version": "0.1",
-        "runtime_version": "0.5.0",
+        "runtime_version": RUNTIME_VERSION,
         "interfaces": {"cli": True, "python": True, "mcp": True, "http": False},
         "inputs": {
             "csv": True, "tsv": True, "json": True, "jsonl": True,
@@ -916,16 +1275,40 @@ def capabilities() -> dict[str, object]:
                 "enabled_in_config": future_events_on,
                 "event_classes": ["constraint", "deterministic_override"],
                 "admission": (
-                    "textual verifiability: a quoted source span, "
-                    "deterministic re-parsing of its numbers, and a "
-                    "recent-history consistency check — only for windows "
-                    "with no overlap with the observed history"
+                    "textual verifiability: a quoted source span and "
+                    "deterministic re-parsing of its numbers (absolute, "
+                    "or multiples/percentages of the recent-window "
+                    "median) — only for windows with no overlap with "
+                    "the observed history; history's relation to a "
+                    "bound is disclosed, never used to reject"
                 ),
                 "disclosure": (
                     "influenced forecasts report support "
                     "'context_trusted' and carry the history-only "
                     "counterfactual in evidence"
                 ),
+            },
+            "structural_events": {
+                "flag": "context.structural_events",
+                "default": "off",
+                "enabled_in_config": structural_events_on,
+                "event_classes": ["structural"],
+                "effects": ["trend_ceases", "level_matches_seasonal_high",
+                            "level_matches_seasonal_low"],
+                "admission": (
+                    "LLM-classified from a closed effect menu with a "
+                    "quoted source span; no numeric parse — the class "
+                    "carries no number, and every applied quantity is "
+                    "derived from Gnomon's own data (the emitted path "
+                    "for trend_ceases; per-phase envelope quantiles of "
+                    "the observed history for the regime effects)"
+                ),
+                "disclosure": (
+                    "same as future_events: support 'context_trusted', "
+                    "history-only counterfactual, admitted events in "
+                    "the artifact ID payload"
+                ),
+                "experimental": "results/structural-effects/HYPOTHESIS.md",
             },
         },
         "models": {
@@ -972,7 +1355,28 @@ def capabilities() -> dict[str, object]:
                 "'point_recentring_suppressed'"
             ),
         },
+        # Where this process writes. Agents used to guess output_dir (and
+        # burn a round-trip on a host's path-jail refusal) because nothing
+        # disclosed the allowed default; a jailed host should start the
+        # server with its working directory inside the jail, and this block
+        # is how the agent learns where that is.
+        "workspace": {
+            "cwd": os.getcwd(),
+            "default_output_dir": str(Path("gnomon-output").resolve()),
+            "note": (
+                "Omit output_dir to write artifacts under "
+                "default_output_dir (content-addressed, immutable "
+                "directories). Relative paths resolve against cwd."
+            ),
+        },
         "experimental": {"planner": os.environ.get("GNOMON_EXPERIMENTAL_PLANNER") == "1"},
+        # Deprecated surfaces are opt-in, never silently removed; this flag
+        # is how a client discovers whether the v0.2 compat tools are up.
+        "compat": {
+            "v02_tools": os.environ.get("GNOMON_V02_COMPAT") == "1",
+            "enable": "GNOMON_V02_COMPAT=1",
+        },
+        "mcp_profile": _mcp_profile(),
         "features": {
             "inspection": True, "forecasting": True, "separated_evaluation": True,
             "investigate_change": True, "decide": True, "monitor": True,
@@ -994,7 +1398,10 @@ def capabilities() -> dict[str, object]:
             "season_detection": True, "ensemble_forecasting": True,
             "multivariate_var": True, "strict_abstention": True,
             "best_effort_fallback": True,
+            "graduated_support": True, "horizon_split": True,
+            "row_tier_labels": True, "forecast_headline": True,
             "multi_target_batching": True, "brief_output": True,
+            "inline_data_channels": True,
         },
         "forecast_surface": {
             # Machine-readable notes on the two agent-facing additions, so a
@@ -1012,12 +1419,53 @@ def capabilities() -> dict[str, object]:
             },
             "brief_output": {
                 "cli": "--brief",
-                "mcp": "format: 'brief'",
+                "mcp": "format: 'brief' (the MCP default; pass 'full' to opt out)",
                 "semantics": (
                     "q50 with one q10-q90 interval per step, plus the "
                     "support state, warnings, abstention reasons, recovery "
                     "actions, and disclosures verbatim. The on-disk "
                     "artifact is unchanged."
+                ),
+            },
+            "graduated_support": {
+                "default_minimum_support": _default_minimum_support(),
+                "tiers": ["best_effort", "conditionally_supported",
+                          "supported"],
+                "cli": "--minimum-support",
+                "mcp": "minimum_support",
+                "semantics": (
+                    "Publication floor only: the evaluation and every "
+                    "tier's earning conditions are unchanged. The default "
+                    "floor publishes the most defensible answer that "
+                    "exists, tier-labelled; a higher floor restores the "
+                    "typed refusal, and a series with no usable history "
+                    "still abstains."
+                ),
+            },
+            "response_budget": {
+                "mcp_bytes": _response_budget_bytes(),
+                "semantics": (
+                    "Tool responses over the budget trim long arrays to "
+                    "their first/last entries with truncated: true and a "
+                    "pointer at the artifact. Support assessments, "
+                    "warnings, assumptions, and error/repair payloads are "
+                    "never trimmed."
+                ),
+            },
+            "inline_data_channels": {
+                "mcp": (
+                    "observations (rows, replaces input), context_events "
+                    "(concatenates with context_events_file), covariates "
+                    "(rows, excludes covariates_file), actuals (rows, "
+                    "excludes actuals_file)"
+                ),
+                "semantics": (
+                    "Every file parameter on the tool surface has an "
+                    "inline array equivalent, so a caller without a "
+                    "filesystem can reach the whole engine. Both channels "
+                    "of each pair run the identical validation; inline "
+                    "content is fingerprinted for evidence just as files "
+                    "are."
                 ),
             },
         },

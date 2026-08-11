@@ -41,11 +41,31 @@ and forecasting never makes a network call to a model provider.
 
 ## Intended LLM boundary
 
-An eventual LLM layer may:
+The rule of thumb, enforced in code by `contracts.PARAMETER_AUTHORITY`:
+**the model may point, filter, frame, and prefer; it may never assert a
+measurement.** Every caller-settable parameter answers one of three
+questions —
+
+- **intent** — what does the caller want computed? Free: a preference
+  cannot make a number wrong.
+- **data** — what is the caller's data? Validated, fingerprinted, and
+  disclosed when inferred or supplied inline (`provenance: inline` on the
+  artifact task block).
+- **epistemic** — what counts as evidence? Priced: moving one off its
+  default always leaves a trace in the artifact (a typed reason, a
+  distinct support state, or a structured refusal), and
+  `tests/test_parameter_authority.py` fails CI if a parameter reaches a
+  front door unclassified or an epistemic one is unpriced.
+
+Concretely, an LLM layer may:
 
 - map user intent to typed task fields;
 - propose timestamp, target, and series columns;
 - search explicitly permitted local context;
+- propose context events (verbatim-quote-verified) and *nominate* — never
+  pick — an effect shape via `expected_shape`;
+- restrict the model contest via `candidates` (the mandatory baselines
+  always compete, and the restriction is disclosed);
 - propose bounded experiments; and
 - explain immutable forecast artifacts and evidence.
 

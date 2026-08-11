@@ -213,3 +213,21 @@ def test_general_step_data_forecasts_end_to_end(tmp_path: Path) -> None:
     stamps = [datetime.fromisoformat(str(row["timestamp"])) for row in rows]
     deltas = {right - left for left, right in zip(stamps, stamps[1:])}
     assert deltas == {timedelta(minutes=7)}
+
+
+def test_detect_season_finds_a_period_beyond_the_frequency_default() -> None:
+    """An hourly axis defaults to season 24, but a 50-step oscillation is
+    real data (AnomLLM's synthetic sines run at period 33-50). The search
+    must reach past twice the calendar default, or every season-aware
+    consumer — per-phase z-scores, rolling windows, seasonal naive —
+    runs on the wrong period; measured as mass false-positive anomaly
+    flags on sine series."""
+    import math
+
+    from gnomon.temporal import detect_season
+
+    values = [math.sin(2 * math.pi * 0.02 * index) for index in range(400)]
+    season, strength, basis = detect_season(values, "h")
+    assert basis == "autocorrelation"
+    assert season == 50
+    assert strength > 0.5
