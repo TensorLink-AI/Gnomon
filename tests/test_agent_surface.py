@@ -36,7 +36,8 @@ def test_v02_surface_is_preserved_and_macros_added():
 
     names = [tool["name"] for tool in TOOLS]
     compat_names = [tool["name"] for tool in V02_COMPAT_TOOLS]
-    gated = {"gnomon_record_decision", "gnomon_resolve_decision"}
+    gated = {"gnomon_record_decision", "gnomon_resolve_decision",
+             "gnomon_list_open_forecasts", "gnomon_model_performance"}
     for name in V02_TOOL_NAMES:
         if name in gated:
             assert name in compat_names, f"gated v0.2 tool {name} missing"

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **The tracking reads are one tool (Fix 2).** `gnomon_status` gained a
+  `section` parameter (`open_forecasts` / `performance` / `decisions` /
+  `all`, default `all`) returning byte-compatible payloads of the
+  standalone tools it replaces; `gnomon_list_open_forecasts` and
+  `gnomon_model_performance` left the default surface and return under
+  `GNOMON_V02_COMPAT=1`. Realised performance stays labelled
+  observational, never causal.
+
 - **The deprecated v0.2 decision pair is opt-in (Fix 1).**
   `gnomon_record_decision` and `gnomon_resolve_decision` left the default
   MCP surface: two tool slots whose descriptions argued for their own

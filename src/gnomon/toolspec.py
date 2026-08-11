@@ -972,22 +972,6 @@ TOOLS: list[dict[str, Any]] = [
         "runner": _run_submit_actuals,
     },
     {
-        "name": "gnomon_list_open_forecasts",
-        "description": "List unscored forecasts and distinguish horizons that are due from those still awaiting observations.",
-        "inputSchema": {"type": "object", "properties": {
-            "project": {"type": "string"},
-        }, "required": []},
-        "runner": _run_open_forecasts,
-    },
-    {
-        "name": "gnomon_model_performance",
-        "description": "Read descriptive realised model performance for a project. Do not treat observational rankings as causal evidence.",
-        "inputSchema": {"type": "object", "properties": {
-            "project": {"type": "string"}, "model": {"type": "string"},
-        }, "required": ["project"]},
-        "runner": _run_model_performance,
-    },
-    {
         "name": "gnomon_ingest",
         "description": (
             "Append a file's observations to the bitemporal store as vintages. "
@@ -1153,7 +1137,31 @@ def _run_decide(arguments: dict[str, Any]) -> dict[str, Any]:
 
 def _run_status(arguments: dict[str, Any]) -> dict[str, Any]:
     from .tracking import TrackingStore
-    return TrackingStore().status(arguments.get("project"))
+
+    section = str(arguments.get("section") or "all")
+    if section == "open_forecasts":
+        # Byte-compatible with the retired gnomon_list_open_forecasts.
+        return _run_open_forecasts(arguments)
+    if section == "performance":
+        # Byte-compatible with the retired gnomon_model_performance,
+        # including its project requirement.
+        if not arguments.get("project"):
+            from .contracts import GnomonError
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "section='performance' needs a project: realised "
+                "performance is recorded per tracking project.",
+            )
+        return _run_model_performance(arguments)
+    status = TrackingStore().status(arguments.get("project"))
+    if section == "decisions":
+        return {
+            "schema_version": status["schema_version"],
+            "project": status["project"],
+            "unresolved_decisions": status["unresolved_decisions"],
+            "decision_summary": status["decision_summary"],
+        }
+    return status
 
 
 def _run_resolve_outcome(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -1302,12 +1310,33 @@ TOOLS.extend([
     {
         "name": "gnomon_status",
         "description": (
-            "Pollable status: open forecasts, due horizons, unresolved "
-            "decisions, and realised-performance summaries. Descriptive "
-            "evidence an agent can cite — never causal."
+            "The one tracking read: open forecasts, due horizons, "
+            "unresolved decisions, and realised-performance summaries. "
+            "Narrow with `section` (open_forecasts / performance / "
+            "decisions) to get exactly what the retired standalone tools "
+            "returned. Descriptive evidence an agent can cite — never "
+            "causal; do not treat observational rankings as causal "
+            "evidence."
         ),
         "inputSchema": {"type": "object", "properties": {
-            "project": {"type": "string", "description": "Optional project filter."},
+            "project": {"type": "string", "description": (
+                "Optional project filter; required for "
+                "section='performance'."
+            )},
+            "section": {"type": "string",
+                        "enum": ["open_forecasts", "performance",
+                                 "decisions", "all"],
+                        "description": (
+                            "Slice to return (default all). open_forecasts: "
+                            "unscored forecasts with due horizons; "
+                            "performance: realised per-model performance "
+                            "for a project; decisions: unresolved decisions "
+                            "and the resolution summary."
+                        )},
+            "model": {"type": "string", "description": (
+                "With section='performance': narrow to one model's "
+                "realised runs."
+            )},
         }, "required": []},
         "runner": _run_status,
     },
@@ -1505,6 +1534,27 @@ V02_COMPAT_TOOLS: list[dict[str, Any]] = [
             "correct": {"type": "boolean"},
         }, "required": ["decision_id", "actual_outcome", "correct"]},
         "runner": _run_resolve_decision,
+    },
+    {
+        "name": "gnomon_list_open_forecasts",
+        "description": ("List unscored forecasts and due horizons "
+                        "(superseded by gnomon_status "
+                        "section='open_forecasts')."),
+        "inputSchema": {"type": "object", "properties": {
+            "project": {"type": "string"},
+        }, "required": []},
+        "runner": _run_open_forecasts,
+    },
+    {
+        "name": "gnomon_model_performance",
+        "description": ("Read realised per-model performance for a project "
+                        "(superseded by gnomon_status "
+                        "section='performance'; observational, never "
+                        "causal)."),
+        "inputSchema": {"type": "object", "properties": {
+            "project": {"type": "string"}, "model": {"type": "string"},
+        }, "required": ["project"]},
+        "runner": _run_model_performance,
     },
 ]
 

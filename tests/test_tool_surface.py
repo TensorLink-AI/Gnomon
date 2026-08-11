@@ -58,6 +58,52 @@ def test_v02_compat_restores_decision_pair(monkeypatch, tmp_path) -> None:
     assert resolved["decision"]["correct"] is True
 
 
+# --- Fix 2: the tracking reads consolidate into gnomon_status --------------
+
+def test_tracking_read_tools_hidden_by_default(monkeypatch) -> None:
+    names = _names(monkeypatch)
+    assert "gnomon_list_open_forecasts" not in names
+    assert "gnomon_model_performance" not in names
+    assert "gnomon_status" in names
+    compat_names = _names(monkeypatch, compat=True)
+    assert "gnomon_list_open_forecasts" in compat_names
+    assert "gnomon_model_performance" in compat_names
+
+
+def test_status_sections_match_the_retired_tools(monkeypatch, tmp_path) -> None:
+    from gnomon.toolspec import (
+        _run_model_performance,
+        _run_open_forecasts,
+        _run_status,
+    )
+    from gnomon.tracking import TrackingStore
+
+    monkeypatch.setenv("GNOMON_REGISTRY_PATH", str(tmp_path / "registry.db"))
+    TrackingStore().register(
+        forecast_id="fc_status", project="status", selected_model="drift",
+        support="supported", artifact_path=str(tmp_path), horizon=3,
+    )
+    args = {"project": "status"}
+    assert _run_status({**args, "section": "open_forecasts"}) \
+        == _run_open_forecasts(args)
+    assert _run_status({**args, "section": "performance"}) \
+        == _run_model_performance(args)
+
+    # The decisions slice is exactly the decision fields of the full view.
+    full = _run_status(args)
+    decisions = _run_status({**args, "section": "decisions"})
+    assert decisions["unresolved_decisions"] == full["unresolved_decisions"]
+    assert decisions["decision_summary"] == full["decision_summary"]
+    assert "open_forecasts" not in decisions
+
+    # performance still requires a project, as the standalone tool did.
+    import pytest
+
+    from gnomon.contracts import GnomonError
+    with pytest.raises(GnomonError):
+        _run_status({"section": "performance"})
+
+
 def test_capabilities_reports_compat_state(monkeypatch) -> None:
     from gnomon.runtime import capabilities
 

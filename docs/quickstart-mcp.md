@@ -96,8 +96,9 @@ repair options; `store:<dataset>` inputs still need the explicit columns. Suppor
 `gnomon_get_artifact`, `gnomon_explain_run`, `gnomon_preflight_context`
 (dry-run admission for proposed context events, with the accepted span
 grammar in the response), covariate tools, and the tracking lifecycle
-(`gnomon_submit_actuals`, `gnomon_list_open_forecasts`,
-`gnomon_model_performance`).
+(`gnomon_submit_actuals` to score, `gnomon_status` to read — its
+`section` parameter returns the open-forecast, performance, or decision
+slice on its own).
 
 ## Migrating from v0.2
 
