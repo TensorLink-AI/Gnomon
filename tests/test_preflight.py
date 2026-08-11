@@ -245,7 +245,7 @@ def test_admission_lanes_are_reachable_from_the_mcp_tool(tmp_path: Path, ):
     assert result["support"] == "context_trusted"
     # the newly admitted bound binds the emitted numbers
     assert all(row["q90"] <= 150.0 + 1e-9
-               for row in result["forecast_preview"])
+               for row in result["forecast"])
     spec = next(tool for tool in visible_tools()
                 if tool["name"] == "gnomon_forecast")
     assert "future_events" in spec["inputSchema"]["properties"]
@@ -279,7 +279,7 @@ def test_inline_context_events_reach_the_forecast_tool(tmp_path: Path):
     result = payload["results"][0]
     assert result["support"] == "context_trusted"
     assert all(row["q90"] <= 150.0 + 1e-9
-               for row in result["forecast_preview"])
+               for row in result["forecast"])
 
 
 def test_inline_events_reach_the_preflight_tool(tmp_path: Path):

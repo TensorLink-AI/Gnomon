@@ -141,6 +141,92 @@ _REPLAY_PROPERTIES: dict[str, Any] = {
 
 FORECAST_PREVIEW_ROWS = 12
 
+#: Hard ceiling on a tool response's serialised size. Tuned to hold a
+#: single-series brief forecast (~5KB with its full support assessment)
+#: with headroom; anything past it is bulk, and bulk lives in the
+#: artifact. The trim never touches the epistemic contract — see
+#: _PROTECTED_KEYS.
+RESPONSE_BUDGET_BYTES = 8192
+
+#: Subtrees that are the contract and are never trimmed, wherever they
+#: appear: support state, warnings, abstention payloads, disclosed
+#: assumptions, and structured error/repair options. A response may
+#: therefore exceed the budget when its epistemics alone do — that is
+#: deliberate; the budget disciplines bulk, not honesty.
+_PROTECTED_KEYS = frozenset({
+    "support", "support_assessment", "warnings", "assumptions", "reasons",
+    "recovery_actions", "disclosures", "notes", "error", "repair_options",
+})
+
+_TRIM_HEAD = 3
+_TRIM_TAIL = 2
+
+
+def _trim_bulk(node: Any, path: str, trimmed: list[dict[str, Any]]) -> Any:
+    """Head/tail-trim long arrays outside the protected subtrees."""
+    if isinstance(node, dict):
+        return {
+            key: (value if key in _PROTECTED_KEYS
+                  else _trim_bulk(value, f"{path}.{key}" if path else str(key),
+                                  trimmed))
+            for key, value in node.items()
+        }
+    if isinstance(node, list) and len(node) > _TRIM_HEAD + _TRIM_TAIL:
+        record: dict[str, Any] = {
+            "path": path, "total": len(node),
+            "kept": f"first {_TRIM_HEAD}, last {_TRIM_TAIL}",
+        }
+        if all(isinstance(item, (int, float)) and not isinstance(item, bool)
+               for item in node):
+            record["summary"] = {
+                "min": min(node), "max": max(node),
+                "mean": round(sum(node) / len(node), 6),
+            }
+        trimmed.append(record)
+        return node[:_TRIM_HEAD] + node[-_TRIM_TAIL:]
+    if isinstance(node, list):
+        return [_trim_bulk(item, f"{path}[{index}]", trimmed)
+                for index, item in enumerate(node)]
+    return node
+
+
+def enforce_response_budget(payload: Any) -> Any:
+    """Trim a runner's response to RESPONSE_BUDGET_BYTES.
+
+    Within budget, the payload passes untouched. Over it, long arrays
+    outside the protected subtrees are cut to their first/last entries
+    (numeric ones with min/max/mean alongside), `truncated: true` is set,
+    and a note points at the artifact for the complete data. Error
+    envelopes are never trimmed — repair options are the recovery path."""
+    if not isinstance(payload, dict) or payload.get("status") == "error" \
+            or "error" in payload:
+        return payload
+    import json as json_module
+    try:
+        raw = json_module.dumps(payload, default=str)
+    except (TypeError, ValueError):
+        return payload
+    if len(raw) <= RESPONSE_BUDGET_BYTES:
+        return payload
+    trimmed: list[dict[str, Any]] = []
+    result = _trim_bulk(payload, "", trimmed)
+    artifact_path = payload.get("artifact_path")
+    where = (f"the artifact at {artifact_path}" if artifact_path
+             else "the on-disk artifact or store")
+    result["truncated"] = True
+    result["truncation"] = {
+        "budget_bytes": RESPONSE_BUDGET_BYTES,
+        "trimmed": trimmed,
+        "note": (
+            f"Response exceeded the {RESPONSE_BUDGET_BYTES}-byte budget; "
+            f"long arrays keep their first {_TRIM_HEAD} and last "
+            f"{_TRIM_TAIL} entries. Support assessments, warnings, and "
+            f"assumptions are never trimmed. The complete data lives in "
+            f"{where}."
+        ),
+    }
+    return result
+
 #: Tools whose missing time_column/target_column are inferred from the file
 #: when it leaves no choice — the same set of verbs the CLI infers for.
 #: gnomon_ingest is deliberately absent: a write to the store under guessed
@@ -345,6 +431,8 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
                  "q10": row["q10"], "q90": row["q90"]}
                 for row in item.forecast
             ],
+            # The row count survives even when the budget trims the rows.
+            "forecast_rows": len(item.forecast),
             **({"threshold": item.threshold} if item.threshold else {}),
         })
     return {
@@ -563,9 +651,11 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
         config=config,
         input_provenance=arguments.get("input_provenance"),
     )
-    payload = (brief_summary(artifact, path)
-               if arguments.get("format") == "brief"
-               else forecast_summary(artifact, path))
+    # Brief is the default: the full multi-quantile payload is opt-in
+    # (format="full"), and the artifact on disk is identical either way.
+    payload = (forecast_summary(artifact, path)
+               if arguments.get("format") == "full"
+               else brief_summary(artifact, path))
     if arguments.get("project"):
         from .tracking import register_artifact
         payload["tracking_ids"] = register_artifact(
@@ -620,9 +710,9 @@ def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str
         best_effort=bool(arguments.get("best_effort", False)),
         input_provenance=arguments.get("input_provenance"),
     )
-    if arguments.get("format") == "brief":
-        return brief_summary(artifact, path)
-    return forecast_summary(artifact, path)
+    if arguments.get("format") == "full":
+        return forecast_summary(artifact, path)
+    return brief_summary(artifact, path)
 
 
 def _run_preflight_context(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -859,13 +949,13 @@ TOOLS: list[dict[str, Any]] = [
                     "the inferred grid, disclosed as an assumption."
                 )},
                 "format": {"type": "string", "enum": ["full", "brief"], "description": (
-                    "Response verbosity (default full). `brief` returns per "
-                    "target the q50 path with one q10-q90 interval, the "
-                    "selected model, and — verbatim, never summarised — the "
-                    "support state, every warning, abstention reason, "
-                    "recovery action, and disclosure. The full artifact is "
-                    "written to disk unchanged either way; only the response "
-                    "payload shrinks."
+                    "Response verbosity (default brief): the q50 path with "
+                    "one q10-q90 interval per step, the selected model, and "
+                    "— verbatim, never summarised — the support state, "
+                    "every warning, abstention reason, recovery action, and "
+                    "disclosure. Pass `full` only when you need every "
+                    "quantile level inline; the artifact on disk always "
+                    "carries everything, whichever format you pick."
                 )},
                 "candidates": {"type": "array", "items": {"type": "string"}, "description": "Restrict the model pool to these names — pass `gnomon_route`'s `candidates` or its `recommendation` to act on a routing decision. The mandatory baselines always compete regardless, so a named candidate still has to beat them."},
                 "output_dir": {"type": "string", "description": "Directory for the immutable artifact. Defaults to ./gnomon-output relative to the *server's* working directory, which is often inside the user's repository — pass an explicit path when that matters."},
@@ -1696,7 +1786,8 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
                         f"horizon was not supplied; defaulted to {horizon}, "
                         f"one seasonal period of the inferred grid."
                     )
-                return disclose_assumptions(_runner(arguments), assumptions)
+                return enforce_response_budget(
+                    disclose_assumptions(_runner(arguments), assumptions))
 
             return wrapped
     return None

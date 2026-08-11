@@ -944,6 +944,12 @@ def _has_module(name: str) -> bool:
     return find_spec(name) is not None
 
 
+def _response_budget_bytes() -> int:
+    # Local import: toolspec imports runtime, so the reverse edge is lazy.
+    from .toolspec import RESPONSE_BUDGET_BYTES
+    return RESPONSE_BUDGET_BYTES
+
+
 def capabilities() -> dict[str, object]:
     try:
         import pyarrow  # type: ignore[import-not-found]  # noqa: F401
@@ -1128,12 +1134,22 @@ def capabilities() -> dict[str, object]:
             },
             "brief_output": {
                 "cli": "--brief",
-                "mcp": "format: 'brief'",
+                "mcp": "format: 'brief' (the MCP default; pass 'full' to opt out)",
                 "semantics": (
                     "q50 with one q10-q90 interval per step, plus the "
                     "support state, warnings, abstention reasons, recovery "
                     "actions, and disclosures verbatim. The on-disk "
                     "artifact is unchanged."
+                ),
+            },
+            "response_budget": {
+                "mcp_bytes": _response_budget_bytes(),
+                "semantics": (
+                    "Tool responses over the budget trim long arrays to "
+                    "their first/last entries with truncated: true and a "
+                    "pointer at the artifact. Support assessments, "
+                    "warnings, assumptions, and error/repair payloads are "
+                    "never trimmed."
                 ),
             },
             "inline_data_channels": {

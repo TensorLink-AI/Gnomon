@@ -83,6 +83,18 @@ the revision that produced it. `gnomon ingest` says so on any file without
 `--known-at`, via the `known_time_assumed` warning, and the resulting
 dataset reports `known_time_provenance: partially_assumed`.
 
+## Response sizes
+
+Tool responses are budgeted (`RESPONSE_BUDGET_BYTES`, reported by
+`gnomon capabilities` under `forecast_surface.response_budget`).
+`gnomon_forecast` answers in `brief` format by default — the q50 path
+with one q10–q90 interval per step plus the complete support assessment;
+pass `format: "full"` for every quantile level inline. Any response over
+the budget trims its long arrays to first/last entries, sets
+`truncated: true`, and points at the artifact, which always carries the
+complete data. Support assessments, warnings, assumptions, and
+error/repair payloads are never trimmed.
+
 ## Tool surface
 
 Primary macros: `gnomon_forecast`, `gnomon_investigate_change`, `gnomon_decide`,

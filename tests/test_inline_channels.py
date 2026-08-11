@@ -145,12 +145,16 @@ def test_inline_covariate_rows_validate_like_the_file():
 
 
 def test_forecast_considers_inline_covariates(tmp_path):
+    # The covariate gate detail lives in the full payload (brief keeps
+    # only the epistemics); this test is about the inline channel, so it
+    # opts into full deliberately.
     payload = runner_for("gnomon_forecast")({
         "observations": _observation_rows(), "time_column": "timestamp",
         "target_column": "value", "horizon": 3,
         "covariates": _covariate_rows(),
         "covariate_mapping": "load:continuous:future_known",
         "output_dir": str(tmp_path),
+        "format": "full",
     })
     covariates = payload["results"][0]["covariates"]
     assert covariates["considered"] is True

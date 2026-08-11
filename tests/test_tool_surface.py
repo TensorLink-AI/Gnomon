@@ -128,6 +128,90 @@ def test_covariate_guide_and_proposer_tools_gated(monkeypatch) -> None:
         assert gated in compat, gated
 
 
+# --- Fix 4: brief by default, hard response budget -------------------------
+
+def _panel_csv(tmp_path, rows_per_series: int = 60):
+    # Regular daily grid per series, distinct values.
+    lines = ["timestamp,series,value"]
+    from datetime import date, timedelta
+    start = date(2026, 1, 1)
+    for series in ("api", "batch"):
+        base = 100 if series == "api" else 500
+        for day in range(rows_per_series):
+            lines.append(f"{start + timedelta(days=day)},{series},{base + day}")
+    path = tmp_path / "panel.csv"
+    path.write_text("\n".join(lines) + "\n")
+    return path
+
+
+def test_forecast_defaults_to_brief(monkeypatch, tmp_path) -> None:
+    from gnomon.toolspec import runner_for
+
+    payload = runner_for("gnomon_forecast")({
+        "input": "examples/daily_requests.csv", "horizon": 3,
+        "output_dir": str(tmp_path),
+    })
+    assert payload["format"] == "brief"
+    # Brief still carries the whole epistemic contract.
+    result = payload["results"][0]
+    assert "support_assessment" in result
+    assert "warnings" in result
+
+
+def test_multi_series_forecast_respects_the_budget(tmp_path) -> None:
+    import csv
+    import json
+
+    from gnomon.toolspec import RESPONSE_BUDGET_BYTES, runner_for
+
+    data = _panel_csv(tmp_path)
+    payload = runner_for("gnomon_forecast")({
+        "input": str(data), "series_column": "series", "horizon": 30,
+        "output_dir": str(tmp_path / "out"),
+    })
+    raw = json.dumps(payload)
+    assert payload.get("truncated") is True
+    assert "artifact" in payload["truncation"]["note"]
+    # The trim leaves headroom-sized responses: within budget plus the
+    # protected epistemics and the truncation metadata itself.
+    assert len(raw) < RESPONSE_BUDGET_BYTES * 2
+    for result in payload["results"]:
+        assert result["support_assessment"], "epistemics must survive the trim"
+        assert result["forecast_rows"] == 30
+        assert len(result["forecast"]) < 30
+
+    # The artifact on disk still carries every row.
+    with open(payload["artifact_path"] + "/forecast.csv") as handle:
+        rows = list(csv.DictReader(handle))
+    assert len(rows) == 60
+
+
+def test_budget_never_trims_the_contract() -> None:
+    from gnomon.toolspec import enforce_response_budget
+
+    payload = {
+        "status": "complete",
+        "artifact_path": "/tmp/a",
+        "warnings": [f"warning {index}" for index in range(400)],
+        "support_assessment": {
+            "reasons": [{"code": "x", "message": "m" * 40}] * 50,
+        },
+        "bulk": list(range(5000)),
+    }
+    trimmed = enforce_response_budget(payload)
+    assert trimmed["truncated"] is True
+    assert trimmed["warnings"] == payload["warnings"]
+    assert trimmed["support_assessment"] == payload["support_assessment"]
+    assert len(trimmed["bulk"]) == 5
+    numeric = next(item for item in trimmed["truncation"]["trimmed"]
+                   if item["path"] == "bulk")
+    assert numeric["summary"]["min"] == 0
+    assert numeric["summary"]["max"] == 4999
+
+    error = {"status": "error", "error": {"code": "X", "message": "y" * 20000}}
+    assert enforce_response_budget(error) is error
+
+
 def test_capabilities_reports_compat_state(monkeypatch) -> None:
     from gnomon.runtime import capabilities
 

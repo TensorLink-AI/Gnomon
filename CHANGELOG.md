@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- **MCP responses are brief by default and hard-budgeted (Fix 4).**
+  `gnomon_forecast`'s `format` default flipped from `full` to `brief`
+  (the artifact on disk is unchanged; `full` remains opt-in for inline
+  quantile levels). Every tool response is now subject to
+  `RESPONSE_BUDGET_BYTES` (8 KB): over it, long arrays trim to their
+  first/last entries (numeric ones with min/max/mean alongside),
+  `truncated: true` is set, and a note points at the artifact. Support
+  assessments, abstention payloads, warnings, disclosed assumptions, and
+  structured error/repair options are never trimmed — a response may
+  exceed the budget when its epistemics alone do. `gnomon capabilities`
+  reports the budget under `forecast_surface.response_budget`; brief
+  results now carry `forecast_rows` so the count survives a trim.
+
 - **Covariate guide, duplicate proposer entry, and proposer-skill ledger
   are opt-in (Fix 3).** `gnomon_covariate_guide` (its static format
   contract now lives in `gnomon_validate_covariates`' description; the
