@@ -395,12 +395,18 @@ def main() -> int:
         success = bool(metrics) if tier in ("T2", "T4") else (
             choice.get("total", 0) > 0 and choice["correct"] == choice["total"]
         )
+        # `success` is not one quantity across tiers, and a pooled success
+        # rate silently blends the two. The basis rides on every record so
+        # report.py can split the rate by what was actually measured.
+        success_basis = ("completion" if tier in ("T2", "T4")
+                         else "all_choices_correct")
         records.write(RunRecord(
             task_id=row_id, success=success,
             appropriate_abstention=bool(outcome.get("abstained")),
             tool_calls=0 if args.condition == "control" else 1,
             latency_seconds=round(elapsed, 3),
             extra={"tier": tier,
+                   "success_basis": success_basis,
                    "choice_correct": None if voided else choice.get("correct"),
                    "choice_total": None if voided else choice.get("total"),
                    **({"row_abstained": voided} if voided else {}),
@@ -477,7 +483,10 @@ def main() -> int:
             "score_per_channel.py) or benchmarks/report.py's matched "
             "join, not by subtracting summaries. success on T2/T4 "
             "records completion (the official module returned metrics), "
-            "not accuracy — per-row SMAPE lives in each record's extra. "
+            "not accuracy — per-row SMAPE lives in each record's extra, and "
+            "every record names what its success measured in success_basis "
+            "(completion vs all_choices_correct); voided rows carry "
+            "row_abstained, which report.py excludes from its success test. "
             "forecast_channel_support_mix and forecast_channels_abstained "
             "are the coverage every forecast figure rests on; quote them "
             "beside it. Any best_effort count in the mix is disclosed "

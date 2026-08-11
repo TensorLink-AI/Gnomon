@@ -40,8 +40,44 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from benchmarks.common.manifest import incompatibilities, read_manifest  # noqa: E402
 
-#: Lower is better for these; everything else is treated as higher-better.
-LOWER_IS_BETTER = ("mse", "mae", "rmse", "mape", "rcrps", "mase", "smape")
+#: Direction registry. A metric matches by substring against these token
+#: lists; a name matching neither is NOT silently assumed — it is compared
+#: as higher-better with an explicit `direction_recognised: false` flag on
+#: the entry and a warning in the rendered line. The registry exists
+#: because the old default ("anything unrecognised is higher-better")
+#: silently inverted LeakTrap's `score` (a WAPE, lower-better): the sign
+#: test reported treatment "wins" on the tasks it did worse on.
+LOWER_IS_BETTER = ("mse", "mae", "rmse", "mape", "rcrps", "mase", "smape",
+                   "wape", "crps", "pinball", "loss", "score")
+HIGHER_IS_BETTER = ("f1", "accuracy", "precision", "recall", "auc",
+                    "success", "coverage")
+
+
+def metric_direction(name: str) -> tuple[bool, bool]:
+    """``(lower_is_better, recognised)`` for a metric name.
+
+    Lower-better tokens win when a name matches both lists ("f1_loss" is
+    a loss); a name matching neither is treated as higher-better but
+    flagged unrecognised so the caller discloses the assumption instead
+    of printing an inverted comparison as fact.
+    """
+    lowered = name.lower()
+    if any(token in lowered for token in LOWER_IS_BETTER):
+        return True, True
+    if any(token in lowered for token in HIGHER_IS_BETTER):
+        return False, True
+    return False, False
+
+
+def is_voided(record: dict[str, Any]) -> bool:
+    """Whether the harness, not the system under test, ended this row.
+
+    Adapters mark a row the harness voided (a breached cap, a run that
+    never submitted) with ``row_abstained``. Such a row did not answer
+    the task wrongly — it did not answer it — so it must not enter a
+    success comparison as a model failure.
+    """
+    return bool(record.get("row_abstained") or record.get("voided"))
 
 
 # ---------------------------------------------------------------------------
@@ -278,15 +314,58 @@ def compare(baseline: dict[str, Any], treatment: dict[str, Any],
             + ": comparability could not be verified, only assumed"
         )
 
-    # Binary success, when the adapters record it.
+    # Binary success, when the adapters record it. Rows the harness voided
+    # (row_abstained: a breached cap, a run that never submitted) are
+    # excluded pairwise and counted: scoring them as failures reported a
+    # harness cap as a model failure — in either arm, on exactly the rows
+    # where the harness lost the answer.
     if all("success" in run["tasks"][shared[0]] for run in (baseline, treatment)):
-        base_success = {k: bool(baseline["tasks"][k].get("success")) for k in shared}
-        treat_success = {k: bool(treatment["tasks"][k].get("success")) for k in shared}
-        result["success_rate"] = {
-            "baseline": round(sum(base_success.values()) / len(shared), 4),
-            "treatment": round(sum(treat_success.values()) / len(shared), 4),
-        }
-        result["success_test"] = mcnemar(base_success, treat_success)
+        voided_pairs = [k for k in shared
+                        if is_voided(baseline["tasks"][k])
+                        or is_voided(treatment["tasks"][k])]
+        graded = [k for k in shared if k not in set(voided_pairs)]
+        if voided_pairs:
+            result["success_voided_excluded"] = {
+                "pairs": len(voided_pairs),
+                "baseline_voided": sum(
+                    1 for k in voided_pairs if is_voided(baseline["tasks"][k])),
+                "treatment_voided": sum(
+                    1 for k in voided_pairs if is_voided(treatment["tasks"][k])),
+                "basis": "rows the harness ended without an answer are not "
+                         "wrong answers; they are excluded from the success "
+                         "test and counted here",
+            }
+        if graded:
+            base_success = {k: bool(baseline["tasks"][k].get("success"))
+                            for k in graded}
+            treat_success = {k: bool(treatment["tasks"][k].get("success"))
+                             for k in graded}
+            result["success_rate"] = {
+                "baseline": round(sum(base_success.values()) / len(graded), 4),
+                "treatment": round(sum(treat_success.values()) / len(graded), 4),
+            }
+            result["success_test"] = mcnemar(base_success, treat_success)
+            # `success` does not mean one thing across adapters (TemporalBench
+            # T2/T4 records completion, T1/T3 all-choices-correct). Where rows
+            # declare their basis, a pooled rate over mixed bases is a blend,
+            # so the per-basis split is reported beside it.
+            bases: dict[str, list[str]] = {}
+            for k in graded:
+                basis = (baseline["tasks"][k].get("success_basis")
+                         or treatment["tasks"][k].get("success_basis"))
+                if basis:
+                    bases.setdefault(str(basis), []).append(k)
+            if len(bases) > 1:
+                result["success_by_basis"] = {
+                    basis: {
+                        "n": len(keys),
+                        "baseline": round(
+                            sum(base_success[k] for k in keys) / len(keys), 4),
+                        "treatment": round(
+                            sum(treat_success[k] for k in keys) / len(keys), 4),
+                    }
+                    for basis, keys in sorted(bases.items())
+                }
 
     # A continuous metric, when one is present in both arms.
     candidates = ([metric] if metric else
@@ -299,7 +378,7 @@ def compare(baseline: dict[str, Any], treatment: dict[str, Any],
                   if base_values.get(k) is not None and treat_values.get(k) is not None}
         base_values = {k: base_values[k] for k in paired}
         treat_values = {k: treat_values[k] for k in paired}
-        lower = any(token in name.lower() for token in LOWER_IS_BETTER)
+        lower, direction_recognised = metric_direction(name)
         penalized = penalized_mean(
             {k: v for k, v in
              ((k, metric_value(baseline["tasks"][k], name))
@@ -319,7 +398,15 @@ def compare(baseline: dict[str, Any], treatment: dict[str, Any],
         entry: dict[str, Any] = {
             "scored_by_both": len(paired),
             "lower_is_better": lower,
+            "direction_recognised": direction_recognised,
         }
+        if not direction_recognised:
+            entry["direction_warning"] = (
+                f"metric name {name!r} matches no known direction token; "
+                f"treated as higher-is-better. If that is wrong the wins and "
+                f"means below are inverted — add the metric to "
+                f"benchmarks.report.LOWER_IS_BETTER or HIGHER_IS_BETTER."
+            )
         if penalized:
             entry["penalized"] = penalized
         if len(paired) >= 2:
@@ -349,6 +436,14 @@ def format_comparison(result: dict[str, Any]) -> str:
                    f" treatment-only {result['treatment_only']})"]
     if result.get("warning"):
         lines.append(f"  warning: {result['warning']}")
+    if result.get("success_voided_excluded"):
+        voided = result["success_voided_excluded"]
+        lines.append(
+            f"  harness-voided rows excluded from the success test: "
+            f"{voided['pairs']} pair(s) "
+            f"(baseline {voided['baseline_voided']}, "
+            f"treatment {voided['treatment_voided']})"
+        )
     if "success_rate" in result:
         test = result["success_test"]
         lines.append(
@@ -357,8 +452,20 @@ def format_comparison(result: dict[str, Any]) -> str:
             f"  (fixed {test['treatment_fixed']}, broke {test['treatment_broke']},"
             f" p={test['p_value']:.4f})"
         )
+        for basis, split in (result.get("success_by_basis") or {}).items():
+            lines.append(
+                f"    {basis} (n={split['n']}): "
+                f"{split['baseline']:.3f} -> {split['treatment']:.3f}"
+            )
+        if result.get("success_by_basis"):
+            lines.append(
+                "    (success means different things per basis; the pooled "
+                "rate above blends them)"
+            )
     for name, entry in (result.get("metrics") or {}).items():
         direction = "lower better" if entry["lower_is_better"] else "higher better"
+        if not entry.get("direction_recognised", True):
+            direction = "direction UNRECOGNISED, assumed higher better"
         test = entry.get("test")
         if test is None:
             lines.append(f"  {name} ({direction}): too few tasks scored by both"
