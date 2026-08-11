@@ -128,6 +128,37 @@ def test_covariate_guide_and_proposer_tools_gated(monkeypatch) -> None:
         assert gated in compat, gated
 
 
+# --- Fix 5: the batch form leads the forecast description ------------------
+
+def test_batch_syntax_leads_the_forecast_description(tmp_path) -> None:
+    from gnomon.toolspec import TOOLS, runner_for
+
+    tool = next(t for t in TOOLS if t["name"] == "gnomon_forecast")
+    head = ". ".join(tool["description"].split(". ")[:2])
+    assert '"cpu,mem,requests"' in head
+    assert '"auto"' in head
+    target = tool["inputSchema"]["properties"]["target_column"]["description"]
+    assert '"cpu,mem,requests"' in target
+
+    # And the syntax it advertises is the one the runner accepts.
+    wide = tmp_path / "wide.csv"
+    from datetime import date, timedelta
+    start = date(2026, 1, 1)
+    rows = ["timestamp,cpu,mem"]
+    rows += [f"{start + timedelta(days=d)},{50 + d},{70 + d}"
+             for d in range(40)]
+    wide.write_text("\n".join(rows) + "\n")
+    payload = runner_for("gnomon_forecast")({
+        "input": str(wide), "target_column": "cpu,mem", "horizon": 5,
+        "output_dir": str(tmp_path / "out"),
+    })
+    series = {result["series"] for result in payload["results"]}
+    assert series == {"cpu", "mem"}
+    import json
+    from gnomon.toolspec import RESPONSE_BUDGET_BYTES
+    assert len(json.dumps(payload)) < RESPONSE_BUDGET_BYTES * 2
+
+
 # --- Fix 4: brief by default, hard response budget -------------------------
 
 def _panel_csv(tmp_path, rows_per_series: int = 60):

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **Batch forecasting leads the tool description (Fix 5).**
+  `gnomon_forecast`'s first two sentences now state the multi-target
+  syntax with a concrete example (`target_column: "cpu,mem,requests"` or
+  `"auto"`), and tell the model never to call once per column of the
+  same file; the `target_column` property carries the same example. No
+  new tool — the existing batch path is just discoverable now.
+
 - **MCP responses are brief by default and hard-budgeted (Fix 4).**
   `gnomon_forecast`'s `format` default flipped from `full` to `brief`
   (the artifact on disk is unchanged; `full` remains opt-in for inline

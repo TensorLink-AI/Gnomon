@@ -915,16 +915,22 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "gnomon_forecast",
         "description": (
-            "Run Gnomon's evaluated forecast: baselines and candidates are "
-            "backtested on rolling folds; each series gets a selected model or "
-            "an unsupported abstention. Context events (from `gnomon context "
-            "validate`) and covariates are admitted only when they demonstrate "
+            "Forecast one column — or several in ONE call: pass "
+            "`target_column` as a comma list (`\"cpu,mem,requests\"`) or "
+            "`\"auto\"` (every numeric non-time column) and each channel "
+            "gets its own evaluated result in a single combined response. "
+            "Never call this once per column of the same file; the batch "
+            "form shares one load pass and one artifact. "
+            "Baselines and candidates are backtested on rolling folds; "
+            "each series gets a selected model or an unsupported "
+            "abstention. Context events (from `gnomon context validate`) "
+            "and covariates are admitted only when they demonstrate "
             "stable lift on identical folds; when both are supplied, an "
-            "adjudication ladder picks the best of base, context, covariates, "
-            "or their combination and records the comparison as evidence. "
-            "Read forecast.csv / summary.md in the returned "
-            "artifact directory for the numbers and quote them verbatim; never "
-            "invent values for an unsupported series."
+            "adjudication ladder picks the best of base, context, "
+            "covariates, or their combination and records the comparison "
+            "as evidence. Read forecast.csv / summary.md in the returned "
+            "artifact directory for the numbers and quote them verbatim; "
+            "never invent values for an unsupported series."
         ),
         "inputSchema": {
             "type": "object",
@@ -932,16 +938,17 @@ TOOLS: list[dict[str, Any]] = [
                 **_INPUT_PROPERTIES,
                 **_REPLAY_PROPERTIES,
                 "target_column": {"type": "string", "description": (
-                    "Name of the numeric column to forecast. Also accepts a "
-                    "comma list (`hr,spo2,resp`) or `auto` (every numeric "
-                    "non-time column) to batch several columns of a wide "
-                    "file into one run — one shared load pass, channels "
-                    "evaluated concurrently, one combined artifact with a "
-                    "result per column. Each channel's numbers are identical "
-                    "to a single-target run; a channel that abstains is "
-                    "disclosed in its own result and never blocks the others. "
-                    "Omit to infer when exactly one non-time column parses "
-                    "as numbers; the inference is disclosed as an assumption."
+                    "Name of the numeric column to forecast — or the batch "
+                    "form: a comma list (`\"cpu,mem,requests\"`) or "
+                    "`\"auto\"` (every numeric non-time column) forecasts "
+                    "several columns of a wide file in one call: one "
+                    "shared load pass, channels evaluated concurrently, "
+                    "one combined artifact with a result per column. Each "
+                    "channel's numbers are identical to a single-target "
+                    "run; a channel that abstains is disclosed in its own "
+                    "result and never blocks the others. Omit to infer "
+                    "when exactly one non-time column parses as numbers; "
+                    "the inference is disclosed as an assumption."
                 )},
                 "horizon": {"type": "integer", "description": (
                     "Future periods to forecast, in units of the data "
