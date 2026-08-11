@@ -174,6 +174,20 @@ def test_followed_context_is_symmetric():
     assert ignorer["followed_context"] is False
 
 
+def test_task_statement_is_shared_across_arms():
+    """Only the data reference and the answer-delivery block may differ
+    between arms; the task itself is verbatim-identical."""
+    task = _clean_task()
+    direct = task.prompt("DATA_A", arms.DIRECT_ANSWER_FORMAT)
+    tooled = task.prompt("DATA_B", arms.TOOL_ANSWER_FORMAT)
+    statement = direct.replace("DATA_A", "{data}").replace(
+        arms.DIRECT_ANSWER_FORMAT, "{answer}")
+    assert statement == tooled.replace("DATA_B", "{data}").replace(
+        arms.TOOL_ANSWER_FORMAT, "{answer}")
+    assert str(task.escalation_fee) in direct or (
+        f"{task.escalation_fee:g}" in direct)
+
+
 def test_validate_submission_contract():
     good, problem = grading.validate_submission(
         {"decision": {"capacity": 210.5}})
@@ -271,6 +285,22 @@ def test_sandbox_rejects_bad_submission_then_accepts(tmp_path):
     assert outcome["submission"]["decision"] == {"escalate": True}
 
 
+def test_second_submission_is_rejected_and_first_stands(tmp_path):
+    task = _clean_task()
+    client = ScriptedClient([
+        _tool_call("submit_decision", {"decision": {"capacity": 100}}),
+    ])
+    arm = arms.SandboxArm(task, client, work_dir=str(tmp_path))
+    outcome = arm.drive()
+    assert outcome["submission"]["decision"] == {"capacity": 100.0}
+    # A late duplicate through the dispatch path is refused, not
+    # silently mislabeled as accepted.
+    reply = json.loads(arm._route("submit_decision",
+                                  {"decision": {"capacity": 999}}))
+    assert reply["accepted"] is False and "already" in reply["message"]
+    assert arm.submission["decision"] == {"capacity": 100.0}
+
+
 def test_loop_last_call_collects_late_submission(tmp_path):
     task = _clean_task()
     client = ScriptedClient(
@@ -332,6 +362,35 @@ def test_mcp_arm_uses_surface_and_submits(tmp_path):
     assert tool_names == ["gnomon_inspect", "submit_decision"]
 
 
+def test_mcp_arm_against_real_server(tmp_path):
+    """The treatment arm against the real server code (CiK's in-process
+    session): the published tool surface converts to chat specs, a real
+    gnomon_inspect on the jail CSV succeeds, and the submission
+    resolves. This is the test the stub cannot stand in for."""
+    from benchmarks.cik.mcp_agent import InProcessMcpSession
+
+    task = _clean_task()
+    client = ScriptedClient([])
+    arm = McpArm(task, client, work_dir=str(tmp_path),
+                 session_factory=InProcessMcpSession)
+    client.turns = [
+        _tool_call("gnomon_inspect", {"input": str(arm.csv_path)}),
+        _tool_call("submit_decision",
+                   {"decision": {"capacity": 400},
+                    "peak_forecast": {"q10": 300, "q50": 380,
+                                      "q90": 460}}),
+    ]
+    names = [spec["function"]["name"] for spec in arm.tool_specs()]
+    assert "gnomon_forecast" in names and "gnomon_inspect" in names
+    assert names[-1] == "submit_decision"
+    outcome = arm.drive()
+    assert outcome["submission"]["decision"] == {"capacity": 400.0}
+    assert arm.session.calls[0][0] == "gnomon_inspect"
+    inspect_entry = next(entry for entry in outcome["trace"]
+                         if entry.get("tool") == "gnomon_inspect")
+    assert not inspect_entry.get("is_error")
+
+
 def test_mcp_arm_jails_paths(tmp_path):
     task = _clean_task()
     client = ScriptedClient([
@@ -344,3 +403,5 @@ def test_mcp_arm_jails_paths(tmp_path):
     assert outcome["submission"]["decision"] == {"escalate": True}
     assert arm.session.calls == []  # the violating call never reached it
     assert any(entry.get("jail_violations") for entry in outcome["trace"])
+    # A screened-out call is a round-trip, not a spent tool call.
+    assert outcome["tool_calls"] == 0

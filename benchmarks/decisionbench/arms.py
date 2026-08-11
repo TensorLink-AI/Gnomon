@@ -32,7 +32,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -108,6 +108,24 @@ LAST_CALL = (
 
 NUDGE = "Finish by calling submit_decision."
 
+#: How a tool-holding arm delivers the answer. The task statement is
+#: shared verbatim across arms; only this block and the data reference
+#: differ, so a formatting mismatch can never masquerade as a decision
+#: difference between conditions.
+TOOL_ANSWER_FORMAT = (
+    "Deliver your answer by calling the submit_decision tool: "
+    "decision.capacity (a number) or decision.escalate=true, plus "
+    "peak_forecast {q10, q50, q90} and a short rationale."
+)
+
+DIRECT_ANSWER_FORMAT = "\n".join([
+    "Answer with a single JSON object, no code fences:",
+    '{"decision": {"capacity": <number>} or {"escalate": true},',
+    ' "peak_forecast": {"q10": <number>, "q50": <number>, '
+    '"q90": <number>},',
+    ' "rationale": "<one or two sentences>"}',
+])
+
 
 class ToolLoopOutcome(dict):
     """The arm result: submission (or None), abstention reason, trace."""
@@ -142,6 +160,13 @@ class ToolLoopArm:
     def tool_specs(self) -> list[dict[str, Any]]:
         raise NotImplementedError
 
+    def screen_tool(self, name: str,
+                    arguments: dict[str, Any]) -> str | None:
+        """A harness rejection for this call, or ``None`` to dispatch.
+        Screened-out calls cost no tool budget — a path typo is a
+        round-trip, not a spent call."""
+        return None
+
     def dispatch_tool(self, name: str, arguments: dict[str, Any]) -> str:
         raise NotImplementedError
 
@@ -171,7 +196,8 @@ class ToolLoopArm:
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": self.system_prompt()},
             {"role": "user",
-             "content": self.task.prompt(self._data_reference())},
+             "content": self.task.prompt(self._data_reference(),
+                                         TOOL_ANSWER_FORMAT)},
         ]
         nudged = False
         for _round in range(MAX_ROUNDS):
@@ -227,15 +253,24 @@ class ToolLoopArm:
                                           "JSON.",
                                "authored_by": "harness"})
         if name == "submit_decision":
+            if self.submission is not None:
+                entry["problem"] = "already submitted"
+                return json.dumps({"accepted": False,
+                                   "message": "A decision was already "
+                                              "submitted; the first "
+                                              "accepted submission stands.",
+                                   "authored_by": "harness"})
             submission, problem = validate_submission(arguments)
             if problem:
                 entry["problem"] = problem
                 return json.dumps({"accepted": False, "problems": [problem],
                                    "authored_by": "harness"})
-            if self.submission is None:
-                self.submission = submission
+            self.submission = submission
             entry["accepted"] = True
             return json.dumps({"accepted": True})
+        screened = self.screen_tool(name, arguments)
+        if screened is not None:
+            return screened
         if self.tool_calls >= MAX_TOOL_CALLS:
             entry["code"] = "TOOL_BUDGET_SPENT"
             return json.dumps({
@@ -400,7 +435,8 @@ def run_direct(task: DecisionTask, client: Any) -> ToolLoopOutcome:
                  f"{', '.join(task.columns)}):\n\n{task.csv_text()}")
     messages: list[dict[str, Any]] = [
         {"role": "system", "content": DIRECT_SYSTEM},
-        {"role": "user", "content": task.prompt(reference)},
+        {"role": "user",
+         "content": task.prompt(reference, DIRECT_ANSWER_FORMAT)},
     ]
     trace: list[dict[str, Any]] = []
     tokens_at_start = (getattr(client, "total_prompt_tokens", 0)

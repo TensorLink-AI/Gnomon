@@ -135,9 +135,12 @@ class DecisionTask:
         path.write_text(self.csv_text(), encoding="utf-8")
         return path
 
-    def prompt(self, data_reference: str) -> str:
+    def prompt(self, data_reference: str, answer_format: str) -> str:
         """The task statement, identical across arms except for how the
-        data is reached (inline text vs a file path sentence)."""
+        data is reached (inline text vs a file path sentence) and how
+        the answer is delivered (``answer_format`` — a JSON reply for
+        the direct arm, the submit tool for the tool arms). The task
+        itself never differs between arms."""
         parts = [
             "You are the capacity planner for an online service. Commit a "
             "single capacity level for the next "
@@ -171,14 +174,11 @@ class DecisionTask:
             parts += ["", f"Stakeholder note (unverified): {self.context_note}"]
         parts += [
             "",
-            "Answer with a single JSON object, no code fences:",
-            '{"decision": {"capacity": <number>} or {"escalate": true},',
-            ' "peak_forecast": {"q10": <number>, "q50": <number>, '
-            '"q90": <number>},',
-            ' "rationale": "<one or two sentences>"}',
-            "peak_forecast is your 10/50/90 percentile estimate of the "
-            "MAXIMUM daily demand over the window — give it even when "
-            "escalating.",
+            "Alongside the decision, report peak_forecast — your 10/50/90 "
+            "percentile estimates (q10, q50, q90) of the MAXIMUM daily "
+            "demand over the window — even when escalating.",
+            "",
+            answer_format,
         ]
         return "\n".join(parts)
 
@@ -264,8 +264,7 @@ def generate_task(index: int, seed: int) -> DecisionTask:
         cause = rng.choice(
             ["a marketing campaign launching tomorrow",
              "a partner integration going live",
-             "a regional rollout",
-             "a scheduled end-of-quarter migration away from this service",]
+             "a regional rollout",]
             if rising else
             ["a customer migrating off the platform",
              "a seasonal lull the sales team expects",

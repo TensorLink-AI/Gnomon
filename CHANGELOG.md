@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+- **DecisionBench: the benchmark that prices the product claim.**
+  Every community benchmark in `benchmarks/` scores forecast accuracy
+  per number; Gnomon's claim is about decisions under asymmetric
+  costs. The new internal benchmark (`benchmarks/decisionbench/`,
+  registered in `run_all`) grades a 14-day capacity commitment on
+  realized cost against held-out demand — hindsight newsvendor optimum
+  for regret, a no-forecasting naive policy as the success bar, priced
+  escalation (appropriate on nine-point histories and scored on
+  process, wasteful on clean ones), harm cases listed by task id, and
+  interval calibration on submitted peak quantiles. Traps are embedded
+  at generator-stated rates: LeakTrap-construction revision files,
+  stakeholder notes that are wrong (and, at a lower rate, right, so
+  always-trust and always-ignore both lose somewhere), and filthy
+  columns. Three arms answer one validated submission contract —
+  `llm-direct`, `llm-sandbox` (a `run_python` jail: what an agent
+  actually has today, and the arm the treatment must beat), and
+  `gnomon-mcp` (the real `gnomon mcp serve` surface via the CiK
+  session, with the TemporalBench result bounding and last-call
+  protocol). The revision-family leakage flag is disclosed as a
+  heuristic wherever it appears; LeakTrap keeps the measured claim,
+  and the truth dump is written only after every conversation ends.
 - **TemporalBench's MCP arm stopped throwing away the work it had
   done.** A measured sweep scored 0% on T2 and T4 not because the model
   answered badly but because every row hit the 250k token cap after five

@@ -116,7 +116,6 @@ def main(argv: list[str] | None = None) -> int:
         suite = suite[:args.limit]
     if not suite:
         parser.error("no tasks selected")
-    tasks.dump_tasks(suite, output_dir / "tasks.jsonl")
 
     client = OpenRouterClient(args.model, temperature=args.temperature)
     writer = RecordWriter(output_dir / "gnomonbench.jsonl")
@@ -174,6 +173,14 @@ def main(argv: list[str] | None = None) -> int:
               f"{'ok' if grade['answered'] else 'UNANSWERED'} "
               f"cost={grade['cost']} naive={grade['cost_naive']} "
               f"optimal={grade['cost_optimal']}")
+
+    # Written only after every arm conversation has ended: the sandbox
+    # arm's interpreter is not path-jailed, so the truth dump must not
+    # exist anywhere readable while a run is live. (The generator being
+    # seeded and public means truth is always re-derivable in principle;
+    # this keeps it out of trivial reach, and the README discloses the
+    # rest.)
+    tasks.dump_tasks(suite, output_dir / "tasks.jsonl")
 
     harm_ids = [
         {"task_id": task.task_id, "family": task.family,

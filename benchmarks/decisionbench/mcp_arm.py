@@ -87,19 +87,23 @@ class McpArm(ToolLoopArm):
             for tool in self.session.list_tools()
         ] + [SUBMIT_TOOL]
 
-    def dispatch_tool(self, name: str, arguments: dict[str, Any]) -> str:
+    def screen_tool(self, name: str,
+                    arguments: dict[str, Any]) -> str | None:
         violations = jail_violations(arguments, self.jail)
-        if violations:
-            self.trace[-1]["jail_violations"] = violations
-            return json.dumps({
-                "code": "PATH_JAIL",
-                "message": f"This run may only read and write inside "
-                           f"{self.jail}. The data file is {self.csv_path}; "
-                           f"write outputs under "
-                           f"{self.jail / 'gnomon-output'}.",
-                "violations": violations,
-                "authored_by": "harness",
-            })
+        if not violations:
+            return None
+        self.trace[-1]["jail_violations"] = violations
+        return json.dumps({
+            "code": "PATH_JAIL",
+            "message": f"This run may only read and write inside "
+                       f"{self.jail}. The data file is {self.csv_path}; "
+                       f"write outputs under "
+                       f"{self.jail / 'gnomon-output'}.",
+            "violations": violations,
+            "authored_by": "harness",
+        })
+
+    def dispatch_tool(self, name: str, arguments: dict[str, Any]) -> str:
         try:
             result = self.session.call_tool(name, arguments)
         except Exception as error:

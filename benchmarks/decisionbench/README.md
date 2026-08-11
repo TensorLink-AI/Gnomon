@@ -105,7 +105,14 @@ The `gnomon-mcp` arm spawns `gnomon mcp serve`, so Gnomon must be
 installed (`bash install.sh --local`). The sandbox arm's containment is
 best-effort (subprocess with `-I`, jail cwd, minimal env — no proxy
 variables, so env-routed network fails closed), disclosed in
-`arms.py`; it is a benchmark harness, not a security boundary.
+`arms.py`; it is a benchmark harness, not a security boundary. Two
+consequences, disclosed rather than papered over: the truth dump
+(`tasks.jsonl`) is written only after every conversation has ended, so
+no live run can read it — but the generator is seeded and public, so a
+model that knows this harness could in principle re-derive the future.
+That is the same disclosure class as LeakTrap's in-file post-cutoff
+rows: the benchmark measures whether ordinary agent behaviour respects
+temporal honesty, not whether an adversary can be stopped.
 
 ## Reading a result
 
