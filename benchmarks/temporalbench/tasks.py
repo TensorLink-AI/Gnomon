@@ -62,26 +62,61 @@ def iter_rows(
     datasets: tuple[str, ...] | None = None,
     limit: int | None = None,
 ) -> Iterator[dict[str, Any]]:
+    """Rows of the labeled split, filtered by tier and source dataset.
+
+    ``limit`` is stratified across the requested tiers rather than
+    head-truncating in file order: on a tier-grouped file, taking the
+    first N rows silently reduced every limited multi-tier run to the
+    earliest tier — ``--limit`` defeated ``--tiers``, the exact bug the
+    TimeSage loader already fixed with ``_stratified_head``. The limit
+    now takes rows round-robin across the tiers present (extra slots go
+    to earlier tiers), keeping each tier's file order. Deterministic:
+    same file, same filters, same limit, same selection.
+    """
     path = data_dir / LABELED_FILE
     if not path.exists():
         raise FileNotFoundError(
             f"{path} not found — run with --download first."
         )
-    yielded = 0
-    with path.open("r", encoding="utf-8") as handle:
-        for line in handle:
-            line = line.strip()
-            if not line:
-                continue
-            row = json.loads(line)
-            if row.get("tier") not in tiers:
-                continue
-            if datasets and row.get("source_dataset") not in datasets:
-                continue
-            yield row
-            yielded += 1
-            if limit and yielded >= limit:
-                return
+
+    def matching() -> Iterator[dict[str, Any]]:
+        with path.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                line = line.strip()
+                if not line:
+                    continue
+                row = json.loads(line)
+                if row.get("tier") not in tiers:
+                    continue
+                if datasets and row.get("source_dataset") not in datasets:
+                    continue
+                yield row
+
+    if not limit:
+        yield from matching()
+        return
+    rows = list(matching())
+    if limit >= len(rows):
+        yield from rows
+        return
+    by_tier: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        by_tier.setdefault(str(row.get("tier")), []).append(row)
+    taken = {tier: 0 for tier in by_tier}
+    remaining = limit
+    while remaining > 0:
+        progressed = False
+        for tier, members in by_tier.items():
+            if remaining == 0:
+                break
+            if taken[tier] < len(members):
+                taken[tier] += 1
+                remaining -= 1
+                progressed = True
+        if not progressed:
+            break
+    for tier, members in by_tier.items():
+        yield from members[:taken[tier]]
 
 
 def extract_json_object(text: str) -> dict[str, Any]:

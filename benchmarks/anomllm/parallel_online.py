@@ -82,11 +82,32 @@ def main() -> int:
 
     done: set[str] = set()
     if jsonl_fn.exists():
+        # A row whose response is null is a transport failure that got
+        # written, not an answer: counting it as done meant a transient
+        # provider error became a permanently-scored empty prediction that
+        # no resume ever retried. Null rows are dropped from the file (so
+        # the official aggregator never scores them twice) and their
+        # series re-enter the pending set.
+        kept: list[str] = []
+        dropped = 0
         with jsonl_fn.open() as handle:
             for line in handle:
                 line = line.strip()
-                if line:
-                    done.add(json.loads(line)["custom_id"])
+                if not line:
+                    continue
+                record = json.loads(line)
+                if record.get("response") is None:
+                    dropped += 1
+                    continue
+                kept.append(line)
+                done.add(record["custom_id"])
+        if dropped:
+            jsonl_fn.write_text(
+                "".join(entry + "\n" for entry in kept), encoding="utf-8"
+            )
+            print(f"dropped {dropped} null-response row(s) from "
+                  f"{jsonl_fn.name}; those series will be retried",
+                  flush=True)
 
     pending = []
     for index in range(1, len(eval_dataset) + 1):
