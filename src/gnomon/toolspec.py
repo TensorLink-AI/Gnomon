@@ -1418,6 +1418,51 @@ def _run_explain_run(arguments: dict[str, Any]) -> dict[str, Any]:
     return explanation
 
 
+def _run_install_tsfm(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .contracts import GnomonError
+    from .tsfm import TSFMUnavailable, available_tsfms
+    from .tsfm_sandbox import TSFM_PIP_SPECS, install_status, start_install
+
+    name = str(arguments["name"])
+    if name not in TSFM_PIP_SPECS:
+        raise GnomonError(
+            "UNKNOWN_TSFM",
+            f"Unknown TSFM: {name!r}. Installable names are listed in "
+            f"details.available.",
+            {"available": sorted(TSFM_PIP_SPECS),
+             "eligible_adapters": available_tsfms()},
+        )
+    try:
+        status = (install_status(name) if arguments.get("status_only")
+                  else start_install(name))
+    except TSFMUnavailable as exc:
+        raise GnomonError("SANDBOX_UNAVAILABLE", str(exc), {"tsfm": name})
+    notes = {
+        "installing": (
+            "Installation runs as a detached process and can take minutes "
+            "on first install (torch dominates). Poll with "
+            "status_only=true; state=ready means the sandbox is usable."
+        ),
+        "ready": (
+            "Sandbox ready. Pass the name in gnomon_forecast's "
+            "`candidates` to enter it in the evaluated competition — "
+            "TSFMs compete against the baselines on identical folds, "
+            "never win by default."
+        ),
+        "failed": (
+            "The last install attempt died; log_tail holds the evidence. "
+            "Calling again without status_only retries from scratch."
+        ),
+        "absent": (
+            "No sandbox and no install running. Call without status_only "
+            "to start one."
+        ),
+    }
+    return {"schema_version": "0.1", "tsfm": name,
+            "pip_specs": TSFM_PIP_SPECS[name], **status,
+            "note": notes[status["state"]]}
+
+
 def _registry_tools() -> list[dict[str, Any]]:
     """Agent tools generated from the macro registry — one source of truth
     for schemas across CLI, Python API, and MCP."""
@@ -1552,6 +1597,32 @@ TOOLS.extend([
             "artifact_path": {"type": "string", "description": "Artifact directory returned by a macro."},
         }, "required": ["artifact_path"]},
         "runner": _run_explain_run,
+    },
+    {
+        "name": "gnomon_install_tsfm",
+        "description": (
+            "Install a time-series foundation model into its isolated "
+            "sandbox venv, without blocking: the install runs as a "
+            "detached process and each call reports the current state "
+            "(absent / installing / ready / failed). Eligible names are "
+            "in gnomon_capabilities under models.tsfm_available; when "
+            "state is ready, pass the name in gnomon_forecast's "
+            "`candidates`. Packages come from the pinned per-model spec "
+            "via uv — expect minutes on first install. TSFMs remain "
+            "candidates: they compete against the baselines on identical "
+            "folds and never win by default."
+        ),
+        "inputSchema": {"type": "object", "properties": {
+            "name": {"type": "string", "description": (
+                "TSFM adapter name (e.g. chronos_bolt_mini); the "
+                "installable set is in gnomon_capabilities under "
+                "models.tsfm_available."
+            )},
+            "status_only": {"type": "boolean", "description": (
+                "Report the sandbox state without starting an install."
+            )},
+        }, "required": ["name"]},
+        "runner": _run_install_tsfm,
     },
 ])
 

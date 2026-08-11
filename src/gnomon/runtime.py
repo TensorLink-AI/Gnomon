@@ -1325,12 +1325,16 @@ def capabilities() -> dict[str, object]:
             "tsfm_sandboxes": list_sandboxes(),
             "tsfm_capabilities": capability_matrix(),
             "tsfm_install_command": "gnomon tsfm install <name>",
+            "tsfm_install_tool": "gnomon_install_tsfm",
             "tsfm_install_note": (
                 "Sandboxed TSFMs are pulled per model into isolated venvs "
                 "(requires uv; weights download on first inference). "
                 "Installed models join forecast selection automatically; "
                 "moment_small also adds a reconstruction candidate to "
-                "detect_anomalies. Installation is a shell step, not a tool."
+                "detect_anomalies. Install from the shell with the "
+                "command above, or from the tool surface with "
+                "gnomon_install_tsfm, which starts a detached install "
+                "and reports state on each call."
             ),
         },
         **registry_capabilities(),

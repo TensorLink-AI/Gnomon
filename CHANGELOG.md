@@ -2,6 +2,38 @@
 
 ## Unreleased
 
+- **TSFM installation is reachable from the tool surface.** New
+  `gnomon_install_tsfm` tool (18th on the default surface, `full`
+  profile only): starts a sandbox install as a *detached*
+  `gnomon tsfm install` process — a blocking MCP call that runs for
+  minutes reads as a hang in every interactive host — and reports state
+  (`absent` / `installing` / `ready` / `failed` with log tail) on each
+  call; `status_only` polls without side effects. The
+  `.gnomon-sandbox-ready` marker stays the single source of truth,
+  shared with the CLI path, and `gnomon_capabilities` names the tool
+  under `models.tsfm_install_tool`. Closes the highest-priority open
+  item from the 2026-08 MCP evaluation
+  (`docs/mcp-evaluation-2026-08.md`).
+
+- **Month-start inference tolerates missing months.** Monthly feeds
+  with the odd dropped month (FRED and its kin) no longer demand an
+  explicit `frequency="MS"`: `infer_frequency` recognises a month-start
+  grid with holes — every timestamp on the first of a month at one
+  shared time of day, single-month steps a strict majority (so yearly
+  and quarterly data are not mistaken for gappy monthly) — and routes
+  the series to the grid validator, which names each missing month with
+  repair options, exactly as an explicit `MS` always did.
+
+- **Weekend gaps are named in daily-grid refusals.** When an
+  `IRREGULAR_TIME_GRID` refusal on a daily grid finds only Saturdays
+  and Sundays inside the gap, the error now says the series looks like
+  business-day (Mon-Fri) data, sets `details.gap_weekend_only: true`,
+  and its repair options include the `fill_business_days` path
+  (forward-fill non-trading days upstream, `repair=aggressive`, or
+  resample to weekly). A true business-day grid remains future work;
+  the refusal now teaches the shape of the data, not just its first
+  hole.
+
 - **Long-series anomaly detection is fast.** Detector selection is
   graded on the trailing `MAX_GRADING_HISTORY` (1,024) observations —
   stretched to cover four seasonal periods — instead of injecting into

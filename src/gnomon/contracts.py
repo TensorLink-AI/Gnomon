@@ -302,6 +302,7 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
     "IRREGULAR_TIME_GRID": [
         {"action": "fill_or_resample", "description": "Fill the missing period named in details, or resample to a coarser regular frequency."},
         {"action": "enable_repair", "description": "Pass repair=aggressive to interpolate interior gaps and snap jittered timestamps — capped, and every fix becomes a warning."},
+        {"action": "fill_business_days", "description": "When details.gap_weekend_only is true the series is business-day (Mon-Fri) data: forward-fill weekends and holidays to a continuous daily grid upstream, or resample to weekly."},
     ],
     "MIXED_TIMEZONES": [
         {"action": "align_timezones", "description": "Make every timestamp consistently timezone-aware or consistently naive."},
@@ -365,6 +366,14 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
     ],
     "ARTIFACT_NOT_FOUND": [
         {"action": "check_path", "description": "Pass the artifact directory returned by the macro (it contains artifact.json)."},
+    ],
+
+    "UNKNOWN_TSFM": [
+        {"action": "list_available", "description": "Installable names are in details.available and in gnomon_capabilities under models.tsfm_available."},
+    ],
+    "SANDBOX_UNAVAILABLE": [
+        {"action": "install_uv", "description": "Sandboxed TSFM installs need uv on PATH; install it from https://docs.astral.sh/uv/ and retry."},
+        {"action": "use_baselines", "description": "Proceed without TSFMs — statistical candidates and baselines need no sandbox."},
     ],
 
     # --- Schema and frequency -------------------------------------------
@@ -594,6 +603,7 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "section": "intent",
     "jsonl": "intent", "include_lineage": "intent", "limit": "intent",
     "latest": "intent", "note": "intent", "name": "intent",
+    "status_only": "intent",
     # Recorded verbatim in the investigation artifact, influence "none" —
     # a stated hypothesis, like a note, not a change to what counts as
     # evidence.

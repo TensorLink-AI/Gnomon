@@ -141,7 +141,10 @@ carries the point-in-time format contract; `gnomon_forecast` takes every
 covariate argument directly), and the tracking lifecycle
 (`gnomon_submit_actuals` to score, `gnomon_status` to read — its
 `section` parameter returns the open-forecast, performance, or decision
-slice on its own).
+slice on its own). Foundation models install from the surface too:
+`gnomon_install_tsfm` starts a detached sandbox install for any name in
+`gnomon_capabilities` under `models.tsfm_available` and reports state
+(absent / installing / ready / failed) on each call — no shell needed.
 
 ## Migrating from v0.2
 

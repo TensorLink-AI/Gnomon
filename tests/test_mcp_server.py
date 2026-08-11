@@ -49,6 +49,9 @@ def test_initialize_list_and_call() -> None:
         "gnomon_ingest", "gnomon_list_datasets",
         # Admission dry-run: rejection as a repair loop, not a post-mortem.
         "gnomon_preflight_context",
+        # Detached sandbox install with polling — TSFMs were disclosed by
+        # capabilities but installable only from a shell.
+        "gnomon_install_tsfm",
     }
     call = by_id[3]["result"]
     assert call["isError"] is False
