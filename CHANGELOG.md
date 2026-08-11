@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **Task profiles (Fix 7).** `gnomon mcp serve --profile core|decision|
+  data|full` (or `GNOMON_MCP_PROFILE`) exposes a named subset of the
+  surface: `core` is the analytical verbs plus inspection and artifact
+  reads (7 tools); `decision` adds decide/monitor/route/status/
+  resolve_outcome; `data` adds ingest/list_datasets/submit_actuals;
+  `full` (the default) is everything, and is the only profile where the
+  compat and planner gates can add tools. `gnomon capabilities` reports
+  the active profile and its visible tools under `mcp_profile`.
+
 - **The writable workspace is disclosed (Fix 6).** `gnomon capabilities`
   reports `workspace.cwd` and `workspace.default_output_dir` (the
   resolved `./gnomon-output` default), and `gnomon_forecast`'s

@@ -587,6 +587,7 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "project": "intent", "output": "intent", "output_dir": "intent",
     "workdir": "intent", "store_path": "intent", "as_of": "intent",
     "scope": "intent", "format": "intent", "brief": "intent",
+    "profile": "intent",
     "section": "intent",
     "jsonl": "intent", "include_lineage": "intent", "limit": "intent",
     "latest": "intent", "note": "intent", "name": "intent",

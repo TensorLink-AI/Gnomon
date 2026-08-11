@@ -1685,13 +1685,52 @@ V02_COMPAT_TOOLS: list[dict[str, Any]] = [
 ]
 
 
+#: Task profiles: named subsets of the default surface for hosts that know
+#: what kind of session they are running. A narrowed profile narrows
+#: everything — compat and planner tools appear only under `full` (their
+#: gates still apply there). Selected by `gnomon mcp serve --profile` or
+#: the GNOMON_MCP_PROFILE env var; capabilities reports the active one.
+_CORE_PROFILE = frozenset({
+    "gnomon_capabilities", "gnomon_inspect", "gnomon_forecast",
+    "gnomon_investigate_change", "gnomon_detect_anomalies",
+    "gnomon_get_artifact", "gnomon_explain_run",
+})
+PROFILES: dict[str, frozenset[str]] = {
+    "core": _CORE_PROFILE,
+    "decision": _CORE_PROFILE | {
+        "gnomon_decide", "gnomon_monitor", "gnomon_route",
+        "gnomon_status", "gnomon_resolve_outcome",
+    },
+    "data": _CORE_PROFILE | {
+        "gnomon_ingest", "gnomon_list_datasets", "gnomon_submit_actuals",
+    },
+}
+
+
+def active_profile() -> str:
+    import os
+    name = os.environ.get("GNOMON_MCP_PROFILE", "full")
+    if name != "full" and name not in PROFILES:
+        raise ValueError(
+            f"Unknown GNOMON_MCP_PROFILE {name!r}; expected one of "
+            f"{sorted(PROFILES)} or 'full'."
+        )
+    return name
+
+
 def visible_tools() -> list[dict[str, Any]]:
-    """The tool surface as gated for this process: macros always; the v0.2
-    compat pair only behind GNOMON_V02_COMPAT=1; the raw planner only
-    behind GNOMON_EXPERIMENTAL_PLANNER=1."""
-    return (TOOLS
-            + (V02_COMPAT_TOOLS if v02_compat_enabled() else [])
-            + (PLANNER_TOOLS if planner_enabled() else []))
+    """The tool surface as gated for this process: the active profile's
+    subset of the macros; the v0.2 compat tools only behind
+    GNOMON_V02_COMPAT=1; the raw planner only behind
+    GNOMON_EXPERIMENTAL_PLANNER=1 (both only under the full profile)."""
+    tools = (TOOLS
+             + (V02_COMPAT_TOOLS if v02_compat_enabled() else [])
+             + (PLANNER_TOOLS if planner_enabled() else []))
+    profile = active_profile()
+    if profile == "full":
+        return tools
+    allowed = PROFILES[profile]
+    return [tool for tool in tools if tool["name"] in allowed]
 
 
 def _materialise_observations(arguments: dict[str, Any]) -> dict[str, Any]:

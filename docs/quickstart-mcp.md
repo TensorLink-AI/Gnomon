@@ -83,6 +83,14 @@ the revision that produced it. `gnomon ingest` says so on any file without
 `--known-at`, via the `known_time_assumed` warning, and the resulting
 dataset reports `known_time_provenance: partially_assumed`.
 
+## Profiles
+
+`gnomon mcp serve --profile core` exposes only the analytical verbs plus
+inspection and artifact reads; `decision` adds the decide/monitor/route/
+status/resolve_outcome lifecycle; `data` adds the bitemporal store and
+actuals scoring; `full` (default) is everything. `gnomon capabilities`
+reports the active profile under `mcp_profile`.
+
 ## Where artifacts land
 
 Omit `output_dir`: artifacts go to the server's default, reported by

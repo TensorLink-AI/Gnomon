@@ -426,7 +426,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     mcp_parser = subcommands.add_parser("mcp", help="Model Context Protocol server")
     mcp_commands = mcp_parser.add_subparsers(dest="mcp_command", required=True)
-    mcp_commands.add_parser("serve", help="Serve Gnomon tools over stdio MCP")
+    mcp_serve = mcp_commands.add_parser(
+        "serve", help="Serve Gnomon tools over stdio MCP"
+    )
+    mcp_serve.add_argument(
+        "--profile", choices=("core", "decision", "data", "full"),
+        default=None,
+        help="Tool subset to expose (default full): core = the five "
+             "analytical verbs plus inspection and artifact reads; "
+             "decision adds decide/monitor/route/status/resolve_outcome; "
+             "data adds ingest/list_datasets/submit_actuals. "
+             "`gnomon capabilities` reports the active profile.",
+    )
 
     tsfm_parser = subcommands.add_parser(
         "tsfm", help="Manage TSFM sandbox environments (isolated venvs per model)"
@@ -1067,6 +1078,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "mcp":
             from .mcp_server import serve
 
+            if getattr(args, "profile", None):
+                # The env var is the single source the gates read, so the
+                # flag and a pre-set variable cannot disagree silently.
+                import os
+                os.environ["GNOMON_MCP_PROFILE"] = args.profile
             return serve()
         if args.command == "tsfm":
             from .tsfm import available_tsfms, installed_tsfms

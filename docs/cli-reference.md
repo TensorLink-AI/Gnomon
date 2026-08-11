@@ -250,6 +250,14 @@ decision-outcome tools over stdio MCP for any MCP-capable host. Discover the
 installed list with `tools/list`; logs go to stderr and the protocol owns
 stdout.
 
+`--profile core|decision|data|full` narrows the exposed surface: `core` is
+the analytical verbs plus inspection and artifact reads; `decision` adds
+the decide/monitor/route/status/resolve_outcome lifecycle; `data` adds the
+bitemporal store and actuals scoring; `full` (default) is everything —
+and the only profile where `GNOMON_V02_COMPAT=1` and the experimental
+planner gate add their tools. `gnomon capabilities` reports the active
+profile under `mcp_profile`.
+
 ## `gnomon tsfm`
 
 Manage sandboxed time-series foundation models. The base install is

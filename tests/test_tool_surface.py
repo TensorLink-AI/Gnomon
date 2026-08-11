@@ -128,6 +128,58 @@ def test_covariate_guide_and_proposer_tools_gated(monkeypatch) -> None:
         assert gated in compat, gated
 
 
+# --- Fix 7: task profiles narrow the surface -------------------------------
+
+def test_profiles_select_documented_subsets(monkeypatch) -> None:
+    from gnomon.toolspec import PROFILES, visible_tools
+
+    monkeypatch.delenv("GNOMON_V02_COMPAT", raising=False)
+    monkeypatch.delenv("GNOMON_MCP_PROFILE", raising=False)
+    full = {tool["name"] for tool in visible_tools()}
+
+    for profile, expected in PROFILES.items():
+        monkeypatch.setenv("GNOMON_MCP_PROFILE", profile)
+        names = {tool["name"] for tool in visible_tools()}
+        assert names == expected, profile
+        assert names <= full
+
+    # A narrowed profile narrows everything: compat tools appear only
+    # under full.
+    monkeypatch.setenv("GNOMON_MCP_PROFILE", "core")
+    monkeypatch.setenv("GNOMON_V02_COMPAT", "1")
+    names = {tool["name"] for tool in visible_tools()}
+    assert "gnomon_record_decision" not in names
+
+    monkeypatch.setenv("GNOMON_MCP_PROFILE", "full")
+    monkeypatch.delenv("GNOMON_V02_COMPAT", raising=False)
+    assert {tool["name"] for tool in visible_tools()} == full
+
+
+def test_unknown_profile_fails_loudly(monkeypatch) -> None:
+    import pytest
+
+    from gnomon.toolspec import visible_tools
+
+    monkeypatch.setenv("GNOMON_MCP_PROFILE", "everything")
+    with pytest.raises(ValueError):
+        visible_tools()
+
+
+def test_capabilities_report_the_active_profile(monkeypatch) -> None:
+    from gnomon.runtime import capabilities
+
+    monkeypatch.delenv("GNOMON_MCP_PROFILE", raising=False)
+    payload = capabilities()["mcp_profile"]
+    assert payload["active"] == "full"
+    assert payload["available"] == ["core", "data", "decision", "full"]
+
+    monkeypatch.setenv("GNOMON_MCP_PROFILE", "core")
+    payload = capabilities()["mcp_profile"]
+    assert payload["active"] == "core"
+    assert "gnomon_decide" not in payload["visible_tools"]
+    assert "gnomon_forecast" in payload["visible_tools"]
+
+
 # --- Fix 6: the writable workspace is disclosed ----------------------------
 
 def test_capabilities_disclose_the_workspace(monkeypatch, tmp_path) -> None:

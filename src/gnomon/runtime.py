@@ -950,6 +950,16 @@ def _response_budget_bytes() -> int:
     return RESPONSE_BUDGET_BYTES
 
 
+def _mcp_profile() -> dict[str, object]:
+    # Local import: toolspec imports runtime, so the reverse edge is lazy.
+    from .toolspec import PROFILES, active_profile, visible_tools
+    return {
+        "active": active_profile(),
+        "available": sorted(PROFILES) + ["full"],
+        "visible_tools": [tool["name"] for tool in visible_tools()],
+    }
+
+
 def capabilities() -> dict[str, object]:
     try:
         import pyarrow  # type: ignore[import-not-found]  # noqa: F401
@@ -1108,6 +1118,7 @@ def capabilities() -> dict[str, object]:
             "v02_tools": os.environ.get("GNOMON_V02_COMPAT") == "1",
             "enable": "GNOMON_V02_COMPAT=1",
         },
+        "mcp_profile": _mcp_profile(),
         "features": {
             "inspection": True, "forecasting": True, "separated_evaluation": True,
             "investigate_change": True, "decide": True, "monitor": True,
