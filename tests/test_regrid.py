@@ -204,3 +204,86 @@ def test_macros_accept_regrid(tmp_path: Path) -> None:
         "output_dir": str(tmp_path / "anom"),
     })
     assert anomalies["status"] in ("complete", "ok")
+
+
+def test_outage_longer_than_any_market_closure_refuses(tmp_path: Path) -> None:
+    """The total-fraction bound cannot catch a month-long outage in years
+    of data; the consecutive-run bound must — carrying one value flat
+    across an outage would hide exactly the gap the validators exist to
+    surface."""
+    rows = []
+    day = date(2019, 1, 7)
+    count = 0
+    while count < 300:
+        skip_outage = date(2019, 6, 1) <= day <= date(2019, 6, 30)
+        if day.weekday() < 5 and not skip_outage:
+            rows.append((day.isoformat(), float(count)))
+            count += 1
+        day += timedelta(days=1)
+    source = _write_csv(tmp_path / "outage.csv", rows)
+    from gnomon.toolspec import runner_for
+
+    with pytest.raises(GnomonError) as raised:
+        runner_for("gnomon_inspect")({
+            "input": str(source), "regrid": "business_daily",
+        })
+    assert raised.value.code == "REGRID_IMPLAUSIBLE"
+    assert raised.value.details["max_fill_run"] == 10
+    assert "2019-05-31" in raised.value.details["after"]
+
+
+def test_long_holiday_cluster_is_still_plausible(tmp_path: Path) -> None:
+    """Chinese A-share Spring Festival / Golden Week closures reach ~9
+    consecutive calendar days; the run bound must not refuse a real
+    market calendar."""
+    rows = []
+    day = date(2019, 9, 2)
+    count = 0
+    while count < 60:
+        golden_week = date(2019, 10, 1) <= day <= date(2019, 10, 7)
+        if day.weekday() < 5 and not golden_week:
+            rows.append((day.isoformat(), float(count)))
+            count += 1
+        day += timedelta(days=1)
+    source = _write_csv(tmp_path / "ashares.csv", rows)
+    from gnomon.toolspec import runner_for
+
+    payload = runner_for("gnomon_inspect")({
+        "input": str(source), "regrid": "business_daily",
+    })
+    assert payload["status"] == "valid"
+
+
+def test_business_daily_survives_a_dst_transition(tmp_path: Path) -> None:
+    """Timezone-aware market data stamped at local midnight crosses DST;
+    a fixed timedelta step would drift the filled stamps an hour off the
+    grid the regrid exists to satisfy."""
+    from zoneinfo import ZoneInfo
+    from datetime import datetime
+
+    zone = ZoneInfo("America/New_York")
+    rows = []
+    day = date(2026, 3, 2)  # the week before the 2026-03-08 spring-forward
+    count = 0
+    while count < 15:
+        if day.weekday() < 5:
+            stamp = datetime(day.year, day.month, day.day, tzinfo=zone)
+            rows.append((stamp.isoformat(), float(count)))
+            count += 1
+        day += timedelta(days=1)
+    source = _write_csv(tmp_path / "dst.csv", rows)
+    from gnomon.toolspec import runner_for
+
+    payload = runner_for("gnomon_inspect")({
+        "input": str(source), "regrid": "business_daily",
+    })
+    assert payload["status"] == "valid"
+
+
+def test_capabilities_advertise_the_regrid_and_fit_window() -> None:
+    from gnomon.runtime import capabilities
+
+    features = capabilities()["features"]
+    assert features["structural_regrid"] is True
+    assert features["long_series_fit_window"] is True
+    assert features["tsfm_install"] is True

@@ -1409,6 +1409,8 @@ def capabilities() -> dict[str, object]:
             "row_tier_labels": True, "forecast_headline": True,
             "multi_target_batching": True, "brief_output": True,
             "inline_data_channels": True,
+            "structural_regrid": True, "long_series_fit_window": True,
+            "tsfm_install": True,
         },
         "forecast_surface": {
             # Machine-readable notes on the two agent-facing additions, so a

@@ -13,11 +13,19 @@
   ~29% of a calendar grid, so business-day data could never clear the
   messiness ceiling that exists to stop invented datasets. Implausible
   declarations refuse loudly: `REGRID_IMPLAUSIBLE` when the fill
-  fraction exceeds any Mon-Fri calendar or times-of-day mix,
-  `REGRID_CONFLICT` when two observations land in one month. The
-  regrid runs before messiness repair, so `repair=aggressive` composes
-  with it; store inputs refuse it (curate at ingest). The weekend-gap
-  and month-end error messages now point at the parameter.
+  fraction exceeds any Mon-Fri calendar, when times of day mix, or
+  when a hole runs past `MAX_BUSINESS_FILL_RUN` (10 calendar days —
+  the longest real market closures, Chinese Spring Festival and Golden
+  Week, reach ~9; anything longer is a data outage that a flat carry
+  would hide, and the total-fraction bound alone cannot catch it);
+  `REGRID_CONFLICT` when two observations land in one month. Fill
+  stepping is calendar-aware (`next_timestamp`), so timezone-aware
+  market data crosses DST transitions without drifting off the grid.
+  The regrid runs before messiness repair, so `repair=aggressive`
+  composes with it; store inputs refuse it (curate at ingest). The
+  weekend-gap and month-end error messages point at the parameter, and
+  `capabilities.features` advertises `structural_regrid`,
+  `long_series_fit_window`, and `tsfm_install`.
 
 - **Long series run in interactive budgets — the 23,594-row case.**
   Three compounding costs, measured against the 2026-08 MCP

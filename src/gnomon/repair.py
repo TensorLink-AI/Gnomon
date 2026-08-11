@@ -550,6 +550,17 @@ REGRID_POLICIES = ("business_daily", "month_start")
 #: a refusal naming the counts, not a grid that is mostly invention.
 MAX_BUSINESS_FILL_FRACTION = 0.45
 
+#: Longest run of consecutive calendar days business_daily will fill.
+#: Real market closures cluster: a long weekend is 3-4 days, the NYSE's
+#: 2001-09-11 closure spanned 6 calendar days with its weekend, and the
+#: longest recurring closures anywhere — Chinese A-share Spring Festival
+#: and Golden Week — reach ~9. A longer hole is a data outage wearing a
+#: holiday's clothes, and carrying one value across it flat would mask
+#: exactly the kind of gap the grid validators exist to surface. The
+#: total-fraction bound above cannot catch this (a month-long outage in
+#: ten years of data barely moves the fraction); the run bound does.
+MAX_BUSINESS_FILL_RUN = 10
+
 
 def regrid_observations(
     observations: "list[Observation]", policy: str, log: RepairLog,
@@ -626,15 +637,41 @@ def regrid_observations(
                 f"first.",
                 {"series": name, "distinct_times": len(clock_times)},
             )
+        # Calendar-aware stepping: on timezone-aware data a fixed
+        # timedelta(days=1) drifts an hour at every DST transition and the
+        # filled stamps then fail the very grid check the regrid exists to
+        # satisfy; next_timestamp("D") preserves the wall-clock time the
+        # way the grid validator expects. (Imported here: temporal imports
+        # data, which type-imports this module.)
+        from .temporal import next_timestamp
+
         result.extend(ordered)
         filled = 0
         previous = ordered[0]
         for item in ordered[1:]:
-            slot = previous.timestamp + timedelta(days=1)
+            run = 0
+            slot = next_timestamp(previous.timestamp, "D")
             while slot < item.timestamp:
+                run += 1
+                if run > MAX_BUSINESS_FILL_RUN:
+                    raise GnomonError(
+                        "REGRID_IMPLAUSIBLE",
+                        f"regrid=business_daily: series {name} has a hole "
+                        f"longer than {MAX_BUSINESS_FILL_RUN} calendar days "
+                        f"after {previous.timestamp.isoformat()} (next "
+                        f"observation {item.timestamp.isoformat()}). The "
+                        f"longest real market closures run ~9 calendar "
+                        f"days; this looks like a data outage, and carrying "
+                        f"one value flat across it would hide the gap. Fix "
+                        f"or split the data at the hole.",
+                        {"series": name,
+                         "after": previous.timestamp.isoformat(),
+                         "next_observation": item.timestamp.isoformat(),
+                         "max_fill_run": MAX_BUSINESS_FILL_RUN},
+                    )
                 result.append(Observation(slot, previous.value, name))
                 filled += 1
-                slot += timedelta(days=1)
+                slot = next_timestamp(slot, "D")
             previous = item
         grid_size = len(ordered) + filled
         if filled and filled / grid_size > MAX_BUSINESS_FILL_FRACTION:
