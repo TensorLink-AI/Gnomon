@@ -30,9 +30,19 @@ NEW_TOOL_NAMES = [
 
 
 def test_v02_surface_is_preserved_and_macros_added():
+    # The deprecated decision pair left the default surface but is never
+    # silently removed: it returns, unchanged, under GNOMON_V02_COMPAT=1.
+    from gnomon.toolspec import V02_COMPAT_TOOLS
+
     names = [tool["name"] for tool in TOOLS]
+    compat_names = [tool["name"] for tool in V02_COMPAT_TOOLS]
+    gated = {"gnomon_record_decision", "gnomon_resolve_decision"}
     for name in V02_TOOL_NAMES:
-        assert name in names, f"frozen v0.2 tool {name} missing"
+        if name in gated:
+            assert name in compat_names, f"gated v0.2 tool {name} missing"
+            assert name not in names, f"{name} should be compat-gated"
+        else:
+            assert name in names, f"frozen v0.2 tool {name} missing"
     for name in NEW_TOOL_NAMES:
         assert name in names, f"new tool {name} missing"
 

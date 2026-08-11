@@ -36,15 +36,14 @@ def test_initialize_list_and_call() -> None:
     tool_names = [tool["name"] for tool in by_id[2]["result"]["tools"]]
     # The frozen v0.2 tools come first, unchanged; registry-generated macro
     # and artifact tools follow.
-    assert tool_names[:11] == [
+    assert tool_names[:9] == [
             "gnomon_capabilities", "gnomon_inspect", "gnomon_forecast",
             "gnomon_covariate_guide", "gnomon_validate_covariates",
             "gnomon_propose_covariates",
         "gnomon_submit_actuals", "gnomon_list_open_forecasts",
-        "gnomon_model_performance", "gnomon_record_decision",
-        "gnomon_resolve_decision",
+        "gnomon_model_performance",
     ]
-    assert set(tool_names[11:]) == {
+    assert set(tool_names[9:]) == {
         "gnomon_investigate_change", "gnomon_detect_anomalies", "gnomon_decide", "gnomon_monitor",
         "gnomon_get_artifact", "gnomon_explain_run",
         "gnomon_status", "gnomon_resolve_outcome", "gnomon_route",

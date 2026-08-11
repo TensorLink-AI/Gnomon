@@ -1082,6 +1082,12 @@ def capabilities() -> dict[str, object]:
             ),
         },
         "experimental": {"planner": os.environ.get("GNOMON_EXPERIMENTAL_PLANNER") == "1"},
+        # Deprecated surfaces are opt-in, never silently removed; this flag
+        # is how a client discovers whether the v0.2 compat tools are up.
+        "compat": {
+            "v02_tools": os.environ.get("GNOMON_V02_COMPAT") == "1",
+            "enable": "GNOMON_V02_COMPAT=1",
+        },
         "features": {
             "inspection": True, "forecasting": True, "separated_evaluation": True,
             "investigate_change": True, "decide": True, "monitor": True,

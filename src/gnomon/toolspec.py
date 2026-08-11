@@ -988,25 +988,6 @@ TOOLS: list[dict[str, Any]] = [
         "runner": _run_model_performance,
     },
     {
-        "name": "gnomon_record_decision",
-        "description": ("DEPRECATED (v0.2 lifecycle) — prefer `gnomon_decide`, which produces a DecisionArtifact that `gnomon_resolve_outcome` scores against realised utility and regret. This pair records a free-text action and a later yes/no verdict, which cannot express \"a costly precaution was rational even though the adverse event never occurred\". Kept for v0.2 compatibility. Link an agent decision and expected outcome to a tracked forecast."),
-        "inputSchema": {"type": "object", "properties": {
-            "decision_id": {"type": "string"}, "project": {"type": "string"},
-            "forecast_id": {"type": "string"}, "action": {"type": "string"},
-            "expected_outcome": {"type": "string"},
-        }, "required": ["decision_id", "project", "forecast_id", "action", "expected_outcome"]},
-        "runner": _run_record_decision,
-    },
-    {
-        "name": "gnomon_resolve_decision",
-        "description": ("DEPRECATED (v0.2 lifecycle) — resolves records made by `gnomon_record_decision` only. Bare `correct` is retired: prefer `gnomon_decide` + `gnomon_resolve_outcome`, which report realised utility, regret against the best feasible action in hindsight, and ex-ante optimality separately. Record the realised business outcome and whether a previously recorded agent decision was correct."),
-        "inputSchema": {"type": "object", "properties": {
-            "decision_id": {"type": "string"}, "actual_outcome": {"type": "string"},
-            "correct": {"type": "boolean"},
-        }, "required": ["decision_id", "actual_outcome", "correct"]},
-        "runner": _run_resolve_decision,
-    },
-    {
         "name": "gnomon_ingest",
         "description": (
             "Append a file's observations to the bitemporal store as vintages. "
@@ -1492,10 +1473,49 @@ PLANNER_TOOLS: list[dict[str, Any]] = [
 ]
 
 
+def v02_compat_enabled() -> bool:
+    import os
+    return os.environ.get("GNOMON_V02_COMPAT") == "1"
+
+
+#: The deprecated v0.2 lifecycle pair, off by default. Two tool slots and
+#: two long deprecation arguments were a per-session tax on every agent;
+#: GNOMON_V02_COMPAT=1 restores them, schemas and behaviour unchanged, for
+#: clients that still write v0.2 decision records.
+V02_COMPAT_TOOLS: list[dict[str, Any]] = [
+    {
+        "name": "gnomon_record_decision",
+        "description": ("Link a free-text agent decision and expected "
+                        "outcome to a tracked forecast (v0.2 lifecycle; "
+                        "superseded by gnomon_decide)."),
+        "inputSchema": {"type": "object", "properties": {
+            "decision_id": {"type": "string"}, "project": {"type": "string"},
+            "forecast_id": {"type": "string"}, "action": {"type": "string"},
+            "expected_outcome": {"type": "string"},
+        }, "required": ["decision_id", "project", "forecast_id", "action", "expected_outcome"]},
+        "runner": _run_record_decision,
+    },
+    {
+        "name": "gnomon_resolve_decision",
+        "description": ("Record the realised outcome and a yes/no verdict "
+                        "for a v0.2 decision record (superseded by "
+                        "gnomon_resolve_outcome)."),
+        "inputSchema": {"type": "object", "properties": {
+            "decision_id": {"type": "string"}, "actual_outcome": {"type": "string"},
+            "correct": {"type": "boolean"},
+        }, "required": ["decision_id", "actual_outcome", "correct"]},
+        "runner": _run_resolve_decision,
+    },
+]
+
+
 def visible_tools() -> list[dict[str, Any]]:
-    """The tool surface as gated for this process: macros always; the raw
-    planner only behind GNOMON_EXPERIMENTAL_PLANNER=1."""
-    return TOOLS + (PLANNER_TOOLS if planner_enabled() else [])
+    """The tool surface as gated for this process: macros always; the v0.2
+    compat pair only behind GNOMON_V02_COMPAT=1; the raw planner only
+    behind GNOMON_EXPERIMENTAL_PLANNER=1."""
+    return (TOOLS
+            + (V02_COMPAT_TOOLS if v02_compat_enabled() else [])
+            + (PLANNER_TOOLS if planner_enabled() else []))
 
 
 def _materialise_observations(arguments: dict[str, Any]) -> dict[str, Any]:

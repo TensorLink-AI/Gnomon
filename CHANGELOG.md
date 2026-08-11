@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **The deprecated v0.2 decision pair is opt-in (Fix 1).**
+  `gnomon_record_decision` and `gnomon_resolve_decision` left the default
+  MCP surface: two tool slots whose descriptions argued for their own
+  replacement were a per-session attention tax. `GNOMON_V02_COMPAT=1`
+  restores both, schemas and behaviour unchanged, with one-sentence
+  descriptions; `gnomon capabilities` reports the state under
+  `compat.v02_tools`.
+
 - **TemporalBench's MCP arm stopped throwing away the work it had
   done.** A measured sweep scored 0% on T2 and T4 not because the model
   answered badly but because every row hit the 250k token cap after five

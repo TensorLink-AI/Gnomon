@@ -97,12 +97,18 @@ repair options; `store:<dataset>` inputs still need the explicit columns. Suppor
 (dry-run admission for proposed context events, with the accepted span
 grammar in the response), covariate tools, and the tracking lifecycle
 (`gnomon_submit_actuals`, `gnomon_list_open_forecasts`,
-`gnomon_model_performance`, decision record/resolve).
+`gnomon_model_performance`).
 
 ## Migrating from v0.2
 
-Nothing breaks: every v0.2 tool name, schema, and the `gnomon_forecast`
-contract are preserved (see `COMPATIBILITY.md`). New in this release:
+Every v0.2 tool name, schema, and the `gnomon_forecast` contract are
+preserved (see `COMPATIBILITY.md`), but the deprecated decision pair
+(`gnomon_record_decision` / `gnomon_resolve_decision`) is no longer on
+the default surface — tools compete for model attention, and these two
+argued for their own replacement in every session. Start the server with
+`GNOMON_V02_COMPAT=1` to restore them, schemas and behaviour unchanged;
+`gnomon capabilities` reports the state under `compat.v02_tools`.
+New in this release:
 the three additional macros, `store:<dataset>` inputs, `as_of` replay,
 `support_assessment` on every result, `lineage.json` in artifacts, and
 machine-readable `repair_options` on every structured error.
