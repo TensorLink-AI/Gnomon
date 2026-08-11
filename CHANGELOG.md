@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- **Automatic horizon split with per-row tiers (Change 2).** When the
+  requested horizon is unsupportable but a shorter one is not, the
+  default no longer abstains: the supportable prefix is evaluated by the
+  same stages and guardrails as any run at that horizon and published at
+  whatever tier it earned, and the remainder is the existing best-effort
+  fallback — a typed `horizon_split` reason names both ranges and both
+  tiers, the sensitivity carries `supported_horizon` /
+  `requested_horizon`, and the merged status is capped at
+  `conditionally_supported`. Every forecast row (CSV, payloads, brief
+  format) now carries a `tier` field — uniform on single-tier
+  forecasts, changing at the split point — and the split gets its own
+  descriptive-never-predictive lineage claim plus a distinct `:prefix`
+  evaluation evidence record. Enrichment stages are not applied on the
+  split path (disclosed in the reason); with a floor above best_effort
+  the remainder is not published and the split is reported in recovery.
+
 - **Graduated support: `minimum_support` replaces `best_effort` (Change
   1).** The forecast verb's default philosophy flips from "abstain
   unless earned" to "publish the most defensible answer that exists, at

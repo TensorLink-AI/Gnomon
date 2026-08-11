@@ -63,44 +63,61 @@ def test_minimum_support_supported_restores_the_abstention(tmp_path: Path) -> No
     assert result.forecast == []
 
 
-def test_best_effort_publishes_labelled_rows(tmp_path: Path) -> None:
-    artifact, directory = cik_bucket_three(tmp_path, best_effort=True)
+def pure_fallback_run(tmp_path: Path, monkeypatch, **kwargs):
+    """The whole-object fallback lane: fires when even the supportable
+    prefix abstains (with three or more observations a small evaluated
+    prefix normally exists, so the run becomes a horizon split instead).
+    The prefix abstention is simulated here; the lane itself runs end to
+    end, artifact and lineage included."""
+    import gnomon.runtime as runtime_module
+
+    monkeypatch.setattr(runtime_module, "_split_prefix",
+                        lambda *args, **kw: None)
+    source = tmp_path / "tiny.csv"
+    write_monthly(source, 3)
+    return forecast(
+        str(source), time_column="timestamp", target_column="value",
+        horizon=7, output=str(tmp_path / "output"), **kwargs,
+    )
+
+
+def test_best_effort_publishes_labelled_rows(tmp_path: Path, monkeypatch) -> None:
+    artifact, directory = pure_fallback_run(tmp_path, monkeypatch)
     result = artifact.results[0]
     assert result.support == "best_effort"
     assert len(result.forecast) == 7
     # The point path is the last observed value, flat — the most defensible
     # naive answer, not a covert model.
-    last_value = 16.0
+    last_value = 11.0
     assert all(row["point"] == last_value for row in result.forecast)
     # Intervals widen with lead time and stay ordered.
     first, last = result.forecast[0], result.forecast[-1]
     assert first["q10"] < first["q50"] < first["q90"]
     assert last["q90"] - last["q10"] > first["q90"] - first["q10"]
-    # The disclosure is verbatim in the warnings, alongside the original
-    # abstention message naming the supportable horizon.
+    # Every row carries the unstrippable tier label.
+    assert all(row["tier"] == "best_effort" for row in result.forecast)
+    # The disclosure is verbatim in the warnings.
     assert NO_RELIABLE_FORECAST in result.warnings
-    assert any("horizon" in warning for warning in result.warnings
-               if warning != NO_RELIABLE_FORECAST)
     # And the rows are written to the artifact directory like any others.
     persisted = json.loads((directory / "artifact.json").read_text())
     assert len(persisted["results"][0]["forecast"]) == 7
 
 
-def test_best_effort_support_assessment_stays_inconclusive(tmp_path: Path) -> None:
+def test_best_effort_support_assessment_stays_inconclusive(tmp_path: Path, monkeypatch) -> None:
     """Rows change what was published, not what the evidence supports."""
-    artifact, _ = cik_bucket_three(tmp_path, best_effort=True)
+    artifact, _ = pure_fallback_run(tmp_path, monkeypatch)
     assessment = artifact.results[0].support_assessment
     assert assessment["status"] == "inconclusive"
     codes = [reason["code"] for reason in assessment["reasons"]]
     assert codes[0] == "no_reliable_forecast"
     recovery = [reason["code"] for reason in assessment["recovery_actions"]]
-    assert "reduce_horizon" in recovery
+    assert "provide_more_history" in recovery
 
 
-def test_best_effort_lineage_claim_is_descriptive(tmp_path: Path) -> None:
+def test_best_effort_lineage_claim_is_descriptive(tmp_path: Path, monkeypatch) -> None:
     """The verifier's calibration gate must be unreachable from a fallback:
     the claim class is descriptive, with no calibration reference."""
-    artifact, directory = cik_bucket_three(tmp_path, best_effort=True)
+    artifact, directory = pure_fallback_run(tmp_path, monkeypatch)
     lineage = json.loads((directory / "lineage.json").read_text())
     claims = [claim for claim in lineage["claims"]
               if claim["claim_id"].startswith("claim:best_effort:")]
@@ -108,6 +125,27 @@ def test_best_effort_lineage_claim_is_descriptive(tmp_path: Path) -> None:
     assert claims[0]["claim_class"] == "descriptive"
     assert claims[0].get("calibration_ref") is None
     assert "no measured accuracy" in claims[0]["statement"].lower()
+    assert not any(claim["claim_class"] == "predictive"
+                   for claim in lineage["claims"])
+
+
+def test_split_lineage_claim_is_descriptive_and_labelled(tmp_path: Path) -> None:
+    """A horizon split gets its own descriptive claim naming both ranges
+    and the tiers present — never a predictive claim for the merged
+    object."""
+    artifact, directory = cik_bucket_three(tmp_path)
+    result = artifact.results[0]
+    assert result.support == "best_effort"
+    codes = {reason["code"]
+             for reason in result.support_assessment["reasons"]}
+    assert "horizon_split" in codes
+    lineage = json.loads((directory / "lineage.json").read_text())
+    claims = [claim for claim in lineage["claims"]
+              if claim["claim_id"].startswith("claim:horizon_split:")]
+    assert len(claims) == 1
+    assert claims[0]["claim_class"] == "descriptive"
+    assert claims[0].get("calibration_ref") is None
+    assert "best_effort" in claims[0]["statement"]
     assert not any(claim["claim_class"] == "predictive"
                    for claim in lineage["claims"])
 

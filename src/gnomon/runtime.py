@@ -157,6 +157,43 @@ def inspect_dataset(
     }
 
 
+def _split_prefix(
+    series_name: str, items: list, loaded: Any, reachable: int, *,
+    minimum_baseline_improvement: float, config: Any,
+    selection_strategy: str, seasonal_period: int | None,
+    target_coverage: float,
+):
+    """Evaluate the supportable horizon prefix for an automatic split.
+
+    The same stages, the same floors, the same guardrails as any run at
+    horizon ``reachable`` — nothing is re-graded, only re-requested at
+    the horizon the data already supports. Enrichment stages are not
+    applied here (disclosed by the ``horizon_split`` reason); the prefix
+    is the core evaluated forecast. Returns ``None`` when even the
+    prefix abstains, in which case the caller falls back to the plain
+    best-effort lane."""
+    sub = horizon_stage(
+        series_name, items, horizon=reachable, frequency=loaded.frequency,
+        seasonal_period=seasonal_period,
+    )
+    evaluate_stage(
+        sub, horizon=reachable,
+        minimum_baseline_improvement=minimum_baseline_improvement,
+        frequency=loaded.frequency, config=config, strict_abstention=False,
+        snapshot=loaded.snapshot, variable=loaded.variable,
+    )
+    predict_stage(
+        sub, horizon=reachable, frequency=loaded.frequency,
+        selection_strategy=selection_strategy,
+    )
+    prefix_rows, prefix_support, _ = interval_stage(
+        sub, threshold=None, target_coverage=target_coverage,
+    )
+    if not prefix_rows or prefix_support == "unsupported":
+        return None
+    return sub, prefix_rows, prefix_support
+
+
 def _config_fingerprint(config: Any) -> dict[str, object] | None:
     """The behaviour-relevant subset of the config, for content addressing.
 
@@ -334,6 +371,8 @@ def _series_result(
         future_events=future_events,
         structural_events=structural_events,
     )
+    split = None
+    split_prefix_tier: str | None = None
     if (support == "unsupported" and not rows and state.values
             and minimum_support == "best_effort"
             and not strict_abstention):
@@ -345,15 +384,101 @@ def _series_result(
         # usable history at all still abstains (the guard above). The
         # legacy `best_effort` flag maps to this same floor.
         from .pipeline import best_effort_stage
-        rows, support = best_effort_stage(state)
+        reachable = (state.assessment.max_supportable_horizon
+                     if state.assessment is not None else None)
+        if reachable and 0 < reachable < horizon:
+            # Automatic horizon split: the supportable prefix is evaluated
+            # at whatever tier it earns — same stages, same guardrails —
+            # and only the unsupportable remainder falls back.
+            split = _split_prefix(
+                series_name, items, loaded, reachable,
+                minimum_baseline_improvement=minimum_baseline_improvement,
+                config=config, selection_strategy=selection_strategy,
+                seasonal_period=seasonal_period,
+                target_coverage=target_coverage,
+            )
+        else:
+            split = None
+        if split is not None:
+            split_state, split_rows, split_support = split
+            fallback_rows, _ = best_effort_stage(state)
+            rows = split_rows + fallback_rows[len(split_rows):]
+            support = "best_effort"
+        else:
+            rows, support = best_effort_stage(state)
     assessment = state.assessment
     from .support import assess_forecast_support, disclose_epistemic_deviation
-    support_assessment = assess_forecast_support(
-        support, state.warnings, assessment,
-        known_time_assumed=loaded.snapshot.assumed_known_time,
-        disclosures=state.disclosures,
-        measured_coverage=state.coverage,
-    )
+    if split is not None:
+        # The split assessment carries both ranges explicitly: the prefix's
+        # own reasons and tier, the remainder's fallback status, and the
+        # typed `horizon_split` naming which rows sit where and why.
+        from .support import achieved_tier as _tier
+        prefix_assessment = assess_forecast_support(
+            split_support, split_state.warnings, split_state.assessment,
+            known_time_assumed=loaded.snapshot.assumed_known_time,
+            disclosures=split_state.disclosures,
+            measured_coverage=split_state.coverage,
+        )
+        prefix_tier = _tier(prefix_assessment.status, True)
+        split_prefix_tier = prefix_tier
+        prefix_end = split_rows[-1]["timestamp"]
+        full_end = rows[-1]["timestamp"]
+        from .contracts import SupportAssessment as _SupportAssessment
+        from .contracts import SupportReason as _SupportReason
+        enrichment_note = (
+            " Context events and covariates were not applied on the "
+            "split path; request the supportable horizon directly to "
+            "use them." if (context_events or covariates) else ""
+        )
+        split_reason = _SupportReason(
+            "horizon_split",
+            f"Rows 1-{reachable} (through {prefix_end}) are an evaluated "
+            f"forecast at tier '{prefix_tier}'; rows {reachable + 1}-"
+            f"{horizon} (through {full_end}) are a naive best-effort "
+            f"extrapolation — the evaluation cannot support the full "
+            f"requested horizon.{enrichment_note}",
+        )
+        remainder_reason = _SupportReason(
+            "no_reliable_forecast",
+            f"Rows {reachable + 1}-{horizon} carry no measured accuracy "
+            f"and no probability weight: a last-value fallback with "
+            f"dispersion-scaled intervals.",
+        )
+        support_assessment = _SupportAssessment(
+            ("conditionally_supported"
+             if prefix_assessment.status == "supported"
+             else prefix_assessment.status),
+            [split_reason] + prefix_assessment.reasons + [remainder_reason],
+            prefix_assessment.assumptions,
+            {**prefix_assessment.sensitivity,
+             "supported_horizon": reachable,
+             "requested_horizon": horizon},
+            [_SupportReason(
+                "reduce_horizon",
+                f"Request horizon {reachable} or less for a fully "
+                f"evaluated result.",
+            )],
+            "best_effort",
+            prefix_assessment.disclosures + [
+                item for item in state.disclosures
+                if item not in prefix_assessment.disclosures
+            ],
+        )
+        # The published selection facts are the prefix's — the requested-
+        # horizon evaluation selected nothing. Its coverage is deliberately
+        # not published as the result's: it measures rows 1..N only, and it
+        # stays visible in the sensitivity and the prefix evidence.
+        state.selected_model = split_state.selected_model
+        state.warnings = split_state.warnings + state.warnings
+        state.coverage = None
+        assessment = split_state.assessment
+    else:
+        support_assessment = assess_forecast_support(
+            support, state.warnings, assessment,
+            known_time_assumed=loaded.snapshot.assumed_known_time,
+            disclosures=state.disclosures,
+            measured_coverage=state.coverage,
+        )
     from .contracts import DEFAULT_MINIMUM_BASELINE_IMPROVEMENT, SupportReason
     if minimum_baseline_improvement != DEFAULT_MINIMUM_BASELINE_IMPROVEMENT:
         # A caller-chosen evidence rule is not the documented one. Below the
@@ -412,6 +537,21 @@ def _series_result(
             f"the result the evidence already supports.",
         ))
         rows, support, threshold_analysis = [], "unsupported", None
+    # The unstrippable label: every published row names its tier, uniform
+    # on a single-tier forecast, changing at the split point on a split
+    # one — one shape, no special cases for consumers.
+    if rows:
+        if split is not None and split_prefix_tier is not None:
+            # Prefix rows carry the tier their own evaluation earned; the
+            # remainder is the fallback, whatever the merged status says.
+            prefix_length = len(split[1])
+            for index, row in enumerate(rows):
+                row["tier"] = (split_prefix_tier if index < prefix_length
+                               else "best_effort")
+        else:
+            uniform_tier = achieved_tier(support_assessment.status, True)
+            for row in rows:
+                row["tier"] = uniform_tier
     result = SeriesResult(
         series_name, support, state.selected_model, assessment.strongest_baseline,
         assessment.selection_scores, assessment.test_scores, assessment.improvement,
@@ -441,9 +581,43 @@ def _series_result(
         }),
         Evidence(f"support:{series_name}", "support_assessment", series_name, {
             "support": support, "warnings": state.warnings,
+            # The per-row tier mix, so the verifier can see from the
+            # evidence alone whether sub-supported rows were published.
+            "row_tiers": _tier_counts(rows),
+            "minimum_support": minimum_support,
         }),
     ])
+    if split is not None:
+        # The prefix's own evaluation record, distinct from the requested-
+        # horizon record above (which documents the abstention): the split
+        # is auditable from evidence, not only from the reasons.
+        split_state = split[0]
+        split_assessment = split_state.assessment
+        evidence.append(Evidence(
+            f"evaluation:{series_name}:prefix", "rolling_evaluation",
+            series_name, {
+                "partitioning": (
+                    "horizon-split prefix at the supportable horizon; "
+                    "selection folds, then calibration fold, then final "
+                    "test fold"),
+                "horizon": len(split[1]),
+                "selection_scores": split_assessment.selection_scores,
+                "test_scores": split_assessment.test_scores,
+                "measured_interval_coverage": split_state.coverage,
+                "baseline_improvement": split_assessment.improvement,
+                "strongest_baseline": split_assessment.strongest_baseline,
+                "selected_model": split_state.selected_model,
+            },
+        ))
     return result, evidence
+
+
+def _tier_counts(rows: list[dict[str, object]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        tier = str(row.get("tier", "unlabelled"))
+        counts[tier] = counts.get(tier, 0) + 1
+    return counts
 
 
 def forecast(

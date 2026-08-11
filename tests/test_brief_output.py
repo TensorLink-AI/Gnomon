@@ -50,7 +50,7 @@ def test_brief_keeps_one_interval_and_drops_the_bulk(tmp_path):
     result = brief["results"][0]
     assert len(result["forecast"]) == 7  # the whole horizon, not a preview
     for row in result["forecast"]:
-        assert set(row) == {"timestamp", "q10", "q50", "q90"}
+        assert set(row) == {"timestamp", "q10", "q50", "q90", "tier"}
     full_rows = artifact.results[0].forecast
     assert [row["q50"] for row in result["forecast"]] == [
         row["q50"] for row in full_rows
@@ -140,7 +140,7 @@ def test_cli_brief_works_with_multi_target(tmp_path, capsys):
     assert [result["series"] for result in payload["results"]] == ["hr", "spo2"]
     for result in payload["results"]:
         assert result["support_assessment"] is not None
-        assert set(result["forecast"][0]) == {"timestamp", "q10", "q50", "q90"}
+        assert set(result["forecast"][0]) == {"timestamp", "q10", "q50", "q90", "tier"}
 
 
 def test_mcp_forecast_accepts_brief_format(tmp_path):
@@ -151,5 +151,5 @@ def test_mcp_forecast_accepts_brief_format(tmp_path):
     })
     assert payload["format"] == "brief"
     result = payload["results"][0]
-    assert set(result["forecast"][0]) == {"timestamp", "q10", "q50", "q90"}
+    assert set(result["forecast"][0]) == {"timestamp", "q10", "q50", "q90", "tier"}
     assert result["support_assessment"] is not None

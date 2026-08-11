@@ -428,7 +428,10 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
             "notes": item.notes,
             "forecast": [
                 {"timestamp": row["timestamp"], "q50": row["q50"],
-                 "q10": row["q10"], "q90": row["q90"]}
+                 "q10": row["q10"], "q90": row["q90"],
+                 # The unstrippable label rides on every row in every
+                 # format; brief may drop quantile levels, never the tier.
+                 **({"tier": row["tier"]} if "tier" in row else {})}
                 for row in item.forecast
             ],
             # The row count survives even when the budget trims the rows.

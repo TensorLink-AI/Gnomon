@@ -128,6 +128,107 @@ def test_invalid_minimum_support_is_typed(tmp_path) -> None:
     assert excinfo.value.code == "INVALID_ARGUMENTS"
 
 
+def test_horizon_split_publishes_prefix_and_labelled_remainder(tmp_path) -> None:
+    from gnomon.toolspec import runner_for
+
+    # 12 daily observations support horizon 10, not the requested 14; the
+    # old behaviour abstained naming max_supportable_horizon in recovery.
+    payload = runner_for("gnomon_forecast")({
+        "input": _short_csv(tmp_path), "horizon": 14,
+        "output_dir": str(tmp_path / "out"),
+    })
+    result = payload["results"][0]
+    rows = result["forecast"]
+    assert len(rows) == 14
+    tiers = [row["tier"] for row in rows]
+    assert "best_effort" in tiers
+    evaluated = [tier for tier in tiers if tier != "best_effort"]
+    assert evaluated, "the supportable prefix must be evaluated"
+    # Contiguous: evaluated prefix first, fallback remainder after.
+    boundary = len(evaluated)
+    assert all(tier != "best_effort" for tier in tiers[:boundary])
+    assert all(tier == "best_effort" for tier in tiers[boundary:])
+
+    assessment = result["support_assessment"]
+    split_reasons = [reason for reason in assessment["reasons"]
+                     if reason["code"] == "horizon_split"]
+    assert len(split_reasons) == 1
+    message = split_reasons[0]["message"]
+    assert f"1-{boundary}" in message
+    assert f"{boundary + 1}-14" in message
+    assert assessment["sensitivity"]["supported_horizon"] == boundary
+    assert assessment["sensitivity"]["requested_horizon"] == 14
+
+
+def test_split_artifact_csv_carries_the_tier_column(tmp_path) -> None:
+    import csv
+
+    from gnomon.toolspec import runner_for
+
+    payload = runner_for("gnomon_forecast")({
+        "input": _short_csv(tmp_path), "horizon": 14,
+        "output_dir": str(tmp_path / "out"),
+    })
+    with open(payload["artifact_path"] + "/forecast.csv") as handle:
+        rows = list(csv.DictReader(handle))
+    assert len(rows) == 14
+    assert {"tier"} <= set(rows[0])
+    assert rows[-1]["tier"] == "best_effort"
+    assert rows[0]["tier"] != "best_effort"
+
+
+def test_split_respects_a_supported_floor(tmp_path) -> None:
+    # With floor `supported` the remainder cannot be published, so the
+    # request abstains and the split is reported in recovery instead.
+    from gnomon.toolspec import runner_for
+
+    payload = runner_for("gnomon_forecast")({
+        "input": _short_csv(tmp_path), "horizon": 14,
+        "minimum_support": "supported",
+        "output_dir": str(tmp_path / "out"),
+    })
+    result = payload["results"][0]
+    assert result["forecast"] == []
+    codes = {action["code"] for action in
+             result["support_assessment"]["recovery_actions"]}
+    assert "reduce_horizon" in codes
+
+
+def test_uniform_forecasts_repeat_one_tier_per_row(tmp_path) -> None:
+    from gnomon.toolspec import runner_for
+
+    payload = runner_for("gnomon_forecast")({
+        "input": DAILY, "horizon": 7, "format": "full",
+        "output_dir": str(tmp_path / "out"),
+    })
+    result = payload["results"][0]
+    tiers = {row["tier"] for row in result["forecast_preview"]}
+    assert len(tiers) == 1
+    assert tiers <= {"supported", "conditionally_supported"}
+
+
+def test_happy_path_rows_unchanged_except_tier(tmp_path) -> None:
+    # Regression guard: a fully evaluated forecast's numbers, support, and
+    # assessment are exactly what they were; the additive fields are the
+    # per-row tier (and, later, the headline).
+    from gnomon.toolspec import runner_for
+
+    payload = runner_for("gnomon_forecast")({
+        "input": DAILY, "horizon": 7, "format": "full",
+        "output_dir": str(tmp_path / "out"),
+    })
+    result = payload["results"][0]
+    assert result["support"] in ("supported", "weakly_supported", "degraded")
+    row = dict(result["forecast_preview"][0])
+    row.pop("tier")
+    assert set(row) >= {"timestamp", "point", "q10", "q50", "q90",
+                        "point_bias_correction"}
+    # No split machinery engaged: one tier, no horizon_split reason.
+    codes = {reason["code"]
+             for reason in result["support_assessment"]["reasons"]}
+    assert "horizon_split" not in codes
+
+
 def test_capabilities_report_the_default_floor() -> None:
     from gnomon.runtime import capabilities
 
