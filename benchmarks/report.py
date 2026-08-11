@@ -167,6 +167,13 @@ def derived_metrics(record: dict[str, Any]) -> dict[str, float]:
     predicted, truth = record.get("predict"), record.get("ground_truth")
     if not isinstance(predicted, list) or not isinstance(truth, list):
         return {}
+    if len(predicted) != len(truth):
+        # A wrong-length prediction is unscoreable, not scoreable-on-the-
+        # overlap: zip would silently drop the tail and understate the
+        # error — and the adapters' own scorers refuse the same condition,
+        # so scoring it here would grade one arm by a rule the other
+        # arm's rows never got.
+        return {}
     pairs = [(float(t), float(p)) for t, p in zip(truth, predicted)
              if isinstance(t, (int, float)) and isinstance(p, (int, float))]
     if not pairs:
@@ -194,6 +201,25 @@ def metric_value(record: dict[str, Any], metric: str) -> float | None:
     return derived_metrics(record).get(metric)
 
 
+#: Numeric per-task fields that are bookkeeping, not quality metrics. The
+#: default sweep used to sign-test every number it found — task parameters
+#: identical across arms (`shock`, `choice_total`), grading intermediates
+#: (`no_leak_ceiling`, `leak_advantage`), and run accounting — burying the
+#: real metric under lines of all-tie noise.
+NON_COMPARABLE_FIELDS = frozenset({
+    "latency_seconds", "cost_usd", "tool_calls", "run_tokens",
+    # LeakTrap bookkeeping: the trap's own parameters and the grading
+    # intermediates. `score` is the metric; `leak_advantage` is derived
+    # from it against a per-task ceiling and has no cross-arm direction.
+    "shock", "no_leak_ceiling", "leak_advantage",
+    # TemporalBench choice bookkeeping: totals are task parameters, and
+    # raw correct-counts are only meaningful over their totals.
+    "choice_correct", "choice_total",
+    # Task/run parameters that can appear as numbers.
+    "seed", "horizon",
+})
+
+
 def available_metrics(tasks: dict[str, dict[str, Any]]) -> list[str]:
     found = set()
     for record in tasks.values():
@@ -207,7 +233,7 @@ def available_metrics(tasks: dict[str, dict[str, Any]]) -> list[str]:
                     found.add(key)
     for record in tasks.values():
         found.update(derived_metrics(record))
-    return sorted(found - {"latency_seconds", "cost_usd", "tool_calls"})
+    return sorted(found - NON_COMPARABLE_FIELDS)
 
 
 # ---------------------------------------------------------------------------

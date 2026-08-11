@@ -232,3 +232,21 @@ def test_success_rate_is_split_by_basis_when_bases_mix(tmp_path):
     assert split["all_choices_correct"] == {
         "n": 1, "baseline": 0.0, "treatment": 0.0,
     }
+
+
+def test_bookkeeping_fields_are_not_swept_as_metrics():
+    from benchmarks.report import available_metrics
+
+    tasks = {"t1": {"task_id": "t1", "score": 0.4, "shock": 0.25,
+                    "no_leak_ceiling": 0.5, "leak_advantage": 0.2,
+                    "choice_total": 3, "tool_calls": 5,
+                    "latency_seconds": 2.0}}
+    assert available_metrics(tasks) == ["score"]
+
+
+def test_derived_metrics_refuse_a_wrong_length_prediction():
+    # zip would score the overlap and understate the error; the adapters'
+    # own scorers refuse the same condition, so the join must too.
+    assert derived_metrics(
+        {"ground_truth": [1.0, 2.0, 3.0], "predict": [1.0, 2.0]}
+    ) == {}
