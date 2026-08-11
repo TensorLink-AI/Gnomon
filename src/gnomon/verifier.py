@@ -63,6 +63,25 @@ def verify_lineage(lineage: Lineage, *, as_of: str | None) -> list[dict[str, Any
     evidence_by_id = {item.record_id: item for item in lineage.evidence}
     artifacts_by_id = {item.record_id: item for item in lineage.artifacts}
 
+    # Subjects whose published rows include sub-supported tiers, read from
+    # the support-assessment evidence's row_tiers (the same wiring the
+    # best_effort fallback claims already use). A claim quoting values
+    # from such rows must carry the tier: it has to cite the support
+    # evidence and its statement has to name the sub-supported tier —
+    # unlabelled sub-supported values are rejected before the response
+    # leaves the process, exactly like an uncalibrated probability.
+    sub_supported: dict[str, Any] = {}
+    for item in lineage.evidence:
+        if item.kind != "support_assessment":
+            continue
+        tiers = (item.measurements or {}).get("row_tiers") or {}
+        try:
+            fallback_rows = int(tiers.get("best_effort", 0))
+        except (TypeError, ValueError):
+            fallback_rows = 0
+        if fallback_rows > 0:
+            sub_supported[item.subject] = item
+
     for claim in lineage.claims:
         missing = [ref for ref in claim.evidence_ids if ref not in evidence_by_id]
         missing += [ref for ref in claim.artifact_ids if ref not in artifacts_by_id]
@@ -73,6 +92,27 @@ def verify_lineage(lineage: Lineage, *, as_of: str | None) -> list[dict[str, Any
                 "missing": missing,
             })
             continue
+
+        support_evidence = sub_supported.get(claim.subject)
+        if support_evidence is not None:
+            statement = claim.statement.lower()
+            labelled = ("best_effort" in statement
+                        or "best-effort" in statement
+                        or "naive extrapolation" in statement)
+            if (support_evidence.record_id not in claim.evidence_ids
+                    or not labelled):
+                violations.append({
+                    "code": "SUB_SUPPORTED_UNLABELLED",
+                    "claim_id": claim.claim_id,
+                    "message": (
+                        f"Series {claim.subject!r} published rows below the "
+                        f"supported tier; every claim about it must cite "
+                        f"the support assessment "
+                        f"({support_evidence.record_id}) and name the "
+                        f"sub-supported tier in its statement."
+                    ),
+                    "support_evidence": support_evidence.record_id,
+                })
 
         if claim.claim_class in ("causal", "counterfactual"):
             kinds = {evidence_by_id[ref].kind for ref in claim.evidence_ids}

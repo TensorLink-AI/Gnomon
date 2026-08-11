@@ -348,6 +348,9 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
     "CLAIM_VERIFICATION_FAILED": [
         {"action": "review_violations", "description": "Each violation in details names the claim and the deterministic rule it broke."},
     ],
+    "SUB_SUPPORTED_UNLABELLED": [
+        {"action": "label_the_tier", "description": "A claim quoting values from best_effort or horizon-split rows must cite the support-assessment evidence and name the sub-supported tier in its statement; the tier label is unstrippable."},
+    ],
     "UNSUPPORTED_SCHEMA_VERSION": [
         {"action": "upgrade_runtime", "description": "This artifact was written by a newer Gnomon; upgrade to read it."},
     ],

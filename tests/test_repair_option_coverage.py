@@ -88,6 +88,9 @@ def test_no_orphan_repair_options():
     violation_codes = {
         "TEMPORAL_LEAKAGE", "MISSING_HISTORICAL_VINTAGES",
         "MISSING_FORECAST_VALUES",
+        # Verifier violation inside CLAIM_VERIFICATION_FAILED details,
+        # never a top-level error code.
+        "SUB_SUPPORTED_UNLABELLED",
     }
     orphans = sorted(set(REPAIR_OPTIONS) - raised - violation_codes)
     assert not orphans, f"REPAIR_OPTIONS entries for codes nobody raises: {orphans}"

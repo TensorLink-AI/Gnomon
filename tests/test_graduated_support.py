@@ -292,6 +292,64 @@ def test_abstention_headline_states_no_publication(tmp_path) -> None:
     assert payload["headline"].startswith("No forecast published:")
 
 
+def test_verifier_rejects_unlabelled_sub_supported_claims(tmp_path) -> None:
+    """A hand-constructed claim quoting best_effort values without the
+    tier fails verification exactly like an uncalibrated probability."""
+    from gnomon.lineage import ClaimRecord, EvidenceRecord, Lineage
+    from gnomon.verifier import verify_lineage
+
+    lineage = Lineage("task:test", {})
+    lineage.evidence.append(EvidenceRecord(
+        "support:cpu", "support_assessment", "cpu",
+        {"support": "best_effort", "row_tiers": {"best_effort": 5}},
+    ))
+    lineage.claims.append(ClaimRecord(
+        claim_id="claim:sneaky:cpu",
+        claim_class="descriptive",
+        statement="cpu will be 42.0 at the next step.",
+        subject="cpu",
+        evidence_ids=("support:cpu",),
+        artifact_ids=(),
+    ))
+    violations = verify_lineage(lineage, as_of=None)
+    codes = {violation["code"] for violation in violations}
+    assert "SUB_SUPPORTED_UNLABELLED" in codes
+
+    # The same claim, labelled, passes.
+    labelled = Lineage("task:test", {})
+    labelled.evidence.append(EvidenceRecord(
+        "support:cpu", "support_assessment", "cpu",
+        {"support": "best_effort", "row_tiers": {"best_effort": 5}},
+    ))
+    labelled.claims.append(ClaimRecord(
+        claim_id="claim:honest:cpu",
+        claim_class="descriptive",
+        statement=("cpu is extrapolated to 42.0 at the next step — a "
+                   "best_effort naive extrapolation with no measured "
+                   "accuracy."),
+        subject="cpu",
+        evidence_ids=("support:cpu",),
+        artifact_ids=(),
+    ))
+    assert not any(
+        violation["code"] == "SUB_SUPPORTED_UNLABELLED"
+        for violation in verify_lineage(labelled, as_of=None)
+    )
+
+
+def test_real_split_and_fallback_artifacts_pass_the_verifier(tmp_path) -> None:
+    # The production lineage builder must satisfy the new check on its
+    # own output: a run reaching disk proves it verified, so producing
+    # both shapes end-to-end is the test.
+    from gnomon.toolspec import runner_for
+
+    split = runner_for("gnomon_forecast")({
+        "input": _short_csv(tmp_path), "horizon": 14,
+        "output_dir": str(tmp_path / "a"),
+    })
+    assert split["results"][0]["support"] == "best_effort"
+
+
 def test_capabilities_report_the_default_floor() -> None:
     from gnomon.runtime import capabilities
 
