@@ -36,20 +36,17 @@ def test_initialize_list_and_call() -> None:
     tool_names = [tool["name"] for tool in by_id[2]["result"]["tools"]]
     # The frozen v0.2 tools come first, unchanged; registry-generated macro
     # and artifact tools follow.
-    assert tool_names[:7] == [
+    assert tool_names[:5] == [
             "gnomon_capabilities", "gnomon_inspect", "gnomon_forecast",
-            "gnomon_covariate_guide", "gnomon_validate_covariates",
-            "gnomon_propose_covariates",
+            "gnomon_validate_covariates",
         "gnomon_submit_actuals",
     ]
-    assert set(tool_names[7:]) == {
+    assert set(tool_names[5:]) == {
         "gnomon_investigate_change", "gnomon_detect_anomalies", "gnomon_decide", "gnomon_monitor",
         "gnomon_get_artifact", "gnomon_explain_run",
         "gnomon_status", "gnomon_resolve_outcome", "gnomon_route",
         # The bitemporal store, previously reachable only from the CLI.
         "gnomon_ingest", "gnomon_list_datasets",
-        # The proposer-calibration ledger (tracking schema 5).
-        "gnomon_proposer_skill",
         # Admission dry-run: rejection as a repair loop, not a post-mortem.
         "gnomon_preflight_context",
     }

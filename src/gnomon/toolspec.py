@@ -874,9 +874,16 @@ TOOLS: list[dict[str, Any]] = [
                 **_CONTEXT_EVENTS_PROPERTY,
                 "threshold": {"type": "number", "description": "Optional decision threshold: the result reports when and how likely the forecast crosses this value."},
                 "project": {"type": "string", "description": "Optional tracking project. When set, register the forecast for realised scoring."},
-                "covariates_file": {"type": "string", "description": "Local CSV containing point-in-time covariate vintages."},
+                "covariates_file": {"type": "string", "description": (
+                    "Local CSV of point-in-time covariate vintages: one "
+                    "row per (timestamp, known_at), where timestamp is "
+                    "when the value applies and known_at is when that "
+                    "vintage became available — a backtest fold only uses "
+                    "rows with known_at at or before its cutoff. Validate "
+                    "first with gnomon_validate_covariates."
+                )},
                 **_COVARIATES_PROPERTY,
-                "covariate_mapping": {"type": "string", "description": "Comma-separated name:type:future_known entries."},
+                "covariate_mapping": {"type": "string", "description": "Comma-separated name:type:future_known entries; type is continuous or binary."},
                 "covariate_time_column": {"type": "string", "description": "Valid-at column (default timestamp)."},
                 "covariate_known_at_column": {"type": "string", "description": "Availability timestamp column (default known_at)."},
                 "covariate_series_column": {"type": "string", "description": "Optional series column in the covariate CSV."},
@@ -914,17 +921,19 @@ TOOLS: list[dict[str, Any]] = [
         "runner": _run_forecast,
     },
     {
-        "name": "gnomon_covariate_guide",
-        "description": "Return point-in-time format, forecast dates, and fold cutoffs. Gnomon does not suggest what data to fetch.",
-        "inputSchema": {"type": "object", "properties": {
-            **_INPUT_PROPERTIES,
-            "horizon": {"type": "integer"},
-        }, "required": ["horizon"]},
-        "runner": _run_covariate_guide,
-    },
-    {
         "name": "gnomon_validate_covariates",
-        "description": "Validate local covariate vintages for format, final-horizon coverage, and availability at every selection cutoff.",
+        "description": (
+            "Validate local covariate vintages for format, final-horizon "
+            "coverage, and availability at every selection cutoff. Format "
+            "contract: one row per (timestamp, known_at) — timestamp is "
+            "when a value applies, known_at is when that exact vintage "
+            "became available, and a backtest fold may only use rows with "
+            "known_at at or before its cutoff. Mapping grammar: "
+            "name:type:future_known with type continuous or binary. "
+            "Validation failures name the exact cutoffs that came up "
+            "empty; pass the same covariate arguments to gnomon_forecast "
+            "to run the leakage-safe ablation."
+        ),
         "inputSchema": {"type": "object", "properties": {
             **_INPUT_PROPERTIES,
             "horizon": {"type": "integer"},
@@ -936,23 +945,6 @@ TOOLS: list[dict[str, Any]] = [
             "covariate_series_column": {"type": "string"},
         }, "required": ["horizon", "covariate_mapping"]},
         "runner": _run_validate_covariates,
-    },
-    {
-        "name": "gnomon_propose_covariates",
-        "description": "Evaluate a local point-in-time covariate proposal through leakage-safe ablation and produce a forecast only when it earns admission.",
-        "inputSchema": {"type": "object", "properties": {
-            **_INPUT_PROPERTIES,
-            "horizon": {"type": "integer"},
-            "output_dir": {"type": "string"},
-            "minimum_baseline_improvement": {"type": "number", "minimum": 0},
-            "covariates_file": {"type": "string"},
-            **_COVARIATES_PROPERTY,
-            "covariate_mapping": {"type": "string"},
-            "covariate_time_column": {"type": "string"},
-            "covariate_known_at_column": {"type": "string"},
-            "covariate_series_column": {"type": "string"},
-        }, "required": ["horizon", "covariate_mapping"]},
-        "runner": _run_forecast,
     },
     {
         "name": "gnomon_submit_actuals",
@@ -1404,20 +1396,6 @@ TOOLS.extend([
         }, "required": ["artifact_path"]},
         "runner": _run_explain_run,
     },
-    {
-        "name": "gnomon_proposer_skill",
-        "description": ("Shrunk per-proposer, per-event-type skill from "
-                        "resolved context-event proposals (realised lift vs "
-                        "the history-only counterfactual, in WAPE). "
-                        "Observational; attribution is set-level because the "
-                        "admission gate decides on event sets."),
-        "inputSchema": {"type": "object", "properties": {
-            "project": {"type": "string"},
-            "proposer_id": {"type": "string"},
-            "event_type": {"type": "string"},
-        }, "required": ["project"]},
-        "runner": _run_proposer_skill,
-    },
 ])
 
 
@@ -1507,10 +1485,11 @@ def v02_compat_enabled() -> bool:
     return os.environ.get("GNOMON_V02_COMPAT") == "1"
 
 
-#: The deprecated v0.2 lifecycle pair, off by default. Two tool slots and
-#: two long deprecation arguments were a per-session tax on every agent;
-#: GNOMON_V02_COMPAT=1 restores them, schemas and behaviour unchanged, for
-#: clients that still write v0.2 decision records.
+#: Tools retired from the default surface, off by default but never
+#: silently removed: GNOMON_V02_COMPAT=1 restores every entry, schemas and
+#: behaviour unchanged. Each is deprecated, superseded by a surviving tool,
+#: or too rarely needed in a session to earn a slot on a surface that
+#: competes for model attention.
 V02_COMPAT_TOOLS: list[dict[str, Any]] = [
     {
         "name": "gnomon_record_decision",
@@ -1555,6 +1534,51 @@ V02_COMPAT_TOOLS: list[dict[str, Any]] = [
             "project": {"type": "string"}, "model": {"type": "string"},
         }, "required": ["project"]},
         "runner": _run_model_performance,
+    },
+    {
+        "name": "gnomon_covariate_guide",
+        "description": ("Return point-in-time covariate format, forecast "
+                        "dates, and this dataset's fold cutoffs (the "
+                        "static format contract now lives in "
+                        "gnomon_validate_covariates' description)."),
+        "inputSchema": {"type": "object", "properties": {
+            **_INPUT_PROPERTIES,
+            "horizon": {"type": "integer"},
+        }, "required": ["horizon"]},
+        "runner": _run_covariate_guide,
+    },
+    {
+        "name": "gnomon_propose_covariates",
+        "description": ("Covariate-admission entry to the evaluated "
+                        "forecast (same runner as gnomon_forecast, which "
+                        "accepts every covariate argument directly)."),
+        "inputSchema": {"type": "object", "properties": {
+            **_INPUT_PROPERTIES,
+            "horizon": {"type": "integer"},
+            "output_dir": {"type": "string"},
+            "minimum_baseline_improvement": {"type": "number", "minimum": 0},
+            "covariates_file": {"type": "string"},
+            **_COVARIATES_PROPERTY,
+            "covariate_mapping": {"type": "string"},
+            "covariate_time_column": {"type": "string"},
+            "covariate_known_at_column": {"type": "string"},
+            "covariate_series_column": {"type": "string"},
+        }, "required": ["horizon", "covariate_mapping"]},
+        "runner": _run_forecast,
+    },
+    {
+        "name": "gnomon_proposer_skill",
+        "description": ("Shrunk per-proposer, per-event-type skill from "
+                        "resolved context-event proposals (realised lift vs "
+                        "the history-only counterfactual, in WAPE). "
+                        "Observational; attribution is set-level because the "
+                        "admission gate decides on event sets."),
+        "inputSchema": {"type": "object", "properties": {
+            "project": {"type": "string"},
+            "proposer_id": {"type": "string"},
+            "event_type": {"type": "string"},
+        }, "required": ["project"]},
+        "runner": _run_proposer_skill,
     },
 ]
 

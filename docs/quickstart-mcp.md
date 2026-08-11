@@ -95,7 +95,9 @@ Ambiguity fails loudly with the candidate columns and machine-readable
 repair options; `store:<dataset>` inputs still need the explicit columns. Support: `gnomon_capabilities`, `gnomon_inspect`,
 `gnomon_get_artifact`, `gnomon_explain_run`, `gnomon_preflight_context`
 (dry-run admission for proposed context events, with the accepted span
-grammar in the response), covariate tools, and the tracking lifecycle
+grammar in the response), `gnomon_validate_covariates` (its description
+carries the point-in-time format contract; `gnomon_forecast` takes every
+covariate argument directly), and the tracking lifecycle
 (`gnomon_submit_actuals` to score, `gnomon_status` to read — its
 `section` parameter returns the open-forecast, performance, or decision
 slice on its own).

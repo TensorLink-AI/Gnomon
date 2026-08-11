@@ -53,7 +53,7 @@ Then ask your agent:
 > What changed in it, and when should we alert if crossing 340 costs us 20x
 > a false alarm?
 
-The agent gets 20 tools — `gnomon_forecast`, `gnomon_investigate_change`,
+The agent gets 17 tools — `gnomon_forecast`, `gnomon_investigate_change`,
 `gnomon_detect_anomalies`, `gnomon_decide`, `gnomon_monitor`, `gnomon_route`, plus
 ingestion, inspection, tracking, and artifact tools — and every number it
 quotes comes from an evidence-linked, verified artifact. It cannot invent

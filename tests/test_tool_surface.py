@@ -104,6 +104,30 @@ def test_status_sections_match_the_retired_tools(monkeypatch, tmp_path) -> None:
         _run_status({"section": "performance"})
 
 
+# --- Fix 3: guide/proposer/duplicate tools leave the default surface -------
+
+def test_covariate_guide_and_proposer_tools_gated(monkeypatch) -> None:
+    names = _names(monkeypatch)
+    for gated in ("gnomon_covariate_guide", "gnomon_propose_covariates",
+                  "gnomon_proposer_skill"):
+        assert gated not in names, gated
+    # The survivors still cover the workflow: validation carries the
+    # format contract, and the forecast takes every covariate argument.
+    from gnomon.toolspec import TOOLS
+    by_name = {tool["name"]: tool for tool in TOOLS}
+    validate = by_name["gnomon_validate_covariates"]["description"]
+    assert "known_at" in validate
+    assert "name:type:future_known" in validate
+    forecast_props = by_name["gnomon_forecast"]["inputSchema"]["properties"]
+    assert "covariates_file" in forecast_props
+    assert "covariate_mapping" in forecast_props
+
+    compat = set(_names(monkeypatch, compat=True))
+    for gated in ("gnomon_covariate_guide", "gnomon_propose_covariates",
+                  "gnomon_proposer_skill"):
+        assert gated in compat, gated
+
+
 def test_capabilities_reports_compat_state(monkeypatch) -> None:
     from gnomon.runtime import capabilities
 

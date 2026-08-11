@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **Covariate guide, duplicate proposer entry, and proposer-skill ledger
+  are opt-in (Fix 3).** `gnomon_covariate_guide` (its static format
+  contract now lives in `gnomon_validate_covariates`' description; the
+  data-dependent fold cutoffs remain in validation errors and in the
+  gated tool), `gnomon_propose_covariates` (the same runner as
+  `gnomon_forecast`, which accepts every covariate argument directly),
+  and `gnomon_proposer_skill` (a calibration ledger no typical session
+  reads) left the default surface; all three return unchanged under
+  `GNOMON_V02_COMPAT=1`. Default tool count: 24 → 17.
+
 - **The tracking reads are one tool (Fix 2).** `gnomon_status` gained a
   `section` parameter (`open_forecasts` / `performance` / `decisions` /
   `all`, default `all`) returning byte-compatible payloads of the
