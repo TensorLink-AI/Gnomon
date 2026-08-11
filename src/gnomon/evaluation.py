@@ -555,6 +555,14 @@ def select_model_lightweight(
                       selection_guardrail_applied=guardrail_applied)
 
 
+#: Longest fit history a single fold's model fit sees, stretched to at
+#: least four seasonal periods. Fold structure is never windowed — only
+#: the history handed to each fit. Mirrors the anomaly grading window
+#: (MAX_GRADING_HISTORY): bound the O(n)-per-fit work that long series
+#: multiply by fold count, disclose the bound whenever it engages.
+MAX_FIT_HISTORY = 2048
+
+
 def evaluate(
     values: list[float],
     horizon: int,
@@ -646,6 +654,31 @@ def evaluate(
     # held-out test at all — each degradation is named in a warning.
     degraded = len(origins) < 4
     warnings: list[str] = []
+    # Fit-history window: past MAX_FIT_HISTORY (stretched to four seasonal
+    # periods), each fold's fit sees the trailing window of its history
+    # rather than all of it. Refitting exponential smoothing over 64 years
+    # of daily points per fold priced the evaluation out of interactive
+    # budgets (the 2026-08 MCP evaluation's 23,594-row forecast ran 235 s)
+    # while adding nothing the smoothing had not already forgotten. Fold
+    # boundaries and cutoffs are untouched; every candidate and baseline
+    # sees the identical window, so the competition stays fair — and the
+    # window is disclosed as a warning, same contract as the anomaly
+    # grading window.
+    fit_window = max(MAX_FIT_HISTORY, 4 * season)
+    if len(values) > fit_window:
+        unwindowed_train_at = train_at
+
+        def train_at(origin: int, _base=unwindowed_train_at,
+                     _window=fit_window) -> list[float]:
+            train = _base(origin)
+            return train[-_window:] if len(train) > _window else train
+
+        warnings.append(
+            f"fit_window: model fits used the trailing {fit_window} "
+            f"observations of each fold's history (series has "
+            f"{len(values)}); fold boundaries are unchanged and every "
+            f"candidate and baseline saw the identical window."
+        )
     if len(origins) >= 3:
         selection_origins, calibration_origin = origins[:-2], origins[-2]
         test_origin: int | None = origins[-1]

@@ -124,6 +124,19 @@ _INPUT_PROPERTIES: dict[str, Any] = {
             "Omit to infer; ambiguity fails loudly."
         ),
     },
+    "regrid": {
+        "type": "string", "enum": ["business_daily", "month_start"],
+        "description": (
+            "Declared calendar regrid, applied before validation: "
+            "business_daily forward-fills weekends and holidays so Mon-Fri "
+            "market data lands on the continuous daily grid (implies "
+            "frequency=D); month_start restamps monthly data (typically "
+            "month-end stamps) to the first of each month (implies "
+            "frequency=MS). A statement about the data's calendar, not a "
+            "repair of messiness: fills and restamps are disclosed as "
+            "warnings but not charged against the repair ceiling."
+        ),
+    },
 }
 
 #: Replay controls, shared by every verb that reads data. `gnomon_forecast`
@@ -629,6 +642,7 @@ def _run_inspect(arguments: dict[str, Any]) -> dict[str, Any]:
         frequency=arguments.get("frequency"),
         as_of=_parse_as_of(arguments.get("as_of")),
         store_path=arguments.get("store_path"),
+        regrid=arguments.get("regrid"),
     )
 
 
@@ -880,6 +894,7 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
         covariates=covariates,
         threshold=float(arguments["threshold"]) if arguments.get("threshold") is not None else None,
         repair=arguments.get("repair", "safe"),
+        regrid=arguments.get("regrid"),
         candidates=arguments.get("candidates"),
         best_effort=bool(arguments.get("best_effort", False)),
         minimum_support=str(arguments.get("minimum_support")
@@ -942,6 +957,7 @@ def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str
         minimum_baseline_improvement=float(arguments.get("minimum_baseline_improvement", 0.02)),
         threshold=float(arguments["threshold"]) if arguments.get("threshold") is not None else None,
         repair=arguments.get("repair", "safe"),
+        regrid=arguments.get("regrid"),
         candidates=arguments.get("candidates"),
         best_effort=bool(arguments.get("best_effort", False)),
         minimum_support=str(arguments.get("minimum_support")
@@ -1410,6 +1426,7 @@ def _run_investigate_change(arguments: dict[str, Any]) -> dict[str, Any]:
         suspected_cause=arguments.get("suspected_cause"),
         output=arguments.get("output_dir") or "gnomon-output",
         input_provenance=arguments.get("input_provenance"),
+        regrid=arguments.get("regrid"),
     )
     return {**payload, "artifact_path": str(path)}
 
@@ -1452,6 +1469,7 @@ def _run_detect_anomalies(arguments: dict[str, Any]) -> dict[str, Any]:
         labels=arguments.get("labels"),
         output=arguments.get("output_dir") or "gnomon-output",
         input_provenance=arguments.get("input_provenance"),
+        regrid=arguments.get("regrid"),
     )
     return {**payload, "artifact_path": str(path)}
 
@@ -1477,6 +1495,7 @@ def _run_decide(arguments: dict[str, Any]) -> dict[str, Any]:
         project=arguments.get("project"),
         output=arguments.get("output_dir") or "gnomon-output",
         input_provenance=arguments.get("input_provenance"),
+        regrid=arguments.get("regrid"),
     )
     return {**payload, "artifact_path": str(path)}
 
@@ -1538,6 +1557,7 @@ def _run_monitor(arguments: dict[str, Any]) -> dict[str, Any]:
         project=arguments.get("project"),
         output=arguments.get("output_dir") or "gnomon-output",
         input_provenance=arguments.get("input_provenance"),
+        regrid=arguments.get("regrid"),
     )
     return {**payload, "artifact_path": str(path)}
 
@@ -1613,6 +1633,51 @@ def _run_explain_run(arguments: dict[str, Any]) -> dict[str, Any]:
     if summary.is_file():
         explanation["summary_md"] = summary.read_text(encoding="utf-8")
     return explanation
+
+
+def _run_install_tsfm(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .contracts import GnomonError
+    from .tsfm import TSFMUnavailable, available_tsfms
+    from .tsfm_sandbox import TSFM_PIP_SPECS, install_status, start_install
+
+    name = str(arguments["name"])
+    if name not in TSFM_PIP_SPECS:
+        raise GnomonError(
+            "UNKNOWN_TSFM",
+            f"Unknown TSFM: {name!r}. Installable names are listed in "
+            f"details.available.",
+            {"available": sorted(TSFM_PIP_SPECS),
+             "eligible_adapters": available_tsfms()},
+        )
+    try:
+        status = (install_status(name) if arguments.get("status_only")
+                  else start_install(name))
+    except TSFMUnavailable as exc:
+        raise GnomonError("SANDBOX_UNAVAILABLE", str(exc), {"tsfm": name})
+    notes = {
+        "installing": (
+            "Installation runs as a detached process and can take minutes "
+            "on first install (torch dominates). Poll with "
+            "status_only=true; state=ready means the sandbox is usable."
+        ),
+        "ready": (
+            "Sandbox ready. Pass the name in gnomon_forecast's "
+            "`candidates` to enter it in the evaluated competition — "
+            "TSFMs compete against the baselines on identical folds, "
+            "never win by default."
+        ),
+        "failed": (
+            "The last install attempt died; log_tail holds the evidence. "
+            "Calling again without status_only retries from scratch."
+        ),
+        "absent": (
+            "No sandbox and no install running. Call without status_only "
+            "to start one."
+        ),
+    }
+    return {"schema_version": "0.1", "tsfm": name,
+            "pip_specs": TSFM_PIP_SPECS[name], **status,
+            "note": notes[status["state"]]}
 
 
 def _registry_tools() -> list[dict[str, Any]]:
@@ -1749,6 +1814,32 @@ TOOLS.extend([
             "artifact_path": {"type": "string", "description": "Artifact directory returned by a macro."},
         }, "required": ["artifact_path"]},
         "runner": _run_explain_run,
+    },
+    {
+        "name": "gnomon_install_tsfm",
+        "description": (
+            "Install a time-series foundation model into its isolated "
+            "sandbox venv, without blocking: the install runs as a "
+            "detached process and each call reports the current state "
+            "(absent / installing / ready / failed). Eligible names are "
+            "in gnomon_capabilities under models.tsfm_available; when "
+            "state is ready, pass the name in gnomon_forecast's "
+            "`candidates`. Packages come from the pinned per-model spec "
+            "via uv — expect minutes on first install. TSFMs remain "
+            "candidates: they compete against the baselines on identical "
+            "folds and never win by default."
+        ),
+        "inputSchema": {"type": "object", "properties": {
+            "name": {"type": "string", "description": (
+                "TSFM adapter name (e.g. chronos_bolt_mini); the "
+                "installable set is in gnomon_capabilities under "
+                "models.tsfm_available."
+            )},
+            "status_only": {"type": "boolean", "description": (
+                "Report the sandbox state without starting an install."
+            )},
+        }, "required": ["name"]},
+        "runner": _run_install_tsfm,
     },
 ])
 

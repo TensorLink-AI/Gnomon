@@ -205,6 +205,92 @@ def sandbox_exists(name: str) -> bool:
     return _sandbox_dir(name).joinpath(".gnomon-sandbox-ready").exists()
 
 
+# --- Background installation, for callers that cannot block ---------------
+#
+# `ensure_sandbox` is synchronous and can legitimately run for minutes
+# (torch is most of it). An MCP tool call blocking that long looks like a
+# hang to every interactive host, so the agent-facing path starts the
+# install as a detached `gnomon tsfm install` process and polls: the
+# `.gnomon-sandbox-ready` marker is the single source of truth for
+# success, the pid file distinguishes "still running" from "died", and
+# the log tail is the evidence when it died.
+
+def _install_log_path(name: str) -> Path:
+    return _sandbox_dir(name) / "install.log"
+
+
+def _install_pid_path(name: str) -> Path:
+    return _sandbox_dir(name) / "install.pid"
+
+
+def _pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except (OSError, ValueError):
+        return False
+    return True
+
+
+def install_status(name: str) -> dict[str, Any]:
+    """The state of a TSFM's sandbox: ready, installing, failed, or absent.
+
+    Raises:
+        TSFMUnavailable: If the TSFM name is unknown.
+    """
+    if name not in TSFM_PIP_SPECS:
+        raise TSFMUnavailable(f"Unknown TSFM for sandboxing: {name}")
+    if sandbox_exists(name):
+        return {"state": "ready", "sandbox_path": str(_sandbox_dir(name))}
+    pid_path = _install_pid_path(name)
+    if pid_path.exists():
+        try:
+            pid = int(pid_path.read_text(encoding="utf-8").strip())
+        except ValueError:
+            pid = None
+        if pid is not None and _pid_alive(pid):
+            return {"state": "installing", "pid": pid,
+                    "log_path": str(_install_log_path(name))}
+        log_path = _install_log_path(name)
+        tail = ""
+        if log_path.exists():
+            tail = log_path.read_text(encoding="utf-8", errors="replace")[-2000:]
+        return {"state": "failed", "log_tail": tail,
+                "log_path": str(log_path)}
+    return {"state": "absent"}
+
+
+def start_install(name: str) -> dict[str, Any]:
+    """Start a detached sandbox install and return without waiting.
+
+    Idempotent: a sandbox that is ready or already installing is reported
+    as such, never rebuilt. A previous failure is retried.
+
+    Raises:
+        TSFMUnavailable: If the TSFM name is unknown or uv is missing.
+    """
+    status = install_status(name)
+    if status["state"] in ("ready", "installing"):
+        return status
+    if not _uv_available():
+        raise TSFMUnavailable(
+            "uv is required for sandboxed TSFM execution but is not installed. "
+            "Install it from https://docs.astral.sh/uv/"
+        )
+    venv_dir = _sandbox_dir(name)
+    venv_dir.mkdir(parents=True, exist_ok=True)
+    log_path = _install_log_path(name)
+    with log_path.open("w", encoding="utf-8") as log_handle:
+        process = subprocess.Popen(
+            [sys.executable, "-m", "gnomon", "tsfm", "install", name],
+            stdout=log_handle, stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL, start_new_session=True,
+        )
+    _install_pid_path(name).write_text(str(process.pid), encoding="utf-8")
+    logger.info("Started background install for %s (pid %d)", name, process.pid)
+    return {"state": "installing", "pid": process.pid,
+            "log_path": str(log_path)}
+
+
 def remove_sandbox(name: str) -> None:
     """Remove a sandbox venv."""
     venv_dir = _sandbox_dir(name)

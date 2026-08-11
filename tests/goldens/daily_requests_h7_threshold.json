@@ -313,7 +313,7 @@
           {
             "entity": "__default__",
             "variable": "requests",
-            "reads": 14,
+            "reads": 2,
             "max_known_time": "2026-02-04T00:00:00"
           }
         ]

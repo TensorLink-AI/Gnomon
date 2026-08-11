@@ -186,11 +186,39 @@ def _month_step(left: datetime, right: datetime) -> bool:
     return left.day == right.day == 1 and (right.year, right.month) == (expected_year, expected_month)
 
 
+def _month_start_with_gaps(unique: list[datetime]) -> bool:
+    """A month-start grid with missing months.
+
+    Real monthly feeds (FRED and its kin) drop the odd month, and a single
+    hole used to demote the whole series to AMBIGUOUS_FREQUENCY — the
+    caller had to know to pass frequency=MS before the grid validator
+    would even name the gap. Recognising the shape here routes it there
+    directly, the same path an explicit MS takes.
+
+    Every timestamp must sit on the first of a month at one shared time of
+    day, and single-month steps must be the strict majority of consecutive
+    steps — so yearly (every-January) or quarterly data is not mistaken
+    for monthly data full of holes.
+    """
+    if not all(item.day == 1 for item in unique):
+        return False
+    if len({(item.hour, item.minute, item.second, item.microsecond)
+            for item in unique}) != 1:
+        return False
+    steps = Counter(
+        (right.year - left.year) * 12 + (right.month - left.month)
+        for left, right in zip(unique, unique[1:])
+    )
+    return steps.get(1, 0) * 2 > sum(steps.values())
+
+
 def infer_frequency(timestamps: list[datetime]) -> str:
     unique = sorted(set(timestamps))
     if len(unique) < 3:
         raise GnomonError("AMBIGUOUS_FREQUENCY", "At least three timestamps are required.")
     if all(_month_step(left, right) for left, right in zip(unique, unique[1:])):
+        return "MS"
+    if _month_start_with_gaps(unique):
         return "MS"
     counts = Counter(right - left for left, right in zip(unique, unique[1:]))
     step, _ = counts.most_common(1)[0]
@@ -302,6 +330,24 @@ def is_regular_step(left: datetime, right: datetime, frequency: str) -> bool:
     return right - left == step
 
 
+def _gap_weekend_only(left: datetime, right: datetime) -> bool:
+    """True when every calendar day strictly inside the gap is a Saturday
+    or Sunday — the signature of business-day (Mon-Fri) data on a daily
+    grid, worth naming in the refusal so the caller learns the shape of
+    their data instead of just the first hole in it."""
+    day = left.date() + timedelta(days=1)
+    end = right.date()
+    skipped = 0
+    while day < end:
+        if day.weekday() < 5:
+            return False
+        skipped += 1
+        if skipped > 366:
+            return False
+        day += timedelta(days=1)
+    return skipped > 0
+
+
 def _modal_step_description(timestamps: list[datetime]) -> str:
     """The most common gap between consecutive timestamps, in words."""
     if len(timestamps) < 2:
@@ -359,19 +405,28 @@ def validate_and_group(
         for left, right in zip(timestamps, timestamps[1:]):
             if not is_regular_step(left, right, frequency):
                 observed = _modal_step_description(timestamps)
-                raise GnomonError(
-                    "IRREGULAR_TIME_GRID",
+                message = (
                     f"Series {name} has a missing or irregular period after "
                     f"{left.isoformat()}: expected "
                     f"{next_timestamp(left, frequency).isoformat()}, found "
                     f"{right.isoformat()}. The most common step in this series "
-                    f"is {observed}.",
-                    {"series": name, "after": left.isoformat(),
-                     "expected": next_timestamp(left, frequency).isoformat(),
-                     "found": right.isoformat(),
-                     "frequency": frequency,
-                     "modal_step": observed},
+                    f"is {observed}."
                 )
+                details = {"series": name, "after": left.isoformat(),
+                           "expected": next_timestamp(left, frequency).isoformat(),
+                           "found": right.isoformat(),
+                           "frequency": frequency,
+                           "modal_step": observed}
+                if frequency == "D" and _gap_weekend_only(left, right):
+                    message += (
+                        " The skipped days are all weekend days — this looks "
+                        "like business-day (Mon-Fri) data. Gnomon grids are "
+                        "continuous: pass regrid=business_daily to forward-"
+                        "fill non-trading days onto the daily grid (disclosed,"
+                        " not capped), or resample to weekly."
+                    )
+                    details["gap_weekend_only"] = True
+                raise GnomonError("IRREGULAR_TIME_GRID", message, details)
     if inferred and set(inferred.values()) != {frequency}:
         raise GnomonError(
             "FREQUENCY_MISMATCH", "Requested frequency does not match every series.",

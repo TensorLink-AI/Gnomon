@@ -95,6 +95,22 @@ class SeriesState:
     evidence: list[Evidence] = field(default_factory=list)
 
 
+def _regrid_frequency(requested: str | None, implied: str, policy: str) -> str:
+    """A regrid states the calendar, so it states the frequency too; a
+    conflicting explicit frequency is a contradiction to refuse, not to
+    arbitrate."""
+    from .temporal import normalise_frequency
+
+    if requested is not None and normalise_frequency(requested) != implied:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            f"regrid={policy} implies frequency {implied}, but the call "
+            f"also named frequency {requested}. Drop one of the two.",
+            {"regrid": policy, "implied": implied, "requested": requested},
+        )
+    return implied
+
+
 def load_stage(
     input_path: str,
     *,
@@ -106,6 +122,7 @@ def load_stage(
     store_path: str | None = None,
     repair: str = "off",
     repair_log: "RepairLog | None" = None,
+    regrid: str | None = None,
 ) -> LoadedDataset:
     """Resolve the input to a snapshot, then materialise the observations
     that are visible at ``as_of``. ``store:<dataset>`` inputs read from the
@@ -114,6 +131,14 @@ def load_stage(
     uniform across both."""
     variable = target_column
     if input_path.startswith(STORE_SCHEME):
+        if regrid:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "regrid applies while loading a file or inline rows; a "
+                "store dataset is already curated — regrid it at ingest "
+                "instead, so every reader sees one grid.",
+                {"input": input_path, "regrid": regrid},
+            )
         dataset = input_path[len(STORE_SCHEME):]
         snapshot = TemporalStore(store_path).snapshot(dataset, as_of)
         source_fingerprint = snapshot.source_ref
@@ -124,6 +149,15 @@ def load_stage(
             input_path, time_column, target_column, series_column,
             repair=repair, repair_log=log,
         )
+        # Calendar first, messiness second: the declared regrid settles the
+        # grid before repair_observations measures gaps against it —
+        # otherwise aggressive repair tries to interpolate every weekend
+        # itself and hits the assumptive ceiling regrid exists to spare.
+        if regrid:
+            from .repair import regrid_observations
+            raw_observations, implied = regrid_observations(
+                raw_observations, regrid, log)
+            frequency = _regrid_frequency(frequency, implied, regrid)
         raw_observations = repair_observations(raw_observations, frequency, repair, log)
         _record_reordering(raw_observations, log)
         store, _ = InMemoryTemporalStore.from_plain_observations(
@@ -157,6 +191,7 @@ def load_stage_multi(
     frequency: str | None,
     as_of: datetime | None = None,
     repair: str = "off",
+    regrid: str | None = None,
 ) -> tuple[dict[str, "LoadedDataset | GnomonError"], dict[str, RepairLog], str, list[str]]:
     """One shared file read, one :class:`LoadedDataset` per target column.
 
@@ -193,7 +228,14 @@ def load_stage_multi(
                 rows, columns, time_column, target, None,
                 repair=repair, repair_log=log, default_series=target,
             )
-            raw_observations = repair_observations(raw_observations, frequency, repair, log)
+            target_frequency = frequency
+            if regrid:
+                from .repair import regrid_observations
+                raw_observations, implied = regrid_observations(
+                    raw_observations, regrid, log)
+                target_frequency = _regrid_frequency(frequency, implied, regrid)
+            raw_observations = repair_observations(
+                raw_observations, target_frequency, repair, log)
             _record_reordering(raw_observations, log)
             store, _ = InMemoryTemporalStore.from_plain_observations(
                 raw_observations, target, source_fingerprint,
@@ -210,7 +252,7 @@ def load_stage_multi(
                     "No observations are known at or before the requested as_of instant.",
                     {"as_of": as_of.isoformat() if as_of else "latest"},
                 )
-            groups, resolved_frequency, zone = validate_and_group(observations, frequency)
+            groups, resolved_frequency, zone = validate_and_group(observations, target_frequency)
             schema = DataSchema(time_column, target, None, resolved_frequency, zone)
             datasets[target] = LoadedDataset(
                 source_fingerprint, columns, groups, resolved_frequency, zone,
@@ -289,14 +331,39 @@ def evaluate_stage(
     train_at = None
     if snapshot is not None and variable is not None:
         entity, timestamps = state.name, state.timestamps
+        # One materialisation decides the shape of every fold read. For
+        # single-vintage data — one revision per valid time, each knowable
+        # by its own valid time, matching the state this stage was built
+        # from — the series as known at any fold cutoff IS the prefix
+        # slice, and rebuilding the bitemporal view per cutoff (an O(n)
+        # scan × ~7,000 folds on a 23k-row daily series — most of the
+        # evaluation's wall clock) serves nothing the one read below did
+        # not already prove. Revised or late-known data keeps the honest
+        # per-cutoff rebuild, memoised per origin because every candidate
+        # model reads the same fold.
+        full = snapshot.series(entity, variable)
+        single_vintage = (
+            [item.valid_time for item in full] == list(timestamps)
+            and [item.value for item in full] == list(state.values)
+            and all(item.known_time <= item.valid_time for item in full)
+        )
+        if single_vintage:
+            prefix_values = state.values
 
-        def train_at(origin: int) -> list[float]:
-            cutoff = timestamps[origin - 1]
-            return [
-                item.value
-                for item in snapshot.series(entity, variable, cutoff=cutoff)
-                if item.valid_time <= cutoff
-            ]
+            def train_at(origin: int) -> list[float]:
+                return prefix_values[:origin]
+        else:
+            fold_cache: dict[int, list[float]] = {}
+
+            def train_at(origin: int) -> list[float]:
+                if origin not in fold_cache:
+                    cutoff = timestamps[origin - 1]
+                    fold_cache[origin] = [
+                        item.value
+                        for item in snapshot.series(entity, variable, cutoff=cutoff)
+                        if item.valid_time <= cutoff
+                    ]
+                return fold_cache[origin]
 
     # `models.tsfm.candidates` restricts which foundation models may
     # compete; an empty list is the unconfigured default (all eligible).

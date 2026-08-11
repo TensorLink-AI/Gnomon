@@ -34,6 +34,84 @@
   six-channel MIMIC row the re-sent prefix falls from ~337k to ~214k
   tokens. CiK's `MCP_CONTRACT_VERSION` bumps to 4.
 
+- **Structural regridding: calendar shape is not messiness.** New
+  `regrid` parameter on every data-reading verb (MCP, CLI `--regrid`,
+  Python API): `business_daily` forward-fills weekends and holidays so
+  Mon-Fri market data lands on the continuous daily grid (implies
+  `frequency=D`); `month_start` restamps month-end-stamped monthly
+  feeds to the first of each month (implies `frequency=MS`). Fills and
+  restamps are disclosed as warnings and repair-log evidence but are
+  *not* charged against `MAX_ASSUMPTIVE_FRACTION` — weekends alone are
+  ~29% of a calendar grid, so business-day data could never clear the
+  messiness ceiling that exists to stop invented datasets. Implausible
+  declarations refuse loudly: `REGRID_IMPLAUSIBLE` when the fill
+  fraction exceeds any Mon-Fri calendar, when times of day mix, or
+  when a hole runs past `MAX_BUSINESS_FILL_RUN` (10 calendar days —
+  the longest real market closures, Chinese Spring Festival and Golden
+  Week, reach ~9; anything longer is a data outage that a flat carry
+  would hide, and the total-fraction bound alone cannot catch it);
+  `REGRID_CONFLICT` when two observations land in one month. Fill
+  stepping is calendar-aware (`next_timestamp`), so timezone-aware
+  market data crosses DST transitions without drifting off the grid.
+  The regrid runs before messiness repair, so `repair=aggressive`
+  composes with it; store inputs refuse it (curate at ingest). The
+  weekend-gap and month-end error messages point at the parameter, and
+  `capabilities.features` advertises `structural_regrid`,
+  `long_series_fit_window`, and `tsfm_install`.
+
+- **Long series run in interactive budgets — the 23,594-row case.**
+  Three compounding costs, measured against the 2026-08 MCP
+  evaluation's 64-year daily series: `investigate` was killed at 300 s
+  and now runs 0.3 s (the changepoint scan recomputed segment SSE from
+  scratch per split — prefix sums make it linear, behaviour pinned by
+  an equivalence test); `forecast` drops 286 s → 14 s and `monitor`
+  107 s → 13 s (single-vintage data no longer rebuilds the bitemporal
+  view per fold — a guarded prefix fast path with the honest per-cutoff
+  rebuild kept for revised data — and per-fold model fits see the
+  trailing `evaluation.MAX_FIT_HISTORY` (2,048, stretched to four
+  seasons) observations, disclosed as a warning whenever it engages,
+  fold boundaries untouched, identical window for every candidate and
+  baseline). `detect_anomalies` was already inside budget from the
+  earlier grading-window fix.
+
+- **Capabilities cannot advertise unreachable tools.** A contract test
+  pins the class behind the TSFM-install gap: no `gnomon_*` name may
+  appear in the capabilities payload without existing in the toolspec,
+  and every explicit `*_tool` pointer must resolve to a tool on the
+  default surface.
+
+- **TSFM installation is reachable from the tool surface.** New
+  `gnomon_install_tsfm` tool (18th on the default surface, `full`
+  profile only): starts a sandbox install as a *detached*
+  `gnomon tsfm install` process — a blocking MCP call that runs for
+  minutes reads as a hang in every interactive host — and reports state
+  (`absent` / `installing` / `ready` / `failed` with log tail) on each
+  call; `status_only` polls without side effects. The
+  `.gnomon-sandbox-ready` marker stays the single source of truth,
+  shared with the CLI path, and `gnomon_capabilities` names the tool
+  under `models.tsfm_install_tool`. Closes the highest-priority open
+  item from the 2026-08 MCP evaluation
+  (`docs/mcp-evaluation-2026-08.md`).
+
+- **Month-start inference tolerates missing months.** Monthly feeds
+  with the odd dropped month (FRED and its kin) no longer demand an
+  explicit `frequency="MS"`: `infer_frequency` recognises a month-start
+  grid with holes — every timestamp on the first of a month at one
+  shared time of day, single-month steps a strict majority (so yearly
+  and quarterly data are not mistaken for gappy monthly) — and routes
+  the series to the grid validator, which names each missing month with
+  repair options, exactly as an explicit `MS` always did.
+
+- **Weekend gaps are named in daily-grid refusals.** When an
+  `IRREGULAR_TIME_GRID` refusal on a daily grid finds only Saturdays
+  and Sundays inside the gap, the error now says the series looks like
+  business-day (Mon-Fri) data, sets `details.gap_weekend_only: true`,
+  and its repair options include the `fill_business_days` path
+  (forward-fill non-trading days upstream, `repair=aggressive`, or
+  resample to weekly). A true business-day grid remains future work;
+  the refusal now teaches the shape of the data, not just its first
+  hole.
+
 - **Long-series anomaly detection is fast.** Detector selection is
   graded on the trailing `MAX_GRADING_HISTORY` (1,024) observations —
   stretched to cover four seasonal periods — instead of injecting into

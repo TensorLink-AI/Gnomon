@@ -165,6 +165,17 @@ _COMMON_INPUT: dict[str, Any] = {
             "Omit to infer."
         ),
     },
+    "regrid": {
+        "type": "string", "enum": ["business_daily", "month_start"],
+        "description": (
+            "Declared calendar regrid, applied before validation: "
+            "business_daily forward-fills weekends/holidays onto the "
+            "continuous daily grid (implies frequency=D); month_start "
+            "restamps monthly stamps to the first of each month (implies "
+            "frequency=MS). Disclosed as warnings; not charged against "
+            "the repair ceiling."
+        ),
+    },
     "as_of": {"type": "string", "description": (
         "Optional ISO instant: use only data known at or before this moment "
         "(historical replay)."

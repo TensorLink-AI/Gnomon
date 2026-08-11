@@ -40,6 +40,7 @@ def inspect_dataset(
     as_of: datetime | None = None,
     store_path: str | None = None,
     clock: Clock | None = None,
+    regrid: str | None = None,
 ) -> dict[str, object]:
     # Diagnose, don't just reject: try the strict path, then each repair
     # level, and report what the file needs to become forecastable.
@@ -56,7 +57,7 @@ def inspect_dataset(
                 input_path, time_column=time_column, target_column=target_column,
                 series_column=series_column, frequency=frequency,
                 as_of=as_of, store_path=store_path,
-                repair=level, repair_log=log,
+                repair=level, repair_log=log, regrid=regrid,
             )
             repair_level_used = level
             break
@@ -659,6 +660,7 @@ def forecast(
     as_of: datetime | None = None,
     store_path: str | None = None,
     repair: str = "safe",
+    regrid: str | None = None,
     candidates: list[str] | None = None,
     input_provenance: str | None = None,
 ) -> tuple[ForecastArtifact, Path]:
@@ -720,7 +722,7 @@ def forecast(
         input_path, time_column=time_column, target_column=target_column,
         series_column=series_column, frequency=frequency,
         as_of=as_of, store_path=store_path,
-        repair=repair, repair_log=repair_log,
+        repair=repair, repair_log=repair_log, regrid=regrid,
     )
     task = ForecastTask(
         input_path if input_path.startswith("store:")
@@ -960,6 +962,7 @@ def forecast_multi(
     clock: Clock | None = None,
     as_of: datetime | None = None,
     repair: str = "safe",
+    regrid: str | None = None,
     candidates: list[str] | None = None,
     max_workers: int | None = None,
     input_provenance: str | None = None,
@@ -1036,7 +1039,7 @@ def forecast_multi(
 
     datasets, repair_logs, source_fingerprint, _columns = load_stage_multi(
         input_path, time_column=time_column, target_columns=list(target_columns),
-        frequency=frequency, as_of=as_of, repair=repair,
+        frequency=frequency, as_of=as_of, repair=repair, regrid=regrid,
     )
     loaded_any = [item for item in datasets.values() if isinstance(item, LoadedDataset)]
     if not loaded_any:
@@ -1325,12 +1328,16 @@ def capabilities() -> dict[str, object]:
             "tsfm_sandboxes": list_sandboxes(),
             "tsfm_capabilities": capability_matrix(),
             "tsfm_install_command": "gnomon tsfm install <name>",
+            "tsfm_install_tool": "gnomon_install_tsfm",
             "tsfm_install_note": (
                 "Sandboxed TSFMs are pulled per model into isolated venvs "
                 "(requires uv; weights download on first inference). "
                 "Installed models join forecast selection automatically; "
                 "moment_small also adds a reconstruction candidate to "
-                "detect_anomalies. Installation is a shell step, not a tool."
+                "detect_anomalies. Install from the shell with the "
+                "command above, or from the tool surface with "
+                "gnomon_install_tsfm, which starts a detached install "
+                "and reports state on each call."
             ),
         },
         **registry_capabilities(),
@@ -1402,6 +1409,8 @@ def capabilities() -> dict[str, object]:
             "row_tier_labels": True, "forecast_headline": True,
             "multi_target_batching": True, "brief_output": True,
             "inline_data_channels": True,
+            "structural_regrid": True, "long_series_fit_window": True,
+            "tsfm_install": True,
         },
         "forecast_surface": {
             # Machine-readable notes on the two agent-facing additions, so a

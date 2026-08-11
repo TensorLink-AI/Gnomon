@@ -37,6 +37,14 @@ def _common_input(parser: argparse.ArgumentParser) -> None:
              "single series",
     )
     parser.add_argument(
+        "--regrid", choices=("business_daily", "month_start"), default=None,
+        help="Declared calendar regrid: business_daily forward-fills "
+             "weekends/holidays onto the continuous daily grid (implies "
+             "--frequency D); month_start restamps monthly stamps to the "
+             "first of each month (implies --frequency MS). Disclosed as "
+             "warnings; not charged against the repair ceiling.",
+    )
+    parser.add_argument(
         "--frequency",
         help="Explicit time grid (h, D, W, MS, …). Inferred from the "
              "observed step when omitted.",
@@ -971,6 +979,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 suspected_cause=args.suspected_cause,
                 output=args.output,
                 store_path=args.store_path,
+                regrid=getattr(args, "regrid", None),
             )
             print(json.dumps(_disclose_assumptions(
                 {**payload, "artifact_path": str(path)}, schema_assumptions,
@@ -1007,6 +1016,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 frequency=args.frequency, as_of=_parse_as_of(args.as_of),
                 threshold=args.threshold, labels=labels, output=args.output,
                 store_path=args.store_path,
+                regrid=getattr(args, "regrid", None),
             )
             print(json.dumps(_disclose_assumptions(
                 {**payload, "artifact_path": str(path)}, schema_assumptions,
@@ -1026,6 +1036,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 frequency=args.frequency, as_of=_parse_as_of(args.as_of),
                 project=args.project,
                 output=args.output, store_path=args.store_path,
+                regrid=getattr(args, "regrid", None),
             )
             print(json.dumps(_disclose_assumptions(
                 {**payload, "artifact_path": str(path)}, schema_assumptions,
@@ -1046,6 +1057,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 frequency=args.frequency, as_of=_parse_as_of(args.as_of),
                 project=args.project, output=args.output,
                 store_path=args.store_path,
+                regrid=getattr(args, "regrid", None),
             )
             print(json.dumps(_disclose_assumptions(
                 {**payload, "artifact_path": str(path)}, schema_assumptions,
@@ -1540,6 +1552,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.input, time_column=args.time_column, target_column=args.target_column,
                 series_column=args.series_column, frequency=args.frequency,
                 seasonal_period=args.seasonal_period,
+                regrid=getattr(args, "regrid", None),
             )
         elif args.command == "covariates":
             from .covariates import covariate_guide, validate_covariate_file
@@ -1636,6 +1649,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 selection_strategy="ensemble" if args.ensemble else args.selection_strategy,
                 as_of=_parse_as_of(getattr(args, "as_of", None)),
                 repair=args.repair,
+                regrid=getattr(args, "regrid", None),
                 candidates=getattr(args, "candidates", None),
             )
             from .toolspec import brief_summary
@@ -1683,6 +1697,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 as_of=as_of,
                 store_path=getattr(args, "store_path", None),
                 repair=args.repair,
+                regrid=getattr(args, "regrid", None),
                 candidates=getattr(args, "candidates", None),
             )
             if getattr(args, "brief", False):
