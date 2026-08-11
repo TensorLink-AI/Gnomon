@@ -77,3 +77,75 @@ def test_all_tasks_voided_yields_no_uplift_claim(tmp_path):
     assert result["tasks_voided_by_harness"] == 1
     assert result["absolute_success_uplift"] is None
     assert "voided" in result["interpretation"]
+
+
+def test_duplicate_task_ids_are_rejected(tmp_path):
+    baseline = tmp_path / "baseline.jsonl"
+    treatment = tmp_path / "treatment.jsonl"
+    _write(baseline, [
+        {"task_id": "a", "success": True},
+        {"task_id": "a", "success": False},
+    ])
+    _write(treatment, [{"task_id": "a", "success": True}])
+
+    with pytest.raises(ValueError, match="duplicate task_id"):
+        compare_runs(str(baseline), str(treatment))
+
+
+def test_unmeasured_safety_fields_are_none_not_zero(tmp_path):
+    # No row in either file carries a safety field: the deltas must be
+    # unmeasured, not a reassuring 0.0.
+    baseline = tmp_path / "baseline.jsonl"
+    treatment = tmp_path / "treatment.jsonl"
+    _write(baseline, [{"task_id": "a", "success": False}])
+    _write(treatment, [{"task_id": "a", "success": True}])
+
+    result = compare_runs(str(baseline), str(treatment))
+
+    assert result["baseline"]["temporal_leakage"] is None
+    assert result["safety_delta"]["invented_number"] is None
+    assert "unmeasured" in result["safety_note"]
+    assert "temporal_leakage" in result["safety_note"]
+
+
+def test_noise_level_uplift_is_not_declared_an_improvement(tmp_path):
+    # One discordant pair out of four: uplift +0.25, exact McNemar p=1.0.
+    baseline = tmp_path / "baseline.jsonl"
+    treatment = tmp_path / "treatment.jsonl"
+    _write(baseline, [
+        {"task_id": "a", "success": False},
+        {"task_id": "b", "success": True},
+        {"task_id": "c", "success": True},
+        {"task_id": "d", "success": True},
+    ])
+    _write(treatment, [
+        {"task_id": "a", "success": True},
+        {"task_id": "b", "success": True},
+        {"task_id": "c", "success": True},
+        {"task_id": "d", "success": True},
+    ])
+
+    result = compare_runs(str(baseline), str(treatment))
+
+    assert result["absolute_success_uplift"] == 0.25
+    assert result["success_test"]["p_value"] == 1.0
+    assert "not statistically distinguishable" in result["interpretation"]
+
+
+def test_rows_missing_latency_do_not_average_in_as_zero(tmp_path):
+    baseline = tmp_path / "baseline.jsonl"
+    treatment = tmp_path / "treatment.jsonl"
+    _write(baseline, [
+        {"task_id": "a", "success": True, "latency_seconds": 4.0},
+        {"task_id": "b", "success": True},
+    ])
+    _write(treatment, [
+        {"task_id": "a", "success": True, "latency_seconds": 2.0},
+        {"task_id": "b", "success": True, "latency_seconds": 2.0},
+    ])
+
+    result = compare_runs(str(baseline), str(treatment))
+
+    assert result["baseline"]["average_latency_seconds"] == 4.0
+    assert result["treatment"]["average_latency_seconds"] == 2.0
+    assert result["baseline"]["average_cost_usd"] is None

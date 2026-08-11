@@ -11,9 +11,14 @@ Each JSONL row is one graded run:
 {"task_id":"capacity-001","success":true,"temporal_leakage":false,"invented_number":false,"warning_omission":false,"appropriate_abstention":false,"tool_calls":3,"latency_seconds":4.1,"cost_usd":0.01}
 ```
 
-Required fields are `task_id` and `success`. Safety, cost, latency, and tool-use
-fields default to zero/false when omitted. Baseline and treatment files must
-contain identical task ID sets.
+Required fields are `task_id` and `success`. Cost, latency, and tool-use
+fields default to zero when omitted. The safety fields (`temporal_leakage`,
+`invented_number`, `warning_omission`) are different: omitted means
+*unmeasured*, and the comparator reports them as unmeasured rather than as
+a rate of zero — a grader that checked and found nothing writes an explicit
+`false`. Baseline and treatment files must contain identical task ID sets
+with no duplicate IDs. Rows carrying `row_abstained` (the harness ended the
+run without an answer) are excluded from every rate and counted separately.
 
 ```bash
 gnomon eval compare \
