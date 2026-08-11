@@ -41,8 +41,8 @@ no-leak ceiling), ``tasks_transcribing_the_future``, and
 a leaked forecast scores *better*, so an arm can win a mean-score
 comparison precisely because it leaked. If you run one anyway ::
 
-    python -m benchmarks.report --baseline results/leaktrap-control \
-        --treatment results/leaktrap-gnomon --metric score
+    python -m benchmarks.report --root results \
+        --compare leaktrap-control leaktrap-gnomon --metric score
 
 read it alongside both arms' leak flags, never instead of them.
 """
@@ -267,6 +267,10 @@ def main(argv: list[str] | None = None) -> int:
         "seed": args.seed,
         "tasks": len(rows),
         "answered": len(scored),
+        # The coverage behind mean_score, as a ratio: the mean averages
+        # answered tasks only, so it must not be read without this.
+        "answered_fraction": (round(len(scored) / len(rows), 4)
+                              if rows else None),
         "mean_score": (sum(row["score"] for row in scored) / len(scored)
                        if scored else None),
         "mean_no_leak_ceiling": (sum(row["no_leak_ceiling"] for row in scored)
@@ -291,6 +295,11 @@ def main(argv: list[str] | None = None) -> int:
                 "unavailable to any condition that does not go through the "
                 "snapshot.",
     }
+    if client is not None:
+        # Cost and — via base_url — the endpoint that served the control's
+        # model. README ground rule 2 promises this travels with every run
+        # that queried a model; this summary was the one that dropped it.
+        summary["llm_usage"] = client.usage_summary
 
     with (output / "gnomonbench.jsonl").open("w", encoding="utf-8") as handle:
         for row in rows:
@@ -302,6 +311,7 @@ def main(argv: list[str] | None = None) -> int:
         target=f"seed={args.seed},horizon={args.horizon},history={args.history}",
         model=args.model, condition=args.condition,
         command=" ".join(sys.argv),
+        base_url=client.base_url if client is not None else None,
     )
     print(json.dumps(summary, indent=2))
     print(f"GnomonBench rows: {output / 'gnomonbench.jsonl'} ({len(rows)} rows)")

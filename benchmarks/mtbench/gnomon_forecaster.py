@@ -53,6 +53,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from benchmarks.cik.gnomon_forecaster import events_from_proposals  # noqa: E402
+from benchmarks.common.manifest import write_manifest  # noqa: E402
 from benchmarks.common.openrouter import (  # noqa: E402
     OpenRouterClient,
     extract_json_array,
@@ -321,6 +322,12 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
     records = RecordWriter(records_path)
 
     cumulative = {"mse": [], "mae": [], "rmse": [], "mape": []}
+    # The same metrics with the official mse>100 failure filter NOT
+    # applied. The filtered means mirror the official aggregation and stay
+    # the headline; these sit beside them because the filter deletes
+    # catastrophic misses from the mean, and a mean that cannot get worse
+    # when the forecasts do is not safe to read alone.
+    unfiltered = {"mse": [], "mae": [], "rmse": [], "mape": []}
     per_sample: list[dict[str, Any]] = []
     abstained = failed = errored = mape_undefined = 0
     routes: dict[str, int] = {}
@@ -339,6 +346,10 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
         entry: dict[str, Any] = {"filename": sample["filename"]}
         if outcome.get("route"):
             routes[outcome["route"]] = routes.get(outcome["route"], 0) + 1
+        # tools/mcp outcomes carry their real call count; pure/agent make
+        # exactly one engine invocation. A constant 1 for the tool arms
+        # made average_tool_calls a constant, not a measurement.
+        calls_made = int(outcome.get("tool_calls") or 1)
         if outcome["abstained"]:
             abstained += 1
             entry.update({"abstained": True, "reasons": outcome["reasons"]})
@@ -347,7 +358,7 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
                     entry[key] = outcome[key]
             records.write(RunRecord(
                 task_id=sample["filename"], success=False,
-                appropriate_abstention=True, tool_calls=1,
+                appropriate_abstention=True, tool_calls=calls_made,
                 latency_seconds=round(elapsed, 3),
                 extra={"reasons": outcome["reasons"],
                        **({"engine_abstentions": outcome["engine_abstentions"]}
@@ -367,7 +378,8 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
                     if outcome.get(key) is not None:
                         entry[key] = outcome[key]
                 records.write(RunRecord(
-                    task_id=sample["filename"], success=False, tool_calls=1,
+                    task_id=sample["filename"], success=False,
+                    tool_calls=calls_made,
                     latency_seconds=round(elapsed, 3),
                     extra={"error": str(error)},
                 ))
@@ -391,19 +403,21 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
                     entry[key] = outcome[key]
             if is_failed:
                 failed += 1
-            else:
-                for key, value in (("mse", mse), ("mae", mae),
-                                   ("rmse", rmse), ("mape", mape)):
-                    # Only MAPE can be NaN here (all-zero truth leaves it
-                    # undefined; sample_metrics rejects non-finite inputs)
-                    # and a NaN would poison the cumulative mean silently.
-                    if key == "mape" and value != value:
+            for key, value in (("mse", mse), ("mae", mae),
+                               ("rmse", rmse), ("mape", mape)):
+                # Only MAPE can be NaN here (all-zero truth leaves it
+                # undefined; sample_metrics rejects non-finite inputs)
+                # and a NaN would poison the cumulative mean silently.
+                if key == "mape" and value != value:
+                    if not is_failed:
                         mape_undefined += 1
-                        continue
+                    continue
+                unfiltered[key].append(value)
+                if not is_failed:
                     cumulative[key].append(value)
             records.write(RunRecord(
                 task_id=sample["filename"], success=not is_failed,
-                tool_calls=1, latency_seconds=round(elapsed, 3),
+                tool_calls=calls_made, latency_seconds=round(elapsed, 3),
                 extra={"mse": mse, "mape": mape,
                        "support": outcome["support"],
                        **({"route": outcome["route"]}
@@ -429,9 +443,14 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
         "mape_implementation": _resolve_mape()[1],
         **{f"mean_{key}": (sum(values) / len(values) if values else None)
            for key, values in cumulative.items()},
+        **{f"mean_{key}_unfiltered": (sum(values) / len(values)
+                                      if values else None)
+           for key, values in unfiltered.items()},
         "note": (
             "means follow the official aggregation (samples past the "
-            "official mse filter); abstained, errored, filtered and "
+            "official mse filter); the *_unfiltered means include the "
+            "filtered samples, because a mean that deletes its worst "
+            "cases cannot be read alone; abstained, errored, filtered and "
             "mape_undefined counts must be reported next to them"
             + (". routes counts submissions per exit: gnomon = a Gnomon "
                "trajectory verbatim, informed-direct/direct = the model's "
@@ -447,5 +466,23 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
         summary["llm_usage"] = client.usage_summary
     (output_dir / "summary.json").write_text(
         json.dumps(summary, indent=2) + "\n", encoding="utf-8"
+    )
+    # Provenance beside the results on direct CLI runs too: the dataset
+    # folder is the task set, so it is the `target` a comparison must
+    # agree on — recorded as the folder's last two path components
+    # (e.g. finance/aligned_in30days_out7days), which identify the family
+    # without baking in a machine-specific absolute path that would make
+    # same-dataset runs from two checkouts refuse to compare. (The
+    # control arm runs the official script, which owns its own output
+    # tree; its manifest still comes from run_all.)
+    write_manifest(
+        output_dir,
+        benchmark="mtbench",
+        condition=f"gnomon-{mode}",
+        model=openrouter_model,
+        target="/".join(Path(dataset_folder).parts[-2:]),
+        command=" ".join(sys.argv),
+        limit=limit,
+        base_url=client.base_url if client is not None else None,
     )
     return summary
