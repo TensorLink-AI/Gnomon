@@ -348,10 +348,44 @@ def test_run_cik_accepts_the_method_and_rejects_lane_flags(tmp_path):
         "--method", "gnomon-mcp", "--model", "x/y",
         "--output-dir", str(tmp_path)])
     method = build_method(args)
-    assert method.cache_name == "McpAgentForecaster_model=x-y"
+    from benchmarks.cik.mcp_agent import MCP_CONTRACT_VERSION
+
+    assert method.cache_name.startswith("McpAgentForecaster_model=x-y")
+    assert f"contract={MCP_CONTRACT_VERSION}" in method.cache_name
 
     flagged = parser.parse_args([
         "--method", "gnomon-mcp", "--model", "x/y", "--future-context",
         "--output-dir", str(tmp_path)])
     with pytest.raises(SystemExit):
         build_method(flagged)
+
+
+def test_cache_name_carries_temperature_and_contract_version():
+    """The official cache reuses results by this name; without the
+    temperature and the arm's contract version, a rerun at different
+    settings silently returned the old runs' results."""
+    from benchmarks.cik.mcp_agent import MCP_CONTRACT_VERSION, McpAgentForecaster
+
+    forecaster = McpAgentForecaster(
+        "org/model", temperature=0.2, client=object(),
+    )
+    assert "temperature=0.2" in forecaster.cache_name
+    assert f"contract={MCP_CONTRACT_VERSION}" in forecaster.cache_name
+    hotter = McpAgentForecaster("org/model", temperature=1.0, client=object())
+    assert hotter.cache_name != forecaster.cache_name
+
+
+def test_stdio_session_kills_a_hung_server_instead_of_blocking_forever():
+    import sys as _sys
+
+    from benchmarks.cik.mcp_agent import StdioMcpSession
+
+    session = StdioMcpSession(
+        ".", command=[_sys.executable, "-c", "import time; time.sleep(30)"],
+        call_timeout=0.3,
+    )
+    try:
+        with pytest.raises(RuntimeError, match="did not answer"):
+            session._rpc("initialize", {})
+    finally:
+        session.close()

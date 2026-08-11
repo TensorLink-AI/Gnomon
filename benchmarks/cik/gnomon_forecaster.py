@@ -361,6 +361,7 @@ class GnomonForecaster:
             )
         self.mode = mode
         self.openrouter_model = openrouter_model
+        self.temperature = temperature
         self.future_context = future_context
         self.structural_context = structural_context
         self.client = (
@@ -377,6 +378,14 @@ class GnomonForecaster:
         suffix = "_future=on" if self.future_context else ""
         if self.structural_context:
             suffix += "_structural=on"
+        if self.mode == "agent":
+            # Temperature changes the proposer's generations, so it is part
+            # of what a cached result is a result *of*. It was missing —
+            # the official cache reuses entries by this name, so two agent
+            # runs at different temperatures silently shared results.
+            # Irrelevant in pure mode (no LLM), so pure cache names are
+            # unchanged.
+            suffix += f"_temperature={self.temperature:g}"
         return f"GnomonForecaster_mode={self.mode}_model={model}{suffix}"
 
     def __str__(self) -> str:
