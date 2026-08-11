@@ -155,3 +155,110 @@ def test_orchestrator_completes_more_than_one_run(tmp_path, monkeypatch):
                         ["run_all", "--config", str(config_path)])
     assert run_all.main() == 0
     assert len(executed) == 2, "the second run must actually execute"
+
+
+def test_orchestrator_merges_the_adapters_manifest_instead_of_replacing_it(
+    tmp_path, monkeypatch,
+):
+    """The adapter records facts only it knows (base_url, best_effort, its
+    real target); overwriting them dropped exactly the fields report.py's
+    comparability refusal reads — two orchestrated TemporalBench runs with
+    different tier sets compared without refusal because both manifests
+    lost `target`."""
+    import json
+    import sys
+
+    import benchmarks.run_all as run_all
+    from benchmarks.common.manifest import read_manifest, write_manifest
+
+    config = {
+        "model": "m",
+        "output_root": str(tmp_path / "out"),
+        "runs": [
+            {"benchmark": "temporalbench", "name": "tb",
+             "args": {"condition": "gnomon-agent", "data_dir": "~/tb"}},
+        ],
+    }
+    config_path = tmp_path / "cfg.json"
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+
+    class _Result:
+        returncode = 0
+
+    def fake_run(command, cwd=None, **kwargs):
+        if kwargs.get("capture_output"):
+            return real_run(command, cwd=cwd, **kwargs)
+        directory = tmp_path / "out" / "tb"
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "summary.json").write_text('{"ok": true}',
+                                                encoding="utf-8")
+        # What the real adapter writes at the end of its run.
+        write_manifest(
+            directory, benchmark="temporalbench", condition="gnomon-agent",
+            target="tiers=T2,T4", base_url="http://local:8000/v1",
+            best_effort=True, command="child-argv",
+        )
+        return _Result()
+
+    real_run = run_all.subprocess.run
+    monkeypatch.setattr(run_all.subprocess, "run", fake_run)
+    monkeypatch.setattr(sys, "argv",
+                        ["run_all", "--config", str(config_path)])
+    assert run_all.main() == 0
+    manifest = read_manifest(tmp_path / "out" / "tb")
+    # The adapter's own record survives...
+    assert manifest["target"] == "tiers=T2,T4"
+    assert manifest["base_url"] == "http://local:8000/v1"
+    assert manifest["best_effort"] is True
+    assert manifest["command"] == "child-argv"
+    # ...and the orchestrator adds what only it knows.
+    assert manifest["run_name"] == "tb"
+    assert manifest["status"] == "ok"
+    assert manifest["config_path"] == str(config_path)
+
+
+def test_failed_run_does_not_trust_a_stale_adapter_manifest(
+    tmp_path, monkeypatch,
+):
+    """Adapters write their manifest at the end of a successful run; on a
+    non-zero exit whatever sits in the directory may be a previous run's
+    record, and stale provenance is worse than sparse."""
+    import json
+    import sys
+
+    import benchmarks.run_all as run_all
+    from benchmarks.common.manifest import read_manifest, write_manifest
+
+    directory = tmp_path / "out" / "tb"
+    directory.mkdir(parents=True)
+    write_manifest(directory, benchmark="temporalbench",
+                   target="tiers=T1", base_url="http://stale:1/v1")
+
+    config = {
+        "model": "m",
+        "output_root": str(tmp_path / "out"),
+        "runs": [
+            {"benchmark": "temporalbench", "name": "tb",
+             "args": {"condition": "control", "data_dir": "~/tb"}},
+        ],
+    }
+    config_path = tmp_path / "cfg.json"
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+
+    class _Result:
+        returncode = 3
+
+    def fake_run(command, cwd=None, **kwargs):
+        if kwargs.get("capture_output"):
+            return real_run(command, cwd=cwd, **kwargs)
+        return _Result()
+
+    real_run = run_all.subprocess.run
+    monkeypatch.setattr(run_all.subprocess, "run", fake_run)
+    monkeypatch.setattr(sys, "argv",
+                        ["run_all", "--config", str(config_path)])
+    assert run_all.main() == 1
+    manifest = read_manifest(directory)
+    assert manifest["status"] == "exit 3"
+    assert "base_url" not in manifest, "stale adapter fields must not survive"
+    assert "target" not in manifest
