@@ -126,6 +126,29 @@ def test_grade_escalation_costs_the_fee_and_abstention_is_family_scoped():
         assert not clean_grade["success"]
 
 
+def test_matching_naive_is_not_success_when_a_gap_exists():
+    """The anti-gaming property: submitting the naive formula's own
+    capacity scores regret_vs_naive ~1 and fails wherever a real
+    naive-to-optimal gap exists — the success bar cannot be met by
+    copying the bar."""
+    task = _clean_task()
+    capacity, cost_naive = grading.naive_capacity(task)
+    _, cost_optimal = grading.optimal_capacity(task.truth, task.c_over,
+                                               task.c_under)
+    # Precondition of the property, true for this fixed task: the gap
+    # is real, not floored away.
+    assert cost_naive - cost_optimal > 0.01 * max(cost_optimal, 1.0)
+    grade = grading.grade(task, {"decision": {"capacity": capacity},
+                                 "peak_forecast": None, "rationale": None})
+    assert grade["regret_vs_naive"] > grading.SUCCESS_GAP_SHARE
+    assert not grade["success"]
+    # Closing the gap fully is success.
+    best, _ = grading.optimal_capacity(task.truth, task.c_over, task.c_under)
+    assert grading.grade(task, {"decision": {"capacity": best},
+                                "peak_forecast": None,
+                                "rationale": None})["success"]
+
+
 def test_grade_harm_case_and_unanswered():
     task = _clean_task()
     # Commit essentially zero capacity: every unit of demand is unmet at

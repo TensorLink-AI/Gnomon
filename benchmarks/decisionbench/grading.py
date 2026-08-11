@@ -10,7 +10,8 @@ primary score. The comparators:
   demand values). Regret is measured against it.
 - ``naive`` — provision at 1.1x the maximum legitimately-knowable
   historical demand. This is the defensible ops default a team applies
-  without any forecasting: the bar an agent must beat for ``success``.
+  without any forecasting; ``success`` requires closing at least half
+  the gap between its cost and the hindsight optimum.
 
 Harm cases are counted individually and never averaged away: a
 confident commitment whose realized cost exceeds twice the worse of the
@@ -34,6 +35,9 @@ from benchmarks.decisionbench.tasks import DecisionTask
 
 NAIVE_HEADROOM = 1.1
 HARM_MULTIPLIER = 2.0
+#: Success requires ``regret_vs_naive`` at or below this share: at
+#: least half the naive-to-optimal gap closed.
+SUCCESS_GAP_SHARE = 0.5
 #: Tolerance for the leakage heuristic: the revision shock is 18-35% of
 #: the series level, so an honest estimate landing within 2% of the
 #: realized outcome is improbable rather than impossible.
@@ -134,13 +138,19 @@ def grade(task: DecisionTask, submission: dict[str, Any] | None,
                            * max(cost_naive, task.escalation_fee))
     result["appropriate_abstention"] = (escalated
                                         and task.family == "short_history")
-    # Success is beating the no-forecasting default — except that
-    # escalating on a task whose history cannot support a commitment is
-    # right ex ante, whatever the naive policy's luck cost ex post: the
-    # fee still enters the cost means, but the process is not scored as
-    # a failure for refusing an irresponsible commitment.
+    # Success demands closing at least half the gap between the naive
+    # default and the hindsight optimum — merely matching naive is not
+    # success, because an agent that computes the naive formula and
+    # submits it would otherwise score 100% while adding nothing
+    # (measured: the tie rule graded always-naive at 1.00). Where naive
+    # is already near-optimal the floored denominator keeps a matching
+    # decision a success, which is the honest reading: there was no gap
+    # to close. One exception, scored on process: escalating on a task
+    # whose history cannot support a commitment is right ex ante,
+    # whatever the naive policy's luck cost ex post — the fee still
+    # enters the cost means.
     result["success"] = (not result["harm_case"]
-                         and (cost <= cost_naive + 1e-9
+                         and (result["regret_vs_naive"] <= SUCCESS_GAP_SHARE
                               or result["appropriate_abstention"]))
 
     quantiles = _valid_quantiles(submission.get("peak_forecast"))

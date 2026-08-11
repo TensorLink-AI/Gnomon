@@ -55,12 +55,19 @@ informs it, never makes it.
 - **optimal** — the hindsight newsvendor optimum; regret is measured
   against it.
 - **naive** — provision at 1.1x the maximum legitimately-knowable
-  historical demand; `success` means beating this no-forecasting
-  default without a harm case. One exception, scored on process:
-  escalating on a `short_history` task is a success even when the
-  naive policy's luck was cheaper than the fee — refusing a commitment
-  nine observations cannot support is the right call ex ante, and the
-  fee still enters the cost means.
+  historical demand, the ops default a team applies without any
+  forecasting. `success` requires **closing at least half the gap**
+  between the naive cost and the hindsight optimum, without a harm
+  case — merely matching the naive policy is not success (measured:
+  a tie rule graded the submit-the-naive-formula policy at 1.00; the
+  gap rule grades it 0 wherever a real gap exists, while the floored
+  denominator keeps a naive-matching decision successful on tasks
+  where naive was already near-optimal and there was no gap to
+  close). One exception, scored on process: escalating on a
+  `short_history` task is a success even when the naive policy's luck
+  was cheaper than the fee — refusing a commitment nine observations
+  cannot support is the right call ex ante, and the fee still enters
+  the cost means. `beat_naive_rate` is reported separately.
 - **harm case** — a commitment whose realized cost exceeds twice the
   worse of the naive cost and the escalation fee. Listed by task id in
   `summary.json`, never only counted.
