@@ -965,7 +965,12 @@ TOOLS: list[dict[str, Any]] = [
                     "carries everything, whichever format you pick."
                 )},
                 "candidates": {"type": "array", "items": {"type": "string"}, "description": "Restrict the model pool to these names — pass `gnomon_route`'s `candidates` or its `recommendation` to act on a routing decision. The mandatory baselines always compete regardless, so a named candidate still has to beat them."},
-                "output_dir": {"type": "string", "description": "Directory for the immutable artifact. Defaults to ./gnomon-output relative to the *server's* working directory, which is often inside the user's repository — pass an explicit path when that matters."},
+                "output_dir": {"type": "string", "description": (
+                    "Directory for the immutable artifact. Omit it to use "
+                    "the server default reported by gnomon_capabilities "
+                    "(workspace.default_output_dir) — do not guess a path; "
+                    "a jailed host refuses paths outside its workspace."
+                )},
                 "minimum_baseline_improvement": {"type": "number", "minimum": 0, "description": "Minimum relative improvement over the strongest baseline to select a candidate (default 0.02). Must be >= 0; a negative value would let a model that lost the backtest be selected."},
                 "context_events_file": {"type": "string", "description": "Optional validated context-events JSON file (the output of `gnomon context validate`)."},
                 **_CONTEXT_EVENTS_PROPERTY,

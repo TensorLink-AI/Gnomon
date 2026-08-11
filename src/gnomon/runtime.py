@@ -1087,6 +1087,20 @@ def capabilities() -> dict[str, object]:
                 "'point_recentring_suppressed'"
             ),
         },
+        # Where this process writes. Agents used to guess output_dir (and
+        # burn a round-trip on a host's path-jail refusal) because nothing
+        # disclosed the allowed default; a jailed host should start the
+        # server with its working directory inside the jail, and this block
+        # is how the agent learns where that is.
+        "workspace": {
+            "cwd": os.getcwd(),
+            "default_output_dir": str(Path("gnomon-output").resolve()),
+            "note": (
+                "Omit output_dir to write artifacts under "
+                "default_output_dir (content-addressed, immutable "
+                "directories). Relative paths resolve against cwd."
+            ),
+        },
         "experimental": {"planner": os.environ.get("GNOMON_EXPERIMENTAL_PLANNER") == "1"},
         # Deprecated surfaces are opt-in, never silently removed; this flag
         # is how a client discovers whether the v0.2 compat tools are up.

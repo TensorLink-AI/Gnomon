@@ -128,6 +128,37 @@ def test_covariate_guide_and_proposer_tools_gated(monkeypatch) -> None:
         assert gated in compat, gated
 
 
+# --- Fix 6: the writable workspace is disclosed ----------------------------
+
+def test_capabilities_disclose_the_workspace(monkeypatch, tmp_path) -> None:
+    from gnomon.runtime import capabilities
+    from gnomon.toolspec import TOOLS, runner_for
+
+    monkeypatch.chdir(tmp_path)
+    workspace = capabilities()["workspace"]
+    assert workspace["cwd"] == str(tmp_path)
+    assert workspace["default_output_dir"] == str(tmp_path / "gnomon-output")
+
+    # A forecast with output_dir omitted writes inside the disclosed dir.
+    data = tmp_path / "series.csv"
+    from datetime import date, timedelta
+    start = date(2026, 1, 1)
+    data.write_text("timestamp,value\n" + "\n".join(
+        f"{start + timedelta(days=day)},{100 + day}" for day in range(40)
+    ) + "\n")
+    payload = runner_for("gnomon_forecast")({
+        "input": str(data), "horizon": 3,
+    })
+    assert payload["artifact_path"].startswith(
+        workspace["default_output_dir"])
+
+    # And the schema tells the agent to read it from capabilities rather
+    # than guess.
+    tool = next(t for t in TOOLS if t["name"] == "gnomon_forecast")
+    description = tool["inputSchema"]["properties"]["output_dir"]["description"]
+    assert "gnomon_capabilities" in description
+
+
 # --- Fix 5: the batch form leads the forecast description ------------------
 
 def test_batch_syntax_leads_the_forecast_description(tmp_path) -> None:

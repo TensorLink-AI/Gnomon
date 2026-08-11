@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **The writable workspace is disclosed (Fix 6).** `gnomon capabilities`
+  reports `workspace.cwd` and `workspace.default_output_dir` (the
+  resolved `./gnomon-output` default), and `gnomon_forecast`'s
+  `output_dir` description tells the agent to omit the parameter or read
+  the default from capabilities instead of guessing a path a jailed host
+  will refuse.
+
 - **Batch forecasting leads the tool description (Fix 5).**
   `gnomon_forecast`'s first two sentences now state the multi-target
   syntax with a concrete example (`target_column: "cpu,mem,requests"` or

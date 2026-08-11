@@ -83,6 +83,14 @@ the revision that produced it. `gnomon ingest` says so on any file without
 `--known-at`, via the `known_time_assumed` warning, and the resulting
 dataset reports `known_time_provenance: partially_assumed`.
 
+## Where artifacts land
+
+Omit `output_dir`: artifacts go to the server's default, reported by
+`gnomon_capabilities` under `workspace.default_output_dir` (the resolved
+`./gnomon-output` next to the server's working directory). Sandboxed
+hosts should start the server with its working directory inside the
+writable jail so the disclosed default is the allowed path.
+
 ## Response sizes
 
 Tool responses are budgeted (`RESPONSE_BUDGET_BYTES`, reported by
