@@ -431,6 +431,10 @@ class GnomonForecaster:
                 output=str(run_dir / "gnomon-output"),
                 context_events=events or None,
                 config=config,
+                # Pin the pre-graduated condition: the benchmark's
+                # abstention accounting must not drift with the engine's
+                # new best_effort default floor.
+                minimum_support="conditionally_supported",
             )
         except GnomonError as error:
             raise GnomonAbstained([f"{error.code}: {error.message}"]) from error

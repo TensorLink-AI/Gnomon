@@ -41,7 +41,11 @@ MAX_RUN_TOKENS = 250_000
 #: under an older contract is a different measurement wearing the same
 #: name. Version 2 marks the first release where the cache name carries
 #: this and the sampling temperature at all.
-MCP_CONTRACT_VERSION = 2
+#: Version 3: the MCP surface itself changed under the arm — 17-tool
+#: default surface, brief-by-default forecasts, the headline field, and
+#: response-budget truncation — so rows cached under version 2 measured
+#: a different contract.
+MCP_CONTRACT_VERSION = 3
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
