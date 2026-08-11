@@ -89,6 +89,36 @@ def test_investigate_ranks_concurrent_event(tmp_path):
     assert payload["results"][0]["residual_uncertainty"] is not None
 
 
+def test_investigate_records_suspected_cause_without_influence(tmp_path):
+    source = _csv(tmp_path / "shift.csv", _shifted_series())
+    bare, _ = investigate_change(
+        str(source), time_column="timestamp", target_column="value",
+        output=str(tmp_path / "bare"), clock=CLOCK,
+    )
+    noted, directory = investigate_change(
+        str(source), time_column="timestamp", target_column="value",
+        suspected_cause="pricing change rolled out March 21",
+        output=str(tmp_path / "noted"), clock=CLOCK,
+    )
+    assert "suspected_cause" not in bare
+    record = noted["suspected_cause"]
+    assert record["text"] == "pricing change rolled out March 21"
+    assert record["influence"] == "none"
+    # The hypothesis is on the record but never steers the analysis...
+    assert noted["results"] == bare["results"]
+    # ...and it is part of the record's identity.
+    assert noted["investigation_id"] != bare["investigation_id"]
+    artifact = json.loads((directory / "artifact.json").read_text())
+    assert artifact["suspected_cause"]["text"] == record["text"]
+
+
+def test_investigate_suspected_cause_is_in_the_tool_schema():
+    from gnomon.registry import MACROS
+    schema = MACROS["investigate_change"].input_schema
+    assert "suspected_cause" in schema["properties"]
+    assert "does not influence" in schema["properties"]["suspected_cause"]["description"]
+
+
 # -- C. decide ------------------------------------------------------------
 
 def _forecastable(tmp_path) -> Path:

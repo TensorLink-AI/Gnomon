@@ -65,6 +65,30 @@ DROPOUT_RUN = 3
 SHIFT_HIT_WINDOW = 3
 SLOPE_MIN_WINDOW = 9
 SLOPE_MAX_WINDOW = 101
+#: Detector selection is graded on at most this many trailing
+#: observations (stretched to cover four seasonal periods when the
+#: season is long). Grading cost is what made long series slow — every
+#: candidate scores one clean copy plus every injected copy — and a
+#: detector's relative skill at recovering planted anomalies is a local
+#: property of the series' noise, not of its full length. The *selected*
+#: detector still scores every observation; only the contest is
+#: windowed, and the window is disclosed in the injection metadata and
+#: the support assumptions.
+MAX_GRADING_HISTORY = 1024
+#: The one-step-ahead forecaster inside `forecast_interval_scores`
+#: refits on history at every scored point. Beyond this many trailing
+#: observations (again stretched to four seasons), older history stops
+#: changing a one-step prediction and only grows the refit cost
+#: quadratically, so each fit sees a sliding window instead of the full
+#: prefix.
+MAX_FORECAST_TRAIN_HISTORY = 512
+
+
+def _covering_window(minimum: int, season: int) -> int:
+    """A window of at least ``minimum`` observations that always spans
+    four full seasonal periods, so windowing never starves a seasonal
+    detector of the cycles it needs."""
+    return max(minimum, 4 * season)
 
 ScoreFunction = Callable[[list[float], int], list[float]]
 
@@ -80,10 +104,13 @@ def _warmup(values: list[float], season: int) -> int:
 def robust_zscore_scores(values: list[float], season: int) -> list[float]:
     """Median/MAD z-scores, per-phase adjusted when a season is usable."""
     if season > 1 and len(values) >= 2 * season:
-        adjusted = []
-        for index, value in enumerate(values):
-            phase = [values[j] for j in range(index % season, len(values), season)]
-            adjusted.append(value - median(phase))
+        phase_centres = [
+            median(values[phase::season]) for phase in range(season)
+        ]
+        adjusted = [
+            value - phase_centres[index % season]
+            for index, value in enumerate(values)
+        ]
     else:
         centre = median(values)
         adjusted = [value - centre for value in values]
@@ -109,18 +136,23 @@ def rolling_median_scores(values: list[float], season: int) -> list[float]:
 def forecast_interval_scores(values: list[float], season: int) -> list[float]:
     """One-step-ahead forecast residuals, standardised — the interval-
     exceedance route. The forecaster is the better of seasonal_naive and
-    theta by one-step MAE over the scored region; warm-up points score 0."""
+    theta by one-step MAE over the scored region; warm-up points score 0.
+    Each fit sees at most MAX_FORECAST_TRAIN_HISTORY trailing
+    observations (at least four seasons), keeping long series linear in
+    cost instead of quadratic."""
     from .models import predict
     warmup = _warmup(values, season)
     if warmup >= len(values):
         return [0.0] * len(values)
+    train_window = _covering_window(MAX_FORECAST_TRAIN_HISTORY, season)
     best_residuals: list[float] | None = None
     best_error: float | None = None
     for name in ("seasonal_naive", "theta"):
         residuals = []
         try:
             for index in range(warmup, len(values)):
-                prediction = predict(name, values[:index], 1, season)[0]
+                history = values[max(0, index - train_window):index]
+                prediction = predict(name, history, 1, season)[0]
                 residuals.append(values[index] - prediction)
         except (ValueError, ArithmeticError):
             continue
@@ -314,18 +346,27 @@ def grade_detectors(
     Flags a detector already raises on the clean series are excluded from
     both hits and false positives — the grader measures recovery of the
     *planted* anomalies only, so pre-existing oddities in the data cannot
-    reward or punish a candidate."""
+    reward or punish a candidate.
+
+    Long series are graded on their trailing MAX_GRADING_HISTORY
+    observations (at least four seasons): relative detector skill is a
+    property of the series' local noise, and grading every candidate on
+    every injected copy of a many-thousand-point series is what made
+    long-series detection slow. The window, when applied, is recorded
+    under ``injection.grading_window``."""
     detectors = {**DETECTORS, **(extra_detectors or {})}
-    rng = random.Random(_content_seed(values))
-    trials = _injection_trials(values, season, rng)
+    window = _covering_window(MAX_GRADING_HISTORY, season)
+    graded_values = values[-window:] if len(values) > window else values
+    rng = random.Random(_content_seed(graded_values))
+    trials = _injection_trials(graded_values, season, rng)
     grades: dict[str, dict[str, Any]] = {}
     for name, score_function in detectors.items():
         try:
-            clean_flags = _flagged(score_function(values, season), threshold)
+            clean_flags = _flagged(score_function(graded_values, season), threshold)
             hits, false_positives = 0, 0
             by_family: dict[str, list[int]] = {}
             for trial in trials:
-                injected = list(values)
+                injected = list(graded_values)
                 for index, delta in zip(trial["indices"], trial["deltas"]):
                     injected[index] += delta
                 novel = _flagged(score_function(injected, season), threshold) - clean_flags
@@ -368,7 +409,8 @@ def grade_detectors(
         # changes ends up labelled by a detector that cannot see them.
         macro_f1 = (sum(entry["f1"] for entry in families.values())
                     / len(families)) if families else 0.0
-        clean_fraction = len(clean_flags) / len(values) if values else 0.0
+        clean_fraction = (len(clean_flags) / len(graded_values)
+                          if graded_values else 0.0)
         grades[name] = {
             "precision": round(precision, 4), "recall": round(recall, 4),
             "f1": round(f1, 4), "macro_f1": round(macro_f1, 4),
@@ -377,21 +419,25 @@ def grade_detectors(
             "clean_flag_fraction": round(clean_fraction, 4),
             "dense_on_observed": clean_fraction > MAX_PLAUSIBLE_FLAG_FRACTION,
         }
-    return {
-        "grades": grades,
-        "injection": {
-            "seed": _content_seed(values),
-            "families": {
-                "spike": SPIKE_TRIALS, "level_shift": SHIFT_TRIALS,
-                "dropout": DROPOUT_TRIALS, "trend_shift": TREND_TRIALS,
-            },
-            "families_planted": sorted({trial["family"] for trial in trials}),
-            "magnitudes_in_robust_scale": {
-                "spike": SPIKE_SCALE, "level_shift": SHIFT_SCALE,
-                "dropout": DROPOUT_SCALE, "trend_shift": TREND_SCALE,
-            },
+    injection: dict[str, Any] = {
+        "seed": _content_seed(graded_values),
+        "families": {
+            "spike": SPIKE_TRIALS, "level_shift": SHIFT_TRIALS,
+            "dropout": DROPOUT_TRIALS, "trend_shift": TREND_TRIALS,
+        },
+        "families_planted": sorted({trial["family"] for trial in trials}),
+        "magnitudes_in_robust_scale": {
+            "spike": SPIKE_SCALE, "level_shift": SHIFT_SCALE,
+            "dropout": DROPOUT_SCALE, "trend_shift": TREND_SCALE,
         },
     }
+    if len(graded_values) < len(values):
+        injection["grading_window"] = {
+            "observations": len(graded_values),
+            "of": len(values),
+            "placement": "trailing",
+        }
+    return {"grades": grades, "injection": injection}
 
 
 def _grade_against_labels(
@@ -509,6 +555,13 @@ def detect_anomalies(
         + " anomalies only; kinds outside those families were not tested "
           "in this series and are not vouched for."
     ) if not label_indices and planted else None
+    window_info = grading["injection"].get("grading_window")
+    window_note = (
+        "Detector selection was graded on the trailing "
+        f"{window_info['observations']} of {window_info['of']} observations; "
+        "the selected detector scored every observation."
+    ) if window_info else None
+    assumptions = [note for note in (scope, window_note) if note]
     if best_f1 < GRADER_FLOOR:
         support = SupportAssessment(
             "conditionally_supported",
@@ -518,7 +571,7 @@ def detect_anomalies(
                 f"with F1 {best_f1:.2f} (< {GRADER_FLOOR}); real detections "
                 "in this series' noise carry the same doubt.",
             )],
-            assumptions=[scope] if scope else [],
+            assumptions=assumptions,
             sensitivity={"threshold": threshold, "selection_basis": selection_basis,
                          "graded_families": planted},
         )
@@ -530,7 +583,7 @@ def detect_anomalies(
                 "No point exceeded the detection threshold; absence of "
                 "anomalies is a conclusion, not a failure.",
             )],
-            assumptions=[scope] if scope else [],
+            assumptions=assumptions,
             sensitivity={"threshold": threshold, "selection_basis": selection_basis,
                          "selected_f1": best_f1,
                          "graded_families": planted},

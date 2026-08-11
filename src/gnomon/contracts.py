@@ -441,7 +441,7 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
 
     # --- Covariates -------------------------------------------------------
     "INVALID_COVARIATE_MAPPING": [
-        {"action": "set_covariate_mapping", "description": "Each entry is name:type:availability, comma-separated — for example `campaign:binary:future_known`."},
+        {"action": "set_covariate_mapping", "description": "Each entry is name:type:availability — as a comma-separated string (`campaign:binary:future_known`) or an object with those keys ({\"name\": \"campaign\", \"type\": \"binary\", \"availability\": \"future_known\"})."},
         {"action": "covariate_guide", "description": "Run `gnomon covariates guide` for the required format and the cutoffs your file must cover."},
     ],
     "INVALID_COVARIATE_TYPE": [
@@ -594,6 +594,10 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "section": "intent",
     "jsonl": "intent", "include_lineage": "intent", "limit": "intent",
     "latest": "intent", "note": "intent", "name": "intent",
+    # Recorded verbatim in the investigation artifact, influence "none" —
+    # a stated hypothesis, like a note, not a change to what counts as
+    # evidence.
+    "suspected_cause": "intent",
     "action": "intent", "expected_outcome": "intent",
     "actual_outcome": "intent", "correct": "intent",
     "decision_id": "intent", "forecast_id": "intent",

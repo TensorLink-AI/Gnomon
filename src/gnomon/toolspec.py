@@ -69,6 +69,28 @@ _COVARIATES_PROPERTY: dict[str, Any] = {
     },
 }
 
+#: The covariate declaration, shared by every tool that takes one.
+#: parse_mapping treats all three spellings identically; the packed
+#: string stays first in the description because it is what existing
+#: callers hold, but an agent building the mapping fresh should not have
+#: to pack facts into a delimiter grammar to state them.
+_COVARIATE_MAPPING_PROPERTY: dict[str, Any] = {
+    "covariate_mapping": {
+        "type": ["string", "array"],
+        "items": {"type": ["string", "object"]},
+        "description": (
+            "Covariate declarations: comma-separated "
+            "name:type:future_known entries, an array of those strings, "
+            "or an array of objects with name, type, and availability "
+            "keys — e.g. "
+            '[{"name": "campaign", "type": "binary", '
+            '"availability": "future_known"}]. '
+            "type is continuous or binary; availability must be "
+            "future_known."
+        ),
+    },
+}
+
 #: The inline data channel, shared by every tool that reads observations.
 #: The same reason context_events and covariates have one: an MCP client
 #: holds no filesystem, and a path-only `input` makes every data-reading
@@ -1003,7 +1025,7 @@ TOOLS: list[dict[str, Any]] = [
                     "first with gnomon_validate_covariates."
                 )},
                 **_COVARIATES_PROPERTY,
-                "covariate_mapping": {"type": "string", "description": "Comma-separated name:type:future_known entries; type is continuous or binary."},
+                **_COVARIATE_MAPPING_PROPERTY,
                 "covariate_time_column": {"type": "string", "description": "Valid-at column (default timestamp)."},
                 "covariate_known_at_column": {"type": "string", "description": "Availability timestamp column (default known_at)."},
                 "covariate_series_column": {"type": "string", "description": "Optional series column in the covariate CSV."},
@@ -1062,7 +1084,8 @@ TOOLS: list[dict[str, Any]] = [
             "when a value applies, known_at is when that exact vintage "
             "became available, and a backtest fold may only use rows with "
             "known_at at or before its cutoff. Mapping grammar: "
-            "name:type:future_known with type continuous or binary. "
+            "name:type:future_known entries (or objects with those keys) "
+            "with type continuous or binary. "
             "Validation failures name the exact cutoffs that came up "
             "empty; pass the same covariate arguments to gnomon_forecast "
             "to run the leakage-safe ablation."
@@ -1072,7 +1095,7 @@ TOOLS: list[dict[str, Any]] = [
             "horizon": {"type": "integer"},
             "covariates_file": {"type": "string"},
             **_COVARIATES_PROPERTY,
-            "covariate_mapping": {"type": "string"},
+            **_COVARIATE_MAPPING_PROPERTY,
             "covariate_time_column": {"type": "string"},
             "covariate_known_at_column": {"type": "string"},
             "covariate_series_column": {"type": "string"},
@@ -1187,6 +1210,7 @@ def _run_investigate_change(arguments: dict[str, Any]) -> dict[str, Any]:
         frequency=arguments.get("frequency"),
         as_of=_parse_as_of(arguments.get("as_of")),
         context_events=events,
+        suspected_cause=arguments.get("suspected_cause"),
         output=arguments.get("output_dir") or "gnomon-output",
         input_provenance=arguments.get("input_provenance"),
     )
@@ -1692,7 +1716,7 @@ V02_COMPAT_TOOLS: list[dict[str, Any]] = [
             "minimum_baseline_improvement": {"type": "number", "minimum": 0},
             "covariates_file": {"type": "string"},
             **_COVARIATES_PROPERTY,
-            "covariate_mapping": {"type": "string"},
+            **_COVARIATE_MAPPING_PROPERTY,
             "covariate_time_column": {"type": "string"},
             "covariate_known_at_column": {"type": "string"},
             "covariate_series_column": {"type": "string"},
