@@ -46,6 +46,82 @@ def achieved_tier(status: str, has_rows: bool) -> str | None:
     return "best_effort"
 
 
+def forecast_headline(
+    support: str,
+    assessment: dict | None,
+    rows: list[dict],
+) -> str:
+    """One deterministic plain-language sentence: what can be trusted.
+
+    Generated from the assessment by fixed templates — never by an LLM —
+    always naming the weakest tier present. It supplements the typed
+    reasons (which remain untouched beside it); it is the one sentence an
+    agent is allowed to relay verbatim."""
+    assessment = assessment or {}
+    status = assessment.get("status")
+    reasons = assessment.get("reasons") or []
+    sensitivity = assessment.get("sensitivity") or {}
+    if not rows:
+        first = reasons[0]["message"] if reasons else (
+            "the evaluation could not run.")
+        return f"No forecast published: {first}"
+    end = str(rows[-1].get("timestamp"))
+    split = next((reason for reason in reasons
+                  if reason.get("code") == "horizon_split"), None)
+    if split is not None:
+        boundary = sensitivity.get("supported_horizon")
+        if isinstance(boundary, int) and 0 < boundary < len(rows):
+            prefix_end = str(rows[boundary - 1].get("timestamp"))
+            remainder_start = str(rows[boundary].get("timestamp"))
+        else:  # defensive: the reason still names the ranges
+            prefix_end, remainder_start = end, end
+        prefix_tier = str(rows[0].get("tier", "conditionally_supported"))
+        return (
+            f"Higher-confidence through {prefix_end} ({prefix_tier}); "
+            f"{remainder_start}-{end} is a naive extrapolation, not an "
+            f"evaluated forecast."
+        )
+    if support == "best_effort":
+        observations = sensitivity.get("observations")
+        source = (f"from {observations} observations"
+                  if observations is not None else "from this history")
+        return (
+            f"No evaluated forecast is possible {source}; this is a naive "
+            f"extrapolation for orientation only."
+        )
+    if status == "supported":
+        improvement = sensitivity.get("baseline_improvement")
+        if improvement is not None:
+            return (
+                f"High-confidence forecast through {end}: the selected "
+                f"model beat the strongest baseline by "
+                f"{float(improvement):.0%} on separated evaluation folds."
+            )
+        return (
+            f"High-confidence forecast through {end}, selected on "
+            f"separated evaluation folds against the mandatory baselines."
+        )
+    caveat = next(
+        (reason["message"] for reason in reasons
+         if reason.get("code") != "warning"),
+        reasons[0]["message"] if reasons else "see the typed reasons.",
+    )
+    return f"Forecast through {end} with caveats: {caveat}"
+
+
+def artifact_headline(results: list) -> str:
+    """The artifact-level headline: one series' sentence verbatim, or the
+    per-series sentences joined, weakest tier still named by each."""
+    lines = []
+    for result in results:
+        text = forecast_headline(
+            result.support, result.support_assessment, result.forecast,
+        )
+        lines.append(text if len(results) == 1
+                     else f"{result.series}: {text}")
+    return " | ".join(lines)
+
+
 def assess_forecast_support(
     support: str,
     warnings: list[str],

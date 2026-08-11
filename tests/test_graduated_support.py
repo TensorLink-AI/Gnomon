@@ -229,6 +229,69 @@ def test_happy_path_rows_unchanged_except_tier(tmp_path) -> None:
     assert "horizon_split" not in codes
 
 
+def test_headline_names_the_weakest_tier(tmp_path) -> None:
+    from gnomon.toolspec import runner_for
+
+    # Split: the headline names both ranges and the naive remainder.
+    split = runner_for("gnomon_forecast")({
+        "input": _short_csv(tmp_path), "horizon": 14,
+        "output_dir": str(tmp_path / "a"),
+    })
+    assert "naive extrapolation" in split["headline"]
+    assert "Higher-confidence through" in split["headline"]
+
+    # Evaluated with caveats: the first typed reason, plain form.
+    graded = runner_for("gnomon_forecast")({
+        "input": DAILY, "horizon": 7, "output_dir": str(tmp_path / "b"),
+    })
+    assert graded["headline"].startswith(
+        ("High-confidence forecast through", "Forecast through"))
+
+    # Both formats carry it, verbatim identical.
+    full = runner_for("gnomon_forecast")({
+        "input": DAILY, "horizon": 7, "format": "full",
+        "output_dir": str(tmp_path / "c"),
+    })
+    assert full["headline"] == graded["headline"]
+
+
+def test_headline_for_pure_fallback_names_orientation_only(tmp_path, monkeypatch) -> None:
+    import gnomon.runtime as runtime_module
+
+    from gnomon.toolspec import runner_for
+
+    monkeypatch.setattr(runtime_module, "_split_prefix",
+                        lambda *args, **kw: None)
+    payload = runner_for("gnomon_forecast")({
+        "input": _short_csv(tmp_path), "horizon": 14,
+        "output_dir": str(tmp_path / "out"),
+    })
+    assert "orientation only" in payload["headline"]
+    assert "12 observations" in payload["headline"]
+
+
+def test_headline_is_the_summary_md_first_line(tmp_path) -> None:
+    from gnomon.toolspec import runner_for
+
+    payload = runner_for("gnomon_forecast")({
+        "input": _short_csv(tmp_path), "horizon": 14,
+        "output_dir": str(tmp_path / "out"),
+    })
+    first_line = open(payload["artifact_path"] + "/summary.md").readline()
+    assert first_line.strip() == payload["headline"]
+
+
+def test_abstention_headline_states_no_publication(tmp_path) -> None:
+    from gnomon.toolspec import runner_for
+
+    payload = runner_for("gnomon_forecast")({
+        "input": _short_csv(tmp_path), "horizon": 14,
+        "minimum_support": "supported",
+        "output_dir": str(tmp_path / "out"),
+    })
+    assert payload["headline"].startswith("No forecast published:")
+
+
 def test_capabilities_report_the_default_floor() -> None:
     from gnomon.runtime import capabilities
 

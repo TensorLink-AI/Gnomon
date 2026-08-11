@@ -379,11 +379,16 @@ def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
 
     The first forecast rows are inlined so an agent can quote numbers without
     a second read; the full series always lives in forecast.csv."""
+    from .support import artifact_headline
     return {
         "schema_version": "0.1",
         "status": "complete",
         "forecast_id": artifact.forecast_id,
         "artifact_path": str(path),
+        # One deterministic sentence, template-generated from the
+        # assessment, naming the weakest tier present — the sentence an
+        # agent may relay verbatim. Required in every format.
+        "headline": artifact_headline(artifact.results),
         "results": [
             {
                 "series": item.series, "support": item.support,
@@ -438,12 +443,14 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
             "forecast_rows": len(item.forecast),
             **({"threshold": item.threshold} if item.threshold else {}),
         })
+    from .support import artifact_headline
     return {
         "schema_version": "0.1",
         "status": "complete",
         "format": "brief",
         "forecast_id": artifact.forecast_id,
         "artifact_path": str(path),
+        "headline": artifact_headline(artifact.results),
         "note": (
             "Brief output: q50 with the q10-q90 interval per step. The full "
             "artifact (all quantile levels, evidence, lineage) is on disk at "

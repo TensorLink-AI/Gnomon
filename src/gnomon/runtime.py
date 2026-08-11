@@ -479,6 +479,11 @@ def _series_result(
             disclosures=state.disclosures,
             measured_coverage=state.coverage,
         )
+        if support == "best_effort":
+            # The headline for a whole-object fallback names the history
+            # it extrapolates from; the count belongs in the sensitivity
+            # beside the rest of the measured facts.
+            support_assessment.sensitivity["observations"] = len(state.values)
     from .contracts import DEFAULT_MINIMUM_BASELINE_IMPROVEMENT, SupportReason
     if minimum_baseline_improvement != DEFAULT_MINIMUM_BASELINE_IMPROVEMENT:
         # A caller-chosen evidence rule is not the documented one. Below the
