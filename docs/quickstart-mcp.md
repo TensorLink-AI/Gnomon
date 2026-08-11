@@ -146,6 +146,12 @@ slice on its own). Foundation models install from the surface too:
 `gnomon_capabilities` under `models.tsfm_available` and reports state
 (absent / installing / ready / failed) on each call — no shell needed.
 
+Calendar-shaped data needs no upstream preprocessing: pass
+`regrid: "business_daily"` for Mon-Fri market data (weekends and
+holidays are forward-filled onto the continuous daily grid) or
+`regrid: "month_start"` for month-end-stamped monthly feeds — both
+disclosed as warnings, neither charged against the repair ceiling.
+
 ## Migrating from v0.2
 
 Every v0.2 tool name, schema, and the `gnomon_forecast` contract are

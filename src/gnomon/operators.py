@@ -117,14 +117,39 @@ class Changepoint:
 
 
 def _best_split(values: list[float], offset: int) -> tuple[int, float] | None:
-    """Best single split of a segment: index (absolute) and cost reduction."""
+    """Best single split of a segment: index (absolute) and cost reduction.
+
+    Prefix sums make each candidate split O(1); the previous
+    recompute-from-scratch scan was O(n²) per segment, which priced a
+    23,594-row daily series out of any interactive budget (~5.6e8 inner
+    operations — the 2026-08 MCP evaluation's DGS10 investigate was
+    killed at 300 s). Values are centred on the segment mean first: SSE
+    is shift-invariant, and the sum-of-squares identity is numerically
+    fragile when |mean| dwarfs the spread.
+    """
     n = len(values)
     if n < 2 * MIN_SEGMENT:
         return None
-    total = _sse(values)
+    centre = _mean(values)
+    prefix = [0.0] * (n + 1)
+    prefix_squares = [0.0] * (n + 1)
+    for index, value in enumerate(values):
+        shifted = value - centre
+        prefix[index + 1] = prefix[index] + shifted
+        prefix_squares[index + 1] = prefix_squares[index] + shifted * shifted
+
+    def segment_sse(lo: int, hi: int) -> float:
+        count = hi - lo
+        if count <= 0:
+            return 0.0
+        segment_sum = prefix[hi] - prefix[lo]
+        return max(0.0, (prefix_squares[hi] - prefix_squares[lo])
+                   - segment_sum * segment_sum / count)
+
+    total = segment_sse(0, n)
     best_index, best_gain = None, 0.0
     for split in range(MIN_SEGMENT, n - MIN_SEGMENT + 1):
-        gain = total - _sse(values[:split]) - _sse(values[split:])
+        gain = total - segment_sse(0, split) - segment_sse(split, n)
         if gain > best_gain:
             best_index, best_gain = split, gain
     if best_index is None:

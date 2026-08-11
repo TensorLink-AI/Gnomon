@@ -89,8 +89,48 @@ timing environment).
 |---|---|
 | TSFM install from MCP (HIGH) | **Done.** New `gnomon_install_tsfm` tool (default surface, `full` profile). Because `ensure_sandbox` legitimately runs for minutes (torch dominates) and a blocking MCP call reads as a hang, the tool starts a *detached* `gnomon tsfm install` process and reports state — `absent` / `installing` / `ready` / `failed` (with log tail) — on each call; `status_only` polls without side effects. The `.gnomon-sandbox-ready` marker remains the single source of truth, shared with the CLI path. `gnomon_capabilities` now names the tool under `models.tsfm_install_tool`. |
 | Month-start needs explicit `frequency="MS"` | **Done.** `infer_frequency` now recognises a month-start grid *with holes*: every timestamp on the first of a month at one shared time of day, single-month steps a strict majority (so yearly and quarterly data are not mistaken for gappy monthly). The series then reaches the grid validator, which names the missing month with repair options — the same path an explicit `MS` always took, now without the caller having to know the incantation. |
-| Business-day daily data (LOW) | **Diagnosed, not regridded.** When a daily-grid refusal's gap covers only weekend days, `IRREGULAR_TIME_GRID` now says so in the message, sets `details.gap_weekend_only: true`, and `repair_options` carries a `fill_business_days` action (forward-fill non-trading days upstream, `repair=aggressive`, or resample weekly). A true business-day (`B`) grid — with its own season and holiday calendar — remains future work; the refusal now teaches the caller the shape of their data instead of just its first hole. |
-| Anomaly speed beyond ~10k rows (MEDIUM) | **Open.** The 1,024-observation grading window covers the 1–5k range the evaluation measured; very long daily series remain impractical for detector *selection*. Candidate next step: grade on a decimated or windowed replica for selection only, keeping full-series scoring for the chosen detector. |
+| Business-day daily data (LOW) | **Done (round 2).** First diagnosed — `IRREGULAR_TIME_GRID` on a weekend-only gap says the series looks like business-day data and sets `details.gap_weekend_only` — then solved structurally: `regrid=business_daily` (MCP, CLI, Python API, on every data-reading verb) forward-fills non-trading days onto the continuous daily grid, disclosed as warnings and evidence but *not* charged against the assumptive-repair ceiling, which weekends alone (~29% of a calendar grid) would otherwise exhaust. `regrid=month_start` does the same for month-end-stamped monthly feeds. Implausible declarations refuse loudly (`REGRID_IMPLAUSIBLE`, `REGRID_CONFLICT`). See "Round 2" below for why this is a class fix, not a patch. |
+| Anomaly speed beyond ~10k rows (MEDIUM) | **Done (round 2), and the diagnosis was wider than the report knew.** At the evaluator's own 23,594-row scale: `investigate` was O(n²) in the changepoint scan (killed at 300 s → **0.3 s** after a prefix-sum rewrite, behaviour-identical); `forecast` was 286 s → **14 s** (a per-fold O(n) bitemporal rebuild eliminated for single-vintage data, plus a disclosed `MAX_FIT_HISTORY` = 2,048 fit window mirroring the anomaly grading window — fold structure untouched, every candidate and baseline sees the identical window, warned whenever it engages); `monitor` inherits the forecast fix (107 s → 13 s); `detect_anomalies` was already fine at 6.9 s from the earlier grading-window fix. |
 | Multi-target truncation visibility | **No change — already visible.** See Part 2: `truncated`, `truncation.trimmed` (per-path full lengths), and per-result `forecast_rows` all disclose the trim. |
 | `suspected_cause` is documentary (LOW) | **Standing design.** A hypothesis must not steer detection; a *dated* suspicion belongs in `context_events`, where it competes as a concurrent-event explanation and is ranked. The parameter descriptions already say this. |
 | `last_value` on near-flat series | **Standing design.** Selection is a backtested competition; when nothing beats persistence within the evaluated folds, publishing persistence *labelled underpowered* is the honest output. A trend the folds cannot distinguish from noise is not one Gnomon should assert. |
+
+---
+
+## Round 2 — the systemic view
+
+A follow-up pass asked whether the surfaced issues were symptoms of
+broader defects. Three were:
+
+1. **The repair ladder treated calendar structure as messiness.** Every
+   data-cleaning incident in the report (monthly gaps, weekend gaps,
+   the forward-fill dance) bottomed out in "fix it upstream" because
+   repair has exactly one model of irregularity — assumptive row fixes
+   capped at 30% of rows — and weekends alone are ~29% of a calendar
+   grid, so business-day data could *never* be repaired in-tool. The
+   `regrid` parameter is the class fix: the caller declares the
+   calendar (`business_daily`, `month_start`), fills and restamps are
+   disclosed but not charged against the messiness ceiling, and the
+   grid errors now point at it.
+
+2. **The analysis verbs had no compute discipline on input length.**
+   The DGS10 kills were arithmetic, not bad luck: an O(n²) changepoint
+   scan, a per-fold O(n) snapshot rebuild, and full-history model
+   refits per fold. Fixed respectively by a prefix-sum rewrite
+   (behaviour-identical, pinned by an equivalence test), a
+   guarded single-vintage prefix fast path (falls back to the honest
+   per-cutoff rebuild for revised data), and a disclosed fit window
+   (`evaluation.MAX_FIT_HISTORY`, same contract as the anomaly grading
+   window). All four verbs now run a 23,594-row daily series in 0.3–14 s
+   against a former 235 s–300 s+.
+
+3. **Capability disclosure could outrun tool-surface reachability.**
+   The TSFM-install gap was one instance;
+   `tests/test_capabilities_reachability.py` now pins the class: no
+   tool name may appear in the capabilities payload without existing in
+   the toolspec, and every explicit `*_tool` pointer must be on the
+   default surface.
+
+Judged not symptoms: the truncation-invisibility complaint (the
+disclosure exists and is test-pinned), and the `suspected_cause` /
+`last_value` designs (deliberate stances, unchanged).

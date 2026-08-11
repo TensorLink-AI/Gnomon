@@ -136,6 +136,19 @@ _INPUT_PROPERTIES: dict[str, Any] = {
             "Omit to infer; ambiguity fails loudly."
         ),
     },
+    "regrid": {
+        "type": "string", "enum": ["business_daily", "month_start"],
+        "description": (
+            "Declared calendar regrid, applied before validation: "
+            "business_daily forward-fills weekends and holidays so Mon-Fri "
+            "market data lands on the continuous daily grid (implies "
+            "frequency=D); month_start restamps monthly data (typically "
+            "month-end stamps) to the first of each month (implies "
+            "frequency=MS). A statement about the data's calendar, not a "
+            "repair of messiness: fills and restamps are disclosed as "
+            "warnings but not charged against the repair ceiling."
+        ),
+    },
 }
 
 #: Replay controls, shared by every verb that reads data. `gnomon_forecast`
@@ -499,6 +512,7 @@ def _run_inspect(arguments: dict[str, Any]) -> dict[str, Any]:
         frequency=arguments.get("frequency"),
         as_of=_parse_as_of(arguments.get("as_of")),
         store_path=arguments.get("store_path"),
+        regrid=arguments.get("regrid"),
     )
 
 
@@ -682,6 +696,7 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
         covariates=covariates,
         threshold=float(arguments["threshold"]) if arguments.get("threshold") is not None else None,
         repair=arguments.get("repair", "safe"),
+        regrid=arguments.get("regrid"),
         candidates=arguments.get("candidates"),
         best_effort=bool(arguments.get("best_effort", False)),
         minimum_support=str(arguments.get("minimum_support")
@@ -744,6 +759,7 @@ def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str
         minimum_baseline_improvement=float(arguments.get("minimum_baseline_improvement", 0.02)),
         threshold=float(arguments["threshold"]) if arguments.get("threshold") is not None else None,
         repair=arguments.get("repair", "safe"),
+        regrid=arguments.get("regrid"),
         candidates=arguments.get("candidates"),
         best_effort=bool(arguments.get("best_effort", False)),
         minimum_support=str(arguments.get("minimum_support")
@@ -1213,6 +1229,7 @@ def _run_investigate_change(arguments: dict[str, Any]) -> dict[str, Any]:
         suspected_cause=arguments.get("suspected_cause"),
         output=arguments.get("output_dir") or "gnomon-output",
         input_provenance=arguments.get("input_provenance"),
+        regrid=arguments.get("regrid"),
     )
     return {**payload, "artifact_path": str(path)}
 
@@ -1255,6 +1272,7 @@ def _run_detect_anomalies(arguments: dict[str, Any]) -> dict[str, Any]:
         labels=arguments.get("labels"),
         output=arguments.get("output_dir") or "gnomon-output",
         input_provenance=arguments.get("input_provenance"),
+        regrid=arguments.get("regrid"),
     )
     return {**payload, "artifact_path": str(path)}
 
@@ -1280,6 +1298,7 @@ def _run_decide(arguments: dict[str, Any]) -> dict[str, Any]:
         project=arguments.get("project"),
         output=arguments.get("output_dir") or "gnomon-output",
         input_provenance=arguments.get("input_provenance"),
+        regrid=arguments.get("regrid"),
     )
     return {**payload, "artifact_path": str(path)}
 
@@ -1341,6 +1360,7 @@ def _run_monitor(arguments: dict[str, Any]) -> dict[str, Any]:
         project=arguments.get("project"),
         output=arguments.get("output_dir") or "gnomon-output",
         input_provenance=arguments.get("input_provenance"),
+        regrid=arguments.get("regrid"),
     )
     return {**payload, "artifact_path": str(path)}
 

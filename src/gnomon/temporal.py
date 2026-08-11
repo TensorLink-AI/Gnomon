@@ -421,10 +421,9 @@ def validate_and_group(
                     message += (
                         " The skipped days are all weekend days — this looks "
                         "like business-day (Mon-Fri) data. Gnomon grids are "
-                        "continuous: fill non-trading days upstream (forward-"
-                        "fill is the usual choice for market data), pass "
-                        "repair=aggressive to interpolate interior gaps "
-                        "(capped and disclosed), or resample to weekly."
+                        "continuous: pass regrid=business_daily to forward-"
+                        "fill non-trading days onto the daily grid (disclosed,"
+                        " not capped), or resample to weekly."
                     )
                     details["gap_weekend_only"] = True
                 raise GnomonError("IRREGULAR_TIME_GRID", message, details)

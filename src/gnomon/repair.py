@@ -526,3 +526,135 @@ def _repair_series(
     if filled:
         kept = sorted(kept + filled, key=lambda item: item.timestamp)
     return kept
+
+
+# --- structural regridding ---------------------------------------------------
+#
+# Calendar structure is not messiness. A business-day series is missing
+# nothing on Saturday — the market was closed; a month-end feed is not
+# jittered — its publisher stamps period ends. The assumptive-repair
+# ceiling (MAX_ASSUMPTIVE_FRACTION) exists to stop Gnomon inventing a
+# dataset, and it is correct to refuse when 30% of rows needed guessing —
+# but weekends alone are ~29% of a calendar-daily grid, so business-day
+# data could *never* be repaired in-tool no matter how clean it was. A
+# regrid is therefore a separate, caller-declared transform: disclosed
+# like every repair, warned on every touched series, but not charged
+# against the messiness ceiling, because the caller has stated the
+# calendar rather than asked Gnomon to guess about noise.
+
+REGRID_POLICIES = ("business_daily", "month_start")
+
+#: Sanity bound for business_daily: weekends and holidays fill ~31% of a
+#: calendar grid. Past this fraction the declaration is implausible — the
+#: series is sparser than any Mon-Fri calendar — and the honest answer is
+#: a refusal naming the counts, not a grid that is mostly invention.
+MAX_BUSINESS_FILL_FRACTION = 0.45
+
+
+def regrid_observations(
+    observations: "list[Observation]", policy: str, log: RepairLog,
+) -> "tuple[list[Observation], str]":
+    """Apply a declared calendar regrid; returns (observations, implied
+    frequency code).
+
+    - ``business_daily``: the series is Mon-Fri market data. Every missing
+      calendar day (weekends, holidays) is filled by carrying the prior
+      observation forward, producing the continuous daily grid the
+      validators require. Implied frequency ``D``.
+    - ``month_start``: the series is monthly, stamped anywhere in the
+      month (typically month ends). Every timestamp is restamped to the
+      first of its month; two observations landing in one month is a
+      loud conflict. Implied frequency ``MS``.
+    """
+    from .data import Observation
+
+    if policy not in REGRID_POLICIES:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            f"Unknown regrid policy {policy!r}; supported: "
+            + ", ".join(REGRID_POLICIES) + ".",
+            {"supported": list(REGRID_POLICIES)},
+        )
+    by_series: dict[str, list[Observation]] = {}
+    for item in observations:
+        by_series.setdefault(item.series, []).append(item)
+
+    result: list[Observation] = []
+    if policy == "month_start":
+        for name, items in by_series.items():
+            seen: dict[tuple[int, int], Observation] = {}
+            restamped = 0
+            for item in sorted(items, key=lambda entry: entry.timestamp):
+                month = (item.timestamp.year, item.timestamp.month)
+                if month in seen:
+                    raise GnomonError(
+                        "REGRID_CONFLICT",
+                        f"regrid=month_start: series {name} has two "
+                        f"observations in {month[0]}-{month[1]:02d} "
+                        f"({seen[month].timestamp.isoformat()} and "
+                        f"{item.timestamp.isoformat()}); a monthly grid "
+                        f"holds one value per month.",
+                        {"series": name, "year": month[0], "month": month[1]},
+                    )
+                stamped = item.timestamp.replace(
+                    day=1, hour=0, minute=0, second=0, microsecond=0)
+                if stamped != item.timestamp:
+                    restamped += 1
+                replacement = Observation(stamped, item.value, name)
+                seen[month] = replacement
+                result.append(replacement)
+            if restamped:
+                log.record(
+                    "regrid_month_start",
+                    "Timestamps restamped to the first of their month "
+                    "(regrid=month_start); values are unchanged.",
+                    series=name, assumptive=True, count=restamped,
+                )
+        return sorted(result, key=lambda item: (item.series, item.timestamp)), "MS"
+
+    for name, items in by_series.items():
+        ordered = sorted(items, key=lambda entry: entry.timestamp)
+        clock_times = {(item.timestamp.hour, item.timestamp.minute,
+                        item.timestamp.second, item.timestamp.microsecond)
+                       for item in ordered}
+        if len(clock_times) > 1:
+            raise GnomonError(
+                "REGRID_IMPLAUSIBLE",
+                f"regrid=business_daily: series {name} mixes "
+                f"{len(clock_times)} different times of day; a daily grid "
+                f"needs one observation time. Normalise the timestamps "
+                f"first.",
+                {"series": name, "distinct_times": len(clock_times)},
+            )
+        result.extend(ordered)
+        filled = 0
+        previous = ordered[0]
+        for item in ordered[1:]:
+            slot = previous.timestamp + timedelta(days=1)
+            while slot < item.timestamp:
+                result.append(Observation(slot, previous.value, name))
+                filled += 1
+                slot += timedelta(days=1)
+            previous = item
+        grid_size = len(ordered) + filled
+        if filled and filled / grid_size > MAX_BUSINESS_FILL_FRACTION:
+            raise GnomonError(
+                "REGRID_IMPLAUSIBLE",
+                f"regrid=business_daily: series {name} needs "
+                f"{filled} of {grid_size} calendar days filled "
+                f"({filled / grid_size:.0%}); a Mon-Fri calendar misses "
+                f"~31%. This series is sparser than business-day data — "
+                f"check the frequency, or resample instead.",
+                {"series": name, "filled": filled, "grid_days": grid_size,
+                 "fill_fraction": round(filled / grid_size, 4)},
+            )
+        if filled:
+            log.record(
+                "regrid_business_daily",
+                "Non-trading calendar days (weekends, holidays) filled by "
+                "carrying the prior observation forward "
+                "(regrid=business_daily); filled values are repeats, not "
+                "measurements.",
+                series=name, assumptive=True, count=filled,
+            )
+    return sorted(result, key=lambda item: (item.series, item.timestamp)), "D"

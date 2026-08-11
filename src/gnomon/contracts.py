@@ -302,7 +302,13 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
     "IRREGULAR_TIME_GRID": [
         {"action": "fill_or_resample", "description": "Fill the missing period named in details, or resample to a coarser regular frequency."},
         {"action": "enable_repair", "description": "Pass repair=aggressive to interpolate interior gaps and snap jittered timestamps — capped, and every fix becomes a warning."},
-        {"action": "fill_business_days", "description": "When details.gap_weekend_only is true the series is business-day (Mon-Fri) data: forward-fill weekends and holidays to a continuous daily grid upstream, or resample to weekly."},
+        {"action": "regrid_business_daily", "description": "When details.gap_weekend_only is true the series is business-day (Mon-Fri) data: pass regrid=business_daily to forward-fill non-trading days onto the continuous daily grid, disclosed and uncapped."},
+    ],
+    "REGRID_CONFLICT": [
+        {"action": "deduplicate_months", "description": "regrid=month_start needs one observation per month per series; aggregate or drop the extra rows named in details."},
+    ],
+    "REGRID_IMPLAUSIBLE": [
+        {"action": "check_declaration", "description": "The declared calendar does not fit this data (details has the counts); check the frequency, normalise timestamps, or resample instead of regridding."},
     ],
     "MIXED_TIMEZONES": [
         {"action": "align_timezones", "description": "Make every timestamp consistently timezone-aware or consistently naive."},
@@ -380,7 +386,7 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
     "AMBIGUOUS_FREQUENCY": [
         {"action": "set_frequency", "description": "Pass frequency explicitly; the supported codes are in details.supported."},
         {"action": "inspect_dataset", "description": "Call gnomon_inspect to see the observed step between timestamps."},
-        {"action": "restamp_to_month_start", "description": "Month-end dates (Jan 31, Feb 28, …) are not a supported grid. Restamp each observation to the first of its month and pass frequency=MS."},
+        {"action": "restamp_to_month_start", "description": "Month-end dates (Jan 31, Feb 28, …) are not a supported grid. Pass regrid=month_start to restamp each observation to the first of its month (disclosed), or restamp upstream and pass frequency=MS."},
     ],
     "UNSUPPORTED_FREQUENCY": [
         {"action": "set_frequency", "description": "Use one of the supported codes listed in details.supported."},
@@ -638,6 +644,7 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     # -- epistemic ---------------------------------------------------------
     "minimum_baseline_improvement": "epistemic",
     "repair": "epistemic",
+    "regrid": "epistemic",
     "selection_strategy": "epistemic",
     "ensemble": "epistemic",
     "strict_abstention": "epistemic",
@@ -660,6 +667,10 @@ EPISTEMIC_TRACES: dict[str, str] = {
     "repair": (
         "non-safe levels downgrade support (weakly_supported) and list every "
         "fix as evidence; EXCESSIVE_REPAIR refuses beyond the cap"),
+    "regrid": (
+        "every fill or restamp is recorded in the repair log (evidence) and "
+        "warned on the touched series; implausible declarations refuse "
+        "(REGRID_IMPLAUSIBLE / REGRID_CONFLICT) instead of inventing a grid"),
     "selection_strategy": (
         "a forced ensemble that did not win the backtest is disclosed as "
         "`ensemble_forced` and capped at conditionally_supported"),
