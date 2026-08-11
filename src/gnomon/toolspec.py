@@ -55,6 +55,59 @@ _REPLAY_PROPERTIES: dict[str, Any] = {
     },
 }
 
+#: Covariate parameters, shared by every tool that takes them so the four
+#: covariate entry points describe the same grammar the parser enforces.
+_COVARIATE_PROPERTIES: dict[str, Any] = {
+    "covariates_file": {"type": "string", "description": (
+        "Local CSV of point-in-time covariate vintages; call "
+        "gnomon_covariate_guide first for the exact format and cutoffs "
+        "this dataset and horizon require."
+    )},
+    "covariate_mapping": {"type": "string", "description": (
+        "Comma-separated name:type:availability entries, e.g. "
+        "`promo:binary:future_known,temperature:continuous:future_known`. "
+        "type is continuous or binary; availability must be future_known "
+        "in this release — a value not knowable ahead of time cannot be "
+        "backtested without leakage."
+    )},
+    "covariate_time_column": {"type": "string", "description": (
+        "Valid-at column in the covariates file (default timestamp)."
+    )},
+    "covariate_known_at_column": {"type": "string", "description": (
+        "Publication-time column (default known_at): when each value "
+        "became knowable, so each backtest fold sees only what was "
+        "published by its cutoff."
+    )},
+    "covariate_series_column": {"type": "string", "description": (
+        "Series column in the covariates file, for panel data."
+    )},
+}
+
+_HORIZON_PROPERTY: dict[str, Any] = {
+    "type": "integer",
+    "description": "Future periods to forecast, in units of the data frequency.",
+}
+
+#: Tools that read state without writing artifacts, stores, or the registry.
+#: Surfaced to hosts as MCP `readOnlyHint` annotations so an agent can tell
+#: an inspection from a mutation without guessing from the name.
+READ_ONLY_TOOLS: frozenset[str] = frozenset({
+    "gnomon_capabilities",
+    "gnomon_inspect",
+    "gnomon_covariate_guide",
+    "gnomon_validate_covariates",
+    "gnomon_list_open_forecasts",
+    "gnomon_model_performance",
+    "gnomon_list_datasets",
+    "gnomon_get_artifact",
+    "gnomon_status",
+    "gnomon_explain_run",
+    "gnomon_proposer_skill",
+    "gnomon_compile_task",
+    "gnomon_validate_plan",
+    "gnomon_get_run",
+})
+
 FORECAST_PREVIEW_ROWS = 12
 
 
@@ -332,13 +385,13 @@ def _run_submit_actuals(arguments: dict[str, Any]) -> dict[str, Any]:
 
 def _run_open_forecasts(arguments: dict[str, Any]) -> dict[str, Any]:
     from .tracking import TrackingStore
-    rows = TrackingStore().due_forecasts(arguments.get("project"))
+    rows = TrackingStore(create=False).due_forecasts(arguments.get("project"))
     return {"status": "ok", "forecasts": rows}
 
 
 def _run_model_performance(arguments: dict[str, Any]) -> dict[str, Any]:
     from .tracking import TrackingStore
-    store = TrackingStore()
+    store = TrackingStore(create=False)
     if arguments.get("model"):
         rows: Any = store.model_performance(
             str(arguments["project"]), str(arguments["model"]),
@@ -351,7 +404,7 @@ def _run_model_performance(arguments: dict[str, Any]) -> dict[str, Any]:
 
 def _run_proposer_skill(arguments: dict[str, Any]) -> dict[str, Any]:
     from .tracking import TrackingStore
-    rows = TrackingStore().proposer_skill(
+    rows = TrackingStore(create=False).proposer_skill(
         str(arguments["project"]),
         proposer_id=(str(arguments["proposer_id"])
                      if arguments.get("proposer_id") else None),
@@ -452,11 +505,7 @@ TOOLS: list[dict[str, Any]] = [
                 "context_events_file": {"type": "string", "description": "Optional validated context-events JSON file (the output of `gnomon context validate`)."},
                 "threshold": {"type": "number", "description": "Optional decision threshold: the result reports when and how likely the forecast crosses this value."},
                 "project": {"type": "string", "description": "Optional tracking project. When set, register the forecast for realised scoring."},
-                "covariates_file": {"type": "string", "description": "Local CSV containing point-in-time covariate vintages."},
-                "covariate_mapping": {"type": "string", "description": "Comma-separated name:type:future_known entries."},
-                "covariate_time_column": {"type": "string", "description": "Valid-at column (default timestamp)."},
-                "covariate_known_at_column": {"type": "string", "description": "Availability timestamp column (default known_at)."},
-                "covariate_series_column": {"type": "string", "description": "Optional series column in the covariate CSV."},
+                **_COVARIATE_PROPERTIES,
                 "repair": {"type": "string", "enum": ["off", "safe", "aggressive"], "description": "Messy-data handling (default safe): off rejects anything non-strict; safe normalises cell text with disclosure; aggressive additionally fills gaps, snaps timestamps, and resolves conflicts — capped, and every fix is reported in evidence and warnings."},
             },
             "required": ["input", "time_column", "target_column", "horizon"],
@@ -468,7 +517,10 @@ TOOLS: list[dict[str, Any]] = [
         "description": "Return point-in-time format, forecast dates, and fold cutoffs. Gnomon does not suggest what data to fetch.",
         "inputSchema": {"type": "object", "properties": {
             **_INPUT_PROPERTIES,
-            "horizon": {"type": "integer"},
+            "horizon": {**_HORIZON_PROPERTY, "description": (
+                "Future periods the eventual forecast will cover; determines "
+                "the fold cutoffs and forecast dates returned."
+            )},
         }, "required": ["input", "time_column", "target_column", "horizon"]},
         "runner": _run_covariate_guide,
     },
@@ -477,28 +529,34 @@ TOOLS: list[dict[str, Any]] = [
         "description": "Validate local covariate vintages for format, final-horizon coverage, and availability at every selection cutoff.",
         "inputSchema": {"type": "object", "properties": {
             **_INPUT_PROPERTIES,
-            "horizon": {"type": "integer"},
-            "covariates_file": {"type": "string"},
-            "covariate_mapping": {"type": "string"},
-            "covariate_time_column": {"type": "string"},
-            "covariate_known_at_column": {"type": "string"},
-            "covariate_series_column": {"type": "string"},
+            "horizon": _HORIZON_PROPERTY,
+            **_COVARIATE_PROPERTIES,
         }, "required": ["input", "time_column", "target_column", "horizon", "covariates_file", "covariate_mapping"]},
         "runner": _run_validate_covariates,
     },
     {
         "name": "gnomon_propose_covariates",
-        "description": "Evaluate a local point-in-time covariate proposal through leakage-safe ablation and produce a forecast only when it earns admission.",
+        "description": (
+            "Evaluate a local point-in-time covariate proposal through "
+            "leakage-safe ablation on identical folds. This is the "
+            "covariate-admission entry to the same evaluated forecast as "
+            "gnomon_forecast (one shared runner): the response is always a "
+            "full forecast payload, and whether the covariates were admitted "
+            "or rejected is disclosed in the result — a rejected proposal "
+            "still returns the covariate-free forecast."
+        ),
         "inputSchema": {"type": "object", "properties": {
             **_INPUT_PROPERTIES,
-            "horizon": {"type": "integer"},
-            "output_dir": {"type": "string"},
-            "minimum_baseline_improvement": {"type": "number", "minimum": 0},
-            "covariates_file": {"type": "string"},
-            "covariate_mapping": {"type": "string"},
-            "covariate_time_column": {"type": "string"},
-            "covariate_known_at_column": {"type": "string"},
-            "covariate_series_column": {"type": "string"},
+            "horizon": _HORIZON_PROPERTY,
+            "output_dir": {"type": "string", "description": (
+                "Directory for the immutable artifact (default "
+                "./gnomon-output relative to the server's working directory)."
+            )},
+            "minimum_baseline_improvement": {"type": "number", "minimum": 0, "description": (
+                "Minimum relative improvement over the strongest baseline to "
+                "select a candidate (default 0.02). Must be >= 0."
+            )},
+            **_COVARIATE_PROPERTIES,
         }, "required": ["input", "time_column", "target_column", "horizon", "covariates_file", "covariate_mapping"]},
         "runner": _run_forecast,
     },
@@ -533,9 +591,14 @@ TOOLS: list[dict[str, Any]] = [
         "name": "gnomon_record_decision",
         "description": ("DEPRECATED (v0.2 lifecycle) — prefer `gnomon_decide`, which produces a DecisionArtifact that `gnomon_resolve_outcome` scores against realised utility and regret. This pair records a free-text action and a later yes/no verdict, which cannot express \"a costly precaution was rational even though the adverse event never occurred\". Kept for v0.2 compatibility. Link an agent decision and expected outcome to a tracked forecast."),
         "inputSchema": {"type": "object", "properties": {
-            "decision_id": {"type": "string"}, "project": {"type": "string"},
-            "forecast_id": {"type": "string"}, "action": {"type": "string"},
-            "expected_outcome": {"type": "string"},
+            "decision_id": {"type": "string", "description": (
+                "Caller-minted stable identifier for this decision; pass the "
+                "same value to gnomon_resolve_decision later."
+            )},
+            "project": {"type": "string", "description": "Tracking project the forecast was registered in."},
+            "forecast_id": {"type": "string", "description": "forecast_id returned by gnomon_forecast."},
+            "action": {"type": "string", "description": "Free-text description of the action taken."},
+            "expected_outcome": {"type": "string", "description": "Free-text expected outcome, judged later by resolve."},
         }, "required": ["decision_id", "project", "forecast_id", "action", "expected_outcome"]},
         "runner": _run_record_decision,
     },
@@ -543,8 +606,9 @@ TOOLS: list[dict[str, Any]] = [
         "name": "gnomon_resolve_decision",
         "description": ("DEPRECATED (v0.2 lifecycle) — resolves records made by `gnomon_record_decision` only. Bare `correct` is retired: prefer `gnomon_decide` + `gnomon_resolve_outcome`, which report realised utility, regret against the best feasible action in hindsight, and ex-ante optimality separately. Record the realised business outcome and whether a previously recorded agent decision was correct."),
         "inputSchema": {"type": "object", "properties": {
-            "decision_id": {"type": "string"}, "actual_outcome": {"type": "string"},
-            "correct": {"type": "boolean"},
+            "decision_id": {"type": "string", "description": "The id passed to gnomon_record_decision."},
+            "actual_outcome": {"type": "string", "description": "Free-text realised outcome."},
+            "correct": {"type": "boolean", "description": "Whether the recorded decision proved correct."},
         }, "required": ["decision_id", "actual_outcome", "correct"]},
         "runner": _run_resolve_decision,
     },
@@ -688,7 +752,7 @@ def _run_decide(arguments: dict[str, Any]) -> dict[str, Any]:
 
 def _run_status(arguments: dict[str, Any]) -> dict[str, Any]:
     from .tracking import TrackingStore
-    return TrackingStore().status(arguments.get("project"))
+    return TrackingStore(create=False).status(arguments.get("project"))
 
 
 def _run_resolve_outcome(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -846,11 +910,18 @@ TOOLS.extend([
             "'correct' is retired."
         ),
         "inputSchema": {"type": "object", "properties": {
-            "decision_id": {"type": "string"},
-            "realised_scenario": {"type": "string", "description": "e.g. exceed / no_exceed."},
+            "decision_id": {"type": "string", "description": (
+                "decision_id from a gnomon_decide response (not one minted "
+                "for the deprecated gnomon_record_decision)."
+            )},
+            "realised_scenario": {"type": "string", "description": (
+                "Which scenario actually happened. Must be one of the "
+                "scenario keys the decision was computed over — for a "
+                "threshold decision, `exceed` or `no_exceed`."
+            )},
             "realised_utilities": {"type": "object", "description": "Optional per-action realised payoff."},
-            "constraint_violations": {"type": "array", "items": {"type": "string"}},
-            "note": {"type": "string"},
+            "constraint_violations": {"type": "array", "items": {"type": "string"}, "description": "Names of constraints that turned out violated."},
+            "note": {"type": "string", "description": "Optional free-text context for the resolution."},
         }, "required": ["decision_id"]},
         "runner": _run_resolve_outcome,
     },
@@ -868,11 +939,7 @@ TOOLS.extend([
             "narrows the contest but never decides it."
         ),
         "inputSchema": {"type": "object", "properties": {
-            "input": {"type": "string", "description": "Path to a CSV/Parquet file or store:<dataset>."},
-            "time_column": {"type": "string"},
-            "target_column": {"type": "string"},
-            "series_column": {"type": "string"},
-            "frequency": {"type": "string"},
+            **_INPUT_PROPERTIES,
             "task": {"type": "string", "enum": ["forecast", "detect_anomalies"],
                      "description": "Task to route (default forecast)."},
             "horizon": {"type": "integer", "description": "Forecast horizon (default 1)."},
@@ -897,9 +964,11 @@ TOOLS.extend([
     },
     {
         "name": "gnomon_proposer_skill",
-        "description": ("Shrunk per-proposer, per-event-type skill from "
-                        "resolved context-event proposals (realised lift vs "
-                        "the history-only counterfactual, in WAPE). "
+        "description": ("How good has each context-event proposer been? "
+                        "Read a per-proposer, per-event-type skill estimate "
+                        "from resolved context-event proposals (realised lift "
+                        "vs the history-only counterfactual, in WAPE, "
+                        "shrunk toward zero at low sample counts). "
                         "Observational; attribution is set-level because the "
                         "admission gate decides on event sets."),
         "inputSchema": {"type": "object", "properties": {

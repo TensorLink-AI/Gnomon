@@ -128,16 +128,18 @@ gnomon forecast examples/daily_requests.csv \
   --horizon 3 --frequency D --output ./gnomon-output
 ```
 
-The example produces a result like:
+On a terminal the example prints a human summary (in a pipe, or with
+`--format json`, the same run prints the full JSON payload instead — the
+on-disk artifact is identical either way):
 
 ```text
+Forecast forecast_f4dd0682f922aac2
 Support: supported
 Selected model: drift
-Strongest baseline: last_value
-
-2026-02-05  point=205  q10=205  q50=205  q90=205
-2026-02-06  point=208  q10=208  q50=208  q90=208
-2026-02-07  point=211  q10=211  q50=211  q90=211
+Forecast (3 of 3 rows; full series in forecast.csv):
+  2026-02-05T00:00:00  q50 205.0  [q10 205.0 - q90 205.0]
+  2026-02-06T00:00:00  q50 208.0  [q10 208.0 - q90 208.0]
+  2026-02-07T00:00:00  q50 211.0  [q10 211.0 - q90 211.0]
 ```
 
 The example is deliberately simple and perfectly linear, so its calibration
@@ -326,7 +328,11 @@ A packaged Hermes plugin lives in
 forecasting, context, realised scoring, lifecycle, and decision outcomes —
 including LLM-assisted context-event proposal run on the host's own model —
 plus an `gnomon:forecasting` safe-use skill. Any MCP-capable agent can
-instead launch `gnomon mcp serve` and discover the same tools over stdio.
+instead launch `gnomon mcp serve`, which exposes the full tool surface over
+stdio (the plugin carries a subset, plus the LLM-assisted
+`gnomon_propose_context_events`, which needs the host's model and so has no
+MCP equivalent); `gnomon capabilities` lists this build's tools under
+`tools.mcp`.
 Either way the host must preserve Gnomon's support status and warnings and
 must never manufacture values for an unsupported series. Gnomon itself
 requires no LLM or API key.

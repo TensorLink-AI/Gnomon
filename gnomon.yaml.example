@@ -9,6 +9,16 @@
 #
 # Every section is optional. Gnomon works with no config file at all
 # (uses sensible defaults: baselines + drift, no TSFMs, no ensemble).
+#
+# Scope — where this file is honoured:
+#   - `gnomon forecast`, `gnomon decide`, `gnomon monitor` (the verbs that
+#     run an evaluated forecast), and the Python API's `config=` parameter.
+#   - `gnomon investigate` and `gnomon detect` are operator-based and take
+#     no model configuration; nothing here changes them.
+#   - MCP tool calls never read this file: their behaviour comes entirely
+#     from tool parameters and build defaults.
+# A key that cannot be honoured fails at load time rather than being
+# silently ignored; the same applies to the whole file if PyYAML is absent.
 
 # ---------------------------------------------------------------------------
 # Models — which models run as candidates during evaluation
@@ -248,6 +258,29 @@ evaluation:
     # always meant; changing it changes which residual order statistics are
     # emitted as the bounds.
     target_coverage: 0.80
+
+  # Fixed calibration thresholds (not configurable — listed so their
+  # two-tier design is documented somewhere a user reads, not only in
+  # source comments):
+  #
+  #   - Measured coverage below 70% of nominal adds a warning, so the run
+  #     is at most weakly_supported. Its intervals still carry probability
+  #     weight.
+  #   - Measured coverage below 50% additionally fails the verifier's
+  #     calibration gate: probability-bearing claims are stripped and the
+  #     support assessment says the intervals do not carry probability
+  #     weight. A run at 0.6 is warned but verifies; at 0.4 it is warned
+  #     AND stripped. The verifier band is wide because the measurement is
+  #     one test fold of `horizon` points; it exists to catch calibration
+  #     that is plainly broken, not sample noise.
+  #
+  # Other fixed guardrails a run may cite in its warnings: a candidate on a
+  # single selection fold must beat the strongest baseline by 75% to be
+  # selected (the short-history guardrail); each lead time needs 8
+  # residuals to measure its own interval width, else leads pool; repairs
+  # may touch at most 30% of a series' rows (and drop at most 5% under
+  # aggressive); anomaly detection needs 16 observations and defaults to a
+  # robust z-score threshold of 3.5.
 
 # ---------------------------------------------------------------------------
 # Context — how proposed context events may enter a forecast

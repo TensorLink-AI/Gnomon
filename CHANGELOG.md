@@ -2,6 +2,68 @@
 
 ## Unreleased
 
+- **A human surface for `gnomon forecast`.** `--format human` (and `auto`,
+  the new default: human on a terminal, JSON in a pipe) renders support,
+  the forecast rows, warnings, recovery actions, and assumptions as text;
+  an abstention prints `NO FORECAST PUBLISHED` with its computed retry.
+  `summary.md` for forecasts now carries the numbers (a q50/q10/q90 table),
+  the reasons, and the recovery actions the other verbs already rendered.
+  Ctrl-C during a backtest exits 130 with a one-line message instead of a
+  traceback. The README's quickstart output block now shows output the CLI
+  actually produces.
+
+- **The MCP surface explains itself.** `initialize` returns `instructions`
+  (the safe-use workflow that previously lived only in the Hermes skill:
+  the four verbs, preserve-abstention, never invent numbers, business
+  inputs come from the user, tool calls never read gnomon.yaml). Every
+  tool carries `readOnlyHint`/`destructiveHint` annotations. The envelope
+  schema publishes both support vocabularies (derived from the contracts
+  Literals, so they cannot drift), documents that `status` is not an
+  abstention signal, and no longer declares a four-value `status` enum
+  that a fifth real value would violate. `INVALID_ARGUMENTS` now populates
+  the `details.missing_arguments` its repair option points at.
+  Undocumented tool parameters got descriptions (covariate grammar,
+  decision ids, route inputs); `gnomon_propose_covariates` discloses that
+  it is the covariate-admission entry to the same runner as
+  `gnomon_forecast` and always returns a forecast payload.
+
+- **Config scope is wired and disclosed.** `gnomon decide` and
+  `gnomon monitor` accept `--config` and pass it to their embedded
+  forecast. A config file that exists but cannot be parsed (PyYAML absent)
+  now refuses with `MISSING_OPTIONAL_DEPENDENCY` instead of silently
+  running on defaults — the INERT_KEYS rule applied to the whole file. An
+  explicit `--config` path that does not exist is `CONFIG_NOT_FOUND`, not
+  a `TRACKING_ERROR`. `gnomon.yaml.example` states where the file is
+  honoured and that MCP calls never read it.
+
+- **Read paths no longer create state.** A failing `forecast store:x`, a
+  `gnomon status`, or a listing on a registry that was never written no
+  longer materialises `temporal.db`/`registry.db` under `~/.local/share`;
+  stores are created by writes only.
+
+- **CLI footguns closed.** `track score` resolves actuals columns exactly
+  like `track actuals` (named flags, conventional names, refusal over a
+  blind positional guess) and reports rows it skipped. `--ensemble` no
+  longer silently overrides an explicit `--selection-strategy best` — the
+  contradiction is an error. `--store-path` with a multi-target run is
+  rejected instead of silently dropped. `tsfm install-all` asks before its
+  multi-GB downloads (`--yes` for scripts); `tsfm remove` says when there
+  was nothing to remove. `track export` refuses to overwrite without
+  `--force`. `DUPLICATE_TIMESTAMPS` on a panel file now names
+  `--series` as the first repair option, before the one that would
+  collapse a series.
+
+- **Calibration thresholds named and documented.** The 70% coverage
+  warning literal, previously duplicated across four modules, is
+  `COVERAGE_WARNING_THRESHOLD` with one shared message; the two-tier
+  design (warn below 70%, strip probability weight below 50%) and the
+  other fixed guardrails are documented in `gnomon.yaml.example`.
+
+- **`gnomon capabilities` reports the tool surface** (`tools.mcp`,
+  `tools.mcp_count`), so the README's tool count is checkable against the
+  command that is the source of truth; the README no longer claims the
+  Hermes plugin and MCP expose "the same tools".
+
 - **General frequencies: any whole-second sub-daily step.** The named grid
   is now a set of defaults rather than the boundary. Inference accepts any
   strictly regular series — one unique spacing — at a whole-second step

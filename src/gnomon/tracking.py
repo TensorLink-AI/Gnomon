@@ -485,10 +485,20 @@ PROPOSER_SKILL_SHRINKAGE = 10.0
 class TrackingStore:
     """SQLite-backed forecast registry and scoring store."""
 
-    def __init__(self, path: str | Path | None = None):
+    def __init__(self, path: str | Path | None = None, *, create: bool = True):
         self.path = Path(path) if path else DEFAULT_REGISTRY_PATH
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._init_db()
+        # create=False is for read-only callers (status, listings): when the
+        # registry has never been written, they run against an empty
+        # in-memory schema instead of materialising a registry.db as a side
+        # effect of looking at it. Writers keep the default and create it.
+        self._memory_conn: sqlite3.Connection | None = None
+        if not create and not self.path.is_file():
+            self._memory_conn = sqlite3.connect(":memory:")
+            self._memory_conn.row_factory = sqlite3.Row
+            self._init_db()
+        else:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            self._init_db()
 
     def _init_db(self) -> None:
         with self._connect() as conn:
@@ -568,6 +578,10 @@ class TrackingStore:
 
     @contextmanager
     def _connect(self, foreign_keys: bool = True) -> Iterator[sqlite3.Connection]:
+        if self._memory_conn is not None:
+            yield self._memory_conn
+            self._memory_conn.commit()
+            return
         conn = sqlite3.connect(str(self.path), timeout=5.0)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA busy_timeout = 5000")

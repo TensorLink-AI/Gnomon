@@ -864,6 +864,21 @@ def _has_module(name: str) -> bool:
     return find_spec(name) is not None
 
 
+def _tool_surface() -> dict[str, object]:
+    from .toolspec import visible_tools
+    names = [tool["name"] for tool in visible_tools()]
+    return {
+        "mcp": names,
+        "mcp_count": len(names),
+        "note": (
+            "The stdio MCP surface (`gnomon mcp serve`). The Hermes plugin "
+            "(plugin.yaml) exposes a subset of these plus "
+            "gnomon_propose_context_events, which needs the host's LLM and "
+            "so has no MCP equivalent."
+        ),
+    }
+
+
 def capabilities() -> dict[str, object]:
     try:
         import pyarrow  # type: ignore[import-not-found]  # noqa: F401
@@ -908,9 +923,9 @@ def capabilities() -> dict[str, object]:
                 "flag": "context.future_events",
                 "default": "off",
                 # The loaded config file's setting. Config is honoured where
-                # config is consumed: `gnomon forecast` (with or without
-                # --config) and the Python API's `config=` parameter. MCP
-                # tool calls and the decide/monitor macros do not read
+                # config is consumed: `gnomon forecast`, `gnomon decide`,
+                # `gnomon monitor` (with or without --config) and the Python
+                # API's `config=` parameter. MCP tool calls do not read
                 # gnomon.yaml — for any setting, not only this one — so the
                 # lane is off there regardless of this value.
                 "enabled_in_config": future_events_on,
@@ -973,6 +988,10 @@ def capabilities() -> dict[str, object]:
             ),
         },
         "experimental": {"planner": os.environ.get("GNOMON_EXPERIMENTAL_PLANNER") == "1"},
+        # The MCP tool surface of this build, so "N tools" claims are
+        # checkable against this command rather than against prose. Local
+        # import: toolspec imports runtime, so the reverse edge must be lazy.
+        "tools": _tool_surface(),
         "features": {
             "inspection": True, "forecasting": True, "separated_evaluation": True,
             "investigate_change": True, "decide": True, "monitor": True,

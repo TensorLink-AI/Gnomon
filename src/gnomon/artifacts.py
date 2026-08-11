@@ -102,8 +102,36 @@ def write_artifact(
             # Correct-but-surprising facts read here or nowhere: a human
             # reading summary.md is exactly the reader who would otherwise
             # take `point` for the median or a flat interval for a bug.
-            for disclosure in (result.support_assessment or {}).get("disclosures", []):
+            assessment = result.support_assessment or {}
+            for disclosure in assessment.get("disclosures", []):
                 lines.append(f"- Disclosure ({disclosure['code']}): {disclosure['message']}")
+            # Reasons and recovery actions render here exactly as they do
+            # for the other verbs (_macro_summary): the person reading an
+            # abstention deserves the computed next step, not only the
+            # diagnosis. Reasons that restate a warning verbatim are
+            # skipped rather than repeated.
+            for reason in assessment.get("reasons", []):
+                if reason["message"] not in result.warnings:
+                    lines.append(f"- Reason ({reason['code']}): {reason['message']}")
+            for action in assessment.get("recovery_actions", []):
+                lines.append(f"- Next ({action['code']}): {action['message']}")
+            if result.forecast:
+                shown = result.forecast[:24]
+                lines.extend([
+                    "", "### Forecast", "",
+                    "| timestamp | q50 | q10 | q90 |",
+                    "| --- | --- | --- | --- |",
+                ])
+                lines.extend(
+                    f"| {row['timestamp']} | {row['q50']} | {row['q10']} "
+                    f"| {row['q90']} |"
+                    for row in shown
+                )
+                if len(result.forecast) > len(shown):
+                    lines.append(
+                        f"\n… {len(result.forecast) - len(shown)} more "
+                        "rows in forecast.csv."
+                    )
             if result.threshold:
                 lines.extend([
                     "", f"### Threshold {result.threshold['value']}", "",

@@ -192,7 +192,12 @@ def find_config(explicit_path: str | None = None) -> Path | None:
         p = Path(explicit_path).expanduser()
         if p.is_file():
             return p
-        raise FileNotFoundError(f"Config file not found: {p}")
+        from .contracts import GnomonError
+        raise GnomonError(
+            "CONFIG_NOT_FOUND",
+            f"Config file not found: {p}",
+            {"path": str(p)},
+        )
 
     env_path = os.environ.get("GNOMON_CONFIG_PATH")
     if env_path:
@@ -216,8 +221,16 @@ def load_config(explicit_path: str | None = None) -> GnomonConfig:
     try:
         import yaml
     except ImportError:
-        # No PyYAML — can't parse config, use defaults
-        return DEFAULT_CONFIG
+        # A config file exists but cannot be parsed — refusing beats
+        # silently running on defaults the user explicitly overrode. The
+        # same rule INERT_KEYS enforces per key applies to the whole file.
+        from .contracts import GnomonError
+        raise GnomonError(
+            "MISSING_OPTIONAL_DEPENDENCY",
+            f"A config file was found at {path} but PyYAML is not "
+            "installed, so none of its settings can be honoured.",
+            {"config_path": str(path), "install": "pip install pyyaml"},
+        )
 
     with open(path) as f:
         raw = yaml.safe_load(f) or {}

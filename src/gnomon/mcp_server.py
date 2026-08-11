@@ -13,15 +13,49 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from typing import Any, TextIO
+from typing import Any, TextIO, get_args
 
-from .contracts import GnomonError
-from .toolspec import runner_for, visible_tools
+from .contracts import GnomonError, Support, SupportStatus
+from .toolspec import READ_ONLY_TOOLS, runner_for, visible_tools
 
 logger = logging.getLogger(__name__)
 
 PROTOCOL_VERSION = "2025-06-18"
 SERVER_INFO = {"name": "gnomon", "version": "0.5.0"}
+
+#: Both support vocabularies, published in the envelope schema so an agent
+#: can branch on them without reading source. Derived from the contracts
+#: Literals, so the schema cannot drift from the runtime.
+SUPPORT_VALUES = list(get_args(Support))
+SUPPORT_STATUS_VALUES = list(get_args(SupportStatus))
+
+_SUPPORT_ASSESSMENT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "status": {
+            "type": "string",
+            "enum": SUPPORT_STATUS_VALUES,
+            "description": (
+                "The harness support vocabulary. 'inconclusive' and "
+                "'unsupported' are conclusions to be reported verbatim, "
+                "never softened to 'low confidence' or replaced with an "
+                "estimate."
+            ),
+        },
+        "reasons": {"type": "array", "items": {"type": "object"}},
+        "assumptions": {"type": "array", "items": {"type": "string"}},
+        "recovery_actions": {
+            "type": "array",
+            "items": {"type": "object"},
+            "description": "Typed {code, message} next steps when a result is not fully supported.",
+        },
+        "disclosures": {
+            "type": "array",
+            "items": {"type": "object"},
+            "description": "Caveats that never change status; distinct from reasons.",
+        },
+    },
+}
 
 #: The shape every tool result shares. Tools may publish something tighter
 #: via an `outputSchema` key in their spec; this is the floor, and it is
@@ -30,7 +64,18 @@ ENVELOPE_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "schema_version": {"type": "string"},
-        "status": {"type": "string", "enum": ["ok", "error", "complete", "partial"]},
+        "status": {
+            "type": "string",
+            # Not an enum: success values legitimately vary by tool
+            # ('complete', 'ok', 'valid', 'supported', ...). Only 'error'
+            # is load-bearing at the envelope level.
+            "description": (
+                "'error' accompanies a structured error; success values "
+                "vary by tool. Not an abstention signal — a forecast that "
+                "abstains still reports 'complete'; read each "
+                "results[].support_assessment.status."
+            ),
+        },
         "error": {
             "type": "object",
             "properties": {
@@ -42,10 +87,59 @@ ENVELOPE_SCHEMA: dict[str, Any] = {
             },
             "required": ["code", "message"],
         },
-        "support_assessment": {"type": "object"},
+        "results": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "support": {
+                        "type": "string",
+                        "enum": SUPPORT_VALUES,
+                        "description": (
+                            "Frozen v0.2 support enum, kept for "
+                            "compatibility; prefer "
+                            "support_assessment.status."
+                        ),
+                    },
+                    "support_assessment": _SUPPORT_ASSESSMENT_SCHEMA,
+                },
+            },
+        },
+        "support_assessment": _SUPPORT_ASSESSMENT_SCHEMA,
         "artifact_path": {"type": "string"},
     },
 }
+
+#: Served from `initialize` so a bare MCP client gets the safe-use workflow
+#: without the Hermes skill file. Condensed from skills/forecasting/SKILL.md.
+INSTRUCTIONS = """\
+Gnomon answers temporal questions; you formulate the objective and explain \
+the evidence. Gnomon owns every number, interval, probability, selection, \
+warning, and support status.
+
+The four verbs: What changed? -> gnomon_investigate_change. What happens \
+next? -> gnomon_forecast. What should we do? -> gnomon_decide. When should \
+we intervene? -> gnomon_monitor.
+
+Workflow: gnomon_capabilities once if unsure what is installed -> \
+gnomon_inspect when mappings or data quality are uncertain -> the verb tool \
+-> quote numbers verbatim from the response or the returned artifact_path \
+(gnomon_get_artifact, gnomon_explain_run). Track consequential runs with a \
+project; close the loop with gnomon_submit_actuals and gnomon_resolve_outcome.
+
+Hard rules: never invent, adjust, or extrapolate any number — if it is not \
+in a Gnomon artifact, it does not exist. Preserve abstention: 'unsupported' \
+and 'inconclusive' are conclusions; report them with Gnomon's reasons, never \
+soften them or substitute your own estimate. Surface every warning and the \
+support_assessment even when the user only asked for numbers. Do not infer \
+business thresholds or costs (gnomon_decide, gnomon_monitor) — ask the user, \
+or omit that analysis. Never hand-clean data; use gnomon_inspect and the \
+repair parameter so fixes stay disclosed. Errors carry repair_options: \
+follow one or ask the user rather than improvising.
+
+Tool calls never read gnomon.yaml: behaviour comes entirely from tool \
+parameters and build defaults (discover them with gnomon_capabilities). A \
+config file on the server's disk does not affect MCP results."""
 
 
 def _tool_result(payload: dict[str, Any], is_error: bool) -> dict[str, Any]:
@@ -76,6 +170,7 @@ def _handle(message: dict[str, Any]) -> dict[str, Any] | None:
             "protocolVersion": requested or PROTOCOL_VERSION,
             "capabilities": {"tools": {}},
             "serverInfo": SERVER_INFO,
+            "instructions": INSTRUCTIONS,
         }
     if method == "ping":
         return {}
@@ -89,6 +184,13 @@ def _handle(message: dict[str, Any]) -> dict[str, Any] | None:
                     # Published so a client can validate `structuredContent`
                     # rather than trusting it.
                     "outputSchema": tool.get("outputSchema", ENVELOPE_SCHEMA),
+                    # Writes are append-only (immutable artifacts, vintage
+                    # accumulation), so nothing here is destructive — but a
+                    # host should still know which tools mutate state at all.
+                    "annotations": {
+                        "readOnlyHint": tool["name"] in READ_ONLY_TOOLS,
+                        "destructiveHint": False,
+                    },
                 }
                 for tool in visible_tools()
             ]
@@ -107,8 +209,14 @@ def _handle(message: dict[str, Any]) -> dict[str, Any] | None:
         except GnomonError as exc:
             return _tool_result(exc.to_dict(), True)
         except KeyError as exc:
+            # details.missing_arguments is what the repair option points at;
+            # an empty details would make that guidance a dead reference.
             return _tool_result(
-                GnomonError("INVALID_ARGUMENTS", f"Missing required argument: {exc.args[0]}").to_dict(),
+                GnomonError(
+                    "INVALID_ARGUMENTS",
+                    f"Missing required argument: {exc.args[0]}",
+                    {"missing_arguments": [str(exc.args[0])]},
+                ).to_dict(),
                 True,
             )
         except (ValueError, FileNotFoundError) as exc:

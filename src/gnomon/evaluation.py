@@ -1286,8 +1286,10 @@ def evaluate(
             low, _, high = interval_from_spread(prediction, spread)
             covered.append(1.0 if low <= actual <= high else 0.0)
         coverage = mean(covered) if covered else None
-        if coverage is not None and coverage < 0.7:
-            warnings.append(f"Final-test 80% interval coverage was {coverage:.1%}, below 70%.")
+        from .contracts import coverage_warning
+        low_coverage = coverage_warning(coverage)
+        if low_coverage:
+            warnings.append(low_coverage)
     else:
         warnings.append(
             "Limited evaluation: no held-out test fold remained, so interval "

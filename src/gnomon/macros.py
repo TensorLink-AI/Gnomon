@@ -355,6 +355,7 @@ def decide(
     project: str | None = None,
     output: str = "gnomon-output",
     store_path: str | None = None,
+    config: Any = None,
     clock: Clock | None = None,
 ) -> tuple[dict[str, Any], Path]:
     """Scenario generation → feasible actions → uncertainty propagation →
@@ -367,7 +368,7 @@ def decide(
         input_path, time_column=time_column, target_column=target_column,
         horizon=horizon, series_column=series_column, frequency=frequency,
         threshold=threshold, output=output, as_of=as_of,
-        store_path=store_path, clock=clock,
+        store_path=store_path, config=config, clock=clock,
     )
     candidates = [item for item in artifact.results
                   if series_name is None or item.series == series_name]
@@ -578,6 +579,7 @@ def monitor(
     project: str | None = None,
     output: str = "gnomon-output",
     store_path: str | None = None,
+    config: Any = None,
     clock: Clock | None = None,
 ) -> tuple[dict[str, Any], Path]:
     """Trigger definition → sequential risk estimation → alert-cost-aware
@@ -588,7 +590,7 @@ def monitor(
         input_path, time_column=time_column, target_column=target_column,
         horizon=horizon, series_column=series_column, frequency=frequency,
         threshold=threshold, output=output, as_of=as_of,
-        store_path=store_path, clock=clock,
+        store_path=store_path, config=config, clock=clock,
     )
     task = TemporalTask(
         objective=f"Monitor {target_column} for exceedance of {threshold}",

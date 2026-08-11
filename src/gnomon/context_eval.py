@@ -479,8 +479,8 @@ def assess_context(
             plain + assessment.shrinkage * (adjusted - plain)
             for plain, adjusted in zip(history_only, assessment.points)
         ]
-    if assessment.coverage < 0.7:
-        assessment.warnings.append(
-            f"Final-test 80% interval coverage was {assessment.coverage:.1%}, below 70%."
-        )
+    from .contracts import coverage_warning
+    low_coverage = coverage_warning(assessment.coverage)
+    if low_coverage:
+        assessment.warnings.append(low_coverage)
     return assessment

@@ -567,10 +567,10 @@ def assess_covariates(
             predicted + low <= actual <= predicted + high
             for actual, predicted in zip(values[test_origin:test_origin + horizon], test)
         )
-        if assessment.coverage < 0.7:
-            assessment.warnings.append(
-                f"Final-test 80% interval coverage was {assessment.coverage:.1%}, below 70%."
-            )
+        from .contracts import coverage_warning
+        low_coverage = coverage_warning(assessment.coverage)
+        if low_coverage:
+            assessment.warnings.append(low_coverage)
     assessment.points = final
     assessment.admitted = True
     return assessment

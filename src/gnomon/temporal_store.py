@@ -284,6 +284,11 @@ class TemporalStore:
 
     def __init__(self, path: str | Path | None = None):
         self.path = Path(path) if path else DEFAULT_STORE_PATH
+
+    def _ensure_schema(self) -> None:
+        # Called by writes only: a read of a store that was never written
+        # must not leave an empty temporal.db behind (a failing
+        # `forecast store:x` used to create one as a side effect).
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as conn:
             conn.executescript("""
@@ -348,6 +353,7 @@ class TemporalStore:
         clock: Clock | None = None,
     ) -> IngestReport:
         clock = clock or SYSTEM_CLOCK
+        self._ensure_schema()
         ingest_id = content_id("ingest", {
             "dataset": dataset,
             "source": source_fingerprint,
@@ -474,6 +480,12 @@ class TemporalStore:
     # -- reads ------------------------------------------------------------
 
     def _load_dataset(self, dataset: str) -> list[TemporalObservation]:
+        if not self.path.is_file():
+            raise GnomonError(
+                "DATASET_NOT_FOUND",
+                f"No dataset named {dataset!r} in the temporal store.",
+                {"available": []},
+            )
         with self._connect() as conn:
             rows = conn.execute(
                 "SELECT entity, variable, valid_time, known_time, value, revision, source_ref "
@@ -548,6 +560,8 @@ class TemporalStore:
         })
 
     def list_datasets(self) -> list[dict[str, object]]:
+        if not self.path.is_file():
+            return []
         with self._connect() as conn:
             rows = conn.execute(
                 "SELECT dataset, COUNT(*) AS observations, "

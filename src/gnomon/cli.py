@@ -150,6 +150,15 @@ def build_parser() -> argparse.ArgumentParser:
              "written to disk unchanged; only stdout shrinks.",
     )
     forecast_parser.add_argument(
+        "--format", dest="output_format",
+        choices=("auto", "json", "human"), default="auto",
+        help="Stdout rendering (default auto): human prints a terminal "
+             "summary — support, numbers, warnings, recovery steps; json "
+             "prints the machine payload; auto picks human on a terminal "
+             "and json in a pipe. The artifact on disk is identical either "
+             "way.",
+    )
+    forecast_parser.add_argument(
         "--output", default="gnomon-output",
         help="Artifact directory (default ./gnomon-output, relative to the "
              "working directory — so a run from inside a clone writes into "
@@ -240,7 +249,7 @@ def build_parser() -> argparse.ArgumentParser:
              "mandatory baselines always compete regardless.",
     )
     forecast_parser.add_argument(
-        "--selection-strategy", choices=("best", "ensemble"), default="best",
+        "--selection-strategy", choices=("best", "ensemble"), default=None,
         help="best (default) publishes the model that won the backtest; "
              "ensemble forces the ensemble and discloses whether it "
              "actually beat the strongest baseline",
@@ -350,8 +359,15 @@ def build_parser() -> argparse.ArgumentParser:
     decide_parser.add_argument("--series-name", dest="series_name")
     decide_parser.add_argument("--project", help="Record a DecisionArtifact in this tracking project")
     decide_parser.add_argument("--as-of", dest="as_of")
-    decide_parser.add_argument("--output", default="gnomon-output")
-    decide_parser.add_argument("--store-path", dest="store_path")
+    decide_parser.add_argument("--output", default="gnomon-output",
+                               help="Artifact directory (default ./gnomon-output)")
+    decide_parser.add_argument("--store-path", dest="store_path",
+                               help="Temporal-store path for store:<dataset> inputs")
+    decide_parser.add_argument(
+        "--config", default=None,
+        help="Path to gnomon.yaml for the embedded forecast (models, "
+             "ensemble, backends); also found at ./gnomon.yaml when omitted",
+    )
 
     monitor_parser = subcommands.add_parser(
         "monitor", help="When should we intervene? Sequential risk and a cost-aware alert rule"
@@ -363,8 +379,15 @@ def build_parser() -> argparse.ArgumentParser:
     monitor_parser.add_argument("--miss-cost", type=float, dest="miss_cost")
     monitor_parser.add_argument("--project")
     monitor_parser.add_argument("--as-of", dest="as_of")
-    monitor_parser.add_argument("--output", default="gnomon-output")
-    monitor_parser.add_argument("--store-path", dest="store_path")
+    monitor_parser.add_argument("--output", default="gnomon-output",
+                                help="Artifact directory (default ./gnomon-output)")
+    monitor_parser.add_argument("--store-path", dest="store_path",
+                                help="Temporal-store path for store:<dataset> inputs")
+    monitor_parser.add_argument(
+        "--config", default=None,
+        help="Path to gnomon.yaml for the embedded forecast (models, "
+             "ensemble, backends); also found at ./gnomon.yaml when omitted",
+    )
 
     plan_parser = subcommands.add_parser(
         "plan", help="Experimental: compile, validate, and execute TemporalPlans"
@@ -434,6 +457,11 @@ def build_parser() -> argparse.ArgumentParser:
     tsfm_install_all = tsfm_commands.add_parser(
         "install-all", help="Create sandboxed venvs for all known TSFMs"
     )
+    tsfm_install_all.add_argument(
+        "--yes", action="store_true",
+        help="Proceed without the confirmation prompt (each sandbox is its "
+             "own venv with its own torch — a multi-GB download per model)",
+    )
 
     # --- Tracking ---
     track_parser = subcommands.add_parser(
@@ -474,8 +502,19 @@ def build_parser() -> argparse.ArgumentParser:
     track_score = track_commands.add_parser(
         "score", help="Score a single forecast against actuals"
     )
-    track_score.add_argument("--forecast-id", required=True)
+    track_score.add_argument("--forecast-id", required=True,
+                             help="forecast_id from `gnomon track list`")
     track_score.add_argument("--file", required=True, help="CSV file with actual values")
+    # Explicit, like `track actuals` — the same positional guess this pair
+    # of flags replaced there turned a reordered export into silent zeros.
+    track_score.add_argument(
+        "--time", dest="score_time",
+        help="Timestamp column in the actuals file (inferred when obvious)",
+    )
+    track_score.add_argument(
+        "--target", dest="score_target",
+        help="Value column in the actuals file (inferred when obvious)",
+    )
 
     track_compare = track_commands.add_parser(
         "compare", help="Compare scored forecasts"
@@ -568,8 +607,11 @@ def build_parser() -> argparse.ArgumentParser:
     track_outcome.add_argument("--note")
 
     track_export = track_commands.add_parser("export", help="Export registry metadata as JSON")
-    track_export.add_argument("--project", default=None)
-    track_export.add_argument("--output", required=True)
+    track_export.add_argument("--project", default=None, help="Limit the export to one project")
+    track_export.add_argument("--output", required=True,
+                              help="File to write the JSON export to")
+    track_export.add_argument("--force", action="store_true",
+                              help="Overwrite --output if it already exists")
     track_relocate = track_commands.add_parser("relocate", help="Update a moved artifact path")
     track_relocate.add_argument("--forecast-id", required=True)
     track_relocate.add_argument("--artifact-path", required=True)
@@ -629,6 +671,89 @@ ACTIONS_EXAMPLE = (
     '[{"name": "scale_up", "feasible": true, "residual_risk": 0.1}, '
     '{"name": "do_nothing"}]'
 )
+
+
+def _render_human_forecast(payload: dict[str, Any]) -> str:
+    """A terminal rendering of the forecast summary payload.
+
+    Same facts as the JSON — support, warnings, recovery actions, and the
+    numbers — laid out for a person. Never a substitute surface: the JSON
+    and the on-disk artifact stay authoritative, and nothing here appears
+    that is not in them."""
+    lines: list[str] = [f"Forecast {payload.get('forecast_id', '')}".rstrip()]
+    for result in payload.get("results", []):
+        series = result.get("series")
+        if series and series != "__default__":
+            lines.extend(["", f"== {series}"])
+        assessment = result.get("support_assessment") or {}
+        status = assessment.get("status")
+        support = result.get("support")
+        # Both vocabularies only when they differ; "supported (supported)"
+        # says nothing twice.
+        if status and status != support:
+            lines.append(f"Support: {support} ({status})")
+        else:
+            lines.append(f"Support: {support}")
+        if result.get("selected_model"):
+            lines.append(f"Selected model: {result['selected_model']}")
+        preview = result.get("forecast_preview") or []
+        total = result.get("forecast_rows", len(preview))
+        if preview:
+            lines.append(
+                f"Forecast ({'first ' if len(preview) < total else ''}"
+                f"{len(preview)} of {total} rows; full series in "
+                "forecast.csv):"
+            )
+            for row in preview:
+                lines.append(
+                    f"  {row.get('timestamp')}  q50 {row.get('q50')}"
+                    f"  [q10 {row.get('q10')} - q90 {row.get('q90')}]"
+                )
+        else:
+            lines.append("NO FORECAST PUBLISHED for this series.")
+        for reason in assessment.get("reasons", []):
+            lines.append(f"Reason ({reason['code']}): {reason['message']}")
+        warnings = result.get("warnings") or []
+        if warnings:
+            lines.append(f"Warnings ({len(warnings)}):")
+            lines.extend(f"  - {warning}" for warning in warnings)
+        for action in assessment.get("recovery_actions", []):
+            lines.append(f"Next ({action['code']}): {action['message']}")
+        for assumption in assessment.get("assumptions", []):
+            lines.append(f"Assumed: {assumption}")
+        threshold = result.get("threshold")
+        if threshold:
+            lines.append(
+                f"Threshold {threshold.get('value')}: peak probability "
+                f"above is {max(threshold.get('probability_above', [0.0])):.1%}"
+            )
+    artifact_path = payload.get("artifact_path")
+    if artifact_path:
+        lines.extend([
+            "",
+            f"Artifact: {artifact_path}",
+            "  (artifact.json, forecast.csv, summary.md, lineage.json — "
+            "every number above, with evidence)",
+        ])
+    return "\n".join(lines)
+
+
+def _resolve_selection_strategy(args: argparse.Namespace) -> str:
+    """`--ensemble` is the hidden legacy spelling of `--selection-strategy
+    ensemble`. It must never silently override an explicit choice — the two
+    flags contradicting each other is the user's mistake to resolve, not
+    Gnomon's to guess."""
+    if args.ensemble and args.selection_strategy == "best":
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "--ensemble contradicts --selection-strategy best; drop one "
+            "(--ensemble is the legacy spelling of --selection-strategy "
+            "ensemble).",
+            {"conflicting_flags": ["--ensemble", "--selection-strategy"]},
+        )
+    if args.ensemble:
+        return "ensemble"
+    return args.selection_strategy or "best"
 
 
 def _validate_actions(actions: Any) -> list[dict[str, Any]]:
@@ -974,6 +1099,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             ), indent=2, allow_nan=False))
             return 0
         if args.command == "decide":
+            from .config import load_config
             from .macros import decide
 
             payload, path = decide(
@@ -987,6 +1113,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 frequency=args.frequency, as_of=_parse_as_of(args.as_of),
                 project=args.project,
                 output=args.output, store_path=args.store_path,
+                config=load_config(getattr(args, "config", None)),
             )
             print(json.dumps(_disclose_assumptions(
                 {**payload, "artifact_path": str(path)}, schema_assumptions,
@@ -994,9 +1121,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         if args.command == "status":
             from .tracking import TrackingStore
-            print(json.dumps(TrackingStore().status(args.project), indent=2, allow_nan=False))
+            print(json.dumps(TrackingStore(create=False).status(args.project), indent=2, allow_nan=False))
             return 0
         if args.command == "monitor":
+            from .config import load_config
             from .macros import monitor
 
             payload, path = monitor(
@@ -1007,6 +1135,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 frequency=args.frequency, as_of=_parse_as_of(args.as_of),
                 project=args.project, output=args.output,
                 store_path=args.store_path,
+                config=load_config(getattr(args, "config", None)),
             )
             print(json.dumps(_disclose_assumptions(
                 {**payload, "artifact_path": str(path)}, schema_assumptions,
@@ -1104,10 +1233,46 @@ def main(argv: Sequence[str] | None = None) -> int:
                     return 2
             elif args.tsfm_command == "remove":
                 name = args.name
+                # Removing a sandbox that never existed is not a success to
+                # report as one; say what actually happened.
+                existed = name in list_sandboxes()
                 remove_sandbox(name)
-                print(json.dumps({"status": "ok", "removed": name}, indent=2))
+                payload: dict[str, Any] = {
+                    "status": "ok", "removed": name if existed else None,
+                }
+                if not existed:
+                    payload["note"] = (
+                        f"No sandbox named {name!r} was installed; "
+                        "nothing was removed."
+                    )
+                print(json.dumps(payload, indent=2))
                 return 0
             elif args.tsfm_command == "install-all":
+                count = len(TSFM_PIP_SPECS)
+                if not args.yes:
+                    if sys.stdin.isatty():
+                        try:
+                            reply = input(
+                                f"Install {count} sandboxed TSFMs? Each is "
+                                "its own venv with its own torch — a "
+                                "multi-GB download per model. [y/N] "
+                            )
+                        except EOFError:
+                            reply = ""
+                        if reply.strip().lower() not in {"y", "yes"}:
+                            print(json.dumps({
+                                "status": "cancelled",
+                                "note": "No sandbox was created.",
+                            }, indent=2))
+                            return 0
+                    else:
+                        raise GnomonError(
+                            "INVALID_ARGUMENTS",
+                            f"install-all creates {count} sandboxes (a "
+                            "multi-GB download per model) and needs --yes "
+                            "when there is no terminal to confirm on.",
+                            {"required_flag": "--yes"},
+                        )
                 results = {}
                 for name in TSFM_PIP_SPECS:
                     print(f"Creating sandbox for {name}...", file=sys.stderr)
@@ -1120,7 +1285,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return 0
         if args.command == "track":
             from .tracking import TrackingStore
-            store = TrackingStore()
+            # Listings on a registry that was never written should not
+            # create one; only the recording subcommands materialise it.
+            store = TrackingStore(
+                create=args.track_command in {"actuals", "score", "decision",
+                                              "outcome", "relocate"},
+            )
 
             if args.track_command == "list":
                 forecasts = store.list_forecasts(
@@ -1218,20 +1388,30 @@ def main(argv: Sequence[str] | None = None) -> int:
                                   "message": f"Forecast {args.forecast_id} not found"},
                     }, indent=2), file=sys.stderr)
                     return 2
-                # Load actuals and score
+                # Load actuals and score. Columns resolve exactly as they do
+                # for `track actuals`: named flags win, conventional names
+                # are inferred, and a blind guess is refused.
                 import csv as _csv
                 from pathlib import Path as _Path
                 actuals: list[tuple[str, float]] = []
+                skipped_rows = 0
                 with open(_Path(args.file), encoding="utf-8-sig", newline="") as f:
                     reader = _csv.DictReader(f)
-                    cols = reader.fieldnames or []
-                    ts_col = cols[0] if cols else "timestamp"
-                    val_col = cols[1] if len(cols) > 1 else "value"
+                    cols = list(reader.fieldnames or [])
+                    ts_col, val_col, _ = store._resolve_actuals_columns(
+                        cols, args.score_time, args.score_target, None,
+                    )
                     for row in reader:
                         try:
                             actuals.append((row[ts_col], float(row[val_col])))
                         except (ValueError, TypeError):
-                            continue
+                            skipped_rows += 1
+                if skipped_rows:
+                    print(
+                        f"Skipped {skipped_rows} row(s) whose {val_col!r} "
+                        "value did not parse as a number.",
+                        file=sys.stderr,
+                    )
                 # Load forecast
                 fc_path = _Path(record.artifact_path) / "forecast.csv"
                 fc_data = [
@@ -1450,6 +1630,15 @@ def main(argv: Sequence[str] | None = None) -> int:
 
             elif args.track_command == "export":
                 output = Path(args.output).expanduser()
+                # The one --output in the CLI that names a file, so the one
+                # place a silent overwrite can eat something.
+                if output.exists() and not args.force:
+                    raise GnomonError(
+                        "INVALID_ARGUMENTS",
+                        f"{output} already exists; pass --force to "
+                        "overwrite it.",
+                        {"path": str(output)},
+                    )
                 output.parent.mkdir(parents=True, exist_ok=True)
                 output.write_text(
                     json.dumps(store.export_snapshot(args.project), indent=2) + "\n",
@@ -1547,6 +1736,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     ("--context", args.context_file),
                     ("--covariates", args.covariates),
                     ("--project", getattr(args, "project", None)),
+                    ("--store-path", getattr(args, "store_path", None)),
                 ) if present
             ]
             if unsupported:
@@ -1573,7 +1763,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 strict_abstention=args.strict_abstention,
                 best_effort=getattr(args, "best_effort", False),
                 seasonal_period=args.seasonal_period,
-                selection_strategy="ensemble" if args.ensemble else args.selection_strategy,
+                selection_strategy=_resolve_selection_strategy(args),
                 as_of=_parse_as_of(getattr(args, "as_of", None)),
                 repair=args.repair,
                 candidates=getattr(args, "candidates", None),
@@ -1616,7 +1806,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 config=config, strict_abstention=args.strict_abstention,
                 best_effort=getattr(args, "best_effort", False),
                 seasonal_period=args.seasonal_period,
-                selection_strategy="ensemble" if args.ensemble else args.selection_strategy,
+                selection_strategy=_resolve_selection_strategy(args),
                 multivariate=args.multivariate,
                 as_of=as_of,
                 store_path=getattr(args, "store_path", None),
@@ -1637,13 +1827,30 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(f"Registered forecast {artifact.forecast_id} in project '{args.project}'", file=sys.stderr)
 
         decorated = _disclose_assumptions(payload, schema_assumptions)
+        requested_format = getattr(args, "output_format", "auto")
         if isinstance(payload, dict) and payload.get("format") == "brief":
+            if requested_format == "human":
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "--brief is a JSON format and contradicts "
+                    "--format human; pass one or the other.",
+                    {"conflicting_flags": ["--brief", "--format"]},
+                )
             # Compact JSON is the point of brief mode: same content, no
             # pretty-printing to pay tokens for.
             print(json.dumps(decorated, separators=(",", ":"), allow_nan=False))
+        elif requested_format == "human" or (
+            requested_format == "auto" and sys.stdout.isatty()
+        ):
+            print(_render_human_forecast(decorated))
         else:
             print(json.dumps(decorated, indent=2, allow_nan=False))
         return 0
+    except KeyboardInterrupt:
+        # 130 = terminated by SIGINT, and no traceback: an interrupted
+        # backtest is a user action, not a defect.
+        print("Interrupted.", file=sys.stderr)
+        return 130
     except GnomonError as exc:
         print(json.dumps(exc.to_dict(), indent=2), file=sys.stderr)
         return 2

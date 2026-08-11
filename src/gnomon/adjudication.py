@@ -332,8 +332,10 @@ def _finalise(
     except ValueError:
         return None
     warnings: list[str] = []
-    if coverage is not None and coverage < 0.7:
-        warnings.append(f"Final-test 80% interval coverage was {coverage:.1%}, below 70%.")
+    from .contracts import coverage_warning
+    low_coverage = coverage_warning(coverage)
+    if low_coverage:
+        warnings.append(low_coverage)
     # One calibration fold walked in lead order: index i is lead i+1.
     residuals_by_lead = {
         step: [residual] for step, residual in enumerate(residuals, 1)

@@ -71,6 +71,28 @@ class SupportAssessment:
 MIN_VERIFIABLE_COVERAGE = 0.5
 MAX_VERIFIABLE_COVERAGE = 1.0
 
+#: Below this measured coverage, a run carries a warning (and is therefore
+#: at most weakly_supported). Deliberately above MIN_VERIFIABLE_COVERAGE —
+#: the two thresholds are two different judgements: in [0.5, 0.7) the
+#: intervals are suspect enough to warn about but still carry probability
+#: weight; below 0.5 the verifier additionally strips probability-bearing
+#: claims. A run can be warned and verify; below the band it is warned
+#: *and* stripped. Documented in gnomon.yaml.example under `evaluation`.
+COVERAGE_WARNING_THRESHOLD = 0.7
+
+
+def coverage_warning(coverage: float | None) -> str | None:
+    """The shared low-coverage warning, or ``None`` when coverage passes.
+
+    One definition instead of four duplicated literals, so the threshold
+    and its wording cannot drift apart across the evaluation surfaces."""
+    if coverage is None or coverage >= COVERAGE_WARNING_THRESHOLD:
+        return None
+    return (
+        f"Final-test 80% interval coverage was {coverage:.1%}, "
+        f"below {COVERAGE_WARNING_THRESHOLD:.0%}."
+    )
+
 
 def interval_calibration_is_verifiable(coverage: float | None) -> bool:
     """Whether measured coverage can carry a probability-bearing claim.
@@ -273,6 +295,7 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
         {"action": "enable_repair", "description": "Pass repair=aggressive to drop rows without a numeric reading (capped and disclosed)."},
     ],
     "DUPLICATE_TIMESTAMPS": [
+        {"action": "set_series_column", "description": "If the file is a panel (several series interleaved), the 'duplicates' are distinct series sharing timestamps: pass the series column (--series / series_column) instead of repairing. Repair on a panel would silently collapse whole series."},
         {"action": "deduplicate", "description": "Remove duplicate timestamps, or ingest revisions into the store with distinct known-at times."},
         {"action": "enable_repair", "description": "Identical duplicate rows collapse under the default repair=safe; conflicting values need repair=aggressive (last row wins, disclosed)."},
     ],
@@ -302,6 +325,10 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
     ],
     "MISSING_OPTIONAL_DEPENDENCY": [
         {"action": "install_extra", "description": "Install the package named in details.install."},
+    ],
+    "CONFIG_NOT_FOUND": [
+        {"action": "check_path", "description": "The config path does not exist. Pass a path relative to the working directory, or an absolute one."},
+        {"action": "use_defaults", "description": "Omit the config argument to run on the built-in defaults; gnomon.yaml is optional."},
     ],
     "FREQUENCY_MISMATCH": [
         {"action": "set_frequency", "description": "Pass the inferred frequency from details, or omit frequency to infer."},
@@ -422,7 +449,7 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
         {"action": "set_covariate_mapping", "description": "Supported types are continuous and binary."},
     ],
     "UNSUPPORTED_COVARIATE_AVAILABILITY": [
-        {"action": "set_covariate_mapping", "description": "Availability must be future_known or past_observed. It is mandatory so a contemporaneous reading is never mistaken for one knowable at a past origin."},
+        {"action": "set_covariate_mapping", "description": "Availability must be future_known; this release admits no other value. It is mandatory so a contemporaneous reading is never mistaken for one knowable at a past origin."},
     ],
     "UNSUPPORTED_COVARIATES": [
         {"action": "convert_input", "description": "Covariates currently require CSV input."},

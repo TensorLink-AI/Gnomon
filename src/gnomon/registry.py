@@ -229,7 +229,9 @@ MACROS: dict[str, MacroSpec] = {
                 "(conditionally_supported: missing utility inputs). "
                 "`scenario_probabilities.exceed` is the largest single-step "
                 "probability; `exceedance` carries the per-step series and the "
-                "any-step reading."
+                "any-step reading. The business inputs — threshold, actions, "
+                "utilities, max_acceptable_risk — come from the user: do not "
+                "infer them; ask, or omit the analysis."
             ),
             ("forecast", "evaluate_threshold_risk", "evaluate_actions"),
             {
@@ -239,7 +241,11 @@ MACROS: dict[str, MacroSpec] = {
                     "horizon": {"type": "integer", "description": "Future periods to forecast."},
                     "threshold": {"type": "number", "description": "Decision threshold on the target."},
                     "actions": {"type": "array", "items": {"type": "object"}, "description": (
-                        "Candidate actions: [{name, feasible?, residual_risk?}]."
+                        "Candidate actions: [{name, feasible?, residual_risk?}]. "
+                        "`residual_risk` is the probability-scale risk that "
+                        "remains if the action is taken, checked against "
+                        "max_acceptable_risk; supply it from the user's "
+                        "framing, never invented."
                     )},
                     "utilities": {"type": "object", "description": (
                         "Optional payoff per action per scenario: "
@@ -266,7 +272,8 @@ MACROS: dict[str, MacroSpec] = {
                 "When should we intervene? Trigger definition, sequential "
                 "exceedance risk per horizon step, and an alert-cost-aware "
                 "alert rule (cost-optimal with alert/miss costs; otherwise a "
-                "flagged default)."
+                "flagged default). The threshold and costs are business "
+                "inputs from the user: do not infer them; ask, or omit."
             ),
             ("forecast", "evaluate_threshold_risk"),
             {
