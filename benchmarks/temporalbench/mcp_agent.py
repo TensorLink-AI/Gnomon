@@ -7,8 +7,9 @@ anything, so it measures evidence-grounded answering, not tool use.
 This is the tool-use arm: the model holds every tool ``gnomon mcp
 serve`` publishes, verbatim, plus one harness tool (``submit_answer``),
 and drives the engine itself over the row's channels. The session,
-verbatim tool-spec conversion, and path jail are imported from the CiK
-MCP arm (``benchmarks/cik/mcp_agent.py``, spec:
+verbatim tool-spec conversion, path jail, and superseded-result
+compaction are imported from the CiK MCP arm
+(``benchmarks/cik/mcp_agent.py``, spec:
 ``docs/design/cik-mcp-tool-arm.md``) — used as a library, not modified.
 
 The honesty contract, per channel:
@@ -49,7 +50,11 @@ they exceed :data:`MAX_TOOL_RESULT_CHARS`, past which the bulk arrays
 are shrunk to head/tail plus counts under a harness-authored
 ``truncated`` marker naming the artifact that holds the full numbers —
 support states, warnings, abstention reasons, recovery actions and
-error codes are never what gets dropped. A breached cap does not void
+error codes are never what gets dropped. A result superseded by a later
+call (same forecast channels, or an identical repeat) is additionally
+compacted in the running history to its disclosures plus artifact_path
+— dead bulk is not re-sent every remaining round, and what Gnomon said
+about its numbers still is. A breached cap does not void
 work already done: a run that has submitted keeps its submission, and a
 run that has not gets one final round to submit what it has, with the
 cap named. Only after that is the row an abstention — never a silent
@@ -68,7 +73,9 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from benchmarks.cik.mcp_agent import (  # noqa: E402 — library reuse
+    UNSHRINKABLE_KEYS,
     StdioMcpSession,
+    ToolMessageLog,
     _tool_calls_as_dicts,
     jail_violations,
 )
@@ -335,17 +342,10 @@ def _write_wide_csv(channels: dict[str, list[float]], csv_path: Path) -> None:
             )
 
 
-#: Keys whose values are never shrunk when a tool result is too large.
-#: Everything Gnomon says about how far it will stand behind a number
-#: lives under one of these; the bulk that makes a result large does
-#: not. A budget is a reason to send fewer numbers, never a reason to
-#: send numbers without their disclosures.
-UNSHRINKABLE_KEYS = frozenset({
-    "support", "support_assessment", "support_state", "warnings", "notes",
-    "status", "code", "error", "message", "recovery", "recovery_actions",
-    "disclosures", "disclosure", "abstention", "reason", "artifact_path",
-    "forecast_id", "series", "selected_model", "interval_coverage",
-})
+#: The never-shrunk keys are shared with the CiK arm (imported above):
+#: one definition of what a disclosure is, whether a result is being
+#: size-bounded here or supersession-compacted by the shared
+#: :class:`ToolMessageLog`.
 
 
 def _shrink(value: Any, edge: int = TRUNCATED_ARRAY_EDGE) -> Any:
@@ -499,6 +499,7 @@ class _RunBase:
             _write_wide_csv(self.channels, self.csv_path)
         self.session = (session_factory or StdioMcpSession)(self.jail)
         self.trace: list[dict[str, Any]] = []
+        self.result_log = ToolMessageLog()
         self.mcp_calls = 0
         self.artifact_paths: set[str] = set()
         self.submission: dict[str, Any] | None = None
@@ -562,7 +563,8 @@ class _RunBase:
             "tool_sequence": [
                 {key: value for key, value in entry.items()
                  if key in ("tool", "is_error", "code", "jail_violations",
-                            "truncated", "last_call", "abstained")}
+                            "truncated", "last_call", "abstained",
+                            "superseded")}
                 for entry in self.trace
             ],
         }
@@ -614,6 +616,14 @@ class _RunBase:
                     return result
                 messages.append({"role": "tool", "tool_call_id": call["id"],
                                  "content": result})
+                # A result that retires an earlier one (same forecast
+                # channels, or an identical repeat call) compacts the
+                # older message to its disclosures + artifact_path, so
+                # dead bulk stops being re-sent every remaining round.
+                compacted = self.result_log.record(
+                    call["function"]["name"], arguments, messages[-1])
+                if compacted:
+                    self.trace.append({"superseded": compacted})
             if self.submission:
                 break
         if not self.submission:

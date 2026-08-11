@@ -333,3 +333,212 @@ def test_capabilities_reports_compat_state(monkeypatch) -> None:
     assert capabilities()["compat"]["v02_tools"] is False
     monkeypatch.setenv("GNOMON_V02_COMPAT", "1")
     assert capabilities()["compat"]["v02_tools"] is True
+
+
+# --- capabilities within the budget, without hiding anything ---------------
+
+def test_capabilities_brief_fits_the_budget_and_hides_nothing() -> None:
+    import json
+
+    from gnomon.runtime import capabilities
+    from gnomon.toolspec import RESPONSE_BUDGET_BYTES, runner_for
+
+    full = capabilities()
+    brief = runner_for("gnomon_capabilities")({})
+    assert len(json.dumps(brief, default=str)) <= RESPONSE_BUDGET_BYTES
+    # Every section survives, and every capability NAME survives: a brief
+    # view that hid one would make the command lie about the build.
+    assert set(full) <= set(brief)
+    assert brief["operators"]["available"] == sorted(full["operators"])
+    assert brief["macros"]["available"] == sorted(full["macros"])
+    assert brief["models"]["baselines"] == full["models"]["baselines"]
+    assert brief["models"]["statistical"] == full["models"]["statistical"]
+    assert brief["models"]["tsfm_capabilities"]["models"] \
+        == sorted(full["models"]["tsfm_capabilities"])
+    assert brief["features"] == full["features"]
+    assert brief["frequencies"] == full["frequencies"]
+    assert brief["mcp_profile"] == full["mcp_profile"]
+    # And the view names what was elided and how to get it back.
+    view = brief["view"]
+    assert view["format"] == "brief"
+    assert view["sections_available"] == sorted(full)
+    assert view["elided"]
+    assert "full" in view["note"] and "sections" in view["note"]
+
+
+def test_capabilities_full_and_sections_are_verbatim() -> None:
+    from gnomon.runtime import capabilities
+    from gnomon.toolspec import runner_for
+
+    full = runner_for("gnomon_capabilities")({"format": "full"})
+    # The explicit ask gets everything: no budget trim, no truncated flag
+    # — cutting a capability list would misreport the build.
+    assert full == capabilities()
+    assert "truncated" not in full
+
+    section = runner_for("gnomon_capabilities")(
+        {"sections": ["models", "workspace"]})
+    assert section["models"] == full["models"]
+    assert section["workspace"] == full["workspace"]
+    assert "operators" not in section
+    assert section["view"]["sections_available"] == sorted(full)
+
+
+def test_unknown_capabilities_section_fails_loudly_with_the_names() -> None:
+    import pytest
+
+    from gnomon.contracts import GnomonError
+    from gnomon.toolspec import runner_for
+
+    with pytest.raises(GnomonError) as caught:
+        runner_for("gnomon_capabilities")({"sections": ["nope"]})
+    assert caught.value.code == "INVALID_ARGUMENTS"
+    assert "nope" in caught.value.message
+    assert "models" in caught.value.details["sections_available"]
+
+
+def test_budget_never_drops_a_channel_from_a_results_list() -> None:
+    import json
+
+    from gnomon.toolspec import RESPONSE_BUDGET_BYTES, enforce_response_budget
+
+    # Six channels — past the head/tail window — each carrying its
+    # support state. The trim must descend into the entries, never cut
+    # the list: five results out of six is a silently vanished channel.
+    payload = {
+        "status": "complete", "artifact_path": "/tmp/a",
+        "results": [
+            {
+                "series": f"ch{index}", "support": "supported",
+                "support_assessment": {"reasons": []}, "warnings": [],
+                "forecast": [
+                    {"timestamp": f"2026-01-01T{hour:02d}:00:00+00:00",
+                     "q10": 1.0, "q50": 2.0, "q90": 3.0}
+                    for hour in range(24)
+                ],
+            }
+            for index in range(6)
+        ],
+    }
+    assert len(json.dumps(payload)) > RESPONSE_BUDGET_BYTES
+    trimmed = enforce_response_budget(payload)
+    assert trimmed["truncated"] is True
+    assert len(trimmed["results"]) == 6
+    for result in trimmed["results"]:
+        assert result["support"] == "supported"
+        assert result["support_assessment"] == {"reasons": []}
+        assert len(result["forecast"]) == 5  # the bulk inside still trims
+
+
+# --- the forecast schema stays terse ---------------------------------------
+
+def test_forecast_schema_is_a_description_diet_not_a_capability_cut() -> None:
+    import json
+
+    from gnomon.toolspec import TOOLS
+
+    tool = next(t for t in TOOLS if t["name"] == "gnomon_forecast")
+    spec = {"name": tool["name"], "description": tool["description"],
+            "parameters": tool["inputSchema"]}
+    # The measured pre-diet size was 10,635 characters (~26% of the
+    # whole per-round schema payload). Hold the line below 9,000.
+    assert len(json.dumps(spec)) < 9_000
+    # Every parameter and every enum survives: batching, format,
+    # minimum_support, and best_effort stay discoverable from the tool
+    # surface alone.
+    props = tool["inputSchema"]["properties"]
+    assert {"target_column", "horizon", "format", "candidates",
+            "minimum_support", "best_effort", "future_events",
+            "structural_events", "covariates", "covariates_file",
+            "covariate_mapping", "context_events", "context_events_file",
+            "repair", "threshold", "project", "as_of",
+            "observations"} <= set(props)
+    assert props["format"]["enum"] == ["full", "brief"]
+    assert props["minimum_support"]["enum"] == [
+        "supported", "conditionally_supported", "best_effort"]
+    assert props["repair"]["enum"] == ["off", "safe", "aggressive"]
+    assert '"auto"' in props["target_column"]["description"]
+
+
+# --- gnomon_inspect batches a wide file ------------------------------------
+
+def _wide_csv(tmp_path, columns=("cpu", "mem", "requests"), days: int = 30):
+    from datetime import date, timedelta
+
+    lines = ["timestamp," + ",".join(columns)]
+    start = date(2026, 1, 1)
+    for day in range(days):
+        lines.append(f"{start + timedelta(days=day)},"
+                     + ",".join(str(50 + day + 10 * i)
+                                for i in range(len(columns))))
+    path = tmp_path / "wide.csv"
+    path.write_text("\n".join(lines) + "\n")
+    return path
+
+
+def test_inspect_batches_channels_like_forecast(tmp_path) -> None:
+    import json
+
+    from gnomon.toolspec import RESPONSE_BUDGET_BYTES, runner_for
+
+    path = _wide_csv(tmp_path)
+    payload = runner_for("gnomon_inspect")(
+        {"input": str(path), "target_column": "auto"})
+    assert payload["status"] == "valid"
+    assert sorted(payload["targets"]) == ["cpu", "mem", "requests"]
+    for name, report in payload["targets"].items():
+        assert report["status"] == "valid"
+        # The combined view labels each report by its column, not the
+        # loader's "__default__" placeholder.
+        assert report["series"][0]["name"] == name
+        assert report["data_quality"]["status"] == "clean"
+    assert "gnomon_forecast" in payload["suggested_next"]
+    assert "cpu,mem,requests" in payload["suggested_next"]
+    assert len(json.dumps(payload, default=str)) < RESPONSE_BUDGET_BYTES
+
+    named = runner_for("gnomon_inspect")(
+        {"input": str(path), "target_column": "cpu,requests"})
+    assert sorted(named["targets"]) == ["cpu", "requests"]
+
+    single = runner_for("gnomon_inspect")(
+        {"input": str(path), "target_column": "mem"})
+    assert "targets" not in single  # the single-target shape is unchanged
+    assert single["schema"]["target_column"] == "mem"
+
+
+def test_inspect_defaults_to_every_candidate_instead_of_refusing(
+        tmp_path) -> None:
+    from gnomon.toolspec import runner_for
+
+    # The benchmark's exact failing call: a wide CSV, no target_column.
+    # 27 AMBIGUOUS_SCHEMA rounds per sweep said the refusal was the
+    # defect — inspection is read-only, so inspect everything and say so.
+    path = _wide_csv(tmp_path)
+    payload = runner_for("gnomon_inspect")({"input": str(path)})
+    assert payload["status"] == "valid"
+    assert sorted(payload["targets"]) == ["cpu", "mem", "requests"]
+    assert any("all of them were inspected" in item
+               for item in payload["assumptions"])
+
+
+def test_inspect_multi_reports_a_failing_channel_in_place(tmp_path) -> None:
+    from datetime import date, timedelta
+
+    from gnomon.toolspec import runner_for
+
+    lines = ["timestamp,cpu,note"]
+    start = date(2026, 1, 1)
+    for day in range(30):
+        lines.append(f"{start + timedelta(days=day)},{50 + day},flaky")
+    path = tmp_path / "mixed.csv"
+    path.write_text("\n".join(lines) + "\n")
+
+    payload = runner_for("gnomon_inspect")(
+        {"input": str(path), "target_column": "cpu,note"})
+    assert payload["status"] == "partial"
+    assert payload["targets"]["cpu"]["status"] == "valid"
+    failing = payload["targets"]["note"]
+    assert failing["status"] == "error"
+    assert failing["error"]["code"]
+    assert "cpu" in payload["suggested_next"]
+    assert "note" not in payload["suggested_next"].split('"')[1]

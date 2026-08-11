@@ -591,7 +591,7 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "workdir": "intent", "store_path": "intent", "as_of": "intent",
     "scope": "intent", "format": "intent", "brief": "intent",
     "profile": "intent",
-    "section": "intent",
+    "section": "intent", "sections": "intent",
     "jsonl": "intent", "include_lineage": "intent", "limit": "intent",
     "latest": "intent", "note": "intent", "name": "intent",
     # Recorded verbatim in the investigation artifact, influence "none" —

@@ -811,3 +811,70 @@ def test_wall_clock_cap_ends_the_run_as_a_named_abstention(
     # answered in prose, so the row abstains with the cap named.
     outcome = _run(_row(), [{"content": "out of time"}], tmp_path)
     assert "cap:wall_clock" in outcome["row_abstained"]
+
+
+# -- superseded results are compacted out of the running history ------------
+
+def test_superseded_forecast_is_compacted_in_the_message_history(tmp_path):
+    """A batched call retires the single-channel call it covers: the
+    older tool message is replaced in place by its disclosures plus the
+    artifact_path — the bulk stops being re-sent every remaining round,
+    and what Gnomon said about its numbers does not."""
+    seen = {}
+
+    def forecast_hr(messages):
+        return {"tool_calls": [_forecast_call(messages, "hr")]}
+
+    def forecast_batch(messages):
+        return {"tool_calls": [_forecast_call(messages, "hr,spo2")]}
+
+    def submit(messages):
+        tool_messages = [m for m in messages if m.get("role") == "tool"]
+        assert len(tool_messages) == 2
+        stub = json.loads(tool_messages[0]["content"])
+        assert stub["harness_superseded"] is True
+        assert stub["artifact_path"], "the path to the full numbers stays"
+        result, = stub["results"]
+        assert result["support"], "the support label stays"
+        # The assessment is verbatim, or marked as riding character-
+        # identical on the live batched result one message down.
+        assert result.get("support_assessment") \
+            or "support_assessment" in result.get("unchanged", "")
+        assert "forecast" not in result, "the bulk goes"
+        live = json.loads(tool_messages[1]["content"])
+        assert "harness_superseded" not in live
+        seen["artifact_path"] = live["artifact_path"]
+        return {"tool_calls": [("submit_answer", {
+            "forecast": {"hr": {"artifact_path": live["artifact_path"]},
+                         "spo2": {"artifact_path": live["artifact_path"]}},
+            "mcq": {"q1": "Higher"},
+        })]}
+
+    outcome = _run(_row(sparse_temp=False),
+                   [forecast_hr, forecast_batch, submit], tmp_path)
+    assert outcome["channel_route"] == {"hr": "gnomon", "spo2": "gnomon"}
+    # The adapter decision is disclosed in the trace.
+    assert {"superseded": 1} in outcome["mcp"]["tool_sequence"]
+
+
+def test_forecasts_of_different_channels_are_both_kept(tmp_path):
+    def forecast_hr(messages):
+        return {"tool_calls": [_forecast_call(messages, "hr")]}
+
+    def forecast_spo2(messages):
+        return {"tool_calls": [_forecast_call(messages, "spo2")]}
+
+    def submit(messages):
+        tool_messages = [m for m in messages if m.get("role") == "tool"]
+        payloads = [json.loads(m["content"]) for m in tool_messages]
+        assert not any(p.get("harness_superseded") for p in payloads), \
+            "different channels are parallel evidence, not a supersession"
+        return {"tool_calls": [("submit_answer", {
+            "forecast": {"hr": {"artifact_path": payloads[0]["artifact_path"]},
+                         "spo2": {"artifact_path": payloads[1]["artifact_path"]}},
+            "mcq": {"q1": "Higher"},
+        })]}
+
+    outcome = _run(_row(sparse_temp=False),
+                   [forecast_hr, forecast_spo2, submit], tmp_path)
+    assert outcome["channel_route"] == {"hr": "gnomon", "spo2": "gnomon"}

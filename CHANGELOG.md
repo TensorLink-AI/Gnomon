@@ -2,6 +2,38 @@
 
 ## Unreleased
 
+- **The MCP surface is token-lean without disclosing less.** Four
+  transport changes, no change to what is computed or disclosed:
+  `gnomon_capabilities` now defaults to a brief view inside the
+  8,192-byte response budget (17,645 → ~6,000 chars) that keeps every
+  section and every capability *name* and says exactly which prose it
+  elided; `format: "full"` and a new `sections` parameter return the
+  verbatim payload — explicitly-requested capabilities are exempt from
+  the array trimmer, which would otherwise misreport the build.
+  `gnomon_inspect` accepts a comma list or `"auto"` in `target_column`
+  and inspects every channel of a wide file in one call (one report per
+  column, errors embedded per column); a wide file with no
+  `target_column` now inspects all qualifying columns with a disclosed
+  assumption instead of refusing `AMBIGUOUS_SCHEMA` — inspection is
+  read-only, so exhaustive is honest where guessing would not be.
+  `gnomon_forecast`'s schema went on a description diet (10,933 →
+  8,434 chars; every parameter and enum kept). The response-budget
+  trimmer now descends into lists whose entries carry protected
+  disclosures instead of cutting them — a six-channel batched result
+  used to lose its sixth channel's support state to the head/tail trim.
+
+- **Benchmark MCP arms stop re-sending superseded tool results.** The
+  CiK and TemporalBench agent loops compact a tool result out of the
+  running message history once a later call supersedes it (same
+  forecast channels, or an identical repeat call): the older message is
+  replaced in place by its support labels, warnings, abstention
+  reasons, error codes, and `artifact_path` — a disclosure whose text
+  is character-identical in the live superseding result is replaced by
+  a marker saying so. Errors are never compacted; different channels
+  and different arguments never supersede. On the measured 12-round
+  six-channel MIMIC row the re-sent prefix falls from ~337k to ~214k
+  tokens. CiK's `MCP_CONTRACT_VERSION` bumps to 4.
+
 - **Long-series anomaly detection is fast.** Detector selection is
   graded on the trailing `MAX_GRADING_HISTORY` (1,024) observations —
   stretched to cover four seasonal periods — instead of injecting into

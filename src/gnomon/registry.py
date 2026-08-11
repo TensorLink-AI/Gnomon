@@ -143,21 +143,18 @@ _COMMON_INPUT: dict[str, Any] = {
         "pass `observations` inline instead."
     )},
     "observations": {"type": "array", "items": {"type": "object"}, "description": (
-        "The observations supplied inline, for callers without a "
-        "filesystem: row objects keyed by your column names. "
-        "Mutually exclusive with `input`."
+        "The observations supplied inline: row objects keyed by your "
+        "column names. Mutually exclusive with `input`."
     )},
     "time_column": {"type": "string", "description": (
-        "Name of the timestamp column. Omit to infer: when exactly one "
-        "column parses as timestamps it is chosen and disclosed as an "
-        "assumption; ambiguity fails loudly, naming the candidates. "
+        "Timestamp column. Omit to infer when exactly one column "
+        "qualifies (disclosed as an assumption); ambiguity fails loudly. "
         "Required for store:<dataset> inputs."
     )},
     "target_column": {"type": "string", "description": (
-        "Name of the numeric column. Omit to infer: when exactly one "
-        "non-time column parses as numbers it is chosen and disclosed as "
-        "an assumption; ambiguity fails loudly, naming the candidates. "
-        "Required for store:<dataset> inputs."
+        "Numeric column to operate on. Omit to infer when exactly one "
+        "non-time column qualifies (disclosed as an assumption); "
+        "ambiguity fails loudly. Required for store:<dataset> inputs."
     )},
     "series_column": {"type": "string", "description": "Optional column identifying independent series."},
     "frequency": {
