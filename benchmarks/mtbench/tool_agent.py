@@ -304,6 +304,12 @@ class ToolBox:
                 horizon=self.horizon, frequency="D",
                 output=str(csv_path.parent / "gnomon-output"),
                 context_events=events or None,
+                # The benchmark's measured condition is the pre-graduated
+                # engine: degraded results published, abstention possible,
+                # the model decides what to do with it. The engine's own
+                # default floor is now best_effort, so the condition is
+                # pinned explicitly rather than drifting with the default.
+                minimum_support="conditionally_supported",
             )
         except GnomonError as error:
             self.engine_abstentions += 1

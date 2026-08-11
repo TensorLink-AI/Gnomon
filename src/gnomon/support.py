@@ -21,6 +21,30 @@ from .contracts import (
 from .evaluation import Evaluation
 from .temporal_store import KNOWN_TIME_ASSUMED_WARNING
 
+#: The publication tiers, weakest first. These grade what is *published*,
+#: not how any tier is earned — the fold minimums, separation
+#: requirements, and guardrails that earn each rung are untouched by the
+#: graduated-support default. `minimum_support` is a floor over this
+#: order: the evaluation runs exactly as always, then the result is
+#: published at the highest tier the evidence achieved that clears the
+#: floor, or abstains.
+PUBLICATION_TIERS = ("best_effort", "conditionally_supported", "supported")
+TIER_ORDER = {name: rank for rank, name in enumerate(PUBLICATION_TIERS)}
+DEFAULT_MINIMUM_SUPPORT = "best_effort"
+
+
+def achieved_tier(status: str, has_rows: bool) -> str | None:
+    """The publication tier a result's assessment status earned.
+
+    ``None`` when nothing was published. Rows published from an
+    ``inconclusive`` assessment are the disclosed fallback — best_effort
+    by construction."""
+    if not has_rows:
+        return None
+    if status in ("supported", "conditionally_supported"):
+        return status
+    return "best_effort"
+
 
 def assess_forecast_support(
     support: str,
@@ -203,14 +227,13 @@ def assess_forecast_support(
         # The disclosed fallback lane exists, but a caller who has never
         # read the CLI reference cannot know that. The refusal teaches
         # the path so recovery takes one step, not prior knowledge; the
-        # default stays off and the fallback stays labelled.
+        # fallback stays labelled wherever it is published.
         recovery.append(SupportReason(
             "retry_best_effort",
             "If rows are needed at this horizon anyway, retry with "
-            "best_effort enabled (`--best-effort` on the CLI, "
-            "`best_effort: true` on the Python API and the MCP forecast "
-            "tool): a naive fallback is published with support "
-            "`best_effort` and a NO RELIABLE FORECAST warning — "
+            "minimum_support 'best_effort' (the default; `--minimum-support "
+            "best_effort` on the CLI): a naive fallback is published with "
+            "support `best_effort` and a NO RELIABLE FORECAST warning — "
             "disclosed rows, never a supported forecast.",
         ))
     insufficiency = (

@@ -648,6 +648,8 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
         repair=arguments.get("repair", "safe"),
         candidates=arguments.get("candidates"),
         best_effort=bool(arguments.get("best_effort", False)),
+        minimum_support=str(arguments.get("minimum_support")
+                            or "best_effort"),
         config=config,
         input_provenance=arguments.get("input_provenance"),
     )
@@ -708,6 +710,8 @@ def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str
         repair=arguments.get("repair", "safe"),
         candidates=arguments.get("candidates"),
         best_effort=bool(arguments.get("best_effort", False)),
+        minimum_support=str(arguments.get("minimum_support")
+                            or "best_effort"),
         input_provenance=arguments.get("input_provenance"),
     )
     if arguments.get("format") == "full":
@@ -990,13 +994,26 @@ TOOLS: list[dict[str, Any]] = [
                 "covariate_known_at_column": {"type": "string", "description": "Availability timestamp column (default known_at)."},
                 "covariate_series_column": {"type": "string", "description": "Optional series column in the covariate CSV."},
                 "repair": {"type": "string", "enum": ["off", "safe", "aggressive"], "description": "Messy-data handling (default safe): off rejects anything non-strict; safe normalises cell text with disclosure; aggressive additionally fills gaps, snaps timestamps, and resolves conflicts — capped, and every fix is reported in evidence and warnings."},
+                "minimum_support": {"type": "string",
+                                    "enum": ["supported",
+                                             "conditionally_supported",
+                                             "best_effort"],
+                                    "description": (
+                    "Publication floor (default best_effort). The "
+                    "evaluation runs exactly as always; the result is "
+                    "published at the highest tier the evidence achieves "
+                    "at or above this floor. best_effort always answers "
+                    "unless nothing is computable at all (a naive fallback "
+                    "is published with support `best_effort` and a NO "
+                    "RELIABLE FORECAST warning); `supported` restores the "
+                    "strict refusal with typed recovery when only lower "
+                    "tiers are achievable. No tier gets easier to earn."
+                )},
                 "best_effort": {"type": "boolean", "description": (
-                    "When the evaluation cannot support the requested "
-                    "horizon (default false: an honest abstention with "
-                    "recovery actions), publish a naive fallback anyway — "
-                    "disclosed as support `best_effort` with a NO RELIABLE "
-                    "FORECAST warning and a descriptive, never predictive, "
-                    "lineage claim. Never changes a supported forecast."
+                    "DEPRECATED — subsumed by minimum_support: `true` maps "
+                    "to minimum_support 'best_effort', which is now the "
+                    "default; an explicit minimum_support wins over this "
+                    "flag. Kept accepted for v0.2 callers."
                 )},
                 "future_events": {"type": "boolean", "description": (
                     "Admit future-dated constraint:/override: context "

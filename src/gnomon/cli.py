@@ -212,11 +212,21 @@ def build_parser() -> argparse.ArgumentParser:
              "when there is too little history for rolling evaluation",
     )
     forecast_parser.add_argument(
+        "--minimum-support", dest="minimum_support",
+        choices=("supported", "conditionally_supported", "best_effort"),
+        default=None,
+        help="Publication floor (default best_effort): the evaluation runs "
+             "exactly as always, and the result is published at the "
+             "highest tier the evidence achieves at or above the floor — "
+             "best_effort always answers with labelled rows unless nothing "
+             "is computable; supported restores the strict refusal with "
+             "typed recovery. No tier gets easier to earn.",
+    )
+    forecast_parser.add_argument(
         "--best-effort", action="store_true",
-        help="When the evaluation abstains for lack of history, still "
-             "publish a clearly labelled naive fallback (support "
-             "best_effort, NO RELIABLE FORECAST warning) instead of empty "
-             "results; the abstention's reasons are preserved verbatim",
+        help="Deprecated: subsumed by --minimum-support best_effort, which "
+             "is now the default; an explicit --minimum-support wins. Kept "
+             "accepted for v0.2 callers.",
     )
     forecast_parser.add_argument(
         "--as-of", dest="as_of",
@@ -1614,6 +1624,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 config=load_config(getattr(args, "config", None)),
                 strict_abstention=args.strict_abstention,
                 best_effort=getattr(args, "best_effort", False),
+                minimum_support=getattr(args, "minimum_support", None)
+                or "best_effort",
                 seasonal_period=args.seasonal_period,
                 selection_strategy="ensemble" if args.ensemble else args.selection_strategy,
                 as_of=_parse_as_of(getattr(args, "as_of", None)),
@@ -1657,6 +1669,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 covariates=covariates,
                 config=config, strict_abstention=args.strict_abstention,
                 best_effort=getattr(args, "best_effort", False),
+                minimum_support=getattr(args, "minimum_support", None)
+                or "best_effort",
                 seasonal_period=args.seasonal_period,
                 selection_strategy="ensemble" if args.ensemble else args.selection_strategy,
                 multivariate=args.multivariate,

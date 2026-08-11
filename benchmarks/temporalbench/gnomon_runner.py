@@ -93,7 +93,13 @@ def forecast_channel(values: list[float | None], horizon: int,
             str(csv_path), time_column="timestamp", target_column="value",
             horizon=horizon, frequency="h",
             output=str(run_dir / "gnomon-output"),
-            best_effort=best_effort,
+            # The benchmark's two arms are the strict engine (abstention
+            # possible, degraded results still published — the pre-
+            # graduated default) and the disclosed fallback lane. The
+            # engine's own default floor is now best_effort, so the strict
+            # arm pins the old behaviour explicitly.
+            minimum_support=("best_effort" if best_effort
+                             else "conditionally_supported"),
         )
     except GnomonError as error:
         return {"abstained": True, "reason": f"{error.code}: {error.message}"}
@@ -151,7 +157,8 @@ def forecast_channels(
             str(csv_path), time_column="timestamp", target_columns=keys,
             horizon=horizon, frequency="h",
             output=str(run_dir / "gnomon-output"),
-            best_effort=best_effort,
+            minimum_support=("best_effort" if best_effort
+                             else "conditionally_supported"),
         )
     except GnomonError as error:
         reason = f"{error.code}: {error.message}"

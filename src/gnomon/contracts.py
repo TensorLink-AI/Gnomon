@@ -625,6 +625,7 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "ensemble": "epistemic",
     "strict_abstention": "epistemic",
     "best_effort": "epistemic",
+    "minimum_support": "epistemic",
     "candidates": "epistemic",
     "multivariate": "epistemic",
     "future_events": "epistemic",
@@ -652,6 +653,12 @@ EPISTEMIC_TRACES: dict[str, str] = {
     "best_effort": (
         "distinct `best_effort` support state, NO RELIABLE FORECAST warning "
         "verbatim, descriptive-only lineage claim"),
+    "minimum_support": (
+        "a publication floor over unchanged evaluation: fallback rows carry "
+        "the `best_effort` state and NO RELIABLE FORECAST warning; a floor "
+        "refusal is disclosed as `below_minimum_support` with a "
+        "`lower_minimum_support` recovery — stricter-than-default only, "
+        "since the default is the lowest floor"),
     "candidates": (
         "restriction disclosed as a `candidate_pool_restricted` reason; "
         "baselines compete regardless; unknown names refused (UNKNOWN_MODEL); "

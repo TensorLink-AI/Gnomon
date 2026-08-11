@@ -47,8 +47,17 @@ def cik_bucket_three(tmp_path: Path, **kwargs):
     )
 
 
-def test_without_the_flag_the_abstention_is_unchanged(tmp_path: Path) -> None:
+def test_the_default_publishes_the_labelled_fallback(tmp_path: Path) -> None:
+    # Graduated support: the default floor answers with disclosed
+    # best_effort rows; the refusal is one parameter away.
     artifact, _ = cik_bucket_three(tmp_path)
+    result = artifact.results[0]
+    assert result.support == "best_effort"
+    assert result.forecast
+
+
+def test_minimum_support_supported_restores_the_abstention(tmp_path: Path) -> None:
+    artifact, _ = cik_bucket_three(tmp_path, minimum_support="supported")
     result = artifact.results[0]
     assert result.support == "unsupported"
     assert result.forecast == []
@@ -148,15 +157,16 @@ def test_degenerate_history_yields_flat_intervals_with_a_warning(tmp_path: Path)
 
 def test_the_refusal_teaches_the_best_effort_path(tmp_path: Path) -> None:
     """An agent that has never read the CLI reference must learn the
-    fallback lane from the refusal itself: the recovery actions name
-    best_effort and how to enable it on every surface."""
-    artifact, _ = cik_bucket_three(tmp_path)
+    fallback lane from the refusal itself: the recovery actions name the
+    minimum_support floor and how to lower it. (The refusal now exists
+    only above the default floor.)"""
+    artifact, _ = cik_bucket_three(tmp_path, minimum_support="supported")
     assessment = artifact.results[0].support_assessment
     recovery = {reason["code"]: reason["message"]
                 for reason in assessment["recovery_actions"]}
     assert "retry_best_effort" in recovery
-    assert "best_effort: true" in recovery["retry_best_effort"]
-    assert "--best-effort" in recovery["retry_best_effort"]
+    assert "minimum_support" in recovery["retry_best_effort"]
+    assert "--minimum-support" in recovery["retry_best_effort"]
 
 
 def test_the_best_effort_run_does_not_advertise_itself(tmp_path: Path) -> None:
@@ -181,7 +191,7 @@ def test_best_effort_is_reachable_from_the_mcp_tool(tmp_path: Path) -> None:
         "output_dir": str(tmp_path / "out"),
     }
     runner = runner_for("gnomon_forecast")
-    refused = runner(dict(arguments))
+    refused = runner({**arguments, "minimum_support": "supported"})
     result = refused["results"][0]
     assert result["support"] == "unsupported"
     assert result["forecast_rows"] == 0
@@ -189,8 +199,9 @@ def test_best_effort_is_reachable_from_the_mcp_tool(tmp_path: Path) -> None:
              result["support_assessment"]["recovery_actions"]]
     assert "retry_best_effort" in codes
 
-    published = runner({**arguments, "output_dir": str(tmp_path / "out2"),
-                        "best_effort": True})
+    # The default floor publishes the same labelled fallback the flag
+    # used to require.
+    published = runner({**arguments, "output_dir": str(tmp_path / "out2")})
     result = published["results"][0]
     assert result["support"] == "best_effort"
     assert result["forecast_rows"] == 7
@@ -198,4 +209,5 @@ def test_best_effort_is_reachable_from_the_mcp_tool(tmp_path: Path) -> None:
 
     spec = next(tool for tool in visible_tools()
                 if tool["name"] == "gnomon_forecast")
+    assert "minimum_support" in spec["inputSchema"]["properties"]
     assert "best_effort" in spec["inputSchema"]["properties"]

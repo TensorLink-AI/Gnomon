@@ -262,6 +262,7 @@ def _series_result(
     future_events: bool = False,
     structural_events: bool = False,
     best_effort: bool = False,
+    minimum_support: str = "best_effort",
 ) -> tuple[SeriesResult, list[Evidence]]:
     """Run one series through the full stage pipeline.
 
@@ -333,7 +334,16 @@ def _series_result(
         future_events=future_events,
         structural_events=structural_events,
     )
-    if best_effort and support == "unsupported" and not rows and state.values:
+    if (support == "unsupported" and not rows and state.values
+            and minimum_support == "best_effort"
+            and not strict_abstention):
+        # Graduated support: the default floor publishes the most defensible
+        # answer that exists — here the disclosed naive fallback — instead
+        # of abstaining. Nothing about how tiers are earned changed; a
+        # higher minimum_support restores the refusal, `strict_abstention`
+        # keeps its refusal semantics untouched, and a series with no
+        # usable history at all still abstains (the guard above). The
+        # legacy `best_effort` flag maps to this same floor.
         from .pipeline import best_effort_stage
         rows, support = best_effort_stage(state)
     assessment = state.assessment
@@ -378,6 +388,30 @@ def _series_result(
             ),
             cap=False,
         )
+    from .support import TIER_ORDER, achieved_tier
+    tier = achieved_tier(support_assessment.status, bool(rows))
+    if tier is not None and TIER_ORDER[tier] < TIER_ORDER[minimum_support]:
+        # The publication floor, not the evaluation, refuses this result:
+        # the evidence is what it is, the caller asked not to be shown
+        # anything below the floor. Typed, with the one-step recovery.
+        support_assessment = assess_forecast_support(
+            "unsupported", state.warnings, assessment,
+            known_time_assumed=loaded.snapshot.assumed_known_time,
+            disclosures=state.disclosures,
+        )
+        support_assessment.reasons.insert(0, SupportReason(
+            "below_minimum_support",
+            f"The evidence achieved tier {tier!r}, below the requested "
+            f"minimum_support {minimum_support!r}; nothing was published. "
+            f"The evaluation itself is unchanged — only the publication "
+            f"floor refused the result.",
+        ))
+        support_assessment.recovery_actions.insert(0, SupportReason(
+            "lower_minimum_support",
+            f"Retry with minimum_support {tier!r} (or lower) to publish "
+            f"the result the evidence already supports.",
+        ))
+        rows, support, threshold_analysis = [], "unsupported", None
     result = SeriesResult(
         series_name, support, state.selected_model, assessment.strongest_baseline,
         assessment.selection_scores, assessment.test_scores, assessment.improvement,
@@ -428,6 +462,7 @@ def forecast(
     config: Any = None,
     strict_abstention: bool = False,
     best_effort: bool = False,
+    minimum_support: str = "best_effort",
     seasonal_period: int | None = None,
     selection_strategy: str = "best",
     multivariate: bool = False,
@@ -458,6 +493,15 @@ def forecast(
     if horizon < 1:
         from .contracts import GnomonError
         raise GnomonError("INVALID_HORIZON", "Horizon must be at least one period.")
+    from .support import PUBLICATION_TIERS
+    if minimum_support not in PUBLICATION_TIERS:
+        from .contracts import GnomonError
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            f"minimum_support must be one of {', '.join(PUBLICATION_TIERS)}.",
+            {"requested": minimum_support,
+             "supported": list(PUBLICATION_TIERS)},
+        )
     if selection_strategy == "ensemble":
         # Asking for the ensemble has to enter it in the evaluation, not just
         # swap the final forecast. Otherwise it is never scored on the folds
@@ -528,6 +572,7 @@ def forecast(
             future_events=future_events_enabled,
             structural_events=structural_events_enabled,
             best_effort=best_effort,
+            minimum_support=minimum_support,
         )
         if result.future_context and result.future_context.get("admitted"):
             future_context_admitted[series_name] = list(
@@ -598,6 +643,10 @@ def forecast(
         # Flag-on only, like future_context below: every flag-off ID —
         # including all pre-existing ones — is byte-identical.
         id_payload["best_effort"] = True
+    if minimum_support != "best_effort":
+        # The floor changes what is published, so it changes the id; the
+        # default floor is omitted so fully supported runs keep their ids.
+        id_payload["minimum_support"] = minimum_support
     if selected_weights:
         # Absent when no TSFM was selected, so ids for baseline and
         # statistical selections are unchanged by this addition.
@@ -716,6 +765,7 @@ def forecast_multi(
     config: Any = None,
     strict_abstention: bool = False,
     best_effort: bool = False,
+    minimum_support: str = "best_effort",
     seasonal_period: int | None = None,
     selection_strategy: str = "best",
     clock: Clock | None = None,
@@ -774,6 +824,15 @@ def forecast_multi(
         )
     if horizon < 1:
         raise GnomonError("INVALID_HORIZON", "Horizon must be at least one period.")
+    from .support import PUBLICATION_TIERS
+    if minimum_support not in PUBLICATION_TIERS:
+        from .contracts import GnomonError
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            f"minimum_support must be one of {', '.join(PUBLICATION_TIERS)}.",
+            {"requested": minimum_support,
+             "supported": list(PUBLICATION_TIERS)},
+        )
     if selection_strategy == "ensemble":
         import copy as _copy
         from .config import load_config as _load_config
@@ -816,6 +875,7 @@ def forecast_multi(
                 threshold=threshold, target_coverage=target_coverage,
                 repair_log=repair_logs[target],
                 best_effort=best_effort,
+            minimum_support=minimum_support,
             )
         except GnomonError as error:
             return _abstained_target_result(target, error)
@@ -899,6 +959,10 @@ def forecast_multi(
         id_payload["repair"] = repair
     if best_effort:
         id_payload["best_effort"] = True
+    if minimum_support != "best_effort":
+        # The floor changes what is published, so it changes the id; the
+        # default floor is omitted so fully supported runs keep their ids.
+        id_payload["minimum_support"] = minimum_support
     if selected_weights:
         id_payload["model_weights"] = selected_weights
     forecast_id = content_id("forecast", id_payload)
@@ -948,6 +1012,11 @@ def _response_budget_bytes() -> int:
     # Local import: toolspec imports runtime, so the reverse edge is lazy.
     from .toolspec import RESPONSE_BUDGET_BYTES
     return RESPONSE_BUDGET_BYTES
+
+
+def _default_minimum_support() -> str:
+    from .support import DEFAULT_MINIMUM_SUPPORT
+    return DEFAULT_MINIMUM_SUPPORT
 
 
 def _mcp_profile() -> dict[str, object]:
@@ -1165,6 +1234,21 @@ def capabilities() -> dict[str, object]:
                     "support state, warnings, abstention reasons, recovery "
                     "actions, and disclosures verbatim. The on-disk "
                     "artifact is unchanged."
+                ),
+            },
+            "graduated_support": {
+                "default_minimum_support": _default_minimum_support(),
+                "tiers": ["best_effort", "conditionally_supported",
+                          "supported"],
+                "cli": "--minimum-support",
+                "mcp": "minimum_support",
+                "semantics": (
+                    "Publication floor only: the evaluation and every "
+                    "tier's earning conditions are unchanged. The default "
+                    "floor publishes the most defensible answer that "
+                    "exists, tier-labelled; a higher floor restores the "
+                    "typed refusal, and a series with no usable history "
+                    "still abstains."
                 ),
             },
             "response_budget": {

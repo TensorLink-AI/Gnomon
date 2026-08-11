@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+- **Graduated support: `minimum_support` replaces `best_effort` (Change
+  1).** The forecast verb's default philosophy flips from "abstain
+  unless earned" to "publish the most defensible answer that exists, at
+  whatever tier, honestly labelled". `minimum_support`
+  (`supported | conditionally_supported | best_effort`, default
+  `best_effort`) is a publication floor over an unchanged evaluation: no
+  fold minimum, separation requirement, baseline margin, or guardrail
+  moved. The default floor publishes the disclosed naive fallback where
+  the old default abstained (support `best_effort`, NO RELIABLE FORECAST
+  warning, descriptive-only lineage — the same lane `--best-effort`
+  enabled); `minimum_support: "supported"` restores the typed refusal,
+  and a floor refusal is disclosed as `below_minimum_support` with a
+  `lower_minimum_support` recovery. `strict_abstention` keeps its
+  refusal semantics untouched; a series with no usable history still
+  abstains. The legacy `best_effort` flag stays accepted (deprecated,
+  subsumed by the default). `gnomon capabilities` reports the default
+  floor under `forecast_surface.graduated_support`; benchmark harnesses
+  pin the pre-graduated condition (`conditionally_supported`) so their
+  measured arms do not drift with the default.
+
 - **Task profiles (Fix 7).** `gnomon mcp serve --profile core|decision|
   data|full` (or `GNOMON_MCP_PROFILE`) exposes a named subset of the
   surface: `core` is the analytical verbs plus inspection and artifact

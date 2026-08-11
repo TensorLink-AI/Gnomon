@@ -168,7 +168,10 @@ def test_unsupported_artifact_rejected_then_best_effort_labeled(tmp_path):
     the honest options, the MODEL chooses the labeled fallback — and
     the engine abstention it saw is counted, never hidden."""
     def call_forecast(messages):
-        return {"tool_calls": [_forecast_call(messages)]}
+        # The engine's default floor now answers with labelled rows; the
+        # abstention this scenario exercises needs the strict floor.
+        return {"tool_calls": [_forecast_call(
+            messages, minimum_support="conditionally_supported")]}
 
     def submit_unsupported(messages):
         payload = _last_tool_payload(messages)
@@ -201,7 +204,8 @@ def test_unsupported_artifact_rejected_then_best_effort_labeled(tmp_path):
 
 def test_engine_abstention_answered_with_own_values_is_disclosed(tmp_path):
     def call_forecast(messages):
-        return {"tool_calls": [_forecast_call(messages)]}
+        return {"tool_calls": [_forecast_call(
+            messages, minimum_support="conditionally_supported")]}
 
     def answer_past_refusal(messages):
         return {"tool_calls": [("submit_forecast", {"values": VALUES})]}

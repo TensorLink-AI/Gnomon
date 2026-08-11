@@ -1049,8 +1049,9 @@ NO_RELIABLE_FORECAST = (
     "NO RELIABLE FORECAST: the evaluation protocol could not run on this "
     "history, so no model was selected and no accuracy was measured. These "
     "rows are a last-value fallback with dispersion-scaled intervals, "
-    "published only because best-effort mode was explicitly requested. "
-    "Treat them as a disclosed placeholder, not a prediction."
+    "published because the request's minimum_support floor admits "
+    "best_effort rows. Treat them as a disclosed placeholder, not a "
+    "prediction."
 )
 
 
@@ -1107,8 +1108,9 @@ def best_effort_stage(state: SeriesState) -> tuple[list[dict[str, object]], str]
     state.disclosures.append(SupportReason(
         "best_effort_fallback",
         "The forecast rows are a last-value fallback with random-walk "
-        "intervals, published under --best-effort after the evaluation "
-        "abstained; the abstention's reasons are preserved in the warnings.",
+        "intervals, published because the minimum_support floor admits "
+        "best_effort rows after the evaluation abstained; the abstention's "
+        "reasons are preserved in the warnings.",
     ))
     return rows, "best_effort"
 
