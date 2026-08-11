@@ -19,23 +19,39 @@ from typing import Any
 @dataclass
 class RunRecord:
     """One graded run. ``task_id`` and ``success`` are the only fields
-    required by ``gnomon eval compare``; the rest default to the schema's
-    zero values and extra keys are carried through untouched."""
+    required by ``gnomon eval compare``; extra keys are carried through
+    untouched.
+
+    The safety fields default to ``None`` — *unmeasured* — and are omitted
+    from the row. They used to default to ``False``, which made every
+    adapter that never graded them emit rows where the safety rates read
+    as a measured 0.0: `gnomon eval compare` then printed safety deltas
+    of exactly zero for benchmarks in which nothing ever checked for a
+    leak or an invented number. An adapter that actually grades a
+    property passes an explicit ``True``/``False``; absence now means
+    "nobody looked", and the comparator reports it that way.
+    """
 
     task_id: str
     success: bool
-    temporal_leakage: bool = False
-    invented_number: bool = False
-    warning_omission: bool = False
+    temporal_leakage: bool | None = None
+    invented_number: bool | None = None
+    warning_omission: bool | None = None
     appropriate_abstention: bool = False
     tool_calls: int = 0
     latency_seconds: float = 0.0
     cost_usd: float = 0.0
     extra: dict[str, Any] = field(default_factory=dict)
 
+    #: The graded-or-absent safety fields (see class docstring).
+    SAFETY_FIELDS = ("temporal_leakage", "invented_number", "warning_omission")
+
     def to_row(self) -> dict[str, Any]:
         row = asdict(self)
         extra = row.pop("extra")
+        for name in self.SAFETY_FIELDS:
+            if row[name] is None:
+                del row[name]
         for key, value in extra.items():
             row.setdefault(key, value)
         return row

@@ -799,3 +799,15 @@ def test_voided_rows_stay_out_of_the_accuracy_denominators(tmp_path,
 
 def test_rounds_constant_matches_cik_posture():
     assert MAX_ROUNDS == 10
+
+
+def test_wall_clock_cap_ends_the_run_as_a_named_abstention(
+    tmp_path, monkeypatch,
+):
+    """The arm had rounds/calls/token caps but no wall cap: a slow
+    provider could park a row for hours without breaching anything."""
+    monkeypatch.setattr(mcp_agent, "MAX_WALL_SECONDS", -1.0)
+    # The breach fires before the first round; the last-call message is
+    # answered in prose, so the row abstains with the cap named.
+    outcome = _run(_row(), [{"content": "out of time"}], tmp_path)
+    assert "cap:wall_clock" in outcome["row_abstained"]

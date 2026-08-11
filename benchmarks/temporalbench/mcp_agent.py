@@ -87,6 +87,12 @@ MAX_MCP_CALLS = 24
 #: batched call path makes one run out of six, so this ceiling is a
 #: guard again rather than the thing being measured.
 MAX_RUN_TOKENS = 500_000
+#: The one cap this arm lacked. Rounds, calls, and tokens all bound model
+#: behaviour; none of them bounds a slow provider, so a run could sit for
+#: hours inside retries without breaching anything. Mirrors the CiK arm's
+#: reasoning (see benchmarks/cik/mcp_agent.py): far above what an honest
+#: run needs, so it guards the harness rather than handicapping the arm.
+MAX_WALL_SECONDS = 7200.0
 #: Per tool message, the point past which a result is shrunk rather than
 #: passed through. Measured against the case that matters: a six-channel
 #: 29-step MIMIC row returns ~33k characters in either format, which
@@ -476,8 +482,11 @@ class _RunBase:
 
     def __init__(self, row: dict[str, Any], client: Any,
                  session_factory: Any = None, work_dir: str | None = None):
+        import time
+
         self.row = row
         self.client = client
+        self.started = time.time()
         self.channels = self._row_channels(row)
         if "timestamp" in self.channels:
             raise ValueError("a channel named 'timestamp' collides with the "
@@ -522,6 +531,10 @@ class _RunBase:
                 - self.tokens_at_start)
 
     def _cap_breach(self) -> str | None:
+        import time
+
+        if time.time() - self.started > MAX_WALL_SECONDS:
+            return f"cap:wall_clock exceeded {MAX_WALL_SECONDS:.0f}s"
         if self._run_tokens() > MAX_RUN_TOKENS:
             return f"cap:tokens exceeded {MAX_RUN_TOKENS}"
         return None

@@ -257,3 +257,27 @@ def test_score_per_channel_loader_reads_support_labels(tmp_path):
     assert support["row1"] == {"hr": "supported",
                                "temperature_c": "best_effort"}
     assert "row2" in forecasts and "row2" not in support
+
+
+def test_limit_is_stratified_across_tiers(tmp_path):
+    """On a tier-grouped file, head-truncation reduced every limited
+    multi-tier run to the earliest tier — --limit defeated --tiers."""
+    import json
+
+    from benchmarks.temporalbench.tasks import LABELED_FILE, iter_rows
+
+    rows = ([{"id": f"t1-{i}", "tier": "T1"} for i in range(4)]
+            + [{"id": f"t2-{i}", "tier": "T2"} for i in range(4)])
+    (tmp_path / LABELED_FILE).write_text(
+        "".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8"
+    )
+    taken = list(iter_rows(tmp_path, tiers=("T1", "T2"), limit=4))
+    assert [row["tier"] for row in taken] == ["T1", "T1", "T2", "T2"]
+    # Within a tier, file order is kept.
+    assert [row["id"] for row in taken] == ["t1-0", "t1-1", "t2-0", "t2-1"]
+    # An unlimited iteration still streams every matching row in order.
+    assert [row["id"] for row in iter_rows(tmp_path, tiers=("T1", "T2"))] == [
+        row["id"] for row in rows
+    ]
+    # A limit larger than the row count returns everything.
+    assert len(list(iter_rows(tmp_path, tiers=("T1", "T2"), limit=99))) == 8

@@ -36,6 +36,12 @@ from benchmarks.common.openrouter import OpenRouterClient  # noqa: E402
 MAX_ROUNDS = 10
 MAX_MCP_CALLS = 24
 MAX_RUN_TOKENS = 250_000
+#: Bump when the system prompt, the caps, or the submit contract change:
+#: the official cache reuses results by cache_name, and a cached run made
+#: under an older contract is a different measurement wearing the same
+#: name. Version 2 marks the first release where the cache name carries
+#: this and the sampling temperature at all.
+MCP_CONTRACT_VERSION = 2
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -145,25 +151,58 @@ class StdioMcpSession:
     The subprocess runs with the jail as its working directory, so any
     relative path that slips through argument screening still lands
     inside the jail.
+
+    Every call carries a timeout: ``readline`` on a wedged server blocks
+    forever, and the runners' own caps (rounds, calls, tokens, wall
+    clock) are all checked *between* reads, so a single hung call used to
+    stall an entire sequential run with no summary ever written. On
+    timeout the child is killed and the call raises; the runners already
+    treat transport death as a disclosed harness failure.
     """
 
-    def __init__(self, cwd: str | Path, command: list[str] | None = None):
+    #: Generous per-call ceiling: a real gnomon_forecast over a large file
+    #: (TSFM sandboxes included) finishes well inside this; only a hung
+    #: server does not.
+    DEFAULT_CALL_TIMEOUT_SECONDS = 600.0
+
+    def __init__(self, cwd: str | Path, command: list[str] | None = None,
+                 call_timeout: float | None = None):
         self._proc = subprocess.Popen(
             command or [sys.executable, "-m", "gnomon", "mcp", "serve"],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL, cwd=str(cwd), text=True,
         )
         self._next_id = 0
+        self.call_timeout = (self.DEFAULT_CALL_TIMEOUT_SECONDS
+                             if call_timeout is None else float(call_timeout))
 
     def _rpc(self, method: str, params: dict[str, Any]) -> dict[str, Any]:
+        import threading
+
         self._next_id += 1
         request = {"jsonrpc": "2.0", "id": self._next_id,
                    "method": method, "params": params}
         assert self._proc.stdin is not None and self._proc.stdout is not None
         self._proc.stdin.write(json.dumps(request) + "\n")
         self._proc.stdin.flush()
-        line = self._proc.stdout.readline()
+        timed_out: list[bool] = []
+
+        def _kill() -> None:
+            timed_out.append(True)
+            self._proc.kill()
+
+        timer = threading.Timer(self.call_timeout, _kill)
+        timer.start()
+        try:
+            line = self._proc.stdout.readline()
+        finally:
+            timer.cancel()
         if not line:
+            if timed_out:
+                raise RuntimeError(
+                    f"gnomon mcp server did not answer {method} within "
+                    f"{self.call_timeout:.0f}s and was killed"
+                )
             raise RuntimeError("gnomon mcp server closed its stdout")
         message = json.loads(line)
         if "error" in message:
@@ -354,6 +393,7 @@ class McpAgentForecaster:
         session_factory: Any = None,
     ) -> None:
         self.openrouter_model = openrouter_model
+        self.temperature = temperature
         self.client = client or OpenRouterClient(
             openrouter_model, temperature=temperature)
         self.work_dir = work_dir
@@ -362,8 +402,14 @@ class McpAgentForecaster:
 
     @property
     def cache_name(self) -> str:
+        # Temperature and the arm's contract version are part of what a
+        # cached result measures: without them, a rerun at a different
+        # temperature — or after the prompt/caps changed — silently reused
+        # the old runs' results under the same name.
         model = self.openrouter_model.replace("/", "-")
-        return f"McpAgentForecaster_model={model}"
+        return (f"McpAgentForecaster_model={model}"
+                f"_temperature={self.temperature:g}"
+                f"_contract={MCP_CONTRACT_VERSION}")
 
     def __str__(self) -> str:
         return self.cache_name

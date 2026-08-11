@@ -210,7 +210,15 @@ def test_future_context_changes_the_cache_name():
     on = GnomonForecaster(mode="agent", openrouter_model="x/y",
                           future_context=True)
     assert off.cache_name != on.cache_name
-    assert on.cache_name.endswith("_future=on")
+    assert "_future=on" in on.cache_name
+    # Temperature is part of what a cached agent result measures; two
+    # temperatures must never share a cache entry. Pure mode has no LLM,
+    # so its names stay temperature-free (and cache-compatible).
+    hot = GnomonForecaster(mode="agent", openrouter_model="x/y",
+                           temperature=0.2)
+    assert hot.cache_name != off.cache_name
+    assert "temperature" not in GnomonForecaster(
+        mode="pure").cache_name
 
 
 def test_abstention_carries_reasons():
@@ -359,9 +367,21 @@ def test_run_record_rows_match_gnomonbench_schema(tmp_path):
     assert row["success"] is True
     assert row["tool_calls"] == 2
     assert row["rcrps"] == 0.42
-    for field in ("temporal_leakage", "invented_number", "warning_omission",
-                  "appropriate_abstention"):
-        assert row[field] is False
+    assert row["appropriate_abstention"] is False
+    # Ungraded safety fields are absent, not false: a default False made
+    # every adapter that never graded them report a measured-looking 0.0.
+    for field in ("temporal_leakage", "invented_number", "warning_omission"):
+        assert field not in row
+
+
+def test_run_record_serialises_graded_safety_fields(tmp_path):
+    writer = RecordWriter(tmp_path / "rows.jsonl")
+    writer.write(RunRecord(task_id="graded-001", success=True,
+                           temporal_leakage=False, invented_number=True))
+    row = json.loads((tmp_path / "rows.jsonl").read_text().strip())
+    assert row["temporal_leakage"] is False
+    assert row["invented_number"] is True
+    assert "warning_omission" not in row
 
 
 def test_run_record_extra_never_overrides_core_fields():

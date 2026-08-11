@@ -324,9 +324,15 @@ def main() -> int:
     route_mix: dict[str, int] = {}
     channels_abstained = 0
     total = 0
+    # Denominator for the scored-only forecast means: every T2/T4 row the
+    # run saw, so the coverage behind those means is a ratio in the
+    # summary, not an inference from three separate counters.
+    forecast_rows_total = 0
     for row in iter_rows(data_dir, tiers=tiers or TIERS,
                          datasets=datasets, limit=args.limit):
         total += 1
+        if row.get("tier") in ("T2", "T4"):
+            forecast_rows_total += 1
         row_id = row.get("id", f"row{total}")
         started = time.time()
         # Answering and scoring fail separately: a scoring exception must
@@ -395,12 +401,24 @@ def main() -> int:
         success = bool(metrics) if tier in ("T2", "T4") else (
             choice.get("total", 0) > 0 and choice["correct"] == choice["total"]
         )
+        # `success` is not one quantity across tiers, and a pooled success
+        # rate silently blends the two. The basis rides on every record so
+        # report.py can split the rate by what was actually measured.
+        success_basis = ("completion" if tier in ("T2", "T4")
+                         else "all_choices_correct")
+        # The MCP arm reports its real call count; the other Gnomon
+        # conditions make exactly one engine invocation; the control makes
+        # none. A constant 1 for the MCP arm made average_tool_calls a
+        # constant, not a measurement.
+        mcp_info = outcome.get("mcp") or {}
         records.write(RunRecord(
             task_id=row_id, success=success,
             appropriate_abstention=bool(outcome.get("abstained")),
-            tool_calls=0 if args.condition == "control" else 1,
+            tool_calls=(int(mcp_info["calls"]) if "calls" in mcp_info
+                        else 0 if args.condition == "control" else 1),
             latency_seconds=round(elapsed, 3),
             extra={"tier": tier,
+                   "success_basis": success_basis,
                    "choice_correct": None if voided else choice.get("correct"),
                    "choice_total": None if voided else choice.get("total"),
                    **({"row_abstained": voided} if voided else {}),
@@ -455,6 +473,14 @@ def main() -> int:
                                   "OW_sMAPE", "OW_RMSSE", "OW_MASE")
         },
         "forecast_rows_scored": forecast_rows_scored,
+        "forecast_rows_total": forecast_rows_total,
+        # The coverage behind the scored-only means, as a ratio: a mean
+        # over 12% of the rows and a mean over 96% of them print the same
+        # number of digits.
+        "forecast_scored_fraction": (
+            round(forecast_rows_scored / forecast_rows_total, 4)
+            if forecast_rows_total else None
+        ),
         "best_effort": args.best_effort,
         "forecast_channel_support_mix": dict(sorted(support_mix.items())),
         "forecast_channels_abstained": channels_abstained,
@@ -477,7 +503,10 @@ def main() -> int:
             "score_per_channel.py) or benchmarks/report.py's matched "
             "join, not by subtracting summaries. success on T2/T4 "
             "records completion (the official module returned metrics), "
-            "not accuracy — per-row SMAPE lives in each record's extra. "
+            "not accuracy — per-row SMAPE lives in each record's extra, and "
+            "every record names what its success measured in success_basis "
+            "(completion vs all_choices_correct); voided rows carry "
+            "row_abstained, which report.py excludes from its success test. "
             "forecast_channel_support_mix and forecast_channels_abstained "
             "are the coverage every forecast figure rests on; quote them "
             "beside it. Any best_effort count in the mix is disclosed "
