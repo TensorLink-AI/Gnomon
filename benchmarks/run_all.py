@@ -84,6 +84,12 @@ REGISTRY: dict[str, dict[str, Any]] = {
         "accepts": {"model", "temperature", "output_dir"},
         "limit_flag": "--limit",
     },
+    "decisionbench": {
+        # Tasks are generated from (count, seed); no data directory.
+        "module": "benchmarks.decisionbench.run_decisionbench",
+        "accepts": {"model", "temperature", "output_dir"},
+        "limit_flag": "--limit",
+    },
 }
 
 

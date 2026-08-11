@@ -76,17 +76,19 @@ README for setup, the exact conditions, and any faithfulness caveats
 (TimeSage-MT's official judge is not public; its README explains what
 is and is not comparable).
 
-One internally-authored benchmark sits alongside the five published
+Two internally-authored benchmarks sit alongside the five published
 adapters:
 
 | Benchmark | What it measures | Adapter |
 | --- | --- | --- |
 | [LeakTrap](leaktrap/) (internal) | Temporal-leakage traps: whether a forecaster respects publication dates when peeking would score better; graded by a hindsight no-leak ceiling, transcription detection, and a structural snapshot assertion | `benchmarks/leaktrap` |
+| [DecisionBench](decisionbench/) (internal) | Agent decision-making under temporal traps: capacity commitments with asymmetric costs, priced escalation, embedded traps (short history, revisions, misleading context, messy files); graded on realized decision cost against held-out demand | `benchmarks/decisionbench` |
 
-LeakTrap is ours, not a community benchmark — its numbers validate
-Gnomon's bitemporal contract and are not comparable to anything
-published. Its README covers the trap construction, the three arms
-(control / gnomon / oracle-leak), and how to read the leak flags.
+These are ours, not community benchmarks — LeakTrap's numbers validate
+Gnomon's bitemporal contract, DecisionBench's measure whether an agent
+decides better holding Gnomon's tools than holding a Python sandbox,
+and neither is comparable to anything published. Each README covers its
+construction, arms, and how to read the results.
 
 ## Conditions
 
