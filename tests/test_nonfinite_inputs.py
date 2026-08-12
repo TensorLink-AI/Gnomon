@@ -10,7 +10,9 @@ drop-with-disclosure under ``aggressive``); ``error_score`` guards its
 own arithmetic because TSFM adapter outputs never pass the loader.
 """
 
+import json
 import math
+from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
@@ -110,6 +112,63 @@ def test_parse_number_rejects_nonfinite_normalised_forms():
         parse_number("inf", None)
     with pytest.raises(ValueError):
         parse_number("-Infinity", None)
+
+
+def _write_format(path: Path, suffix: str, cells: list) -> Path:
+    """The same rows in each supported container."""
+    start = date(2026, 1, 1)
+    stamps = [(start + timedelta(days=i)).isoformat() for i in range(len(cells))]
+    target = path.with_suffix(suffix)
+    if suffix == ".jsonl":
+        target.write_text("\n".join(
+            json.dumps({"timestamp": t, "value": v})
+            for t, v in zip(stamps, cells)), encoding="utf-8")
+    elif suffix == ".parquet":
+        pa = pytest.importorskip("pyarrow")
+        import pyarrow.parquet as pq
+        pq.write_table(pa.table({"timestamp": stamps,
+                                 "value": [float(v) for v in cells]}), target)
+    elif suffix == ".xlsx":
+        openpyxl = pytest.importorskip("openpyxl")
+        book = openpyxl.Workbook()
+        sheet = book.active
+        sheet.append(["timestamp", "value"])
+        for stamp, value in zip(stamps, cells):
+            sheet.append([stamp, value])
+        book.save(target)
+    else:
+        raise AssertionError(suffix)
+    return target
+
+
+# `float("nan")` reaches the loader as a *number*, not text, in every
+# binary container — the sentinel table cannot catch it there, so the
+# numeric guard is what every one of these depends on.
+@pytest.mark.parametrize("suffix", [".jsonl", ".parquet", ".xlsx"])
+@pytest.mark.parametrize("bad", [float("nan"), float("inf")])
+def test_every_input_format_refuses_non_finite(tmp_path, suffix, bad):
+    values = [100.0, 101.0, 102.0, 103.0, bad]
+    path = _write_format(tmp_path / "series", suffix, values)
+    with pytest.raises(GnomonError) as caught:
+        load_observations(str(path), "timestamp", "value", None)
+    assert caught.value.code in ("NON_FINITE_TARGET", "INVALID_TARGET")
+    assert caught.value.to_dict()["error"]["repair_options"]
+
+
+@pytest.mark.parametrize("suffix", [".jsonl", ".parquet", ".xlsx"])
+def test_every_input_format_repairs_non_finite_under_aggressive(tmp_path, suffix):
+    clean = [100.0 + index for index in range(30)]
+    path = _write_format(tmp_path / "series", suffix, clean + [float("inf")])
+    log = RepairLog()
+    observations, _, _ = load_observations(
+        str(path), "timestamp", "value", None,
+        repair="aggressive", repair_log=log,
+    )
+    assert len(observations) == len(clean)
+    assert all(math.isfinite(item.value) for item in observations)
+    assert any(action.code in ("unparseable_row_dropped",
+                              "missing_value_dropped")
+               for action in log.actions())
 
 
 def test_error_score_returns_none_for_nonfinite_predictions():
