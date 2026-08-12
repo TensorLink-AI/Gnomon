@@ -132,6 +132,111 @@ def test_defaults_are_fresh_per_load(tmp_path, monkeypatch):
     assert isinstance(first, GnomonConfig)
 
 
+#: Every allowlisted key, mapped to the config attribute it must land in
+#: and a non-default value to set it to. The mapping is the behavioural
+#: claim: a key that parses into nothing is exactly the defect Phase 1E
+#: exists to remove, and this table is what stops a new key being added
+#: to ALLOWED_KEYS without being wired.
+KEY_EFFECTS: dict[str, tuple[str, object]] = {
+    "models.statistical.enabled": ("models.statistical_enabled", False),
+    "models.statistical.candidates": ("models.statistical_candidates", ["drift"]),
+    "models.tsfm.candidates": ("models.tsfm_candidates", ["chronos_bolt_mini"]),
+    "backends.sandbox.enabled": ("backends.sandbox.enabled", False),
+    "backends.api.enabled": ("backends.api.enabled", True),
+    "backends.api.timeout": ("backends.api.timeout", 42),
+    "backends.api.retry": ("backends.api.retry", 5),
+    "ensemble.enabled": ("ensemble.enabled", True),
+    "ensemble.strategy": ("ensemble.strategy", "median"),
+    "ensemble.weighted_mean.min_models": ("ensemble.min_models", 4),
+    "ensemble.weighted_mean.max_weight_ratio": ("ensemble.max_weight_ratio", 0.55),
+    "meta_model.enabled": ("meta_model.enabled", True),
+    "meta_model.min_models": ("meta_model.min_models", 3),
+    "meta_model.non_negative": ("meta_model.non_negative", False),
+    "meta_model.linear_regression.ridge_alpha": ("meta_model.ridge_alpha", 0.25),
+    "evaluation.minimum_baseline_improvement": (
+        "evaluation.minimum_baseline_improvement", 0.1),
+    "evaluation.folds.min_observations": ("evaluation.min_observations", 144),
+    "evaluation.uncertainty.pool_residuals": ("evaluation.pool_residuals", False),
+    "evaluation.uncertainty.target_coverage": ("evaluation.target_coverage", 0.9),
+    "context.future_events": ("context.future_events", True),
+    "context.structural_events": ("context.structural_events", True),
+    "output.write_forecast_csv": ("output.write_forecast_csv", False),
+    "output.write_summary": ("output.write_summary", False),
+    "output.write_evidence": ("output.write_evidence", False),
+}
+
+#: Keys whose effect is structural rather than a single attribute:
+#: `evaluation.selection` only accepts its one implemented value, and the
+#: strategy-specific min_models are alternative spellings of one field.
+STRUCTURAL_KEYS = {
+    "evaluation.selection",
+    "ensemble.median.min_models",
+    "ensemble.voting.min_models",
+    "ensemble.voting.threshold",
+}
+
+
+def test_every_allowlisted_key_is_accounted_for():
+    """No key may be allowed without a stated effect: that combination is
+    precisely the parsed-never-read defect Phase 1E removes."""
+    from gnomon.config import ALLOWED_KEYS
+
+    accounted = set(KEY_EFFECTS) | STRUCTURAL_KEYS
+    assert set(ALLOWED_KEYS) == accounted, (
+        "allowlist and effect table disagree; unaccounted: "
+        f"{sorted(set(ALLOWED_KEYS) - accounted)}, stale: "
+        f"{sorted(accounted - set(ALLOWED_KEYS))}"
+    )
+
+
+@pytest.mark.parametrize("key", sorted(KEY_EFFECTS))
+def test_each_accepted_key_reaches_the_runtime(tmp_path, key):
+    pytest.importorskip("yaml")
+    import yaml as yaml_module
+
+    attribute, value = KEY_EFFECTS[key]
+    nested: dict = {}
+    cursor = nested
+    parts = key.split(".")
+    for part in parts[:-1]:
+        cursor = cursor.setdefault(part, {})
+    cursor[parts[-1]] = value
+
+    path = tmp_path / "gnomon.yaml"
+    path.write_text(yaml_module.safe_dump(nested), encoding="utf-8")
+    config = load_config(str(path))
+
+    resolved = config
+    for attr in attribute.split("."):
+        resolved = getattr(resolved, attr)
+    assert resolved == value, (
+        f"{key} parsed but did not reach {attribute}"
+    )
+
+
+def test_interval_shaping_options_change_the_forecast_id(tmp_path):
+    """A key that changes the published numbers must change identity.
+    target_coverage and pool_residuals both reshape the interval, and
+    both used to leave the content-addressed id untouched — so two runs
+    with materially different bands collided on one id."""
+    from gnomon.runtime import _config_fingerprint
+
+    default = _config_fingerprint(GnomonConfig())
+
+    coverage = GnomonConfig()
+    coverage.evaluation.target_coverage = 0.5
+    pooled = GnomonConfig()
+    pooled.evaluation.pool_residuals = False
+    context = GnomonConfig()
+    context.context.future_events = True
+
+    assert _config_fingerprint(coverage) != default
+    assert _config_fingerprint(pooled) != default
+    assert _config_fingerprint(context) != default
+    # Defaults still fingerprint as absent, so existing ids do not churn.
+    assert default is None
+
+
 def test_ridge_alpha_is_actually_honoured():
     """The denylist claimed ridge_alpha was honoured while the solver
     hardcoded its epsilon; the setting must now change the fit."""

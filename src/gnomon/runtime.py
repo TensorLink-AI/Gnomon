@@ -201,6 +201,8 @@ def _config_fingerprint(config: Any) -> dict[str, object] | None:
     A missing config and the built-in defaults fingerprint identically, so
     the same task yields the same artifact ID regardless of which interface
     invoked it."""
+    from .evaluation import DEFAULT_TARGET_COVERAGE
+
     if config is None:
         return None
     ensemble = getattr(config, "ensemble", None)
@@ -208,6 +210,8 @@ def _config_fingerprint(config: Any) -> dict[str, object] | None:
     backends = getattr(config, "backends", None)
     api = getattr(backends, "api", None) if backends else None
     models = getattr(config, "models", None)
+    evaluation = getattr(config, "evaluation", None)
+    context = getattr(config, "context", None)
     payload: dict[str, object] = {
         "ensemble": asdict(ensemble) if ensemble is not None and is_dataclass(ensemble) and ensemble.enabled else None,
         "meta_model": asdict(meta_model) if meta_model is not None and is_dataclass(meta_model) and meta_model.enabled else None,
@@ -219,6 +223,29 @@ def _config_fingerprint(config: Any) -> dict[str, object] | None:
         # first-write-wins served whichever artifact landed first.
         "statistical_candidates": sorted(
             getattr(models, "statistical_candidates", None) or []) or None,
+        # Interval-shaping options change the published numbers without
+        # changing any name in the run, so leaving them out let two runs
+        # with materially different bands collide on one content-addressed
+        # id — the same defect `statistical_candidates` above was added to
+        # fix. Only non-default values enter, so existing ids are
+        # byte-identical.
+        "target_coverage": (
+            value if (value := getattr(evaluation, "target_coverage", None))
+            is not None and value != DEFAULT_TARGET_COVERAGE else None
+        ) if evaluation is not None else None,
+        "pool_residuals": (
+            False if getattr(evaluation, "pool_residuals", True) is False
+            else None
+        ) if evaluation is not None else None,
+        "min_observations": (
+            getattr(evaluation, "min_observations", None)
+        ) if evaluation is not None else None,
+        # The experimental context lanes rewrite the forecast when they
+        # admit an event; off is the default and fingerprints as absent.
+        "context": sorted(
+            name for name in ("future_events", "structural_events")
+            if getattr(context, name, False)
+        ) or None if context is not None else None,
     }
     if all(value is None for value in payload.values()):
         return None
