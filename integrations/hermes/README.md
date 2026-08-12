@@ -1,6 +1,6 @@
 # Gnomon plugin for Hermes Agent
 
-Gives any Hermes agent evidence-backed local forecasting: `gnomon_capabilities`,
+Gives Hermes a local trusted temporal execution boundary: `gnomon_capabilities`,
 `gnomon_inspect`, `gnomon_forecast`, and `gnomon_propose_context_events`, plus tools
 to submit actuals, discover due forecasts, inspect realised performance, and
 record/resolve agent decisions. The `gnomon:forecasting` skill encodes the

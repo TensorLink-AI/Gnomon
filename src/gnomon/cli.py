@@ -458,6 +458,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Tool subset to expose (default full, 18 tools): core = "
              "forecast/investigate/detect plus capabilities, inspection, "
              "and artifact reads (7 tools); "
+             "describe, evidence, and mega are experimental surface arms; "
              "decision adds decide/monitor/route/status/resolve_outcome; "
              "data adds ingest/list_datasets/submit_actuals. "
              "`gnomon capabilities` reports the active profile.",
