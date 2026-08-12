@@ -1,14 +1,13 @@
 # MCP surface experiment
 
-Status: interim screening recorded — retain `full` as the default while the
-full matched experiment remains open, 2026-08-12.
+Status: matched decision recorded — retain `full` as the default, 2026-08-12.
 
 The number of exposed tools is not itself a product metric. A smaller surface
 may reduce distraction and schema tax, or merely hide useful capabilities.
 Gnomon therefore flips its default profile only after matched agent runs show a
 better answer at lower conversation cost.
 
-The first screening result is recorded in
+The matched result is recorded in
 [`mcp-surface-experiment-results.md`](mcp-surface-experiment-results.md).
 
 ## First matched experiment
@@ -49,9 +48,10 @@ no more than two calls at the median, and no more than four at p95. Report
 accuracy split by evidence tier and quote the schema byte count beside token
 results.
 
-The default may remain `full` after an incomplete screen when a candidate
-already fails a binding gate. That is a safe non-change, not completion of the
-four-arm experiment and not evidence against arms that were not matched.
+The first completed matrix retained `full`: all candidates missed the token
+and median-call gates, and `evidence` also missed yield. The profiles remain
+executable so a future candidate or model can be evaluated under the same
+rule; the default does not change from tool count alone.
 
 The executable arms are `full`, `core`, `describe` (core plus the descriptive
 evidence verb), and `mega` (inspect/run/track), with `decision` and `data` as
