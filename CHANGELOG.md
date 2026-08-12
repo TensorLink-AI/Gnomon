@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- **No non-finite value reaches evaluation.** `float("nan")` and
+  `float("inf")` parse, so the strict loader admitted them as
+  observations — after which a NaN error score poisoned every aggregate
+  it touched (a mean with one NaN fold is NaN, not `None`, and NaN
+  compares false to every threshold). The strict loader now refuses
+  with `NON_FINITE_TARGET` (row named, repair options attached — also
+  catching the nonstandard `NaN` literal Python's json module accepts);
+  under repair, textual `NaN` stays a documented missing sentinel while
+  `inf`-family values take the unparseable path (refuse under `safe`,
+  drop-with-disclosure under `aggressive`, both capped by
+  `EXCESSIVE_REPAIR`). `error_score` independently returns `None` on
+  non-finite arithmetic, because TSFM adapter outputs never pass
+  through the loader.
+
 - **Fold evidence stays fold-aligned when a member fails mid-run.** A
   built-in model that failed `predict` (or hit an unscoreable fold) had
   that fold compacted out of its per-fold score and forecast lists,

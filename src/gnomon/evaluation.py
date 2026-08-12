@@ -88,9 +88,16 @@ def error_score(actual: list[float], predicted: list[float]) -> float | None:
     does.
     """
     scale = sum(abs(a) for a in actual)
-    if scale <= 1e-12:
+    if scale <= 1e-12 or not math.isfinite(scale):
         return None
-    return sum(abs(a - p) for a, p in zip(actual, predicted)) / scale
+    total = sum(abs(a - p) for a, p in zip(actual, predicted))
+    if not math.isfinite(total):
+        # A NaN or infinite prediction (a TSFM adapter's output never
+        # passes through the loader) must make the fold unscoreable —
+        # None, like any other unscoreable fold — not return NaN, which
+        # every aggregate it touches would silently become.
+        return None
+    return total / scale
 
 
 def quantile(values: list[float], probability: float) -> float:

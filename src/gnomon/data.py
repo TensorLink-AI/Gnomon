@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import math
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -358,6 +359,29 @@ def observations_from_rows(
                     "INVALID_TARGET", f"Target is not numeric on row {row_number}.",
                     {"row": row_number, "value": row.get(target_column)},
                 ) from exc
+            if not math.isfinite(value):
+                # NaN and infinities parse as floats but are not
+                # observations: NaN poisons every downstream aggregate it
+                # touches (a mean with one NaN fold is NaN, not None), and
+                # an infinite level has no forecastable meaning. Refuse
+                # here, before model selection can ingest one.
+                raise GnomonError(
+                    "NON_FINITE_TARGET",
+                    f"Target is {str(row.get(target_column)).strip()!r} on row "
+                    f"{row_number}: NaN and infinite values cannot be "
+                    "observations.",
+                    {"row": row_number, "value": str(row.get(target_column))},
+                    repair_options=[{
+                        "action": "fix_source",
+                        "description": "Repair the exporting system; NaN usually "
+                                       "marks a missing measurement.",
+                    }, {
+                        "action": "supply_arguments",
+                        "description": "repair=\"aggressive\" drops non-finite "
+                                       "rows with a repair-log entry.",
+                        "arguments": ["repair"],
+                    }],
+                )
             series = str(row[series_column]) if series_column else default_series
             observations.append(
                 Observation(_parse_timestamp(row[time_column], row_number), value, series)

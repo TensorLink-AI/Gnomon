@@ -295,6 +295,10 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
         {"action": "fix_target", "description": "Make the target column numeric; the offending row is in details."},
         {"action": "enable_repair", "description": "Pass repair=aggressive to drop rows without a numeric reading (capped and disclosed)."},
     ],
+    "NON_FINITE_TARGET": [
+        {"action": "fix_source", "description": "Repair the exporting system; NaN usually marks a missing measurement, and an infinite level has no forecastable meaning."},
+        {"action": "enable_repair", "description": "Pass repair=aggressive to drop non-finite rows (capped and disclosed); textual NaN under repair=safe is already treated as missing."},
+    ],
     "DUPLICATE_TIMESTAMPS": [
         {"action": "deduplicate", "description": "Remove duplicate timestamps, or ingest revisions into the store with distinct known-at times."},
         {"action": "enable_repair", "description": "Identical duplicate rows collapse under the default repair=safe; conflicting values need repair=aggressive (last row wins, disclosed)."},
