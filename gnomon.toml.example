@@ -1,0 +1,73 @@
+# Gnomon project configuration (preferred; parsed by Python >=3.11 stdlib)
+# Copy to gnomon.toml. Unknown or unsupported keys fail at startup.
+
+[models.statistical]
+enabled = true
+candidates = ["drift", "linear_trend", "window_average", "theta", "ets"]
+
+[models.tsfm]
+candidates = []
+
+# [models.tsfm.overrides.chronos_bolt_mini]
+# backend = "sandbox" # auto | sandbox | api | skip
+
+[backends.sandbox]
+enabled = true
+
+[backends.api]
+enabled = false
+timeout = 60
+retry = 2
+
+# [backends.api.providers.chronos_bolt_mini]
+# url = "https://inference.example.com/v1/forecast"
+# model = "chronos-bolt-mini"
+# timeout = 30
+# retry = 2
+# [backends.api.providers.chronos_bolt_mini.auth]
+# type = "bearer"
+# token_env = "GNOMON_API_KEY"
+# header = "Authorization"
+
+[ensemble]
+enabled = false
+strategy = "weighted_mean" # weighted_mean | median | voting
+
+[ensemble.weighted_mean]
+min_models = 2
+max_weight_ratio = 0.7
+
+# [ensemble.median]
+# min_models = 3
+
+# [ensemble.voting]
+# min_models = 3
+# threshold = 0.5
+
+[meta_model]
+enabled = false
+min_models = 2
+non_negative = true
+
+[meta_model.linear_regression]
+ridge_alpha = 0.000001
+
+[evaluation]
+minimum_baseline_improvement = 0.02
+selection = "per_series"
+
+[evaluation.folds]
+# min_observations = 56
+
+[evaluation.uncertainty]
+pool_residuals = true
+target_coverage = 0.80
+
+[context]
+future_events = false
+structural_events = false
+
+[output]
+write_forecast_csv = true
+write_summary = true
+write_evidence = true

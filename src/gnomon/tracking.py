@@ -487,7 +487,16 @@ class TrackingStore:
     """SQLite-backed forecast registry and scoring store."""
 
     def __init__(self, path: str | Path | None = None):
-        self.path = Path(path) if path else DEFAULT_REGISTRY_PATH
+        # Resolve mutable environment state at construction, not import.
+        # Long-lived test and MCP hosts can select a registry per session;
+        # caching an earlier temporary path makes a later session open a
+        # directory that may already have been removed.
+        configured = os.environ.get("GNOMON_REGISTRY_PATH")
+        self.path = (
+            Path(path) if path
+            else Path(configured).expanduser() if configured
+            else DEFAULT_REGISTRY_PATH
+        )
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
 
@@ -721,7 +730,7 @@ class TrackingStore:
         params: list[Any] = [project, scope]
         if as_of is not None:
             query += " AND known_time <= ?"
-            params.append(as_of)
+            params.append(self._normalise_timestamp(as_of))
         query += " ORDER BY known_time ASC, forecast_id ASC"
         with self._connect() as conn:
             return [dict(row) for row in conn.execute(query, params)]
@@ -1758,7 +1767,7 @@ class TrackingStore:
             params.append(task)
         if as_of is not None:
             clauses.append("COALESCE(known_time, scored_at) <= ?")
-            params.append(as_of)
+            params.append(self._normalise_timestamp(as_of))
         with self._connect() as conn:
             rows = conn.execute(f"""
                 SELECT * FROM model_performance

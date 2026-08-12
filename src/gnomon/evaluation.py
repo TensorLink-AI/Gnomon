@@ -70,8 +70,8 @@ class Evaluation:
     #: Executable specification of the selected candidate (unified plan,
     #: Phase 1A): `predict_stage` publishes by fitting this on the full
     #: history — the same closures that produced the calibration and test
-    #: predictions. None on abstentions and (for now) TSFM selections,
-    #: which keep their sandbox-first publication chain.
+    #: predictions. None only on abstentions. TSFM winners retain the exact
+    #: adapter closure that competed; publication must not rediscover one.
     final_candidate: Any = field(default=None, compare=False, repr=False)
     #: The ensemble's specification whenever the ensemble competed,
     #: selected or not — the `--ensemble` override publishes through it.
@@ -1514,9 +1514,15 @@ def evaluate(
             ),
             selected,
         )
-    # A TSFM selection keeps predict_stage's sandbox-first publication
-    # chain (its fallback policy); binding that chain into a spec with
-    # full identity is follow-up work.
+    elif any(adapter.name == selected for adapter in tsfm_adapters):
+        final_candidate = _spec_for(
+            CandidateIdentity(
+                kind="tsfm", name=selected,
+                revisions=_revisions((selected,)),
+                fallback_policy="strongest_baseline_recalibrated",
+            ),
+            selected,
+        )
 
     return Evaluation(selected, strongest_baseline, {**scores, **extra_scores},
                       test_scores, improvement,

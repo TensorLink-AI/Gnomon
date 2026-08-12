@@ -265,6 +265,71 @@ def test_tsfm_member_contributes_its_pinned_revision(tmp_path):
     assert "stub_tsfm" in (fitted.identity.weights or {})
 
 
+def test_selected_tsfm_publishes_through_the_evaluated_adapter(monkeypatch):
+    """A winning TSFM keeps the adapter instance that earned selection.
+
+    Publication must not rediscover a sandbox or in-process adapter: that
+    could select a different implementation or revision at the seam.
+    """
+    import gnomon.evaluation as evaluation_module
+    import gnomon.tsfm as tsfm_module
+    import gnomon.tsfm_sandbox as sandbox_module
+    from gnomon.config import GnomonConfig as Config
+    from gnomon.evaluation import evaluate
+    from gnomon.pipeline import SeriesState, predict_stage
+
+    class _QuadraticAdapter:
+        name = "quadratic_tsfm"
+        _MODEL_ID = "stub/quadratic"
+
+        def predict(self, history, horizon, season):
+            first_delta = history[-1] - history[-2]
+            second_delta = history[-1] - 2 * history[-2] + history[-3]
+            value = history[-1]
+            points = []
+            for _ in range(horizon):
+                first_delta += second_delta
+                value += first_delta
+                points.append(value)
+            return points
+
+    adapter = _QuadraticAdapter()
+    monkeypatch.setattr(tsfm_module, "eligible_tsfms",
+                        lambda **kwargs: ([adapter.name], {}))
+    monkeypatch.setattr(evaluation_module, "tsfm_candidates",
+                        lambda *args, **kwargs: [adapter])
+    monkeypatch.setattr(tsfm_module, "pinned_revision", lambda model_id: "rev-1")
+
+    values = [float(index * index + 10) for index in range(180)]
+    config = Config()
+    config.models.tsfm_candidates = [adapter.name]
+    assessment = evaluate(values, HORIZON, 7, 0.02, frequency="D",
+                          tsfm_names=[adapter.name], config=config)
+    assert assessment.selected_model == adapter.name
+    assert assessment.final_candidate is not None
+    assert assessment.final_candidate.identity.kind == "tsfm"
+
+    # If publication tries the old discovery path, these fail the test.
+    monkeypatch.setattr(sandbox_module, "sandbox_available_tsfms",
+                        lambda: (_ for _ in ()).throw(AssertionError("rediscovered sandbox")))
+    monkeypatch.setattr(tsfm_module, "get_tsfm",
+                        lambda name: (_ for _ in ()).throw(AssertionError("rediscovered adapter")))
+
+    state = SeriesState(
+        name="s", values=values, timestamps=[], future_timestamps=[],
+        season=7, assessment=assessment,
+    )
+    predict_stage(state, horizon=HORIZON, frequency="D",
+                  selection_strategy="best")
+
+    assert state.selected_model == adapter.name
+    assert state.points == adapter.predict(values, HORIZON, 7)
+    record = next(item for item in state.evidence
+                  if item.kind == "final_candidate")
+    assert record.payload["kind"] == "tsfm"
+    assert record.payload["revisions"][adapter.name] == "stub/quadratic@rev-1"
+
+
 def test_fallback_moves_identity_and_calibration_together(tmp_path):
     """The plan's second done-when: when the selected executable fails at
     final prediction, the published identity and the interval's

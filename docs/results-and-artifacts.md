@@ -62,9 +62,10 @@ For nonzero actuals, the score is:
 sum(abs(actual - predicted)) / sum(abs(actual))
 ```
 
-Lower is better. For an all-zero evaluation window, Gnomon falls back to mean
-absolute error to avoid division by zero. Consequently, scores from those two
-scales should not be compared as though they were identical units.
+Lower is better. WAPE is undefined for an all-zero evaluation window, so that
+fold is unscoreable (`None`) rather than silently changing units to mean
+absolute error. A candidate must complete every required selection fold to
+hold a selection score.
 
 ## Forecast columns
 
@@ -113,7 +114,7 @@ calibration fold. The selected model was chosen to minimise error on the
 selection folds, so those residuals are optimistically small and the
 interval is narrower than strict split conformal would give; every run says
 so via `conformal_residuals_pooled_across_selection`. Set
-`evaluation.pool_residuals: false` in `gnomon.yaml` to calibrate on the
+`evaluation.uncertainty.pool_residuals = false` in `gnomon.toml` to calibrate on the
 held-out fold alone — genuine split conformal, noisier and wider.
 
 The interval is empirical, not a probability guarantee. Check
@@ -136,6 +137,15 @@ When `--threshold VALUE` is supplied, each supported series carries a
 
 These probabilities inherit every caveat of the intervals; treat them as
 calibrated only as far as `interval_coverage` supports.
+
+## Executable identity
+
+For ensembles, cross-series candidates, and TSFMs, `final_candidate` evidence
+identifies the exact executable that published: strategy, members, fitted
+weights where applicable, behavior-changing configuration, runtime and model
+revisions, fallback policy, and the visible-history fingerprint. Evaluation
+passes this executable specification across the publication seam; the
+pipeline does not reconstruct it from `selected_model`.
 
 ## Artifact files
 
@@ -177,4 +187,3 @@ The input fingerprint proves whether source bytes changed, and the artifact
 preserves the resolved task. Gnomon does not yet record a source-control commit,
 wheel hash, operating-system details, or a lockfile inside each artifact. Retain
 the installed package version and original input when exact reproduction matters.
-

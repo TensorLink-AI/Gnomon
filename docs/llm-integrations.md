@@ -2,9 +2,17 @@
 
 ## Gnomon does not use an LLM
 
-The current runtime does not call OpenRouter, OpenAI, Anthropic, Google, Hermes,
-or any other model provider. It does not read provider API-key environment
-variables. Forecasting is local and deterministic, so no API key is required.
+The default runtime does not call OpenRouter, OpenAI, Anthropic, Google,
+Hermes, or any other LLM provider. It does not read LLM-provider API-key
+environment variables. Forecasting is local and deterministic by default, so
+no account or API key is required.
+
+This is distinct from the explicit TSFM API backend. A CLI/Python caller may
+configure `backends.api` in `gnomon.toml` to send numerical series to a named
+forecast endpoint. That path is off by default and requires deliberate
+configuration; MCP calls do not inherit ambient project config. Hosted
+inference must therefore be an explicit, disclosed project decision, never a
+silent upgrade from local execution.
 
 Setting `OPENROUTER_API_KEY`, `OPENAI_API_KEY`, or `ANTHROPIC_API_KEY` currently
 has no effect. `gnomon mcp serve` exposes the tools over stdio MCP without any
@@ -36,8 +44,8 @@ without changing the numerical runtime.
 One thing to be aware of if you are grepping the repository: `benchmarks/`
 *does* call OpenRouter, and reads `OPENROUTER_API_KEY`. That is the
 benchmark harness serving LLM **controls** to compare against Gnomon — it is
-not part of the runtime, and no forecast path touches it. Installing Gnomon
-and forecasting never makes a network call to a model provider.
+not part of the runtime. A default forecast makes no model-provider network
+call; only an explicitly enabled TSFM API backend does.
 
 ## Intended LLM boundary
 
@@ -96,8 +104,10 @@ verbatim and must not manufacture values for unsupported series.
 
 ## Agents and TSFM sandboxes
 
-Foundation-model sandboxes are installed per model, from the shell, never
-through an MCP tool: `gnomon tsfm install <name>`. An agent should read
+Foundation-model sandboxes are installed per model with
+`gnomon tsfm install <name>` or, on the `full` MCP profile, with
+`gnomon_install_tsfm`. The MCP tool launches the long-running installation
+detached and supports status-only polling. An agent should read
 `gnomon_capabilities` first — `models.tsfm_available` lists what can be
 installed, `models.tsfm_sandboxes` what already is, and
 `models.tsfm_capabilities[<name>].tasks` which tasks each model has
@@ -105,8 +115,7 @@ verifiably implemented (`forecast`, and for `moment_small` also
 `detect_anomalies` / `impute` / `embed`). If a wanted model is missing,
 an agent with shell access can run the install command itself (uv must be
 installed; weights download from the Hugging Face Hub on first
-inference); a tool-only agent should ask the operator to run it. Once the
-sandbox exists there is nothing else to wire: the model competes in the
+inference); a tool-only agent on a narrow profile should ask the operator to
+run it. Once the sandbox exists there is nothing else to wire: the model competes in the
 next evaluated run and is selected only if it wins the backtest or
 grader.
-

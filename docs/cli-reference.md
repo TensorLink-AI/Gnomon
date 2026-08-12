@@ -58,11 +58,13 @@ gnomon inspect INPUT --time COLUMN --target COLUMN [OPTIONS]
 
 | Option | Required | Meaning |
 | --- | --- | --- |
-| `INPUT` | Yes | CSV, `.parquet`, or `.pq` path. |
-| `--time COLUMN` | Yes | Timestamp column. |
-| `--target COLUMN` | Yes | Numeric target column. |
+| `INPUT` | Yes | CSV/TSV, JSON/JSONL, Parquet, Excel, gzipped text, or `store:<dataset>`. |
+| `--time COLUMN` | No | Timestamp column; inferred when unambiguous. |
+| `--target COLUMN` | No | Numeric column, comma list, or `auto`; omitted ambiguity inspects all qualifying columns. |
 | `--series COLUMN` | No | Independent-series identifier. |
+| `--regrid MODE` | No | `business_daily` or `month_start`; disclosed calendar reshaping. |
 | `--frequency CODE` | No | Named codes (`s`, `min`, `5min`, `10min`, `15min`, `30min`, `h`, `D`, `W`, `MS`) or any whole-second sub-daily step (`10s`, `7min`, `2h`, …); inferred when omitted. |
+| `--seasonal-period N` | No | Override detected seasonality in periods of the data grid. |
 
 Inspection returns the source SHA-256 fingerprint, resolved schema, columns,
 series names, observation counts, and date ranges.
@@ -91,9 +93,10 @@ response's `assumptions` — an inference nobody is told about is a guess:
 - `--horizon` defaults to one seasonal period of the inferred grid.
 - `--frequency` is inferred from the observed step between timestamps.
 
-Inference refuses — with an `AMBIGUOUS_SCHEMA` error naming the candidate
-columns and the minimal working invocation — when more than one column
-qualifies. It never guesses between two plausible readings.
+Inference refuses for forecasts—with an `AMBIGUOUS_SCHEMA` error naming the
+candidate columns and minimal working invocation—when more than one target
+qualifies. It never guesses which series should own a published number.
+Read-only inspection is exhaustive instead, as described above.
 
 To batch several columns of a wide file into one run, pass a comma list
 or `auto`:
@@ -179,9 +182,13 @@ gnomon forecast INPUT [--time COLUMN] [--target COLUMN[,COLUMN…]] [--horizon N
 | `--series COLUMN` | None | Independent-series identifier. |
 | `--frequency CODE` | Inferred | Named codes (`s`, `min`, `5min`, `10min`, `15min`, `30min`, `h`, `D`, `W`, `MS`) or any whole-second sub-daily step (`10s`, `7min`, `2h`, …). |
 | `--horizon N` | One seasonal period | Number of future periods; must be at least one. |
+| `--regrid MODE` | None | `business_daily` or `month_start`; disclosed calendar reshaping. |
 | `--brief` | Off | Compact stdout; disclosures verbatim; artifact unchanged. |
 | `--output DIR` | `gnomon-output` | Parent directory for immutable run directories. |
 | `--minimum-baseline-improvement FLOAT` | `0.02` | Fractional improvement required before selecting a candidate over the strongest baseline. |
+| `--minimum-support TIER` | `best_effort` | Publication floor: `supported`, `conditionally_supported`, or `best_effort`. |
+| `--as-of ISO` | Latest | Replay using only observations known by this instant. |
+| `--config FILE` | Auto-discovered | Preferred `gnomon.toml`, or transitional `gnomon.yaml`. |
 | `--context FILE` | None | Validated context-events JSON (output of `gnomon context validate`). |
 | `--threshold VALUE` | None | Decision threshold: the result reports when and how likely the forecast crosses this value. |
 | `--project NAME` | None | Register each forecast series for later realised scoring. |
@@ -193,6 +200,17 @@ gnomon forecast INPUT [--time COLUMN] [--target COLUMN[,COLUMN…]] [--horizon N
 
 An improvement value of `0.02` means two percent, not two percentage points.
 Baseline retention is a valid outcome and does not itself weaken support.
+
+### Configuration
+
+Copy the repository's `gnomon.toml.example` to `gnomon.toml`, or pass it with
+`--config`. TOML is preferred and uses the Python 3.11 standard library.
+Unknown and recognized-but-inert keys fail before the data is loaded.
+Transitional YAML remains readable when PyYAML is installed; a discovered
+YAML file without its parser is an error, never a silent default. Two config
+formats in the same directory are ambiguous and refused. MCP tools do not
+read ambient project configuration; behavior-changing options are explicit
+in their tool calls.
 
 Context events are proposals. Each series' response carries a `context`
 block recording the admission decision: events enter the forecast only when
@@ -294,10 +312,10 @@ uninstalled models are simply absent, and installed ones compete.
 **For agents:** `gnomon_capabilities` reports the state machine-readably —
 `models.tsfm_available` (installable), `models.tsfm_sandboxes` (installed),
 and `models.tsfm_capabilities` (verified per-model limits and tasks) —
-plus the install command template. Sandbox installation is a deliberate
-human/shell step, not an MCP tool: an agent that wants a model should run
-`gnomon tsfm install <name>` where it has shell access, or ask the operator
-to.
+plus the install command template. On the `full` MCP profile,
+`gnomon_install_tsfm` starts the isolated installation as a detached process
+and reports `absent`, `installing`, `ready`, or `failed`; `status_only: true`
+polls without starting work. Narrow profiles omit this operational tool.
 
 ## `gnomon track`
 

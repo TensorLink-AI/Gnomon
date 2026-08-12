@@ -1,12 +1,23 @@
 # Gnomon
 
-**A temporal execution harness for agents — forecast, investigate, detect,
-decide, and monitor, under one contract: the LLM proposes; Gnomon validates,
-computes, and owns every number.**
+**One trusted answer about what happens next—without making an agent become
+a forecasting specialist or spend a conversation rediscovering the same
+data.**
 
-Gnomon is a local, deterministic temporal-reasoning engine for developers,
-operators, and AI agents. It answers five questions over regular
-time-series data:
+Gnomon is a local temporal execution harness for developers, operators, and
+AI agents. The agent frames the question; deterministic code validates the
+data, evaluates the candidates, computes the answer, and keeps the receipts.
+The executable that wins evaluation is the executable that publishes. If the
+evidence cannot support a claim, Gnomon labels the weaker answer or abstains
+instead of letting the agent improvise.
+
+The first concrete job is operational threshold risk:
+
+> Which service metric may breach a meaningful limit, when, and does the
+> evidence justify intervening?
+
+That job is the beachhead, not the boundary. The same governed runtime is
+available through five views:
 
 | Verb | Question | What you get |
 | --- | --- | --- |
@@ -16,10 +27,16 @@ time-series data:
 | `gnomon decide` | What should we do? | Exceedance scenarios, feasibility and constraint checks, expected utility — degraded honestly when utilities are missing |
 | `gnomon monitor` | When should we intervene? | Sequential exceedance risk and a cost-optimal alert rule |
 
-An agent can discover data, frame the question, and explain the result.
-Gnomon stays authoritative for timestamps, backtests, model selection,
-intervals, support status, and every forecast value. The LLM never gets to
-invent or edit a number.
+An agent can discover data, choose the view, and explain the result. Gnomon
+stays authoritative for timestamps, backtests, model selection, intervals,
+support status, and every published value. The LLM never gets to invent or
+edit one.
+
+“Cheaply” is part of the contract. Wide data is handled in one batched call;
+brief responses keep disclosures while moving bulk rows to immutable
+artifacts; repeated calls can refer to those artifacts instead of rebuilding
+the analysis. Gnomon optimizes tool calls and conversation bytes without
+weakening evaluation or hiding caveats.
 
 > A gnomon is the shadow-casting rod on a sundial: it computes nothing, and
 > it reads nothing at night rather than inventing an hour.
@@ -47,13 +64,13 @@ claude mcp add gnomon -- uvx --from "$(pwd)" gnomon mcp serve
 uvx --from . gnomon mcp serve
 ```
 
-Then ask your agent:
+Then ask your agent one complete operational question:
 
 > Forecast `examples/messy_requests.csv` (column `requests`) 14 days ahead.
 > What changed in it, and when should we alert if crossing 340 costs us 20x
 > a false alarm?
 
-The agent gets 18 tools — `gnomon_forecast`, `gnomon_investigate_change`,
+The agent gets 18 tools on the default `full` profile — `gnomon_forecast`, `gnomon_investigate_change`,
 `gnomon_detect_anomalies`, `gnomon_decide`, `gnomon_monitor`, `gnomon_route`, plus
 ingestion, inspection, tracking, and artifact tools — and every number it
 quotes comes from an evidence-linked, verified artifact. It cannot invent
@@ -63,7 +80,7 @@ client configs, the vintage workflow, and the full tool surface.
 (A `pip install gnomon-forecast` / `uvx gnomon-forecast` path arrives with the
 PyPI release.)
 
-## Why Gnomon exists
+## Why this needs an execution layer
 
 Wire an LLM agent to your operational data and it will, sooner or later:
 
@@ -93,6 +110,12 @@ fluently. Gnomon is a harness:
   baselines that must be beaten; every figure traces to evidence; a
   deterministic verifier rejects causal claims from associational evidence
   and uncalibrated probabilities before any response leaves the process.
+- **The evaluated executable publishes.** Evaluation returns an
+  identity-carrying candidate specification—not merely a model name. It is
+  independently fit at each permitted origin, and its final fit produces the
+  published path. Strategy, member set, behavior-changing configuration,
+  revisions, fallback policy, fitted weights, and visible-data fingerprint
+  travel with composite and TSFM results.
 - **Cleaning is disclosed, never silent.** Messy files are repaired
   deterministically, every fix listed as evidence, capped — and the support
   status downgrades to match.
@@ -198,8 +221,9 @@ forecast + evidence + reproducible artifacts
 
 Earlier rolling folds select the method. The penultimate fold calibrates
 the interval. The final fold reports performance without changing either
-choice. The selected method is then run on all available observations to
-forecast the future.
+choice. The winning candidate specification is then fit on all visible
+observations and that fitted executable forecasts the future. Publication
+never rebuilds the winner from a model name.
 
 ## The harness around the verbs
 
@@ -214,6 +238,9 @@ forecast the future.
   baselines — a TSFM wins only by out-forecasting them on your data. When
   an eligible tier is *not* installed the result says so in a note, so the
   stronger candidate is never silently absent.
+  Local sandboxes are the default trust path. A CLI/Python project may opt
+  into a configured TSFM API endpoint; that network path is off by default,
+  explicit in `gnomon.toml`, and never inherited by MCP tool calls.
 - **Five-state support assessments** with typed reasons and recovery
   actions; typed lineage and a deterministic claim verifier on every
   response.
@@ -321,6 +348,19 @@ docker run --rm gnomon capabilities
 The direct GitHub installer, private-repository behaviour, pinned releases,
 the Parquet extra, and the future PyPI command are covered in the
 [installation guide](docs/installation.md).
+
+## Configuration
+
+The canonical project configuration is `gnomon.toml`, parsed by Python
+3.11's standard library, so a base installation cannot silently ignore it.
+Start from [`gnomon.toml.example`](gnomon.toml.example). Unknown and
+recognized-but-inert keys fail before data execution.
+
+`gnomon.yaml` remains a transitional compatibility format. If a YAML file is
+present without PyYAML, Gnomon fails with a migration instruction; it never
+falls back silently to defaults. If TOML and YAML are both present, Gnomon
+refuses the ambiguity. MCP calls deliberately take behavior-changing options
+as explicit tool arguments rather than reading ambient project config.
 
 ## Gnomon and Hermes
 

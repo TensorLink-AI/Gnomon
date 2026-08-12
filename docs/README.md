@@ -1,8 +1,12 @@
 # Gnomon documentation
 
-Gnomon is a temporal execution harness. An agent frames the question; Gnomon
-validates the data, computes every number, and refuses the questions the
-evidence cannot carry. It answers five: *what happens next?*
+Gnomon is a temporal execution harness for producing one trusted answer
+cheaply. An agent frames the question; Gnomon validates the data, evaluates
+the candidates, computes every number, and preserves the evidence tier and
+receipts. The executable that wins evaluation is the executable that
+publishes. Its first product job is operational threshold risk—what may
+breach, when, and whether intervention is justified—but the runtime exposes
+five governed views: *what happens next?*
 (`forecast`), *what changed?* (`investigate`), *what is abnormal?*
 (`detect`), *what should we do?* (`decide`), and *when should we
 intervene?* (`monitor`).
@@ -46,7 +50,7 @@ build can do.** Prefer it to any prose here, including this file.
 - Five verbs — `forecast`, `investigate`, `detect`, `decide`, `monitor` —
   plus `route`, `inspect`, `capabilities`, and `status`.
 - Three front doors: CLI, Python API, and a local stdio MCP server
-  (`gnomon mcp serve`, 24 tools). A packaged Hermes plugin and a Docker
+  (`gnomon mcp serve`, 18 tools in the default `full` profile). A packaged Hermes plugin and a Docker
   image wrap the same runtime.
 
 **Temporal core**
@@ -56,6 +60,9 @@ build can do.** Prefer it to any prose here, including this file.
   with proof that nothing published later was read.
 - Separated model-selection, interval-calibration, and final-test windows
   over ordered rolling origins.
+- Identity-carrying executable candidates: the exact evaluated strategy,
+  member set, configuration, revisions, fallback policy, and final fit
+  produce the published path rather than being reconstructed from a name.
 - Mandatory last-value and seasonal-naive baselines that a candidate must
   beat by a configured margin.
 - Drift, linear-trend, window-average, Theta, and ETS candidates, plus an

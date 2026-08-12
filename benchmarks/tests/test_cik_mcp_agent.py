@@ -503,6 +503,43 @@ def test_batched_forecast_supersedes_the_per_channel_calls_it_covers():
     assert "harness_superseded" not in json.loads(resp["content"])
 
 
+@pytest.mark.parametrize("changed", [
+    {"input": "other.csv"},
+    {"horizon": 14},
+    {"as_of": "2026-01-01T00:00:00Z"},
+    {"threshold": 90.0},
+    {"candidates": ["theta"]},
+    {"repair": "aggressive"},
+    {"context_events_file": "events.json"},
+])
+def test_forecast_semantic_changes_do_not_supersede(changed):
+    from benchmarks.cik.mcp_agent import ToolMessageLog
+
+    log = ToolMessageLog()
+    base_args = {"input": "series.csv", "target_column": "hr", "horizon": 7}
+    old = _tool_message(_forecast_payload(["hr"]))
+    log.record("gnomon_forecast", base_args, old)
+
+    new_args = {**base_args, **changed}
+    new = _tool_message(_forecast_payload(["hr"], path="/a/changed"))
+    assert log.record("gnomon_forecast", new_args, new) == 0
+    assert "harness_superseded" not in json.loads(old["content"])
+
+
+def test_forecast_format_only_change_can_supersede():
+    from benchmarks.cik.mcp_agent import ToolMessageLog
+
+    log = ToolMessageLog()
+    old = _tool_message(_forecast_payload(["hr"]))
+    log.record("gnomon_forecast",
+               {"target_column": "hr", "horizon": 7, "format": "full"}, old)
+    new = _tool_message(_forecast_payload(["hr"], path="/a/brief"))
+    assert log.record(
+        "gnomon_forecast",
+        {"target_column": "hr", "horizon": 7, "format": "brief"}, new,
+    ) == 1
+
+
 def test_single_target_results_key_on_the_argument_not_the_placeholder():
     from benchmarks.cik.mcp_agent import ToolMessageLog
 

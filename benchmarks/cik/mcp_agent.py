@@ -438,9 +438,10 @@ class ToolMessageLog:
     What supersedes what is deliberately narrow, because a wrongly
     compacted result deletes live evidence:
 
-    - ``gnomon_forecast``: a result whose channels (its results'
-      ``series`` set) cover an earlier result's channels supersedes it —
-      a batched call retires the per-column calls it replaces.
+    - ``gnomon_forecast``: a result whose channels cover an earlier
+      result's channels supersedes it only when every semantic argument
+      also matches. Different horizons, cutoffs, datasets, thresholds,
+      candidate pools, repair policies, or context are different questions.
     - every other tool: only a call with the *same arguments* supersedes
       (the retry/repeat pattern); a different-arguments call is new
       evidence, not a replacement.
@@ -477,17 +478,33 @@ class ToolMessageLog:
             # keying on the placeholder would collide forecasts of
             # DIFFERENT columns into one supersession chain.
             channels.discard("__default__")
-            if channels:
-                return frozenset(channels)
-            target = str(arguments.get("target_column") or "")
-            return frozenset(
-                name.strip() for name in target.split(",") if name.strip())
+            if not channels:
+                target = str(arguments.get("target_column") or "")
+                channels = {
+                    name.strip() for name in target.split(",") if name.strip()
+                }
+            # target_column is represented by the channel set so an
+            # equivalent batch can retire single-channel calls. `format`
+            # changes inline verbosity and `output_dir` only relocates the
+            # immutable artifact. Every argument capable of changing the
+            # question or answer remains in the semantic key.
+            semantic_arguments = {
+                name: value for name, value in arguments.items()
+                if name not in {"target_column", "format", "output_dir"}
+            }
+            return (
+                frozenset(channels),
+                json.dumps(semantic_arguments, sort_keys=True, default=str),
+            )
         return json.dumps(arguments, sort_keys=True, default=str)
 
     @staticmethod
     def _supersedes(tool: str, new_key: Any, old_key: Any) -> bool:
         if tool == "gnomon_forecast":
-            return bool(old_key) and old_key <= new_key
+            old_channels, old_semantics = old_key
+            new_channels, new_semantics = new_key
+            return (bool(old_channels) and old_channels <= new_channels
+                    and old_semantics == new_semantics)
         return new_key == old_key
 
     @staticmethod
@@ -501,9 +518,10 @@ class ToolMessageLog:
             if not isinstance(item, dict):
                 continue
             series = item.get("series")
+            channels = key[0] if isinstance(key, tuple) else key
             if series in (None, "__default__") \
-                    and isinstance(key, frozenset) and len(key) == 1:
-                series = next(iter(key))
+                    and isinstance(channels, frozenset) and len(channels) == 1:
+                series = next(iter(channels))
             if series:
                 out[str(series)] = item
         return out
@@ -531,10 +549,12 @@ class ToolMessageLog:
                 if not isinstance(result, dict):
                     continue
                 channel = result.get("series")
+                entry_key = entry["key"]
+                channels = entry_key[0] if isinstance(entry_key, tuple) else entry_key
                 if channel in (None, "__default__") \
-                        and isinstance(entry["key"], frozenset) \
-                        and len(entry["key"]) == 1:
-                    channel = next(iter(entry["key"]))
+                        and isinstance(channels, frozenset) \
+                        and len(channels) == 1:
+                    channel = next(iter(channels))
                 counterpart = live.get(str(channel))
                 if counterpart is None:
                     continue
