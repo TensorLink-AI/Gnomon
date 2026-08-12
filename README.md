@@ -75,7 +75,9 @@ The agent gets 18 tools on the default `full` profile — `gnomon_forecast`, `gn
 ingestion, inspection, tracking, and artifact tools — and every number it
 quotes comes from an evidence-linked, verified artifact. It cannot invent
 values for an unsupported series; it can only report Gnomon's abstention and
-its recovery options. See the [MCP quickstart](docs/quickstart-mcp.md) for
+its recovery options. Data-reading calls return a session-scoped `data_ref`,
+so follow-up verbs reuse the resolved data and schema without resending the
+observations. See the [MCP quickstart](docs/quickstart-mcp.md) for
 client configs, the vintage workflow, and the full tool surface.
 (A `pip install gnomon-forecast` / `uvx gnomon-forecast` path arrives with the
 PyPI release.)

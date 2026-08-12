@@ -521,6 +521,70 @@ def test_inspect_defaults_to_every_candidate_instead_of_refusing(
                for item in payload["assumptions"])
 
 
+def test_data_ref_reuses_resolved_data_and_schema_across_verbs(tmp_path) -> None:
+    from gnomon.toolspec import runner_for
+
+    path = _wide_csv(tmp_path, columns=("cpu",), days=40)
+    inspected = runner_for("gnomon_inspect")({
+        "input": str(path), "target_column": "cpu",
+    })
+    data_ref = inspected["data_ref"]
+    assert data_ref.startswith("data_")
+
+    forecast = runner_for("gnomon_forecast")({
+        "data_ref": data_ref,
+        "horizon": 3,
+        "output_dir": str(tmp_path / "out"),
+    })
+    assert forecast["data_ref"] == data_ref
+    assert forecast["status"] in {"complete", "abstained"}
+
+
+def test_unknown_data_ref_returns_a_recoverable_error() -> None:
+    import pytest
+
+    from gnomon.contracts import GnomonError
+    from gnomon.toolspec import runner_for
+
+    with pytest.raises(GnomonError) as caught:
+        runner_for("gnomon_inspect")({"data_ref": "data_expired"})
+    assert caught.value.code == "INVALID_ARGUMENTS"
+    assert caught.value.repair_options[0]["action"] == "resupply_data"
+
+
+def test_data_ref_rejects_a_conflicting_schema_override(tmp_path) -> None:
+    import pytest
+
+    from gnomon.contracts import GnomonError
+    from gnomon.toolspec import runner_for
+
+    path = _wide_csv(tmp_path, columns=("cpu", "mem"))
+    inspected = runner_for("gnomon_inspect")({
+        "input": str(path), "target_column": "cpu",
+    })
+    with pytest.raises(GnomonError) as caught:
+        runner_for("gnomon_forecast")({
+            "data_ref": inspected["data_ref"],
+            "target_column": "mem",
+            "horizon": 3,
+        })
+    assert caught.value.code == "INVALID_ARGUMENTS"
+    assert caught.value.details["conflicts"] == ["target_column"]
+
+
+def test_inline_observations_have_an_explicit_wire_budget() -> None:
+    import pytest
+
+    from gnomon.contracts import GnomonError
+    from gnomon.toolspec import runner_for
+
+    rows = [{"timestamp": f"2026-01-{(i % 28) + 1:02d}", "value": i}
+            for i in range(501)]
+    with pytest.raises(GnomonError) as caught:
+        runner_for("gnomon_inspect")({"observations": rows})
+    assert caught.value.details == {"observations": 501, "maximum": 500}
+
+
 def test_inspect_multi_reports_a_failing_channel_in_place(tmp_path) -> None:
     from datetime import date, timedelta
 
