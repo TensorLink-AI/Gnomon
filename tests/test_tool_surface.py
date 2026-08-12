@@ -141,7 +141,8 @@ def test_profiles_select_documented_subsets(monkeypatch) -> None:
         monkeypatch.setenv("GNOMON_MCP_PROFILE", profile)
         names = {tool["name"] for tool in visible_tools()}
         assert names == expected, profile
-        assert names <= full
+        if profile not in {"describe", "evidence", "mega"}:
+            assert names <= full
 
     # A narrowed profile narrows everything: compat tools appear only
     # under full.
@@ -171,7 +172,8 @@ def test_capabilities_report_the_active_profile(monkeypatch) -> None:
     monkeypatch.delenv("GNOMON_MCP_PROFILE", raising=False)
     payload = capabilities()["mcp_profile"]
     assert payload["active"] == "full"
-    assert payload["available"] == ["core", "data", "decision", "full"]
+    assert payload["available"] == [
+        "core", "data", "decision", "describe", "evidence", "mega", "full"]
 
     monkeypatch.setenv("GNOMON_MCP_PROFILE", "core")
     payload = capabilities()["mcp_profile"]
@@ -270,6 +272,11 @@ def test_forecast_defaults_to_brief(monkeypatch, tmp_path) -> None:
     result = payload["results"][0]
     assert "support_assessment" in result
     assert "warnings" in result
+    assert payload["series_end"] == "2026-02-04T00:00:00"
+    assert payload["frequency"] == "D"
+    from datetime import datetime
+    assert datetime.fromisoformat(payload["wall_clock_now"]).tzinfo is not None
+    assert "latest observation" in payload["staleness"]
 
 
 def test_multi_series_forecast_respects_the_budget(tmp_path) -> None:
@@ -341,11 +348,11 @@ def test_capabilities_brief_fits_the_budget_and_hides_nothing() -> None:
     import json
 
     from gnomon.runtime import capabilities
-    from gnomon.toolspec import RESPONSE_BUDGET_BYTES, runner_for
+    from gnomon.toolspec import CAPABILITIES_RESPONSE_BUDGET_BYTES, runner_for
 
     full = capabilities()
     brief = runner_for("gnomon_capabilities")({})
-    assert len(json.dumps(brief, default=str)) <= RESPONSE_BUDGET_BYTES
+    assert len(json.dumps(brief, default=str)) <= CAPABILITIES_RESPONSE_BUDGET_BYTES
     # Every section survives, and every capability NAME survives: a brief
     # view that hid one would make the command lie about the build.
     assert set(full) <= set(brief)
@@ -460,6 +467,19 @@ def test_forecast_schema_is_a_description_diet_not_a_capability_cut() -> None:
     assert '"auto"' in props["target_column"]["description"]
 
 
+def test_evidence_pack_schema_meets_the_12kb_experiment_budget(monkeypatch) -> None:
+    import json
+
+    from gnomon.toolspec import visible_tools
+
+    monkeypatch.setenv("GNOMON_MCP_PROFILE", "evidence")
+    specs = [{"type": "function", "function": {
+        "name": tool["name"], "description": tool["description"],
+        "parameters": tool["inputSchema"],
+    }} for tool in visible_tools()]
+    assert len(json.dumps(specs, separators=(",", ":"))) <= 12 * 1024
+
+
 # --- gnomon_inspect batches a wide file ------------------------------------
 
 def _wide_csv(tmp_path, columns=("cpu", "mem", "requests"), days: int = 30):
@@ -519,6 +539,47 @@ def test_inspect_defaults_to_every_candidate_instead_of_refusing(
     assert sorted(payload["targets"]) == ["cpu", "mem", "requests"]
     assert any("all of them were inspected" in item
                for item in payload["assumptions"])
+
+
+def test_describe_answers_wide_data_without_a_backtest(tmp_path, monkeypatch) -> None:
+    from gnomon.toolspec import runner_for
+
+    monkeypatch.setenv("GNOMON_MCP_PROFILE", "describe")
+    path = _wide_csv(tmp_path, columns=("cpu", "mem"), days=40)
+    payload = runner_for("gnomon_describe")({"input": str(path)})
+    assert payload["status"] == "valid"
+    assert sorted(payload["reports"]) == ["cpu", "mem"]
+    assert payload["reports"]["cpu"]["level"]["latest"] == 89
+    assert payload["reports"]["cpu"]["trend"]["direction"] == "up"
+    assert payload["reports"]["cpu"]["series_end"] == payload["series_end"]
+    assert payload["suggested_next"][0]["tool_call"]["name"] == "gnomon_forecast"
+    assert payload["suggested_next"][0]["tool_call"]["arguments"] == {
+        "data_ref": payload["data_ref"]}
+
+
+def test_mega_profile_is_three_tools_and_runs_a_descriptive_question(
+        tmp_path, monkeypatch) -> None:
+    from gnomon.toolspec import runner_for, visible_tools
+
+    monkeypatch.setenv("GNOMON_MCP_PROFILE", "mega")
+    assert {tool["name"] for tool in visible_tools()} == {
+        "gnomon_inspect", "gnomon_run", "gnomon_track"}
+    path = _wide_csv(tmp_path, columns=("cpu",), days=40)
+    inspected = runner_for("gnomon_inspect")({"input": str(path)})
+    described = runner_for("gnomon_run")({
+        "data_ref": inspected["data_ref"],
+        "question": {"kind": "describe"},
+    })
+    assert described["reports"]["cpu"]["trend"]["direction"] == "up"
+    forecast = runner_for("gnomon_run")({
+        "data_ref": inspected["data_ref"],
+        "question": {"kind": "forecast"},
+        "horizon": 3,
+        "output_dir": str(tmp_path / "mega-output"),
+    })
+    assert forecast["status"] == "complete"
+    assert forecast["data_ref"] == inspected["data_ref"]
+    assert forecast["results"][0]["forecast_rows"] == 3
 
 
 def test_data_ref_reuses_resolved_data_and_schema_across_verbs(tmp_path) -> None:
@@ -583,6 +644,23 @@ def test_inline_observations_have_an_explicit_wire_budget() -> None:
     with pytest.raises(GnomonError) as caught:
         runner_for("gnomon_inspect")({"observations": rows})
     assert caught.value.details == {"observations": 501, "maximum": 500}
+
+
+def test_session_data_refs_are_bounded_and_oldest_expires(monkeypatch) -> None:
+    import pytest
+
+    from gnomon.contracts import GnomonError
+    from gnomon import toolspec
+
+    monkeypatch.setattr(toolspec, "_MAX_SESSION_DATA_REFS", 2)
+    toolspec._SESSION_DATA_REFS.clear()
+    _, first = toolspec._register_data_ref({"input": "first.csv"})
+    toolspec._register_data_ref({"input": "second.csv"})
+    toolspec._register_data_ref({"input": "third.csv"})
+    assert len(toolspec._SESSION_DATA_REFS) == 2
+    with pytest.raises(GnomonError) as caught:
+        toolspec._resolve_data_ref({"data_ref": first})
+    assert caught.value.repair_options[0]["action"] == "resupply_data"
 
 
 def test_inspect_multi_reports_a_failing_channel_in_place(tmp_path) -> None:

@@ -96,7 +96,7 @@ formatting, which is a property of the harness rather than of the
 model's temporal reasoning.
 
 **Caps end the run; they do not delete what it produced.** The tool
-budget (24 calls) and the token budget (500k) return a typed
+budget (4 calls) and the token budget (500k) return a typed
 "budget spent, submit now" result instead of voiding the row, and a run
 that reaches a cap or the round limit (10) without submitting gets one
 final message offering `submit_answer` alone — a partial answer counts,
@@ -162,6 +162,12 @@ python -m benchmarks.temporalbench.score_per_channel \
     --data-dir ~/temporalbench \
     --baseline results/tb-control --treatment results/tb-gnomon
 ```
+
+Long provider runs can be sharded without changing row identity: add
+`--offset N --limit 1` to run exactly the Nth filtered row in a fresh process.
+This is the recovery path when one row or provider session dies; combine only
+shards produced with the same model, endpoint, profile, task filters, and code
+revision.
 
 It scores, with the dataset's own metric module (nothing reimplemented),
 the intersection of channels both arms forecast in each record, and

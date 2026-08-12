@@ -179,6 +179,8 @@ FORECAST_PREVIEW_ROWS = 12
 #: artifact. The trim never touches the epistemic contract — see
 #: _PROTECTED_KEYS.
 RESPONSE_BUDGET_BYTES = 8192
+DESCRIBE_RESPONSE_BUDGET_BYTES = 2400
+CAPABILITIES_RESPONSE_BUDGET_BYTES = 6000
 
 #: Subtrees that are the contract and are never trimmed, wherever they
 #: appear: support state, warnings, abstention payloads, disclosed
@@ -245,7 +247,7 @@ def _trim_bulk(node: Any, path: str, trimmed: list[dict[str, Any]]) -> Any:
     return node
 
 
-def enforce_response_budget(payload: Any) -> Any:
+def enforce_response_budget(payload: Any, budget_bytes: int = RESPONSE_BUDGET_BYTES) -> Any:
     """Trim a runner's response to RESPONSE_BUDGET_BYTES.
 
     Within budget, the payload passes untouched. Over it, long arrays
@@ -261,7 +263,7 @@ def enforce_response_budget(payload: Any) -> Any:
         raw = json_module.dumps(payload, default=str)
     except (TypeError, ValueError):
         return payload
-    if len(raw) <= RESPONSE_BUDGET_BYTES:
+    if len(raw) <= budget_bytes:
         return payload
     trimmed: list[dict[str, Any]] = []
     result = _trim_bulk(payload, "", trimmed)
@@ -270,10 +272,10 @@ def enforce_response_budget(payload: Any) -> Any:
              else "the on-disk artifact or store")
     result["truncated"] = True
     result["truncation"] = {
-        "budget_bytes": RESPONSE_BUDGET_BYTES,
+        "budget_bytes": budget_bytes,
         "trimmed": trimmed,
         "note": (
-            f"Response exceeded the {RESPONSE_BUDGET_BYTES}-byte budget; "
+            f"Response exceeded the {budget_bytes}-byte budget; "
             f"long arrays keep their first {_TRIM_HEAD} and last "
             f"{_TRIM_TAIL} entries. Support assessments, warnings, and "
             f"assumptions are never trimmed. The complete data lives in "
@@ -349,16 +351,109 @@ def apply_response_contract(payload: dict[str, Any]) -> dict[str, Any]:
         result["recovery_actions"] = recoveries
     return result
 
+
+def apply_temporal_grounding(payload: dict[str, Any]) -> dict[str, Any]:
+    """Echo the data boundary and wall clock on every data-bearing response."""
+    from datetime import datetime, timezone
+
+    result = dict(payload)
+    now = datetime.now(timezone.utc)
+    result["wall_clock_now"] = now.isoformat()
+    series_end = result.get("series_end")
+    frequency = result.get("frequency")
+    if series_end is None:
+        series = result.get("series") or []
+        ends = [row.get("end") for row in series if isinstance(row, dict) and row.get("end")]
+        if ends:
+            series_end = max(ends)
+        frequency = (result.get("schema") or {}).get("frequency")
+    if series_end is None:
+        rows = result.get("results") or []
+        first = next((row.get("forecast", [])[0].get("timestamp")
+                      for row in rows if isinstance(row, dict) and row.get("forecast")), None)
+        frequency = frequency or ((result.get("task") or {}).get("schema") or {}).get("frequency")
+        if first and frequency:
+            from .temporal import frequency_step
+            step = frequency_step(str(frequency))
+            if step is not None:
+                parsed = datetime.fromisoformat(str(first).replace("Z", "+00:00"))
+                series_end = (parsed - step).isoformat()
+    if series_end is not None:
+        result["series_end"] = str(series_end)
+        try:
+            parsed_end = datetime.fromisoformat(str(series_end).replace("Z", "+00:00"))
+            if parsed_end.tzinfo is None:
+                parsed_end = parsed_end.replace(tzinfo=timezone.utc)
+            gap = now - parsed_end.astimezone(timezone.utc)
+            from .temporal import frequency_step
+            step = frequency_step(str(frequency)) if frequency else None
+            if step is not None and gap > step:
+                result["staleness"] = (
+                    f"The latest observation is {gap.days} days behind the wall clock "
+                    f"({series_end} versus {result['wall_clock_now']})."
+                )
+        except (TypeError, ValueError):
+            pass
+    return result
+
+
+def triage_wide_response(payload: dict[str, Any], top_k: int = 3) -> dict[str, Any]:
+    """Bound a wide response while leaving the immutable artifact complete."""
+    rows = payload.get("results")
+    if not isinstance(rows, list) or len(rows) <= top_k:
+        return payload
+    ranked = sorted(rows, key=lambda row: (
+        -float(row.get("notability", 0.0)), str(row.get("series", ""))))
+    remainder = ranked[top_k:]
+    tier_counts: dict[str, int] = {}
+    for row in remainder:
+        assessment = row.get("support_assessment") or {}
+        tier = str(assessment.get("status") or row.get("support") or "unknown")
+        tier_counts[tier] = tier_counts.get(tier, 0) + 1
+    return {
+        **payload,
+        "results": ranked[:top_k],
+        "series_triage": {
+            "total": len(rows), "returned": top_k,
+            "ranking": "threshold crossing, then relative forecast movement",
+            "remainder_count": len(remainder),
+            "remainder_tiers": dict(sorted(tier_counts.items())),
+            "full_results": ("Use gnomon_get_artifact with series/fields/where/"
+                             "order_by/limit selectors on artifact_path."),
+        },
+    }
+
+
+def compact_support_details(payload: dict[str, Any]) -> dict[str, Any]:
+    """Keep claim-bearing support fields inline; sensitivity lives in artifact."""
+    rows = payload.get("results")
+    if not isinstance(rows, list) or len(rows) <= 3:
+        return payload
+    compacted = []
+    # The per-result support contract remains frozen for existing consumers.
+    # Sensitivity is diagnostic bulk; the complete block remains in artifact.
+    keep = {"status", "reasons", "recovery_actions", "assumptions",
+            "disclosures", "legacy_support", "measured_coverage"}
+    for row in rows:
+        if not isinstance(row, dict) or not isinstance(row.get("support_assessment"), dict):
+            compacted.append(row)
+            continue
+        assessment = row["support_assessment"]
+        projected = {key: value for key, value in assessment.items()
+                     if key in keep and value not in (None, [], {})}
+        compacted.append({**row, "support_assessment": projected})
+    return {**payload, "results": compacted}
+
 #: Tools whose missing time_column/target_column are inferred from the file
 #: when it leaves no choice — the same set of verbs the CLI infers for.
 #: gnomon_ingest is deliberately absent: a write to the store under guessed
 #: columns would persist the guess.
 _SCHEMA_INFERENCE_TOOLS: frozenset[str] = frozenset({
-    "gnomon_inspect", "gnomon_forecast", "gnomon_covariate_guide",
+    "gnomon_inspect", "gnomon_describe", "gnomon_forecast", "gnomon_covariate_guide",
     "gnomon_validate_covariates", "gnomon_propose_covariates",
     "gnomon_preflight_context", "gnomon_route",
     "gnomon_investigate_change", "gnomon_detect_anomalies",
-    "gnomon_decide", "gnomon_monitor",
+    "gnomon_decide", "gnomon_monitor", "gnomon_run",
 })
 
 
@@ -433,7 +528,7 @@ def _resolve_schema_arguments(
         if chosen is None:
             candidates = list(inferred[candidates_key])
             if parameter == "target_column" and candidates \
-                    and tool_name == "gnomon_inspect":
+                    and tool_name in {"gnomon_inspect", "gnomon_describe"}:
                 # Inspection is read-only and cheap, and a caller who
                 # names no target on a wide file is asking about the
                 # file: inspect every qualifying column rather than
@@ -534,7 +629,7 @@ def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
 
     The first forecast rows are inlined so an agent can quote numbers without
     a second read; the full series always lives in forecast.csv."""
-    from .support import artifact_headline
+    from .support import artifact_headline, forecast_notability
     return {
         "schema_version": "0.1",
         "status": "complete",
@@ -544,6 +639,7 @@ def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
         # assessment, naming the weakest tier present — the sentence an
         # agent may relay verbatim. Required in every format.
         "headline": artifact_headline(artifact.results),
+        **_forecast_temporal_boundary(artifact),
         "results": [
             {
                 "series": item.series, "support": item.support,
@@ -560,6 +656,7 @@ def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
                 "threshold": item.threshold,
                 "context": item.context,
                 "covariates": item.covariates,
+                "notability": forecast_notability(item),
             }
             for item in artifact.results
         ],
@@ -579,6 +676,7 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
     same structured support assessment full mode carries. Hiding
     disclosures is the one thing this codebase exists to not do.
     """
+    from .support import forecast_notability
     results = []
     for item in artifact.results:
         results.append({
@@ -600,6 +698,7 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
             ],
             # The row count survives even when the budget trims the rows.
             "forecast_rows": len(item.forecast),
+            "notability": forecast_notability(item),
             **({"threshold": item.threshold} if item.threshold else {}),
         })
     from .support import artifact_headline
@@ -610,6 +709,7 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
         "forecast_id": artifact.forecast_id,
         "artifact_path": str(path),
         "headline": artifact_headline(artifact.results),
+        **_forecast_temporal_boundary(artifact),
         "note": (
             "Brief output: q50 with the q10-q90 interval per step. The full "
             "artifact (all quantile levels, evidence, lineage) is on disk at "
@@ -617,6 +717,21 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
         ),
         "results": results,
     }
+
+
+def _forecast_temporal_boundary(artifact: ForecastArtifact) -> dict[str, Any]:
+    """Derive the last observed instant from the first forecast grid point."""
+    from datetime import datetime
+    from .temporal import frequency_step
+
+    first = next((item.forecast[0].get("timestamp") for item in artifact.results
+                  if item.forecast), None)
+    step = frequency_step(artifact.task.schema.frequency)
+    if first is None or step is None:
+        return {"frequency": artifact.task.schema.frequency}
+    parsed = datetime.fromisoformat(str(first).replace("Z", "+00:00"))
+    return {"series_end": (parsed - step).isoformat(),
+            "frequency": artifact.task.schema.frequency}
 
 
 #: Prose longer than this is elided from the brief capabilities view.
@@ -672,13 +787,11 @@ def _brief_capabilities(full: dict[str, Any]) -> dict[str, Any]:
     brief["view"] = {
         "format": "brief",
         "sections_available": sorted(full),
-        "elided": sorted(set(elided)),
+        "elided": sorted({path.split(".", 1)[0] for path in elided}),
         "note": (
             "Brief view: every section and every capability name is "
-            "present; the paths under `elided` lost their long prose or "
-            "detail blocks. Re-call with format: 'full' for the complete "
-            "payload, or sections: [name, ...] for chosen sections "
-            "verbatim."
+            "present; sections in `elided` omit prose/detail. Use format "
+            "'full' or request named sections for verbatim detail."
         ),
     }
     return brief
@@ -806,6 +919,71 @@ def _run_inspect_multi(arguments: dict[str, Any], target_spec: str) -> dict[str,
             f"\"{','.join(valid)}\" batches every inspected channel "
             f"into one run and one artifact."
         ),
+    }
+
+
+def _run_describe(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Fast descriptive evidence: no model selection and no backtest toll."""
+    from statistics import mean, median
+
+    from .data import resolve_target_spec
+    from .operators import anomaly_score, changepoint_detection, seasonality_analysis
+    from .pipeline import load_stage
+
+    target_spec = str(arguments["target_column"])
+    targets = (resolve_target_spec(
+        str(arguments["input"]), target_spec,
+        time_column=arguments.get("time_column"),
+        series_column=arguments.get("series_column"),
+    ) if "," in target_spec or target_spec.lower() == "auto" else [target_spec])
+    reports: dict[str, Any] = {}
+    for target in targets:
+        loaded = load_stage(
+            arguments["input"], time_column=arguments["time_column"],
+            target_column=target, series_column=arguments.get("series_column"),
+            frequency=arguments.get("frequency"),
+            as_of=_parse_as_of(arguments.get("as_of")),
+            store_path=arguments.get("store_path"), regrid=arguments.get("regrid"),
+        )
+        for group_name, observations in sorted(loaded.groups.items()):
+            values = [item.value for item in observations]
+            timestamps = [item.timestamp for item in observations]
+            x_mean = (len(values) - 1) / 2
+            denominator = sum((index - x_mean) ** 2 for index in range(len(values)))
+            slope = (sum((index - x_mean) * (value - mean(values))
+                         for index, value in enumerate(values)) / denominator
+                     if denominator else 0.0)
+            seasonality = seasonality_analysis(values, loaded.frequency)
+            changes = changepoint_detection(timestamps, values)
+            anomalies = anomaly_score(
+                timestamps, values, season=int(seasonality.get("period") or 1))
+            notable_anomalies = sorted(
+                anomalies.get("anomalies", []),
+                key=lambda row: -abs(float(row["score"])),
+            )[:5]
+            name = target if group_name == "__default__" else f"{target}:{group_name}"
+            reports[name] = {
+                "observations": len(values), "series_start": timestamps[0].isoformat(),
+                "series_end": timestamps[-1].isoformat(), "frequency": loaded.frequency,
+                "level": {"latest": values[-1], "mean": mean(values),
+                          "median": median(values), "minimum": min(values),
+                          "maximum": max(values)},
+                "trend": {"slope_per_step": slope,
+                          "direction": "up" if slope > 0 else "down" if slope < 0 else "flat"},
+                "seasonality": seasonality,
+                "changepoints": changes,
+                "anomalies": {"count": len(anomalies.get("anomalies", [])),
+                              "most_extreme": notable_anomalies,
+                              "support": anomalies.get("support")},
+            }
+    return {
+        "schema_version": "0.1", "status": "valid",
+        "headline": f"Described {len(reports)} series through "
+                    f"{max(report['series_end'] for report in reports.values())}.",
+        "reports": reports,
+        "series_end": max(report["series_end"] for report in reports.values()),
+        "suggested_next": [{"tool_call": {"name": "gnomon_forecast",
+                            "arguments": {"data_ref": "<data_ref>"}}}],
     }
 
 
@@ -1296,6 +1474,26 @@ TOOLS: list[dict[str, Any]] = [
         "runner": _run_inspect,
     },
     {
+        "name": "gnomon_describe",
+        "description": (
+            "Answer descriptive temporal questions without forecasting or "
+            "backtesting: level, trend, seasonality, changepoints, anomalies, "
+            "and extremes. Use for what-happened questions."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                **_INPUT_PROPERTIES,
+                "target_column": {"type": "string", "description": (
+                    "Numeric column, comma list, or auto for every numeric channel."
+                )},
+                **_REPLAY_PROPERTIES,
+            },
+            "required": [],
+        },
+        "runner": _run_describe,
+    },
+    {
         "name": "gnomon_forecast",
         "description": (
             "Forecast one column — or several in ONE call: pass "
@@ -1670,9 +1868,45 @@ def _run_get_artifact(arguments: dict[str, Any]) -> dict[str, Any]:
     from .versioning import RUNTIME_VERSION
     directory = Path(arguments["artifact_path"])
     artifact = read_artifact(directory)
+    rows = artifact.get("results")
+    selection: dict[str, Any] | None = None
+    if isinstance(rows, list) and any(arguments.get(key) is not None for key in
+                                      ("series", "fields", "where", "order_by", "limit")):
+        selected = list(rows)
+        names = arguments.get("series")
+        if isinstance(names, str):
+            names = [names]
+        if names:
+            wanted = {str(name) for name in names}
+            selected = [row for row in selected if str(row.get("series")) in wanted]
+        where = arguments.get("where") or {}
+        if where:
+            selected = [row for row in selected if all(row.get(key) == value
+                                                        for key, value in where.items())]
+        order_by = arguments.get("order_by")
+        if order_by == "notability":
+            from .support import forecast_notability
+            for row in selected:
+                row.setdefault("notability", forecast_notability(row))
+            selected.sort(key=lambda row: (-float(row.get("notability", 0.0)),
+                                           str(row.get("series", ""))))
+        elif order_by == "series":
+            selected.sort(key=lambda row: str(row.get("series", "")))
+        total = len(selected)
+        if arguments.get("limit") is not None:
+            selected = selected[:int(arguments["limit"])]
+        fields = arguments.get("fields")
+        if fields:
+            keep = {str(field) for field in fields} | {"series"}
+            selected = [{key: value for key, value in row.items() if key in keep}
+                        for row in selected]
+        artifact = {**artifact, "results": selected}
+        selection = {"matched": total, "returned": len(selected),
+                     "order_by": order_by, "fields": fields}
     payload: dict[str, Any] = {
         "schema_version": "0.1",
         "artifact": artifact,
+        **({"selection": selection} if selection else {}),
     }
     stored = artifact.get("runtime_version")
     if stored != RUNTIME_VERSION:
@@ -1690,6 +1924,46 @@ def _run_get_artifact(arguments: dict[str, Any]) -> dict[str, Any]:
         import json as _json
         payload["lineage"] = _json.loads(lineage_path.read_text(encoding="utf-8"))
     return payload
+
+
+def _run_unified(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Experimental single execution verb; complexity stays measurable."""
+    from .contracts import GnomonError
+
+    question = arguments.get("question") or {}
+    kind = question.get("kind")
+    merged = {**arguments, **{key: value for key, value in question.items()
+                              if key != "kind"}}
+    merged.pop("question", None)
+    runners = {
+        "describe": _run_describe,
+        "forecast": _run_forecast,
+        "investigate": _run_investigate_change,
+        "detect": _run_detect_anomalies,
+        "decide": _run_decide,
+        "monitor": _run_monitor,
+    }
+    runner = runners.get(str(kind))
+    if runner is None:
+        raise GnomonError("INVALID_ARGUMENTS", "question.kind is required.",
+                          {"allowed": sorted(runners)})
+    if kind == "forecast" and merged.get("horizon") is None:
+        merged["horizon"] = _default_forecast_horizon(merged)
+    return runner(merged)
+
+
+def _run_track(arguments: dict[str, Any]) -> dict[str, Any]:
+    from .contracts import GnomonError
+
+    action = arguments.get("action")
+    if action == "status":
+        return _run_status(arguments)
+    if action == "submit_actuals":
+        return _run_submit_actuals(arguments)
+    if action == "resolve_outcome":
+        return _run_resolve_outcome(arguments)
+    raise GnomonError("INVALID_ARGUMENTS", "action is required.",
+                      {"allowed": ["status", "submit_actuals", "resolve_outcome"]})
 
 
 def _run_explain_run(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -1808,6 +2082,58 @@ def _registry_tools() -> list[dict[str, Any]]:
 TOOLS.extend(_registry_tools())
 TOOLS.extend([
     {
+        "name": "gnomon_run",
+        "description": (
+            "Experimental unified temporal execution verb. Set question.kind "
+            "to describe, forecast, investigate, detect, decide, or monitor."
+        ),
+        "inputSchema": {"type": "object", "properties": {
+            **_INPUT_PROPERTIES, **_REPLAY_PROPERTIES,
+            "question": {"type": "object", "properties": {
+                "kind": {"type": "string", "enum": [
+                    "describe", "forecast", "investigate", "detect", "decide", "monitor"]},
+                "suspected_cause": {"type": "string"},
+            }, "required": ["kind"]},
+            "horizon": {"type": "integer", "minimum": 1},
+            "threshold": {"type": "number"},
+            "actions": {"type": "array", "items": {"type": "string"}},
+            "utilities": {"type": "object"},
+            "alert_cost": {"type": "number"},
+            "miss_cost": {"type": "number"},
+            "output_dir": {"type": "string"},
+            "project": {"type": "string"},
+            "minimum_support": {"type": "string", "enum": [
+                "supported", "conditionally_supported", "best_effort"]},
+            "format": {"type": "string", "enum": ["brief", "full"]},
+        }, "required": ["question"]},
+        "runner": _run_unified,
+    },
+    {
+        "name": "gnomon_track",
+        "description": (
+            "Experimental tracking verb. action selects status, "
+            "submit_actuals, or resolve_outcome."
+        ),
+        "inputSchema": {"type": "object", "properties": {
+            "action": {"type": "string", "enum": [
+                "status", "submit_actuals", "resolve_outcome"]},
+            "project": {"type": "string"},
+            "section": {"type": "string", "enum": [
+                "open_forecasts", "performance", "decisions", "all"]},
+            "actuals": {"type": "array", "items": {"type": "object"}},
+            "actuals_file": {"type": "string"},
+            "actuals_time": {"type": "string"},
+            "actuals_target": {"type": "string"},
+            "actuals_series": {"type": "string"},
+            "decision_id": {"type": "string"},
+            "realised_scenario": {"type": "string"},
+            "realised_utilities": {"type": "object"},
+            "constraint_violations": {"type": "array", "items": {"type": "string"}},
+            "note": {"type": "string"},
+        }, "required": ["action"]},
+        "runner": _run_track,
+    },
+    {
         "name": "gnomon_get_artifact",
         "description": (
             "Read a stored artifact directory: full artifact.json and, "
@@ -1817,6 +2143,11 @@ TOOLS.extend([
         "inputSchema": {"type": "object", "properties": {
             "artifact_path": {"type": "string", "description": "Artifact directory returned by a macro."},
             "include_lineage": {"type": "boolean", "description": "Include lineage.json (artifacts/evidence/claims)."},
+            "series": {"type": ["string", "array"], "description": "Series name or names to return from artifact results."},
+            "fields": {"type": "array", "items": {"type": "string"}, "description": "Result fields to return; series is always retained."},
+            "where": {"type": "object", "description": "Exact-match filters over result fields."},
+            "order_by": {"type": "string", "enum": ["notability", "series"], "description": "Deterministic result ordering."},
+            "limit": {"type": "integer", "minimum": 1, "description": "Maximum selected results to return."},
         }, "required": ["artifact_path"]},
         "runner": _run_get_artifact,
     },
@@ -2142,6 +2473,9 @@ _CORE_PROFILE = frozenset({
 })
 PROFILES: dict[str, frozenset[str]] = {
     "core": _CORE_PROFILE,
+    "describe": _CORE_PROFILE | {"gnomon_describe"},
+    "evidence": frozenset({"gnomon_describe", "gnomon_forecast"}),
+    "mega": frozenset({"gnomon_inspect", "gnomon_run", "gnomon_track"}),
     "decision": _CORE_PROFILE | {
         "gnomon_decide", "gnomon_monitor", "gnomon_route",
         "gnomon_status", "gnomon_resolve_outcome",
@@ -2150,6 +2484,9 @@ PROFILES: dict[str, frozenset[str]] = {
         "gnomon_ingest", "gnomon_list_datasets", "gnomon_submit_actuals",
     },
 }
+_SURFACE_EXPERIMENT_TOOLS = frozenset({
+    "gnomon_describe", "gnomon_run", "gnomon_track",
+})
 
 
 def active_profile() -> str:
@@ -2173,12 +2510,14 @@ def visible_tools() -> list[dict[str, Any]]:
              + (PLANNER_TOOLS if planner_enabled() else []))
     profile = active_profile()
     if profile == "full":
-        return tools
+        return [tool for tool in tools
+                if tool["name"] not in _SURFACE_EXPERIMENT_TOOLS]
     allowed = PROFILES[profile]
     return [tool for tool in tools if tool["name"] in allowed]
 
 
 _SESSION_DATA_REFS: dict[str, dict[str, Any]] = {}
+_MAX_SESSION_DATA_REFS = 128
 _DATA_BINDING_KEYS = frozenset({
     "input", "input_provenance", "time_column", "target_column",
     "series_column", "frequency", "regrid", "as_of", "store_path", "repair",
@@ -2222,6 +2561,10 @@ def _register_data_ref(arguments: dict[str, Any]) -> tuple[dict[str, Any], str]:
     bound = {key: arguments[key] for key in _DATA_BINDING_KEYS
              if key in arguments and arguments[key] is not None}
     _SESSION_DATA_REFS[token] = bound
+    while len(_SESSION_DATA_REFS) > _MAX_SESSION_DATA_REFS:
+        # Insertion-ordered dict: discard the oldest session binding. The
+        # caller gets the same typed expired-reference recovery as a restart.
+        _SESSION_DATA_REFS.pop(next(iter(_SESSION_DATA_REFS)))
     return {**arguments, "_data_ref": token}, token
 
 
@@ -2345,6 +2688,13 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
                 payload = disclose_assumptions(_runner(arguments), assumptions)
                 if data_ref and isinstance(payload, dict):
                     payload = {**payload, "data_ref": data_ref}
+                    # Runners cannot know the token until the shared wrapper
+                    # registers it. Resolve ready-to-issue follow-ups here.
+                    for action in payload.get("suggested_next") or []:
+                        call = action.get("tool_call") if isinstance(action, dict) else None
+                        call_args = call.get("arguments") if isinstance(call, dict) else None
+                        if isinstance(call_args, dict) and call_args.get("data_ref") == "<data_ref>":
+                            call_args["data_ref"] = data_ref
                 if _name == "gnomon_capabilities":
                     # The budget trimmer cuts long arrays, and in a
                     # capabilities payload every array is a capability
@@ -2353,11 +2703,19 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
                     # format 'full' and sections are the caller's explicit
                     # ask for the verbatim payload.
                     return payload
+                if _takes_data and isinstance(payload, dict):
+                    payload = apply_temporal_grounding(payload)
                 # Preserve the established bulk budget decision, then add the
                 # small protected routing envelope. Otherwise the envelope
                 # itself can push a previously in-budget forecast over the
                 # trim threshold and unexpectedly remove rows.
-                return apply_response_contract(enforce_response_budget(payload))
+                budget = (DESCRIBE_RESPONSE_BUDGET_BYTES
+                          if _name == "gnomon_describe"
+                          else RESPONSE_BUDGET_BYTES)
+                payload = triage_wide_response(payload)
+                payload = compact_support_details(payload)
+                return apply_response_contract(
+                    enforce_response_budget(payload, budget))
 
             return wrapped
     return None

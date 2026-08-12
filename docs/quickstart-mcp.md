@@ -88,14 +88,20 @@ dataset reports `known_time_provenance: partially_assumed`.
 | Profile | Tools | Intended session |
 | --- | ---: | --- |
 | `core` | 7 | capabilities, inspect, forecast, investigate, detect, artifact read/explain |
+| `describe` | 8 | Experimental `core` plus fast descriptive temporal evidence |
+| `evidence` | 2 | Experimental evidence-pack fallback: describe plus forecast |
+| `mega` | 3 | Experimental inspect/run/track consolidation arm |
 | `decision` | 12 | `core` plus decide, monitor, route, status, and outcome resolution |
 | `data` | 10 | `core` plus ingest, dataset listing, and actuals scoring |
 | `full` | 18 | Every stable tool, including context/covariate validation and TSFM installation |
 
 `full` is currently the default. Start a narrower surface with
-`gnomon mcp serve --profile core|decision|data|full`; `gnomon_capabilities`
+`gnomon mcp serve --profile core|describe|evidence|mega|decision|data|full`; `gnomon_capabilities`
 reports the active profile under `mcp_profile`. A future default-profile
-change is an evaluation decision, not a claim about this build.
+change remains an evaluation decision, not a claim about tool count. The first
+matched [surface experiment](design/mcp-surface-experiment-results.md) retained
+`full`: `core` reduced schema and token cost but failed the call, token, and
+answer-yield gates.
 
 ## Where artifacts land
 
@@ -129,6 +135,13 @@ the budget trims its long arrays to first/last entries, sets
 `truncated: true`, and points at the artifact, which always carries the
 complete data. Support assessments, warnings, assumptions, and
 error/repair payloads are never trimmed.
+
+Every data-bearing response also reports `series_end` and
+`wall_clock_now`; when the gap exceeds one grid step it includes a protected
+`staleness` sentence. Wide forecast responses return the three most notable
+series (threshold crossing first, then relative path movement), summarize the
+remainder by support tier, and point to artifact selectors for the full panel.
+The immutable artifact still contains every series and every row.
 
 Every non-error verb response also carries a compact routing projection where
 the underlying result makes it applicable: `artifact_id`, `tier_floor`, typed

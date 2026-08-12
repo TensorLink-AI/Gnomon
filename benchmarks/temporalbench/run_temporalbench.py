@@ -155,7 +155,8 @@ def bounded_evidence(digest: dict[str, Any],
 
 def answer_row(row: dict[str, Any], condition: str,
                client: OpenRouterClient | None,
-               best_effort: bool = False) -> dict[str, Any]:
+               best_effort: bool = False,
+               mcp_profile: str = "full") -> dict[str, Any]:
     """Produce the row's answer object under the given condition.
 
     ``channel_support`` in the result maps each forecast channel to its
@@ -178,9 +179,10 @@ def answer_row(row: dict[str, Any], condition: str,
         # fallback via the gnomon_forecast tool — the realistic path.
         # T1/T3 carry no forecast channels, so they take the same
         # session with the tier's own answer shape.
+        profile_args = {} if mcp_profile == "full" else {"profile": mcp_profile}
         if row.get("tier") in ("T2", "T4"):
-            return run_row(row, client)
-        return mcq_row(row, client)
+            return run_row(row, client, **profile_args)
+        return mcq_row(row, client, **profile_args)
 
     analysis = gnomon_runner.analyse_row(row, best_effort=best_effort)
     tier = row.get("tier")
@@ -257,8 +259,17 @@ def main() -> int:
     parser.add_argument("--datasets", default=None,
                         help="Comma list of source datasets to keep")
     parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument("--offset", type=int, default=0,
+                        help="Skip this many rows after tier/dataset filters; "
+                             "supports resumable one-row benchmark shards.")
     parser.add_argument("--temperature", type=float, default=0.2)
     parser.add_argument("--output-dir", default=None)
+    parser.add_argument(
+        "--mcp-profile", choices=["full", "core", "describe", "evidence", "mega", "decision", "data"],
+        default="full",
+        help="Tool profile offered by the gnomon-mcp condition. Compare "
+             "profiles only through matched runs over the same rows, model, "
+             "prompt, temperature, endpoint, and harness caps.")
     parser.add_argument(
         "--best-effort", action="store_true",
         help="Gnomon conditions only: enable the engine's disclosed "
@@ -322,14 +333,21 @@ def main() -> int:
     # gnomon-mcp: per-channel routes (gnomon / informed-direct / direct
     # / abstain) so the exits stay separable in analysis.
     route_mix: dict[str, int] = {}
+    mcp_calls_seen: list[int] = []
+    mcp_run_tokens = 0
+    mcp_schema_bytes: set[int] = set()
+    mcp_rows_answered = 0
     channels_abstained = 0
     total = 0
     # Denominator for the scored-only forecast means: every T2/T4 row the
     # run saw, so the coverage behind those means is a ratio in the
     # summary, not an inference from three separate counters.
     forecast_rows_total = 0
-    for row in iter_rows(data_dir, tiers=tiers or TIERS,
-                         datasets=datasets, limit=args.limit):
+    requested = ((args.offset + args.limit) if args.limit is not None else None)
+    for row_index, row in enumerate(iter_rows(
+            data_dir, tiers=tiers or TIERS, datasets=datasets, limit=requested)):
+        if row_index < args.offset:
+            continue
         total += 1
         if row.get("tier") in ("T2", "T4"):
             forecast_rows_total += 1
@@ -340,7 +358,8 @@ def main() -> int:
         # to survive into the record either way.
         try:
             outcome = answer_row(row, args.condition, client,
-                                 best_effort=args.best_effort)
+                                 best_effort=args.best_effort,
+                                 mcp_profile=args.mcp_profile)
         except Exception as error:
             errored += 1
             records.write(RunRecord(task_id=row_id, success=False,
@@ -411,6 +430,13 @@ def main() -> int:
         # none. A constant 1 for the MCP arm made average_tool_calls a
         # constant, not a measurement.
         mcp_info = outcome.get("mcp") or {}
+        if mcp_info:
+            mcp_calls_seen.append(int(mcp_info.get("calls", 0)))
+            mcp_run_tokens += int(mcp_info.get("run_tokens", 0))
+            if not outcome.get("row_abstained"):
+                mcp_rows_answered += 1
+            if mcp_info.get("schema_bytes") is not None:
+                mcp_schema_bytes.add(int(mcp_info["schema_bytes"]))
         records.write(RunRecord(
             task_id=row_id, success=success,
             appropriate_abstention=bool(outcome.get("abstained")),
@@ -454,6 +480,7 @@ def main() -> int:
         "tiers": list(tiers or TIERS),
         "datasets": list(datasets) if datasets else "all",
         "rows": total,
+        "row_offset": args.offset,
         "rows_errored": errored,
         "rows_with_abstentions": abstained_rows,
         # Rows the harness ended without an answer (a breached cap, a run
@@ -482,6 +509,20 @@ def main() -> int:
             if forecast_rows_total else None
         ),
         "best_effort": args.best_effort,
+        "mcp_profile": args.mcp_profile if args.condition == "gnomon-mcp" else None,
+        **({"mcp_economics": {
+            "cumulative_tokens": mcp_run_tokens,
+            "mean_tokens_per_attempted_row": round(
+                mcp_run_tokens / len(mcp_calls_seen), 2),
+            "calls_median": sorted(mcp_calls_seen)[len(mcp_calls_seen) // 2],
+            "calls_p95": sorted(mcp_calls_seen)[
+                max(0, (95 * len(mcp_calls_seen) + 99) // 100 - 1)],
+            "schema_bytes": sorted(mcp_schema_bytes),
+            "rows_answered": mcp_rows_answered,
+            "rows_attempted": len(mcp_calls_seen),
+            "answer_yield": round(
+                mcp_rows_answered / len(mcp_calls_seen), 4),
+        }} if mcp_calls_seen else {}),
         "forecast_channel_support_mix": dict(sorted(support_mix.items())),
         "forecast_channels_abstained": channels_abstained,
         **({"forecast_channel_routes": dict(sorted(route_mix.items()))}
@@ -542,6 +583,8 @@ def main() -> int:
         # in provenance, hence its own field (None keeps old manifests
         # byte-identical).
         best_effort=args.best_effort or None,
+        mcp_profile=(args.mcp_profile
+                     if args.condition == "gnomon-mcp" else None),
     )
     print(json.dumps(summary, indent=2))
     return 0

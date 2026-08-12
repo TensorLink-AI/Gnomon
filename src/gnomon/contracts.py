@@ -624,6 +624,8 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "jsonl": "intent", "include_lineage": "intent", "limit": "intent",
     "latest": "intent", "note": "intent", "name": "intent",
     "status_only": "intent",
+    "question": "intent", "fields": "intent", "where": "intent",
+    "order_by": "intent",
     # Recorded verbatim in the investigation artifact, influence "none" —
     # a stated hypothesis, like a note, not a change to what counts as
     # evidence.
