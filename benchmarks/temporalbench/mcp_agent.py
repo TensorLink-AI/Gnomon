@@ -7,8 +7,9 @@ anything, so it measures evidence-grounded answering, not tool use.
 This is the tool-use arm: the model holds every tool ``gnomon mcp
 serve`` publishes, verbatim, plus one harness tool (``submit_answer``),
 and drives the engine itself over the row's channels. The session,
-verbatim tool-spec conversion, and path jail are imported from the CiK
-MCP arm (``benchmarks/cik/mcp_agent.py``, spec:
+verbatim tool-spec conversion, path jail, and superseded-result
+compaction are imported from the CiK MCP arm
+(``benchmarks/cik/mcp_agent.py``, spec:
 ``docs/design/cik-mcp-tool-arm.md``) — used as a library, not modified.
 
 The honesty contract, per channel:
@@ -49,7 +50,11 @@ they exceed :data:`MAX_TOOL_RESULT_CHARS`, past which the bulk arrays
 are shrunk to head/tail plus counts under a harness-authored
 ``truncated`` marker naming the artifact that holds the full numbers —
 support states, warnings, abstention reasons, recovery actions and
-error codes are never what gets dropped. A breached cap does not void
+error codes are never what gets dropped. A result superseded by a later
+call (same forecast channels, or an identical repeat) is additionally
+compacted in the running history to its disclosures plus artifact_path
+— dead bulk is not re-sent every remaining round, and what Gnomon said
+about its numbers still is. A breached cap does not void
 work already done: a run that has submitted keeps its submission, and a
 run that has not gets one final round to submit what it has, with the
 cap named. Only after that is the row an abstention — never a silent
@@ -68,14 +73,24 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from benchmarks.cik.mcp_agent import (  # noqa: E402 — library reuse
+    UNSHRINKABLE_KEYS,
     StdioMcpSession,
+    ToolMessageLog,
     _tool_calls_as_dicts,
     jail_violations,
 )
 from benchmarks.temporalbench.gnomon_runner import EPOCH, STEP, _observed  # noqa: E402
 from benchmarks.temporalbench.tasks import prompt_input_arrays  # noqa: E402
 
-MAX_ROUNDS = 10
+#: Measured, not guessed. At 10 this cap — not tokens, not wall clock —
+#: is what ends the arm: in the 2026-08-11 deepseek-v4-flash pilots
+#: 11 of 12 T2/T4 rows ended `cap:rounds` with the token ceiling never
+#: breached (208k mean of 500k) and ~45s rows against 7200s. The rows
+#: were not short of evidence; a clean forecast landed by round 3 and
+#: the rest went to re-reading it. Raising to 30 alone took scored rows
+#: 1/12 -> 4/12. Every round re-sends every earlier tool result, so this
+#: trades against MAX_RUN_TOKENS: at 30 two rows hit the token ceiling.
+MAX_ROUNDS = 30
 MAX_MCP_CALLS = 24
 #: A multi-channel row is a long conversation: the official prompt is
 #: large, every tool result is re-sent with each round, and a six-vital
@@ -244,6 +259,88 @@ This run is ending now ({cap}). This is the final message: call
 submit_answer with the best answer you have — a partial answer counts,
 an unsubmitted one does not. No other tool is available."""
 
+#: Attempts allowed at the last call. Two, not one: the first measured
+#: sweeps lost whole rows to an answer the model *had* produced and
+#: mis-enveloped, with a correct repair message that had no round left
+#: to land in. The extra attempt buys no new computation — the engine
+#: tools are already withdrawn — so it repairs the envelope, never the
+#: answer.
+LAST_CALL_ATTEMPTS = 2
+
+#: Sent when the last call's submission is rejected and one attempt
+#: remains. Names the shape, because the observed failure was a
+#: correct answer inside a JSON-encoded string.
+LAST_CALL_REPAIR = """\
+That submission was NOT accepted — the problems are in the tool result
+above. This is your final attempt: call submit_answer once more with the
+same content, in the shape the schema asks for. `forecast` and `mcq`
+must be JSON objects, not strings containing JSON."""
+
+#: Sent when the last call produced prose and no tool call. The answer
+#: in that prose cannot be scored; only a submit_answer call can be.
+LAST_CALL_PROSE = """\
+Your answer was written as prose, which cannot be scored — only a
+submit_answer tool call can. This is your final attempt: make that call
+now with the answer you just described. Do not restate it in text."""
+
+#: submit_answer fields whose value must be a container. A model that
+#: double-encodes one — ``"forecast": "{\\"hr\\": ...}"`` instead of the
+#: object — has produced the right answer inside the wrong envelope.
+COERCIBLE_SUBMIT_FIELDS = ("forecast", "mcq", "answers")
+
+
+def coerce_json_containers(
+    arguments: dict[str, Any],
+    fields: tuple[str, ...] = COERCIBLE_SUBMIT_FIELDS,
+) -> tuple[dict[str, Any], list[str]]:
+    """Parse double-encoded JSON in ``submit_answer``'s container fields.
+
+    Tool-calling models routinely serialize a nested object into a
+    string. The control condition's own parser is deliberately lenient —
+    it scans free-form text for a JSON object and skips candidates that
+    do not parse — so rejecting this arm's answer on the envelope alone
+    holds the two conditions to different standards and discards an
+    answer the model did produce.
+
+    ONLY the envelope is repaired. A string that does not parse, or that
+    parses to a scalar, is left exactly as it was for the validator to
+    reject on its merits; no value is invented, reshaped, or filled in.
+    Returns the arguments and the names of the fields repaired — the
+    caller records them, because a repair this harness makes silently is
+    a repair it is not entitled to make.
+    """
+    if not isinstance(arguments, dict):
+        return arguments, []
+    repaired: list[str] = []
+    result = dict(arguments)
+    for field in fields:
+        value = result.get(field)
+        if not isinstance(value, str):
+            continue
+        try:
+            parsed = json.loads(value)
+        except (json.JSONDecodeError, ValueError):
+            continue
+        if isinstance(parsed, (dict, list)):
+            result[field] = parsed
+            repaired.append(field)
+    # One level deeper: a per-channel entry may itself arrive encoded.
+    forecast = result.get("forecast")
+    if isinstance(forecast, dict):
+        channels = dict(forecast)
+        for channel, entry in forecast.items():
+            if not isinstance(entry, str):
+                continue
+            try:
+                parsed = json.loads(entry)
+            except (json.JSONDecodeError, ValueError):
+                continue
+            if isinstance(parsed, dict):
+                channels[channel] = parsed
+                repaired.append(f"forecast.{channel}")
+        result["forecast"] = channels
+    return result, repaired
+
 
 def openai_tool_specs(mcp_tools: list[dict[str, Any]],
                       submit_tool: dict[str, Any] = SUBMIT_TOOL,
@@ -335,17 +432,27 @@ def _write_wide_csv(channels: dict[str, list[float]], csv_path: Path) -> None:
             )
 
 
-#: Keys whose values are never shrunk when a tool result is too large.
-#: Everything Gnomon says about how far it will stand behind a number
-#: lives under one of these; the bulk that makes a result large does
-#: not. A budget is a reason to send fewer numbers, never a reason to
-#: send numbers without their disclosures.
-UNSHRINKABLE_KEYS = frozenset({
-    "support", "support_assessment", "support_state", "warnings", "notes",
-    "status", "code", "error", "message", "recovery", "recovery_actions",
-    "disclosures", "disclosure", "abstention", "reason", "artifact_path",
-    "forecast_id", "series", "selected_model", "interval_coverage",
-})
+#: The never-shrunk keys are shared with the CiK arm (imported above):
+#: one definition of what a disclosure is, whether a result is being
+#: size-bounded here or supersession-compacted by the shared
+#: :class:`ToolMessageLog`.
+
+
+#: Named inside every harness-shortened array. The shortening is the
+#: harness's own doing, so the consequence of it is the harness's to
+#: disclose: the measured failure was a model that read "truncated",
+#: concluded the numbers were lost, and spent the rest of its rounds
+#: re-inspecting the file to rebuild them by hand — 34 `gnomon_inspect`
+#: calls across 9 rows that had already forecast successfully. This
+#: states what the harness did and what still works; it says nothing
+#: about the task, and nothing about whether to use the engine at all.
+TRUNCATION_REMEDY = (
+    "The harness shortened this array to fit the tool-result budget — "
+    "Gnomon's own values are complete and unchanged. You do NOT need "
+    "these numbers to answer: submit_answer with this run's "
+    "artifact_path uses the full trajectory verbatim. Re-reading the "
+    "file will not return more of it."
+)
 
 
 def _shrink(value: Any, edge: int = TRUNCATED_ARRAY_EDGE) -> Any:
@@ -357,6 +464,7 @@ def _shrink(value: Any, edge: int = TRUNCATED_ARRAY_EDGE) -> Any:
         return {
             "harness_truncated": True,
             "items_total": len(value),
+            "remedy": TRUNCATION_REMEDY,
             "head": [_shrink(item, edge) for item in value[:edge]],
             "tail": [_shrink(item, edge) for item in value[-edge:]],
         }
@@ -499,6 +607,7 @@ class _RunBase:
             _write_wide_csv(self.channels, self.csv_path)
         self.session = (session_factory or StdioMcpSession)(self.jail)
         self.trace: list[dict[str, Any]] = []
+        self.result_log = ToolMessageLog()
         self.mcp_calls = 0
         self.artifact_paths: set[str] = set()
         self.submission: dict[str, Any] | None = None
@@ -562,7 +671,9 @@ class _RunBase:
             "tool_sequence": [
                 {key: value for key, value in entry.items()
                  if key in ("tool", "is_error", "code", "jail_violations",
-                            "truncated", "last_call", "abstained")}
+                            "truncated", "last_call", "abstained",
+                            "superseded", "coerced", "submit_rejected",
+                            "last_call_repair")}
                 for entry in self.trace
             ],
         }
@@ -614,6 +725,14 @@ class _RunBase:
                     return result
                 messages.append({"role": "tool", "tool_call_id": call["id"],
                                  "content": result})
+                # A result that retires an earlier one (same forecast
+                # channels, or an identical repeat call) compacts the
+                # older message to its disclosures + artifact_path, so
+                # dead bulk stops being re-sent every remaining round.
+                compacted = self.result_log.record(
+                    call["function"]["name"], arguments, messages[-1])
+                if compacted:
+                    self.trace.append({"superseded": compacted})
             if self.submission:
                 break
         if not self.submission:
@@ -633,26 +752,75 @@ class _RunBase:
         computed on a spent budget), the cap is named, and a submission
         that arrives is resolved normally. If none does, the row abstains
         exactly as before, with the cap still named.
+
+        A rejected submission gets :data:`LAST_CALL_ATTEMPTS` - 1 repair
+        rounds. One shot used to mean that an answer the model HAD
+        produced, mis-enveloped, died together with the correct
+        rejection message explaining how to fix it — the row recorded as
+        an abstention it never made. The repair round withdraws the
+        engine tools exactly as the first one does, so nothing new can
+        be computed on a spent budget; only the envelope may change.
         """
         self.trace.append({"last_call": cap})
         messages = messages + [{"role": "user",
                                 "content": LAST_CALL.format(cap=cap)}]
-        try:
-            response = self.client.chat(messages, n=1, tools=[submit_tool],
-                                        tool_choice="auto")
-        except Exception as error:
-            return self._abstain_outcome(f"{cap}; last call failed: {error}")
-        for call in _tool_calls_as_dicts(response.choices[0].message):
-            if call["function"]["name"] != "submit_answer":
-                continue
+        for attempt in range(LAST_CALL_ATTEMPTS):
             try:
-                arguments = json.loads(call["function"]["arguments"] or "{}")
-            except json.JSONDecodeError:
-                continue
-            self._dispatch("submit_answer", arguments)
-            if self.submission:
-                self.submission["last_call"] = cap
-                return self._resolve_submission()
+                response = self.client.chat(messages, n=1,
+                                            tools=[submit_tool],
+                                            tool_choice="auto")
+            except Exception as error:
+                return self._abstain_outcome(
+                    f"{cap}; last call failed: {error}")
+            message = response.choices[0].message
+            calls = _tool_calls_as_dicts(message)
+            rejected: tuple[str, dict[str, Any]] | None = None
+            if not calls:
+                # Prose instead of a tool call is the same defect class
+                # as a mis-enveloped one: the model answered, and only
+                # the envelope is wrong. Repair it rather than record an
+                # abstention the model never made.
+                rejected = (json.dumps({
+                    "accepted": False, "authored_by": "harness",
+                    "problems": ["no submit_answer call — a prose answer "
+                                 "cannot be scored"],
+                }), None)
+            for call in calls:
+                if call["function"]["name"] != "submit_answer":
+                    continue
+                try:
+                    arguments = json.loads(
+                        call["function"]["arguments"] or "{}")
+                except json.JSONDecodeError:
+                    rejected = (json.dumps({
+                        "accepted": False, "authored_by": "harness",
+                        "problems": ["arguments were not valid JSON"],
+                    }), call)
+                    continue
+                result = self._dispatch("submit_answer", arguments)
+                if self.submission:
+                    self.submission["last_call"] = cap
+                    return self._resolve_submission()
+                if isinstance(result, dict):  # transport death, disclosed
+                    return result
+                rejected = (result, call)
+            if rejected is None or attempt + 1 >= LAST_CALL_ATTEMPTS:
+                break
+            text, call = rejected
+            self.trace.append({"last_call_repair": attempt + 1})
+            if call is None:  # prose: no tool_call_id to answer
+                messages = messages + [
+                    {"role": "assistant", "content": message.content or ""},
+                    {"role": "user", "content": LAST_CALL_PROSE},
+                ]
+            else:
+                messages = messages + [
+                    {"role": "assistant", "content": message.content or None,
+                     "tool_calls": calls},
+                    {"role": "tool", "tool_call_id": call["id"],
+                     "content": text},
+                    {"role": "user", "content": LAST_CALL_REPAIR},
+                ]
         return self._abstain_outcome(cap)
 
     # -- dispatch ----------------------------------------------------------
@@ -668,9 +836,15 @@ class _RunBase:
                                "message": "Tool arguments were not valid JSON.",
                                "authored_by": "harness"})
         if name == "submit_answer":
+            arguments, coerced = coerce_json_containers(arguments)
+            if coerced:
+                entry["coerced"] = coerced
             payload = self._handle_submit(arguments)
             entry["result"] = {"accepted": payload.get("accepted"),
                                "problems": payload.get("problems")}
+            if payload.get("accepted") is False:
+                entry["submit_rejected"] = payload.get("problems") or [
+                    payload.get("message", "rejected")]
             return json.dumps(payload)
 
         violations = jail_violations(arguments, self.jail)

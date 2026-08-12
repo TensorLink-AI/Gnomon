@@ -26,6 +26,7 @@ from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from benchmarks.cik import mcp_agent as cik_mcp_agent
 from benchmarks.cik.mcp_agent import InProcessMcpSession
 from benchmarks.temporalbench import mcp_agent
 from benchmarks.temporalbench.mcp_agent import (
@@ -340,10 +341,105 @@ def test_token_cap_keeps_the_answer_the_last_call_produces(tmp_path):
 
 
 def test_token_cap_abstains_when_the_last_call_answers_in_prose(tmp_path):
+    """Prose twice — the repair round offered and refused — abstains."""
     steps = [{"content": "thinking", "bump_tokens": 600_000},
-             {"content": "I will keep thinking."}]
+             {"content": "I will keep thinking."},
+             {"content": "Still prose, sorry."}]
     outcome = _run(_row(sparse_temp=False), steps, tmp_path)
     assert any("cap:tokens" in reason for reason in outcome["abstained"])
+    assert "cap:tokens" in outcome["row_abstained"]
+
+
+# -- the envelope is repaired; the answer never is --------------------------
+
+def _submitted(messages=None):
+    return {"tool_calls": [("submit_answer", {
+        "forecast": {"hr": {"values": VALUES}, "spo2": {"values": VALUES}},
+        "mcq": {"q1": "Higher"},
+    })]}
+
+
+def test_double_encoded_forecast_is_repaired_and_accepted(tmp_path):
+    """The measured failure: a complete answer, JSON-encoded into a
+    string, thrown away as an abstention the model never made."""
+    outcome = _run(_row(sparse_temp=False), [
+        {"tool_calls": [("submit_answer", {
+            "forecast": json.dumps(
+                {"hr": {"values": VALUES}, "spo2": {"values": VALUES}}),
+            "mcq": json.dumps({"q1": "Higher"}),
+        })]},
+    ], tmp_path)
+    assert outcome["answer"]["forecast"]["hr"] == VALUES
+    assert outcome["answer"]["mcq"] == {"q1": "Higher"}
+    assert outcome["channel_route"] == {"hr": "direct", "spo2": "direct"}
+    # The repair is disclosed, never silent.
+    coerced = [entry["coerced"] for entry in outcome["mcp"]["tool_sequence"]
+               if "coerced" in entry]
+    assert coerced and set(coerced[0]) == {"forecast", "mcq"}
+
+
+def test_double_encoded_channel_entry_is_repaired(tmp_path):
+    outcome = _run(_row(sparse_temp=False), [
+        {"tool_calls": [("submit_answer", {
+            "forecast": {"hr": json.dumps({"values": VALUES}),
+                         "spo2": {"values": VALUES}},
+            "mcq": {},
+        })]},
+    ], tmp_path)
+    assert outcome["answer"]["forecast"]["hr"] == VALUES
+    coerced = [entry["coerced"] for entry in outcome["mcp"]["tool_sequence"]
+               if "coerced" in entry]
+    assert coerced and "forecast.hr" in coerced[0]
+
+
+def test_a_string_that_is_not_json_is_left_for_the_validator(tmp_path):
+    """Only the envelope may be repaired. Nonsense stays nonsense —
+    the harness never invents the answer it wishes it had received."""
+    arguments, repaired = mcp_agent.coerce_json_containers(
+        {"forecast": "the heart rate goes up", "mcq": "42"})
+    assert repaired == []
+    assert arguments["forecast"] == "the heart rate goes up"
+    # A JSON scalar is not a container either.
+    assert arguments["mcq"] == "42"
+
+
+def test_last_call_rejection_gets_one_repair_round(tmp_path):
+    """A rejection at the last call used to die with the correct repair
+    message beside it and no round left to use it."""
+    steps = [
+        {"content": "thinking", "bump_tokens": 600_000},
+        {"tool_calls": [("submit_answer", {
+            "forecast": {"not_a_channel": {"values": VALUES}}, "mcq": {},
+        })]},
+        _submitted,
+    ]
+    outcome = _run(_row(sparse_temp=False), steps, tmp_path)
+    assert outcome["answer"]["forecast"]["hr"] == VALUES
+    assert "cap:tokens" in outcome["last_call"]
+    assert "row_abstained" not in outcome
+    assert any("last_call_repair" in entry
+               for entry in outcome["mcp"]["tool_sequence"])
+
+
+def test_last_call_prose_gets_one_repair_round(tmp_path):
+    steps = [{"content": "thinking", "bump_tokens": 600_000},
+             {"content": "The heart rate will hold near 97."},
+             _submitted]
+    outcome = _run(_row(sparse_temp=False), steps, tmp_path)
+    assert outcome["answer"]["forecast"]["hr"] == VALUES
+    assert "row_abstained" not in outcome
+
+
+def test_the_last_call_repair_is_not_unlimited(tmp_path):
+    """Two attempts, not a retry loop: a model that will not produce a
+    submission must still end as an honest abstention."""
+    bad = {"tool_calls": [("submit_answer", {
+        "forecast": {"not_a_channel": {"values": VALUES}}, "mcq": {},
+    })]}
+    outcome = _run(_row(sparse_temp=False),
+                   [{"content": "x", "bump_tokens": 600_000}, bad, bad],
+                   tmp_path)
+    assert outcome["answer"]["forecast"] == {}
     assert "cap:tokens" in outcome["row_abstained"]
 
 
@@ -503,6 +599,12 @@ def test_long_tool_results_shrink_bulk_and_keep_every_disclosure():
     assert result["forecast"]["items_total"] == 400
     assert result["forecast"]["head"][0]["q50"] == 0
     assert result["forecast"]["tail"][-1]["q50"] == 399
+    # The shortening is the harness's doing, so its consequence is the
+    # harness's to disclose: the measured failure was a model that read
+    # "truncated", assumed the numbers were lost, and burned its
+    # remaining rounds re-inspecting the file to rebuild them.
+    remedy = result["forecast"]["remedy"]
+    assert "artifact_path" in remedy and "do NOT need" in remedy
     # Epistemics verbatim: all six warnings, the assessment, the support
     # label, and the path to the complete numbers.
     assert result["warnings"] == payload["results"][0]["warnings"]
@@ -797,8 +899,22 @@ def test_voided_rows_stay_out_of_the_accuracy_denominators(tmp_path,
     assert manifest["base_url"] == "http://x"
 
 
-def test_rounds_constant_matches_cik_posture():
-    assert MAX_ROUNDS == 10
+def test_rounds_constant_departs_from_cik_posture_deliberately():
+    """This arm's round cap is intentionally NOT the CiK arm's 10.
+
+    Measured: at 10, 11 of 12 T2/T4 rows ended `cap:rounds` with the
+    token and wall-clock ceilings untouched, so the cap was the
+    measurement rather than a guard; 30 took scored rows 1/12 -> 4/12.
+    A TemporalBench row is also a longer conversation than a CiK one —
+    up to six channels to forecast and submit against CiK's single
+    series — so parity of the number was never parity of the budget.
+    If these are reunified, change both and re-measure; do not quietly
+    lower this one back.
+    """
+    assert MAX_ROUNDS == 30
+    assert cik_mcp_agent.MAX_ROUNDS == 10, (
+        "CiK's cap moved; revisit whether the divergence is still wanted"
+    )
 
 
 def test_wall_clock_cap_ends_the_run_as_a_named_abstention(
@@ -811,3 +927,70 @@ def test_wall_clock_cap_ends_the_run_as_a_named_abstention(
     # answered in prose, so the row abstains with the cap named.
     outcome = _run(_row(), [{"content": "out of time"}], tmp_path)
     assert "cap:wall_clock" in outcome["row_abstained"]
+
+
+# -- superseded results are compacted out of the running history ------------
+
+def test_superseded_forecast_is_compacted_in_the_message_history(tmp_path):
+    """A batched call retires the single-channel call it covers: the
+    older tool message is replaced in place by its disclosures plus the
+    artifact_path — the bulk stops being re-sent every remaining round,
+    and what Gnomon said about its numbers does not."""
+    seen = {}
+
+    def forecast_hr(messages):
+        return {"tool_calls": [_forecast_call(messages, "hr")]}
+
+    def forecast_batch(messages):
+        return {"tool_calls": [_forecast_call(messages, "hr,spo2")]}
+
+    def submit(messages):
+        tool_messages = [m for m in messages if m.get("role") == "tool"]
+        assert len(tool_messages) == 2
+        stub = json.loads(tool_messages[0]["content"])
+        assert stub["harness_superseded"] is True
+        assert stub["artifact_path"], "the path to the full numbers stays"
+        result, = stub["results"]
+        assert result["support"], "the support label stays"
+        # The assessment is verbatim, or marked as riding character-
+        # identical on the live batched result one message down.
+        assert result.get("support_assessment") \
+            or "support_assessment" in result.get("unchanged", "")
+        assert "forecast" not in result, "the bulk goes"
+        live = json.loads(tool_messages[1]["content"])
+        assert "harness_superseded" not in live
+        seen["artifact_path"] = live["artifact_path"]
+        return {"tool_calls": [("submit_answer", {
+            "forecast": {"hr": {"artifact_path": live["artifact_path"]},
+                         "spo2": {"artifact_path": live["artifact_path"]}},
+            "mcq": {"q1": "Higher"},
+        })]}
+
+    outcome = _run(_row(sparse_temp=False),
+                   [forecast_hr, forecast_batch, submit], tmp_path)
+    assert outcome["channel_route"] == {"hr": "gnomon", "spo2": "gnomon"}
+    # The adapter decision is disclosed in the trace.
+    assert {"superseded": 1} in outcome["mcp"]["tool_sequence"]
+
+
+def test_forecasts_of_different_channels_are_both_kept(tmp_path):
+    def forecast_hr(messages):
+        return {"tool_calls": [_forecast_call(messages, "hr")]}
+
+    def forecast_spo2(messages):
+        return {"tool_calls": [_forecast_call(messages, "spo2")]}
+
+    def submit(messages):
+        tool_messages = [m for m in messages if m.get("role") == "tool"]
+        payloads = [json.loads(m["content"]) for m in tool_messages]
+        assert not any(p.get("harness_superseded") for p in payloads), \
+            "different channels are parallel evidence, not a supersession"
+        return {"tool_calls": [("submit_answer", {
+            "forecast": {"hr": {"artifact_path": payloads[0]["artifact_path"]},
+                         "spo2": {"artifact_path": payloads[1]["artifact_path"]}},
+            "mcq": {"q1": "Higher"},
+        })]}
+
+    outcome = _run(_row(sparse_temp=False),
+                   [forecast_hr, forecast_spo2, submit], tmp_path)
+    assert outcome["channel_route"] == {"hr": "gnomon", "spo2": "gnomon"}

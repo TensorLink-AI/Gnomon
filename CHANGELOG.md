@@ -2,6 +2,194 @@
 
 ## Unreleased
 
+- **The published candidate is the evaluated candidate.** Evaluation now
+  returns an executable `CandidateSpec` for the winner — bound to the
+  *same* closures that produced its calibration and test predictions —
+  and `predict_stage` publishes by fitting that specification on the
+  full visible history. The class of divergence this removes was live:
+  publication hardcoded `strategy="weighted_mean"` over the unrestricted
+  built-in pool with no config, while evaluation scored
+  `config.ensemble.strategy` over the restricted pool plus TSFM
+  adapters — so `ensemble.strategy: median` scored a median ensemble
+  and published a weighted-mean one wearing its credentials, a
+  restricted pool still published all seven members, TSFM members
+  vanished from the published combination, and `max_weight_ratio`
+  reverted to its default. Composite identities (member set, strategy,
+  behaviour-affecting config) are recorded as `final_candidate`
+  evidence; single built-ins publish byte-identically to before (their
+  identity is `selected_model`), so existing artifacts do not churn.
+  Pinned by the end-to-end shape that was missing: non-default strategy
+  + restricted pool, published points == the evaluated combiner's final
+  fit, and provably ≠ the legacy rebuild. One immutable spec, an
+  independent fit per origin — a fitted object is never reused across
+  partitions. TSFM selections keep their sandbox-first publication
+  chain for now; binding that chain into a spec with full identity is
+  named follow-up work.
+
+- **The meta-model can actually fit realistically-scaled series.** The
+  NNLS learning-rate estimate used the max diagonal of AᵀA as an
+  eigenvalue bound; member forecasts are strongly correlated, so with
+  m members the true top eigenvalue approaches m× that — projected
+  gradient overshot, zigzagged, and collapsed every realistic-scale
+  fit to the all-zeros fallback (the meta-model silently never
+  competed outside toy magnitudes). The estimate now uses the infinity
+  norm, a true bound for symmetric AᵀA.
+
+- **Integrity guards cannot pass by skipping.** The two conditionally
+  skipping guard tests both turned out to be skipping their guarded
+  branches on every run: the meta-model out-of-fold-scoring guard
+  skipped because of the learning-rate collapse above (now a hard
+  assertion), and the stride-invariance guard skipped because its
+  series changed selection under stride (now runs on a stride-stable
+  series with the stability asserted as a precondition).
+
+- **Seeded Monte Carlo interval-coverage harness.** Thirty synthetic
+  daily series with known generating processes run the full pipeline;
+  empirical q10–q90 coverage is scored against actuals from the same
+  process, deterministic under a fixed seed. Bounds are asymmetric
+  because conformal's guarantee is one-sided: under-coverage below
+  0.68 fails hard (an interval that is not what it says it is), above
+  0.97 fails as trivially wide. Measured at introduction: **0.933 on a
+  nominal 0.80 band** — systematically conservative, inflated by small
+  per-fold calibration sets; recorded as a width-efficiency finding
+  for the unified plan's Phase 3 measurement rather than hidden by a
+  wider tolerance.
+
+- **Configuration cannot lie.** Validation flips from a denylist to an
+  allowlist: every supplied key is honoured, refused with a reason, or
+  unknown — and unknown fails at load. The denylist approach had let
+  ten-plus documented keys parse into fields nothing read
+  (`meta_model.type`/`min_folds`/`fallback`, `ensemble.eligible`,
+  `ensemble.weighted_mean.fallback`, `backends.sandbox.venv_root`/
+  `auto_install`, the entire `llm` section) and its own reasons drifted
+  false — it asserted `ridge_alpha` was honoured while the solver
+  hardcoded its epsilon. `ridge_alpha` is now actually wired (default =
+  the historical epsilon, so no existing fit changes); the other dead
+  keys refuse with reasons and left the dataclasses and the example
+  config. `ensemble.strategy: stacking` — shipped in the example,
+  raised at runtime, swallowed into silent per-fold failures — fails at
+  load pointing at `meta_model.enabled`. Dynamic namespaces
+  (`backends.api.providers.<name>`, `models.tsfm.overrides.<name>`) get
+  typed wildcards, not a validation bypass.
+
+- **`gnomon.toml` is the preferred config format; a present config is
+  never silently ignored.** TOML parses with the stdlib (`tomllib`,
+  Python ≥ 3.11), so a base install — where PyYAML, a `dev`-only extra,
+  is absent — can no longer silently discard the operator's config and
+  run on defaults: a YAML file without PyYAML is now a `CONFIG_UNREADABLE`
+  error naming the TOML migration, unparseable configs of either format
+  refuse loudly, both formats side by side refuse as `CONFIG_AMBIGUOUS`,
+  and `load_config` returns a fresh object per call instead of shared
+  mutable defaults. YAML remains fully supported when PyYAML is
+  installed; this is step 1 of the deprecation ladder in
+  `specs/unified-plan.md` Phase 1E.
+
+- **Outcome knowledge time is honest.** Realised-coverage outcomes were
+  stamped `known_time = cutoff_time` — the forecast origin, the one
+  instant at which the outcome provably did not exist — so an `--as-of`
+  replay at the origin could see the realised coverage of the very
+  horizon being forecast. Three instants now stay distinct: the
+  outcome's valid time, its knowledge time, and the cutoff. Outcomes
+  are stamped with an explicit per-observation `known_at` when supplied
+  (a backfill channel new on all three actuals surfaces: 4-tuples in
+  the Python API, a reserved `known_at` CSV column, and a `known_at`
+  key on inline MCP actuals) and with the submission time otherwise; a
+  derived record inherits the *latest* contributing knowledge time, and
+  one unlabelled outcome makes it the submission time. A `known_at`
+  earlier than the outcome's own timestamp refuses with
+  `OUTCOME_KNOWN_BEFORE_VALID` — a measurement cannot be known before
+  it occurs.
+
+- **No non-finite value reaches evaluation.** `float("nan")` and
+  `float("inf")` parse, so the strict loader admitted them as
+  observations — after which a NaN error score poisoned every aggregate
+  it touched (a mean with one NaN fold is NaN, not `None`, and NaN
+  compares false to every threshold). The strict loader now refuses
+  with `NON_FINITE_TARGET` (row named, repair options attached — also
+  catching the nonstandard `NaN` literal Python's json module accepts);
+  under repair, textual `NaN` stays a documented missing sentinel while
+  `inf`-family values take the unparseable path (refuse under `safe`,
+  drop-with-disclosure under `aggressive`, both capped by
+  `EXCESSIVE_REPAIR`). `error_score` independently returns `None` on
+  non-finite arithmetic, because TSFM adapter outputs never pass
+  through the loader.
+
+- **Fold evidence stays fold-aligned when a member fails mid-run.** A
+  built-in model that failed `predict` (or hit an unscoreable fold) had
+  that fold compacted out of its per-fold score and forecast lists,
+  while the ensemble's weighting and the meta-model's training read
+  those lists *by fold index* — so fold k's actuals were silently
+  paired with fold k+1's forecast for any model that failed a strict
+  subset of folds. Built-ins now keep placeholder slots (`None` score,
+  empty forecast) exactly as the TSFM lists always did; the aggregate
+  rule is unchanged (a model must score every fold to hold a selection
+  score), and placeholder-only lists stay out of the meta-model pool.
+  Pinned by a test that fails one member on one mid-run fold and
+  asserts every other fold's ensemble map carries that fold's own
+  forecast.
+
+- **`voting` ensembles are direction-symmetric.** The vote test was
+  `len(up) >= len(down) * threshold` with the up branch checked first:
+  at the default threshold two up votes beat four down votes, and an
+  exactly-flat forecast counted as a down vote. A side now wins by
+  holding more than `threshold` of the cast votes (strict majority at
+  0.5), flat forecasts abstain, and a tie falls back to the median of
+  all members — so mirroring every forecast around the last observed
+  value mirrors the combined point. Latent on the published path today
+  (publication hardcodes `weighted_mean`; that seam is the unified
+  plan's Phase 1A), live for selection scoring under
+  `ensemble.strategy: voting`.
+
+- **Benchmark MCP arms stop losing answers the model already produced.**
+  Three submission-robustness fixes in the TemporalBench agent loop,
+  none of which computes anything new for the model: `submit_answer`
+  container fields that arrive as JSON-encoded *strings* (a routine
+  tool-calling defect) are parsed back into objects — envelope only,
+  disclosed per-field in the trace as `coerced`, and a string that does
+  not parse or parses to a scalar is left for the validator; the last
+  call gains one repair attempt (engine tools stay withdrawn, so only
+  the envelope can change — measured sweeps lost whole rows to a
+  correct answer mis-enveloped at the final round, including prose
+  answers that never became a tool call); and harness-truncated arrays
+  now carry a `remedy` note saying the harness did the shortening and
+  the artifact path holds the full values — the measured failure was 34
+  `gnomon_inspect` calls re-deriving numbers that were never lost.
+  `MAX_ROUNDS` rises 10 → 30 on TemporalBench, from the measured pilot:
+  11 of 12 T2/T4 rows ended `cap:rounds` with the token ceiling never
+  approached, and raising the cap alone took scored rows 1/12 → 4/12.
+
+- **The MCP surface is token-lean without disclosing less.** Four
+  transport changes, no change to what is computed or disclosed:
+  `gnomon_capabilities` now defaults to a brief view inside the
+  8,192-byte response budget (17,645 → ~6,000 chars) that keeps every
+  section and every capability *name* and says exactly which prose it
+  elided; `format: "full"` and a new `sections` parameter return the
+  verbatim payload — explicitly-requested capabilities are exempt from
+  the array trimmer, which would otherwise misreport the build.
+  `gnomon_inspect` accepts a comma list or `"auto"` in `target_column`
+  and inspects every channel of a wide file in one call (one report per
+  column, errors embedded per column); a wide file with no
+  `target_column` now inspects all qualifying columns with a disclosed
+  assumption instead of refusing `AMBIGUOUS_SCHEMA` — inspection is
+  read-only, so exhaustive is honest where guessing would not be.
+  `gnomon_forecast`'s schema went on a description diet (10,933 →
+  8,434 chars; every parameter and enum kept). The response-budget
+  trimmer now descends into lists whose entries carry protected
+  disclosures instead of cutting them — a six-channel batched result
+  used to lose its sixth channel's support state to the head/tail trim.
+
+- **Benchmark MCP arms stop re-sending superseded tool results.** The
+  CiK and TemporalBench agent loops compact a tool result out of the
+  running message history once a later call supersedes it (same
+  forecast channels, or an identical repeat call): the older message is
+  replaced in place by its support labels, warnings, abstention
+  reasons, error codes, and `artifact_path` — a disclosure whose text
+  is character-identical in the live superseding result is replaced by
+  a marker saying so. Errors are never compacted; different channels
+  and different arguments never supersede. On the measured 12-round
+  six-channel MIMIC row the re-sent prefix falls from ~337k to ~214k
+  tokens. CiK's `MCP_CONTRACT_VERSION` bumps to 4.
+
 - **Structural regridding: calendar shape is not messiness.** New
   `regrid` parameter on every data-reading verb (MCP, CLI `--regrid`,
   Python API): `business_daily` forward-fills weekends and holidays so

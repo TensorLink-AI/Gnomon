@@ -30,6 +30,7 @@ Everything here is a deterministic function of the input bytes.
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
@@ -197,9 +198,19 @@ def parse_number(text: str, comma_role: str | None) -> tuple[float | None, str]:
     if stripped.lower() in MISSING_SENTINELS:
         return None, "missing"
     try:
-        return float(stripped), "clean"
+        value = float(stripped)
     except ValueError:
         pass
+    else:
+        if not math.isfinite(value):
+            # "inf"/"-inf" (and numeric NaN spellings not covered by the
+            # sentinels) parse as floats but are corrupt observations, not
+            # missing ones: no reading exists, so the caller's unparseable
+            # path decides — refuse under conservative repair, drop with
+            # disclosure under aggressive. Textual "nan" stays a documented
+            # missing sentinel above.
+            raise ValueError(f"non-finite value: {stripped!r}")
+        return value, "clean"
     s, negated, _ = _strip_decoration(stripped)
     tier = "normalised"
     if _GROUPED_SPACE.fullmatch(s):
@@ -220,6 +231,8 @@ def parse_number(text: str, comma_role: str | None) -> tuple[float | None, str]:
         else:
             s = s.replace(",", ".")
     value = float(s)  # may raise ValueError: genuinely unparseable
+    if not math.isfinite(value):
+        raise ValueError(f"non-finite value: {stripped!r}")
     return (-value if negated else value), tier
 
 

@@ -309,6 +309,7 @@ _TABLE_DEFINITIONS: dict[str, str] = {
             coverage REAL,
             threshold_accuracy REAL,
             scored_at TEXT NOT NULL,
+            known_time TEXT,
             series TEXT NOT NULL DEFAULT '__default__',
             horizon INTEGER,
             frequency TEXT,
@@ -508,9 +509,23 @@ class TrackingStore:
             }
             for name, sql_type in (("series", "TEXT"), ("horizon", "INTEGER"), ("frequency", "TEXT"),
                                    ("task", "TEXT DEFAULT 'forecast'"), ("fingerprint", "TEXT"),
-                                   ("wape", "REAL")):
+                                   ("wape", "REAL"),
+                                   # When this score became derivable, which is
+                                   # not when it was written: a backfill scores
+                                   # outcomes that were knowable long before the
+                                   # submission. Kept distinct from scored_at so
+                                   # the audit of *when the row was written*
+                                   # survives alongside the replay key.
+                                   ("known_time", "TEXT")):
                 if name not in perf_columns:
                     conn.execute(f"ALTER TABLE model_performance ADD COLUMN {name} {sql_type}")
+            # Rows written before the column existed were scored at the
+            # instant they were written, which is exactly their knowledge
+            # time under the old always-now behaviour.
+            conn.execute(
+                "UPDATE model_performance SET known_time = scored_at "
+                "WHERE known_time IS NULL"
+            )
             conn.execute(
                 "INSERT OR REPLACE INTO schema_metadata(key, value) VALUES ('version', ?)",
                 (SCHEMA_VERSION,),
@@ -747,6 +762,67 @@ class TrackingStore:
 
     # ---- Scoring ----
 
+    @staticmethod
+    def _require_possible_knowledge_time(valid_time: str, known_at: str) -> None:
+        """Refuse a ``known_at`` earlier than the outcome it describes.
+
+        A measured outcome cannot be known before it occurs; accepting one
+        would let a replay see the future wearing an honest label. Naive
+        timestamps are compared as UTC; unparseable ones are left to fail
+        where they are matched, not here.
+        """
+        def _parse(text: str) -> datetime | None:
+            try:
+                parsed = datetime.fromisoformat(
+                    text[:-1] + "+00:00" if text.endswith("Z") else text
+                )
+            except ValueError:
+                return None
+            if parsed.utcoffset() is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            return parsed.astimezone(timezone.utc)
+
+        valid, known = _parse(valid_time), _parse(known_at)
+        if valid is not None and known is not None and known < valid:
+            raise GnomonError(
+                "OUTCOME_KNOWN_BEFORE_VALID",
+                f"known_at {known_at} precedes the outcome's own timestamp "
+                f"{valid_time}: a measurement cannot be known before it "
+                "occurs.",
+                {"timestamp": valid_time, "known_at": known_at},
+            )
+
+    @staticmethod
+    def _derived_known_time(
+        known_times: list[str | None] | None, outcome_count: int,
+        submitted_at: str,
+    ) -> str:
+        """When a record derived from several outcomes became knowable.
+
+        The latest contributing knowledge time: a derived aggregate exists
+        only once its last input does. Any outcome without an explicit
+        ``known_at`` became knowable at submission, which is later than
+        every explicit backfill time — so one missing entry makes the
+        submission time the answer.
+        """
+        supplied = [k for k in (known_times or []) if k]
+        if len(supplied) < outcome_count:
+            return submitted_at
+
+        def _sort_key(text: str) -> datetime:
+            parsed = datetime.fromisoformat(
+                text[:-1] + "+00:00" if text.endswith("Z") else text
+            )
+            if parsed.utcoffset() is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            return parsed.astimezone(timezone.utc)
+
+        try:
+            return max(supplied, key=_sort_key)
+        except ValueError:
+            # An unparseable knowledge time cannot order a replay.
+            return submitted_at
+
     def score_forecast(
         self,
         forecast_id: str,
@@ -759,6 +835,7 @@ class TrackingStore:
         naive_error: float | None = None,
         project: str | None = None,
         series: str | None = None,
+        known_times: list[str | None] | None = None,
     ) -> ScoreResult:
         """Score a single forecast against actuals.
 
@@ -766,6 +843,13 @@ class TrackingStore:
         Stores the result and updates model_performance. ``project`` and
         ``series`` scope the registration being scored; without them the
         most recent registration of the id is used.
+
+        ``known_times``, aligned with ``actuals``, carries each outcome's
+        explicit knowledge time (ISO) where the caller has one — a
+        backfill of history whose outcomes were knowable long before this
+        submission. Any outcome without one became knowable *now*, so a
+        derived record's knowledge time is the submission time unless
+        every contributing outcome says otherwise.
         """
         record = self.get_forecast(forecast_id, project, series)
         if record is None:
@@ -782,6 +866,14 @@ class TrackingStore:
         cov = interval_coverage(actuals, q10 or [], q90 or []) if q10 and q90 else None
         thresh_acc = threshold_accuracy(actuals, threshold, predicted_above) if threshold else None
         scored_at = datetime.now(timezone.utc).isoformat()
+        # When this score became *derivable* — the latest knowledge time
+        # among the outcomes it consumed, which on a backfill is long
+        # before `scored_at`. The performance record is a derived record
+        # exactly like the coverage outcome below, so it inherits the same
+        # instant; a leaderboard replayed `as_of` T must not read a score
+        # that needed an outcome nobody had at T.
+        derived_known_time = self._derived_known_time(
+            known_times, len(actuals), scored_at)
 
         # Drift detection: compare to model's historical average
         drift = self._check_drift(record, mase)
@@ -799,24 +891,30 @@ class TrackingStore:
                 conn.execute("""
                     INSERT OR REPLACE INTO model_performance
                         (project, model, forecast_id, mase, wape, mape, bias,
-                         coverage, threshold_accuracy, scored_at, series, horizon, frequency,
-                         task, fingerprint)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         coverage, threshold_accuracy, scored_at, known_time,
+                         series, horizon, frequency, task, fingerprint)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     record.project, record.selected_model, forecast_id,
                     mase, wape, mape, bias, cov, thresh_acc, scored_at,
+                    derived_known_time,
                     record.series, record.horizon, record.frequency,
                     record.task, record.fingerprint,
                 ))
 
         if cov is not None and q10 and q90:
-            # Feed the adaptation log, stamped with when the outcome became
-            # knowable rather than when it was entered. The forecast's own
-            # horizon end is the earliest instant every scored point existed.
+            # Feed the adaptation log, stamped with when this aggregate
+            # became knowable. Three instants must stay distinct here: the
+            # outcome's valid time (when it occurred), its known time (when
+            # it reached Gnomon), and the forecast cutoff (what the forecast
+            # could see). The previous stamp used the cutoff — the one
+            # instant at which the outcome *provably did not exist yet* —
+            # so an --as-of replay at the forecast origin could see the
+            # realised coverage of the very horizon being forecast.
             points = min(len(actuals), len(q10), len(q90))
             self.record_coverage_outcome(
                 record.project, record.series or "__default__", forecast_id,
-                known_time=record.cutoff_time or scored_at,
+                known_time=derived_known_time,
                 covered=round(cov * points), points=points,
             )
 
@@ -832,7 +930,8 @@ class TrackingStore:
     def submit_actuals(
         self,
         project: str,
-        actuals: list[tuple[str, float] | tuple[str, str, float]],
+        actuals: list[tuple[str, float] | tuple[str, str, float]
+                      | tuple[str | None, str, float, str | None]],
         time_column: str = "timestamp",
         target_column: str = "value",
     ) -> list[ScoreResult]:
@@ -840,7 +939,13 @@ class TrackingStore:
 
         Args:
             project: project name
-            actuals: list of (timestamp_iso, value) tuples
+            actuals: list of (timestamp_iso, value),
+                (series, timestamp_iso, value), or
+                (series_or_None, timestamp_iso, value, known_at_or_None)
+                tuples. ``known_at`` asserts when the outcome became
+                knowable — for backfilling history whose outcomes were
+                available long before this submission. Rows without it
+                became knowable now.
             time_column: name of the timestamp column (for CSV loading)
             target_column: name of the target column (for CSV loading)
 
@@ -849,13 +954,21 @@ class TrackingStore:
         """
         # Build timestamp → value map
         actual_map: dict[tuple[str | None, str], float] = {}
+        known_map: dict[tuple[str | None, str], str] = {}
         for item in actuals:
             if len(item) == 2:
-                ts, val = item
-                actual_map[(None, self._normalise_timestamp(ts))] = val
-            else:
+                series, (ts, val), known_at = None, item, None
+            elif len(item) == 3:
                 series, ts, val = item
-                actual_map[(series, self._normalise_timestamp(ts))] = val
+                known_at = None
+            else:
+                series, ts, val, known_at = item
+            key = (series, self._normalise_timestamp(ts))
+            actual_map[key] = val
+            if known_at is not None:
+                known_at = self._normalise_timestamp(known_at)
+                self._require_possible_knowledge_time(ts, known_at)
+                known_map[key] = known_at
 
         results: list[ScoreResult] = []
         forecasts = self.list_forecasts(project, limit=1000)
@@ -888,16 +1001,15 @@ class TrackingStore:
             matched_points: list[float] = []
             matched_q10: list[float] = []
             matched_q90: list[float] = []
+            matched_known: list[str | None] = []
             for entry in forecast_data:
                 ts = self._normalise_timestamp(entry["timestamp"])
                 exact_key = (record.series, ts)
                 default_key = (None, ts)
                 if exact_key in actual_map or default_key in actual_map:
-                    matched_actuals.append(
-                        actual_map[exact_key]
-                        if exact_key in actual_map
-                        else actual_map[default_key]
-                    )
+                    key = exact_key if exact_key in actual_map else default_key
+                    matched_actuals.append(actual_map[key])
+                    matched_known.append(known_map.get(key))
                     matched_points.append(entry["point"])
                     if "q10" in entry:
                         matched_q10.append(entry["q10"])
@@ -929,6 +1041,7 @@ class TrackingStore:
                 predicted_above=pred_above,
                 project=record.project,
                 series=record.series,
+                known_times=matched_known,
             )
             results.append(result)
             try:
@@ -1148,21 +1261,27 @@ class TrackingStore:
         if not path.exists():
             raise FileNotFoundError(f"Actuals file not found: {path}")
 
-        actuals: list[tuple[str, float] | tuple[str, str, float]] = []
+        actuals: list[tuple] = []
         with open(path, encoding="utf-8-sig", newline="") as f:
             reader = csv.DictReader(f)
             cols = reader.fieldnames or []
             ts_col, val_col, series_col = self._resolve_actuals_columns(
                 cols, time_column, target_column, series_column,
             )
+            # An explicit knowledge-time column turns the submission into
+            # a backfill: each outcome is stamped with when it became
+            # knowable rather than with this submission's clock.
+            known_col = "known_at" if "known_at" in cols else None
             for row in reader:
                 ts = row[ts_col]
                 try:
                     val = float(row[val_col])
                 except (ValueError, TypeError):
                     continue
-                if series_col:
-                    actuals.append((row[series_col], ts, val))
+                known_at = (row[known_col] or "").strip() or None if known_col else None
+                series = row[series_col] if series_col else None
+                if known_at is not None or series_col:
+                    actuals.append((series, ts, val, known_at))
                 else:
                     actuals.append((ts, val))
 
@@ -1186,7 +1305,11 @@ class TrackingStore:
                 {"available_columns": columns, "missing_columns": missing},
             )
         series_col = series_column or ("series" if "series" in columns else None)
-        remaining = [name for name in columns if name != series_col]
+        # `known_at` is a reserved knowledge-time column, never a
+        # timestamp/value candidate — leaving it in would turn a
+        # perfectly inferable file into an AMBIGUOUS_SCHEMA refusal.
+        remaining = [name for name in columns
+                     if name != series_col and name.lower() != "known_at"]
 
         ts_col = time_column
         if ts_col is None:
@@ -1618,16 +1741,30 @@ class TrackingStore:
 
     def model_performance(
         self, project: str, model: str, task: str | None = None,
+        as_of: str | None = None,
     ) -> list[dict[str, Any]]:
-        """Get per-forecast performance history for a specific model."""
-        task_filter = "" if task is None else " AND COALESCE(task, 'forecast') = ?"
-        params: tuple[Any, ...] = (project, model) if task is None else (project, model, task)
+        """Get per-forecast performance history for a specific model.
+
+        ``as_of`` replays the leaderboard as it stood at that instant,
+        filtering on when each score became *derivable* (`known_time`)
+        rather than when its row was written. A backfill submitted today
+        for outcomes knowable last month belongs in last month's replay;
+        a score needing an outcome nobody had at ``as_of`` does not.
+        """
+        clauses = ["project = ?", "model = ?"]
+        params: list[Any] = [project, model]
+        if task is not None:
+            clauses.append("COALESCE(task, 'forecast') = ?")
+            params.append(task)
+        if as_of is not None:
+            clauses.append("COALESCE(known_time, scored_at) <= ?")
+            params.append(as_of)
         with self._connect() as conn:
             rows = conn.execute(f"""
                 SELECT * FROM model_performance
-                WHERE project = ? AND model = ?{task_filter}
+                WHERE {' AND '.join(clauses)}
                 ORDER BY scored_at DESC
-            """, params).fetchall()
+            """, tuple(params)).fetchall()
         return [dict(r) for r in rows]
 
     # ---- Routing ----

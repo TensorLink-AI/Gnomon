@@ -295,6 +295,14 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
         {"action": "fix_target", "description": "Make the target column numeric; the offending row is in details."},
         {"action": "enable_repair", "description": "Pass repair=aggressive to drop rows without a numeric reading (capped and disclosed)."},
     ],
+    "NON_FINITE_TARGET": [
+        {"action": "fix_source", "description": "Repair the exporting system; NaN usually marks a missing measurement, and an infinite level has no forecastable meaning."},
+        {"action": "enable_repair", "description": "Pass repair=aggressive to drop non-finite rows (capped and disclosed); textual NaN under repair=safe is already treated as missing."},
+    ],
+    "OUTCOME_KNOWN_BEFORE_VALID": [
+        {"action": "fix_known_at", "description": "Correct the known_at value — a measurement cannot be known before it occurs; the offending pair is in details."},
+        {"action": "omit_known_at", "description": "Leave known_at off the row to record the outcome as knowable at submission time."},
+    ],
     "DUPLICATE_TIMESTAMPS": [
         {"action": "deduplicate", "description": "Remove duplicate timestamps, or ingest revisions into the store with distinct known-at times."},
         {"action": "enable_repair", "description": "Identical duplicate rows collapse under the default repair=safe; conflicting values need repair=aggressive (last row wins, disclosed)."},
@@ -513,6 +521,12 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
     ],
 
     # --- Configuration ----------------------------------------------------
+    "CONFIG_UNREADABLE": [
+        {"action": "fix_config", "description": "The named file exists but cannot be parsed (or its parser is not installed); fix the file, convert it to gnomon.toml (parsed by the standard library), or remove it. A present-but-ignored config would mean the run is configured differently from what is written down."},
+    ],
+    "CONFIG_AMBIGUOUS": [
+        {"action": "remove_one", "description": "Both a gnomon.toml and a gnomon.yaml were found in the same directory; delete one so a single file is the source of truth (gnomon.toml is the preferred format)."},
+    ],
     "UNSUPPORTED_CONFIG_KEY": [
         {"action": "remove_key", "description": "details.reasons explains, per key, why Gnomon cannot honour it. A setting that is silently ignored is worse than one that does not exist, which is why this is an error."},
         {"action": "see_example", "description": "gnomon.yaml.example documents every key that does take effect."},
@@ -606,7 +620,7 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "workdir": "intent", "store_path": "intent", "as_of": "intent",
     "scope": "intent", "format": "intent", "brief": "intent",
     "profile": "intent",
-    "section": "intent",
+    "section": "intent", "sections": "intent",
     "jsonl": "intent", "include_lineage": "intent", "limit": "intent",
     "latest": "intent", "note": "intent", "name": "intent",
     "status_only": "intent",

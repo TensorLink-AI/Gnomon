@@ -389,3 +389,169 @@ def test_stdio_session_kills_a_hung_server_instead_of_blocking_forever():
             session._rpc("initialize", {})
     finally:
         session.close()
+
+
+# -- superseded tool results ------------------------------------------------
+
+def _forecast_payload(channels, path="/artifacts/f1", support="supported",
+                      warning="short history"):
+    return {
+        "status": "complete", "artifact_path": path,
+        "headline": f"{len(channels)} channel(s), weakest tier {support}.",
+        "results": [
+            {"series": name, "support": support,
+             "support_assessment": {"reasons": [{"code": support}],
+                                    "assumptions": []},
+             "warnings": [f"{name}: {warning}"],
+             "notes": [], "selected_model": "seasonal_naive",
+             "forecast": [{"timestamp": f"t{i}", "q10": 1.0, "q50": 2.0,
+                           "q90": 3.0} for i in range(29)]}
+            for name in channels
+        ],
+    }
+
+
+def _tool_message(payload):
+    return {"role": "tool", "tool_call_id": "c", "content": json.dumps(payload)}
+
+
+def test_superseding_forecast_compacts_the_older_result_to_disclosures():
+    from benchmarks.cik.mcp_agent import ToolMessageLog
+
+    log = ToolMessageLog()
+    old = _tool_message(_forecast_payload(["hr"], path="/artifacts/f1",
+                                          support="best_effort",
+                                          warning="only 12 observations"))
+    assert log.record("gnomon_forecast", {"target_column": "hr"}, old) == 0
+    new = _tool_message(_forecast_payload(["hr"], path="/artifacts/f2",
+                                          warning="short history"))
+    assert log.record("gnomon_forecast", {"target_column": "hr"}, new) == 1
+
+    stub = json.loads(old["content"])
+    assert stub["harness_superseded"] is True
+    # Disclosures the later result does NOT carry stay verbatim, with
+    # the path to the full numbers.
+    assert stub["artifact_path"] == "/artifacts/f1"
+    result, = stub["results"]
+    assert result["support"] == "best_effort"
+    assert result["warnings"] == ["hr: only 12 observations"]
+    assert result["support_assessment"]["reasons"] == [
+        {"code": "best_effort"}]
+    assert "gnomon_get_artifact" in stub["harness_note"]
+    # What it drops is the bulk, and only the bulk.
+    assert "forecast" not in result
+    assert len(old["content"]) < len(new["content"])
+    # The live result is untouched.
+    assert "harness_superseded" not in json.loads(new["content"])
+
+
+def test_disclosures_identical_in_the_live_result_become_a_marker():
+    from benchmarks.cik.mcp_agent import ToolMessageLog
+
+    # The measured pathology: five consecutive calls over the same
+    # channels, near-identical results. The words are one message down,
+    # attached to the live numbers — the stub says so instead of
+    # repeating six channels of identical degradation warnings.
+    log = ToolMessageLog()
+    old = _tool_message(_forecast_payload(["hr", "spo2"], path="/a/f1"))
+    log.record("gnomon_forecast", {"target_column": "hr,spo2"}, old)
+    new = _tool_message(_forecast_payload(["hr", "spo2"], path="/a/f1"))
+    assert log.record("gnomon_forecast",
+                      {"target_column": "hr,spo2"}, new) == 1
+
+    stub = json.loads(old["content"])
+    assert stub["harness_superseded"] is True
+    assert stub["artifact_path"] == "/a/f1"
+    assert "identical" in stub["unchanged"]
+    assert len(old["content"]) < 700
+    # A partially identical result keeps the differing disclosure
+    # verbatim and markers only what the live result already carries.
+    log2 = ToolMessageLog()
+    payload = _forecast_payload(["hr", "spo2"], path="/a/f3")
+    payload["results"][0]["warnings"] = ["hr: sensor swapped"]
+    changed = _tool_message(payload)
+    log2.record("gnomon_forecast", {"target_column": "hr,spo2"}, changed)
+    live = _tool_message(_forecast_payload(["hr", "spo2"], path="/a/f4"))
+    assert log2.record("gnomon_forecast",
+                       {"target_column": "hr,spo2"}, live) == 1
+    stub2 = json.loads(changed["content"])
+    hr = next(r for r in stub2["results"] if r["series"] == "hr")
+    assert hr["warnings"] == ["hr: sensor swapped"]  # differs: verbatim
+    assert "support_assessment" in hr["unchanged"]
+    spo2 = next(r for r in stub2["results"] if r["series"] == "spo2")
+    assert "warnings" not in spo2
+    assert "warnings" in spo2["unchanged"]
+
+
+def test_batched_forecast_supersedes_the_per_channel_calls_it_covers():
+    from benchmarks.cik.mcp_agent import ToolMessageLog
+
+    log = ToolMessageLog()
+    hr = _tool_message(_forecast_payload(["hr"]))
+    spo2 = _tool_message(_forecast_payload(["spo2"]))
+    resp = _tool_message(_forecast_payload(["resp"]))
+    log.record("gnomon_forecast", {"target_column": "hr"}, hr)
+    log.record("gnomon_forecast", {"target_column": "spo2"}, spo2)
+    log.record("gnomon_forecast", {"target_column": "resp"}, resp)
+    batch = _tool_message(_forecast_payload(["hr", "spo2"], path="/a/batch"))
+    compacted = log.record("gnomon_forecast",
+                           {"target_column": "hr,spo2"}, batch)
+    assert compacted == 2
+    assert json.loads(hr["content"])["harness_superseded"] is True
+    assert json.loads(spo2["content"])["harness_superseded"] is True
+    # A channel the batch did not cover keeps its full result.
+    assert "harness_superseded" not in json.loads(resp["content"])
+
+
+def test_single_target_results_key_on_the_argument_not_the_placeholder():
+    from benchmarks.cik.mcp_agent import ToolMessageLog
+
+    # A single-target run names its one result "__default__"; keying on
+    # that placeholder would collide forecasts of DIFFERENT columns.
+    log = ToolMessageLog()
+    hr = _tool_message(_forecast_payload(["__default__"]))
+    log.record("gnomon_forecast", {"target_column": "hr"}, hr)
+    spo2 = _tool_message(_forecast_payload(["__default__"]))
+    assert log.record("gnomon_forecast", {"target_column": "spo2"},
+                      spo2) == 0
+    assert "harness_superseded" not in json.loads(hr["content"])
+    hr_again = _tool_message(_forecast_payload(["__default__"]))
+    assert log.record("gnomon_forecast", {"target_column": "hr"},
+                      hr_again) == 1
+    assert json.loads(hr["content"])["harness_superseded"] is True
+
+
+def test_errors_neither_supersede_nor_get_compacted():
+    from benchmarks.cik.mcp_agent import ToolMessageLog
+
+    log = ToolMessageLog()
+    good = _tool_message(_forecast_payload(["hr"]))
+    log.record("gnomon_forecast", {"target_column": "hr"}, good)
+    error = _tool_message({"status": "error", "error": {
+        "code": "AMBIGUOUS_SCHEMA", "message": "…",
+        "repair_options": [{"action": "supply_arguments"}]}})
+    assert log.record("gnomon_forecast", {"target_column": "hr"},
+                      error) == 0
+    assert "harness_superseded" not in json.loads(good["content"])
+    # And a later success leaves the (small, repair-carrying) error alone.
+    retry = _tool_message(_forecast_payload(["hr"], path="/a/f3"))
+    log.record("gnomon_forecast", {"target_column": "hr"}, retry)
+    assert "harness_superseded" not in json.loads(error["content"])
+
+
+def test_other_tools_supersede_only_on_identical_arguments():
+    from benchmarks.cik.mcp_agent import ToolMessageLog
+
+    log = ToolMessageLog()
+    first = _tool_message({"status": "valid", "series": [{"name": "cpu"}]})
+    log.record("gnomon_inspect", {"input": "a.csv"}, first)
+    other = _tool_message({"status": "valid", "series": [{"name": "mem"}]})
+    # Different arguments are new evidence, not a replacement.
+    assert log.record("gnomon_inspect",
+                      {"input": "a.csv", "target_column": "mem"},
+                      other) == 0
+    repeat = _tool_message({"status": "valid", "series": [{"name": "cpu"}]})
+    assert log.record("gnomon_inspect", {"input": "a.csv"}, repeat) == 1
+    stub = json.loads(first["content"])
+    assert stub["harness_superseded"] is True
+    assert stub["status"] == "valid"

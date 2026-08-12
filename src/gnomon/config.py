@@ -1,16 +1,20 @@
 """Gnomon configuration system.
 
-Loads, validates, and provides defaults for ``gnomon.yaml`` config files.
+Loads and validates ``gnomon.toml`` (preferred; parsed by the stdlib) or
+``gnomon.yaml`` (transitional; requires PyYAML — and a present YAML file
+without PyYAML is an *error*, never a silent fall-back to defaults).
 
 Config is loaded from (in order of priority):
   1. Explicit ``--config path`` CLI flag
   2. ``GNOMON_CONFIG_PATH`` environment variable
-  3. ``./gnomon.yaml`` in the current directory
-  4. ``~/.config/gnomon/gnomon.yaml``
-  5. Built-in defaults
+  3. ``./gnomon.toml`` / ``./gnomon.yaml`` (both present = error)
+  4. ``~/.config/gnomon/gnomon.toml`` / ``gnomon.yaml``
+  5. Built-in defaults (a fresh object per load)
 
-Every section is optional. With no config file, Gnomon uses sensible defaults
-that match v0.1 behaviour: baselines + drift, no TSFMs, no ensemble, no LLM.
+Every section is optional. Validation is an allowlist: every supplied key
+is honoured, refused with a reason, or unknown — and unknown fails at
+load, because a silently ignored setting is worse than one that does not
+exist.
 """
 
 from __future__ import annotations
@@ -49,8 +53,6 @@ class ModelsConfig:
 @dataclass
 class SandboxBackendConfig:
     enabled: bool = True
-    venv_root: str | None = None
-    auto_install: bool = True
 
 
 @dataclass
@@ -86,12 +88,9 @@ class BackendsConfig:
 @dataclass
 class EnsembleConfig:
     enabled: bool = False
-    strategy: str = "weighted_mean"    # weighted_mean | median | voting | stacking
+    strategy: str = "weighted_mean"    # weighted_mean | median | voting
     min_models: int = 2
     max_weight_ratio: float = 0.7
-    fallback: str = "strongest_baseline"
-    eligible: list[str] | str = "all_candidates"
-    quantile_strategy: str = "union"   # union | intersection | weighted
     # strategy-specific fields
     weighted_mean: dict[str, Any] = field(default_factory=dict)
     median: dict[str, Any] = field(default_factory=dict)
@@ -101,22 +100,13 @@ class EnsembleConfig:
 @dataclass
 class MetaModelConfig:
     enabled: bool = False
-    type: str = "linear_regression"
-    ridge_alpha: float = 1.0
-    lasso_alpha: float = 0.1
+    #: Ridge regularisation strength. The historical default was a
+    #: hardcoded numerical-stability epsilon, kept as the default so that
+    #: wiring the option changed no existing fit; setting it now has the
+    #: effect the documentation always claimed.
+    ridge_alpha: float = 1e-6
     min_models: int = 2
-    min_folds: int = 3
     non_negative: bool = True
-    fallback: str = "weighted_mean"
-
-
-@dataclass
-class LLMConfig:
-    enabled: bool = False
-    mode: str = "interpret"            # interpret | compare | challenge
-    adapter: dict[str, Any] | None = None
-    max_tokens: int = 2000
-    temperature: float = 0.3
 
 
 @dataclass
@@ -169,7 +159,6 @@ class GnomonConfig:
     backends: BackendsConfig = field(default_factory=BackendsConfig)
     ensemble: EnsembleConfig = field(default_factory=EnsembleConfig)
     meta_model: MetaModelConfig = field(default_factory=MetaModelConfig)
-    llm: LLMConfig = field(default_factory=LLMConfig)
     evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
     context: ContextConfig = field(default_factory=ContextConfig)
     output: OutputConfig = field(default_factory=OutputConfig)
@@ -187,15 +176,26 @@ DEFAULT_CONFIG = GnomonConfig()
 # Loading
 # ---------------------------------------------------------------------------
 
-CONFIG_SEARCH_PATHS = [
-    Path("gnomon.yaml"),
-    Path("gnomon.yml"),
-    Path.home() / ".config" / "gnomon" / "gnomon.yaml",
+#: Search locations, one *directory* at a time: TOML is the preferred
+#: format (parsed by stdlib `tomllib`, present on every install), YAML the
+#: transitional one. Both formats present in the same directory is an
+#: error, never a silent preference.
+CONFIG_SEARCH_DIRS = [
+    Path("."),
+    Path.home() / ".config" / "gnomon",
 ]
+TOML_NAMES = ("gnomon.toml",)
+YAML_NAMES = ("gnomon.yaml", "gnomon.yml")
 
 
 def find_config(explicit_path: str | None = None) -> Path | None:
-    """Find the config file to load."""
+    """Find the config file to load.
+
+    Priority: explicit path, ``GNOMON_CONFIG_PATH``, then each search
+    directory. Within a directory, a TOML and a YAML config side by side
+    is ambiguous and refuses — a machine that resolved the tie silently
+    would leave one file lying about what runs.
+    """
     if explicit_path:
         p = Path(explicit_path).expanduser()
         if p.is_file():
@@ -208,27 +208,80 @@ def find_config(explicit_path: str | None = None) -> Path | None:
         if p.is_file():
             return p
 
-    for candidate in CONFIG_SEARCH_PATHS:
-        if candidate.is_file():
-            return candidate
+    from .contracts import GnomonError
+    for directory in CONFIG_SEARCH_DIRS:
+        toml_hits = [directory / name for name in TOML_NAMES
+                     if (directory / name).is_file()]
+        yaml_hits = [directory / name for name in YAML_NAMES
+                     if (directory / name).is_file()]
+        if toml_hits and yaml_hits:
+            raise GnomonError(
+                "CONFIG_AMBIGUOUS",
+                f"Both {toml_hits[0]} and {yaml_hits[0]} exist; delete one "
+                "so there is a single source of truth (gnomon.toml is the "
+                "preferred format).",
+                {"toml": str(toml_hits[0]), "yaml": str(yaml_hits[0])},
+            )
+        if toml_hits:
+            return toml_hits[0]
+        if yaml_hits:
+            return yaml_hits[0]
 
     return None
 
 
 def load_config(explicit_path: str | None = None) -> GnomonConfig:
-    """Load Gnomon configuration from file or defaults."""
+    """Load Gnomon configuration from file or defaults.
+
+    A discovered config that cannot be read is an *error*, never a
+    silent fall-back to defaults: a present-but-ignored file means the
+    run is configured differently from what the operator wrote down.
+    Returns a fresh object per call — defaults included — so no caller
+    mutates state shared with another.
+    """
     path = find_config(explicit_path)
     if path is None:
-        return DEFAULT_CONFIG
+        return GnomonConfig()
 
-    try:
-        import yaml
-    except ImportError:
-        # No PyYAML — can't parse config, use defaults
-        return DEFAULT_CONFIG
-
-    with open(path) as f:
-        raw = yaml.safe_load(f) or {}
+    from .contracts import GnomonError
+    if path.suffix.lower() == ".toml":
+        import tomllib
+        try:
+            with open(path, "rb") as f:
+                raw: dict[str, Any] = tomllib.load(f)
+        except tomllib.TOMLDecodeError as exc:
+            raise GnomonError(
+                "CONFIG_UNREADABLE",
+                f"{path} is not valid TOML: {exc}",
+                {"path": str(path)},
+            ) from exc
+    else:
+        try:
+            import yaml
+        except ImportError as exc:
+            raise GnomonError(
+                "CONFIG_UNREADABLE",
+                f"{path} exists but PyYAML is not installed, so it would "
+                "have been silently ignored. Convert it to gnomon.toml "
+                "(parsed by the standard library) or install pyyaml.",
+                {"path": str(path)},
+            ) from exc
+        try:
+            with open(path) as f:
+                raw = yaml.safe_load(f) or {}
+        except yaml.YAMLError as exc:
+            raise GnomonError(
+                "CONFIG_UNREADABLE",
+                f"{path} is not valid YAML: {exc}",
+                {"path": str(path)},
+            ) from exc
+    if not isinstance(raw, dict):
+        raise GnomonError(
+            "CONFIG_UNREADABLE",
+            f"{path} must contain a mapping of sections, not "
+            f"{type(raw).__name__}.",
+            {"path": str(path)},
+        )
 
     cfg = _parse_config(raw)
     cfg._source_path = str(path)
@@ -301,7 +354,98 @@ INERT_KEYS: dict[str, str] = {
         "beating them. Use evaluation.minimum_baseline_improvement to move "
         "the bar."
     ),
+    "backends.sandbox.venv_root": (
+        "The sandbox root is not configurable: sandboxes live in the "
+        "auto-managed cache and the `.gnomon-sandbox-ready` marker is their "
+        "single source of truth. The option was parsed and read by nothing."
+    ),
+    "backends.sandbox.auto_install": (
+        "Installation is always explicit — `gnomon tsfm install` or the "
+        "gnomon_install_tsfm tool — because an implicit multi-minute "
+        "download inside a forecast call reads as a hang in every "
+        "interactive host. The option was parsed and read by nothing."
+    ),
+    "ensemble.eligible": (
+        "The candidate pool is set by models.statistical.candidates and "
+        "models.tsfm.candidates; the ensemble combines whatever competed. "
+        "A second eligibility list was parsed and read by nothing."
+    ),
+    "ensemble.weighted_mean.fallback": (
+        "When the ensemble cannot run, the selected model publishes and "
+        "the response says so — that behaviour is not configurable. The "
+        "option was parsed and read by nothing."
+    ),
+    "meta_model.type": (
+        "Only linear_regression exists. The option was parsed and read by "
+        "nothing, so `type: ridge` silently ran linear_regression anyway."
+    ),
+    "meta_model.min_folds": (
+        "Fold sufficiency is governed by the evaluation's own fold rules; "
+        "the meta-model trains when at least meta_model.min_models members "
+        "have fold forecasts. The option was parsed and read by nothing."
+    ),
+    "meta_model.fallback": (
+        "A meta-model that produces no weights simply does not compete; "
+        "selection proceeds among the models that did. The option was "
+        "parsed and read by nothing."
+    ),
 }
+
+#: Whole sections Gnomon refuses, with the reason. A prefix refuses every
+#: key beneath it.
+INERT_PREFIXES: dict[str, str] = {
+    "llm": (
+        "The llm section was parsed and read by nothing: LLM integration "
+        "lives in the MCP host (the planner gate and the Hermes adapter), "
+        "not in the engine, which computes every number deterministically. "
+        "Remove the section."
+    ),
+}
+
+#: Every key the runtime honours. Validation is an allowlist: a key that
+#: is neither here nor in the refusal tables above is unknown, and an
+#: unknown key fails at load — the denylist approach chased historically
+#: inert options one at a time and its own reasons drifted false.
+ALLOWED_KEYS: frozenset[str] = frozenset({
+    "models.statistical.enabled",
+    "models.statistical.candidates",
+    "models.tsfm.candidates",
+    "backends.sandbox.enabled",
+    "backends.api.enabled",
+    "backends.api.timeout",
+    "backends.api.retry",
+    "ensemble.enabled",
+    "ensemble.strategy",
+    "ensemble.weighted_mean.min_models",
+    "ensemble.weighted_mean.max_weight_ratio",
+    "ensemble.median.min_models",
+    "ensemble.voting.min_models",
+    "ensemble.voting.threshold",
+    "meta_model.enabled",
+    "meta_model.min_models",
+    "meta_model.non_negative",
+    "meta_model.linear_regression.ridge_alpha",
+    "evaluation.minimum_baseline_improvement",
+    "evaluation.folds.min_observations",
+    "evaluation.selection",
+    "evaluation.uncertainty.pool_residuals",
+    "evaluation.uncertainty.target_coverage",
+    "context.future_events",
+    "context.structural_events",
+    "output.write_forecast_csv",
+    "output.write_summary",
+    "output.write_evidence",
+})
+
+#: Dynamic namespaces: (prefix, allowed tail keys). The middle segment is
+#: caller-chosen (a provider or model name); the tail is typed, not open.
+ALLOWED_WILDCARDS: tuple[tuple[str, frozenset[str]], ...] = (
+    ("backends.api.providers.", frozenset({
+        "url", "model", "timeout", "retry",
+        "auth.type", "auth.token_env", "auth.header",
+    })),
+    ("models.tsfm.overrides.", frozenset({"backend"})),
+)
 
 
 def _flatten(raw: dict[str, Any], prefix: str = "") -> dict[str, Any]:
@@ -315,21 +459,76 @@ def _flatten(raw: dict[str, Any], prefix: str = "") -> dict[str, Any]:
     return flat
 
 
+def _wildcard_allows(key: str) -> bool:
+    """Whether ``key`` fits a typed dynamic namespace."""
+    for prefix, tails in ALLOWED_WILDCARDS:
+        if key.startswith(prefix):
+            remainder = key[len(prefix):]
+            # One caller-chosen segment (the provider/model name), then a
+            # typed tail.
+            _, _, tail = remainder.partition(".")
+            if tail in tails:
+                return True
+    return False
+
+
 def check_inert_keys(raw: dict[str, Any]) -> None:
-    """Refuse config keys that cannot take effect."""
+    """Validate every supplied key: honoured, refused-with-reason, or unknown.
+
+    Allowlist semantics — the three outcomes are exhaustive, so a key
+    cannot be silently ignored. Refusals carry their reasons; unknown
+    keys fail with the nearest documented section so a typo is a
+    one-line fix rather than an archaeology project.
+    """
     from .contracts import GnomonError
 
     supplied = _flatten(raw)
-    offending = [key for key in supplied if key in INERT_KEYS]
-    if not offending:
-        return
-    raise GnomonError(
-        "UNSUPPORTED_CONFIG_KEY",
-        "The config sets options Gnomon cannot honour: "
-        + "; ".join(f"{key} — {INERT_KEYS[key]}" for key in sorted(offending)),
-        {"keys": sorted(offending),
-         "reasons": {key: INERT_KEYS[key] for key in sorted(offending)}},
+    inert: dict[str, str] = {}
+    unknown: list[str] = []
+    section_prefixes = {key.rsplit(".", 1)[0] for key in ALLOWED_KEYS}
+    section_prefixes.update(
+        prefix.rstrip(".") for prefix, _ in ALLOWED_WILDCARDS
     )
+    for key, value in supplied.items():
+        if value is None and any(
+            name == key or name.startswith(key + ".")
+            for name in section_prefixes
+        ):
+            # A section written with only comments parses as an explicit
+            # null (`providers:` in the shipped example) — an empty
+            # section, not a setting.
+            continue
+        if key in INERT_KEYS:
+            inert[key] = INERT_KEYS[key]
+            continue
+        prefix_hit = next(
+            (reason for prefix, reason in INERT_PREFIXES.items()
+             if key == prefix or key.startswith(prefix + ".")), None,
+        )
+        if prefix_hit is not None:
+            inert[key] = prefix_hit
+            continue
+        if key in ALLOWED_KEYS or _wildcard_allows(key):
+            continue
+        unknown.append(key)
+
+    if inert:
+        raise GnomonError(
+            "UNSUPPORTED_CONFIG_KEY",
+            "The config sets options Gnomon cannot honour: "
+            + "; ".join(f"{key} — {inert[key]}" for key in sorted(inert)),
+            {"keys": sorted(inert), "reasons": dict(sorted(inert.items()))},
+        )
+    if unknown:
+        raise GnomonError(
+            "UNSUPPORTED_CONFIG_KEY",
+            "The config sets options Gnomon does not recognise: "
+            + ", ".join(sorted(unknown))
+            + ". Every honoured key is documented in gnomon.yaml.example; "
+            "an unrecognised key would otherwise be silently ignored.",
+            {"keys": sorted(unknown),
+             "reasons": {key: "unknown key" for key in sorted(unknown)}},
+        )
 
 
 def _section(raw: dict[str, Any], *path: str) -> dict[str, Any]:
@@ -369,8 +568,6 @@ def _parse_config(raw: dict[str, Any]) -> GnomonConfig:
     cfg.backends = BackendsConfig(
         sandbox=SandboxBackendConfig(
             enabled=sandbox_raw.get("enabled", True),
-            venv_root=sandbox_raw.get("venv_root"),
-            auto_install=sandbox_raw.get("auto_install", True),
         ),
         api=APIBackendConfig(
             enabled=api_raw.get("enabled", False),
@@ -382,16 +579,34 @@ def _parse_config(raw: dict[str, Any]) -> GnomonConfig:
 
     # Ensemble
     ens_raw = _section(raw, "ensemble")
+    strategy = ens_raw.get("strategy", "weighted_mean")
+    if strategy == "stacking":
+        from .contracts import GnomonError
+        raise GnomonError(
+            "UNSUPPORTED_CONFIG_KEY",
+            "ensemble.strategy=stacking has no executable path: the "
+            "documented delegation to the meta-model raised at runtime and "
+            "was swallowed into silent per-fold failures. Enable "
+            "meta_model.enabled=true for stacked weights; the ensemble "
+            "strategies are weighted_mean, median, and voting.",
+            {"keys": ["ensemble.strategy"],
+             "supported": ["weighted_mean", "median", "voting"]},
+        )
+    if strategy not in ("weighted_mean", "median", "voting"):
+        from .contracts import GnomonError
+        raise GnomonError(
+            "UNSUPPORTED_CONFIG_KEY",
+            f"ensemble.strategy={strategy!r} is not implemented.",
+            {"keys": ["ensemble.strategy"],
+             "supported": ["weighted_mean", "median", "voting"]},
+        )
     cfg.ensemble = EnsembleConfig(
         enabled=ens_raw.get("enabled", False),
-        strategy=ens_raw.get("strategy", "weighted_mean"),
+        strategy=strategy,
         min_models=_section(ens_raw, "weighted_mean").get("min_models",
                           _section(ens_raw, "median").get("min_models",
                           _section(ens_raw, "voting").get("min_models", 2))),
         max_weight_ratio=_section(ens_raw, "weighted_mean").get("max_weight_ratio", 0.7),
-        fallback=_section(ens_raw, "weighted_mean").get("fallback", "strongest_baseline"),
-        eligible=ens_raw.get("eligible", "all_candidates"),
-        quantile_strategy=ens_raw.get("quantile_strategy", "union"),
         weighted_mean=_section(ens_raw, "weighted_mean"),
         median=_section(ens_raw, "median"),
         voting=_section(ens_raw, "voting"),
@@ -401,23 +616,9 @@ def _parse_config(raw: dict[str, Any]) -> GnomonConfig:
     mm_raw = _section(raw, "meta_model")
     cfg.meta_model = MetaModelConfig(
         enabled=mm_raw.get("enabled", False),
-        type=mm_raw.get("type", "linear_regression"),
-        ridge_alpha=_section(mm_raw, "linear_regression").get("ridge_alpha", 1.0),
-        lasso_alpha=_section(mm_raw, "linear_regression").get("lasso_alpha", 0.1),
+        ridge_alpha=_section(mm_raw, "linear_regression").get("ridge_alpha", 1e-6),
         min_models=mm_raw.get("min_models", 2),
-        min_folds=mm_raw.get("min_folds", 3),
         non_negative=mm_raw.get("non_negative", True),
-        fallback=mm_raw.get("fallback", "weighted_mean"),
-    )
-
-    # LLM
-    llm_raw = _section(raw, "llm")
-    cfg.llm = LLMConfig(
-        enabled=llm_raw.get("enabled", False),
-        mode=llm_raw.get("mode", "interpret"),
-        adapter=llm_raw.get("adapter"),
-        max_tokens=llm_raw.get("max_tokens", 2000),
-        temperature=llm_raw.get("temperature", 0.3),
     )
 
     # Evaluation

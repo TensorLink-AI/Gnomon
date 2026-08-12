@@ -31,7 +31,6 @@ class TestConfig:
         assert cfg.models.tsfm_candidates == []
         assert cfg.ensemble.enabled is False
         assert cfg.meta_model.enabled is False
-        assert cfg.llm.enabled is False
 
     def test_load_config_returns_default_when_no_file(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
@@ -141,6 +140,38 @@ class TestEnsemble:
         result = compute_ensemble_forecast(forecasts, {}, "voting", last_observed=100.0)
         assert result[0] > 100.0  # majority says up
 
+    def test_voting_minority_cannot_win(self):
+        # 2 up vs 4 down. The old ratio test (len(up) >= len(down) * 0.5)
+        # let the up side win here despite being outvoted two to one.
+        forecasts = {
+            "a": [110.0], "b": [112.0],
+            "c": [90.0], "d": [92.0], "e": [94.0], "f": [96.0],
+        }
+        result = compute_ensemble_forecast(forecasts, {}, "voting", last_observed=100.0)
+        assert result[0] < 100.0
+
+    def test_voting_is_symmetric_under_direction_inversion(self):
+        # Mirroring every forecast around the last observed value must
+        # mirror the combined point: no side is favoured by branch order,
+        # and an exactly-flat forecast abstains instead of voting down.
+        forecasts = {"a": [104.0], "b": [110.0], "c": [93.0]}
+        mirrored = {name: [200.0 - f[0]] for name, f in forecasts.items()}
+        result = compute_ensemble_forecast(forecasts, {}, "voting", last_observed=100.0)
+        inverse = compute_ensemble_forecast(mirrored, {}, "voting", last_observed=100.0)
+        assert inverse[0] == 200.0 - result[0]
+
+    def test_voting_flat_forecast_abstains(self):
+        # The flat forecast used to count as a down vote; the remaining
+        # votes are unanimously up, so the up side's median must win.
+        forecasts = {"a": [100.0], "b": [110.0], "c": [120.0]}
+        result = compute_ensemble_forecast(forecasts, {}, "voting", last_observed=100.0)
+        assert result[0] == 115.0
+
+    def test_voting_tie_uses_median_of_all(self):
+        forecasts = {"a": [110.0], "b": [90.0]}
+        result = compute_ensemble_forecast(forecasts, {}, "voting", last_observed=100.0)
+        assert result[0] == 100.0
+
 
 class TestMetaModel:
     """Meta-model training and prediction."""
@@ -247,7 +278,7 @@ class TestEvaluationWithConfig:
 
         cfg = GnomonConfig()
         cfg.meta_model = MetaModelConfig(
-            enabled=True, min_models=2, min_folds=2,
+            enabled=True, min_models=2,
         )
 
         values = [100.0 + i * 2.0 for i in range(200)]
@@ -362,12 +393,20 @@ class TestSelectionStride:
     def test_stride_does_not_change_calibration_residuals(self):
         from gnomon.evaluation import evaluate
 
-        values = self._series()
+        # This used to run on the class series and skip whenever stride
+        # changed the selection — which it did, so the guarded assertion
+        # never executed. The series here is chosen so the seasonal
+        # signal dominates at any stride and the selection is stable;
+        # that stability is asserted as a precondition, not skipped on.
+        import math
+        values = [100.0 + 25 * math.sin(2 * math.pi * i / 12) + 0.05 * i
+                  for i in range(260)]
         sparse = evaluate(values, 12, 12, 0.02, frequency="h")
         dense = evaluate(values, 12, 12, 0.02, frequency="h", selection_stride=3)
-        if sparse.selected_model != dense.selected_model:
-            pytest.skip("stride changed the selection; residuals describe "
-                        "different models and are not comparable")
+        assert sparse.selected_model == dense.selected_model, (
+            "precondition: this series must select the same model at "
+            "both strides for the residual comparison to be meaningful"
+        )
         assert dense.residuals == sparse.residuals, (
             "calibration must stay on the non-overlapping skeleton whatever "
             "stride selection uses"

@@ -36,29 +36,18 @@ logger = logging.getLogger(__name__)
 # Point forecast combination
 # ---------------------------------------------------------------------------
 
-def weighted_mean_forecast(
+def weighted_mean_weights(
     forecasts: dict[str, list[float]],
     scores: dict[str, float],
     max_weight_ratio: float = 0.7,
-) -> list[float]:
-    """Combine forecasts using inverse-error weighted mean.
+) -> dict[str, float]:
+    """The fitted inverse-error weights, normalised and capped.
 
-    Models with lower backtest error get higher weight. Weights are
-    normalised and capped so no single model dominates.
-
-    Args:
-        forecasts: model_name → list of point forecasts
-        scores: model_name → backtest error (lower is better)
-        max_weight_ratio: cap on any single model's weight
-
-    Returns:
-        Combined forecast as a list of floats
+    Extracted from :func:`weighted_mean_forecast` so the weights that
+    actually combined the members can be recorded in the published
+    candidate's identity without recomputing them by a second,
+    possibly-divergent route.
     """
-    if not forecasts:
-        raise ValueError("No forecasts to ensemble")
-
-    horizon = len(next(iter(forecasts.values())))
-
     # Compute inverse-error weights
     weights: dict[str, float] = {}
     for name, score in scores.items():
@@ -97,6 +86,33 @@ def weighted_mean_forecast(
         for name in weights:
             weights[name] /= total
 
+    return weights
+
+
+def weighted_mean_forecast(
+    forecasts: dict[str, list[float]],
+    scores: dict[str, float],
+    max_weight_ratio: float = 0.7,
+) -> list[float]:
+    """Combine forecasts using inverse-error weighted mean.
+
+    Models with lower backtest error get higher weight. Weights are
+    normalised and capped so no single model dominates.
+
+    Args:
+        forecasts: model_name → list of point forecasts
+        scores: model_name → backtest error (lower is better)
+        max_weight_ratio: cap on any single model's weight
+
+    Returns:
+        Combined forecast as a list of floats
+    """
+    if not forecasts:
+        raise ValueError("No forecasts to ensemble")
+
+    horizon = len(next(iter(forecasts.values())))
+    weights = weighted_mean_weights(forecasts, scores, max_weight_ratio)
+
     # Combine
     combined = [0.0] * horizon
     for name, forecast in forecasts.items():
@@ -130,8 +146,19 @@ def voting_forecast(
 ) -> list[float]:
     """Combine forecasts using majority vote on direction.
 
-    For each step, count how many models predict up vs down relative
-    to the last observed value. The median of the winning side is used.
+    For each step, count how many models predict up vs down relative to
+    the last observed value; a forecast exactly at the last observed
+    value abstains from the vote. A side wins by holding *more than*
+    ``threshold`` of the cast votes (strict majority at the default 0.5),
+    and the median of the winning side is used. No winner — a tie, or
+    every model abstaining — falls back to the median of all forecasts.
+
+    The previous test (``len(up) >= len(down) * threshold``) let two up
+    votes beat four down votes at the default threshold and checked the
+    up side first, so the combined point was biased upward whenever the
+    panel disagreed; it also counted an exactly-flat forecast as a down
+    vote, so the rule was not symmetric under inverting every forecast
+    around the last observed value.
     """
     if not forecasts:
         raise ValueError("No forecasts to ensemble")
@@ -140,15 +167,16 @@ def voting_forecast(
     combined = []
     for step in range(horizon):
         up = [f[step] for f in forecasts.values() if step < len(f) and f[step] > last_observed]
-        down = [f[step] for f in forecasts.values() if step < len(f) and f[step] <= last_observed]
-        if len(up) >= len(down) * threshold:
-            combined.append(median(up) if up else last_observed)
-        elif len(down) >= len(up) * threshold:
-            combined.append(median(down) if down else last_observed)
+        down = [f[step] for f in forecasts.values() if step < len(f) and f[step] < last_observed]
+        cast = len(up) + len(down)
+        if cast and len(up) > cast * threshold:
+            combined.append(median(up))
+        elif cast and len(down) > cast * threshold:
+            combined.append(median(down))
         else:
             # No consensus — use median of all
             all_vals = [f[step] for f in forecasts.values() if step < len(f)]
-            combined.append(median(all_vals))
+            combined.append(median(all_vals) if all_vals else last_observed)
     return combined
 
 

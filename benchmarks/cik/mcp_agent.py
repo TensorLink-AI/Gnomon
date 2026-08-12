@@ -45,7 +45,11 @@ MAX_RUN_TOKENS = 250_000
 #: default surface, brief-by-default forecasts, the headline field, and
 #: response-budget truncation — so rows cached under version 2 measured
 #: a different contract.
-MCP_CONTRACT_VERSION = 3
+#: Version 4: superseded tool results are compacted out of the running
+#: message history (:class:`ToolMessageLog`), and the tool schemas the
+#: model holds slimmed — the conversation a cached row was measured
+#: under is not the conversation this version sends.
+MCP_CONTRACT_VERSION = 4
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -376,6 +380,215 @@ def _tool_calls_as_dicts(message: Any) -> list[dict[str, Any]]:
     return calls
 
 
+#: Keys whose values are never dropped when a tool result is compacted —
+#: by the TemporalBench arm's size bound or by supersession here.
+#: Everything Gnomon says about how far it will stand behind a number
+#: lives under one of these; the bulk that makes a result large does
+#: not. A budget is a reason to send fewer numbers, never a reason to
+#: send numbers without their disclosures.
+UNSHRINKABLE_KEYS = frozenset({
+    "support", "support_assessment", "support_state", "warnings", "notes",
+    "status", "code", "error", "message", "recovery", "recovery_actions",
+    "disclosures", "disclosure", "abstention", "reason", "artifact_path",
+    "forecast_id", "series", "selected_model", "interval_coverage",
+    "headline",
+})
+
+
+def disclosure_skeleton(value: Any) -> Any:
+    """The subtree of ``value`` reachable through disclosures alone.
+
+    Keeps every :data:`UNSHRINKABLE_KEYS` entry verbatim — per-channel
+    support states, warnings, abstention reasons, error envelopes, the
+    artifact_path — and whatever dict/list structure is needed to reach
+    them; everything else (forecast arrays, previews, evidence blocks)
+    is dropped. This is what survives of a tool result once a later call
+    has superseded it."""
+    if isinstance(value, dict):
+        kept: dict[str, Any] = {}
+        for key, item in value.items():
+            if key in UNSHRINKABLE_KEYS:
+                kept[key] = item
+            else:
+                sub = disclosure_skeleton(item)
+                if sub not in (None, {}, []):
+                    kept[key] = sub
+        return kept
+    if isinstance(value, list):
+        subs = [disclosure_skeleton(item) for item in value]
+        return [item for item in subs if item not in (None, {}, [])]
+    return None
+
+
+class ToolMessageLog:
+    """Compacts superseded tool results out of a running message history.
+
+    The agent loop re-sends every prior tool result each round, so a
+    result's cost is paid once per remaining round — quadratic in
+    rounds, and the dominant token cost of a long run. Most of that
+    re-sent bulk is dead: a model that calls ``gnomon_forecast`` five
+    times over the same channels holds five full trajectories of which
+    only the last is live. When a new result supersedes an older one,
+    the older message's content is replaced in place with its
+    :func:`disclosure_skeleton` plus a note naming the supersession —
+    the support labels, warnings, abstention reasons, error codes, and
+    ``artifact_path`` stay verbatim, and the full numbers remain on
+    disk, re-readable via ``gnomon_get_artifact``.
+
+    What supersedes what is deliberately narrow, because a wrongly
+    compacted result deletes live evidence:
+
+    - ``gnomon_forecast``: a result whose channels (its results'
+      ``series`` set) cover an earlier result's channels supersedes it —
+      a batched call retires the per-column calls it replaces.
+    - every other tool: only a call with the *same arguments* supersedes
+      (the retry/repeat pattern); a different-arguments call is new
+      evidence, not a replacement.
+    - errors never supersede anything and are never compacted: they are
+      small, and their repair options are the recovery path.
+
+    One further honest compression, because on a degraded run the
+    epistemics ARE the bulk (six channels of identical short-history
+    warnings dwarf the trimmed numbers): a stubbed disclosure whose text
+    is character-identical in the live superseding result is replaced by
+    a marker saying exactly that. The words are still in the
+    conversation, one message down, attached to the numbers that are
+    actually live; a disclosure that differs in any way stays verbatim
+    in the stub.
+    """
+
+    #: The per-series disclosure fields eligible for the
+    #: identical-in-the-later-result marker. Support labels are not
+    #: listed: they are a handful of bytes and always ride verbatim.
+    _DEDUP_FIELDS = ("warnings", "support_assessment", "notes")
+
+    def __init__(self) -> None:
+        self._entries: list[dict[str, Any]] = []
+
+    @staticmethod
+    def _key(tool: str, arguments: dict[str, Any],
+             payload: dict[str, Any]) -> Any:
+        if tool == "gnomon_forecast":
+            channels = {item.get("series")
+                        for item in payload.get("results") or []
+                        if isinstance(item, dict) and item.get("series")}
+            # A single-target run names its one result "__default__" —
+            # the column identity lives in the arguments there, and
+            # keying on the placeholder would collide forecasts of
+            # DIFFERENT columns into one supersession chain.
+            channels.discard("__default__")
+            if channels:
+                return frozenset(channels)
+            target = str(arguments.get("target_column") or "")
+            return frozenset(
+                name.strip() for name in target.split(",") if name.strip())
+        return json.dumps(arguments, sort_keys=True, default=str)
+
+    @staticmethod
+    def _supersedes(tool: str, new_key: Any, old_key: Any) -> bool:
+        if tool == "gnomon_forecast":
+            return bool(old_key) and old_key <= new_key
+        return new_key == old_key
+
+    @staticmethod
+    def _results_by_channel(payload: dict[str, Any], key: Any,
+                            ) -> dict[str, dict[str, Any]]:
+        """Each result keyed by the channel it answers for, with a
+        single-target run's ``__default__`` placeholder resolved to the
+        one column its call named."""
+        out: dict[str, dict[str, Any]] = {}
+        for item in payload.get("results") or []:
+            if not isinstance(item, dict):
+                continue
+            series = item.get("series")
+            if series in (None, "__default__") \
+                    and isinstance(key, frozenset) and len(key) == 1:
+                series = next(iter(key))
+            if series:
+                out[str(series)] = item
+        return out
+
+    def _stub(self, entry: dict[str, Any], tool: str,
+              new_payload: dict[str, Any], new_key: Any) -> dict[str, Any]:
+        old_payload = entry["payload"]
+        stub = disclosure_skeleton(old_payload)
+        unchanged_note = (
+            "character-identical in the later result below; nothing "
+            "was reworded"
+        )
+        if stub == disclosure_skeleton(new_payload):
+            # The repeat-call pattern: every disclosure of the old
+            # result rides verbatim on the live one. Keep the identity
+            # fields; say where the words are.
+            stub = {field: stub[field]
+                    for field in ("status", "artifact_path", "forecast_id",
+                                  "headline")
+                    if field in stub}
+            stub["unchanged"] = f"all disclosures {unchanged_note}"
+        elif isinstance(stub.get("results"), list):
+            live = self._results_by_channel(new_payload, new_key)
+            for result in stub["results"]:
+                if not isinstance(result, dict):
+                    continue
+                channel = result.get("series")
+                if channel in (None, "__default__") \
+                        and isinstance(entry["key"], frozenset) \
+                        and len(entry["key"]) == 1:
+                    channel = next(iter(entry["key"]))
+                counterpart = live.get(str(channel))
+                if counterpart is None:
+                    continue
+                deduped = [field for field in self._DEDUP_FIELDS
+                           if field in result
+                           and result[field] == counterpart.get(field)]
+                for field in deduped:
+                    del result[field]
+                if deduped:
+                    result["unchanged"] = (
+                        f"{', '.join(deduped)} {unchanged_note}")
+        stub["harness_superseded"] = True
+        stub["harness_note"] = (
+            f"This {tool} result was superseded by a later {tool} "
+            f"call; its bulk was removed from the conversation. "
+            f"Support states and the disclosures above are verbatim "
+            f"(an `unchanged` marker means the identical text rides on "
+            f"the later result); the complete numbers are unchanged on "
+            f"disk"
+            + (" (re-read with gnomon_get_artifact)."
+               if old_payload.get("artifact_path") else ".")
+        )
+        return stub
+
+    def record(self, tool: str, arguments: dict[str, Any] | None,
+               message: dict[str, Any]) -> int:
+        """Note one appended tool message; compact the results it
+        supersedes. Returns how many earlier messages were compacted."""
+        if not isinstance(arguments, dict):
+            return 0
+        try:
+            payload = json.loads(message.get("content") or "")
+        except (json.JSONDecodeError, TypeError):
+            return 0
+        if not isinstance(payload, dict) or payload.get("code") \
+                or payload.get("error") or payload.get("status") == "error":
+            return 0
+        key = self._key(tool, arguments, payload)
+        compacted = 0
+        for entry in self._entries:
+            if entry["tool"] != tool or entry.get("compacted"):
+                continue
+            if not self._supersedes(tool, key, entry["key"]):
+                continue
+            stub = self._stub(entry, tool, payload, key)
+            entry["message"]["content"] = json.dumps(stub, default=str)
+            entry["compacted"] = True
+            compacted += 1
+        self._entries.append({"tool": tool, "key": key,
+                              "payload": payload, "message": message,
+                              "compacted": False})
+        return compacted
+
+
 class McpAgentForecaster:
     """CiK ``Baseline``-compatible callable: the model drives real MCP tools.
 
@@ -450,6 +663,7 @@ class _Run:
         self.horizon = len(task_instance.future_time)
         self.session = forecaster.session_factory(self.jail)
         self.trace: list[dict[str, Any]] = []
+        self.result_log = ToolMessageLog()
         self.mcp_calls = 0
         self.artifact_paths: set[str] = set()
         self.submission: dict[str, Any] | None = None
@@ -560,6 +774,10 @@ class _Run:
                     call["function"]["name"], arguments)
                 messages.append({"role": "tool", "tool_call_id": call["id"],
                                  "content": result})
+                compacted = self.result_log.record(
+                    call["function"]["name"], arguments, messages[-1])
+                if compacted:
+                    self.trace.append({"superseded": compacted})
             if self.submission:
                 break
         if not self.submission:

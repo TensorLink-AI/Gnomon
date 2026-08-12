@@ -390,6 +390,20 @@ def evaluate_stage(
     state.residual_source = assessment.selected_model
 
 
+def _record_final_candidate(state: SeriesState, identity: Any) -> None:
+    """Composite identities (an ensemble's member set and strategy, a
+    cross-series candidate) go in the evidence so the artifact says which
+    executable produced its numbers. Single built-ins carry their identity
+    in ``selected_model`` already, and recording them here would churn
+    every existing artifact for no added information."""
+    state.evidence.append(Evidence(
+        f"final_candidate:{state.name}", "final_candidate", state.name,
+        {**identity.to_payload(),
+         "basis": "final fit of the evaluated specification — the same "
+                  "combiner and member pool every calibration fold used"},
+    ))
+
+
 def predict_stage(
     state: SeriesState,
     *,
@@ -428,21 +442,48 @@ def predict_stage(
             f"of its own; reporting {assessment.selected_model} instead, whose "
             "intervals are calibrated."
         )
+    final_spec = getattr(assessment, "final_candidate", None)
+    ensemble_spec = getattr(assessment, "ensemble_candidate", None)
     if wants_ensemble:
-        from .ensemble import compute_ensemble_forecast
-        forecasts = {}
-        for name in MODELS:
-            try:
-                forecasts[name] = predict(name, values, horizon, season)
-            except ValueError:
-                pass
-        state.points = compute_ensemble_forecast(forecasts, assessment.selection_scores,
-                                                 strategy="weighted_mean", last_observed=values[-1])
+        if ensemble_spec is not None:
+            # The published ensemble is the evaluated ensemble: the same
+            # combiner — strategy, member pool, and behaviour-affecting
+            # config — that produced every calibration fold, fit on the
+            # full visible history. The old path hardcoded weighted_mean
+            # over the unrestricted built-in pool with no config, so
+            # `ensemble.strategy: median` scored a median ensemble and
+            # published a weighted-mean one wearing its credentials.
+            fitted = ensemble_spec.fit(values, season)
+            state.points = fitted.predict(horizon)
+            _record_final_candidate(state, fitted.identity)
+        else:
+            # An assessment constructed without a spec (hand-built in
+            # tests, external callers): the legacy recombination.
+            from .ensemble import compute_ensemble_forecast
+            forecasts = {}
+            for name in MODELS:
+                try:
+                    forecasts[name] = predict(name, values, horizon, season)
+                except ValueError:
+                    pass
+            state.points = compute_ensemble_forecast(
+                forecasts, assessment.selection_scores,
+                strategy="weighted_mean", last_observed=values[-1])
         state.selected_model = "ensemble"
         state.residuals = list(ensemble_residuals)
         state.residuals_by_lead = {step: list(items)
                                    for step, items in ensemble_by_lead.items()}
         state.residual_source = "ensemble"
+    elif (final_spec is not None
+          and final_spec.identity.name == assessment.selected_model
+          and final_spec.identity.kind in ("builtin", "cross_series")):
+        # The winner's own specification, refit at the end of the observed
+        # history the same way every fold forecast was refit at its own
+        # origin.
+        fitted = final_spec.fit(values, season)
+        state.points = fitted.predict(horizon)
+        if final_spec.identity.kind == "cross_series":
+            _record_final_candidate(state, fitted.identity)
     elif assessment.selected_model in MODELS:
         state.points = predict(assessment.selected_model, values, horizon, season)
     elif extra_candidates and assessment.selected_model in extra_candidates:
@@ -492,6 +533,15 @@ def predict_stage(
                     for step, items in assessment.fallback_residuals_by_lead.items()
                 }
                 state.residual_source = fallback
+                # Identity and calibration provenance move together: the
+                # executable that publishes is recorded here in the same
+                # step that swaps the residuals, so an artifact can never
+                # show one without the other.
+                from .candidate import CandidateIdentity
+                _record_final_candidate(state, CandidateIdentity(
+                    kind="builtin", name=fallback,
+                    fallback_policy=f"substituted_for:{failed}",
+                ))
                 state.warnings.append(
                     f"{failed} was selected by the backtest but failed at final "
                     f"prediction; reporting {fallback} instead, recalibrated on "
