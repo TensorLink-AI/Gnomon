@@ -176,7 +176,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     forecast_parser.add_argument(
         "--config", default=None,
-        help="Path to gnomon.yaml config file (models, ensemble, meta-model, backends)",
+        help="Path to gnomon.toml (preferred) or transitional gnomon.yaml "
+             "config (models, ensemble, meta-model, backends)",
     )
     forecast_parser.add_argument(
         "--context", dest="context_file",
@@ -454,8 +455,9 @@ def build_parser() -> argparse.ArgumentParser:
     mcp_serve.add_argument(
         "--profile", choices=("core", "decision", "data", "full"),
         default=None,
-        help="Tool subset to expose (default full): core = the five "
-             "analytical verbs plus inspection and artifact reads; "
+        help="Tool subset to expose (default full, 18 tools): core = "
+             "forecast/investigate/detect plus capabilities, inspection, "
+             "and artifact reads (7 tools); "
              "decision adds decide/monitor/route/status/resolve_outcome; "
              "data adds ingest/list_datasets/submit_actuals. "
              "`gnomon capabilities` reports the active profile.",

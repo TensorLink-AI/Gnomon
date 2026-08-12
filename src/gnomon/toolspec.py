@@ -868,8 +868,8 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
     events = _context_events_from(arguments)
     config = None
     if arguments.get("future_events") or arguments.get("structural_events"):
-        # MCP tool calls do not read gnomon.yaml — deliberately, for every
-        # setting — so the admission lanes must be reachable as explicit
+        # MCP tool calls do not read ambient project config — deliberately,
+        # so the admission lanes must be reachable as explicit
         # per-call parameters or they are unreachable from the agent
         # surface entirely (the same gap best_effort had).
         from .config import GnomonConfig

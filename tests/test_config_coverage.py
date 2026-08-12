@@ -31,6 +31,18 @@ def test_the_example_config_loads():
     assert isinstance(config, GnomonConfig)
 
 
+def test_the_preferred_toml_example_loads(tmp_path):
+    """The zero-dependency canonical example must be executable documentation."""
+    path = tmp_path / "gnomon.toml"
+    path.write_text((REPO / "gnomon.toml.example").read_text(encoding="utf-8"),
+                    encoding="utf-8")
+    config = load_config(str(path))
+    assert isinstance(config, GnomonConfig)
+    assert config.models.statistical_candidates == [
+        "drift", "linear_trend", "window_average", "theta", "ets",
+    ]
+
+
 def test_the_example_documents_no_inert_key():
     """If a key cannot take effect, the example must not advertise it."""
     advertised = _example_keys() & set(INERT_KEYS)

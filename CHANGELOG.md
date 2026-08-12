@@ -22,9 +22,10 @@
   + restricted pool, published points == the evaluated combiner's final
   fit, and provably ≠ the legacy rebuild. One immutable spec, an
   independent fit per origin — a fitted object is never reused across
-  partitions. TSFM selections keep their sandbox-first publication
-  chain for now; binding that chain into a spec with full identity is
-  named follow-up work.
+  partitions. A winning TSFM is bound into the same contract: its exact
+  evaluated adapter closure publishes, with pinned revision and fallback
+  policy in executable identity, rather than rediscovering a sandbox or
+  in-process adapter at the publication seam.
 
 - **The meta-model can actually fit realistically-scaled series.** The
   NNLS learning-rate estimate used the max diagonal of AᵀA as an
@@ -180,13 +181,16 @@
 
 - **Benchmark MCP arms stop re-sending superseded tool results.** The
   CiK and TemporalBench agent loops compact a tool result out of the
-  running message history once a later call supersedes it (same
-  forecast channels, or an identical repeat call): the older message is
-  replaced in place by its support labels, warnings, abstention
+  running message history once a later call supersedes it (the same
+  forecast question over covering channels, or an identical repeat
+  call): the older message is replaced in place by its support labels,
+  warnings, abstention
   reasons, error codes, and `artifact_path` — a disclosure whose text
   is character-identical in the live superseding result is replaced by
-  a marker saying so. Errors are never compacted; different channels
-  and different arguments never supersede. On the measured 12-round
+  a marker saying so. Errors are never compacted. Arguments that change
+  the question or answer — including data, horizon, cutoff, threshold,
+  candidate pool, repair policy, and context — never supersede; only
+  presentation and artifact-location differences may. On the measured 12-round
   six-channel MIMIC row the re-sent prefix falls from ~337k to ~214k
   tokens. CiK's `MCP_CONTRACT_VERSION` bumps to 4.
 

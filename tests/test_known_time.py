@@ -186,6 +186,19 @@ def test_performance_record_inherits_the_derived_known_time(store, forecast_dir)
         "kt", "drift", as_of="2026-01-01T02:00:00+00:00")) == 1
 
 
+@pytest.mark.parametrize("as_of", [
+    "2026-01-01T01:30:00Z",
+    "2025-12-31T20:30:00-05:00",
+    "2026-01-01T11:30:00+10:00",
+])
+def test_replay_normalises_equivalent_as_of_offsets(store, forecast_dir, as_of):
+    _register(store, forecast_dir)
+    store.submit_actuals("kt", _actuals("2026-01-01T01:05:00+00:00"))
+
+    assert len(store.coverage_outcomes("kt", "__default__", as_of=as_of)) == 1
+    assert len(store.model_performance("kt", "drift", as_of=as_of)) == 1
+
+
 def test_unlabelled_performance_replays_at_submission(store, forecast_dir):
     _register(store, forecast_dir)
     store.submit_actuals("kt", _actuals())

@@ -412,8 +412,12 @@ def predict_stage(
     selection_strategy: str,
     extra_candidates: dict[str, Any] | None = None,
 ) -> None:
-    """Produce the final point forecast from the selected model, with the
-    ensemble path and the TSFM sandbox/in-process fallback chain."""
+    """Produce the final point forecast from the selected executable.
+
+    Evaluated candidates, including TSFMs, publish through their bound spec.
+    The discovery-based TSFM path remains only for legacy or externally
+    constructed assessments that do not yet carry one.
+    """
     assessment = state.assessment
     if not (assessment and assessment.supported and assessment.selected_model):
         return
@@ -476,14 +480,53 @@ def predict_stage(
         state.residual_source = "ensemble"
     elif (final_spec is not None
           and final_spec.identity.name == assessment.selected_model
-          and final_spec.identity.kind in ("builtin", "cross_series")):
+          and final_spec.identity.kind in ("builtin", "cross_series", "tsfm")):
         # The winner's own specification, refit at the end of the observed
         # history the same way every fold forecast was refit at its own
         # origin.
-        fitted = final_spec.fit(values, season)
-        state.points = fitted.predict(horizon)
-        if final_spec.identity.kind == "cross_series":
-            _record_final_candidate(state, fitted.identity)
+        try:
+            fitted = final_spec.fit(values, season)
+            state.points = fitted.predict(horizon)
+            state.selected_model = assessment.selected_model
+            if final_spec.identity.kind in ("cross_series", "tsfm"):
+                _record_final_candidate(state, fitted.identity)
+        except Exception as exc:
+            if final_spec.identity.kind != "tsfm":
+                raise
+            import logging
+            logging.getLogger(__name__).warning(
+                "TSFM %s failed during final forecast, falling back to %s: %s",
+                assessment.selected_model, assessment.strongest_baseline, exc,
+            )
+            failed = assessment.selected_model
+            fallback = assessment.strongest_baseline
+            if fallback and assessment.fallback_residuals:
+                state.selected_model = fallback
+                state.points = predict(fallback, values, horizon, season)
+                state.residuals = list(assessment.fallback_residuals)
+                state.residuals_by_lead = {
+                    step: list(items)
+                    for step, items in assessment.fallback_residuals_by_lead.items()
+                }
+                state.residual_source = fallback
+                from .candidate import CandidateIdentity
+                _record_final_candidate(state, CandidateIdentity(
+                    kind="builtin", name=fallback,
+                    fallback_policy=f"substituted_for:{failed}",
+                ))
+                state.warnings.append(
+                    f"{failed} was selected by the backtest but failed at final "
+                    f"prediction; reporting {fallback} instead, recalibrated on "
+                    "its own fold residuals."
+                )
+            else:
+                state.points = []
+                state.selected_model = None
+                state.warnings.append(
+                    f"{failed} was selected by the backtest but failed at final "
+                    "prediction, and no fold-separated residuals exist for a "
+                    "fallback; no forecast is published."
+                )
     elif assessment.selected_model in MODELS:
         state.points = predict(assessment.selected_model, values, horizon, season)
     elif extra_candidates and assessment.selected_model in extra_candidates:

@@ -85,11 +85,17 @@ dataset reports `known_time_provenance: partially_assumed`.
 
 ## Profiles
 
-`gnomon mcp serve --profile core` exposes only the analytical verbs plus
-inspection and artifact reads; `decision` adds the decide/monitor/route/
-status/resolve_outcome lifecycle; `data` adds the bitemporal store and
-actuals scoring; `full` (default) is everything. `gnomon capabilities`
-reports the active profile under `mcp_profile`.
+| Profile | Tools | Intended session |
+| --- | ---: | --- |
+| `core` | 7 | capabilities, inspect, forecast, investigate, detect, artifact read/explain |
+| `decision` | 12 | `core` plus decide, monitor, route, status, and outcome resolution |
+| `data` | 10 | `core` plus ingest, dataset listing, and actuals scoring |
+| `full` | 18 | Every stable tool, including context/covariate validation and TSFM installation |
+
+`full` is currently the default. Start a narrower surface with
+`gnomon mcp serve --profile core|decision|data|full`; `gnomon_capabilities`
+reports the active profile under `mcp_profile`. A future default-profile
+change is an evaluation decision, not a claim about this build.
 
 ## Where artifacts land
 
@@ -126,14 +132,18 @@ error/repair payloads are never trimmed.
 
 ## Tool surface
 
-Primary macros: `gnomon_forecast`, `gnomon_investigate_change`, `gnomon_decide`,
-`gnomon_monitor`. The data-reading tools infer the way the CLI does:
+Primary macros: `gnomon_forecast`, `gnomon_investigate_change`,
+`gnomon_detect_anomalies`, `gnomon_decide`, and `gnomon_monitor`. The
+data-reading tools infer the way the CLI does:
 `time_column`, `target_column`, and (for forecasts) `horizon` may be
 omitted, are filled only when the file leaves no choice, and every
 inference is disclosed in the result's `support_assessment.assumptions` —
 `{"input": "data.csv"}` is a complete first `gnomon_forecast` call.
-Ambiguity fails loudly with the candidate columns and machine-readable
-repair options; `store:<dataset>` inputs still need the explicit columns. Support: `gnomon_capabilities`, `gnomon_inspect`,
+Publishing verbs fail loudly on target ambiguity with candidate columns and
+machine-readable repair options. Read-only `gnomon_inspect` instead examines
+every qualifying numeric column and discloses that assumption; it also accepts
+a comma list or `auto`. `store:<dataset>` inputs still need explicit columns.
+Support: `gnomon_capabilities`, `gnomon_inspect`,
 `gnomon_get_artifact`, `gnomon_explain_run`, `gnomon_preflight_context`
 (dry-run admission for proposed context events, with the accepted span
 grammar in the response), `gnomon_validate_covariates` (its description
