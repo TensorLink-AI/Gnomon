@@ -267,8 +267,9 @@ def main() -> int:
     parser.add_argument(
         "--mcp-profile", choices=["full", "core", "describe", "evidence", "mega", "decision", "data"],
         default="full",
-        help="Tool profile offered by the gnomon-mcp condition. Run matched "
-             "full/core arms to measure tool-distraction and schema-tax effects.")
+        help="Tool profile offered by the gnomon-mcp condition. Compare "
+             "profiles only through matched runs over the same rows, model, "
+             "prompt, temperature, endpoint, and harness caps.")
     parser.add_argument(
         "--best-effort", action="store_true",
         help="Gnomon conditions only: enable the engine's disclosed "
@@ -335,6 +336,7 @@ def main() -> int:
     mcp_calls_seen: list[int] = []
     mcp_run_tokens = 0
     mcp_schema_bytes: set[int] = set()
+    mcp_rows_answered = 0
     channels_abstained = 0
     total = 0
     # Denominator for the scored-only forecast means: every T2/T4 row the
@@ -431,6 +433,8 @@ def main() -> int:
         if mcp_info:
             mcp_calls_seen.append(int(mcp_info.get("calls", 0)))
             mcp_run_tokens += int(mcp_info.get("run_tokens", 0))
+            if not outcome.get("row_abstained"):
+                mcp_rows_answered += 1
             if mcp_info.get("schema_bytes") is not None:
                 mcp_schema_bytes.add(int(mcp_info["schema_bytes"]))
         records.write(RunRecord(
@@ -508,10 +512,16 @@ def main() -> int:
         "mcp_profile": args.mcp_profile if args.condition == "gnomon-mcp" else None,
         **({"mcp_economics": {
             "cumulative_tokens": mcp_run_tokens,
+            "mean_tokens_per_attempted_row": round(
+                mcp_run_tokens / len(mcp_calls_seen), 2),
             "calls_median": sorted(mcp_calls_seen)[len(mcp_calls_seen) // 2],
             "calls_p95": sorted(mcp_calls_seen)[
                 max(0, (95 * len(mcp_calls_seen) + 99) // 100 - 1)],
             "schema_bytes": sorted(mcp_schema_bytes),
+            "rows_answered": mcp_rows_answered,
+            "rows_attempted": len(mcp_calls_seen),
+            "answer_yield": round(
+                mcp_rows_answered / len(mcp_calls_seen), 4),
         }} if mcp_calls_seen else {}),
         "forecast_channel_support_mix": dict(sorted(support_mix.items())),
         "forecast_channels_abstained": channels_abstained,
@@ -573,6 +583,8 @@ def main() -> int:
         # in provenance, hence its own field (None keeps old manifests
         # byte-identical).
         best_effort=args.best_effort or None,
+        mcp_profile=(args.mcp_profile
+                     if args.condition == "gnomon-mcp" else None),
     )
     print(json.dumps(summary, indent=2))
     return 0

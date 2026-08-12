@@ -1,13 +1,14 @@
 # MCP surface experiment
 
-Status: decision recorded — retain `full` as the default, 2026-08-12.
+Status: interim screening recorded — retain `full` as the default while the
+full matched experiment remains open, 2026-08-12.
 
 The number of exposed tools is not itself a product metric. A smaller surface
 may reduce distraction and schema tax, or merely hide useful capabilities.
 Gnomon therefore flips its default profile only after matched agent runs show a
 better answer at lower conversation cost.
 
-The first decision and measured results are recorded in
+The first screening result is recorded in
 [`mcp-surface-experiment-results.md`](mcp-surface-experiment-results.md).
 
 ## First matched experiment
@@ -23,6 +24,12 @@ python -m benchmarks.temporalbench.run_temporalbench \
   --data-dir "$DATASET" --condition gnomon-mcp --model "$MODEL" \
   --mcp-profile core --output-dir results/surface-core
 ```
+
+Repeat the second command for `describe`, `evidence`, and `mega`, changing
+only `--mcp-profile` and `--output-dir`. A completed Phase 3 result requires
+all five arms (`full` plus the four candidates) over the same task rows. A
+profile that was only piloted on a different row, prompt, or provider window
+is a probe, not a matched arm.
 
 Each summary records the selected profile plus cumulative conversation tokens,
 median and p95 MCP calls, and the exact serialized tool-schema bytes. Existing
@@ -41,6 +48,10 @@ leakage-controlled subset, must keep leaktrap at 0/40, and should reach at least
 no more than two calls at the median, and no more than four at p95. Report
 accuracy split by evidence tier and quote the schema byte count beside token
 results.
+
+The default may remain `full` after an incomplete screen when a candidate
+already fails a binding gate. That is a safe non-change, not completion of the
+four-arm experiment and not evidence against arms that were not matched.
 
 The executable arms are `full`, `core`, `describe` (core plus the descriptive
 evidence verb), and `mega` (inspect/run/track), with `decision` and `data` as

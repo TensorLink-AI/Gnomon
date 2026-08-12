@@ -1,19 +1,21 @@
-# MCP surface experiment: Phase 3 decision
+# MCP surface experiment: interim screening result
 
-Date: 2026-08-12  
-Code revision measured: `64ae6a7`  
+Date: 2026-08-12
+Code revision measured: `64ae6a7`
 Model: `deepseek-v4-flash-0731`
 
 ## Decision
 
 Keep `full` as the default MCP profile. The narrower profiles remain explicit
-experimental choices. None earned a default flip under the pre-committed rule.
+experimental choices. The matched `core` screen did not earn a default flip
+under the pre-committed rule.
 
-This is a negative result, not an unfinished product decision. `core` reduced
-the schema tax and cumulative tokens, but it still missed the token and call
-targets and reduced answer yield on the matched forecasting rows. The
-mega-tool and evidence-pack probes did not justify replacing the existing
-surface.
+This is enough evidence not to flip the production default, but it is not the
+completed four-arm Phase 3 experiment. `core` reduced the schema tax and
+cumulative tokens, but it still missed the token and call targets and reduced
+answer yield on the matched forecasting rows. The `describe`, `evidence`, and
+`mega` runs were feasibility probes rather than matched arms, so this result
+does not rank them against the control or against one another.
 
 ## Matched control result
 
@@ -41,10 +43,10 @@ while `full` submitted an informed direct forecast (OW_sMAPE 8.7547). Three
 rows are not an accuracy claim, but accuracy significance is immaterial to the
 decision because `core` already fails the economics and yield gates.
 
-## Prototype probes
+## Unmatched prototype probes
 
-These probes establish feasibility and failure modes; they are not presented
-as matched leaderboard results:
+These probes establish feasibility and failure modes. They are not matched
+leaderboard results and cannot close the pre-committed surface experiment:
 
 - `describe` exposed useful deterministic evidence but an earlier unconstrained
   run consumed 620,674 tokens and 15 calls.
@@ -66,5 +68,8 @@ The experiment itself is now reproducible rather than a prose proposal:
   of a complete verified artifact when only submission formatting fails;
 - CI tests for profile membership and schema budgets.
 
-No production default changed. A future flip requires a new candidate to pass
-the same gates; lower tool count by itself is not sufficient.
+No production default changed. Completing this experiment requires matched
+`describe`, `evidence`, and `mega` runs on the same rows as `full` and `core`,
+plus the pre-committed leakage, tiered-accuracy, quotation, caveat-survival,
+and repair-loop measurements. A future flip requires a candidate to pass the
+same gates; lower tool count by itself is not sufficient.

@@ -890,9 +890,13 @@ def test_voided_rows_stay_out_of_the_accuracy_denominators(tmp_path,
             {"id": "voided", "tier": "T1", "prompt": "x",
              "labels": {"trend": "upward"}}]
     outcomes = {
-        "answered": {"answer": {"trend": "upward"}, "abstained": []},
+        "answered": {"answer": {"trend": "upward"}, "abstained": [],
+                     "mcp": {"calls": 2, "run_tokens": 120,
+                             "schema_bytes": 2000}},
         "voided": {"answer": {}, "abstained": ["cap:tokens exceeded"],
-                   "row_abstained": "cap:tokens exceeded"},
+                   "row_abstained": "cap:tokens exceeded",
+                   "mcp": {"calls": 4, "run_tokens": 280,
+                           "schema_bytes": 2000}},
     }
     monkeypatch.setattr(runner, "load_official_metrics", lambda _dir: None)
     monkeypatch.setattr(runner, "OpenRouterClient",
@@ -919,6 +923,16 @@ def test_voided_rows_stay_out_of_the_accuracy_denominators(tmp_path,
     # engine declined: that counter covers T2/T4 channels only.
     assert summary["forecast_channels_abstained"] == 0
     assert summary["choice_accuracy_by_tier_scored_only"] == {"T1": 1.0}
+    assert summary["mcp_economics"] == {
+        "cumulative_tokens": 400,
+        "mean_tokens_per_attempted_row": 200.0,
+        "calls_median": 4,
+        "calls_p95": 4,
+        "schema_bytes": [2000],
+        "rows_answered": 1,
+        "rows_attempted": 2,
+        "answer_yield": 0.5,
+    }
     records = [json.loads(line) for line in
                (output / "gnomonbench.jsonl").read_text().splitlines()]
     voided, = [r for r in records if r["task_id"] == "voided"]
@@ -928,6 +942,7 @@ def test_voided_rows_stay_out_of_the_accuracy_denominators(tmp_path,
     # Provenance: the endpoint that served the model, in the manifest.
     manifest = json.loads((output / "manifest.json").read_text())
     assert manifest["base_url"] == "http://x"
+    assert manifest["mcp_profile"] == "full"
 
 
 def test_row_offset_makes_long_sweeps_shardable(tmp_path, monkeypatch):
