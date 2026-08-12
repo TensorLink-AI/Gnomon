@@ -176,8 +176,10 @@ RESPONSE_BUDGET_BYTES = 8192
 #: therefore exceed the budget when its epistemics alone do — that is
 #: deliberate; the budget disciplines bulk, not honesty.
 _PROTECTED_KEYS = frozenset({
-    "support", "support_assessment", "warnings", "assumptions", "reasons",
-    "recovery_actions", "disclosures", "notes", "error", "repair_options",
+    "headline", "support", "support_assessment", "tier_floor",
+    "limitations", "limitation_groups", "warnings", "assumptions", "reasons",
+    "recovery_actions", "next_actions", "disclosures", "notes", "staleness",
+    "artifact_id", "artifact_path", "data_ref", "error", "repair_options",
 })
 
 _TRIM_HEAD = 3
@@ -268,6 +270,73 @@ def enforce_response_budget(payload: Any) -> Any:
             f"{where}."
         ),
     }
+    return result
+
+
+_TIER_ORDER = {
+    "invalid": 0, "unsupported": 1, "inconclusive": 2,
+    "best_effort": 3, "conditionally_supported": 4,
+    "context_trusted": 4, "degraded": 4, "weakly_supported": 4,
+    "supported": 5, "supported_ensemble": 5,
+}
+
+
+def apply_response_contract(payload: dict[str, Any]) -> dict[str, Any]:
+    """Add the compact agent-facing envelope without rewriting artifacts.
+
+    Existing verb payloads remain authoritative and byte-compatible on disk;
+    this projection adds stable routing fields to MCP responses. Repeated
+    warning text is grouped with a count instead of asking an agent to infer
+    prevalence from prose. The complete per-series warnings remain in the
+    artifact and in each result.
+    """
+    if payload.get("status") == "error" or "error" in payload:
+        return payload
+    result = dict(payload)
+
+    if "artifact_id" not in result:
+        for key in ("forecast_id", "investigation_id", "anomaly_id",
+                    "decision_id", "monitor_id", "route_id"):
+            if result.get(key):
+                result["artifact_id"] = result[key]
+                break
+
+    entries = [item for item in result.get("results", [])
+               if isinstance(item, dict)]
+    tiers: list[str] = []
+    warning_series: dict[str, set[str]] = {}
+    warning_examples: dict[str, list[str]] = {}
+    recoveries: list[dict[str, Any]] = []
+    for entry in entries:
+        assessment = entry.get("support_assessment") or {}
+        tier = assessment.get("status") or entry.get("support")
+        if tier:
+            tiers.append(str(tier))
+        series = str(entry.get("series") or "__default__")
+        for warning in entry.get("warnings") or []:
+            text = str(warning)
+            warning_series.setdefault(text, set()).add(series)
+            examples = warning_examples.setdefault(text, [])
+            if series not in examples and len(examples) < 3:
+                examples.append(series)
+        for action in assessment.get("recovery_actions") or []:
+            if isinstance(action, dict) and action not in recoveries:
+                recoveries.append(action)
+
+    if tiers and "tier_floor" not in result:
+        result["tier_floor"] = min(tiers, key=lambda item: _TIER_ORDER.get(item, 0))
+    if warning_series and "limitation_groups" not in result:
+        result["limitation_groups"] = [
+            {
+                "code": "RUNTIME_WARNING",
+                "message": message,
+                "affected_series_count": len(warning_series[message]),
+                "examples": warning_examples[message],
+            }
+            for message in sorted(warning_series)
+        ]
+    if recoveries and "recovery_actions" not in result:
+        result["recovery_actions"] = recoveries
     return result
 
 #: Tools whose missing time_column/target_column are inferred from the file
@@ -377,11 +446,27 @@ def _resolve_schema_arguments(
                                   if candidates else ""),
                 "arguments": [parameter],
             }]
+            if candidates:
+                repairs = [
+                    {
+                        "action": "supply_arguments",
+                        "description": f"Retry with {parameter}={candidate!r}.",
+                        "tool_call": {
+                            "name": tool_name,
+                            "arguments": {**resolved, parameter: candidate},
+                        },
+                    }
+                    for candidate in candidates
+                ]
             if parameter == "target_column" and tool_name == "gnomon_forecast":
                 repairs.append({
                     "action": "forecast_all_candidates",
                     "description": "Or batch every numeric column in one "
                                    "run: pass target_column \"auto\".",
+                    "tool_call": {
+                        "name": tool_name,
+                        "arguments": {**resolved, parameter: "auto"},
+                    },
                 })
             raise GnomonError(
                 "AMBIGUOUS_SCHEMA",
@@ -2196,7 +2281,11 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
                     # format 'full' and sections are the caller's explicit
                     # ask for the verbatim payload.
                     return payload
-                return enforce_response_budget(payload)
+                # Preserve the established bulk budget decision, then add the
+                # small protected routing envelope. Otherwise the envelope
+                # itself can push a previously in-budget forecast over the
+                # trim threshold and unexpectedly remove rows.
+                return apply_response_contract(enforce_response_budget(payload))
 
             return wrapped
     return None

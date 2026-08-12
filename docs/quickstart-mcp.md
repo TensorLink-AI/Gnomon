@@ -130,6 +130,19 @@ the budget trims its long arrays to first/last entries, sets
 complete data. Support assessments, warnings, assumptions, and
 error/repair payloads are never trimmed.
 
+Every non-error verb response also carries a compact routing projection where
+the underlying result makes it applicable: `artifact_id`, `tier_floor`, typed
+`limitation_groups`, and aggregated `recovery_actions`. Repeated warning text
+is grouped with its affected-series count and up to three examples; the full
+warning remains attached to every series in the immutable artifact. These
+fields, the headline, support, assumptions, staleness, and artifact references
+are protected from trimming.
+
+When schema ambiguity blocks a forecast, each repair option contains a literal
+`tool_call` with the complete argument object—one per candidate plus the
+batched `target_column: "auto"` form. A host can issue it directly rather than
+spending another model turn composing selector syntax.
+
 ## Tool surface
 
 Primary macros: `gnomon_forecast`, `gnomon_investigate_change`,

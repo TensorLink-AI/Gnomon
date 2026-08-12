@@ -542,3 +542,69 @@ def test_inspect_multi_reports_a_failing_channel_in_place(tmp_path) -> None:
     assert failing["error"]["code"]
     assert "cpu" in payload["suggested_next"]
     assert "note" not in payload["suggested_next"].split('"')[1]
+
+
+def test_agent_response_contract_groups_limitations_and_names_tier_floor():
+    from gnomon.toolspec import apply_response_contract
+
+    payload = apply_response_contract({
+        "status": "complete", "forecast_id": "fc_1",
+        "results": [
+            {"series": "api", "support": "supported", "warnings": [],
+             "support_assessment": {"status": "supported",
+                                    "recovery_actions": []}},
+            {"series": "worker", "support": "weakly_supported",
+             "warnings": ["pooled residuals"],
+             "support_assessment": {
+                 "status": "conditionally_supported",
+                 "recovery_actions": [{"code": "provide_more_history",
+                                       "message": "Add observations."}]}},
+            {"series": "billing", "support": "weakly_supported",
+             "warnings": ["pooled residuals"],
+             "support_assessment": {"status": "conditionally_supported",
+                                    "recovery_actions": []}},
+        ],
+    })
+
+    assert payload["artifact_id"] == "fc_1"
+    assert payload["tier_floor"] == "conditionally_supported"
+    [group] = payload["limitation_groups"]
+    assert group["affected_series_count"] == 2
+    assert group["examples"] == ["worker", "billing"]
+    assert payload["recovery_actions"][0]["code"] == "provide_more_history"
+
+
+def test_response_contract_fields_cannot_be_trimmed():
+    from gnomon.toolspec import enforce_response_budget
+
+    payload = {
+        "headline": "Quote this.",
+        "tier_floor": "conditionally_supported",
+        "limitation_groups": [{"code": "X", "message": "Keep this."}],
+        "recovery_actions": [{"code": "retry", "message": "Try again."}],
+        "artifact_id": "fc_1", "artifact_path": "/tmp/fc_1",
+        "bulk": list(range(10_000)),
+    }
+    trimmed = enforce_response_budget(payload)
+    for key in ("headline", "tier_floor", "limitation_groups",
+                "recovery_actions", "artifact_id", "artifact_path"):
+        assert trimmed[key] == payload[key]
+
+
+def test_ambiguous_forecast_repairs_are_ready_to_issue(tmp_path):
+    import pytest
+
+    from gnomon.contracts import GnomonError
+    from gnomon.toolspec import runner_for
+
+    path = _wide_csv(tmp_path, columns=("cpu", "mem"))
+    with pytest.raises(GnomonError) as caught:
+        runner_for("gnomon_forecast")({"input": str(path), "horizon": 3})
+    repairs = caught.value.repair_options
+    assert repairs
+    for repair in repairs:
+        call = repair["tool_call"]
+        assert call["name"] == "gnomon_forecast"
+        assert call["arguments"]["input"] == str(path)
+        assert call["arguments"]["horizon"] == 3
+        assert call["arguments"]["target_column"] in {"cpu", "mem", "auto"}
