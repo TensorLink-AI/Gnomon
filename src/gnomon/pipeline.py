@@ -533,6 +533,15 @@ def predict_stage(
                     for step, items in assessment.fallback_residuals_by_lead.items()
                 }
                 state.residual_source = fallback
+                # Identity and calibration provenance move together: the
+                # executable that publishes is recorded here in the same
+                # step that swaps the residuals, so an artifact can never
+                # show one without the other.
+                from .candidate import CandidateIdentity
+                _record_final_candidate(state, CandidateIdentity(
+                    kind="builtin", name=fallback,
+                    fallback_policy=f"substituted_for:{failed}",
+                ))
                 state.warnings.append(
                     f"{failed} was selected by the backtest but failed at final "
                     f"prediction; reporting {fallback} instead, recalibrated on "

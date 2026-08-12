@@ -36,29 +36,18 @@ logger = logging.getLogger(__name__)
 # Point forecast combination
 # ---------------------------------------------------------------------------
 
-def weighted_mean_forecast(
+def weighted_mean_weights(
     forecasts: dict[str, list[float]],
     scores: dict[str, float],
     max_weight_ratio: float = 0.7,
-) -> list[float]:
-    """Combine forecasts using inverse-error weighted mean.
+) -> dict[str, float]:
+    """The fitted inverse-error weights, normalised and capped.
 
-    Models with lower backtest error get higher weight. Weights are
-    normalised and capped so no single model dominates.
-
-    Args:
-        forecasts: model_name → list of point forecasts
-        scores: model_name → backtest error (lower is better)
-        max_weight_ratio: cap on any single model's weight
-
-    Returns:
-        Combined forecast as a list of floats
+    Extracted from :func:`weighted_mean_forecast` so the weights that
+    actually combined the members can be recorded in the published
+    candidate's identity without recomputing them by a second,
+    possibly-divergent route.
     """
-    if not forecasts:
-        raise ValueError("No forecasts to ensemble")
-
-    horizon = len(next(iter(forecasts.values())))
-
     # Compute inverse-error weights
     weights: dict[str, float] = {}
     for name, score in scores.items():
@@ -96,6 +85,33 @@ def weighted_mean_forecast(
     if total > 0:
         for name in weights:
             weights[name] /= total
+
+    return weights
+
+
+def weighted_mean_forecast(
+    forecasts: dict[str, list[float]],
+    scores: dict[str, float],
+    max_weight_ratio: float = 0.7,
+) -> list[float]:
+    """Combine forecasts using inverse-error weighted mean.
+
+    Models with lower backtest error get higher weight. Weights are
+    normalised and capped so no single model dominates.
+
+    Args:
+        forecasts: model_name → list of point forecasts
+        scores: model_name → backtest error (lower is better)
+        max_weight_ratio: cap on any single model's weight
+
+    Returns:
+        Combined forecast as a list of floats
+    """
+    if not forecasts:
+        raise ValueError("No forecasts to ensemble")
+
+    horizon = len(next(iter(forecasts.values())))
+    weights = weighted_mean_weights(forecasts, scores, max_weight_ratio)
 
     # Combine
     combined = [0.0] * horizon

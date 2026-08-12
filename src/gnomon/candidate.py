@@ -23,7 +23,7 @@ its numbers.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Callable
 
 
@@ -31,9 +31,17 @@ from typing import Any, Callable
 class CandidateIdentity:
     """What, exactly, is publishing.
 
-    ``members`` is the evaluated member set for a combined candidate
-    (empty for a single model); ``config`` carries only the options that
-    change the published numbers.
+    The fields are the plan's list: strategy, exact member set, fitted
+    weights where applicable, behaviour-changing configuration,
+    dependency and weight revisions, fallback policy, and the
+    visible-data fingerprint.
+
+    Spec-time fields (everything except ``weights`` and
+    ``data_fingerprint``) are fixed when evaluation names the winner;
+    the two fit-time fields are filled by :meth:`CandidateSpec.fit`,
+    because they describe a particular fit rather than the
+    specification — which is exactly why a fitted object may not be
+    reused across partitions.
     """
 
     kind: str                     # "builtin" | "ensemble" | "cross_series"
@@ -41,6 +49,22 @@ class CandidateIdentity:
     members: tuple[str, ...] = ()
     strategy: str | None = None
     config: dict[str, Any] = field(default_factory=dict)
+    #: Implementation and third-party weight revisions. ``runtime`` is
+    #: always present; TSFM members contribute their pinned revisions.
+    revisions: dict[str, str] = field(default_factory=dict)
+    #: What this candidate does when it cannot produce a final
+    #: prediction. Part of the object, not an improvisation at the call
+    #: site: the artifact says which policy was in force.
+    fallback_policy: str | None = None
+    #: Fitted member weights, for combiners that have them.
+    weights: dict[str, float] | None = None
+    #: Content fingerprint of the history this instance was fit on.
+    data_fingerprint: str | None = None
+
+    def with_fit(self, *, weights: dict[str, float] | None,
+                 data_fingerprint: str) -> "CandidateIdentity":
+        return replace(self, weights=weights,
+                       data_fingerprint=data_fingerprint)
 
     def to_payload(self) -> dict[str, Any]:
         payload: dict[str, Any] = {"kind": self.kind, "name": self.name}
@@ -50,6 +74,15 @@ class CandidateIdentity:
             payload["strategy"] = self.strategy
         if self.config:
             payload["config"] = dict(self.config)
+        if self.weights:
+            payload["weights"] = {name: round(value, 12)
+                                  for name, value in sorted(self.weights.items())}
+        if self.revisions:
+            payload["revisions"] = dict(sorted(self.revisions.items()))
+        if self.fallback_policy:
+            payload["fallback_policy"] = self.fallback_policy
+        if self.data_fingerprint:
+            payload["data_fingerprint"] = self.data_fingerprint
         return payload
 
 

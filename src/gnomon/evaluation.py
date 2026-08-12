@@ -1382,14 +1382,78 @@ def evaluate(
     # evaluated one: it is part of the candidate's identity.
     from .candidate import CandidateIdentity, CandidateSpec, FittedCandidate
 
+    def _fitted_weights(history: list[float]) -> dict[str, float] | None:
+        """The weights that actually combine the members at this fit.
+
+        Read from the same function the combiner uses, never recomputed
+        by a second route that could drift from it.
+        """
+        if ensemble_strategy != "weighted_mean":
+            return None
+        from .ensemble import weighted_mean_weights
+        member_scores: dict[str, float | None] = {**scores, **tsfm_scores}
+        forecasts: dict[str, list[float]] = {}
+        for name in pool:
+            if member_scores.get(name) is None:
+                continue
+            try:
+                forecasts[name] = predict(name, history, horizon, season)
+            except (ValueError, ArithmeticError):
+                continue
+        for adapter in tsfm_adapters:
+            if member_scores.get(adapter.name) is None:
+                continue
+            try:
+                forecasts[adapter.name] = adapter.predict(history, horizon, season)
+            except Exception:
+                logger.debug("ensemble member %s failed at fit", adapter.name,
+                             exc_info=True)
+        usable = {name: value for name, value in member_scores.items()
+                  if name in forecasts and value is not None}
+        if not forecasts:
+            return None
+        return weighted_mean_weights(
+            forecasts, usable,
+            getattr(ensemble_cfg, "max_weight_ratio", 0.7)
+            if ensemble_cfg else 0.7,
+        )
+
     def _spec_for(identity: CandidateIdentity, name: str) -> CandidateSpec:
         def fit(history: list[float], _season: int | None) -> FittedCandidate:
+            from .ids import content_id
+            # The visible-data fingerprint is of the history this instance
+            # was fit on, so two fits of one spec on different histories
+            # are distinguishable in the record.
+            fingerprint = content_id("history", {"values": list(history)})
+            weights = (_fitted_weights(history)
+                       if identity.kind == "ensemble" else None)
+            fitted_identity = identity.with_fit(
+                weights=weights, data_fingerprint=fingerprint)
+
             def predictor(steps: int) -> list[float]:
                 return _predict_selected(
                     name, history, len(history), fc_horizon=steps,
                 )
-            return FittedCandidate(identity, predictor)
+            return FittedCandidate(fitted_identity, predictor)
         return CandidateSpec(identity, fit)
+
+    #: Dependency and weight revisions: the implementation version always,
+    #: plus the pinned weight revision of every TSFM that competed.
+    def _revisions(members: tuple[str, ...]) -> dict[str, str]:
+        from .versioning import RUNTIME_VERSION
+        revisions = {"runtime": RUNTIME_VERSION}
+        adapters = {a.name: a for a in tsfm_adapters}
+        for member in members:
+            adapter = adapters.get(member)
+            model_id = getattr(adapter, "_MODEL_ID", None) if adapter else None
+            if model_id:
+                try:
+                    from .tsfm import pinned_revision
+                    revisions[member] = f"{model_id}@{pinned_revision(model_id)}"
+                except Exception:
+                    logger.debug("no pinned revision for %s", member,
+                                 exc_info=True)
+        return revisions
 
     ensemble_candidate = None
     if ensemble_enabled:
@@ -1410,9 +1474,16 @@ def evaluate(
                 and isinstance(ensemble_cfg.voting, dict)):
             behaviour["threshold"] = ensemble_cfg.voting.get("threshold", 0.5)
         ensemble_candidate = _spec_for(
-            CandidateIdentity(kind="ensemble", name="ensemble",
-                              members=member_names,
-                              strategy=ensemble_strategy, config=behaviour),
+            CandidateIdentity(
+                kind="ensemble", name="ensemble", members=member_names,
+                strategy=ensemble_strategy, config=behaviour,
+                revisions=_revisions(member_names),
+                # Declining is the policy, not substituting: an ensemble
+                # that cannot reach its member minimum publishes nothing
+                # and the selected model reports instead, with its own
+                # calibrated intervals.
+                fallback_policy="decline_below_min_models",
+            ),
             "ensemble",
         )
 
@@ -1421,11 +1492,27 @@ def evaluate(
         final_candidate = ensemble_candidate
     elif selected in MODELS:
         final_candidate = _spec_for(
-            CandidateIdentity(kind="builtin", name=selected), selected,
+            CandidateIdentity(
+                kind="builtin", name=selected,
+                revisions=_revisions(()),
+                # A built-in is stdlib arithmetic over the visible
+                # history: there is no failure mode that would swap it
+                # for something else at final prediction.
+                fallback_policy="none",
+            ),
+            selected,
         )
     elif selected in extra_candidates:
         final_candidate = _spec_for(
-            CandidateIdentity(kind="cross_series", name=selected), selected,
+            CandidateIdentity(
+                kind="cross_series", name=selected,
+                revisions=_revisions(()),
+                # Cross-series candidates can fail at final prediction
+                # (their inputs are other series), and the baseline they
+                # fall back to carries its own fold residuals.
+                fallback_policy="strongest_baseline_recalibrated",
+            ),
+            selected,
         )
     # A TSFM selection keeps predict_stage's sandbox-first publication
     # chain (its fallback policy); binding that chain into a spec with
