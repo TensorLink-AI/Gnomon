@@ -393,12 +393,20 @@ class TestSelectionStride:
     def test_stride_does_not_change_calibration_residuals(self):
         from gnomon.evaluation import evaluate
 
-        values = self._series()
+        # This used to run on the class series and skip whenever stride
+        # changed the selection — which it did, so the guarded assertion
+        # never executed. The series here is chosen so the seasonal
+        # signal dominates at any stride and the selection is stable;
+        # that stability is asserted as a precondition, not skipped on.
+        import math
+        values = [100.0 + 25 * math.sin(2 * math.pi * i / 12) + 0.05 * i
+                  for i in range(260)]
         sparse = evaluate(values, 12, 12, 0.02, frequency="h")
         dense = evaluate(values, 12, 12, 0.02, frequency="h", selection_stride=3)
-        if sparse.selected_model != dense.selected_model:
-            pytest.skip("stride changed the selection; residuals describe "
-                        "different models and are not comparable")
+        assert sparse.selected_model == dense.selected_model, (
+            "precondition: this series must select the same model at "
+            "both strides for the residual comparison to be meaningful"
+        )
         assert dense.residuals == sparse.residuals, (
             "calibration must stay on the non-overlapping skeleton whatever "
             "stride selection uses"

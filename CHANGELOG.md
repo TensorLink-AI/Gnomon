@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+- **The meta-model can actually fit realistically-scaled series.** The
+  NNLS learning-rate estimate used the max diagonal of AᵀA as an
+  eigenvalue bound; member forecasts are strongly correlated, so with
+  m members the true top eigenvalue approaches m× that — projected
+  gradient overshot, zigzagged, and collapsed every realistic-scale
+  fit to the all-zeros fallback (the meta-model silently never
+  competed outside toy magnitudes). The estimate now uses the infinity
+  norm, a true bound for symmetric AᵀA.
+
+- **Integrity guards cannot pass by skipping.** The two conditionally
+  skipping guard tests both turned out to be skipping their guarded
+  branches on every run: the meta-model out-of-fold-scoring guard
+  skipped because of the learning-rate collapse above (now a hard
+  assertion), and the stride-invariance guard skipped because its
+  series changed selection under stride (now runs on a stride-stable
+  series with the stability asserted as a precondition).
+
+- **Seeded Monte Carlo interval-coverage harness.** Thirty synthetic
+  daily series with known generating processes run the full pipeline;
+  empirical q10–q90 coverage is scored against actuals from the same
+  process, deterministic under a fixed seed. Bounds are asymmetric
+  because conformal's guarantee is one-sided: under-coverage below
+  0.68 fails hard (an interval that is not what it says it is), above
+  0.97 fails as trivially wide. Measured at introduction: **0.933 on a
+  nominal 0.80 band** — systematically conservative, inflated by small
+  per-fold calibration sets; recorded as a width-efficiency finding
+  for the unified plan's Phase 3 measurement rather than hidden by a
+  wider tolerance.
+
 - **Configuration cannot lie.** Validation flips from a denylist to an
   allowlist: every supplied key is honoured, refused with a reason, or
   unknown — and unknown fails at load. The denylist approach had let

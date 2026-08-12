@@ -124,10 +124,20 @@ def _solve_nnls(A: list[list[float]], b: list[float],
 
 
 def _estimate_learning_rate(AtA: list[list[float]]) -> float:
-    """Estimate a safe learning rate from the spectral radius of A^T A."""
-    # Use the max diagonal element as an upper bound on the largest eigenvalue
-    max_diag = max(AtA[i][i] for i in range(len(AtA))) if AtA else 1.0
-    return 1.0 / max(1.0, max_diag)
+    """Estimate a safe learning rate from the spectral radius of A^T A.
+
+    The bound must exceed the largest eigenvalue or projected gradient
+    oscillates. The max diagonal element is NOT such a bound: member
+    forecasts are strongly correlated, so with m members the top
+    eigenvalue approaches m times the diagonal — the old estimate
+    overshot, zigzagged, and collapsed every realistically-scaled fit
+    to the all-zeros fallback. The infinity norm (max row sum) is a
+    true upper bound for the symmetric AtA.
+    """
+    if not AtA:
+        return 1.0
+    max_row_sum = max(sum(abs(value) for value in row) for row in AtA)
+    return 1.0 / max(1.0, max_row_sum)
 
 
 def _solve_ols(A: list[list[float]], b: list[float],

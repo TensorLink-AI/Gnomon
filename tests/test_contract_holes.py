@@ -435,8 +435,12 @@ def test_meta_model_is_scored_out_of_fold():
     assert calls, "the meta-model never trained"
     full = max(calls)
     assert calls.count(full) == 1, "more than one fit saw every fold"
-    if not produced[0]:
-        pytest.skip("the meta-model produced no weights on this series")
+    # This used to be a skip, so the assertions below never ran: the NNLS
+    # learning rate overshot on correlated member columns and every
+    # realistically-scaled fit collapsed to the all-zeros fallback. The
+    # guard is a hard assertion now — if weights vanish again, the
+    # out-of-fold scoring contract is unverified and that is a failure.
+    assert produced[0], "the meta-model produced no weights on this series"
     # One fit on every fold (the weights that ship), then one leave-one-out
     # refit per fold, each seeing exactly one fold fewer.
     assert calls.count(full - 1) == full, "not every fold got a held-out refit"
