@@ -41,8 +41,16 @@ def write_artifact(
         shutil.rmtree(temporary)
     temporary.mkdir()
     try:
+        payload = artifact.to_dict()
+        if len(artifact.results) > 3:
+            # Wide-panel triage must be replayable from the immutable
+            # artifact. Keep the frozen small-artifact shape unchanged;
+            # only panels whose response is actually ranked gain this field.
+            from .support import forecast_notability
+            for row, result in zip(payload["results"], artifact.results):
+                row["notability"] = forecast_notability(result)
         with (temporary / "artifact.json").open("w", encoding="utf-8") as handle:
-            json.dump(artifact.to_dict(), handle, indent=2, allow_nan=False)
+            json.dump(payload, handle, indent=2, allow_nan=False)
             handle.write("\n")
         if write_evidence:
             with (temporary / "evidence.jsonl").open("w", encoding="utf-8") as handle:

@@ -873,10 +873,7 @@ def _run_describe(arguments: dict[str, Any]) -> dict[str, Any]:
         "reports": reports,
         "series_end": max(report["series_end"] for report in reports.values()),
         "suggested_next": [{"tool_call": {"name": "gnomon_forecast",
-                            "arguments": {key: arguments[key] for key in
-                                          ("input", "time_column", "target_column",
-                                           "series_column", "frequency", "as_of")
-                                          if arguments.get(key) is not None}}}],
+                            "arguments": {"data_ref": "<data_ref>"}}}],
     }
 
 
@@ -1840,6 +1837,8 @@ def _run_unified(arguments: dict[str, Any]) -> dict[str, Any]:
     if runner is None:
         raise GnomonError("INVALID_ARGUMENTS", "question.kind is required.",
                           {"allowed": sorted(runners)})
+    if kind == "forecast" and merged.get("horizon") is None:
+        merged["horizon"] = _default_forecast_horizon(merged)
     return runner(merged)
 
 
@@ -2407,6 +2406,7 @@ def visible_tools() -> list[dict[str, Any]]:
 
 
 _SESSION_DATA_REFS: dict[str, dict[str, Any]] = {}
+_MAX_SESSION_DATA_REFS = 128
 _DATA_BINDING_KEYS = frozenset({
     "input", "input_provenance", "time_column", "target_column",
     "series_column", "frequency", "regrid", "as_of", "store_path", "repair",
@@ -2450,6 +2450,10 @@ def _register_data_ref(arguments: dict[str, Any]) -> tuple[dict[str, Any], str]:
     bound = {key: arguments[key] for key in _DATA_BINDING_KEYS
              if key in arguments and arguments[key] is not None}
     _SESSION_DATA_REFS[token] = bound
+    while len(_SESSION_DATA_REFS) > _MAX_SESSION_DATA_REFS:
+        # Insertion-ordered dict: discard the oldest session binding. The
+        # caller gets the same typed expired-reference recovery as a restart.
+        _SESSION_DATA_REFS.pop(next(iter(_SESSION_DATA_REFS)))
     return {**arguments, "_data_ref": token}, token
 
 
@@ -2573,6 +2577,13 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
                 payload = disclose_assumptions(_runner(arguments), assumptions)
                 if data_ref and isinstance(payload, dict):
                     payload = {**payload, "data_ref": data_ref}
+                    # Runners cannot know the token until the shared wrapper
+                    # registers it. Resolve ready-to-issue follow-ups here.
+                    for action in payload.get("suggested_next") or []:
+                        call = action.get("tool_call") if isinstance(action, dict) else None
+                        call_args = call.get("arguments") if isinstance(call, dict) else None
+                        if isinstance(call_args, dict) and call_args.get("data_ref") == "<data_ref>":
+                            call_args["data_ref"] = data_ref
                 if _name == "gnomon_capabilities":
                     # The budget trimmer cuts long arrays, and in a
                     # capabilities payload every array is a capability

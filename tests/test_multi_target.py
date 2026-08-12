@@ -118,6 +118,9 @@ def test_artifact_is_identical_at_any_worker_count(tmp_path):
         )
         texts.append((directory / "artifact.json").read_text(encoding="utf-8"))
     assert texts[0] == texts[1]
+    stored = json.loads(texts[0])
+    assert all(isinstance(row["notability"], float)
+               for row in stored["results"])
 
 
 def test_multi_target_id_is_deterministic_and_distinct(tmp_path):
