@@ -272,6 +272,11 @@ def test_forecast_defaults_to_brief(monkeypatch, tmp_path) -> None:
     result = payload["results"][0]
     assert "support_assessment" in result
     assert "warnings" in result
+    assert payload["series_end"] == "2026-02-04T00:00:00"
+    assert payload["frequency"] == "D"
+    from datetime import datetime
+    assert datetime.fromisoformat(payload["wall_clock_now"]).tzinfo is not None
+    assert "latest observation" in payload["staleness"]
 
 
 def test_multi_series_forecast_respects_the_budget(tmp_path) -> None:
@@ -343,11 +348,11 @@ def test_capabilities_brief_fits_the_budget_and_hides_nothing() -> None:
     import json
 
     from gnomon.runtime import capabilities
-    from gnomon.toolspec import RESPONSE_BUDGET_BYTES, runner_for
+    from gnomon.toolspec import CAPABILITIES_RESPONSE_BUDGET_BYTES, runner_for
 
     full = capabilities()
     brief = runner_for("gnomon_capabilities")({})
-    assert len(json.dumps(brief, default=str)) <= RESPONSE_BUDGET_BYTES
+    assert len(json.dumps(brief, default=str)) <= CAPABILITIES_RESPONSE_BUDGET_BYTES
     # Every section survives, and every capability NAME survives: a brief
     # view that hid one would make the command lie about the build.
     assert set(full) <= set(brief)
@@ -460,6 +465,19 @@ def test_forecast_schema_is_a_description_diet_not_a_capability_cut() -> None:
         "supported", "conditionally_supported", "best_effort"]
     assert props["repair"]["enum"] == ["off", "safe", "aggressive"]
     assert '"auto"' in props["target_column"]["description"]
+
+
+def test_evidence_pack_schema_meets_the_12kb_experiment_budget(monkeypatch) -> None:
+    import json
+
+    from gnomon.toolspec import visible_tools
+
+    monkeypatch.setenv("GNOMON_MCP_PROFILE", "evidence")
+    specs = [{"type": "function", "function": {
+        "name": tool["name"], "description": tool["description"],
+        "parameters": tool["inputSchema"],
+    }} for tool in visible_tools()]
+    assert len(json.dumps(specs, separators=(",", ":"))) <= 12 * 1024
 
 
 # --- gnomon_inspect batches a wide file ------------------------------------

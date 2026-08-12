@@ -48,3 +48,9 @@ description plus forecast, rather than adding tools.
 
 That fallback is executable as the `evidence` profile: exactly
 `gnomon_describe` plus `gnomon_forecast`.
+
+The evidence profile's serialized schema is CI-pinned below 12 KiB. Existing
+forecast responses retain the frozen per-series support shape; bulk is bounded
+through forecast-row trimming and wide-panel triage, while the experimental
+describe response has a 2.4 KiB budget. This preserves compatibility instead
+of deleting support fields merely to hit a nominal byte target.

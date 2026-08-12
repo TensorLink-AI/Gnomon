@@ -135,6 +135,13 @@ the budget trims its long arrays to first/last entries, sets
 complete data. Support assessments, warnings, assumptions, and
 error/repair payloads are never trimmed.
 
+Every data-bearing response also reports `series_end` and
+`wall_clock_now`; when the gap exceeds one grid step it includes a protected
+`staleness` sentence. Wide forecast responses return the three most notable
+series (threshold crossing first, then relative path movement), summarize the
+remainder by support tier, and point to artifact selectors for the full panel.
+The immutable artifact still contains every series and every row.
+
 Every non-error verb response also carries a compact routing projection where
 the underlying result makes it applicable: `artifact_id`, `tier_floor`, typed
 `limitation_groups`, and aggregated `recovery_actions`. Repeated warning text

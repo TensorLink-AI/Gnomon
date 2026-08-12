@@ -179,6 +179,8 @@ FORECAST_PREVIEW_ROWS = 12
 #: artifact. The trim never touches the epistemic contract — see
 #: _PROTECTED_KEYS.
 RESPONSE_BUDGET_BYTES = 8192
+DESCRIBE_RESPONSE_BUDGET_BYTES = 2400
+CAPABILITIES_RESPONSE_BUDGET_BYTES = 6000
 
 #: Subtrees that are the contract and are never trimmed, wherever they
 #: appear: support state, warnings, abstention payloads, disclosed
@@ -245,7 +247,7 @@ def _trim_bulk(node: Any, path: str, trimmed: list[dict[str, Any]]) -> Any:
     return node
 
 
-def enforce_response_budget(payload: Any) -> Any:
+def enforce_response_budget(payload: Any, budget_bytes: int = RESPONSE_BUDGET_BYTES) -> Any:
     """Trim a runner's response to RESPONSE_BUDGET_BYTES.
 
     Within budget, the payload passes untouched. Over it, long arrays
@@ -261,7 +263,7 @@ def enforce_response_budget(payload: Any) -> Any:
         raw = json_module.dumps(payload, default=str)
     except (TypeError, ValueError):
         return payload
-    if len(raw) <= RESPONSE_BUDGET_BYTES:
+    if len(raw) <= budget_bytes:
         return payload
     trimmed: list[dict[str, Any]] = []
     result = _trim_bulk(payload, "", trimmed)
@@ -270,10 +272,10 @@ def enforce_response_budget(payload: Any) -> Any:
              else "the on-disk artifact or store")
     result["truncated"] = True
     result["truncation"] = {
-        "budget_bytes": RESPONSE_BUDGET_BYTES,
+        "budget_bytes": budget_bytes,
         "trimmed": trimmed,
         "note": (
-            f"Response exceeded the {RESPONSE_BUDGET_BYTES}-byte budget; "
+            f"Response exceeded the {budget_bytes}-byte budget; "
             f"long arrays keep their first {_TRIM_HEAD} and last "
             f"{_TRIM_TAIL} entries. Support assessments, warnings, and "
             f"assumptions are never trimmed. The complete data lives in "
@@ -348,6 +350,99 @@ def apply_response_contract(payload: dict[str, Any]) -> dict[str, Any]:
     if recoveries and "recovery_actions" not in result:
         result["recovery_actions"] = recoveries
     return result
+
+
+def apply_temporal_grounding(payload: dict[str, Any]) -> dict[str, Any]:
+    """Echo the data boundary and wall clock on every data-bearing response."""
+    from datetime import datetime, timezone
+
+    result = dict(payload)
+    now = datetime.now(timezone.utc)
+    result["wall_clock_now"] = now.isoformat()
+    series_end = result.get("series_end")
+    frequency = result.get("frequency")
+    if series_end is None:
+        series = result.get("series") or []
+        ends = [row.get("end") for row in series if isinstance(row, dict) and row.get("end")]
+        if ends:
+            series_end = max(ends)
+        frequency = (result.get("schema") or {}).get("frequency")
+    if series_end is None:
+        rows = result.get("results") or []
+        first = next((row.get("forecast", [])[0].get("timestamp")
+                      for row in rows if isinstance(row, dict) and row.get("forecast")), None)
+        frequency = frequency or ((result.get("task") or {}).get("schema") or {}).get("frequency")
+        if first and frequency:
+            from .temporal import frequency_step
+            step = frequency_step(str(frequency))
+            if step is not None:
+                parsed = datetime.fromisoformat(str(first).replace("Z", "+00:00"))
+                series_end = (parsed - step).isoformat()
+    if series_end is not None:
+        result["series_end"] = str(series_end)
+        try:
+            parsed_end = datetime.fromisoformat(str(series_end).replace("Z", "+00:00"))
+            if parsed_end.tzinfo is None:
+                parsed_end = parsed_end.replace(tzinfo=timezone.utc)
+            gap = now - parsed_end.astimezone(timezone.utc)
+            from .temporal import frequency_step
+            step = frequency_step(str(frequency)) if frequency else None
+            if step is not None and gap > step:
+                result["staleness"] = (
+                    f"The latest observation is {gap.days} days behind the wall clock "
+                    f"({series_end} versus {result['wall_clock_now']})."
+                )
+        except (TypeError, ValueError):
+            pass
+    return result
+
+
+def triage_wide_response(payload: dict[str, Any], top_k: int = 3) -> dict[str, Any]:
+    """Bound a wide response while leaving the immutable artifact complete."""
+    rows = payload.get("results")
+    if not isinstance(rows, list) or len(rows) <= top_k:
+        return payload
+    ranked = sorted(rows, key=lambda row: (
+        -float(row.get("notability", 0.0)), str(row.get("series", ""))))
+    remainder = ranked[top_k:]
+    tier_counts: dict[str, int] = {}
+    for row in remainder:
+        assessment = row.get("support_assessment") or {}
+        tier = str(assessment.get("status") or row.get("support") or "unknown")
+        tier_counts[tier] = tier_counts.get(tier, 0) + 1
+    return {
+        **payload,
+        "results": ranked[:top_k],
+        "series_triage": {
+            "total": len(rows), "returned": top_k,
+            "ranking": "threshold crossing, then relative forecast movement",
+            "remainder_count": len(remainder),
+            "remainder_tiers": dict(sorted(tier_counts.items())),
+            "full_results": ("Use gnomon_get_artifact with series/fields/where/"
+                             "order_by/limit selectors on artifact_path."),
+        },
+    }
+
+
+def compact_support_details(payload: dict[str, Any]) -> dict[str, Any]:
+    """Keep claim-bearing support fields inline; sensitivity lives in artifact."""
+    rows = payload.get("results")
+    if not isinstance(rows, list) or len(rows) <= 3:
+        return payload
+    compacted = []
+    # The per-result support contract remains frozen for existing consumers.
+    # Sensitivity is diagnostic bulk; the complete block remains in artifact.
+    keep = {"status", "reasons", "recovery_actions", "assumptions",
+            "disclosures", "legacy_support", "measured_coverage"}
+    for row in rows:
+        if not isinstance(row, dict) or not isinstance(row.get("support_assessment"), dict):
+            compacted.append(row)
+            continue
+        assessment = row["support_assessment"]
+        projected = {key: value for key, value in assessment.items()
+                     if key in keep and value not in (None, [], {})}
+        compacted.append({**row, "support_assessment": projected})
+    return {**payload, "results": compacted}
 
 #: Tools whose missing time_column/target_column are inferred from the file
 #: when it leaves no choice — the same set of verbs the CLI infers for.
@@ -544,6 +639,7 @@ def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
         # assessment, naming the weakest tier present — the sentence an
         # agent may relay verbatim. Required in every format.
         "headline": artifact_headline(artifact.results),
+        **_forecast_temporal_boundary(artifact),
         "results": [
             {
                 "series": item.series, "support": item.support,
@@ -613,6 +709,7 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
         "forecast_id": artifact.forecast_id,
         "artifact_path": str(path),
         "headline": artifact_headline(artifact.results),
+        **_forecast_temporal_boundary(artifact),
         "note": (
             "Brief output: q50 with the q10-q90 interval per step. The full "
             "artifact (all quantile levels, evidence, lineage) is on disk at "
@@ -620,6 +717,21 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
         ),
         "results": results,
     }
+
+
+def _forecast_temporal_boundary(artifact: ForecastArtifact) -> dict[str, Any]:
+    """Derive the last observed instant from the first forecast grid point."""
+    from datetime import datetime
+    from .temporal import frequency_step
+
+    first = next((item.forecast[0].get("timestamp") for item in artifact.results
+                  if item.forecast), None)
+    step = frequency_step(artifact.task.schema.frequency)
+    if first is None or step is None:
+        return {"frequency": artifact.task.schema.frequency}
+    parsed = datetime.fromisoformat(str(first).replace("Z", "+00:00"))
+    return {"series_end": (parsed - step).isoformat(),
+            "frequency": artifact.task.schema.frequency}
 
 
 #: Prose longer than this is elided from the brief capabilities view.
@@ -675,13 +787,11 @@ def _brief_capabilities(full: dict[str, Any]) -> dict[str, Any]:
     brief["view"] = {
         "format": "brief",
         "sections_available": sorted(full),
-        "elided": sorted(set(elided)),
+        "elided": sorted({path.split(".", 1)[0] for path in elided}),
         "note": (
             "Brief view: every section and every capability name is "
-            "present; the paths under `elided` lost their long prose or "
-            "detail blocks. Re-call with format: 'full' for the complete "
-            "payload, or sections: [name, ...] for chosen sections "
-            "verbatim."
+            "present; sections in `elided` omit prose/detail. Use format "
+            "'full' or request named sections for verbatim detail."
         ),
     }
     return brief
@@ -853,8 +963,8 @@ def _run_describe(arguments: dict[str, Any]) -> dict[str, Any]:
             )[:5]
             name = target if group_name == "__default__" else f"{target}:{group_name}"
             reports[name] = {
-                "observations": len(values), "series_start": timestamps[0],
-                "series_end": timestamps[-1], "frequency": loaded.frequency,
+                "observations": len(values), "series_start": timestamps[0].isoformat(),
+                "series_end": timestamps[-1].isoformat(), "frequency": loaded.frequency,
                 "level": {"latest": values[-1], "mean": mean(values),
                           "median": median(values), "minimum": min(values),
                           "maximum": max(values)},
@@ -2593,11 +2703,19 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
                     # format 'full' and sections are the caller's explicit
                     # ask for the verbatim payload.
                     return payload
+                if _takes_data and isinstance(payload, dict):
+                    payload = apply_temporal_grounding(payload)
                 # Preserve the established bulk budget decision, then add the
                 # small protected routing envelope. Otherwise the envelope
                 # itself can push a previously in-budget forecast over the
                 # trim threshold and unexpectedly remove rows.
-                return apply_response_contract(enforce_response_budget(payload))
+                budget = (DESCRIBE_RESPONSE_BUDGET_BYTES
+                          if _name == "gnomon_describe"
+                          else RESPONSE_BUDGET_BYTES)
+                payload = triage_wide_response(payload)
+                payload = compact_support_details(payload)
+                return apply_response_contract(
+                    enforce_response_budget(payload, budget))
 
             return wrapped
     return None
