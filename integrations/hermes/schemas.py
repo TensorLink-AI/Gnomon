@@ -1,9 +1,8 @@
 """OpenAI-style function schemas for the Gnomon tools exposed to Hermes.
 
-Deliberately three tools, mirroring the v0.1 CLI exactly. Richer surfaces
-(explain, score, compare, context evaluation) arrive only after these prove
-themselves in agent hands — every extra tool competes for the
-orchestrator's attention.
+These schemas mirror the stable Hermes-facing CLI views. Gnomon's MCP server
+has a broader expert surface; the plugin keeps a smaller, task-oriented set so
+every additional tool earns its place in the agent prompt.
 """
 
 from __future__ import annotations
@@ -269,6 +268,40 @@ GNOMON_INVESTIGATE_SCHEMA = {
             "as_of": {
                 "type": "string",
                 "description": "Optional ISO instant: investigate using only data known at or before this moment.",
+            },
+            "output_dir": {
+                "type": "string",
+                "description": "Directory for the immutable artifact (default ./gnomon-output).",
+            },
+        },
+        "required": ["input"],
+    },
+}
+
+GNOMON_DETECT_SCHEMA = {
+    "name": "gnomon_detect_anomalies",
+    "description": (
+        "What is abnormal? Grade competing anomaly detectors using supplied "
+        "labels or injected anomalies, then return the winning detector's "
+        "flags with every candidate grade and the support assessment. Report "
+        "the selection basis and support; never turn a flag into a cause."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            **_INPUT_PROPERTIES,
+            "threshold": {
+                "type": "number",
+                "description": "Optional threshold on standardised anomaly scores (runtime default 3.5).",
+            },
+            "labels": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Optional ISO timestamps of known anomalies; detector selection then uses label F1.",
+            },
+            "as_of": {
+                "type": "string",
+                "description": "Optional ISO instant: detect using only data known at or before this moment.",
             },
             "output_dir": {
                 "type": "string",

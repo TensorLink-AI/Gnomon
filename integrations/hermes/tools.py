@@ -339,6 +339,21 @@ def handle_gnomon_investigate_change(args: dict[str, Any], **kwargs: Any) -> str
     return json.dumps(_run_gnomon(["investigate", *cli]), allow_nan=False)
 
 
+def handle_gnomon_detect_anomalies(args: dict[str, Any], **kwargs: Any) -> str:
+    cli = _dataset_args(args)
+    if isinstance(cli, dict):
+        return json.dumps(cli)
+    if args.get("threshold") is not None:
+        cli += ["--threshold", str(float(args["threshold"]))]
+    if args.get("labels"):
+        cli += ["--labels", ",".join(str(item) for item in args["labels"])]
+    if args.get("as_of"):
+        cli += ["--as-of", str(args["as_of"])]
+    if args.get("output_dir"):
+        cli += ["--output", str(args["output_dir"])]
+    return json.dumps(_run_gnomon(["detect", *cli]), allow_nan=False)
+
+
 def handle_gnomon_decide(args: dict[str, Any], **kwargs: Any) -> str:
     cli = _dataset_args(args)
     if isinstance(cli, dict):

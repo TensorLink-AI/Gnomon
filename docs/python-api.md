@@ -81,6 +81,59 @@ JSON-compatible representation. Calling `forecast` also persists the standard
 artifact files — see [Results and artifacts](results-and-artifacts.md) for the
 canonical list and what each one carries.
 
+## Use the other governed views
+
+The Python package exports the same five top-level views advertised by the CLI
+and agent surfaces. The four non-forecast views return `(payload,
+artifact_path)`; the payload is JSON-compatible and the artifact owns its
+numbers and evidence.
+
+```python
+from gnomon import decide, detect_anomalies, investigate_change, monitor
+
+common = {
+    "time_column": "timestamp",
+    "target_column": "requests",
+    "frequency": "D",
+    "output": "gnomon-output",
+}
+
+investigation, investigation_path = investigate_change(
+    "observations.csv", **common
+)
+
+detection, detection_path = detect_anomalies(
+    "observations.csv", threshold=3.5, **common
+)
+
+decision, decision_path = decide(
+    "observations.csv",
+    horizon=7,
+    threshold=340,
+    actions=[{"name": "scale_up"}, {"name": "wait"}],
+    utilities={
+        "scale_up": {"exceed": 8, "no_exceed": -2},
+        "wait": {"exceed": -20, "no_exceed": 0},
+    },
+    **common,
+)
+
+monitoring, monitoring_path = monitor(
+    "observations.csv",
+    horizon=7,
+    threshold=340,
+    alert_cost=1,
+    miss_cost=20,
+    **common,
+)
+```
+
+`investigate_change` ranks associational explanations, never causes.
+`detect_anomalies` discloses how competing detectors were graded. `decide`
+degrades to a feasible-action comparison when utilities are absent, and
+`monitor` marks an uncosted default rule when alert and miss costs are absent.
+Inspect each payload's support assessment and limitations before acting.
+
 ## Handle structured errors
 
 ```python

@@ -1,20 +1,21 @@
 ---
 name: forecasting
-description: Temporal reasoning with Gnomon — forecast, investigate, decide, monitor — honestly
+description: Trusted temporal execution with Gnomon — forecast, investigate, detect, decide, and monitor honestly
 ---
 
 # Temporal reasoning with Gnomon
 
-Gnomon is the execution harness for temporal questions: you formulate the
+Gnomon is the trusted execution boundary for temporal questions: you formulate the
 objective and explain the evidence; Gnomon validates, computes, and owns every
 number, interval, probability, selection, warning, and support status.
 
-## The four verbs
+## The five verbs
 
 | Question | Tool | Notes |
 | --- | --- | --- |
 | What changed? | `gnomon_investigate_change` | Changepoints, regime vs transient, ranked *associational* explanations — never causes |
 | What happens next? | `gnomon_forecast` | Backtested selection with abstention |
+| What is abnormal? | `gnomon_detect_anomalies` | Competing detectors graded before the winner flags observations |
 | What should we do? | `gnomon_decide` | Needs actions; utilities optional — without them you get the feasible-action comparison, not a choice |
 | When should we intervene? | `gnomon_monitor` | Sequential risk; supply alert/miss costs for a cost-optimal rule |
 
@@ -25,9 +26,9 @@ numbers from the returned `artifact_path` (`gnomon_get_artifact`,
 Track consequential runs with a `project`; close the loop with
 `gnomon_submit_actuals` and the decision record/resolve tools.
 
-## Hard rules (all four verbs)
+## Hard rules (all five verbs)
 
-- **Never invent, adjust, or extrapolate any number.** If it is not in an
+- **Never invent, adjust, or extrapolate any number.** If it is not in a
   Gnomon artifact, it does not exist.
 - **Preserve abstention.** `unsupported` and `inconclusive` are conclusions.
   Report them with Gnomon's reasons; never soften to "low confidence", never

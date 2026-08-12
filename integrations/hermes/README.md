@@ -1,10 +1,9 @@
 # Gnomon plugin for Hermes Agent
 
-Gives any Hermes agent evidence-backed local forecasting: `gnomon_capabilities`,
-`gnomon_inspect`, `gnomon_forecast`, and `gnomon_propose_context_events`, plus tools
-to submit actuals, discover due forecasts, inspect realised performance, and
-record/resolve agent decisions. The `gnomon:forecasting` skill encodes the
-safe-use workflow.
+Gives Hermes a local trusted temporal execution boundary: all five governed
+views (`forecast`, `investigate`, `detect`, `decide`, and `monitor`), plus
+inspection, context/covariate proposal, and outcome-tracking tools. The
+`gnomon:forecasting` skill encodes the safe-use workflow.
 
 Covariate enrichment adds `gnomon_covariate_guide`,
 `gnomon_validate_covariates`, and `gnomon_propose_covariates`. Hermes decides what

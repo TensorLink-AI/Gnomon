@@ -1,6 +1,6 @@
 name: gnomon
 version: 0.5.0
-description: "Evidence-backed local forecasting via the Gnomon CLI. Gnomon is authoritative for all numbers, intervals, model selection, and abstention; the agent formulates the question and explains the evidence."
+description: "A local-first trusted temporal execution boundary for agents. Gnomon is authoritative for point-in-time data, published numbers, intervals, model selection, support, and abstention; the agent formulates the question and explains the evidence."
 author: "TensorLink"
 kind: standalone
 provides_tools:
@@ -17,5 +17,6 @@ provides_tools:
   - gnomon_record_decision
   - gnomon_resolve_decision
   - gnomon_investigate_change
+  - gnomon_detect_anomalies
   - gnomon_decide
   - gnomon_monitor

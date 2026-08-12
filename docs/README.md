@@ -1,15 +1,21 @@
 # Gnomon documentation
 
-Gnomon is a temporal execution harness for producing one trusted answer
-cheaply. An agent frames the question; Gnomon validates the data, evaluates
-the candidates, computes every number, and preserves the evidence tier and
-receipts. The executable that wins evaluation is the executable that
-publishes. Its first product job is operational threshold risk—what may
+Gnomon is the trusted temporal execution boundary for agents. It turns a
+temporal question into one evidence-linked answer the caller can quote,
+inspect, and later score. An agent frames the question; Gnomon validates the
+data, evaluates the candidates, computes every number, and preserves the
+evidence tier and receipts. The executable that wins evaluation is the
+executable that publishes. Its first product job is operational threshold risk—what may
 breach, when, and whether intervention is justified—but the runtime exposes
 five governed views: *what happens next?*
 (`forecast`), *what changed?* (`investigate`), *what is abnormal?*
 (`detect`), *what should we do?* (`decide`), and *when should we
 intervene?* (`monitor`).
+
+This repository is the local-first runtime. Hosted routing, benchmark, and
+training services are not required dependencies and are not implemented here.
+Conversation cost is measured as a product constraint; it is not described as
+solved when the published surface experiment misses its gate.
 
 **`gnomon capabilities` is the machine-readable source of truth for what this
 build can do.** Prefer it to any prose here, including this file.
@@ -39,6 +45,7 @@ build can do.** Prefer it to any prose here, including this file.
 | [Troubleshooting](troubleshooting.md) | A command failed or returned unsupported. |
 | [LLM integrations](llm-integrations.md) | You are looking for API-key, OpenRouter, or Hermes support. |
 | [Agent evaluation](agent-evaluation.md) | You want to measure whether Gnomon improves an agent. |
+| [Product position](product-position.md) | You need the promise, buyer, boundaries, and claims Gnomon can make. |
 | [Development](development.md) | You want to test or contribute to Gnomon. |
 | [Containers](containers.md) | You want to build or run the Docker image. |
 | [CI/CD](ci-cd.md) | You maintain validation, publishing, or releases. |
@@ -116,6 +123,7 @@ their proposals as work outstanding.
 | [Selection loss](selection-loss-measurement-2026-08.md) | Measured; pinball selection lost on its own metric, default off. |
 | [Shrinkage admission](shrinkage-admission-measurement-2026-08.md) | Measured; evidence significantly *against*, default off. |
 | [Analog pooling](analog-pooling-kill-2026-08.md) | Killed by its own criterion before being built. |
+| [MCP surface experiment](design/mcp-surface-experiment-results.md) | Interim Phase 3 screen: `core` did not earn the default; the other matched arms remain open. |
 | [Persistent tracking design](persistent-tracking-design.md) | The design behind `gnomon track`; parts marked future are still future. |
 | [Rename impact inventory](rename-impact-inventory.md) | Why the name changed to Gnomon in v0.5.0, and what it cost. |
 

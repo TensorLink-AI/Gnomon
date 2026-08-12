@@ -1,4 +1,4 @@
-"""Gnomon forecasting runtime.
+"""Gnomon trusted temporal execution runtime for agents.
 
 The Python API is one of three front doors, beside the CLI and the MCP
 server, and it reaches the same product: all five verbs, the bitemporal

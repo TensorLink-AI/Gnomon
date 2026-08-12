@@ -1,11 +1,11 @@
 """Gnomon plugin for Hermes Agent.
 
-Registers four tools wrapping the Gnomon CLI — capabilities, inspect,
-forecast, and LLM-assisted context-event proposal (host model via
-``ctx.llm``, Gnomon-owned prompt and validation) — plus the
+Registers a task-oriented set of tools wrapping the Gnomon CLI, including all
+five governed temporal views and LLM-assisted context-event proposal (host
+model via ``ctx.llm``, Gnomon-owned prompt and validation), plus the
 ``gnomon:forecasting`` skill encoding the safe-use workflow. Gnomon remains
-authoritative for every number; Hermes formulates the question and
-explains the evidence.
+authoritative for every number; Hermes formulates the question and explains
+the evidence.
 
 Install by copying this directory to ``~/.hermes/plugins/gnomon`` and
 enabling it (plugins are opt-in): ``hermes plugins enable gnomon``.
@@ -26,7 +26,8 @@ from .schemas import (
     GNOMON_RESOLVE_DECISION_SCHEMA,
     GNOMON_COVARIATE_GUIDE_SCHEMA, GNOMON_VALIDATE_COVARIATES_SCHEMA,
     GNOMON_PROPOSE_COVARIATES_SCHEMA,
-    GNOMON_INVESTIGATE_SCHEMA, GNOMON_DECIDE_SCHEMA, GNOMON_MONITOR_SCHEMA,
+    GNOMON_INVESTIGATE_SCHEMA, GNOMON_DETECT_SCHEMA,
+    GNOMON_DECIDE_SCHEMA, GNOMON_MONITOR_SCHEMA,
 )
 from .tools import (
     check_gnomon_available,
@@ -39,7 +40,8 @@ from .tools import (
     handle_gnomon_resolve_decision,
     handle_gnomon_covariate_guide, handle_gnomon_validate_covariates,
     handle_gnomon_propose_covariates,
-    handle_gnomon_investigate_change, handle_gnomon_decide, handle_gnomon_monitor,
+    handle_gnomon_investigate_change, handle_gnomon_detect_anomalies,
+    handle_gnomon_decide, handle_gnomon_monitor,
 )
 
 _TOOLS = (
@@ -55,6 +57,7 @@ _TOOLS = (
     ("gnomon_record_decision", GNOMON_RECORD_DECISION_SCHEMA, handle_gnomon_record_decision, "📝"),
     ("gnomon_resolve_decision", GNOMON_RESOLVE_DECISION_SCHEMA, handle_gnomon_resolve_decision, "🎯"),
     ("gnomon_investigate_change", GNOMON_INVESTIGATE_SCHEMA, handle_gnomon_investigate_change, "🕵️"),
+    ("gnomon_detect_anomalies", GNOMON_DETECT_SCHEMA, handle_gnomon_detect_anomalies, "🔎"),
     ("gnomon_decide", GNOMON_DECIDE_SCHEMA, handle_gnomon_decide, "⚖️"),
     ("gnomon_monitor", GNOMON_MONITOR_SCHEMA, handle_gnomon_monitor, "🚨"),
 )
