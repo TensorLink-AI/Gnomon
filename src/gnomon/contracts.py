@@ -640,7 +640,8 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "version": "intent", "violations": "intent",
     "constraint_violations": "intent",
     # -- data --------------------------------------------------------------
-    "input": "data", "observations": "data", "file": "data", "files": "data",
+    "input": "data", "observations": "data", "data_ref": "data",
+    "file": "data", "files": "data",
     "dataset": "data", "time_column": "data", "target_column": "data",
     "series_column": "data", "frequency": "data", "timezone": "data",
     "known_at_column": "data", "seasonal_period": "data",

@@ -90,19 +90,29 @@ _COVARIATE_MAPPING_PROPERTY: dict[str, Any] = {
 _OBSERVATIONS_PROPERTY: dict[str, Any] = {
     "observations": {
         "type": "array",
+        "maxItems": 500,
         "description": (
-            "The observations supplied inline: row objects keyed by "
-            "your column names, e.g. "
-            '[{"timestamp": "2024-01-01T00:00:00+00:00", "value": 12.5}]. '
-            "Mutually exclusive with `input`."
+            "Inline row objects; exclusive with input, maximum 500. Reuse "
+            "the returned data_ref."
         ),
         "items": {"type": "object"},
+    },
+}
+
+_DATA_REF_PROPERTY: dict[str, Any] = {
+    "data_ref": {
+        "type": "string",
+        "description": (
+            "Prior call reference; replaces input/observations and binds "
+            "schema and cutoff."
+        ),
     },
 }
 
 _INPUT_PROPERTIES: dict[str, Any] = {
     "input": {"type": "string", "description": "Path to a local CSV, TSV, JSON, JSONL, Parquet, or Excel file of time-series observations, or `store:<dataset>` from the bitemporal store (see gnomon_list_datasets). Callers without a filesystem pass `observations` inline instead."},
     **_OBSERVATIONS_PROPERTY,
+    **_DATA_REF_PROPERTY,
     "time_column": {"type": "string", "description": (
         "Timestamp column. Omit to infer when exactly one column "
         "qualifies (disclosed as an assumption); ambiguity fails loudly. "
@@ -176,8 +186,10 @@ RESPONSE_BUDGET_BYTES = 8192
 #: therefore exceed the budget when its epistemics alone do — that is
 #: deliberate; the budget disciplines bulk, not honesty.
 _PROTECTED_KEYS = frozenset({
-    "support", "support_assessment", "warnings", "assumptions", "reasons",
-    "recovery_actions", "disclosures", "notes", "error", "repair_options",
+    "headline", "support", "support_assessment", "tier_floor",
+    "limitations", "limitation_groups", "warnings", "assumptions", "reasons",
+    "recovery_actions", "next_actions", "disclosures", "notes", "staleness",
+    "artifact_id", "artifact_path", "data_ref", "error", "repair_options",
 })
 
 _TRIM_HEAD = 3
@@ -268,6 +280,73 @@ def enforce_response_budget(payload: Any) -> Any:
             f"{where}."
         ),
     }
+    return result
+
+
+_TIER_ORDER = {
+    "invalid": 0, "unsupported": 1, "inconclusive": 2,
+    "best_effort": 3, "conditionally_supported": 4,
+    "context_trusted": 4, "degraded": 4, "weakly_supported": 4,
+    "supported": 5, "supported_ensemble": 5,
+}
+
+
+def apply_response_contract(payload: dict[str, Any]) -> dict[str, Any]:
+    """Add the compact agent-facing envelope without rewriting artifacts.
+
+    Existing verb payloads remain authoritative and byte-compatible on disk;
+    this projection adds stable routing fields to MCP responses. Repeated
+    warning text is grouped with a count instead of asking an agent to infer
+    prevalence from prose. The complete per-series warnings remain in the
+    artifact and in each result.
+    """
+    if payload.get("status") == "error" or "error" in payload:
+        return payload
+    result = dict(payload)
+
+    if "artifact_id" not in result:
+        for key in ("forecast_id", "investigation_id", "anomaly_id",
+                    "decision_id", "monitor_id", "route_id"):
+            if result.get(key):
+                result["artifact_id"] = result[key]
+                break
+
+    entries = [item for item in result.get("results", [])
+               if isinstance(item, dict)]
+    tiers: list[str] = []
+    warning_series: dict[str, set[str]] = {}
+    warning_examples: dict[str, list[str]] = {}
+    recoveries: list[dict[str, Any]] = []
+    for entry in entries:
+        assessment = entry.get("support_assessment") or {}
+        tier = assessment.get("status") or entry.get("support")
+        if tier:
+            tiers.append(str(tier))
+        series = str(entry.get("series") or "__default__")
+        for warning in entry.get("warnings") or []:
+            text = str(warning)
+            warning_series.setdefault(text, set()).add(series)
+            examples = warning_examples.setdefault(text, [])
+            if series not in examples and len(examples) < 3:
+                examples.append(series)
+        for action in assessment.get("recovery_actions") or []:
+            if isinstance(action, dict) and action not in recoveries:
+                recoveries.append(action)
+
+    if tiers and "tier_floor" not in result:
+        result["tier_floor"] = min(tiers, key=lambda item: _TIER_ORDER.get(item, 0))
+    if warning_series and "limitation_groups" not in result:
+        result["limitation_groups"] = [
+            {
+                "code": "RUNTIME_WARNING",
+                "message": message,
+                "affected_series_count": len(warning_series[message]),
+                "examples": warning_examples[message],
+            }
+            for message in sorted(warning_series)
+        ]
+    if recoveries and "recovery_actions" not in result:
+        result["recovery_actions"] = recoveries
     return result
 
 #: Tools whose missing time_column/target_column are inferred from the file
@@ -377,11 +456,27 @@ def _resolve_schema_arguments(
                                   if candidates else ""),
                 "arguments": [parameter],
             }]
+            if candidates:
+                repairs = [
+                    {
+                        "action": "supply_arguments",
+                        "description": f"Retry with {parameter}={candidate!r}.",
+                        "tool_call": {
+                            "name": tool_name,
+                            "arguments": {**resolved, parameter: candidate},
+                        },
+                    }
+                    for candidate in candidates
+                ]
             if parameter == "target_column" and tool_name == "gnomon_forecast":
                 repairs.append({
                     "action": "forecast_all_candidates",
                     "description": "Or batch every numeric column in one "
                                    "run: pass target_column \"auto\".",
+                    "tool_call": {
+                        "name": tool_name,
+                        "arguments": {**resolved, parameter: "auto"},
+                    },
                 })
             raise GnomonError(
                 "AMBIGUOUS_SCHEMA",
@@ -2083,6 +2178,53 @@ def visible_tools() -> list[dict[str, Any]]:
     return [tool for tool in tools if tool["name"] in allowed]
 
 
+_SESSION_DATA_REFS: dict[str, dict[str, Any]] = {}
+_DATA_BINDING_KEYS = frozenset({
+    "input", "input_provenance", "time_column", "target_column",
+    "series_column", "frequency", "regrid", "as_of", "store_path", "repair",
+})
+
+
+def _resolve_data_ref(arguments: dict[str, Any]) -> dict[str, Any]:
+    token = arguments.get("data_ref")
+    if not token:
+        return arguments
+    from .contracts import GnomonError
+    bound = _SESSION_DATA_REFS.get(str(token))
+    if bound is None:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "data_ref is unknown or expired in this MCP session.",
+            {"data_ref": str(token)},
+            repair_options=[{
+                "action": "resupply_data",
+                "description": "Send input or observations again to receive a fresh data_ref.",
+            }],
+        )
+    conflicts = sorted(
+        key for key in _DATA_BINDING_KEYS
+        if key in arguments and key in bound and arguments[key] != bound[key]
+    )
+    if conflicts:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "data_ref already binds the data and schema; do not override "
+            + ", ".join(conflicts) + ".",
+            {"data_ref": str(token), "conflicts": conflicts},
+        )
+    return {**bound, **{key: value for key, value in arguments.items()
+                       if key != "data_ref"}, "_data_ref": str(token)}
+
+
+def _register_data_ref(arguments: dict[str, Any]) -> tuple[dict[str, Any], str]:
+    import secrets
+    token = "data_" + secrets.token_urlsafe(18)
+    bound = {key: arguments[key] for key in _DATA_BINDING_KEYS
+             if key in arguments and arguments[key] is not None}
+    _SESSION_DATA_REFS[token] = bound
+    return {**arguments, "_data_ref": token}, token
+
+
 def _materialise_observations(arguments: dict[str, Any]) -> dict[str, Any]:
     """Turn the inline ``observations`` array into a temp-file ``input``.
 
@@ -2091,6 +2233,7 @@ def _materialise_observations(arguments: dict[str, Any]) -> dict[str, Any]:
     ladder, same fingerprinting — so the inline channel can never
     develop separate semantics from the file channel.
     """
+    arguments = _resolve_data_ref(arguments)
     rows = arguments.get("observations")
     if rows is None:
         return arguments
@@ -2106,6 +2249,13 @@ def _materialise_observations(arguments: dict[str, Any]) -> dict[str, Any]:
             "INVALID_ARGUMENTS",
             "observations must be a non-empty array of row objects keyed "
             "by column name.",
+        )
+    if len(rows) > 500:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "observations accepts at most 500 inline rows; use a file, "
+            "store:<dataset>, or a data_ref returned by an earlier call.",
+            {"observations": len(rows), "maximum": 500},
         )
     import csv
     import tempfile
@@ -2139,7 +2289,8 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
             def wrapped(arguments: dict[str, Any], _runner=runner,
                         _takes_data=takes_data, _name=name) -> dict[str, Any]:
                 if _takes_data and not arguments.get("input") \
-                        and arguments.get("observations") is None:
+                        and arguments.get("observations") is None \
+                        and not arguments.get("data_ref"):
                     from .contracts import GnomonError
 
                     raise GnomonError(
@@ -2177,6 +2328,10 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
                     arguments, inferred = _resolve_schema_arguments(
                         arguments, _name)
                     assumptions.extend(inferred)
+                data_ref = arguments.pop("_data_ref", None)
+                if _takes_data and data_ref is None:
+                    arguments, data_ref = _register_data_ref(arguments)
+                    arguments.pop("_data_ref", None)
                 if _name == "gnomon_forecast" \
                         and arguments.get("horizon") is None:
                     # One season ahead is the smallest horizon that can show
@@ -2188,6 +2343,8 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
                         f"one seasonal period of the inferred grid."
                     )
                 payload = disclose_assumptions(_runner(arguments), assumptions)
+                if data_ref and isinstance(payload, dict):
+                    payload = {**payload, "data_ref": data_ref}
                 if _name == "gnomon_capabilities":
                     # The budget trimmer cuts long arrays, and in a
                     # capabilities payload every array is a capability
@@ -2196,7 +2353,11 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
                     # format 'full' and sections are the caller's explicit
                     # ask for the verbatim payload.
                     return payload
-                return enforce_response_budget(payload)
+                # Preserve the established bulk budget decision, then add the
+                # small protected routing envelope. Otherwise the envelope
+                # itself can push a previously in-budget forecast over the
+                # trim threshold and unexpectedly remove rows.
+                return apply_response_contract(enforce_response_budget(payload))
 
             return wrapped
     return None
