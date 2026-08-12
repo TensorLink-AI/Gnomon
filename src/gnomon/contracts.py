@@ -299,6 +299,10 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
         {"action": "fix_source", "description": "Repair the exporting system; NaN usually marks a missing measurement, and an infinite level has no forecastable meaning."},
         {"action": "enable_repair", "description": "Pass repair=aggressive to drop non-finite rows (capped and disclosed); textual NaN under repair=safe is already treated as missing."},
     ],
+    "OUTCOME_KNOWN_BEFORE_VALID": [
+        {"action": "fix_known_at", "description": "Correct the known_at value — a measurement cannot be known before it occurs; the offending pair is in details."},
+        {"action": "omit_known_at", "description": "Leave known_at off the row to record the outcome as knowable at submission time."},
+    ],
     "DUPLICATE_TIMESTAMPS": [
         {"action": "deduplicate", "description": "Remove duplicate timestamps, or ingest revisions into the store with distinct known-at times."},
         {"action": "enable_repair", "description": "Identical duplicate rows collapse under the default repair=safe; conflicting values need repair=aggressive (last row wins, disclosed)."},

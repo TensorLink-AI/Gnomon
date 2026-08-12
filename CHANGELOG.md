@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- **Outcome knowledge time is honest.** Realised-coverage outcomes were
+  stamped `known_time = cutoff_time` — the forecast origin, the one
+  instant at which the outcome provably did not exist — so an `--as-of`
+  replay at the origin could see the realised coverage of the very
+  horizon being forecast. Three instants now stay distinct: the
+  outcome's valid time, its knowledge time, and the cutoff. Outcomes
+  are stamped with an explicit per-observation `known_at` when supplied
+  (a backfill channel new on all three actuals surfaces: 4-tuples in
+  the Python API, a reserved `known_at` CSV column, and a `known_at`
+  key on inline MCP actuals) and with the submission time otherwise; a
+  derived record inherits the *latest* contributing knowledge time, and
+  one unlabelled outcome makes it the submission time. A `known_at`
+  earlier than the outcome's own timestamp refuses with
+  `OUTCOME_KNOWN_BEFORE_VALID` — a measurement cannot be known before
+  it occurs.
+
 - **No non-finite value reaches evaluation.** `float("nan")` and
   `float("inf")` parse, so the strict loader admitted them as
   observations — after which a NaN error score poisoned every aggregate

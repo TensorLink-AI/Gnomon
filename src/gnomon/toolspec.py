@@ -1026,8 +1026,13 @@ def _actual_tuples(raw_rows: Any) -> list[tuple]:
                 f"actuals[{index}].value must be a finite number.",
             )
         timestamp = str(row["timestamp"])
-        if row.get("series"):
-            tuples.append((str(row["series"]), timestamp, value))
+        known_at = str(row["known_at"]) if row.get("known_at") else None
+        series = str(row["series"]) if row.get("series") else None
+        if known_at is not None:
+            # Knowledge-time backfill: 4-tuple form, series may be None.
+            tuples.append((series, timestamp, value, known_at))
+        elif series is not None:
+            tuples.append((series, timestamp, value))
         else:
             tuples.append((timestamp, value))
     return tuples
@@ -1323,8 +1328,10 @@ TOOLS: list[dict[str, Any]] = [
             "actuals_file": {"type": "string", "description": "CSV of realised values. Callers without a filesystem pass `actuals` inline instead."},
             "actuals": {"type": "array", "items": {"type": "object"}, "description": (
                 "Realised values supplied inline: objects of "
-                "{timestamp, value, series?}. Mutually exclusive with "
-                "actuals_file."
+                "{timestamp, value, series?, known_at?}. `known_at` (ISO) "
+                "backfills when the outcome became knowable; rows without "
+                "it became knowable at this submission. Mutually exclusive "
+                "with actuals_file (which accepts a known_at column)."
             )},
             "time_column": {"type": "string", "description": "Timestamp column in the actuals file. Inferred from a conventional name or a two-column layout when omitted."},
             "target_column": {"type": "string", "description": "Realised value column. Inferred when unambiguous."},
