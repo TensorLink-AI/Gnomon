@@ -38,10 +38,9 @@ edit one.
 Conversation cost is an engineering constraint, not a completed claim. Wide
 data is handled in one batched call; brief responses keep disclosures while
 moving bulk rows to immutable artifacts; repeated calls can use a session
-`data_ref` instead of resending observations. The first matched `core` screen
-reduced schema and token cost but did not meet the target for a default-profile
-change, so the full surface remains the default while the remaining profile
-arms await a matched experiment
+`data_ref` instead of resending observations. The matched five-profile surface
+experiment reduced schema and token cost but no candidate met the default
+gate, so the full surface remains the default
 ([results](docs/design/mcp-surface-experiment-results.md)).
 
 ## Where Gnomon sits

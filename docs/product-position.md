@@ -69,9 +69,9 @@ Public claims follow the same rule as forecast claims: measured or absent.
   forecast accuracy.
 - “Local-first” means built-in execution needs no network or API key; optional
   downloads and configured remote backends must be named as such.
-- “Cheap” is a target, not a current headline. The matched Phase 3 `core`
-  screen reduced schema and token cost but missed the <=50K-token and <=2-call
-  default gates; the other candidate profiles have not completed matched runs.
+- “Cheap” is a target, not a current headline. All four matched Phase 3
+  candidates missed the <=50K-token and <=2-call default gates; `evidence`
+  was cheapest at about 71K tokens per attempted row but answered only 3/4.
 - “Audit-ready” may describe traceable artifacts. “Compliant” requires a named
   standard, deployment controls, and evidence outside this repository.
 - Foundation models are optional candidates. Gnomon does not claim that one
