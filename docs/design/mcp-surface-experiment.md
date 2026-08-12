@@ -1,11 +1,14 @@
 # MCP surface experiment
 
-Status: executable measurement protocol, 2026-08-12.
+Status: decision recorded — retain `full` as the default, 2026-08-12.
 
 The number of exposed tools is not itself a product metric. A smaller surface
 may reduce distraction and schema tax, or merely hide useful capabilities.
 Gnomon therefore flips its default profile only after matched agent runs show a
 better answer at lower conversation cost.
+
+The first decision and measured results are recorded in
+[`mcp-surface-experiment-results.md`](mcp-surface-experiment-results.md).
 
 ## First matched experiment
 
