@@ -521,6 +521,12 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
     ],
 
     # --- Configuration ----------------------------------------------------
+    "CONFIG_UNREADABLE": [
+        {"action": "fix_config", "description": "The named file exists but cannot be parsed (or its parser is not installed); fix the file, convert it to gnomon.toml (parsed by the standard library), or remove it. A present-but-ignored config would mean the run is configured differently from what is written down."},
+    ],
+    "CONFIG_AMBIGUOUS": [
+        {"action": "remove_one", "description": "Both a gnomon.toml and a gnomon.yaml were found in the same directory; delete one so a single file is the source of truth (gnomon.toml is the preferred format)."},
+    ],
     "UNSUPPORTED_CONFIG_KEY": [
         {"action": "remove_key", "description": "details.reasons explains, per key, why Gnomon cannot honour it. A setting that is silently ignored is worse than one that does not exist, which is why this is an error."},
         {"action": "see_example", "description": "gnomon.yaml.example documents every key that does take effect."},

@@ -977,6 +977,7 @@ def evaluate(
                 mm_fold_forecasts,
                 mm_fold_actuals,
                 non_negative=meta_model_cfg.non_negative if meta_model_cfg else True,
+                ridge_alpha=meta_model_cfg.ridge_alpha if meta_model_cfg else 1e-6,
             )
             if meta_model_weights:
                 # The *score* is leave-one-fold-out. Fitting on all folds and
@@ -1004,6 +1005,9 @@ def evaluate(
                             held_out_forecasts, held_out_actuals,
                             non_negative=(
                                 meta_model_cfg.non_negative if meta_model_cfg else True
+                            ),
+                            ridge_alpha=(
+                                meta_model_cfg.ridge_alpha if meta_model_cfg else 1e-6
                             ),
                         )
                     except Exception:

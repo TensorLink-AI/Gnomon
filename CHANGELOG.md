@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+- **Configuration cannot lie.** Validation flips from a denylist to an
+  allowlist: every supplied key is honoured, refused with a reason, or
+  unknown — and unknown fails at load. The denylist approach had let
+  ten-plus documented keys parse into fields nothing read
+  (`meta_model.type`/`min_folds`/`fallback`, `ensemble.eligible`,
+  `ensemble.weighted_mean.fallback`, `backends.sandbox.venv_root`/
+  `auto_install`, the entire `llm` section) and its own reasons drifted
+  false — it asserted `ridge_alpha` was honoured while the solver
+  hardcoded its epsilon. `ridge_alpha` is now actually wired (default =
+  the historical epsilon, so no existing fit changes); the other dead
+  keys refuse with reasons and left the dataclasses and the example
+  config. `ensemble.strategy: stacking` — shipped in the example,
+  raised at runtime, swallowed into silent per-fold failures — fails at
+  load pointing at `meta_model.enabled`. Dynamic namespaces
+  (`backends.api.providers.<name>`, `models.tsfm.overrides.<name>`) get
+  typed wildcards, not a validation bypass.
+
+- **`gnomon.toml` is the preferred config format; a present config is
+  never silently ignored.** TOML parses with the stdlib (`tomllib`,
+  Python ≥ 3.11), so a base install — where PyYAML, a `dev`-only extra,
+  is absent — can no longer silently discard the operator's config and
+  run on defaults: a YAML file without PyYAML is now a `CONFIG_UNREADABLE`
+  error naming the TOML migration, unparseable configs of either format
+  refuse loudly, both formats side by side refuse as `CONFIG_AMBIGUOUS`,
+  and `load_config` returns a fresh object per call instead of shared
+  mutable defaults. YAML remains fully supported when PyYAML is
+  installed; this is step 1 of the deprecation ladder in
+  `specs/unified-plan.md` Phase 1E.
+
 - **Outcome knowledge time is honest.** Realised-coverage outcomes were
   stamped `known_time = cutoff_time` — the forecast origin, the one
   instant at which the outcome provably did not exist — so an `--as-of`

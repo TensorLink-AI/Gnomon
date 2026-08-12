@@ -31,7 +31,6 @@ class TestConfig:
         assert cfg.models.tsfm_candidates == []
         assert cfg.ensemble.enabled is False
         assert cfg.meta_model.enabled is False
-        assert cfg.llm.enabled is False
 
     def test_load_config_returns_default_when_no_file(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
@@ -279,7 +278,7 @@ class TestEvaluationWithConfig:
 
         cfg = GnomonConfig()
         cfg.meta_model = MetaModelConfig(
-            enabled=True, min_models=2, min_folds=2,
+            enabled=True, min_models=2,
         )
 
         values = [100.0 + i * 2.0 for i in range(200)]

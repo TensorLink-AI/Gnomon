@@ -48,7 +48,8 @@ META_MODEL_NAME = "meta_model"
 # Constrained least squares (non-negative weights)
 # ---------------------------------------------------------------------------
 
-def _solve_nnls(A: list[list[float]], b: list[float]) -> list[float] | None:
+def _solve_nnls(A: list[list[float]], b: list[float],
+                ridge_alpha: float = 1e-6) -> list[float] | None:
     """Solve non-negative least squares: min ||Ax - b||^2 s.t. x >= 0.
 
     Simple active-set implementation. For small problems (few models,
@@ -83,8 +84,9 @@ def _solve_nnls(A: list[list[float]], b: list[float]) -> list[float] | None:
                 AtA[j][k] += A[i][j] * A[i][k]
                 AtA[k][j] = AtA[j][k]
 
-    # Add ridge regularization
-    alpha = 1e-6  # small ridge for numerical stability
+    # Add ridge regularization (configured; the default is the
+    # historical numerical-stability epsilon)
+    alpha = ridge_alpha
     for j in range(n_features):
         AtA[j][j] += alpha
 
@@ -128,7 +130,8 @@ def _estimate_learning_rate(AtA: list[list[float]]) -> float:
     return 1.0 / max(1.0, max_diag)
 
 
-def _solve_ols(A: list[list[float]], b: list[float]) -> list[float] | None:
+def _solve_ols(A: list[list[float]], b: list[float],
+               ridge_alpha: float = 1e-6) -> list[float] | None:
     """Solve ordinary least squares (unconstrained).
 
     For comparison / fallback when non-negative constraint is off.
@@ -148,8 +151,8 @@ def _solve_ols(A: list[list[float]], b: list[float]) -> list[float] | None:
                 AtA[j][k] += A[i][j] * A[i][k]
                 AtA[k][j] = AtA[j][k]
 
-    # Ridge regularization
-    alpha = 1e-6
+    # Ridge regularization (configured)
+    alpha = ridge_alpha
     for j in range(n_features):
         AtA[j][j] += alpha
 
@@ -204,6 +207,7 @@ def train_meta_model(
     fold_forecasts: dict[str, list[list[float]]],
     fold_actuals: list[list[float]],
     non_negative: bool = True,
+    ridge_alpha: float = 1e-6,
 ) -> dict[str, float] | None:
     """Train the meta-model on fold-level forecasts and actuals.
 
@@ -213,6 +217,7 @@ def train_meta_model(
             All models must have the same number of folds and same horizon.
         fold_actuals: list of per-fold actuals. Each is a list of `horizon` values.
         non_negative: constrain weights to be >= 0.
+        ridge_alpha: L2 regularisation strength (meta_model.linear_regression.ridge_alpha).
 
     Returns:
         Dict of model_name → weight, or None if training failed.
@@ -267,9 +272,9 @@ def train_meta_model(
 
     # Solve
     if non_negative:
-        weights = _solve_nnls(A, b)
+        weights = _solve_nnls(A, b, ridge_alpha)
     else:
-        weights = _solve_ols(A, b)
+        weights = _solve_ols(A, b, ridge_alpha)
 
     if weights is None:
         logger.warning("Meta-model solver failed — will use fallback")

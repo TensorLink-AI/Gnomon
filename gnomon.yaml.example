@@ -45,26 +45,15 @@ models:
       # - moirai2_small
       # - moment_small
 
-    # Per-model overrides
+    # Per-model overrides. `backend` is the honoured key; device,
+    # timeout, and scale factors are chosen by the adapter itself.
     overrides:
       chronos_bolt_mini:
         backend: sandbox         # sandbox | api | auto (default: auto)
-        device: cpu              # cpu | cuda | mps
-        timeout: 300              # seconds per inference call
       toto2_22m:
         backend: sandbox
-        device: cpu
-        timeout: 300
       flowstate:
         backend: sandbox
-        device: cpu
-        timeout: 300
-        # FlowState needs a scale factor per frequency
-        scale_factors:
-          h: 1.0
-          D: 3.43
-          W: 0.46
-          MS: 2.0
 
 # ---------------------------------------------------------------------------
 # Backends — how TSFMs are executed
@@ -74,8 +63,8 @@ backends:
   # Each TSFM gets its own Python environment with its own deps.
   sandbox:
     enabled: true
-    venv_root: null            # null = ~/.cache/gnomon-tsfm-venvs/ (auto-managed)
-    auto_install: true         # auto-create venv on first use if missing
+    # The sandbox location is auto-managed; installation is always explicit
+    # (`gnomon tsfm install` or the gnomon_install_tsfm tool).
 
   # API: remote inference via HTTP (for hosted / managed TSFMs).
   # Use this when you don't want to install models locally.
@@ -116,13 +105,14 @@ backends:
 # ---------------------------------------------------------------------------
 ensemble:
   enabled: false
-  strategy: weighted_mean      # weighted_mean | median | voting | stacking
+  strategy: weighted_mean      # weighted_mean | median | voting
 
   # weighted_mean: weight each model by its inverse backtest error
   weighted_mean:
     min_models: 2              # need at least N successful models to ensemble
     max_weight_ratio: 0.7      # no single model can exceed this weight fraction
-    fallback: strongest_baseline  # if too few models succeed, use this
+    # When too few models succeed, the selected model publishes and the
+    # response says so; that behaviour is not configurable.
 
   # median: robust median of all model point forecasts (no weights needed)
   # median:
@@ -133,11 +123,9 @@ ensemble:
   #   min_models: 3
   #   threshold: 0.5            # fraction of models needed for consensus
 
-  # stacking: use a meta-model to learn optimal combination (see meta_model)
-
-  # Which models are eligible for ensemble (by name or "all_candidates")
-  eligible: all_candidates    # all_candidates | list of model names
-  # eligible: [last_value, drift, chronos_bolt_mini, toto2_22m]
+  # Stacked (learned) weights live under meta_model, not here. The
+  # candidate pool is models.statistical.candidates + models.tsfm.candidates;
+  # the ensemble combines whatever competed.
 
   # The ensemble's intervals come from its own fold residuals, not from
   # combining member quantiles, so there is no union/intersection choice to
@@ -148,7 +136,8 @@ ensemble:
 # ---------------------------------------------------------------------------
 meta_model:
   enabled: false
-  type: linear_regression       # linear_regression | ridge | lasso
+  # Only linear regression exists (ridge-regularised, optionally
+  # non-negative); there is no `type` to choose.
 
   # The meta-model learns: actual ~ w1*model1_forecast + w2*model2_forecast + ...
   # Training data: residuals from all rolling-origin folds across all models.
@@ -157,56 +146,24 @@ meta_model:
   # out-of-sample like every member's.
 
   linear_regression:
-    # Regularization to prevent overfitting with few models
-    ridge_alpha: 1.0           # L2 regularization strength
+    # Regularization to prevent overfitting with few models. The default
+    # is the historical numerical-stability epsilon; raise it for real
+    # shrinkage.
+    ridge_alpha: 0.000001      # L2 regularization strength
     # L1/lasso is not implemented: sparse selection over a handful of models
     # on a handful of folds would drop members on noise.
 
   # Minimum data requirements
   min_models: 2                # need at least N models with valid fold scores
-  min_folds: 3                 # need at least N folds for training
   # Non-negative weights: a model can't have a negative contribution
   non_negative: true           # constrain weights >= 0
-
-  # If the meta-model fails to train, fall back to this strategy
-  fallback: weighted_mean      # weighted_mean | median | strongest_baseline
+  # A meta-model that produces no weights simply does not compete;
+  # selection proceeds among the models that did.
 
 # ---------------------------------------------------------------------------
-# LLM reasoning — post-forecast interpretive layer
-# ---------------------------------------------------------------------------
-llm:
-  # LLM reasoning is OPTIONAL and never touches numbers.
-  # It can: compare models, explain selection, flag disagreement,
-  # suggest alternative models, and draft a narrative summary.
-
-  enabled: false
-  mode: interpret              # interpret | compare | challenge
-
-  # interpret: explain the selected forecast, cite evidence, surface caveats
-  # compare: contrast models, highlight disagreement, quantify uncertainty spread
-  # challenge: play devil's advocate — why might this forecast be wrong?
-
-  # The LLM receives:
-  # - The forecast artifact (point, intervals, support, model, scores)
-  # - The evidence ledger (fold scores, coverage, warnings)
-  # - The model comparison table (which models competed and their scores)
-  # - The ensemble/meta-model composition (if used)
-
-  # It may NEVER:
-  # - Edit point forecasts or quantiles
-  # - Change model selection or support status
-  # - Suppress warnings or evidence
-  # - Claim causality without evidence
-
-  # Provider (uses Gnomon's LLM adapter protocol — see llm.py)
-  adapter: null                # null = use host's adapter (Hermes ctx.llm)
-  # adapter:
-  #   type: openrouter
-  #   api_key_env: OPENROUTER_API_KEY
-  #   model: anthropic/claude-sonnet-4
-
-  max_tokens: 2000
-  temperature: 0.3             # low temperature for factual interpretation
+# There is no `llm` section: LLM integration lives in the MCP host (the
+# planner gate and the Hermes adapter), never in the engine, which computes
+# every number deterministically.
 
 # ---------------------------------------------------------------------------
 # Evaluation — control the backtesting pipeline
