@@ -141,6 +141,38 @@ class TestEnsemble:
         result = compute_ensemble_forecast(forecasts, {}, "voting", last_observed=100.0)
         assert result[0] > 100.0  # majority says up
 
+    def test_voting_minority_cannot_win(self):
+        # 2 up vs 4 down. The old ratio test (len(up) >= len(down) * 0.5)
+        # let the up side win here despite being outvoted two to one.
+        forecasts = {
+            "a": [110.0], "b": [112.0],
+            "c": [90.0], "d": [92.0], "e": [94.0], "f": [96.0],
+        }
+        result = compute_ensemble_forecast(forecasts, {}, "voting", last_observed=100.0)
+        assert result[0] < 100.0
+
+    def test_voting_is_symmetric_under_direction_inversion(self):
+        # Mirroring every forecast around the last observed value must
+        # mirror the combined point: no side is favoured by branch order,
+        # and an exactly-flat forecast abstains instead of voting down.
+        forecasts = {"a": [104.0], "b": [110.0], "c": [93.0]}
+        mirrored = {name: [200.0 - f[0]] for name, f in forecasts.items()}
+        result = compute_ensemble_forecast(forecasts, {}, "voting", last_observed=100.0)
+        inverse = compute_ensemble_forecast(mirrored, {}, "voting", last_observed=100.0)
+        assert inverse[0] == 200.0 - result[0]
+
+    def test_voting_flat_forecast_abstains(self):
+        # The flat forecast used to count as a down vote; the remaining
+        # votes are unanimously up, so the up side's median must win.
+        forecasts = {"a": [100.0], "b": [110.0], "c": [120.0]}
+        result = compute_ensemble_forecast(forecasts, {}, "voting", last_observed=100.0)
+        assert result[0] == 115.0
+
+    def test_voting_tie_uses_median_of_all(self):
+        forecasts = {"a": [110.0], "b": [90.0]}
+        result = compute_ensemble_forecast(forecasts, {}, "voting", last_observed=100.0)
+        assert result[0] == 100.0
+
 
 class TestMetaModel:
     """Meta-model training and prediction."""

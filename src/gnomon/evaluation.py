@@ -789,7 +789,14 @@ def evaluate(
         )
 
     # --- Run built-in models on selection folds ---
-    fold_scores: dict[str, list[float]] = {name: [] for name in pool}
+    # Both lists are indexed by fold, exactly like the TSFM lists below: a
+    # fold a model cannot predict or score keeps its slot as a placeholder
+    # (None score, empty forecast). The previous compaction (`continue`)
+    # shifted every later fold left, so the fold-indexed reads in the
+    # ensemble and meta-model scoring silently paired fold k's actuals
+    # with fold k+1's forecast for any model that failed a strict subset
+    # of folds.
+    fold_scores: dict[str, list[float | None]] = {name: [] for name in pool}
     # Store per-fold forecasts for ensemble/meta-model training
     fold_forecasts: dict[str, list[list[float]]] = {name: [] for name in pool}
     for origin in selection_origins:
@@ -799,12 +806,16 @@ def evaluate(
             try:
                 forecast = predict(name, train, horizon, season)
             except ValueError:
+                fold_scores[name].append(None)
+                fold_forecasts[name].append([])
                 continue
             score = error_score(actual, forecast)
             if score is None:
-                # Unscoreable fold (no scale in the window). Recording the
-                # forecast without its score would desynchronise the two
-                # lists the ensemble reads by fold index.
+                # Unscoreable fold (no scale in the window). The forecast
+                # is kept out of the ensemble map too: a fold that cannot
+                # be scored cannot contribute weighting evidence either.
+                fold_scores[name].append(None)
+                fold_forecasts[name].append([])
                 continue
             fold_forecasts[name].append(forecast)
             fold_scores[name].append(score)
@@ -830,10 +841,16 @@ def evaluate(
                 tsfm_fold_forecasts[adapter.name].append([])  # type: ignore[arg-type]
 
     # --- Aggregate scores ---
-    scores: dict[str, float | None] = {
-        name: mean(items) if items and len(items) == len(selection_origins) else None
-        for name, items in fold_scores.items()
-    }
+    # Same rule as the TSFM aggregation below: every fold must have a real
+    # score for the model to hold an aggregate at all. A placeholder (None)
+    # from a failed or unscoreable fold disqualifies, exactly as the old
+    # compacted-and-count-mismatched list did.
+    scores: dict[str, float | None] = {}
+    for name, items in fold_scores.items():
+        valid = [x for x in items if x is not None]
+        scores[name] = (
+            mean(valid) if valid and len(valid) == len(selection_origins) else None
+        )
     tsfm_scores: dict[str, float | None] = {}
     for name, items in tsfm_fold_scores.items():
         valid = [x for x in items if x is not None]
@@ -936,7 +953,10 @@ def evaluate(
             mm_fold_actuals.append(actual)
 
         for name in pool:
-            if fold_forecasts[name]:
+            # Same rule as the TSFM branch below: a model qualifies only if
+            # it produced at least one real fold forecast — placeholder-only
+            # lists (every fold failed) stay out of the training pool.
+            if any(fold_forecasts[name]):
                 mm_fold_forecasts[name] = fold_forecasts[name]
         for adapter in tsfm_adapters:
             valid_forecasts = [f for f in tsfm_fold_forecasts[adapter.name] if f]

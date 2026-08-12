@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+- **Fold evidence stays fold-aligned when a member fails mid-run.** A
+  built-in model that failed `predict` (or hit an unscoreable fold) had
+  that fold compacted out of its per-fold score and forecast lists,
+  while the ensemble's weighting and the meta-model's training read
+  those lists *by fold index* — so fold k's actuals were silently
+  paired with fold k+1's forecast for any model that failed a strict
+  subset of folds. Built-ins now keep placeholder slots (`None` score,
+  empty forecast) exactly as the TSFM lists always did; the aggregate
+  rule is unchanged (a model must score every fold to hold a selection
+  score), and placeholder-only lists stay out of the meta-model pool.
+  Pinned by a test that fails one member on one mid-run fold and
+  asserts every other fold's ensemble map carries that fold's own
+  forecast.
+
+- **`voting` ensembles are direction-symmetric.** The vote test was
+  `len(up) >= len(down) * threshold` with the up branch checked first:
+  at the default threshold two up votes beat four down votes, and an
+  exactly-flat forecast counted as a down vote. A side now wins by
+  holding more than `threshold` of the cast votes (strict majority at
+  0.5), flat forecasts abstain, and a tie falls back to the median of
+  all members — so mirroring every forecast around the last observed
+  value mirrors the combined point. Latent on the published path today
+  (publication hardcodes `weighted_mean`; that seam is the unified
+  plan's Phase 1A), live for selection scoring under
+  `ensemble.strategy: voting`.
+
 - **Benchmark MCP arms stop losing answers the model already produced.**
   Three submission-robustness fixes in the TemporalBench agent loop,
   none of which computes anything new for the model: `submit_answer`
