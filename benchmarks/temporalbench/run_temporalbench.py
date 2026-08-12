@@ -262,7 +262,7 @@ def main() -> int:
     parser.add_argument("--temperature", type=float, default=0.2)
     parser.add_argument("--output-dir", default=None)
     parser.add_argument(
-        "--mcp-profile", choices=["full", "core", "decision", "data"],
+        "--mcp-profile", choices=["full", "core", "describe", "mega", "decision", "data"],
         default="full",
         help="Tool profile offered by the gnomon-mcp condition. Run matched "
              "full/core arms to measure tool-distraction and schema-tax effects.")

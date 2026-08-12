@@ -36,9 +36,9 @@ no more than two calls at the median, and no more than four at p95. Report
 accuracy split by evidence tier and quote the schema byte count beside token
 results.
 
-The current executable arms are `full`, `core`, `decision`, and `data`.
-`core + describe` and the polymorphic mega-tool remain prototype arms; they are
-not aliases for an existing profile and must not enter a result table until
-their schemas and behavior exist. If evidence injection still beats every tool
+The executable arms are `full`, `core`, `describe` (core plus the descriptive
+evidence verb), and `mega` (inspect/run/track), with `decision` and `data` as
+specialized controls. The two prototypes are explicit profiles and never alter
+the production `full` surface. If evidence injection still beats every tool
 arm, the binding fallback is a compact evidence-pack surface centered on
 description plus forecast, rather than adding tools.

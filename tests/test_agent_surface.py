@@ -86,6 +86,17 @@ def test_get_artifact_and_explain_run(tmp_path):
     assert explained["claims"][0]["claim_class"] in ("predictive", "descriptive")
     assert "summary_md" in explained
 
+    selected = runner_for("gnomon_get_artifact")({
+        "artifact_path": str(directory),
+        "series": "__default__",
+        "fields": ["support", "notability"],
+        "order_by": "notability",
+        "limit": 1,
+    })
+    [row] = selected["artifact"]["results"]
+    assert set(row) == {"series", "support", "notability"}
+    assert selected["selection"]["matched"] == 1
+
 
 def test_explain_run_on_monitor_artifact(tmp_path):
     source = tmp_path / "trend.csv"

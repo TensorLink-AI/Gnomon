@@ -112,9 +112,44 @@ def forecast_headline(
     return f"Forecast through {end} with caveats: {first_sentence}"
 
 
+def forecast_notability(result: object) -> float:
+    """Bounded ranking signal: threshold evidence first, then path movement.
+
+    This is triage, not epistemic support; callers must still read the tier.
+    """
+    def field(name: str, default: object = None) -> object:
+        return (result.get(name, default) if isinstance(result, dict)
+                else getattr(result, name, default))
+
+    threshold = field("threshold", {}) or {}
+    score = 10.0 if threshold.get("crosses") or threshold.get("crossing") else 0.0
+    rows = field("forecast", []) or []
+    points = [row.get("q50", row.get("point")) for row in rows]
+    points = [float(value) for value in points if value is not None]
+    if len(points) > 1:
+        scale = max(abs(points[0]), 1e-12)
+        score += abs(points[-1] - points[0]) / scale
+    return round(score, 6)
+
+
 def artifact_headline(results: list) -> str:
-    """The artifact-level headline: one series' sentence verbatim, or the
-    per-series sentences joined, weakest tier still named by each."""
+    """Bounded artifact headline, with notable examples for wide panels."""
+    if not results:
+        return "No series produced a publishable forecast."
+    if len(results) > 3:
+        ranked = sorted(results, key=lambda item: (
+            -forecast_notability(item), str(item.series)))
+        tier_counts: dict[str, int] = {}
+        for result in results:
+            tier = str(getattr(result, "support", "unknown"))
+            tier_counts[tier] = tier_counts.get(tier, 0) + 1
+        mix = ", ".join(f"{count} {tier}" for tier, count in sorted(tier_counts.items()))
+        examples = "; ".join(
+            f"{item.series}: {forecast_headline(item.support, item.support_assessment, item.forecast)}"
+            for item in ranked[:3]
+        )
+        return (f"Forecasted {len(results)} series ({mix}). Most notable by "
+                f"threshold crossing then relative path movement: {examples}")
     lines = []
     for result in results:
         text = forecast_headline(

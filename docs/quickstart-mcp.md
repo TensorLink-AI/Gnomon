@@ -88,12 +88,14 @@ dataset reports `known_time_provenance: partially_assumed`.
 | Profile | Tools | Intended session |
 | --- | ---: | --- |
 | `core` | 7 | capabilities, inspect, forecast, investigate, detect, artifact read/explain |
+| `describe` | 8 | Experimental `core` plus fast descriptive temporal evidence |
+| `mega` | 3 | Experimental inspect/run/track consolidation arm |
 | `decision` | 12 | `core` plus decide, monitor, route, status, and outcome resolution |
 | `data` | 10 | `core` plus ingest, dataset listing, and actuals scoring |
 | `full` | 18 | Every stable tool, including context/covariate validation and TSFM installation |
 
 `full` is currently the default. Start a narrower surface with
-`gnomon mcp serve --profile core|decision|data|full`; `gnomon_capabilities`
+`gnomon mcp serve --profile core|describe|mega|decision|data|full`; `gnomon_capabilities`
 reports the active profile under `mcp_profile`. A future default-profile
 change is an evaluation decision, not a claim about this build. The matched
 [surface experiment](design/mcp-surface-experiment.md) records schema bytes,

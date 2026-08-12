@@ -589,10 +589,12 @@ class _RunBase:
     NUDGE = "Finish by calling submit_answer with your answer."
 
     def __init__(self, row: dict[str, Any], client: Any,
-                 session_factory: Any = None, work_dir: str | None = None):
+                 session_factory: Any = None, work_dir: str | None = None,
+                 profile: str = "full"):
         import time
 
         self.row = row
+        self.profile = profile
         self.client = client
         self.started = time.time()
         self.channels = self._row_channels(row)
@@ -920,7 +922,8 @@ class _Run(_RunBase):
              "or abstain; plus your mcq answers.")
 
     def __init__(self, row: dict[str, Any], client: Any,
-                 session_factory: Any = None, work_dir: str | None = None):
+                 session_factory: Any = None, work_dir: str | None = None,
+                 profile: str = "full"):
         meta = row.get("meta") or {}
         self.horizon = int(meta.get("n_horizon") or 0)
         if self.horizon < 1:
@@ -929,7 +932,7 @@ class _Run(_RunBase):
         self.target_keys = (list(ground_truth) if isinstance(ground_truth, dict)
                             else [meta.get("main_key")])
         super().__init__(row, client, session_factory=session_factory,
-                         work_dir=work_dir)
+                         work_dir=work_dir, profile=profile)
 
     def _row_channels(self, row: dict[str, Any]) -> dict[str, list[float]]:
         arrays = prompt_input_arrays(row)
@@ -939,7 +942,7 @@ class _Run(_RunBase):
         return SUBMIT_TOOL
 
     def _system(self) -> str:
-        return SYSTEM.format(
+        text = SYSTEM.format(
             csv_path=str(self.csv_path),
             channels=", ".join(self.target_keys),
             channel_list=",".join(self.target_keys),
@@ -947,6 +950,9 @@ class _Run(_RunBase):
             jail_rule=self._jail_rule(),
             max_rounds=MAX_ROUNDS, max_calls=MAX_MCP_CALLS,
         )
+        if self.profile == "mega":
+            text = text.replace("gnomon_forecast", "gnomon_run with question.kind=forecast")
+        return text
 
     def _abstain_outcome(self, reason: str) -> dict[str, Any]:
         """The whole row abstains with the cap named — never a fallback."""
@@ -1131,14 +1137,15 @@ class _McqRun(_RunBase):
     NUDGE = "Finish by calling submit_answer with your answers."
 
     def __init__(self, row: dict[str, Any], client: Any,
-                 session_factory: Any = None, work_dir: str | None = None):
+                 session_factory: Any = None, work_dir: str | None = None,
+                 profile: str = "full"):
         self.tool, self.answer_rule = mcq_submit_tool(row)
         self.expected_fields = list(row.get("labels") or {})
         self.expected_count = len(row.get("pack") or [])
         self.is_pack = row.get("tier") == "T3"
         self.rejections = 0
         super().__init__(row, client, session_factory=session_factory,
-                         work_dir=work_dir)
+                         work_dir=work_dir, profile=profile)
 
     def _row_channels(self, row: dict[str, Any]) -> dict[str, list[float]]:
         try:
@@ -1258,7 +1265,7 @@ def run_row(row: dict[str, Any], client: Any, *,
             jail, command=[sys.executable, "-m", "gnomon", "mcp", "serve",
                            "--profile", profile])
     return _drive(_Run(row, client, session_factory=session_factory,
-                       work_dir=work_dir))
+                       work_dir=work_dir, profile=profile))
 
 
 def mcq_row(row: dict[str, Any], client: Any, *,
@@ -1272,4 +1279,4 @@ def mcq_row(row: dict[str, Any], client: Any, *,
             jail, command=[sys.executable, "-m", "gnomon", "mcp", "serve",
                            "--profile", profile])
     return _drive(_McqRun(row, client, session_factory=session_factory,
-                          work_dir=work_dir))
+                          work_dir=work_dir, profile=profile))
