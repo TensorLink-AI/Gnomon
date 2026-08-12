@@ -28,7 +28,7 @@ Track consequential runs with a `project`; close the loop with
 
 ## Hard rules (all five verbs)
 
-- **Never invent, adjust, or extrapolate any number.** If it is not in an
+- **Never invent, adjust, or extrapolate any number.** If it is not in a
   Gnomon artifact, it does not exist.
 - **Preserve abstention.** `unsupported` and `inconclusive` are conclusions.
   Report them with Gnomon's reasons; never soften to "low confidence", never

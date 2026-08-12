@@ -64,7 +64,8 @@ def test_register_exposes_tracking_tools_and_the_skill() -> None:
         "gnomon_submit_actuals", "gnomon_list_open_forecasts",
         "gnomon_model_performance", "gnomon_record_decision",
         "gnomon_resolve_decision",
-        "gnomon_investigate_change", "gnomon_decide", "gnomon_monitor",
+        "gnomon_investigate_change", "gnomon_detect_anomalies",
+        "gnomon_decide", "gnomon_monitor",
     }
     for entry in ctx.tools.values():
         assert entry["toolset"] == "gnomon"
@@ -305,6 +306,22 @@ def test_investigate_handler_end_to_end(tmp_path) -> None:
     }))
     assert payload["status"] == "complete"
     assert payload["results"][0]["classification"] == "regime_shift"
+
+
+def test_detect_handler_end_to_end(tmp_path) -> None:
+    payload = json.loads(plugin.handle_gnomon_detect_anomalies({
+        "input": str(REPO_ROOT / "examples" / "messy_requests.csv"),
+        "time_column": "timestamp",
+        "target_column": "requests",
+        "threshold": 3.5,
+        "output_dir": str(tmp_path),
+    }))
+    assert payload["status"] == "complete"
+    result = payload["results"][0]
+    assert result["detector"] in result["detector_grades"]
+    assert result["support_assessment"]["status"] in {
+        "supported", "conditionally_supported",
+    }
 
 
 def test_decide_handler_degrades_without_utilities(tmp_path) -> None:

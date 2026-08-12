@@ -17,5 +17,6 @@ provides_tools:
   - gnomon_record_decision
   - gnomon_resolve_decision
   - gnomon_investigate_change
+  - gnomon_detect_anomalies
   - gnomon_decide
   - gnomon_monitor

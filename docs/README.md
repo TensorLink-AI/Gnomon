@@ -123,7 +123,7 @@ their proposals as work outstanding.
 | [Selection loss](selection-loss-measurement-2026-08.md) | Measured; pinball selection lost on its own metric, default off. |
 | [Shrinkage admission](shrinkage-admission-measurement-2026-08.md) | Measured; evidence significantly *against*, default off. |
 | [Analog pooling](analog-pooling-kill-2026-08.md) | Killed by its own criterion before being built. |
-| [MCP surface experiment](design/mcp-surface-experiment-results.md) | Phase 3 result: narrower schemas helped, but no profile earned the default. |
+| [MCP surface experiment](design/mcp-surface-experiment-results.md) | Interim Phase 3 screen: `core` did not earn the default; the other matched arms remain open. |
 | [Persistent tracking design](persistent-tracking-design.md) | The design behind `gnomon track`; parts marked future are still future. |
 | [Rename impact inventory](rename-impact-inventory.md) | Why the name changed to Gnomon in v0.5.0, and what it cost. |
 
