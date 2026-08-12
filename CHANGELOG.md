@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+- **The published candidate is the evaluated candidate.** Evaluation now
+  returns an executable `CandidateSpec` for the winner — bound to the
+  *same* closures that produced its calibration and test predictions —
+  and `predict_stage` publishes by fitting that specification on the
+  full visible history. The class of divergence this removes was live:
+  publication hardcoded `strategy="weighted_mean"` over the unrestricted
+  built-in pool with no config, while evaluation scored
+  `config.ensemble.strategy` over the restricted pool plus TSFM
+  adapters — so `ensemble.strategy: median` scored a median ensemble
+  and published a weighted-mean one wearing its credentials, a
+  restricted pool still published all seven members, TSFM members
+  vanished from the published combination, and `max_weight_ratio`
+  reverted to its default. Composite identities (member set, strategy,
+  behaviour-affecting config) are recorded as `final_candidate`
+  evidence; single built-ins publish byte-identically to before (their
+  identity is `selected_model`), so existing artifacts do not churn.
+  Pinned by the end-to-end shape that was missing: non-default strategy
+  + restricted pool, published points == the evaluated combiner's final
+  fit, and provably ≠ the legacy rebuild. One immutable spec, an
+  independent fit per origin — a fitted object is never reused across
+  partitions. TSFM selections keep their sandbox-first publication
+  chain for now; binding that chain into a spec with full identity is
+  named follow-up work.
+
 - **The meta-model can actually fit realistically-scaled series.** The
   NNLS learning-rate estimate used the max diagonal of AᵀA as an
   eigenvalue bound; member forecasts are strongly correlated, so with

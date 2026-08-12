@@ -67,6 +67,15 @@ class Evaluation:
     #: rank them, so the strongest baseline was published and the candidate
     #: scores are evidence rather than a ranking.
     selection_guardrail_applied: bool = False
+    #: Executable specification of the selected candidate (unified plan,
+    #: Phase 1A): `predict_stage` publishes by fitting this on the full
+    #: history — the same closures that produced the calibration and test
+    #: predictions. None on abstentions and (for now) TSFM selections,
+    #: which keep their sandbox-first publication chain.
+    final_candidate: Any = field(default=None, compare=False, repr=False)
+    #: The ensemble's specification whenever the ensemble competed,
+    #: selected or not — the `--ensemble` override publishes through it.
+    ensemble_candidate: Any = field(default=None, compare=False, repr=False)
 
 
 #: The metric every selection decision is made on. Named so that hindsight
@@ -1190,7 +1199,8 @@ def evaluate(
             f"measure different quantities."
         )
 
-    def _ensemble_predict(train: list[float]) -> list[float]:
+    def _ensemble_predict(train: list[float],
+                          fc_horizon: int | None = None) -> list[float]:
         """Recombine the member models on *train* only.
 
         The ensemble has to be predictable at an arbitrary fold origin like
@@ -1198,22 +1208,27 @@ def evaluate(
         fail to produce a calibration forecast, which both discarded the
         winner and pushed interval calibration onto a trailing window that
         overlaps the report-only test fold.
+
+        This is also the *published* combiner: the final candidate spec
+        binds it, so the object that earned selection on the folds is the
+        object whose points ship (unified plan, Phase 1A).
         """
         from .ensemble import compute_ensemble_forecast
+        steps = horizon if fc_horizon is None else fc_horizon
         member_scores: dict[str, float | None] = {**scores, **tsfm_scores}
         forecasts: dict[str, list[float]] = {}
         for name in pool:
             if member_scores.get(name) is None:
                 continue
             try:
-                forecasts[name] = predict(name, train, horizon, season)
+                forecasts[name] = predict(name, train, steps, season)
             except (ValueError, ArithmeticError):
                 continue
         for adapter in tsfm_adapters:
             if member_scores.get(adapter.name) is None:
                 continue
             try:
-                forecasts[adapter.name] = adapter.predict(train, horizon, season)
+                forecasts[adapter.name] = adapter.predict(train, steps, season)
             except Exception:
                 logger.debug("ensemble member %s failed on a fold", adapter.name,
                              exc_info=True)
@@ -1224,21 +1239,23 @@ def evaluate(
             last_observed=train[-1] if train else 0.0, config=ensemble_cfg,
         )
 
-    def _predict_selected(name: str, train: list[float], origin: int) -> list[float]:
+    def _predict_selected(name: str, train: list[float], origin: int,
+                          fc_horizon: int | None = None) -> list[float]:
         """Dispatch a prediction to a built-in model, a TSFM, the ensemble, or
         a cross-series candidate. ``origin`` is the fold's forecast origin —
         cross-series candidates need it because their inputs are other series,
         which ``train`` does not carry."""
+        steps = horizon if fc_horizon is None else fc_horizon
         if name in MODELS:
-            return predict(name, train, horizon, season)
+            return predict(name, train, steps, season)
         if name == "ensemble":
-            return _ensemble_predict(train)
+            return _ensemble_predict(train, fc_horizon=steps)
         if name in extra_candidates:
-            return extra_candidates[name](origin, horizon)
+            return extra_candidates[name](origin, steps)
         adapter = next((a for a in tsfm_adapters if a.name == name), None)
         if adapter is None:
             raise ValueError(f"no adapter available for {name}")
-        return adapter.predict(train, horizon, season)
+        return adapter.predict(train, steps, season)
 
     # Get calibration prediction from the selected model; fall back to the
     # strongest baseline if a TSFM/ensemble selection cannot predict here.
@@ -1357,9 +1374,68 @@ def evaluate(
             "Limited evaluation: no held-out test fold remained, so interval "
             "coverage is unmeasured."
         )
+    # --- Executable candidates (unified plan, Phase 1A) -------------------
+    # The winner's specification, bound to the SAME closures that produced
+    # its calibration and test predictions. predict_stage publishes by
+    # fitting this on the full visible history, so the evaluated object and
+    # the published object cannot diverge. The season is deliberately the
+    # evaluated one: it is part of the candidate's identity.
+    from .candidate import CandidateIdentity, CandidateSpec, FittedCandidate
+
+    def _spec_for(identity: CandidateIdentity, name: str) -> CandidateSpec:
+        def fit(history: list[float], _season: int | None) -> FittedCandidate:
+            def predictor(steps: int) -> list[float]:
+                return _predict_selected(
+                    name, history, len(history), fc_horizon=steps,
+                )
+            return FittedCandidate(identity, predictor)
+        return CandidateSpec(identity, fit)
+
+    ensemble_candidate = None
+    if ensemble_enabled:
+        member_names = tuple(sorted(
+            [name for name in pool if scores.get(name) is not None]
+            + [a.name for a in tsfm_adapters
+               if tsfm_scores.get(a.name) is not None]
+        ))
+        behaviour: dict[str, Any] = {
+            "min_models": ensemble_cfg.min_models if ensemble_cfg else 2,
+        }
+        if ensemble_strategy == "weighted_mean":
+            behaviour["max_weight_ratio"] = (
+                getattr(ensemble_cfg, "max_weight_ratio", 0.7)
+                if ensemble_cfg else 0.7
+            )
+        if (ensemble_strategy == "voting" and ensemble_cfg is not None
+                and isinstance(ensemble_cfg.voting, dict)):
+            behaviour["threshold"] = ensemble_cfg.voting.get("threshold", 0.5)
+        ensemble_candidate = _spec_for(
+            CandidateIdentity(kind="ensemble", name="ensemble",
+                              members=member_names,
+                              strategy=ensemble_strategy, config=behaviour),
+            "ensemble",
+        )
+
+    final_candidate = None
+    if selected == "ensemble":
+        final_candidate = ensemble_candidate
+    elif selected in MODELS:
+        final_candidate = _spec_for(
+            CandidateIdentity(kind="builtin", name=selected), selected,
+        )
+    elif selected in extra_candidates:
+        final_candidate = _spec_for(
+            CandidateIdentity(kind="cross_series", name=selected), selected,
+        )
+    # A TSFM selection keeps predict_stage's sandbox-first publication
+    # chain (its fallback policy); binding that chain into a spec with
+    # full identity is follow-up work.
+
     return Evaluation(selected, strongest_baseline, {**scores, **extra_scores},
                       test_scores, improvement,
                       residuals, coverage, warnings, True, degraded,
+                      final_candidate=final_candidate,
+                      ensemble_candidate=ensemble_candidate,
                       tsfm_scores=tsfm_scores, notes=notes,
                       residuals_by_lead=residuals_by_lead,
                       ensemble_residuals=ensemble_residuals,
