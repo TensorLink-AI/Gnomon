@@ -90,19 +90,29 @@ _COVARIATE_MAPPING_PROPERTY: dict[str, Any] = {
 _OBSERVATIONS_PROPERTY: dict[str, Any] = {
     "observations": {
         "type": "array",
+        "maxItems": 500,
         "description": (
-            "The observations supplied inline: row objects keyed by "
-            "your column names, e.g. "
-            '[{"timestamp": "2024-01-01T00:00:00+00:00", "value": 12.5}]. '
-            "Mutually exclusive with `input`."
+            "Inline row objects; exclusive with input, maximum 500. Reuse "
+            "the returned data_ref."
         ),
         "items": {"type": "object"},
+    },
+}
+
+_DATA_REF_PROPERTY: dict[str, Any] = {
+    "data_ref": {
+        "type": "string",
+        "description": (
+            "Prior call reference; replaces input/observations and binds "
+            "schema and cutoff."
+        ),
     },
 }
 
 _INPUT_PROPERTIES: dict[str, Any] = {
     "input": {"type": "string", "description": "Path to a local CSV, TSV, JSON, JSONL, Parquet, or Excel file of time-series observations, or `store:<dataset>` from the bitemporal store (see gnomon_list_datasets). Callers without a filesystem pass `observations` inline instead."},
     **_OBSERVATIONS_PROPERTY,
+    **_DATA_REF_PROPERTY,
     "time_column": {"type": "string", "description": (
         "Timestamp column. Omit to infer when exactly one column "
         "qualifies (disclosed as an assumption); ambiguity fails loudly. "
@@ -2168,6 +2178,53 @@ def visible_tools() -> list[dict[str, Any]]:
     return [tool for tool in tools if tool["name"] in allowed]
 
 
+_SESSION_DATA_REFS: dict[str, dict[str, Any]] = {}
+_DATA_BINDING_KEYS = frozenset({
+    "input", "input_provenance", "time_column", "target_column",
+    "series_column", "frequency", "regrid", "as_of", "store_path", "repair",
+})
+
+
+def _resolve_data_ref(arguments: dict[str, Any]) -> dict[str, Any]:
+    token = arguments.get("data_ref")
+    if not token:
+        return arguments
+    from .contracts import GnomonError
+    bound = _SESSION_DATA_REFS.get(str(token))
+    if bound is None:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "data_ref is unknown or expired in this MCP session.",
+            {"data_ref": str(token)},
+            repair_options=[{
+                "action": "resupply_data",
+                "description": "Send input or observations again to receive a fresh data_ref.",
+            }],
+        )
+    conflicts = sorted(
+        key for key in _DATA_BINDING_KEYS
+        if key in arguments and key in bound and arguments[key] != bound[key]
+    )
+    if conflicts:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "data_ref already binds the data and schema; do not override "
+            + ", ".join(conflicts) + ".",
+            {"data_ref": str(token), "conflicts": conflicts},
+        )
+    return {**bound, **{key: value for key, value in arguments.items()
+                       if key != "data_ref"}, "_data_ref": str(token)}
+
+
+def _register_data_ref(arguments: dict[str, Any]) -> tuple[dict[str, Any], str]:
+    import secrets
+    token = "data_" + secrets.token_urlsafe(18)
+    bound = {key: arguments[key] for key in _DATA_BINDING_KEYS
+             if key in arguments and arguments[key] is not None}
+    _SESSION_DATA_REFS[token] = bound
+    return {**arguments, "_data_ref": token}, token
+
+
 def _materialise_observations(arguments: dict[str, Any]) -> dict[str, Any]:
     """Turn the inline ``observations`` array into a temp-file ``input``.
 
@@ -2176,6 +2233,7 @@ def _materialise_observations(arguments: dict[str, Any]) -> dict[str, Any]:
     ladder, same fingerprinting — so the inline channel can never
     develop separate semantics from the file channel.
     """
+    arguments = _resolve_data_ref(arguments)
     rows = arguments.get("observations")
     if rows is None:
         return arguments
@@ -2191,6 +2249,13 @@ def _materialise_observations(arguments: dict[str, Any]) -> dict[str, Any]:
             "INVALID_ARGUMENTS",
             "observations must be a non-empty array of row objects keyed "
             "by column name.",
+        )
+    if len(rows) > 500:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "observations accepts at most 500 inline rows; use a file, "
+            "store:<dataset>, or a data_ref returned by an earlier call.",
+            {"observations": len(rows), "maximum": 500},
         )
     import csv
     import tempfile
@@ -2224,7 +2289,8 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
             def wrapped(arguments: dict[str, Any], _runner=runner,
                         _takes_data=takes_data, _name=name) -> dict[str, Any]:
                 if _takes_data and not arguments.get("input") \
-                        and arguments.get("observations") is None:
+                        and arguments.get("observations") is None \
+                        and not arguments.get("data_ref"):
                     from .contracts import GnomonError
 
                     raise GnomonError(
@@ -2262,6 +2328,10 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
                     arguments, inferred = _resolve_schema_arguments(
                         arguments, _name)
                     assumptions.extend(inferred)
+                data_ref = arguments.pop("_data_ref", None)
+                if _takes_data and data_ref is None:
+                    arguments, data_ref = _register_data_ref(arguments)
+                    arguments.pop("_data_ref", None)
                 if _name == "gnomon_forecast" \
                         and arguments.get("horizon") is None:
                     # One season ahead is the smallest horizon that can show
@@ -2273,6 +2343,8 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
                         f"one seasonal period of the inferred grid."
                     )
                 payload = disclose_assumptions(_runner(arguments), assumptions)
+                if data_ref and isinstance(payload, dict):
+                    payload = {**payload, "data_ref": data_ref}
                 if _name == "gnomon_capabilities":
                     # The budget trimmer cuts long arrays, and in a
                     # capabilities payload every array is a capability

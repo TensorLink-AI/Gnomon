@@ -143,6 +143,23 @@ When schema ambiguity blocks a forecast, each repair option contains a literal
 batched `target_column: "auto"` form. A host can issue it directly rather than
 spending another model turn composing selector syntax.
 
+## Reusing data without resending it
+
+Every data-reading response includes an opaque `data_ref`. It is scoped to the
+running MCP process and binds the source, resolved columns, temporal cutoff,
+frequency, and repair policy. Pass that reference to another verb instead of
+repeating `input` or `observations`:
+
+```json
+{"data_ref": "data_…", "horizon": 14}
+```
+
+Unknown references fail with a `resupply_data` recovery action, and a call
+cannot silently override the schema or temporal view bound to a reference.
+Inline observations are capped at 500 rows because the full payload remains in
+conversation history; send them once, then reuse `data_ref`. References expire
+when the MCP server process exits and are not portable across hosts.
+
 ## Tool surface
 
 Primary macros: `gnomon_forecast`, `gnomon_investigate_change`,
