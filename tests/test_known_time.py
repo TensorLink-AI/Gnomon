@@ -161,6 +161,39 @@ def test_csv_without_known_at_is_unchanged(store, forecast_dir, tmp_path):
     assert outcome["known_time"] > "2026-01-02"
 
 
+def test_performance_record_inherits_the_derived_known_time(store, forecast_dir):
+    """The plan's rule covers the derived *performance* record too, not
+    just the coverage outcome: a leaderboard replayed at T must not read
+    a score that needed an outcome nobody had at T."""
+    _register(store, forecast_dir)
+    actuals = [
+        (None, "2026-01-01T00:00:00+00:00", 102.0, "2026-01-01T00:05:00+00:00"),
+        (None, "2026-01-01T01:00:00+00:00", 108.0, "2026-01-01T01:05:00+00:00"),
+    ]
+    store.submit_actuals("kt", actuals)
+
+    [row] = store.model_performance("kt", "drift")
+    assert row["known_time"] == "2026-01-01T01:05:00+00:00"
+    # scored_at stays the true write instant: the audit of when the row
+    # was written survives beside the replay key.
+    assert row["scored_at"] > "2026-01-02"
+
+    assert store.model_performance("kt", "drift", as_of=CUTOFF) == []
+    between = store.model_performance(
+        "kt", "drift", as_of="2026-01-01T00:30:00+00:00")
+    assert between == [], "a score needing the later outcome was visible early"
+    assert len(store.model_performance(
+        "kt", "drift", as_of="2026-01-01T02:00:00+00:00")) == 1
+
+
+def test_unlabelled_performance_replays_at_submission(store, forecast_dir):
+    _register(store, forecast_dir)
+    store.submit_actuals("kt", _actuals())
+    [row] = store.model_performance("kt", "drift")
+    assert row["known_time"] > "2026-01-02"
+    assert store.model_performance("kt", "drift", as_of=CUTOFF) == []
+
+
 def test_mcp_actuals_accept_known_at():
     from gnomon.toolspec import _actual_tuples
 

@@ -309,6 +309,7 @@ _TABLE_DEFINITIONS: dict[str, str] = {
             coverage REAL,
             threshold_accuracy REAL,
             scored_at TEXT NOT NULL,
+            known_time TEXT,
             series TEXT NOT NULL DEFAULT '__default__',
             horizon INTEGER,
             frequency TEXT,
@@ -508,9 +509,23 @@ class TrackingStore:
             }
             for name, sql_type in (("series", "TEXT"), ("horizon", "INTEGER"), ("frequency", "TEXT"),
                                    ("task", "TEXT DEFAULT 'forecast'"), ("fingerprint", "TEXT"),
-                                   ("wape", "REAL")):
+                                   ("wape", "REAL"),
+                                   # When this score became derivable, which is
+                                   # not when it was written: a backfill scores
+                                   # outcomes that were knowable long before the
+                                   # submission. Kept distinct from scored_at so
+                                   # the audit of *when the row was written*
+                                   # survives alongside the replay key.
+                                   ("known_time", "TEXT")):
                 if name not in perf_columns:
                     conn.execute(f"ALTER TABLE model_performance ADD COLUMN {name} {sql_type}")
+            # Rows written before the column existed were scored at the
+            # instant they were written, which is exactly their knowledge
+            # time under the old always-now behaviour.
+            conn.execute(
+                "UPDATE model_performance SET known_time = scored_at "
+                "WHERE known_time IS NULL"
+            )
             conn.execute(
                 "INSERT OR REPLACE INTO schema_metadata(key, value) VALUES ('version', ?)",
                 (SCHEMA_VERSION,),
@@ -851,6 +866,14 @@ class TrackingStore:
         cov = interval_coverage(actuals, q10 or [], q90 or []) if q10 and q90 else None
         thresh_acc = threshold_accuracy(actuals, threshold, predicted_above) if threshold else None
         scored_at = datetime.now(timezone.utc).isoformat()
+        # When this score became *derivable* — the latest knowledge time
+        # among the outcomes it consumed, which on a backfill is long
+        # before `scored_at`. The performance record is a derived record
+        # exactly like the coverage outcome below, so it inherits the same
+        # instant; a leaderboard replayed `as_of` T must not read a score
+        # that needed an outcome nobody had at T.
+        derived_known_time = self._derived_known_time(
+            known_times, len(actuals), scored_at)
 
         # Drift detection: compare to model's historical average
         drift = self._check_drift(record, mase)
@@ -868,12 +891,13 @@ class TrackingStore:
                 conn.execute("""
                     INSERT OR REPLACE INTO model_performance
                         (project, model, forecast_id, mase, wape, mape, bias,
-                         coverage, threshold_accuracy, scored_at, series, horizon, frequency,
-                         task, fingerprint)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         coverage, threshold_accuracy, scored_at, known_time,
+                         series, horizon, frequency, task, fingerprint)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     record.project, record.selected_model, forecast_id,
                     mase, wape, mape, bias, cov, thresh_acc, scored_at,
+                    derived_known_time,
                     record.series, record.horizon, record.frequency,
                     record.task, record.fingerprint,
                 ))
@@ -890,8 +914,7 @@ class TrackingStore:
             points = min(len(actuals), len(q10), len(q90))
             self.record_coverage_outcome(
                 record.project, record.series or "__default__", forecast_id,
-                known_time=self._derived_known_time(known_times, len(actuals),
-                                                    scored_at),
+                known_time=derived_known_time,
                 covered=round(cov * points), points=points,
             )
 
@@ -1718,16 +1741,30 @@ class TrackingStore:
 
     def model_performance(
         self, project: str, model: str, task: str | None = None,
+        as_of: str | None = None,
     ) -> list[dict[str, Any]]:
-        """Get per-forecast performance history for a specific model."""
-        task_filter = "" if task is None else " AND COALESCE(task, 'forecast') = ?"
-        params: tuple[Any, ...] = (project, model) if task is None else (project, model, task)
+        """Get per-forecast performance history for a specific model.
+
+        ``as_of`` replays the leaderboard as it stood at that instant,
+        filtering on when each score became *derivable* (`known_time`)
+        rather than when its row was written. A backfill submitted today
+        for outcomes knowable last month belongs in last month's replay;
+        a score needing an outcome nobody had at ``as_of`` does not.
+        """
+        clauses = ["project = ?", "model = ?"]
+        params: list[Any] = [project, model]
+        if task is not None:
+            clauses.append("COALESCE(task, 'forecast') = ?")
+            params.append(task)
+        if as_of is not None:
+            clauses.append("COALESCE(known_time, scored_at) <= ?")
+            params.append(as_of)
         with self._connect() as conn:
             rows = conn.execute(f"""
                 SELECT * FROM model_performance
-                WHERE project = ? AND model = ?{task_filter}
+                WHERE {' AND '.join(clauses)}
                 ORDER BY scored_at DESC
-            """, params).fetchall()
+            """, tuple(params)).fetchall()
         return [dict(r) for r in rows]
 
     # ---- Routing ----
