@@ -489,6 +489,7 @@ def test_spent_tool_budget_does_not_void_the_row(tmp_path, monkeypatch):
                    [first_call, second_call, submit], tmp_path)
     assert outcome["answer"]["forecast"]["spo2"] == VALUES
     assert outcome["mcp"]["calls"] == 1
+    assert outcome["mcp"]["schema_bytes"] > 0
 
 
 # -- one batched call for every channel -------------------------------------
@@ -821,6 +822,21 @@ def test_answer_row_dispatches_every_tier_to_its_mcp_path(monkeypatch):
     assert [kind for kind, _ in calls] == ["mcq", "forecast", "mcq",
                                            "forecast"]
     assert real_mcq is not None  # the tier restriction is gone, not moved
+
+
+def test_answer_row_passes_the_experiment_profile(monkeypatch):
+    from benchmarks.temporalbench import run_temporalbench
+
+    seen = []
+    monkeypatch.setattr(
+        mcp_agent, "run_row",
+        lambda row, client, **kwargs: seen.append(kwargs) or {},
+    )
+    run_temporalbench.answer_row(
+        {"tier": "T2", "prompt": "x"}, "gnomon-mcp", None,
+        mcp_profile="core",
+    )
+    assert seen == [{"profile": "core"}]
 
 
 def test_mcp_condition_keeps_the_requested_tiers(tmp_path, monkeypatch):

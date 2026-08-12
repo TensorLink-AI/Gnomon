@@ -609,6 +609,7 @@ class _RunBase:
         self.trace: list[dict[str, Any]] = []
         self.result_log = ToolMessageLog()
         self.mcp_calls = 0
+        self.schema_bytes = 0
         self.artifact_paths: set[str] = set()
         self.submission: dict[str, Any] | None = None
         self.tokens_at_start = (getattr(client, "total_prompt_tokens", 0)
@@ -668,6 +669,7 @@ class _RunBase:
         return {
             "calls": self.mcp_calls,
             "run_tokens": self._run_tokens(),
+            "schema_bytes": self.schema_bytes,
             "tool_sequence": [
                 {key: value for key, value in entry.items()
                  if key in ("tool", "is_error", "code", "jail_violations",
@@ -683,6 +685,7 @@ class _RunBase:
         self.session.initialize()
         submit_tool = self._submit_tool()
         tools = openai_tool_specs(self.session.list_tools(), submit_tool)
+        self.schema_bytes = len(json.dumps(tools, separators=(",", ":")))
         # The official prompt is the user message, verbatim: the
         # benchmark stays authoritative about the task and its output
         # format; the system message adds only the harness contract.
@@ -1246,17 +1249,27 @@ def _drive(run: _RunBase) -> dict[str, Any]:
 
 def run_row(row: dict[str, Any], client: Any, *,
             session_factory: Any = None,
-            work_dir: str | None = None) -> dict[str, Any]:
+            work_dir: str | None = None,
+            profile: str = "full") -> dict[str, Any]:
     """Drive one T2/T4 row through the real MCP surface; return the same
     outcome shape ``answer_row`` produces for the other conditions."""
+    if session_factory is None:
+        session_factory = lambda jail: StdioMcpSession(
+            jail, command=[sys.executable, "-m", "gnomon", "mcp", "serve",
+                           "--profile", profile])
     return _drive(_Run(row, client, session_factory=session_factory,
                        work_dir=work_dir))
 
 
 def mcq_row(row: dict[str, Any], client: Any, *,
             session_factory: Any = None,
-            work_dir: str | None = None) -> dict[str, Any]:
+            work_dir: str | None = None,
+            profile: str = "full") -> dict[str, Any]:
     """Drive one T1/T3 row through the same surface with the tier's own
     answer shape; the answer object is what that tier's scorer reads."""
+    if session_factory is None:
+        session_factory = lambda jail: StdioMcpSession(
+            jail, command=[sys.executable, "-m", "gnomon", "mcp", "serve",
+                           "--profile", profile])
     return _drive(_McqRun(row, client, session_factory=session_factory,
                           work_dir=work_dir))
