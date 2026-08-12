@@ -98,9 +98,10 @@ dataset reports `known_time_provenance: partially_assumed`.
 `full` is currently the default. Start a narrower surface with
 `gnomon mcp serve --profile core|describe|evidence|mega|decision|data|full`; `gnomon_capabilities`
 reports the active profile under `mcp_profile`. A future default-profile
-change is an evaluation decision, not a claim about this build. The matched
-[surface experiment](design/mcp-surface-experiment.md) records schema bytes,
-cumulative tokens, call counts, yield, and accuracy before that choice is made.
+change remains an evaluation decision, not a claim about tool count. The first
+matched [surface experiment](design/mcp-surface-experiment-results.md) retained
+`full`: `core` reduced schema and token cost but failed the call, token, and
+answer-yield gates.
 
 ## Where artifacts land
 
