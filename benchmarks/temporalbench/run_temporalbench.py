@@ -259,10 +259,13 @@ def main() -> int:
     parser.add_argument("--datasets", default=None,
                         help="Comma list of source datasets to keep")
     parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument("--offset", type=int, default=0,
+                        help="Skip this many rows after tier/dataset filters; "
+                             "supports resumable one-row benchmark shards.")
     parser.add_argument("--temperature", type=float, default=0.2)
     parser.add_argument("--output-dir", default=None)
     parser.add_argument(
-        "--mcp-profile", choices=["full", "core", "describe", "mega", "decision", "data"],
+        "--mcp-profile", choices=["full", "core", "describe", "evidence", "mega", "decision", "data"],
         default="full",
         help="Tool profile offered by the gnomon-mcp condition. Run matched "
              "full/core arms to measure tool-distraction and schema-tax effects.")
@@ -338,8 +341,11 @@ def main() -> int:
     # run saw, so the coverage behind those means is a ratio in the
     # summary, not an inference from three separate counters.
     forecast_rows_total = 0
-    for row in iter_rows(data_dir, tiers=tiers or TIERS,
-                         datasets=datasets, limit=args.limit):
+    requested = ((args.offset + args.limit) if args.limit is not None else None)
+    for row_index, row in enumerate(iter_rows(
+            data_dir, tiers=tiers or TIERS, datasets=datasets, limit=requested)):
+        if row_index < args.offset:
+            continue
         total += 1
         if row.get("tier") in ("T2", "T4"):
             forecast_rows_total += 1
@@ -470,6 +476,7 @@ def main() -> int:
         "tiers": list(tiers or TIERS),
         "datasets": list(datasets) if datasets else "all",
         "rows": total,
+        "row_offset": args.offset,
         "rows_errored": errored,
         "rows_with_abstentions": abstained_rows,
         # Rows the harness ended without an answer (a breached cap, a run

@@ -141,7 +141,7 @@ def test_profiles_select_documented_subsets(monkeypatch) -> None:
         monkeypatch.setenv("GNOMON_MCP_PROFILE", profile)
         names = {tool["name"] for tool in visible_tools()}
         assert names == expected, profile
-        if profile not in {"describe", "mega"}:
+        if profile not in {"describe", "evidence", "mega"}:
             assert names <= full
 
     # A narrowed profile narrows everything: compat tools appear only
@@ -173,7 +173,7 @@ def test_capabilities_report_the_active_profile(monkeypatch) -> None:
     payload = capabilities()["mcp_profile"]
     assert payload["active"] == "full"
     assert payload["available"] == [
-        "core", "data", "decision", "describe", "mega", "full"]
+        "core", "data", "decision", "describe", "evidence", "mega", "full"]
 
     monkeypatch.setenv("GNOMON_MCP_PROFILE", "core")
     payload = capabilities()["mcp_profile"]

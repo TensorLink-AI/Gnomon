@@ -453,7 +453,7 @@ def build_parser() -> argparse.ArgumentParser:
         "serve", help="Serve Gnomon tools over stdio MCP"
     )
     mcp_serve.add_argument(
-        "--profile", choices=("core", "describe", "mega", "decision", "data", "full"),
+        "--profile", choices=("core", "describe", "evidence", "mega", "decision", "data", "full"),
         default=None,
         help="Tool subset to expose (default full, 18 tools): core = "
              "forecast/investigate/detect plus capabilities, inspection, "

@@ -27,6 +27,9 @@ outputs retain accuracy by tier, forecast coverage and support mix, routes,
 abstentions, and harness-voided rows. Compare accuracy only on matched rows;
 price abstention into the result instead of dropping it.
 
+For long sweeps, run resumable one-row shards with `--offset N --limit 1`.
+Provider or process failure then loses one row rather than the whole experiment.
+
 ## Pre-committed decision rule
 
 The candidate default must not regress the full control on the
@@ -42,3 +45,6 @@ specialized controls. The two prototypes are explicit profiles and never alter
 the production `full` surface. If evidence injection still beats every tool
 arm, the binding fallback is a compact evidence-pack surface centered on
 description plus forecast, rather than adding tools.
+
+That fallback is executable as the `evidence` profile: exactly
+`gnomon_describe` plus `gnomon_forecast`.

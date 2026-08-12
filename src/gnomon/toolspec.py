@@ -2364,6 +2364,7 @@ _CORE_PROFILE = frozenset({
 PROFILES: dict[str, frozenset[str]] = {
     "core": _CORE_PROFILE,
     "describe": _CORE_PROFILE | {"gnomon_describe"},
+    "evidence": frozenset({"gnomon_describe", "gnomon_forecast"}),
     "mega": frozenset({"gnomon_inspect", "gnomon_run", "gnomon_track"}),
     "decision": _CORE_PROFILE | {
         "gnomon_decide", "gnomon_monitor", "gnomon_route",

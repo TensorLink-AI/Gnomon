@@ -492,6 +492,21 @@ def test_spent_tool_budget_does_not_void_the_row(tmp_path, monkeypatch):
     assert outcome["mcp"]["schema_bytes"] > 0
 
 
+def test_complete_artifact_survives_final_submission_format_failure(tmp_path):
+    def forecast(messages):
+        return {"tool_calls": [_forecast_call(messages, "hr,spo2")]}
+
+    outcome = _run(_row(sparse_temp=False), [
+        forecast,
+        {"content": "I would submit the artifact."},
+        {"content": "Still prose."},
+    ], tmp_path)
+    assert outcome["channel_route"] == {"hr": "gnomon", "spo2": "gnomon"}
+    assert "row_abstained" not in outcome
+    assert {entry.get("submission_fallback") for entry in
+            outcome["mcp"]["tool_sequence"]} == {None, "complete_artifact"}
+
+
 # -- one batched call for every channel -------------------------------------
 
 def test_one_multi_target_artifact_serves_each_of_its_channels(tmp_path):
@@ -915,21 +930,46 @@ def test_voided_rows_stay_out_of_the_accuracy_denominators(tmp_path,
     assert manifest["base_url"] == "http://x"
 
 
-def test_rounds_constant_departs_from_cik_posture_deliberately():
-    """This arm's round cap is intentionally NOT the CiK arm's 10.
+def test_row_offset_makes_long_sweeps_shardable(tmp_path, monkeypatch):
+    import benchmarks.temporalbench.run_temporalbench as runner
 
-    Measured: at 10, 11 of 12 T2/T4 rows ended `cap:rounds` with the
-    token and wall-clock ceilings untouched, so the cap was the
-    measurement rather than a guard; 30 took scored rows 1/12 -> 4/12.
-    A TemporalBench row is also a longer conversation than a CiK one —
-    up to six channels to forecast and submit against CiK's single
-    series — so parity of the number was never parity of the budget.
-    If these are reunified, change both and re-measure; do not quietly
-    lower this one back.
-    """
-    assert MAX_ROUNDS == 30
+    rows = [{"id": f"row{i}", "tier": "T1", "prompt": "x",
+             "labels": {"trend": "upward"}} for i in range(4)]
+    seen = []
+    requested = {}
+    monkeypatch.setattr(runner, "load_official_metrics", lambda _dir: None)
+    monkeypatch.setattr(runner, "OpenRouterClient",
+                        lambda *a, **k: SimpleNamespace(
+                            base_url="http://x", usage_summary={}))
+    def rows_for_run(_dir, **kwargs):
+        requested["limit"] = kwargs["limit"]
+        return iter(rows[:kwargs["limit"]])
+    monkeypatch.setattr(runner, "iter_rows", rows_for_run)
+    monkeypatch.setattr(
+        runner, "answer_row",
+        lambda row, *a, **k: seen.append(row["id"]) or {
+            "answer": {"trend": "upward"}, "abstained": []},
+    )
+    output = tmp_path / "out"
+    monkeypatch.setattr(sys, "argv", [
+        "run_temporalbench", "--data-dir", str(tmp_path),
+        "--condition", "gnomon-mcp", "--model", "x/y", "--tiers", "T1",
+        "--offset", "2", "--limit", "1", "--output-dir", str(output),
+    ])
+    assert runner.main() == 0
+    assert requested["limit"] == 3
+    assert seen == ["row2"]
+    summary = json.loads((output / "summary.json").read_text())
+    assert summary["row_offset"] == 2
+    assert summary["rows"] == 1
+
+
+def test_surface_experiment_enforces_the_precommitted_call_ceiling():
+    """Completed work gets a final submission round after four calls."""
+    assert MAX_ROUNDS == 10
+    assert mcp_agent.MAX_MCP_CALLS == 4
     assert cik_mcp_agent.MAX_ROUNDS == 10, (
-        "CiK's cap moved; revisit whether the divergence is still wanted"
+        "CiK's cap moved; revisit the matched harness posture"
     )
 
 
