@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- **Benchmark MCP arms stop losing answers the model already produced.**
+  Three submission-robustness fixes in the TemporalBench agent loop,
+  none of which computes anything new for the model: `submit_answer`
+  container fields that arrive as JSON-encoded *strings* (a routine
+  tool-calling defect) are parsed back into objects — envelope only,
+  disclosed per-field in the trace as `coerced`, and a string that does
+  not parse or parses to a scalar is left for the validator; the last
+  call gains one repair attempt (engine tools stay withdrawn, so only
+  the envelope can change — measured sweeps lost whole rows to a
+  correct answer mis-enveloped at the final round, including prose
+  answers that never became a tool call); and harness-truncated arrays
+  now carry a `remedy` note saying the harness did the shortening and
+  the artifact path holds the full values — the measured failure was 34
+  `gnomon_inspect` calls re-deriving numbers that were never lost.
+  `MAX_ROUNDS` rises 10 → 30 on TemporalBench, from the measured pilot:
+  11 of 12 T2/T4 rows ended `cap:rounds` with the token ceiling never
+  approached, and raising the cap alone took scored rows 1/12 → 4/12.
+
 - **The MCP surface is token-lean without disclosing less.** Four
   transport changes, no change to what is computed or disclosed:
   `gnomon_capabilities` now defaults to a brief view inside the
