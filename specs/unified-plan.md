@@ -222,9 +222,11 @@ contributing knowledge time.
 - Replace `INERT_KEYS` with allowlist schema validation. Dynamic
   namespaces such as API provider names and per-model overrides receive
   typed wildcard schemas rather than bypassing validation.
-- Wire or reject `meta_model.min_folds`, `meta_model.fallback`,
-  `ensemble.eligible`, `ensemble.weighted_mean.fallback`,
-  `backends.sandbox.venv_root`, and `backends.sandbox.auto_install`.
+- Wire or reject `meta_model.type`, `meta_model.min_folds`,
+  `meta_model.fallback`, `ensemble.eligible`,
+  `ensemble.weighted_mean.fallback`, `backends.sandbox.venv_root`,
+  `backends.sandbox.auto_install`, and the `llm.*` section
+  (parsed at `config.py:414-420`, read by nothing).
 - Honor `ridge_alpha` or reject it; the denylist says it is honored while
   `meta_model.py:87,152` hardcode `alpha=1e-6`.
 - Reject `ensemble.strategy: stacking` at startup until it has an
@@ -476,9 +478,10 @@ remains a complete supported path.
 
 ## Corrections to the input documents (verification pass, 2026-08-12)
 
-- `_v1.md` claims the `llm.*` config section is parsed-never-read —
-  stale; `config.py` no longer has an `llm` section.
 - `_v1.md` claims `models.tsfm.overrides.*` is never read — false;
   read at `config.py:526`.
+- `_v1.md`'s claims that the `llm.*` section (parsed at
+  `config.py:414-420`) and `meta_model.type` are parsed-never-read
+  were re-verified true; both join Phase 1E's wire-or-reject list.
 - All other cited defects re-verified live at `4ee9479` (line numbers
   updated above where they had drifted).
