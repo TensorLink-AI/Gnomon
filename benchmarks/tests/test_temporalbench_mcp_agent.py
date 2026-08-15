@@ -326,6 +326,50 @@ def test_values_only_with_no_tool_use_routes_direct(tmp_path):
     assert outcome["channel_support"] == {"hr": "model", "spo2": "model"}
 
 
+def test_host_compiled_forecast_cannot_be_bypassed_by_direct_submission(
+    tmp_path,
+):
+    """Providers may ignore forced tool_choice; the harness must not.
+
+    A direct fallback is allowed only after Gnomon has actually run, otherwise
+    the measured product arm is secretly the baseline arm.
+    """
+    row = _row(sparse_temp=False)
+    row["_host_compiled_forecast"] = True
+
+    def bypass(_messages):
+        return {"tool_calls": [("submit_answer", {
+            "forecast": {"hr": {"values": VALUES},
+                         "spo2": {"values": VALUES}},
+            "mcq": {},
+        })]}
+
+    def recover(messages):
+        payload = _last_tool_payload(messages)
+        assert payload["accepted"] is False
+        assert payload["problems"] == [
+            "host_execution_required: run Gnomon before submitting "
+            "model-authored forecast values; direct values bypass the "
+            "product contract for channel(s): hr, spo2"
+        ]
+        return {"tool_calls": [_forecast_call(messages, "hr,spo2")]}
+
+    def submit(messages):
+        payload = _last_tool_payload(messages)
+        path = payload["artifact_path"]
+        return {"tool_calls": [("submit_answer", {
+            "forecast": {"hr": {"artifact_path": path},
+                         "spo2": {"artifact_path": path}},
+            "mcq": {},
+        })]}
+
+    outcome = _run(row, [bypass, recover, submit], tmp_path)
+    assert outcome["channel_route"] == {"hr": "gnomon", "spo2": "gnomon"}
+    assert outcome["mcp"]["calls"] == 1
+    assert outcome["mcp"]["tool_sequence"][0]["tool"] == "submit_answer"
+    assert outcome["mcp"]["tool_sequence"][0]["submit_rejected"]
+
+
 def test_omitted_channel_is_a_recorded_abstention(tmp_path):
     outcome = _run(_row(sparse_temp=False), [
         {"tool_calls": [("submit_answer", {
