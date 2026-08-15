@@ -24,10 +24,13 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from benchmarks.cik import mcp_agent as cik_mcp_agent
 from benchmarks.cik.mcp_agent import InProcessMcpSession
+from benchmarks.common.openrouter import OpenRouterError
 from benchmarks.temporalbench import mcp_agent
 from benchmarks.temporalbench.mcp_agent import (
     MAX_ROUNDS,
@@ -538,6 +541,16 @@ def test_token_cap_abstains_when_the_last_call_answers_in_prose(tmp_path):
     assert "cap:tokens" in outcome["row_abstained"]
 
 
+def test_last_call_provider_failure_remains_retryable_infrastructure(tmp_path):
+    def unavailable(_messages):
+        raise OpenRouterError("provider timed out")
+
+    with pytest.raises(OpenRouterError, match="provider timed out"):
+        _run(_row(sparse_temp=False), [
+            {"content": "thinking", "bump_tokens": 600_000}, unavailable,
+        ], tmp_path)
+
+
 # -- the envelope is repaired; the answer never is --------------------------
 
 def _submitted(messages=None):
@@ -678,6 +691,19 @@ def test_spent_tool_budget_does_not_void_the_row(tmp_path, monkeypatch):
     assert outcome["answer"]["forecast"]["spo2"] == VALUES
     assert outcome["mcp"]["calls"] == 1
     assert outcome["mcp"]["schema_bytes"] > 0
+
+
+def test_natural_routing_still_requires_product_execution(tmp_path):
+    run = object.__new__(mcp_agent._Run)
+    run.row = {"_require_gnomon_execution": True}
+    run.mcp_calls = 0
+    run.target_keys = ["hr", "spo2"]
+    run.horizon = len(VALUES)
+    run.submission = None
+    result = run._handle_submit({"forecast": {
+        "hr": {"values": VALUES}, "spo2": {"values": VALUES}}})
+    assert result["accepted"] is False
+    assert "host_execution_required" in result["problems"][0]
 
 
 def test_complete_artifact_survives_final_submission_format_failure(tmp_path):

@@ -15,6 +15,7 @@ the task. The response is schema-bound JSON with no tool access.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Any
 
@@ -96,6 +97,59 @@ CONTEXT_RESPONSE_SCHEMA: dict[str, Any] = {
     },
     "required": ["events"],
 }
+
+
+def normalise_context_response_containers(
+    raw: dict[str, Any],
+) -> tuple[dict[str, Any], list[str]]:
+    """Repair JSON containers that a tool-calling provider double-encoded.
+
+    This is deliberately an envelope-only compatibility repair.  It parses
+    bytes the model already returned; it never fills, renames, or infers an
+    event field.  Some OpenAI-compatible providers have also been observed
+    placing ``\"hypotheses\": [...]`` after a double-encoded ``events`` array
+    inside the same string.  Wrapping that fragment back into the object it
+    plainly encodes is safe for the same reason, and the returned repair list
+    makes the intervention auditable.
+    """
+    if not isinstance(raw, dict):
+        return raw, []
+    result = dict(raw)
+    repairs: list[str] = []
+    for field in ("events", "hypotheses"):
+        value = result.get(field)
+        if not isinstance(value, str):
+            continue
+        try:
+            parsed = json.loads(value)
+        except (json.JSONDecodeError, ValueError):
+            parsed = None
+        if isinstance(parsed, list):
+            result[field] = parsed
+            repairs.append(field)
+            continue
+        if field != "events" or not value.lstrip().startswith("["):
+            continue
+        fragment = None
+        # Providers have emitted both fragments with the outer closing brace
+        # present and fragments without it. Try those two purely syntactic
+        # completions; neither changes the returned fields.
+        for candidate in ('{"events":' + value,
+                          '{"events":' + value + "}"):
+            try:
+                fragment = json.loads(candidate)
+                break
+            except (json.JSONDecodeError, ValueError):
+                pass
+        if not isinstance(fragment, dict) or not isinstance(
+                fragment.get("events"), list):
+            continue
+        result["events"] = fragment["events"]
+        repairs.append("events+trailing_fields")
+        if "hypotheses" not in result and isinstance(
+                fragment.get("hypotheses"), list):
+            result["hypotheses"] = fragment["hypotheses"]
+    return result, repairs
 
 
 def build_context_investigation_prompt(

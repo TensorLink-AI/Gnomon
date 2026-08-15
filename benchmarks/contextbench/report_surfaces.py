@@ -52,6 +52,9 @@ def _cluster_ci(rows: list[dict[str, Any]], metric: Callable[[dict[str, Any]], f
 def aggregate(run_dirs: list[Path]) -> dict[str, Any]:
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     replicates: dict[str, int] = defaultdict(int)
+    paired_rows: list[dict[str, Any]] = []
+    corpus_hashes: set[str] = set()
+    seen_replicates: set[tuple[str, str]] = set()
     for directory in run_dirs:
         summary_path = directory / "summary.json"
         observation_path = directory / "observations.jsonl"
@@ -59,19 +62,41 @@ def aggregate(run_dirs: list[Path]) -> dict[str, Any]:
             raise ValueError(f"missing observations: {observation_path}")
         summary = (json.loads(summary_path.read_text())
                    if summary_path.is_file() else {})
+        corpus_hash = summary.get("corpus_manifest_sha256")
+        if not corpus_hash:
+            raise ValueError(f"missing corpus manifest hash: {summary_path}")
+        corpus_hashes.add(str(corpus_hash))
+        if len(corpus_hashes) > 1:
+            raise ValueError("surface runs use different corpus manifests")
         profile = str(summary.get("profile") or
                       directory.name.split("-r", 1)[0].removeprefix("v2-"))
-        grouped[profile].extend(_read(observation_path))
-        replicates[profile] += 1
+        routing = str(summary.get("routing_policy") or "controlled")
+        replicate_id = str(summary.get("replicate_id") or
+                           directory.name.rsplit("-r", 1)[-1])
+        arm = f"{profile}:{routing}"
+        replicate_key = (arm, replicate_id)
+        if replicate_key in seen_replicates:
+            raise ValueError(
+                f"duplicate surface replicate: {arm} replicate {replicate_id}")
+        seen_replicates.add(replicate_key)
+        rows = _read(observation_path)
+        tagged = [{**row, "_profile": profile, "_routing": routing,
+                   "_replicate_id": replicate_id} for row in rows]
+        grouped[arm].extend(tagged)
+        paired_rows.extend(tagged)
+        replicates[arm] += 1
 
     arms: dict[str, Any] = {}
-    for profile, rows in sorted(grouped.items()):
+    for arm, rows in sorted(grouped.items()):
+        profile, routing_policy = arm.split(":", 1)
         answered = [row for row in rows if row.get("status") == "answered"]
         failures = defaultdict(int)
+        failure_stages = defaultdict(int)
         for row in rows:
             kind = _failure_class(row)
             if kind:
                 failures[kind] += 1
+                failure_stages[str(row.get("failure_stage") or "unknown")] += 1
         families: dict[str, Any] = {}
         for family in sorted({str(row["family"]) for row in answered}):
             members = [row for row in answered if row["family"] == family]
@@ -93,16 +118,36 @@ def aggregate(run_dirs: list[Path]) -> dict[str, Any]:
         influence = [row for row in answered if row["should_influence"]]
         parity_eligible = [row for row in answered
                            if row.get("publication_parity") is not None]
-        arms[profile] = {
-            "replicates": replicates[profile],
+        schema_bytes = [int(row.get("history_schema_bytes", 0))
+                        + int(row.get("context_schema_bytes", 0))
+                        for row in answered]
+        redundant = [int(row.get("redundant_calls", max(0, calls[index] - 2)))
+                     for index, row in enumerate(answered)]
+        observed_stages = sorted({stage for row in rows
+                                  for stage in (row.get("stage_seconds") or {})})
+        arms[arm] = {
+            "profile": profile, "routing_policy": routing_policy,
+            "replicates": replicates[arm],
             "attempted_observations": len(rows),
             "unique_cases": len({row["case_id"] for row in rows}),
             "successful_pairs": len(answered),
             "completion_rate": len(answered) / len(rows) if rows else 0.0,
             "failures": dict(sorted(failures.items())),
+            "failure_stages": dict(sorted(failure_stages.items())),
+            "stage_latency_seconds_mean": {
+                stage: mean(float(row["stage_seconds"][stage]) for row in rows
+                            if stage in (row.get("stage_seconds") or {}))
+                for stage in observed_stages
+            },
             "agent_calls_mean": mean(calls) if calls else None,
             "agent_calls_median": (sorted(calls)[len(calls) // 2]
                                    if calls else None),
+            "surface_required_calls": 2,
+            "redundant_calls_mean": mean(redundant) if redundant else None,
+            "redundant_calls_median": (
+                sorted(redundant)[len(redundant) // 2] if redundant else None),
+            "paired_schema_bytes_mean": (mean(schema_bytes)
+                                         if schema_bytes else None),
             "compiler_logical_calls": sum(int(row.get("compiler_calls", 0))
                                           for row in rows),
             "compiler_executed_calls": sum(
@@ -114,6 +159,11 @@ def aggregate(run_dirs: list[Path]) -> dict[str, Any]:
             "admission_recall": (mean(bool(row.get("applied"))
                                       for row in influence)
                                  if influence else None),
+            "disposition_accuracy": (mean(bool(row.get("disposition_valid"))
+                                          for row in answered)
+                                     if answered and all(
+                                         "disposition_valid" in row
+                                         for row in answered) else None),
             "false_influence_rate": (mean(bool(row.get("primary_changed"))
                                           for row in false_trials)
                                      if false_trials else None),
@@ -129,9 +179,34 @@ def aggregate(run_dirs: list[Path]) -> dict[str, Any]:
             },
             "families": families,
         }
+    cross_groups: dict[tuple[str, str, str], list[dict[str, Any]]] = defaultdict(list)
+    for row in paired_rows:
+        if row.get("status") == "answered":
+            cross_groups[(row["_routing"], row["_replicate_id"],
+                          str(row["case_id"]))].append(row)
+    comparable = [members for members in cross_groups.values()
+                  if len({row["_profile"] for row in members}) >= 2]
+    matched = [members for members in comparable if len({
+        (tuple(row.get("history_forecast") or ()),
+         tuple(row.get("context_forecast") or ())) for row in members
+    }) == 1]
     return {"benchmark": "contextbench-surface-comparison",
+            "corpus_manifest_sha256": (next(iter(corpus_hashes))
+                                        if corpus_hashes else None),
             "bootstrap": {"unit": "case_id", "draws": 5000,
                           "confidence": 0.95, "seed": 1729},
+            "interpretation": {
+                "context_accuracy": (
+                    "engine/compiler treatment; equal successful forecasts "
+                    "across surfaces are expected"),
+                "surface_treatment": (
+                    "completion, agent calls, redundant calls, and schema bytes"),
+            },
+            "cross_surface_forecast_parity": {
+                "comparable_case_replicates": len(comparable),
+                "matched": len(matched),
+                "rate": len(matched) / len(comparable) if comparable else None,
+            },
             "arms": arms}
 
 

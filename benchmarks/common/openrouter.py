@@ -140,6 +140,7 @@ class OpenRouterClient:
         self.total_completion_tokens = 0
         self.total_cost_usd = 0.0
         self.total_requests = 0
+        self.total_transport_attempts = 0
         self.truncation_escalations = 0
 
     def chat(
@@ -247,7 +248,10 @@ class OpenRouterClient:
             payload["tool_choice"] = tool_choice
         body = json.dumps(payload).encode("utf-8")
         last_error: Exception | None = None
-        for attempt in range(self.max_retries):
+        attempts = self.max_retries + 1
+        for attempt in range(attempts):
+            with self._usage_lock:
+                self.total_transport_attempts += 1
             request = urllib.request.Request(
                 f"{self.base_url}/chat/completions",
                 data=body,
@@ -278,9 +282,10 @@ class OpenRouterClient:
                     ) from error
             except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as error:
                 last_error = error
-            time.sleep(2**attempt)
+            if attempt + 1 < attempts:
+                time.sleep(2**attempt)
         raise OpenRouterError(
-            f"OpenRouter request failed after {self.max_retries} attempts: {last_error}"
+            f"OpenRouter request failed after {attempts} attempts: {last_error}"
         )
 
     def completions(self, messages: list[dict[str, Any]], *, n: int = 1) -> list[str]:
@@ -335,6 +340,7 @@ class OpenRouterClient:
             # different endpoint is a different measurement.
             "base_url": self.base_url,
             "requests": self.total_requests,
+            "transport_attempts": self.total_transport_attempts,
             "prompt_tokens": self.total_prompt_tokens,
             "completion_tokens": self.total_completion_tokens,
             "cost_usd": round(self.total_cost_usd, 6),

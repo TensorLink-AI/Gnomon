@@ -219,3 +219,108 @@ def residual_event_adjusted(
     effect = residual_event_effect(residuals, active_history, shape)
     return [point + effect * weight for point, weight in
             zip(base_points, shape_weights(active_future, shape))]
+
+
+def episode_residual_observations(
+    history: list[float], active_history: list[bool], model: str, season: int,
+) -> list[tuple[float, int, int]]:
+    """Residual, offset, and span from forecasts frozen before each episode.
+
+    One-step residuals can absorb the first pulse observation into the model
+    before scoring the second, systematically shrinking multi-step effects.
+    This estimator freezes the history-only model at each event onset and
+    scores the complete active run against that pre-event forecast.  The
+    amplitude is a least-squares fit to the nominated/contested shape; no
+    future episode contributes before its onset.
+    """
+    if len(history) != len(active_history):
+        raise ValueError("event flags do not align with history")
+    observations: list[tuple[float, int, int]] = []
+    episodes = 0
+    index = 0
+    minimum = max(season, 2)
+    while index < len(history):
+        if not active_history[index]:
+            index += 1
+            continue
+        end = index
+        while end < len(history) and active_history[end]:
+            end += 1
+        span = end - index
+        if index >= minimum:
+            baseline = predict(model, history[:index], span, season)
+            if len(baseline) == span:
+                observations.extend(
+                    (history[index + offset] - baseline[offset], offset, span)
+                    for offset in range(span))
+                episodes += 1
+        index = end
+    if episodes < 2:
+        raise ValueError("fewer than two scoreable event episodes in training history")
+    return observations
+
+
+def episode_residual_effect(
+    history: list[float], active_history: list[bool], model: str,
+    season: int, shape: str,
+    observations: list[tuple[float, int, int]] | None = None,
+) -> float:
+    """Fit a shaped amplitude to pre-event-frozen episode residuals."""
+    observations = observations or episode_residual_observations(
+        history, active_history, model, season)
+    weighted = [
+        (residual, shape_weights([True] * span, shape)[offset])
+        for residual, offset, span in observations
+    ]
+    denominator = sum(weight * weight for _, weight in weighted)
+    if denominator <= 1e-12:
+        raise ValueError(f"shape {shape!r} delivers no scoreable effect")
+    return sum(residual * weight for residual, weight in weighted) / denominator
+
+
+def episode_residual_amplitudes(
+    observations: list[tuple[float, int, int]], shape: str,
+) -> list[float]:
+    """Fit one amplitude per independent event episode.
+
+    Fold scores overlap heavily when the forecast horizon slides one step at
+    a time.  Treating those folds as independent evidence can therefore make
+    an unrelated schedule look significant.  Episode amplitudes retain the
+    actual independent unit—the complete occurrence—so the admission layer
+    can require the effect direction to be stable across occurrences.
+    """
+    episodes: list[list[tuple[float, int, int]]] = []
+    for observation in observations:
+        _, offset, _ = observation
+        if offset == 0:
+            episodes.append([])
+        if not episodes:
+            raise ValueError("episode observations do not start at an onset")
+        episodes[-1].append(observation)
+    amplitudes: list[float] = []
+    for episode in episodes:
+        weighted = [
+            (residual, shape_weights([True] * span, shape)[offset])
+            for residual, offset, span in episode
+        ]
+        denominator = sum(weight * weight for _, weight in weighted)
+        if denominator <= 1e-12:
+            raise ValueError(f"shape {shape!r} delivers no scoreable effect")
+        amplitudes.append(
+            sum(residual * weight for residual, weight in weighted) / denominator)
+    return amplitudes
+
+
+def episode_residual_adjusted(
+    history: list[float], horizon: int, season: int,
+    active_history: list[bool], active_future: list[bool],
+    base_points: list[float], model: str, shape: str = "level",
+    observations: list[tuple[float, int, int]] | None = None,
+) -> list[float]:
+    """Apply the pre-event-frozen episode effect to a history-only path."""
+    if len(active_future) != horizon or len(base_points) != horizon:
+        raise ValueError("event flags or base path do not span the horizon")
+    effect = episode_residual_effect(
+        history, active_history, model, season, shape, observations)
+    return [point + effect * weight for point, weight in
+            zip(base_points, shape_weights(active_future, shape))]

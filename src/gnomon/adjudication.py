@@ -15,7 +15,8 @@ the choice rather than asserting it.
 The combined candidate is the simplest defensible composition of the two
 admitted mechanisms: the covariate linear forecast plus the additive
 event effect measured from detrended history, both fitted per fold under
-that fold's cutoff.
+that fold's cutoff. A context-only rung replays the exact estimator and shape
+that cleared its independent gate.
 """
 
 from __future__ import annotations
@@ -27,7 +28,10 @@ from typing import Any, Callable
 
 from .context import ContextEvent
 from .context_eval import CONTEXT_MODEL_NAME, ContextAssessment, eligible_events, event_flags
-from .context_model import event_adjusted, event_effect
+from .context_model import (
+    episode_residual_adjusted, event_adjusted, event_effect,
+    residual_event_adjusted, rolling_residuals,
+)
 from .covariates import CovariateAssessment, CovariateDataset, covariate_forecast
 from .evaluation import Evaluation, error_score, interval_bounds, quantile
 from .models import MODELS, predict
@@ -150,10 +154,25 @@ def adjudicate_enrichments(
         return predict(base_model, values[:origin], horizon, season)
 
     def context_prediction(origin: int, cutoff: datetime) -> list[float]:
+        assert context_assessment is not None
+        historical = event_flags(eligible, timestamps[:origin], cutoff)
+        future = event_flags(
+            eligible, timestamps[origin:origin + horizon], cutoff)
+        shape = context_assessment.effect_shape
+        if context_assessment.effect_estimator == "base_model_episode_residual":
+            return episode_residual_adjusted(
+                values[:origin], horizon, season, historical, future,
+                predict(base_model, values[:origin], horizon, season),
+                base_model, shape,
+            )
+        if context_assessment.effect_estimator == "base_model_residual":
+            return residual_event_adjusted(
+                rolling_residuals(values[:origin], base_model, season),
+                horizon, historical, future,
+                predict(base_model, values[:origin], horizon, season), shape,
+            )
         return event_adjusted(
-            values[:origin], horizon, season,
-            event_flags(eligible, timestamps[:origin], cutoff),
-            event_flags(eligible, timestamps[origin:origin + horizon], cutoff),
+            values[:origin], horizon, season, historical, future, shape,
         )
 
     def covariate_prediction(origin: int, cutoff: datetime) -> list[float] | None:
@@ -166,9 +185,27 @@ def adjudicate_enrichments(
         points = covariate_prediction(origin, cutoff)
         if points is None:
             return None
-        effect = event_effect(values[:origin], event_flags(eligible, timestamps[:origin], cutoff))
-        active = event_flags(eligible, timestamps[origin:origin + horizon], cutoff)
-        return [point + (effect if flag else 0.0) for point, flag in zip(points, active)]
+        effect = event_effect(
+            values[:origin],
+            event_flags(eligible, timestamps[:origin], cutoff))
+        active = event_flags(
+            eligible, timestamps[origin:origin + horizon], cutoff)
+        return [point + (effect if flag else 0.0)
+                for point, flag in zip(points, active)]
+
+    def combined_final_prediction() -> list[float] | None:
+        final_cutoff = timestamps[-1]
+        covariate_final = covariate_forecast(
+            values, timestamps, future_timestamps, dataset, retained, series,
+            final_cutoff, season,
+        )
+        if covariate_final is None:
+            return None
+        effect = event_effect(
+            values, event_flags(eligible, timestamps, final_cutoff))
+        active = event_flags(eligible, future_timestamps, final_cutoff)
+        return [point + (effect if flag else 0.0)
+                for point, flag in zip(covariate_final, active)]
 
     ladder: list[tuple[Candidate, Callable[[int, datetime], list[float] | None]]] = [
         (base_candidate, base_prediction),
@@ -222,7 +259,8 @@ def adjudicate_enrichments(
             break
         finalised = _finalise(
             candidate, context_assessment, covariate_assessment,
-            combined_prediction, values, timestamps, future_timestamps,
+            combined_prediction, combined_final_prediction,
+            values, timestamps, future_timestamps,
             dataset, retained, eligible, series, horizon, season,
             calibration_origin, test_origin,
         )
@@ -263,6 +301,7 @@ def _finalise(
     context_assessment: ContextAssessment | None,
     covariate_assessment: CovariateAssessment | None,
     combined_prediction: Callable[[int, datetime], list[float] | None],
+    combined_final_prediction: Callable[[], list[float] | None],
     values: list[float],
     timestamps: list[datetime],
     future_timestamps: list[datetime],
@@ -319,16 +358,9 @@ def _finalise(
                 low, _, high = interval_bounds(prediction, residual_quantiles, step)
                 covered.append(1.0 if low <= actual <= high else 0.0)
             coverage = mean(covered)
-        final_cutoff = timestamps[-1]
-        covariate_final = covariate_forecast(
-            values, timestamps, future_timestamps, dataset, retained, series,
-            final_cutoff, season,
-        )
-        if covariate_final is None:
+        points = combined_final_prediction()
+        if points is None:
             return None
-        effect = event_effect(values, event_flags(eligible, timestamps, final_cutoff))
-        active = event_flags(eligible, future_timestamps, final_cutoff)
-        points = [point + (effect if flag else 0.0) for point, flag in zip(covariate_final, active)]
     except ValueError:
         return None
     warnings: list[str] = []

@@ -10,13 +10,19 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from benchmarks.contextbench.generate import generate, main as generate_main
-from benchmarks.contextbench.run_contextbench import smape, summarize
+from benchmarks.contextbench import run_surfaces as surface_runner
+from benchmarks.contextbench.run_contextbench import (
+    smape, summarize, valid_disposition,
+)
 from benchmarks.contextbench.run_contextbench import main as run_main
 from benchmarks.contextbench.run_llm import (
     compile_events, raw_case, safe_payload,
 )
 from benchmarks.contextbench.run_surfaces import surface_row
 from benchmarks.contextbench.report_surfaces import aggregate
+from benchmarks.contextbench.report_contextbench import (
+    aggregate as aggregate_contextbench,
+)
 from benchmarks.contextbench.schema import Case, load_cases, load_oracles
 
 
@@ -70,6 +76,14 @@ def test_generated_files_are_strict_and_hash_addressed(tmp_path, monkeypatch):
 def test_smape_is_symmetric_and_zero_safe():
     assert smape([0.0, 10.0], [0.0, 12.0]) == smape([0.0, 12.0], [0.0, 10.0])
     assert smape([0.0], [0.0]) == 0.0
+
+
+def test_disposition_contract_does_not_demand_oracle_omniscience():
+    assert valid_disposition("repeated_event", True, "applied")
+    assert valid_disposition("repeated_event", False, "scenario_only")
+    assert valid_disposition("future_covariate", False, "rejected")
+    assert valid_disposition("prior_only", False, "scenario_only")
+    assert not valid_disposition("future_covariate", False, "applied")
 
 
 def test_summary_does_not_let_covariate_lift_hide_event_failure():
@@ -165,6 +179,8 @@ def test_surface_row_is_oracle_sealed_and_family_neutral():
     assert json.dumps(oracle["actual"]) not in rendered
     assert json.dumps(oracle["counterfactual"]) not in rendered
     assert row["tier"] == "T4"
+    assert row["_require_gnomon_execution"] is True
+    assert row["_host_compiled_forecast"] is True
     assert row["input"]["future_covariates"]
     assert row["input"]["covariate_mapping"][0]["type"] == "binary"
     assert len(row["input"]["history"]["value"]) == len(case.history)
@@ -178,6 +194,14 @@ def test_history_surface_row_excludes_all_outside_context():
     assert row["tier"] == "T2"
     assert row["input"] == {"history": {"value": list(case.history)}}
     assert case.narrative not in row["prompt"]
+
+
+def test_natural_surface_policy_preserves_execution_without_forced_routing():
+    raw_cases, _ = generate(33, per_family=1)
+    row = surface_row(Case.from_dict(raw_cases[0]), include_context=True,
+                      routing_policy="natural")
+    assert row["_require_gnomon_execution"] is True
+    assert row["_host_compiled_forecast"] is False
 
 
 def test_scripted_raw_arm_scores_only_after_model_submission():
@@ -248,10 +272,33 @@ def test_compiler_repairs_json_encoded_schema_containers():
     assert compiled["container_coercions"]
 
 
+def test_compiler_repairs_provider_trailing_fields_inside_events_string():
+    raw_cases, _ = generate(10, per_family=1)
+    case = Case.from_dict(next(
+        row for row in raw_cases if row["family"] == "prior_only"))
+    source = case.context_events[0]
+    quote = (
+        f"{source['event_type']} affects the value series from "
+        f"{source['effective_start']} through {source['effective_end']}."
+    )
+    event = {
+        "document_index": 0, "event_type": source["event_type"],
+        "entity_scope": ["*"], "effective_start": source["effective_start"],
+        "effective_end": source["effective_end"],
+        "known_at": "2025-01-01T00:00:00+00:00", "evidence_quote": quote,
+    }
+    for suffix in (', "hypotheses": []', ', "hypotheses": []}'):
+        malformed = json.dumps([event]) + suffix
+        compiled = compile_events(case, _ScriptedClient({"events": malformed}))
+        assert len(compiled["events"]) == 1
+        assert "events+trailing_fields" in compiled["container_coercions"]
+
+
 def test_surface_report_separates_product_and_provider_failures(tmp_path):
     run = tmp_path / "v2-evidence-r1"
     run.mkdir()
-    (run / "summary.json").write_text(json.dumps({"profile": "evidence"}))
+    (run / "summary.json").write_text(json.dumps({
+        "profile": "evidence", "corpus_manifest_sha256": "same"}))
     rows = [{
         "case_id": "a", "family": "irrelevant", "status": "answered",
         "history_smape": 2.0, "context_smape": 2.0,
@@ -269,7 +316,7 @@ def test_surface_report_separates_product_and_provider_failures(tmp_path):
     }]
     (run / "observations.jsonl").write_text(
         "".join(json.dumps(row) + "\n" for row in rows))
-    report = aggregate([run])["arms"]["evidence"]
+    report = aggregate([run])["arms"]["evidence:controlled"]
     assert report["attempted_observations"] == 3
     assert report["successful_pairs"] == 1
     assert report["failures"] == {
@@ -277,6 +324,114 @@ def test_surface_report_separates_product_and_provider_failures(tmp_path):
     assert report["compiler_logical_calls"] == 1
     assert report["compiler_executed_calls"] == 1
     assert report["publication_parity"]["identity_matched"] == 1
+    assert report["routing_policy"] == "controlled"
+
+
+def test_surface_report_pairs_natural_profiles_and_checks_forecast_parity(tmp_path):
+    runs = []
+    for profile in ("core", "evidence"):
+        run = tmp_path / f"{profile}-r1"
+        run.mkdir()
+        (run / "summary.json").write_text(json.dumps({
+            "profile": profile, "routing_policy": "natural",
+            "replicate_id": "1", "corpus_manifest_sha256": "same",
+        }))
+        row = {
+            "case_id": "a", "family": "future_covariate",
+            "status": "answered", "history_smape": 2.0,
+            "context_smape": 1.0, "incremental_smape": 1.0,
+            "history_forecast": [1.0, 2.0],
+            "context_forecast": [2.0, 3.0],
+            "should_influence": True, "primary_changed": True,
+            "applied": True, "publication_parity": True,
+            "history_calls": 1, "context_calls": 1,
+        }
+        (run / "observations.jsonl").write_text(json.dumps(row) + "\n")
+        runs.append(run)
+    report = aggregate(runs)
+    assert set(report["arms"]) == {"core:natural", "evidence:natural"}
+    assert report["cross_surface_forecast_parity"] == {
+        "comparable_case_replicates": 1, "matched": 1, "rate": 1.0}
+
+
+def test_surface_runner_retries_infrastructure_and_keeps_attempt_ledger(
+    tmp_path, monkeypatch,
+):
+    corpus = tmp_path / "corpus"
+    monkeypatch.setattr("sys.argv", [
+        "generate", "--output-dir", str(corpus), "--seed", "91",
+        "--per-family", "1",
+    ])
+    assert generate_main() == 0
+    calls = {"count": 0}
+
+    class Client:
+        base_url = "https://example.invalid/v1"
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+    def fake_run(case, oracle, client, profile, work, receipts,
+                 routing_policy):
+        calls["count"] += 1
+        common = {
+            "case_id": case.case_id, "family": case.family,
+            "should_influence": oracle.should_influence,
+            "routing_policy": routing_policy,
+            "llm_usage": {scope: {"prompt_tokens": 1, "completion_tokens": 2,
+                                   "requests": 1, "cost_usd": 0.0,
+                                   "truncation_escalations": 0}
+                          for scope in ("agent", "compiler", "total")},
+            "usage_accounting_version": 2,
+        }
+        if calls["count"] == 1:
+            return {**common, "status": "error",
+                    "failure_class": "provider_failure"}
+        return {**common, "status": "answered", "history_smape": 2.0,
+                "context_smape": 2.0, "incremental_smape": 0.0,
+                "applied": False, "primary_changed": False,
+                "temporal_leakage": False, "publication_parity": True,
+                "history_calls": 1, "context_calls": 1}
+
+    monkeypatch.setattr(surface_runner, "OpenRouterClient", Client)
+    monkeypatch.setattr(surface_runner, "run_case", fake_run)
+    output = tmp_path / "run"
+    monkeypatch.setattr("sys.argv", [
+        "run-surfaces", "--corpus-dir", str(corpus),
+        "--output-dir", str(output), "--profile", "evidence",
+        "--model", "test", "--context-receipts-dir", str(tmp_path / "r"),
+        "--limit", "1", "--infrastructure-retries", "1",
+    ])
+    assert surface_runner.main() == 0
+    assert len((output / "attempts.jsonl").read_text().splitlines()) == 2
+    summary = json.loads((output / "summary.json").read_text())
+    assert summary["execution_attempts"] == 2
+    assert summary["retried_cases"] == 1
+    assert summary["llm_usage_observations"]["total"]["requests"] == 2
+
+
+def test_replicated_report_requires_distinct_complete_corpora(
+    tmp_path, monkeypatch,
+):
+    runs = []
+    for seed in (101, 102):
+        corpus, output = tmp_path / f"corpus-{seed}", tmp_path / f"run-{seed}"
+        monkeypatch.setattr("sys.argv", [
+            "generate", "--output-dir", str(corpus), "--seed", str(seed),
+            "--per-family", "1",
+        ])
+        assert generate_main() == 0
+        monkeypatch.setattr("sys.argv", [
+            "run", "--corpus-dir", str(corpus), "--output-dir", str(output),
+            "--allow-gate-failure",
+        ])
+        assert run_main() == 0
+        runs.append(output)
+    report = aggregate_contextbench(runs, minimum_replicates=2)
+    assert report["replicate_count"] == 2
+    assert report["unique_corpus_manifests"] == 2
+    with pytest.raises(ValueError, match="duplicate corpus"):
+        aggregate_contextbench([runs[0], runs[0]], minimum_replicates=2)
 
 
 def test_oracle_and_counterfactual_scoring_are_sensitive_not_tautological():

@@ -79,6 +79,7 @@ from benchmarks.cik.mcp_agent import (  # noqa: E402 — library reuse
     _tool_calls_as_dicts,
     jail_violations,
 )
+from benchmarks.common.openrouter import OpenRouterError  # noqa: E402
 from benchmarks.temporalbench.gnomon_runner import EPOCH, STEP, _observed  # noqa: E402
 from benchmarks.temporalbench.tasks import prompt_input_arrays  # noqa: E402
 
@@ -404,7 +405,8 @@ def compile_row_context(row: dict[str, Any], client: Any,
 
     from gnomon.workflows import (
         CONTEXT_RESPONSE_SCHEMA, DocumentRef,
-        build_context_investigation_prompt, parse_context_response,
+        build_context_investigation_prompt, normalise_context_response_containers,
+        parse_context_response,
     )
 
     narrative = str(row.get("prompt") or "").split("Input (JSON):", 1)[0].strip()
@@ -451,10 +453,12 @@ def compile_row_context(row: dict[str, Any], client: Any,
         call = next(item for item in calls
                     if item["function"]["name"] == "submit_context")
         raw = json.loads(call["function"]["arguments"] or "{}")
+        raw, container_repairs = normalise_context_response_containers(raw)
         validated = parse_context_response(
             raw, [document], proposer={"kind": "llm",
                                       "model": getattr(client, "model", "unknown")})
-        result = {"attempted": True, "compiler_called": True, **validated}
+        result = {"attempted": True, "compiler_called": True,
+                  "container_repairs": container_repairs, **validated}
         if receipt_path is not None:
             receipt_path.parent.mkdir(parents=True, exist_ok=True)
             rendered = json.dumps(validated, indent=2, sort_keys=True) + "\n"
@@ -1011,6 +1015,10 @@ class _RunBase:
                 response = self.client.chat(messages, n=1,
                                             tools=[submit_tool],
                                             tool_choice="auto")
+            except OpenRouterError:
+                # Transport exhaustion is not an agent abstention.  Let the
+                # runner classify and retry it as infrastructure failure.
+                raise
             except Exception as error:
                 return self._abstain_outcome(
                     f"{cap}; last call failed: {error}")
@@ -1425,7 +1433,9 @@ class _Run(_RunBase):
         # product arm into the baseline arm.  A direct fallback remains valid
         # after an engine call (for example after a labeled abstention), but it
         # cannot bypass execution altogether.
-        if self.row.get("_host_compiled_forecast") and self.mcp_calls == 0:
+        if (self.row.get("_require_gnomon_execution")
+                or self.row.get("_host_compiled_forecast")) \
+                and self.mcp_calls == 0:
             direct_channels = [
                 str(channel) for channel, entry in forecast_spec.items()
                 if isinstance(entry, dict) and entry.get("values") is not None

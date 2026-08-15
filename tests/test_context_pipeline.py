@@ -255,6 +255,27 @@ class TestEffectShapes:
             [10.0, 10.0, 10.0, 10.0], "level")
         assert points == [10.0, 16.0, 16.0, 10.0]
 
+    def test_episode_residual_freezes_the_base_before_each_event(self):
+        from gnomon.context_model import episode_residual_effect
+
+        # A naive last-value model would adapt after the first high point if
+        # residuals were computed one step at a time. Freezing at each onset
+        # recovers the full two-step pulse from both historical episodes.
+        history = [10.0] * 4 + [20.0, 20.0] + [10.0] * 4 + [20.0, 20.0]
+        active = [False] * 4 + [True, True] + [False] * 4 + [True, True]
+        effect = episode_residual_effect(
+            history, active, "last_value", season=1, shape="level")
+        assert effect == pytest.approx(10.0)
+
+    def test_episode_amplitudes_keep_occurrences_independent(self):
+        from gnomon.context_model import episode_residual_amplitudes
+
+        observations = [
+            (4.0, 0, 2), (4.0, 1, 2),
+            (-2.0, 0, 2), (-2.0, 1, 2),
+        ]
+        assert episode_residual_amplitudes(observations, "level") == [4.0, -2.0]
+
     def test_each_active_run_gets_its_own_onset(self):
         from gnomon.context_model import shape_weights
 

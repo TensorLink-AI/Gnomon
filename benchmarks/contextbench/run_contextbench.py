@@ -92,6 +92,22 @@ def _leaked(artifact: Any) -> bool:
     return False
 
 
+def valid_disposition(family: str, applied: bool, disposition: str) -> bool:
+    """Whether the public state matches the engine's measured decision.
+
+    Hidden truth says whether context *could* help; it cannot require an
+    engine to claim admission when its evidence gate declined.  That is what
+    the separate recall metric measures.  The disposition contract instead
+    checks that admitted context is called applied and non-admitted context is
+    represented by the correct honest state for its lane.
+    """
+    if applied:
+        return disposition == "applied"
+    if family == "future_covariate":
+        return disposition == "rejected"
+    return disposition == "scenario_only"
+
+
 def run_case(case: Case, oracle: Oracle, work_root: Path, *,
              event_override: list[dict[str, Any]] | None = None,
              use_covariates: bool = True) -> dict[str, Any]:
@@ -131,6 +147,8 @@ def run_case(case: Case, oracle: Oracle, work_root: Path, *,
         "primary_changed": bool(changed_steps), "changed_steps": changed_steps,
         "should_influence": oracle.should_influence, "disposition": disposition,
         "expected_disposition": oracle.expected_disposition, "applied": applied,
+        "disposition_valid": valid_disposition(
+            case.family, applied, disposition),
         "effect_direction_expected": oracle.effect_direction,
         "effect_direction_inferred": inferred_direction,
         "effect_direction_correct": (inferred_direction == oracle.effect_direction
@@ -174,8 +192,10 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
                           / len(direction_rows) if direction_rows else None)
     coverage_rows = [row["interval_coverage"] for row in influence
                      if row["interval_coverage"] is not None]
-    dispositions_correct = sum(
-        row["disposition"] == row["expected_disposition"] for row in rows)
+    dispositions_correct = sum(bool(row.get(
+        "disposition_valid",
+        valid_disposition(row["family"], row["applied"], row["disposition"])))
+        for row in rows)
     repeated = by_family.get("repeated_event", [])
     covariate = by_family.get("future_covariate", [])
     per_family = min((len(members) for members in by_family.values()), default=0)

@@ -25,6 +25,12 @@ file contains only information available at the cutoff. Realized futures,
 counterfactual futures, effect magnitude, onset, duration, and the influence
 label live in a separately hashed oracle file. An arm never receives it.
 
+Recurring-event admission also uses displaced copies of the observed event
+schedule as negative controls. This prevents densely overlapping validation
+windows from turning an accidental alignment between model residuals and a
+calendar into apparently independent evidence. These controls use historical
+data only; the sealed outcome remains untouched by selection.
+
 ## Generate and run
 
 ```bash
@@ -48,6 +54,23 @@ Outputs:
   dispositions;
 - `summary.json`: family-separated accuracy, admission precision/recall,
   false influence, coverage, leakage, confidence intervals and decision gates.
+
+A product decision requires independent fresh corpora, not repeated sampling
+of one fixture. Aggregate at least three completed runs with distinct manifest
+hashes:
+
+```bash
+PYTHONPATH=src:. python -m benchmarks.contextbench.report_contextbench \
+  --run-dir results/contextbench/fresh-r1 \
+  --run-dir results/contextbench/fresh-r2 \
+  --run-dir results/contextbench/fresh-r3 \
+  --output results/contextbench/replicated-report.json
+```
+
+The pooled report preserves per-replicate failures while applying rate gates to
+the denominator at which they are numerically meaningful. In particular, one
+false influence among 40 negative cases is 2.5%; a sub-1% gate cannot be
+resolved from a single 80-case corpus.
 
 ## LLM arms
 
@@ -99,25 +122,58 @@ Run the paired history/context task through a real MCP profile with
 the report excludes compiler preparation from agent-call counts and discloses
 executed compiler calls separately.
 
+There are two distinct treatments; do not pool them:
+
+- `controlled` forces the obvious forecast verb. Use one reference profile to
+  measure compiler + engine context quality without tool-navigation noise.
+- `natural` requires a Gnomon execution but lets the agent navigate the real
+  profile. Run all five profiles here. This is the surface experiment:
+  completion, schema bytes, observed calls, and redundant calls—not different
+  numerical forecasts from the same fitted engine candidate.
+
+Successful forecasts should be identical across surfaces. The aggregate report
+checks that parity explicitly. A numerical difference is a contract failure,
+not evidence that one menu forecasts better.
+
 ```bash
 PYTHONPATH=src:. python -m benchmarks.contextbench.run_surfaces \
   --corpus-dir results/contextbench/corpus \
   --profile evidence --model deepseek-v4-flash-0731 \
   --base-url https://api.engy.ai/v1 --api-key-env ENGY_API_KEY \
   --context-receipts-dir results/contextbench/receipts \
+  --routing-policy natural --replicate-id 1 \
   --output-dir results/contextbench/evidence-r1
 ```
 
-Use `--resume --retry-errors` only for provider or harness failures. Agent
+Provider and harness failures receive two bounded in-run retries by default;
+set `--infrastructure-retries` explicitly for a decision run. Use `--resume
+--retry-errors` to repair any remaining infrastructure rows later. Agent
 non-submission is retained as a product failure and is never erased by retry.
-The summary reports successful pairs, agent completion failures, provider
-failures, and harness failures against the attempted-case denominator.
+`observations.jsonl` contains the latest canonical row per case, while the
+append-only `attempts.jsonl` preserves every failed and successful execution so
+retry cost cannot disappear. The summary reports successful pairs, agent
+completion failures, provider failures, and harness failures against the
+attempted-case denominator, with cumulative usage over all attempts.
+Provider exhaustion during the final submit-only call remains a provider
+failure; it is never converted into an agent abstention.
+Each row records elapsed time by stage (`history_agent`, `context_compiler`,
+and `context_agent`), so a timeout is attributable rather than a single opaque
+case failure. Run profiles sequentially and tune `--jobs` per endpoint;
+parallel profile launches can measure provider saturation instead of the
+product surface.
 
 Aggregate replicated arms with repeated `--run-dir` arguments using
 `report_surfaces`. Its 95% bootstrap intervals resample case IDs, not individual
 replicate rows. Accuracy metrics are necessarily conditional on successful
 pairs, so interpret them together with completion rate; a surface cannot make
 its accuracy look better by failing hard cases.
+
+For a decision run, prepare compiler receipts once, run three natural-routing
+replicates for `core`, `describe`, `evidence`, `mega`, and `full`, and include
+one controlled reference replicate. Reusing receipts keeps context extraction
+constant across profiles. Context usefulness comes from the deterministic and
+compiled-context arms; the surface matrix decides how cheaply and reliably an
+agent reaches that same governed answer.
 
 ## Interpretation
 
