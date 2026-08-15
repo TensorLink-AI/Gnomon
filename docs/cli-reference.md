@@ -284,7 +284,7 @@ surface. `core` is the analytical verbs plus inspection and artifact reads;
 `decision` adds the decide/monitor/route/status/resolve_outcome lifecycle;
 `data` adds the bitemporal store and actuals scoring. `describe`, `evidence`,
 and `mega` are explicit surface-experiment arms, not production defaults.
-`full` remains the default after the first matched experiment and is the only
+`evidence` is the measured default after the fresh workflow experiment. `full` is the only
 profile where `GNOMON_V02_COMPAT=1` and the experimental planner gate add
 their tools. `gnomon capabilities` reports the active profile under
 `mcp_profile`.

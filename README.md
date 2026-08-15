@@ -38,10 +38,10 @@ edit one.
 Conversation cost is an engineering constraint, not a completed claim. Wide
 data is handled in one batched call; brief responses keep disclosures while
 moving bulk rows to immutable artifacts; repeated calls can use a session
-`data_ref` instead of resending observations. The matched five-profile surface
-experiment reduced schema and token cost but no candidate met the default
-gate, so the full surface remains the default
-([results](docs/design/mcp-surface-experiment-results.md)).
+`data_ref` instead of resending observations. A fresh 1,800-execution workflow
+experiment selected the two-tool `evidence` profile as the default: 96.3%
+correctness and 89% trust at one median call and 12.7K tokens per case. `full`
+remains explicit opt-in for administration and deep audit.
 
 ## Where Gnomon sits
 
@@ -94,9 +94,10 @@ Then ask your agent one complete operational question:
 > What changed in it, and when should we alert if crossing 340 costs us 20x
 > a false alarm?
 
-The agent gets 18 tools on the default `full` profile — `gnomon_forecast`, `gnomon_investigate_change`,
-`gnomon_detect_anomalies`, `gnomon_decide`, `gnomon_monitor`, `gnomon_route`, plus
-ingestion, inspection, tracking, and artifact tools — and every number it
+The agent gets 2 tools on the default `evidence` profile:
+`gnomon_describe` for fast temporal evidence and `gnomon_forecast` for
+evaluated publication. Broader operational, tracking, ingestion, and artifact
+tools remain available through explicit profiles, and every number it
 quotes comes from an evidence-linked, verified artifact. It cannot invent
 values for an unsupported series; it can only report Gnomon's abstention and
 its recovery options. Data-reading calls return a session-scoped `data_ref`,

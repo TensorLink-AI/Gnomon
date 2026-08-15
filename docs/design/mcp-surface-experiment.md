@@ -1,6 +1,7 @@
 # MCP surface experiment
 
-Status: matched decision recorded — retain `full` as the default, 2026-08-12.
+Status: superseded by the fresh workflow experiment selecting `evidence` as
+the default, 2026-08-14. Historical protocol retained below.
 
 The number of exposed tools is not itself a product metric. A smaller surface
 may reduce distraction and schema tax, or merely hide useful capabilities.

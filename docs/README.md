@@ -57,7 +57,7 @@ build can do.** Prefer it to any prose here, including this file.
 - Five verbs — `forecast`, `investigate`, `detect`, `decide`, `monitor` —
   plus `route`, `inspect`, `capabilities`, and `status`.
 - Three front doors: CLI, Python API, and a local stdio MCP server
-  (`gnomon mcp serve`, 18 tools in the default `full` profile). A packaged Hermes plugin and a Docker
+  (`gnomon mcp serve`, 2 tools in the default `evidence` profile). A packaged Hermes plugin and a Docker
   image wrap the same runtime.
 
 **Temporal core**
