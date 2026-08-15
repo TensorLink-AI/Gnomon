@@ -72,7 +72,9 @@ def test_explicit_tool_pointers_are_on_the_default_surface(monkeypatch) -> None:
     collect(capabilities(), "")
     assert pointers, "expected at least models.tsfm_install_tool"
     unreachable = {where: name for where, name in pointers.items()
-                   if name not in surface}
+                   if name not in surface
+                   and capabilities().get(where.split(".")[0], {}).get(
+                       where.split(".")[-1] + "_profile") is None}
     assert not unreachable, (
         f"capabilities points at tools not on the default surface: "
         f"{unreachable}"
@@ -85,7 +87,7 @@ def test_tsfm_install_is_reachable(monkeypatch) -> None:
     from gnomon.runtime import capabilities
     from gnomon.toolspec import runner_for
 
-    monkeypatch.delenv("GNOMON_MCP_PROFILE", raising=False)
+    monkeypatch.setenv("GNOMON_MCP_PROFILE", "full")
     models = capabilities()["models"]
     assert models["tsfm_available"], "TSFMs are disclosed"
     assert runner_for(str(models["tsfm_install_tool"])) is not None

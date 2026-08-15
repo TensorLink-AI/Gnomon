@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import math
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -172,11 +173,15 @@ def parse_mapping(
                 "with those keys); availability must be future_known.",
             )
         name, value_type, availability = parts
-        if value_type not in {"continuous", "binary"}:
+        cyclic = re.fullmatch(r"cyclic_([0-9]+(?:\.[0-9]+)?)", value_type)
+        if value_type not in {"continuous", "binary"} and not cyclic:
             raise GnomonError(
                 "INVALID_COVARIATE_TYPE",
-                f"Covariate {name!r} has unsupported type {value_type!r}; use continuous or binary.",
+                f"Covariate {name!r} has unsupported type {value_type!r}; "
+                "use continuous, binary, or cyclic_<positive-period>.",
             )
+        if cyclic and float(cyclic.group(1)) <= 0:
+            raise GnomonError("INVALID_COVARIATE_TYPE", "A cyclic period must be positive.")
         if availability != "future_known":
             raise GnomonError(
                 "UNSUPPORTED_COVARIATE_AVAILABILITY",
@@ -538,13 +543,30 @@ def covariate_forecast(
     dataset: CovariateDataset, names: list[str], series: str, cutoff: datetime,
     season: int,
 ) -> list[float] | None:
+    specs = {spec.name: spec for spec in dataset.specs}
+
+    def features(valid_at: datetime) -> list[float] | None:
+        expanded: list[float] = []
+        for name in names:
+            value = dataset.value_at(name, series, valid_at, cutoff)
+            if value is None:
+                return None
+            kind = specs[name].value_type
+            if kind.startswith("cyclic_"):
+                period = float(kind.split("_", 1)[1])
+                angle = 2.0 * math.pi * value / period
+                expanded.extend((math.sin(angle), math.cos(angle)))
+            else:
+                expanded.append(value)
+        return expanded
+
     start = max(1, season)
     matrix: list[list[float]] = []
     target: list[float] = []
     scale = max(len(values), 1)
     for idx in range(start, len(values)):
-        covs = [dataset.value_at(name, series, timestamps[idx], cutoff) for name in names]
-        if any(value is None for value in covs):
+        covs = features(timestamps[idx])
+        if covs is None:
             continue
         matrix.append([1.0, idx / scale, values[idx - 1], values[idx - season], *covs])
         target.append(values[idx])
@@ -554,8 +576,8 @@ def covariate_forecast(
     history = list(values)
     result: list[float] = []
     for offset, valid_at in enumerate(future):
-        covs = [dataset.value_at(name, series, valid_at, cutoff) for name in names]
-        if any(value is None for value in covs):
+        covs = features(valid_at)
+        if covs is None:
             return None
         row = [1.0, (len(values) + offset) / scale, history[-1], history[-season], *covs]
         point = sum(coef * value for coef, value in zip(coefficients, row))

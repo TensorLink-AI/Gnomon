@@ -235,6 +235,15 @@ class SeriesResult:
     # `conditional_forecasts`: absent, the result serialises byte-identically
     # to a build without the feature.
     future_context: dict[str, Any] | None = None
+    # Canonical, deterministic temporal descriptors. These are computed
+    # from the numeric series, never inferred from explanatory prose, so an
+    # agent may say "weekly" while evaluators compare the underlying seven
+    # steps without reverse-engineering either spelling.
+    temporal_facts: dict[str, Any] | None = None
+    # One projection across the historical-ablation, conditional, and
+    # future-event lanes. It prevents compiler acceptance from being
+    # mistaken for numerical application.
+    context_outcome: dict[str, Any] | None = None
 
 
 @dataclass
@@ -274,6 +283,12 @@ class ForecastArtifact:
                 result.pop("conditional_forecasts", None)
             if not result.get("future_context"):
                 result.pop("future_context", None)
+            if not result.get("context_outcome"):
+                result.pop("context_outcome", None)
+            # Agent-response projection only. The v0.2 artifact format is
+            # byte-frozen; canonical descriptors can be recomputed and must
+            # not churn persisted artifacts or their hashes.
+            result.pop("temporal_facts", None)
         return payload
 
 

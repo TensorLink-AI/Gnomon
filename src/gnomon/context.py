@@ -107,6 +107,45 @@ def validate_context_event(event: ContextEvent) -> list[str]:
                 f"got {expected_shape!r}. A nomination narrows the shape "
                 f"contest; it cannot invent a shape."
             )
+    soft = (event.attributes or {}).get("soft_context")
+    if soft is not None:
+        if not isinstance(soft, dict):
+            problems.append("soft_context must be an object")
+        else:
+            allowed = {
+                "effect_family": {"level_shift", "trend_change",
+                                  "variance_change", "temporary_pulse",
+                                  "saturation_bound", "seasonal_regime_change",
+                                  "unknown"},
+                "direction": {"increase", "decrease", "unknown"},
+                "duration": {"temporary", "persistent", "unknown"},
+                "entity_kind": {"service", "product", "medication",
+                                "procedure", "calendar", "capacity", "price",
+                                "environment", "unknown"},
+            }
+            for field_name, choices in allowed.items():
+                if soft.get(field_name, "unknown") not in choices:
+                    problems.append(
+                        f"soft_context.{field_name} is not in the closed vocabulary"
+                    )
+            forbidden = {"magnitude", "effect_size", "numeric_effect"}
+            if forbidden.intersection(soft):
+                problems.append("soft_context may classify an effect but cannot supply a magnitude")
+            normalized = soft.get("normalized_entity")
+            if normalized is not None and (not isinstance(normalized, str)
+                                           or not normalized.strip()):
+                problems.append("soft_context.normalized_entity must be a non-empty string or null")
+            for range_name in ("delay_steps", "duration_steps"):
+                value = soft.get(range_name)
+                if value is not None and (
+                    not isinstance(value, list) or len(value) != 2
+                    or any(isinstance(item, bool) or not isinstance(item, int)
+                           for item in value)
+                    or value[0] < 0 or value[1] < value[0]
+                ):
+                    problems.append(
+                        f"soft_context.{range_name} must be [minimum, maximum] non-negative steps or null"
+                    )
     return problems
 
 

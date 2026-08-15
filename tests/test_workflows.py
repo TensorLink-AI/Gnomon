@@ -44,6 +44,45 @@ def test_valid_proposal_is_grounded_from_document_metadata() -> None:
     assert event["source"] == {"type": "planning_file", "reference": "/notes/launches.md"}
     assert event["created_by"] == "llm"
     assert event["backtest_admissible"] is True
+    assert result["receipt_id"].startswith("context_receipt:")
+    assert result["context_receipt"]["documents"][0][
+        "content_fingerprint"].startswith("sha256:")
+
+
+def test_context_receipt_is_stable_and_compiler_identity_is_versioned() -> None:
+    first = parse_context_response(
+        {"events": [PROPOSAL]}, [DOCUMENT],
+        proposer={"kind": "llm", "model": "compiler-a"},
+    )
+    replay = parse_context_response(
+        {"events": [PROPOSAL]}, [DOCUMENT],
+        proposer={"kind": "llm", "model": "compiler-a"},
+    )
+    changed = parse_context_response(
+        {"events": [PROPOSAL]}, [DOCUMENT],
+        proposer={"kind": "llm", "model": "compiler-b"},
+    )
+    assert first["context_receipt"] == replay["context_receipt"]
+    assert first["receipt_id"] != changed["receipt_id"]
+
+
+def test_compiler_may_classify_an_effect_but_cannot_supply_magnitude() -> None:
+    proposal = {
+        **PROPOSAL,
+        "effect_family": "temporary_pulse",
+        "direction": "increase",
+        "duration": "temporary",
+        "attributes": {"magnitude": 5000, "effect_size": 2000},
+    }
+    result = parse_context_response({"events": [proposal]}, [DOCUMENT])
+    attributes = result["events"][0]["attributes"]
+    assert attributes["soft_context"] == {
+        "effect_family": "temporary_pulse",
+        "direction": "increase",
+        "duration": "temporary",
+    }
+    assert "magnitude" not in attributes
+    assert "effect_size" not in attributes
 
 
 def test_non_verbatim_quote_is_rejected() -> None:

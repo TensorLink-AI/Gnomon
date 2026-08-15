@@ -455,10 +455,10 @@ def build_parser() -> argparse.ArgumentParser:
     mcp_serve.add_argument(
         "--profile", choices=("core", "describe", "evidence", "mega", "decision", "data", "full"),
         default=None,
-        help="Tool subset to expose (default full, 18 tools): core = "
+        help="Tool subset to expose (default evidence, 2 tools): core = "
              "forecast/investigate/detect plus capabilities, inspection, "
-             "and artifact reads (7 tools); "
-             "describe, evidence, and mega are experimental surface arms; "
+             "and explanation (6 tools); evidence exposes describe+forecast; "
+             "describe and mega are experimental surface arms; "
              "decision adds decide/monitor/route/status/resolve_outcome; "
              "data adds ingest/list_datasets/submit_actuals. "
              "`gnomon capabilities` reports the active profile.",

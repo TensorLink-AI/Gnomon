@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .artifacts import write_artifact
-from .context import ContextEvent
+from .context import ContextEvent, event_to_dict
 from .contracts import DataSchema, Evidence, ForecastArtifact, ForecastTask, SeriesResult
 from .covariates import CovariateDataset
 from .versioning import RUNTIME_VERSION
@@ -27,6 +27,18 @@ from .pipeline import (
     predict_stage,
 )
 from .temporal import FREQUENCY_DESCRIPTIONS, SEASONS, detect_season
+
+
+def _seasonal_period_label(period_steps: int, frequency: str) -> str:
+    """Human label paired with the canonical step count, never replacing it."""
+    labels = {
+        ("s", 60): "minute", ("min", 60): "hourly",
+        ("5min", 288): "daily", ("10min", 144): "daily",
+        ("15min", 96): "daily", ("30min", 48): "daily",
+        ("h", 24): "daily", ("D", 7): "weekly",
+        ("W", 52): "annual", ("MS", 12): "annual",
+    }
+    return labels.get((frequency, period_steps), f"period-{period_steps}")
 
 
 def inspect_dataset(
@@ -141,6 +153,12 @@ def inspect_dataset(
                 "observations": len(items),
                 "start": items[0].timestamp.isoformat(),
                 "end": items[-1].timestamp.isoformat(),
+                "change": {
+                    "final_step": (items[-1].value - items[-2].value
+                                   if len(items) > 1 else 0.0),
+                    "absolute_final_step": (abs(items[-1].value - items[-2].value)
+                                             if len(items) > 1 else 0.0),
+                },
                 "seasonality": dict(zip(("period", "strength", "source"),
                     (seasonal_period, 1.0, "override") if seasonal_period else detect_season([item.value for item in items], loaded.frequency))),
             }
@@ -595,6 +613,7 @@ def _series_result(
             uniform_tier = achieved_tier(support_assessment.status, True)
             for row in rows:
                 row["tier"] = uniform_tier
+    from .soft_context import context_outcome as project_context_outcome
     result = SeriesResult(
         series_name, support, state.selected_model, assessment.strongest_baseline,
         assessment.selection_scores, assessment.test_scores, assessment.improvement,
@@ -604,6 +623,21 @@ def _series_result(
         notes=state.notes,
         conditional_forecasts=state.conditional_forecasts,
         future_context=state.future_context_public,
+        temporal_facts={
+            "seasonal_period_steps": state.season,
+            "seasonal_period_label": _seasonal_period_label(
+                state.season, loaded.frequency),
+            "frequency": loaded.frequency,
+            "source": "computed_from_observations",
+        },
+        context_outcome=(
+            project_context_outcome(
+                context_events, series_name,
+                context_assessment=state.context_assessment,
+                future_context=state.future_context_public,
+                conditional_forecasts=state.conditional_forecasts,
+            ) if context_events else None
+        ),
     )
     evidence = list(state.evidence)
     evidence.extend([
@@ -979,6 +1013,8 @@ def forecast_multi(
     frequency: str | None = None,
     output: str = "gnomon-output",
     minimum_baseline_improvement: float = 0.02,
+    context_events: list[ContextEvent] | None = None,
+    covariates: CovariateDataset | None = None,
     threshold: float | None = None,
     config: Any = None,
     strict_abstention: bool = False,
@@ -1076,6 +1112,20 @@ def forecast_multi(
         raise first_error  # type: ignore[misc]
     resolved_frequency = loaded_any[0].frequency
     timezone_name = loaded_any[0].timezone
+    if covariates is not None:
+        # Bind once before worker threads can read the dataset.  The snapshot
+        # is immutable at this boundary, so every channel sees the same
+        # point-in-time covariate view and cannot widen it independently.
+        covariates.bind_as_of(as_of)
+
+    future_events = bool(
+        config is not None and getattr(getattr(config, "context", None),
+                                       "future_events", False)
+    )
+    structural_events = bool(
+        config is not None and getattr(getattr(config, "context", None),
+                                       "structural_events", False)
+    )
 
     def run_target(target: str) -> tuple[SeriesResult, list[Evidence]]:
         loaded_or_error = datasets[target]
@@ -1090,11 +1140,14 @@ def forecast_multi(
                 config=config, strict_abstention=strict_abstention,
                 selection_strategy=selection_strategy,
                 multivariate=False, var_frame=None, var_ineligible=None,
-                context_events=None, covariates=None, adjudicating=False,
+                context_events=context_events, covariates=covariates,
+                adjudicating=bool(context_events) and covariates is not None,
                 threshold=threshold, target_coverage=target_coverage,
                 repair_log=repair_logs[target],
                 best_effort=best_effort,
-            minimum_support=minimum_support,
+                minimum_support=minimum_support,
+                future_events=future_events,
+                structural_events=structural_events,
             )
         except GnomonError as error:
             return _abstained_target_result(target, error)
@@ -1138,6 +1191,12 @@ def forecast_multi(
         "source_ref": source_fingerprint,
         "accesses": accesses,
     }))
+    if covariates is not None:
+        covariate_access = covariates.access_summary()
+        evidence.append(Evidence(
+            "covariate_snapshot", "snapshot_access", "__all__",
+            covariate_access,
+        ))
     from .tsfm import resolved_weights
     selected_weights = {
         model: weights
@@ -1168,8 +1227,12 @@ def forecast_multi(
         "selection_strategy": selection_strategy,
         "multivariate": False,
         "strict_abstention": strict_abstention,
-        "context_events": None,
-        "covariates": None,
+        "context_events": ([event_to_dict(event) for event in context_events]
+                           if context_events else None),
+        "covariates": ({
+            "source": covariates.fingerprint,
+            "specs": [str(spec) for spec in covariates.specs],
+        } if covariates else None),
         "config": _config_fingerprint(config),
         "runtime_version": RUNTIME_VERSION,
     }
@@ -1356,6 +1419,7 @@ def capabilities() -> dict[str, object]:
             "tsfm_capabilities": capability_matrix(),
             "tsfm_install_command": "gnomon tsfm install <name>",
             "tsfm_install_tool": "gnomon_install_tsfm",
+            "tsfm_install_tool_profile": "full",
             "tsfm_install_note": (
                 "Sandboxed TSFMs are pulled per model into isolated venvs "
                 "(requires uv; weights download on first inference). "

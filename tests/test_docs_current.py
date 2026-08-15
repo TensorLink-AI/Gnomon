@@ -86,9 +86,10 @@ def test_the_hardcoded_versions_agree_with_the_package():
 
 # -- the counts ------------------------------------------------------------
 
-def test_readme_states_the_real_tool_count():
+def test_readme_states_the_real_tool_count(monkeypatch):
     from gnomon.toolspec import visible_tools
 
+    monkeypatch.delenv("GNOMON_MCP_PROFILE", raising=False)
     stated = re.search(r"The agent gets (\d+) tools", README)
     assert stated, "the README no longer states a tool count"
     assert int(stated.group(1)) == len(visible_tools()), (

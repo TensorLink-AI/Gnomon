@@ -216,11 +216,13 @@ GNOMON_RESOLVE_DECISION_SCHEMA = {
 GNOMON_PROPOSE_CONTEXT_SCHEMA = {
     "name": "gnomon_propose_context_events",
     "description": (
-        "Extract candidate context events (launches, promotions, outages, "
-        "holidays) from explicitly permitted local documents using an "
+        "Compile candidate context from explicitly permitted local documents: "
+        "dated events plus quoted seasonality, relationship, unit, and "
+        "operational-constraint hypotheses, using an "
         "Gnomon-owned prompt run on the host LLM, then validate them "
         "deterministically. Returns typed events plus rejected proposals with "
-        "reasons, and writes an events file for gnomon_forecast. Events without "
+        "reasons, and writes an events file for gnomon_forecast. Hypotheses are "
+        "marked non-numeric until verified against data. Events without "
         "a verifiable dated source are never used in backtests. Only use "
         "documents the user has allowed you to read. The gnomon:forecasting "
         "skill documents how to report admission decisions honestly."

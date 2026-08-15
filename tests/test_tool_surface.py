@@ -8,7 +8,6 @@ default response may balloon past the size budget.
 
 from __future__ import annotations
 
-
 def _names(monkeypatch, compat: bool = False) -> list[str]:
     from gnomon.toolspec import visible_tools
 
@@ -135,6 +134,8 @@ def test_profiles_select_documented_subsets(monkeypatch) -> None:
 
     monkeypatch.delenv("GNOMON_V02_COMPAT", raising=False)
     monkeypatch.delenv("GNOMON_MCP_PROFILE", raising=False)
+    assert {tool["name"] for tool in visible_tools()} == PROFILES["evidence"]
+    monkeypatch.setenv("GNOMON_MCP_PROFILE", "full")
     full = {tool["name"] for tool in visible_tools()}
 
     for profile, expected in PROFILES.items():
@@ -150,6 +151,8 @@ def test_profiles_select_documented_subsets(monkeypatch) -> None:
     monkeypatch.setenv("GNOMON_V02_COMPAT", "1")
     names = {tool["name"] for tool in visible_tools()}
     assert "gnomon_record_decision" not in names
+    assert "gnomon_get_artifact" not in names
+    assert len(names) == 6
 
     monkeypatch.setenv("GNOMON_MCP_PROFILE", "full")
     monkeypatch.delenv("GNOMON_V02_COMPAT", raising=False)
@@ -171,7 +174,8 @@ def test_capabilities_report_the_active_profile(monkeypatch) -> None:
 
     monkeypatch.delenv("GNOMON_MCP_PROFILE", raising=False)
     payload = capabilities()["mcp_profile"]
-    assert payload["active"] == "full"
+    assert payload["active"] == "evidence"
+    assert payload["visible_tools"] == ["gnomon_describe", "gnomon_forecast"]
     assert payload["available"] == [
         "core", "data", "decision", "describe", "evidence", "mega", "full"]
 
@@ -242,6 +246,41 @@ def test_batch_syntax_leads_the_forecast_description(tmp_path) -> None:
     import json
     from gnomon.toolspec import RESPONSE_BUDGET_BYTES
     assert len(json.dumps(payload)) < RESPONSE_BUDGET_BYTES * 2
+
+
+def test_batched_forecast_accepts_scoped_validated_context(tmp_path) -> None:
+    """Host-compiled context must not force wide data back to N calls."""
+    from datetime import date, timedelta
+    from gnomon.toolspec import runner_for
+
+    wide = tmp_path / "wide-context.csv"
+    start = date(2026, 1, 1)
+    rows = ["timestamp,cpu,mem"] + [
+        f"{start + timedelta(days=d)},{50 + d},{70 + d}"
+        for d in range(40)
+    ]
+    wide.write_text("\n".join(rows) + "\n")
+    event = {
+        "event_id": "maintenance-1", "event_type": "maintenance",
+        "entity_scope": ["cpu"],
+        "effective_start": "2026-01-10T00:00:00+00:00",
+        "effective_end": "2026-01-11T00:00:00+00:00",
+        "known_at": "2026-01-09T00:00:00+00:00",
+        "attributes": {"evidence_quote": "Maintenance on January 10."},
+        "source": {"type": "test", "reference": "fixture"},
+        "created_by": "llm",
+    }
+    payload = runner_for("gnomon_forecast")({
+        "input": str(wide), "time_column": "timestamp",
+        "target_column": "cpu,mem", "frequency": "D", "horizon": 2,
+        "context_events": [event], "output_dir": str(tmp_path / "out-context"),
+    })
+    assert {row["series"] for row in payload["results"]} == {"cpu", "mem"}
+    by_series = {row["series"]: row for row in payload["results"]}
+    assert by_series["cpu"]["context_outcome"]["status"] == "scenario_only"
+    assert by_series["cpu"]["context_outcome"][
+        "primary_forecast_changed"] is False
+    assert by_series["mem"]["context_outcome"]["status"] == "not_considered"
 
 
 # --- Fix 4: brief by default, hard response budget -------------------------
@@ -552,9 +591,50 @@ def test_describe_answers_wide_data_without_a_backtest(tmp_path, monkeypatch) ->
     assert payload["reports"]["cpu"]["level"]["latest"] == 89
     assert payload["reports"]["cpu"]["trend"]["direction"] == "up"
     assert payload["reports"]["cpu"]["series_end"] == payload["series_end"]
-    assert payload["suggested_next"][0]["tool_call"]["name"] == "gnomon_forecast"
-    assert payload["suggested_next"][0]["tool_call"]["arguments"] == {
-        "data_ref": payload["data_ref"]}
+    assert payload["triage"]["ranking_rule"] == "largest absolute final-step change"
+    assert payload["triage"]["remainder_preserved"] is True
+    assert payload["suggested_next"] == []
+
+
+def test_forecast_triage_contract_preserves_remainder():
+    from gnomon.toolspec import _attach_multiseries_triage
+
+    payload = _attach_multiseries_triage({
+        "artifact_path": "/tmp/artifact",
+        "results": [{"series": name, "notability": score, "support": "degraded"}
+                    for name, score in (("a", 1), ("b", 4), ("c", 2), ("d", 3))],
+    })
+    assert payload["triage"]["ranking_rule"]
+    assert payload["triage"]["remainder_count"] == 1
+    assert payload["triage"]["remainder_preserved"] is True
+
+
+def test_describe_spike_response_is_json_serializable(tmp_path, monkeypatch):
+    import json
+    from gnomon.toolspec import runner_for
+
+    monkeypatch.setenv("GNOMON_MCP_PROFILE", "describe")
+    path = _wide_csv(tmp_path, columns=("api", "worker", "db"), days=12)
+    payload = runner_for("gnomon_describe")({"input": str(path)})
+    assert json.loads(json.dumps(payload))["triage"]["remainder_preserved"] is True
+
+
+def test_forecast_returns_canonical_temporal_facts_without_artifact_read(
+        tmp_path) -> None:
+    from gnomon.toolspec import runner_for
+
+    path = _wide_csv(tmp_path, columns=("cpu",), days=40)
+    payload = runner_for("gnomon_forecast")({
+        "input": str(path), "horizon": 2,
+        "output_dir": str(tmp_path / "canonical-facts"),
+    })
+    facts = payload["results"][0]["temporal_facts"]
+    assert facts["seasonal_period_steps"] == 7
+    assert facts["seasonal_period_label"] == "weekly"
+    assert facts["source"] == "computed_from_observations"
+    identity = payload["results"][0]["execution_identity"]
+    assert identity["publish_matches_evaluated"] is True
+    assert identity["evaluated"]["name"] == identity["published"]["name"]
 
 
 def test_mega_profile_is_three_tools_and_runs_a_descriptive_question(
@@ -571,6 +651,11 @@ def test_mega_profile_is_three_tools_and_runs_a_descriptive_question(
         "question": {"kind": "describe"},
     })
     assert described["reports"]["cpu"]["trend"]["direction"] == "up"
+    # Lenient discriminant form seen in real agent transcripts.
+    described_short = runner_for("gnomon_run")({
+        "data_ref": inspected["data_ref"], "question": "describe",
+    })
+    assert described_short["reports"]["cpu"]["trend"]["direction"] == "up"
     forecast = runner_for("gnomon_run")({
         "data_ref": inspected["data_ref"],
         "question": {"kind": "forecast"},

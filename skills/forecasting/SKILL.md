@@ -20,9 +20,10 @@ number, interval, probability, selection, warning, and support status.
 | When should we intervene? | `gnomon_monitor` | Sequential risk; supply alert/miss costs for a cost-optimal rule |
 
 Workflow: `gnomon_capabilities` once if unsure what is installed →
-`gnomon_inspect` when mappings or quality are uncertain → the macro → read
-numbers from the returned `artifact_path` (`gnomon_get_artifact`,
-`gnomon_explain_run`, `forecast.csv`, `summary.md`) and quote them verbatim.
+`gnomon_inspect` when mappings or quality are uncertain → the macro → quote
+numbers directly from its response. The full profile also offers
+`gnomon_get_artifact`; `gnomon_explain_run`, `forecast.csv`, and `summary.md`
+remain available for deeper audit.
 Track consequential runs with a `project`; close the loop with
 `gnomon_submit_actuals` and the decision record/resolve tools.
 

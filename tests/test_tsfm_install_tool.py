@@ -134,7 +134,7 @@ def test_tool_is_on_the_full_surface_only(monkeypatch) -> None:
     shrink context pressure, and none of them advertised TSFMs before."""
     from gnomon.toolspec import PROFILES, visible_tools
 
-    monkeypatch.delenv("GNOMON_MCP_PROFILE", raising=False)
+    monkeypatch.setenv("GNOMON_MCP_PROFILE", "full")
     assert "gnomon_install_tsfm" in {tool["name"] for tool in visible_tools()}
     for profile in PROFILES:
         monkeypatch.setenv("GNOMON_MCP_PROFILE", profile)
