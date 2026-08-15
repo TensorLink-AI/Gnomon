@@ -67,6 +67,7 @@ import csv
 import json
 import sys
 import tempfile
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -533,7 +534,8 @@ def mcq_submit_tool(row: dict[str, Any]) -> tuple[dict[str, Any], str]:
     }, rule)
 
 
-def _write_wide_csv(channels: dict[str, list[float]], csv_path: Path) -> None:
+def _write_wide_csv(channels: dict[str, list[float]], csv_path: Path,
+                    epoch: datetime = EPOCH) -> None:
     keys = list(channels)
     length = max((len(values) for values in channels.values()), default=0)
     with csv_path.open("w", newline="", encoding="utf-8") as handle:
@@ -541,7 +543,7 @@ def _write_wide_csv(channels: dict[str, list[float]], csv_path: Path) -> None:
         writer.writerow(["timestamp"] + keys)
         for position in range(length):
             writer.writerow(
-                [(EPOCH + position * STEP).isoformat()]
+                [(epoch + position * STEP).isoformat()]
                 + [repr(channels[key][position])
                    if position < len(channels[key]) else "" for key in keys]
             )
@@ -712,6 +714,11 @@ class _RunBase:
         self.row = row
         self.profile = profile
         self.client = client
+        raw_origin = row.get("_time_origin")
+        self.epoch = (datetime.fromisoformat(str(raw_origin))
+                      if raw_origin else EPOCH)
+        if self.epoch.tzinfo is None:
+            raise ValueError("_time_origin must include an explicit timezone")
         self.context_compilation = (
             compile_row_context(row, client, context_receipts_dir)
             if compile_context and row.get("tier") in {"T3", "T4"}
@@ -729,7 +736,7 @@ class _RunBase:
         self.csv_path: Path | None = None
         if self.channels:
             self.csv_path = self.jail / "history.csv"
-            _write_wide_csv(self.channels, self.csv_path)
+            _write_wide_csv(self.channels, self.csv_path, self.epoch)
         self.session = (session_factory or StdioMcpSession)(self.jail)
         self.trace: list[dict[str, Any]] = []
         self.result_log = ToolMessageLog()
@@ -798,8 +805,8 @@ class _RunBase:
                 if not row_values:
                     continue
                 rows.append({
-                    "timestamp": (EPOCH + position * STEP).isoformat(),
-                    "known_at": EPOCH.isoformat(), "series": covariate_series,
+                    "timestamp": (self.epoch + position * STEP).isoformat(),
+                    "known_at": self.epoch.isoformat(), "series": covariate_series,
                     **row_values,
                 })
                 position += 1
@@ -809,8 +816,8 @@ class _RunBase:
                            for name in names):
                     continue
                 rows.append({
-                    "timestamp": (EPOCH + (len(target_values) + offset) * STEP).isoformat(),
-                    "known_at": EPOCH.isoformat(), "series": covariate_series,
+                    "timestamp": (self.epoch + (len(target_values) + offset) * STEP).isoformat(),
+                    "known_at": self.epoch.isoformat(), "series": covariate_series,
                     **{name: float(future[name][offset]) for name in names},
                 })
         if not rows:
@@ -1118,7 +1125,8 @@ class _RunBase:
         # production host compiler and makes one wide-series request one run.
         if (name == "gnomon_forecast" and getattr(self, "target_keys", None)
                 and (self.profile == "evidence"
-                     or self.row.get("_host_compiled_forecast"))):
+                     or self.row.get("_host_compiled_forecast")
+                     or self.row.get("_require_gnomon_execution"))):
             arguments = {**arguments,
                          "input": str(self.csv_path),
                          "time_column": "timestamp",
@@ -1271,7 +1279,7 @@ class _Run(_RunBase):
             csv_path=str(self.csv_path),
             channels=", ".join(self.target_keys),
             channel_list=",".join(self.target_keys),
-            epoch=EPOCH.isoformat(), horizon=self.horizon,
+            epoch=self.epoch.isoformat(), horizon=self.horizon,
             jail_rule=self._jail_rule(),
             max_rounds=MAX_ROUNDS, max_calls=MAX_MCP_CALLS,
         )
@@ -1288,8 +1296,14 @@ class _Run(_RunBase):
                      "quoted-context validator. This receipt is authoritative; "
                      "only accepted events were supplied to execution:\n"
                      + json.dumps({key: self.context_compilation.get(key, [])
-                                   for key in ("events", "hypotheses", "rejected")},
+                                  for key in ("events", "hypotheses", "rejected")},
                                   separators=(",", ":")) + "\n")
+        if self.row.get("_require_gnomon_execution"):
+            text += ("\nThis product run delegates every published numeric "
+                     "trajectory to Gnomon. Submit the forecast artifact "
+                     "verbatim; model-authored values are not an allowed "
+                     "fallback. If the artifact abstains, retry its disclosed "
+                     "best-effort action or submit an abstention.\n")
         return text
 
     def _abstain_outcome(self, reason: str) -> dict[str, Any]:
@@ -1426,24 +1440,20 @@ class _Run(_RunBase):
                     "problems": ["forecast must be an object mapping "
                                  "channel name to one exit"]}
         problems: list[str] = []
-        # ContextBench's compiled execution contract delegates numeric
-        # publication to Gnomon.  Some OpenAI-compatible providers treat a
-        # forced tool choice as advisory and may call submit_answer directly;
-        # accepting model-authored values in that state silently turns the
-        # product arm into the baseline arm.  A direct fallback remains valid
-        # after an engine call (for example after a labeled abstention), but it
-        # cannot bypass execution altogether.
+        # ContextBench delegates every published number to Gnomon. Merely
+        # calling a tool before substituting model-made values is still a
+        # bypass, and was the sole source of publication-parity failures in
+        # the natural-routing matrix.
         if (self.row.get("_require_gnomon_execution")
-                or self.row.get("_host_compiled_forecast")) \
-                and self.mcp_calls == 0:
+                or self.row.get("_host_compiled_forecast")):
             direct_channels = [
                 str(channel) for channel, entry in forecast_spec.items()
                 if isinstance(entry, dict) and entry.get("values") is not None
             ]
             if direct_channels:
                 problems.append(
-                    "host_execution_required: run Gnomon before submitting "
-                    "model-authored forecast values; direct values bypass "
+                    "host_execution_required: submit a Gnomon artifact or "
+                    "abstain; model-authored forecast values bypass "
                     "the product contract for channel(s): "
                     + ", ".join(sorted(direct_channels))
                 )
@@ -1571,7 +1581,7 @@ class _McqRun(_RunBase):
                 f"The task's series are also on disk at {self.csv_path} "
                 f"(columns: timestamp, {', '.join(self.channels)}), on a "
                 f"synthetic regular hourly axis — observation k of a "
-                f"series sits at {EPOCH.isoformat()} + k hours, recorded "
+                f"series sits at {self.epoch.isoformat()} + k hours, recorded "
                 f"readings laid consecutively; a shorter series' trailing "
                 f"cells are blank. It is the same data the task states, "
                 f"in the shape the tools read."

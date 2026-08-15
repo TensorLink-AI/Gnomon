@@ -70,7 +70,10 @@ def aggregate(run_dirs: list[Path]) -> dict[str, Any]:
             raise ValueError("surface runs use different corpus manifests")
         profile = str(summary.get("profile") or
                       directory.name.split("-r", 1)[0].removeprefix("v2-"))
-        routing = str(summary.get("routing_policy") or "controlled")
+        routing = summary.get("routing_policy")
+        if routing not in {"compiled", "unrouted"}:
+            raise ValueError(f"missing or obsolete routing policy: {summary_path}")
+        routing = str(routing)
         replicate_id = str(summary.get("replicate_id") or
                            directory.name.rsplit("-r", 1)[-1])
         arm = f"{profile}:{routing}"

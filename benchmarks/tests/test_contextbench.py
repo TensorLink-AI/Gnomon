@@ -181,6 +181,7 @@ def test_surface_row_is_oracle_sealed_and_family_neutral():
     assert row["tier"] == "T4"
     assert row["_require_gnomon_execution"] is True
     assert row["_host_compiled_forecast"] is True
+    assert row["_time_origin"] == "2025-01-01T00:00:00+00:00"
     assert row["input"]["future_covariates"]
     assert row["input"]["covariate_mapping"][0]["type"] == "binary"
     assert len(row["input"]["history"]["value"]) == len(case.history)
@@ -196,12 +197,21 @@ def test_history_surface_row_excludes_all_outside_context():
     assert case.narrative not in row["prompt"]
 
 
-def test_natural_surface_policy_preserves_execution_without_forced_routing():
+def test_unrouted_surface_policy_preserves_execution_without_forced_routing():
     raw_cases, _ = generate(33, per_family=1)
     row = surface_row(Case.from_dict(raw_cases[0]), include_context=True,
-                      routing_policy="natural")
+                      routing_policy="unrouted")
     assert row["_require_gnomon_execution"] is True
     assert row["_host_compiled_forecast"] is False
+
+
+def test_surface_preflight_rejects_context_outside_the_series_grid():
+    raw_cases, _ = generate(34, per_family=1)
+    raw = next(row for row in raw_cases if row["family"] == "prior_only")
+    raw["context_events"][0]["effective_start"] = "2030-01-01T00:00:00+00:00"
+    raw["context_events"][0]["effective_end"] = "2030-01-01T01:00:00+00:00"
+    with pytest.raises(ValueError, match="does not overlap the benchmark grid"):
+        surface_row(Case.from_dict(raw), include_context=True)
 
 
 def test_scripted_raw_arm_scores_only_after_model_submission():
@@ -298,7 +308,8 @@ def test_surface_report_separates_product_and_provider_failures(tmp_path):
     run = tmp_path / "v2-evidence-r1"
     run.mkdir()
     (run / "summary.json").write_text(json.dumps({
-        "profile": "evidence", "corpus_manifest_sha256": "same"}))
+        "profile": "evidence", "routing_policy": "compiled",
+        "corpus_manifest_sha256": "same"}))
     rows = [{
         "case_id": "a", "family": "irrelevant", "status": "answered",
         "history_smape": 2.0, "context_smape": 2.0,
@@ -316,7 +327,7 @@ def test_surface_report_separates_product_and_provider_failures(tmp_path):
     }]
     (run / "observations.jsonl").write_text(
         "".join(json.dumps(row) + "\n" for row in rows))
-    report = aggregate([run])["arms"]["evidence:controlled"]
+    report = aggregate([run])["arms"]["evidence:compiled"]
     assert report["attempted_observations"] == 3
     assert report["successful_pairs"] == 1
     assert report["failures"] == {
@@ -324,16 +335,16 @@ def test_surface_report_separates_product_and_provider_failures(tmp_path):
     assert report["compiler_logical_calls"] == 1
     assert report["compiler_executed_calls"] == 1
     assert report["publication_parity"]["identity_matched"] == 1
-    assert report["routing_policy"] == "controlled"
+    assert report["routing_policy"] == "compiled"
 
 
-def test_surface_report_pairs_natural_profiles_and_checks_forecast_parity(tmp_path):
+def test_surface_report_pairs_compiled_profiles_and_checks_forecast_parity(tmp_path):
     runs = []
     for profile in ("core", "evidence"):
         run = tmp_path / f"{profile}-r1"
         run.mkdir()
         (run / "summary.json").write_text(json.dumps({
-            "profile": profile, "routing_policy": "natural",
+            "profile": profile, "routing_policy": "compiled",
             "replicate_id": "1", "corpus_manifest_sha256": "same",
         }))
         row = {
@@ -349,7 +360,7 @@ def test_surface_report_pairs_natural_profiles_and_checks_forecast_parity(tmp_pa
         (run / "observations.jsonl").write_text(json.dumps(row) + "\n")
         runs.append(run)
     report = aggregate(runs)
-    assert set(report["arms"]) == {"core:natural", "evidence:natural"}
+    assert set(report["arms"]) == {"core:compiled", "evidence:compiled"}
     assert report["cross_surface_forecast_parity"] == {
         "comparable_case_replicates": 1, "matched": 1, "rate": 1.0}
 

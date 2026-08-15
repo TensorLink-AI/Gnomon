@@ -21,12 +21,13 @@ from benchmarks.common.openrouter import OpenRouterError
 from benchmarks.temporalbench.mcp_agent import run_row
 from gnomon.artifacts import read_artifact
 
+from .generate import EPOCH as CONTEXT_EPOCH, STEP as CONTEXT_STEP
 from .run_contextbench import smape, valid_disposition, wilson
 from .run_llm import compile_events
 from .schema import Case, Oracle, load_cases, load_oracles
 
 PROFILES = {"core", "describe", "evidence", "mega", "full"}
-ROUTING_POLICIES = {"controlled", "natural"}
+ROUTING_POLICIES = {"compiled", "unrouted"}
 
 
 def _usage_delta(before: dict[str, Any], after: dict[str, Any]) -> dict[str, Any]:
@@ -84,7 +85,7 @@ def _covariate_input(case: Case) -> tuple[dict[str, list[float]],
 
 
 def surface_row(case: Case, *, include_context: bool,
-                routing_policy: str = "controlled") -> dict[str, Any]:
+                routing_policy: str = "compiled") -> dict[str, Any]:
     if routing_policy not in ROUTING_POLICIES:
         raise ValueError(f"unknown routing policy: {routing_policy}")
     historical, future = _covariate_input(case)
@@ -107,7 +108,7 @@ def surface_row(case: Case, *, include_context: bool,
         narrative + "\n\nInput (JSON):\n" +
         json.dumps(history, separators=(",", ":"))
     )
-    return {
+    row = {
         "id": _public_id(case.case_id) + ("-context" if include_context else "-history"),
         "tier": "T4" if include_context else "T2",
         "meta": {"n_horizon": case.horizon, "main_key": "value",
@@ -116,12 +117,39 @@ def surface_row(case: Case, *, include_context: bool,
         # Only the mapping key is consumed by the harness. Oracle values never
         # enter this object or the model transcript.
         "ground_truth": {"value": None}, "mcq": {},
-        # Every product arm must execute Gnomon before it may publish model
-        # values.  Controlled routing additionally forces the obvious first
-        # forecast verb; natural routing leaves tool navigation to the agent.
+        # Every product arm must execute Gnomon before it may publish values.
+        # Compiled routing resolves explicit forecast intent to the execution
+        # verb; the unrouted diagnostic leaves that choice to the agent.
         "_require_gnomon_execution": True,
-        "_host_compiled_forecast": routing_policy == "controlled",
+        "_host_compiled_forecast": routing_policy == "compiled",
+        # The generic TemporalBench adapter otherwise uses its own synthetic
+        # epoch. ContextBench events are absolute-time evidence, so silently
+        # rebasing the values makes every historical event unmeasurable.
+        "_time_origin": CONTEXT_EPOCH.isoformat(),
     }
+    _validate_temporal_grid(case, row)
+    return row
+
+
+def _validate_temporal_grid(case: Case, row: dict[str, Any]) -> None:
+    """Fail before LLM calls when absolute context cannot overlap the CSV."""
+    origin = datetime.fromisoformat(str(row["_time_origin"]))
+    final = origin + (len(case.history) + case.horizon - 1) * CONTEXT_STEP
+    for event in case.context_events:
+        start = datetime.fromisoformat(str(event["effective_start"]))
+        end = datetime.fromisoformat(str(
+            event.get("effective_end") or event["effective_start"]))
+        if end < origin or start > final:
+            raise ValueError(
+                f"{case.case_id}: context event {event.get('event_id')!r} "
+                f"does not overlap the benchmark grid {origin.isoformat()} "
+                f"through {final.isoformat()}")
+    for covariate in case.covariates:
+        stamp = datetime.fromisoformat(str(covariate["timestamp"]))
+        if stamp < origin or stamp > final:
+            raise ValueError(
+                f"{case.case_id}: covariate timestamp {stamp.isoformat()} "
+                "does not overlap the benchmark grid")
 
 
 def compiled_surface_context(case: Case, client: OpenRouterClient,
@@ -190,7 +218,7 @@ def _artifact_contract(outcome: dict[str, Any], forecast: list[float] | None
 
 def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
              work_root: Path, receipt_dir: Path,
-             routing_policy: str = "controlled") -> dict[str, Any]:
+             routing_policy: str = "compiled") -> dict[str, Any]:
     started = time.perf_counter()
     usage_start = dict(client.usage_summary)
     usage_after_history = usage_start
@@ -439,7 +467,7 @@ def main() -> int:
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--profile", choices=sorted(PROFILES), required=True)
     parser.add_argument("--routing-policy", choices=sorted(ROUTING_POLICIES),
-                        default="controlled")
+                        default="compiled")
     parser.add_argument("--replicate-id", default="1",
                         help="stable replicate label used for cross-surface pairing")
     parser.add_argument("--model", required=True)

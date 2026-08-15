@@ -62,6 +62,7 @@ def test_every_forecast_profile_has_a_host_compiled_first_tool():
 def test_future_covariates_compile_to_each_targets_compressed_axis():
     run = object.__new__(mcp_agent._Run)
     run.channels = {"a": [1.0, 3.0], "b": [4.0, 5.0, 6.0]}
+    run.epoch = mcp_agent.EPOCH
     row = {"input": {
         "history": {
             "a": [1.0, None, 3.0], "b": [4.0, 5.0, 6.0],
@@ -84,6 +85,7 @@ def test_future_covariates_compile_to_each_targets_compressed_axis():
 def test_single_target_covariates_use_artifact_default_identity_and_declared_type():
     run = object.__new__(mcp_agent._Run)
     run.channels = {"value": [1.0, 2.0, 3.0]}
+    run.epoch = mcp_agent.EPOCH
     arguments = run._row_covariates({"input": {
         "history": {"value": [1.0, 2.0, 3.0], "driver": [0.0, 1.0, 0.0]},
         "future_covariates": {"driver": [1.0, 1.0]},
@@ -334,7 +336,7 @@ def test_host_compiled_forecast_cannot_be_bypassed_by_direct_submission(
 ):
     """Providers may ignore forced tool_choice; the harness must not.
 
-    A direct fallback is allowed only after Gnomon has actually run, otherwise
+    A direct fallback is never allowed in a product-contract run; otherwise
     the measured product arm is secretly the baseline arm.
     """
     row = _row(sparse_temp=False)
@@ -351,8 +353,8 @@ def test_host_compiled_forecast_cannot_be_bypassed_by_direct_submission(
         payload = _last_tool_payload(messages)
         assert payload["accepted"] is False
         assert payload["problems"] == [
-            "host_execution_required: run Gnomon before submitting "
-            "model-authored forecast values; direct values bypass the "
+            "host_execution_required: submit a Gnomon artifact or abstain; "
+            "model-authored forecast values bypass the "
             "product contract for channel(s): hr, spo2"
         ]
         return {"tool_calls": [_forecast_call(messages, "hr,spo2")]}
@@ -696,7 +698,9 @@ def test_spent_tool_budget_does_not_void_the_row(tmp_path, monkeypatch):
 def test_natural_routing_still_requires_product_execution(tmp_path):
     run = object.__new__(mcp_agent._Run)
     run.row = {"_require_gnomon_execution": True}
-    run.mcp_calls = 0
+    # A prior inspect/forecast call does not authorize replacing Gnomon's
+    # published trajectory with model-authored numbers.
+    run.mcp_calls = 1
     run.target_keys = ["hr", "spo2"]
     run.horizon = len(VALUES)
     run.submission = None

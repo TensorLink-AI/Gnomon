@@ -124,12 +124,12 @@ executed compiler calls separately.
 
 There are two distinct treatments; do not pool them:
 
-- `controlled` forces the obvious forecast verb. Use one reference profile to
-  measure compiler + engine context quality without tool-navigation noise.
-- `natural` requires a Gnomon execution but lets the agent navigate the real
-  profile. Run all five profiles here. This is the surface experiment:
-  completion, schema bytes, observed calls, and redundant calls—not different
-  numerical forecasts from the same fitted engine candidate.
+- `compiled` is the production treatment: the host resolves explicit forecast
+  intent to the forecast verb and binds the already-known schema, while the
+  selected profile remains visible for submission and recovery.
+- `unrouted` is a diagnostic: it requires Gnomon-authored publication but
+  leaves initial verb selection to the agent. It measures navigation failure,
+  not the intended product path, and cannot win the default-surface decision.
 
 Successful forecasts should be identical across surfaces. The aggregate report
 checks that parity explicitly. A numerical difference is a contract failure,
@@ -141,7 +141,7 @@ PYTHONPATH=src:. python -m benchmarks.contextbench.run_surfaces \
   --profile evidence --model deepseek-v4-flash-0731 \
   --base-url https://api.engy.ai/v1 --api-key-env ENGY_API_KEY \
   --context-receipts-dir results/contextbench/receipts \
-  --routing-policy natural --replicate-id 1 \
+  --routing-policy compiled --replicate-id 1 \
   --output-dir results/contextbench/evidence-r1
 ```
 
@@ -168,12 +168,13 @@ replicate rows. Accuracy metrics are necessarily conditional on successful
 pairs, so interpret them together with completion rate; a surface cannot make
 its accuracy look better by failing hard cases.
 
-For a decision run, prepare compiler receipts once, run three natural-routing
-replicates for `core`, `describe`, `evidence`, `mega`, and `full`, and include
-one controlled reference replicate. Reusing receipts keeps context extraction
-constant across profiles. Context usefulness comes from the deterministic and
-compiled-context arms; the surface matrix decides how cheaply and reliably an
-agent reaches that same governed answer.
+For a decision run, prepare compiler receipts once and run three compiled-route
+replicates for `core`, `describe`, `evidence`, `mega`, and `full`. Include an
+unrouted diagnostic only when measuring the cost of omitting the intent
+compiler. Reusing receipts keeps context extraction constant across profiles.
+Context usefulness comes from the deterministic and compiled-context arms; the
+surface matrix decides how cheaply and reliably an agent reaches that same
+governed answer.
 
 ## Interpretation
 
