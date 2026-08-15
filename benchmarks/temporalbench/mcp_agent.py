@@ -1418,6 +1418,25 @@ class _Run(_RunBase):
                     "problems": ["forecast must be an object mapping "
                                  "channel name to one exit"]}
         problems: list[str] = []
+        # ContextBench's compiled execution contract delegates numeric
+        # publication to Gnomon.  Some OpenAI-compatible providers treat a
+        # forced tool choice as advisory and may call submit_answer directly;
+        # accepting model-authored values in that state silently turns the
+        # product arm into the baseline arm.  A direct fallback remains valid
+        # after an engine call (for example after a labeled abstention), but it
+        # cannot bypass execution altogether.
+        if self.row.get("_host_compiled_forecast") and self.mcp_calls == 0:
+            direct_channels = [
+                str(channel) for channel, entry in forecast_spec.items()
+                if isinstance(entry, dict) and entry.get("values") is not None
+            ]
+            if direct_channels:
+                problems.append(
+                    "host_execution_required: run Gnomon before submitting "
+                    "model-authored forecast values; direct values bypass "
+                    "the product contract for channel(s): "
+                    + ", ".join(sorted(direct_channels))
+                )
         resolved: dict[str, list[float]] = {}
         support: dict[str, str] = {}
         routes: dict[str, str] = {}
