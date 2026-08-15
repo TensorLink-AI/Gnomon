@@ -29,7 +29,9 @@ today's archive of observed temperatures does not reveal what weather forecast
 was available six months ago. Weather inputs require archived issued forecasts.
 If those vintages are unavailable, Gnomon rejects the proposal for backtesting.
 
-This release accepts numeric `continuous` and `binary` features whose
+This release accepts numeric `continuous`, `binary`, and declared cyclic
+features (`cyclic_<positive-period>`, such as `cyclic_1440` for minute of day)
+whose
 availability is explicitly `future_known`. It does not silently encode
 categoricals, interpolate gaps, or fetch URLs.
 

@@ -32,9 +32,153 @@ from benchmarks.temporalbench import mcp_agent
 from benchmarks.temporalbench.mcp_agent import (
     MAX_ROUNDS,
     bounded_tool_text,
+    compile_row_context,
     mcq_row,
+    preferred_execution_tool,
     run_row,
 )
+
+
+def test_every_forecast_profile_has_a_host_compiled_first_tool():
+    assert {
+        profile: preferred_execution_tool(profile, True, host_compiled=True)
+        for profile in ("core", "describe", "evidence", "mega", "full")
+    } == {
+        "core": "gnomon_forecast",
+        "describe": "gnomon_forecast",
+        "evidence": "gnomon_forecast",
+        "mega": "gnomon_run",
+        "full": "gnomon_forecast",
+    }
+    assert preferred_execution_tool("core", True) is None
+    assert preferred_execution_tool("describe", True) is None
+    assert preferred_execution_tool("full", True) is None
+    assert preferred_execution_tool("full", False) is None
+
+
+def test_future_covariates_compile_to_each_targets_compressed_axis():
+    run = object.__new__(mcp_agent._Run)
+    run.channels = {"a": [1.0, 3.0], "b": [4.0, 5.0, 6.0]}
+    row = {"input": {
+        "history": {
+            "a": [1.0, None, 3.0], "b": [4.0, 5.0, 6.0],
+            "time_position_in_day": [10.0, 20.0, 30.0],
+        },
+        "future_covariates": {"time_position_in_day": [40.0, 50.0]},
+    }}
+    arguments = run._row_covariates(row)
+    rows = arguments["covariates"]
+    by_series = {name: [item for item in rows if item["series"] == name]
+                 for name in ("a", "b")}
+    assert [item["time_position_in_day"] for item in by_series["a"]] == [
+        10.0, 30.0, 40.0, 50.0]
+    assert [item["time_position_in_day"] for item in by_series["b"]] == [
+        10.0, 20.0, 30.0, 40.0, 50.0]
+    assert arguments["covariate_series_column"] == "series"
+    assert arguments["covariate_mapping"][0]["type"] == "cyclic_1440"
+
+
+def test_single_target_covariates_use_artifact_default_identity_and_declared_type():
+    run = object.__new__(mcp_agent._Run)
+    run.channels = {"value": [1.0, 2.0, 3.0]}
+    arguments = run._row_covariates({"input": {
+        "history": {"value": [1.0, 2.0, 3.0], "driver": [0.0, 1.0, 0.0]},
+        "future_covariates": {"driver": [1.0, 1.0]},
+        "covariate_mapping": [{"name": "driver", "type": "binary",
+                               "availability": "future_known"}],
+    }})
+    assert {row["series"] for row in arguments["covariates"]} == {"__default__"}
+    assert arguments["covariate_mapping"] == [{
+        "name": "driver", "type": "binary", "availability": "future_known"}]
+
+
+def test_context_compiler_grounds_quotes_and_rejects_invented_text():
+    narrative = ("Event context:\nMedication adjusted at "
+                 "2122-04-03T08:00:00.\nInput (JSON): {}")
+    raw = {"events": [
+        {"document_index": 0, "event_type": "medication_adjustment",
+         "entity_scope": ["heart_rate"],
+         "effective_start": "2122-04-03T08:00:00+00:00",
+         "effective_end": "2122-04-03T09:00:00+00:00",
+         "known_at": "2122-04-03T08:00:00+00:00",
+         "evidence_quote": "Medication adjusted at 2122-04-03T08:00:00."},
+        {"document_index": 0, "event_type": "invented",
+         "entity_scope": ["heart_rate"],
+         "effective_start": "2122-04-03T08:00:00+00:00",
+         "effective_end": "2122-04-03T09:00:00+00:00",
+         "known_at": "2122-04-03T08:00:00+00:00",
+         "evidence_quote": "A sentence absent from the prompt."},
+    ], "hypotheses": []}
+
+    class Client:
+        model = "test-model"
+
+        def chat(self, messages, **kwargs):
+            call = SimpleNamespace(
+                id="context", type="function",
+                function=SimpleNamespace(
+                    name="submit_context", arguments=json.dumps(raw)))
+            return SimpleNamespace(choices=[SimpleNamespace(
+                message=SimpleNamespace(content=None, tool_calls=[call]))])
+
+    result = compile_row_context({
+        "id": "context-row", "tier": "T4", "prompt": narrative,
+        "meta": {"target_keys": ["heart_rate"]},
+    }, Client())
+    assert result["attempted"] is True
+    assert len(result["events"]) == 1
+    assert len(result["rejected"]) == 1
+    assert result["events"][0]["attributes"]["evidence_quote"] in narrative
+
+
+def test_prevalidated_context_bypasses_provider_compilation():
+    expected = {"events": [{"event_id": "event_1"}], "hypotheses": [],
+                "rejected": [], "compiler_called": False,
+                "receipt_reused": True}
+    result = compile_row_context(
+        {"_validated_context": expected},
+        SimpleNamespace(chat=lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("provider must not be called"))))
+    assert result == {"attempted": True, **expected}
+
+
+def test_context_compiler_receipt_is_replayed_without_another_model_call(tmp_path):
+    narrative = ("Event context:\nMedication adjusted at "
+                 "2122-04-03T08:00:00.\nInput (JSON): {}")
+    raw = {"events": [{
+        "document_index": 0, "event_type": "medication_adjustment",
+        "entity_scope": ["heart_rate"],
+        "effective_start": "2122-04-03T08:00:00+00:00",
+        "effective_end": "2122-04-03T09:00:00+00:00",
+        "known_at": "2122-04-03T08:00:00+00:00",
+        "evidence_quote": "Medication adjusted at 2122-04-03T08:00:00.",
+        "effect_family": "level_shift", "direction": "unknown",
+        "duration": "temporary",
+    }], "hypotheses": []}
+
+    class Client:
+        model = "test-model"
+        calls = 0
+
+        def chat(self, messages, **kwargs):
+            self.calls += 1
+            call = SimpleNamespace(
+                id="context", type="function",
+                function=SimpleNamespace(
+                    name="submit_context", arguments=json.dumps(raw)))
+            return SimpleNamespace(choices=[SimpleNamespace(
+                message=SimpleNamespace(content=None, tool_calls=[call]))])
+
+    row = {"id": "context-row", "tier": "T4", "prompt": narrative,
+           "meta": {"target_keys": ["heart_rate"]}}
+    client = Client()
+    first = compile_row_context(row, client, str(tmp_path))
+    replay = compile_row_context(row, client, str(tmp_path))
+    assert client.calls == 1
+    assert first["receipt_id"] == replay["receipt_id"]
+    assert first["compiler_called"] is True
+    assert replay["compiler_called"] is False
+    assert replay["receipt_reused"] is True
 
 
 # -- fixtures ---------------------------------------------------------------
@@ -489,6 +633,40 @@ def test_spent_tool_budget_does_not_void_the_row(tmp_path, monkeypatch):
                    [first_call, second_call, submit], tmp_path)
     assert outcome["answer"]["forecast"]["spo2"] == VALUES
     assert outcome["mcp"]["calls"] == 1
+    assert outcome["mcp"]["schema_bytes"] > 0
+
+
+def test_complete_artifact_survives_final_submission_format_failure(tmp_path):
+    def forecast(messages):
+        return {"tool_calls": [_forecast_call(messages, "hr,spo2")]}
+
+    outcome = _run(_row(sparse_temp=False), [
+        forecast,
+        {"content": "I would submit the artifact."},
+        {"content": "Still prose."},
+    ], tmp_path)
+    assert outcome["channel_route"] == {"hr": "gnomon", "spo2": "gnomon"}
+    assert "row_abstained" not in outcome
+    assert {entry.get("submission_fallback") for entry in
+            outcome["mcp"]["tool_sequence"]} == {None, "complete_artifact"}
+
+
+def test_single_target_default_artifact_closes_engine_browsing(tmp_path):
+    row = _row(sparse_temp=False)
+    row["meta"]["target_keys"] = ["hr"]
+    row["input"]["history"] = {"hr": row["input"]["history"]["hr"]}
+    row["ground_truth"] = {"hr": row["ground_truth"]["hr"]}
+
+    def forecast(messages):
+        return {"tool_calls": [_forecast_call(messages, "hr")]}
+
+    outcome = _run(row, [forecast, {"content": "prose"},
+                         {"content": "still prose"}], tmp_path)
+    assert outcome["mcp"]["calls"] == 1
+    assert any(entry.get("last_call") ==
+               "forecast artifact ready; engine browsing closed"
+               for entry in outcome["mcp"]["tool_sequence"])
+    assert outcome["channel_route"]["hr"] == "gnomon"
 
 
 # -- one batched call for every channel -------------------------------------
@@ -738,9 +916,10 @@ def test_mcq_submit_schema_is_the_row_s_own_shape():
     assert "2 questions" in rule
 
 
-def test_mcq_tiers_hold_the_same_unpruned_tool_surface(tmp_path):
+def test_mcq_tiers_hold_the_same_unpruned_tool_surface(tmp_path, monkeypatch):
     """The arm's question is whether tool access helps a question tier;
     withdrawing the tools would answer it by construction."""
+    monkeypatch.setenv("GNOMON_MCP_PROFILE", "full")
     seen = {}
 
     def capture(messages):
@@ -823,6 +1002,21 @@ def test_answer_row_dispatches_every_tier_to_its_mcp_path(monkeypatch):
     assert real_mcq is not None  # the tier restriction is gone, not moved
 
 
+def test_answer_row_passes_the_experiment_profile(monkeypatch):
+    from benchmarks.temporalbench import run_temporalbench
+
+    seen = []
+    monkeypatch.setattr(
+        mcp_agent, "run_row",
+        lambda row, client, **kwargs: seen.append(kwargs) or {},
+    )
+    run_temporalbench.answer_row(
+        {"tier": "T2", "prompt": "x"}, "gnomon-mcp", None,
+        mcp_profile="core",
+    )
+    assert seen == [{"profile": "core"}]
+
+
 def test_mcp_condition_keeps_the_requested_tiers(tmp_path, monkeypatch):
     """`--condition gnomon-mcp --tiers T1,T2,T3,T4` must run all four:
     the arm is no longer T2/T4 by construction."""
@@ -859,9 +1053,13 @@ def test_voided_rows_stay_out_of_the_accuracy_denominators(tmp_path,
             {"id": "voided", "tier": "T1", "prompt": "x",
              "labels": {"trend": "upward"}}]
     outcomes = {
-        "answered": {"answer": {"trend": "upward"}, "abstained": []},
+        "answered": {"answer": {"trend": "upward"}, "abstained": [],
+                     "mcp": {"calls": 2, "run_tokens": 120,
+                             "schema_bytes": 2000}},
         "voided": {"answer": {}, "abstained": ["cap:tokens exceeded"],
-                   "row_abstained": "cap:tokens exceeded"},
+                   "row_abstained": "cap:tokens exceeded",
+                   "mcp": {"calls": 4, "run_tokens": 280,
+                           "schema_bytes": 2000}},
     }
     monkeypatch.setattr(runner, "load_official_metrics", lambda _dir: None)
     monkeypatch.setattr(runner, "OpenRouterClient",
@@ -888,6 +1086,16 @@ def test_voided_rows_stay_out_of_the_accuracy_denominators(tmp_path,
     # engine declined: that counter covers T2/T4 channels only.
     assert summary["forecast_channels_abstained"] == 0
     assert summary["choice_accuracy_by_tier_scored_only"] == {"T1": 1.0}
+    assert summary["mcp_economics"] == {
+        "cumulative_tokens": 400,
+        "mean_tokens_per_attempted_row": 200.0,
+        "calls_median": 4,
+        "calls_p95": 4,
+        "schema_bytes": [2000],
+        "rows_answered": 1,
+        "rows_attempted": 2,
+        "answer_yield": 0.5,
+    }
     records = [json.loads(line) for line in
                (output / "gnomonbench.jsonl").read_text().splitlines()]
     voided, = [r for r in records if r["task_id"] == "voided"]
@@ -897,23 +1105,49 @@ def test_voided_rows_stay_out_of_the_accuracy_denominators(tmp_path,
     # Provenance: the endpoint that served the model, in the manifest.
     manifest = json.loads((output / "manifest.json").read_text())
     assert manifest["base_url"] == "http://x"
+    assert manifest["mcp_profile"] == "evidence"
 
 
-def test_rounds_constant_departs_from_cik_posture_deliberately():
-    """This arm's round cap is intentionally NOT the CiK arm's 10.
+def test_row_offset_makes_long_sweeps_shardable(tmp_path, monkeypatch):
+    import benchmarks.temporalbench.run_temporalbench as runner
 
-    Measured: at 10, 11 of 12 T2/T4 rows ended `cap:rounds` with the
-    token and wall-clock ceilings untouched, so the cap was the
-    measurement rather than a guard; 30 took scored rows 1/12 -> 4/12.
-    A TemporalBench row is also a longer conversation than a CiK one —
-    up to six channels to forecast and submit against CiK's single
-    series — so parity of the number was never parity of the budget.
-    If these are reunified, change both and re-measure; do not quietly
-    lower this one back.
-    """
-    assert MAX_ROUNDS == 30
+    rows = [{"id": f"row{i}", "tier": "T1", "prompt": "x",
+             "labels": {"trend": "upward"}} for i in range(4)]
+    seen = []
+    requested = {}
+    monkeypatch.setattr(runner, "load_official_metrics", lambda _dir: None)
+    monkeypatch.setattr(runner, "OpenRouterClient",
+                        lambda *a, **k: SimpleNamespace(
+                            base_url="http://x", usage_summary={}))
+    def rows_for_run(_dir, **kwargs):
+        requested["limit"] = kwargs["limit"]
+        return iter(rows[:kwargs["limit"]])
+    monkeypatch.setattr(runner, "iter_rows", rows_for_run)
+    monkeypatch.setattr(
+        runner, "answer_row",
+        lambda row, *a, **k: seen.append(row["id"]) or {
+            "answer": {"trend": "upward"}, "abstained": []},
+    )
+    output = tmp_path / "out"
+    monkeypatch.setattr(sys, "argv", [
+        "run_temporalbench", "--data-dir", str(tmp_path),
+        "--condition", "gnomon-mcp", "--model", "x/y", "--tiers", "T1",
+        "--offset", "2", "--limit", "1", "--output-dir", str(output),
+    ])
+    assert runner.main() == 0
+    assert requested["limit"] == 3
+    assert seen == ["row2"]
+    summary = json.loads((output / "summary.json").read_text())
+    assert summary["row_offset"] == 2
+    assert summary["rows"] == 1
+
+
+def test_surface_experiment_enforces_the_precommitted_call_ceiling():
+    """Completed work gets a final submission round after four calls."""
+    assert MAX_ROUNDS == 10
+    assert mcp_agent.MAX_MCP_CALLS == 4
     assert cik_mcp_agent.MAX_ROUNDS == 10, (
-        "CiK's cap moved; revisit whether the divergence is still wanted"
+        "CiK's cap moved; revisit the matched harness posture"
     )
 
 

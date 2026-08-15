@@ -74,6 +74,8 @@ def test_context_admitted_when_it_demonstrates_stable_lift(tmp_path) -> None:
     assert result.context is not None
     assert result.context["admitted"] is True
     assert result.selected_model == "event_adjusted"
+    assert result.context_outcome["status"] == "applied"
+    assert result.context_outcome["primary_forecast_changed"] is True
     assert result.context["mean_improvement"] > 0.02
     assert any(evidence.kind == "context_ablation" for evidence in artifact.evidence)
     # Day 135 (a promo day, %10 == 5) falls inside the 7-day horizon:
@@ -106,6 +108,8 @@ def test_unsourced_events_are_excluded_and_context_rejected(tmp_path) -> None:
     assert result.context["admitted"] is False
     assert result.selected_model != "event_adjusted"
     assert result.context["events_excluded"][0]["reason"].startswith("no verifiable source")
+    assert result.context_outcome["status"] == "scenario_only"
+    assert result.context_outcome["primary_forecast_changed"] is False
 
 
 def test_cli_forecast_with_context_file(tmp_path, capsys) -> None:
@@ -234,6 +238,22 @@ class TestEffectShapes:
             scaled = event_effect_shaped(history, active, shape)
             delivered = [scaled * weight for weight, flag in zip(weights, active) if flag]
             assert abs(sum(delivered) / len(delivered) - base) < 1e-9, shape
+
+    def test_residual_effect_removes_history_model_bias(self):
+        from gnomon.context_model import residual_event_effect
+
+        residuals = [0.5, -0.5, 8.5, 7.5, 0.5, -0.5]
+        active = [False, False, True, True, False, False]
+        assert residual_event_effect(residuals, active, "level") == 8.0
+
+    def test_residual_candidate_changes_only_future_event_steps(self):
+        from gnomon.context_model import residual_event_adjusted
+
+        points = residual_event_adjusted(
+            [0.0, 6.0, 0.0, 6.0], 4,
+            [False, True, False, True], [False, True, True, False],
+            [10.0, 10.0, 10.0, 10.0], "level")
+        assert points == [10.0, 16.0, 16.0, 10.0]
 
     def test_each_active_run_gets_its_own_onset(self):
         from gnomon.context_model import shape_weights
@@ -503,3 +523,24 @@ def test_invalid_expected_shape_is_a_contract_violation() -> None:
     )
     problems = validate_context_event(event)
     assert any("expected_shape" in problem for problem in problems)
+
+
+def test_text_context_compiler_keeps_hypotheses_non_numeric() -> None:
+    from gnomon.workflows import DocumentRef, parse_context_response
+
+    document = DocumentRef(
+        "runbook", "Traffic normally drops every weekend.",
+        reference="runbook.md")
+    result = parse_context_response({
+        "events": [],
+        "hypotheses": [{
+            "document_index": 0, "kind": "seasonality",
+            "entity_scope": ["traffic"], "value": "weekly decrease",
+            "evidence_quote": "Traffic normally drops every weekend.",
+        }],
+    }, [document])
+
+    [hypothesis] = result["hypotheses"]
+    assert hypothesis["status"] == "proposed_for_numeric_verification"
+    assert hypothesis["may_affect_numbers"] is False
+    assert hypothesis["source"]["reference"] == "runbook.md"

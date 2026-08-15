@@ -86,13 +86,14 @@ def test_the_hardcoded_versions_agree_with_the_package():
 
 # -- the counts ------------------------------------------------------------
 
-def test_readme_states_the_real_tool_count():
-    from gnomon.toolspec import TOOLS
+def test_readme_states_the_real_tool_count(monkeypatch):
+    from gnomon.toolspec import visible_tools
 
+    monkeypatch.delenv("GNOMON_MCP_PROFILE", raising=False)
     stated = re.search(r"The agent gets (\d+) tools", README)
     assert stated, "the README no longer states a tool count"
-    assert int(stated.group(1)) == len(TOOLS), (
-        f"README says {stated.group(1)} tools; toolspec has {len(TOOLS)}"
+    assert int(stated.group(1)) == len(visible_tools()), (
+        f"README says {stated.group(1)} tools; default surface has {len(visible_tools())}"
     )
 
 

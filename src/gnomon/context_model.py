@@ -36,7 +36,7 @@ from __future__ import annotations
 
 from statistics import mean
 
-from .models import drift
+from .models import drift, predict
 
 
 def event_effect(history: list[float], active_history: list[bool]) -> float:
@@ -57,6 +57,55 @@ def event_effect(history: list[float], active_history: list[bool]) -> float:
     active_level = mean(d for d, active in zip(detrended, active_history) if active)
     inactive_level = mean(d for d, active in zip(detrended, active_history) if not active)
     return active_level - inactive_level
+
+
+def rolling_residuals(
+    history: list[float], model: str, season: int,
+) -> list[float | None]:
+    """Leakage-safe one-step errors from a history-only model.
+
+    The residual at position ``t`` is produced by a model fitted only through
+    ``t - 1``.  These residuals let an aperiodic intervention be measured
+    after ordinary trend/seasonality has been removed by the model that won
+    the history-only evaluation.
+    """
+    # Start as soon as the selected model has one seasonal cycle. Requiring
+    # the evaluation gate's two-cycle training floor here discarded early
+    # event occurrences even though their one-step residual was scoreable.
+    minimum = max(season, 2)
+    residuals: list[float | None] = [None] * len(history)
+    for index in range(minimum, len(history)):
+        points = predict(model, history[:index], 1, season)
+        if points:
+            residuals[index] = history[index] - float(points[0])
+    return residuals
+
+
+def residual_event_effect(
+    residuals: list[float | None], active_history: list[bool], shape: str,
+) -> float:
+    """Measure an event from prequential base-model residuals."""
+    if len(residuals) != len(active_history):
+        raise ValueError("event flags do not align with residual history")
+    usable = [(float(value), active) for value, active in
+              zip(residuals, active_history) if value is not None]
+    if not any(active for _, active in usable):
+        raise ValueError("event has no scoreable occurrences in training history")
+    if not any(not active for _, active in usable):
+        raise ValueError("event is active for the entire scoreable history")
+    active_values = [value for value, active in usable if active]
+    inactive_values = [value for value, active in usable if not active]
+    effect = mean(active_values) - mean(inactive_values)
+    if shape == "level":
+        return effect
+    weights = shape_weights(active_history, shape)
+    active_weights = [weight for weight, flag, residual in
+                      zip(weights, active_history, residuals)
+                      if flag and residual is not None]
+    average_weight = mean(active_weights) if active_weights else 0.0
+    if average_weight <= 1e-12:
+        raise ValueError(f"shape {shape!r} delivers no scoreable effect")
+    return effect / average_weight
 
 
 #: Shapes the ablation may choose between, in a fixed order so selection is
@@ -155,3 +204,18 @@ def event_adjusted(
     if len(base) != horizon:
         raise ValueError("base path does not span the horizon")
     return [point + effect * weight for point, weight in zip(base, weights)]
+
+
+def residual_event_adjusted(
+    residuals: list[float | None], horizon: int,
+    active_history: list[bool], active_future: list[bool],
+    base_points: list[float], shape: str = "level",
+) -> list[float]:
+    """Add an event effect measured from base-model residuals to its path."""
+    if len(active_history) != len(residuals) or len(active_future) != horizon:
+        raise ValueError("event flags do not align with the time grid")
+    if len(base_points) != horizon:
+        raise ValueError("base path does not span the horizon")
+    effect = residual_event_effect(residuals, active_history, shape)
+    return [point + effect * weight for point, weight in
+            zip(base_points, shape_weights(active_future, shape))]

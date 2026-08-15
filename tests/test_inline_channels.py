@@ -160,6 +160,32 @@ def test_forecast_considers_inline_covariates(tmp_path):
     assert covariates["considered"] is True
 
 
+def test_multi_target_forecast_considers_inline_covariates(tmp_path):
+    observations = []
+    covariates = []
+    for i in range(63):
+        if i < 60:
+            observations.append({
+                "timestamp": _stamp(i), "a": 10 + math.sin(i),
+                "b": 20 + math.cos(i),
+            })
+        for series in ("a", "b"):
+            covariates.append({
+                "timestamp": _stamp(i), "known_at": _stamp(0),
+                "series": series, "load": float(i % 7),
+            })
+    payload = runner_for("gnomon_forecast")({
+        "observations": observations, "time_column": "timestamp",
+        "target_column": "a,b", "horizon": 3,
+        "covariates": covariates,
+        "covariate_mapping": "load:continuous:future_known",
+        "covariate_series_column": "series",
+        "output_dir": str(tmp_path), "format": "full",
+    })
+    assert all(item["covariates"]["considered"]
+               for item in payload["results"])
+
+
 def test_covariate_channel_misuse_is_loud(tmp_path):
     base = {
         "observations": _observation_rows(), "time_column": "timestamp",
@@ -316,3 +342,15 @@ def test_covariate_mapping_accepts_the_list_form():
     assert joined == listed
     with pytest.raises(GnomonError):
         parse_mapping(["load:continuous"])  # still the typed error
+
+
+def test_covariate_mapping_accepts_declared_cyclic_periods():
+    from gnomon.covariates import parse_mapping
+
+    spec = parse_mapping([{
+        "name": "minute_of_day", "type": "cyclic_1440",
+        "availability": "future_known",
+    }])[0]
+    assert spec.value_type == "cyclic_1440"
+    with pytest.raises(GnomonError, match="unsupported type"):
+        parse_mapping("minute_of_day:cyclic_daily:future_known")

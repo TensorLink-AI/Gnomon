@@ -33,6 +33,7 @@ from benchmarks.cik.run_cik import (
 )
 from benchmarks.common.openrouter import extract_json_array
 from benchmarks.common.records import RecordWriter, RunRecord
+from benchmarks.temporalbench.mcp_agent import _Run, preferred_execution_tool
 
 
 def test_quantile_samples_shape_and_median():
@@ -69,6 +70,63 @@ def test_extract_json_array_from_prose_and_fences():
 def test_extract_json_array_skips_invalid_candidates():
     text = "[not json] but later [\"valid\"]"
     assert extract_json_array(text) == ["valid"]
+
+
+def test_temporalbench_validates_complete_multiseries_artifact_not_brief_preview(
+    monkeypatch, tmp_path,
+):
+    """Top-k response triage must not trigger duplicate forecast calls."""
+    artifact_path = str(tmp_path / "forecast_artifact")
+
+    class Session:
+        def call_tool(self, name, arguments):
+            assert name == "gnomon_forecast"
+            return {
+                "isError": False,
+                "structuredContent": {
+                    "artifact_path": artifact_path,
+                    # Brief envelopes intentionally expose only notable rows.
+                    "results": [{"series": "alpha"}],
+                },
+                "content": [{"type": "text", "text": "{}"}],
+            }
+
+    monkeypatch.setattr(
+        "gnomon.artifacts.read_artifact",
+        lambda path: {
+            "results": [{"series": "alpha"}, {"series": "beta"}],
+        },
+    )
+    run = object.__new__(_Run)
+    run.target_keys = ["alpha", "beta"]
+    run.profile = "evidence"
+    run.horizon = 1
+    run.csv_path = tmp_path / "history.csv"
+    run.jail = tmp_path
+    run.session = Session()
+    run.trace = []
+    run.mcp_calls = 0
+    run.artifact_paths = set()
+    run.complete_artifact_ready = False
+    run.started = 0
+    run.client = type("Client", (), {
+        "total_prompt_tokens": 0,
+        "total_completion_tokens": 0,
+    })()
+    run.tokens_at_start = 0
+    run._cap_breach = lambda: None
+
+    run._dispatch("gnomon_forecast", {})
+
+    assert run.complete_artifact_ready is True
+    assert run.artifact_paths == {artifact_path}
+
+
+def test_temporalbench_precommits_forecast_verb_only_for_execution_arms():
+    assert preferred_execution_tool("evidence", True) == "gnomon_forecast"
+    assert preferred_execution_tool("mega", True) == "gnomon_run"
+    assert preferred_execution_tool("full", True) is None
+    assert preferred_execution_tool("evidence", False) is None
 
 
 def test_events_from_proposals_validates_and_filters():

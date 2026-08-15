@@ -26,6 +26,14 @@ from .context import (
     validate_context_event,
 )
 from .temporal import normalise_frequency
+from .soft_context import (
+    EFFECT_DIRECTIONS,
+    EFFECT_DURATIONS,
+    EFFECT_FAMILIES,
+    ENTITY_KINDS,
+    content_fingerprint,
+    make_context_receipt,
+)
 
 
 @dataclass(frozen=True)
@@ -54,11 +62,35 @@ CONTEXT_RESPONSE_SCHEMA: dict[str, Any] = {
                     "confidence": {"type": "number"},
                     "attributes": {"type": "object"},
                     "evidence_quote": {"type": "string"},
+                    "effect_family": {"type": "string", "enum": list(EFFECT_FAMILIES)},
+                    "direction": {"type": "string", "enum": list(EFFECT_DIRECTIONS)},
+                    "duration": {"type": "string", "enum": list(EFFECT_DURATIONS)},
+                    "normalized_entity": {"type": ["string", "null"]},
+                    "entity_kind": {"type": "string", "enum": list(ENTITY_KINDS)},
+                    "delay_steps": {"type": ["array", "null"], "items": {"type": "integer"}, "minItems": 2, "maxItems": 2},
+                    "duration_steps": {"type": ["array", "null"], "items": {"type": "integer"}, "minItems": 2, "maxItems": 2},
                 },
                 "required": [
                     "document_index", "event_type", "entity_scope",
                     "effective_start", "effective_end", "known_at", "evidence_quote",
                 ],
+            },
+        },
+        "hypotheses": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "document_index": {"type": "integer"},
+                    "kind": {"type": "string", "enum": [
+                        "seasonality", "relationship", "unit",
+                        "operational_constraint"]},
+                    "entity_scope": {"type": "array", "items": {"type": "string"}},
+                    "value": {"type": "string"},
+                    "evidence_quote": {"type": "string"},
+                },
+                "required": ["document_index", "kind", "entity_scope",
+                             "value", "evidence_quote"],
             },
         },
     },
@@ -98,6 +130,16 @@ def build_context_investigation_prompt(
         "[\"*\"] only when the event clearly affects every series.\n"
         "6. Do not speculate. Fewer, well-grounded events beat many weak "
         "ones. Return {\"events\": []} when nothing qualifies.\n"
+        "7. Put non-event context (claimed seasonality, units, cross-series "
+        "relationships, or operational constraints) in hypotheses. Quote it "
+        "verbatim; do not estimate a numeric effect. Hypotheses never alter "
+        "a forecast until deterministic code verifies them.\n"
+        "8. For each event, classify only its qualitative effect_family, "
+        "direction, duration, normalized entity, entity kind, and any "
+        "explicitly stated delay/duration range in forecast steps when the "
+        "quoted text supports them. Use unknown or null otherwise. Normalize "
+        "names, not meaning: do not infer aliases. Never supply or estimate a "
+        "magnitude.\n"
     )
     if future_events:
         instructions += (
@@ -156,11 +198,11 @@ def parse_context_response(
     rejected: list[dict[str, Any]] = []
     proposals = raw.get("events") if isinstance(raw, dict) else None
     if not isinstance(proposals, list):
-        return {
-            "schema_version": "0.1",
-            "events": [],
-            "rejected": [{"proposal": raw, "problems": ["response is not an object with an events array"]}],
-        }
+        rejected.append({
+            "proposal": raw,
+            "problems": ["response is not an object with an events array"],
+        })
+        proposals = []
     for index, proposal in enumerate(proposals):
         if not isinstance(proposal, dict):
             rejected.append({"proposal": proposal, "problems": ["event proposal is not an object"]})
@@ -186,6 +228,12 @@ def parse_context_response(
         attributes.pop("claim", None)
         # `proposer` is ledger identity (see docstring): caller-set only.
         attributes.pop("proposer", None)
+        # Numerical effect size belongs to measured evidence.  These common
+        # spellings are reserved so a proposer cannot smuggle a magnitude
+        # through the otherwise-extensible attributes object.
+        for reserved in ("magnitude", "effect_size", "effect_magnitude",
+                         "numeric_effect"):
+            attributes.pop(reserved, None)
         if proposer:
             attributes["proposer"] = dict(proposer)
         quote = str(proposal.get("evidence_quote", ""))
@@ -195,6 +243,43 @@ def parse_context_response(
             rejected.append({"proposal": proposal, "problems": ["evidence_quote is not verbatim from the cited document"]})
             continue
         event_type = str(proposal.get("event_type", ""))
+        soft_values = {
+            "effect_family": str(proposal.get("effect_family", "unknown")),
+            "direction": str(proposal.get("direction", "unknown")),
+            "duration": str(proposal.get("duration", "unknown")),
+        }
+        if proposal.get("normalized_entity"):
+            soft_values["normalized_entity"] = str(
+                proposal["normalized_entity"]).strip().lower()
+        if proposal.get("entity_kind"):
+            soft_values["entity_kind"] = str(proposal["entity_kind"])
+        for range_name in ("delay_steps", "duration_steps"):
+            if proposal.get(range_name) is not None:
+                soft_values[range_name] = proposal[range_name]
+        soft_problems = []
+        if soft_values["effect_family"] not in EFFECT_FAMILIES:
+            soft_problems.append("effect_family is not in the closed vocabulary")
+        if soft_values["direction"] not in EFFECT_DIRECTIONS:
+            soft_problems.append("direction is not in the closed vocabulary")
+        if soft_values["duration"] not in EFFECT_DURATIONS:
+            soft_problems.append("duration is not in the closed vocabulary")
+        if soft_values.get("entity_kind", "unknown") not in ENTITY_KINDS:
+            soft_problems.append("entity_kind is not in the closed vocabulary")
+        for range_name in ("delay_steps", "duration_steps"):
+            value = soft_values.get(range_name)
+            if value is not None and (
+                not isinstance(value, list) or len(value) != 2
+                or any(isinstance(item, bool) or not isinstance(item, int)
+                       for item in value)
+                or value[0] < 0 or value[1] < value[0]
+            ):
+                soft_problems.append(
+                    f"{range_name} must be null or [minimum, maximum] non-negative steps"
+                )
+        if soft_problems:
+            rejected.append({"proposal": proposal, "problems": soft_problems})
+            continue
+        attributes["soft_context"] = soft_values
         if quote and (event_type.startswith("constraint:")
                       or event_type.startswith("override:")):
             # The quote has just been verified verbatim against the caller's
@@ -221,7 +306,76 @@ def parse_context_response(
         payload = event_to_dict(event)
         payload["backtest_admissible"] = backtest_admissible(event)
         accepted.append(payload)
-    return {"schema_version": "0.1", "events": accepted, "rejected": rejected}
+    hypotheses: list[dict[str, Any]] = []
+    rejected_hypotheses: list[dict[str, Any]] = []
+    allowed_kinds = {"seasonality", "relationship", "unit",
+                     "operational_constraint"}
+    raw_hypotheses = raw.get("hypotheses", []) if isinstance(raw, dict) else []
+    if not isinstance(raw_hypotheses, list):
+        rejected_hypotheses.append({
+            "proposal": raw_hypotheses,
+            "problems": ["hypotheses is not an array"],
+        })
+        raw_hypotheses = []
+    for proposal in raw_hypotheses:
+        problems: list[str] = []
+        if not isinstance(proposal, dict):
+            rejected_hypotheses.append({
+                "proposal": proposal, "problems": ["hypothesis is not an object"]})
+            continue
+        document_index = proposal.get("document_index")
+        if not isinstance(document_index, int) or not 0 <= document_index < len(documents):
+            problems.append("document_index does not reference a provided document")
+        kind = str(proposal.get("kind", ""))
+        if kind not in allowed_kinds:
+            problems.append("kind is not an admitted hypothesis type")
+        quote = str(proposal.get("evidence_quote", ""))
+        if not quote or (isinstance(document_index, int)
+                         and 0 <= document_index < len(documents)
+                         and quote not in documents[document_index].content):
+            problems.append("evidence_quote is not verbatim from the cited document")
+        scopes = proposal.get("entity_scope")
+        if not isinstance(scopes, list) or not scopes:
+            problems.append("entity_scope must name at least one series")
+        if problems:
+            rejected_hypotheses.append({"proposal": proposal, "problems": problems})
+            continue
+        document = documents[document_index]
+        hypotheses.append({
+            "kind": kind, "entity_scope": [str(item) for item in scopes],
+            "value": str(proposal.get("value", "")),
+            "evidence_quote": quote,
+            "source": {"type": document.source_type,
+                       "reference": document.reference or document.name},
+            "status": "proposed_for_numeric_verification",
+            "may_affect_numbers": False,
+        })
+    document_receipts = [
+        {
+            "index": index, "name": document.name,
+            "source_type": document.source_type,
+            "reference": document.reference or document.name,
+            "content_fingerprint": content_fingerprint(document.content),
+        }
+        for index, document in enumerate(documents)
+    ]
+    receipt = make_context_receipt(
+        documents=document_receipts, events=accepted, hypotheses=hypotheses,
+        rejected=rejected, rejected_hypotheses=rejected_hypotheses,
+        proposer=proposer,
+    )
+    executable_events = []
+    for event in accepted:
+        executable = dict(event)
+        executable["attributes"] = {
+            **dict(event.get("attributes") or {}),
+            "context_receipt_id": receipt["receipt_id"],
+        }
+        executable_events.append(executable)
+    return {"schema_version": "0.2", "events": executable_events,
+            "rejected": rejected, "hypotheses": hypotheses,
+            "rejected_hypotheses": rejected_hypotheses,
+            "context_receipt": receipt, "receipt_id": receipt["receipt_id"]}
 
 
 TASK_RESPONSE_SCHEMA: dict[str, Any] = {

@@ -87,15 +87,21 @@ dataset reports `known_time_provenance: partially_assumed`.
 
 | Profile | Tools | Intended session |
 | --- | ---: | --- |
-| `core` | 7 | capabilities, inspect, forecast, investigate, detect, artifact read/explain |
-| `decision` | 12 | `core` plus decide, monitor, route, status, and outcome resolution |
-| `data` | 10 | `core` plus ingest, dataset listing, and actuals scoring |
-| `full` | 18 | Every stable tool, including context/covariate validation and TSFM installation |
+| `core` | 6 | capabilities, inspect, forecast, investigate, detect, explain |
+| `describe` | 7 | Experimental `core` plus fast descriptive temporal evidence |
+| `evidence` | 2 | **Default:** fast description plus evaluated forecast |
+| `mega` | 3 | Experimental inspect/run/track consolidation arm |
+| `decision` | 11 | `core` plus decide, monitor, route, status, and outcome resolution |
+| `data` | 9 | `core` plus ingest, dataset listing, and actuals scoring |
+| `full` | 21 | Every stable tool, including context/covariate validation and TSFM installation |
 
-`full` is currently the default. Start a narrower surface with
-`gnomon mcp serve --profile core|decision|data|full`; `gnomon_capabilities`
+`evidence` is the default. Select a broader surface explicitly with
+`gnomon mcp serve --profile core|describe|evidence|mega|decision|data|full`; `gnomon_capabilities`
 reports the active profile under `mcp_profile`. A future default-profile
-change is an evaluation decision, not a claim about this build.
+The earlier [surface experiment](design/mcp-surface-experiment-results.md)
+retained `full`; it is superseded by the fresh workflow experiment after the
+response-contract and routing fixes. `full` remains available, but its measured
+53.6K tokens per case makes it unsuitable as the ambient agent surface.
 
 ## Where artifacts land
 
@@ -118,6 +124,14 @@ quoting a sub-supported value without its tier. Pass
 `minimum_support: "supported"` for the strict refusal with typed
 recovery; a series where nothing is computable still abstains.
 
+A normal forecast starts with `gnomon_forecast` itself. It performs safe
+schema inference and validation and returns a quotable preview plus canonical
+`temporal_facts` (`seasonal_period_steps`, its human label, frequency, and
+computed source). Do not spend calls on `gnomon_capabilities`,
+`gnomon_inspect`, or `gnomon_get_artifact` first unless the user explicitly
+asked for feature discovery, the schema is genuinely ambiguous, or deeper
+artifact evidence is required.
+
 ## Response sizes
 
 Tool responses are budgeted (`RESPONSE_BUDGET_BYTES`, reported by
@@ -129,6 +143,48 @@ the budget trims its long arrays to first/last entries, sets
 `truncated: true`, and points at the artifact, which always carries the
 complete data. Support assessments, warnings, assumptions, and
 error/repair payloads are never trimmed.
+
+Every data-bearing response also reports `series_end` and
+`wall_clock_now`; when the gap exceeds one grid step it includes a protected
+`staleness` sentence. Wide forecast responses return the three most notable
+series (threshold crossing first, then relative path movement), summarize the
+remainder by support tier, and point to artifact selectors for the full panel.
+The immutable artifact still contains every series and every row.
+
+`gnomon_describe` also returns deterministic multi-series triage: the largest
+absolute final-step change, the named ranking rule, top entries, and a
+`remainder_preserved` fact. These typed fields are safer to quote than asking
+the host model to reconstruct a ranking from prose.
+
+Every non-error verb response also carries a compact routing projection where
+the underlying result makes it applicable: `artifact_id`, `tier_floor`, typed
+`limitation_groups`, and aggregated `recovery_actions`. Repeated warning text
+is grouped with its affected-series count and up to three examples; the full
+warning remains attached to every series in the immutable artifact. These
+fields, the headline, support, assumptions, staleness, and artifact references
+are protected from trimming.
+
+When schema ambiguity blocks a forecast, each repair option contains a literal
+`tool_call` with the complete argument object—one per candidate plus the
+batched `target_column: "auto"` form. A host can issue it directly rather than
+spending another model turn composing selector syntax.
+
+## Reusing data without resending it
+
+Every data-reading response includes an opaque `data_ref`. It is scoped to the
+running MCP process and binds the source, resolved columns, temporal cutoff,
+frequency, and repair policy. Pass that reference to another verb instead of
+repeating `input` or `observations`:
+
+```json
+{"data_ref": "data_…", "horizon": 14}
+```
+
+Unknown references fail with a `resupply_data` recovery action, and a call
+cannot silently override the schema or temporal view bound to a reference.
+Inline observations are capped at 500 rows because the full payload remains in
+conversation history; send them once, then reuse `data_ref`. References expire
+when the MCP server process exits and are not portable across hosts.
 
 ## Tool surface
 

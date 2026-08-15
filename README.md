@@ -1,15 +1,18 @@
 # Gnomon
 
-**One trusted answer about what happens next—without making an agent become
-a forecasting specialist or spend a conversation rediscovering the same
-data.**
+**The trusted temporal execution boundary for agents.**
 
-Gnomon is a local temporal execution harness for developers, operators, and
-AI agents. The agent frames the question; deterministic code validates the
-data, evaluates the candidates, computes the answer, and keeps the receipts.
-The executable that wins evaluation is the executable that publishes. If the
-evidence cannot support a claim, Gnomon labels the weaker answer or abstains
-instead of letting the agent improvise.
+Gnomon turns an agent's temporal question into one evidence-linked answer it
+can quote, inspect, and later score. The agent frames the question;
+deterministic code validates the data, evaluates the candidates, computes the
+answer, and keeps the receipts. The executable that wins evaluation is the
+executable that publishes. If the evidence cannot support a claim, Gnomon
+labels the weaker answer or abstains instead of letting the agent improvise.
+
+It is local-first infrastructure, not another forecasting model and not an
+autonomous operator. Gnomon can run entirely on built-in models, optionally
+admit locally sandboxed foundation models, and expose the same governed
+runtime through CLI, Python, MCP, and Hermes.
 
 The first concrete job is operational threshold risk:
 
@@ -32,11 +35,32 @@ stays authoritative for timestamps, backtests, model selection, intervals,
 support status, and every published value. The LLM never gets to invent or
 edit one.
 
-“Cheaply” is part of the contract. Wide data is handled in one batched call;
-brief responses keep disclosures while moving bulk rows to immutable
-artifacts; repeated calls can refer to those artifacts instead of rebuilding
-the analysis. Gnomon optimizes tool calls and conversation bytes without
-weakening evaluation or hiding caveats.
+Conversation cost is an engineering constraint, not a completed claim. Wide
+data is handled in one batched call; brief responses keep disclosures while
+moving bulk rows to immutable artifacts; repeated calls can use a session
+`data_ref` instead of resending observations. A fresh 1,800-execution workflow
+experiment selected the two-tool `evidence` profile as the default: 96.3%
+correctness and 89% trust at one median call and 12.7K tokens per case. `full`
+remains explicit opt-in for administration and deep audit.
+
+## Where Gnomon sits
+
+```text
+agent / operator
+      |  intent, permitted data access, explanation
+      v
+Gnomon
+      |  point-in-time data, evaluation, executable candidate,
+      |  support tier, deterministic headline, immutable artifact
+      v
+built-in models or explicitly configured model backends
+```
+
+Gnomon owns the middle boundary: what data was knowable, which executable
+earned publication, every published number, and what the evidence permits the
+caller to say. A hosted router, benchmark service, or model-training network
+may supply better candidates later; none is required by this repository and
+none may bypass that contract.
 
 > A gnomon is the shadow-casting rod on a sundial: it computes nothing, and
 > it reads nothing at night rather than inventing an hour.
@@ -70,12 +94,15 @@ Then ask your agent one complete operational question:
 > What changed in it, and when should we alert if crossing 340 costs us 20x
 > a false alarm?
 
-The agent gets 18 tools on the default `full` profile — `gnomon_forecast`, `gnomon_investigate_change`,
-`gnomon_detect_anomalies`, `gnomon_decide`, `gnomon_monitor`, `gnomon_route`, plus
-ingestion, inspection, tracking, and artifact tools — and every number it
+The agent gets 2 tools on the default `evidence` profile:
+`gnomon_describe` for fast temporal evidence and `gnomon_forecast` for
+evaluated publication. Broader operational, tracking, ingestion, and artifact
+tools remain available through explicit profiles, and every number it
 quotes comes from an evidence-linked, verified artifact. It cannot invent
 values for an unsupported series; it can only report Gnomon's abstention and
-its recovery options. See the [MCP quickstart](docs/quickstart-mcp.md) for
+its recovery options. Data-reading calls return a session-scoped `data_ref`,
+so follow-up verbs reuse the resolved data and schema without resending the
+observations. See the [MCP quickstart](docs/quickstart-mcp.md) for
 client configs, the vintage workflow, and the full tool surface.
 (A `pip install gnomon-forecast` / `uvx gnomon-forecast` path arrives with the
 PyPI release.)
@@ -383,6 +410,7 @@ requires no LLM or API key.
 | Guide | Purpose |
 | --- | --- |
 | [Documentation index](docs/README.md) | Everything below, plus what is and isn't built |
+| [Product position](docs/product-position.md) | Promise, first buyer, deployed boundary, and claims discipline |
 | [MCP quickstart](docs/quickstart-mcp.md) | Hook Gnomon to an agent and get a grounded answer in a minute |
 | [Getting started](docs/getting-started.md) | Complete first run |
 | [Installation](docs/installation.md) | Bash, uv, GitHub, Docker, and PyPI options |

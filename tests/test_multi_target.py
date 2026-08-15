@@ -23,6 +23,7 @@ from pathlib import Path
 import pytest
 
 from gnomon.contracts import GnomonError
+from gnomon.covariates import covariates_from_rows
 from gnomon.data import resolve_target_spec
 from gnomon.ids import FixedClock
 from gnomon.runtime import forecast, forecast_multi
@@ -68,6 +69,33 @@ def test_batched_channels_match_sequential_single_target_runs(tmp_path):
         assert result.interval_coverage == expected.interval_coverage
         assert result.warnings == expected.warnings
         assert result.forecast == expected.forecast
+
+
+def test_batched_channels_accept_and_trace_future_known_covariates(tmp_path):
+    path = tmp_path / "wide.csv"
+    names = _write_wide(path, channels=2)
+    rows = []
+    for name in names:
+        for k in range(132):
+            rows.append({
+                "timestamp": (START + timedelta(hours=k)).isoformat(),
+                "known_at": START.isoformat(),
+                "series": name,
+                "hour": float(k % 24),
+            })
+    covariates = covariates_from_rows(
+        rows, "hour:continuous:future_known", series_column="series",
+    )
+    artifact, _ = forecast_multi(
+        str(path), time_column="timestamp", target_columns=names,
+        horizon=12, output=str(tmp_path / "multi-covariates"), clock=CLOCK,
+        covariates=covariates,
+    )
+    assert all(result.covariates["considered"] for result in artifact.results)
+    assert any(item.kind == "snapshot_access" and
+               item.evidence_id == "covariate_snapshot"
+               for item in artifact.evidence)
+    assert artifact.forecast_id
 
 
 def test_channel_abstention_is_isolated_and_disclosed(tmp_path):
@@ -118,6 +146,9 @@ def test_artifact_is_identical_at_any_worker_count(tmp_path):
         )
         texts.append((directory / "artifact.json").read_text(encoding="utf-8"))
     assert texts[0] == texts[1]
+    stored = json.loads(texts[0])
+    assert all(isinstance(row["notability"], float)
+               for row in stored["results"])
 
 
 def test_multi_target_id_is_deterministic_and_distinct(tmp_path):

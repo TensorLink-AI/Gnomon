@@ -24,7 +24,7 @@ Gnomon ships LLM *workflows* (prompt + response schema + deterministic
 validation) without shipping an LLM. `gnomon context prompt` emits an
 Gnomon-owned extraction prompt for permitted documents; the host runs it on
 its own model; `gnomon context validate` grounds and validates the response
-into typed context events. The Hermes plugin wires this through the host's
+into typed context events and non-event hypotheses. The Hermes plugin wires this through the host's
 `ctx.llm` facade, so no API key is ever configured on the Gnomon side. Events
 enter a forecast only through the deterministic admission gate
 (identical-fold ablation) — or, behind `context.future_events: on`, through
@@ -32,6 +32,25 @@ the textual-verifiability lane for future-dated `constraint:*`/`override:*`
 events, whose numbers are re-parsed deterministically from evidence quotes
 verified verbatim against the caller's own documents. Forecasts that lane
 influences report the distinct `context_trusted` support state.
+
+Validation also returns an immutable, content-addressed `context_receipt`
+covering source fingerprints, accepted and rejected proposals, compiler
+identity, and prompt version. Persist and replay that receipt when comparing
+execution surfaces or repeating a run; do not pay for or introduce variance
+from a fresh compiler call. Each executable event carries the receipt ID into
+the forecast artifact.
+
+The compiler treats text in two lanes. Bounded, dated events may enter the
+existing admission machinery. Claims about seasonality, units, relationships,
+or operational constraints are returned as `hypotheses` with their verbatim
+quote and source, status `proposed_for_numeric_verification`, and
+`may_affect_numbers: false`. A host may ask `gnomon_describe` to test those
+hypotheses; the LLM's wording alone never changes a forecast.
+For soft events it may additionally classify a qualitative effect family,
+direction, and duration. It cannot supply magnitude: common numeric-effect
+attribute spellings are stripped, and the runtime reports the event as
+`scenario_only` unless measured history and the admission gate support a
+numeric candidate.
 
 ## Is OpenRouter a planned option?
 
@@ -72,6 +91,7 @@ Concretely, an LLM layer may:
 - search explicitly permitted local context;
 - propose context events (verbatim-quote-verified) and *nominate* — never
   pick — an effect shape via `expected_shape`;
+- extract quoted temporal hypotheses for deterministic verification;
 - restrict the model contest via `candidates` (the mandatory baselines
   always compete, and the restriction is disclosed);
 - propose bounded experiments; and

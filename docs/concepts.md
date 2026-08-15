@@ -84,6 +84,13 @@ alone cannot show: a promotion window, a capacity cap, a migration. Gnomon
 never takes your word for its *effect* — it measures one, on the same folds
 everything else competes on, and excludes the event when it cannot.
 
+Narrative compilation returns a content-addressed `context_receipt`. It binds
+the validated events and hypotheses to source-document fingerprints, compiler
+identity, and prompt version, so a host can compile once and replay the exact
+receipt across runs. Qualitative soft context uses a closed effect vocabulary
+(level/trend/variance/pulse/bound/seasonal regime), direction, and duration;
+its magnitude is always null at compilation time.
+
 `examples/context_events.json` is a worked file with one of each kind:
 
 ```bash
@@ -101,10 +108,21 @@ window already breaches is rejected, with the violating timestamps named.
 
 **An event without one** is a window whose effect Gnomon estimates.
 `marketing-push-2026-06` marks a campaign; the context ablation measures
-its effect from detrended history and admits it only if it beats the
-history-only baseline on identical folds. The effect shape (level, decay,
-ramp) is chosen by the same measurement, never by the caller — a caller who
-could name the shape could fit a story to the data.
+its effect either from detrended history or from leakage-safe one-step
+residuals of the selected history model. Both estimators compete on identical
+folds, and the winner is disclosed as `effect_estimator`; this lets Gnomon
+isolate aperiodic interventions without mistaking ordinary seasonality for an
+effect. The effect shape (level, decay, ramp) is chosen by the same
+measurement, never by the caller — a caller who could name the shape could
+fit a story to the data.
+
+Every result with applicable context also carries `context_outcome`:
+`not_considered`, `rejected`, `scenario_only`, or `applied`. `scenario_only`
+means the event was grounded but did not earn a numerical change to the
+primary forecast. It includes recovery actions and, when repeated historical
+occurrences make an effect measurable, a separately labelled conditional
+forecast. `applied` means the deterministic candidate passed admission; it is
+never inferred from compiler acceptance.
 
 Every event needs a `known_at`. It is what makes the backtest honest: a
 fold cutting at T may only use events knowable by T, so an event recorded
@@ -128,4 +146,3 @@ challenger on identical folds and records the comparison as evidence.
 There are no transformations and no dedicated intermittent-demand
 methods. Use `gnomon capabilities` as the machine-readable
 source of truth.
-

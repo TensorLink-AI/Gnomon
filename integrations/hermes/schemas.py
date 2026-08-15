@@ -1,9 +1,8 @@
 """OpenAI-style function schemas for the Gnomon tools exposed to Hermes.
 
-Deliberately three tools, mirroring the v0.1 CLI exactly. Richer surfaces
-(explain, score, compare, context evaluation) arrive only after these prove
-themselves in agent hands — every extra tool competes for the
-orchestrator's attention.
+These schemas mirror the stable Hermes-facing CLI views. Gnomon's MCP server
+has a broader expert surface; the plugin keeps a smaller, task-oriented set so
+every additional tool earns its place in the agent prompt.
 """
 
 from __future__ import annotations
@@ -217,11 +216,13 @@ GNOMON_RESOLVE_DECISION_SCHEMA = {
 GNOMON_PROPOSE_CONTEXT_SCHEMA = {
     "name": "gnomon_propose_context_events",
     "description": (
-        "Extract candidate context events (launches, promotions, outages, "
-        "holidays) from explicitly permitted local documents using an "
+        "Compile candidate context from explicitly permitted local documents: "
+        "dated events plus quoted seasonality, relationship, unit, and "
+        "operational-constraint hypotheses, using an "
         "Gnomon-owned prompt run on the host LLM, then validate them "
         "deterministically. Returns typed events plus rejected proposals with "
-        "reasons, and writes an events file for gnomon_forecast. Events without "
+        "reasons, and writes an events file for gnomon_forecast. Hypotheses are "
+        "marked non-numeric until verified against data. Events without "
         "a verifiable dated source are never used in backtests. Only use "
         "documents the user has allowed you to read. The gnomon:forecasting "
         "skill documents how to report admission decisions honestly."
@@ -269,6 +270,40 @@ GNOMON_INVESTIGATE_SCHEMA = {
             "as_of": {
                 "type": "string",
                 "description": "Optional ISO instant: investigate using only data known at or before this moment.",
+            },
+            "output_dir": {
+                "type": "string",
+                "description": "Directory for the immutable artifact (default ./gnomon-output).",
+            },
+        },
+        "required": ["input"],
+    },
+}
+
+GNOMON_DETECT_SCHEMA = {
+    "name": "gnomon_detect_anomalies",
+    "description": (
+        "What is abnormal? Grade competing anomaly detectors using supplied "
+        "labels or injected anomalies, then return the winning detector's "
+        "flags with every candidate grade and the support assessment. Report "
+        "the selection basis and support; never turn a flag into a cause."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            **_INPUT_PROPERTIES,
+            "threshold": {
+                "type": "number",
+                "description": "Optional threshold on standardised anomaly scores (runtime default 3.5).",
+            },
+            "labels": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Optional ISO timestamps of known anomalies; detector selection then uses label F1.",
+            },
+            "as_of": {
+                "type": "string",
+                "description": "Optional ISO instant: detect using only data known at or before this moment.",
             },
             "output_dir": {
                 "type": "string",

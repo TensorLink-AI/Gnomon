@@ -1,10 +1,9 @@
 # Gnomon plugin for Hermes Agent
 
-Gives any Hermes agent evidence-backed local forecasting: `gnomon_capabilities`,
-`gnomon_inspect`, `gnomon_forecast`, and `gnomon_propose_context_events`, plus tools
-to submit actuals, discover due forecasts, inspect realised performance, and
-record/resolve agent decisions. The `gnomon:forecasting` skill encodes the
-safe-use workflow.
+Gives Hermes a local trusted temporal execution boundary: all five governed
+views (`forecast`, `investigate`, `detect`, `decide`, and `monitor`), plus
+inspection, context/covariate proposal, and outcome-tracking tools. The
+`gnomon:forecasting` skill encodes the safe-use workflow.
 
 Covariate enrichment adds `gnomon_covariate_guide`,
 `gnomon_validate_covariates`, and `gnomon_propose_covariates`. Hermes decides what
@@ -12,13 +11,19 @@ external data may matter and fetches it with its own permitted tools. Gnomon onl
 accepts a local point-in-time CSV and admits features that demonstrate stable
 backtest lift.
 
-`gnomon_propose_context_events` is the "LLM flair with honest numbers" path:
+`gnomon_propose_context_events` is the "LLM interpretation with honest numbers" path:
 Gnomon emits the extraction prompt (`gnomon context prompt`), the plugin runs it
 on the **host's own model** via Hermes's `ctx.llm` facade (no Gnomon-side API
 key), and Gnomon deterministically validates the response (`gnomon context
 validate`). Validated events are still only proposals — `gnomon_forecast`
 admits them into the numbers solely when they demonstrate stable improvement
 on identical backtest folds.
+
+The compiler also returns quoted non-event `hypotheses` (seasonality, units,
+relationships, and operational constraints). They retain their source and are
+marked `proposed_for_numeric_verification` with `may_affect_numbers: false`;
+use Gnomon's descriptive evidence to test them rather than treating model
+wording as a measurement.
 
 Hermes's policy is that third-party integrations ship standalone rather than
 in the hermes-agent tree, so this plugin lives here, next to the runtime it

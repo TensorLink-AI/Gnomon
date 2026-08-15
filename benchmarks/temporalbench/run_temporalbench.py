@@ -58,6 +58,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import traceback
 import sys
 import time
 from pathlib import Path
@@ -155,7 +157,10 @@ def bounded_evidence(digest: dict[str, Any],
 
 def answer_row(row: dict[str, Any], condition: str,
                client: OpenRouterClient | None,
-               best_effort: bool = False) -> dict[str, Any]:
+               best_effort: bool = False,
+               mcp_profile: str = "full",
+               compile_context: bool = False,
+               context_receipts_dir: str | None = None) -> dict[str, Any]:
     """Produce the row's answer object under the given condition.
 
     ``channel_support`` in the result maps each forecast channel to its
@@ -178,9 +183,14 @@ def answer_row(row: dict[str, Any], condition: str,
         # fallback via the gnomon_forecast tool — the realistic path.
         # T1/T3 carry no forecast channels, so they take the same
         # session with the tier's own answer shape.
+        profile_args = {} if mcp_profile == "full" else {"profile": mcp_profile}
+        if compile_context:
+            profile_args["compile_context"] = True
+            if context_receipts_dir:
+                profile_args["context_receipts_dir"] = context_receipts_dir
         if row.get("tier") in ("T2", "T4"):
-            return run_row(row, client)
-        return mcq_row(row, client)
+            return run_row(row, client, **profile_args)
+        return mcq_row(row, client, **profile_args)
 
     analysis = gnomon_runner.analyse_row(row, best_effort=best_effort)
     tier = row.get("tier")
@@ -253,12 +263,39 @@ def main() -> int:
              "OpenRouter). The resolved endpoint is recorded in "
              "summary.json's llm_usage and in the run manifest: the same "
              "model id served from elsewhere is a different measurement.")
+    parser.add_argument("--api-key-env", default="OPENROUTER_API_KEY",
+                        choices=("OPENROUTER_API_KEY", "ENGY_API_KEY", "CHUTES_API_KEY"),
+                        help="Credential variable for the selected endpoint.")
     parser.add_argument("--tiers", default="T1,T2,T3,T4")
     parser.add_argument("--datasets", default=None,
                         help="Comma list of source datasets to keep")
     parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument("--offset", type=int, default=0,
+                        help="Skip this many rows after tier/dataset filters; "
+                             "supports resumable one-row benchmark shards.")
     parser.add_argument("--temperature", type=float, default=0.2)
+    parser.add_argument("--request-timeout", type=int, default=180,
+                        help="seconds per provider request (default: 180)")
+    parser.add_argument("--max-retries", type=int, default=2,
+                        help="bounded retries for transient provider failures")
     parser.add_argument("--output-dir", default=None)
+    parser.add_argument(
+        "--mcp-profile", choices=["full", "core", "describe", "evidence", "mega", "decision", "data"],
+        default="evidence",
+        help="Tool profile offered by the gnomon-mcp condition. Compare "
+             "profiles only through matched runs over the same rows, model, "
+             "prompt, temperature, endpoint, and harness caps.")
+    parser.add_argument(
+        "--compile-context", action="store_true",
+        help="Gnomon MCP only: run Gnomon's quoted text-to-context compiler "
+             "for T3/T4, inject only deterministically validated events into "
+             "forecast/run, and expose the validation receipt to the agent.")
+    parser.add_argument(
+        "--context-receipts-dir",
+        help="With --compile-context, persist one validated compiler receipt "
+             "per task and replay it on later runs. Use the same directory "
+             "for every surface in a matched experiment so compiler "
+             "randomness is not attributed to the tool surface.")
     parser.add_argument(
         "--best-effort", action="store_true",
         help="Gnomon conditions only: enable the engine's disclosed "
@@ -288,6 +325,10 @@ def main() -> int:
         parser.error("--best-effort does not apply to gnomon-mcp: the model "
                      "decides itself whether to request the engine's "
                      "labeled fallback via the gnomon_forecast tool")
+    if args.compile_context and args.condition != "gnomon-mcp":
+        parser.error("--compile-context applies to gnomon-mcp only")
+    if args.context_receipts_dir and not args.compile_context:
+        parser.error("--context-receipts-dir requires --compile-context")
 
     tiers = tuple(t.strip() for t in args.tiers.split(",") if t.strip() in TIERS)
     # gnomon-pure produces forecasts and nothing else, so it is a T2/T4
@@ -299,8 +340,13 @@ def main() -> int:
     datasets = (tuple(d.strip() for d in args.datasets.split(","))
                 if args.datasets else None)
     official_metrics = load_official_metrics(data_dir)
-    client = (OpenRouterClient(args.model, temperature=args.temperature,
-                               max_tokens=8000, base_url=args.base_url)
+    from benchmarks.common.envfile import load_env_file
+    load_env_file()
+    client = (OpenRouterClient(args.model, api_key=os.environ.get(args.api_key_env),
+                               temperature=args.temperature,
+                               max_tokens=8000, base_url=args.base_url,
+                               timeout=args.request_timeout,
+                               max_retries=args.max_retries)
               if args.model else None)
 
     output_dir = Path(args.output_dir)
@@ -322,14 +368,27 @@ def main() -> int:
     # gnomon-mcp: per-channel routes (gnomon / informed-direct / direct
     # / abstain) so the exits stay separable in analysis.
     route_mix: dict[str, int] = {}
+    mcp_calls_seen: list[int] = []
+    mcp_run_tokens = 0
+    mcp_schema_bytes: set[int] = set()
+    mcp_rows_answered = 0
+    compiler_calls = compiler_events = compiler_hypotheses = compiler_rejected = 0
+    compiler_receipts_reused = 0
+    context_channels_considered = context_events_admitted = 0
+    context_events_rejected = context_events_applied = 0
+    context_events_scenario_only = 0
+    covariate_channels_considered = covariate_channels_admitted = 0
     channels_abstained = 0
     total = 0
     # Denominator for the scored-only forecast means: every T2/T4 row the
     # run saw, so the coverage behind those means is a ratio in the
     # summary, not an inference from three separate counters.
     forecast_rows_total = 0
-    for row in iter_rows(data_dir, tiers=tiers or TIERS,
-                         datasets=datasets, limit=args.limit):
+    requested = ((args.offset + args.limit) if args.limit is not None else None)
+    for row_index, row in enumerate(iter_rows(
+            data_dir, tiers=tiers or TIERS, datasets=datasets, limit=requested)):
+        if row_index < args.offset:
+            continue
         total += 1
         if row.get("tier") in ("T2", "T4"):
             forecast_rows_total += 1
@@ -340,11 +399,16 @@ def main() -> int:
         # to survive into the record either way.
         try:
             outcome = answer_row(row, args.condition, client,
-                                 best_effort=args.best_effort)
+                                 best_effort=args.best_effort,
+                                 mcp_profile=args.mcp_profile,
+                                 compile_context=args.compile_context,
+                                 context_receipts_dir=args.context_receipts_dir)
         except Exception as error:
             errored += 1
             records.write(RunRecord(task_id=row_id, success=False,
                                     extra={"error": str(error)[:400],
+                                           "error_type": type(error).__name__,
+                                           "traceback": traceback.format_exc()[-2000:],
                                            "error_stage": "answer"}))
             continue
         try:
@@ -390,6 +454,18 @@ def main() -> int:
         channel_route = outcome.get("channel_route") or {}
         for route in channel_route.values():
             route_mix[route] = route_mix.get(route, 0) + 1
+        context_execution = outcome.get("context_execution") or {}
+        for receipt in context_execution.values():
+            context_channels_considered += 1
+            context_events_admitted += int(receipt.get("admitted", 0))
+            context_events_rejected += int(receipt.get("rejected", 0))
+            context_events_applied += int(receipt.get("applied", 0))
+            context_events_scenario_only += int(receipt.get(
+                "scenario_only", 0))
+        covariate_execution = outcome.get("covariate_execution") or {}
+        for receipt in covariate_execution.values():
+            covariate_channels_considered += int(bool(receipt.get("considered")))
+            covariate_channels_admitted += int(bool(receipt.get("admitted")))
         # Forecast-channel coverage, so only the tiers that have forecast
         # channels contribute: a T1/T3 row's abstention is a row that
         # went unanswered, counted as such, not a channel Gnomon declined.
@@ -411,6 +487,20 @@ def main() -> int:
         # none. A constant 1 for the MCP arm made average_tool_calls a
         # constant, not a measurement.
         mcp_info = outcome.get("mcp") or {}
+        if mcp_info:
+            mcp_calls_seen.append(int(mcp_info.get("calls", 0)))
+            mcp_run_tokens += int(mcp_info.get("run_tokens", 0))
+            compiler_calls += int(mcp_info.get("compiler_calls", 0))
+            compiler_receipts_reused += int(bool(
+                mcp_info.get("context_receipt_reused")))
+            compiled = mcp_info.get("compiled_context") or {}
+            compiler_events += int(compiled.get("accepted_events", 0))
+            compiler_hypotheses += int(compiled.get("accepted_hypotheses", 0))
+            compiler_rejected += int(compiled.get("rejected", 0))
+            if not outcome.get("row_abstained"):
+                mcp_rows_answered += 1
+            if mcp_info.get("schema_bytes") is not None:
+                mcp_schema_bytes.add(int(mcp_info["schema_bytes"]))
         records.write(RunRecord(
             task_id=row_id, success=success,
             appropriate_abstention=bool(outcome.get("abstained")),
@@ -439,6 +529,10 @@ def main() -> int:
                         # gnomon-mcp only: which exit each channel took
                         # and what the model did with the tools.
                         "channel_route": channel_route or None,
+                        # Distinct from compiled_context: this is the numeric
+                        # engine's gate and application receipt.
+                        "context_execution": context_execution or None,
+                        "covariate_execution": covariate_execution or None,
                         "mcp": outcome.get("mcp"),
                         "answer": outcome["answer"]}, indent=2,
                        default=str) + "\n",
@@ -454,6 +548,7 @@ def main() -> int:
         "tiers": list(tiers or TIERS),
         "datasets": list(datasets) if datasets else "all",
         "rows": total,
+        "row_offset": args.offset,
         "rows_errored": errored,
         "rows_with_abstentions": abstained_rows,
         # Rows the harness ended without an answer (a breached cap, a run
@@ -482,6 +577,39 @@ def main() -> int:
             if forecast_rows_total else None
         ),
         "best_effort": args.best_effort,
+        "mcp_profile": args.mcp_profile if args.condition == "gnomon-mcp" else None,
+        "compile_context": args.compile_context if args.condition == "gnomon-mcp" else None,
+        "context_receipts_dir": (args.context_receipts_dir
+                                 if args.condition == "gnomon-mcp" else None),
+        **({"mcp_economics": {
+            "cumulative_tokens": mcp_run_tokens,
+            "mean_tokens_per_attempted_row": round(
+                mcp_run_tokens / len(mcp_calls_seen), 2),
+            "calls_median": sorted(mcp_calls_seen)[len(mcp_calls_seen) // 2],
+            "calls_p95": sorted(mcp_calls_seen)[
+                max(0, (95 * len(mcp_calls_seen) + 99) // 100 - 1)],
+            "schema_bytes": sorted(mcp_schema_bytes),
+            "rows_answered": mcp_rows_answered,
+            "rows_attempted": len(mcp_calls_seen),
+            "answer_yield": round(
+                mcp_rows_answered / len(mcp_calls_seen), 4),
+            **({"compiler_calls": compiler_calls,
+                "compiler_receipts_reused": compiler_receipts_reused,
+                "compiler_events_accepted": compiler_events,
+                "compiler_hypotheses_accepted": compiler_hypotheses,
+                "compiler_proposals_rejected": compiler_rejected,
+                "context_channels_with_engine_receipt": context_channels_considered,
+                "context_events_admitted_by_engine": context_events_admitted,
+                "context_events_rejected_by_engine": context_events_rejected,
+                "context_events_applied_to_forecasts": context_events_applied,
+                "context_events_published_as_scenario_only":
+                    context_events_scenario_only}
+               if args.compile_context else {}),
+            **({
+                "future_covariate_channels_considered": covariate_channels_considered,
+                "future_covariate_channels_admitted": covariate_channels_admitted,
+            } if forecast_rows_total else {}),
+        }} if mcp_calls_seen else {}),
         "forecast_channel_support_mix": dict(sorted(support_mix.items())),
         "forecast_channels_abstained": channels_abstained,
         **({"forecast_channel_routes": dict(sorted(route_mix.items()))}
@@ -536,12 +664,20 @@ def main() -> int:
         # not change the task set), but it does change what the score is
         # a measurement of, so it belongs in provenance.
         base_url=client.base_url if client is not None else None,
+        request_timeout=args.request_timeout if client is not None else None,
+        max_retries=args.max_retries if client is not None else None,
         # Not part of `target`: best_effort changes the condition's
         # behaviour, not the task set, so it must not make report.py
         # refuse a control-vs-treatment join. It still has to be visible
         # in provenance, hence its own field (None keeps old manifests
         # byte-identical).
         best_effort=args.best_effort or None,
+        mcp_profile=(args.mcp_profile
+                     if args.condition == "gnomon-mcp" else None),
+        compile_context=(args.compile_context
+                         if args.condition == "gnomon-mcp" else None),
+        context_receipts_dir=(args.context_receipts_dir
+                              if args.condition == "gnomon-mcp" else None),
     )
     print(json.dumps(summary, indent=2))
     return 0

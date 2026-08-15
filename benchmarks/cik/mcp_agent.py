@@ -392,6 +392,7 @@ UNSHRINKABLE_KEYS = frozenset({
     "disclosures", "disclosure", "abstention", "reason", "artifact_path",
     "forecast_id", "series", "selected_model", "interval_coverage",
     "headline",
+    "context_outcome",
 })
 
 

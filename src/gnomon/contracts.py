@@ -235,6 +235,15 @@ class SeriesResult:
     # `conditional_forecasts`: absent, the result serialises byte-identically
     # to a build without the feature.
     future_context: dict[str, Any] | None = None
+    # Canonical, deterministic temporal descriptors. These are computed
+    # from the numeric series, never inferred from explanatory prose, so an
+    # agent may say "weekly" while evaluators compare the underlying seven
+    # steps without reverse-engineering either spelling.
+    temporal_facts: dict[str, Any] | None = None
+    # One projection across the historical-ablation, conditional, and
+    # future-event lanes. It prevents compiler acceptance from being
+    # mistaken for numerical application.
+    context_outcome: dict[str, Any] | None = None
 
 
 @dataclass
@@ -274,6 +283,12 @@ class ForecastArtifact:
                 result.pop("conditional_forecasts", None)
             if not result.get("future_context"):
                 result.pop("future_context", None)
+            if not result.get("context_outcome"):
+                result.pop("context_outcome", None)
+            # Agent-response projection only. The v0.2 artifact format is
+            # byte-frozen; canonical descriptors can be recomputed and must
+            # not churn persisted artifacts or their hashes.
+            result.pop("temporal_facts", None)
         return payload
 
 
@@ -624,6 +639,8 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "jsonl": "intent", "include_lineage": "intent", "limit": "intent",
     "latest": "intent", "note": "intent", "name": "intent",
     "status_only": "intent",
+    "question": "intent", "fields": "intent", "where": "intent",
+    "order_by": "intent",
     # Recorded verbatim in the investigation artifact, influence "none" —
     # a stated hypothesis, like a note, not a change to what counts as
     # evidence.
@@ -640,7 +657,8 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "version": "intent", "violations": "intent",
     "constraint_violations": "intent",
     # -- data --------------------------------------------------------------
-    "input": "data", "observations": "data", "file": "data", "files": "data",
+    "input": "data", "observations": "data", "data_ref": "data",
+    "file": "data", "files": "data",
     "dataset": "data", "time_column": "data", "target_column": "data",
     "series_column": "data", "frequency": "data", "timezone": "data",
     "known_at_column": "data", "seasonal_period": "data",

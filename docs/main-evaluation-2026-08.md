@@ -73,6 +73,9 @@ inline. The on-disk artifact always carries complete data regardless.
 | **core** | `gnomon_capabilities`, `gnomon_inspect`, `gnomon_forecast`, `gnomon_investigate_change`, `gnomon_detect_anomalies`, `gnomon_get_artifact`, `gnomon_explain_run` |
 | **decision** | core + `gnomon_decide`, `gnomon_monitor`, `gnomon_route`, `gnomon_status`, `gnomon_resolve_outcome` |
 | **data** | core + `gnomon_ingest`, `gnomon_list_datasets`, `gnomon_submit_actuals` |
+| **describe** | experimental core + `gnomon_describe` |
+| **evidence** | experimental `gnomon_describe` + `gnomon_forecast` |
+| **mega** | experimental `gnomon_inspect`, `gnomon_run`, `gnomon_track` |
 | **full** | Everything (default) |
 
 Selected via `gnomon mcp serve --profile <name>` or

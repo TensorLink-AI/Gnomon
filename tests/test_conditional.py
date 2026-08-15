@@ -108,6 +108,10 @@ class TestConditionalForecasts:
         assert conditional["occurrences_in_history"] > 2
         assert conditional["effect_standard_error"] > 0
         assert any("measured from" in note for note in conditional["assumptions"])
+        assert result.context_outcome["status"] == "scenario_only"
+        assert result.context_outcome["primary_forecast_changed"] is False
+        assert result.context_outcome["conditional_forecasts_produced"] == 1
+        assert result.context_outcome["hypotheses"][0]["magnitude"] is None
 
     def test_the_unconditional_forecast_is_untouched(self, tmp_path):
         """Every existing field keeps the value it would have had."""

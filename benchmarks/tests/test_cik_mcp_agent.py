@@ -157,7 +157,8 @@ def test_direct_exit_zero_calls_routes_direct(tmp_path):
     assert extra["submit_reasoning"] == "my own"
 
 
-def test_informed_direct_when_tools_were_consulted(tmp_path):
+def test_informed_direct_when_tools_were_consulted(tmp_path, monkeypatch):
+    monkeypatch.setenv("GNOMON_MCP_PROFILE", "full")
     forecaster = _forecaster(
         [{"tool_calls": [("gnomon_capabilities", {})]},
          {"tool_calls": [("submit_forecast", {"quantiles": QUANTILES})]}],

@@ -66,7 +66,48 @@ tool unpruned. `submit_answer` takes, per channel, exactly one of: an
 byte-for-byte, and the artifact's own `target_column` must match the
 channel, so a run cannot be mislabeled onto another channel — or the
 model's own `values` (labeled `model`), or an abstention (explicit or
-by omission). An artifact whose run abstained (`support:
+by omission).
+
+For T2/T4, the adapter also compiles the official `future_covariates` into
+Gnomon's point-in-time covariate channel. Rows are scoped per target and use
+that target's observed-only axis, so different missing-value positions cannot
+misalign a shared feature. `time_position_in_day` is declared as
+`cyclic_1440`, yielding sine/cosine features rather than treating 23:59 and
+00:00 as far apart. The runtime still admits it only after identical-fold,
+leakage-safe ablation; summaries report channels considered and admitted.
+
+Add `--compile-context` to measure the complete host integration rather
+than numeric MCP execution alone. On T3/T4 the host runs Gnomon's owned
+context-investigation prompt and schema first, excludes the large Input JSON
+from the source document, verifies proposed quotes verbatim, and passes only
+accepted events into `gnomon_forecast` or `gnomon_run`. The agent receives the
+accepted/rejected receipt. T1/T2 do not pay a compiler call. Summary economics
+report compiler calls and proposal counts separately from engine calls, and
+report the numeric engine's later considered/admitted/rejected/applied counts
+separately. Compiler acceptance proves that text was grounded; it does **not**
+claim that the event was eligible to alter a forecast. Use
+the same flag with `core`, `describe`, `evidence`, `mega`, and `full`: context
+compilation is shared host infrastructure, so the experiment varies the tool
+surface rather than whether text was connected to the product.
+
+```bash
+for profile in core describe evidence mega full; do
+  python -m benchmarks.temporalbench.run_temporalbench \
+    --data-dir ~/temporalbench --condition gnomon-mcp \
+    --mcp-profile "$profile" --compile-context \
+    --context-receipts-dir results/tb-compiled-receipts \
+    --model "$MODEL" --tiers T1,T2,T3,T4 --limit 40 \
+    --output-dir "results/tb-$profile-compiled"
+done
+```
+
+Run one surface first to populate the shared receipt directory; every later
+surface verifies the task narrative fingerprint and replays the same receipt
+without another compiler call. The summary exposes receipt reuse and counts
+compiler calls separately. A changed narrative refuses the cached receipt
+rather than silently compiling against different text.
+
+An artifact whose run abstained (`support:
 "unsupported"`) is rejected at submission with the honest options
 restated, including retrying the tool with `best_effort: true`: on
 this arm the *model* decides whether to take the engine's labeled
@@ -96,7 +137,7 @@ formatting, which is a property of the harness rather than of the
 model's temporal reasoning.
 
 **Caps end the run; they do not delete what it produced.** The tool
-budget (24 calls) and the token budget (500k) return a typed
+budget (4 calls) and the token budget (500k) return a typed
 "budget spent, submit now" result instead of voiding the row, and a run
 that reaches a cap or the round limit (10) without submitting gets one
 final message offering `submit_answer` alone — a partial answer counts,
@@ -162,6 +203,12 @@ python -m benchmarks.temporalbench.score_per_channel \
     --data-dir ~/temporalbench \
     --baseline results/tb-control --treatment results/tb-gnomon
 ```
+
+Long provider runs can be sharded without changing row identity: add
+`--offset N --limit 1` to run exactly the Nth filtered row in a fresh process.
+This is the recovery path when one row or provider session dies; combine only
+shards produced with the same model, endpoint, profile, task filters, and code
+revision.
 
 It scores, with the dataset's own metric module (nothing reimplemented),
 the intersection of channels both arms forecast in each record, and
