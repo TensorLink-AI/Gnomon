@@ -50,7 +50,10 @@ def load_env_file(*directories: Path) -> dict[str, str]:
         for key, value in parse_env_text(
             candidate.read_text(encoding="utf-8")
         ).items():
-            if key not in os.environ:
+            # Empty is not a usable override. It commonly results when a
+            # shell expands a provider variable before this loader reads the
+            # repository .env; preserve only real non-empty overrides.
+            if not os.environ.get(key):
                 os.environ[key] = value
                 applied[key] = value
         break

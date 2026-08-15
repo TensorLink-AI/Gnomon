@@ -76,17 +76,24 @@ README for setup, the exact conditions, and any faithfulness caveats
 (TimeSage-MT's official judge is not public; its README explains what
 is and is not comparable).
 
-One internally-authored benchmark sits alongside the five published
+Two internally-authored benchmarks sit alongside the five published
 adapters:
 
 | Benchmark | What it measures | Adapter |
 | --- | --- | --- |
 | [LeakTrap](leaktrap/) (internal) | Temporal-leakage traps: whether a forecaster respects publication dates when peeking would score better; graded by a hindsight no-leak ceiling, transcription detection, and a structural snapshot assertion | `benchmarks/leaktrap` |
+| [Gnomon Workflow Bench](workflow/) (internal) | End-to-end correctness, trust, usability, and token/call economics across synthetic, frozen, messy, longitudinal, and multi-series workflows | `benchmarks/workflow` |
+| [ContextBench](contextbench/) (internal) | Matched context value and safety: future covariates, repeated learnable events, irrelevant context, prior-only scenarios, leakage and false influence | `benchmarks/contextbench` |
 
 LeakTrap is ours, not a community benchmark — its numbers validate
 Gnomon's bitemporal contract and are not comparable to anything
 published. Its README covers the trap construction, the three arms
 (control / gnomon / oracle-leak), and how to read the leak flags.
+Workflow Bench is also ours. Its bundled five-case corpus validates the
+evaluation contract and is a CI smoke suite, not publishable product evidence.
+Its arm protocol lets raw-LLM, evidence-injection, MCP-profile, and
+deterministic-runtime adapters be scored against an identical versioned case
+set without exposing the oracle to the arm.
 
 ## Conditions
 

@@ -41,6 +41,14 @@ def test_load_env_file_never_overrides_environment(tmp_path, monkeypatch):
     monkeypatch.delenv("TEST_ENVFILE_B", raising=False)
 
 
+def test_load_env_file_replaces_empty_environment_value(tmp_path, monkeypatch):
+    (tmp_path / ".env").write_text("TEST_ENVFILE_EMPTY=from_file\n")
+    monkeypatch.setenv("TEST_ENVFILE_EMPTY", "")
+    applied = load_env_file(tmp_path)
+    assert applied == {"TEST_ENVFILE_EMPTY": "from_file"}
+    assert os.environ["TEST_ENVFILE_EMPTY"] == "from_file"
+
+
 def test_load_env_file_first_directory_wins(tmp_path, monkeypatch):
     first = tmp_path / "one"
     second = tmp_path / "two"

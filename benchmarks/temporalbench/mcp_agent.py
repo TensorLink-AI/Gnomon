@@ -369,6 +369,96 @@ def openai_tool_specs(mcp_tools: list[dict[str, Any]],
     ] + [submit_tool]
 
 
+def preferred_execution_tool(profile: str, has_forecast_targets: bool) -> str | None:
+    """Return a precommitted first verb only for forecast execution arms."""
+    if not has_forecast_targets:
+        return None
+    return {"evidence": "gnomon_forecast", "mega": "gnomon_run"}.get(profile)
+
+
+def compile_row_context(row: dict[str, Any], client: Any,
+                        receipt_dir: str | None = None) -> dict[str, Any]:
+    """Run Gnomon's proposal/validation workflow over task narrative.
+
+    Arrays and output instructions are excluded from the document: they are
+    already bound through the execution compiler, and treating them as prose
+    both wastes tokens and makes accidental numeric claims look like context.
+    The LLM proposes only; :func:`parse_context_response` grounds every quote
+    and validates every event before it can reach the forecast call.
+    """
+    precompiled = row.get("_validated_context")
+    if isinstance(precompiled, dict):
+        return {"attempted": True, **precompiled}
+
+    from gnomon.workflows import (
+        CONTEXT_RESPONSE_SCHEMA, DocumentRef,
+        build_context_investigation_prompt, parse_context_response,
+    )
+
+    narrative = str(row.get("prompt") or "").split("Input (JSON):", 1)[0].strip()
+    receipt_path = None
+    if receipt_dir:
+        safe_id = "".join(character if character.isalnum() or character in "-_"
+                          else "_" for character in str(
+                              row.get("id") or "temporalbench"))
+        receipt_path = Path(receipt_dir) / f"{safe_id}.json"
+        if receipt_path.is_file():
+            cached = json.loads(receipt_path.read_text(encoding="utf-8"))
+            from gnomon.soft_context import content_fingerprint
+            documents = ((cached.get("context_receipt") or {}).get(
+                "documents") or [])
+            if not documents or documents[0].get("content_fingerprint") != \
+                    content_fingerprint(narrative):
+                raise ValueError("cached context receipt does not match task narrative")
+            return {"attempted": True, "compiler_called": False,
+                    "receipt_reused": True, **cached}
+    document = DocumentRef(
+        name=f"{row.get('id', 'temporalbench')}-context",
+        content=narrative,
+        source_type="benchmark_prompt",
+        reference=str(row.get("id") or "temporalbench"),
+    )
+    series = [str(item) for item in (row.get("meta") or {}).get(
+        "target_keys", [])]
+    workflow = build_context_investigation_prompt(
+        [document], series, future_events=True)
+    submit = {
+        "type": "function",
+        "function": {
+            "name": "submit_context",
+            "description": "Submit proposed context for deterministic validation.",
+            "parameters": CONTEXT_RESPONSE_SCHEMA,
+        },
+    }
+    try:
+        response = client.chat(
+            [{"role": "system", "content": workflow["instructions"]}],
+            n=1, tools=[submit], tool_choice={"type": "function", "function": {
+                "name": "submit_context"}}, max_tokens=4000)
+        calls = _tool_calls_as_dicts(response.choices[0].message)
+        call = next(item for item in calls
+                    if item["function"]["name"] == "submit_context")
+        raw = json.loads(call["function"]["arguments"] or "{}")
+        validated = parse_context_response(
+            raw, [document], proposer={"kind": "llm",
+                                      "model": getattr(client, "model", "unknown")})
+        result = {"attempted": True, "compiler_called": True, **validated}
+        if receipt_path is not None:
+            receipt_path.parent.mkdir(parents=True, exist_ok=True)
+            rendered = json.dumps(validated, indent=2, sort_keys=True) + "\n"
+            if receipt_path.exists() and receipt_path.read_text(
+                    encoding="utf-8") != rendered:
+                raise ValueError("immutable task receipt already has different content")
+            receipt_path.write_text(rendered, encoding="utf-8")
+        return result
+    except Exception as error:
+        # Context is optional evidence. A compiler/provider failure must be
+        # visible but cannot turn readable numeric history into a failed row.
+        return {"attempted": True, "compiler_called": True,
+                "events": [], "hypotheses": [],
+                "rejected": [], "error": str(error)}
+
+
 def mcq_submit_tool(row: dict[str, Any]) -> tuple[dict[str, Any], str]:
     """The ``submit_answer`` spec for a T1/T3 row, and the prompt
     sentence describing it.
@@ -599,14 +689,22 @@ class _RunBase:
 
     def __init__(self, row: dict[str, Any], client: Any,
                  session_factory: Any = None, work_dir: str | None = None,
-                 profile: str = "full"):
+                 profile: str = "full", compile_context: bool = False,
+                 context_receipts_dir: str | None = None):
         import time
 
         self.row = row
         self.profile = profile
         self.client = client
+        self.context_compilation = (
+            compile_row_context(row, client, context_receipts_dir)
+            if compile_context and row.get("tier") in {"T3", "T4"}
+            else {"attempted": False, "events": [], "hypotheses": [],
+                  "rejected": []}
+        )
         self.started = time.time()
         self.channels = self._row_channels(row)
+        self.covariate_arguments = self._row_covariates(row)
         if "timestamp" in self.channels:
             raise ValueError("a channel named 'timestamp' collides with the "
                              "time column of the run CSV")
@@ -622,6 +720,12 @@ class _RunBase:
         self.mcp_calls = 0
         self.schema_bytes = 0
         self.artifact_paths: set[str] = set()
+        # Compiler acceptance is textual grounding, not permission to alter a
+        # forecast.  Keep the engine's later admission/application decision
+        # separately so the benchmark cannot report "context used" merely
+        # because a quote survived compilation.
+        self.context_execution: dict[str, dict[str, Any]] = {}
+        self.covariate_execution: dict[str, dict[str, Any]] = {}
         self.complete_artifact_ready = False
         self.submission: dict[str, Any] | None = None
         self.tokens_at_start = (getattr(client, "total_prompt_tokens", 0)
@@ -630,6 +734,87 @@ class _RunBase:
     # -- tier contract -----------------------------------------------------
     def _row_channels(self, row: dict[str, Any]) -> dict[str, list[float]]:
         raise NotImplementedError
+
+    def _row_covariates(self, row: dict[str, Any]) -> dict[str, Any]:
+        """Compile official aligned future covariates into Gnomon rows.
+
+        Each target uses its own compressed observation axis, matching the
+        history CSV construction exactly.  This matters when channels have
+        different missing positions: a single default covariate timeline
+        would silently misalign at least one of them.
+        """
+        task_input = row.get("input") or {}
+        history = task_input.get("history") or {}
+        future = task_input.get("future_covariates") or {}
+        declared_mapping = task_input.get("covariate_mapping") or []
+        if not isinstance(history, dict) or not isinstance(future, dict):
+            return {}
+        names = sorted(name for name, values in future.items()
+                       if isinstance(values, list))
+        if not names:
+            return {}
+        rows: list[dict[str, Any]] = []
+        for series, target_values in self.channels.items():
+            # A one-target Gnomon artifact is keyed ``__default__`` even
+            # when the source column has a public name. Multi-target runs
+            # retain their column names. Covariate entity keys must follow
+            # the artifact identity or every fold appears to have no values.
+            covariate_series = ("__default__"
+                                if len(self.channels) == 1 else series)
+            # self.channels is already the observed-only sequence. Recover
+            # the original target mask to compress historical covariates in
+            # the same way.
+            raw_target = history.get(series)
+            if not isinstance(raw_target, list):
+                continue
+            keep = [index for index, value in enumerate(raw_target)
+                    if isinstance(value, (int, float))]
+            position = 0
+            for index in keep:
+                row_values = {}
+                for name in names:
+                    past = history.get(name)
+                    if not isinstance(past, list) or index >= len(past) \
+                            or not isinstance(past[index], (int, float)):
+                        row_values = {}
+                        break
+                    row_values[name] = float(past[index])
+                if not row_values:
+                    continue
+                rows.append({
+                    "timestamp": (EPOCH + position * STEP).isoformat(),
+                    "known_at": EPOCH.isoformat(), "series": covariate_series,
+                    **row_values,
+                })
+                position += 1
+            horizon = min(len(future[name]) for name in names)
+            for offset in range(horizon):
+                if not all(isinstance(future[name][offset], (int, float))
+                           for name in names):
+                    continue
+                rows.append({
+                    "timestamp": (EPOCH + (len(target_values) + offset) * STEP).isoformat(),
+                    "known_at": EPOCH.isoformat(), "series": covariate_series,
+                    **{name: float(future[name][offset]) for name in names},
+                })
+        if not rows:
+            return {}
+        declared_by_name = {
+            str(item.get("name")): item for item in declared_mapping
+            if isinstance(item, dict) and item.get("name")
+        }
+        return {
+            "covariates": rows,
+            "covariate_mapping": [{
+                "name": name,
+                "type": str(declared_by_name.get(name, {}).get(
+                    "type") or ("cyclic_1440" if name == "time_position_in_day"
+                                else "continuous")),
+                "availability": str(declared_by_name.get(name, {}).get(
+                    "availability") or "future_known"),
+            } for name in names],
+            "covariate_series_column": "series",
+        }
 
     def _submit_tool(self) -> dict[str, Any]:
         raise NotImplementedError
@@ -682,14 +867,31 @@ class _RunBase:
             "calls": self.mcp_calls,
             "run_tokens": self._run_tokens(),
             "schema_bytes": self.schema_bytes,
+            "compiler_calls": int(bool(self.context_compilation.get(
+                "compiler_called"))),
+            "context_receipt_id": self.context_compilation.get("receipt_id"),
+            "context_receipt_reused": bool(
+                self.context_compilation.get("receipt_reused")),
+            "compiled_context": {
+                "accepted_events": len(self.context_compilation.get("events", [])),
+                "accepted_hypotheses": len(self.context_compilation.get("hypotheses", [])),
+                "rejected": len(self.context_compilation.get("rejected", [])),
+                **({"error": self.context_compilation["error"]}
+                   if self.context_compilation.get("error") else {}),
+            },
             "tool_sequence": [
                 {key: value for key, value in entry.items()
                  if key in ("tool", "is_error", "code", "jail_violations",
+                            "message",
                             "truncated", "last_call", "abstained",
                             "superseded", "coerced", "submit_rejected",
                             "last_call_repair", "submission_fallback")}
                 for entry in self.trace
             ],
+            # Harness-only provenance used by cross-benchmark adapters to
+            # verify the artifact the agent actually submitted. Paths never
+            # enter the model transcript or submission schema.
+            "artifact_paths": sorted(self.artifact_paths),
         }
 
     # -- the loop ----------------------------------------------------------
@@ -711,8 +913,15 @@ class _RunBase:
             breach = self._cap_breach()
             if breach:
                 return self._last_call(messages, submit_tool, breach)
+            tool_choice: Any = "auto"
+            if self.mcp_calls == 0:
+                preferred = preferred_execution_tool(
+                    self.profile, bool(getattr(self, "target_keys", None)))
+                if preferred:
+                    tool_choice = {"type": "function", "function": {
+                        "name": preferred}}
             response = self.client.chat(messages, n=1, tools=tools,
-                                        tool_choice="auto")
+                                        tool_choice=tool_choice)
             message = response.choices[0].message
             tool_calls = _tool_calls_as_dicts(message)
             if not tool_calls:
@@ -881,6 +1090,37 @@ class _RunBase:
                     payload.get("message", "rejected")]
             return json.dumps(payload)
 
+        # The harness has already resolved these fields from the official
+        # task. Compile them into the execution call so the model chooses the
+        # verb, not an accidental per-channel execution plan. This mirrors the
+        # production host compiler and makes one wide-series request one run.
+        if (self.profile == "evidence" and name == "gnomon_forecast"
+                and getattr(self, "target_keys", None)):
+            arguments = {**arguments,
+                         "input": str(self.csv_path),
+                         "time_column": "timestamp",
+                         "target_column": ",".join(self.target_keys),
+                         "frequency": "h", "horizon": self.horizon,
+                         "format": "brief"}
+        elif (self.profile == "mega" and name == "gnomon_run"
+              and getattr(self, "target_keys", None)):
+            arguments = {**arguments,
+                         "input": str(self.csv_path),
+                         "time_column": "timestamp",
+                         "target_column": ",".join(self.target_keys),
+                         "frequency": "h", "horizon": self.horizon,
+                         "question": {"kind": "forecast"}}
+        context_compilation = getattr(self, "context_compilation", {})
+        if name in {"gnomon_forecast", "gnomon_run"} \
+                and context_compilation.get("events"):
+            arguments = {**arguments,
+                         "context_events": context_compilation["events"],
+                         "future_events": True}
+        covariate_arguments = getattr(self, "covariate_arguments", {})
+        if name in {"gnomon_forecast", "gnomon_run"} \
+                and covariate_arguments:
+            arguments = {**arguments, **covariate_arguments}
+
         violations = jail_violations(arguments, self.jail)
         if violations:
             entry["jail_violations"] = violations
@@ -928,11 +1168,28 @@ class _RunBase:
                     or structured.get("code"))
             if code:
                 entry["code"] = code
+                entry["message"] = ((structured.get("error") or {}).get("message")
+                                    or structured.get("message"))
             if not result.get("isError") and structured.get("artifact_path"):
-                self.artifact_paths.add(str(structured["artifact_path"]))
-                result_names = {str(row.get("series")) for row in
-                                structured.get("results", [])
-                                if isinstance(row, dict)}
+                artifact_path = str(structured["artifact_path"])
+                self.artifact_paths.add(artifact_path)
+                # A brief multi-series envelope contains only its notable
+                # top-k rows.  The artifact is the publication contract and
+                # retains every series, so response triage must never be
+                # mistaken for an incomplete run (which otherwise prompts
+                # the agent to repeat an already successful forecast).
+                try:
+                    from gnomon.artifacts import read_artifact
+
+                    artifact = read_artifact(artifact_path)
+                    result_names = {
+                        str(row.get("series"))
+                        for row in artifact.get("results", [])
+                        if isinstance(row, dict)
+                    }
+                except Exception as error:
+                    entry["artifact_validation_error"] = str(error)
+                    result_names = set()
                 if set(getattr(self, "target_keys", [])) <= result_names:
                     self.complete_artifact_ready = True
         # The server's own text block, unedited unless it is too large
@@ -957,7 +1214,8 @@ class _Run(_RunBase):
 
     def __init__(self, row: dict[str, Any], client: Any,
                  session_factory: Any = None, work_dir: str | None = None,
-                 profile: str = "full"):
+                 profile: str = "full", compile_context: bool = False,
+                 context_receipts_dir: str | None = None):
         meta = row.get("meta") or {}
         self.horizon = int(meta.get("n_horizon") or 0)
         if self.horizon < 1:
@@ -966,7 +1224,9 @@ class _Run(_RunBase):
         self.target_keys = (list(ground_truth) if isinstance(ground_truth, dict)
                             else [meta.get("main_key")])
         super().__init__(row, client, session_factory=session_factory,
-                         work_dir=work_dir, profile=profile)
+                         work_dir=work_dir, profile=profile,
+                         compile_context=compile_context,
+                         context_receipts_dir=context_receipts_dir)
 
     def _row_channels(self, row: dict[str, Any]) -> dict[str, list[float]]:
         arrays = prompt_input_arrays(row)
@@ -992,6 +1252,13 @@ class _Run(_RunBase):
                      "column, all channels in one target_column comma list, "
                      "the stated horizon, and format brief; then submit that "
                      "artifact. No inspection call is available or needed.\n")
+        if self.context_compilation.get("attempted"):
+            text += ("\nThe host compiled the task narrative through Gnomon's "
+                     "quoted-context validator. This receipt is authoritative; "
+                     "only accepted events were supplied to execution:\n"
+                     + json.dumps({key: self.context_compilation.get(key, [])
+                                   for key in ("events", "hypotheses", "rejected")},
+                                  separators=(",", ":")) + "\n")
         return text
 
     def _abstain_outcome(self, reason: str) -> dict[str, Any]:
@@ -1058,6 +1325,46 @@ class _Run(_RunBase):
                     f"horizon is {self.horizon}; re-run gnomon_forecast "
                     f"with horizon={self.horizon}", "")
         self._pending_support[channel] = str(support)
+        gate = result.get("future_context") or {}
+        disposition = result.get("context_outcome") or {}
+        historical_gate = result.get("context") or {}
+        covariate_gate = result.get("covariates") or {}
+        if covariate_gate:
+            self.covariate_execution[channel] = {
+                "considered": bool(covariate_gate.get("considered")),
+                "admitted": bool(covariate_gate.get("admitted")),
+                "retained": list(covariate_gate.get("retained") or []),
+                "rejected": list(covariate_gate.get("rejected") or []),
+            }
+        if gate or disposition or historical_gate:
+            admitted = gate.get("admitted") or []
+            rejected = gate.get("rejected") or []
+            status = disposition.get("status")
+            outcome_events = disposition.get("events") or []
+            self.context_execution[channel] = {
+                "status": status,
+                "considered": int(bool(gate.get("considered")
+                                       or historical_gate.get("considered"))),
+                "admitted": (len(admitted) if admitted else
+                             len(outcome_events) if status == "applied" else 0),
+                "rejected": (len(rejected) if rejected else
+                             len(outcome_events) if status == "rejected" else 0),
+                "scenario_only": (len(outcome_events)
+                                  if status == "scenario_only" else 0),
+                # The runtime makes influence explicit by lowering support to
+                # context_trusted only when at least one admitted event was
+                # actually applied to the emitted trajectory.
+                "applied": (len(outcome_events) if status == "applied" else 0),
+                "support": str(support),
+                "admitted_event_ids": [
+                    str(item.get("event_id")) for item in admitted
+                    if isinstance(item, dict) and item.get("event_id")
+                ],
+                "rejection_codes": [
+                    str(item.get("code")) for item in rejected
+                    if isinstance(item, dict) and item.get("code")
+                ],
+            }
         return [float(row.get("q50", row["point"])) for row in rows]
 
     def _values_problems(self, channel: str, values: Any) -> str | None:
@@ -1158,6 +1465,8 @@ class _Run(_RunBase):
             "abstained": abstained,
             "channel_support": self.submission["support"],
             "channel_route": self.submission["routes"],
+            "context_execution": self.context_execution,
+            "covariate_execution": getattr(self, "covariate_execution", {}),
             "submit_reasoning": self.submission["reasoning"],
             **({"last_call": self.submission["last_call"]}
                if self.submission.get("last_call") else {}),
@@ -1178,14 +1487,17 @@ class _McqRun(_RunBase):
 
     def __init__(self, row: dict[str, Any], client: Any,
                  session_factory: Any = None, work_dir: str | None = None,
-                 profile: str = "full"):
+                 profile: str = "full", compile_context: bool = False,
+                 context_receipts_dir: str | None = None):
         self.tool, self.answer_rule = mcq_submit_tool(row)
         self.expected_fields = list(row.get("labels") or {})
         self.expected_count = len(row.get("pack") or [])
         self.is_pack = row.get("tier") == "T3"
         self.rejections = 0
         super().__init__(row, client, session_factory=session_factory,
-                         work_dir=work_dir, profile=profile)
+                         work_dir=work_dir, profile=profile,
+                         compile_context=compile_context,
+                         context_receipts_dir=context_receipts_dir)
 
     def _row_channels(self, row: dict[str, Any]) -> dict[str, list[float]]:
         try:
@@ -1216,11 +1528,17 @@ class _McqRun(_RunBase):
             data_rule = ("The task states its data in the prompt; nothing "
                          "was written to disk for this row, so a tool call "
                          "would need the numbers passed inline.")
-        return SYSTEM_MCQ.format(
+        text = SYSTEM_MCQ.format(
             data_rule=data_rule, jail_rule=self._jail_rule(),
             answer_rule=self.answer_rule,
             max_rounds=MAX_ROUNDS, max_calls=MAX_MCP_CALLS,
         )
+        if self.context_compilation.get("attempted"):
+            text += ("\nValidated context compiler receipt:\n"
+                     + json.dumps({key: self.context_compilation.get(key, [])
+                                   for key in ("events", "hypotheses", "rejected")},
+                                  separators=(",", ":")) + "\n")
+        return text
 
     def _abstain_outcome(self, reason: str) -> dict[str, Any]:
         record = self._abstention_record(reason)
@@ -1297,26 +1615,52 @@ def _drive(run: _RunBase) -> dict[str, Any]:
 def run_row(row: dict[str, Any], client: Any, *,
             session_factory: Any = None,
             work_dir: str | None = None,
-            profile: str = "full") -> dict[str, Any]:
+            profile: str = "full",
+            compile_context: bool = False,
+            context_receipts_dir: str | None = None) -> dict[str, Any]:
     """Drive one T2/T4 row through the real MCP surface; return the same
     outcome shape ``answer_row`` produces for the other conditions."""
     if session_factory is None:
+        _ensure_checkout_importable()
         session_factory = lambda jail: StdioMcpSession(
             jail, command=[sys.executable, "-m", "gnomon", "mcp", "serve",
                            "--profile", profile])
     return _drive(_Run(row, client, session_factory=session_factory,
-                       work_dir=work_dir, profile=profile))
+                       work_dir=work_dir, profile=profile,
+                       compile_context=compile_context,
+                       context_receipts_dir=context_receipts_dir))
 
 
 def mcq_row(row: dict[str, Any], client: Any, *,
             session_factory: Any = None,
             work_dir: str | None = None,
-            profile: str = "full") -> dict[str, Any]:
+            profile: str = "full",
+            compile_context: bool = False,
+            context_receipts_dir: str | None = None) -> dict[str, Any]:
     """Drive one T1/T3 row through the same surface with the tier's own
     answer shape; the answer object is what that tier's scorer reads."""
     if session_factory is None:
+        _ensure_checkout_importable()
         session_factory = lambda jail: StdioMcpSession(
             jail, command=[sys.executable, "-m", "gnomon", "mcp", "serve",
                            "--profile", profile])
     return _drive(_McqRun(row, client, session_factory=session_factory,
-                          work_dir=work_dir, profile=profile))
+                          work_dir=work_dir, profile=profile,
+                          compile_context=compile_context,
+                          context_receipts_dir=context_receipts_dir))
+
+
+def _ensure_checkout_importable() -> None:
+    """Keep a jailed MCP child bound to the checkout under evaluation."""
+    import os
+
+    repository = Path(__file__).resolve().parents[2]
+    roots = [str(repository / "src"), str(repository)]
+    for root in reversed(roots):
+        if root not in sys.path:
+            sys.path.insert(0, root)
+    existing = os.environ.get("PYTHONPATH", "").split(os.pathsep)
+    os.environ["PYTHONPATH"] = os.pathsep.join([
+        *[root for root in roots if root not in existing],
+        *[item for item in existing if item],
+    ])

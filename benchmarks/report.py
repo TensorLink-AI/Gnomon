@@ -329,6 +329,8 @@ def compare(baseline: dict[str, Any], treatment: dict[str, Any],
 
     result: dict[str, Any] = {
         "comparable": True,
+        "benchmark": (baseline["manifest"].get("benchmark")
+                      or treatment["manifest"].get("benchmark")),
         "baseline": baseline["name"], "treatment": treatment["name"],
         "matched_tasks": len(shared),
         "baseline_only": len(set(baseline["tasks"]) - set(treatment["tasks"])),
@@ -528,6 +530,8 @@ def main() -> int:
                         help="restrict continuous comparison to this metric")
     parser.add_argument("--json", action="store_true",
                         help="emit the comparison objects as JSON")
+    parser.add_argument("--output", default=None,
+                        help="write the JSON report to this path (implies --json)")
     args = parser.parse_args()
 
     root = Path(args.root)
@@ -561,10 +565,16 @@ def main() -> int:
         results.append(compare(runs[baseline_name], runs[treatment_name],
                                metric=args.metric))
 
-    if args.json:
-        print(json.dumps({"comparisons": results,
-                          "cost": {n: cost_of(r) for n, r in runs.items()}},
-                         indent=2))
+    if args.json or args.output:
+        payload = {"comparisons": results,
+                   "cost": {n: cost_of(r) for n, r in runs.items()}}
+        rendered = json.dumps(payload, indent=2)
+        if args.output:
+            destination = Path(args.output)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_text(rendered + "\n", encoding="utf-8")
+        else:
+            print(rendered)
         return 0
 
     for result in results:

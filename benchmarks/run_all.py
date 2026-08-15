@@ -84,6 +84,16 @@ REGISTRY: dict[str, dict[str, Any]] = {
         "accepts": {"model", "temperature", "output_dir"},
         "limit_flag": "--limit",
     },
+    "workflow": {
+        "module": "benchmarks.workflow.run_workflow",
+        "accepts": {"output_dir"},
+        "limit_flag": None,
+    },
+    "contextbench": {
+        "module": "benchmarks.contextbench.run_contextbench",
+        "accepts": {"output_dir"},
+        "limit_flag": "--limit",
+    },
 }
 
 
@@ -208,8 +218,10 @@ def main() -> int:
             continue
         print(f"[{name}] running: {printable}", flush=True)
         result = subprocess.run(command, cwd=repo_root)
-        status = "ok" if result.returncode == 0 else \
-            f"exit {result.returncode}"
+        scored_gate_failure = benchmark_of(run) == "workflow" and result.returncode == 2
+        status = ("ok" if result.returncode == 0 else
+                  "scored-gate-failure" if scored_gate_failure else
+                  f"exit {result.returncode}")
         outcome: dict[str, Any] = {"name": name, "command": printable,
                                    "status": status}
         path = summary_path(run, config)
@@ -246,7 +258,7 @@ def main() -> int:
             # exited 0; on failure whatever sits there may be a previous
             # run's manifest, and stale provenance is worse than sparse.
             adapter_manifest = (read_manifest(path.parent)
-                                if result.returncode == 0 else {})
+                                if result.returncode == 0 or scored_gate_failure else {})
             merged = {key: value for key, value in orchestrator_view.items()
                       if value is not None}
             merged.update(adapter_manifest)
@@ -256,7 +268,7 @@ def main() -> int:
         if path and path.exists():
             outcome["summary"] = json.loads(path.read_text(encoding="utf-8"))
         outcomes.append(outcome)
-        if result.returncode != 0 and not args.continue_on_error:
+        if result.returncode != 0 and not scored_gate_failure and not args.continue_on_error:
             print(f"[{name}] failed; stopping (use --continue-on-error "
                   "to keep going)")
             break
@@ -269,7 +281,8 @@ def main() -> int:
             + "\n", encoding="utf-8",
         )
         print(f"combined summary -> {combined}")
-    failed = [o for o in outcomes if o["status"] not in ("ok", "dry-run")]
+    failed = [o for o in outcomes if o["status"] not in (
+        "ok", "dry-run", "scored-gate-failure")]
     print(f"{len(outcomes)} run(s), {len(failed)} failed")
     return 1 if failed else 0
 

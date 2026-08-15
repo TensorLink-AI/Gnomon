@@ -32,9 +32,135 @@ from benchmarks.temporalbench import mcp_agent
 from benchmarks.temporalbench.mcp_agent import (
     MAX_ROUNDS,
     bounded_tool_text,
+    compile_row_context,
     mcq_row,
     run_row,
 )
+
+
+def test_future_covariates_compile_to_each_targets_compressed_axis():
+    run = object.__new__(mcp_agent._Run)
+    run.channels = {"a": [1.0, 3.0], "b": [4.0, 5.0, 6.0]}
+    row = {"input": {
+        "history": {
+            "a": [1.0, None, 3.0], "b": [4.0, 5.0, 6.0],
+            "time_position_in_day": [10.0, 20.0, 30.0],
+        },
+        "future_covariates": {"time_position_in_day": [40.0, 50.0]},
+    }}
+    arguments = run._row_covariates(row)
+    rows = arguments["covariates"]
+    by_series = {name: [item for item in rows if item["series"] == name]
+                 for name in ("a", "b")}
+    assert [item["time_position_in_day"] for item in by_series["a"]] == [
+        10.0, 30.0, 40.0, 50.0]
+    assert [item["time_position_in_day"] for item in by_series["b"]] == [
+        10.0, 20.0, 30.0, 40.0, 50.0]
+    assert arguments["covariate_series_column"] == "series"
+    assert arguments["covariate_mapping"][0]["type"] == "cyclic_1440"
+
+
+def test_single_target_covariates_use_artifact_default_identity_and_declared_type():
+    run = object.__new__(mcp_agent._Run)
+    run.channels = {"value": [1.0, 2.0, 3.0]}
+    arguments = run._row_covariates({"input": {
+        "history": {"value": [1.0, 2.0, 3.0], "driver": [0.0, 1.0, 0.0]},
+        "future_covariates": {"driver": [1.0, 1.0]},
+        "covariate_mapping": [{"name": "driver", "type": "binary",
+                               "availability": "future_known"}],
+    }})
+    assert {row["series"] for row in arguments["covariates"]} == {"__default__"}
+    assert arguments["covariate_mapping"] == [{
+        "name": "driver", "type": "binary", "availability": "future_known"}]
+
+
+def test_context_compiler_grounds_quotes_and_rejects_invented_text():
+    narrative = ("Event context:\nMedication adjusted at "
+                 "2122-04-03T08:00:00.\nInput (JSON): {}")
+    raw = {"events": [
+        {"document_index": 0, "event_type": "medication_adjustment",
+         "entity_scope": ["heart_rate"],
+         "effective_start": "2122-04-03T08:00:00+00:00",
+         "effective_end": "2122-04-03T09:00:00+00:00",
+         "known_at": "2122-04-03T08:00:00+00:00",
+         "evidence_quote": "Medication adjusted at 2122-04-03T08:00:00."},
+        {"document_index": 0, "event_type": "invented",
+         "entity_scope": ["heart_rate"],
+         "effective_start": "2122-04-03T08:00:00+00:00",
+         "effective_end": "2122-04-03T09:00:00+00:00",
+         "known_at": "2122-04-03T08:00:00+00:00",
+         "evidence_quote": "A sentence absent from the prompt."},
+    ], "hypotheses": []}
+
+    class Client:
+        model = "test-model"
+
+        def chat(self, messages, **kwargs):
+            call = SimpleNamespace(
+                id="context", type="function",
+                function=SimpleNamespace(
+                    name="submit_context", arguments=json.dumps(raw)))
+            return SimpleNamespace(choices=[SimpleNamespace(
+                message=SimpleNamespace(content=None, tool_calls=[call]))])
+
+    result = compile_row_context({
+        "id": "context-row", "tier": "T4", "prompt": narrative,
+        "meta": {"target_keys": ["heart_rate"]},
+    }, Client())
+    assert result["attempted"] is True
+    assert len(result["events"]) == 1
+    assert len(result["rejected"]) == 1
+    assert result["events"][0]["attributes"]["evidence_quote"] in narrative
+
+
+def test_prevalidated_context_bypasses_provider_compilation():
+    expected = {"events": [{"event_id": "event_1"}], "hypotheses": [],
+                "rejected": [], "compiler_called": False,
+                "receipt_reused": True}
+    result = compile_row_context(
+        {"_validated_context": expected},
+        SimpleNamespace(chat=lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("provider must not be called"))))
+    assert result == {"attempted": True, **expected}
+
+
+def test_context_compiler_receipt_is_replayed_without_another_model_call(tmp_path):
+    narrative = ("Event context:\nMedication adjusted at "
+                 "2122-04-03T08:00:00.\nInput (JSON): {}")
+    raw = {"events": [{
+        "document_index": 0, "event_type": "medication_adjustment",
+        "entity_scope": ["heart_rate"],
+        "effective_start": "2122-04-03T08:00:00+00:00",
+        "effective_end": "2122-04-03T09:00:00+00:00",
+        "known_at": "2122-04-03T08:00:00+00:00",
+        "evidence_quote": "Medication adjusted at 2122-04-03T08:00:00.",
+        "effect_family": "level_shift", "direction": "unknown",
+        "duration": "temporary",
+    }], "hypotheses": []}
+
+    class Client:
+        model = "test-model"
+        calls = 0
+
+        def chat(self, messages, **kwargs):
+            self.calls += 1
+            call = SimpleNamespace(
+                id="context", type="function",
+                function=SimpleNamespace(
+                    name="submit_context", arguments=json.dumps(raw)))
+            return SimpleNamespace(choices=[SimpleNamespace(
+                message=SimpleNamespace(content=None, tool_calls=[call]))])
+
+    row = {"id": "context-row", "tier": "T4", "prompt": narrative,
+           "meta": {"target_keys": ["heart_rate"]}}
+    client = Client()
+    first = compile_row_context(row, client, str(tmp_path))
+    replay = compile_row_context(row, client, str(tmp_path))
+    assert client.calls == 1
+    assert first["receipt_id"] == replay["receipt_id"]
+    assert first["compiler_called"] is True
+    assert replay["compiler_called"] is False
+    assert replay["receipt_reused"] is True
 
 
 # -- fixtures ---------------------------------------------------------------
@@ -754,9 +880,10 @@ def test_mcq_submit_schema_is_the_row_s_own_shape():
     assert "2 questions" in rule
 
 
-def test_mcq_tiers_hold_the_same_unpruned_tool_surface(tmp_path):
+def test_mcq_tiers_hold_the_same_unpruned_tool_surface(tmp_path, monkeypatch):
     """The arm's question is whether tool access helps a question tier;
     withdrawing the tools would answer it by construction."""
+    monkeypatch.setenv("GNOMON_MCP_PROFILE", "full")
     seen = {}
 
     def capture(messages):
@@ -942,7 +1069,7 @@ def test_voided_rows_stay_out_of_the_accuracy_denominators(tmp_path,
     # Provenance: the endpoint that served the model, in the manifest.
     manifest = json.loads((output / "manifest.json").read_text())
     assert manifest["base_url"] == "http://x"
-    assert manifest["mcp_profile"] == "full"
+    assert manifest["mcp_profile"] == "evidence"
 
 
 def test_row_offset_makes_long_sweeps_shardable(tmp_path, monkeypatch):
