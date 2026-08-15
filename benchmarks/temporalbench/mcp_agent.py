@@ -369,11 +369,23 @@ def openai_tool_specs(mcp_tools: list[dict[str, Any]],
     ] + [submit_tool]
 
 
-def preferred_execution_tool(profile: str, has_forecast_targets: bool) -> str | None:
-    """Return a precommitted first verb only for forecast execution arms."""
+def preferred_execution_tool(
+    profile: str, has_forecast_targets: bool, *, host_compiled: bool = False,
+) -> str | None:
+    """Return the host-compiled first verb for a forecast task.
+
+    Profiles govern what else is available, not whether an agent must infer
+    the obvious execution route from a larger menu. Leaving Core, Describe,
+    and Full on ``auto`` measured tool-navigation noise rather than product
+    capability and caused avoidable non-submissions.
+    """
     if not has_forecast_targets:
         return None
-    return {"evidence": "gnomon_forecast", "mega": "gnomon_run"}.get(profile)
+    if profile == "mega":
+        return "gnomon_run"
+    if profile == "evidence" or host_compiled:
+        return "gnomon_forecast"
+    return None
 
 
 def compile_row_context(row: dict[str, Any], client: Any,
@@ -916,7 +928,9 @@ class _RunBase:
             tool_choice: Any = "auto"
             if self.mcp_calls == 0:
                 preferred = preferred_execution_tool(
-                    self.profile, bool(getattr(self, "target_keys", None)))
+                    self.profile, bool(getattr(self, "target_keys", None)),
+                    host_compiled=bool(self.row.get(
+                        "_host_compiled_forecast")))
                 if preferred:
                     tool_choice = {"type": "function", "function": {
                         "name": preferred}}
@@ -1094,8 +1108,9 @@ class _RunBase:
         # task. Compile them into the execution call so the model chooses the
         # verb, not an accidental per-channel execution plan. This mirrors the
         # production host compiler and makes one wide-series request one run.
-        if (self.profile == "evidence" and name == "gnomon_forecast"
-                and getattr(self, "target_keys", None)):
+        if (name == "gnomon_forecast" and getattr(self, "target_keys", None)
+                and (self.profile == "evidence"
+                     or self.row.get("_host_compiled_forecast"))):
             arguments = {**arguments,
                          "input": str(self.csv_path),
                          "time_column": "timestamp",
@@ -1190,7 +1205,15 @@ class _RunBase:
                 except Exception as error:
                     entry["artifact_validation_error"] = str(error)
                     result_names = set()
-                if set(getattr(self, "target_keys", [])) <= result_names:
+                targets = set(getattr(self, "target_keys", []))
+                complete = targets <= result_names
+                # The runtime's canonical identity for a one-target artifact
+                # is __default__; the benchmark retains the source column's
+                # public name. Treat this as the same resolved series here,
+                # just as submission resolution already does.
+                if len(targets) == 1 and result_names == {"__default__"}:
+                    complete = True
+                if complete:
                     self.complete_artifact_ready = True
         # The server's own text block, unedited unless it is too large
         # to carry — then bulk-shrunk, marked, with every disclosure kept.

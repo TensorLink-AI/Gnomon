@@ -34,8 +34,26 @@ from benchmarks.temporalbench.mcp_agent import (
     bounded_tool_text,
     compile_row_context,
     mcq_row,
+    preferred_execution_tool,
     run_row,
 )
+
+
+def test_every_forecast_profile_has_a_host_compiled_first_tool():
+    assert {
+        profile: preferred_execution_tool(profile, True, host_compiled=True)
+        for profile in ("core", "describe", "evidence", "mega", "full")
+    } == {
+        "core": "gnomon_forecast",
+        "describe": "gnomon_forecast",
+        "evidence": "gnomon_forecast",
+        "mega": "gnomon_run",
+        "full": "gnomon_forecast",
+    }
+    assert preferred_execution_tool("core", True) is None
+    assert preferred_execution_tool("describe", True) is None
+    assert preferred_execution_tool("full", True) is None
+    assert preferred_execution_tool("full", False) is None
 
 
 def test_future_covariates_compile_to_each_targets_compressed_axis():
@@ -631,6 +649,24 @@ def test_complete_artifact_survives_final_submission_format_failure(tmp_path):
     assert "row_abstained" not in outcome
     assert {entry.get("submission_fallback") for entry in
             outcome["mcp"]["tool_sequence"]} == {None, "complete_artifact"}
+
+
+def test_single_target_default_artifact_closes_engine_browsing(tmp_path):
+    row = _row(sparse_temp=False)
+    row["meta"]["target_keys"] = ["hr"]
+    row["input"]["history"] = {"hr": row["input"]["history"]["hr"]}
+    row["ground_truth"] = {"hr": row["ground_truth"]["hr"]}
+
+    def forecast(messages):
+        return {"tool_calls": [_forecast_call(messages, "hr")]}
+
+    outcome = _run(row, [forecast, {"content": "prose"},
+                         {"content": "still prose"}], tmp_path)
+    assert outcome["mcp"]["calls"] == 1
+    assert any(entry.get("last_call") ==
+               "forecast artifact ready; engine browsing closed"
+               for entry in outcome["mcp"]["tool_sequence"])
+    assert outcome["channel_route"]["hr"] == "gnomon"
 
 
 # -- one batched call for every channel -------------------------------------

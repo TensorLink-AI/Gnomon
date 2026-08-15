@@ -29,7 +29,9 @@ from .context import (
     event_applies,
     validate_context_event,
 )
-from .context_model import EFFECT_SHAPES, event_adjusted
+from .context_model import (
+    EFFECT_SHAPES, event_adjusted, residual_event_adjusted, rolling_residuals,
+)
 from .evaluation import (
     Evaluation,
     conformal_spreads,
@@ -122,6 +124,7 @@ class ContextAssessment:
     # the same folds. Disclosed because a shape chosen by measurement is
     # only trustworthy if the measurement is visible.
     effect_shape: str = "level"
+    effect_estimator: str = "detrended_level"
     shape_scores: dict[str, float] = field(default_factory=dict)
     # The shape the proposer nominated via `expected_shape`, when exactly
     # one was named across the eligible events. A nomination narrows the
@@ -164,6 +167,7 @@ class ContextAssessment:
             "fold_improvements": self.fold_improvements,
             "mean_improvement": self.mean_improvement,
             "effect_shape": self.effect_shape,
+            "effect_estimator": self.effect_estimator,
             "shape_scores": self.shape_scores,
             "shrinkage": self.shrinkage,
             "measured_coverage": self.coverage,
@@ -308,15 +312,11 @@ def assess_context(
     # improvements collapse. The comparison here is therefore between two
     # complete models, which is also what makes it a fair contest.
     #
-    # The known limitation this leaves: on a series where a seasonal model
-    # beats drift by more than the event is worth, context cannot win however
-    # real its effect. Fixing that properly means estimating the effect from
-    # the *base model's residuals* during active periods rather than from the
-    # raw level, which is a larger change than this phase.
     base_paths = {
         origin: predict(base.selected_model, values[:origin], horizon, season)
         for origin in selection_origins
     }
+    base_residuals = rolling_residuals(values, base.selected_model, season)
     # A proposer who read "3-day promotion, expect pull-forward" holds real
     # prior knowledge about the effect's shape. `expected_shape` lets it in
     # as a *nomination*: the contest narrows to that shape alone — one
@@ -332,20 +332,33 @@ def assess_context(
     }
     nominated = nominations.pop() if len(nominations) == 1 else None
     contested_shapes = (nominated,) if nominated else EFFECT_SHAPES
-    by_shape: dict[str, list[float]] = {}
-    for shape in contested_shapes:
+    # Both estimators face the identical gate. The drift candidate remains
+    # useful when the selected model has absorbed an intervention; the
+    # residual candidate isolates aperiodic effects after the selected model
+    # has removed ordinary trend and seasonality.
+    candidates = [("drift", shape) for shape in contested_shapes]
+    candidates += [("residual", shape) for shape in contested_shapes]
+    by_estimator: dict[str, dict[str, list[float]]] = {
+        "drift": {}, "residual": {}}
+    for estimator, shape in candidates:
         improvements: list[float] = []
         failed: str | None = None
         for origin in selection_origins:
             cutoff = timestamps[origin - 1]
             actual = values[origin : origin + horizon]
             try:
-                context_prediction = event_adjusted(
-                    values[:origin], horizon, season,
-                    event_flags(eligible, timestamps[:origin], cutoff),
-                    event_flags(eligible, timestamps[origin : origin + horizon], cutoff),
-                    shape,
-                )
+                historical_flags = event_flags(
+                    eligible, timestamps[:origin], cutoff)
+                future_flags = event_flags(
+                    eligible, timestamps[origin : origin + horizon], cutoff)
+                if estimator == "residual":
+                    context_prediction = residual_event_adjusted(
+                        base_residuals[:origin], horizon, historical_flags,
+                        future_flags, base_paths[origin], shape)
+                else:
+                    context_prediction = event_adjusted(
+                        values[:origin], horizon, season, historical_flags,
+                        future_flags, shape)
             except ValueError as exc:
                 failed = str(exc)
                 break
@@ -367,30 +380,49 @@ def assess_context(
                 0.0 if denominator <= 1e-12 else (base_score - context_score) / denominator
             )
         if failed is None:
-            by_shape[shape] = improvements
-        elif shape == nominated:
-            # An honest exclusion, named: switching silently to a shape
-            # that fits would hand the fishing back to the gate.
-            return _reject(
-                "candidate_fits_every_fold", failed,
-                f"the nominated effect shape ({nominated}) failed a "
-                f"selection fold: {failed}",
-            )
-        elif shape == "level":
-            # The level shape is the one the gate has always used; if it
-            # cannot fit, no shape can, and the reason is the honest one.
-            return _reject(
-                "candidate_fits_every_fold", failed,
-                f"context candidate failed a selection fold: {failed}",
-            )
+            by_estimator[estimator][shape] = improvements
+        # One estimator may be unmeasurable while the other remains valid.
+        # Both use the same nominated shape and identical folds, so allowing
+        # the measurable estimator is not a silent switch in effect shape.
 
-    if not by_shape:
+    available = [
+        (mean(scores), estimator, shape, scores)
+        for estimator, shapes in by_estimator.items()
+        for shape, scores in shapes.items()
+    ]
+    if not available:
         return _reject(
             "candidate_fits_every_fold", "no shape fitted every fold",
-            "no effect shape fitted every selection fold",
+            ((f"the nominated effect shape ({nominated}) did not fit every "
+              "selection fold") if nominated else
+             "no effect shape fitted every selection fold"),
         )
-    selected_shape = max(by_shape, key=lambda name: mean(by_shape[name]))
-    improvements = by_shape[selected_shape]
+    best_score, selected_estimator, selected_shape, improvements = max(
+        available, key=lambda item: item[0])
+    # When every candidate loses, the selected shape is diagnostic only. Keep
+    # the original detrended estimator's shape contest stable instead of
+    # letting a losing residual estimator rewrite that public explanation.
+    if best_score < minimum_improvement and by_estimator["drift"]:
+        selected_estimator = "drift"
+        selected_shape = max(
+            by_estimator["drift"],
+            key=lambda name: mean(by_estimator["drift"][name]))
+        improvements = by_estimator["drift"][selected_shape]
+    shape_scores = by_estimator[selected_estimator]
+
+    def context_prediction(origin: int) -> list[float]:
+        cutoff = timestamps[origin - 1]
+        historical_flags = event_flags(eligible, timestamps[:origin], cutoff)
+        future_flags = event_flags(
+            eligible, timestamps[origin : origin + horizon], cutoff)
+        if selected_estimator == "residual":
+            base_path = predict(base.selected_model, values[:origin], horizon, season)
+            return residual_event_adjusted(
+                base_residuals[:origin], horizon, historical_flags,
+                future_flags, base_path, selected_shape)
+        return event_adjusted(
+            values[:origin], horizon, season, historical_flags, future_flags,
+            selected_shape)
 
     assessment = ContextAssessment(
         True, False, [],
@@ -399,8 +431,11 @@ def assess_context(
         fold_improvements=improvements,
         mean_improvement=mean(improvements),
         effect_shape=selected_shape,
+        effect_estimator=("base_model_residual"
+                          if selected_estimator == "residual"
+                          else "detrended_level"),
         shape_scores={name: round(mean(scores), 6)
-                      for name, scores in by_shape.items()},
+                      for name, scores in shape_scores.items()},
         nominated_shape=nominated,
     )
 
@@ -438,13 +473,7 @@ def assess_context(
 
     # Calibrate and measure coverage with context before deciding, so a
     # coverage regression can veto admission.
-    calibration_cutoff = timestamps[calibration_origin - 1]
-    calibration_prediction = event_adjusted(
-        values[:calibration_origin], horizon, season,
-        event_flags(eligible, timestamps[:calibration_origin], calibration_cutoff),
-        event_flags(eligible, timestamps[calibration_origin : calibration_origin + horizon], calibration_cutoff),
-        selected_shape,
-    )
+    calibration_prediction = context_prediction(calibration_origin)
     calibration_actual = values[calibration_origin : calibration_origin + horizon]
     assessment.residuals = [
         actual - predicted for actual, predicted in zip(calibration_actual, calibration_prediction)
@@ -457,13 +486,7 @@ def assess_context(
         assessment.residuals_by_lead, horizon, assessment.residuals,
     )
 
-    test_cutoff = timestamps[test_origin - 1]
-    test_prediction = event_adjusted(
-        values[:test_origin], horizon, season,
-        event_flags(eligible, timestamps[:test_origin], test_cutoff),
-        event_flags(eligible, timestamps[test_origin : test_origin + horizon], test_cutoff),
-        selected_shape,
-    )
+    test_prediction = context_prediction(test_origin)
     test_actual = values[test_origin : test_origin + horizon]
     covered = []
     for step, (actual, prediction) in enumerate(zip(test_actual, test_prediction), 1):
@@ -499,12 +522,21 @@ def assess_context(
 
     assessment.admitted = True
     final_cutoff = timestamps[-1]
-    assessment.points = event_adjusted(
-        values, horizon, season,
-        event_flags(eligible, timestamps, final_cutoff),
-        event_flags(eligible, future_timestamps, final_cutoff),
-        selected_shape,
-    )
+    if selected_estimator == "residual":
+        assessment.points = residual_event_adjusted(
+            base_residuals, horizon,
+            event_flags(eligible, timestamps, final_cutoff),
+            event_flags(eligible, future_timestamps, final_cutoff),
+            predict(base.selected_model, values, horizon, season),
+            selected_shape,
+        )
+    else:
+        assessment.points = event_adjusted(
+            values, horizon, season,
+            event_flags(eligible, timestamps, final_cutoff),
+            event_flags(eligible, future_timestamps, final_cutoff),
+            selected_shape,
+        )
     if shrink:
         # Move only as far from the history-only forecast as the fold
         # evidence supports. `admitted` stays a clean boolean for readers of

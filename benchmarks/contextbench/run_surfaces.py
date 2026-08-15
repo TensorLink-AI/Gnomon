@@ -90,6 +90,9 @@ def surface_row(case: Case, *, include_context: bool) -> dict[str, Any]:
         # Only the mapping key is consumed by the harness. Oracle values never
         # enter this object or the model transcript.
         "ground_truth": {"value": None}, "mcq": {},
+        # Host-owned task routing: profile breadth remains the treatment,
+        # while every arm receives the same obvious forecast execution plan.
+        "_host_compiled_forecast": True,
     }
 
 

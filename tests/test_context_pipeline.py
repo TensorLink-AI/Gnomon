@@ -239,6 +239,22 @@ class TestEffectShapes:
             delivered = [scaled * weight for weight, flag in zip(weights, active) if flag]
             assert abs(sum(delivered) / len(delivered) - base) < 1e-9, shape
 
+    def test_residual_effect_removes_history_model_bias(self):
+        from gnomon.context_model import residual_event_effect
+
+        residuals = [0.5, -0.5, 8.5, 7.5, 0.5, -0.5]
+        active = [False, False, True, True, False, False]
+        assert residual_event_effect(residuals, active, "level") == 8.0
+
+    def test_residual_candidate_changes_only_future_event_steps(self):
+        from gnomon.context_model import residual_event_adjusted
+
+        points = residual_event_adjusted(
+            [0.0, 6.0, 0.0, 6.0], 4,
+            [False, True, False, True], [False, True, True, False],
+            [10.0, 10.0, 10.0, 10.0], "level")
+        assert points == [10.0, 16.0, 16.0, 10.0]
+
     def test_each_active_run_gets_its_own_onset(self):
         from gnomon.context_model import shape_weights
 

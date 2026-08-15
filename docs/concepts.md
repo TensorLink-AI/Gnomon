@@ -108,10 +108,13 @@ window already breaches is rejected, with the violating timestamps named.
 
 **An event without one** is a window whose effect Gnomon estimates.
 `marketing-push-2026-06` marks a campaign; the context ablation measures
-its effect from detrended history and admits it only if it beats the
-history-only baseline on identical folds. The effect shape (level, decay,
-ramp) is chosen by the same measurement, never by the caller — a caller who
-could name the shape could fit a story to the data.
+its effect either from detrended history or from leakage-safe one-step
+residuals of the selected history model. Both estimators compete on identical
+folds, and the winner is disclosed as `effect_estimator`; this lets Gnomon
+isolate aperiodic interventions without mistaking ordinary seasonality for an
+effect. The effect shape (level, decay, ramp) is chosen by the same
+measurement, never by the caller — a caller who could name the shape could
+fit a story to the data.
 
 Every result with applicable context also carries `context_outcome`:
 `not_considered`, `rejected`, `scenario_only`, or `applied`. `scenario_only`
