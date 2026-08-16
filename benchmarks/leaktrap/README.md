@@ -131,12 +131,26 @@ python -m benchmarks.leaktrap.agent_session grade  --session run.json
 role. An agent that wants to know what it may read has to ask, and the
 transcript on disk holds nothing it has not asked for.
 
-One live transcript is in [`results/leaktrap-agent/`](../../results/leaktrap-agent/),
-labelled as a demonstration rather than a measurement: the agent that ran it
-had just finished building this benchmark, which makes it the most
-contaminated subject available. **This family has no behavioural result yet**
-— an agent leakage rate needs uninformed subjects, several tasks and several
-models. The instrument is ready; the experiment is not run.
+**Measured**, on twelve uninformed agent sessions across three model tiers
+([results](../../results/leaktrap-agent/RESULTS.md), pre-registered in
+[PREREGISTRATION.md](PREREGISTRATION.md) §5a before any session was run):
+
+| | rate | 95% CI |
+|---|---|---|
+| fence omitted on at least one read | **12 / 12** | [75.7%, 100%] |
+| session crossed the cutoff | **12 / 12** | [75.7%, 100%] |
+| caught by the score-based leak flag | 1 / 12 | — |
+| **accumulation cases** — final read clean, session dirty | **10 / 12** | — |
+
+Every session opened with an unfenced orienting call, and every one of those
+returned data past the origin. Ten of twelve then fenced everything
+afterwards, so a per-call instrument would have certified ten of them. The
+failure is structural rather than attentional: an agent cannot know it needs
+the fence until it has looked, and looking is the leak. Several subjects said
+so themselves — one reported inferring from its single unfenced call what the
+held-out values implied and then deciding not to use that inference, which is
+precisely the state a fence exists to prevent and the one no amount of
+scoring can verify.
 
 ## Pre-registered analysis plan
 
