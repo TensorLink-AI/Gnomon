@@ -15,6 +15,29 @@ clone.
 
 ## 2. Connect a client
 
+**Hermes** — one command from inside the checkout:
+
+```bash
+hermes mcp add gnomon \
+  --command uvx \
+  --args "--from" "$(pwd)" "gnomon" "mcp" "serve"
+```
+
+It writes an entry under `mcp_servers` in `~/.hermes/config.yaml`, which you
+can equally author by hand — and where `tools.include` narrows a broader
+profile to the tools a session should see:
+
+```yaml
+mcp_servers:
+  gnomon:
+    command: uvx
+    args: ["--from", "/absolute/path/to/Gnomon", "gnomon", "mcp", "serve"]
+```
+
+MCP support ships in Hermes 0.2.0 and later; a source install needs its `mcp`
+extra. The former packaged Hermes plugin was removed — MCP is the one agent
+contract.
+
 **Claude Code** — one command from inside the checkout:
 
 ```bash

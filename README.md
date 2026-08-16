@@ -3,20 +3,45 @@
 **Trusted time-series answers for people and AI agents.**
 
 Give Gnomon timestamped data and a practical question. It validates the data,
-tests competing methods against honest historical baselines, and returns an
-answer with its uncertainty, strength of evidence, limitations, and a
-reproducible artifact. If the data only supports a weak answer, Gnomon labels
-it weak. If it cannot compute an honest answer, it abstains and says what is
-needed next.
+backtests competing methods against honest baselines, and returns an answer
+carrying its uncertainty, its evidence, its limitations, and a reproducible
+artifact. A weak answer is labelled weak. When no honest answer exists, Gnomon
+abstains and says what it would need instead.
 
-You do not need to choose a forecasting model or write a backtest. Gnomon can
-run locally with its built-in models, optionally evaluate sandboxed time-series
-foundation models, and expose the same deterministic runtime through the CLI,
-Python, or MCP.
+You choose no model and write no backtest. The same deterministic runtime is
+reachable from the CLI, from Python, and over MCP.
 
-## What Gnomon does
+## Quickstart
 
-Gnomon answers five kinds of question about a time series:
+```bash
+git clone https://github.com/TensorLink-AI/Gnomon && cd Gnomon
+bash install.sh --local
+gnomon forecast examples/daily_requests.csv --horizon 3
+```
+
+That prints a readable answer and writes the complete evidence-linked artifact
+to `gnomon-output/`. Hand the same runtime to an agent in one line:
+
+```bash
+# Hermes
+hermes mcp add gnomon --command uvx --args "--from" "$(pwd)" "gnomon" "mcp" "serve"
+
+# Claude Code
+claude mcp add gnomon -- uvx --from "$(pwd)" gnomon mcp serve
+```
+
+Then ask one complete operational question:
+
+> Forecast `examples/messy_requests.csv` (column `requests`) 14 days ahead.
+> What changed in it, and when should we alert if crossing 340 costs us 20x
+> a false alarm?
+
+Next: [agent setup in detail](#hook-it-to-your-agent) ·
+[the full CLI workflow](#see-the-full-cli-workflow) ·
+[getting started](docs/getting-started.md) ·
+[MCP quickstart](docs/quickstart-mcp.md).
+
+## What you can ask
 
 | Verb | Question | What you get |
 | --- | --- | --- |
@@ -31,35 +56,29 @@ Its first product job is operational threshold risk:
 > Which service metric may breach a meaningful limit, when, and does the
 > evidence justify intervening?
 
-The same runtime also works on demand, capacity, finance, health, sensor, and
-other timestamped data. Gnomon is not an autonomous operator: it produces and
-tracks evidence-backed temporal answers; a person or agent decides how those
-answers are used.
+The same runtime works on demand, capacity, finance, health, sensor, and other
+timestamped data. Gnomon is not an autonomous operator: it produces and tracks
+evidence-backed temporal answers; a person or agent decides how they are used.
 
-## For humans and agents
+**`gnomon capabilities` is the machine-readable source of truth for what a
+given build can do.** Roadmap features are never exposed as mocked commands. If
+this README and `gnomon capabilities` disagree, the command is right and this
+file is a bug.
+
+## Who calls it
 
 | Caller | How it uses Gnomon | What Gnomon contributes |
 | --- | --- | --- |
-| Human operator or analyst | Runs CLI commands against local files or the bitemporal store | Data diagnosis, forecasts, change and anomaly analysis, decision support, readable summaries, and audit-ready artifacts |
-| AI agent | Calls the local MCP server with the data and question | JSON-schema tools, computed numbers, support tiers, quotable headlines, provenance, and machine-readable recovery actions |
-| Application | Calls the documented Python API | The same validated runtime and artifacts embedded in a larger workflow |
+| Human operator or analyst | CLI commands against local files or the bitemporal store | Data diagnosis, forecasts, change and anomaly analysis, decision support, readable summaries, audit-ready artifacts |
+| AI agent | The local MCP server, with the data and the question | JSON-schema tools, computed numbers, support tiers, quotable headlines, provenance, machine-readable recovery actions |
+| Application | The documented Python API | The same validated runtime and artifacts, embedded in a larger workflow |
 
 For a human, Gnomon replaces the fragile chain of cleaning a file, choosing a
 model, inventing a backtest, and explaining the result by hand. For an agent,
-it creates a hard boundary: the model may frame the question and explain the
+it draws a hard boundary: the model may frame the question and explain the
 answer, but Gnomon owns timestamps, evaluation, model selection, intervals,
 support status, and every published value. The LLM cannot silently edit or
 invent those numbers.
-
-Depending on the question, a governed result includes:
-
-- a deterministic headline and the key numbers;
-- a support tier that says how much confidence the evidence earned;
-- disclosed repairs, assumptions, limitations, and recovery actions;
-- the evaluation evidence that justified publication; and
-- an immutable artifact that can be inspected, replayed, and scored later.
-
-## Where Gnomon sits
 
 ```text
 agent / operator
@@ -72,65 +91,118 @@ Gnomon
 built-in models or explicitly configured model backends
 ```
 
-Gnomon owns the middle boundary: what data was knowable, which executable
-earned publication, every published number, and what the evidence permits the
-caller to say. A hosted router, benchmark service, or model-training network
-may supply better candidates later; none is required by this repository and
-none may bypass that contract.
+Depending on the question, a governed result includes:
 
-**`gnomon capabilities` is the machine-readable source of truth for what a
-given build can do.** Roadmap features are never exposed as mocked
-commands. If this README and `gnomon capabilities` disagree, the command is
-right and this file is a bug.
+- a deterministic headline and the key numbers;
+- a support tier that says how much confidence the evidence earned;
+- disclosed repairs, assumptions, limitations, and recovery actions;
+- the evaluation evidence that justified publication; and
+- an immutable artifact that can be inspected, replayed, and scored later.
 
-## Use it directly
+A hosted router, benchmark service, or model-training network may supply better
+candidates later; none is required by this repository, and none may bypass that
+contract.
 
-```bash
-bash install.sh --local
-gnomon forecast examples/daily_requests.csv --horizon 3
-```
-
-The CLI prints a readable answer and writes the complete evidence-linked
-artifact to `gnomon-output/`. Start with `summary.md`; use `forecast.csv` in
-downstream systems; keep `artifact.json` and `lineage.json` for replay and
-audit. See [the full CLI workflow](#see-the-full-cli-workflow) or the
-[getting-started guide](docs/getting-started.md).
-
-## Hook it to your agent (60 seconds)
+## Hook it to your agent
 
 MCP is Gnomon's only agent-facing contract. The local server exposes the same
 runtime as the CLI without shell quoting, with JSON Schemas the host can
 validate against and structured errors carrying machine-readable repair
-options.
+options. Every setup below is the same stdio command:
 
 ```bash
-git clone https://github.com/TensorLink-AI/Gnomon && cd Gnomon
-
-# Claude Code
-claude mcp add gnomon -- uvx --from "$(pwd)" gnomon mcp serve
-
-# any other MCP client: run this as a stdio server
-uvx --from . gnomon mcp serve
+uvx --from /absolute/path/to/Gnomon gnomon mcp serve
 ```
 
-Then ask your agent one complete operational question:
-
-> Forecast `examples/messy_requests.csv` (column `requests`) 14 days ahead.
-> What changed in it, and when should we alert if crossing 340 costs us 20x
-> a false alarm?
-
-The agent gets 2 tools on the default `evidence` profile:
-`gnomon_describe` for fast temporal evidence and `gnomon_forecast` for
-evaluated publication. Broader operational, tracking, ingestion, and artifact
-tools remain available through explicit profiles, and every number it
-quotes comes from an evidence-linked, verified artifact. It cannot invent
-values for an unsupported series; it can only report Gnomon's abstention and
-its recovery options. Data-reading calls return a session-scoped `data_ref`,
-so follow-up verbs reuse the resolved data and schema without resending the
-observations. See the [MCP quickstart](docs/quickstart-mcp.md) for
-client configs, the vintage workflow, and the full tool surface.
 (A `pip install gnomon-forecast` / `uvx gnomon-forecast` path arrives with the
-PyPI release.)
+PyPI release; until then, serve from the checkout.)
+
+### Hermes
+
+[Hermes Agent](https://github.com/NousResearch/hermes-agent) is an MCP client,
+so no plugin is involved. From the checkout:
+
+```bash
+hermes mcp add gnomon \
+  --command uvx \
+  --args "--from" "$(pwd)" "gnomon" "mcp" "serve"
+```
+
+That writes an entry under `mcp_servers` in `~/.hermes/config.yaml`, which you
+can also author by hand:
+
+```yaml
+mcp_servers:
+  gnomon:
+    command: uvx
+    args: ["--from", "/absolute/path/to/Gnomon", "gnomon", "mcp", "serve"]
+```
+
+Start a chat with `hermes` and ask the operational question above. Gnomon's
+default surface is two tools, so it costs little ambient context; pass a
+broader profile and filter it per server when a session needs more:
+
+```yaml
+mcp_servers:
+  gnomon:
+    command: uvx
+    args: ["--from", "/absolute/path/to/Gnomon", "gnomon", "mcp",
+           "serve", "--profile", "decision"]
+    tools:
+      include: [gnomon_forecast, gnomon_monitor, gnomon_status]
+      prompts: false
+      resources: false
+```
+
+Recurring operational work is one cron job away — Hermes runs the prompt on a
+schedule, Gnomon supplies and governs the numbers:
+
+```bash
+hermes cron create "0 8 * * 1" \
+  "Forecast the next 7 days of requests from ~/metrics/daily_requests.csv with
+   Gnomon. Report the support tier, any threshold crossing, and every warning
+   verbatim; quote nothing the artifact does not contain." \
+  --name weekly-capacity
+```
+
+MCP support ships in Hermes 0.2.0 and later; a source install needs its `mcp`
+extra. Gnomon's earlier packaged Hermes plugin was removed in favour of this
+path — see [`COMPATIBILITY.md`](COMPATIBILITY.md).
+
+### Claude Code
+
+```bash
+claude mcp add gnomon -- uvx --from "$(pwd)" gnomon mcp serve
+```
+
+### Claude Desktop, Cursor, and any stdio MCP client
+
+Same command, expressed as JSON — `claude_desktop_config.json`,
+`.cursor/mcp.json`, or a project `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "gnomon": {
+      "command": "uvx",
+      "args": ["--from", "/absolute/path/to/Gnomon", "gnomon", "mcp", "serve"]
+    }
+  }
+}
+```
+
+### What the agent gets
+
+The agent gets 2 tools on the default `evidence` profile: `gnomon_describe`
+for fast temporal evidence and `gnomon_forecast` for evaluated publication.
+Broader operational, tracking, ingestion, and artifact tools remain available
+through explicit profiles, and every number the agent quotes comes from an
+evidence-linked, verified artifact. It cannot invent values for an unsupported
+series; it can only report Gnomon's abstention and its recovery options.
+Data-reading calls return a session-scoped `data_ref`, so follow-up verbs reuse
+the resolved data and schema without resending the observations. See the
+[MCP quickstart](docs/quickstart-mcp.md) for client configs, the vintage
+workflow, and the full tool surface.
 
 Conversation cost is an engineering constraint, not a completed claim. Wide
 data is handled in one batched call; brief responses keep disclosures while
