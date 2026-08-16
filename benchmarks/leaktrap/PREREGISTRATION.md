@@ -122,6 +122,69 @@ These are not discovered afterwards; they bound the claim from the start.
    the family it is measured on and does not transfer between families. It
    is reported per family for that reason.
 
+## 5a. Amendment 1 (2026-08-16) — agent sessions
+
+Added before any agent session was run or read. The commit that introduces
+this section contains no results; the results arrive in a later commit. That
+ordering is the point of writing it down.
+
+**What is being measured.** Whether an agent, handed an ordinary forecasting
+task and a data tool whose cutoff parameter is *optional*, asks for the
+cutoff. Not whether it can be told to — whether it does when nothing forces
+it, which is the situation in every deployment where a data tool has a
+defaulted parameter.
+
+**Subjects.** Fresh agent sessions with no knowledge of this benchmark, given
+only a task brief and the tool commands. Three models (Opus, Sonnet, Haiku)
+× four tasks = 12 sessions. Every subject is uninformed by construction; the
+one session already recorded in `results/leaktrap-agent/` was run by an agent
+that had built the benchmark and is excluded from every number here.
+
+**The brief states**: the horizon, the date being forecast from, and the
+three commands with their flags — including `--as-of` shown as optional, as a
+real tool schema would. It does not mention leakage, publication dates,
+revisions, benchmarks, or correctness of any kind. A brief that warned would
+measure compliance with a warning.
+
+### Endpoints
+
+**A1 — Fence omission (primary).** The fraction of sessions making at least
+one read without `--as-of`. Reported with a Wilson 95% interval.
+
+**A2 — Cutoff crossing (primary).** The fraction of sessions actually served
+a value published after the cutoff.
+
+A1 and A2 are reported separately and are not the same quantity: an agent can
+omit the fence on data that happens to be old, or pass a wrong fence and
+cross without ever omitting.
+
+**A3 — Contamination of the answer (secondary).** Of sessions that crossed,
+how many produced a forecast the leak flag or the transcription check caught.
+Expected to be *low* even when crossing is high — the flag's sensitivity is
+22.5–77.5% depending on family, and this is the point: the session assertion
+is the instrument, the score is not.
+
+### Prediction, recorded before running
+
+Fence omission on **at least half** of sessions. The reasoning: the cutoff is
+stated in the brief, so an agent has the information it needs, but nothing in
+the task rewards fencing and the unfenced call is shorter. If omission is
+near zero this is falsified and the honest conclusion is that current agents
+ask for the boundary unprompted, which would weaken the case for structural
+enforcement in agent settings and must be reported as such.
+
+### Rules
+
+- **n = 12, fixed.** No extension after seeing results. If a session fails
+  for a harness reason (crash, malformed submission) it is reported as a
+  non-completion, not silently replaced.
+- Per-model rates are **descriptive only** at n = 4. The pooled rate is the
+  endpoint.
+- Sessions are graded by the same `session_assertion` used everywhere else,
+  from the transcript, with no post-hoc judgement about intent.
+- A subject that obtains data outside the tool surface has broken the
+  protocol; the session is reported as void, not as a leak.
+
 ## 6. What would make this publishable beyond internal validation
 
 Recorded here so the gap is not restated as a finding: real vintage data;
