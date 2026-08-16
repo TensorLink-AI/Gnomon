@@ -89,6 +89,7 @@ class SeriesState:
     future_context_public: dict[str, object] | None = None
     adjudication_public: dict[str, object] | None = None
     conditional_forecasts: list[dict[str, object]] = field(default_factory=list)
+    sensitivity_scenarios: list[dict[str, object]] = field(default_factory=list)
     #: Typed, correct-but-surprising facts for the support assessment.
     #: Never affects support status — see SupportAssessment.disclosures.
     disclosures: list[SupportReason] = field(default_factory=list)
@@ -614,7 +615,7 @@ def conditional_stage(
     forecast, and turns a real question into an abstention. The answer goes
     in its own list with its own support status; nothing above it changes.
     """
-    from .conditional import assess_conditional
+    from .conditional import assess_conditional, sensitivity_scenarios
 
     assessment = state.assessment
     if not (assessment and assessment.supported and state.points):
@@ -631,12 +632,27 @@ def conditional_stage(
         state.points,
     )
     state.conditional_forecasts = [item.to_public_dict() for item in forecasts]
-    if forecasts or excluded:
+    scenarios, scenario_excluded = sensitivity_scenarios(
+        state.values, state.timestamps, state.future_timestamps,
+        context_events, state.name,
+        state.points, spreads,
+    )
+    # A measured conditional answer dominates a standardised sensitivity for
+    # the same event. Keep the weaker lane only where measurement was absent.
+    measured_ids = {event_id for item in state.conditional_forecasts
+                    for event_id in item.get("events", [])}
+    state.sensitivity_scenarios = [
+        item for item in scenarios
+        if not measured_ids.intersection(item.get("events", []))
+    ]
+    excluded.extend(scenario_excluded)
+    if forecasts or state.sensitivity_scenarios or excluded:
         state.evidence.append(Evidence(
             f"conditional_forecasts:{state.name}", "conditional_forecasts",
             state.name,
             {
                 "produced": len(forecasts),
+                "sensitivity_scenarios_produced": len(state.sensitivity_scenarios),
                 "declined": excluded,
                 "basis": "effect measured from event-active periods in the "
                          "observed history; never from the event description",

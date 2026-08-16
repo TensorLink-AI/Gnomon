@@ -622,6 +622,7 @@ def _series_result(
         support_assessment.to_dict(),
         notes=state.notes,
         conditional_forecasts=state.conditional_forecasts,
+        sensitivity_scenarios=state.sensitivity_scenarios,
         future_context=state.future_context_public,
         temporal_facts={
             "seasonal_period_steps": state.season,
@@ -636,6 +637,7 @@ def _series_result(
                 context_assessment=state.context_assessment,
                 future_context=state.future_context_public,
                 conditional_forecasts=state.conditional_forecasts,
+                sensitivity_scenarios=state.sensitivity_scenarios,
             ) if context_events else None
         ),
     )

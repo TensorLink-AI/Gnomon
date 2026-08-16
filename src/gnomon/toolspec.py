@@ -656,6 +656,17 @@ def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
                 "threshold": item.threshold,
                 "context": item.context,
                 "context_outcome": item.context_outcome,
+                **({"sensitivity_scenarios": [{
+                    "events": scenario.get("events", []),
+                    "support": scenario.get("support"),
+                    "primary_forecast_changed": False,
+                    "assumed_effect": scenario.get("assumed_effect"),
+                    "assumed_effect_unit": scenario.get("assumed_effect_unit"),
+                    "assumptions": scenario.get("assumptions", []),
+                    "forecast_rows": len(scenario.get("forecast", [])),
+                    "location": "artifact.results[].sensitivity_scenarios",
+                } for scenario in item.sensitivity_scenarios]}
+                   if item.sensitivity_scenarios else {}),
                 "covariates": item.covariates,
                 "notability": forecast_notability(item),
                 "execution_identity": _execution_identity(artifact, item),
@@ -710,6 +721,17 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
             **({"threshold": item.threshold} if item.threshold else {}),
             **({"context_outcome": item.context_outcome}
                if item.context_outcome else {}),
+            **({"sensitivity_scenarios": [{
+                "events": scenario.get("events", []),
+                "support": scenario.get("support"),
+                "primary_forecast_changed": False,
+                "assumed_effect": scenario.get("assumed_effect"),
+                "assumed_effect_unit": scenario.get("assumed_effect_unit"),
+                "assumptions": scenario.get("assumptions", []),
+                "forecast_rows": len(scenario.get("forecast", [])),
+                "location": "artifact.results[].sensitivity_scenarios",
+            } for scenario in item.sensitivity_scenarios]}
+               if item.sensitivity_scenarios else {}),
         })
     from .support import artifact_headline
     payload = {

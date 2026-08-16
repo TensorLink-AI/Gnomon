@@ -29,7 +29,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from statistics import mean
+from statistics import mean, median
 from typing import Any
 
 from .context import ContextEvent, backtest_admissible, event_applies, validate_context_event
@@ -64,6 +64,97 @@ class ConditionalForecast:
             "effect_standard_error": self.effect_standard_error,
             "occurrences_in_history": self.occurrences_in_history,
         }
+
+
+def _innovation_scale(values: list[float]) -> float | None:
+    """A robust, data-unit scale for an explicitly hypothetical shock."""
+    if len(values) < 3:
+        return None
+    differences = [values[index] - values[index - 1]
+                   for index in range(1, len(values))]
+    centre = median(differences)
+    mad = median(abs(value - centre) for value in differences)
+    scale = 1.4826 * mad
+    if scale <= 0:
+        nonzero = [abs(value) for value in differences if value]
+        scale = median(nonzero) if nonzero else 0.0
+    return scale if scale > 0 else None
+
+
+def sensitivity_scenarios(
+    values: list[float], timestamps: list[datetime],
+    future_timestamps: list[datetime],
+    events: list[ContextEvent], series_name: str,
+    points: list[float], spreads: dict[int, tuple[float, float, float]],
+) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+    """Standardised what-if paths for grounded events with no estimable effect.
+
+    These are sensitivity tests, not forecasts.  Their magnitude is one robust
+    innovation scale measured from the target history.  That makes the
+    assumption reproducible and expressed in the series' units without
+    laundering a number from narrative text into the primary trajectory.
+    """
+    from .context_eval import event_flags
+
+    scale = _innovation_scale(values)
+    scenarios: list[dict[str, Any]] = []
+    excluded: list[dict[str, str]] = []
+    for event in events:
+        if validate_context_event(event) or not event_applies(event, series_name) \
+                or event.status == "cancelled":
+            continue
+        soft = (event.attributes or {}).get("soft_context") or {}
+        direction = soft.get("direction", "unknown")
+        family = soft.get("effect_family", "unknown")
+        if direction not in {"increase", "decrease"}:
+            excluded.append({"event_id": event.event_id,
+                             "reason": "a directional sensitivity scenario requires a grounded increase or decrease"})
+            continue
+        if family in {"variance_change", "saturation_bound"}:
+            excluded.append({"event_id": event.event_id,
+                             "reason": f"{family} cannot be represented honestly as a point-path sensitivity"})
+            continue
+        if scale is None:
+            excluded.append({"event_id": event.event_id,
+                             "reason": "history has no measurable innovation scale"})
+            continue
+        active = event_flags([event], future_timestamps, timestamps[-1])
+        if not any(active):
+            continue
+        sign = 1.0 if direction == "increase" else -1.0
+        first = active.index(True)
+        persistent = soft.get("duration") == "persistent" or family in {
+            "trend_change", "seasonal_regime_change"}
+        rows: list[dict[str, Any]] = []
+        for index, (timestamp, base) in enumerate(zip(future_timestamps, points)):
+            exposed = active[index] or (persistent and index >= first)
+            multiplier = 0.0
+            if exposed:
+                multiplier = float(index - first + 1) if family == "trend_change" else 1.0
+            point = base + sign * scale * multiplier
+            spread = spreads.get(index + 1)
+            if spread is None:
+                continue
+            low, centre, high = interval_from_spread(point, spread)
+            rows.append({"timestamp": timestamp.isoformat(), "point": point,
+                         "q10": low, "q50": centre, "q90": high})
+        if rows:
+            scenarios.append({
+                "events": [event.event_id],
+                "support": "hypothetical_sensitivity",
+                "primary_forecast_changed": False,
+                "forecast": rows,
+                "assumed_effect": sign * scale,
+                "assumed_effect_unit": "one robust first-difference innovation scale",
+                "effect_family": family,
+                "assumptions": [
+                    f"assumes {event.event_id} occurs as described",
+                    "this is a standardized sensitivity path, not the expected or primary forecast",
+                    "the shock magnitude is a reproducible scale from target history; it is not an estimated event effect",
+                    "no probability is assigned to this scenario",
+                ],
+            })
+    return scenarios, excluded
 
 
 def _effect_standard_error(

@@ -94,6 +94,27 @@ forecast is required in the output, reproduce these arrays exactly.
 EVIDENCE_BUDGET = 40_000
 
 
+def infrastructure_failure(error: Exception) -> bool:
+    """Whether replaying the whole row is safe and potentially useful.
+
+    The HTTP client already retries individual requests.  TemporalBench rows
+    are multi-request conversations, though, and a provider outage on the
+    final submit previously discarded all earlier work and permanently shrank
+    the score denominator.  Retrying the row is safe: benchmark tasks are
+    immutable and every MCP run gets a fresh jailed workspace.
+    """
+    name = type(error).__name__
+    detail = str(error).lower()
+    if name in {"OpenRouterError", "IncompleteRead", "RemoteDisconnected",
+                "TimeoutError", "ConnectionError"}:
+        return True
+    return (
+        "mcp tools/list failed" in detail
+        or "connection reset" in detail
+        or "temporarily unavailable" in detail
+    )
+
+
 def bounded_evidence(digest: dict[str, Any],
                      budget: int = EVIDENCE_BUDGET) -> str:
     """Serialize the evidence digest to at most ``budget`` characters of
@@ -278,6 +299,14 @@ def main() -> int:
                         help="seconds per provider request (default: 180)")
     parser.add_argument("--max-retries", type=int, default=2,
                         help="bounded retries for transient provider failures")
+    parser.add_argument(
+        "--infrastructure-retries", type=int, default=2,
+        help=("whole-row retries after exhausted provider/transport or MCP "
+              "startup failures; product non-submission is never retried"))
+    parser.add_argument(
+        "--resume", action="store_true",
+        help=("reuse rows with saved answer details and execute only missing "
+              "or errored rows; all rows are rescored into a fresh summary"))
     parser.add_argument("--output-dir", default=None)
     parser.add_argument(
         "--mcp-profile", choices=["full", "core", "describe", "evidence", "mega", "decision", "data"],
@@ -353,6 +382,15 @@ def main() -> int:
     details_dir = output_dir / "details"
     details_dir.mkdir(parents=True, exist_ok=True)
     records_path = output_dir / "gnomonbench.jsonl"
+    prior_summary_path = output_dir / "summary.json"
+    prior_summary = (json.loads(prior_summary_path.read_text())
+                     if args.resume and prior_summary_path.is_file() else {})
+    prior_records: dict[str, dict[str, Any]] = {}
+    if args.resume and records_path.is_file():
+        for line in records_path.read_text().splitlines():
+            if line.strip():
+                record = json.loads(line)
+                prior_records[str(record.get("task_id"))] = record
     # RecordWriter appends; a rerun into the same output dir must replace
     # the previous run's rows (as summary.json is), not accumulate them.
     records_path.unlink(missing_ok=True)
@@ -378,6 +416,9 @@ def main() -> int:
     context_events_rejected = context_events_applied = 0
     context_events_scenario_only = 0
     covariate_channels_considered = covariate_channels_admitted = 0
+    infrastructure_retries = 0
+    infrastructure_failures: dict[str, int] = {}
+    resumed_rows = 0
     channels_abstained = 0
     total = 0
     # Denominator for the scored-only forecast means: every T2/T4 row the
@@ -394,15 +435,51 @@ def main() -> int:
             forecast_rows_total += 1
         row_id = row.get("id", f"row{total}")
         started = time.time()
+        retained_latency: float | None = None
         # Answering and scoring fail separately: a scoring exception must
         # not swallow an answer that abstained — the abstention flag has
         # to survive into the record either way.
         try:
-            outcome = answer_row(row, args.condition, client,
-                                 best_effort=args.best_effort,
-                                 mcp_profile=args.mcp_profile,
-                                 compile_context=args.compile_context,
-                                 context_receipts_dir=args.context_receipts_dir)
+            detail_path = details_dir / f"{row_id}.json"
+            prior_record = prior_records.get(str(row_id))
+            if (args.resume and detail_path.is_file() and prior_record
+                    and not prior_record.get("error")):
+                saved = json.loads(detail_path.read_text())
+                outcome = {
+                    "answer": saved.get("answer") or {},
+                    "abstained": saved.get("abstained") or [],
+                    "channel_support": saved.get("channel_support") or {},
+                    "channel_route": saved.get("channel_route") or {},
+                    "context_execution": saved.get("context_execution") or {},
+                    "covariate_execution": saved.get("covariate_execution") or {},
+                    "mcp": saved.get("mcp") or {},
+                    **({"row_abstained": True}
+                       if prior_record.get("row_abstained") else {}),
+                }
+                retained_latency = float(prior_record.get(
+                    "latency_seconds") or 0.0)
+                resumed_rows += 1
+            else:
+                row_retry = 0
+                while True:
+                    try:
+                        outcome = answer_row(
+                            row, args.condition, client,
+                            best_effort=args.best_effort,
+                            mcp_profile=args.mcp_profile,
+                            compile_context=args.compile_context,
+                            context_receipts_dir=args.context_receipts_dir,
+                        )
+                        break
+                    except Exception as error:
+                        if (not infrastructure_failure(error)
+                                or row_retry >= args.infrastructure_retries):
+                            raise
+                        row_retry += 1
+                        infrastructure_retries += 1
+                        key = type(error).__name__ + ": " + str(error)[:120]
+                        infrastructure_failures[key] = (
+                            infrastructure_failures.get(key, 0) + 1)
         except Exception as error:
             errored += 1
             records.write(RunRecord(task_id=row_id, success=False,
@@ -422,7 +499,8 @@ def main() -> int:
                        "abstained": outcome.get("abstained")},
             ))
             continue
-        elapsed = time.time() - started
+        elapsed = (retained_latency if retained_latency is not None
+                   else time.time() - started)
 
         choice = verdict.get("choice") or {}
         tier = verdict["tier"]
@@ -556,6 +634,10 @@ def main() -> int:
         # accuracy denominator, and quoted here so the coverage behind
         # the tier means is visible rather than inferred.
         "rows_voided_by_harness": rows_voided,
+        "infrastructure_retries": infrastructure_retries,
+        "infrastructure_failures_retried": dict(sorted(
+            infrastructure_failures.items())),
+        "resumed_rows": resumed_rows,
         "choice_accuracy_by_tier_scored_only": {
             tier: sum(flags) / len(flags)
             for tier, flags in sorted(choice_by_tier.items())
@@ -644,7 +726,16 @@ def main() -> int:
         ),
     }
     if client is not None:
-        summary["llm_usage"] = client.usage_summary
+        current_usage = client.usage_summary
+        prior_usage = (prior_summary.get("llm_usage") or {}) if args.resume else {}
+        cumulative = dict(current_usage)
+        for key in ("requests", "transport_attempts", "prompt_tokens",
+                    "completion_tokens", "cost_usd",
+                    "truncation_escalations"):
+            cumulative[key] = (prior_usage.get(key, 0)
+                               + current_usage.get(key, 0))
+        summary["llm_usage"] = cumulative
+        summary["llm_usage_this_invocation"] = current_usage
     (output_dir / "summary.json").write_text(
         json.dumps(summary, indent=2) + "\n", encoding="utf-8"
     )
@@ -666,6 +757,8 @@ def main() -> int:
         base_url=client.base_url if client is not None else None,
         request_timeout=args.request_timeout if client is not None else None,
         max_retries=args.max_retries if client is not None else None,
+        infrastructure_retries=args.infrastructure_retries,
+        resume=args.resume or None,
         # Not part of `target`: best_effort changes the condition's
         # behaviour, not the task set, so it must not make report.py
         # refuse a control-vs-treatment join. It still has to be visible

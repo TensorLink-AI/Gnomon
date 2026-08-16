@@ -41,8 +41,8 @@ shape (T1: the row's label fields; T3: one choice per packed question),
 so a right answer cannot be lost to JSON formatting.
 
 Adapter decisions, disclosed: the row's channels are written to one
-wide CSV on the same synthetic hourly axis as every other condition
-(observation *k* at epoch + *k* hours, nulls omitted, channels laid
+wide CSV anchored to the official row's history cutoff and next-step
+timestamp (nulls omitted, channels laid
 consecutively — exactly ``gnomon_runner``'s convention, so the values
 the engine sees match the other Gnomon conditions); the official prompt
 is the user message verbatim; tool results pass through verbatim until
@@ -67,7 +67,7 @@ import csv
 import json
 import sys
 import tempfile
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -151,6 +151,7 @@ SUBMIT_TOOL = {
                         "type": "object",
                         "properties": {
                             "artifact_path": {"type": "string"},
+                            "trajectory": {"type": "string", "enum": ["primary", "sensitivity"]},
                             "values": {"type": "array",
                                        "items": {"type": "number"}},
                             "abstain": {"type": "boolean"},
@@ -715,11 +716,30 @@ class _RunBase:
         self.row = row
         self.profile = profile
         self.client = client
+        self.channels = self._row_channels(row)
         raw_origin = row.get("_time_origin")
-        self.epoch = (datetime.fromisoformat(str(raw_origin))
-                      if raw_origin else EPOCH)
+        raw_step = row.get("_time_step_seconds")
+        meta = row.get("meta") or {}
+        history_end_raw = meta.get("history_end")
+        cluster_start_raw = meta.get("cluster_start")
+        history_end = (datetime.fromisoformat(str(history_end_raw))
+                       if history_end_raw else None)
+        cluster_start = (datetime.fromisoformat(str(cluster_start_raw))
+                         if cluster_start_raw else None)
+        if history_end is not None and history_end.tzinfo is None:
+            history_end = history_end.replace(tzinfo=timezone.utc)
+        if cluster_start is not None and cluster_start.tzinfo is None:
+            cluster_start = cluster_start.replace(tzinfo=timezone.utc)
+        inferred_step = ((cluster_start - history_end)
+                         if cluster_start and history_end
+                         and cluster_start > history_end else STEP)
         self.time_step = timedelta(seconds=float(
-            row.get("_time_step_seconds", STEP.total_seconds())))
+            raw_step if raw_step is not None else inferred_step.total_seconds()))
+        longest = max((len(values) for values in self.channels.values()), default=1)
+        self.epoch = (datetime.fromisoformat(str(raw_origin))
+                      if raw_origin else
+                      history_end - (longest - 1) * self.time_step
+                      if history_end else EPOCH)
         self.frequency = str(row.get("_frequency", "h"))
         if self.epoch.tzinfo is None:
             raise ValueError("_time_origin must include an explicit timezone")
@@ -729,8 +749,25 @@ class _RunBase:
             else {"attempted": False, "events": [], "hypotheses": [],
                   "rejected": []}
         )
+        # TemporalBench supplies the narrative to the forecaster at the
+        # history cutoff. Compiler outputs often copy the event's effective
+        # time into known_at; for this benchmark source that would falsely
+        # say the prompt becomes knowable only after prediction begins.
+        # Preserve the immutable compiler receipt, but bind executable events
+        # to the actual document availability time used by the experiment.
+        if history_end and self.context_compilation.get("events"):
+            aligned = []
+            for original in self.context_compilation["events"]:
+                event = dict(original)
+                source = event.get("source") or {}
+                if source.get("type") == "benchmark_prompt":
+                    event["known_at"] = history_end.isoformat()
+                    attributes = dict(event.get("attributes") or {})
+                    attributes["benchmark_document_known_at"] = history_end.isoformat()
+                    event["attributes"] = attributes
+                aligned.append(event)
+            self.context_compilation["events"] = aligned
         self.started = time.time()
-        self.channels = self._row_channels(row)
         self.covariate_arguments = self._row_covariates(row)
         if "timestamp" in self.channels:
             raise ValueError("a channel named 'timestamp' collides with the "
@@ -1019,7 +1056,9 @@ class _RunBase:
                         artifact_path = sorted(self.artifact_paths)[-1]
                         accepted = self._handle_submit({
                             "forecast": {
-                                channel: {"artifact_path": artifact_path}
+                                channel: {"artifact_path": artifact_path,
+                                          **({"trajectory": "auto"}
+                                             if self.row.get("tier") == "T4" else {})}
                                 for channel in self.target_keys},
                             "mcq": {},
                         })
@@ -1130,7 +1169,9 @@ class _RunBase:
                 and hasattr(self, "target_keys"):
             artifact_path = sorted(self.artifact_paths)[-1]
             fallback = {
-                "forecast": {channel: {"artifact_path": artifact_path}
+                "forecast": {channel: {"artifact_path": artifact_path,
+                                        **({"trajectory": "auto"}
+                                           if self.row.get("tier") == "T4" else {})}
                              for channel in self.target_keys},
                 "mcq": {},
                 "reasoning": ("Harness preserved a complete verified artifact "
@@ -1378,7 +1419,8 @@ class _Run(_RunBase):
 
     # -- submission --------------------------------------------------------
     def _artifact_channel_rows(self, artifact_path: str,
-                               channel: str) -> list[float] | tuple[str, str]:
+                               channel: str, trajectory: str = "primary"
+                               ) -> list[float] | tuple[str, str]:
         """The artifact's q50 trajectory for `channel`, or a
         ``(problem, support)`` pair explaining the rejection.
 
@@ -1418,6 +1460,18 @@ class _Run(_RunBase):
                     f"gnomon_forecast with target_column={channel!r}", "")
         rows = result.get("forecast") or []
         support = result.get("support")
+        scenarios = result.get("sensitivity_scenarios") or []
+        if trajectory == "auto":
+            trajectory = "sensitivity" if scenarios else "primary"
+        if trajectory == "sensitivity":
+            if not scenarios:
+                return (f"{channel}: artifact has no sensitivity scenario; "
+                        "submit trajectory='primary' or abstain", "")
+            # Multiple grounded events remain separate scenarios. The first
+            # is deterministic because runtime ordering follows event input;
+            # the benchmark supplies one forward event per task.
+            rows = scenarios[0].get("forecast") or []
+            support = scenarios[0].get("support") or "hypothetical_sensitivity"
         if support == "unsupported" or not rows:
             return (f"{channel}: that run abstained (support "
                     f"'unsupported') and published no trajectory. Submit "
@@ -1544,14 +1598,22 @@ class _Run(_RunBase):
                                 f"artifact_path or values (or abstain)")
                 continue
             if entry.get("artifact_path") is not None:
+                trajectory = str(entry.get("trajectory") or (
+                    "auto" if self.row.get("tier") == "T4"
+                    and self.context_compilation.get("attempted") else "primary"))
                 rows = self._artifact_channel_rows(
-                    str(entry["artifact_path"]), channel)
+                    str(entry["artifact_path"]), channel, trajectory)
                 if isinstance(rows, tuple):
                     problems.append(rows[0])
                     continue
                 resolved[channel] = rows
                 support[channel] = self._pending_support[channel]
-                routes[channel] = "gnomon"
+                # ``auto`` resolves per-channel inside the artifact. Infer
+                # which path was selected from the support it returned.
+                selected_sensitivity = (
+                    self._pending_support[channel] == "hypothetical_sensitivity")
+                routes[channel] = ("gnomon_sensitivity" if selected_sensitivity
+                                   else "gnomon")
             else:
                 problem = self._values_problems(channel, entry.get("values"))
                 if problem:

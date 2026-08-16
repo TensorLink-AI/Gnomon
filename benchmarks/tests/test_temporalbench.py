@@ -1,7 +1,9 @@
 """Unit tests for the TemporalBench adapter's pure logic (no network,
 no official dataset, no numpy)."""
 
+import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -23,6 +25,81 @@ from benchmarks.temporalbench.tasks import extract_json_object, prompt_input_arr
 def test_extract_json_object_from_prose():
     text = 'Answer:\n```json\n{"trend": "upward", "n": 3}\n```'
     assert extract_json_object(text) == {"trend": "upward", "n": 3}
+
+
+def test_infrastructure_failure_classification():
+    from benchmarks.temporalbench.run_temporalbench import infrastructure_failure
+
+    class OpenRouterError(Exception):
+        pass
+
+    assert infrastructure_failure(OpenRouterError("HTTP 521"))
+    assert infrastructure_failure(RuntimeError(
+        "MCP tools/list failed: subprocess closed"))
+    assert not infrastructure_failure(ValueError("No JSON object found"))
+
+
+def test_t4_artifact_auto_selects_sensitivity_only_where_present(tmp_path):
+    from benchmarks.temporalbench.mcp_agent import _Run
+
+    artifact = tmp_path / "artifact"
+    artifact.mkdir()
+    payload = {
+        "schema_version": "0.1", "task": {"schema": {
+            "target_column": "affected,unaffected"}},
+        "results": [
+            {"series": "affected", "support": "degraded",
+             "forecast": [{"point": 1.0}, {"point": 1.0}],
+             "sensitivity_scenarios": [{
+                 "support": "hypothetical_sensitivity",
+                 "forecast": [{"point": 2.0}, {"point": 3.0}]}]},
+            {"series": "unaffected", "support": "degraded",
+             "forecast": [{"point": 4.0}, {"point": 5.0}]},
+        ],
+    }
+    (artifact / "artifact.json").write_text(json.dumps(payload), encoding="utf-8")
+    run = _Run.__new__(_Run)
+    run.artifact_paths = {str(artifact)}
+    run.horizon = 2
+    run._pending_support = {}
+    run.context_execution = {}
+    run.covariate_execution = {}
+
+    affected = run._artifact_channel_rows(str(artifact), "affected", "auto")
+    unaffected = run._artifact_channel_rows(str(artifact), "unaffected", "auto")
+
+    assert affected == [2.0, 3.0]
+    assert run._pending_support["affected"] == "hypothetical_sensitivity"
+    assert unaffected == [4.0, 5.0]
+    assert run._pending_support["unaffected"] == "degraded"
+
+
+def test_temporalbench_axis_is_anchored_to_official_cutoff(tmp_path):
+    from benchmarks.temporalbench.mcp_agent import _Run
+
+    class Client:
+        total_prompt_tokens = 0
+        total_completion_tokens = 0
+
+    class Session:
+        def close(self):
+            pass
+
+    row = {
+        "tier": "T4",
+        "meta": {"n_horizon": 2, "main_key": "target",
+                 "history_end": "2030-01-02T10:00:00",
+                 "cluster_start": "2030-01-02T11:00:00"},
+        "input": {"history": {"target": [1.0, 2.0, 3.0]}},
+        "ground_truth": {"target": [4.0, 5.0]},
+    }
+    run = _Run(row, Client(), session_factory=lambda jail: Session(),
+               work_dir=str(tmp_path))
+    try:
+        assert run.time_step.total_seconds() == 3600
+        assert run.epoch == datetime(2030, 1, 2, 8, tzinfo=timezone.utc)
+    finally:
+        run.finish()
 
 
 def test_prompt_input_arrays_prefers_structured_input():

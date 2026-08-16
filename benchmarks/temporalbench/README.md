@@ -42,9 +42,11 @@ Ours (this directory) — the three conditions:
 | `gnomon-mcp` (all tiers) | drives the real `gnomon mcp serve` tool surface itself | T2/T4, per channel: a Gnomon artifact used verbatim, or the model's own values labeled `model` — the route is recorded per channel. T1/T3: the model's own answers, with the same tool surface available |
 
 Disclosed adapter decisions (see `gnomon_runner.py`): rows carry
-index-aligned arrays rather than regular timestamps, so Gnomon models each
-channel on a synthetic regular hourly axis (index-based metrics — the
-axis never enters the score); nulls go through Gnomon's disclosed repair
+index-aligned arrays rather than timestamped observations, so Gnomon models each
+channel on a regular axis anchored to the row's official `history_end` and
+`cluster_start` (index-based metrics — the axis never enters the score). This
+preserves the calendar alignment of T4 events while making the unavoidable
+regular-grid assumption explicit; nulls go through Gnomon's disclosed repair
 layer; channels Gnomon abstains on stay absent and the row is recorded as
 an abstention; `gnomon-pure` answers MCQs with the option sets' own
 `Uncertain` — an honest abstention, reported as such. Questions whose
@@ -90,6 +92,15 @@ the same flag with `core`, `describe`, `evidence`, `mega`, and `full`: context
 compilation is shared host infrastructure, so the experiment varies the tool
 surface rather than whether text was connected to the product.
 
+On T4, an artifact may contain a separately labelled
+`hypothetical_sensitivity` path when the narrative grounds an event direction
+but the short benchmark history cannot estimate its effect on four separated
+folds. The adapter submits that path only for channels where it exists and
+keeps the primary path for unaffected channels. This does not upgrade support:
+the artifact's history-only forecast remains primary and unchanged, while the
+T4 score measures whether the explicitly stated one-innovation sensitivity is
+useful. Routes are reported as `gnomon_sensitivity` versus `gnomon`.
+
 ```bash
 for profile in core describe evidence mega full; do
   python -m benchmarks.temporalbench.run_temporalbench \
@@ -121,7 +132,7 @@ were measured as pure waste in the first sweep (a round per row spent
 learning the jail by rejection, six calls per row doing what one does),
 and neither sentence argues for using the engine.
 
-Per-channel routes (`gnomon` / `informed-direct` / `direct` /
+Per-channel routes (`gnomon` / `gnomon_sensitivity` / `informed-direct` / `direct` /
 `abstain`) and support labels flow into `details/`, the GnomonBench
 records, `summary.json`'s `forecast_channel_routes`, and
 `score_per_channel.py`'s support mix.

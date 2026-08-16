@@ -311,7 +311,9 @@ never rebuilds the winner from a model name.
 - **Covariates and context events**, admitted only when they beat the
   univariate control on identical folds; when both are supplied a
   deterministic adjudication ladder picks the winner and records the
-  comparison as evidence. See
+  comparison as evidence. Novel grounded events can additionally yield a
+  separately labelled, non-probabilistic sensitivity path without changing
+  the governed primary forecast. See
   [Covariate enrichment](docs/covariates.md).
 - **Decision tracking** with realised-outcome scoring: regret against the
   best feasible action in hindsight, never a bare "correct".

@@ -229,6 +229,9 @@ class SeriesResult:
     # field above keeps its unconditional value, so a reader that ignores this
     # key sees what it has always seen.
     conditional_forecasts: list[dict[str, Any]] = field(default_factory=list)
+    # Standardised, explicitly hypothetical paths for grounded future events
+    # whose effect cannot be estimated. Never replaces ``forecast``.
+    sensitivity_scenarios: list[dict[str, Any]] = field(default_factory=list)
     # The future-context lane's decisions (gnomon.future_context), present
     # only when `context.future_events: on` considered at least one
     # namespaced event. Additive on the same terms as
@@ -281,6 +284,8 @@ class ForecastArtifact:
             # freeze verifiable byte-for-byte rather than by inspection.
             if not result.get("conditional_forecasts"):
                 result.pop("conditional_forecasts", None)
+            if not result.get("sensitivity_scenarios"):
+                result.pop("sensitivity_scenarios", None)
             if not result.get("future_context"):
                 result.pop("future_context", None)
             if not result.get("context_outcome"):

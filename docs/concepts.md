@@ -121,8 +121,13 @@ Every result with applicable context also carries `context_outcome`:
 means the event was grounded but did not earn a numerical change to the
 primary forecast. It includes recovery actions and, when repeated historical
 occurrences make an effect measurable, a separately labelled conditional
-forecast. `applied` means the deterministic candidate passed admission; it is
-never inferred from compiler acceptance.
+forecast. For a novel event with a grounded direction but no estimable effect,
+Gnomon may instead emit `sensitivity_scenarios`: a standardized one-innovation
+shock derived from the target history. This is explicitly
+`hypothetical_sensitivity`, carries no probability, and never replaces or
+changes the primary forecast. It answers “what would this direction look like
+at a stated scale?”, not “what will happen?”. `applied` means the deterministic
+candidate passed admission; it is never inferred from compiler acceptance.
 
 Every event needs a `known_at`. It is what makes the backtest honest: a
 fold cutting at T may only use events knowable by T, so an event recorded

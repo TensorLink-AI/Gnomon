@@ -55,6 +55,18 @@ def _planned(source: ContextSource | None = None) -> ContextEvent:
     )
 
 
+def _directional_planned(source: ContextSource | None = None) -> ContextEvent:
+    event = _planned(source)
+    return ContextEvent(
+        **{**event.__dict__, "attributes": {"soft_context": {
+            "effect_family": "temporary_pulse", "direction": "increase",
+            "duration": "temporary", "normalized_entity": "promotion",
+            "entity_kind": "product", "delay_steps": [0, 0],
+            "duration_steps": [7, 7],
+        }}}
+    )
+
+
 def _run(tmp_path, events, name="out"):
     path = tmp_path / "series.csv"
     if not path.exists():
@@ -152,6 +164,31 @@ class TestConditionalForecasts:
                       if evidence.kind == "conditional_forecasts")
         assert record.payload["produced"] == 0
         assert record.payload["declined"], "the refusal must name a reason"
+
+    def test_novel_directional_event_gets_only_a_sensitivity_path(self, tmp_path):
+        without = _run(tmp_path, [], name="base").results[0]
+        result = _run(tmp_path, [_directional_planned()], name="scenario").results[0]
+
+        assert result.forecast == without.forecast
+        assert result.conditional_forecasts == []
+        assert len(result.sensitivity_scenarios) == 1
+        scenario = result.sensitivity_scenarios[0]
+        assert scenario["support"] == "hypothetical_sensitivity"
+        assert scenario["primary_forecast_changed"] is False
+        assert scenario["assumed_effect"] > 0
+        assert "one robust" in scenario["assumed_effect_unit"]
+        assert any("not the expected or primary forecast" in assumption
+                   for assumption in scenario["assumptions"])
+        assert result.context_outcome["status"] == "scenario_only"
+        assert result.context_outcome["sensitivity_scenarios_produced"] == 1
+        assert result.context_outcome["hypotheses"][0]["numeric_status"] == (
+            "standardized_sensitivity_not_event_effect")
+
+    def test_sensitivity_path_is_additive_in_serialized_contract(self, tmp_path):
+        payload = _run(tmp_path, [_directional_planned()]).to_dict()
+        result = payload["results"][0]
+        assert result["sensitivity_scenarios"][0]["forecast"]
+        assert result["forecast"] != result["sensitivity_scenarios"][0]["forecast"]
 
     def test_no_conditional_key_when_there_is_nothing_to_say(self, tmp_path):
         """A run that produced none serialises exactly as it did before the

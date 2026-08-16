@@ -50,7 +50,10 @@ For soft events it may additionally classify a qualitative effect family,
 direction, and duration. It cannot supply magnitude: common numeric-effect
 attribute spellings are stripped, and the runtime reports the event as
 `scenario_only` unless measured history and the admission gate support a
-numeric candidate.
+numeric candidate. A novel, directionally grounded event may produce a
+separate `hypothetical_sensitivity` path using one robust innovation scale
+from the target history. Hosts must present that path as a what-if sensitivity,
+never as the primary forecast, expected effect, or probability-bearing claim.
 
 ## Is OpenRouter a planned option?
 
