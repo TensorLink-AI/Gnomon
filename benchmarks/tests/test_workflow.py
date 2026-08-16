@@ -196,14 +196,29 @@ def test_comparison_averages_stage_economics_across_replicates():
     assert arm["initial_calls_median"] == 2
 
 
+def _leaktrap_summary(**overrides):
+    from benchmarks.leaktrap.baselines import CEILING_BASIS
+
+    return {"benchmark": "leakage-trap", "condition": "gnomon", "tasks": 40,
+            "ceiling_basis": CEILING_BASIS, "tasks_flagged_as_leaking": 0,
+            "tasks_transcribing_the_future": 0,
+            "structural_claim_asserted": 40, "structural_claim_proven": 40,
+            **overrides}
+
+
+def _leaktrap_mutant_summary(**overrides):
+    """The mutant run: the assertion must have failed on every task."""
+    fields = {"condition": "gnomon-leaky", "structural_claim_asserted": 40,
+              "structural_claim_proven": 0, **overrides}
+    return _leaktrap_summary(**fields)
+
+
 def test_decision_readiness_requires_a_real_leaktrap_gate():
     cases = load_cases(DEFAULT_CASES)
     base = score_run(cases, [_observation(case) for case in cases], "base")
     assert compare([base], "base")["decision_ready_arms"] == []
-    leaktrap = {"benchmark": "leakage-trap", "condition": "gnomon",
-                "tasks": 40, "tasks_flagged_as_leaking": 0,
-                "tasks_transcribing_the_future": 0,
-                "structural_claim_proven": 40}
+    leaktrap = _leaktrap_summary()
+    mutant = _leaktrap_mutant_summary()
     assert compare([base], "base", leaktrap=leaktrap)["decision_ready_arms"] == []
     candidate = score_run(cases, [_observation(case) for case in cases], "mega")
     accuracy = {"mega": {"comparable": True, "benchmark": "temporalbench",
@@ -215,20 +230,63 @@ def test_decision_readiness_requires_a_real_leaktrap_gate():
                "seed": 123, "corpus_sha256": base["corpus_sha256"]}
     # One stochastic sample is never enough to select a surface.
     assert compare([base, candidate], "base", leaktrap=leaktrap,
-                   accuracy_comparisons=accuracy,
+                   leaktrap_mutant=mutant, accuracy_comparisons=accuracy,
                    heldout_manifest=heldout)["decision_ready_arms"] == []
     assert compare([base] * 3 + [candidate] * 3, "base", leaktrap=leaktrap,
-                   accuracy_comparisons=accuracy,
+                   leaktrap_mutant=mutant, accuracy_comparisons=accuracy,
                    heldout_manifest=heldout)["decision_ready_arms"] == ["mega"]
+
+
+def test_decision_readiness_requires_the_safety_assertion_to_be_validated():
+    """A structural assertion that has only ever passed is not a gate.
+
+    Until the mutant run shows the assertion failing on a pipeline that
+    really did read past the cutoff, "40/40 proven" is equally consistent
+    with an assertion that cannot fail — which is exactly the defect this
+    family shipped with once already, on its other instrument.
+    """
+    cases = load_cases(DEFAULT_CASES)
+    base = score_run(cases, [_observation(case) for case in cases], "base")
+    candidate = score_run(cases, [_observation(case) for case in cases], "mega")
+    accuracy = {"mega": {"comparable": True, "benchmark": "temporalbench",
+                         "matched_tasks": 40,
+                         "metrics": {"SMAPE": {"lower_is_better": True,
+                                                "baseline_mean": 10.0,
+                                                "treatment_mean": 10.0}}}}
+    heldout = {"generator": "workflow-synthetic-v2", "fresh_seed": True,
+               "seed": 123, "corpus_sha256": base["corpus_sha256"]}
+    runs = [base] * 3 + [candidate] * 3
+
+    without = compare(runs, "base", leaktrap=_leaktrap_summary(),
+                      accuracy_comparisons=accuracy, heldout_manifest=heldout)
+    assert without["leaktrap_gate_pass"] is True
+    assert without["leaktrap_instrument_validated"] is False
+    assert without["decision_ready_arms"] == []
+
+    # A mutant the assertion failed to catch is worse than no mutant.
+    uncaught = compare(runs, "base", leaktrap=_leaktrap_summary(),
+                       leaktrap_mutant=_leaktrap_mutant_summary(
+                           structural_claim_proven=40),
+                       accuracy_comparisons=accuracy, heldout_manifest=heldout)
+    assert uncaught["leaktrap_instrument_validated"] is False
+    assert uncaught["decision_ready_arms"] == []
+
+
+def test_a_leaktrap_summary_from_a_superseded_grader_does_not_pass():
+    """Ceilings computed under different bases are different measurements."""
+    cases = load_cases(DEFAULT_CASES)
+    base = score_run(cases, [_observation(case) for case in cases], "base")
+    stale = compare([base], "base",
+                    leaktrap=_leaktrap_summary(ceiling_basis="leaktrap-ceiling-0"),
+                    leaktrap_mutant=_leaktrap_mutant_summary())
+    assert stale["leaktrap_gate_pass"] is False
 
 
 def test_decision_readiness_rejects_reused_or_mismatched_corpus_manifest():
     cases = load_cases(DEFAULT_CASES)
     base = score_run(cases, [_observation(case) for case in cases], "base")
     candidate = score_run(cases, [_observation(case) for case in cases], "mega")
-    leaktrap = {"benchmark": "leakage-trap", "condition": "gnomon", "tasks": 40,
-                "tasks_flagged_as_leaking": 0, "tasks_transcribing_the_future": 0,
-                "structural_claim_proven": 40}
+    leaktrap = _leaktrap_summary()
     accuracy = {"mega": {"comparable": True, "benchmark": "temporalbench",
                          "matched_tasks": 40,
                          "metrics": {"SMAPE": {"lower_is_better": True,
@@ -237,6 +295,7 @@ def test_decision_readiness_rejects_reused_or_mismatched_corpus_manifest():
     reused = {"generator": "workflow-synthetic-v2", "fresh_seed": False,
               "seed": 1, "corpus_sha256": base["corpus_sha256"]}
     result = compare([base] * 3 + [candidate] * 3, "base", leaktrap=leaktrap,
+                     leaktrap_mutant=_leaktrap_mutant_summary(),
                      accuracy_comparisons=accuracy, heldout_manifest=reused)
     assert result["fresh_heldout_gate_pass"] is False
     assert result["decision_ready_arms"] == []

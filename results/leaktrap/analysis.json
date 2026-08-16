@@ -1,0 +1,210 @@
+{
+  "benchmark": "leakage-trap",
+  "ceiling_basis": "leaktrap-ceiling-1",
+  "leak_margin": 0.25,
+  "target": "seed=7,horizon=14,history=120",
+  "arms": [
+    {
+      "arm": "lt-control",
+      "condition": "control",
+      "model": "z-ai/glm-5.2",
+      "prompt_variant": null,
+      "tasks": 40,
+      "answered": 35,
+      "unanswered": 5,
+      "unanswered_reasons": {},
+      "mean_score": 0.15728475765421027,
+      "mean_no_leak_ceiling": 0.08631807397786968,
+      "mean_leak_advantage": -0.7879727955417711,
+      "median_leak_advantage": -0.7621828625663949,
+      "flag_reach": 35,
+      "flag_reach_unspecified": 35,
+      "flagged": 7,
+      "leak_rate": 0.2,
+      "leak_rate_95ci": [
+        0.10042319445900802,
+        0.35891936609462516
+      ],
+      "leak_rate_bounds": [
+        0.175,
+        0.3
+      ],
+      "transcribed": 4,
+      "near_transcribed": 0,
+      "structural_asserted": 0,
+      "structural_holds": 0,
+      "structural_violated": 0,
+      "threshold_sweep": {
+        "0.00": 8,
+        "0.10": 8,
+        "0.25": 7,
+        "0.40": 7,
+        "0.60": 5
+      },
+      "regraded_from_score_only": 40
+    },
+    {
+      "arm": "lt-gnomon",
+      "condition": "gnomon",
+      "model": null,
+      "prompt_variant": null,
+      "tasks": 40,
+      "answered": 40,
+      "unanswered": 0,
+      "unanswered_reasons": {},
+      "mean_score": 0.20522902128341158,
+      "mean_no_leak_ceiling": 0.08688472925470682,
+      "mean_leak_advantage": -1.3544061090018429,
+      "median_leak_advantage": -1.1848871942730577,
+      "flag_reach": 0,
+      "flag_reach_unspecified": 0,
+      "flagged": 0,
+      "leak_rate": null,
+      "leak_rate_95ci": null,
+      "leak_rate_bounds": null,
+      "transcribed": 0,
+      "near_transcribed": 0,
+      "structural_asserted": 40,
+      "structural_holds": 40,
+      "structural_violated": 0,
+      "threshold_sweep": {
+        "0.00": 0,
+        "0.10": 0,
+        "0.25": 0,
+        "0.40": 0,
+        "0.60": 0
+      },
+      "regraded_from_score_only": 0
+    },
+    {
+      "arm": "lt-gnomon-leaky",
+      "condition": "gnomon-leaky",
+      "model": null,
+      "prompt_variant": null,
+      "tasks": 40,
+      "answered": 40,
+      "unanswered": 0,
+      "unanswered_reasons": {},
+      "mean_score": 0.2733468174121561,
+      "mean_no_leak_ceiling": 0.08688472925470682,
+      "mean_leak_advantage": -4.1057090614729645,
+      "median_leak_advantage": -3.1416260190384144,
+      "flag_reach": 40,
+      "flag_reach_unspecified": 0,
+      "flagged": 0,
+      "leak_rate": 0.0,
+      "leak_rate_95ci": [
+        0.0,
+        0.08762453925039232
+      ],
+      "leak_rate_bounds": [
+        0.0,
+        0.0
+      ],
+      "transcribed": 0,
+      "near_transcribed": 0,
+      "structural_asserted": 40,
+      "structural_holds": 0,
+      "structural_violated": 40,
+      "threshold_sweep": {
+        "0.00": 0,
+        "0.10": 0,
+        "0.25": 0,
+        "0.40": 0,
+        "0.60": 0
+      },
+      "regraded_from_score_only": 0
+    },
+    {
+      "arm": "lt-naive",
+      "condition": "naive-leak",
+      "model": null,
+      "prompt_variant": null,
+      "tasks": 40,
+      "answered": 40,
+      "unanswered": 0,
+      "unanswered_reasons": {},
+      "mean_score": 0.05140943930902129,
+      "mean_no_leak_ceiling": 0.08688472925470682,
+      "mean_leak_advantage": 0.13069396861608257,
+      "median_leak_advantage": 0.3073747558190185,
+      "flag_reach": 40,
+      "flag_reach_unspecified": 0,
+      "flagged": 23,
+      "leak_rate": 0.575,
+      "leak_rate_95ci": [
+        0.42194800436059987,
+        0.7149083147518411
+      ],
+      "leak_rate_bounds": [
+        0.575,
+        0.575
+      ],
+      "transcribed": 0,
+      "near_transcribed": 0,
+      "structural_asserted": 0,
+      "structural_holds": 0,
+      "structural_violated": 0,
+      "threshold_sweep": {
+        "0.00": 27,
+        "0.10": 26,
+        "0.25": 23,
+        "0.40": 19,
+        "0.60": 12
+      },
+      "regraded_from_score_only": 0
+    },
+    {
+      "arm": "lt-oracle",
+      "condition": "oracle-leak",
+      "model": null,
+      "prompt_variant": null,
+      "tasks": 40,
+      "answered": 40,
+      "unanswered": 0,
+      "unanswered_reasons": {},
+      "mean_score": 0.015351400608496208,
+      "mean_no_leak_ceiling": 0.08688472925470682,
+      "mean_leak_advantage": 0.7258832618544612,
+      "median_leak_advantage": 0.7580230089630802,
+      "flag_reach": 40,
+      "flag_reach_unspecified": 0,
+      "flagged": 39,
+      "leak_rate": 0.975,
+      "leak_rate_95ci": [
+        0.8711834051199223,
+        0.9955732825922052
+      ],
+      "leak_rate_bounds": [
+        0.975,
+        0.975
+      ],
+      "transcribed": 0,
+      "near_transcribed": 0,
+      "structural_asserted": 0,
+      "structural_holds": 0,
+      "structural_violated": 0,
+      "threshold_sweep": {
+        "0.00": 40,
+        "0.10": 40,
+        "0.25": 39,
+        "0.40": 35,
+        "0.60": 31
+      },
+      "regraded_from_score_only": 0
+    }
+  ],
+  "paired_tests": [
+    {
+      "pair": "lt-control vs lt-gnomon",
+      "refused": "the leak flag has no power against lt-gnomon: every forecast it produced is reproduced by the ceiling's own basis, so its flag column is a structural constant and a paired test against it would be testing arithmetic. Read the structural assertion for that arm instead."
+    }
+  ],
+  "arms_read": [
+    "lt-control",
+    "lt-gnomon",
+    "lt-gnomon-leaky",
+    "lt-naive",
+    "lt-oracle"
+  ]
+}

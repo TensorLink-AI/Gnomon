@@ -129,10 +129,15 @@ fluently. Gnomon is a harness:
 - **Leakage is structural, not behavioural.** Every read goes through a
   snapshot that cannot serve data published after its cutoff, and the
   artifact records exactly what was touched. `--as-of` replays any past
-  moment as it was honestly knowable. Measured against an LLM control on
-  40 trap tasks: the control leaked on 13 of 35 answered and transcribed
-  the future verbatim on 4; Gnomon 0 of 40, McNemar *p* = 0.00024
-  ([results](docs/leakage-trap-results-2026-08.md)).
+  moment as it was honestly knowable. On 40 trap tasks, the run's own
+  access log shows no read past the cutoff on 40 of 40, at each of three
+  seeds — and the same pipeline with its snapshot fence deliberately moved
+  is caught on 40 of 40, so the check is known to fail when it should. An
+  LLM control given the same files with the publication dates explained
+  was flagged as leaking on 7 of the 35 tasks it answered (95% CI
+  10.0–35.9%) and reproduced the post-cutoff values outright on 4
+  ([results](docs/leakage-trap-results-2026-08.md), including the two
+  figures this bullet previously carried and why they were withdrawn).
 - **Numbers are computed or absent.** Selection is backtested against
   baselines that must be beaten; every figure traces to evidence; a
   deterministic verifier rejects causal claims from associational evidence

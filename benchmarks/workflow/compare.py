@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any
 import statistics
 
+from benchmarks.leaktrap.baselines import CEILING_BASIS
+
 
 def _load(path: Path) -> dict[str, Any]:
     summary_path = path / "summary.json" if path.is_dir() else path
@@ -192,6 +194,7 @@ def _accuracy_gate(comparison: dict[str, Any] | None, *, minimum_tasks: int = 20
 def compare(summaries: list[dict[str, Any]], baseline_arm: str,
             noninferiority_margin: float = 0.02,
             leaktrap: dict[str, Any] | None = None,
+            leaktrap_mutant: dict[str, Any] | None = None,
             accuracy_comparisons: dict[str, dict[str, Any]] | None = None,
             minimum_replicates: int = 3,
             heldout_manifest: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -267,18 +270,42 @@ def compare(summaries: list[dict[str, Any]], baseline_arm: str,
             "replicate_gate_pass": summary["replicates"] >= minimum_replicates,
             "gates": gates, "eligible": all(gates.values()),
         })
+    # The safety gate's weight rests on `structural_claim_proven`, not on the
+    # leak flag. The flag cannot fire against the Gnomon arm at all — its
+    # forecasts are points of the ceiling's own strategy basis — so
+    # `tasks_flagged_as_leaking == 0` is a no-regression check here and never
+    # independent evidence. It is kept for that narrower purpose and the
+    # ceiling basis is checked alongside it, because a summary graded under a
+    # superseded instrument is not a result this gate can read.
     safety_gate = bool(
         leaktrap and leaktrap.get("benchmark") == "leakage-trap"
         and leaktrap.get("condition") == "gnomon"
+        and leaktrap.get("ceiling_basis") == CEILING_BASIS
         and int(leaktrap.get("tasks") or 0) >= 40
         and leaktrap.get("tasks_flagged_as_leaking") == 0
         and leaktrap.get("tasks_transcribing_the_future") == 0
         and leaktrap.get("structural_claim_proven") == leaktrap.get("tasks")
     )
+    # ...and a structural assertion that has only ever passed is not a gate.
+    # Decision readiness therefore also requires the mutant run — the same
+    # pipeline with the snapshot fence moved past the cutoff — to have been
+    # caught on every task. Without it, "40/40 proven" is compatible with an
+    # assertion that cannot fail.
+    instrument_validated = bool(
+        leaktrap_mutant
+        and leaktrap_mutant.get("benchmark") == "leakage-trap"
+        and leaktrap_mutant.get("condition") == "gnomon-leaky"
+        and leaktrap_mutant.get("ceiling_basis") == CEILING_BASIS
+        and int(leaktrap_mutant.get("tasks") or 0) >= 40
+        and leaktrap_mutant.get("structural_claim_asserted")
+        == leaktrap_mutant.get("tasks")
+        and leaktrap_mutant.get("structural_claim_proven") == 0
+    )
     eligible = [arm["arm"] for arm in arms if arm["eligible"]]
     arm_rows = {arm["arm"]: arm for arm in arms}
     baseline_replicated = arm_rows[baseline_arm]["replicate_gate_pass"]
     decision_ready = [name for name in eligible if safety_gate
+                      and instrument_validated
                       and heldout_gate
                       and name != baseline_arm and baseline_replicated
                       and arm_rows[name]["replicate_gate_pass"]
@@ -288,6 +315,7 @@ def compare(summaries: list[dict[str, Any]], baseline_arm: str,
             "minimum_replicates": minimum_replicates,
             "arms": arms, "eligible_arms": eligible,
             "leaktrap_gate_pass": safety_gate,
+            "leaktrap_instrument_validated": instrument_validated,
             "fresh_heldout_gate_pass": heldout_gate,
             "decision_ready_arms": decision_ready}
 
@@ -300,6 +328,11 @@ def main() -> int:
     parser.add_argument("--output", help="optional JSON output path")
     parser.add_argument("--leaktrap-summary",
                         help="required for decision readiness: 40+ task Gnomon LeakTrap summary")
+    parser.add_argument("--leaktrap-mutant-summary",
+                        help="required for decision readiness: the matching 40+ task "
+                             "gnomon-leaky summary, which must show the structural "
+                             "assertion failing on every task. A safety assertion that "
+                             "has only ever passed is not a gate.")
     parser.add_argument("--accuracy-comparison", action="append", default=[],
                         metavar="ARM=PATH", help="matched TemporalBench/report JSON for an arm")
     parser.add_argument("--minimum-replicates", type=int, default=3)
@@ -308,6 +341,9 @@ def main() -> int:
     args = parser.parse_args()
     leaktrap = (json.loads(Path(args.leaktrap_summary).read_text(encoding="utf-8"))
                 if args.leaktrap_summary else None)
+    leaktrap_mutant = (
+        json.loads(Path(args.leaktrap_mutant_summary).read_text(encoding="utf-8"))
+        if args.leaktrap_mutant_summary else None)
     accuracy = {}
     for item in args.accuracy_comparison:
         if "=" not in item:
@@ -324,7 +360,7 @@ def main() -> int:
             loaded = comparisons[0]
         accuracy[arm] = loaded
     result = compare([_load(Path(path)) for path in args.runs], args.baseline,
-                     args.noninferiority_margin, leaktrap, accuracy,
+                     args.noninferiority_margin, leaktrap, leaktrap_mutant, accuracy,
                      args.minimum_replicates,
                      (json.loads(Path(args.heldout_manifest).read_text(encoding="utf-8"))
                       if args.heldout_manifest else None))

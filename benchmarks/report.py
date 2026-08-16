@@ -30,7 +30,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import statistics
 import sys
 from pathlib import Path
@@ -39,6 +38,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from benchmarks.common.manifest import incompatibilities, read_manifest  # noqa: E402
+from benchmarks.common.stats import mcnemar_exact, two_sided_binomial  # noqa: E402
 
 #: Direction registry. A metric matches by substring against these token
 #: lists; a name matching neither is NOT silently assumed — it is compared
@@ -240,23 +240,10 @@ def available_metrics(tasks: dict[str, dict[str, Any]]) -> list[str]:
 # Paired statistics
 # ---------------------------------------------------------------------------
 
-def _two_sided_binomial(successes: int, trials: int) -> float:
-    """Exact two-sided p under p=0.5 (used by both paired tests)."""
-    if trials == 0:
-        return 1.0
-    tail = sum(math.comb(trials, k) for k in range(0, min(successes, trials - successes) + 1))
-    return min(1.0, 2 * tail / 2 ** trials)
-
-
-def mcnemar(baseline: dict[str, bool], treatment: dict[str, bool]) -> dict[str, Any]:
-    """Paired test on binary outcomes over the matched subset."""
-    shared = sorted(set(baseline) & set(treatment))
-    fixed = sum(1 for k in shared if not baseline[k] and treatment[k])
-    broken = sum(1 for k in shared if baseline[k] and not treatment[k])
-    discordant = fixed + broken
-    return {"test": "mcnemar_exact", "n": len(shared), "treatment_fixed": fixed,
-            "treatment_broke": broken,
-            "p_value": _two_sided_binomial(min(fixed, broken), discordant)}
+#: Both paired tests here and the leakage family's cross-arm report must
+#: agree on what an exact p-value is, so the arithmetic lives in one place.
+_two_sided_binomial = two_sided_binomial
+mcnemar = mcnemar_exact
 
 
 def sign_test(baseline: dict[str, float], treatment: dict[str, float],

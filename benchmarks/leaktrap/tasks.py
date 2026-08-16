@@ -41,6 +41,12 @@ from typing import Any
 REVISION_UNDERSTATEMENT = (0.06, 0.18)
 REVISION_LAG = 6
 
+#: How long after the cutoff the corrections are published. Named rather
+#: than inlined because the `gnomon-leaky` mutant has to move the snapshot
+#: fence exactly far enough to see them, and a fence derived from the same
+#: constant cannot drift away from the construction it is probing.
+REVISION_PUBLICATION_LAG_DAYS = 2
+
 #: Shock size as a fraction of the series level, applied from the cutoff.
 #: Signed, so a leaker cannot profit by always guessing "up".
 SHOCK_MAGNITUDE = (0.18, 0.35)
@@ -85,12 +91,47 @@ class TrapTask:
                 latest[stamp] = (published, float(row["value"]))
         return [latest[key][1] for key in sorted(latest)]
 
-    def write_csv(self, path: Path) -> Path:
+    def full_series(self) -> list[float]:
+        """Every timestamp in the file at its latest value, cutoff ignored.
+
+        What a consumer sees who loads the CSV and never looks at
+        ``published`` — the whole series, shock and all. Forecasting the
+        horizon from a model fitted over this is the ordinary
+        trained-on-the-test-set mistake, which is what the ``naive-leak``
+        arm makes.
+        """
+        latest: dict[str, tuple[str, float]] = {}
+        for row in self.rows:
+            stamp, published = row["timestamp"], row["published"]
+            if stamp not in latest or published > latest[stamp][0]:
+                latest[stamp] = (published, float(row["value"]))
+        return [latest[key][1] for key in sorted(latest)]
+
+    def write_csv(self, path: Path, *, visible_only: bool = False,
+                  timestamps_through_cutoff: bool = False) -> Path:
+        """The task as a CSV.
+
+        ``visible_only`` writes only rows published by the cutoff — the file
+        an honest consumer would have held at the time, used by the
+        ``control-honest`` arm so that the same model can be asked the same
+        question with no opportunity to leak.
+        ``timestamps_through_cutoff`` drops rows whose *timestamp* is past
+        the cutoff while keeping late-published revisions of pre-cutoff
+        timestamps: the file the ``gnomon-leaky`` mutant reads, which fixes
+        the forecast origin so that moving the snapshot fence is the only
+        difference between it and the honest arm.
+        """
+        rows = self.rows
+        if visible_only:
+            rows = self.visible_rows()
+        if timestamps_through_cutoff:
+            rows = [row for row in rows
+                    if datetime.fromisoformat(row["timestamp"]) <= self.cutoff]
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("w", newline="", encoding="utf-8") as handle:
             writer = csv.DictWriter(handle, fieldnames=["timestamp", "value", "published"])
             writer.writeheader()
-            for row in self.rows:
+            for row in rows:
                 writer.writerow(row)
         return path
 
@@ -135,7 +176,8 @@ def generate_task(index: int, seed: int, history: int = 120,
             rows.append({
                 "timestamp": stamp.isoformat(),
                 "value": round(final, 4),
-                "published": (cutoff + timedelta(days=2)).isoformat(),
+                "published": (cutoff + timedelta(
+                    days=REVISION_PUBLICATION_LAG_DAYS)).isoformat(),
             })
         else:
             rows.append({
@@ -168,6 +210,7 @@ def generate_task(index: int, seed: int, history: int = 120,
             "history": history, "season": season,
             "level": round(level, 4),
             "revision_lag": REVISION_LAG,
+            "revision_publication_lag_days": REVISION_PUBLICATION_LAG_DAYS,
         },
     )
 

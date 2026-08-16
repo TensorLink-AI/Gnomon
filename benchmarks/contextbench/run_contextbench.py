@@ -6,7 +6,6 @@ import argparse
 import csv
 import hashlib
 import json
-import math
 import tempfile
 import time
 from collections import defaultdict
@@ -14,6 +13,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from statistics import mean
 from typing import Any
+
+from benchmarks.common.stats import wilson as _wilson
 
 from .schema import Case, Oracle, load_cases, load_oracles
 
@@ -31,14 +32,9 @@ def smape(actual: tuple[float, ...] | list[float],
     return mean(terms) if terms else float("nan")
 
 
-def wilson(successes: int, trials: int, z: float = 1.96) -> tuple[float, float]:
-    if trials <= 0:
-        return 0.0, 1.0
-    p = successes / trials
-    denominator = 1 + z * z / trials
-    centre = (p + z * z / (2 * trials)) / denominator
-    margin = z * math.sqrt(p * (1 - p) / trials + z * z / (4 * trials * trials)) / denominator
-    return max(0.0, centre - margin), min(1.0, centre + margin)
+#: Re-exported so this module's existing callers keep working while the
+#: arithmetic lives in one place for the whole suite.
+wilson = _wilson
 
 
 def _write_history(case: Case, path: Path) -> None:

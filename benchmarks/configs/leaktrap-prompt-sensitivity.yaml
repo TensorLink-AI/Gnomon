@@ -1,0 +1,36 @@
+# Does the control leak because it was under-prompted?
+#
+# The single easiest attack on a leakage result is that the prompt did not
+# try hard enough to stop the model. This config answers it with a
+# measurement instead of an argument: the same model, the same tasks, the
+# same grader, under two prompts that differ only in how insistently they
+# state the publication-date rule.
+#
+#   plain   states the rule once, plainly.
+#   strict  states it, names the temptation, says the extract contains rows
+#           that exist to be ignored, and spells out the per-timestamp
+#           tie-break.
+#
+# Both arms leak, or the strict one does not: either result is publishable
+# and they say different things. "A control that can be prompted into
+# safety" is a materially weaker claim about structural safety than one that
+# cannot, so it must not be left unmeasured.
+#
+# Each arm queries the API once per task. Read with:
+#
+#     python -m benchmarks.leaktrap.analyze --root results/leaktrap-prompts
+model: z-ai/glm-5.2
+output_root: results/leaktrap-prompts
+defaults:
+  limit: 40
+
+runs:
+  - benchmark: leaktrap
+    name: lt-control-plain
+    args: {subcommand: control, prompt_variant: plain}
+  - benchmark: leaktrap
+    name: lt-control-strict
+    args: {subcommand: control, prompt_variant: strict}
+  - benchmark: leaktrap
+    name: lt-control-honest-plain
+    args: {subcommand: control-honest, prompt_variant: plain}

@@ -29,7 +29,10 @@ Priority order follows leverage:
 **Target (from the surface redesign, adopted):** ≤ 50K cumulative
 conversation tokens per task; ≤ 2 tool calls median, ≤ 4 p95; quotable
 tiered answer on ≥ 80% of readable inputs with accuracy reported split
-by tier; leaktrap 0/40.
+by tier; leaktrap's structural assertion 40/40 with the mutant arm
+showing it caught 40/40 (the assertion is the safety gate; the leak
+flag cannot fire against the Gnomon arm and is a no-regression check
+only).
 
 The yield target must not collapse support states. Evaluated, limited,
 best-effort, and abstained outcomes remain separate in reporting; an
@@ -396,7 +399,8 @@ Pre-register the decision rule before running the experiment:
   tokens, calls, and yield;
 - price abstentions as task outcomes, report non-void yield separately,
   and require caveat survival to be no worse than control; and
-- retain leaktrap 0/40 as a hard gate, not a weighted metric.
+- retain leaktrap's structural assertion (40/40 held, and 40/40 caught
+  on the `gnomon-leaky` mutant) as a hard gate, not a weighted metric.
 
 The default profile flips to the winning arm. If `core` captures most
 of the gain, the mega-tool is not built. If `describe` wins, it
@@ -413,14 +417,16 @@ non-inferior to evidence injection under the pre-registered accuracy
 margin, reduces median cumulative tokens by at least 50%, stays below
 50K at the declared percentile, uses ≤ 2 calls median and ≤ 4 p95,
 achieves non-void yield ≥ 80%, preserves caveats at least as well as
-control, and passes leaktrap 0/40. Report paired confidence intervals
+control, and passes the leaktrap structural gate. Report paired
+confidence intervals
 and tier-level sample counts; do not choose a winner from an
 underpowered tier.
 
 ## Phase 4 — Positioning (last, because the claims must be true first)
 
 Infrastructure framing: a bitemporal data layer for agents (the
-differentiated asset — leaktrap 0/40 vs control 13/35, p = 0.00024)
+differentiated asset — leaktrap's structural assertion 40/40, validated
+by a mutant it catches 40/40; control flagged 7/35)
 plus a forecast engine agents can be trusted with. `investigate`,
 `monitor`, `decide`, tracking presented as governed views compiled
 onto one run contract (`router.py` and `decision_model.py` are 168 and

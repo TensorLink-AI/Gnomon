@@ -1,12 +1,26 @@
 # Temporal-leakage trap family (C2).
 #
-# Run `oracle-leak` first and read `mean_leak_advantage` before trusting any
-# other row: it validates that reading past the cutoff measurably helps on
-# these tasks. If it does not, the family measures nothing and the control
-# vs gnomon comparison is void.
+# Read the arms in this order; each one makes the next interpretable.
 #
-# `gnomon` and `oracle-leak` use no model and cost nothing. Only `control`
-# calls an API.
+# 1. `lt-oracle` and `lt-naive` validate the trap. If reading past the
+#    cutoff does not measurably help, the family measures nothing and every
+#    comparison below is void. `lt-oracle` is the deliberate cheater;
+#    `lt-naive` is the same leak made by accident, and it matters because a
+#    trap only an omniscient adversary springs is a weaker claim.
+# 2. `lt-gnomon-leaky` validates the *instrument*: it really does read data
+#    published after the cutoff, so the structural assertion must fail on
+#    it. An assertion never shown to fail is not evidence that anything
+#    passed.
+# 3. `lt-gnomon` is the claim.
+# 4. `lt-control` is the honest-play test, and `lt-control-honest` is its
+#    negative control — the same model on the same tasks with the
+#    post-cutoff rows removed, which is what gives the leak flag a measured
+#    false-positive rate on a real model.
+#
+# Only the two control arms call an API; everything else is deterministic
+# and free. Read the family with:
+#
+#     python -m benchmarks.leaktrap.analyze --root results/leaktrap
 model: z-ai/glm-5.2
 output_root: results/leaktrap
 defaults:
@@ -17,8 +31,17 @@ runs:
     name: lt-oracle
     args: {subcommand: oracle-leak}
   - benchmark: leaktrap
+    name: lt-naive
+    args: {subcommand: naive-leak}
+  - benchmark: leaktrap
+    name: lt-gnomon-leaky
+    args: {subcommand: gnomon-leaky}
+  - benchmark: leaktrap
     name: lt-gnomon
     args: {subcommand: gnomon}
   - benchmark: leaktrap
     name: lt-control
-    args: {subcommand: control}
+    args: {subcommand: control, prompt_variant: plain}
+  - benchmark: leaktrap
+    name: lt-control-honest
+    args: {subcommand: control-honest, prompt_variant: plain}

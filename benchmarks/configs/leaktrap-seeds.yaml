@@ -1,0 +1,38 @@
+# Is the result a property of the family, or of one task set?
+#
+# Everything else in LeakTrap runs at seed 7. One seed is one draw of 40
+# tasks, and a leakage rate quoted from one draw cannot distinguish "this is
+# what the arm does" from "this is what these forty tasks did". This config
+# repeats every free arm across three seeds so the deterministic results —
+# trap validity, and the structural assertion holding on `gnomon` and
+# failing on `gnomon-leaky` — are shown to be stable rather than assumed to
+# be.
+#
+# Only the free arms are here. Repeating the control arms across seeds costs
+# three times the API budget and is worth doing when there is one; the
+# instrument checks are worth doing always, because they cost nothing.
+#
+# Each seed is a different task set, so each gets its own directory and is
+# read on its own — `analyze` refuses to pool arms whose manifests describe
+# different task sets:
+#
+#     python -m benchmarks.leaktrap.analyze --root results/leaktrap-seeds/seed-7
+#     python -m benchmarks.leaktrap.analyze --root results/leaktrap-seeds/seed-11
+#     python -m benchmarks.leaktrap.analyze --root results/leaktrap-seeds/seed-13
+output_root: results/leaktrap-seeds
+defaults:
+  limit: 40
+
+runs:
+  - {benchmark: leaktrap, name: seed-7/lt-oracle,        args: {subcommand: oracle-leak,  seed: 7}}
+  - {benchmark: leaktrap, name: seed-7/lt-naive,         args: {subcommand: naive-leak,   seed: 7}}
+  - {benchmark: leaktrap, name: seed-7/lt-gnomon,        args: {subcommand: gnomon,       seed: 7}}
+  - {benchmark: leaktrap, name: seed-7/lt-gnomon-leaky,  args: {subcommand: gnomon-leaky, seed: 7}}
+  - {benchmark: leaktrap, name: seed-11/lt-oracle,       args: {subcommand: oracle-leak,  seed: 11}}
+  - {benchmark: leaktrap, name: seed-11/lt-naive,        args: {subcommand: naive-leak,   seed: 11}}
+  - {benchmark: leaktrap, name: seed-11/lt-gnomon,       args: {subcommand: gnomon,       seed: 11}}
+  - {benchmark: leaktrap, name: seed-11/lt-gnomon-leaky, args: {subcommand: gnomon-leaky, seed: 11}}
+  - {benchmark: leaktrap, name: seed-13/lt-oracle,       args: {subcommand: oracle-leak,  seed: 13}}
+  - {benchmark: leaktrap, name: seed-13/lt-naive,        args: {subcommand: naive-leak,   seed: 13}}
+  - {benchmark: leaktrap, name: seed-13/lt-gnomon,       args: {subcommand: gnomon,       seed: 13}}
+  - {benchmark: leaktrap, name: seed-13/lt-gnomon-leaky, args: {subcommand: gnomon-leaky, seed: 13}}

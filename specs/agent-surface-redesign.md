@@ -18,7 +18,9 @@ questions. Operationally, on an agent evaluation with a raw-LLM control:
 - **yield**: a quotable, tiered answer on ≥ 80% of readable inputs,
   with accuracy **reported split by tier** so yield gains cannot
   silently launder naive extrapolation into the accuracy number;
-- **safety**: leaktrap stays 0/40.
+- **safety**: leaktrap's structural assertion stays 40/40, and the
+  `gnomon-leaky` mutant keeps failing it 40/40 — an assertion that has
+  only ever passed is not a gate.
 
 A note on baselines: several of the 2026-08 evaluation's frictions
 (schema inference, inline data, long-series budgets, jail guidance) were
@@ -277,7 +279,8 @@ results in one pass; triage is a response-layer change.
   `key_numbers` are the guarantee and Part 3's prose investment gets
   cut, not expanded).
   **Leakage-aware comparison:** the control's 0.46% SMAPE and the
-  leaktrap result (leaking ≈ 78% of headroom) say the control can win
+  leaktrap result (leaking is worth a median 76% of headroom to a
+  deliberate cheater, 31% to an accidental one) say the control can win
   public benchmarks by reading answers from pretraining or the
   prompt. Accuracy is therefore *gated* on a leakage-controlled subset
   (targets past model cutoff, synthetic, or perturbed vintages — the
@@ -285,7 +288,8 @@ results in one pass; triage is a response-layer change.
   we report accuracy alongside the control's leak-flag rate.
   *Done when:* on the leakage-controlled subset, Gnomon-MCP ≥ control
   **and ≥ the evidence-injection arm** at < 50K cumulative tokens,
-  yield ≥ 80%, leaktrap 0/40.
+  yield ≥ 80%, leaktrap structural assertion 40/40 with the mutant
+  caught.
   **Pre-committed fallback:** if the injection arm still wins, the
   product conclusion is that the winning architecture is *injection as
   a tool* — a single mega-describe/evidence-pack call — and the

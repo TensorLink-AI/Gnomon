@@ -48,9 +48,14 @@ record") is deferred until the guarantees it advertises are true.
 Three guarantees carry that promise:
 
 1. **Point-in-time-correct data access.** Already Gnomon's strongest
-   evidenced property (leakage traps: control leaked 13/35, Gnomon
-   0/40, McNemar p = 0.00024 —
-   [results](../leakage-trap-results-2026-08.md)).
+   evidenced property (leakage traps: the structural assertion over the
+   run's own access log holds 40/40 and is shown to fail 40/40 on the
+   same pipeline with its snapshot fence moved; an LLM control was
+   flagged on 7/35 answered and copied the future on 4 —
+   [results](../leakage-trap-results-2026-08.md)). The earlier
+   "0/40 vs 13/35, p = 0.00024" reading of this evidence is withdrawn:
+   the leak flag had no power against the Gnomon arm, and that document
+   explains why.
 2. **Baseline-tested forecasts with calibrated uncertainty or explicit
    abstention.** Mostly true today; violated at the publish seam
    (Phase 1).
