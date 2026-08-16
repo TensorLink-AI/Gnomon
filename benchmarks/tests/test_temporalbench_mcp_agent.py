@@ -401,6 +401,9 @@ def test_host_compiled_execution_tool_has_no_model_authored_arguments(tmp_path):
         "type": "object", "additionalProperties": False}
     assert outcome["channel_route"] == {"hr": "gnomon", "spo2": "gnomon"}
     assert outcome["mcp"]["calls"] == 1
+    assert len(client.requests) == 1
+    assert outcome["mcp"]["tool_sequence"][-1] == {
+        "host_submission": "complete_artifact"}
 
 
 def test_omitted_channel_is_a_recorded_abstention(tmp_path):

@@ -912,7 +912,8 @@ class _RunBase:
                             "message",
                             "truncated", "last_call", "abstained",
                             "superseded", "coerced", "submit_rejected",
-                            "last_call_repair", "submission_fallback")}
+                            "last_call_repair", "submission_fallback",
+                            "host_submission")}
                 for entry in self.trace
             ],
             # Harness-only provenance used by cross-benchmark adapters to
@@ -1006,6 +1007,21 @@ class _RunBase:
                 if compacted:
                     self.trace.append({"superseded": compacted})
                 if self.complete_artifact_ready and not self.submission:
+                    if (self.row.get("_host_compiled_forecast")
+                            and self.row.get("_require_gnomon_execution")
+                            and self.artifact_paths
+                            and hasattr(self, "target_keys")):
+                        artifact_path = sorted(self.artifact_paths)[-1]
+                        accepted = self._handle_submit({
+                            "forecast": {
+                                channel: {"artifact_path": artifact_path}
+                                for channel in self.target_keys},
+                            "mcq": {},
+                        })
+                        if accepted.get("accepted") and self.submission:
+                            self.trace.append({
+                                "host_submission": "complete_artifact"})
+                            return self._resolve_submission()
                     return self._last_call(
                         messages, submit_tool,
                         "forecast artifact ready; engine browsing closed")
