@@ -185,6 +185,8 @@ def test_surface_row_is_oracle_sealed_and_family_neutral():
     assert row["input"]["future_covariates"]
     assert row["input"]["covariate_mapping"][0]["type"] == "binary"
     assert len(row["input"]["history"]["value"]) == len(case.history)
+    assert "Input (JSON)" not in row["prompt"]
+    assert "dataset is bound by the host" in row["prompt"]
 
 
 def test_history_surface_row_excludes_all_outside_context():
@@ -203,6 +205,7 @@ def test_unrouted_surface_policy_preserves_execution_without_forced_routing():
                       routing_policy="unrouted")
     assert row["_require_gnomon_execution"] is True
     assert row["_host_compiled_forecast"] is False
+    assert "Input (JSON)" in row["prompt"]
 
 
 def test_surface_preflight_rejects_context_outside_the_series_grid():
@@ -332,8 +335,9 @@ def test_surface_report_separates_product_and_provider_failures(tmp_path):
     assert report["successful_pairs"] == 1
     assert report["failures"] == {
         "agent_non_submission": 1, "provider_failure": 1}
-    assert report["compiler_logical_calls"] == 1
-    assert report["compiler_executed_calls"] == 1
+    assert report["receipt_logical_model_calls"] == 1
+    assert report["receipt_generation_model_calls"] == 1
+    assert report["receipts_generated"] == 1
     assert report["publication_parity"]["identity_matched"] == 1
     assert report["routing_policy"] == "compiled"
 
@@ -383,12 +387,14 @@ def test_surface_runner_retries_infrastructure_and_keeps_attempt_ledger(
             pass
 
     def fake_run(case, oracle, client, profile, work, receipts,
-                 routing_policy):
+                 routing_policy, baseline_mode, tool_timeout):
         calls["count"] += 1
         common = {
             "case_id": case.case_id, "family": case.family,
             "should_influence": oracle.should_influence,
             "routing_policy": routing_policy,
+            "baseline_mode": baseline_mode,
+            "tool_timeout": tool_timeout,
             "llm_usage": {scope: {"prompt_tokens": 1, "completion_tokens": 2,
                                    "requests": 1, "cost_usd": 0.0,
                                    "truncation_escalations": 0}
@@ -419,6 +425,7 @@ def test_surface_runner_retries_infrastructure_and_keeps_attempt_ledger(
     assert summary["execution_attempts"] == 2
     assert summary["retried_cases"] == 1
     assert summary["llm_usage_observations"]["total"]["requests"] == 2
+    assert summary["run_provenance"]["baseline_mode"] == "engine"
 
 
 def test_replicated_report_requires_distinct_complete_corpora(

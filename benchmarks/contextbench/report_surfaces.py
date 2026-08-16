@@ -9,7 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import random
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 from statistics import mean
 from typing import Any, Callable
@@ -83,7 +83,9 @@ def aggregate(run_dirs: list[Path]) -> dict[str, Any]:
                 f"duplicate surface replicate: {arm} replicate {replicate_id}")
         seen_replicates.add(replicate_key)
         rows = _read(observation_path)
+        baseline_mode = str(summary.get("baseline_mode") or "agent")
         tagged = [{**row, "_profile": profile, "_routing": routing,
+                   "_baseline_mode": baseline_mode,
                    "_replicate_id": replicate_id} for row in rows]
         grouped[arm].extend(tagged)
         paired_rows.extend(tagged)
@@ -92,6 +94,9 @@ def aggregate(run_dirs: list[Path]) -> dict[str, Any]:
     arms: dict[str, Any] = {}
     for arm, rows in sorted(grouped.items()):
         profile, routing_policy = arm.split(":", 1)
+        baseline_modes = {row["_baseline_mode"] for row in rows}
+        if len(baseline_modes) != 1:
+            raise ValueError(f"surface arm mixes baseline modes: {arm}")
         answered = [row for row in rows if row.get("status") == "answered"]
         failures = defaultdict(int)
         failure_stages = defaultdict(int)
@@ -124,12 +129,22 @@ def aggregate(run_dirs: list[Path]) -> dict[str, Any]:
         schema_bytes = [int(row.get("history_schema_bytes", 0))
                         + int(row.get("context_schema_bytes", 0))
                         for row in answered]
-        redundant = [int(row.get("redundant_calls", max(0, calls[index] - 2)))
+        product_schema_bytes = [int(row.get("product_schema_bytes", 0))
+                                for row in answered]
+        harness_schema_bytes = [int(row.get("harness_schema_bytes", 0))
+                                for row in answered]
+        redundant = [int(row.get("redundant_calls", max(
+            0, calls[index] - int(row.get("surface_required_calls", 2)))))
                      for index, row in enumerate(answered)]
+        prompt_tokens = [int(((row.get("llm_usage") or {}).get("total") or {}).get(
+            "prompt_tokens", 0)) for row in rows]
+        completion_tokens = [int(((row.get("llm_usage") or {}).get("total") or {}).get(
+            "completion_tokens", 0)) for row in rows]
         observed_stages = sorted({stage for row in rows
                                   for stage in (row.get("stage_seconds") or {})})
         arms[arm] = {
             "profile": profile, "routing_policy": routing_policy,
+            "baseline_mode": next(iter(baseline_modes)),
             "replicates": replicates[arm],
             "attempted_observations": len(rows),
             "unique_cases": len({row["case_id"] for row in rows}),
@@ -145,23 +160,50 @@ def aggregate(run_dirs: list[Path]) -> dict[str, Any]:
             "agent_calls_mean": mean(calls) if calls else None,
             "agent_calls_median": (sorted(calls)[len(calls) // 2]
                                    if calls else None),
-            "surface_required_calls": 2,
+            "surface_required_calls": (answered[0].get(
+                "surface_required_calls") if answered else None),
             "redundant_calls_mean": mean(redundant) if redundant else None,
             "redundant_calls_median": (
                 sorted(redundant)[len(redundant) // 2] if redundant else None),
             "paired_schema_bytes_mean": (mean(schema_bytes)
                                          if schema_bytes else None),
-            "compiler_logical_calls": sum(int(row.get("compiler_calls", 0))
-                                          for row in rows),
-            "compiler_executed_calls": sum(
+            "schema_bytes": {
+                "product_mean": (mean(product_schema_bytes)
+                                 if product_schema_bytes else None),
+                "benchmark_submit_mean": (mean(harness_schema_bytes)
+                                          if harness_schema_bytes else None),
+                "combined_mean": (mean(schema_bytes)
+                                  if schema_bytes else None),
+            },
+            "tokens": {
+                "prompt_total": sum(prompt_tokens),
+                "completion_total": sum(completion_tokens),
+                "prompt_mean_per_observation": (
+                    mean(prompt_tokens) if prompt_tokens else None),
+                "completion_mean_per_observation": (
+                    mean(completion_tokens) if completion_tokens else None),
+            },
+            "receipt_logical_model_calls": sum(
+                int(row.get("compiler_calls", 0)) for row in rows),
+            "receipt_generation_model_calls": sum(
                 int(row.get("compiler_calls", 0))
                 if row.get("compiler_called") else 0 for row in rows),
-            "compiler_cost_note": (
-                "compiler calls are context-preparation cost and are excluded "
-                "from agent surface calls; executed calls exclude receipt reuse"),
+            "receipts_generated": sum(bool(row.get("compiler_called"))
+                                      for row in rows),
+            "receipts_reused": sum(bool(row.get("compiler_receipt_reused"))
+                                   for row in rows),
+            "receipt_cost_note": (
+                "logical calls describe the cached receipt's original work; "
+                "generation calls are cost incurred in these observations"),
             "admission_recall": (mean(bool(row.get("applied"))
                                       for row in influence)
                                  if influence else None),
+            "missed_influence_cases": sum(not bool(row.get("applied"))
+                                          for row in influence),
+            "admission_rejection_reasons": dict(sorted(Counter(
+                reason for row in influence if not row.get("applied")
+                for reason in row.get("admission_rejection_reasons", [])
+            ).items())),
             "disposition_accuracy": (mean(bool(row.get("disposition_valid"))
                                           for row in answered)
                                      if answered and all(

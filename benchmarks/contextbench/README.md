@@ -141,7 +141,7 @@ PYTHONPATH=src:. python -m benchmarks.contextbench.run_surfaces \
   --profile evidence --model deepseek-v4-flash-0731 \
   --base-url https://api.engy.ai/v1 --api-key-env ENGY_API_KEY \
   --context-receipts-dir results/contextbench/receipts \
-  --routing-policy compiled --replicate-id 1 \
+  --routing-policy compiled --baseline-mode engine --replicate-id 1 \
   --output-dir results/contextbench/evidence-r1
 ```
 
@@ -156,9 +156,19 @@ completion failures, provider failures, and harness failures against the
 attempted-case denominator, with cumulative usage over all attempts.
 Provider exhaustion during the final submit-only call remains a provider
 failure; it is never converted into an agent abstention.
-Each row records elapsed time by stage (`history_agent`, `context_compiler`,
-and `context_agent`), so a timeout is attributable rather than a single opaque
-case failure. Run profiles sequentially and tune `--jobs` per endpoint;
+Each MCP server call also has a hard 120-second ceiling by default
+(`--tool-timeout`), replacing the generic harness's deliberately generous
+ten-minute ceiling; a wedged product call therefore becomes a staged harness
+failure that can be retried and resumed rather than blocking the matrix.
+Decision runs default to `--baseline-mode engine`: the matched history-only
+forecast is computed directly by Gnomon and the LLM is spent only on the
+context-enabled surface being evaluated. `--baseline-mode agent` retains the
+legacy two-conversation diagnostic when the history-only interaction itself is
+the subject of the experiment. Compiled prompts do not repeat the numeric
+history already bound to the host-generated tool call; unrouted prompts do.
+Each row records elapsed time by stage (`history_engine` or `history_agent`,
+`context_compiler`, and `context_agent`), so a timeout is attributable rather
+than a single opaque case failure. Run profiles sequentially and tune `--jobs` per endpoint;
 parallel profile launches can measure provider saturation instead of the
 product surface.
 
@@ -175,6 +185,14 @@ compiler. Reusing receipts keeps context extraction constant across profiles.
 Context usefulness comes from the deterministic and compiled-context arms; the
 surface matrix decides how cheaply and reliably an agent reaches that same
 governed answer.
+
+Treat the evaluation as three separate layers. `run_contextbench` measures the
+engine and admission policy without an LLM. `run_surfaces --routing-policy
+compiled` measures the production compiler-to-execution contract. The
+`unrouted` policy measures agent navigation only. Reports name receipt
+generation, receipt reuse, observed agent calls, required calls, redundant
+calls, and prompt/completion tokens separately; cached receipt metadata is not
+reported as cost incurred by the current run.
 
 ## Interpretation
 

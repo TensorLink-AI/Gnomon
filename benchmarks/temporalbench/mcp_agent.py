@@ -354,7 +354,7 @@ def coerce_json_containers(
 
 
 def openai_tool_specs(mcp_tools: list[dict[str, Any]],
-                      submit_tool: dict[str, Any] = SUBMIT_TOOL,
+                      submit_tool: dict[str, Any] | None = SUBMIT_TOOL,
                       ) -> list[dict[str, Any]]:
     """MCP tool entries as chat-completions specs, verbatim, plus the
     harness submit tool — the same no-pruning rule as the CiK arm
@@ -368,7 +368,7 @@ def openai_tool_specs(mcp_tools: list[dict[str, Any]],
             "parameters": tool["inputSchema"],
         }}
         for tool in mcp_tools
-    ] + [submit_tool]
+    ] + ([submit_tool] if submit_tool is not None else [])
 
 
 def preferred_execution_tool(
@@ -742,6 +742,8 @@ class _RunBase:
         self.result_log = ToolMessageLog()
         self.mcp_calls = 0
         self.schema_bytes = 0
+        self.product_schema_bytes = 0
+        self.harness_schema_bytes = 0
         self.artifact_paths: set[str] = set()
         # Compiler acceptance is textual grounding, not permission to alter a
         # forecast.  Keep the engine's later admission/application decision
@@ -890,6 +892,8 @@ class _RunBase:
             "calls": self.mcp_calls,
             "run_tokens": self._run_tokens(),
             "schema_bytes": self.schema_bytes,
+            "product_schema_bytes": self.product_schema_bytes,
+            "harness_schema_bytes": self.harness_schema_bytes,
             "compiler_calls": int(bool(self.context_compilation.get(
                 "compiler_called"))),
             "context_receipt_id": self.context_compilation.get("receipt_id"),
@@ -921,7 +925,26 @@ class _RunBase:
     def drive(self) -> dict[str, Any]:
         self.session.initialize()
         submit_tool = self._submit_tool()
-        tools = openai_tool_specs(self.session.list_tools(), submit_tool)
+        product_tools = openai_tool_specs(self.session.list_tools(), None)
+        if self.row.get("_host_compiled_forecast"):
+            bound_name = preferred_execution_tool(
+                self.profile, bool(getattr(self, "target_keys", None)),
+                host_compiled=True)
+            for spec in product_tools:
+                function = spec.get("function") or {}
+                if function.get("name") == bound_name:
+                    function["description"] = (
+                        "Execute the host-compiled forecast request. The "
+                        "validated data, schema, horizon, context, and "
+                        "covariates are already bound; pass no arguments.")
+                    function["parameters"] = {
+                        "type": "object", "additionalProperties": False}
+        harness_tools = openai_tool_specs([], submit_tool)
+        tools = [*product_tools, *harness_tools]
+        self.product_schema_bytes = len(json.dumps(
+            product_tools, separators=(",", ":")))
+        self.harness_schema_bytes = len(json.dumps(
+            harness_tools, separators=(",", ":")))
         self.schema_bytes = len(json.dumps(tools, separators=(",", ":")))
         # The official prompt is the user message, verbatim: the
         # benchmark stays authoritative about the task and its output
@@ -1021,7 +1044,11 @@ class _RunBase:
             try:
                 response = self.client.chat(messages, n=1,
                                             tools=[submit_tool],
-                                            tool_choice="auto")
+                                            tool_choice={
+                                                "type": "function",
+                                                "function": {
+                                                    "name": "submit_answer"},
+                                            })
             except OpenRouterError:
                 # Transport exhaustion is not an agent abstention.  Let the
                 # runner classify and retry it as infrastructure failure.
@@ -1127,16 +1154,14 @@ class _RunBase:
                 and (self.profile == "evidence"
                      or self.row.get("_host_compiled_forecast")
                      or self.row.get("_require_gnomon_execution"))):
-            arguments = {**arguments,
-                         "input": str(self.csv_path),
+            arguments = {"input": str(self.csv_path),
                          "time_column": "timestamp",
                          "target_column": ",".join(self.target_keys),
                          "frequency": "h", "horizon": self.horizon,
                          "format": "brief"}
         elif (self.profile == "mega" and name == "gnomon_run"
               and getattr(self, "target_keys", None)):
-            arguments = {**arguments,
-                         "input": str(self.csv_path),
+            arguments = {"input": str(self.csv_path),
                          "time_column": "timestamp",
                          "target_column": ",".join(self.target_keys),
                          "frequency": "h", "horizon": self.horizon,
@@ -1272,6 +1297,17 @@ class _Run(_RunBase):
         return {key: _observed(arrays.get(key, [])) for key in self.target_keys}
 
     def _submit_tool(self) -> dict[str, Any]:
+        if self.row.get("_require_gnomon_execution"):
+            # Product-contract rows need only bind the already-produced
+            # artifact. An open-ended reasoning field caused some providers
+            # to spend thousands of tokens inside tool arguments and truncate
+            # an otherwise trivial final submission.
+            tool = json.loads(json.dumps(SUBMIT_TOOL))
+            parameters = tool["function"]["parameters"]
+            parameters["properties"].pop("reasoning", None)
+            parameters["required"] = ["forecast"]
+            parameters["additionalProperties"] = False
+            return tool
         return SUBMIT_TOOL
 
     def _system(self) -> str:
@@ -1679,14 +1715,16 @@ def run_row(row: dict[str, Any], client: Any, *,
             work_dir: str | None = None,
             profile: str = "full",
             compile_context: bool = False,
-            context_receipts_dir: str | None = None) -> dict[str, Any]:
+            context_receipts_dir: str | None = None,
+            mcp_call_timeout: float | None = None) -> dict[str, Any]:
     """Drive one T2/T4 row through the real MCP surface; return the same
     outcome shape ``answer_row`` produces for the other conditions."""
     if session_factory is None:
         _ensure_checkout_importable()
         session_factory = lambda jail: StdioMcpSession(
             jail, command=[sys.executable, "-m", "gnomon", "mcp", "serve",
-                           "--profile", profile])
+                           "--profile", profile],
+            call_timeout=mcp_call_timeout)
     return _drive(_Run(row, client, session_factory=session_factory,
                        work_dir=work_dir, profile=profile,
                        compile_context=compile_context,

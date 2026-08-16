@@ -214,10 +214,12 @@ class ScriptedClient:
 
     def __init__(self, steps):
         self.steps = list(steps)
+        self.requests = []
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
 
     def chat(self, messages, *, n=1, tools=None, tool_choice=None):
+        self.requests.append({"tools": tools, "tool_choice": tool_choice})
         assert self.steps, "model script exhausted before submission"
         step = self.steps.pop(0)
         action = step(messages) if callable(step) else step
@@ -373,6 +375,32 @@ def test_host_compiled_forecast_cannot_be_bypassed_by_direct_submission(
     assert outcome["mcp"]["calls"] == 1
     assert outcome["mcp"]["tool_sequence"][0]["tool"] == "submit_answer"
     assert outcome["mcp"]["tool_sequence"][0]["submit_rejected"]
+
+
+def test_host_compiled_execution_tool_has_no_model_authored_arguments(tmp_path):
+    row = _row(sparse_temp=False)
+    row["_host_compiled_forecast"] = True
+    row["_require_gnomon_execution"] = True
+    client = ScriptedClient([
+        {"tool_calls": [("gnomon_forecast", {
+            "input": "/outside/ignored.csv",
+            "context_events": [{"invented": "x" * 10_000}],
+        })]},
+        lambda messages: {"tool_calls": [("submit_answer", {
+            "forecast": {key: {"artifact_path": _last_tool_payload(
+                messages)["artifact_path"]} for key in ("hr", "spo2")},
+        })]},
+    ])
+    outcome = run_row(
+        row, client, session_factory=_factory(), work_dir=str(tmp_path),
+        profile="core")
+    first_tools = client.requests[0]["tools"]
+    forecast = next(spec for spec in first_tools
+                    if spec["function"]["name"] == "gnomon_forecast")
+    assert forecast["function"]["parameters"] == {
+        "type": "object", "additionalProperties": False}
+    assert outcome["channel_route"] == {"hr": "gnomon", "spo2": "gnomon"}
+    assert outcome["mcp"]["calls"] == 1
 
 
 def test_omitted_channel_is_a_recorded_abstention(tmp_path):
@@ -693,6 +721,22 @@ def test_spent_tool_budget_does_not_void_the_row(tmp_path, monkeypatch):
     assert outcome["answer"]["forecast"]["spo2"] == VALUES
     assert outcome["mcp"]["calls"] == 1
     assert outcome["mcp"]["schema_bytes"] > 0
+    assert outcome["mcp"]["product_schema_bytes"] > 0
+    assert outcome["mcp"]["harness_schema_bytes"] > 0
+    assert outcome["mcp"]["schema_bytes"] <= (
+        outcome["mcp"]["product_schema_bytes"] +
+        outcome["mcp"]["harness_schema_bytes"])
+
+
+def test_product_contract_submit_schema_cannot_spend_tokens_on_reasoning():
+    run = object.__new__(mcp_agent._Run)
+    run.row = {"_require_gnomon_execution": True}
+    parameters = run._submit_tool()["function"]["parameters"]
+    assert "reasoning" not in parameters["properties"]
+    assert parameters["required"] == ["forecast"]
+    assert parameters["additionalProperties"] is False
+    assert "reasoning" in mcp_agent.SUBMIT_TOOL["function"]["parameters"][
+        "properties"]
 
 
 def test_natural_routing_still_requires_product_execution(tmp_path):

@@ -28,6 +28,7 @@ from .schema import Case, Oracle, load_cases, load_oracles
 
 PROFILES = {"core", "describe", "evidence", "mega", "full"}
 ROUTING_POLICIES = {"compiled", "unrouted"}
+BASELINE_MODES = {"engine", "agent"}
 
 
 def _usage_delta(before: dict[str, Any], after: dict[str, Any]) -> dict[str, Any]:
@@ -105,9 +106,17 @@ def surface_row(case: Case, *, include_context: bool,
         "Outside context may be useful, irrelevant, or insufficient to size; "
         "do not invent an effect. Submit a Gnomon artifact when the engine "
         "produces one, otherwise use an explicitly labeled alternative.\n\n" +
-        narrative + "\n\nInput (JSON):\n" +
-        json.dumps(history, separators=(",", ":"))
+        narrative
     )
+    if routing_policy == "compiled":
+        # The host already binds the validated dataset and forecast arguments
+        # to the execution call. Repeating hundreds of values in the model
+        # transcript adds cost and creates a second, fallible representation
+        # of the same data without helping the routing decision.
+        prompt += "\n\nThe validated dataset is bound by the host."
+    else:
+        prompt += ("\n\nInput (JSON):\n" +
+                   json.dumps(history, separators=(",", ":")))
     row = {
         "id": _public_id(case.case_id) + ("-context" if include_context else "-history"),
         "tier": "T4" if include_context else "T2",
@@ -218,7 +227,11 @@ def _artifact_contract(outcome: dict[str, Any], forecast: list[float] | None
 
 def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
              work_root: Path, receipt_dir: Path,
-             routing_policy: str = "compiled") -> dict[str, Any]:
+             routing_policy: str = "compiled",
+             baseline_mode: str = "engine",
+             tool_timeout: float = 120.0) -> dict[str, Any]:
+    if baseline_mode not in BASELINE_MODES:
+        raise ValueError(f"unknown baseline mode: {baseline_mode}")
     started = time.perf_counter()
     usage_start = dict(client.usage_summary)
     usage_after_history = usage_start
@@ -239,12 +252,30 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
             "total": _usage_delta(usage_start, final),
         }
 
-    stage = "history_agent"
+    stage = "history_engine" if baseline_mode == "engine" else "history_agent"
     stage_started = time.perf_counter()
     try:
-        history = run_row(surface_row(
-            case, include_context=False, routing_policy=routing_policy), client,
-                          work_dir=str(work_root), profile=profile)
+        if baseline_mode == "engine":
+            from .run_contextbench import _forecast as engine_forecast
+            from .run_contextbench import _points as engine_points
+
+            baseline_root = work_root / case.case_id / "surface-baseline"
+            baseline_root.mkdir(parents=True, exist_ok=True)
+            baseline_artifact, baseline_path = engine_forecast(
+                case, baseline_root, enriched=False)
+            baseline = engine_points(baseline_artifact.results[0])
+            history = {
+                "answer": {"forecast": {"value": baseline}},
+                "mcp": {"calls": 0, "schema_bytes": 0,
+                        "artifact_paths": [str(baseline_path)]},
+                "channel_route": {"value": "gnomon-engine"},
+            }
+        else:
+            history = run_row(surface_row(
+                case, include_context=False, routing_policy=routing_policy),
+                client, work_dir=str(work_root), profile=profile,
+                mcp_call_timeout=tool_timeout)
+            baseline = _forecast(history)
         stage_seconds[stage] = round(time.perf_counter() - stage_started, 6)
         usage_after_history = dict(client.usage_summary)
         stage = "context_compiler"
@@ -265,9 +296,10 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
         contextual = run_row(context_row, client,
                              work_dir=str(work_root), profile=profile,
                              compile_context=True,
-                             context_receipts_dir=str(receipt_dir))
+                             context_receipts_dir=str(receipt_dir),
+                             mcp_call_timeout=tool_timeout)
         stage_seconds[stage] = round(time.perf_counter() - stage_started, 6)
-        baseline = _forecast(history); enriched = _forecast(contextual)
+        enriched = _forecast(contextual)
         if baseline is None or enriched is None:
             missing = []
             if baseline is None:
@@ -289,6 +321,7 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
                 "history_mcp": history.get("mcp") or {},
                 "context_mcp": contextual.get("mcp") or {},
                 "routing_policy": routing_policy,
+                "baseline_mode": baseline_mode,
                 "stage_seconds": stage_seconds,
                 "llm_usage": usage(), "usage_accounting_version": 2,
                 "latency_seconds": round(time.perf_counter() - started, 6),
@@ -317,6 +350,12 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
             "should_influence": oracle.should_influence,
             "primary_changed": bool(changed), "changed_steps": changed,
             "applied": applied, "disposition": disposition,
+            "admission_rejection_reasons": (
+                list(context_gate.get("gate_reasons") or []) + [
+                    str(item.get("reason")) for item in
+                    (covariate_gate.get("rejected") or [])
+                    if isinstance(item, dict) and item.get("reason")
+                ] if not applied else []),
             "expected_disposition": oracle.expected_disposition,
             "disposition_valid": valid_disposition(
                 case.family, applied, disposition),
@@ -329,11 +368,18 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
                 "schema_bytes", 0)),
             "context_schema_bytes": int((contextual.get("mcp") or {}).get(
                 "schema_bytes", 0)),
-            "surface_required_calls": 2,
+            "context_tool_sequence": list((contextual.get("mcp") or {}).get(
+                "tool_sequence") or []),
+            "product_schema_bytes": int((contextual.get("mcp") or {}).get(
+                "product_schema_bytes", 0)),
+            "harness_schema_bytes": int((contextual.get("mcp") or {}).get(
+                "harness_schema_bytes", 0)),
+            "surface_required_calls": 1 if baseline_mode == "engine" else 2,
             "redundant_calls": max(0, int((history.get("mcp") or {}).get(
                 "calls", 0)) - 1) + max(0, int((contextual.get("mcp") or {}).get(
                 "calls", 0)) - 1),
             "routing_policy": routing_policy,
+            "baseline_mode": baseline_mode,
             "stage_seconds": stage_seconds,
             "compiler_called": int(bool(context_row["_validated_context"].get(
                 "compiler_called"))),
@@ -356,6 +402,7 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
                 "error": f"{type(error).__name__}: {error}",
                 "should_influence": oracle.should_influence,
                 "routing_policy": routing_policy,
+                "baseline_mode": baseline_mode,
                 "stage_seconds": stage_seconds,
                 "llm_usage": usage(), "usage_accounting_version": 2,
                 "latency_seconds": round(time.perf_counter() - started, 6)}
@@ -383,6 +430,7 @@ def summarize(rows: list[dict[str, Any]], profile: str,
                  if applied else 1.0)
     recall = (sum(row["applied"] for row in influence) / len(influence)
               if influence else 0.0)
+    missed = [row for row in influence if not row["applied"]]
     calls = [row["history_calls"] + row["context_calls"] for row in answered]
     observed_stages = sorted({stage for row in attempts
                               for stage in (row.get("stage_seconds") or {})})
@@ -413,6 +461,13 @@ def summarize(rows: list[dict[str, Any]], profile: str,
         } for family, members in sorted(families.items())},
         "metrics": {
             "admission_precision": precision, "admission_recall": recall,
+            "missed_influence_cases": len(missed),
+            "missed_influence_by_family": dict(sorted(Counter(
+                str(row["family"]) for row in missed).items())),
+            "admission_rejection_reasons": dict(sorted(Counter(
+                reason for row in missed
+                for reason in row.get("admission_rejection_reasons", [])
+            ).items())),
             "disposition_accuracy": (mean(bool(row.get("disposition_valid"))
                                           for row in answered)
                                      if answered else None),
@@ -434,6 +489,12 @@ def summarize(rows: list[dict[str, Any]], profile: str,
             "publication_parity_rate": (mean(
                 row["publication_parity"] is True for row in answered)
                 if answered else None),
+            "observed_agent_calls_mean": mean(calls) if calls else None,
+            "observed_agent_calls_median": (
+                sorted(calls)[len(calls) // 2] if calls else None),
+            "surface_required_calls": (answered[0].get(
+                "surface_required_calls") if answered else None),
+            # Compatibility aliases for older report consumers.
             "paired_calls_mean": mean(calls) if calls else None,
             "paired_calls_median": sorted(calls)[len(calls) // 2] if calls else None,
         },
@@ -454,9 +515,14 @@ def summarize(rows: list[dict[str, Any]], profile: str,
         },
         "retried_cases": sum(count > 1 for count in Counter(
             row["case_id"] for row in attempts).values()),
-        "compiler_cases": sum(row.get("compiler_called", 0) for row in answered),
-        "compiler_calls": sum(row.get("compiler_calls", 0) for row in answered),
-        "compiler_receipts_reused": sum(
+        "receipt_generations_this_run": sum(
+            row.get("compiler_called", 0) for row in answered),
+        "receipt_generation_model_calls": sum(
+            row.get("compiler_calls", 0) for row in answered
+            if row.get("compiler_called")),
+        "receipt_logical_model_calls": sum(
+            row.get("compiler_calls", 0) for row in answered),
+        "receipts_reused": sum(
             row.get("compiler_receipt_reused", False) for row in answered),
     }
 
@@ -468,6 +534,11 @@ def main() -> int:
     parser.add_argument("--profile", choices=sorted(PROFILES), required=True)
     parser.add_argument("--routing-policy", choices=sorted(ROUTING_POLICIES),
                         default="compiled")
+    parser.add_argument(
+        "--baseline-mode", choices=sorted(BASELINE_MODES), default="engine",
+        help=("engine reuses a direct deterministic history baseline and "
+              "spends agent calls only on the product surface; agent retains "
+              "the legacy two-conversation diagnostic"))
     parser.add_argument("--replicate-id", default="1",
                         help="stable replicate label used for cross-surface pairing")
     parser.add_argument("--model", required=True)
@@ -477,7 +548,11 @@ def main() -> int:
     parser.add_argument("--jobs", type=int, default=1)
     parser.add_argument("--limit", type=int,
                         help="balanced development subset; omit for the 80-case run")
+    parser.add_argument("--case-id", action="append", default=[],
+                        help="run only this exact case ID; repeat as needed")
     parser.add_argument("--request-timeout", type=int, default=180)
+    parser.add_argument("--tool-timeout", type=float, default=120.0,
+                        help="hard timeout in seconds for each MCP server call")
     parser.add_argument("--max-retries", type=int, default=2)
     parser.add_argument("--context-receipts-dir", required=True)
     parser.add_argument("--resume", action="store_true")
@@ -507,6 +582,13 @@ def main() -> int:
                 if grouped[family] and len(selected) < args.limit:
                     selected.append(grouped[family].pop(0))
         cases = selected
+    if args.case_id:
+        requested = set(args.case_id)
+        known = {case.case_id for case in cases}
+        missing = sorted(requested - known)
+        if missing:
+            raise SystemExit("unknown or filtered case IDs: " + ", ".join(missing))
+        cases = [case for case in cases if case.case_id in requested]
     client_kwargs = {
         "api_key": os.environ.get(args.api_key_env),
         "base_url": args.base_url, "temperature": args.temperature,
@@ -550,7 +632,8 @@ def main() -> int:
             futures = {pool.submit(
                 run_case, case, oracles[case.case_id],
                 OpenRouterClient(args.model, **client_kwargs), args.profile, work,
-                Path(args.context_receipts_dir), args.routing_policy): case
+                Path(args.context_receipts_dir), args.routing_policy,
+                args.baseline_mode, args.tool_timeout): case
                 for case in retry_cases}
             retry_cases = []
             for future in as_completed(futures):
@@ -574,6 +657,7 @@ def main() -> int:
     summary["resumed_terminal_rows"] = len(retained)
     summary["rows_executed_this_invocation"] = len(pending)
     summary["replicate_id"] = str(args.replicate_id)
+    summary["baseline_mode"] = args.baseline_mode
     summary["llm_usage_this_invocation"] = _usage_sum(
         invocation_attempts, "total")
     summary["executions_this_invocation"] = len(invocation_attempts)
@@ -584,11 +668,13 @@ def main() -> int:
         "base_url": OpenRouterClient(args.model, **client_kwargs).base_url,
         "temperature": args.temperature,
         "request_timeout_seconds": args.request_timeout,
+        "tool_timeout_seconds": args.tool_timeout,
         "max_retries": args.max_retries,
         "infrastructure_retries": args.infrastructure_retries,
         "jobs": args.jobs,
         "profile": args.profile,
         "routing_policy": args.routing_policy,
+        "baseline_mode": args.baseline_mode,
         "replicate_id": str(args.replicate_id),
     }
     (output / "summary.json").write_text(
