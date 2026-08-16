@@ -547,15 +547,33 @@ def assess_context(
             detail=("a displaced version of the same recurring schedule has "
                     "an equal or larger apparent effect"),
         )
-    improved = sum(1 for value in improvements if value > 0)
+    # A fold whose forecast window contains no eligible event is a valid
+    # zero-lift observation for the *mean* comparison, but it says nothing
+    # about whether the event effect is directionally stable.  Counting such
+    # folds as stability failures made sparse, high-signal schedules harder
+    # to admit merely because the history contained more quiet windows.
+    # Preserve every fold above for selection/calibration, and use only
+    # exposed windows for the majority and single-best robustness checks.
+    exposed_improvements = [
+        improvement
+        for origin, improvement in zip(selection_origins, improvements)
+        if any(event_flags(
+            eligible,
+            timestamps[origin : origin + horizon],
+            timestamps[origin - 1],
+        ))
+    ]
+    improved = sum(1 for value in exposed_improvements if value > 0)
     assessment.record_check(
-        "majority_of_folds_improve", improved * 2 > len(improvements),
-        measured=improved, threshold=len(improvements) // 2 + 1,
-        detail=(f"only {improved} of {len(improvements)} folds improved; "
-                "a majority is required"),
+        "majority_of_folds_improve",
+        bool(exposed_improvements) and improved * 2 > len(exposed_improvements),
+        measured={"improved": improved, "exposed": len(exposed_improvements)},
+        threshold=len(exposed_improvements) // 2 + 1,
+        detail=(f"only {improved} of {len(exposed_improvements)} event-exposed "
+                "folds improved; a majority is required"),
     )
-    if len(improvements) > 1:
-        without_single_best = sorted(improvements)[:-1]
+    if len(exposed_improvements) > 1:
+        without_single_best = sorted(exposed_improvements)[:-1]
         assessment.record_check(
             "gain_survives_best_fold", mean(without_single_best) > 0,
             measured=round(mean(without_single_best), 6), threshold=0.0,

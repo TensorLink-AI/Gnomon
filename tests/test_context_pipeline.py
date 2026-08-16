@@ -183,6 +183,11 @@ def test_gate_records_every_check_and_names_the_decider(tmp_path) -> None:
     codes = {check["code"] for check in payload["checks"]}
     assert {"events_eligible", "mean_improvement_meets_margin",
             "majority_of_folds_improve"} <= codes
+    stability = next(check for check in payload["checks"]
+                     if check["code"] == "majority_of_folds_improve")
+    fitted = next(check for check in payload["checks"]
+                  if check["code"] == "candidate_fits_every_fold")
+    assert stability["measured"]["exposed"] <= fitted["measured"]
     assert all(check["passed"] for check in payload["checks"])
     assert payload["decided_by"] is None
 

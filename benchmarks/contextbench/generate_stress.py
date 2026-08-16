@@ -94,12 +94,21 @@ def _event(event_id: str, event_type: str, start: int, duration: int, *,
     }
 
 
-def _schedule(rng: random.Random, duration: int) -> list[int]:
+def _duration(rng: random.Random, frequency: str) -> int:
+    return {
+        "15min": rng.randint(4, 8),
+        "h": rng.randint(3, 6),
+        "D": rng.randint(1, 2),
+    }[frequency]
+
+
+def _schedule(rng: random.Random, duration: int, frequency: str) -> list[int]:
+    cadence = {"15min": (32, 48), "h": (13, 17), "D": (10, 14)}[frequency]
     starts: list[int] = []
-    cursor = rng.randint(8, 12)
+    cursor = rng.randint(*cadence)
     while cursor < HISTORY - duration:
         starts.append(cursor)
-        cursor += rng.randint(13, 17)
+        cursor += rng.randint(*cadence)
     return starts
 
 
@@ -193,7 +202,8 @@ def generate(seed: int, per_stratum: int = 8,
             frequency = tuple(FREQUENCY_STEPS)[(snr_index + index) % 3]
             case_id = f"stress-snr-{snr:g}-{index:04d}"
             cf = _base(rng, total, frequency=frequency); observed = list(cf)
-            duration = rng.randint(3, 6); starts = _schedule(rng, duration)
+            duration = _duration(rng, frequency)
+            starts = _schedule(rng, duration, frequency)
             onset = rng.randint(1, HORIZON - duration)
             future = HISTORY + onset
             magnitude = rng.choice((-1.0, 1.0)) * snr * NOISE_SIGMA
@@ -214,7 +224,8 @@ def generate(seed: int, per_stratum: int = 8,
 
     for index in range(per_stratum):
         frequency = tuple(FREQUENCY_STEPS)[index % 3]
-        duration = rng.randint(3, 6); starts = _schedule(rng, duration)
+        duration = _duration(rng, frequency)
+        starts = _schedule(rng, duration, frequency)
         onset = rng.randint(1, HORIZON - duration); future = HISTORY + onset
         magnitude = rng.choice((-1.0, 1.0)) * rng.uniform(2.0, 4.0)
         true_direction = "increase" if magnitude > 0 else "decrease"

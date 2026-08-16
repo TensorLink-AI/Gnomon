@@ -58,6 +58,30 @@ def test_a_menu_effect_with_a_span_is_admitted():
     assert assessment.class_counts()["structural"]["admitted"] == 1
 
 
+def test_trend_cessation_rejects_a_seasonal_or_irregular_emitted_path():
+    events = [_event("s1", "structural:repair",
+                     {"source_span": SPAN, "effect": "trend_ceases"})]
+    assessment = assess_future_events(
+        events, "s", HISTORY, TIMESTAMPS, FUTURE, 7,
+        base_points=[100.0, 103.0, 101.0, 104.0, 102.0, 105.0, 103.0],
+    )
+    assert not assessment.admitted
+    assert assessment.rejected[0]["code"] == \
+        "emitted_trend_is_directionally_stable"
+
+
+def test_trend_cessation_admits_a_directionally_stable_emitted_path():
+    events = [_event("s1", "structural:repair",
+                     {"source_span": SPAN, "effect": "trend_ceases"})]
+    trending = [200.0 + 0.5 * day + (day % 7) for day in range(60)]
+    base = [200.0 + 0.5 * day + (day % 7) for day in range(60, 67)]
+    assessment = assess_future_events(
+        events, "s", trending, TIMESTAMPS, FUTURE, 7,
+        base_points=base,
+    )
+    assert [event.event_id for event in assessment.admitted] == ["s1"]
+
+
 def test_an_effect_outside_the_menu_is_rejected():
     events = [_event("s1", "structural:repair",
                      {"source_span": SPAN, "effect": "level_resets"})]

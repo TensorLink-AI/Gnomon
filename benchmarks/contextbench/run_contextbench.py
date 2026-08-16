@@ -62,7 +62,8 @@ def _write_history(case: Case, path: Path) -> None:
 
 def _forecast(case: Case, root: Path, *, enriched: bool,
               event_override: list[dict[str, Any]] | None = None,
-              use_covariates: bool = True) -> tuple[Any, Path]:
+              use_covariates: bool = True,
+              asserted_policy: bool = True) -> tuple[Any, Path]:
     from gnomon.context import events_from_list
     from gnomon.config import GnomonConfig
     from gnomon.covariates import covariates_from_rows
@@ -83,12 +84,14 @@ def _forecast(case: Case, root: Path, *, enriched: bool,
         # ContextBench exercises every shipped admission lane.  Leaving
         # these default-off would measure configuration rather than the
         # numeric/textual gates named by the corpus.
-        config.context.future_events = True
-        config.context.structural_events = True
+        config.context.future_events = asserted_policy
+        config.context.structural_events = asserted_policy
+    output_name = ("history" if not enriched else
+                   ("context" if asserted_policy else "default_policy"))
     return forecast(
         str(source), time_column="timestamp", target_column="value",
         horizon=case.horizon, frequency=case.frequency,
-        output=str(root / ("context" if enriched else "history")),
+        output=str(root / output_name),
         context_events=events, covariates=covariates,
         config=config,
         minimum_support="best_effort",
@@ -148,8 +151,23 @@ def run_case(case: Case, oracle: Oracle, work_root: Path, *,
     context_artifact, context_path = _forecast(
         case, case_root, enriched=True, event_override=event_override,
         use_covariates=use_covariates)
-    baseline_result, context_result = baseline_artifact.results[0], context_artifact.results[0]
-    baseline = _points(baseline_result); contextual = _points(context_result)
+    baseline_result = baseline_artifact.results[0]
+    baseline = _points(baseline_result)
+    default_policy_changed: bool | None = None
+    default_policy_smape: float | None = None
+    if oracle.dimensions.get("admission_warrant") == "asserted":
+        default_artifact, _ = _forecast(
+            case, case_root, enriched=True, event_override=event_override,
+            use_covariates=use_covariates, asserted_policy=False,
+        )
+        default_points = _points(default_artifact.results[0])
+        default_policy_changed = any(
+            abs(left - right) > 1e-9
+            for left, right in zip(baseline, default_points)
+        )
+        default_policy_smape = smape(oracle.actual, default_points)
+    context_result = context_artifact.results[0]
+    contextual = _points(context_result)
     if len(baseline) != case.horizon or len(contextual) != case.horizon:
         raise RuntimeError(f"{case.case_id}: an arm did not publish the full horizon")
     changed_steps = [index for index, (left, right) in enumerate(
@@ -174,6 +192,8 @@ def run_case(case: Case, oracle: Oracle, work_root: Path, *,
         "history_smape": smape(oracle.actual, baseline),
         "context_smape": smape(oracle.actual, contextual),
         "counterfactual_smape": smape(oracle.counterfactual, contextual),
+        "default_policy_primary_changed": default_policy_changed,
+        "default_policy_smape": default_policy_smape,
         "incremental_smape": smape(oracle.actual, baseline) - smape(oracle.actual, contextual),
         "primary_changed": bool(changed_steps), "changed_steps": changed_steps,
         "should_influence": oracle.should_influence, "disposition": disposition,
@@ -230,6 +250,8 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
         "admission_warrant") == "asserted"]
     true_asserted = [row for row in asserted if row["should_influence"]]
     false_asserted = [row for row in asserted if not row["should_influence"]]
+    default_asserted = [row for row in asserted
+                        if row.get("default_policy_primary_changed") is not None]
     false_changes = sum(row["primary_changed"] for row in false_rows)
     false_trials = len(false_rows)
     precision = (len(true_applied) / len(empirical_applied)
@@ -293,8 +315,14 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
             "numeric_claim", "structural_claim", "confounded", "bitemporal",
             "entity_scope",
         }
+        # "High SNR" means the strongest predeclared operating point, not a
+        # pool of materially different points.  Pooling 4σ and 8σ previously
+        # concealed the admission curve the stress corpus exists to expose.
+        # The complete curve (including 4σ) remains a first-class report.
+        maximum_snr = max((float(level) for level in snr_rows), default=None)
         high_snr = [row for level, members in snr_rows.items()
-                    if float(level) >= 4.0 for row in members]
+                    if maximum_snr is not None and float(level) == maximum_snr
+                    for row in members]
         high_snr_recall = (sum(row["applied"] for row in high_snr)
                            / len(high_snr) if high_snr else 0.0)
         true_numeric = [row for row in true_asserted
@@ -309,6 +337,11 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
             # the complete curve remains in the report for product choices.
             "high_snr_admission_recall_at_least_80pct": high_snr_recall >= 0.80,
             "asserted_claim_outcomes_are_scored": bool(asserted),
+            "asserted_claims_never_change_primary_by_default": (
+                bool(default_asserted) and not any(
+                    row["default_policy_primary_changed"]
+                    for row in default_asserted)
+            ),
             "true_numeric_claims_do_not_harm_on_average": bool(true_numeric) and mean(
                 row["incremental_smape"] for row in true_numeric) >= 0.0,
             "true_structural_claims_do_not_harm_on_average": bool(true_structural) and mean(
@@ -424,6 +457,10 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
             "true_asserted_claim_mean_incremental_smape": (mean(
                 row["incremental_smape"] for row in true_asserted)
                 if true_asserted else None),
+            "default_policy_asserted_primary_change_rate": (sum(
+                bool(row["default_policy_primary_changed"])
+                for row in default_asserted) / len(default_asserted)
+                if default_asserted else None),
             "effect_direction_accuracy": direction_accuracy,
             "disposition_accuracy": dispositions_correct / len(rows) if rows else None,
             "mean_interval_coverage": mean(coverage_rows) if coverage_rows else None,

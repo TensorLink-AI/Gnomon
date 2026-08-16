@@ -13,7 +13,7 @@ from benchmarks.contextbench.generate import generate, main as generate_main
 from benchmarks.contextbench.generate_stress import generate as generate_stress
 from benchmarks.contextbench import run_surfaces as surface_runner
 from benchmarks.contextbench.run_contextbench import (
-    smape, summarize, valid_disposition,
+    run_case, smape, summarize, valid_disposition,
 )
 from benchmarks.contextbench.run_contextbench import main as run_main
 from benchmarks.contextbench.run_llm import (
@@ -88,6 +88,14 @@ def test_stress_generator_is_reproducible_and_covers_production_strata():
     assert {row["snr"] for row in dimensions
             if row["stratum"] == "snr_sweep"} == {0.5, 1.0, 2.0, 4.0, 8.0}
     assert {row["frequency"] for row in dimensions} == {"15min", "h", "D"}
+    for oracle in oracles:
+        duration = oracle.get("duration_steps")
+        if duration is None or oracle["dimensions"]["stratum"] in {
+            "numeric_claim", "structural_claim",
+        }:
+            continue
+        frequency = oracle["dimensions"]["frequency"]
+        assert duration <= {"15min": 8, "h": 6, "D": 2}[frequency]
     claims = [row for row in dimensions
               if row["admission_warrant"] == "asserted"]
     assert {row["claim_truth"] for row in claims} == {"true", "false"}
@@ -133,6 +141,15 @@ def test_context_residuals_respect_ets_minimum_history():
     residuals = rolling_residuals([1.0, 2.0, 3.0, 4.0, 5.0], "ets", 1)
     assert residuals[:4] == [None, None, None, None]
     assert residuals[4] is not None
+
+
+def test_asserted_context_cannot_change_primary_under_default_policy(tmp_path):
+    raw_cases, raw_oracles = generate_stress(73, per_stratum=1)
+    raw = next(row for row in raw_cases if row["family"] == "numeric_claim")
+    case = Case.from_dict(raw)
+    oracle = load_oracles_from_rows(raw_oracles)[case.case_id]
+    row = run_case(case, oracle, tmp_path)
+    assert row["default_policy_primary_changed"] is False
 
 
 def test_disposition_contract_does_not_demand_oracle_omniscience():

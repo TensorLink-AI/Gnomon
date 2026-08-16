@@ -548,6 +548,9 @@ class FutureEvent:
     #: aligned to the forecast grid. Resolved at admission, like scaled
     #: bounds, so the application stage touches no history.
     levels: tuple[float, ...] | None = None
+    #: trend_ceases only: the engine-measured, seasonally adjusted slope
+    #: already present in the emitted base path. The text never supplies it.
+    slope: float | None = None
 
     def to_public_dict(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -562,6 +565,8 @@ class FutureEvent:
             payload["maximum"] = self.maximum
         elif self.event_class == "structural":
             payload["effect"] = self.effect
+            if self.slope is not None:
+                payload["resolved_slope_per_step"] = self.slope
             if self.levels is not None:
                 payload["resolved_levels"] = list(self.levels)
         else:
@@ -674,6 +679,7 @@ def assess_future_events(
     future_timestamps: list[datetime],
     season: int,
     *,
+    base_points: list[float] | None = None,
     allow_future: bool = True,
     allow_structural: bool = True,
 ) -> FutureContextAssessment:
@@ -790,7 +796,7 @@ def assess_future_events(
         elif event_class == "structural":
             admitted = _admit_structural(
                 assessment, event, span, values=values, season=season,
-                future_count=len(future_timestamps),
+                future_count=len(future_timestamps), base_points=base_points,
             )
         else:
             admitted = _admit_override(assessment, event, span, window_values)
@@ -1156,6 +1162,55 @@ def _seasonal_envelope(
     ]
 
 
+def _resolved_emitted_trend(
+    values: list[float], season: int, base_points: list[float],
+) -> tuple[float, float, float] | None:
+    """Return historical slope, emitted slope, and directional agreement.
+
+    Both slopes are estimated after phase fixed effects are removed. This is
+    what prevents a rising fragment of an ordinary seasonal wave from being
+    mistaken for a trend that a structural claim is entitled to erase.
+    """
+    if len(values) < max(8, 2 * max(season, 1)) or len(base_points) < 2:
+        return None
+    period = max(1, season)
+    phase_x: list[list[float]] = [[] for _ in range(period)]
+    phase_y: list[list[float]] = [[] for _ in range(period)]
+    for index, value in enumerate(values):
+        phase = index % period
+        phase_x[phase].append(float(index))
+        phase_y[phase].append(float(value))
+    numerator = denominator = 0.0
+    for xs, ys in zip(phase_x, phase_y):
+        if not xs:
+            continue
+        x_mean, y_mean = sum(xs) / len(xs), sum(ys) / len(ys)
+        numerator += sum((x - x_mean) * (y - y_mean)
+                         for x, y in zip(xs, ys))
+        denominator += sum((x - x_mean) ** 2 for x in xs)
+    if denominator <= 1e-12:
+        return None
+    historical_slope = numerator / denominator
+    phase_levels: list[float] = []
+    for phase, ys in enumerate(phase_y):
+        adjusted = [value - historical_slope * index
+                    for index, value in enumerate(values)
+                    if index % period == phase]
+        phase_levels.append(sum(adjusted) / len(adjusted))
+    emitted_deseasonalized = [
+        float(point) - phase_levels[(len(values) + step) % period]
+        for step, point in enumerate(base_points)
+    ]
+    emitted_slope = _path_slope(emitted_deseasonalized)
+    differences = [right - left for left, right in
+                   zip(emitted_deseasonalized, emitted_deseasonalized[1:])]
+    directional = [delta for delta in differences if abs(delta) > 1e-12]
+    agreement = (sum((delta > 0) == (emitted_slope > 0)
+                     for delta in directional) / len(directional)
+                 if directional and abs(emitted_slope) > 1e-12 else 0.0)
+    return historical_slope, emitted_slope, agreement
+
+
 def _admit_structural(
     assessment: FutureContextAssessment,
     event: ContextEvent,
@@ -1164,6 +1219,7 @@ def _admit_structural(
     values: list[float],
     season: int,
     future_count: int,
+    base_points: list[float] | None = None,
 ) -> FutureEvent | None:
     """Admit an LLM-classified structural event from the closed menu.
 
@@ -1188,6 +1244,44 @@ def _admit_structural(
         )
         return None
     levels: tuple[float, ...] | None = None
+    resolved_slope: float | None = None
+    if effect == "trend_ceases" and base_points is not None:
+        trend = _resolved_emitted_trend(values, season, base_points)
+        historical_slope, emitted_slope, agreement = (
+            trend if trend is not None else (0.0, 0.0, 0.0)
+        )
+        # A short seasonal arc can have a non-zero OLS slope even though it
+        # is not a continuing trend. Only flatten a path whose step changes
+        # predominantly agree with its fitted direction. Ambiguous paths
+        # remain the history-only primary rather than turning a textual
+        # structural claim into an invented seasonal adjustment.
+        same_direction = historical_slope * emitted_slope > 0
+        magnitude_ratio = (abs(emitted_slope / historical_slope)
+                           if abs(historical_slope) > 1e-12 else 0.0)
+        if (agreement < 0.75 or not same_direction
+                or not 0.25 <= magnitude_ratio <= 4.0):
+            assessment.record_check(
+                event, "structural", "emitted_trend_is_directionally_stable",
+                False,
+                detail=(
+                    "the emitted path does not contain a stable continuation "
+                    "of the seasonally adjusted historical trend "
+                    f"(agreement={agreement:.1%}, historical slope="
+                    f"{historical_slope:.6g}, emitted slope="
+                    f"{emitted_slope:.6g}, ratio={magnitude_ratio:.3g}); "
+                    "at least 75% directional agreement and a same-direction "
+                    "magnitude ratio in [0.25, 4] are required"
+                ),
+                source_span=span,
+                data={"historical_slope_per_step": historical_slope,
+                      "emitted_slope_per_step": emitted_slope,
+                      "directional_agreement": agreement,
+                      "magnitude_ratio": magnitude_ratio,
+                      "agreement_threshold": 0.75,
+                      "magnitude_ratio_bounds": [0.25, 4.0]},
+            )
+            return None
+        resolved_slope = emitted_slope
     if effect in REGIME_EFFECT_QUANTILES:
         # Resolved at admission, like scaled bounds: the model named
         # which part of the history the future resembles; the numbers
@@ -1212,6 +1306,7 @@ def _admit_structural(
     return FutureEvent(
         event.event_id, "structural", event.effective_start,
         event.effective_end, span, effect=str(effect), levels=levels,
+        slope=resolved_slope,
     )
 
 
@@ -1290,8 +1385,9 @@ def _apply_structural(
             else:
                 # trend_ceases: remove the emitted path's own drift from
                 # the first covered step onward (continuity preserved).
-                delta = -slope * (index - first)
-                record["slope_removed"] = slope
+                slope_removed = event.slope if event.slope is not None else slope
+                delta = -slope_removed * (index - first)
+                record["slope_removed"] = slope_removed
             row["point"] = float(row["point"]) + delta
             for _, key in _quantile_keys(row):
                 row[key] = float(row[key]) + delta

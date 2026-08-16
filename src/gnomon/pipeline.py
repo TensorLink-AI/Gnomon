@@ -1023,6 +1023,7 @@ def _future_context_stage(
     assessment = assess_future_events(
         context_events, state.name, state.values, state.timestamps,
         state.future_timestamps, state.season,
+        base_points=[float(row["point"]) for row in rows],
         allow_future=allow_future, allow_structural=allow_structural,
     )
     if not assessment.considered:

@@ -59,12 +59,27 @@ PYTHONPATH=src:. python -m benchmarks.contextbench.run_contextbench \
 
 Stress reports include admission precision/recall by stratum, a full SNR
 curve, onset and magnitude error, harmful admissions, and realized accuracy.
+Pulse duration and recurrence are normalized by elapsed time for each grid;
+otherwise a fixed number of steps makes daily cases far more event-saturated
+than sub-hourly cases. The high-signal recall gate applies to the strongest
+predeclared SNR point only. It never pools the 4σ and 8σ strata; both remain
+visible on the curve so a pass at 8σ cannot conceal conservative behavior at
+the decision boundary.
 Empirically testable context and asserted future claims have different
 warrants and therefore different denominators. Admission precision applies to
 effects Gnomon can backtest. For a numeric or structural claim whose truth is
 only revealed later, the report instead shows whether it changed the primary
 forecast and its realized sMAPE benefit or harm; requiring rejection based on
 the sealed future would reward oracle leakage.
+
+Asserted claims also receive a matched default-policy run. Gnomon's default
+configuration keeps future numeric and structural assertions out of the
+primary forecast; only explicit opt-in enables those lanes. The report scores
+both the opt-in outcome and the invariant that asserted claims never change
+the primary under defaults. Historical evidence cannot identify a confident
+future statement as a lie when its observed history is identical, so this
+policy boundary is part of the product's safety contract rather than an
+oracle-trained classifier.
 
 The `entity_scope` stratum is a negative control for cross-series leakage,
 not a substitute for the repository's multi-series surface tests. ContextBench
