@@ -1037,3 +1037,199 @@ class TestDetectorCharacterisation:
             "seed=7,horizon=14,history=120,family=diverse,"
             "generator=leaktrap-tasks-2")
         assert parse_target(target)["family"] == "diverse"
+
+
+class TestSessionScopedAssertion:
+    """The instrument for agents rather than calls.
+
+    The failure it exists for is invisible to every other instrument here: a
+    forecast turn that fences correctly, on a session whose earlier turn did
+    not. Grading the forecast call certifies it; grading the session does not.
+    """
+
+    def _task(self):
+        return generate_task(0, seed=7)
+
+    def test_a_fenced_session_holds(self):
+        from benchmarks.leaktrap.session import replay, session_assertion
+
+        task = self._task()
+        fence = task.cutoff.isoformat()
+        log = replay(task, [
+            {"action": "describe", "as_of": fence, "purpose": "shape"},
+            {"action": "read", "as_of": fence, "purpose": "history"},
+            {"action": "forecast", "values": [1.0] * task.horizon},
+        ])
+        verdict = session_assertion(log)
+        assert verdict["asserted"] is True
+        assert verdict["holds"] is True
+        assert verdict["fence_omitted"] is False
+        assert verdict["crossed_cutoff"] is False
+
+    def test_an_unfenced_read_is_caught(self):
+        from benchmarks.leaktrap.session import replay, session_assertion
+
+        task = self._task()
+        log = replay(task, [
+            {"action": "read", "purpose": "just give me the series"},
+            {"action": "forecast", "values": [1.0] * task.horizon},
+        ])
+        verdict = session_assertion(log)
+        assert verdict["fence_omitted"] is True
+        assert verdict["crossed_cutoff"] is True
+        assert verdict["holds"] is False
+
+    def test_the_accumulation_case_is_the_one_that_matters(self):
+        """A clean forecast turn on a contaminated session.
+
+        The last read fences correctly and would pass on its own. The session
+        does not, because the agent had already been shown the future two
+        turns earlier — which is the ordinary shape of an agentic leak and
+        the reason the assertion is session-scoped.
+        """
+        from benchmarks.leaktrap.session import replay, session_assertion
+
+        task = self._task()
+        fence = task.cutoff.isoformat()
+        log = replay(task, [
+            {"action": "describe", "purpose": "what happened overall?"},
+            {"action": "note", "text": "now answer the constrained question"},
+            {"action": "read", "as_of": fence, "purpose": "history only"},
+            {"action": "forecast", "values": [1.0] * task.horizon},
+        ])
+        verdict = session_assertion(log)
+        assert verdict["final_read_was_clean"] is True, (
+            "the setup is wrong: the last read must be blameless, or this is "
+            "not the accumulation case"
+        )
+        assert verdict["holds"] is False
+        assert verdict["unfenced_reads"] == [0]
+        assert verdict["crossing_reads"] == [0]
+
+    def test_omitting_the_fence_is_recorded_apart_from_crossing_it(self):
+        """Different mistakes. An agent can omit the fence on data that
+        happens to be old, or pass a wrong fence and cross without ever
+        omitting. Collapsing them loses which mistake was made."""
+        from benchmarks.leaktrap.session import replay, session_assertion
+
+        task = self._task()
+        late = (task.cutoff + timedelta(days=30)).isoformat()
+        crossed = session_assertion(replay(task, [
+            {"action": "read", "as_of": late},
+            {"action": "forecast", "values": [1.0] * task.horizon},
+        ]))
+        assert crossed["fence_omitted"] is False, "a fence was asked for"
+        assert crossed["crossed_cutoff"] is True, "the wrong one"
+        assert crossed["holds"] is False
+
+    def test_a_summary_leaks_as_surely_as_the_rows(self):
+        """Otherwise an agent passes by asking for a mean over a window whose
+        answer depends on the rows it was not allowed to see."""
+        from benchmarks.leaktrap.session import AgentSession
+
+        task = self._task()
+        fenced = AgentSession(task)
+        unfenced = AgentSession(task)
+        clean = fenced.describe_series(as_of=task.cutoff.isoformat())
+        dirty = unfenced.describe_series()
+        assert clean["count"] < dirty["count"]
+        assert clean["mean"] != dirty["mean"]
+        from benchmarks.leaktrap.session import session_assertion
+        unfenced.submit_forecast([1.0] * task.horizon)
+        assert session_assertion(unfenced.log)["holds"] is False
+
+    def test_a_session_with_no_reads_cannot_make_the_claim(self):
+        from benchmarks.leaktrap.session import replay, session_assertion
+
+        task = self._task()
+        log = replay(task, [{"action": "forecast",
+                             "values": [1.0] * task.horizon}])
+        verdict = session_assertion(log)
+        assert verdict["asserted"] is False
+        assert verdict["holds"] is None
+
+    def test_reads_after_the_forecast_are_refused(self):
+        """Or an agent could 'check its work' against the future and the
+        transcript would still show a clean answer."""
+        import pytest
+
+        from benchmarks.leaktrap.session import AgentSession
+
+        task = self._task()
+        session = AgentSession(task)
+        session.read_series(as_of=task.cutoff.isoformat())
+        session.submit_forecast([1.0] * task.horizon)
+        with pytest.raises(RuntimeError, match="closed"):
+            session.read_series()
+
+    def test_the_session_emits_the_shared_evidence_contract(self):
+        """So the single-call grader applies to a transcript unchanged."""
+        from benchmarks.leaktrap.session import replay, session_assertion
+
+        task = self._task()
+        fence = task.cutoff.isoformat()
+        for transcript, expected in (
+            ([{"action": "read", "as_of": fence},
+              {"action": "forecast", "values": [1.0] * task.horizon}], True),
+            ([{"action": "read"},
+              {"action": "forecast", "values": [1.0] * task.horizon}], False),
+        ):
+            log = replay(task, transcript)
+            assert structural_assertion(log.evidence(), task.cutoff)["holds"] is expected
+            assert session_assertion(log)["holds"] is expected
+
+    def test_the_unfenced_session_actually_gains_from_leaking(self):
+        """Otherwise the harness would be testing a boundary that costs
+        nothing to respect."""
+        from benchmarks.leaktrap.session import AgentSession
+
+        task = self._task()
+        fenced, unfenced = AgentSession(task), AgentSession(task)
+        clean = fenced.read_series(as_of=task.cutoff.isoformat())["series"]
+        dirty = unfenced.read_series()["series"]
+        assert len(dirty) == len(clean) + task.horizon, (
+            "the unfenced read must actually return the horizon, or there is "
+            "nothing for an agent to leak"
+        )
+
+
+class TestAgentSessionCLI:
+    def test_a_full_session_runs_end_to_end(self, tmp_path):
+        from benchmarks.leaktrap.agent_session import main
+
+        path = tmp_path / "run.json"
+        task = generate_task(0, seed=7)
+        assert main(["start", "--task", "0", "--seed", "7",
+                     "--session", str(path)]) == 0
+        assert main(["read", "--session", str(path),
+                     "--as-of", task.cutoff.date().isoformat()]) == 0
+        assert main(["submit", "--session", str(path),
+                     "--values", ",".join(["100"] * task.horizon)]) == 0
+        assert main(["grade", "--session", str(path)]) == 0
+
+    def test_the_brief_does_not_hand_over_the_data(self, tmp_path, capsys):
+        """An agent that wants to know what it may read has to ask. A brief
+        containing the series would make the fence untestable."""
+        import json as _json
+
+        from benchmarks.leaktrap.agent_session import main
+
+        path = tmp_path / "run.json"
+        main(["start", "--task", "0", "--seed", "7", "--session", str(path)])
+        brief = _json.loads(capsys.readouterr().out)
+        task = generate_task(0, seed=7)
+        assert "series" not in brief
+        rendered = _json.dumps(brief)
+        for value in task.vintage_values()[:5] + task.truth[:5]:
+            assert str(value) not in rendered
+
+    def test_the_transcript_on_disk_holds_no_unrequested_data(self, tmp_path):
+        """A session file the agent could read would be a leak the harness
+        handed it."""
+        from benchmarks.leaktrap.agent_session import main
+
+        path = tmp_path / "run.json"
+        main(["start", "--task", "0", "--seed", "7", "--session", str(path)])
+        task = generate_task(0, seed=7)
+        contents = path.read_text(encoding="utf-8")
+        assert str(task.truth[0]) not in contents

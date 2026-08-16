@@ -83,6 +83,61 @@ implementation in any language qualifies by emitting it. The record is a
 by this instrument, which is the contract's limit and is stated in
 `reference.py` rather than discovered later.
 
+## Agent sessions — leakage that accumulates across turns
+
+Every arm above grades **one call**. An agent does not make one call, and the
+leak that matters for agents is invisible to a single-call instrument:
+
+```
+turn 3   "what happened to this series over the whole period?"
+         — a legitimate question, correctly answered from all the data
+turn 7   "now forecast the horizon as of the cutoff"
+         — and the agent's own context is already contaminated
+```
+
+Neither turn is wrong in isolation. The forecast turn can fence correctly and
+still be worthless. Grading it certifies it. So `session.py` asserts over the
+**session**: the maximum publication date served across every read the agent
+made before it answered. `benchmarks/tests` covers a compliant agent, a
+careless one, and this accumulation case — where the last read is provably
+blameless and the session still fails.
+
+Two failure modes are recorded apart, because they are different mistakes:
+
+- **`fence_omitted`** — a read was made without asking for a cutoff. This is
+  observable from the tool call alone: no ceiling, no truth, no knowledge of
+  what the rows held. For agents it is the more useful signal, because "did
+  it ask for the boundary" is measurable on any task, including ones where
+  leaking happens to buy nothing.
+- **`crossed_cutoff`** — the session was actually served a value published
+  after the cutoff. This is the harm; the first is the behaviour causing it.
+
+The tool surface makes the fence **optional** on purpose. A harness requiring
+`as_of` would measure only its own requirement; the question is what an agent
+does when nothing forces it, which is every real deployment with a defaulted
+parameter. `describe` leaks as surely as `read`, so an agent cannot pass by
+asking for a mean over a window it was not allowed to see.
+
+```bash
+python -m benchmarks.leaktrap.agent_session start --task 3 --session run.json
+python -m benchmarks.leaktrap.agent_session describe --session run.json          # unfenced
+python -m benchmarks.leaktrap.agent_session read --session run.json \
+    --as-of 2025-04-30 --purpose "history as published by the cutoff"
+python -m benchmarks.leaktrap.agent_session submit --session run.json --values ...
+python -m benchmarks.leaktrap.agent_session grade  --session run.json
+```
+
+`start` prints the brief and nothing else — not the data, not the cutoff's
+role. An agent that wants to know what it may read has to ask, and the
+transcript on disk holds nothing it has not asked for.
+
+One live transcript is in [`results/leaktrap-agent/`](../../results/leaktrap-agent/),
+labelled as a demonstration rather than a measurement: the agent that ran it
+had just finished building this benchmark, which makes it the most
+contaminated subject available. **This family has no behavioural result yet**
+— an agent leakage rate needs uninformed subjects, several tasks and several
+models. The instrument is ready; the experiment is not run.
+
 ## Pre-registered analysis plan
 
 [PREREGISTRATION.md](PREREGISTRATION.md) fixes the hypotheses, endpoints,
