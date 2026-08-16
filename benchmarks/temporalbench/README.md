@@ -95,11 +95,13 @@ surface rather than whether text was connected to the product.
 On T4, an artifact may contain a separately labelled
 `hypothetical_sensitivity` path when the narrative grounds an event direction
 but the short benchmark history cannot estimate its effect on four separated
-folds. The adapter submits that path only for channels where it exists and
-keeps the primary path for unaffected channels. This does not upgrade support:
-the artifact's history-only forecast remains primary and unchanged, while the
-T4 score measures whether the explicitly stated one-innovation sensitivity is
-useful. Routes are reported as `gnomon_sensitivity` versus `gnomon`.
+folds. The adapter never submits that path as the forecast: the governed
+history-only primary remains the sole headline score. It additionally computes
+a retrospective diagnostic by overlaying scenarios only on channels where they
+exist, and reports coverage, wins, losses, ties, and the sMAPE delta beside an
+explicit `retrospective_overlay_never_submitted` warning. This measures whether
+the standardized sensitivity carried information without turning hindsight
+into a deployment selection policy.
 
 ```bash
 for profile in core describe evidence mega full; do
@@ -132,7 +134,7 @@ were measured as pure waste in the first sweep (a round per row spent
 learning the jail by rejection, six calls per row doing what one does),
 and neither sentence argues for using the engine.
 
-Per-channel routes (`gnomon` / `gnomon_sensitivity` / `informed-direct` / `direct` /
+Per-channel routes (`gnomon` / `informed-direct` / `direct` /
 `abstain`) and support labels flow into `details/`, the GnomonBench
 records, `summary.json`'s `forecast_channel_routes`, and
 `score_per_channel.py`'s support mix.

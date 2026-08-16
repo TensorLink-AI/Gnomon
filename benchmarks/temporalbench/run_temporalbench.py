@@ -399,6 +399,10 @@ def main() -> int:
     choice_by_tier: dict[str, list[int]] = {}
     choice_rows_by_tier: dict[str, int] = {}
     forecast_metrics_acc: dict[str, list[float]] = {}
+    sensitivity_metrics_acc: dict[str, list[float]] = {}
+    sensitivity_smape_deltas: list[float] = []
+    sensitivity_rows = sensitivity_channels = 0
+    sensitivity_wins = sensitivity_losses = sensitivity_ties = 0
     abstained_rows = errored = forecast_rows_scored = rows_voided = 0
     # Coverage beside every figure: how many channel forecasts each
     # number rests on, by support label, plus the abstained channels.
@@ -452,6 +456,8 @@ def main() -> int:
                     "channel_route": saved.get("channel_route") or {},
                     "context_execution": saved.get("context_execution") or {},
                     "covariate_execution": saved.get("covariate_execution") or {},
+                    "sensitivity_forecast": saved.get(
+                        "sensitivity_forecast") or {},
                     "mcp": saved.get("mcp") or {},
                     **({"row_abstained": True}
                        if prior_record.get("row_abstained") else {}),
@@ -519,6 +525,46 @@ def main() -> int:
                 [1] * choice["correct"] + [0] * (choice["total"] - choice["correct"])
             )
         metrics = verdict.get("forecast_metrics")
+        sensitivity_diagnostic = None
+        sensitivity = outcome.get("sensitivity_forecast") or {}
+        if metrics and sensitivity:
+            primary_forecast = (outcome.get("answer") or {}).get("forecast") or {}
+            overlay = dict(primary_forecast)
+            overlay.update(sensitivity)
+            overlay_metrics, overlay_flag = scoring.score_forecast(
+                row, overlay, official_metrics)
+            if overlay_metrics:
+                primary_smape = (metrics.get("OW_sMAPE")
+                                 if metrics.get("OW_sMAPE") is not None
+                                 else metrics.get("SMAPE"))
+                overlay_smape = (overlay_metrics.get("OW_sMAPE")
+                                 if overlay_metrics.get("OW_sMAPE") is not None
+                                 else overlay_metrics.get("SMAPE"))
+                delta = (float(overlay_smape) - float(primary_smape)
+                         if primary_smape is not None
+                         and overlay_smape is not None else None)
+                sensitivity_diagnostic = {
+                    "policy": "retrospective_overlay_never_submitted",
+                    "channels": sorted(sensitivity),
+                    "primary_metrics": metrics,
+                    "overlay_metrics": overlay_metrics,
+                    "metric_flag": overlay_flag,
+                    "smape_delta_overlay_minus_primary": delta,
+                }
+                sensitivity_rows += 1
+                sensitivity_channels += len(sensitivity)
+                for key, value in overlay_metrics.items():
+                    if isinstance(value, (int, float)):
+                        sensitivity_metrics_acc.setdefault(key, []).append(
+                            float(value))
+                if delta is not None:
+                    sensitivity_smape_deltas.append(delta)
+                    if delta < -1e-12:
+                        sensitivity_wins += 1
+                    elif delta > 1e-12:
+                        sensitivity_losses += 1
+                    else:
+                        sensitivity_ties += 1
         if metrics:
             forecast_rows_scored += 1
             for key, value in metrics.items():
@@ -595,7 +641,10 @@ def main() -> int:
                    **({"channel_support": channel_support}
                       if channel_support else {}),
                    **({"channel_route": channel_route}
-                      if channel_route else {})},
+                      if channel_route else {}),
+                   **({"sensitivity_smape_delta": sensitivity_diagnostic[
+                       "smape_delta_overlay_minus_primary"]}
+                      if sensitivity_diagnostic else {})},
         ))
         (details_dir / f"{row_id}.json").write_text(
             json.dumps({"verdict": verdict,
@@ -611,6 +660,8 @@ def main() -> int:
                         # engine's gate and application receipt.
                         "context_execution": context_execution or None,
                         "covariate_execution": covariate_execution or None,
+                        "sensitivity_forecast": sensitivity or None,
+                        "sensitivity_diagnostic": sensitivity_diagnostic,
                         "mcp": outcome.get("mcp"),
                         "answer": outcome["answer"]}, indent=2,
                        default=str) + "\n",
@@ -658,6 +709,28 @@ def main() -> int:
             round(forecast_rows_scored / forecast_rows_total, 4)
             if forecast_rows_total else None
         ),
+        "sensitivity_diagnostic": {
+            "policy": "retrospective_overlay_never_submitted",
+            "rows_with_scenario": sensitivity_rows,
+            "channels_with_scenario": sensitivity_channels,
+            "wins_vs_primary": sensitivity_wins,
+            "losses_vs_primary": sensitivity_losses,
+            "ties_vs_primary": sensitivity_ties,
+            "mean_smape_delta_overlay_minus_primary": (
+                sum(sensitivity_smape_deltas) / len(sensitivity_smape_deltas)
+                if sensitivity_smape_deltas else None),
+            "overlay_metrics_mean": {
+                key: sum(values) / len(values)
+                for key, values in sorted(sensitivity_metrics_acc.items())
+                if values and key in ("MAPE", "MAE", "RMSE", "SMAPE",
+                                      "OW_sMAPE", "OW_RMSSE", "OW_MASE")
+            },
+            "warning": (
+                "Retrospective diagnostic only. The governed primary path "
+                "is the submitted forecast and the only headline score; "
+                "overlay wins do not define a deployment selection policy."
+            ),
+        },
         "best_effort": args.best_effort,
         "mcp_profile": args.mcp_profile if args.condition == "gnomon-mcp" else None,
         "compile_context": args.compile_context if args.condition == "gnomon-mcp" else None,

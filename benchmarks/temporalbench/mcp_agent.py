@@ -151,7 +151,6 @@ SUBMIT_TOOL = {
                         "type": "object",
                         "properties": {
                             "artifact_path": {"type": "string"},
-                            "trajectory": {"type": "string", "enum": ["primary", "sensitivity"]},
                             "values": {"type": "array",
                                        "items": {"type": "number"}},
                             "abstain": {"type": "boolean"},
@@ -1056,9 +1055,7 @@ class _RunBase:
                         artifact_path = sorted(self.artifact_paths)[-1]
                         accepted = self._handle_submit({
                             "forecast": {
-                                channel: {"artifact_path": artifact_path,
-                                          **({"trajectory": "auto"}
-                                             if self.row.get("tier") == "T4" else {})}
+                                channel: {"artifact_path": artifact_path}
                                 for channel in self.target_keys},
                             "mcq": {},
                         })
@@ -1169,9 +1166,7 @@ class _RunBase:
                 and hasattr(self, "target_keys"):
             artifact_path = sorted(self.artifact_paths)[-1]
             fallback = {
-                "forecast": {channel: {"artifact_path": artifact_path,
-                                        **({"trajectory": "auto"}
-                                           if self.row.get("tier") == "T4" else {})}
+                "forecast": {channel: {"artifact_path": artifact_path}
                              for channel in self.target_keys},
                 "mcq": {},
                 "reasoning": ("Harness preserved a complete verified artifact "
@@ -1419,8 +1414,7 @@ class _Run(_RunBase):
 
     # -- submission --------------------------------------------------------
     def _artifact_channel_rows(self, artifact_path: str,
-                               channel: str, trajectory: str = "primary"
-                               ) -> list[float] | tuple[str, str]:
+                               channel: str) -> list[float] | tuple[str, str]:
         """The artifact's q50 trajectory for `channel`, or a
         ``(problem, support)`` pair explaining the rejection.
 
@@ -1461,17 +1455,13 @@ class _Run(_RunBase):
         rows = result.get("forecast") or []
         support = result.get("support")
         scenarios = result.get("sensitivity_scenarios") or []
-        if trajectory == "auto":
-            trajectory = "sensitivity" if scenarios else "primary"
-        if trajectory == "sensitivity":
-            if not scenarios:
-                return (f"{channel}: artifact has no sensitivity scenario; "
-                        "submit trajectory='primary' or abstain", "")
-            # Multiple grounded events remain separate scenarios. The first
-            # is deterministic because runtime ordering follows event input;
-            # the benchmark supplies one forward event per task.
-            rows = scenarios[0].get("forecast") or []
-            support = scenarios[0].get("support") or "hypothetical_sensitivity"
+        if scenarios:
+            scenario_rows = scenarios[0].get("forecast") or []
+            if len(scenario_rows) == self.horizon:
+                self._available_sensitivity[channel] = [
+                    float(row.get("q50", row["point"]))
+                    for row in scenario_rows
+                ]
         if support == "unsupported" or not rows:
             return (f"{channel}: that run abstained (support "
                     f"'unsupported') and published no trajectory. Submit "
@@ -1574,6 +1564,7 @@ class _Run(_RunBase):
         support: dict[str, str] = {}
         routes: dict[str, str] = {}
         self._pending_support: dict[str, str] = {}
+        self._available_sensitivity: dict[str, list[float]] = {}
         own_route = "direct" if self.mcp_calls == 0 else "informed-direct"
         for channel, entry in forecast_spec.items():
             if channel not in self.target_keys:
@@ -1598,22 +1589,14 @@ class _Run(_RunBase):
                                 f"artifact_path or values (or abstain)")
                 continue
             if entry.get("artifact_path") is not None:
-                trajectory = str(entry.get("trajectory") or (
-                    "auto" if self.row.get("tier") == "T4"
-                    and self.context_compilation.get("attempted") else "primary"))
                 rows = self._artifact_channel_rows(
-                    str(entry["artifact_path"]), channel, trajectory)
+                    str(entry["artifact_path"]), channel)
                 if isinstance(rows, tuple):
                     problems.append(rows[0])
                     continue
                 resolved[channel] = rows
                 support[channel] = self._pending_support[channel]
-                # ``auto`` resolves per-channel inside the artifact. Infer
-                # which path was selected from the support it returned.
-                selected_sensitivity = (
-                    self._pending_support[channel] == "hypothetical_sensitivity")
-                routes[channel] = ("gnomon_sensitivity" if selected_sensitivity
-                                   else "gnomon")
+                routes[channel] = "gnomon"
             else:
                 problem = self._values_problems(channel, entry.get("values"))
                 if problem:
@@ -1632,6 +1615,7 @@ class _Run(_RunBase):
         self.submission = {
             "forecast": resolved, "mcq": mcq, "support": support,
             "routes": routes, "reasoning": arguments.get("reasoning"),
+            "sensitivity_forecast": dict(self._available_sensitivity),
         }
         return {"accepted": True, "routes": routes}
 
@@ -1650,6 +1634,8 @@ class _Run(_RunBase):
             "channel_route": self.submission["routes"],
             "context_execution": self.context_execution,
             "covariate_execution": getattr(self, "covariate_execution", {}),
+            "sensitivity_forecast": self.submission.get(
+                "sensitivity_forecast", {}),
             "submit_reasoning": self.submission["reasoning"],
             **({"last_call": self.submission["last_call"]}
                if self.submission.get("last_call") else {}),

@@ -39,7 +39,7 @@ def test_infrastructure_failure_classification():
     assert not infrastructure_failure(ValueError("No JSON object found"))
 
 
-def test_t4_artifact_auto_selects_sensitivity_only_where_present(tmp_path):
+def test_artifact_keeps_primary_and_captures_sensitivity_separately(tmp_path):
     from benchmarks.temporalbench.mcp_agent import _Run
 
     artifact = tmp_path / "artifact"
@@ -62,16 +62,26 @@ def test_t4_artifact_auto_selects_sensitivity_only_where_present(tmp_path):
     run.artifact_paths = {str(artifact)}
     run.horizon = 2
     run._pending_support = {}
+    run._available_sensitivity = {}
     run.context_execution = {}
     run.covariate_execution = {}
 
-    affected = run._artifact_channel_rows(str(artifact), "affected", "auto")
-    unaffected = run._artifact_channel_rows(str(artifact), "unaffected", "auto")
+    affected = run._artifact_channel_rows(str(artifact), "affected")
+    unaffected = run._artifact_channel_rows(str(artifact), "unaffected")
 
-    assert affected == [2.0, 3.0]
-    assert run._pending_support["affected"] == "hypothetical_sensitivity"
+    assert affected == [1.0, 1.0]
+    assert run._pending_support["affected"] == "degraded"
+    assert run._available_sensitivity["affected"] == [2.0, 3.0]
     assert unaffected == [4.0, 5.0]
     assert run._pending_support["unaffected"] == "degraded"
+
+
+def test_submit_schema_cannot_promote_a_sensitivity_to_primary():
+    from benchmarks.temporalbench.mcp_agent import SUBMIT_TOOL
+
+    channel = SUBMIT_TOOL["function"]["parameters"]["properties"][
+        "forecast"]["additionalProperties"]["properties"]
+    assert "trajectory" not in channel
 
 
 def test_temporalbench_axis_is_anchored_to_official_cutoff(tmp_path):
