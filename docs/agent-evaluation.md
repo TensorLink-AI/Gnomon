@@ -22,8 +22,8 @@ run without an answer) are excluded from every rate and counted separately.
 
 ```bash
 gnomon eval compare \
-  --baseline results/hermes-control.jsonl \
-  --treatment results/hermes-gnomon.jsonl
+  --baseline results/agent-control.jsonl \
+  --treatment results/agent-gnomon.jsonl
 ```
 
 The output reports absolute task-success uplift, relative error reduction,
@@ -80,15 +80,17 @@ GnomonBench JSONL rows, so the same `gnomon eval compare` treatment/control
 comparison works there too. LLM conditions are served through OpenRouter
 so control and treatment share one model and provider.
 
-## Hermes lifecycle
+## Agent lifecycle
 
 1. Call `gnomon_forecast` with a `project`.
-2. Link the action to its returned tracking ID with `gnomon_record_decision`.
-3. Periodically call `gnomon_list_open_forecasts`; act on entries in `due` state.
+2. If an action is required, call `gnomon_decide` to create a governed
+   decision artifact.
+3. Periodically call `gnomon_status` with `section: "open_forecasts"`; act on
+   entries in `due` state.
 4. Call `gnomon_submit_actuals` with the complete horizon.
-5. Resolve the business result with `gnomon_resolve_decision`.
-6. Use `gnomon_model_performance` as descriptive evidence, never as proof that a
-   model caused the outcome.
+5. Resolve the business result with `gnomon_resolve_outcome`.
+6. Call `gnomon_status` with `section: "performance"` for descriptive
+   evidence, never as proof that a model caused the outcome.
 
 This separates two claims: forecast quality and agent task improvement. The
 headline Gnomon claim should use the treatment/control task-success result.

@@ -16,12 +16,6 @@ from gnomon.toolspec import TOOLS, runner_for
 REPO = Path(__file__).resolve().parent.parent
 CLOCK = FixedClock(datetime(2026, 7, 1, tzinfo=timezone.utc))
 
-V02_TOOL_NAMES = [
-    "gnomon_capabilities", "gnomon_inspect", "gnomon_forecast",
-    "gnomon_covariate_guide", "gnomon_validate_covariates", "gnomon_propose_covariates",
-    "gnomon_submit_actuals", "gnomon_list_open_forecasts", "gnomon_model_performance",
-    "gnomon_record_decision", "gnomon_resolve_decision",
-]
 NEW_TOOL_NAMES = [
     "gnomon_investigate_change", "gnomon_decide", "gnomon_monitor",
     "gnomon_get_artifact", "gnomon_explain_run",
@@ -29,24 +23,17 @@ NEW_TOOL_NAMES = [
 ]
 
 
-def test_v02_surface_is_preserved_and_macros_added():
-    # The deprecated decision pair left the default surface but is never
-    # silently removed: it returns, unchanged, under GNOMON_V02_COMPAT=1.
-    from gnomon.toolspec import V02_COMPAT_TOOLS
-
+def test_canonical_surface_has_current_tools_only():
     names = [tool["name"] for tool in TOOLS]
-    compat_names = [tool["name"] for tool in V02_COMPAT_TOOLS]
-    gated = {"gnomon_record_decision", "gnomon_resolve_decision",
-             "gnomon_list_open_forecasts", "gnomon_model_performance",
-             "gnomon_covariate_guide", "gnomon_propose_covariates"}
-    for name in V02_TOOL_NAMES:
-        if name in gated:
-            assert name in compat_names, f"gated v0.2 tool {name} missing"
-            assert name not in names, f"{name} should be compat-gated"
-        else:
-            assert name in names, f"frozen v0.2 tool {name} missing"
     for name in NEW_TOOL_NAMES:
         assert name in names, f"new tool {name} missing"
+    retired = {
+        "gnomon_covariate_guide", "gnomon_propose_covariates",
+        "gnomon_list_open_forecasts", "gnomon_model_performance",
+        "gnomon_record_decision", "gnomon_resolve_decision",
+        "gnomon_proposer_skill",
+    }
+    assert retired.isdisjoint(names)
 
 
 def test_mcp_lists_macro_tools():

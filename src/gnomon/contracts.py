@@ -463,18 +463,8 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
     "INVALID_MINIMUM_IMPROVEMENT": [
         {"action": "set_minimum_improvement", "description": "Use a value >= 0. Zero means the candidate must merely not be worse than the strongest baseline; the default 0.02 asks for 2% better."},
     ],
-    "INVALID_PLAN": [
-        {"action": "review_violations", "description": "Each entry in details.violations names the step and the rule it broke."},
-        {"action": "repair_plan", "description": "Call the planner's repair pass, which fixes bounded structural faults automatically."},
-    ],
-    "UNKNOWN_TASK_TYPE": [
-        {"action": "list_task_types", "description": "Use one of the five verbs: forecast, investigate_change, decide, monitor, detect_anomalies."},
-    ],
     "UNKNOWN_TOOL": [
-        {"action": "list_tools", "description": "Call tools/list for the available tool names; the planner tools appear only with GNOMON_EXPERIMENTAL_PLANNER=1."},
-    ],
-    "OPERATOR_UNAVAILABLE": [
-        {"action": "use_macro", "description": "This operator has no direct runner. Use the macro that owns it, or call it through a plan step."},
+        {"action": "list_tools", "description": "Call tools/list for the available tool names."},
     ],
 
     # --- Covariates -------------------------------------------------------

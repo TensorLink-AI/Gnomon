@@ -108,6 +108,9 @@ def conditional_candidates(
                              "reason": "event does not satisfy the contract"})
         elif not event_applies(event, series_name):
             continue
+        elif event.status == "cancelled":
+            excluded.append({"event_id": event.event_id,
+                             "reason": "cancelled event cannot define a scenario"})
         elif backtest_admissible(event):
             continue
         else:

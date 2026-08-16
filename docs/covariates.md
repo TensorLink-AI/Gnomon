@@ -101,12 +101,14 @@ choice rather than asserting it.
 
 ## Agent and MCP workflow
 
-When MCP is enabled, agents can call `gnomon_covariate_guide`,
-`gnomon_validate_covariates`, and `gnomon_propose_covariates`.
+Agents pass covariates directly to `gnomon_forecast`, either inline or as a
+local file, and may call `gnomon_validate_covariates` first. Human operators
+can use `gnomon covariates guide|validate` from the CLI.
 
-The tools accept local files. Agents should use their own permitted web tools to
-retrieve data and preserve its source URL separately; Gnomon will not dereference
-arbitrary URLs. `gnomon_propose_covariates` runs the same admission gate as the CLI.
+An agent should use its own permitted discovery tools to retrieve data and
+preserve its source URL separately; Gnomon will not dereference arbitrary
+URLs. Feature admission always runs inside the forecast on identical
+selection folds.
 
 ## TSFM capability matrix
 

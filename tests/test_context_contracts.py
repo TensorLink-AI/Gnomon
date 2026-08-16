@@ -40,6 +40,13 @@ def test_effective_range_must_be_ordered() -> None:
     assert any("precedes" in problem for problem in problems)
 
 
+def test_event_status_is_a_closed_contract() -> None:
+    assert validate_context_event(_event(status="tentative")) == []
+    assert validate_context_event(_event(status="cancelled")) == []
+    problems = validate_context_event(_event(status="superseded-ish"))
+    assert any("status must be one of" in problem for problem in problems)
+
+
 def test_verifiable_source_is_backtest_admissible() -> None:
     assert backtest_admissible(_event()) is True
 

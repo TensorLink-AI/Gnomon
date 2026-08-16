@@ -218,16 +218,12 @@ holidays are forward-filled onto the continuous daily grid) or
 `regrid: "month_start"` for month-end-stamped monthly feeds — both
 disclosed as warnings, neither charged against the repair ceiling.
 
-## Migrating from v0.2
+## Migrating older integrations
 
-Every v0.2 tool name, schema, and the `gnomon_forecast` contract are
-preserved (see `COMPATIBILITY.md`), but the deprecated decision pair
-(`gnomon_record_decision` / `gnomon_resolve_decision`) is no longer on
-the default surface — tools compete for model attention, and these two
-argued for their own replacement in every session. Start the server with
-`GNOMON_V02_COMPAT=1` to restore them, schemas and behaviour unchanged;
-`gnomon capabilities` reports the state under `compat.v02_tools`.
-New in this release:
-the three additional macros, `store:<dataset>` inputs, `as_of` replay,
-`support_assessment` on every result, `lineage.json` in artifacts, and
-machine-readable `repair_options` on every structured error.
+The deprecated v0.2 compatibility tools have been removed; setting
+`GNOMON_V02_COMPAT` has no effect. Migrate agent integrations to the current
+MCP registry: use `gnomon_status` for due forecasts and performance,
+`gnomon_resolve_outcome` for decision outcomes, and pass covariates through
+`gnomon_forecast` after validating them with `gnomon_validate_covariates`.
+The original `gnomon_forecast` input schema remains the one frozen exception.
+See [`COMPATIBILITY.md`](../COMPATIBILITY.md) for the complete mapping.

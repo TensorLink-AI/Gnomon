@@ -11,7 +11,8 @@ requires a stable, material improvement:
 - mean improvement over the history-only selection meets the margin;
 - more than half of the folds improve;
 - the gain survives removing the single best fold; and
-- measured interval coverage does not degrade beyond policy (0.1).
+- rolling-origin calibrated interval coverage does not degrade beyond policy
+  (0.1) on the untouched final test fold.
 
 Anything else keeps the history-only result and records why.
 """
@@ -30,7 +31,9 @@ from .context import (
     validate_context_event,
 )
 from .context_model import (
-    EFFECT_SHAPES, event_adjusted, residual_event_adjusted, rolling_residuals,
+    EFFECT_SHAPES, episode_residual_adjusted, episode_residual_amplitudes,
+    episode_residual_observations, event_adjusted, residual_event_adjusted,
+    rolling_residuals,
 )
 from .evaluation import (
     Evaluation,
@@ -49,6 +52,12 @@ CONTEXT_MODEL_NAME = "event_adjusted"
 #: that no evidence supports is worse than none: it moves the answer while
 #: being indefensible if asked why.
 MINIMUM_SHRINKAGE = 0.1
+
+# The episode estimator is an additional comparison beyond the established
+# drift/residual contest. A larger, fixed floor prices in that extra selection
+# opportunity; otherwise adding an estimator makes admission easier merely by
+# giving noise another chance to win.
+EPISODE_MINIMUM_IMPROVEMENT = 0.05
 
 
 def shrinkage_factor(improvements: list[float]) -> float:
@@ -197,6 +206,11 @@ def eligible_events(
                 "event_id": event.event_id,
                 "reason": "fails the event contract: " + "; ".join(problems),
             })
+        elif event.status == "cancelled":
+            excluded.append({
+                "event_id": event.event_id,
+                "reason": "cancelled event cannot affect the primary forecast",
+            })
         elif not backtest_admissible(event):
             excluded.append({
                 "event_id": event.event_id,
@@ -332,14 +346,17 @@ def assess_context(
     }
     nominated = nominations.pop() if len(nominations) == 1 else None
     contested_shapes = (nominated,) if nominated else EFFECT_SHAPES
-    # Both estimators face the identical gate. The drift candidate remains
+    # All estimators face the identical gate. The drift candidate remains
     # useful when the selected model has absorbed an intervention; the
     # residual candidate isolates aperiodic effects after the selected model
-    # has removed ordinary trend and seasonality.
+    # has removed ordinary trend and seasonality; the episode candidate freezes
+    # that model before each event so it cannot adapt midway through a pulse.
     candidates = [("drift", shape) for shape in contested_shapes]
     candidates += [("residual", shape) for shape in contested_shapes]
+    candidates += [("episode", shape) for shape in contested_shapes]
     by_estimator: dict[str, dict[str, list[float]]] = {
-        "drift": {}, "residual": {}}
+        "drift": {}, "residual": {}, "episode": {}}
+    episode_cache: dict[int, list[tuple[float, int, int]]] = {}
     for estimator, shape in candidates:
         improvements: list[float] = []
         failed: str | None = None
@@ -351,7 +368,16 @@ def assess_context(
                     eligible, timestamps[:origin], cutoff)
                 future_flags = event_flags(
                     eligible, timestamps[origin : origin + horizon], cutoff)
-                if estimator == "residual":
+                if estimator == "episode":
+                    if origin not in episode_cache:
+                        episode_cache[origin] = episode_residual_observations(
+                            values[:origin], historical_flags,
+                            base.selected_model, season)
+                    context_prediction = episode_residual_adjusted(
+                        values[:origin], horizon, season, historical_flags,
+                        future_flags, base_paths[origin], base.selected_model,
+                        shape, episode_cache[origin])
+                elif estimator == "residual":
                     context_prediction = residual_event_adjusted(
                         base_residuals[:origin], horizon, historical_flags,
                         future_flags, base_paths[origin], shape)
@@ -415,6 +441,12 @@ def assess_context(
         historical_flags = event_flags(eligible, timestamps[:origin], cutoff)
         future_flags = event_flags(
             eligible, timestamps[origin : origin + horizon], cutoff)
+        if selected_estimator == "episode":
+            return episode_residual_adjusted(
+                values[:origin], horizon, season, historical_flags,
+                future_flags,
+                predict(base.selected_model, values[:origin], horizon, season),
+                base.selected_model, selected_shape)
         if selected_estimator == "residual":
             base_path = predict(base.selected_model, values[:origin], horizon, season)
             return residual_event_adjusted(
@@ -431,9 +463,10 @@ def assess_context(
         fold_improvements=improvements,
         mean_improvement=mean(improvements),
         effect_shape=selected_shape,
-        effect_estimator=("base_model_residual"
-                          if selected_estimator == "residual"
-                          else "detrended_level"),
+        effect_estimator=(
+            "base_model_episode_residual" if selected_estimator == "episode"
+            else "base_model_residual" if selected_estimator == "residual"
+            else "detrended_level"),
         shape_scores={name: round(mean(scores), 6)
                       for name, scores in shape_scores.items()},
         nominated_shape=nominated,
@@ -450,21 +483,97 @@ def assess_context(
     )
     assessment.record_check(
         "mean_improvement_meets_margin",
-        assessment.mean_improvement >= minimum_improvement,
+        assessment.mean_improvement >= (
+            max(minimum_improvement, EPISODE_MINIMUM_IMPROVEMENT)
+            if selected_estimator == "episode" else minimum_improvement),
         measured=round(assessment.mean_improvement, 6),
-        threshold=minimum_improvement,
+        threshold=(max(minimum_improvement, EPISODE_MINIMUM_IMPROVEMENT)
+                   if selected_estimator == "episode" else minimum_improvement),
         detail=(f"mean fold improvement {assessment.mean_improvement:.3f} is below "
-                f"the required margin {minimum_improvement}"),
+                "the required margin " + str(
+                    max(minimum_improvement, EPISODE_MINIMUM_IMPROVEMENT)
+                    if selected_estimator == "episode" else minimum_improvement)),
     )
-    improved = sum(1 for value in improvements if value > 0)
+    if selected_estimator == "episode":
+        amplitudes = episode_residual_amplitudes(
+            episode_cache[selection_origins[-1]], selected_shape)
+        amplitude_mean = mean(amplitudes)
+        variance = (sum((value - amplitude_mean) ** 2 for value in amplitudes) /
+                    (len(amplitudes) - 1))
+        standard_error = (variance / len(amplitudes)) ** 0.5
+        lower_signal = abs(amplitude_mean) - 1.96 * standard_error
+        assessment.record_check(
+            "episode_effect_direction_is_stable",
+            lower_signal > 0,
+            measured={"episodes": len(amplitudes),
+                      "mean_amplitude": round(amplitude_mean, 6),
+                      "standard_error": round(standard_error, 6),
+                      "lower_signal": round(lower_signal, 6)},
+            threshold=0.0,
+            detail=("the independent-episode 95% interval includes zero; "
+                    "overlapping forecast folds are not independent evidence"),
+        )
+        # A recurring schedule can coincide with ordinary model error by
+        # chance, especially when sliding validation folds overlap. Compare
+        # its measured amplitude with deliberately displaced versions of the
+        # same schedule. Requiring it to beat every fixed placebo prices in
+        # the schedule-search opportunity without consulting the test fold.
+        origin = selection_origins[-1]
+        cutoff = timestamps[origin - 1]
+        actual_flags = event_flags(eligible, timestamps[:origin], cutoff)
+        placebo_amplitudes: list[float] = []
+        for offset in (-19, -17, -13, -11, -9, -7, 7, 9, 11, 13, 17, 19):
+            if offset > 0:
+                shifted = [False] * offset + actual_flags[:-offset]
+            else:
+                distance = -offset
+                shifted = actual_flags[distance:] + [False] * distance
+            try:
+                observations = episode_residual_observations(
+                    values[:origin], shifted, base.selected_model, season)
+                placebo_amplitudes.append(abs(mean(
+                    episode_residual_amplitudes(observations, selected_shape))))
+            except ValueError:
+                continue
+        actual_amplitude = abs(amplitude_mean)
+        placebo_max = max(placebo_amplitudes, default=float("inf"))
+        assessment.record_check(
+            "episode_effect_beats_displaced_schedules",
+            actual_amplitude > placebo_max,
+            measured={"actual_amplitude": round(actual_amplitude, 6),
+                      "placebo_max": round(placebo_max, 6),
+                      "placebos": len(placebo_amplitudes)},
+            threshold=round(placebo_max, 6),
+            detail=("a displaced version of the same recurring schedule has "
+                    "an equal or larger apparent effect"),
+        )
+    # A fold whose forecast window contains no eligible event is a valid
+    # zero-lift observation for the *mean* comparison, but it says nothing
+    # about whether the event effect is directionally stable.  Counting such
+    # folds as stability failures made sparse, high-signal schedules harder
+    # to admit merely because the history contained more quiet windows.
+    # Preserve every fold above for selection/calibration, and use only
+    # exposed windows for the majority and single-best robustness checks.
+    exposed_improvements = [
+        improvement
+        for origin, improvement in zip(selection_origins, improvements)
+        if any(event_flags(
+            eligible,
+            timestamps[origin : origin + horizon],
+            timestamps[origin - 1],
+        ))
+    ]
+    improved = sum(1 for value in exposed_improvements if value > 0)
     assessment.record_check(
-        "majority_of_folds_improve", improved * 2 > len(improvements),
-        measured=improved, threshold=len(improvements) // 2 + 1,
-        detail=(f"only {improved} of {len(improvements)} folds improved; "
-                "a majority is required"),
+        "majority_of_folds_improve",
+        bool(exposed_improvements) and improved * 2 > len(exposed_improvements),
+        measured={"improved": improved, "exposed": len(exposed_improvements)},
+        threshold=len(exposed_improvements) // 2 + 1,
+        detail=(f"only {improved} of {len(exposed_improvements)} event-exposed "
+                "folds improved; a majority is required"),
     )
-    if len(improvements) > 1:
-        without_single_best = sorted(improvements)[:-1]
+    if len(exposed_improvements) > 1:
+        without_single_best = sorted(exposed_improvements)[:-1]
         assessment.record_check(
             "gain_survives_best_fold", mean(without_single_best) > 0,
             measured=round(mean(without_single_best), 6), threshold=0.0,
@@ -473,15 +582,24 @@ def assess_context(
 
     # Calibrate and measure coverage with context before deciding, so a
     # coverage regression can veto admission.
-    calibration_prediction = context_prediction(calibration_origin)
-    calibration_actual = values[calibration_origin : calibration_origin + horizon]
-    assessment.residuals = [
-        actual - predicted for actual, predicted in zip(calibration_actual, calibration_prediction)
-    ]
+    # One calibration fold supplies only one residual per lead, making the
+    # interval equal to a single historical miss and producing unstable
+    # coverage vetoes. Once the estimator/shape is frozen, replay its
+    # leakage-safe selection predictions and pool those residuals with the
+    # separate calibration fold. The final test fold remains untouched and
+    # still vetoes a candidate whose resulting intervals degrade materially.
     assessment.residuals_by_lead = {
-        step: [residual]
-        for step, residual in enumerate(assessment.residuals, 1)
-    }
+        step: [] for step in range(1, horizon + 1)}
+    for origin in [*selection_origins, calibration_origin]:
+        prediction = context_prediction(origin)
+        actuals = values[origin : origin + horizon]
+        for step, (actual, predicted) in enumerate(
+                zip(actuals, prediction), 1):
+            assessment.residuals_by_lead[step].append(actual - predicted)
+    assessment.residuals = [
+        residual for step in range(1, horizon + 1)
+        for residual in assessment.residuals_by_lead[step]
+    ]
     spreads = conformal_spreads(
         assessment.residuals_by_lead, horizon, assessment.residuals,
     )
@@ -522,7 +640,15 @@ def assess_context(
 
     assessment.admitted = True
     final_cutoff = timestamps[-1]
-    if selected_estimator == "residual":
+    if selected_estimator == "episode":
+        assessment.points = episode_residual_adjusted(
+            values, horizon, season,
+            event_flags(eligible, timestamps, final_cutoff),
+            event_flags(eligible, future_timestamps, final_cutoff),
+            predict(base.selected_model, values, horizon, season),
+            base.selected_model, selected_shape,
+        )
+    elif selected_estimator == "residual":
         assessment.points = residual_event_adjusted(
             base_residuals, horizon,
             event_flags(eligible, timestamps, final_cutoff),

@@ -67,6 +67,7 @@ import csv
 import json
 import sys
 import tempfile
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -79,6 +80,7 @@ from benchmarks.cik.mcp_agent import (  # noqa: E402 — library reuse
     _tool_calls_as_dicts,
     jail_violations,
 )
+from benchmarks.common.openrouter import OpenRouterError  # noqa: E402
 from benchmarks.temporalbench.gnomon_runner import EPOCH, STEP, _observed  # noqa: E402
 from benchmarks.temporalbench.tasks import prompt_input_arrays  # noqa: E402
 
@@ -352,7 +354,7 @@ def coerce_json_containers(
 
 
 def openai_tool_specs(mcp_tools: list[dict[str, Any]],
-                      submit_tool: dict[str, Any] = SUBMIT_TOOL,
+                      submit_tool: dict[str, Any] | None = SUBMIT_TOOL,
                       ) -> list[dict[str, Any]]:
     """MCP tool entries as chat-completions specs, verbatim, plus the
     harness submit tool — the same no-pruning rule as the CiK arm
@@ -366,7 +368,7 @@ def openai_tool_specs(mcp_tools: list[dict[str, Any]],
             "parameters": tool["inputSchema"],
         }}
         for tool in mcp_tools
-    ] + [submit_tool]
+    ] + ([submit_tool] if submit_tool is not None else [])
 
 
 def preferred_execution_tool(
@@ -404,7 +406,8 @@ def compile_row_context(row: dict[str, Any], client: Any,
 
     from gnomon.workflows import (
         CONTEXT_RESPONSE_SCHEMA, DocumentRef,
-        build_context_investigation_prompt, parse_context_response,
+        build_context_investigation_prompt, normalise_context_response_containers,
+        parse_context_response,
     )
 
     narrative = str(row.get("prompt") or "").split("Input (JSON):", 1)[0].strip()
@@ -451,10 +454,12 @@ def compile_row_context(row: dict[str, Any], client: Any,
         call = next(item for item in calls
                     if item["function"]["name"] == "submit_context")
         raw = json.loads(call["function"]["arguments"] or "{}")
+        raw, container_repairs = normalise_context_response_containers(raw)
         validated = parse_context_response(
             raw, [document], proposer={"kind": "llm",
                                       "model": getattr(client, "model", "unknown")})
-        result = {"attempted": True, "compiler_called": True, **validated}
+        result = {"attempted": True, "compiler_called": True,
+                  "container_repairs": container_repairs, **validated}
         if receipt_path is not None:
             receipt_path.parent.mkdir(parents=True, exist_ok=True)
             rendered = json.dumps(validated, indent=2, sort_keys=True) + "\n"
@@ -529,7 +534,9 @@ def mcq_submit_tool(row: dict[str, Any]) -> tuple[dict[str, Any], str]:
     }, rule)
 
 
-def _write_wide_csv(channels: dict[str, list[float]], csv_path: Path) -> None:
+def _write_wide_csv(channels: dict[str, list[float]], csv_path: Path,
+                    epoch: datetime = EPOCH,
+                    step: timedelta = STEP) -> None:
     keys = list(channels)
     length = max((len(values) for values in channels.values()), default=0)
     with csv_path.open("w", newline="", encoding="utf-8") as handle:
@@ -537,7 +544,7 @@ def _write_wide_csv(channels: dict[str, list[float]], csv_path: Path) -> None:
         writer.writerow(["timestamp"] + keys)
         for position in range(length):
             writer.writerow(
-                [(EPOCH + position * STEP).isoformat()]
+                [(epoch + position * step).isoformat()]
                 + [repr(channels[key][position])
                    if position < len(channels[key]) else "" for key in keys]
             )
@@ -708,6 +715,14 @@ class _RunBase:
         self.row = row
         self.profile = profile
         self.client = client
+        raw_origin = row.get("_time_origin")
+        self.epoch = (datetime.fromisoformat(str(raw_origin))
+                      if raw_origin else EPOCH)
+        self.time_step = timedelta(seconds=float(
+            row.get("_time_step_seconds", STEP.total_seconds())))
+        self.frequency = str(row.get("_frequency", "h"))
+        if self.epoch.tzinfo is None:
+            raise ValueError("_time_origin must include an explicit timezone")
         self.context_compilation = (
             compile_row_context(row, client, context_receipts_dir)
             if compile_context and row.get("tier") in {"T3", "T4"}
@@ -725,12 +740,15 @@ class _RunBase:
         self.csv_path: Path | None = None
         if self.channels:
             self.csv_path = self.jail / "history.csv"
-            _write_wide_csv(self.channels, self.csv_path)
+            _write_wide_csv(self.channels, self.csv_path, self.epoch,
+                            self.time_step)
         self.session = (session_factory or StdioMcpSession)(self.jail)
         self.trace: list[dict[str, Any]] = []
         self.result_log = ToolMessageLog()
         self.mcp_calls = 0
         self.schema_bytes = 0
+        self.product_schema_bytes = 0
+        self.harness_schema_bytes = 0
         self.artifact_paths: set[str] = set()
         # Compiler acceptance is textual grounding, not permission to alter a
         # forecast.  Keep the engine's later admission/application decision
@@ -794,8 +812,8 @@ class _RunBase:
                 if not row_values:
                     continue
                 rows.append({
-                    "timestamp": (EPOCH + position * STEP).isoformat(),
-                    "known_at": EPOCH.isoformat(), "series": covariate_series,
+                    "timestamp": (self.epoch + position * STEP).isoformat(),
+                    "known_at": self.epoch.isoformat(), "series": covariate_series,
                     **row_values,
                 })
                 position += 1
@@ -805,8 +823,8 @@ class _RunBase:
                            for name in names):
                     continue
                 rows.append({
-                    "timestamp": (EPOCH + (len(target_values) + offset) * STEP).isoformat(),
-                    "known_at": EPOCH.isoformat(), "series": covariate_series,
+                    "timestamp": (self.epoch + (len(target_values) + offset) * STEP).isoformat(),
+                    "known_at": self.epoch.isoformat(), "series": covariate_series,
                     **{name: float(future[name][offset]) for name in names},
                 })
         if not rows:
@@ -879,6 +897,8 @@ class _RunBase:
             "calls": self.mcp_calls,
             "run_tokens": self._run_tokens(),
             "schema_bytes": self.schema_bytes,
+            "product_schema_bytes": self.product_schema_bytes,
+            "harness_schema_bytes": self.harness_schema_bytes,
             "compiler_calls": int(bool(self.context_compilation.get(
                 "compiler_called"))),
             "context_receipt_id": self.context_compilation.get("receipt_id"),
@@ -897,7 +917,8 @@ class _RunBase:
                             "message",
                             "truncated", "last_call", "abstained",
                             "superseded", "coerced", "submit_rejected",
-                            "last_call_repair", "submission_fallback")}
+                            "last_call_repair", "submission_fallback",
+                            "host_submission")}
                 for entry in self.trace
             ],
             # Harness-only provenance used by cross-benchmark adapters to
@@ -910,7 +931,26 @@ class _RunBase:
     def drive(self) -> dict[str, Any]:
         self.session.initialize()
         submit_tool = self._submit_tool()
-        tools = openai_tool_specs(self.session.list_tools(), submit_tool)
+        product_tools = openai_tool_specs(self.session.list_tools(), None)
+        if self.row.get("_host_compiled_forecast"):
+            bound_name = preferred_execution_tool(
+                self.profile, bool(getattr(self, "target_keys", None)),
+                host_compiled=True)
+            for spec in product_tools:
+                function = spec.get("function") or {}
+                if function.get("name") == bound_name:
+                    function["description"] = (
+                        "Execute the host-compiled forecast request. The "
+                        "validated data, schema, horizon, context, and "
+                        "covariates are already bound; pass no arguments.")
+                    function["parameters"] = {
+                        "type": "object", "additionalProperties": False}
+        harness_tools = openai_tool_specs([], submit_tool)
+        tools = [*product_tools, *harness_tools]
+        self.product_schema_bytes = len(json.dumps(
+            product_tools, separators=(",", ":")))
+        self.harness_schema_bytes = len(json.dumps(
+            harness_tools, separators=(",", ":")))
         self.schema_bytes = len(json.dumps(tools, separators=(",", ":")))
         # The official prompt is the user message, verbatim: the
         # benchmark stays authoritative about the task and its output
@@ -972,6 +1012,21 @@ class _RunBase:
                 if compacted:
                     self.trace.append({"superseded": compacted})
                 if self.complete_artifact_ready and not self.submission:
+                    if (self.row.get("_host_compiled_forecast")
+                            and self.row.get("_require_gnomon_execution")
+                            and self.artifact_paths
+                            and hasattr(self, "target_keys")):
+                        artifact_path = sorted(self.artifact_paths)[-1]
+                        accepted = self._handle_submit({
+                            "forecast": {
+                                channel: {"artifact_path": artifact_path}
+                                for channel in self.target_keys},
+                            "mcq": {},
+                        })
+                        if accepted.get("accepted") and self.submission:
+                            self.trace.append({
+                                "host_submission": "complete_artifact"})
+                            return self._resolve_submission()
                     return self._last_call(
                         messages, submit_tool,
                         "forecast artifact ready; engine browsing closed")
@@ -1010,7 +1065,15 @@ class _RunBase:
             try:
                 response = self.client.chat(messages, n=1,
                                             tools=[submit_tool],
-                                            tool_choice="auto")
+                                            tool_choice={
+                                                "type": "function",
+                                                "function": {
+                                                    "name": "submit_answer"},
+                                            })
+            except OpenRouterError:
+                # Transport exhaustion is not an agent abstention.  Let the
+                # runner classify and retry it as infrastructure failure.
+                raise
             except Exception as error:
                 return self._abstain_outcome(
                     f"{cap}; last call failed: {error}")
@@ -1110,20 +1173,21 @@ class _RunBase:
         # production host compiler and makes one wide-series request one run.
         if (name == "gnomon_forecast" and getattr(self, "target_keys", None)
                 and (self.profile == "evidence"
-                     or self.row.get("_host_compiled_forecast"))):
-            arguments = {**arguments,
-                         "input": str(self.csv_path),
+                     or self.row.get("_host_compiled_forecast")
+                     or self.row.get("_require_gnomon_execution"))):
+            arguments = {"input": str(self.csv_path),
                          "time_column": "timestamp",
                          "target_column": ",".join(self.target_keys),
-                         "frequency": "h", "horizon": self.horizon,
+                         "frequency": getattr(self, "frequency", "h"),
+                         "horizon": self.horizon,
                          "format": "brief"}
         elif (self.profile == "mega" and name == "gnomon_run"
               and getattr(self, "target_keys", None)):
-            arguments = {**arguments,
-                         "input": str(self.csv_path),
+            arguments = {"input": str(self.csv_path),
                          "time_column": "timestamp",
                          "target_column": ",".join(self.target_keys),
-                         "frequency": "h", "horizon": self.horizon,
+                         "frequency": getattr(self, "frequency", "h"),
+                         "horizon": self.horizon,
                          "question": {"kind": "forecast"}}
         context_compilation = getattr(self, "context_compilation", {})
         if name in {"gnomon_forecast", "gnomon_run"} \
@@ -1256,6 +1320,17 @@ class _Run(_RunBase):
         return {key: _observed(arrays.get(key, [])) for key in self.target_keys}
 
     def _submit_tool(self) -> dict[str, Any]:
+        if self.row.get("_require_gnomon_execution"):
+            # Product-contract rows need only bind the already-produced
+            # artifact. An open-ended reasoning field caused some providers
+            # to spend thousands of tokens inside tool arguments and truncate
+            # an otherwise trivial final submission.
+            tool = json.loads(json.dumps(SUBMIT_TOOL))
+            parameters = tool["function"]["parameters"]
+            parameters["properties"].pop("reasoning", None)
+            parameters["required"] = ["forecast"]
+            parameters["additionalProperties"] = False
+            return tool
         return SUBMIT_TOOL
 
     def _system(self) -> str:
@@ -1263,7 +1338,7 @@ class _Run(_RunBase):
             csv_path=str(self.csv_path),
             channels=", ".join(self.target_keys),
             channel_list=",".join(self.target_keys),
-            epoch=EPOCH.isoformat(), horizon=self.horizon,
+            epoch=self.epoch.isoformat(), horizon=self.horizon,
             jail_rule=self._jail_rule(),
             max_rounds=MAX_ROUNDS, max_calls=MAX_MCP_CALLS,
         )
@@ -1280,8 +1355,14 @@ class _Run(_RunBase):
                      "quoted-context validator. This receipt is authoritative; "
                      "only accepted events were supplied to execution:\n"
                      + json.dumps({key: self.context_compilation.get(key, [])
-                                   for key in ("events", "hypotheses", "rejected")},
+                                  for key in ("events", "hypotheses", "rejected")},
                                   separators=(",", ":")) + "\n")
+        if self.row.get("_require_gnomon_execution"):
+            text += ("\nThis product run delegates every published numeric "
+                     "trajectory to Gnomon. Submit the forecast artifact "
+                     "verbatim; model-authored values are not an allowed "
+                     "fallback. If the artifact abstains, retry its disclosed "
+                     "best-effort action or submit an abstention.\n")
         return text
 
     def _abstain_outcome(self, reason: str) -> dict[str, Any]:
@@ -1418,22 +1499,20 @@ class _Run(_RunBase):
                     "problems": ["forecast must be an object mapping "
                                  "channel name to one exit"]}
         problems: list[str] = []
-        # ContextBench's compiled execution contract delegates numeric
-        # publication to Gnomon.  Some OpenAI-compatible providers treat a
-        # forced tool choice as advisory and may call submit_answer directly;
-        # accepting model-authored values in that state silently turns the
-        # product arm into the baseline arm.  A direct fallback remains valid
-        # after an engine call (for example after a labeled abstention), but it
-        # cannot bypass execution altogether.
-        if self.row.get("_host_compiled_forecast") and self.mcp_calls == 0:
+        # ContextBench delegates every published number to Gnomon. Merely
+        # calling a tool before substituting model-made values is still a
+        # bypass, and was the sole source of publication-parity failures in
+        # the natural-routing matrix.
+        if (self.row.get("_require_gnomon_execution")
+                or self.row.get("_host_compiled_forecast")):
             direct_channels = [
                 str(channel) for channel, entry in forecast_spec.items()
                 if isinstance(entry, dict) and entry.get("values") is not None
             ]
             if direct_channels:
                 problems.append(
-                    "host_execution_required: run Gnomon before submitting "
-                    "model-authored forecast values; direct values bypass "
+                    "host_execution_required: submit a Gnomon artifact or "
+                    "abstain; model-authored forecast values bypass "
                     "the product contract for channel(s): "
                     + ", ".join(sorted(direct_channels))
                 )
@@ -1561,7 +1640,7 @@ class _McqRun(_RunBase):
                 f"The task's series are also on disk at {self.csv_path} "
                 f"(columns: timestamp, {', '.join(self.channels)}), on a "
                 f"synthetic regular hourly axis — observation k of a "
-                f"series sits at {EPOCH.isoformat()} + k hours, recorded "
+                f"series sits at {self.epoch.isoformat()} + k hours, recorded "
                 f"readings laid consecutively; a shorter series' trailing "
                 f"cells are blank. It is the same data the task states, "
                 f"in the shape the tools read."
@@ -1659,14 +1738,16 @@ def run_row(row: dict[str, Any], client: Any, *,
             work_dir: str | None = None,
             profile: str = "full",
             compile_context: bool = False,
-            context_receipts_dir: str | None = None) -> dict[str, Any]:
+            context_receipts_dir: str | None = None,
+            mcp_call_timeout: float | None = None) -> dict[str, Any]:
     """Drive one T2/T4 row through the real MCP surface; return the same
     outcome shape ``answer_row`` produces for the other conditions."""
     if session_factory is None:
         _ensure_checkout_importable()
         session_factory = lambda jail: StdioMcpSession(
             jail, command=[sys.executable, "-m", "gnomon", "mcp", "serve",
-                           "--profile", profile])
+                           "--profile", profile],
+            call_timeout=mcp_call_timeout)
     return _drive(_Run(row, client, session_factory=session_factory,
                        work_dir=work_dir, profile=profile,
                        compile_context=compile_context,

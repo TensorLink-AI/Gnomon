@@ -8,9 +8,7 @@ tests/               Unit, end-to-end, and golden tests
 tests/goldens/       Byte-pinned artifacts; refresh with --update-goldens
 docs/                User and developer documentation
 examples/            Small runnable datasets, including deliberately messy ones
-benchmarks/          Runnable adapters for published external benchmarks
-integrations/hermes/ Packaged Hermes Agent plugin
-skills/              Agent-facing safe-use skills
+benchmarks/          Internal suites and published-benchmark adapters
 .github/workflows/   CI, PyPI release, and container automation
 Dockerfile           Production CLI container image
 install.sh           Isolated one-command installer

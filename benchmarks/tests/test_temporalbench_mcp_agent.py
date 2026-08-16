@@ -24,10 +24,13 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from benchmarks.cik import mcp_agent as cik_mcp_agent
 from benchmarks.cik.mcp_agent import InProcessMcpSession
+from benchmarks.common.openrouter import OpenRouterError
 from benchmarks.temporalbench import mcp_agent
 from benchmarks.temporalbench.mcp_agent import (
     MAX_ROUNDS,
@@ -59,6 +62,7 @@ def test_every_forecast_profile_has_a_host_compiled_first_tool():
 def test_future_covariates_compile_to_each_targets_compressed_axis():
     run = object.__new__(mcp_agent._Run)
     run.channels = {"a": [1.0, 3.0], "b": [4.0, 5.0, 6.0]}
+    run.epoch = mcp_agent.EPOCH
     row = {"input": {
         "history": {
             "a": [1.0, None, 3.0], "b": [4.0, 5.0, 6.0],
@@ -81,6 +85,7 @@ def test_future_covariates_compile_to_each_targets_compressed_axis():
 def test_single_target_covariates_use_artifact_default_identity_and_declared_type():
     run = object.__new__(mcp_agent._Run)
     run.channels = {"value": [1.0, 2.0, 3.0]}
+    run.epoch = mcp_agent.EPOCH
     arguments = run._row_covariates({"input": {
         "history": {"value": [1.0, 2.0, 3.0], "driver": [0.0, 1.0, 0.0]},
         "future_covariates": {"driver": [1.0, 1.0]},
@@ -209,10 +214,12 @@ class ScriptedClient:
 
     def __init__(self, steps):
         self.steps = list(steps)
+        self.requests = []
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
 
     def chat(self, messages, *, n=1, tools=None, tool_choice=None):
+        self.requests.append({"tools": tools, "tool_choice": tool_choice})
         assert self.steps, "model script exhausted before submission"
         step = self.steps.pop(0)
         action = step(messages) if callable(step) else step
@@ -331,7 +338,7 @@ def test_host_compiled_forecast_cannot_be_bypassed_by_direct_submission(
 ):
     """Providers may ignore forced tool_choice; the harness must not.
 
-    A direct fallback is allowed only after Gnomon has actually run, otherwise
+    A direct fallback is never allowed in a product-contract run; otherwise
     the measured product arm is secretly the baseline arm.
     """
     row = _row(sparse_temp=False)
@@ -348,8 +355,8 @@ def test_host_compiled_forecast_cannot_be_bypassed_by_direct_submission(
         payload = _last_tool_payload(messages)
         assert payload["accepted"] is False
         assert payload["problems"] == [
-            "host_execution_required: run Gnomon before submitting "
-            "model-authored forecast values; direct values bypass the "
+            "host_execution_required: submit a Gnomon artifact or abstain; "
+            "model-authored forecast values bypass the "
             "product contract for channel(s): hr, spo2"
         ]
         return {"tool_calls": [_forecast_call(messages, "hr,spo2")]}
@@ -368,6 +375,35 @@ def test_host_compiled_forecast_cannot_be_bypassed_by_direct_submission(
     assert outcome["mcp"]["calls"] == 1
     assert outcome["mcp"]["tool_sequence"][0]["tool"] == "submit_answer"
     assert outcome["mcp"]["tool_sequence"][0]["submit_rejected"]
+
+
+def test_host_compiled_execution_tool_has_no_model_authored_arguments(tmp_path):
+    row = _row(sparse_temp=False)
+    row["_host_compiled_forecast"] = True
+    row["_require_gnomon_execution"] = True
+    client = ScriptedClient([
+        {"tool_calls": [("gnomon_forecast", {
+            "input": "/outside/ignored.csv",
+            "context_events": [{"invented": "x" * 10_000}],
+        })]},
+        lambda messages: {"tool_calls": [("submit_answer", {
+            "forecast": {key: {"artifact_path": _last_tool_payload(
+                messages)["artifact_path"]} for key in ("hr", "spo2")},
+        })]},
+    ])
+    outcome = run_row(
+        row, client, session_factory=_factory(), work_dir=str(tmp_path),
+        profile="core")
+    first_tools = client.requests[0]["tools"]
+    forecast = next(spec for spec in first_tools
+                    if spec["function"]["name"] == "gnomon_forecast")
+    assert forecast["function"]["parameters"] == {
+        "type": "object", "additionalProperties": False}
+    assert outcome["channel_route"] == {"hr": "gnomon", "spo2": "gnomon"}
+    assert outcome["mcp"]["calls"] == 1
+    assert len(client.requests) == 1
+    assert outcome["mcp"]["tool_sequence"][-1] == {
+        "host_submission": "complete_artifact"}
 
 
 def test_omitted_channel_is_a_recorded_abstention(tmp_path):
@@ -538,6 +574,16 @@ def test_token_cap_abstains_when_the_last_call_answers_in_prose(tmp_path):
     assert "cap:tokens" in outcome["row_abstained"]
 
 
+def test_last_call_provider_failure_remains_retryable_infrastructure(tmp_path):
+    def unavailable(_messages):
+        raise OpenRouterError("provider timed out")
+
+    with pytest.raises(OpenRouterError, match="provider timed out"):
+        _run(_row(sparse_temp=False), [
+            {"content": "thinking", "bump_tokens": 600_000}, unavailable,
+        ], tmp_path)
+
+
 # -- the envelope is repaired; the answer never is --------------------------
 
 def _submitted(messages=None):
@@ -678,6 +724,37 @@ def test_spent_tool_budget_does_not_void_the_row(tmp_path, monkeypatch):
     assert outcome["answer"]["forecast"]["spo2"] == VALUES
     assert outcome["mcp"]["calls"] == 1
     assert outcome["mcp"]["schema_bytes"] > 0
+    assert outcome["mcp"]["product_schema_bytes"] > 0
+    assert outcome["mcp"]["harness_schema_bytes"] > 0
+    assert outcome["mcp"]["schema_bytes"] <= (
+        outcome["mcp"]["product_schema_bytes"] +
+        outcome["mcp"]["harness_schema_bytes"])
+
+
+def test_product_contract_submit_schema_cannot_spend_tokens_on_reasoning():
+    run = object.__new__(mcp_agent._Run)
+    run.row = {"_require_gnomon_execution": True}
+    parameters = run._submit_tool()["function"]["parameters"]
+    assert "reasoning" not in parameters["properties"]
+    assert parameters["required"] == ["forecast"]
+    assert parameters["additionalProperties"] is False
+    assert "reasoning" in mcp_agent.SUBMIT_TOOL["function"]["parameters"][
+        "properties"]
+
+
+def test_natural_routing_still_requires_product_execution(tmp_path):
+    run = object.__new__(mcp_agent._Run)
+    run.row = {"_require_gnomon_execution": True}
+    # A prior inspect/forecast call does not authorize replacing Gnomon's
+    # published trajectory with model-authored numbers.
+    run.mcp_calls = 1
+    run.target_keys = ["hr", "spo2"]
+    run.horizon = len(VALUES)
+    run.submission = None
+    result = run._handle_submit({"forecast": {
+        "hr": {"values": VALUES}, "spo2": {"values": VALUES}}})
+    assert result["accepted"] is False
+    assert "host_execution_required" in result["problems"][0]
 
 
 def test_complete_artifact_survives_final_submission_format_failure(tmp_path):
