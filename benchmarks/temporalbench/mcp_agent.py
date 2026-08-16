@@ -550,6 +550,19 @@ def _write_wide_csv(channels: dict[str, list[float]], csv_path: Path,
             )
 
 
+def _write_long_csv(channels: dict[str, list[float]], csv_path: Path,
+                    epoch: datetime = EPOCH,
+                    step: timedelta = STEP) -> None:
+    """Lossless panel form for descriptive rows with unequal lengths."""
+    with csv_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["timestamp", "series", "value"])
+        for series, values in channels.items():
+            for position, value in enumerate(values):
+                writer.writerow([(epoch + position * step).isoformat(),
+                                 series, repr(value)])
+
+
 #: The never-shrunk keys are shared with the CiK arm (imported above):
 #: one definition of what a disclosure is, whether a result is being
 #: size-bounded here or supersession-compacted by the shared
@@ -776,8 +789,12 @@ class _RunBase:
         self.csv_path: Path | None = None
         if self.channels:
             self.csv_path = self.jail / "history.csv"
-            _write_wide_csv(self.channels, self.csv_path, self.epoch,
-                            self.time_step)
+            if row.get("tier") in {"T1", "T3"}:
+                _write_long_csv(self.channels, self.csv_path, self.epoch,
+                                self.time_step)
+            else:
+                _write_wide_csv(self.channels, self.csv_path, self.epoch,
+                                self.time_step)
         self.session = (session_factory or StdioMcpSession)(self.jail)
         self.trace: list[dict[str, Any]] = []
         self.result_log = ToolMessageLog()
@@ -1686,12 +1703,12 @@ class _McqRun(_RunBase):
         if self.csv_path is not None:
             data_rule = (
                 f"The task's series are also on disk at {self.csv_path} "
-                f"(columns: timestamp, {', '.join(self.channels)}), on a "
+                f"in lossless long form (columns: timestamp, series, value), on a "
                 f"synthetic regular hourly axis — observation k of a "
                 f"series sits at {self.epoch.isoformat()} + k hours, recorded "
-                f"readings laid consecutively; a shorter series' trailing "
-                f"cells are blank. It is the same data the task states, "
-                f"in the shape the tools read."
+                f"readings laid consecutively. For tools, target_column is "
+                f"value and series_column is series. It is the same data the "
+                f"task states, without padding shorter series with blanks."
             )
         else:
             data_rule = ("The task states its data in the prompt; nothing "

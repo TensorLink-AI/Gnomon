@@ -84,6 +84,22 @@ def test_submit_schema_cannot_promote_a_sensitivity_to_primary():
     assert "trajectory" not in channel
 
 
+def test_descriptive_panel_long_form_has_no_padding_blanks(tmp_path):
+    import csv
+    from benchmarks.temporalbench.mcp_agent import _write_long_csv
+
+    path = tmp_path / "panel.csv"
+    _write_long_csv({"long": [1.0, 2.0], "short": [3.0]}, path)
+    with path.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+
+    assert rows == [
+        {"timestamp": "2021-01-01T00:00:00+00:00", "series": "long", "value": "1.0"},
+        {"timestamp": "2021-01-01T01:00:00+00:00", "series": "long", "value": "2.0"},
+        {"timestamp": "2021-01-01T00:00:00+00:00", "series": "short", "value": "3.0"},
+    ]
+
+
 def test_temporalbench_axis_is_anchored_to_official_cutoff(tmp_path):
     from benchmarks.temporalbench.mcp_agent import _Run
 
