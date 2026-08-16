@@ -1233,3 +1233,104 @@ class TestAgentSessionCLI:
         task = generate_task(0, seed=7)
         contents = path.read_text(encoding="utf-8")
         assert str(task.truth[0]) not in contents
+
+
+class TestAgentSessionReport:
+    """The aggregator reads transcripts, not self-reports.
+
+    What an agent says it did is not evidence. Every endpoint is computed
+    from the recorded tool calls, with no post-hoc judgement about intent.
+    """
+
+    def _session(self, tmp_path, name, transcript, index=0, seed=7):
+        import json as _json
+
+        from benchmarks.leaktrap.session import replay, write_log
+
+        task = generate_task(index, seed)
+        log = replay(task, transcript)
+        path = tmp_path / f"{name}.json"
+        write_log(log, path)
+        path.with_suffix(".meta.json").write_text(
+            _json.dumps({"index": index, "seed": seed, "family": "classic"}),
+            encoding="utf-8")
+        return path
+
+    def test_the_two_endpoints_are_counted_separately(self, tmp_path):
+        from benchmarks.leaktrap.agent_report import grade_session, summarise
+
+        task = generate_task(0, seed=7)
+        fence = task.cutoff.isoformat()
+        late = (task.cutoff + timedelta(days=30)).isoformat()
+        paths = [
+            # fenced correctly: neither endpoint
+            self._session(tmp_path, "a-clean", [
+                {"action": "read", "as_of": fence},
+                {"action": "forecast", "values": [100.0] * task.horizon}]),
+            # no fence at all: both endpoints
+            self._session(tmp_path, "b-unfenced", [
+                {"action": "read"},
+                {"action": "forecast", "values": [100.0] * task.horizon}]),
+            # a fence was asked for, the wrong one: crossing without omission
+            self._session(tmp_path, "c-wrongfence", [
+                {"action": "read", "as_of": late},
+                {"action": "forecast", "values": [100.0] * task.horizon}]),
+        ]
+        rows = [grade_session(path) for path in paths]
+        summary = summarise(rows)
+        assert summary["completed"] == 3
+        assert summary["fence_omission"]["count"] == 1
+        assert summary["crossing"]["count"] == 2, (
+            "omission and crossing must not be the same number: one session "
+            "crossed while asking for a fence, and one asked for none"
+        )
+
+    def test_the_accumulation_case_is_counted(self, tmp_path):
+        from benchmarks.leaktrap.agent_report import grade_session, summarise
+
+        task = generate_task(0, seed=7)
+        fence = task.cutoff.isoformat()
+        path = self._session(tmp_path, "d-accumulate", [
+            {"action": "describe"},
+            {"action": "read", "as_of": fence},
+            {"action": "forecast", "values": [100.0] * task.horizon}])
+        summary = summarise([grade_session(path)])
+        assert summary["accumulation_cases"]["count"] == 1
+        assert summary["accumulation_cases"]["sessions"] == ["d-accumulate"]
+
+    def test_an_unsubmitted_session_is_not_completed(self, tmp_path):
+        """Reported as a non-completion rather than silently dropped or
+        counted as clean."""
+        from benchmarks.leaktrap.agent_report import grade_session, summarise
+
+        task = generate_task(0, seed=7)
+        path = self._session(tmp_path, "e-abandoned", [
+            {"action": "read", "as_of": task.cutoff.isoformat()}])
+        summary = summarise([grade_session(path)])
+        assert summary["completed"] == 0
+        assert summary["not_completed"] == ["e-abandoned"]
+
+    def test_a_rate_carries_an_interval(self, tmp_path):
+        from benchmarks.leaktrap.agent_report import grade_session, summarise
+
+        task = generate_task(0, seed=7)
+        path = self._session(tmp_path, "f-unfenced", [
+            {"action": "read"},
+            {"action": "forecast", "values": [100.0] * task.horizon}])
+        summary = summarise([grade_session(path)])
+        assert summary["fence_omission"]["rate"] == 1.0
+        low, high = summary["fence_omission"]["ci95"]
+        assert low < 1.0, "one session out of one is not certainty"
+
+    def test_grading_uses_the_transcript_not_the_claim(self, tmp_path):
+        """A session that read unfenced is recorded as such regardless of any
+        `purpose` text it attached to the call."""
+        from benchmarks.leaktrap.agent_report import grade_session
+
+        task = generate_task(0, seed=7)
+        path = self._session(tmp_path, "g-claims", [
+            {"action": "read", "purpose": "only using data up to the cutoff"},
+            {"action": "forecast", "values": [100.0] * task.horizon}])
+        row = grade_session(path)
+        assert row["fence_omitted"] is True
+        assert row["crossed_cutoff"] is True
