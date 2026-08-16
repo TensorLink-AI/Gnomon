@@ -396,8 +396,8 @@ INERT_KEYS: dict[str, str] = {
 INERT_PREFIXES: dict[str, str] = {
     "llm": (
         "The llm section was parsed and read by nothing: LLM integration "
-        "lives in the MCP host (the planner gate and the Hermes adapter), "
-        "not in the engine, which computes every number deterministically. "
+        "belongs to the MCP host, not the engine, which computes every "
+        "number deterministically. "
         "Remove the section."
     ),
 }

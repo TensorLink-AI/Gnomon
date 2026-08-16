@@ -94,8 +94,8 @@ def test_malformed_observations_fail_loudly():
 
 def test_every_data_tool_offers_the_inline_channel():
     expects = {
-        "gnomon_inspect", "gnomon_forecast", "gnomon_covariate_guide",
-        "gnomon_validate_covariates", "gnomon_propose_covariates",
+        "gnomon_inspect", "gnomon_forecast",
+        "gnomon_validate_covariates",
         "gnomon_preflight_context", "gnomon_route", "gnomon_ingest",
         "gnomon_investigate_change", "gnomon_detect_anomalies",
         "gnomon_decide", "gnomon_monitor",

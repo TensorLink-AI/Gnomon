@@ -1,7 +1,7 @@
 """LLM workflow definitions: Gnomon owns the prompt and the validation.
 
-Each workflow is a prompt-builder / response-parser pair. The host (Hermes,
-another agent platform, or Gnomon's own CLI piping to a provider adapter)
+Each workflow is a prompt-builder / response-parser pair. The caller (an MCP
+host, another agent platform, or Gnomon's own CLI piping to a provider adapter)
 runs the model call between the two; Gnomon never trusts the raw response.
 Everything the model returns is re-validated deterministically, and source
 provenance is grounded from caller-supplied document metadata, never from

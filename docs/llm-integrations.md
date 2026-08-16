@@ -3,7 +3,7 @@
 ## Gnomon does not use an LLM
 
 The default runtime does not call OpenRouter, OpenAI, Anthropic, Google,
-Hermes, or any other LLM provider. It does not read LLM-provider API-key
+or any other LLM provider. It does not read LLM-provider API-key
 environment variables. Forecasting is local and deterministic by default, so
 no account or API key is required.
 
@@ -24,8 +24,8 @@ Gnomon ships LLM *workflows* (prompt + response schema + deterministic
 validation) without shipping an LLM. `gnomon context prompt` emits an
 Gnomon-owned extraction prompt for permitted documents; the host runs it on
 its own model; `gnomon context validate` grounds and validates the response
-into typed context events and non-event hypotheses. The Hermes plugin wires this through the host's
-`ctx.llm` facade, so no API key is ever configured on the Gnomon side. Events
+into typed context events and non-event hypotheses. An MCP host may run that
+prompt with its own model, so no API key is configured on the Gnomon side. Events
 enter a forecast only through the deterministic admission gate
 (identical-fold ablation) — or, behind `context.future_events: on`, through
 the textual-verifiability lane for future-dated `constraint:*`/`override:*`

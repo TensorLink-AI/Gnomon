@@ -4,10 +4,8 @@ The CLI writes successful machine-readable responses to standard output and
 structured errors to standard error. Success exits with code `0`; Gnomon
 input/runtime errors exit with code `2`.
 
-Every command below is implemented and reachable in this build. The one
-exception is marked: `gnomon plan` is gated behind
-`GNOMON_EXPERIMENTAL_PLANNER=1`. Commands that exist only in the design
-documents are listed under [Not currently
+Every command below is implemented and reachable in this build. Commands
+that exist only in design documents are listed under [Not currently
 available](#not-currently-available) at the end.
 
 ## The five verbs
@@ -27,7 +25,7 @@ available](#not-currently-available) at the end.
 `gnomon covariates guide|validate` · `gnomon mcp serve` ·
 `gnomon tsfm list|install|install-all|remove` ·
 `gnomon track actuals|compare|coverage|decision|due|export|leaderboard|list|outcome|performance|relocate|score` ·
-`gnomon eval compare|episodes` · `gnomon plan compile|validate|execute`
+`gnomon eval compare|episodes`
 
 ## Global options
 
@@ -282,12 +280,10 @@ stdout.
 `--profile core|describe|evidence|mega|decision|data|full` selects the exposed
 surface. `core` is the analytical verbs plus inspection and artifact reads;
 `decision` adds the decide/monitor/route/status/resolve_outcome lifecycle;
-`data` adds the bitemporal store and actuals scoring. `describe`, `evidence`,
-and `mega` are explicit surface-experiment arms, not production defaults.
-`evidence` is the measured default after the fresh workflow experiment. `full` is the only
-profile where `GNOMON_V02_COMPAT=1` and the experimental planner gate add
-their tools. `gnomon capabilities` reports the active profile under
-`mcp_profile`.
+`data` adds the bitemporal store and actuals scoring. `describe` and `mega`
+remain explicit surface-experiment arms rather than production defaults;
+`evidence` is the measured default after the fresh workflow experiment.
+`gnomon capabilities` reports the active profile under `mcp_profile`.
 
 ## `gnomon tsfm`
 
@@ -523,21 +519,10 @@ breaks) with the honest reference policy and emit rows for
 gnomon eval episodes --workdir /tmp/gnomon-episodes --trials 2 --jsonl runs.jsonl
 ```
 
-## `gnomon plan` (experimental)
-
-Compile, validate, and execute `TemporalPlan`s. The agent-facing tools are
-gated behind `GNOMON_EXPERIMENTAL_PLANNER=1`; macros remain the default path:
-
-```bash
-gnomon plan compile --task-type forecast --params '{"input": "data.csv",
-  "time_column": "timestamp", "target_column": "value", "horizon": 7}'
-gnomon plan validate --plan @plan.json
-gnomon plan execute --plan @plan.json --output gnomon-output
-```
-
 ## Not currently available
 
-`gnomon init`, `gnomon run`, and `gnomon share` appear in the product
-specification and system design. They are **not implemented**, and no
+`gnomon init`, `gnomon run`, `gnomon share`, and the retired experimental
+`gnomon plan` family appear in historical design records. They are **not
+implemented**, and no
 mocked version of them is exposed. Ask `gnomon capabilities` rather than
 either design document when you need to know what this build can do.

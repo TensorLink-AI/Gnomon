@@ -2,7 +2,7 @@
 
 Gnomon owns every LLM workflow end to end — the prompts, the structured
 response schemas, and the deterministic validation applied to whatever the
-model returns. The host supplies only the model call. Under Hermes the
+model returns. The host supplies only the model call. In an MCP integration the
 adapter wraps the host's ``ctx.llm`` facade; standalone, a provider adapter
 (for example OpenRouter) fills the same role; with no adapter configured,
 every workflow degrades to deterministic templates.
