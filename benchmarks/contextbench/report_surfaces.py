@@ -122,8 +122,15 @@ def aggregate(run_dirs: list[Path]) -> dict[str, Any]:
             }
         calls = [int(row.get("history_calls", 0)) +
                  int(row.get("context_calls", 0)) for row in answered]
-        false_trials = [row for row in answered if not row["should_influence"]]
-        influence = [row for row in answered if row["should_influence"]]
+        empirical = [row for row in answered
+                     if (row.get("oracle_dimensions") or {}).get(
+                         "admission_warrant", "empirical") == "empirical"]
+        false_trials = [row for row in empirical if not row["should_influence"]]
+        influence = [row for row in empirical if row["should_influence"]]
+        false_asserted = [row for row in answered
+                          if (row.get("oracle_dimensions") or {}).get(
+                              "admission_warrant") == "asserted"
+                          and not row["should_influence"]]
         parity_eligible = [row for row in answered
                            if row.get("publication_parity") is not None]
         schema_bytes = [int(row.get("history_schema_bytes", 0))
@@ -136,6 +143,16 @@ def aggregate(run_dirs: list[Path]) -> dict[str, Any]:
         redundant = [int(row.get("redundant_calls", max(
             0, calls[index] - int(row.get("surface_required_calls", 2)))))
                      for index, row in enumerate(answered)]
+        dimension_groups: dict[str, dict[str, list[dict[str, Any]]]] = {}
+        for dimension in ("frequency", "narrative_style", "effect_shape",
+                          "claim_truth", "known_at", "confounding"):
+            groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
+            for row in answered:
+                value = (row.get("oracle_dimensions") or {}).get(dimension)
+                if value is not None:
+                    groups[str(value)].append(row)
+            if groups:
+                dimension_groups[dimension] = groups
         prompt_tokens = [int(((row.get("llm_usage") or {}).get("total") or {}).get(
             "prompt_tokens", 0)) for row in rows]
         completion_tokens = [int(((row.get("llm_usage") or {}).get("total") or {}).get(
@@ -212,6 +229,12 @@ def aggregate(run_dirs: list[Path]) -> dict[str, Any]:
             "false_influence_rate": (mean(bool(row.get("primary_changed"))
                                           for row in false_trials)
                                      if false_trials else None),
+            "false_asserted_claim_primary_change_rate": (mean(
+                bool(row.get("primary_changed")) for row in false_asserted)
+                if false_asserted else None),
+            "false_asserted_claim_mean_incremental_smape": (mean(
+                float(row["incremental_smape"]) for row in false_asserted)
+                if false_asserted else None),
             "publication_parity": {
                 "answered": len(answered),
                 "identity_produced": len(parity_eligible),
@@ -223,6 +246,15 @@ def aggregate(run_dirs: list[Path]) -> dict[str, Any]:
                     for row in parity_eligible) if parity_eligible else None),
             },
             "families": families,
+            "dimensions": {dimension: {value: {
+                "observations": len(members),
+                "unique_cases": len({row["case_id"] for row in members}),
+                "incremental_smape": mean(
+                    float(row["incremental_smape"]) for row in members),
+                "applied_rate": mean(bool(row.get("applied"))
+                                     for row in members),
+            } for value, members in sorted(groups.items())}
+                for dimension, groups in sorted(dimension_groups.items())},
         }
     cross_groups: dict[tuple[str, str, str], list[dict[str, Any]]] = defaultdict(list)
     for row in paired_rows:

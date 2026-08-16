@@ -67,7 +67,7 @@ import csv
 import json
 import sys
 import tempfile
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -535,7 +535,8 @@ def mcq_submit_tool(row: dict[str, Any]) -> tuple[dict[str, Any], str]:
 
 
 def _write_wide_csv(channels: dict[str, list[float]], csv_path: Path,
-                    epoch: datetime = EPOCH) -> None:
+                    epoch: datetime = EPOCH,
+                    step: timedelta = STEP) -> None:
     keys = list(channels)
     length = max((len(values) for values in channels.values()), default=0)
     with csv_path.open("w", newline="", encoding="utf-8") as handle:
@@ -543,7 +544,7 @@ def _write_wide_csv(channels: dict[str, list[float]], csv_path: Path,
         writer.writerow(["timestamp"] + keys)
         for position in range(length):
             writer.writerow(
-                [(epoch + position * STEP).isoformat()]
+                [(epoch + position * step).isoformat()]
                 + [repr(channels[key][position])
                    if position < len(channels[key]) else "" for key in keys]
             )
@@ -717,6 +718,9 @@ class _RunBase:
         raw_origin = row.get("_time_origin")
         self.epoch = (datetime.fromisoformat(str(raw_origin))
                       if raw_origin else EPOCH)
+        self.time_step = timedelta(seconds=float(
+            row.get("_time_step_seconds", STEP.total_seconds())))
+        self.frequency = str(row.get("_frequency", "h"))
         if self.epoch.tzinfo is None:
             raise ValueError("_time_origin must include an explicit timezone")
         self.context_compilation = (
@@ -736,7 +740,8 @@ class _RunBase:
         self.csv_path: Path | None = None
         if self.channels:
             self.csv_path = self.jail / "history.csv"
-            _write_wide_csv(self.channels, self.csv_path, self.epoch)
+            _write_wide_csv(self.channels, self.csv_path, self.epoch,
+                            self.time_step)
         self.session = (session_factory or StdioMcpSession)(self.jail)
         self.trace: list[dict[str, Any]] = []
         self.result_log = ToolMessageLog()
@@ -1173,14 +1178,16 @@ class _RunBase:
             arguments = {"input": str(self.csv_path),
                          "time_column": "timestamp",
                          "target_column": ",".join(self.target_keys),
-                         "frequency": "h", "horizon": self.horizon,
+                         "frequency": getattr(self, "frequency", "h"),
+                         "horizon": self.horizon,
                          "format": "brief"}
         elif (self.profile == "mega" and name == "gnomon_run"
               and getattr(self, "target_keys", None)):
             arguments = {"input": str(self.csv_path),
                          "time_column": "timestamp",
                          "target_column": ",".join(self.target_keys),
-                         "frequency": "h", "horizon": self.horizon,
+                         "frequency": getattr(self, "frequency", "h"),
+                         "horizon": self.horizon,
                          "question": {"kind": "forecast"}}
         context_compilation = getattr(self, "context_compilation", {})
         if name in {"gnomon_forecast", "gnomon_run"} \

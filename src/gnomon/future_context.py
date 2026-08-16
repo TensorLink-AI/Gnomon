@@ -695,6 +695,13 @@ def assess_future_events(
         event_class = _classify(event)
         if event_class is None or not event_applies(event, series_name):
             continue
+        if event.status == "cancelled":
+            assessment.considered = True
+            assessment.record_check(
+                event, event_class, "status_active", False,
+                detail="cancelled event cannot alter the primary forecast",
+            )
+            continue
         # A class whose flag is off is ignored exactly as an unclassified
         # event is — no record, no rejection — so flag-off behaviour is
         # byte-identical to the class never having existed.

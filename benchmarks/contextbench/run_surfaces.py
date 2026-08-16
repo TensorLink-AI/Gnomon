@@ -21,7 +21,8 @@ from benchmarks.common.openrouter import OpenRouterError
 from benchmarks.temporalbench.mcp_agent import run_row
 from gnomon.artifacts import read_artifact
 
-from .generate import EPOCH as CONTEXT_EPOCH, STEP as CONTEXT_STEP
+from .generate import EPOCH as CONTEXT_EPOCH
+from .run_contextbench import frequency_step
 from .run_contextbench import smape, valid_disposition, wilson
 from .run_llm import compile_events
 from .schema import Case, Oracle, load_cases, load_oracles
@@ -135,6 +136,8 @@ def surface_row(case: Case, *, include_context: bool,
         # epoch. ContextBench events are absolute-time evidence, so silently
         # rebasing the values makes every historical event unmeasurable.
         "_time_origin": CONTEXT_EPOCH.isoformat(),
+        "_time_step_seconds": frequency_step(case.frequency).total_seconds(),
+        "_frequency": case.frequency,
     }
     _validate_temporal_grid(case, row)
     return row
@@ -143,7 +146,8 @@ def surface_row(case: Case, *, include_context: bool,
 def _validate_temporal_grid(case: Case, row: dict[str, Any]) -> None:
     """Fail before LLM calls when absolute context cannot overlap the CSV."""
     origin = datetime.fromisoformat(str(row["_time_origin"]))
-    final = origin + (len(case.history) + case.horizon - 1) * CONTEXT_STEP
+    final = origin + (len(case.history) + case.horizon - 1) * frequency_step(
+        case.frequency)
     for event in case.context_events:
         start = datetime.fromisoformat(str(event["effective_start"]))
         end = datetime.fromisoformat(str(
@@ -348,6 +352,7 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
                                   - smape(oracle.actual, enriched)),
             "history_forecast": baseline, "context_forecast": enriched,
             "should_influence": oracle.should_influence,
+            "oracle_dimensions": dict(oracle.dimensions),
             "primary_changed": bool(changed), "changed_steps": changed,
             "applied": applied, "disposition": disposition,
             "admission_rejection_reasons": (
@@ -422,9 +427,15 @@ def summarize(rows: list[dict[str, Any]], profile: str,
     families: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in answered:
         families[row["family"]].append(row)
-    influence = [row for row in answered if row["should_influence"]]
-    applied = [row for row in answered if row["applied"]]
-    false_trials = [row for row in answered if not row["should_influence"]]
+    empirical = [row for row in answered if (row.get("oracle_dimensions") or {}).get(
+        "admission_warrant", "empirical") == "empirical"]
+    influence = [row for row in empirical if row["should_influence"]]
+    applied = [row for row in empirical if row["applied"]]
+    false_trials = [row for row in empirical if not row["should_influence"]]
+    false_asserted = [row for row in answered
+                      if (row.get("oracle_dimensions") or {}).get(
+                          "admission_warrant") == "asserted"
+                      and not row["should_influence"]]
     false_changes = sum(row["primary_changed"] for row in false_trials)
     precision = (sum(row["should_influence"] for row in applied) / len(applied)
                  if applied else 1.0)
@@ -434,6 +445,16 @@ def summarize(rows: list[dict[str, Any]], profile: str,
     calls = [row["history_calls"] + row["context_calls"] for row in answered]
     observed_stages = sorted({stage for row in attempts
                               for stage in (row.get("stage_seconds") or {})})
+    dimension_groups: dict[str, dict[str, list[dict[str, Any]]]] = {}
+    for dimension in ("frequency", "narrative_style", "effect_shape",
+                      "claim_truth", "known_at", "confounding"):
+        groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for row in answered:
+            value = (row.get("oracle_dimensions") or {}).get(dimension)
+            if value is not None:
+                groups[str(value)].append(row)
+        if groups:
+            dimension_groups[dimension] = groups
     return {
         "benchmark": "contextbench-surfaces", "profile": profile,
         "routing_policy": routing_policy,
@@ -459,6 +480,13 @@ def summarize(rows: list[dict[str, Any]], profile: str,
             "applied": sum(row["applied"] for row in members),
             "primary_changed": sum(row["primary_changed"] for row in members),
         } for family, members in sorted(families.items())},
+        "dimensions": {dimension: {value: {
+            "cases": len(members),
+            "incremental_smape": mean(
+                row["incremental_smape"] for row in members),
+            "applied": sum(bool(row["applied"]) for row in members),
+        } for value, members in sorted(groups.items())}
+            for dimension, groups in sorted(dimension_groups.items())},
         "metrics": {
             "admission_precision": precision, "admission_recall": recall,
             "missed_influence_cases": len(missed),
@@ -474,6 +502,12 @@ def summarize(rows: list[dict[str, Any]], profile: str,
             "false_influence_rate": (false_changes / len(false_trials)
                                      if false_trials else 0.0),
             "false_influence_95ci": wilson(false_changes, len(false_trials)),
+            "false_asserted_claim_primary_change_rate": (
+                mean(bool(row["primary_changed"]) for row in false_asserted)
+                if false_asserted else None),
+            "false_asserted_claim_mean_incremental_smape": (
+                mean(float(row["incremental_smape"]) for row in false_asserted)
+                if false_asserted else None),
             "leakage_count": sum(row["temporal_leakage"] for row in answered),
             "publication_parity": {
                 "eligible_answered": len(answered),

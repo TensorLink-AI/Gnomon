@@ -31,6 +31,47 @@ windows from turning an accidental alignment between model residuals and a
 calendar into apparently independent evidence. These controls use historical
 data only; the sealed outcome remains untouched by selection.
 
+## Production-stress stratum
+
+The clean four-family corpus is a regression test, not a simulation of all
+deployment conditions. A second, separately reported corpus sweeps the
+conditions that determine whether context is safe near the decision boundary:
+
+- effect signal-to-noise at 0.5, 1, 2, 4 and 8 sigma;
+- confident but historically contradicted directions;
+- delayed onset and uncertain duration;
+- true and false numeric constraints and structural claims;
+- event/covariate collisions, adjudicated without double counting; and
+- context that became knowable late or was cancelled and corrected;
+- cross-entity scope controls; and
+- 15-minute, hourly and daily grids with corresponding seasonal regimes.
+
+Generate it independently; never pool its scores with the clean corpus:
+
+```bash
+PYTHONPATH=src:. python -m benchmarks.contextbench.generate_stress \
+  --output-dir results/contextbench/stress-corpus --fresh --per-stratum 8
+
+PYTHONPATH=src:. python -m benchmarks.contextbench.run_contextbench \
+  --corpus-dir results/contextbench/stress-corpus \
+  --output-dir results/contextbench/stress-run
+```
+
+Stress reports include admission precision/recall by stratum, a full SNR
+curve, onset and magnitude error, harmful admissions, and realized accuracy.
+Empirically testable context and asserted future claims have different
+warrants and therefore different denominators. Admission precision applies to
+effects Gnomon can backtest. For a numeric or structural claim whose truth is
+only revealed later, the report instead shows whether it changed the primary
+forecast and its realized sMAPE benefit or harm; requiring rejection based on
+the sealed future would reward oracle leakage.
+
+The `entity_scope` stratum is a negative control for cross-series leakage,
+not a substitute for the repository's multi-series surface tests. ContextBench
+keeps one scored target per matched counterfactual; wide-panel ranking,
+triage, and disclosure remain covered by TemporalBench and the MCP surface
+matrix rather than being folded into this accuracy denominator.
+
 ## Generate and run
 
 ```bash

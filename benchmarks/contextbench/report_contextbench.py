@@ -19,6 +19,7 @@ def aggregate(run_dirs: list[Path], minimum_replicates: int = 3) -> dict[str, An
     pooled: list[dict[str, Any]] = []
     hashes: list[str] = []
     seeds: list[Any] = []
+    generators: set[str] = set()
     replicates: list[dict[str, Any]] = []
     for directory in run_dirs:
         summary_path = directory / "summary.json"
@@ -26,6 +27,7 @@ def aggregate(run_dirs: list[Path], minimum_replicates: int = 3) -> dict[str, An
         if not summary_path.is_file() or not observations.is_file():
             raise ValueError(f"incomplete ContextBench run: {directory}")
         prior = json.loads(summary_path.read_text(encoding="utf-8"))
+        generators.add(str(prior.get("generator") or ""))
         corpus_hash = str(prior.get("corpus_manifest_sha256") or "")
         if not corpus_hash:
             raise ValueError(f"run has no corpus manifest hash: {directory}")
@@ -44,8 +46,16 @@ def aggregate(run_dirs: list[Path], minimum_replicates: int = 3) -> dict[str, An
                 key for key, passed in (prior.get("gates") or {}).items()
                 if not passed),
         })
+    if len(generators) != 1:
+        raise ValueError(
+            "replicated report cannot mix clean and stress generators: "
+            + ", ".join(sorted(generators))
+        )
     manifest = {
-        "generator": "contextbench-replicated",
+        # Preserve the policy family. `summarize` keys stress gates from the
+        # generator prefix; renaming it would silently grade the pooled stress
+        # observations with the clean-corpus gates.
+        "generator": next(iter(generators)),
         "seed": seeds, "fresh_seed": all(
             json.loads((directory / "summary.json").read_text()).get(
                 "fresh_seed") for directory in run_dirs),

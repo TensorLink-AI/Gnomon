@@ -206,6 +206,11 @@ def eligible_events(
                 "event_id": event.event_id,
                 "reason": "fails the event contract: " + "; ".join(problems),
             })
+        elif event.status == "cancelled":
+            excluded.append({
+                "event_id": event.event_id,
+                "reason": "cancelled event cannot affect the primary forecast",
+            })
         elif not backtest_admissible(event):
             excluded.append({
                 "event_id": event.event_id,

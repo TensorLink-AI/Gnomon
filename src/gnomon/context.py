@@ -38,6 +38,7 @@ from .contracts import GnomonError
 VERIFIABLE_SOURCE_TYPES = frozenset(
     {"planning_file", "calendar", "artifact", "url", "dataset"}
 )
+CONTEXT_STATUSES = frozenset({"confirmed", "tentative", "cancelled"})
 
 
 @dataclass(frozen=True)
@@ -87,6 +88,10 @@ def validate_context_event(event: ContextEvent) -> list[str]:
         problems.append("event_type must be non-empty")
     if not event.entity_scope:
         problems.append("entity_scope must name at least one series")
+    if event.status not in CONTEXT_STATUSES:
+        problems.append(
+            "status must be one of confirmed, tentative, cancelled"
+        )
 
     start = _parse_timestamp(event.effective_start, "effective_start", problems)
     end = _parse_timestamp(event.effective_end, "effective_end", problems)

@@ -72,7 +72,9 @@ def rolling_residuals(
     # Start as soon as the selected model has one seasonal cycle. Requiring
     # the evaluation gate's two-cycle training floor here discarded early
     # event occurrences even though their one-step residual was scoreable.
-    minimum = max(season, 2)
+    model_floor = {"last_value": 1, "ets": 4}.get(model, 2)
+    seasonal_floor = season if model == "seasonal_naive" else 1
+    minimum = max(model_floor, seasonal_floor)
     residuals: list[float | None] = [None] * len(history)
     for index in range(minimum, len(history)):
         points = predict(model, history[:index], 1, season)

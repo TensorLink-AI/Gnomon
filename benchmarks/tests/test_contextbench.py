@@ -10,6 +10,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from benchmarks.contextbench.generate import generate, main as generate_main
+from benchmarks.contextbench.generate_stress import generate as generate_stress
 from benchmarks.contextbench import run_surfaces as surface_runner
 from benchmarks.contextbench.run_contextbench import (
     smape, summarize, valid_disposition,
@@ -24,6 +25,7 @@ from benchmarks.contextbench.report_contextbench import (
     aggregate as aggregate_contextbench,
 )
 from benchmarks.contextbench.schema import Case, load_cases, load_oracles
+from gnomon.context_model import rolling_residuals
 
 
 def test_generator_is_reproducible_seed_sensitive_and_balanced():
@@ -73,9 +75,64 @@ def test_generated_files_are_strict_and_hash_addressed(tmp_path, monkeypatch):
     assert len(manifest["oracle_sha256"]) == 64
 
 
+def test_stress_generator_is_reproducible_and_covers_production_strata():
+    cases, oracles = generate_stress(71, per_stratum=1)
+    replay, replay_oracles = generate_stress(71, per_stratum=1)
+    assert cases == replay and oracles == replay_oracles
+    dimensions = [row["dimensions"] for row in oracles]
+    assert {row["stratum"] for row in dimensions} == {
+        "snr_sweep", "misleading_direction", "timing_uncertainty",
+        "numeric_claim", "structural_claim", "confounded", "bitemporal",
+        "entity_scope",
+    }
+    assert {row["snr"] for row in dimensions
+            if row["stratum"] == "snr_sweep"} == {0.5, 1.0, 2.0, 4.0, 8.0}
+    assert {row["frequency"] for row in dimensions} == {"15min", "h", "D"}
+    claims = [row for row in dimensions
+              if row["admission_warrant"] == "asserted"]
+    assert {row["claim_truth"] for row in claims} == {"true", "false"}
+    mixed = [row for row in cases if row["context_events"] and row["covariates"]]
+    assert len(mixed) == 1 and mixed[0]["family"] == "confounded"
+
+
+def test_stress_summary_separates_empirical_admission_from_asserted_truth():
+    rows = []
+    for case_id, warrant, truth, applied, changed in (
+        ("empirical", "empirical", True, True, True),
+        ("false-claim", "asserted", False, True, True),
+    ):
+        rows.append({
+            "case_id": case_id, "family": (
+                "repeated_event" if warrant == "empirical" else "numeric_claim"),
+            "oracle_dimensions": {"stratum": "snr_sweep", "snr": 4.0,
+                                  "admission_warrant": warrant},
+            "history_smape": 2.0, "context_smape": 1.0,
+            "incremental_smape": 1.0, "should_influence": truth,
+            "applied": applied, "primary_changed": changed,
+            "temporal_leakage": False, "publication_parity": True,
+            "interval_coverage": 0.8, "effect_direction_correct": True,
+            "effect_magnitude_inferred": 1.0,
+            "effect_magnitude_expected": 1.0, "onset_step_inferred": 0,
+            "onset_step_expected": 0, "disposition": "applied",
+            "disposition_valid": True,
+        })
+    summary = summarize(rows, {"generator": "contextbench-stress-v1",
+                               "seed": 1, "fresh_seed": True, "cases": 2})
+    assert summary["metrics"]["admission_precision"] == 1.0
+    assert summary["metrics"]["false_influence_rate"] == 0.0
+    assert summary["metrics"]["false_asserted_claim_primary_change_rate"] == 1.0
+    assert "frequency" in summary["dimensions"]
+
+
 def test_smape_is_symmetric_and_zero_safe():
     assert smape([0.0, 10.0], [0.0, 12.0]) == smape([0.0, 12.0], [0.0, 10.0])
     assert smape([0.0], [0.0]) == 0.0
+
+
+def test_context_residuals_respect_ets_minimum_history():
+    residuals = rolling_residuals([1.0, 2.0, 3.0, 4.0, 5.0], "ets", 1)
+    assert residuals[:4] == [None, None, None, None]
+    assert residuals[4] is not None
 
 
 def test_disposition_contract_does_not_demand_oracle_omniscience():
@@ -197,6 +254,15 @@ def test_history_surface_row_excludes_all_outside_context():
     assert row["tier"] == "T2"
     assert row["input"] == {"history": {"value": list(case.history)}}
     assert case.narrative not in row["prompt"]
+
+
+def test_surface_row_preserves_non_hourly_grid():
+    raw_cases, _ = generate_stress(72, per_stratum=1)
+    daily = Case.from_dict(next(row for row in raw_cases
+                                if row["frequency"] == "D"))
+    row = surface_row(daily, include_context=True)
+    assert row["_frequency"] == "D"
+    assert row["_time_step_seconds"] == 86400.0
 
 
 def test_unrouted_surface_policy_preserves_execution_without_forced_routing():
@@ -450,6 +516,11 @@ def test_replicated_report_requires_distinct_complete_corpora(
     assert report["unique_corpus_manifests"] == 2
     with pytest.raises(ValueError, match="duplicate corpus"):
         aggregate_contextbench([runs[0], runs[0]], minimum_replicates=2)
+    changed = json.loads((runs[1] / "summary.json").read_text())
+    changed["generator"] = "contextbench-stress-v1"
+    (runs[1] / "summary.json").write_text(json.dumps(changed))
+    with pytest.raises(ValueError, match="cannot mix clean and stress"):
+        aggregate_contextbench(runs, minimum_replicates=2)
 
 
 def test_oracle_and_counterfactual_scoring_are_sensitive_not_tautological():
