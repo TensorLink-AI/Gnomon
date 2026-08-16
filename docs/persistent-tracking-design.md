@@ -5,7 +5,7 @@
 >
 > **Built:** the local registry, complete-horizon realised scoring, the
 > descriptive leaderboard, the robust recent-window drift warning,
-> MCP/Hermes tracking tools, due-forecast discovery, decision outcomes, and
+> MCP tracking tools, due-forecast discovery, decision outcomes, and
 > the coverage-adaptation log (`gnomon track coverage`).
 >
 > **Not built:** webhooks, host-native reminders, and automatic model-weight

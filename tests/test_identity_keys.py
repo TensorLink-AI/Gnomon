@@ -38,46 +38,6 @@ def _series_csv(tmp_path: Path, name: str = "series.csv", periods: int = 80) -> 
     return path
 
 
-# -- C9: the planner's step cache must not outlive the as-of boundary -----
-
-def test_step_cache_key_includes_as_of(tmp_path):
-    """The same plan at two instants must not share one cache entry.
-
-    Before this, replaying at an earlier ``--as-of`` returned the
-    latest-data result verbatim with ``cached: true`` — the one place a
-    documented replay demonstrably read post-cutoff data.
-    """
-    from gnomon.execution import execute_plan
-    from gnomon.plan import plan_from_dict
-
-    source = _series_csv(tmp_path)
-    steps = [{
-        "step_id": "load1", "operator": "load",
-        "inputs": {"input": str(source), "time_column": "timestamp",
-                   "target_column": "value"},
-        "produces": "loaded_series",
-    }]
-    output = tmp_path / "out"
-
-    plan = plan_from_dict({"task": {"outputs": ["loaded_series"]}, "steps": steps})
-    latest, _ = execute_plan(plan, output=str(output), clock=CLOCK)
-    # Naive, to match the naive timestamps in the fixture: an aware as_of
-    # against a naive grid is correctly refused as SNAPSHOT_TIMEZONE_MISMATCH.
-    earlier, _ = execute_plan(
-        plan, output=str(output), as_of=datetime(2026, 2, 1), clock=CLOCK,
-    )
-    assert earlier["steps"][0]["status"] == "complete", earlier["steps"][0]
-
-    latest_key = latest["steps"][0]["cache_key"]
-    earlier_key = earlier["steps"][0]["cache_key"]
-    assert latest_key != earlier_key, "as_of is absent from the step cache key"
-    assert earlier["steps"][0]["cached"] is False, "replay served a cross-as_of cache hit"
-
-    latest_rows = latest["outputs"]["loaded_series"]["series"]["__default__"]["timestamps"]
-    earlier_rows = earlier["outputs"]["loaded_series"]["series"]["__default__"]["timestamps"]
-    assert len(earlier_rows) < len(latest_rows), "the earlier run saw later data"
-
-
 # -- C5: ids cover every answer-changing input ----------------------------
 
 def test_decision_id_covers_action_feasibility(tmp_path):

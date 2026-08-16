@@ -50,8 +50,9 @@ upgrade Gnomon's numerical claims.
 ## The deployed boundary
 
 This repository ships a zero-dependency classical runtime with optional local
-TSFM sandboxes, bitemporal data, CLI and Python APIs, a stdio MCP server, a
-Hermes plugin, immutable artifacts, and outcome tracking.
+TSFM sandboxes, bitemporal data, CLI and Python APIs, a stdio MCP server,
+immutable artifacts, and outcome tracking. MCP is the sole agent-facing
+contract.
 
 It does not ship a hosted inference service, a live benchmark service, an
 enterprise artifact store, or a model-training network. Those can be adjacent

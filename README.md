@@ -1,26 +1,22 @@
 # Gnomon
 
-**The trusted temporal execution boundary for agents.**
+**Trusted time-series answers for people and AI agents.**
 
-Gnomon turns an agent's temporal question into one evidence-linked answer it
-can quote, inspect, and later score. The agent frames the question;
-deterministic code validates the data, evaluates the candidates, computes the
-answer, and keeps the receipts. The executable that wins evaluation is the
-executable that publishes. If the evidence cannot support a claim, Gnomon
-labels the weaker answer or abstains instead of letting the agent improvise.
+Give Gnomon timestamped data and a practical question. It validates the data,
+tests competing methods against honest historical baselines, and returns an
+answer with its uncertainty, strength of evidence, limitations, and a
+reproducible artifact. If the data only supports a weak answer, Gnomon labels
+it weak. If it cannot compute an honest answer, it abstains and says what is
+needed next.
 
-It is local-first infrastructure, not another forecasting model and not an
-autonomous operator. Gnomon can run entirely on built-in models, optionally
-admit locally sandboxed foundation models, and expose the same governed
-runtime through CLI, Python, MCP, and Hermes.
+You do not need to choose a forecasting model or write a backtest. Gnomon can
+run locally with its built-in models, optionally evaluate sandboxed time-series
+foundation models, and expose the same deterministic runtime through the CLI,
+Python, or MCP.
 
-The first concrete job is operational threshold risk:
+## What Gnomon does
 
-> Which service metric may breach a meaningful limit, when, and does the
-> evidence justify intervening?
-
-That job is the beachhead, not the boundary. The same governed runtime is
-available through five views:
+Gnomon answers five kinds of question about a time series:
 
 | Verb | Question | What you get |
 | --- | --- | --- |
@@ -30,18 +26,38 @@ available through five views:
 | `gnomon decide` | What should we do? | Exceedance scenarios, feasibility and constraint checks, expected utility — degraded honestly when utilities are missing |
 | `gnomon monitor` | When should we intervene? | Sequential exceedance risk and a cost-optimal alert rule |
 
-An agent can discover data, choose the view, and explain the result. Gnomon
-stays authoritative for timestamps, backtests, model selection, intervals,
-support status, and every published value. The LLM never gets to invent or
-edit one.
+Its first product job is operational threshold risk:
 
-Conversation cost is an engineering constraint, not a completed claim. Wide
-data is handled in one batched call; brief responses keep disclosures while
-moving bulk rows to immutable artifacts; repeated calls can use a session
-`data_ref` instead of resending observations. A fresh 1,800-execution workflow
-experiment selected the two-tool `evidence` profile as the default: 96.3%
-correctness and 89% trust at one median call and 12.7K tokens per case. `full`
-remains explicit opt-in for administration and deep audit.
+> Which service metric may breach a meaningful limit, when, and does the
+> evidence justify intervening?
+
+The same runtime also works on demand, capacity, finance, health, sensor, and
+other timestamped data. Gnomon is not an autonomous operator: it produces and
+tracks evidence-backed temporal answers; a person or agent decides how those
+answers are used.
+
+## For humans and agents
+
+| Caller | How it uses Gnomon | What Gnomon contributes |
+| --- | --- | --- |
+| Human operator or analyst | Runs CLI commands against local files or the bitemporal store | Data diagnosis, forecasts, change and anomaly analysis, decision support, readable summaries, and audit-ready artifacts |
+| AI agent | Calls the local MCP server with the data and question | JSON-schema tools, computed numbers, support tiers, quotable headlines, provenance, and machine-readable recovery actions |
+| Application | Calls the documented Python API | The same validated runtime and artifacts embedded in a larger workflow |
+
+For a human, Gnomon replaces the fragile chain of cleaning a file, choosing a
+model, inventing a backtest, and explaining the result by hand. For an agent,
+it creates a hard boundary: the model may frame the question and explain the
+answer, but Gnomon owns timestamps, evaluation, model selection, intervals,
+support status, and every published value. The LLM cannot silently edit or
+invent those numbers.
+
+Depending on the question, a governed result includes:
+
+- a deterministic headline and the key numbers;
+- a support tier that says how much confidence the evidence earned;
+- disclosed repairs, assumptions, limitations, and recovery actions;
+- the evaluation evidence that justified publication; and
+- an immutable artifact that can be inspected, replayed, and scored later.
 
 ## Where Gnomon sits
 
@@ -62,21 +78,30 @@ caller to say. A hosted router, benchmark service, or model-training network
 may supply better candidates later; none is required by this repository and
 none may bypass that contract.
 
-> A gnomon is the shadow-casting rod on a sundial: it computes nothing, and
-> it reads nothing at night rather than inventing an hour.
-> [More on the name](#the-name).
-
 **`gnomon capabilities` is the machine-readable source of truth for what a
 given build can do.** Roadmap features are never exposed as mocked
 commands. If this README and `gnomon capabilities` disagree, the command is
 right and this file is a bug.
 
+## Use it directly
+
+```bash
+bash install.sh --local
+gnomon forecast examples/daily_requests.csv --horizon 3
+```
+
+The CLI prints a readable answer and writes the complete evidence-linked
+artifact to `gnomon-output/`. Start with `summary.md`; use `forecast.csv` in
+downstream systems; keep `artifact.json` and `lineage.json` for replay and
+audit. See [the full CLI workflow](#see-the-full-cli-workflow) or the
+[getting-started guide](docs/getting-started.md).
+
 ## Hook it to your agent (60 seconds)
 
-The MCP server is the preferred surface for agents: the same runtime and
-the same contract as the CLI, without shell quoting, with JSON Schemas
-the host can validate against, and with structured errors that carry
-machine-readable repair options.
+MCP is Gnomon's only agent-facing contract. The local server exposes the same
+runtime as the CLI without shell quoting, with JSON Schemas the host can
+validate against and structured errors carrying machine-readable repair
+options.
 
 ```bash
 git clone https://github.com/TensorLink-AI/Gnomon && cd Gnomon
@@ -106,6 +131,14 @@ observations. See the [MCP quickstart](docs/quickstart-mcp.md) for
 client configs, the vintage workflow, and the full tool surface.
 (A `pip install gnomon-forecast` / `uvx gnomon-forecast` path arrives with the
 PyPI release.)
+
+Conversation cost is an engineering constraint, not a completed claim. Wide
+data is handled in one batched call; brief responses keep disclosures while
+moving bulk rows to immutable artifacts; repeated calls can use a session
+`data_ref` instead of resending observations. A fresh 1,800-execution workflow
+experiment selected the two-tool `evidence` profile as the default: 96.3%
+correctness and 89% trust at one median call and 12.7K tokens per case. `full`
+remains explicit opt-in for administration and deep audit.
 
 ## Why this needs an execution layer
 
@@ -161,7 +194,7 @@ fluently. Gnomon is a harness:
   scored against realised outcomes — regret against the best feasible
   action in hindsight, not vibes.
 
-## See it work
+## See the full CLI workflow
 
 ```bash
 bash install.sh --local          # --local installs this checkout
@@ -287,9 +320,8 @@ never rebuilds the winner from a model name.
   mechanically.
 - **Inputs:** CSV (any common delimiter), TSV, JSON/JSONL, gzipped text,
   Parquet (`parquet` extra), Excel (`excel` extra).
-- **Surfaces:** CLI, Python API, local MCP server (`gnomon mcp serve`),
-  Hermes plugin, Docker. An experimental plan compiler/executor sits behind
-  `GNOMON_EXPERIMENTAL_PLANNER=1`.
+- **Surfaces:** CLI, Python API, and the local MCP server (`gnomon mcp
+  serve`). Docker packages the CLI; it is not a separate contract surface.
 
 ## Input
 
@@ -389,22 +421,6 @@ falls back silently to defaults. If TOML and YAML are both present, Gnomon
 refuses the ambiguity. MCP calls deliberately take behavior-changing options
 as explicit tool arguments rather than reading ambient project config.
 
-## Gnomon and Hermes
-
-- **Hermes** manages intent, permitted data discovery, orchestration, and
-  explanation.
-- **Gnomon** validates temporal data and owns every numerical result.
-
-A packaged Hermes plugin lives in
-[`integrations/hermes`](integrations/hermes/README.md): tools for
-forecasting, context, realised scoring, lifecycle, and decision outcomes —
-including LLM-assisted context-event proposal run on the host's own model —
-plus an `gnomon:forecasting` safe-use skill. Any MCP-capable agent can
-instead launch `gnomon mcp serve` and discover the same tools over stdio.
-Either way the host must preserve Gnomon's support status and warnings and
-must never manufacture values for an unsupported series. Gnomon itself
-requires no LLM or API key.
-
 ## Documentation
 
 | Guide | Purpose |
@@ -422,16 +438,14 @@ requires no LLM or API key.
 | [Covariate enrichment](docs/covariates.md) | Let an agent propose external data without temporal leakage |
 | [Troubleshooting](docs/troubleshooting.md) | Structured errors and remediation |
 | [LLM integrations](docs/llm-integrations.md) | Current API-key status and the intended agent boundary |
-| [Hermes plugin](integrations/hermes/README.md) | Install and operate Gnomon inside Hermes Agent |
 | [Containers](docs/containers.md) | Local Docker and GHCR operation |
 | [Development](docs/development.md) | Repository layout, tests, goldens, and contribution constraints |
 | [CI/CD](docs/ci-cd.md) | Tests, PyPI trusted publishing, and releases |
-| [Agent evaluation](docs/agent-evaluation.md) | Measure Hermes task uplift with and without Gnomon |
+| [Agent evaluation](docs/agent-evaluation.md) | Measure agent task uplift with and without Gnomon |
 | [External benchmarks](benchmarks/README.md) | Runnable adapters for published time-series reasoning benchmarks (CiK, AnomLLM) with OpenRouter-served controls |
 
-`CHANGELOG.md` records what each release added; `COMPATIBILITY.md` freezes
-the v0.2 surface and every amendment to it (all v0.2 tools keep working
-unchanged).
+`CHANGELOG.md` records what each release added; `COMPATIBILITY.md` states the
+current compatibility policy and retired entry points.
 
 **Dated records, not descriptions of the current build:** the
 [codebase review](docs/codebase-review-2026-08.md) (all 58 findings fixed),

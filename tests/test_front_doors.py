@@ -228,25 +228,6 @@ def test_route_names_its_consumer():
     assert "candidates" in forecast["inputSchema"]["properties"]
 
 
-# -- H18: the two decision lifecycles are distinguishable ----------------
-
-def test_the_v02_decision_pair_is_marked_deprecated():
-    # The pair is opt-in now (GNOMON_V02_COMPAT=1), so its descriptions no
-    # longer argue for their replacement — but the supersession must still
-    # be legible from each description, and the pair must be off the
-    # default surface.
-    from gnomon.toolspec import TOOLS, V02_COMPAT_TOOLS
-
-    default_names = {tool["name"] for tool in TOOLS}
-    by_name = {tool["name"]: tool for tool in V02_COMPAT_TOOLS}
-    for name in ("gnomon_record_decision", "gnomon_resolve_decision"):
-        assert name not in default_names, f"{name} should be compat-gated"
-        assert "superseded" in by_name[name]["description"]
-    assert "gnomon_decide" in by_name["gnomon_record_decision"]["description"]
-    current_names = {tool["name"] for tool in TOOLS}
-    assert "gnomon_resolve_outcome" in current_names
-
-
 # -- H23: investigate answers in the reader's terms ----------------------
 
 def test_investigate_ranks_changes_and_marks_the_dominant_one(tmp_path):

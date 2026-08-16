@@ -1,10 +1,8 @@
 """Canonical machine-facing tool specifications.
 
 One definition of Gnomon's agent-facing tools — names, JSON Schemas, and
-in-process runners over the runtime — consumed by the MCP server and any
-future adapter. The Hermes plugin carries its own copy of the schemas
-because it must remain standalone-installable; this module is the source
-those copies are checked against.
+in-process runners over the runtime — consumed by the MCP server. This is
+the single source of truth for the public agent contract.
 """
 
 from __future__ import annotations
@@ -451,8 +449,8 @@ def compact_support_details(payload: dict[str, Any]) -> dict[str, Any]:
 #: gnomon_ingest is deliberately absent: a write to the store under guessed
 #: columns would persist the guess.
 _SCHEMA_INFERENCE_TOOLS: frozenset[str] = frozenset({
-    "gnomon_inspect", "gnomon_describe", "gnomon_forecast", "gnomon_covariate_guide",
-    "gnomon_validate_covariates", "gnomon_propose_covariates",
+    "gnomon_inspect", "gnomon_describe", "gnomon_forecast",
+    "gnomon_validate_covariates",
     "gnomon_preflight_context", "gnomon_route",
     "gnomon_investigate_change", "gnomon_detect_anomalies",
     "gnomon_decide", "gnomon_monitor", "gnomon_run",
@@ -1124,15 +1122,6 @@ def _run_list_datasets(arguments: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _run_covariate_guide(arguments: dict[str, Any]) -> dict[str, Any]:
-    from .covariates import covariate_guide
-    return covariate_guide(
-        arguments["input"], time_column=arguments["time_column"],
-        target_column=arguments["target_column"], horizon=int(arguments["horizon"]),
-        series_column=arguments.get("series_column"), frequency=arguments.get("frequency"),
-    )
-
-
 def _covariates_from(arguments: dict[str, Any]):
     """The covariate dataset from the file channel or the inline channel.
 
@@ -1496,40 +1485,6 @@ def _run_model_performance(arguments: dict[str, Any]) -> dict[str, Any]:
         rows = [item.__dict__ for item in store.leaderboard(str(arguments["project"]))]
     return {"status": "ok", "performance": rows,
             "warning": "Historical telemetry is observational, not causal."}
-
-
-def _run_proposer_skill(arguments: dict[str, Any]) -> dict[str, Any]:
-    from .tracking import TrackingStore
-    rows = TrackingStore().proposer_skill(
-        str(arguments["project"]),
-        proposer_id=(str(arguments["proposer_id"])
-                     if arguments.get("proposer_id") else None),
-        event_type=(str(arguments["event_type"])
-                    if arguments.get("event_type") else None),
-    )
-    return {"status": "ok", "proposers": rows,
-            "warning": ("Observational, set-level attribution; shrunk "
-                        "toward no-skill priors. No proposal currently "
-                        "earns forecast influence from these numbers.")}
-
-
-def _run_record_decision(arguments: dict[str, Any]) -> dict[str, Any]:
-    from .tracking import TrackingStore
-    item = TrackingStore().record_decision(
-        str(arguments["decision_id"]), str(arguments["project"]),
-        str(arguments["forecast_id"]), str(arguments["action"]),
-        str(arguments["expected_outcome"]),
-    )
-    return {"status": "ok", "decision": item.__dict__}
-
-
-def _run_resolve_decision(arguments: dict[str, Any]) -> dict[str, Any]:
-    from .tracking import TrackingStore
-    item = TrackingStore().resolve_decision(
-        str(arguments["decision_id"]), str(arguments["actual_outcome"]),
-        bool(arguments["correct"]),
-    )
-    return {"status": "ok", "decision": item.__dict__}
 
 
 TOOLS: list[dict[str, Any]] = [
@@ -1914,11 +1869,11 @@ def _run_status(arguments: dict[str, Any]) -> dict[str, Any]:
 
     section = str(arguments.get("section") or "all")
     if section == "open_forecasts":
-        # Byte-compatible with the retired gnomon_list_open_forecasts.
+        # Preserve the established open-forecast projection.
         return _run_open_forecasts(arguments)
     if section == "performance":
-        # Byte-compatible with the retired gnomon_model_performance,
-        # including its project requirement.
+        # Preserve the established performance projection and project
+        # requirement.
         if not arguments.get("project"):
             from .contracts import GnomonError
             raise GnomonError(
@@ -2315,11 +2270,8 @@ TOOLS.extend([
     {
         "name": "gnomon_resolve_outcome",
         "description": (
-            "The current decision resolver, for DecisionArtifacts produced by "
-            "`gnomon_decide`. (The v0.2 `gnomon_record_decision` / "
-            "`gnomon_resolve_decision` pair is deprecated and resolves only its "
-            "own records.) "
-            "Resolve a recorded DecisionArtifact with what actually happened: "
+            "Resolve DecisionArtifacts produced by `gnomon_decide` with what "
+            "actually happened: "
             "realised scenario and/or per-action realised utilities. Returns "
             "realised utility, regret vs the best feasible action in "
             "hindsight, ex-ante optimality, and risk calibration — bare "
@@ -2405,195 +2357,9 @@ TOOLS.extend([
 ])
 
 
-# --- Experimental planner surface (advanced; macros remain the default) ---
-
-def planner_enabled() -> bool:
-    import os
-    return os.environ.get("GNOMON_EXPERIMENTAL_PLANNER") == "1"
-
-
-def _run_compile_task(arguments: dict[str, Any]) -> dict[str, Any]:
-    from dataclasses import asdict
-    from .plan import compile_task
-    plan = compile_task(str(arguments["task_type"]), dict(arguments.get("params") or {}))
-    return {"schema_version": "0.1", "plan_id": plan.plan_id(),
-            "plan": {"task": plan.task, "steps": [asdict(step) for step in plan.steps]}}
-
-
-def _run_validate_plan(arguments: dict[str, Any]) -> dict[str, Any]:
-    from .plan import plan_from_dict, validate_plan
-    plan = plan_from_dict(dict(arguments["plan"]))
-    violations = validate_plan(plan)
-    return {"schema_version": "0.1", "plan_id": plan.plan_id(),
-            "valid": not violations, "violations": violations}
-
-
-def _run_execute_plan(arguments: dict[str, Any]) -> dict[str, Any]:
-    from .execution import execute_plan
-    from .plan import plan_from_dict
-    payload, path = execute_plan(
-        plan_from_dict(dict(arguments["plan"])),
-        output=arguments.get("output_dir") or "gnomon-output",
-        as_of=_parse_as_of(arguments.get("as_of")),
-        store_path=arguments.get("store_path"),
-    )
-    return {**payload, "artifact_path": str(path)}
-
-
-def _run_get_run(arguments: dict[str, Any]) -> dict[str, Any]:
-    from .artifacts import read_artifact
-    return {"schema_version": "0.1", "run": read_artifact(arguments["run_path"])}
-
-
-_PLAN_PROPERTY = {"type": "object", "description": "A TemporalPlan: {task, steps: [{step_id, operator, inputs, produces, failure_policy}]}."}
-
-PLANNER_TOOLS: list[dict[str, Any]] = [
-    {
-        "name": "gnomon_compile_task",
-        "description": "Compile one of the four canonical task types into a validated TemporalPlan (experimental).",
-        "inputSchema": {"type": "object", "properties": {
-            "task_type": {"type": "string", "enum": ["forecast", "investigate_change", "decide", "monitor"]},
-            "params": {"type": "object", "description": "The macro's parameters."},
-        }, "required": ["task_type", "params"]},
-        "runner": _run_compile_task,
-    },
-    {
-        "name": "gnomon_validate_plan",
-        "description": "Deterministically validate a TemporalPlan: operators, references, leakage, claim-class feasibility, budget, duplicates (experimental).",
-        "inputSchema": {"type": "object", "properties": {"plan": _PLAN_PROPERTY},
-                        "required": ["plan"]},
-        "runner": _run_validate_plan,
-    },
-    {
-        "name": "gnomon_execute_plan",
-        "description": "Execute a validated TemporalPlan with step checkpointing, content-addressed caching, and deterministic replay (experimental).",
-        "inputSchema": {"type": "object", "properties": {
-            "plan": _PLAN_PROPERTY,
-            "output_dir": {"type": "string"},
-            "as_of": {"type": "string"},
-            "store_path": {"type": "string"},
-        }, "required": ["plan"]},
-        "runner": _run_execute_plan,
-    },
-    {
-        "name": "gnomon_get_run",
-        "description": "Read a stored plan-run artifact: step provenance and outputs (experimental).",
-        "inputSchema": {"type": "object", "properties": {
-            "run_path": {"type": "string", "description": "Run artifact directory."},
-        }, "required": ["run_path"]},
-        "runner": _run_get_run,
-    },
-]
-
-
-def v02_compat_enabled() -> bool:
-    import os
-    return os.environ.get("GNOMON_V02_COMPAT") == "1"
-
-
-#: Tools retired from the default surface, off by default but never
-#: silently removed: GNOMON_V02_COMPAT=1 restores every entry, schemas and
-#: behaviour unchanged. Each is deprecated, superseded by a surviving tool,
-#: or too rarely needed in a session to earn a slot on a surface that
-#: competes for model attention.
-V02_COMPAT_TOOLS: list[dict[str, Any]] = [
-    {
-        "name": "gnomon_record_decision",
-        "description": ("Link a free-text agent decision and expected "
-                        "outcome to a tracked forecast (v0.2 lifecycle; "
-                        "superseded by gnomon_decide)."),
-        "inputSchema": {"type": "object", "properties": {
-            "decision_id": {"type": "string"}, "project": {"type": "string"},
-            "forecast_id": {"type": "string"}, "action": {"type": "string"},
-            "expected_outcome": {"type": "string"},
-        }, "required": ["decision_id", "project", "forecast_id", "action", "expected_outcome"]},
-        "runner": _run_record_decision,
-    },
-    {
-        "name": "gnomon_resolve_decision",
-        "description": ("Record the realised outcome and a yes/no verdict "
-                        "for a v0.2 decision record (superseded by "
-                        "gnomon_resolve_outcome)."),
-        "inputSchema": {"type": "object", "properties": {
-            "decision_id": {"type": "string"}, "actual_outcome": {"type": "string"},
-            "correct": {"type": "boolean"},
-        }, "required": ["decision_id", "actual_outcome", "correct"]},
-        "runner": _run_resolve_decision,
-    },
-    {
-        "name": "gnomon_list_open_forecasts",
-        "description": ("List unscored forecasts and due horizons "
-                        "(superseded by gnomon_status "
-                        "section='open_forecasts')."),
-        "inputSchema": {"type": "object", "properties": {
-            "project": {"type": "string"},
-        }, "required": []},
-        "runner": _run_open_forecasts,
-    },
-    {
-        "name": "gnomon_model_performance",
-        "description": ("Read realised per-model performance for a project "
-                        "(superseded by gnomon_status "
-                        "section='performance'; observational, never "
-                        "causal)."),
-        "inputSchema": {"type": "object", "properties": {
-            "project": {"type": "string"}, "model": {"type": "string"},
-        }, "required": ["project"]},
-        "runner": _run_model_performance,
-    },
-    {
-        "name": "gnomon_covariate_guide",
-        "description": ("Return point-in-time covariate format, forecast "
-                        "dates, and this dataset's fold cutoffs (the "
-                        "static format contract now lives in "
-                        "gnomon_validate_covariates' description)."),
-        "inputSchema": {"type": "object", "properties": {
-            **_INPUT_PROPERTIES,
-            "horizon": {"type": "integer"},
-        }, "required": ["horizon"]},
-        "runner": _run_covariate_guide,
-    },
-    {
-        "name": "gnomon_propose_covariates",
-        "description": ("Covariate-admission entry to the evaluated "
-                        "forecast (same runner as gnomon_forecast, which "
-                        "accepts every covariate argument directly)."),
-        "inputSchema": {"type": "object", "properties": {
-            **_INPUT_PROPERTIES,
-            "horizon": {"type": "integer"},
-            "output_dir": {"type": "string"},
-            "minimum_baseline_improvement": {"type": "number", "minimum": 0},
-            "covariates_file": {"type": "string"},
-            **_COVARIATES_PROPERTY,
-            **_COVARIATE_MAPPING_PROPERTY,
-            "covariate_time_column": {"type": "string"},
-            "covariate_known_at_column": {"type": "string"},
-            "covariate_series_column": {"type": "string"},
-        }, "required": ["horizon", "covariate_mapping"]},
-        "runner": _run_forecast,
-    },
-    {
-        "name": "gnomon_proposer_skill",
-        "description": ("Shrunk per-proposer, per-event-type skill from "
-                        "resolved context-event proposals (realised lift vs "
-                        "the history-only counterfactual, in WAPE). "
-                        "Observational; attribution is set-level because the "
-                        "admission gate decides on event sets."),
-        "inputSchema": {"type": "object", "properties": {
-            "project": {"type": "string"},
-            "proposer_id": {"type": "string"},
-            "event_type": {"type": "string"},
-        }, "required": ["project"]},
-        "runner": _run_proposer_skill,
-    },
-]
-
-
-#: Task profiles: named subsets of the default surface for hosts that know
-#: what kind of session they are running. A narrowed profile narrows
-#: everything — compat and planner tools appear only under `full` (their
-#: gates still apply there). Selected by `gnomon mcp serve --profile` or
-#: the GNOMON_MCP_PROFILE env var; capabilities reports the active one.
+#: Task profiles: named subsets of the canonical surface for hosts that know
+#: what kind of session they are running. Selected by `gnomon mcp serve
+#: --profile` or the GNOMON_MCP_PROFILE env var.
 _CORE_PROFILE = frozenset({
     "gnomon_capabilities", "gnomon_inspect", "gnomon_forecast",
     "gnomon_investigate_change", "gnomon_detect_anomalies",
@@ -2629,13 +2395,8 @@ def active_profile() -> str:
 
 
 def visible_tools() -> list[dict[str, Any]]:
-    """The tool surface as gated for this process: the active profile's
-    subset of the macros; the v0.2 compat tools only behind
-    GNOMON_V02_COMPAT=1; the raw planner only behind
-    GNOMON_EXPERIMENTAL_PLANNER=1 (both only under the full profile)."""
-    tools = (TOOLS
-             + (V02_COMPAT_TOOLS if v02_compat_enabled() else [])
-             + (PLANNER_TOOLS if planner_enabled() else []))
+    """The canonical tool surface filtered by the active profile."""
+    tools = TOOLS
     profile = active_profile()
     if profile == "full":
         return [tool for tool in tools

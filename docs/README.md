@@ -43,7 +43,7 @@ build can do.** Prefer it to any prose here, including this file.
 | [Concepts](concepts.md) | You want to understand selection, evaluation, intervals, context events, or abstention. |
 | [Covariate enrichment](covariates.md) | You want an agent to propose external data without temporal leakage. |
 | [Troubleshooting](troubleshooting.md) | A command failed or returned unsupported. |
-| [LLM integrations](llm-integrations.md) | You are looking for API-key, OpenRouter, or Hermes support. |
+| [LLM integrations](llm-integrations.md) | You need the boundary between Gnomon, an MCP host, and optional model APIs. |
 | [Agent evaluation](agent-evaluation.md) | You want to measure whether Gnomon improves an agent. |
 | [Product position](product-position.md) | You need the promise, buyer, boundaries, and claims Gnomon can make. |
 | [Development](development.md) | You want to test or contribute to Gnomon. |
@@ -57,8 +57,8 @@ build can do.** Prefer it to any prose here, including this file.
 - Five verbs — `forecast`, `investigate`, `detect`, `decide`, `monitor` —
   plus `route`, `inspect`, `capabilities`, and `status`.
 - Three front doors: CLI, Python API, and a local stdio MCP server
-  (`gnomon mcp serve`, 2 tools in the default `evidence` profile). A packaged Hermes plugin and a Docker
-  image wrap the same runtime.
+  (`gnomon mcp serve`, 2 tools in the default `evidence` profile). Docker
+  packages the CLI rather than adding another contract surface.
 
 **Temporal core**
 
@@ -98,9 +98,6 @@ build can do.** Prefer it to any prose here, including this file.
 (`parquet` extra), Excel (`excel` extra). Minute (1/5/15/30), hourly,
 daily, weekly, and month-start frequencies. Independent series in one
 panel file.
-
-**Experimental:** the plan compiler and executor (`gnomon plan`), behind
-`GNOMON_EXPERIMENTAL_PLANNER=1`.
 
 **Not built:** hosted services, sharing, and automatic model switching.
 Realised leaderboards are observational telemetry and never switch a model

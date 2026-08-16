@@ -19,18 +19,15 @@ import re
 
 
 def _all_defined_tool_names() -> set[str]:
-    from gnomon.toolspec import PLANNER_TOOLS, TOOLS, V02_COMPAT_TOOLS
+    from gnomon.toolspec import TOOLS
 
-    return {tool["name"]
-            for tool in TOOLS + V02_COMPAT_TOOLS + PLANNER_TOOLS}
+    return {tool["name"] for tool in TOOLS}
 
 
 def _default_surface(monkeypatch) -> set[str]:
     from gnomon.toolspec import visible_tools
 
     monkeypatch.delenv("GNOMON_MCP_PROFILE", raising=False)
-    monkeypatch.delenv("GNOMON_V02_COMPAT", raising=False)
-    monkeypatch.delenv("GNOMON_EXPERIMENTAL_PLANNER", raising=False)
     return {tool["name"] for tool in visible_tools()}
 
 
