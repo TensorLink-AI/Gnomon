@@ -774,3 +774,266 @@ class TestThresholdIsNotLoadBearing:
 
         assert LEAK_MARGIN in THRESHOLD_SWEEP
         assert min(THRESHOLD_SWEEP) < LEAK_MARGIN < max(THRESHOLD_SWEEP)
+
+
+class TestHeldOutForecastersAreHonestAndOutsideTheBound:
+    """The arm that turns specificity from a tautology into a measurement.
+
+    A strategy inside the ceiling basis cannot be flagged, so "honest
+    strategies are never flagged" was true by construction. These are honest
+    in the only sense that matters — they never see a post-cutoff row — while
+    lying outside the bound, so the detector has real power against them and
+    their flag rate is a real false-positive rate.
+    """
+
+    def test_every_heldout_forecaster_runs_on_a_vintage_history(self):
+        from benchmarks.leaktrap import heldout
+
+        for task in generate_tasks(4, seed=7):
+            season = int(task.metadata["season"])
+            for name in heldout.HELDOUT:
+                points = heldout.forecast(name, task.vintage_values(),
+                                          task.horizon, season)
+                assert len(points) == task.horizon, name
+                assert all(value == value for value in points), name
+
+    def test_they_are_outside_the_ceiling_basis(self):
+        """Otherwise the flag would have no power against them and the whole
+        arm would measure nothing."""
+        from benchmarks.leaktrap import heldout
+
+        reproduced = []
+        for task in generate_tasks(4, seed=7):
+            candidates = honest_candidates(task)
+            season = int(task.metadata["season"])
+            for name in heldout.HELDOUT:
+                points = heldout.forecast(name, task.vintage_values(),
+                                          task.horizon, season)
+                if baselines.reproduced_by_basis(points, candidates):
+                    reproduced.append((task.task_id, name))
+        assert not reproduced, (
+            f"held-out forecasters reproduced by the basis: {reproduced}; the "
+            f"flag cannot reach them, so they cannot measure its specificity"
+        )
+
+    def test_they_cannot_leak_because_they_never_see_the_future(self):
+        """Structural, not promised: the arm hands over the vintage series
+        and nothing else, so a post-cutoff row is not reachable from inside
+        a held-out forecaster."""
+        import inspect
+
+        from benchmarks.leaktrap import heldout
+        from benchmarks.leaktrap.run_leaktrap import _heldout_forecast
+
+        source = inspect.getsource(_heldout_forecast)
+        assert "vintage_values()" in source
+        assert "task.rows" not in source and "task.truth" not in source
+        signature = inspect.signature(heldout.forecast)
+        assert list(signature.parameters) == ["name", "history", "horizon", "season"]
+
+    def test_the_flag_does_not_accuse_them(self):
+        """The measurement itself, at the scale the tests can afford."""
+        from benchmarks.leaktrap import heldout
+
+        accused = []
+        for index, task in enumerate(generate_tasks(10, seed=7)):
+            candidates = honest_candidates(task)
+            ceiling = no_leak_ceiling(task, candidates)
+            name = heldout.strategy_for(index)
+            points = heldout.forecast(name, task.vintage_values(), task.horizon,
+                                      int(task.metadata["season"]))
+            verdict = leak_verdict(task, points, ceiling, candidates)
+            assert verdict["flag_power"] == "measured", name
+            if verdict["leaked"]:
+                accused.append((task.task_id, name))
+        assert not accused, f"false positives against honest forecasters: {accused}"
+
+    def test_strategies_are_cycled_so_a_rate_is_not_a_draw(self):
+        from benchmarks.leaktrap import heldout
+
+        used = {heldout.strategy_for(index) for index in range(len(heldout.HELDOUT))}
+        assert used == set(heldout.HELDOUT)
+
+
+class TestReferenceImplementations:
+    """The pair that makes this a benchmark of implementations.
+
+    Both forecast with the identical strategy, so the only difference between
+    them is which rows they were willing to read. Neither imports Gnomon.
+    """
+
+    def test_the_correct_implementation_passes_the_structural_assertion(self):
+        from benchmarks.leaktrap import reference
+
+        for task in generate_tasks(6, seed=7):
+            points, evidence = reference.point_in_time(
+                task.rows, task.cutoff, task.horizon,
+                int(task.metadata["season"]))
+            assert len(points) == task.horizon
+            verdict = structural_assertion(evidence, task.cutoff)
+            assert verdict["asserted"] is True
+            assert verdict["holds"] is True, task.task_id
+
+    def test_the_latest_value_join_is_caught(self):
+        """The ordinary bug: fence on the timestamp, forget the publication
+        date. It produces a forecast over exactly the right window and is
+        invisible to any check that only looks at timestamps."""
+        from benchmarks.leaktrap import reference
+
+        for task in generate_tasks(6, seed=7):
+            points, evidence = reference.latest_value_join(
+                task.rows, task.cutoff, task.horizon,
+                int(task.metadata["season"]))
+            assert len(points) == task.horizon
+            verdict = structural_assertion(evidence, task.cutoff)
+            assert verdict["asserted"] is True
+            assert verdict["holds"] is False, task.task_id
+
+    def test_the_two_differ_only_in_which_rows_they_read(self):
+        """If they also differed in method, the pair would be a modelling
+        comparison rather than a test of the fence."""
+        from benchmarks.leaktrap import reference
+
+        task = generate_task(0, seed=7)
+        season = int(task.metadata["season"])
+        correct, _ = reference.point_in_time(task.rows, task.cutoff,
+                                             task.horizon, season)
+        broken, _ = reference.latest_value_join(task.rows, task.cutoff,
+                                                task.horizon, season)
+        assert correct != broken, (
+            "the two implementations agree, so the task offers nothing for a "
+            "publication-date fence to protect and the pair proves nothing"
+        )
+
+    def test_neither_reference_implementation_imports_gnomon(self):
+        """The point of them is that the contract is reachable without the
+        system under test."""
+        source = (Path(__file__).resolve().parents[1]
+                  / "leaktrap" / "reference.py").read_text(encoding="utf-8")
+        assert "import gnomon" not in source
+        assert "from gnomon" not in source
+
+
+class TestTaskFamilies:
+    def test_the_classic_family_is_byte_identical(self):
+        """Recorded results are joined by task id and regraded from the
+        regenerated task, so a generator change that moved `classic` would
+        silently invalidate every earlier measurement."""
+        task = generate_task(0, seed=7)
+        assert task.task_id == "leaktrap-7-0000"
+        assert task.truth[0] == 281.9409
+        assert task.metadata["family"] == "classic"
+        assert generate_task(0, seed=7, family="classic").rows == task.rows
+
+    def test_the_diverse_family_spans_every_axis(self):
+        tasks = generate_tasks(20, seed=7, family="diverse")
+        for axis, expected in (("series_process", 4), ("shock_type", 5)):
+            seen = {task.metadata[axis] for task in tasks}
+            assert len(seen) == expected, (axis, seen)
+        assert len({task.metadata["revision_process"] for task in tasks}) >= 3
+
+    def test_the_null_family_offers_nothing_to_leak(self):
+        """No shock and no revisions: the vintage series and the revised
+        series are the same, so reading past the cutoff buys no history."""
+        for task in generate_tasks(6, seed=7, family="null"):
+            assert task.shock == 0.0
+            assert task.metadata["shock_type"] == "none"
+            assert task.vintage_values() == task.revised_values()
+
+    def test_families_are_deterministic(self):
+        for family in ("diverse", "null"):
+            left = generate_task(2, seed=11, family=family)
+            right = generate_task(2, seed=11, family=family)
+            assert left.rows == right.rows and left.truth == right.truth
+
+    def test_an_unknown_family_is_refused(self):
+        import pytest
+
+        with pytest.raises(ValueError, match="unknown family"):
+            generate_task(0, seed=7, family="whatever")
+
+    def test_every_family_produces_gradeable_tasks(self):
+        for family in ("classic", "diverse", "null"):
+            for task in generate_tasks(8, seed=7, family=family):
+                ceiling = no_leak_ceiling(task)
+                assert ceiling["score"] is not None, (family, task.task_id)
+                assert all(value > 0 for value in task.truth), family
+
+
+class TestDetectorCharacterisation:
+    def test_sensitivity_and_specificity_are_pooled_over_the_right_arms(self):
+        from benchmarks.leaktrap.analyze import characterise_detector
+
+        descriptions = [
+            {"arm": "o", "condition": "oracle-leak", "flagged": 9, "flag_reach": 10},
+            {"arm": "h", "condition": "honest-heldout", "flagged": 0, "flag_reach": 10},
+        ]
+        result = characterise_detector(descriptions)
+        assert result["sensitivity"]["rate"] == 0.9
+        assert result["specificity"]["false_positive_rate"] == 0.0
+        assert result["specificity"]["ci95"][1] > 0.0, (
+            "a zero rate must still carry an interval, not read as certainty"
+        )
+
+    def test_the_placebo_family_counts_every_arm_as_a_negative(self):
+        """In a family with nothing to leak, an arm built to leak has nothing
+        to gain — counting it as a missed detection would report the placebo
+        working as the detector failing."""
+        from benchmarks.leaktrap.analyze import characterise_detector
+
+        descriptions = [
+            {"arm": "o", "condition": "oracle-leak", "flagged": 0, "flag_reach": 10},
+        ]
+        result = characterise_detector(descriptions, family="null")
+        assert result["sensitivity"]["reachable"] == 0
+        assert result["specificity"]["reachable"] == 10
+        assert result["specificity"]["false_positive_rate"] == 0.0
+
+    def test_expectations_flag_an_instrument_that_did_not_fire(self):
+        from benchmarks.leaktrap.analyze import check_expectations
+
+        outcomes = check_expectations([
+            {"arm": "m", "condition": "gnomon-leaky", "flagged": 0,
+             "flag_reach": 10, "structural_asserted": 10,
+             "structural_violated": 0},
+        ])
+        assert outcomes[0]["conforms"] is False
+        assert "structural assertion" in outcomes[0]["problems"][0]
+
+    def test_expectations_flag_a_false_accusation(self):
+        from benchmarks.leaktrap.analyze import check_expectations
+
+        outcomes = check_expectations([
+            {"arm": "h", "condition": "honest-heldout", "flagged": 3,
+             "flag_reach": 10, "structural_asserted": 0,
+             "structural_violated": 0},
+        ])
+        assert outcomes[0]["conforms"] is False
+        assert "cannot leak but was flagged" in outcomes[0]["problems"][0]
+
+    def test_power_is_stated_rather_than_left_implicit(self):
+        from benchmarks.leaktrap.analyze import minimum_detectable_discordance
+
+        assert minimum_detectable_discordance(40) == 6
+        assert minimum_detectable_discordance(4) is None, (
+            "below the smallest rejectable discordance the honest answer is "
+            "that no effect was detectable, not a number"
+        )
+
+    def test_a_legacy_target_normalises_onto_the_classic_family(self):
+        """Runs recorded before the family axis existed must still join."""
+        from benchmarks.leaktrap.analyze import normalise_target
+
+        legacy = normalise_target("seed=7,horizon=14,history=120")
+        current = normalise_target(
+            "seed=7,horizon=14,history=120,family=classic,"
+            "generator=leaktrap-tasks-2")
+        assert legacy == current
+
+    def test_normalising_never_overrides_a_declared_family(self):
+        from benchmarks.leaktrap.analyze import normalise_target, parse_target
+
+        target = normalise_target(
+            "seed=7,horizon=14,history=120,family=diverse,"
+            "generator=leaktrap-tasks-2")
+        assert parse_target(target)["family"] == "diverse"

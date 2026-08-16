@@ -74,6 +74,68 @@ result in the family, and it is an argument about instruments: **the leak
 flag detects the shock channel; only the structural assertion detects the
 revision channel**, which is the one a bitemporal store exists to close.
 
+## The detector, characterised
+
+The leak flag is now reported as an instrument rather than as a verdict.
+Sensitivity pools the arms built to leak; the false-positive rate pools the
+arms that cannot leak by construction — the held-out honest forecasters, the
+correct reference implementation, and Gnomon. Rows the flag could not reach
+are in neither denominator.
+
+| family | sensitivity | false positives |
+|---|---|---|
+| `classic` | **77.5%** [67.2%, 85.3%] (62/80) | **0.0%** [0.0%, 8.8%] (0/40) |
+| `diverse` | **22.5%** [14.7%, 32.8%] (18/80) | **0.0%** [0.0%, 8.8%] (0/40) |
+| `null` (placebo) | n/a — nothing to detect | **0.0%** [0.0%, 4.6%] (0/80) |
+
+The specificity is the number that did not exist before: "honest strategies
+are never flagged" used to be true by construction, because every strategy
+tested lay inside the ceiling's own basis. The `honest-heldout` arm runs five
+competent forecasters that lie outside it — ensemble median, AR(2), a Kalman
+local-trend, analog k-NN, robust decomposition — so the flag has real power
+against them and every flag would be a false one. None was raised.
+
+The sensitivity is the number that got worse, and it should have. Sensitivity
+falls by more than half on the diverse family, and the per-stratum breakdown
+says exactly why:
+
+| shock type (diverse, `oracle-leak`) | flagged | median advantage |
+|---|---|---|
+| step | **8 / 8** | +0.831 |
+| none | 2 / 8 | +0.095 |
+| ramp | 0 / 8 | −0.325 |
+| spike | 0 / 8 | −0.073 |
+| variance | 0 / 8 | −0.033 |
+
+**The score-based flag detects level shifts and very little else.** A ramped
+shift, a transient spike, or a pure variance change is worth reading and is
+not worth enough, against a hindsight ceiling, to be called a leak. This is a
+limitation of the instrument that only one shape of task would ever have
+hidden, and it is why `analyze` reports `by_shock_type` rather than a pooled
+rate.
+
+## The instrument is invariant; the detector is not
+
+The structural assertion returns the same answer in every family:
+
+| arm | `classic` | `diverse` | `null` |
+|---|---|---|---|
+| `gnomon` holds | 40 / 40 | 40 / 40 | 40 / 40 |
+| `reference-pit` holds | 40 / 40 | 40 / 40 | 40 / 40 |
+| `gnomon-leaky` holds | 0 / 40 | 0 / 40 | 0 / 40 |
+| `reference-naive` holds | 0 / 40 | 0 / 40 | 0 / 40 |
+
+One instrument depends on the shape of the data and the other does not. That
+contrast is the strongest argument in the family for having the structural
+check at all, and it is a measurement rather than an assertion.
+
+`reference-pit` and `reference-naive` are ~10-line implementations that do
+not import Gnomon: a correct publication-date filter, and the ordinary bug
+of fencing on `timestamp` instead. Both forecast with the identical strategy,
+so the only difference between them is which rows they were willing to read.
+The benchmark passes the first and catches the second, which is what makes it
+a benchmark of point-in-time correctness rather than a test of one vendor.
+
 ## Results
 
 All arms on the same 40 tasks, regraded under one basis.
@@ -82,10 +144,18 @@ All arms on the same 40 tasks, regraded under one basis.
 |---|---|---|---|---|---|---|
 | `control` (GLM-5.2) | 35 / 40 | 35 † | 7 | 20.0% [10.0%, 35.9%] | 4 | not asserted |
 | `control-honest` | — | — | — | **not yet run** | — | not asserted |
+| `honest-heldout` | 40 / 40 | 40 | **0** | 0.0% [0.0%, 8.8%] | 0 | not asserted |
+| `reference-pit` | 40 / 40 | **0** | 0 | **no power** | 0 | **40 / 40** |
+| `reference-naive` | 40 / 40 | 40 | 0 | 0.0% [0.0%, 8.8%] | 0 | **0 / 40** |
 | `gnomon` | 40 / 40 | **0** | 0 | **no power** | 0 | **40 / 40** |
 | `gnomon-leaky` | 40 / 40 | 40 | 0 | 0.0% [0.0%, 8.8%] | 0 | **0 / 40** |
 | `naive-leak` | 40 / 40 | 40 | 23 | 57.5% [42.2%, 71.5%] | 0 | not asserted |
 | `oracle-leak` | 40 / 40 | 40 | 39 | 97.5% [87.1%, 99.6%] | 0 | not asserted |
+
+Every arm conformed to its pre-registered role
+([PREREGISTRATION.md](../benchmarks/leaktrap/PREREGISTRATION.md)); `analyze`
+checks each one and prints the conformance line, so a hoped-for number and a
+measured one are distinguishable after the fact.
 
 † The control's rows were recorded before forecasts were stored, so their
 leak advantage is exactly recomputable but their *reach* is not: whether the
@@ -141,6 +211,12 @@ the tasks it answered (95% CI 10.0–35.9%, abstention bracket 17.5–30.0%) and
 transcribed the future outright on 4 of them. The transcriptions do not
 depend on the ceiling and are not affected by any of the regrading above.
 
+## Power
+
+At 40 tasks an exact McNemar needs 6 one-directional discordant pairs to
+reject at α = 0.05. Any null result below that reads as "no effect of this
+size was detectable", not "no effect".
+
 ## Honest limits
 
 - **`control-honest` has never been run.** Until it is, the leak flag has no
@@ -156,6 +232,18 @@ depend on the ceiling and are not affected by any of the regrading above.
   "you under-prompted it" with a `strict` variant, and has not been run. A
   control that can be prompted into safety is a materially different claim
   from one that cannot.
+- **The flag is shape-sensitive, and its sensitivity does not transfer.**
+  77.5% on `classic`, 22.5% on `diverse`, carried almost entirely by the
+  step-shock stratum. A leakage rate from this instrument is a statement
+  about the family it was measured on.
+- **Still synthetic.** No real vintage series (ALFRED, real-time macro
+  databases) is used. The three revision processes are modelled on documented
+  behaviour — late-arriving reports, zero-mean news revisions, whole-history
+  rebasing — but generated data is generated data, and this remains the
+  largest external-validity gap.
+- **The access record is a declaration.** An implementation that misreports
+  its own reads is not caught by the structural assertion. The benchmark
+  grades the record and the forecast; it does not audit the process.
 - **The revision channel pays nothing to the flag, by construction.** The
   ceiling grants the revision correction so that a forecaster who legitimately
   learned the pattern is not accused of cleverness; the price is that the

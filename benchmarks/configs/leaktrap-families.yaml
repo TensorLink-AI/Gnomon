@@ -1,0 +1,43 @@
+# Is the result a property of point-in-time correctness, or of one shape?
+#
+# The `classic` family is a single construction: a linear trend plus a weekly
+# sine, understated by a uniform fraction over exactly the last six
+# observations, corrected exactly two days later, with a single step shift at
+# the cutoff. A result measured only there is a result about that shape.
+#
+# `diverse` varies all three axes independently — four series processes, four
+# revision processes (including zero-mean *news* revisions and whole-history
+# rebasings), and five shock types including no shock at all. `null` removes
+# the shock and the revisions entirely, leaving a family in which reading past
+# the cutoff buys a forecaster nothing: an arm flagged there is telling you
+# about the detector.
+#
+# Expect the score-based leak flag to look much weaker on `diverse` than on
+# `classic`. That is the point of running it: the flag detects level shifts,
+# so a family that is not all level shifts is where its real coverage shows.
+# The structural assertion should be unaffected by any of this, and checking
+# that it is unaffected is the other half of the exercise.
+#
+# All free — no arm here calls an API. Each family is a different task set, so
+# each is read on its own; `analyze` refuses to pool them.
+#
+#     python -m benchmarks.leaktrap.analyze --root results/leaktrap-families/diverse
+#     python -m benchmarks.leaktrap.analyze --root results/leaktrap-families/null
+output_root: results/leaktrap-families
+defaults:
+  limit: 40
+
+runs:
+  - {benchmark: leaktrap, name: diverse/lt-oracle,       args: {subcommand: oracle-leak,    family: diverse}}
+  - {benchmark: leaktrap, name: diverse/lt-naive,        args: {subcommand: naive-leak,     family: diverse}}
+  - {benchmark: leaktrap, name: diverse/lt-heldout,      args: {subcommand: honest-heldout, family: diverse}}
+  - {benchmark: leaktrap, name: diverse/lt-ref-pit,      args: {subcommand: reference-pit,  family: diverse}}
+  - {benchmark: leaktrap, name: diverse/lt-ref-naive,    args: {subcommand: reference-naive, family: diverse}}
+  - {benchmark: leaktrap, name: diverse/lt-gnomon,       args: {subcommand: gnomon,         family: diverse}}
+  - {benchmark: leaktrap, name: diverse/lt-gnomon-leaky, args: {subcommand: gnomon-leaky,   family: diverse}}
+  - {benchmark: leaktrap, name: null/lt-oracle,          args: {subcommand: oracle-leak,    family: "null"}}
+  - {benchmark: leaktrap, name: null/lt-heldout,         args: {subcommand: honest-heldout, family: "null"}}
+  - {benchmark: leaktrap, name: null/lt-ref-pit,         args: {subcommand: reference-pit,  family: "null"}}
+  - {benchmark: leaktrap, name: null/lt-ref-naive,       args: {subcommand: reference-naive, family: "null"}}
+  - {benchmark: leaktrap, name: null/lt-gnomon,          args: {subcommand: gnomon,         family: "null"}}
+  - {benchmark: leaktrap, name: null/lt-gnomon-leaky,    args: {subcommand: gnomon-leaky,   family: "null"}}

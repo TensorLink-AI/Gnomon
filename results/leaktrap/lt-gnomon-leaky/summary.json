@@ -4,6 +4,8 @@
   "model": null,
   "prompt_variant": null,
   "seed": 7,
+  "family": "classic",
+  "generator": "leaktrap-tasks-2",
   "ceiling_basis": "leaktrap-ceiling-1",
   "leak_margin": 0.25,
   "tasks": 40,

@@ -2,7 +2,7 @@
   "benchmark": "leakage-trap",
   "ceiling_basis": "leaktrap-ceiling-1",
   "code_revision": "44cd2d4",
-  "command": "/home/user/Gnomon/benchmarks/leaktrap/run_leaktrap.py oracle-leak --limit 40 --output-dir results/leaktrap/lt-oracle",
-  "condition": "oracle-leak",
+  "command": "/home/user/Gnomon/benchmarks/leaktrap/run_leaktrap.py reference-naive --limit 40 --output-dir results/leaktrap/lt-ref-naive",
+  "condition": "reference-naive",
   "target": "seed=7,horizon=14,history=120,family=classic,generator=leaktrap-tasks-2"
 }

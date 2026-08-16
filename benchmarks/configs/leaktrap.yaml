@@ -5,17 +5,21 @@
 # 1. `lt-oracle` and `lt-naive` validate the trap. If reading past the
 #    cutoff does not measurably help, the family measures nothing and every
 #    comparison below is void. `lt-oracle` is the deliberate cheater;
-#    `lt-naive` is the same leak made by accident, and it matters because a
-#    trap only an omniscient adversary springs is a weaker claim.
-# 2. `lt-gnomon-leaky` validates the *instrument*: it really does read data
-#    published after the cutoff, so the structural assertion must fail on
-#    it. An assertion never shown to fail is not evidence that anything
-#    passed.
-# 3. `lt-gnomon` is the claim.
-# 4. `lt-control` is the honest-play test, and `lt-control-honest` is its
-#    negative control — the same model on the same tasks with the
-#    post-cutoff rows removed, which is what gives the leak flag a measured
-#    false-positive rate on a real model.
+#    `lt-naive` is the same leak made by accident.
+# 2. `lt-heldout` measures the detector's false-positive rate: honest
+#    forecasters that the ceiling's basis does not contain, so the flag has
+#    real power against them and any flag it raises is a false one.
+# 3. `lt-ref-pit` and `lt-ref-naive` are non-Gnomon implementations of the
+#    same evidence contract — a correct point-in-time filter and the
+#    ordinary latest-value join. They are what makes this a benchmark of
+#    point-in-time correctness rather than a test of one vendor: the
+#    instrument must pass the first and catch the second.
+# 4. `lt-gnomon-leaky` validates the structural assertion the same way, on
+#    the real pipeline. An assertion never shown to fail is not evidence
+#    that anything passed.
+# 5. `lt-gnomon` is the claim.
+# 6. `lt-control` is the honest-play test and `lt-control-honest` its
+#    negative control.
 #
 # Only the two control arms call an API; everything else is deterministic
 # and free. Read the family with:
@@ -27,21 +31,12 @@ defaults:
   limit: 40
 
 runs:
-  - benchmark: leaktrap
-    name: lt-oracle
-    args: {subcommand: oracle-leak}
-  - benchmark: leaktrap
-    name: lt-naive
-    args: {subcommand: naive-leak}
-  - benchmark: leaktrap
-    name: lt-gnomon-leaky
-    args: {subcommand: gnomon-leaky}
-  - benchmark: leaktrap
-    name: lt-gnomon
-    args: {subcommand: gnomon}
-  - benchmark: leaktrap
-    name: lt-control
-    args: {subcommand: control, prompt_variant: plain}
-  - benchmark: leaktrap
-    name: lt-control-honest
-    args: {subcommand: control-honest, prompt_variant: plain}
+  - {benchmark: leaktrap, name: lt-oracle,         args: {subcommand: oracle-leak}}
+  - {benchmark: leaktrap, name: lt-naive,          args: {subcommand: naive-leak}}
+  - {benchmark: leaktrap, name: lt-heldout,        args: {subcommand: honest-heldout}}
+  - {benchmark: leaktrap, name: lt-ref-pit,        args: {subcommand: reference-pit}}
+  - {benchmark: leaktrap, name: lt-ref-naive,      args: {subcommand: reference-naive}}
+  - {benchmark: leaktrap, name: lt-gnomon-leaky,   args: {subcommand: gnomon-leaky}}
+  - {benchmark: leaktrap, name: lt-gnomon,         args: {subcommand: gnomon}}
+  - {benchmark: leaktrap, name: lt-control,        args: {subcommand: control, prompt_variant: plain}}
+  - {benchmark: leaktrap, name: lt-control-honest, args: {subcommand: control-honest, prompt_variant: plain}}

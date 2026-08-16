@@ -1,8 +1,8 @@
 {
   "benchmark": "leakage-trap",
   "ceiling_basis": "leaktrap-ceiling-1",
-  "code_revision": "acddb85",
+  "code_revision": "44cd2d4",
   "command": "/home/user/Gnomon/benchmarks/leaktrap/run_leaktrap.py gnomon --limit 40 --output-dir results/leaktrap/lt-gnomon",
   "condition": "gnomon",
-  "target": "seed=7,horizon=14,history=120"
+  "target": "seed=7,horizon=14,history=120,family=classic,generator=leaktrap-tasks-2"
 }

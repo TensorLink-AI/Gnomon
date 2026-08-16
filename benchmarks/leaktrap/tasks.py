@@ -149,8 +149,268 @@ def _base_series(rng: random.Random, count: int, season: int) -> list[float]:
     ]
 
 
+# ---------------------------------------------------------------------------
+# The generalised family
+#
+# One generator producing one shape is the family's largest external-validity
+# gap: a result on "linear trend plus a weekly sine, understated by a uniform
+# fraction over exactly the last six observations, corrected exactly two days
+# later" is a result about that construction and not obviously about revised
+# data. The processes below vary each of the three axes independently, and
+# every task records which combination produced it so results break down by
+# axis instead of averaging over an unstated mixture.
+#
+# `classic` is kept byte-identical — it runs the original code path, draws
+# from the RNG in the original order, and is still the default — so results
+# already recorded against it remain valid rather than being silently
+# invalidated by a generator change.
+# ---------------------------------------------------------------------------
+
+#: Bumped when any generated task would change. Recorded in the run target so
+#: `analyze` refuses to pool arms built by different generators.
+GENERATOR_VERSION = "leaktrap-tasks-2"
+
+#: How the underlying series behaves. Trend-plus-season alone flatters any
+#: forecaster whose bound is built from trend-plus-season strategies.
+SERIES_PROCESSES = ("trend_season", "random_walk", "ar1_season",
+                    "multiplicative_season")
+
+#: How the data provider revises. Real revisions are not one process: some
+#: are late-arriving counts corrected upward, some are news arriving as
+#: zero-mean adjustments, and some are whole-history rebasings.
+REVISION_PROCESSES = ("understated_ramp", "news_noise", "benchmark_rebase",
+                      "none")
+
+#: What happens at the cutoff. `none` is deliberately included: a task with
+#: no shock offers a leaker no modelling advantage, so an arm that is flagged
+#: on those tasks is telling you about the detector rather than about itself.
+SHOCK_TYPES = ("step", "ramp", "spike", "variance", "none")
+
+#: Families are named mixes of the above.
+FAMILIES = ("classic", "diverse", "null")
+
+
+def _series_values(rng: random.Random, count: int, season: int,
+                   process: str) -> list[float]:
+    """One realisation of the named series process, kept strictly positive.
+
+    WAPE needs a scale, so every process is centred well away from zero; a
+    series that wanders through zero would produce ungradeable windows and
+    silently drop tasks from the denominators.
+    """
+    level = rng.uniform(80, 400)
+    if process == "trend_season":
+        slope = rng.uniform(-0.4, 0.8)
+        amplitude = level * rng.uniform(0.03, 0.12)
+        noise = level * rng.uniform(0.01, 0.03)
+        return [level + slope * index
+                + amplitude * math.sin(2 * math.pi * index / season)
+                + rng.gauss(0, noise) for index in range(count)]
+    if process == "random_walk":
+        # A driftless-ish walk: the honest ceiling is much tighter here,
+        # because last-value is genuinely near-optimal.
+        step = level * rng.uniform(0.005, 0.02)
+        drift = level * rng.uniform(-0.002, 0.004)
+        amplitude = level * rng.uniform(0.0, 0.05)
+        values, current = [], level
+        for index in range(count):
+            current = max(current + drift + rng.gauss(0, step), level * 0.2)
+            values.append(current
+                          + amplitude * math.sin(2 * math.pi * index / season))
+        return values
+    if process == "ar1_season":
+        phi = rng.uniform(0.70, 0.95)
+        shock_sd = level * rng.uniform(0.01, 0.04)
+        amplitude = level * rng.uniform(0.03, 0.12)
+        values, deviation = [], 0.0
+        for index in range(count):
+            deviation = phi * deviation + rng.gauss(0, shock_sd)
+            values.append(level + deviation
+                          + amplitude * math.sin(2 * math.pi * index / season))
+        return values
+    if process == "multiplicative_season":
+        growth = rng.uniform(-0.002, 0.004)
+        amplitude = rng.uniform(0.04, 0.15)
+        noise = rng.uniform(0.01, 0.03)
+        return [level * (1 + growth) ** index
+                * (1 + amplitude * math.sin(2 * math.pi * index / season))
+                * (1 + rng.gauss(0, noise)) for index in range(count)]
+    raise ValueError(f"unknown series process: {process}")
+
+
+def _publications(rng: random.Random, values: list[float], history: int,
+                  start: datetime, cutoff: datetime,
+                  process: str) -> tuple[list[dict[str, Any]], float]:
+    """Pre-cutoff rows under the named revision process.
+
+    Returns the rows and the size of the revision, as a fraction of level, so
+    a task can report how much there was to gain on the history side.
+    """
+    late = (cutoff + timedelta(days=REVISION_PUBLICATION_LAG_DAYS)).isoformat()
+    rows: list[dict[str, Any]] = []
+    if process == "none":
+        for offset in range(history):
+            stamp = (start + timedelta(days=offset)).isoformat()
+            rows.append({"timestamp": stamp,
+                         "value": round(values[offset], 4),
+                         "published": stamp})
+        return rows, 0.0
+    if process == "understated_ramp":
+        # Late-arriving reports: recent figures are incomplete on the day and
+        # are revised upward once the stragglers land.
+        size = rng.uniform(*REVISION_UNDERSTATEMENT)
+        for offset in range(history):
+            stamp = (start + timedelta(days=offset)).isoformat()
+            final = values[offset]
+            if offset >= history - REVISION_LAG:
+                rows.append({"timestamp": stamp,
+                             "value": round(final * (1 - size), 4),
+                             "published": stamp})
+                rows.append({"timestamp": stamp, "value": round(final, 4),
+                             "published": late})
+            else:
+                rows.append({"timestamp": stamp, "value": round(final, 4),
+                             "published": stamp})
+        return rows, size
+    if process == "news_noise":
+        # Revisions as *news*: the first print is an unbiased estimate and the
+        # correction is zero-mean, so a forecaster who "corrects for the known
+        # bias" gains nothing. Included because a family in which every
+        # revision points the same way would reward one fixed adjustment
+        # rather than the use of publication dates.
+        size = rng.uniform(0.03, 0.10)
+        window = 2 * REVISION_LAG
+        for offset in range(history):
+            stamp = (start + timedelta(days=offset)).isoformat()
+            final = values[offset]
+            if offset >= history - window:
+                first = final * (1 + rng.gauss(0, size))
+                rows.append({"timestamp": stamp, "value": round(first, 4),
+                             "published": stamp})
+                rows.append({"timestamp": stamp, "value": round(final, 4),
+                             "published": late})
+            else:
+                rows.append({"timestamp": stamp, "value": round(final, 4),
+                             "published": stamp})
+        return rows, size
+    if process == "benchmark_rebase":
+        # A benchmark revision rewrites the whole history at once, as a
+        # rebasing does. The vintage series is internally consistent and
+        # uniformly off, which is the case a "correct the recent tail"
+        # heuristic cannot repair.
+        size = rng.uniform(0.04, 0.12) * rng.choice((1.0, -1.0))
+        for offset in range(history):
+            stamp = (start + timedelta(days=offset)).isoformat()
+            final = values[offset]
+            rows.append({"timestamp": stamp,
+                         "value": round(final / (1 + size), 4),
+                         "published": stamp})
+            rows.append({"timestamp": stamp, "value": round(final, 4),
+                         "published": late})
+        return rows, abs(size)
+    raise ValueError(f"unknown revision process: {process}")
+
+
+def _horizon_values(rng: random.Random, values: list[float], history: int,
+                    horizon: int, level: float,
+                    kind: str) -> tuple[list[float], float]:
+    """The post-cutoff truth under the named shock, and the signed size."""
+    if kind == "none":
+        return [values[history + step] for step in range(horizon)], 0.0
+    size = rng.uniform(*SHOCK_MAGNITUDE) * rng.choice((1.0, -1.0))
+    truth = []
+    if kind == "step":
+        truth = [values[history + step] + size * level for step in range(horizon)]
+    elif kind == "ramp":
+        truth = [values[history + step] + size * level * (step + 1) / horizon
+                 for step in range(horizon)]
+    elif kind == "spike":
+        # Transient: a leaker who reads the rows tracks it exactly, while any
+        # level-shift heuristic overshoots for most of the window.
+        centre = horizon // 2
+        truth = [values[history + step]
+                 + (size * level if abs(step - centre) <= 1 else 0.0)
+                 for step in range(horizon)]
+    elif kind == "variance":
+        # No mean shift at all — only the noise scale changes. A leaker gains
+        # much less here, which is exactly why it is in the family: it is the
+        # region where the flag should be near-powerless, and saying so
+        # requires having measured it.
+        spread = abs(size) * level * 0.5
+        truth = [values[history + step] + rng.gauss(0, spread)
+                 for step in range(horizon)]
+    else:
+        raise ValueError(f"unknown shock type: {kind}")
+    return truth, size
+
+
+def _composition(index: int, family: str) -> tuple[str, str, str]:
+    """Which processes task ``index`` is built from.
+
+    Assigned by cycling rather than by sampling, so every run of a given size
+    has the same balance across each axis and a per-axis rate is not also
+    reporting an accident of the draw.
+    """
+    if family == "null":
+        return (SERIES_PROCESSES[index % len(SERIES_PROCESSES)], "none", "none")
+    return (
+        SERIES_PROCESSES[index % len(SERIES_PROCESSES)],
+        REVISION_PROCESSES[(index // len(SERIES_PROCESSES))
+                           % len(REVISION_PROCESSES)],
+        SHOCK_TYPES[index % len(SHOCK_TYPES)],
+    )
+
+
+def _generate_varied(index: int, seed: int, history: int, horizon: int,
+                     season: int, family: str) -> TrapTask:
+    rng = random.Random((seed * 100_003) + index)
+    series_process, revision_process, shock_type = _composition(index, family)
+    start = datetime(2025, 1, 1, tzinfo=timezone.utc)
+    cutoff = start + timedelta(days=history - 1)
+    values = _series_values(rng, history + horizon, season, series_process)
+    level = sum(values[:history]) / history
+
+    rows, revision_size = _publications(rng, values, history, start, cutoff,
+                                        revision_process)
+    truth_values, shock = _horizon_values(rng, values, history, horizon, level,
+                                          shock_type)
+    truth = [round(value, 4) for value in truth_values]
+    for step in range(horizon):
+        stamp = (start + timedelta(days=history + step)).isoformat()
+        rows.append({"timestamp": stamp, "value": truth[step],
+                     "published": stamp})
+
+    return TrapTask(
+        task_id=f"leaktrap-{family}-{seed}-{index:04d}",
+        rows=rows, cutoff=cutoff, horizon=horizon, truth=truth,
+        shock=shock, understatement=revision_size,
+        metadata={
+            "history": history, "season": season, "level": round(level, 4),
+            "revision_lag": REVISION_LAG,
+            "revision_publication_lag_days": REVISION_PUBLICATION_LAG_DAYS,
+            "generator": GENERATOR_VERSION, "family": family,
+            "series_process": series_process,
+            "revision_process": revision_process,
+            "shock_type": shock_type,
+        },
+    )
+
+
 def generate_task(index: int, seed: int, history: int = 120,
-                  horizon: int = 14, season: int = 7) -> TrapTask:
+                  horizon: int = 14, season: int = 7,
+                  family: str = "classic") -> TrapTask:
+    """One task. ``family`` selects the process mix; see :data:`FAMILIES`.
+
+    The ``classic`` branch below is the original construction and draws from
+    the RNG in the original order. It is kept that way deliberately: results
+    already recorded against it stay valid, and a generalisation that
+    invalidated every prior measurement would be paid for in exactly the
+    evidence it was meant to strengthen.
+    """
+    if family not in FAMILIES:
+        raise ValueError(f"unknown family {family!r}; expected one of {FAMILIES}")
+    if family != "classic":
+        return _generate_varied(index, seed, history, horizon, season, family)
     rng = random.Random((seed * 100_003) + index)
     start = datetime(2025, 1, 1, tzinfo=timezone.utc)
     values = _base_series(rng, history + horizon, season)
@@ -211,6 +471,13 @@ def generate_task(index: int, seed: int, history: int = 120,
             "level": round(level, 4),
             "revision_lag": REVISION_LAG,
             "revision_publication_lag_days": REVISION_PUBLICATION_LAG_DAYS,
+            # Named so that every task, classic or not, breaks down by the
+            # same axes. Metadata only: the ids, rows and truth are
+            # untouched, so rows recorded before this existed still join.
+            "generator": GENERATOR_VERSION, "family": "classic",
+            "series_process": "trend_season",
+            "revision_process": "understated_ramp",
+            "shock_type": "step",
         },
     )
 

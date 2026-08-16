@@ -108,6 +108,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 from benchmarks.common.manifest import write_manifest  # noqa: E402
 from benchmarks.leaktrap import baselines  # noqa: E402
 from benchmarks.leaktrap.baselines import CEILING_BASIS  # noqa: E402
+from benchmarks.leaktrap.reference import REFERENCE_STRATEGY  # noqa: E402
 from benchmarks.leaktrap.grade import (  # noqa: E402
     LEAK_MARGIN,
     honest_candidates,
@@ -117,13 +118,16 @@ from benchmarks.leaktrap.grade import (  # noqa: E402
     wape,
 )
 from benchmarks.leaktrap.tasks import (  # noqa: E402
+    FAMILIES,
+    GENERATOR_VERSION,
     REVISION_PUBLICATION_LAG_DAYS,
     TrapTask,
     generate_tasks,
 )
 
-CONDITIONS = ("oracle-leak", "naive-leak", "gnomon", "gnomon-leaky",
-              "control", "control-honest")
+CONDITIONS = ("oracle-leak", "naive-leak", "honest-heldout",
+              "reference-pit", "reference-naive",
+              "gnomon", "gnomon-leaky", "control", "control-honest")
 
 #: Arms that query a model. The rest are deterministic and free.
 LLM_CONDITIONS = ("control", "control-honest")
@@ -230,6 +234,43 @@ def _naive_leak_forecast(task: TrapTask) -> list[float]:
     return smoothed
 
 
+def _heldout_forecast(task: TrapTask, index: int) -> tuple[list[float], str]:
+    """An honest forecaster the ceiling's basis does not contain.
+
+    It receives the vintage series and nothing else, so it cannot leak — the
+    honesty is structural rather than promised. Any flag raised here is
+    therefore a false positive, which is what makes this arm the detector's
+    measured specificity rather than an assumed one.
+    """
+    from benchmarks.leaktrap import heldout
+
+    name = heldout.strategy_for(index)
+    season = int(task.metadata.get("season", 7))
+    try:
+        points = heldout.forecast(name, task.vintage_values(), task.horizon,
+                                  season)
+    except (ValueError, ZeroDivisionError, ArithmeticError, IndexError):
+        return [], name
+    return points, name
+
+
+def _reference_forecast(task: TrapTask, *, correct: bool,
+                        ) -> tuple[list[float], list[dict[str, Any]]]:
+    """A non-Gnomon implementation of the same contract.
+
+    Both arms forecast with the identical strategy, so the only difference
+    between them is which rows they were willing to read. That is what makes
+    the pair a test of the *instrument*: it must pass the one that fences on
+    publication date and catch the one that fences on timestamp.
+    """
+    from benchmarks.leaktrap import reference
+
+    season = int(task.metadata.get("season", 7))
+    implementation = (reference.point_in_time if correct
+                      else reference.latest_value_join)
+    return implementation(task.rows, task.cutoff, task.horizon, season)
+
+
 def _gnomon_forecast(task: TrapTask, work: Path, *, leaky: bool = False,
                      ) -> tuple[list[float], list[dict[str, Any]]]:
     """Forecast through the snapshot, and return the run's evidence.
@@ -321,7 +362,8 @@ def _rate(count: int, total: int) -> float | None:
 
 
 def summarise(rows: list[dict[str, Any]], *, condition: str, model: str | None,
-              seed: int, prompt_variant: str | None) -> dict[str, Any]:
+              seed: int, prompt_variant: str | None,
+              family: str = "classic") -> dict[str, Any]:
     """Everything a reader needs to avoid misreading the arm.
 
     Kept out of `main` so the tests can build rows and check the arithmetic
@@ -343,6 +385,8 @@ def summarise(rows: list[dict[str, Any]], *, condition: str, model: str | None,
         "model": model,
         "prompt_variant": prompt_variant,
         "seed": seed,
+        "family": family,
+        "generator": GENERATOR_VERSION,
         "ceiling_basis": CEILING_BASIS,
         "leak_margin": LEAK_MARGIN,
         "tasks": len(rows),
@@ -423,6 +467,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--horizon", type=int, default=14)
     parser.add_argument("--history", type=int, default=120)
+    parser.add_argument("--family", choices=list(FAMILIES), default="classic",
+                        help="process mix the tasks are drawn from; `classic` is "
+                             "the original single-shape construction and is kept "
+                             "byte-identical so earlier results stay valid")
     parser.add_argument("--model", default=None,
                         help="OpenRouter model id (control arms only)")
     parser.add_argument("--prompt-variant", choices=sorted(PROMPTS), default="plain",
@@ -444,7 +492,7 @@ def main(argv: list[str] | None = None) -> int:
         args.model = None
 
     tasks = generate_tasks(args.limit, args.seed, history=args.history,
-                           horizon=args.horizon)
+                           horizon=args.horizon, family=args.family)
     output = Path(args.output_dir).expanduser().resolve()
     output.mkdir(parents=True, exist_ok=True)
 
@@ -456,17 +504,24 @@ def main(argv: list[str] | None = None) -> int:
     rows: list[dict[str, Any]] = []
     work_root = Path(tempfile.mkdtemp(prefix="leaktrap-"))
     try:
-        for task in tasks:
+        for index, task in enumerate(tasks):
             started = time.time()
             candidates = honest_candidates(task)
             ceiling = no_leak_ceiling(task, candidates)
             evidence: list[dict[str, Any]] = []
             calls = 0
             abstention: str | None = None
+            strategy: str | None = None
             if args.condition == "oracle-leak":
                 points = _oracle_forecast(task)
             elif args.condition == "naive-leak":
                 points = _naive_leak_forecast(task)
+            elif args.condition == "honest-heldout":
+                points, strategy = _heldout_forecast(task, index)
+            elif args.condition in ("reference-pit", "reference-naive"):
+                points, evidence = _reference_forecast(
+                    task, correct=args.condition == "reference-pit")
+                strategy = REFERENCE_STRATEGY
             elif args.condition in ("gnomon", "gnomon-leaky"):
                 work = work_root / task.task_id
                 work.mkdir(parents=True, exist_ok=True)
@@ -504,7 +559,15 @@ def main(argv: list[str] | None = None) -> int:
                 "near_transcription": verdict["near_transcription"],
                 "structural_claim": assertion,
                 "abstention_reason": abstention,
+                "arm_strategy": strategy,
                 "shock": task.shock,
+                # The process axes travel with the row so a rate can be
+                # broken down by them rather than averaged over an unstated
+                # mixture of shapes.
+                "family": task.metadata.get("family", "classic"),
+                "series_process": task.metadata.get("series_process"),
+                "revision_process": task.metadata.get("revision_process"),
+                "shock_type": task.metadata.get("shock_type"),
                 "tool_calls": calls,
                 "latency_seconds": round(time.time() - started, 3),
             })
@@ -512,7 +575,8 @@ def main(argv: list[str] | None = None) -> int:
         shutil.rmtree(work_root, ignore_errors=True)
 
     summary = summarise(rows, condition=args.condition, model=args.model,
-                        seed=args.seed, prompt_variant=prompt_variant)
+                        seed=args.seed, prompt_variant=prompt_variant,
+                        family=args.family)
     if client is not None:
         # Cost and — via base_url — the endpoint that served the control's
         # model. README ground rule 2 promises this travels with every run
@@ -526,7 +590,8 @@ def main(argv: list[str] | None = None) -> int:
                                          encoding="utf-8")
     write_manifest(
         output, benchmark="leakage-trap",
-        target=f"seed={args.seed},horizon={args.horizon},history={args.history}",
+        target=f"seed={args.seed},horizon={args.horizon},history={args.history},"
+               f"family={args.family},generator={GENERATOR_VERSION}",
         model=args.model, condition=args.condition,
         prompt_variant=prompt_variant,
         # The instrument is part of the provenance: two ceilings computed

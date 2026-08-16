@@ -2,7 +2,7 @@
   "benchmark": "leakage-trap",
   "ceiling_basis": "leaktrap-ceiling-1",
   "leak_margin": 0.25,
-  "target": "seed=7,horizon=14,history=120",
+  "target": "family=classic,generator=leaktrap-tasks-2,history=120,horizon=14,seed=7",
   "arms": [
     {
       "arm": "lt-control",
@@ -116,6 +116,45 @@
       "regraded_from_score_only": 0
     },
     {
+      "arm": "lt-heldout",
+      "condition": "honest-heldout",
+      "model": null,
+      "prompt_variant": null,
+      "tasks": 40,
+      "answered": 40,
+      "unanswered": 0,
+      "unanswered_reasons": {},
+      "mean_score": 0.223743989959867,
+      "mean_no_leak_ceiling": 0.08688472925470682,
+      "mean_leak_advantage": -1.9190412040560134,
+      "median_leak_advantage": -1.5373486841813293,
+      "flag_reach": 40,
+      "flag_reach_unspecified": 0,
+      "flagged": 0,
+      "leak_rate": 0.0,
+      "leak_rate_95ci": [
+        0.0,
+        0.08762453925039232
+      ],
+      "leak_rate_bounds": [
+        0.0,
+        0.0
+      ],
+      "transcribed": 0,
+      "near_transcribed": 0,
+      "structural_asserted": 0,
+      "structural_holds": 0,
+      "structural_violated": 0,
+      "threshold_sweep": {
+        "0.00": 0,
+        "0.10": 0,
+        "0.25": 0,
+        "0.40": 0,
+        "0.60": 0
+      },
+      "regraded_from_score_only": 0
+    },
+    {
       "arm": "lt-naive",
       "condition": "naive-leak",
       "model": null,
@@ -192,19 +231,334 @@
         "0.60": 31
       },
       "regraded_from_score_only": 0
+    },
+    {
+      "arm": "lt-ref-naive",
+      "condition": "reference-naive",
+      "model": null,
+      "prompt_variant": null,
+      "tasks": 40,
+      "answered": 40,
+      "unanswered": 0,
+      "unanswered_reasons": {},
+      "mean_score": 0.27498793289140194,
+      "mean_no_leak_ceiling": 0.08688472925470682,
+      "mean_leak_advantage": -4.145132934699115,
+      "median_leak_advantage": -3.1278024673181086,
+      "flag_reach": 40,
+      "flag_reach_unspecified": 0,
+      "flagged": 0,
+      "leak_rate": 0.0,
+      "leak_rate_95ci": [
+        0.0,
+        0.08762453925039232
+      ],
+      "leak_rate_bounds": [
+        0.0,
+        0.0
+      ],
+      "transcribed": 0,
+      "near_transcribed": 0,
+      "structural_asserted": 40,
+      "structural_holds": 0,
+      "structural_violated": 40,
+      "threshold_sweep": {
+        "0.00": 0,
+        "0.10": 0,
+        "0.25": 0,
+        "0.40": 0,
+        "0.60": 0
+      },
+      "regraded_from_score_only": 0
+    },
+    {
+      "arm": "lt-ref-pit",
+      "condition": "reference-pit",
+      "model": null,
+      "prompt_variant": null,
+      "tasks": 40,
+      "answered": 40,
+      "unanswered": 0,
+      "unanswered_reasons": {},
+      "mean_score": 0.20463303968652166,
+      "mean_no_leak_ceiling": 0.08688472925470682,
+      "mean_leak_advantage": -1.396069552993238,
+      "median_leak_advantage": -1.2756533679350217,
+      "flag_reach": 0,
+      "flag_reach_unspecified": 0,
+      "flagged": 0,
+      "leak_rate": null,
+      "leak_rate_95ci": null,
+      "leak_rate_bounds": null,
+      "transcribed": 0,
+      "near_transcribed": 0,
+      "structural_asserted": 40,
+      "structural_holds": 40,
+      "structural_violated": 0,
+      "threshold_sweep": {
+        "0.00": 0,
+        "0.10": 0,
+        "0.25": 0,
+        "0.40": 0,
+        "0.60": 0
+      },
+      "regraded_from_score_only": 0
     }
   ],
   "paired_tests": [
     {
       "pair": "lt-control vs lt-gnomon",
       "refused": "the leak flag has no power against lt-gnomon: every forecast it produced is reproduced by the ceiling's own basis, so its flag column is a structural constant and a paired test against it would be testing arithmetic. Read the structural assertion for that arm instead."
+    },
+    {
+      "pair": "lt-control vs lt-heldout",
+      "refused": "cannot establish that the leak flag had any power against lt-control: its rows predate recorded forecasts, so whether the ceiling's own basis reproduces them is unknown. Re-run the arm to record forecasts, or read the structural assertion instead."
+    },
+    {
+      "pair": "lt-control vs lt-ref-pit",
+      "refused": "the leak flag has no power against lt-ref-pit: every forecast it produced is reproduced by the ceiling's own basis, so its flag column is a structural constant and a paired test against it would be testing arithmetic. Read the structural assertion for that arm instead."
+    },
+    {
+      "pair": "lt-gnomon vs lt-heldout",
+      "refused": "the leak flag has no power against lt-gnomon: every forecast it produced is reproduced by the ceiling's own basis, so its flag column is a structural constant and a paired test against it would be testing arithmetic. Read the structural assertion for that arm instead."
+    },
+    {
+      "pair": "lt-gnomon vs lt-ref-pit",
+      "refused": "the leak flag has no power against lt-gnomon, lt-ref-pit: every forecast it produced is reproduced by the ceiling's own basis, so its flag column is a structural constant and a paired test against it would be testing arithmetic. Read the structural assertion for that arm instead."
+    },
+    {
+      "pair": "lt-heldout vs lt-ref-pit",
+      "refused": "the leak flag has no power against lt-ref-pit: every forecast it produced is reproduced by the ceiling's own basis, so its flag column is a structural constant and a paired test against it would be testing arithmetic. Read the structural assertion for that arm instead."
     }
   ],
+  "detector": {
+    "sensitivity": {
+      "arms": [
+        "lt-naive",
+        "lt-oracle"
+      ],
+      "flagged": 62,
+      "reachable": 80,
+      "rate": 0.775,
+      "ci95": [
+        0.6721300467523076,
+        0.8526690983021762
+      ]
+    },
+    "specificity": {
+      "arms": [
+        "lt-gnomon",
+        "lt-heldout",
+        "lt-ref-pit"
+      ],
+      "false_positives": 0,
+      "reachable": 40,
+      "false_positive_rate": 0.0,
+      "ci95": [
+        0.0,
+        0.08762453925039232
+      ]
+    },
+    "note": "Sensitivity pools arms built to leak; specificity pools arms that cannot leak by construction. Rows the flag could not reach are in neither denominator. A false-positive rate is a property of the honest arms that produced it, so it does not transfer to a forecaster unlike them."
+  },
+  "expectations": [
+    {
+      "arm": "lt-control",
+      "role": "honest-play test",
+      "conforms": true,
+      "problems": []
+    },
+    {
+      "arm": "lt-gnomon",
+      "role": "the claim",
+      "conforms": true,
+      "problems": []
+    },
+    {
+      "arm": "lt-gnomon-leaky",
+      "role": "instrument validity (mutation test)",
+      "conforms": true,
+      "problems": []
+    },
+    {
+      "arm": "lt-heldout",
+      "role": "detector specificity (false positives)",
+      "conforms": true,
+      "problems": []
+    },
+    {
+      "arm": "lt-naive",
+      "role": "trap validity, no hindsight",
+      "conforms": true,
+      "problems": []
+    },
+    {
+      "arm": "lt-oracle",
+      "role": "trap validity, upper bound",
+      "conforms": true,
+      "problems": []
+    },
+    {
+      "arm": "lt-ref-naive",
+      "role": "non-Gnomon leaking implementation",
+      "conforms": true,
+      "problems": []
+    },
+    {
+      "arm": "lt-ref-pit",
+      "role": "non-Gnomon correct implementation",
+      "conforms": true,
+      "problems": []
+    }
+  ],
+  "family": "classic",
+  "power": {
+    "tasks_per_arm": 40,
+    "minimum_detectable_discordance": 6,
+    "note": "An exact McNemar at alpha=0.05 needs at least this many one-directional discordant pairs to reject. A null result below it means no effect of that size was detectable, which is not the same as no effect."
+  },
+  "by_shock_type": {
+    "lt-control": {},
+    "lt-gnomon": {
+      "step": {
+        "tasks": 40,
+        "reachable": 0,
+        "flagged": 0,
+        "rate": null,
+        "median_leak_advantage": -1.1848871942730577
+      }
+    },
+    "lt-gnomon-leaky": {
+      "step": {
+        "tasks": 40,
+        "reachable": 40,
+        "flagged": 0,
+        "rate": 0.0,
+        "median_leak_advantage": -3.1416260190384144
+      }
+    },
+    "lt-heldout": {
+      "step": {
+        "tasks": 40,
+        "reachable": 40,
+        "flagged": 0,
+        "rate": 0.0,
+        "median_leak_advantage": -1.5373486841813293
+      }
+    },
+    "lt-naive": {
+      "step": {
+        "tasks": 40,
+        "reachable": 40,
+        "flagged": 23,
+        "rate": 0.575,
+        "median_leak_advantage": 0.3073747558190185
+      }
+    },
+    "lt-oracle": {
+      "step": {
+        "tasks": 40,
+        "reachable": 40,
+        "flagged": 39,
+        "rate": 0.975,
+        "median_leak_advantage": 0.7580230089630802
+      }
+    },
+    "lt-ref-naive": {
+      "step": {
+        "tasks": 40,
+        "reachable": 40,
+        "flagged": 0,
+        "rate": 0.0,
+        "median_leak_advantage": -3.1278024673181086
+      }
+    },
+    "lt-ref-pit": {
+      "step": {
+        "tasks": 40,
+        "reachable": 0,
+        "flagged": 0,
+        "rate": null,
+        "median_leak_advantage": -1.2756533679350217
+      }
+    }
+  },
+  "by_revision_process": {
+    "lt-control": {},
+    "lt-gnomon": {
+      "understated_ramp": {
+        "tasks": 40,
+        "reachable": 0,
+        "flagged": 0,
+        "rate": null,
+        "median_leak_advantage": -1.1848871942730577
+      }
+    },
+    "lt-gnomon-leaky": {
+      "understated_ramp": {
+        "tasks": 40,
+        "reachable": 40,
+        "flagged": 0,
+        "rate": 0.0,
+        "median_leak_advantage": -3.1416260190384144
+      }
+    },
+    "lt-heldout": {
+      "understated_ramp": {
+        "tasks": 40,
+        "reachable": 40,
+        "flagged": 0,
+        "rate": 0.0,
+        "median_leak_advantage": -1.5373486841813293
+      }
+    },
+    "lt-naive": {
+      "understated_ramp": {
+        "tasks": 40,
+        "reachable": 40,
+        "flagged": 23,
+        "rate": 0.575,
+        "median_leak_advantage": 0.3073747558190185
+      }
+    },
+    "lt-oracle": {
+      "understated_ramp": {
+        "tasks": 40,
+        "reachable": 40,
+        "flagged": 39,
+        "rate": 0.975,
+        "median_leak_advantage": 0.7580230089630802
+      }
+    },
+    "lt-ref-naive": {
+      "understated_ramp": {
+        "tasks": 40,
+        "reachable": 40,
+        "flagged": 0,
+        "rate": 0.0,
+        "median_leak_advantage": -3.1278024673181086
+      }
+    },
+    "lt-ref-pit": {
+      "understated_ramp": {
+        "tasks": 40,
+        "reachable": 0,
+        "flagged": 0,
+        "rate": null,
+        "median_leak_advantage": -1.2756533679350217
+      }
+    }
+  },
+  "multiplicity": "6 paired test(s) were computed over 8 arms; p-values are unadjusted and should be read as such. The pre-registered primary endpoints are in benchmarks/leaktrap/PREREGISTRATION.md and are single tests.",
+  "rows_read": 320,
   "arms_read": [
     "lt-control",
     "lt-gnomon",
     "lt-gnomon-leaky",
+    "lt-heldout",
     "lt-naive",
-    "lt-oracle"
+    "lt-oracle",
+    "lt-ref-naive",
+    "lt-ref-pit"
   ]
 }

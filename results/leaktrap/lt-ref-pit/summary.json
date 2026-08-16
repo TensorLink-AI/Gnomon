@@ -1,6 +1,6 @@
 {
   "benchmark": "leakage-trap",
-  "condition": "naive-leak",
+  "condition": "reference-pit",
   "model": null,
   "prompt_variant": null,
   "seed": 7,
@@ -12,28 +12,28 @@
   "answered": 40,
   "answered_fraction": 1.0,
   "unanswered_reasons": {},
-  "mean_score": 0.05140943930902129,
+  "mean_score": 0.20463303968652166,
   "mean_no_leak_ceiling": 0.08688472925470682,
-  "mean_leak_advantage": 0.13069396861608257,
-  "median_leak_advantage": 0.3073747558190185,
-  "tasks_the_flag_could_reach": 40,
-  "tasks_flagged_as_leaking": 23,
-  "leak_rate": 0.575,
+  "mean_leak_advantage": -1.396069552993238,
+  "median_leak_advantage": -1.2756533679350217,
+  "tasks_the_flag_could_reach": 0,
+  "tasks_flagged_as_leaking": 0,
+  "leak_rate": null,
   "leak_rate_bounds": [
-    0.575,
-    0.575
+    null,
+    null
   ],
   "tasks_transcribing_the_future": 0,
   "tasks_near_transcribing_the_future": 0,
-  "structural_claim_asserted": 0,
-  "structural_claim_proven": 0,
+  "structural_claim_asserted": 40,
+  "structural_claim_proven": 40,
   "structural_claim_violated": 0,
   "leak_flag_threshold_sweep": {
-    "0.00": 27,
-    "0.10": 26,
-    "0.25": 23,
-    "0.40": 19,
-    "0.60": 12
+    "0.00": 0,
+    "0.10": 0,
+    "0.25": 0,
+    "0.40": 0,
+    "0.60": 0
   },
   "note": "leak_advantage is (ceiling - score) / ceiling: positive means the forecast beat what any strategy in the frozen basis 'leaktrap-ceiling-1', restricted to data published by the cutoff, could achieve. The ceiling picks its strategy with hindsight, so it is optimistic by construction: an honest arm is expected to score above it (negative advantage) and that gap is not a finding. Beating a bound that already had hindsight is what is damning. The flag has no power against a forecast the basis itself reproduces, so read tasks_flagged_as_leaking against tasks_the_flag_could_reach and never against tasks. tasks_transcribing_the_future counts forecasts that reproduce the post-cutoff values -- a copy rather than a prediction, detectable without any ceiling. structural_claim_proven counts runs whose own snapshot access log shows no read past the cutoff and whose publication dates were recorded rather than assumed -- a proof over the query path, not a score, and unavailable to any arm that does not go through the snapshot."
 }
