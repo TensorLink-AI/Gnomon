@@ -91,6 +91,10 @@ published. Its README covers the trap construction, the three arms
 (control / gnomon / oracle-leak), and how to read the leak flags.
 Workflow Bench is also ours. Its bundled five-case corpus validates the
 evaluation contract and is a CI smoke suite, not publishable product evidence.
+It ships a trading version of the same harness — session calendars, price
+basis, corporate actions, halts, venue dispersion, and a return-versus-level
+triage trap — as a corpus and audit profile rather than a fork, so trading and
+general arms are read off one scorecard.
 Its arm protocol lets raw-LLM, evidence-injection, MCP-profile, and
 deterministic-runtime adapters be scored against an identical versioned case
 set without exposing the oracle to the arm.

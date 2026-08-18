@@ -2,6 +2,34 @@
 
 ## Unreleased
 
+- **Workflow Bench has a trading version.** The general corpus asks
+  whether an arm can turn a temporal question into one trusted answer;
+  it cannot ask whether that answer survives a market calendar. The new
+  `benchmarks/workflow/trading.py` generates a 100-case corpus over five
+  asset classes where the next observation is the next *session* on a
+  declared exchange calendar (holidays inside the visible window, one
+  24x7 venue), every answerable case must publish the `price_basis` its
+  number was computed on, and the `messy` kind rotates three ways a
+  price history stops being comparable with itself — venue dispersion,
+  an unapplied 2:1 split, and a halt whose final print is stale — each
+  requiring abstention before the revealed resolution may be answered.
+  Triage asks for the largest final-session *return* while the largest
+  price move belongs to a different instrument, so a level/return
+  confusion shows up as a wrong answer rather than a lucky one. Every
+  case forbids the guarantee and recommendation vocabulary in every
+  support tier, and a correct number published without its basis fails
+  trust while still scoring correct, so the two failures stay separable.
+  This is a corpus and an audit profile, not a fork: the runner, the
+  scorer, and the gates are unchanged, so trading and general arms are
+  read off one scorecard. The `trading` audit profile additionally
+  checks the corpus itself for the mistakes a green run would hide — a
+  bar dated after its own cutoff, an outcome that was already visible,
+  a "notable" winner that is merely the most expensive instrument. A
+  model-free control arm (`trading_baseline.py`) answers only from the
+  evidence each case ships, proving the corpus is answerable without
+  private generator knowledge, and scores 0.64 correctness at 0.80
+  strict trust as the floor a real arm has to beat.
+
 - **The published candidate is the evaluated candidate.** Evaluation now
   returns an executable `CandidateSpec` for the winner — bound to the
   *same* closures that produced its calibration and test predictions —

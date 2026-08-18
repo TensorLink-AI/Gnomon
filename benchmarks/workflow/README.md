@@ -209,3 +209,81 @@ strata separately alongside the overall gate. Generated cases test procedural
 generalization and agent behavior; TemporalBench/frozen external data remains
 the accuracy leg because synthetic domain labels are not evidence of real-world
 forecast quality.
+
+## Trading corpus
+
+The same runner, scorer, and gates also drive a trading-specific corpus
+(`benchmarks/workflow/trading.py`). It is a corpus and an audit profile, not a
+fork: no scoring rule is different, so a trading arm and a general arm are read
+off the same scorecard.
+
+What trading adds is the set of failure modes a generic series cannot express,
+and every one of them is a calendar or basis question rather than an alpha
+question:
+
+- **the next observation is the next *session*.** Cases carry an exchange
+  calendar (`xnas`, `cme`, `fx5`, `sifma`, `24x7`) with holidays inside the
+  visible window, and the forecast must name that next session date. Adding a
+  day to the cutoff is wrong on four of the five calendars.
+- **a number without its basis is not an answer.** Every answerable case
+  requires the published `price_basis` fact — unadjusted last trade, exchange
+  settlement, 4pm mid, venue last trade, constant-maturity yield — so a
+  correct number published on an unstated basis fails trust while still
+  scoring correct. The two failures stay visible separately.
+- **history that is not comparable with itself.** The `messy` kind rotates
+  three market-data ambiguities: venue dispersion (two venue streams, neither
+  named), an unapplied corporate action (a 2:1 split on the tape but not in
+  the history), and a trading halt whose final print is stale. Each declares
+  its evidence in the payload (`venue_streams`, `corporate_actions`, `halts`);
+  the governed behaviour is to abstain and then complete once the resolution
+  is revealed.
+- **return, not level.** The `multiseries` triage winner is the instrument
+  with the largest absolute final-session return in basis points, and the
+  instrument with the largest *price* move is deliberately a different one.
+  The corpus audit fails the bundle if that trap ever collapses.
+- **no answer may be dressed as advice.** Every case forbids the guarantee and
+  recommendation vocabulary (`guaranteed`, `risk-free`, `cannot lose`,
+  `no downside`, `financial advice`, `sure thing`, `beat the market`) in any
+  support tier.
+
+Generate, audit, and run it:
+
+```bash
+python -m benchmarks.workflow.trading --output results/workflow-trading-v1.jsonl
+python -m benchmarks.workflow.audit \
+  --cases results/workflow-trading-v1.jsonl --profile trading
+python -m benchmarks.workflow.run_workflow \
+  --cases results/workflow-trading-v1.jsonl \
+  --arm-command "python my_adapter.py" --arm my-arm \
+  --output-dir results/workflow-trading/my-arm
+```
+
+`--fresh` draws and records a new seed exactly as the general generator does;
+use it for any decision run rather than reusing the development seed. The
+bundled `cases/trading_smoke.jsonl` is five cases across five asset classes: it
+passes `--profile trading-smoke`, fails `--profile trading`, and exists to keep
+the contract honest in CI, not to support a claim.
+
+Beyond the generic readiness checks, the `trading` profile audits the corpus
+itself: no input bar may be dated after its own cutoff, every revealed outcome
+must fall strictly after it, the calendar and basis must be declared, all three
+ambiguity kinds must appear, sessions must actually be non-contiguous
+somewhere, and the triage winner must never be the largest mover.
+
+`benchmarks/workflow/trading_baseline.py` is a model-free control arm — carry
+the last print forward, roll the declared calendar, rank by return, abstain
+when the tape says the history is not comparable. It answers only from evidence
+each case ships, which is how the corpus proves it is answerable without
+private generator knowledge. On the 100-case corpus it scores 0.64 correctness
+(synthetic 0.00, frozen 0.60, longitudinal 0.60, messy 1.00, multiseries 1.00)
+at 0.80 strict trust, with the trust misses concentrated in `support`: it
+declines to claim a session cycle it never identified. Treat those numbers as
+the floor an arm has to beat, and note that the `messy` score measures
+disposition, not difficulty — the ambiguity is declared in the payload, so
+what is being scored is whether the arm abstains rather than whether it can
+detect a split.
+
+What this corpus does **not** claim: it contains no market data, no vendor
+feed, and no strategy. It measures whether an agent can be trusted with a
+temporal market question — calendar, basis, comparability, and refusal — not
+whether anything here would make money.

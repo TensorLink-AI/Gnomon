@@ -1,0 +1,21 @@
+# Trading Workflow Bench: the model-free control arm against the bundled
+# smoke corpus.
+#
+#   python -m benchmarks.run_all --config benchmarks/configs/workflow_trading.yaml
+#
+# For a decision run, generate a fresh corpus first and point `cases` at it:
+#
+#   python -m benchmarks.workflow.trading --fresh \
+#     --output results/workflow-trading-heldout.jsonl
+#   python -m benchmarks.workflow.audit \
+#     --cases results/workflow-trading-heldout.jsonl --profile trading
+
+output_root: results/workflow-trading
+
+runs:
+  - benchmark: workflow
+    name: trading-carry-forward
+    args:
+      cases: benchmarks/workflow/cases/trading_smoke.jsonl
+      arm: trading-carry-forward
+      arm_command: python -m benchmarks.workflow.trading_baseline
