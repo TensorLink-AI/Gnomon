@@ -679,6 +679,9 @@ class SubprocessAdapter:
       - stdout: {"point": [...], "quantiles": [...]} or {"error": "..."}
     """
 
+    backend = "sandbox"
+    revision: str | None = None
+
     def __init__(
         self,
         name: str,
@@ -686,6 +689,11 @@ class SubprocessAdapter:
         timeout: int = 300,
     ):
         self.name = name
+        from .tsfm import resolved_weights
+        pins = resolved_weights(name)
+        self.revision = ",".join(
+            f"{model_id}@{revision}"
+            for model_id, revision in sorted(pins.items())) or None
         self.frequency = frequency
         self.timeout = timeout
         # Infer metadata from the registration in tsfm.py

@@ -27,6 +27,7 @@ from .pipeline import (
     predict_stage,
 )
 from .temporal import FREQUENCY_DESCRIPTIONS, SEASONS, detect_season
+from .temporal_profile import temporal_profile
 
 
 def _seasonal_period_label(period_steps: int, frequency: str) -> str:
@@ -355,6 +356,19 @@ def _series_result(
     numerics. Returns the series result and its evidence in the exact
     order the single-target loop emitted them.
     """
+    # A cached receipt is an immutable interpretation, not blanket temporal
+    # authority. Explicit historical replay sees only context knowable by its
+    # snapshot cutoff; later context remains available to newer runs.
+    if context_events and loaded.snapshot.as_of is not None:
+        from datetime import datetime
+        from .constraints import _align
+
+        cutoff = loaded.snapshot.as_of
+        context_events = [
+            event for event in context_events
+            if _align(datetime.fromisoformat(event.known_at), cutoff)[0]
+            <= _align(datetime.fromisoformat(event.known_at), cutoff)[1]
+        ]
     state = horizon_stage(
         series_name, items, horizon=horizon, frequency=loaded.frequency,
         seasonal_period=seasonal_period,
@@ -387,6 +401,13 @@ def _series_result(
             ),
             series_count=len(var_frame.names) if var_frame else len(loaded.groups),
         )
+    if context_events:
+        state.primary_points = list(state.points)
+        state.primary_residuals = list(state.residuals)
+        state.primary_residuals_by_lead = {
+            step: list(values)
+            for step, values in state.residuals_by_lead.items()
+        }
     if context_events:
         context_stage(
             state, context_events, horizon=horizon,
@@ -613,7 +634,53 @@ def _series_result(
             uniform_tier = achieved_tier(support_assessment.status, True)
             for row in rows:
                 row["tier"] = uniform_tier
+    primary_forecast: list[dict[str, Any]] = []
+    context_changed_output = (
+        bool(getattr(state.context_assessment, "admitted", False))
+        or bool((state.future_context_public or {}).get("admitted"))
+        or any(item.kind in {
+            "constraint_applied", "constraint_reasserted",
+            "future_context_applied",
+        } for item in state.evidence)
+    )
+    if rows and state.primary_points and context_changed_output:
+        from .evaluation import (
+            conformal_quantile_spreads, conformal_spreads,
+            interval_from_spread, quantiles_from_spread,
+        )
+
+        primary_spreads = conformal_spreads(
+            state.primary_residuals_by_lead, len(state.primary_points),
+            state.primary_residuals, target_coverage,
+            recentre=not assessment.degraded,
+        )
+        primary_levels = conformal_quantile_spreads(
+            state.primary_residuals_by_lead, len(state.primary_points),
+            state.primary_residuals, recentre=not assessment.degraded,
+        )
+        primary_tier = achieved_tier(support_assessment.status, True)
+        for step, (timestamp, point) in enumerate(
+                zip(state.future_timestamps, state.primary_points), 1):
+            if step not in primary_spreads:
+                continue
+            q10, q50, q90 = interval_from_spread(
+                point, primary_spreads[step])
+            primary_row = {
+                "timestamp": timestamp.isoformat(), "point": point,
+                "q10": q10, "q50": q50, "q90": q90,
+                "point_bias_correction": q50 - point,
+                "tier": primary_tier,
+            }
+            primary_row.update({
+                key: value for key, value in quantiles_from_spread(
+                    point, primary_levels[step]).items()
+                if key not in primary_row
+            })
+            primary_forecast.append(primary_row)
     from .soft_context import context_outcome as project_context_outcome
+    profile = temporal_profile(
+        [float(item.value) for item in items], season=state.season,
+        forecast_rows=rows)
     result = SeriesResult(
         series_name, support, state.selected_model, assessment.strongest_baseline,
         assessment.selection_scores, assessment.test_scores, assessment.improvement,
@@ -622,6 +689,8 @@ def _series_result(
         support_assessment.to_dict(),
         notes=state.notes,
         conditional_forecasts=state.conditional_forecasts,
+        sensitivity_scenarios=state.sensitivity_scenarios,
+        primary_forecast=primary_forecast,
         future_context=state.future_context_public,
         temporal_facts={
             "seasonal_period_steps": state.season,
@@ -629,6 +698,7 @@ def _series_result(
                 state.season, loaded.frequency),
             "frequency": loaded.frequency,
             "source": "computed_from_observations",
+            "temporal_profile": profile,
         },
         context_outcome=(
             project_context_outcome(
@@ -636,6 +706,7 @@ def _series_result(
                 context_assessment=state.context_assessment,
                 future_context=state.future_context_public,
                 conditional_forecasts=state.conditional_forecasts,
+                sensitivity_scenarios=state.sensitivity_scenarios,
             ) if context_events else None
         ),
     )
@@ -1466,13 +1537,6 @@ def capabilities() -> dict[str, object]:
                 "default_output_dir (content-addressed, immutable "
                 "directories). Relative paths resolve against cwd."
             ),
-        },
-        "experimental": {"planner": os.environ.get("GNOMON_EXPERIMENTAL_PLANNER") == "1"},
-        # Deprecated surfaces are opt-in, never silently removed; this flag
-        # is how a client discovers whether the v0.2 compat tools are up.
-        "compat": {
-            "v02_tools": os.environ.get("GNOMON_V02_COMPAT") == "1",
-            "enable": "GNOMON_V02_COMPAT=1",
         },
         "mcp_profile": _mcp_profile(),
         "features": {

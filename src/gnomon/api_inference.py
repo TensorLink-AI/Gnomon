@@ -40,6 +40,10 @@ from typing import Any
 
 from .config import APIProviderConfig
 from .tsfm import TSFMAdapter, TSFMError, TSFMUnavailable
+from .forecast_adapter import (
+    PROTOCOL_VERSION, AdapterCapabilities, ForecastAdapterError,
+    ForecastRequest, ForecastResult,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +56,7 @@ class APIAdapter:
     No torch, no model weights, no local deps — just HTTP.
     """
 
+    backend = "api"
     def __init__(
         self,
         name: str,
@@ -61,12 +66,15 @@ class APIAdapter:
     ):
         self.name = name
         self._provider = provider
+        self.revision = provider.revision or None
         self._timeout = provider.timeout or timeout
         self._retry = provider.retry or retry
 
         # Infer metadata from name
         self._params_m = self._lookup_params(name)
         self._supports_quantiles = self._lookup_supports_quantiles(name)
+        self.capabilities = AdapterCapabilities(
+            quantiles=self._supports_quantiles)
 
     @staticmethod
     def _lookup_params(name: str) -> float:
@@ -102,10 +110,14 @@ class APIAdapter:
         quantiles: tuple[float, ...] = (0.1, 0.5, 0.9),
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {
+            "protocol_version": PROTOCOL_VERSION,
             "model": self._provider.model or self.name,
             "history": history,
             "horizon": horizon,
+            "season": 1,
         }
+        if self.revision:
+            payload["revision"] = self.revision
         if want_quantiles and self._supports_quantiles:
             payload["quantiles"] = list(quantiles)
         return payload
@@ -184,11 +196,18 @@ class APIAdapter:
 
     def predict(self, history: list[float], horizon: int, season: int) -> list[float]:
         payload = self._build_request(history, horizon, want_quantiles=False)
+        payload["season"] = season
         response = self._call_api(payload)
         point = response.get("point")
         if point is None:
             raise TSFMError(f"API for {self.name} returned no point forecast")
-        return point
+        try:
+            request = ForecastRequest.from_values(history, horizon, season)
+            return ForecastResult(tuple(float(value) for value in point)).validate(
+                request).points()
+        except (TypeError, ValueError, ForecastAdapterError) as exc:
+            raise TSFMError(
+                f"API for {self.name} violated the forecast contract: {exc}") from exc
 
     def predict_quantiles(
         self,
@@ -202,5 +221,20 @@ class APIAdapter:
         payload = self._build_request(
             history, horizon, want_quantiles=True, quantiles=quantiles,
         )
+        payload["season"] = season
         response = self._call_api(payload)
-        return response.get("quantiles")
+        raw = response.get("quantiles")
+        if raw is None:
+            return None
+        try:
+            rows = tuple({float(key): float(value) for key, value in row.items()}
+                         for row in raw)
+            request = ForecastRequest.from_values(
+                history, horizon, season, quantiles=quantiles)
+            point = response.get("point") or [row.get(.5, 0.0) for row in rows]
+            return [dict(row) for row in ForecastResult(
+                tuple(float(value) for value in point), rows).validate(
+                    request).quantiles or ()]
+        except (TypeError, ValueError, ForecastAdapterError) as exc:
+            raise TSFMError(
+                f"API for {self.name} violated the quantile contract: {exc}") from exc

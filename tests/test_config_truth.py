@@ -89,6 +89,18 @@ def test_toml_config_loads_via_stdlib(tmp_path):
     assert cfg.ensemble.strategy == "median"
 
 
+def test_remote_adapter_revision_is_parsed_and_preserved(tmp_path):
+    path = tmp_path / "gnomon.toml"
+    path.write_text(
+        '[backends.api]\nenabled = true\n'
+        '[backends.api.providers.remote]\n'
+        'url = "https://example.invalid/forecast"\n'
+        'model = "remote-model"\nrevision = "sha256:abc"\n',
+        encoding="utf-8")
+    provider = load_config(str(path)).backends.api.providers["remote"]
+    assert provider.revision == "sha256:abc"
+
+
 def test_invalid_toml_is_a_loud_error(tmp_path):
     path = tmp_path / "gnomon.toml"
     path.write_text("[ensemble\nenabled = true\n", encoding="utf-8")

@@ -42,9 +42,11 @@ Ours (this directory) — the three conditions:
 | `gnomon-mcp` (all tiers) | drives the real `gnomon mcp serve` tool surface itself | T2/T4, per channel: a Gnomon artifact used verbatim, or the model's own values labeled `model` — the route is recorded per channel. T1/T3: the model's own answers, with the same tool surface available |
 
 Disclosed adapter decisions (see `gnomon_runner.py`): rows carry
-index-aligned arrays rather than regular timestamps, so Gnomon models each
-channel on a synthetic regular hourly axis (index-based metrics — the
-axis never enters the score); nulls go through Gnomon's disclosed repair
+index-aligned arrays rather than timestamped observations, so Gnomon models each
+channel on a regular axis anchored to the row's official `history_end` and
+`cluster_start` (index-based metrics — the axis never enters the score). This
+preserves the calendar alignment of T4 events while making the unavoidable
+regular-grid assumption explicit; nulls go through Gnomon's disclosed repair
 layer; channels Gnomon abstains on stay absent and the row is recorded as
 an abstention; `gnomon-pure` answers MCQs with the option sets' own
 `Uncertain` — an honest abstention, reported as such. Questions whose
@@ -90,6 +92,17 @@ the same flag with `core`, `describe`, `evidence`, `mega`, and `full`: context
 compilation is shared host infrastructure, so the experiment varies the tool
 surface rather than whether text was connected to the product.
 
+On T4, an artifact may contain a separately labelled
+`hypothetical_sensitivity` path when the narrative grounds an event direction
+but the short benchmark history cannot estimate its effect on four separated
+folds. The adapter never submits that path as the forecast: the governed
+history-only primary remains the sole headline score. It additionally computes
+a retrospective diagnostic by overlaying scenarios only on channels where they
+exist, and reports coverage, wins, losses, ties, and the sMAPE delta beside an
+explicit `retrospective_overlay_never_submitted` warning. This measures whether
+the standardized sensitivity carried information without turning hindsight
+into a deployment selection policy.
+
 ```bash
 for profile in core describe evidence mega full; do
   python -m benchmarks.temporalbench.run_temporalbench \
@@ -106,6 +119,30 @@ surface verifies the task narrative fingerprint and replays the same receipt
 without another compiler call. The summary exposes receipt reuse and counts
 compiler calls separately. A changed narrative refuses the cached receipt
 rather than silently compiling against different text.
+
+Add `--compile-questions` to compile the T2/T4 choice-question text into the
+same typed temporal-question contract used by the public tools. The compiler
+sees question text and target names only—never options, labels, forecasts, or
+future observations—and deterministic validation may accept or reject each
+proposal independently. `--question-receipts-dir` persists immutable,
+fingerprinted proposed/accepted/rejected receipts for matched runs. Summary
+provenance reports question-compiler calls, receipt replays, accepted
+questions, and rejected proposals separately from context compilation and MCP
+engine calls. This arm tests host integration; the primary forecast remains
+the same fitted executable and cannot be modified by compiler output.
+`mcp_economics.choice_reasoning_stages` separates requested questions,
+questions that reached a typed engine answer, official accuracy conditional on
+that answer, and exact preservation of the canonical/display value by the host
+agent. A compiler miss is therefore not reported as an estimator failure, and
+an agent paraphrase is not reported as missing engine coverage.
+
+```bash
+python -m benchmarks.temporalbench.run_temporalbench \
+  --data-dir ~/temporalbench --condition gnomon-mcp \
+  --mcp-profile evidence --compile-questions \
+  --question-receipts-dir results/tb-question-receipts \
+  --model "$MODEL" --tiers T2,T4 --output-dir results/tb-compiled-questions
+```
 
 An artifact whose run abstained (`support:
 "unsupported"`) is rejected at submission with the honest options
@@ -272,6 +309,14 @@ say; abstained, errored and harness-voided rows are excluded and
 counted separately, so compare arms via
 `benchmarks/report.py`'s matched join), `details/` per row,
 `gnomonbench.jsonl`, `manifest.json` (run provenance).
+
+Long runs may be split with disjoint `--offset`/`--limit` ranges. Merge them
+with `python -m benchmarks.temporalbench.merge_shards --target RUN SHARD...`,
+then invoke the canonical target with `--resume`. Duplicate task ids must be
+byte-equivalent or the merge refuses; the normal runner then recomputes one
+summary over the complete matched set.
+Use `--resume --retry-voided` after fixing a harness-cap defect: successful
+rows replay, while only prior `row_abstained` cases execute again.
 
 Notes: the benchmark is new (Feb 2026) and its README announces
 human-annotated updates — re-download before comparing across dates.

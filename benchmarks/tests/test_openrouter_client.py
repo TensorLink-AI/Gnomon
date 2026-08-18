@@ -7,6 +7,7 @@ answer would record a wrong answer the model never gave.
 """
 
 import sys
+import urllib.error
 from pathlib import Path
 
 import pytest
@@ -172,3 +173,21 @@ def test_client_survives_pickling_for_the_worker_pool():
     clone = pickle.loads(pickle.dumps(client))
     clone._account({"usage": {"prompt_tokens": 1, "completion_tokens": 2}})
     assert clone.total_requests == 1
+
+
+def test_zero_retries_still_performs_the_initial_request(monkeypatch):
+    attempts = []
+
+    def unavailable(*args, **kwargs):
+        attempts.append((args, kwargs))
+        raise urllib.error.URLError("offline")
+
+    monkeypatch.setattr("urllib.request.urlopen", unavailable)
+    client = OpenRouterClient(
+        "test/model", api_key="k", max_retries=0, timeout=1)
+    with pytest.raises(OpenRouterError, match="after 1 attempts"):
+        client._request(MESSAGES, n=1, temperature=None, max_tokens=10,
+                        tools=None, tool_choice=None)
+    assert len(attempts) == 1
+    assert client.usage_summary["requests"] == 0
+    assert client.usage_summary["transport_attempts"] == 1

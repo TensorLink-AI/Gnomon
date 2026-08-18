@@ -54,7 +54,6 @@ Ours (this directory):
 | `gnomon-pure` | none (context ignored) | Gnomon |
 | `gnomon-agent` | proposes typed context events only | Gnomon |
 | `gnomon-mcp` | holds Gnomon's real MCP tools, uses them or not | Gnomon (verbatim artifact) or the LLM, labeled per run |
-| `gnomon-router` | retired: one-shot prose routing | whichever it chose |
 
 `gnomon-mcp` is the integrated "agent chooses" arm
 (`docs/design/cik-mcp-tool-arm.md`, `mcp_agent.py`): every tool
@@ -68,14 +67,7 @@ quantiles. The route is classified from the transcript afterwards
 keeps the model away from the cached benchmark datasets. Per-run
 transcripts land in `<output-dir>/mcp-traces/`.
 
-`gnomon-router` is the superseded one-shot arm: **prose-routed
-dispatch, not tool calling**. The model answers one classification
-question, a regex branches on the reply, and it never sees a forecast
-or gets a second turn — measured consequence: a constant routing
-function on the first prompt, and blind 0/4 losses on the matched
-seeds of the second. Its code, `route_survey.py` gate, and records
-stay for the record; use `gnomon-mcp` for the optional-Gnomon posture.
-On any arm, a routed/optional win is evidence about the *pipeline*,
+On any arm, an optional-tool win is evidence about the *pipeline*,
 never about Gnomon's own forecasting quality — it can come entirely
 from knowing when not to call.
 

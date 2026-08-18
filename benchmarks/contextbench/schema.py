@@ -9,7 +9,12 @@ from pathlib import Path
 from typing import Any, Iterator
 
 SCHEMA_VERSION = 1
-FAMILIES = {"irrelevant", "future_covariate", "repeated_event", "prior_only"}
+FAMILIES = {
+    "irrelevant", "future_covariate", "repeated_event", "prior_only",
+    "misleading_context", "timing_uncertainty", "numeric_claim",
+    "structural_change", "confounded", "bitemporal_context",
+    "entity_scope",
+}
 
 
 def _require(condition: bool, message: str) -> None:
@@ -45,8 +50,11 @@ class Case:
         family = str(raw.get("family", ""))
         history = tuple(float(value) for value in raw.get("history", ()))
         horizon = int(raw.get("horizon", 0))
+        frequency = str(raw.get("frequency", "h"))
         _require(bool(case_id), "case_id is required")
         _require(family in FAMILIES, f"unknown family {family!r}")
+        _require(frequency in {"15min", "h", "D"},
+                 f"case {case_id}: unsupported frequency {frequency!r}")
         _require(horizon > 0 and len(history) >= 8 * horizon,
                  f"case {case_id}: history must provide at least 8 horizons")
         _require(all(math.isfinite(value) for value in history),
@@ -54,15 +62,15 @@ class Case:
         events = tuple(dict(item) for item in raw.get("context_events", ()))
         covariates = tuple(dict(item) for item in raw.get("covariates", ()))
         mapping = tuple(dict(item) for item in raw.get("covariate_mapping", ()))
-        _require(not (events and covariates),
-                 f"case {case_id}: one context lane per case keeps attribution identifiable")
+        _require(not (events and covariates) or family == "confounded",
+                 f"case {case_id}: mixed context lanes require family='confounded'")
         if family == "future_covariate":
             _require(bool(covariates and mapping),
                      f"case {case_id}: future_covariate needs rows and mapping")
         return cls(
             case_id=case_id, family=family,
             domain=str(raw.get("domain", "operations")),
-            frequency=str(raw.get("frequency", "h")), horizon=horizon,
+            frequency=frequency, horizon=horizon,
             history=history, context_events=events, covariates=covariates,
             covariate_mapping=mapping, narrative=str(raw.get("narrative", "")),
             tags=tuple(str(item) for item in raw.get("tags", ())),
@@ -80,6 +88,7 @@ class Oracle:
     effect_magnitude: float
     onset_step: int | None
     duration_steps: int | None
+    dimensions: dict[str, Any]
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> "Oracle":
@@ -97,6 +106,7 @@ class Oracle:
             onset_step=(int(raw["onset_step"]) if raw.get("onset_step") is not None else None),
             duration_steps=(int(raw["duration_steps"])
                             if raw.get("duration_steps") is not None else None),
+            dimensions=dict(raw.get("dimensions") or {}),
         )
 
 

@@ -18,7 +18,8 @@ from benchmarks.common.envfile import load_env_file
 from benchmarks.common.openrouter import OpenRouterClient
 from benchmarks.temporalbench.mcp_agent import coerce_json_containers
 from gnomon.workflows import (
-    DocumentRef, build_context_investigation_prompt, parse_context_response,
+    DocumentRef, build_context_investigation_prompt,
+    normalise_context_response_containers, parse_context_response,
 )
 
 from .run_contextbench import run_case, smape
@@ -186,6 +187,8 @@ def compile_events(case: Case, client: OpenRouterClient) -> dict[str, Any]:
         raw, coerced = coerce_json_containers(
             _tool_arguments(response, "submit_context"),
             fields=("events", "hypotheses"))
+        raw, context_repairs = normalise_context_response_containers(raw)
+        coerced.extend(context_repairs)
         parsed = parse_context_response(
             raw, [document], proposer={"proposer_id": f"llm:{client.model}",
                                       "kind": "llm"})
@@ -452,7 +455,9 @@ def main() -> int:
             checkpoint()
     rows = [rows_by_id[case.case_id] for case in cases]
     summary = summarize(rows, args.condition, client, manifest)
-    summary["resumed_answered_rows"] = len(retained)
+    summary["resumed_answered_rows"] = sum(
+        row.get("status") == "answered" for row in retained.values())
+    summary["resumed_terminal_rows"] = len(retained)
     summary["rows_executed_this_invocation"] = len(pending)
     summary["corpus_manifest_sha256"] = hashlib.sha256(
         (corpus / "manifest.json").read_bytes()).hexdigest()

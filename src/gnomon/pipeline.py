@@ -89,6 +89,13 @@ class SeriesState:
     future_context_public: dict[str, object] | None = None
     adjudication_public: dict[str, object] | None = None
     conditional_forecasts: list[dict[str, object]] = field(default_factory=list)
+    sensitivity_scenarios: list[dict[str, object]] = field(default_factory=list)
+    # Frozen immediately before any context/covariate enrichment.  Context
+    # projections may win the legacy selected-output path, but this snapshot
+    # is the canonical primary forecast and cannot be rewritten downstream.
+    primary_points: list[float] = field(default_factory=list)
+    primary_residuals: list[float] = field(default_factory=list)
+    primary_residuals_by_lead: dict[int, list[float]] = field(default_factory=dict)
     #: Typed, correct-but-surprising facts for the support assessment.
     #: Never affects support status — see SupportAssessment.disclosures.
     disclosures: list[SupportReason] = field(default_factory=list)
@@ -614,7 +621,7 @@ def conditional_stage(
     forecast, and turns a real question into an abstention. The answer goes
     in its own list with its own support status; nothing above it changes.
     """
-    from .conditional import assess_conditional
+    from .conditional import assess_conditional, sensitivity_scenarios
 
     assessment = state.assessment
     if not (assessment and assessment.supported and state.points):
@@ -631,12 +638,27 @@ def conditional_stage(
         state.points,
     )
     state.conditional_forecasts = [item.to_public_dict() for item in forecasts]
-    if forecasts or excluded:
+    scenarios, scenario_excluded = sensitivity_scenarios(
+        state.values, state.timestamps, state.future_timestamps,
+        context_events, state.name,
+        state.points, spreads,
+    )
+    # A measured conditional answer dominates a standardised sensitivity for
+    # the same event. Keep the weaker lane only where measurement was absent.
+    measured_ids = {event_id for item in state.conditional_forecasts
+                    for event_id in item.get("events", [])}
+    state.sensitivity_scenarios = [
+        item for item in scenarios
+        if not measured_ids.intersection(item.get("events", []))
+    ]
+    excluded.extend(scenario_excluded)
+    if forecasts or state.sensitivity_scenarios or excluded:
         state.evidence.append(Evidence(
             f"conditional_forecasts:{state.name}", "conditional_forecasts",
             state.name,
             {
                 "produced": len(forecasts),
+                "sensitivity_scenarios_produced": len(state.sensitivity_scenarios),
                 "declined": excluded,
                 "basis": "effect measured from event-active periods in the "
                          "observed history; never from the event description",
@@ -748,13 +770,103 @@ def context_stage(
 ) -> None:
     """Leakage-safe context-event ablation; admitted events replace the
     forecast, unless a later adjudication stage owns that choice."""
-    context = assess_context(
-        state.values, state.timestamps, state.future_timestamps, context_events,
-        state.name, horizon, state.season, minimum_baseline_improvement,
-        state.assessment,
-    )
+    receipt_ids = sorted({
+        str(event.attributes.get("context_receipt_id"))
+        for event in context_events
+        if event.attributes.get("context_receipt_id")
+    })
+    context = None
+    assessment_cache = None
+    assessment_key = None
+    # Cache only receipt-bound events. CLI callers supplying loose events
+    # retain the established uncached path; no weak identity is invented.
+    if len(receipt_ids) == 1:
+        from .context_store import (
+            ContextReceiptStore, assessment_cache_key,
+        )
+        from .soft_context import content_fingerprint
+        import json
+
+        assessment_cache = ContextReceiptStore.default()
+        visible = content_fingerprint(json.dumps({
+            "timestamps": [item.isoformat() for item in state.timestamps],
+            "values": state.values,
+        }, sort_keys=True, separators=(",", ":")))
+        fitted = content_fingerprint(json.dumps({
+            "selected_model": state.selected_model,
+            "primary_points": state.points,
+        }, sort_keys=True, separators=(",", ":")))
+        policy = content_fingerprint(json.dumps({
+            "horizon": horizon, "season": state.season,
+            "minimum_baseline_improvement": minimum_baseline_improvement,
+        }, sort_keys=True, separators=(",", ":")))
+        assessment_key = assessment_cache_key(
+            receipt_id=receipt_ids[0], visible_data_fingerprint=visible,
+            as_of=(state.timestamps[-1].isoformat()
+                   if state.timestamps else None), series=state.name,
+            fitted_candidate_id=fitted, configuration_fingerprint=policy,
+            code_version="context-assessment-0.1",
+        )
+        cached = assessment_cache.get_assessment(assessment_key)
+        if cached is not None:
+            from .context_eval import ContextAssessment
+            context = ContextAssessment.from_cache_dict(cached)
+    if context is None:
+        context = assess_context(
+            state.values, state.timestamps, state.future_timestamps,
+            context_events, state.name, horizon, state.season,
+            minimum_baseline_improvement, state.assessment,
+        )
+        if assessment_cache is not None and assessment_key is not None:
+            assessment_cache.put_assessment(
+                assessment_key, context.to_cache_dict())
     state.context_assessment = context
     state.context_public = context.to_public_dict()
+    if context.admitted and context.points and state.points:
+        from statistics import mean, stdev
+
+        from .effects import (
+            EffectDistribution, EffectProvenance, effect_contract,
+            latest_knowledge_time,
+        )
+
+        deltas = [conditioned - primary for primary, conditioned
+                  in zip(state.points, context.points)]
+        changed = [value for value in deltas if abs(value) > 1e-12]
+        if changed:
+            location = mean(changed)
+            scale = stdev(changed) if len(changed) > 1 else 0.0
+            used = set(context.events_used)
+            used_events = [event for event in context_events
+                           if event.event_id in used]
+            sources = sorted({event.source.reference for event in used_events
+                              if event.source is not None})
+            reliability = max(0.0, min(1.0, context.mean_improvement or 0.0))
+            shape = {
+                "level": "level_shift", "decay": "temporary_pulse",
+                "ramp": "trend_change",
+            }.get(context.effect_shape, context.effect_shape)
+            state.context_public["effect"] = effect_contract(
+                EffectDistribution(
+                    "empirical", location, scale, min(changed), max(changed),
+                    None, len(changed),
+                ),
+                EffectProvenance(
+                    "same_event_same_series", True,
+                    latest_knowledge_time(
+                        state.timestamps[-1],
+                        [event.known_at for event in used_events],
+                    ),
+                    ", ".join(sources) or None, 1.0, reliability,
+                    "fold-admitted conditioned-minus-primary horizon deltas",
+                ),
+                shape=shape,
+            )
+            state.context_public["primary_forecast_changed"] = bool(apply)
+            state.context_public["projection_role"] = (
+                "published_conditioned_candidate" if apply
+                else "adjudication_candidate"
+            )
     state.evidence.append(Evidence(
         f"context_ablation:{state.name}", "context_ablation", state.name,
         state.context_public,
@@ -1023,6 +1135,7 @@ def _future_context_stage(
     assessment = assess_future_events(
         context_events, state.name, state.values, state.timestamps,
         state.future_timestamps, state.season,
+        base_points=[float(row["point"]) for row in rows],
         allow_future=allow_future, allow_structural=allow_structural,
     )
     if not assessment.considered:

@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from collections import OrderedDict
 from pathlib import Path
 from statistics import median
@@ -125,6 +126,31 @@ def subset_metrics(metrics_module, truth, history, forecast, channels):
     )
 
 
+def stable_scaled_error_denominator(history: object) -> bool:
+    """Whether a naive absolute-change scale is numerically informative.
+
+    MASE can explode for an almost constant series even when absolute errors
+    are tiny.  We retain the official score, but identify those denominators
+    and report a stable-history subset beside it.
+    """
+    if not isinstance(history, (list, tuple)) or len(history) < 2:
+        return False
+    values = []
+    for item in history:
+        try:
+            value = float(item)
+        except (TypeError, ValueError):
+            continue
+        if math.isfinite(value):
+            values.append(value)
+    if len(values) < 2:
+        return False
+    level = max(1.0, median(abs(item) for item in values))
+    scale = median(abs(values[index] - values[index - 1])
+                   for index in range(1, len(values)))
+    return scale > 1e-6 * level
+
+
 def main() -> int:
     args = parse_args()
     data_dir = Path(args.data_dir).expanduser()
@@ -136,6 +162,7 @@ def main() -> int:
 
     shared_ids = sorted(set(base) & set(treat) & set(truth_by_id))
     per_channel: dict[str, list[tuple[float, float]]] = {}
+    per_channel_stable: dict[str, list[tuple[float, float]]] = {}
     record_rows = []
     coverage = {"base_only": 0, "treat_only": 0, "both": 0, "neither": 0}
     # Support-label mix over the channels actually scored, per arm:
@@ -183,6 +210,11 @@ def main() -> int:
             b_val, t_val = b_ch.get("MASE"), t_ch.get("MASE")
             if b_val is not None and t_val is not None:
                 per_channel.setdefault(channel, []).append((b_val, t_val))
+                channel_history = (history or {}).get(channel) \
+                    if isinstance(history, dict) else None
+                if stable_scaled_error_denominator(channel_history):
+                    per_channel_stable.setdefault(channel, []).append(
+                        (b_val, t_val))
 
     def summarise(pairs):
         b = [p[0] for p in pairs]
@@ -193,7 +225,17 @@ def main() -> int:
             "baseline_median": round(median(b), 4),
             "treatment_median": round(median(t), 4),
             "treatment_wins": wins,
+            "near_constant_denominators_excluded": 0,
         }
+
+    def stable_summary(channel, pairs):
+        result = summarise(pairs)
+        stable_pairs = per_channel_stable.get(channel, [])
+        result["near_constant_denominators_excluded"] = (
+            len(pairs) - len(stable_pairs))
+        result["stable_history"] = (summarise(stable_pairs)
+                                    if stable_pairs else None)
+        return result
 
     total_channels = sum(coverage.values())
     print(f"records compared: {len(record_rows)} "
@@ -206,7 +248,7 @@ def main() -> int:
     print(f"{'channel':16s} {'n':>4s} {'base MASE':>11s} "
           f"{'treat MASE':>11s} {'treat wins':>11s}")
     for channel, pairs in sorted(per_channel.items()):
-        s = summarise(pairs)
+        s = stable_summary(channel, pairs)
         print(f"{channel:16s} {s['n']:4d} {s['baseline_median']:11.4f} "
               f"{s['treatment_median']:11.4f} "
               f"{s['treatment_wins']:>6d}/{s['n']:<4d}")
@@ -217,6 +259,14 @@ def main() -> int:
         print(f"\n{'ALL':16s} {s['n']:4d} {s['baseline_median']:11.4f} "
               f"{s['treatment_median']:11.4f} "
               f"{s['treatment_wins']:>6d}/{s['n']:<4d}")
+        stable_all = [pair for pairs in per_channel_stable.values()
+                      for pair in pairs]
+        if stable_all:
+            stable = summarise(stable_all)
+            print(f"{'ALL stable-scale':16s} {stable['n']:4d} "
+                  f"{stable['baseline_median']:11.4f} "
+                  f"{stable['treatment_median']:11.4f} "
+                  f"{stable['treatment_wins']:>6d}/{stable['n']:<4d}")
 
     def mix_line(mix: dict[str, int]) -> str:
         return ", ".join(f"{label} {count}"
@@ -234,7 +284,8 @@ def main() -> int:
         print(json.dumps({
             "coverage": coverage,
             "support_mix": {"baseline": base_mix, "treatment": treat_mix},
-            "per_channel": {c: summarise(p) for c, p in per_channel.items()},
+            "per_channel": {c: stable_summary(c, p)
+                            for c, p in per_channel.items()},
             "records": record_rows,
         }, indent=2))
     return 0

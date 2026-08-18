@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **One agent contract, with unused surfaces removed.** MCP is now the sole
+  agent-facing contract. The hand-maintained Hermes plugin, experimental
+  planner and `gnomon plan` CLI family, and the seven v0.2 compatibility
+  tools have been removed together with their feature flags. Current
+  replacements are documented in `COMPATIBILITY.md`. The `mega` profile
+  remains available as an explicit experiment arm; the default stays
+  `evidence`.
+
 - **The published candidate is the evaluated candidate.** Evaluation now
   returns an executable `CandidateSpec` for the winner — bound to the
   *same* closures that produced its calibration and test predictions —

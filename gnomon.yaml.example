@@ -161,9 +161,8 @@ meta_model:
   # selection proceeds among the models that did.
 
 # ---------------------------------------------------------------------------
-# There is no `llm` section: LLM integration lives in the MCP host (the
-# planner gate and the Hermes adapter), never in the engine, which computes
-# every number deterministically.
+# There is no `llm` section: LLM integration belongs to the MCP host, never
+# the engine, which computes every number deterministically.
 
 # ---------------------------------------------------------------------------
 # Evaluation — control the backtesting pipeline

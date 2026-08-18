@@ -1,8 +1,8 @@
 """The integrated arm: Gnomon as real MCP tools the model may use or skip.
 
-Spec: ``docs/design/cik-mcp-tool-arm.md``. The routing decision the
-``gnomon-router`` arm asked the model to declare is made here implicitly
-and observably: the model holds every tool ``gnomon mcp serve``
+Spec: ``docs/design/cik-mcp-tool-arm.md``. The decision whether to use
+Gnomon is made implicitly and observably: the model holds every tool
+``gnomon mcp serve``
 publishes, verbatim, plus one harness tool (``submit_forecast``), and
 whether it calls Gnomon at all is read from the transcript afterwards.
 

@@ -29,12 +29,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from statistics import mean
+from statistics import mean, median
 from typing import Any
 
 from .context import ContextEvent, backtest_admissible, event_applies, validate_context_event
 from .context_model import event_effect
 from .evaluation import interval_from_spread
+from .effects import (
+    EffectDistribution, EffectProvenance, effect_contract,
+    latest_knowledge_time,
+)
 
 CONDITIONAL_SUPPORT = "conditional_on_event"
 
@@ -42,6 +46,26 @@ CONDITIONAL_SUPPORT = "conditional_on_event"
 #: reports. Used only to convert the effect's standard error into the same
 #: units as the conformal half-widths it widens.
 _Z80 = 1.2815515655446004
+
+
+def _known_after_cutoff(known_at: str, cutoff: datetime) -> bool:
+    """Compare knowledge time using the dataset's timezone convention.
+
+    Context validation requires an offset, while legacy datasets may be
+    timezone-naive. The rest of the context pipeline aligns those events by
+    wall clock and discloses it; scenario availability must use the identical
+    convention rather than crashing or silently switching semantics.
+    """
+    known = datetime.fromisoformat(known_at)
+    if cutoff.tzinfo is None:
+        known = known.replace(tzinfo=None)
+    return known > cutoff
+
+
+def _effect_known_at(events: list[ContextEvent], cutoff: datetime) -> str:
+    """Latest input knowledge time, preserving an explicit offset."""
+    return latest_knowledge_time(
+        cutoff, [event.known_at for event in events])
 
 
 @dataclass
@@ -53,6 +77,7 @@ class ConditionalForecast:
     effect: float
     effect_standard_error: float
     occurrences_in_history: int
+    effect_contract: dict[str, Any]
 
     def to_public_dict(self) -> dict[str, Any]:
         return {
@@ -63,7 +88,121 @@ class ConditionalForecast:
             "measured_effect": self.effect,
             "effect_standard_error": self.effect_standard_error,
             "occurrences_in_history": self.occurrences_in_history,
+            "effect": self.effect_contract,
         }
+
+
+def _innovation_scale(values: list[float]) -> float | None:
+    """A robust, data-unit scale for an explicitly hypothetical shock."""
+    if len(values) < 3:
+        return None
+    differences = [values[index] - values[index - 1]
+                   for index in range(1, len(values))]
+    centre = median(differences)
+    mad = median(abs(value - centre) for value in differences)
+    scale = 1.4826 * mad
+    if scale <= 0:
+        nonzero = [abs(value) for value in differences if value]
+        scale = median(nonzero) if nonzero else 0.0
+    return scale if scale > 0 else None
+
+
+def sensitivity_scenarios(
+    values: list[float], timestamps: list[datetime],
+    future_timestamps: list[datetime],
+    events: list[ContextEvent], series_name: str,
+    points: list[float], spreads: dict[int, tuple[float, float, float]],
+) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+    """Standardised what-if paths for grounded events with no estimable effect.
+
+    These are sensitivity tests, not forecasts.  Their magnitude is one robust
+    innovation scale measured from the target history.  That makes the
+    assumption reproducible and expressed in the series' units without
+    laundering a number from narrative text into the primary trajectory.
+    """
+    from .context_eval import event_flags
+
+    scale = _innovation_scale(values)
+    scenarios: list[dict[str, Any]] = []
+    excluded: list[dict[str, str]] = []
+    for event in events:
+        if validate_context_event(event) or not event_applies(event, series_name) \
+                or event.status == "cancelled":
+            continue
+        if _known_after_cutoff(event.known_at, timestamps[-1]):
+            excluded.append({
+                "event_id": event.event_id,
+                "reason": "event was not knowable at the forecast cutoff",
+            })
+            continue
+        soft = (event.attributes or {}).get("soft_context") or {}
+        direction = soft.get("direction", "unknown")
+        family = soft.get("effect_family", "unknown")
+        if direction not in {"increase", "decrease"}:
+            excluded.append({"event_id": event.event_id,
+                             "reason": "a directional sensitivity scenario requires a grounded increase or decrease"})
+            continue
+        if family in {"variance_change", "saturation_bound"}:
+            excluded.append({"event_id": event.event_id,
+                             "reason": f"{family} cannot be represented honestly as a point-path sensitivity"})
+            continue
+        if scale is None:
+            excluded.append({"event_id": event.event_id,
+                             "reason": "history has no measurable innovation scale"})
+            continue
+        active = event_flags([event], future_timestamps, timestamps[-1])
+        if not any(active):
+            continue
+        sign = 1.0 if direction == "increase" else -1.0
+        first = active.index(True)
+        persistent = soft.get("duration") == "persistent" or family in {
+            "trend_change", "seasonal_regime_change"}
+        rows: list[dict[str, Any]] = []
+        for index, (timestamp, base) in enumerate(zip(future_timestamps, points)):
+            exposed = active[index] or (persistent and index >= first)
+            multiplier = 0.0
+            if exposed:
+                multiplier = float(index - first + 1) if family == "trend_change" else 1.0
+            point = base + sign * scale * multiplier
+            spread = spreads.get(index + 1)
+            if spread is None:
+                continue
+            low, centre, high = interval_from_spread(point, spread)
+            rows.append({"timestamp": timestamp.isoformat(), "point": point,
+                         "q10": low, "q50": centre, "q90": high})
+        if rows:
+            known_at = _effect_known_at([event], timestamps[-1])
+            source_refs = ([event.source.reference]
+                           if event.source is not None else [])
+            effect = effect_contract(
+                EffectDistribution(
+                    "assumption", sign * scale, 0.0, sign * scale,
+                    sign * scale, None, 0,
+                ),
+                EffectProvenance(
+                    "standardized_sensitivity", False, known_at,
+                    ", ".join(source_refs) or None, None, None,
+                    "one robust first-difference innovation scale",
+                ),
+                shape=family,
+            )
+            scenarios.append({
+                "events": [event.event_id],
+                "support": "hypothetical_sensitivity",
+                "primary_forecast_changed": False,
+                "forecast": rows,
+                "assumed_effect": sign * scale,
+                "assumed_effect_unit": "one robust first-difference innovation scale",
+                "effect_family": family,
+                "effect": effect,
+                "assumptions": [
+                    f"assumes {event.event_id} occurs as described",
+                    "this is a standardized sensitivity path, not the expected or primary forecast",
+                    "the shock magnitude is a reproducible scale from target history; it is not an estimated event effect",
+                    "no probability is assigned to this scenario",
+                ],
+            })
+    return scenarios, excluded
 
 
 def _effect_standard_error(
@@ -108,6 +247,9 @@ def conditional_candidates(
                              "reason": "event does not satisfy the contract"})
         elif not event_applies(event, series_name):
             continue
+        elif event.status == "cancelled":
+            excluded.append({"event_id": event.event_id,
+                             "reason": "cancelled event cannot define a scenario"})
         elif backtest_admissible(event):
             continue
         else:
@@ -150,6 +292,15 @@ def assess_conditional(
         return forecasts, excluded
 
     cutoff = timestamps[-1]
+    knowable: list[ContextEvent] = []
+    for event in candidates:
+        if _known_after_cutoff(event.known_at, cutoff):
+            excluded.append({
+                "event_id": event.event_id,
+                "reason": "event was not knowable at the forecast cutoff",
+            })
+        else:
+            knowable.append(event)
     # Grouped by event_type, because that is the unit an effect is measurable
     # on. A promotion planned for next month is a distinct record from the
     # three promotions already in the history, and it is those three that say
@@ -157,7 +308,7 @@ def assess_conditional(
     # itself would make every forward-looking event unmeasurable by
     # construction — which is the abstention this exists to convert.
     by_type: dict[str, list[ContextEvent]] = {}
-    for event in candidates:
+    for event in knowable:
         by_type.setdefault(event.event_type, []).append(event)
 
     for event_type, group in sorted(by_type.items()):
@@ -235,5 +386,21 @@ def assess_conditional(
             effect=effect,
             effect_standard_error=standard_error,
             occurrences_in_history=occurrences,
+            effect_contract=effect_contract(
+                EffectDistribution(
+                    "normal", effect, standard_error,
+                    effect - widening, effect + widening, 0.8, occurrences,
+                ),
+                EffectProvenance(
+                    "same_event_same_series", True,
+                    _effect_known_at(group, timestamps[-1]),
+                    None, 1.0,
+                    (abs(effect) / (abs(effect) + standard_error)
+                     if abs(effect) + standard_error > 0 else 0.0),
+                    "detrended active-minus-inactive mean",
+                ),
+                shape=str((group[-1].attributes or {}).get("soft_context", {}).get(
+                    "effect_family", "temporary_pulse")),
+            ),
         ))
     return forecasts, excluded

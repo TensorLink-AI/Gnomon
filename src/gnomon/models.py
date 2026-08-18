@@ -45,13 +45,6 @@ def window_average(history: list[float], horizon: int, season: int) -> list[floa
     return [mean(window)] * horizon
 
 
-def _ses_level(history: list[float], alpha: float) -> float:
-    level = history[0]
-    for value in history[1:]:
-        level = alpha * value + (1 - alpha) * level
-    return level
-
-
 def theta(history: list[float], horizon: int, season: int) -> list[float]:
     """Classic Theta(0, 2): simple exponential smoothing plus half the OLS slope."""
     _, slope = _ols_line(history)

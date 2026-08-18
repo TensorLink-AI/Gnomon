@@ -130,6 +130,11 @@ class TestLedgerEndToEnd:
         tracking.register_artifact(artifact, "ledger-test", str(path),
                                    context_events=events)
         store = tracking.TrackingStore()
+        effects = store.event_effects("ledger-test")
+        assert len(effects) == 1
+        assert effects[0]["provenance_class"] == "same_event_same_series"
+        assert effects[0]["effect_distribution"]["distribution"] == "empirical"
+        assert effects[0]["estimate"] is None
         skill = store.proposer_skill("ledger-test")
         assert len(skill) == 1
         row = skill[0]
@@ -148,6 +153,10 @@ class TestLedgerEndToEnd:
                    for step, value in enumerate(truth)]
         results = store.submit_actuals("ledger-test", actuals)
         assert len(results) == 1
+        realised = store.event_effects(
+            "ledger-test", include_unresolved=False)[0]
+        assert realised["sample_count"] > 0
+        assert realised["outcome_known_at"] is not None
 
         skill = store.proposer_skill("ledger-test")[0]
         assert skill["resolved"] == len(events)

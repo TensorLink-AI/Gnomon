@@ -1,7 +1,9 @@
 """Unit tests for the TemporalBench adapter's pure logic (no network,
 no official dataset, no numpy)."""
 
+import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -17,12 +19,159 @@ from benchmarks.temporalbench.scoring import (
     score_t1,
     score_t3,
 )
+from benchmarks.temporalbench.score_per_channel import (
+    stable_scaled_error_denominator,
+)
 from benchmarks.temporalbench.tasks import extract_json_object, prompt_input_arrays
+
+
+def test_scaled_error_denominator_flags_near_constant_history():
+    assert stable_scaled_error_denominator([10.0, 10.0, 10.0]) is False
+    assert stable_scaled_error_denominator([10.0, 10.5, 9.5, 11.0]) is True
+    assert stable_scaled_error_denominator([None, 10.0, None]) is False
 
 
 def test_extract_json_object_from_prose():
     text = 'Answer:\n```json\n{"trend": "upward", "n": 3}\n```'
     assert extract_json_object(text) == {"trend": "upward", "n": 3}
+
+
+def test_infrastructure_failure_classification():
+    from benchmarks.temporalbench.run_temporalbench import infrastructure_failure
+
+    class OpenRouterError(Exception):
+        pass
+
+    assert infrastructure_failure(OpenRouterError("HTTP 521"))
+    assert infrastructure_failure(RuntimeError(
+        "MCP tools/list failed: subprocess closed"))
+    assert not infrastructure_failure(ValueError("No JSON object found"))
+
+
+def test_artifact_keeps_primary_and_captures_sensitivity_separately(tmp_path):
+    from benchmarks.temporalbench.mcp_agent import _Run
+
+    artifact = tmp_path / "artifact"
+    artifact.mkdir()
+    payload = {
+        "schema_version": "0.1", "task": {"schema": {
+            "target_column": "affected,unaffected"}},
+        "results": [
+            {"series": "affected", "support": "degraded",
+             "forecast": [{"point": 1.0}, {"point": 1.0}],
+             "sensitivity_scenarios": [{
+                 "support": "hypothetical_sensitivity",
+                 "forecast": [{"point": 2.0}, {"point": 3.0}]}]},
+            {"series": "unaffected", "support": "degraded",
+             "forecast": [{"point": 4.0}, {"point": 5.0}]},
+        ],
+    }
+    (artifact / "artifact.json").write_text(json.dumps(payload), encoding="utf-8")
+    run = _Run.__new__(_Run)
+    run.artifact_paths = {str(artifact)}
+    run.horizon = 2
+    run._pending_support = {}
+    run._available_sensitivity = {}
+    run.context_execution = {}
+    run.covariate_execution = {}
+
+    affected = run._artifact_channel_rows(str(artifact), "affected")
+    unaffected = run._artifact_channel_rows(str(artifact), "unaffected")
+
+    assert affected == [1.0, 1.0]
+    assert run._pending_support["affected"] == "degraded"
+    assert run._available_sensitivity["affected"] == [2.0, 3.0]
+    assert unaffected == [4.0, 5.0]
+    assert run._pending_support["unaffected"] == "degraded"
+
+
+def test_submit_schema_cannot_promote_a_sensitivity_to_primary():
+    from benchmarks.temporalbench.mcp_agent import SUBMIT_TOOL
+
+    channel = SUBMIT_TOOL["function"]["parameters"]["properties"][
+        "forecast"]["additionalProperties"]["properties"]
+    assert "trajectory" not in channel
+
+
+def test_descriptive_panel_long_form_has_no_padding_blanks(tmp_path):
+    import csv
+    from benchmarks.temporalbench.mcp_agent import _write_long_csv
+
+    path = tmp_path / "panel.csv"
+    _write_long_csv({"long": [1.0, 2.0], "short": [3.0]}, path)
+    with path.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+
+    assert rows == [
+        {"timestamp": "2021-01-01T00:00:00+00:00", "series": "long", "value": "1.0"},
+        {"timestamp": "2021-01-01T01:00:00+00:00", "series": "long", "value": "2.0"},
+        {"timestamp": "2021-01-01T00:00:00+00:00", "series": "short", "value": "3.0"},
+    ]
+
+
+def test_temporalbench_axis_is_anchored_to_official_cutoff(tmp_path):
+    from benchmarks.temporalbench.mcp_agent import _Run
+
+    class Client:
+        total_prompt_tokens = 0
+        total_completion_tokens = 0
+
+    class Session:
+        def close(self):
+            pass
+
+    row = {
+        "tier": "T4",
+        "meta": {"n_horizon": 2, "main_key": "target",
+                 "history_end": "2030-01-02T10:00:00",
+                 "cluster_start": "2030-01-02T11:00:00"},
+        "input": {"history": {"target": [1.0, 2.0, 3.0]}},
+        "ground_truth": {"target": [4.0, 5.0]},
+    }
+    run = _Run(row, Client(), session_factory=lambda jail: Session(),
+               work_dir=str(tmp_path))
+    try:
+        assert run.time_step.total_seconds() == 3600
+        assert run.epoch == datetime(2030, 1, 2, 8, tzinfo=timezone.utc)
+    finally:
+        run.finish()
+
+
+def test_temporalbench_observation_axis_does_not_infer_source_window_cadence(
+        tmp_path):
+    """The arrays omit timestamps; a 4h cluster gap is not a 4h grid."""
+    from benchmarks.temporalbench.mcp_agent import _Run
+
+    class Client:
+        total_prompt_tokens = 0
+        total_completion_tokens = 0
+
+    class Session:
+        def close(self):
+            pass
+
+    row = {
+        "tier": "T2",
+        "meta": {"n_horizon": 2, "main_key": "target",
+                 "history_end": "2030-01-02T10:00:00",
+                 "cluster_start": "2030-01-02T14:00:00"},
+        "input": {"history": {"target": [1.0, 2.0, 3.0]}},
+        "ground_truth": {"target": [4.0, 5.0]},
+    }
+    run = _Run(row, Client(), session_factory=lambda jail: Session(),
+               work_dir=str(tmp_path), profile="evidence")
+    try:
+        assert run.time_step.total_seconds() == 3600
+        assert run.epoch == datetime(2030, 1, 2, 8, tzinfo=timezone.utc)
+        timestamps = [line.split(",", 1)[0]
+                      for line in run.csv_path.read_text().splitlines()[1:]]
+        assert timestamps == [
+            "2030-01-02T08:00:00+00:00",
+            "2030-01-02T09:00:00+00:00",
+            "2030-01-02T10:00:00+00:00",
+        ]
+    finally:
+        run.finish()
 
 
 def test_prompt_input_arrays_prefers_structured_input():
@@ -35,6 +184,27 @@ def test_prompt_input_arrays_falls_back_to_prompt_block():
     row = {"input": None,
            "prompt": 'Task text...\nInput (JSON):\n{"hr": [5, 6], "label": "a"}\nOutput...'}
     assert prompt_input_arrays(row) == {"hr": [5.0, 6.0]}
+
+
+def test_control_gets_one_format_only_repair_without_new_evidence():
+    from benchmarks.temporalbench.run_temporalbench import answer_row
+
+    class Client:
+        def __init__(self):
+            self.calls = []
+
+        def completions(self, messages, *, n):
+            self.calls.append(messages)
+            return (["I think the answer is upward."] if len(self.calls) == 1
+                    else ['{"trend":"upward"}'])
+
+    client = Client()
+    outcome = answer_row({"prompt": "Forecast it."}, "control", client)
+    assert outcome["answer"] == {"trend": "upward"}
+    assert len(client.calls) == 2
+    repair = client.calls[1][-1]["content"]
+    assert "same answer" in repair
+    assert "Do not revise" in repair
 
 
 def test_score_t1_exact_match_case_insensitive():
@@ -56,6 +226,22 @@ def test_score_mcq_matches_labels():
     result = score_mcq(row, {"future_vs_history": "uncertain",
                              "volatility_change": "increased"})
     assert result["correct"] == 1 and result["total"] == 2
+
+
+def test_typed_answer_alignment_accepts_semantic_and_positional_ids():
+    from benchmarks.temporalbench.run_temporalbench import align_typed_answers
+
+    answers = [
+        {"question": {"id": "q2"}, "best_estimate": {"value": "stable"}},
+        {"question": {"id": "seasonality_shift"},
+         "best_estimate": {"value": "continued"}},
+        {"question": {"id": "invented"}, "best_estimate": {"value": "x"}},
+    ]
+    aligned = align_typed_answers(
+        ["future_vs_history", "volatility_change", "seasonality_shift"],
+        answers)
+    assert set(aligned) == {"volatility_change", "seasonality_shift"}
+    assert aligned["volatility_change"]["best_estimate"]["value"] == "stable"
 
 
 def test_uncertain_mcq_uses_option_casing():
@@ -272,9 +458,14 @@ def test_limit_is_stratified_across_tiers(tmp_path):
         "".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8"
     )
     taken = list(iter_rows(tmp_path, tiers=("T1", "T2"), limit=4))
-    assert [row["tier"] for row in taken] == ["T1", "T1", "T2", "T2"]
+    assert [row["tier"] for row in taken] == ["T1", "T2", "T1", "T2"]
     # Within a tier, file order is kept.
-    assert [row["id"] for row in taken] == ["t1-0", "t1-1", "t2-0", "t2-1"]
+    assert [row["id"] for row in taken] == ["t1-0", "t2-0", "t1-1", "t2-1"]
+    # Larger balanced cohorts extend, rather than reshuffle, smaller ones;
+    # offset shards therefore cannot overlap solely because their limits
+    # differ.
+    larger = list(iter_rows(tmp_path, tiers=("T1", "T2"), limit=6))
+    assert [row["id"] for row in larger[:4]] == [row["id"] for row in taken]
     # An unlimited iteration still streams every matching row in order.
     assert [row["id"] for row in iter_rows(tmp_path, tiers=("T1", "T2"))] == [
         row["id"] for row in rows

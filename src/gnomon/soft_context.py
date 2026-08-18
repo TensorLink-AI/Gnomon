@@ -117,6 +117,7 @@ def context_outcome(
     context_assessment: Any = None,
     future_context: dict[str, Any] | None = None,
     conditional_forecasts: list[dict[str, Any]] | None = None,
+    sensitivity_scenarios: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Project all context lanes into one unambiguous public disposition."""
     applicable = [event for event in events if event_applies(event, series_name)]
@@ -134,17 +135,31 @@ def context_outcome(
                     if isinstance(item, dict) and item.get("event_id"))
         return {
             "status": "applied", "primary_forecast_changed": True,
+            "canonical_primary_preserved": True,
+            "selected_output_role": "context_conditioned_projection",
+            "canonical_primary_location": "artifact.results[].primary_forecast",
             "events": sorted(set(used)),
             **({"context_receipt_ids": receipt_ids} if receipt_ids else {}),
             "basis": "a deterministic context candidate passed its numeric admission gate",
         }
     conditional = list(conditional_forecasts or [])
+    sensitivity = list(sensitivity_scenarios or [])
     hypotheses = [event_hypothesis(event) for event in applicable]
-    if conditional:
+    if conditional or sensitivity:
+        measured_ids = {str(event_id) for item in conditional
+                        for event_id in item.get("events", [])}
+        sensitivity_ids = {str(event_id) for item in sensitivity
+                           for event_id in item.get("events", [])}
         for hypothesis in hypotheses:
-            hypothesis["numeric_status"] = "measured_for_conditional_scenario"
-            hypothesis["may_affect_numbers"] = True
-            hypothesis["may_affect_primary_forecast"] = False
+            event_id = str(hypothesis.get("event_id"))
+            if event_id in measured_ids:
+                hypothesis["numeric_status"] = "measured_for_conditional_scenario"
+                hypothesis["may_affect_numbers"] = True
+                hypothesis["may_affect_primary_forecast"] = False
+            elif event_id in sensitivity_ids:
+                hypothesis["numeric_status"] = "standardized_sensitivity_not_event_effect"
+                hypothesis["may_affect_numbers"] = True
+                hypothesis["may_affect_primary_forecast"] = False
     exclusions = list(getattr(context_assessment, "events_excluded", []) or [])
     gate_reasons = list(getattr(context_assessment, "reasons", []) or [])
     # Generic, grounded events are useful scenarios even when their effect
@@ -159,9 +174,11 @@ def context_outcome(
             **({"context_receipt_ids": receipt_ids} if receipt_ids else {}),
             "hypotheses": hypotheses,
             "conditional_forecasts_produced": len(conditional),
+            "sensitivity_scenarios_produced": len(sensitivity),
             "basis": (
                 "the event is grounded, but no admitted numerical effect may alter "
-                "the primary forecast; magnitude remains null unless measured from data"
+                "the primary forecast; an event-effect magnitude remains null unless "
+                "measured from data, and any sensitivity path is explicitly standardized"
             ),
             "recovery_actions": [
                 "provide prior occurrences of the same event type for effect estimation",

@@ -41,8 +41,8 @@ shape (T1: the row's label fields; T3: one choice per packed question),
 so a right answer cannot be lost to JSON formatting.
 
 Adapter decisions, disclosed: the row's channels are written to one
-wide CSV on the same synthetic hourly axis as every other condition
-(observation *k* at epoch + *k* hours, nulls omitted, channels laid
+wide CSV anchored to the official row's history cutoff and next-step
+timestamp (nulls omitted, channels laid
 consecutively — exactly ``gnomon_runner``'s convention, so the values
 the engine sees match the other Gnomon conditions); the official prompt
 is the user message verbatim; tool results pass through verbatim until
@@ -67,6 +67,8 @@ import csv
 import json
 import sys
 import tempfile
+from collections.abc import Mapping
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -79,6 +81,7 @@ from benchmarks.cik.mcp_agent import (  # noqa: E402 — library reuse
     _tool_calls_as_dicts,
     jail_violations,
 )
+from benchmarks.common.openrouter import OpenRouterError  # noqa: E402
 from benchmarks.temporalbench.gnomon_runner import EPOCH, STEP, _observed  # noqa: E402
 from benchmarks.temporalbench.tasks import prompt_input_arrays  # noqa: E402
 
@@ -189,28 +192,34 @@ your own values for that channel, ask the engine for its disclosed
 best-effort fallback (`best_effort: true`; its rows are labeled, not
 supported forecasts), or abstain.
 
-The task's channel histories are in {csv_path} (columns: timestamp,
-{channels}). The timestamps are a synthetic regular hourly axis —
-observation k of a channel sits at {epoch} + k hours, recorded readings
-laid consecutively; a shorter channel's trailing cells are blank. The
+The task's channel histories are in {csv_path} ({data_layout}). The timestamps
+are a synthetic regular hourly axis — observation k of a channel sits at
+{epoch} + k hours and recorded readings are laid consecutively. The
 metrics are index-based, so the axis never enters the score. Forecast
 horizon: {horizon} steps per channel.
 
-The harness has already resolved the schema: time_column is `timestamp`,
-target_column is exactly `{channel_list}`, and frequency is `h`. Do not call
+The harness has already resolved the schema: {schema_binding}. Do not call
 capabilities or inspect to rediscover these supplied facts; call the forecast
 verb directly with them.
 
 {jail_rule}
 
-One `gnomon_forecast` call covers every channel: `target_column` takes
-a comma list ("{channel_list}"), which loads the file once, evaluates
-the channels concurrently, and returns one artifact carrying a result
-per channel — the same numbers per channel as separate calls, and a
-channel that abstains is reported in its own result without blocking
-the others. That artifact_path is submittable for each of its channels.
+One `gnomon_forecast` call covers every channel: {batching_contract}. It
+returns one artifact carrying a result per channel; a channel that abstains is
+reported independently. That artifact_path is submittable for each channel.
 Passing `format: "brief"` keeps the response to the forecast paths and
 the disclosures instead of the full evidence block.
+
+If the task also asks about a temporal property (level, trend,
+seasonality, volatility, regime, extremes, or dependence), include typed
+`questions` in that same call rather than inferring the property from the
+forecast path. Each object has `id`, `verb`, exact `target`, `property`, and
+when predictive, `horizon`; Gnomon echoes the interpretation and may abstain
+from that property without changing the primary forecast. Use target
+`{{"kind":"each","members":[...]}}` for separate channel answers. For one
+cross-unit volatility answer, use target
+`{{"kind":"aggregate","members":[...],"aggregation":
+"median_normalized_scale_ratio"}}`; the result retains every constituent.
 
 Ways to finish each channel of `submit_answer.forecast`:
 - artifact_path from a `gnomon_forecast` run covering that channel: its
@@ -221,6 +230,9 @@ Ways to finish each channel of `submit_answer.forecast`:
 
 Also answer every multiple-choice question of the task in
 `submit_answer.mcq`. Tool errors return typed codes and repair options;
+When a typed answer has `support: abstained`, or says no categorical threshold
+was supplied, preserve that limitation by choosing `Uncertain` when it is one
+of the task's options; a baseline estimate is not a supported category.
 you may fix arguments and retry within the caps ({max_rounds} rounds,
 {max_calls} tool calls).
 """
@@ -352,7 +364,7 @@ def coerce_json_containers(
 
 
 def openai_tool_specs(mcp_tools: list[dict[str, Any]],
-                      submit_tool: dict[str, Any] = SUBMIT_TOOL,
+                      submit_tool: dict[str, Any] | None = SUBMIT_TOOL,
                       ) -> list[dict[str, Any]]:
     """MCP tool entries as chat-completions specs, verbatim, plus the
     harness submit tool — the same no-pruning rule as the CiK arm
@@ -366,7 +378,7 @@ def openai_tool_specs(mcp_tools: list[dict[str, Any]],
             "parameters": tool["inputSchema"],
         }}
         for tool in mcp_tools
-    ] + [submit_tool]
+    ] + ([submit_tool] if submit_tool is not None else [])
 
 
 def preferred_execution_tool(
@@ -404,7 +416,8 @@ def compile_row_context(row: dict[str, Any], client: Any,
 
     from gnomon.workflows import (
         CONTEXT_RESPONSE_SCHEMA, DocumentRef,
-        build_context_investigation_prompt, parse_context_response,
+        build_context_investigation_prompt, normalise_context_response_containers,
+        parse_context_response,
     )
 
     narrative = str(row.get("prompt") or "").split("Input (JSON):", 1)[0].strip()
@@ -422,8 +435,8 @@ def compile_row_context(row: dict[str, Any], client: Any,
             if not documents or documents[0].get("content_fingerprint") != \
                     content_fingerprint(narrative):
                 raise ValueError("cached context receipt does not match task narrative")
-            return {"attempted": True, "compiler_called": False,
-                    "receipt_reused": True, **cached}
+            return {**cached, "attempted": True, "compiler_called": False,
+                    "receipt_reused": True}
     document = DocumentRef(
         name=f"{row.get('id', 'temporalbench')}-context",
         content=narrative,
@@ -451,10 +464,12 @@ def compile_row_context(row: dict[str, Any], client: Any,
         call = next(item for item in calls
                     if item["function"]["name"] == "submit_context")
         raw = json.loads(call["function"]["arguments"] or "{}")
+        raw, container_repairs = normalise_context_response_containers(raw)
         validated = parse_context_response(
             raw, [document], proposer={"kind": "llm",
                                       "model": getattr(client, "model", "unknown")})
-        result = {"attempted": True, "compiler_called": True, **validated}
+        result = {"attempted": True, "compiler_called": True,
+                  "container_repairs": container_repairs, **validated}
         if receipt_path is not None:
             receipt_path.parent.mkdir(parents=True, exist_ok=True)
             rendered = json.dumps(validated, indent=2, sort_keys=True) + "\n"
@@ -469,6 +484,76 @@ def compile_row_context(row: dict[str, Any], client: Any,
         return {"attempted": True, "compiler_called": True,
                 "events": [], "hypotheses": [],
                 "rejected": [], "error": str(error)}
+
+
+def compile_row_temporal_questions(
+    row: dict[str, Any], client: Any, targets: list[str],
+    receipt_dir: str | None = None,
+) -> dict[str, Any]:
+    """Compile question text only; labels, options and futures stay sealed."""
+    from gnomon.soft_context import content_fingerprint
+    from gnomon.temporal_intent import (
+        INTENT_COMPILER_VERSION, INTENT_SCHEMA, compile_temporal_text_receipt,
+    )
+
+    text = "\n".join(str(item.get("question") or "")
+                     for item in (row.get("mcq") or {}).values()
+                     if isinstance(item, dict)).strip()
+    if not text:
+        return {"attempted": False, "questions": []}
+    default_horizon = int((row.get("meta") or {}).get("n_horizon") or 1)
+    fingerprint = content_fingerprint(json.dumps({
+        "text": text, "targets": targets,
+        "default_horizon": default_horizon,
+        "compiler_version": INTENT_COMPILER_VERSION,
+    }, sort_keys=True))
+    receipt_path = None
+    if receipt_dir:
+        safe_id = "".join(c if c.isalnum() or c in "-_" else "_"
+                          for c in str(row.get("id") or "temporalbench"))
+        receipt_path = Path(receipt_dir) / f"{safe_id}.json"
+        if receipt_path.is_file():
+            cached = json.loads(receipt_path.read_text(encoding="utf-8"))
+            if cached.get("input_fingerprint") != fingerprint:
+                raise ValueError("cached temporal-intent receipt does not match input")
+            return {**cached, "attempted": True, "compiler_called": False,
+                    "receipt_reused": True}
+
+    class Adapter:
+        def complete(self, prompt: str, response_schema: dict[str, Any]):
+            submit = {"type": "function", "function": {
+                "name": "submit_temporal_intent", "description": "Submit intent only.",
+                "parameters": response_schema}}
+            response = client.chat(
+                [{"role": "system", "content": prompt}], n=1, tools=[submit],
+                tool_choice={"type": "function", "function": {
+                    "name": "submit_temporal_intent"}}, max_tokens=700)
+            calls = _tool_calls_as_dicts(response.choices[0].message)
+            call = next(item for item in calls
+                        if item["function"]["name"] == "submit_temporal_intent")
+            return json.loads(call["function"]["arguments"] or "{}")
+
+    try:
+        receipt = compile_temporal_text_receipt(
+            text, available_targets=targets, adapter=Adapter(),
+            default_verb="predict",
+            default_horizon=default_horizon)
+        result = {"input_fingerprint": fingerprint,
+                  "proposed": receipt["proposed"],
+                  "questions": [item.to_dict() for item in receipt["accepted"]],
+                  "rejected": receipt["rejected"], "compiler_called": True}
+    except Exception as error:
+        result = {"input_fingerprint": fingerprint, "questions": [],
+                  "rejected": [{"type": type(error).__name__, "message": str(error),
+                                "details": getattr(error, "details", {})}],
+                  "compiler_called": True}
+    if receipt_path is not None:
+        receipt_path.parent.mkdir(parents=True, exist_ok=True)
+        rendered = json.dumps(result, indent=2, sort_keys=True) + "\n"
+        if receipt_path.exists() and receipt_path.read_text(encoding="utf-8") != rendered:
+            raise ValueError("immutable temporal-intent receipt already differs")
+        receipt_path.write_text(rendered, encoding="utf-8")
+    return {"attempted": True, **result}
 
 
 def mcq_submit_tool(row: dict[str, Any]) -> tuple[dict[str, Any], str]:
@@ -529,7 +614,9 @@ def mcq_submit_tool(row: dict[str, Any]) -> tuple[dict[str, Any], str]:
     }, rule)
 
 
-def _write_wide_csv(channels: dict[str, list[float]], csv_path: Path) -> None:
+def _write_wide_csv(channels: dict[str, list[float]], csv_path: Path,
+                    epoch: datetime = EPOCH,
+                    step: timedelta = STEP) -> None:
     keys = list(channels)
     length = max((len(values) for values in channels.values()), default=0)
     with csv_path.open("w", newline="", encoding="utf-8") as handle:
@@ -537,10 +624,23 @@ def _write_wide_csv(channels: dict[str, list[float]], csv_path: Path) -> None:
         writer.writerow(["timestamp"] + keys)
         for position in range(length):
             writer.writerow(
-                [(EPOCH + position * STEP).isoformat()]
+                [(epoch + position * step).isoformat()]
                 + [repr(channels[key][position])
                    if position < len(channels[key]) else "" for key in keys]
             )
+
+
+def _write_long_csv(channels: dict[str, list[float]], csv_path: Path,
+                    epoch: datetime = EPOCH,
+                    step: timedelta = STEP) -> None:
+    """Lossless panel form for descriptive rows with unequal lengths."""
+    with csv_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["timestamp", "series", "value"])
+        for series, values in channels.items():
+            for position, value in enumerate(values):
+                writer.writerow([(epoch + position * step).isoformat(),
+                                 series, repr(value)])
 
 
 #: The never-shrunk keys are shared with the CiK arm (imported above):
@@ -702,20 +802,77 @@ class _RunBase:
     def __init__(self, row: dict[str, Any], client: Any,
                  session_factory: Any = None, work_dir: str | None = None,
                  profile: str = "full", compile_context: bool = False,
-                 context_receipts_dir: str | None = None):
+                 context_receipts_dir: str | None = None,
+                 compile_questions: bool = False,
+                 question_receipts_dir: str | None = None):
         import time
 
         self.row = row
         self.profile = profile
         self.client = client
+        self.channels = self._row_channels(row)
+        # Evidence executes through a host-bound panel schema. Long form gives
+        # each observation-indexed channel its own consecutive axis; a wide
+        # table pads unequal histories and turns absent readings into gaps.
+        self.panel_long_form = bool(
+            profile == "evidence" or row.get("_host_compiled_forecast")
+            or row.get("_require_gnomon_execution"))
+        self.temporal_compilation = (
+            compile_row_temporal_questions(
+                row, client, list(self.channels), question_receipts_dir)
+            if compile_questions and row.get("tier") in {"T2", "T4"}
+            else {"attempted": False, "questions": []}
+        )
+        raw_origin = row.get("_time_origin")
+        raw_step = row.get("_time_step_seconds")
+        meta = row.get("meta") or {}
+        history_end_raw = meta.get("history_end")
+        history_end = (datetime.fromisoformat(str(history_end_raw))
+                       if history_end_raw else None)
+        if history_end is not None and history_end.tzinfo is None:
+            history_end = history_end.replace(tzinfo=timezone.utc)
+        # Official TemporalBench arrays are observation-indexed, not a
+        # calendar grid. ``cluster_start - history_end`` is metadata about
+        # the source sampling window and can be 4h even though the array has
+        # consecutive observations. Inferring the CSV cadence from that gap
+        # while declaring frequency=h manufactured an irregular grid. Only
+        # synthetic/product rows that explicitly provide a step may override
+        # the disclosed hourly observation axis.
+        self.time_step = timedelta(seconds=float(
+            raw_step if raw_step is not None else STEP.total_seconds()))
+        longest = max((len(values) for values in self.channels.values()), default=1)
+        self.epoch = (datetime.fromisoformat(str(raw_origin))
+                      if raw_origin else
+                      history_end - (longest - 1) * self.time_step
+                      if history_end else EPOCH)
+        self.frequency = str(row.get("_frequency", "h"))
+        if self.epoch.tzinfo is None:
+            raise ValueError("_time_origin must include an explicit timezone")
         self.context_compilation = (
             compile_row_context(row, client, context_receipts_dir)
             if compile_context and row.get("tier") in {"T3", "T4"}
             else {"attempted": False, "events": [], "hypotheses": [],
                   "rejected": []}
         )
+        # TemporalBench supplies the narrative to the forecaster at the
+        # history cutoff. Compiler outputs often copy the event's effective
+        # time into known_at; for this benchmark source that would falsely
+        # say the prompt becomes knowable only after prediction begins.
+        # Preserve the immutable compiler receipt, but bind executable events
+        # to the actual document availability time used by the experiment.
+        if history_end and self.context_compilation.get("events"):
+            aligned = []
+            for original in self.context_compilation["events"]:
+                event = dict(original)
+                source = event.get("source") or {}
+                if source.get("type") == "benchmark_prompt":
+                    event["known_at"] = history_end.isoformat()
+                    attributes = dict(event.get("attributes") or {})
+                    attributes["benchmark_document_known_at"] = history_end.isoformat()
+                    event["attributes"] = attributes
+                aligned.append(event)
+            self.context_compilation["events"] = aligned
         self.started = time.time()
-        self.channels = self._row_channels(row)
         self.covariate_arguments = self._row_covariates(row)
         if "timestamp" in self.channels:
             raise ValueError("a channel named 'timestamp' collides with the "
@@ -725,12 +882,19 @@ class _RunBase:
         self.csv_path: Path | None = None
         if self.channels:
             self.csv_path = self.jail / "history.csv"
-            _write_wide_csv(self.channels, self.csv_path)
+            if row.get("tier") in {"T1", "T3"} or self.panel_long_form:
+                _write_long_csv(self.channels, self.csv_path, self.epoch,
+                                self.time_step)
+            else:
+                _write_wide_csv(self.channels, self.csv_path, self.epoch,
+                                self.time_step)
         self.session = (session_factory or StdioMcpSession)(self.jail)
         self.trace: list[dict[str, Any]] = []
         self.result_log = ToolMessageLog()
         self.mcp_calls = 0
         self.schema_bytes = 0
+        self.product_schema_bytes = 0
+        self.harness_schema_bytes = 0
         self.artifact_paths: set[str] = set()
         # Compiler acceptance is textual grounding, not permission to alter a
         # forecast.  Keep the engine's later admission/application decision
@@ -794,8 +958,8 @@ class _RunBase:
                 if not row_values:
                     continue
                 rows.append({
-                    "timestamp": (EPOCH + position * STEP).isoformat(),
-                    "known_at": EPOCH.isoformat(), "series": covariate_series,
+                    "timestamp": (self.epoch + position * STEP).isoformat(),
+                    "known_at": self.epoch.isoformat(), "series": covariate_series,
                     **row_values,
                 })
                 position += 1
@@ -805,8 +969,8 @@ class _RunBase:
                            for name in names):
                     continue
                 rows.append({
-                    "timestamp": (EPOCH + (len(target_values) + offset) * STEP).isoformat(),
-                    "known_at": EPOCH.isoformat(), "series": covariate_series,
+                    "timestamp": (self.epoch + (len(target_values) + offset) * STEP).isoformat(),
+                    "known_at": self.epoch.isoformat(), "series": covariate_series,
                     **{name: float(future[name][offset]) for name in names},
                 })
         if not rows:
@@ -875,10 +1039,32 @@ class _RunBase:
                 "mcp": self._mcp_info()}
 
     def _mcp_info(self) -> dict[str, Any]:
+        temporal_answer_receipts: list[dict[str, Any]] = []
+        for artifact_path in sorted(self.artifact_paths):
+            receipt_path = Path(artifact_path) / "temporal_answers.json"
+            if not receipt_path.is_file():
+                continue
+            try:
+                receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as error:
+                temporal_answer_receipts.append({
+                    "artifact_path": artifact_path,
+                    "read_error": f"{type(error).__name__}: {error}",
+                })
+            else:
+                temporal_answer_receipts.append({
+                    "artifact_path": artifact_path,
+                    "artifact_id": receipt.get("artifact_id"),
+                    "primary_forecast_unchanged": receipt.get(
+                        "primary_forecast_unchanged"),
+                    "answers": receipt.get("answers") or [],
+                })
         return {
             "calls": self.mcp_calls,
             "run_tokens": self._run_tokens(),
             "schema_bytes": self.schema_bytes,
+            "product_schema_bytes": self.product_schema_bytes,
+            "harness_schema_bytes": self.harness_schema_bytes,
             "compiler_calls": int(bool(self.context_compilation.get(
                 "compiler_called"))),
             "context_receipt_id": self.context_compilation.get("receipt_id"),
@@ -891,13 +1077,24 @@ class _RunBase:
                 **({"error": self.context_compilation["error"]}
                    if self.context_compilation.get("error") else {}),
             },
+            "temporal_compilation": {
+                "attempted": bool(self.temporal_compilation.get("attempted")),
+                "compiler_called": bool(self.temporal_compilation.get("compiler_called")),
+                "receipt_reused": bool(self.temporal_compilation.get("receipt_reused")),
+                "accepted": len(self.temporal_compilation.get("questions", [])),
+                "rejected": len(self.temporal_compilation.get("rejected", [])),
+            },
+            **({"temporal_answer_receipts": temporal_answer_receipts}
+               if temporal_answer_receipts else {}),
             "tool_sequence": [
                 {key: value for key, value in entry.items()
                  if key in ("tool", "is_error", "code", "jail_violations",
                             "message",
                             "truncated", "last_call", "abstained",
                             "superseded", "coerced", "submit_rejected",
-                            "last_call_repair", "submission_fallback")}
+                            "last_call_repair", "submission_fallback",
+                            "host_submission", "typed_questions",
+                            "compiled_questions")}
                 for entry in self.trace
             ],
             # Harness-only provenance used by cross-benchmark adapters to
@@ -910,7 +1107,26 @@ class _RunBase:
     def drive(self) -> dict[str, Any]:
         self.session.initialize()
         submit_tool = self._submit_tool()
-        tools = openai_tool_specs(self.session.list_tools(), submit_tool)
+        product_tools = openai_tool_specs(self.session.list_tools(), None)
+        if self.row.get("_host_compiled_forecast"):
+            bound_name = preferred_execution_tool(
+                self.profile, bool(getattr(self, "target_keys", None)),
+                host_compiled=True)
+            for spec in product_tools:
+                function = spec.get("function") or {}
+                if function.get("name") == bound_name:
+                    function["description"] = (
+                        "Execute the host-compiled forecast request. The "
+                        "validated data, schema, horizon, context, and "
+                        "covariates are already bound; pass no arguments.")
+                    function["parameters"] = {
+                        "type": "object", "additionalProperties": False}
+        harness_tools = openai_tool_specs([], submit_tool)
+        tools = [*product_tools, *harness_tools]
+        self.product_schema_bytes = len(json.dumps(
+            product_tools, separators=(",", ":")))
+        self.harness_schema_bytes = len(json.dumps(
+            harness_tools, separators=(",", ":")))
         self.schema_bytes = len(json.dumps(tools, separators=(",", ":")))
         # The official prompt is the user message, verbatim: the
         # benchmark stays authoritative about the task and its output
@@ -972,6 +1188,21 @@ class _RunBase:
                 if compacted:
                     self.trace.append({"superseded": compacted})
                 if self.complete_artifact_ready and not self.submission:
+                    if (self.row.get("_host_compiled_forecast")
+                            and self.row.get("_require_gnomon_execution")
+                            and self.artifact_paths
+                            and hasattr(self, "target_keys")):
+                        artifact_path = sorted(self.artifact_paths)[-1]
+                        accepted = self._handle_submit({
+                            "forecast": {
+                                channel: {"artifact_path": artifact_path}
+                                for channel in self.target_keys},
+                            "mcq": {},
+                        })
+                        if accepted.get("accepted") and self.submission:
+                            self.trace.append({
+                                "host_submission": "complete_artifact"})
+                            return self._resolve_submission()
                     return self._last_call(
                         messages, submit_tool,
                         "forecast artifact ready; engine browsing closed")
@@ -1010,7 +1241,15 @@ class _RunBase:
             try:
                 response = self.client.chat(messages, n=1,
                                             tools=[submit_tool],
-                                            tool_choice="auto")
+                                            tool_choice={
+                                                "type": "function",
+                                                "function": {
+                                                    "name": "submit_answer"},
+                                            })
+            except OpenRouterError:
+                # Transport exhaustion is not an agent abstention.  Let the
+                # runner classify and retry it as infrastructure failure.
+                raise
             except Exception as error:
                 return self._abstain_outcome(
                     f"{cap}; last call failed: {error}")
@@ -1078,6 +1317,19 @@ class _RunBase:
                 self.trace.append({"submission_fallback": "complete_artifact"})
                 self.submission["last_call"] = cap
                 return self._resolve_submission()
+        if hasattr(self, "target_keys"):
+            fallback = {
+                "forecast": {channel: {"abstain": True}
+                             for channel in self.target_keys},
+                "mcq": {},
+                "reasoning": ("Harness normalized the final malformed "
+                              f"submission into typed abstentions: {cap}."),
+            }
+            accepted = self._handle_submit(fallback)
+            if accepted.get("accepted") and self.submission:
+                self.trace.append({"submission_fallback": "typed_abstention"})
+                self.submission["last_call"] = cap
+                return self._resolve_submission()
         return self._abstain_outcome(cap)
 
     # -- dispatch ----------------------------------------------------------
@@ -1110,20 +1362,40 @@ class _RunBase:
         # production host compiler and makes one wide-series request one run.
         if (name == "gnomon_forecast" and getattr(self, "target_keys", None)
                 and (self.profile == "evidence"
-                     or self.row.get("_host_compiled_forecast"))):
-            arguments = {**arguments,
-                         "input": str(self.csv_path),
+                     or self.row.get("_host_compiled_forecast")
+                     or self.row.get("_require_gnomon_execution"))):
+            panel_long_form = getattr(
+                self, "panel_long_form", self.profile == "evidence")
+            questions = arguments.get("questions")
+            requested_repair = arguments.get("repair")
+            requested_regrid = arguments.get("regrid")
+            arguments = {"input": str(self.csv_path),
                          "time_column": "timestamp",
-                         "target_column": ",".join(self.target_keys),
-                         "frequency": "h", "horizon": self.horizon,
-                         "format": "brief"}
+                         "target_column": ("value" if panel_long_form
+                                           else ",".join(self.target_keys)),
+                         **({"series_column": "series"}
+                            if panel_long_form else {}),
+                         "frequency": getattr(self, "frequency", "h"),
+                         "horizon": self.horizon,
+                         "format": "brief",
+                         **({"questions": questions} if questions else {})}
+            if requested_repair is not None:
+                arguments["repair"] = requested_repair
+            if requested_regrid is not None:
+                arguments["regrid"] = requested_regrid
+            compiled_questions = (getattr(
+                self, "temporal_compilation", {}) or {}).get("questions") or []
+            if compiled_questions:
+                arguments["questions"] = compiled_questions
+            entry["typed_questions"] = len(questions or [])
+            entry["compiled_questions"] = len(compiled_questions)
         elif (self.profile == "mega" and name == "gnomon_run"
               and getattr(self, "target_keys", None)):
-            arguments = {**arguments,
-                         "input": str(self.csv_path),
+            arguments = {"input": str(self.csv_path),
                          "time_column": "timestamp",
                          "target_column": ",".join(self.target_keys),
-                         "frequency": "h", "horizon": self.horizon,
+                         "frequency": getattr(self, "frequency", "h"),
+                         "horizon": self.horizon,
                          "question": {"kind": "forecast"}}
         context_compilation = getattr(self, "context_compilation", {})
         if name in {"gnomon_forecast", "gnomon_run"} \
@@ -1238,7 +1510,9 @@ class _Run(_RunBase):
     def __init__(self, row: dict[str, Any], client: Any,
                  session_factory: Any = None, work_dir: str | None = None,
                  profile: str = "full", compile_context: bool = False,
-                 context_receipts_dir: str | None = None):
+                 context_receipts_dir: str | None = None,
+                 compile_questions: bool = False,
+                 question_receipts_dir: str | None = None):
         meta = row.get("meta") or {}
         self.horizon = int(meta.get("n_horizon") or 0)
         if self.horizon < 1:
@@ -1249,21 +1523,52 @@ class _Run(_RunBase):
         super().__init__(row, client, session_factory=session_factory,
                          work_dir=work_dir, profile=profile,
                          compile_context=compile_context,
-                         context_receipts_dir=context_receipts_dir)
+                         context_receipts_dir=context_receipts_dir,
+                         compile_questions=compile_questions,
+                         question_receipts_dir=question_receipts_dir)
 
     def _row_channels(self, row: dict[str, Any]) -> dict[str, list[float]]:
         arrays = prompt_input_arrays(row)
         return {key: _observed(arrays.get(key, [])) for key in self.target_keys}
 
     def _submit_tool(self) -> dict[str, Any]:
+        if self.row.get("_require_gnomon_execution"):
+            # Product-contract rows need only bind the already-produced
+            # artifact. An open-ended reasoning field caused some providers
+            # to spend thousands of tokens inside tool arguments and truncate
+            # an otherwise trivial final submission.
+            tool = json.loads(json.dumps(SUBMIT_TOOL))
+            parameters = tool["function"]["parameters"]
+            parameters["properties"].pop("reasoning", None)
+            parameters["required"] = ["forecast"]
+            parameters["additionalProperties"] = False
+            return tool
         return SUBMIT_TOOL
 
     def _system(self) -> str:
+        data_layout = (
+            "long-form columns: timestamp, series, value"
+            if self.panel_long_form else
+            "wide columns: timestamp, " + ", ".join(self.target_keys))
+        schema_binding = (
+            "time_column is `timestamp`, target_column is `value`, "
+            "series_column is `series`, and frequency is `h`"
+            if self.panel_long_form else
+            "time_column is `timestamp`, target_column is exactly `"
+            + ",".join(self.target_keys) + "`, and frequency is `h`")
+        batching_contract = (
+            "the long-form `series` column identifies every channel while "
+            "`target_column=value` and `series_column=series` bind the panel"
+            if self.panel_long_form else
+            "`target_column` takes the comma list \""
+            + ",".join(self.target_keys) + "\"")
         text = SYSTEM.format(
             csv_path=str(self.csv_path),
             channels=", ".join(self.target_keys),
             channel_list=",".join(self.target_keys),
-            epoch=EPOCH.isoformat(), horizon=self.horizon,
+            data_layout=data_layout, schema_binding=schema_binding,
+            batching_contract=batching_contract,
+            epoch=self.epoch.isoformat(), horizon=self.horizon,
             jail_rule=self._jail_rule(),
             max_rounds=MAX_ROUNDS, max_calls=MAX_MCP_CALLS,
         )
@@ -1280,8 +1585,14 @@ class _Run(_RunBase):
                      "quoted-context validator. This receipt is authoritative; "
                      "only accepted events were supplied to execution:\n"
                      + json.dumps({key: self.context_compilation.get(key, [])
-                                   for key in ("events", "hypotheses", "rejected")},
+                                  for key in ("events", "hypotheses", "rejected")},
                                   separators=(",", ":")) + "\n")
+        if self.row.get("_require_gnomon_execution"):
+            text += ("\nThis product run delegates every published numeric "
+                     "trajectory to Gnomon. Submit the forecast artifact "
+                     "verbatim; model-authored values are not an allowed "
+                     "fallback. If the artifact abstains, retry its disclosed "
+                     "best-effort action or submit an abstention.\n")
         return text
 
     def _abstain_outcome(self, reason: str) -> dict[str, Any]:
@@ -1322,11 +1633,19 @@ class _Run(_RunBase):
         except Exception as error:
             return f"{channel}: artifact could not be read: {error}", ""
         results = data.get("results") or []
-        target = ((data.get("task") or {}).get("schema") or {}).get(
-            "target_column")
+        schema = ((data.get("task") or {}).get("schema") or {})
+        target = schema.get("target_column")
+        series_column = schema.get("series_column")
         targets = [name.strip() for name in str(target).split(",")]
         result = next((item for item in results
                        if item.get("series") == channel), None)
+        # Long-form panels retain the loader's immutable ``target:group``
+        # artifact identity.  Bind it from the artifact schema rather than
+        # guessing or accepting arbitrary suffix matches.
+        if result is None and series_column and len(targets) == 1:
+            internal_name = f"{targets[0]}:{channel}"
+            result = next((item for item in results
+                           if item.get("series") == internal_name), None)
         if result is None and len(targets) == 1 and len(results) == 1 \
                 and targets[0] == channel:
             result = results[0]
@@ -1337,6 +1656,14 @@ class _Run(_RunBase):
                     f"gnomon_forecast with target_column={channel!r}", "")
         rows = result.get("forecast") or []
         support = result.get("support")
+        scenarios = result.get("sensitivity_scenarios") or []
+        if scenarios:
+            scenario_rows = scenarios[0].get("forecast") or []
+            if len(scenario_rows) == self.horizon:
+                self._available_sensitivity[channel] = [
+                    float(row.get("q50", row["point"]))
+                    for row in scenario_rows
+                ]
         if support == "unsupported" or not rows:
             return (f"{channel}: that run abstained (support "
                     f"'unsupported') and published no trajectory. Submit "
@@ -1418,22 +1745,20 @@ class _Run(_RunBase):
                     "problems": ["forecast must be an object mapping "
                                  "channel name to one exit"]}
         problems: list[str] = []
-        # ContextBench's compiled execution contract delegates numeric
-        # publication to Gnomon.  Some OpenAI-compatible providers treat a
-        # forced tool choice as advisory and may call submit_answer directly;
-        # accepting model-authored values in that state silently turns the
-        # product arm into the baseline arm.  A direct fallback remains valid
-        # after an engine call (for example after a labeled abstention), but it
-        # cannot bypass execution altogether.
-        if self.row.get("_host_compiled_forecast") and self.mcp_calls == 0:
+        # ContextBench delegates every published number to Gnomon. Merely
+        # calling a tool before substituting model-made values is still a
+        # bypass, and was the sole source of publication-parity failures in
+        # the natural-routing matrix.
+        if (self.row.get("_require_gnomon_execution")
+                or self.row.get("_host_compiled_forecast")):
             direct_channels = [
                 str(channel) for channel, entry in forecast_spec.items()
                 if isinstance(entry, dict) and entry.get("values") is not None
             ]
             if direct_channels:
                 problems.append(
-                    "host_execution_required: run Gnomon before submitting "
-                    "model-authored forecast values; direct values bypass "
+                    "host_execution_required: submit a Gnomon artifact or "
+                    "abstain; model-authored forecast values bypass "
                     "the product contract for channel(s): "
                     + ", ".join(sorted(direct_channels))
                 )
@@ -1441,6 +1766,7 @@ class _Run(_RunBase):
         support: dict[str, str] = {}
         routes: dict[str, str] = {}
         self._pending_support: dict[str, str] = {}
+        self._available_sensitivity: dict[str, list[float]] = {}
         own_route = "direct" if self.mcp_calls == 0 else "informed-direct"
         for channel, entry in forecast_spec.items():
             if channel not in self.target_keys:
@@ -1486,13 +1812,77 @@ class _Run(_RunBase):
                     "problems": problems}
         for channel in self.target_keys:
             routes.setdefault(channel, "abstain")
-        mcq = {str(key): str(value)
-               for key, value in (arguments.get("mcq") or {}).items()}
+        raw_mcq = arguments.get("mcq")
+        if raw_mcq is None:
+            raw_mcq = {}
+        if not isinstance(raw_mcq, Mapping):
+            return {
+                "accepted": False,
+                "authored_by": "harness",
+                "problems": [
+                    "mcq must be an object mapping question ids to answers"
+                ],
+            }
+        mcq = {str(key): str(value) for key, value in raw_mcq.items()}
+        projected = self._project_receipt_choices()
+        if projected:
+            mcq.update({key: value["display_value"]
+                        for key, value in projected.items()})
+            self.trace.append({
+                "tool": "host_choice_projection",
+                "host_submission": "canonical_temporal_answer",
+                "projected": projected,
+            })
         self.submission = {
             "forecast": resolved, "mcq": mcq, "support": support,
             "routes": routes, "reasoning": arguments.get("reasoning"),
+            "sensitivity_forecast": dict(self._available_sensitivity),
         }
         return {"accepted": True, "routes": routes}
+
+    def _project_receipt_choices(self) -> dict[str, dict[str, str]]:
+        """Project immutable engine answers into explicit task vocabulary."""
+        from gnomon.temporal_vocabulary import project_temporal_choice
+
+        question_keys = list((self.row.get("mcq") or {}).keys())
+        aligned: dict[str, dict[str, Any]] = {}
+        for artifact_path in sorted(self.artifact_paths):
+            receipt_path = Path(artifact_path) / "temporal_answers.json"
+            if not receipt_path.is_file():
+                continue
+            try:
+                receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            for answer in receipt.get("answers") or []:
+                raw_id = str((answer.get("question") or {}).get("id") or "")
+                base_id = raw_id.split(":", 1)[0]
+                key = base_id if base_id in question_keys else None
+                if key is None and base_id.startswith("q") and base_id[1:].isdigit():
+                    index = int(base_id[1:]) - 1
+                    if 0 <= index < len(question_keys):
+                        key = question_keys[index]
+                if key is not None:
+                    aligned[key] = answer
+        projected: dict[str, dict[str, str]] = {}
+        for key, answer in aligned.items():
+            best = answer.get("best_estimate") or {}
+            # The engine owns the answer; support controls whether software
+            # may *act* on it, not whether an LLM may replace it.  Project a
+            # weak but explicit best estimate as deterministically as a
+            # supported one and preserve support in the receipt/trace.  A
+            # genuine abstention has no projectable canonical value.
+            options = ((self.row.get("mcq") or {}).get(key) or {}).get(
+                "options") or []
+            choice = project_temporal_choice(best.get("value"), options)
+            if choice is not None:
+                projected[key] = {
+                    **choice,
+                    "support": str(best.get("support") or "unknown"),
+                    "automation_eligible": bool(
+                        best.get("automation_eligible") is True),
+                }
+        return projected
 
     # -- result ------------------------------------------------------------
     def _resolve_submission(self) -> dict[str, Any]:
@@ -1509,6 +1899,8 @@ class _Run(_RunBase):
             "channel_route": self.submission["routes"],
             "context_execution": self.context_execution,
             "covariate_execution": getattr(self, "covariate_execution", {}),
+            "sensitivity_forecast": self.submission.get(
+                "sensitivity_forecast", {}),
             "submit_reasoning": self.submission["reasoning"],
             **({"last_call": self.submission["last_call"]}
                if self.submission.get("last_call") else {}),
@@ -1559,12 +1951,12 @@ class _McqRun(_RunBase):
         if self.csv_path is not None:
             data_rule = (
                 f"The task's series are also on disk at {self.csv_path} "
-                f"(columns: timestamp, {', '.join(self.channels)}), on a "
+                f"in lossless long form (columns: timestamp, series, value), on a "
                 f"synthetic regular hourly axis — observation k of a "
-                f"series sits at {EPOCH.isoformat()} + k hours, recorded "
-                f"readings laid consecutively; a shorter series' trailing "
-                f"cells are blank. It is the same data the task states, "
-                f"in the shape the tools read."
+                f"series sits at {self.epoch.isoformat()} + k hours, recorded "
+                f"readings laid consecutively. For tools, target_column is "
+                f"value and series_column is series. It is the same data the "
+                f"task states, without padding shorter series with blanks."
             )
         else:
             data_rule = ("The task states its data in the prompt; nothing "
@@ -1659,18 +2051,24 @@ def run_row(row: dict[str, Any], client: Any, *,
             work_dir: str | None = None,
             profile: str = "full",
             compile_context: bool = False,
-            context_receipts_dir: str | None = None) -> dict[str, Any]:
+            context_receipts_dir: str | None = None,
+            compile_questions: bool = False,
+            question_receipts_dir: str | None = None,
+            mcp_call_timeout: float | None = None) -> dict[str, Any]:
     """Drive one T2/T4 row through the real MCP surface; return the same
     outcome shape ``answer_row`` produces for the other conditions."""
     if session_factory is None:
         _ensure_checkout_importable()
         session_factory = lambda jail: StdioMcpSession(
             jail, command=[sys.executable, "-m", "gnomon", "mcp", "serve",
-                           "--profile", profile])
+                           "--profile", profile],
+            call_timeout=mcp_call_timeout)
     return _drive(_Run(row, client, session_factory=session_factory,
                        work_dir=work_dir, profile=profile,
                        compile_context=compile_context,
-                       context_receipts_dir=context_receipts_dir))
+                       context_receipts_dir=context_receipts_dir,
+                       compile_questions=compile_questions,
+                       question_receipts_dir=question_receipts_dir))
 
 
 def mcq_row(row: dict[str, Any], client: Any, *,

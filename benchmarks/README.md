@@ -67,6 +67,7 @@ cross-arm comparison goes through the official tables and
 | [MTBench](mtbench/) (2025) | Temporal reasoning and QA over paired financial/weather series and news; forecasting scored by MSE/MAPE | `benchmarks/mtbench` |
 | [TimeSage-MT](timesage_mt/) (2026) | Multi-turn agentic time series analysis with per-turn verifiable answers across 4 tiers | `benchmarks/timesage_mt` |
 | [TemporalBench](temporalbench/) (2026) | Four-tier contextual and event-informed reasoning (T1 understanding → T4 event-conditioned prediction); forecasts scored by the dataset's own metric module, choice questions by a disclosed local exact match | `benchmarks/temporalbench` |
+| [CompilerBench](compilerbench/) | Held-out language-to-typed-intent compilation, including ambiguity and adversarial target invention | `benchmarks/compilerbench` |
 
 All five were selected because they exercise what Gnomon owns — context
 admission under a leakage gate, calibrated intervals, graded detection,
@@ -84,6 +85,11 @@ adapters:
 | [LeakTrap](leaktrap/) (internal) | Temporal-leakage traps: whether a forecaster respects publication dates when peeking would score better; graded by a hindsight no-leak ceiling, transcription detection, and a structural snapshot assertion | `benchmarks/leaktrap` |
 | [Gnomon Workflow Bench](workflow/) (internal) | End-to-end correctness, trust, usability, and token/call economics across synthetic, frozen, messy, longitudinal, and multi-series workflows | `benchmarks/workflow` |
 | [ContextBench](contextbench/) (internal) | Matched context value and safety: future covariates, repeated learnable events, irrelevant context, prior-only scenarios, leakage and false influence | `benchmarks/contextbench` |
+| [VolatilityBench](volatilitybench/) (internal) | Residual-scale candidate selection, QLIKE, interval coverage, and calibrated direction | `benchmarks/volatilitybench` |
+| [PropertyBench](propertybench/) (internal) | Independent synthetic regimes for level, trend, seasonality, regimes, extremes, and paired dependence | `benchmarks/propertybench` |
+| [ContextCacheBench](contextcachebench/) (internal) | Persistent receipt and numeric-assessment replay: forecast parity, cache hits, and payload reduction | `benchmarks/contextcachebench` |
+| [AdapterBench](adapterbench/) (internal) | Model-neutral adapter conformance, installed-backend coverage, and adversarial contract rejection | `benchmarks/adapterbench` |
+| [TransitionBench](transitionbench/) (internal) | Observed level, trend, volatility, seasonality, regime, and extreme transitions across easy, moderate, and marginal signals; reports support precision separately from raw classification | `benchmarks/transitionbench` |
 
 LeakTrap is ours, not a community benchmark — its numbers validate
 Gnomon's bitemporal contract and are not comparable to anything

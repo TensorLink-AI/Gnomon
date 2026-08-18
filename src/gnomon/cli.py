@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
@@ -184,6 +185,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Validated context-events JSON file (output of `gnomon context validate`)",
     )
     forecast_parser.add_argument(
+        "--context-ref", help="Persistent validated context receipt")
+    forecast_parser.add_argument(
+        "--context-store", help="Context-receipt store directory")
+    forecast_parser.add_argument(
+        "--context-namespace", default=None,
+        help="Project/tenant namespace for context_ref resolution")
+    forecast_parser.add_argument(
         "--project", default=None,
         help="Register this forecast in a project for ongoing tracking and scoring",
     )
@@ -314,6 +322,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     validate_parser.add_argument("--response", required=True)
     validate_parser.add_argument("--file", action="append", required=True, dest="files")
+    validate_parser.add_argument(
+        "--context-store", help="Persistent context-receipt store directory")
+    validate_parser.add_argument(
+        "--context-namespace", default=None,
+        help="Project/tenant namespace for the stored context_ref")
     preflight_parser = context_commands.add_parser(
         "preflight",
         help="Dry-run admission for proposed context events against the data, "
@@ -404,23 +417,6 @@ def build_parser() -> argparse.ArgumentParser:
     monitor_parser.add_argument("--as-of", dest="as_of")
     monitor_parser.add_argument("--output", default="gnomon-output")
     monitor_parser.add_argument("--store-path", dest="store_path")
-
-    plan_parser = subcommands.add_parser(
-        "plan", help="Experimental: compile, validate, and execute TemporalPlans"
-    )
-    plan_commands = plan_parser.add_subparsers(dest="plan_command", required=True)
-    plan_compile = plan_commands.add_parser("compile")
-    plan_compile.add_argument("--task-type", required=True,
-                              choices=["forecast", "investigate_change", "decide", "monitor"])
-    plan_compile.add_argument("--params", required=True,
-                              help="JSON object of macro parameters, or @file")
-    plan_validate = plan_commands.add_parser("validate")
-    plan_validate.add_argument("--plan", required=True, help="Plan JSON, or @file")
-    plan_execute = plan_commands.add_parser("execute")
-    plan_execute.add_argument("--plan", required=True, help="Plan JSON, or @file")
-    plan_execute.add_argument("--output", default="gnomon-output")
-    plan_execute.add_argument("--as-of", dest="as_of")
-    plan_execute.add_argument("--store-path", dest="store_path")
 
     ingest_parser = subcommands.add_parser(
         "ingest", help="Append observations (as vintages) to the bitemporal store"
@@ -556,6 +552,24 @@ def build_parser() -> argparse.ArgumentParser:
     track_perf.add_argument("--project", required=True)
     track_perf.add_argument("--model", default=None, help="Filter by model name")
 
+    track_shadow_record = track_commands.add_parser(
+        "shadow-record", help="Record one paired realised adapter outcome")
+    for flag in ("project", "outcome-id", "candidate", "baseline", "known-at"):
+        track_shadow_record.add_argument(f"--{flag}", required=True)
+    track_shadow_record.add_argument("--revision")
+    track_shadow_record.add_argument("--candidate-error", required=True, type=float)
+    track_shadow_record.add_argument("--baseline-error", required=True, type=float)
+
+    track_shadow_assess = track_commands.add_parser(
+        "shadow-assess", help="Assess a shadow adapter without promoting it")
+    for flag in ("project", "candidate", "baseline"):
+        track_shadow_assess.add_argument(f"--{flag}", required=True)
+    track_shadow_assess.add_argument("--revision")
+    track_shadow_assess.add_argument("--as-of")
+    track_shadow_assess.add_argument("--min-outcomes", type=int, default=30)
+    track_shadow_assess.add_argument("--min-improvement", type=float, default=.05)
+    track_shadow_assess.add_argument("--min-win-rate", type=float, default=.60)
+
     track_coverage = track_commands.add_parser(
         "coverage",
         help="Adaptive-conformal level from realised coverage outcomes "
@@ -587,6 +601,59 @@ def build_parser() -> argparse.ArgumentParser:
                                  help="Restrict to one proposer id")
     track_proposers.add_argument("--event-type", default=None,
                                  help="Restrict to one event type")
+
+    track_effects = track_commands.add_parser(
+        "effects",
+        help="Query frozen context scenarios and their realised effect estimates",
+    )
+    track_effects.add_argument("--project", required=True)
+    track_effects.add_argument("--event-type", default=None,
+                               help="Restrict to one event type")
+    track_effects.add_argument("--series", default=None,
+                               help="Restrict to one series")
+    track_effects.add_argument(
+        "--resolved-only", action="store_true",
+        help="Hide scenarios whose outcomes have not arrived",
+    )
+    track_effect_occurrence = track_commands.add_parser(
+        "effect-occurrence",
+        help="Confirm, cancel, or revise a tracked event occurrence",
+    )
+    track_effect_occurrence.add_argument("--effect-id", required=True)
+    track_effect_occurrence.add_argument(
+        "--status", required=True, choices=["confirmed", "cancelled", "revised"])
+    track_effect_occurrence.add_argument("--known-at", required=True)
+    track_effect_occurrence.add_argument("--note")
+    track_effect_prior = track_commands.add_parser(
+        "effect-prior",
+        help="Resolve the governed effect-evidence ladder as of a point in time",
+    )
+    track_effect_prior.add_argument("--project", required=True)
+    track_effect_prior.add_argument("--event-type", required=True)
+    track_effect_prior.add_argument("--series", required=True)
+    track_effect_prior.add_argument("--as-of", required=True)
+    track_effect_prior.add_argument("--target", default="*")
+    track_effect_prior.add_argument("--domain", default="*")
+    track_effect_prior.add_argument("--population", default="*")
+    track_effect_prior.add_argument("--unit", default="*")
+    track_effect_prior.add_argument("--external-registry")
+    track_effect_prior.add_argument(
+        "--human-assumption",
+        help="JSON or @file with location, known_at, unit?, source?, shape?",
+    )
+    track_robust = track_commands.add_parser(
+        "robust-decision",
+        help="Choose by maximin utility across primary and context scenarios",
+    )
+    track_robust.add_argument("--decision-id", required=True)
+    track_robust.add_argument("--project", required=True)
+    track_robust.add_argument("--forecast-id", required=True)
+    track_robust.add_argument("--actions", required=True,
+                              help="JSON or @file action list")
+    track_robust.add_argument("--utilities", required=True,
+                              help="JSON or @file action-by-scenario utilities")
+    track_robust.add_argument("--scenarios", required=True,
+                              help="Comma-separated conditioned scenario ids")
 
     track_due = track_commands.add_parser(
         "due", help="List open forecasts whose horizon has completed"
@@ -1066,26 +1133,6 @@ def main(argv: Sequence[str] | None = None) -> int:
                 {**payload, "artifact_path": str(path)}, schema_assumptions,
             ), indent=2, allow_nan=False))
             return 0
-        if args.command == "plan":
-            from .toolspec import (
-                _run_compile_task, _run_execute_plan, _run_validate_plan,
-            )
-            if args.plan_command == "compile":
-                payload = _run_compile_task({
-                    "task_type": args.task_type,
-                    "params": _json_argument(args.params, argument="params"),
-                })
-            elif args.plan_command == "validate":
-                payload = _run_validate_plan({"plan": _json_argument(args.plan, argument="plan")})
-            else:
-                payload = _run_execute_plan({
-                    "plan": _json_argument(args.plan, argument="plan"),
-                    "output_dir": args.output,
-                    "as_of": args.as_of,
-                    "store_path": args.store_path,
-                })
-            print(json.dumps(payload, indent=2, allow_nan=False))
-            return 0
         if args.command == "ingest":
             from .temporal_store import TemporalStore
 
@@ -1446,6 +1493,27 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(json.dumps(payload, indent=2))
                 return 0
 
+            elif args.track_command == "shadow-record":
+                print(json.dumps(store.record_adapter_shadow_outcome(
+                    project=args.project, outcome_id=args.outcome_id,
+                    candidate=args.candidate, revision=args.revision,
+                    baseline=args.baseline,
+                    candidate_error=args.candidate_error,
+                    baseline_error=args.baseline_error,
+                    known_at=args.known_at,
+                ), indent=2))
+                return 0
+
+            elif args.track_command == "shadow-assess":
+                print(json.dumps(store.assess_adapter_shadow(
+                    project=args.project, candidate=args.candidate,
+                    revision=args.revision, baseline=args.baseline,
+                    as_of=args.as_of, min_outcomes=args.min_outcomes,
+                    min_improvement=args.min_improvement,
+                    min_win_rate=args.min_win_rate,
+                ), indent=2))
+                return 0
+
             elif args.track_command == "leaderboard":
                 lb = store.leaderboard(args.project, task=args.task)
                 task_label = f" [{args.task}]" if args.task else ""
@@ -1472,6 +1540,54 @@ def main(argv: Sequence[str] | None = None) -> int:
                     args.project, proposer_id=args.proposer,
                     event_type=args.event_type,
                 ), indent=2))
+                return 0
+
+            elif args.track_command == "effects":
+                print(json.dumps(store.event_effects(
+                    args.project, event_type=args.event_type,
+                    series=args.series,
+                    include_unresolved=not args.resolved_only,
+                ), indent=2))
+                return 0
+
+            elif args.track_command == "effect-occurrence":
+                print(json.dumps(store.record_effect_occurrence(
+                    args.effect_id, args.status, known_at=args.known_at,
+                    note=args.note,
+                ), indent=2))
+                return 0
+
+            elif args.track_command == "effect-prior":
+                from gnomon.effect_registry import load_effect_registry
+                from gnomon.effect_resolution import resolve_effect_evidence
+
+                priors = (load_effect_registry(args.external_registry)
+                          if args.external_registry else [])
+                print(json.dumps(resolve_effect_evidence(
+                    store, project=args.project, event_type=args.event_type,
+                    series=args.series, as_of=args.as_of,
+                    external_priors=priors, target=args.target,
+                    domain=args.domain, population=args.population,
+                    unit=args.unit,
+                    human_assumption=_json_argument(
+                        args.human_assumption, argument="human-assumption"),
+                ), indent=2))
+                return 0
+
+            elif args.track_command == "robust-decision":
+                from gnomon.decision_model import robust_scenario_decision
+
+                artifact = robust_scenario_decision(
+                    decision_id=args.decision_id, project=args.project,
+                    forecast_id=args.forecast_id,
+                    actions=_json_argument(args.actions, argument="actions"),
+                    utilities=_json_argument(args.utilities, argument="utilities"),
+                    scenario_ids=[item.strip() for item in args.scenarios.split(",")
+                                  if item.strip()],
+                    created_at=datetime.now(timezone.utc).isoformat(),
+                )
+                store.save_decision_artifact(artifact)
+                print(json.dumps(artifact.to_dict(), indent=2))
                 return 0
 
             elif args.track_command == "due":
@@ -1588,7 +1704,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 repair=args.repair,
             )
         elif args.command == "context":
-            from .workflows import build_context_investigation_prompt, parse_context_response
+            from .workflows import (
+                build_context_investigation_prompt, parse_context_response,
+                persist_context_compilation,
+            )
 
             documents = _read_documents(args.files)
             if args.context_command == "prompt":
@@ -1608,7 +1727,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                     raw = json.loads(response_path.read_text(encoding="utf-8"))
                 except json.JSONDecodeError as exc:
                     raise GnomonError("INVALID_RESPONSE", f"LLM response is not valid JSON: {exc}") from exc
-                payload = parse_context_response(raw, documents)
+                payload = persist_context_compilation(
+                    parse_context_response(raw, documents),
+                    store_path=args.context_store,
+                    namespace=args.context_namespace,
+                )
         elif args.command == "forecast" and multi_targets:
             from .config import load_config
             from .runtime import forecast_multi
@@ -1619,6 +1742,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     ("--series", args.series_column),
                     ("--multivariate", args.multivariate),
                     ("--context", args.context_file),
+                    ("--context-ref", args.context_ref),
                     ("--covariates", args.covariates),
                     ("--project", getattr(args, "project", None)),
                 ) if present
@@ -1664,7 +1788,45 @@ def main(argv: Sequence[str] | None = None) -> int:
             from .toolspec import forecast_summary
             from .config import load_config
 
-            events = load_events_file(args.context_file) if args.context_file else None
+            if args.context_file and args.context_ref:
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "Provide --context or --context-ref, not both.")
+            context_cache = None
+            if args.context_ref:
+                import os
+                from .context import events_from_list
+                from .context_store import ContextReceiptStore
+
+                namespace = args.context_namespace or os.environ.get(
+                    "GNOMON_CONTEXT_NAMESPACE", "local")
+                store = (ContextReceiptStore(args.context_store,
+                                             namespace=namespace)
+                         if args.context_store else ContextReceiptStore.default())
+                try:
+                    receipt = store.get(args.context_ref)
+                except KeyError as error:
+                    raise GnomonError(
+                        "INVALID_ARGUMENTS",
+                        "context_ref is unknown in this project namespace.",
+                        {"context_ref": args.context_ref}) from error
+                bound = []
+                for raw in receipt.get("events") or []:
+                    item = dict(raw)
+                    item["attributes"] = {
+                        **dict(item.get("attributes") or {}),
+                        "context_receipt_id": receipt["receipt_id"],
+                    }
+                    bound.append(item)
+                events = events_from_list(bound)
+                context_cache = {
+                    "status": "hit", "context_ref": args.context_ref,
+                    "receipt_id": receipt["receipt_id"],
+                    "compiler_reused": True,
+                }
+            else:
+                events = (load_events_file(args.context_file)
+                          if args.context_file else None)
             from .covariates import load_covariates
             covariates = None
             if args.covariates:
@@ -1708,6 +1870,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 payload = brief_summary(artifact, path)
             else:
                 payload = forecast_summary(artifact, path)
+            if context_cache:
+                payload = {**payload, "context_ref": args.context_ref,
+                           "context_cache": context_cache}
 
             # Auto-register in tracking store if --project is set
             if getattr(args, "project", None):

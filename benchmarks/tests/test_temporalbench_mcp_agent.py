@@ -24,10 +24,13 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from benchmarks.cik import mcp_agent as cik_mcp_agent
 from benchmarks.cik.mcp_agent import InProcessMcpSession
+from benchmarks.common.openrouter import OpenRouterError
 from benchmarks.temporalbench import mcp_agent
 from benchmarks.temporalbench.mcp_agent import (
     MAX_ROUNDS,
@@ -37,6 +40,31 @@ from benchmarks.temporalbench.mcp_agent import (
     preferred_execution_tool,
     run_row,
 )
+
+
+def test_temporal_question_compiler_uses_text_not_labels_and_reuses_receipt(
+        tmp_path) -> None:
+    row = _row(sparse_temp=False)
+    row["mcq"] = {"volatility_change": {
+        "question": "Will the fleet become more volatile?",
+        "options": ["increased", "decreased"], "label": "decreased"}}
+    client = ScriptedClient([{"tool_calls": [("submit_temporal_intent", {
+        "status": "compiled", "questions": [{
+            "id": "v", "verb": "predict", "property": "volatility",
+            "target": {"kind": "aggregate", "members": ["hr", "spo2"]},
+            "horizon": 4}]})]}])
+    receipts = tmp_path / "receipts"
+    first = mcp_agent.compile_row_temporal_questions(
+        row, client, ["hr", "spo2"], str(receipts))
+    assert not first["rejected"], first
+    assert first["questions"][0]["target"]["aggregation"] == \
+        "median_normalized_scale_ratio"
+    rendered = next(receipts.iterdir()).read_text()
+    assert "decreased" not in rendered
+    reused = mcp_agent.compile_row_temporal_questions(
+        row, ScriptedClient([]), ["hr", "spo2"], str(receipts))
+    assert reused["receipt_reused"] is True
+    assert reused["compiler_called"] is False
 
 
 def test_every_forecast_profile_has_a_host_compiled_first_tool():
@@ -50,6 +78,11 @@ def test_every_forecast_profile_has_a_host_compiled_first_tool():
         "mega": "gnomon_run",
         "full": "gnomon_forecast",
     }
+
+
+def test_forecast_host_instruction_preserves_typed_abstention() -> None:
+    assert "support: abstained" in mcp_agent.SYSTEM
+    assert "choosing `Uncertain`" in mcp_agent.SYSTEM
     assert preferred_execution_tool("core", True) is None
     assert preferred_execution_tool("describe", True) is None
     assert preferred_execution_tool("full", True) is None
@@ -59,6 +92,7 @@ def test_every_forecast_profile_has_a_host_compiled_first_tool():
 def test_future_covariates_compile_to_each_targets_compressed_axis():
     run = object.__new__(mcp_agent._Run)
     run.channels = {"a": [1.0, 3.0], "b": [4.0, 5.0, 6.0]}
+    run.epoch = mcp_agent.EPOCH
     row = {"input": {
         "history": {
             "a": [1.0, None, 3.0], "b": [4.0, 5.0, 6.0],
@@ -81,6 +115,7 @@ def test_future_covariates_compile_to_each_targets_compressed_axis():
 def test_single_target_covariates_use_artifact_default_identity_and_declared_type():
     run = object.__new__(mcp_agent._Run)
     run.channels = {"value": [1.0, 2.0, 3.0]}
+    run.epoch = mcp_agent.EPOCH
     arguments = run._row_covariates({"input": {
         "history": {"value": [1.0, 2.0, 3.0], "driver": [0.0, 1.0, 0.0]},
         "future_covariates": {"driver": [1.0, 1.0]},
@@ -209,10 +244,12 @@ class ScriptedClient:
 
     def __init__(self, steps):
         self.steps = list(steps)
+        self.requests = []
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
 
-    def chat(self, messages, *, n=1, tools=None, tool_choice=None):
+    def chat(self, messages, *, n=1, tools=None, tool_choice=None, **kwargs):
+        self.requests.append({"tools": tools, "tool_choice": tool_choice})
         assert self.steps, "model script exhausted before submission"
         step = self.steps.pop(0)
         action = step(messages) if callable(step) else step
@@ -331,7 +368,7 @@ def test_host_compiled_forecast_cannot_be_bypassed_by_direct_submission(
 ):
     """Providers may ignore forced tool_choice; the harness must not.
 
-    A direct fallback is allowed only after Gnomon has actually run, otherwise
+    A direct fallback is never allowed in a product-contract run; otherwise
     the measured product arm is secretly the baseline arm.
     """
     row = _row(sparse_temp=False)
@@ -348,8 +385,8 @@ def test_host_compiled_forecast_cannot_be_bypassed_by_direct_submission(
         payload = _last_tool_payload(messages)
         assert payload["accepted"] is False
         assert payload["problems"] == [
-            "host_execution_required: run Gnomon before submitting "
-            "model-authored forecast values; direct values bypass the "
+            "host_execution_required: submit a Gnomon artifact or abstain; "
+            "model-authored forecast values bypass the "
             "product contract for channel(s): hr, spo2"
         ]
         return {"tool_calls": [_forecast_call(messages, "hr,spo2")]}
@@ -368,6 +405,35 @@ def test_host_compiled_forecast_cannot_be_bypassed_by_direct_submission(
     assert outcome["mcp"]["calls"] == 1
     assert outcome["mcp"]["tool_sequence"][0]["tool"] == "submit_answer"
     assert outcome["mcp"]["tool_sequence"][0]["submit_rejected"]
+
+
+def test_host_compiled_execution_tool_has_no_model_authored_arguments(tmp_path):
+    row = _row(sparse_temp=False)
+    row["_host_compiled_forecast"] = True
+    row["_require_gnomon_execution"] = True
+    client = ScriptedClient([
+        {"tool_calls": [("gnomon_forecast", {
+            "input": "/outside/ignored.csv",
+            "context_events": [{"invented": "x" * 10_000}],
+        })]},
+        lambda messages: {"tool_calls": [("submit_answer", {
+            "forecast": {key: {"artifact_path": _last_tool_payload(
+                messages)["artifact_path"]} for key in ("hr", "spo2")},
+        })]},
+    ])
+    outcome = run_row(
+        row, client, session_factory=_factory(), work_dir=str(tmp_path),
+        profile="core")
+    first_tools = client.requests[0]["tools"]
+    forecast = next(spec for spec in first_tools
+                    if spec["function"]["name"] == "gnomon_forecast")
+    assert forecast["function"]["parameters"] == {
+        "type": "object", "additionalProperties": False}
+    assert outcome["channel_route"] == {"hr": "gnomon", "spo2": "gnomon"}
+    assert outcome["mcp"]["calls"] == 1
+    assert len(client.requests) == 1
+    assert outcome["mcp"]["tool_sequence"][-1] == {
+        "host_submission": "complete_artifact"}
 
 
 def test_omitted_channel_is_a_recorded_abstention(tmp_path):
@@ -529,13 +595,26 @@ def test_token_cap_keeps_the_answer_the_last_call_produces(tmp_path):
 
 
 def test_token_cap_abstains_when_the_last_call_answers_in_prose(tmp_path):
-    """Prose twice — the repair round offered and refused — abstains."""
+    """Prose twice becomes a typed, scoreable abstention per channel."""
     steps = [{"content": "thinking", "bump_tokens": 600_000},
              {"content": "I will keep thinking."},
              {"content": "Still prose, sorry."}]
     outcome = _run(_row(sparse_temp=False), steps, tmp_path)
-    assert any("cap:tokens" in reason for reason in outcome["abstained"])
-    assert "cap:tokens" in outcome["row_abstained"]
+    assert set(outcome["channel_route"].values()) == {"abstain"}
+    assert "cap:tokens" in outcome["last_call"]
+    assert "row_abstained" not in outcome
+    assert any(entry.get("submission_fallback") == "typed_abstention"
+               for entry in outcome["mcp"]["tool_sequence"])
+
+
+def test_last_call_provider_failure_remains_retryable_infrastructure(tmp_path):
+    def unavailable(_messages):
+        raise OpenRouterError("provider timed out")
+
+    with pytest.raises(OpenRouterError, match="provider timed out"):
+        _run(_row(sparse_temp=False), [
+            {"content": "thinking", "bump_tokens": 600_000}, unavailable,
+        ], tmp_path)
 
 
 # -- the envelope is repaired; the answer never is --------------------------
@@ -628,7 +707,9 @@ def test_the_last_call_repair_is_not_unlimited(tmp_path):
                    [{"content": "x", "bump_tokens": 600_000}, bad, bad],
                    tmp_path)
     assert outcome["answer"]["forecast"] == {}
-    assert "cap:tokens" in outcome["row_abstained"]
+    assert set(outcome["channel_route"].values()) == {"abstain"}
+    assert "cap:tokens" in outcome["last_call"]
+    assert "row_abstained" not in outcome
 
 
 def test_last_call_offers_only_the_submit_tool(tmp_path):
@@ -678,6 +759,37 @@ def test_spent_tool_budget_does_not_void_the_row(tmp_path, monkeypatch):
     assert outcome["answer"]["forecast"]["spo2"] == VALUES
     assert outcome["mcp"]["calls"] == 1
     assert outcome["mcp"]["schema_bytes"] > 0
+    assert outcome["mcp"]["product_schema_bytes"] > 0
+    assert outcome["mcp"]["harness_schema_bytes"] > 0
+    assert outcome["mcp"]["schema_bytes"] <= (
+        outcome["mcp"]["product_schema_bytes"] +
+        outcome["mcp"]["harness_schema_bytes"])
+
+
+def test_product_contract_submit_schema_cannot_spend_tokens_on_reasoning():
+    run = object.__new__(mcp_agent._Run)
+    run.row = {"_require_gnomon_execution": True}
+    parameters = run._submit_tool()["function"]["parameters"]
+    assert "reasoning" not in parameters["properties"]
+    assert parameters["required"] == ["forecast"]
+    assert parameters["additionalProperties"] is False
+    assert "reasoning" in mcp_agent.SUBMIT_TOOL["function"]["parameters"][
+        "properties"]
+
+
+def test_natural_routing_still_requires_product_execution(tmp_path):
+    run = object.__new__(mcp_agent._Run)
+    run.row = {"_require_gnomon_execution": True}
+    # A prior inspect/forecast call does not authorize replacing Gnomon's
+    # published trajectory with model-authored numbers.
+    run.mcp_calls = 1
+    run.target_keys = ["hr", "spo2"]
+    run.horizon = len(VALUES)
+    run.submission = None
+    result = run._handle_submit({"forecast": {
+        "hr": {"values": VALUES}, "spo2": {"values": VALUES}}})
+    assert result["accepted"] is False
+    assert "host_execution_required" in result["problems"][0]
 
 
 def test_complete_artifact_survives_final_submission_format_failure(tmp_path):
@@ -747,6 +859,37 @@ def test_one_multi_target_artifact_serves_each_of_its_channels(tmp_path):
     assert by_series["hr"] != by_series["spo2"]  # not results[0] twice
 
 
+def test_string_mcq_is_rejected_for_repair_instead_of_crashing(tmp_path):
+    seen = {}
+
+    def forecast(messages):
+        return {"tool_calls": [_forecast_call(messages, "hr,spo2")]}
+
+    def malformed_submit(messages):
+        payload = _last_tool_payload(messages)
+        seen["path"] = payload["artifact_path"]
+        return {"tool_calls": [("submit_answer", {
+            "forecast": {"hr": {"artifact_path": seen["path"]},
+                         "spo2": {"artifact_path": seen["path"]}},
+            "mcq": "Higher",
+        })]}
+
+    def repaired_submit(messages):
+        payload = _last_tool_payload(messages)
+        assert payload["accepted"] is False
+        assert payload["problems"] == [
+            "mcq must be an object mapping question ids to answers"]
+        return {"tool_calls": [("submit_answer", {
+            "forecast": {"hr": {"artifact_path": seen["path"]},
+                         "spo2": {"artifact_path": seen["path"]}},
+            "mcq": {"q1": "Higher"},
+        })]}
+
+    outcome = _run(_row(sparse_temp=False),
+                   [forecast, malformed_submit, repaired_submit], tmp_path)
+    assert outcome["channel_route"] == {"hr": "gnomon", "spo2": "gnomon"}
+
+
 def test_multi_target_artifact_rejected_for_a_channel_it_skipped(tmp_path):
     def batched(messages):
         return {"tool_calls": [_forecast_call(messages, "hr,spo2")]}
@@ -789,6 +932,36 @@ def test_system_prompt_names_the_jail_and_the_batched_call(tmp_path):
     assert f"only read and write inside {jail}" in seen["system"]
     assert f"output_dir={jail}/gnomon-output" in seen["system"]
     assert '"hr,spo2"' in seen["system"]
+
+
+def test_evidence_profile_uses_lossless_long_panel_for_sparse_channels(tmp_path):
+    seen = {}
+
+    def forecast(messages):
+        seen["system"] = messages[0]["content"]
+        csv_path = Path(_csv_path(messages))
+        seen["header"] = csv_path.read_text().splitlines()[0]
+        return {"tool_calls": [_forecast_call(messages, "hr,spo2")]}
+
+    def submit(messages):
+        payload = _last_tool_payload(messages)
+        path = payload["artifact_path"]
+        return {"tool_calls": [("submit_answer", {
+            "forecast": {"hr": {"artifact_path": path},
+                         "spo2": {"artifact_path": path},
+                         "temperature_c": {"artifact_path": path}},
+            "mcq": {"q1": "Higher"},
+        })]}
+
+    outcome = run_row(
+        _row(sparse_temp=True), ScriptedClient([forecast, submit]),
+        session_factory=_factory(), work_dir=str(tmp_path), profile="evidence")
+
+    assert seen["header"] == "timestamp,series,value"
+    assert "series_column is `series`" in seen["system"]
+    assert outcome["channel_route"] == {
+        "hr": "gnomon", "spo2": "gnomon", "temperature_c": "gnomon"}
+    assert outcome["mcp"]["calls"] == 1
 
 
 # -- tool results are bounded without losing their disclosures --------------
@@ -1056,9 +1229,9 @@ def test_answer_row_passes_the_experiment_profile(monkeypatch):
     )
     run_temporalbench.answer_row(
         {"tier": "T2", "prompt": "x"}, "gnomon-mcp", None,
-        mcp_profile="core",
+        mcp_profile="core", mcp_call_timeout=17,
     )
-    assert seen == [{"profile": "core"}]
+    assert seen == [{"profile": "core", "mcp_call_timeout": 17}]
 
 
 def test_mcp_condition_keeps_the_requested_tiers(tmp_path, monkeypatch):
@@ -1084,6 +1257,35 @@ def test_mcp_condition_keeps_the_requested_tiers(tmp_path, monkeypatch):
     ])
     assert runner.main() == 0
     assert seen["tiers"] == ("T1", "T2", "T3", "T4")
+
+
+def test_fully_errored_run_is_diagnostic_not_success(tmp_path, monkeypatch):
+    import benchmarks.temporalbench.run_temporalbench as runner
+
+    monkeypatch.setattr(runner, "load_official_metrics", lambda _dir: None)
+    monkeypatch.setattr(runner, "OpenRouterClient",
+                        lambda *a, **k: SimpleNamespace(
+                            base_url="http://x", usage_summary={}))
+    monkeypatch.setattr(runner, "iter_rows", lambda _dir, **kwargs: iter([
+        {"id": "bad", "tier": "T1", "prompt": "x", "labels": {}}
+    ]))
+    monkeypatch.setattr(
+        runner, "answer_row",
+        lambda *a, **k: (_ for _ in ()).throw(
+            ValueError("cached temporal-intent receipt does not match input")),
+    )
+    output = tmp_path / "out"
+    monkeypatch.setattr(sys, "argv", [
+        "run_temporalbench", "--data-dir", str(tmp_path),
+        "--condition", "gnomon-mcp", "--model", "x/y",
+        "--tiers", "T1", "--output-dir", str(output),
+    ])
+
+    assert runner.main() == 1
+    summary = json.loads((output / "summary.json").read_text())
+    assert summary["run_status"] == "failed"
+    assert summary["terminal_error_breakdown"] == {
+        "ValueError: cached temporal-intent receipt does not match input": 1}
 
 
 def test_voided_rows_stay_out_of_the_accuracy_denominators(tmp_path,
@@ -1272,3 +1474,45 @@ def test_forecasts_of_different_channels_are_both_kept(tmp_path):
     outcome = _run(_row(sparse_temp=False),
                    [forecast_hr, forecast_spo2, submit], tmp_path)
     assert outcome["channel_route"] == {"hr": "gnomon", "spo2": "gnomon"}
+
+
+def test_host_projects_all_unambiguous_canonical_receipt_answers(tmp_path):
+    from benchmarks.temporalbench.mcp_agent import _Run
+
+    artifact = tmp_path / "artifact"
+    artifact.mkdir()
+    (artifact / "temporal_answers.json").write_text(json.dumps({
+        "primary_forecast_unchanged": True,
+        "answers": [
+            {"question": {"id": "q1"},
+             "best_estimate": {"value": "higher",
+                               "automation_eligible": True}},
+            {"question": {"id": "q2"},
+             "best_estimate": {"value": "stable",
+                               "automation_eligible": True}},
+            {"question": {"id": "q3"},
+             "best_estimate": {"value": "weaker",
+                               "automation_eligible": False}},
+            {"question": {"id": "q4"},
+             "best_estimate": {"value": "increased",
+                               "automation_eligible": False}},
+        ],
+    }), encoding="utf-8")
+    run = _Run.__new__(_Run)
+    run.artifact_paths = {str(artifact)}
+    run.row = {"mcq": {
+        "level": {"options": ["Higher", "Lower", "Similar", "Uncertain"]},
+        "volatility": {"options": [
+            "increased", "decreased", "constant", "Uncertain"]},
+        "seasonality": {"options": ["fixed", "shifting", "no", "Uncertain"]},
+        "weak_volatility": {"options": [
+            "increased", "decreased", "constant", "Uncertain"]},
+    }}
+
+    projected = run._project_receipt_choices()
+
+    assert projected["level"]["display_value"] == "Higher"
+    assert projected["volatility"]["display_value"] == "constant"
+    assert "seasonality" not in projected  # ``weaker`` is not ``no``.
+    assert projected["weak_volatility"]["display_value"] == "increased"
+    assert projected["weak_volatility"]["automation_eligible"] is False

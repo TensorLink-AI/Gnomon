@@ -1,0 +1,87 @@
+import json
+
+import pytest
+
+from benchmarks.temporalbench.merge_shards import merge_shards
+
+
+def _shard(path, task_id, value):
+    path.mkdir()
+    (path / "details").mkdir()
+    record = {"task_id": task_id, "success": True, "value": value}
+    (path / "gnomonbench.jsonl").write_text(json.dumps(record) + "\n")
+    (path / "details" / f"{task_id}.json").write_text(
+        json.dumps({"answer": value}))
+
+
+def _usage(path, requests, prompt_tokens):
+    (path / "summary.json").write_text(json.dumps({"llm_usage": {
+        "requests": requests,
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": requests * 2,
+    }}))
+
+
+def test_merge_shards_builds_resumable_union(tmp_path):
+    left, right, target = tmp_path / "left", tmp_path / "right", tmp_path / "all"
+    _shard(left, "b", 2)
+    _shard(right, "a", 1)
+    result = merge_shards(target, [left, right])
+    assert result == {"records": 2, "details": 2}
+    rows = [json.loads(line) for line in
+            (target / "gnomonbench.jsonl").read_text().splitlines()]
+    assert [row["task_id"] for row in rows] == ["a", "b"]
+
+
+def test_merge_shards_accumulates_usage_once_across_repeated_merge(tmp_path):
+    left, right, target = tmp_path / "left", tmp_path / "right", tmp_path / "all"
+    _shard(left, "a", 1)
+    _shard(right, "b", 2)
+    _usage(left, 2, 100)
+    _usage(right, 3, 250)
+
+    merge_shards(target, [left, right])
+    merge_shards(target, [left, right])
+
+    summary = json.loads((target / "summary.json").read_text())
+    assert summary["llm_usage"]["requests"] == 5
+    assert summary["llm_usage"]["prompt_tokens"] == 350
+    assert len(summary["merged_usage_sources"]) == 2
+
+
+def test_merge_shards_rejects_conflicts(tmp_path):
+    left, right, target = tmp_path / "left", tmp_path / "right", tmp_path / "all"
+    _shard(left, "a", 1)
+    _shard(right, "a", 2)
+    with pytest.raises(ValueError, match="conflicting"):
+        merge_shards(target, [left, right])
+
+
+def test_merge_shards_recovers_complete_lines_from_interrupted_partial(tmp_path):
+    shard, target = tmp_path / "shard", tmp_path / "all"
+    _shard(shard, "a", 1)
+    (shard / "gnomonbench.jsonl").rename(
+        shard / "gnomonbench.partial.jsonl")
+
+    result = merge_shards(target, [shard])
+
+    assert result == {"records": 1, "details": 1}
+    record = json.loads((target / "gnomonbench.jsonl").read_text())
+    assert record["task_id"] == "a"
+
+
+def test_merge_shards_recovers_usage_checkpoint_from_interrupted_shard(tmp_path):
+    shard, target = tmp_path / "shard", tmp_path / "all"
+    _shard(shard, "a", 1)
+    (shard / "gnomonbench.jsonl").rename(
+        shard / "gnomonbench.partial.jsonl")
+    (shard / "usage.checkpoint.json").write_text(json.dumps({
+        "llm_usage": {"requests": 4, "prompt_tokens": 200},
+        "completed_details": 1,
+    }))
+
+    merge_shards(target, [shard])
+
+    summary = json.loads((target / "summary.json").read_text())
+    assert summary["llm_usage"]["requests"] == 4
+    assert summary["llm_usage"]["prompt_tokens"] == 200

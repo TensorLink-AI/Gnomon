@@ -153,4 +153,5 @@ Same gate philosophy that caught the router's degenerate prompt.
 The scored comparison this arm completes: `control` (DirectPrompt),
 `gnomon-agent` (mandatory Gnomon), `gnomon-mcp` (this arm) — all at one
 pinned revision, full grid, official seeds. `gnomon-router` is retired
-from the comparison; its code and its lesson stay in the tree.
+from the comparison. Its historical results preserve the lesson; the
+superseded executable arm has been removed from the live benchmark harness.

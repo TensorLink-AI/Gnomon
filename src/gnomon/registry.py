@@ -291,6 +291,8 @@ MACROS: dict[str, MacroSpec] = {
                         "Optional tracking project: records a DecisionArtifact "
                         "for realised-outcome scoring (regret, calibration)."
                     )},
+                    "questions": {"type": "array", "items": {"type": "object"},
+                                  "description": "Optional typed temporal questions answered from the same immutable forecast."},
                 },
                 "required": ["horizon", "threshold", "actions"],
             },
@@ -316,6 +318,8 @@ MACROS: dict[str, MacroSpec] = {
                     "alert_cost": {"type": "number", "description": "Cost of an unnecessary alert."},
                     "miss_cost": {"type": "number", "description": "Cost of a missed exceedance."},
                     "project": {"type": "string", "description": "Optional tracking project to register the underlying forecast in."},
+                    "questions": {"type": "array", "items": {"type": "object"},
+                                  "description": "Optional typed temporal questions answered from the same immutable forecast."},
                 },
                 "required": ["horizon", "threshold"],
             },

@@ -212,6 +212,25 @@ def test_monitor_with_costs_gives_optimal_rule(tmp_path):
     assert risk_claims and risk_claims[0]["calibration_ref"] is not None
 
 
+def test_decide_and_monitor_share_immutable_typed_answer_contract(tmp_path):
+    source = str(_forecastable(tmp_path))
+    question = [{"id": "trend", "verb": "predict", "target": "value",
+                 "property": "trend", "horizon": 6}]
+    decided, _ = decide(
+        source, time_column="timestamp", target_column="value", horizon=6,
+        threshold=170.0, actions=[{"name": "wait"}], questions=question,
+        output=str(tmp_path / "decide"), clock=CLOCK)
+    monitored, _ = monitor(
+        source, time_column="timestamp", target_column="value", horizon=6,
+        threshold=170.0, questions=question,
+        output=str(tmp_path / "monitor"), clock=CLOCK)
+    for payload in (decided, monitored):
+        assert payload["answers"][0]["artifact_id"] == payload["forecast_id"]
+        receipt = json.loads(Path(payload["answer_receipt"]).read_text())
+        assert receipt["primary_forecast_unchanged"] is True
+        assert receipt["answers"] == payload["answers"]
+
+
 def test_monitor_without_costs_is_conditional(tmp_path):
     payload, _ = monitor(
         str(_forecastable(tmp_path)), time_column="timestamp", target_column="value",

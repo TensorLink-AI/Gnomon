@@ -22,6 +22,7 @@ retry = 2
 # [backends.api.providers.chronos_bolt_mini]
 # url = "https://inference.example.com/v1/forecast"
 # model = "chronos-bolt-mini"
+# revision = "provider-specific immutable revision"
 # timeout = 30
 # retry = 2
 # [backends.api.providers.chronos_bolt_mini.auth]

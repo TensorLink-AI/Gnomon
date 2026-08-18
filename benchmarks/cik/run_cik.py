@@ -10,6 +10,8 @@ Conditions:
 - ``gnomon-pure``   Gnomon alone, context text ignored
 - ``gnomon-agent``  OpenRouter LLM proposes typed context events; Gnomon
                   validates, computes, or abstains
+- ``gnomon-mcp``    OpenRouter model may call Gnomon's real MCP surface or
+                  submit its own labeled forecast
 
 Examples
 --------
@@ -129,17 +131,6 @@ def build_method(args):
         )
     if args.structural_context and not args.future_context:
         raise SystemExit("--structural-context requires --future-context")
-    if args.method == "gnomon-router":
-        from benchmarks.cik.router import RoutedForecaster
-
-        if not args.model:
-            raise SystemExit("--method gnomon-router requires --model")
-        return RoutedForecaster(
-            args.model, temperature=args.temperature,
-            future_context=args.future_context,
-            structural_context=args.structural_context,
-            fail_on_invalid=args.fail_on_invalid,
-        )
     from benchmarks.cik.gnomon_forecaster import GnomonForecaster
 
     mode = "agent" if args.method == "gnomon-agent" else "pure"
@@ -307,13 +298,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--method",
         required=True,
-        choices=["control", "gnomon-pure", "gnomon-agent", "gnomon-router",
-                 "gnomon-mcp"],
+        choices=["control", "gnomon-pure", "gnomon-agent", "gnomon-mcp"],
         help="gnomon-mcp: the model holds Gnomon's real MCP tools and "
              "chooses per task whether to use them; the route is "
              "classified from the transcript "
-             "(docs/design/cik-mcp-tool-arm.md). gnomon-router is the "
-             "retired one-shot routing arm, kept for the record",
+             "(docs/design/cik-mcp-tool-arm.md)",
     )
     parser.add_argument(
         "--model",

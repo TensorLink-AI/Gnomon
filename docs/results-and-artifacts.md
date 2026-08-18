@@ -19,6 +19,13 @@ harness-wide status (`supported` / `conditionally_supported` /
 `inconclusive` / `unsupported` / `invalid`) with typed reasons,
 assumptions, sensitivity, and recovery actions.
 
+When context changes the selected output, each affected result also contains
+`primary_forecast`, a complete history-only path frozen before enrichment.
+The existing `forecast` key remains the selected conditioned projection for
+compatibility and response adapters label its `forecast_role` explicitly.
+Effect tracking always uses `primary_forecast` (or its identically persisted
+counterfactual evidence), never a reconstruction from the conditioned values.
+
 Unsupported is a valid analytical result, unlike malformed input, which produces
 a structured error. Do not relabel unsupported as merely “low confidence.”
 
@@ -180,6 +187,23 @@ context/covariate ablations when supplied. Artifact directories also contain
 
 A compact human-readable overview. It is deliberately less detailed than
 `artifact.json`; automation should consume JSON or CSV.
+
+### `temporal_answers.json`
+
+Present when a caller supplies typed temporal questions. It binds every compact
+answer to the forecast id, records the exact fitted executable or immutable
+forecast projection used, preserves limitations and calibrated support, and
+asserts `primary_forecast_unchanged: true`. With a tracking project, the receipt
+is stored once and later joined to the realised horizon; it never replaces or
+mutates `artifact.json` or `forecast.csv`.
+
+The inline tool response exposes the canonical scalar `best_estimate`, its
+`decision_rule`, and a constituent support summary. Detailed per-series
+executions remain here rather than being resent through every agent turn.
+It also reports `answer_cache` provenance. A hit is scoped to the immutable
+forecast ID, canonical typed question, `as_of`, project namespace, and answer
+contract version; it reuses computation without changing this receipt or the
+primary forecast.
 
 ## Reproducibility limits
 

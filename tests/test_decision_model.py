@@ -10,6 +10,7 @@ from gnomon.decision_model import ActionOption, DecisionArtifact, score_outcome
 from gnomon.ids import FixedClock
 from gnomon.macros import decide
 from gnomon.tracking import TrackingStore
+from gnomon.decision_model import robust_scenario_decision
 
 CLOCK = FixedClock(datetime(2026, 7, 1, tzinfo=timezone.utc))
 
@@ -142,3 +143,30 @@ def test_status_shape_on_empty_store(tmp_path):
     assert status["unresolved_decisions"] == []
     assert status["decision_summary"]["resolved"] == 0
     assert "never causal" in status["warning"]
+def test_robust_decision_uses_maximin_without_scenario_probabilities():
+    artifact = robust_scenario_decision(
+        decision_id="decision-robust", project="capacity",
+        forecast_id="forecast-1", created_at="2026-08-20T00:00:00+00:00",
+        actions=[{"name": "wait"}, {"name": "reserve"}],
+        scenario_ids=["deployment"],
+        utilities={
+            "wait": {"primary": 10.0, "deployment": -20.0},
+            "reserve": {"primary": 4.0, "deployment": 3.0},
+        },
+    )
+    assert artifact.selected_action == "reserve"
+    assert artifact.scenario_probabilities is None
+    assert artifact.decision_rule.startswith("maximin")
+    assert artifact.sensitivity["action_evaluations"]["reserve"]["worst"] == 3.0
+
+
+def test_robust_decision_refuses_incomplete_utility_matrix():
+    import pytest
+
+    with pytest.raises(ValueError, match="lacks utilities"):
+        robust_scenario_decision(
+            decision_id="decision-robust", project="capacity",
+            forecast_id="forecast-1", created_at="2026-08-20T00:00:00+00:00",
+            actions=[{"name": "wait"}], scenario_ids=["deployment"],
+            utilities={"wait": {"primary": 10.0}},
+        )

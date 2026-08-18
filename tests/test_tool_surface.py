@@ -1,80 +1,41 @@
 """Tool-surface gating and token discipline.
 
-The MCP surface competes for model attention and context tokens; these
-tests pin the subtraction: deprecated and near-duplicate tools stay off
-the default surface (returning only under GNOMON_V02_COMPAT=1), and no
-default response may balloon past the size budget.
+The MCP surface competes for model attention and context tokens. Retired
+compatibility tools stay absent, profiles remain exact, and no default
+response may exceed its size budget.
 """
 
 from __future__ import annotations
 
-def _names(monkeypatch, compat: bool = False) -> list[str]:
+import pytest
+
+
+def _names(monkeypatch) -> list[str]:
     from gnomon.toolspec import visible_tools
 
-    if compat:
-        monkeypatch.setenv("GNOMON_V02_COMPAT", "1")
-    else:
-        monkeypatch.delenv("GNOMON_V02_COMPAT", raising=False)
+    monkeypatch.delenv("GNOMON_MCP_PROFILE", raising=False)
     return [tool["name"] for tool in visible_tools()]
 
 
-# --- Fix 1: the deprecated decision pair is opt-in -------------------------
-
-def test_deprecated_decision_pair_hidden_by_default(monkeypatch) -> None:
+def test_retired_tools_are_not_defined_or_flag_restorable(monkeypatch) -> None:
     from gnomon.toolspec import runner_for
 
-    names = _names(monkeypatch)
-    assert "gnomon_record_decision" not in names
-    assert "gnomon_resolve_decision" not in names
-    assert runner_for("gnomon_record_decision") is None
-    assert runner_for("gnomon_resolve_decision") is None
+    retired = {
+        "gnomon_record_decision", "gnomon_resolve_decision",
+        "gnomon_list_open_forecasts", "gnomon_model_performance",
+        "gnomon_covariate_guide", "gnomon_propose_covariates",
+        "gnomon_proposer_skill", "gnomon_compile_task",
+        "gnomon_validate_plan", "gnomon_execute_plan", "gnomon_get_run",
+    }
+    assert retired.isdisjoint(_names(monkeypatch))
+    monkeypatch.setenv("GNOMON_V02_COMPAT", "1")
+    monkeypatch.setenv("GNOMON_EXPERIMENTAL_PLANNER", "1")
+    assert retired.isdisjoint(_names(monkeypatch))
+    assert all(runner_for(name) is None for name in retired)
 
 
-def test_v02_compat_restores_decision_pair(monkeypatch, tmp_path) -> None:
-    from gnomon.toolspec import runner_for
-    from gnomon.tracking import TrackingStore
-
-    names = _names(monkeypatch, compat=True)
-    assert "gnomon_record_decision" in names
-    assert "gnomon_resolve_decision" in names
-
-    # They do not just appear — they still function end to end.
-    monkeypatch.setenv("GNOMON_REGISTRY_PATH", str(tmp_path / "registry.db"))
-    TrackingStore().register(
-        forecast_id="fc_compat", project="compat", selected_model="drift",
-        support="supported", artifact_path=str(tmp_path),
-    )
-    record = runner_for("gnomon_record_decision")({
-        "decision_id": "d1", "project": "compat", "forecast_id": "fc_compat",
-        "action": "scale_up", "expected_outcome": "load absorbed",
-    })
-    assert record["status"] == "ok"
-    resolved = runner_for("gnomon_resolve_decision")({
-        "decision_id": "d1", "actual_outcome": "load absorbed",
-        "correct": True,
-    })
-    assert resolved["status"] == "ok"
-    assert resolved["decision"]["correct"] is True
-
-
-# --- Fix 2: the tracking reads consolidate into gnomon_status --------------
-
-def test_tracking_read_tools_hidden_by_default(monkeypatch) -> None:
-    names = _names(monkeypatch)
-    assert "gnomon_list_open_forecasts" not in names
-    assert "gnomon_model_performance" not in names
-    assert "gnomon_status" in names
-    compat_names = _names(monkeypatch, compat=True)
-    assert "gnomon_list_open_forecasts" in compat_names
-    assert "gnomon_model_performance" in compat_names
-
-
-def test_status_sections_match_the_retired_tools(monkeypatch, tmp_path) -> None:
-    from gnomon.toolspec import (
-        _run_model_performance,
-        _run_open_forecasts,
-        _run_status,
-    )
+def test_status_sections_preserve_current_tracking_reads(monkeypatch, tmp_path) -> None:
+    from gnomon.toolspec import _run_model_performance, _run_open_forecasts, _run_status
     from gnomon.tracking import TrackingStore
 
     monkeypatch.setenv("GNOMON_REGISTRY_PATH", str(tmp_path / "registry.db"))
@@ -83,36 +44,67 @@ def test_status_sections_match_the_retired_tools(monkeypatch, tmp_path) -> None:
         support="supported", artifact_path=str(tmp_path), horizon=3,
     )
     args = {"project": "status"}
-    assert _run_status({**args, "section": "open_forecasts"}) \
-        == _run_open_forecasts(args)
-    assert _run_status({**args, "section": "performance"}) \
-        == _run_model_performance(args)
+    assert _run_status({**args, "section": "open_forecasts"}) == _run_open_forecasts(args)
+    assert _run_status({**args, "section": "performance"}) == _run_model_performance(args)
 
-    # The decisions slice is exactly the decision fields of the full view.
     full = _run_status(args)
     decisions = _run_status({**args, "section": "decisions"})
     assert decisions["unresolved_decisions"] == full["unresolved_decisions"]
     assert decisions["decision_summary"] == full["decision_summary"]
     assert "open_forecasts" not in decisions
 
-    # performance still requires a project, as the standalone tool did.
     import pytest
-
     from gnomon.contracts import GnomonError
     with pytest.raises(GnomonError):
         _run_status({"section": "performance"})
+    with pytest.raises(GnomonError):
+        _run_status({"section": "effects"})
+    with pytest.raises(GnomonError):
+        _run_status({"project": "status", "section": "effect_prior"})
+    effects = _run_status({"project": "status", "section": "effects"})
+    assert effects == {"schema_version": "0.1", "project": "status",
+                       "effects": []}
 
 
-# --- Fix 3: guide/proposer/duplicate tools leave the default surface -------
+def test_effect_prior_and_robust_decision_are_agent_callable(monkeypatch, tmp_path) -> None:
+    from gnomon.toolspec import _run_status, _run_unified
+    from gnomon.tracking import TrackingStore
 
-def test_covariate_guide_and_proposer_tools_gated(monkeypatch) -> None:
-    names = _names(monkeypatch)
-    for gated in ("gnomon_covariate_guide", "gnomon_propose_covariates",
-                  "gnomon_proposer_skill"):
-        assert gated not in names, gated
-    # The survivors still cover the workflow: validation carries the
-    # format contract, and the forecast takes every covariate argument.
+    monkeypatch.setenv("GNOMON_REGISTRY_PATH", str(tmp_path / "registry.db"))
+    prior = {
+        "prior_id": "vendor-1", "event_type": "promotion", "target": "sales",
+        "domain": "retail", "population": "*", "unit": "units",
+        "effect_family": "additive", "mean": 4.0, "standard_error": 1.0,
+        "delay_steps": [0, 1], "duration_steps": [2, 4], "sample_size": 20,
+        "source": "study", "version": "2026-01", "known_at": "2026-01-01T00:00:00+00:00",
+    }
+    resolved = _run_status({
+        "section": "effect_prior", "project": "shop", "event_type": "promotion",
+        "series": "sales", "as_of": "2026-02-01T00:00:00+00:00",
+        "target": "sales", "domain": "retail", "unit": "units",
+        "external_priors": [prior],
+    })
+    assert resolved["resolution"]["selected_lane"] == "external_prior"
+    assert resolved["resolution"]["may_affect_primary_forecast"] is False
+
+    result = _run_unified({
+        "question": {"kind": "robust_decision"},
+        "decision_id": "decision-1", "project": "shop", "forecast_id": "forecast-1",
+        "scenario_ids": ["promotion"],
+        "actions": [{"name": "wait"}, {"name": "stock"}],
+        "utilities": {
+            "wait": {"primary": 2.0, "promotion": 1.0},
+            "stock": {"primary": 0.0, "promotion": 5.0},
+        },
+    })
+    assert result["decision"]["selected_action"] == "wait"
+    assert result["decision"]["scenario_probabilities"] is None
+    assert TrackingStore().get_decision_artifact("decision-1") is not None
+
+
+def test_surviving_covariate_contract_is_complete(monkeypatch) -> None:
     from gnomon.toolspec import TOOLS
+
     by_name = {tool["name"]: tool for tool in TOOLS}
     validate = by_name["gnomon_validate_covariates"]["description"]
     assert "known_at" in validate
@@ -120,19 +112,11 @@ def test_covariate_guide_and_proposer_tools_gated(monkeypatch) -> None:
     forecast_props = by_name["gnomon_forecast"]["inputSchema"]["properties"]
     assert "covariates_file" in forecast_props
     assert "covariate_mapping" in forecast_props
-
-    compat = set(_names(monkeypatch, compat=True))
-    for gated in ("gnomon_covariate_guide", "gnomon_propose_covariates",
-                  "gnomon_proposer_skill"):
-        assert gated in compat, gated
-
-
 # --- Fix 7: task profiles narrow the surface -------------------------------
 
 def test_profiles_select_documented_subsets(monkeypatch) -> None:
     from gnomon.toolspec import PROFILES, visible_tools
 
-    monkeypatch.delenv("GNOMON_V02_COMPAT", raising=False)
     monkeypatch.delenv("GNOMON_MCP_PROFILE", raising=False)
     assert {tool["name"] for tool in visible_tools()} == PROFILES["evidence"]
     monkeypatch.setenv("GNOMON_MCP_PROFILE", "full")
@@ -145,17 +129,13 @@ def test_profiles_select_documented_subsets(monkeypatch) -> None:
         if profile not in {"describe", "evidence", "mega"}:
             assert names <= full
 
-    # A narrowed profile narrows everything: compat tools appear only
-    # under full.
+    # A narrowed profile exposes exactly its declared tools.
     monkeypatch.setenv("GNOMON_MCP_PROFILE", "core")
-    monkeypatch.setenv("GNOMON_V02_COMPAT", "1")
     names = {tool["name"] for tool in visible_tools()}
-    assert "gnomon_record_decision" not in names
     assert "gnomon_get_artifact" not in names
     assert len(names) == 6
 
     monkeypatch.setenv("GNOMON_MCP_PROFILE", "full")
-    monkeypatch.delenv("GNOMON_V02_COMPAT", raising=False)
     assert {tool["name"] for tool in visible_tools()} == full
 
 
@@ -283,6 +263,91 @@ def test_batched_forecast_accepts_scoped_validated_context(tmp_path) -> None:
     assert by_series["mem"]["context_outcome"]["status"] == "not_considered"
 
 
+def test_context_ref_replays_validated_context_without_resending(
+        tmp_path, monkeypatch) -> None:
+    from datetime import date, timedelta
+    from gnomon.toolspec import runner_for
+
+    monkeypatch.setenv("GNOMON_CONTEXT_STORE", str(tmp_path / "context-store"))
+    monkeypatch.setenv("GNOMON_CONTEXT_NAMESPACE", "test-project")
+    wide = tmp_path / "wide-context-ref.csv"
+    start = date(2026, 1, 1)
+    wide.write_text("\n".join(["timestamp,cpu"] + [
+        f"{start + timedelta(days=day)},{50 + day}" for day in range(40)
+    ]) + "\n")
+    event = {
+        "event_id": "maintenance-1", "event_type": "maintenance",
+        "entity_scope": ["cpu"],
+        "effective_start": "2026-01-10T00:00:00+00:00",
+        "effective_end": "2026-01-11T00:00:00+00:00",
+        "known_at": "2026-01-09T00:00:00+00:00",
+        "source": {"type": "test", "reference": "fixture"},
+    }
+    first = runner_for("gnomon_forecast")({
+        "input": str(wide), "time_column": "timestamp",
+        "target_column": "cpu", "frequency": "D", "horizon": 2,
+        "context_events": [event], "output_dir": str(tmp_path / "first"),
+    })
+    assert first["context_cache"]["status"] == "stored"
+    replay = runner_for("gnomon_forecast")({
+        "input": str(wide), "time_column": "timestamp",
+        "target_column": "cpu", "frequency": "D", "horizon": 2,
+        "context_ref": first["context_ref"],
+        "output_dir": str(tmp_path / "replay"),
+    })
+    assert replay["context_cache"]["status"] == "hit"
+    assert replay["context_cache"]["compiler_reused"] is True
+    assert replay["results"] == first["results"]
+
+
+def test_context_ref_conflict_and_namespace_miss_fail_closed(
+        tmp_path, monkeypatch) -> None:
+    from gnomon.contracts import GnomonError
+    from gnomon.toolspec import _materialise_context
+
+    monkeypatch.setenv("GNOMON_CONTEXT_STORE", str(tmp_path / "store"))
+    with pytest.raises(GnomonError, match="replaces"):
+        _materialise_context({"context_ref": "context_x", "context_events": []})
+    with pytest.raises(GnomonError, match="unknown"):
+        _materialise_context({"context_ref": "context_missing"})
+
+
+def test_context_ref_is_refiltered_for_historical_as_of(
+        tmp_path, monkeypatch) -> None:
+    from datetime import date, timedelta
+    from gnomon.toolspec import runner_for
+
+    monkeypatch.setenv("GNOMON_CONTEXT_STORE", str(tmp_path / "store"))
+    path = tmp_path / "as-of-context.csv"
+    start = date(2026, 1, 1)
+    path.write_text("\n".join(["timestamp,cpu"] + [
+        f"{start + timedelta(days=day)},{50 + day}" for day in range(60)
+    ]) + "\n")
+    event = {
+        "event_id": "future-announcement", "event_type": "maintenance",
+        "entity_scope": ["cpu"],
+        "effective_start": "2026-02-05T00:00:00+00:00",
+        "effective_end": "2026-02-06T00:00:00+00:00",
+        "known_at": "2026-02-01T00:00:00+00:00",
+        "source": {"type": "test", "reference": "later-notice"},
+    }
+    current = runner_for("gnomon_forecast")({
+        "input": str(path), "time_column": "timestamp",
+        "target_column": "cpu", "frequency": "D", "horizon": 2,
+        "context_events": [event], "output_dir": str(tmp_path / "current"),
+    })
+    replay = runner_for("gnomon_forecast")({
+        "input": str(path), "time_column": "timestamp",
+        "target_column": "cpu", "frequency": "D", "horizon": 2,
+        "as_of": "2026-01-30T00:00:00",
+        "context_ref": current["context_ref"],
+        "output_dir": str(tmp_path / "historical"),
+    })
+    assert replay["results"][0].get("context_outcome") in (
+        None, {"status": "not_considered", "primary_forecast_changed": False,
+               "events": []})
+
+
 # --- Fix 4: brief by default, hard response budget -------------------------
 
 def _panel_csv(tmp_path, rows_per_series: int = 60):
@@ -370,15 +435,6 @@ def test_budget_never_trims_the_contract() -> None:
 
     error = {"status": "error", "error": {"code": "X", "message": "y" * 20000}}
     assert enforce_response_budget(error) is error
-
-
-def test_capabilities_reports_compat_state(monkeypatch) -> None:
-    from gnomon.runtime import capabilities
-
-    monkeypatch.delenv("GNOMON_V02_COMPAT", raising=False)
-    assert capabilities()["compat"]["v02_tools"] is False
-    monkeypatch.setenv("GNOMON_V02_COMPAT", "1")
-    assert capabilities()["compat"]["v02_tools"] is True
 
 
 # --- capabilities within the budget, without hiding anything ---------------
@@ -590,6 +646,9 @@ def test_describe_answers_wide_data_without_a_backtest(tmp_path, monkeypatch) ->
     assert sorted(payload["reports"]) == ["cpu", "mem"]
     assert payload["reports"]["cpu"]["level"]["latest"] == 89
     assert payload["reports"]["cpu"]["trend"]["direction"] == "up"
+    assert "predictive_direction" in payload["reports"]["cpu"][
+        "temporal_profile"]["volatility"]
+    assert "marginal_variability" in payload["reports"]["cpu"]["temporal_profile"]
     assert payload["reports"]["cpu"]["series_end"] == payload["series_end"]
     assert payload["triage"]["ranking_rule"] == "largest absolute final-step change"
     assert payload["triage"]["remainder_preserved"] is True
@@ -621,6 +680,8 @@ def test_describe_spike_response_is_json_serializable(tmp_path, monkeypatch):
 
 def test_forecast_returns_canonical_temporal_facts_without_artifact_read(
         tmp_path) -> None:
+    import json
+    from pathlib import Path
     from gnomon.toolspec import runner_for
 
     path = _wide_csv(tmp_path, columns=("cpu",), days=40)
@@ -631,10 +692,160 @@ def test_forecast_returns_canonical_temporal_facts_without_artifact_read(
     facts = payload["results"][0]["temporal_facts"]
     assert facts["seasonal_period_steps"] == 7
     assert facts["seasonal_period_label"] == "weekly"
+    assert "predictive_direction" in facts["temporal_profile"]["volatility"]
+    assert "marginal_variability" in facts["temporal_profile"]
     assert facts["source"] == "computed_from_observations"
     identity = payload["results"][0]["execution_identity"]
     assert identity["publish_matches_evaluated"] is True
     assert identity["evaluated"]["name"] == identity["published"]["name"]
+    artifact = json.loads(
+        (Path(payload["artifact_path"]) / "artifact.json").read_text())
+    # Merely requesting a forecast must not mutate the frozen artifact
+    # contract. Rich reasoning evidence is opt-in through typed questions.
+    assert not [item for item in artifact["evidence"]
+                if item["kind"] == "temporal_profile"]
+
+
+def test_typed_question_returns_compact_answer_without_changing_primary(
+        tmp_path) -> None:
+    import json
+    from pathlib import Path
+
+    from gnomon.toolspec import runner_for
+
+    path = _wide_csv(tmp_path, columns=("cpu",), days=80)
+    plain = runner_for("gnomon_forecast")({
+        "input": str(path), "horizon": 2,
+        "output_dir": str(tmp_path / "plain"),
+    })
+    asked = runner_for("gnomon_forecast")({
+        "input": str(path), "horizon": 2,
+        "output_dir": str(tmp_path / "asked"),
+        "questions": [{"id": "v1", "verb": "predict", "target": "cpu",
+                           "property": "volatility", "horizon": 7}],
+    })
+    replay = runner_for("gnomon_forecast")({
+        "input": str(path), "horizon": 2,
+        "output_dir": str(tmp_path / "replay"),
+        "questions": [{"id": "v1", "verb": "predict", "target": "cpu",
+                       "property": "volatility", "horizon": 7}],
+    })
+    assert asked["results"] == plain["results"]
+    assert asked["answers"][0]["question"]["target"] == "cpu"
+    assert asked["answers"][0]["artifact_id"] == asked["artifact_id"]
+    assert set(asked["answers"][0]) == {
+        "question", "best_estimate", "decision_rule", "answer", "headline",
+        "limitations", "artifact_id"}
+    assert asked["answers"][0]["best_estimate"]["value"] == \
+        asked["answers"][0]["answer"]["direction"]
+    assert "calibration" not in asked["answers"][0]
+    assert asked["answers"][0]["answer"]["property_distribution"]["quantity"] == \
+        "future_to_reference_residual_scale_ratio"
+    assert asked["answer_cache"]["status"] == "stored"
+    assert replay["answer_cache"]["status"] == "hit"
+    assert replay["answers"] == asked["answers"]
+    receipt = json.loads(Path(asked["answer_receipt"]).read_text())
+    assert receipt["answers"][0]["calibration"]["direction_candidate"]
+    assert receipt["primary_forecast_unchanged"] is True
+
+
+def test_typed_aggregate_binds_panel_series_not_value_column(tmp_path) -> None:
+    import json
+    from datetime import date, timedelta
+    from pathlib import Path
+    from gnomon.toolspec import runner_for
+
+    source = tmp_path / "panel.csv"
+    start = date(2026, 1, 1)
+    rows = ["timestamp,series,value"]
+    for index in range(80):
+        stamp = start + timedelta(days=index)
+        rows.append(f"{stamp},cpu,{10 + index % 7}")
+        rows.append(f"{stamp},mem,{20 + (index % 5) * 2}")
+    source.write_text("\n".join(rows) + "\n")
+
+    result = runner_for("gnomon_forecast")({
+        "input": str(source), "time_column": "timestamp",
+        "target_column": "value", "series_column": "series",
+        "frequency": "D", "horizon": 3,
+        "output_dir": str(tmp_path / "out"),
+        "questions": [{
+            "id": "fleet", "verb": "predict", "property": "volatility",
+            "target": {"kind": "aggregate", "members": ["cpu", "mem"]},
+            "horizon": 3,
+        }],
+    })
+
+    assert result["answers"][0]["question"]["target"]["members"] == [
+        "cpu", "mem"]
+    assert result["answers"][0]["decision_rule"]["aggregation"] == \
+        "median_normalized_scale_ratio"
+    receipt = json.loads(Path(result["answer_receipt"]).read_text())
+    assert receipt["primary_forecast_unchanged"] is True
+    assert receipt["artifact_id"] == result["artifact_id"]
+
+
+def test_irregular_grid_error_carries_literal_aggressive_repair_call(tmp_path) -> None:
+    from gnomon.contracts import GnomonError
+    from gnomon.toolspec import runner_for
+
+    source = tmp_path / "irregular.csv"
+    source.write_text(
+        "timestamp,value\n"
+        "2026-01-01T00:00:00+00:00,1\n"
+        "2026-01-01T01:00:00+00:00,2\n"
+        "2026-01-01T02:30:00+00:00,3\n",
+        encoding="utf-8")
+    with pytest.raises(GnomonError) as caught:
+        runner_for("gnomon_forecast")({
+            "input": str(source), "time_column": "timestamp",
+            "target_column": "value", "frequency": "h", "horizon": 1,
+        })
+    repair = caught.value.to_dict()["error"]["repair_options"][0]
+    assert repair["tool_call"]["name"] == "gnomon_forecast"
+    assert repair["tool_call"]["arguments"]["repair"] == "aggressive"
+
+
+def test_multi_target_forecast_preserves_typed_questions(tmp_path) -> None:
+    from gnomon.toolspec import runner_for
+
+    path = _wide_csv(tmp_path, columns=("cpu", "mem"), days=80)
+    payload = runner_for("gnomon_forecast")({
+        "input": str(path), "target_column": "cpu,mem", "horizon": 2,
+        "output_dir": str(tmp_path / "multi-asked"),
+        "questions": [
+            {"id": "cpu-v", "verb": "predict", "target": "cpu",
+             "property": "volatility", "horizon": 7},
+            {"id": "mem-v", "verb": "predict", "target": "mem",
+             "property": "volatility", "horizon": 7},
+        ],
+    })
+    assert [item["question"]["id"] for item in payload["answers"]] == [
+        "cpu-v", "mem-v"]
+    assert all(item["artifact_id"] == payload["artifact_id"]
+               for item in payload["answers"])
+
+
+def test_cross_unit_aggregate_preserves_per_series_evidence(
+        tmp_path, monkeypatch) -> None:
+    from gnomon.toolspec import runner_for
+
+    monkeypatch.setenv("GNOMON_MCP_PROFILE", "evidence")
+    path = _wide_csv(tmp_path, columns=("cpu", "mem"), days=100)
+    payload = runner_for("gnomon_describe")({
+        "input": str(path), "target_column": "cpu,mem",
+        "questions": [{
+            "id": "fleet-v", "verb": "predict", "property": "volatility",
+            "horizon": 7, "target": {
+                "kind": "aggregate", "members": ["cpu", "mem"],
+                "aggregation": "median_normalized_scale_ratio"},
+        }],
+    })
+    answer = payload["answers"][0]
+    assert answer["question"]["target"]["aggregation"] == \
+        "median_normalized_scale_ratio"
+    assert [item["question"]["target"] for item in answer["per_series"]] == [
+        "cpu", "mem"]
 
 
 def test_mega_profile_is_three_tools_and_runs_a_descriptive_question(

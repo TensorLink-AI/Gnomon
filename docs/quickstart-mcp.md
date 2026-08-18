@@ -186,6 +186,31 @@ Inline observations are capped at 500 rows because the full payload remains in
 conversation history; send them once, then reuse `data_ref`. References expire
 when the MCP server process exits and are not portable across hosts.
 
+## Reusing validated context
+
+Context-aware calls similarly return a persistent `context_ref`. Supply it on
+later forecasts instead of repeating `context_events` or
+`context_events_file`:
+
+```json
+{"data_ref": "data_…", "context_ref": "context_…", "horizon": 14}
+```
+
+`context_ref` is content-addressed and project-scoped. Configure its location
+with `GNOMON_CONTEXT_STORE` and isolate tenants or projects with
+`GNOMON_CONTEXT_NAMESPACE`. Every replay verifies the immutable receipt and
+reapplies `known_at`, `as_of`, and numeric admission; cached context is never a
+permission to rewrite the canonical primary forecast. Supplying a reference
+and raw context together fails loudly.
+
+The CLI context workflow stores validated compiler output and prints its
+reference:
+
+```bash
+gnomon context validate --response response.json --file operations.md \
+  --context-store .gnomon/context-store --context-namespace production
+```
+
 ## Tool surface
 
 Primary macros: `gnomon_forecast`, `gnomon_investigate_change`,
@@ -218,16 +243,19 @@ holidays are forward-filled onto the continuous daily grid) or
 `regrid: "month_start"` for month-end-stamped monthly feeds — both
 disclosed as warnings, neither charged against the repair ceiling.
 
-## Migrating from v0.2
+## Migrating older integrations
 
-Every v0.2 tool name, schema, and the `gnomon_forecast` contract are
-preserved (see `COMPATIBILITY.md`), but the deprecated decision pair
-(`gnomon_record_decision` / `gnomon_resolve_decision`) is no longer on
-the default surface — tools compete for model attention, and these two
-argued for their own replacement in every session. Start the server with
-`GNOMON_V02_COMPAT=1` to restore them, schemas and behaviour unchanged;
-`gnomon capabilities` reports the state under `compat.v02_tools`.
-New in this release:
-the three additional macros, `store:<dataset>` inputs, `as_of` replay,
-`support_assessment` on every result, `lineage.json` in artifacts, and
-machine-readable `repair_options` on every structured error.
+The deprecated v0.2 compatibility tools have been removed; setting
+`GNOMON_V02_COMPAT` has no effect. Migrate agent integrations to the current
+MCP registry: use `gnomon_status` for due forecasts and performance,
+`gnomon_resolve_outcome` for decision outcomes, and pass covariates through
+`gnomon_forecast` after validating them with `gnomon_validate_covariates`.
+The original `gnomon_forecast` input schema remains the one frozen exception.
+See [`COMPATIBILITY.md`](../COMPATIBILITY.md) for the complete mapping.
+# Shadow adapter outcomes
+
+The experimental `gnomon_track` verb also accepts
+`record_adapter_shadow` for a paired realised challenger/baseline error and
+`assess_adapter_shadow` for an outcome-backed recommendation. Assessment is
+advisory only: it never changes the publishing candidate, and an unpinned
+adapter cannot graduate.

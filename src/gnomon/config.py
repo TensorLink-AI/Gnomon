@@ -67,6 +67,10 @@ class APIProviderConfig:
     url: str = ""
     auth: APIAuthConfig = field(default_factory=APIAuthConfig)
     model: str = ""
+    # Immutable server/model revision when the provider supports one. An
+    # empty value remains usable, but is disclosed as unversioned in the
+    # candidate receipt rather than being mistaken for a reproducible pin.
+    revision: str = ""
     timeout: int = 60
     retry: int = 2
 
@@ -396,8 +400,8 @@ INERT_KEYS: dict[str, str] = {
 INERT_PREFIXES: dict[str, str] = {
     "llm": (
         "The llm section was parsed and read by nothing: LLM integration "
-        "lives in the MCP host (the planner gate and the Hermes adapter), "
-        "not in the engine, which computes every number deterministically. "
+        "belongs to the MCP host, not the engine, which computes every "
+        "number deterministically. "
         "Remove the section."
     ),
 }
@@ -441,7 +445,7 @@ ALLOWED_KEYS: frozenset[str] = frozenset({
 #: caller-chosen (a provider or model name); the tail is typed, not open.
 ALLOWED_WILDCARDS: tuple[tuple[str, frozenset[str]], ...] = (
     ("backends.api.providers.", frozenset({
-        "url", "model", "timeout", "retry",
+        "url", "model", "revision", "timeout", "retry",
         "auth.type", "auth.token_env", "auth.header",
     })),
     ("models.tsfm.overrides.", frozenset({"backend"})),
@@ -524,7 +528,7 @@ def check_inert_keys(raw: dict[str, Any]) -> None:
             "UNSUPPORTED_CONFIG_KEY",
             "The config sets options Gnomon does not recognise: "
             + ", ".join(sorted(unknown))
-            + ". Every honoured key is documented in gnomon.yaml.example; "
+            + ". Every honoured key is documented in gnomon.toml.example; "
             "an unrecognised key would otherwise be silently ignored.",
             {"keys": sorted(unknown),
              "reasons": {key: "unknown key" for key in sorted(unknown)}},
@@ -709,6 +713,7 @@ def _parse_api_providers(
                 header=auth_raw.get("header", "Authorization"),
             ),
             model=provider_raw.get("model", ""),
+            revision=provider_raw.get("revision", ""),
             timeout=provider_raw.get("timeout", 60),
             retry=provider_raw.get("retry", 2),
         )

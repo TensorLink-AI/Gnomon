@@ -211,6 +211,43 @@ def test_capabilities_flag_enrichment_adjudication() -> None:
     assert capabilities()["features"]["enrichment_adjudication"] is True
 
 
+def test_adjudication_replays_the_admitted_context_estimator(monkeypatch) -> None:
+    """The ladder must score the fitted estimator, not a generic context model."""
+    from gnomon import adjudication
+    from gnomon.context_eval import ContextAssessment
+    from gnomon.evaluation import Evaluation
+
+    calls = []
+
+    def episode(history, horizon, season, historical, future, base, model,
+                shape, observations=None):
+        calls.append((model, shape))
+        return list(base)
+
+    monkeypatch.setattr(adjudication, "episode_residual_adjusted", episode)
+    values = [50.0 + index * 0.1 for index in range(80)]
+    timestamps = [START + timedelta(days=index) for index in range(len(values))]
+    future = [timestamps[-1] + timedelta(days=index + 1) for index in range(4)]
+    event = ContextEvent(
+        event_id="e", event_type="promo", entity_scope=("*",),
+        effective_start=timestamps[10].isoformat(),
+        effective_end=timestamps[11].isoformat(),
+        known_at=(START - timedelta(days=1)).isoformat(),
+        source=ContextSource("calendar", "events.ics"),
+    )
+    context = ContextAssessment(
+        True, True, [], effect_shape="decay",
+        effect_estimator="base_model_episode_residual",
+        points=[values[-1]] * 4,
+    )
+    base = Evaluation(
+        "linear_trend", "linear_trend", {}, {}, 0.0, [], 0.8, [], True)
+    adjudication.adjudicate_enrichments(
+        values, timestamps, future, [event], None, context, None,
+        "__default__", 4, 2, base)
+    assert calls and set(calls) == {("linear_trend", "decay")}
+
+
 def test_combined_forecast_carries_both_effects(tmp_path) -> None:
     """The winning combined forecast reflects the promo bump on the promo day
     inside the horizon, on top of the covariate-driven level."""
