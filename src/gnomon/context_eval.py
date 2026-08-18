@@ -19,7 +19,7 @@ Anything else keeps the history-only result and records why.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from statistics import mean
 from typing import Any
@@ -186,6 +186,18 @@ class ContextAssessment:
             **({"nominated_shape": self.nominated_shape}
                if self.nominated_shape else {}),
         }
+
+    def to_cache_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_cache_dict(cls, payload: dict[str, Any]) -> "ContextAssessment":
+        values = dict(payload)
+        values["residuals_by_lead"] = {
+            int(key): list(items) for key, items in
+            (values.get("residuals_by_lead") or {}).items()
+        }
+        return cls(**values)
 
 
 def eligible_events(

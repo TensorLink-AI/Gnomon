@@ -111,6 +111,13 @@ Outputs:
 - `summary.json`: family-separated accuracy, admission precision/recall,
   false influence, coverage, leakage, confidence intervals and decision gates.
 
+Scenario-only cases also validate the Phase-1 effect contract. Every emitted
+conditional or sensitivity path must carry a typed distribution, provenance
+class and knowledge time; `scenario_effect_contracts_typed` fails otherwise.
+This checks contract completeness, not whether the assumed scenario was true.
+For admitted context, publication parity covers both the selected conditioned
+output and the frozen `primary_forecast` used by the effect registry.
+
 A product decision requires independent fresh corpora, not repeated sampling
 of one fixture. Aggregate at least three completed runs with distinct manifest
 hashes:

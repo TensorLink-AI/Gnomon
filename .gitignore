@@ -69,3 +69,7 @@ results/short-history-guardrail/raw/
 /*-work/
 /results-*/
 /models/
+
+# Local content-addressed context receipts and numeric assessment cache.
+# These can contain operational source metadata and are never source files.
+/.gnomon/

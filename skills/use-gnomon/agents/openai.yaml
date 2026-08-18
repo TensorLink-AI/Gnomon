@@ -1,0 +1,4 @@
+interface:
+  display_name: "Use Gnomon"
+  short_description: "Get trusted temporal answers from Gnomon"
+  default_prompt: "Use $use-gnomon to answer this temporal question with the minimum necessary calls."

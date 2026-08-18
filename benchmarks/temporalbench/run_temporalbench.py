@@ -65,7 +65,9 @@ import time
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO_ROOT))
+sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from benchmarks.common.manifest import write_manifest  # noqa: E402
 from benchmarks.common.openrouter import OpenRouterClient  # noqa: E402
@@ -181,7 +183,10 @@ def answer_row(row: dict[str, Any], condition: str,
                best_effort: bool = False,
                mcp_profile: str = "full",
                compile_context: bool = False,
-               context_receipts_dir: str | None = None) -> dict[str, Any]:
+               context_receipts_dir: str | None = None,
+               compile_questions: bool = False,
+               question_receipts_dir: str | None = None,
+               mcp_call_timeout: float | None = None) -> dict[str, Any]:
     """Produce the row's answer object under the given condition.
 
     ``channel_support`` in the result maps each forecast channel to its
@@ -190,11 +195,24 @@ def answer_row(row: dict[str, Any], condition: str,
     one all the way into the details records and the summary.
     """
     if condition == "control":
-        completion = client.completions(
-            [{"role": "user", "content": row["prompt"]}], n=1
-        )[0]
-        return {"answer": extract_json_object(completion), "abstained": [],
-                "channel_support": {}}
+        messages = [{"role": "user", "content": row["prompt"]}]
+        completion = client.completions(messages, n=1)[0]
+        try:
+            answer = extract_json_object(completion)
+        except ValueError:
+            # A prose-only response is a transport-format failure, not task
+            # accuracy. Give the untooled baseline one bounded repair turn,
+            # just as a real host would, while retaining the extra call and
+            # tokens in its economics. Do not add evidence or alter values.
+            messages.extend([
+                {"role": "assistant", "content": completion},
+                {"role": "user", "content": (
+                    "Return the same answer now as one valid JSON object only. "
+                    "Do not revise, recompute, add, or remove any values.")},
+            ])
+            completion = client.completions(messages, n=1)[0]
+            answer = extract_json_object(completion)
+        return {"answer": answer, "abstained": [], "channel_support": {}}
 
     if condition == "gnomon-mcp":
         from benchmarks.temporalbench.mcp_agent import mcq_row, run_row
@@ -209,6 +227,12 @@ def answer_row(row: dict[str, Any], condition: str,
             profile_args["compile_context"] = True
             if context_receipts_dir:
                 profile_args["context_receipts_dir"] = context_receipts_dir
+        if compile_questions:
+            profile_args["compile_questions"] = True
+            if question_receipts_dir:
+                profile_args["question_receipts_dir"] = question_receipts_dir
+        if mcp_call_timeout is not None:
+            profile_args["mcp_call_timeout"] = mcp_call_timeout
         if row.get("tier") in ("T2", "T4"):
             return run_row(row, client, **profile_args)
         return mcq_row(row, client, **profile_args)
@@ -267,6 +291,29 @@ def score_row(row: dict[str, Any], answer: dict[str, Any],
             "forecast_metrics": metrics, "metric_flag": flag}
 
 
+def align_typed_answers(
+    question_keys: list[str], answers: list[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    """Align compiler IDs without guessing from labels or answer options.
+
+    Semantic IDs bind exactly. Positional IDs q1/q2/... bind to the stable
+    source-question order. Anything else remains unaligned rather than being
+    credited to whichever task answer happens to be available.
+    """
+    aligned: dict[str, dict[str, Any]] = {}
+    for answer in answers:
+        raw_id = str((answer.get("question") or {}).get("id") or "")
+        base_id = raw_id.split(":", 1)[0]
+        key = base_id if base_id in question_keys else None
+        if key is None and base_id.startswith("q") and base_id[1:].isdigit():
+            index = int(base_id[1:]) - 1
+            if 0 <= index < len(question_keys):
+                key = question_keys[index]
+        if key is not None:
+            aligned[key] = answer
+    return aligned
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -307,6 +354,10 @@ def main() -> int:
         "--resume", action="store_true",
         help=("reuse rows with saved answer details and execute only missing "
               "or errored rows; all rows are rescored into a fresh summary"))
+    parser.add_argument(
+        "--retry-voided", action="store_true",
+        help=("With --resume, rerun rows previously voided by a harness cap "
+              "instead of replaying their abstention record."))
     parser.add_argument("--output-dir", default=None)
     parser.add_argument(
         "--mcp-profile", choices=["full", "core", "describe", "evidence", "mega", "decision", "data"],
@@ -325,6 +376,12 @@ def main() -> int:
              "per task and replay it on later runs. Use the same directory "
              "for every surface in a matched experiment so compiler "
              "randomness is not attributed to the tool surface.")
+    parser.add_argument(
+        "--compile-questions", action="store_true",
+        help="Gnomon MCP T2/T4 only: compile question text into validated typed intent before execution.")
+    parser.add_argument(
+        "--question-receipts-dir",
+        help="Persist immutable typed-intent compiler receipts for matched replay.")
     parser.add_argument(
         "--best-effort", action="store_true",
         help="Gnomon conditions only: enable the engine's disclosed "
@@ -358,6 +415,10 @@ def main() -> int:
         parser.error("--compile-context applies to gnomon-mcp only")
     if args.context_receipts_dir and not args.compile_context:
         parser.error("--context-receipts-dir requires --compile-context")
+    if args.compile_questions and args.condition != "gnomon-mcp":
+        parser.error("--compile-questions applies to gnomon-mcp only")
+    if args.question_receipts_dir and not args.compile_questions:
+        parser.error("--question-receipts-dir requires --compile-questions")
 
     tiers = tuple(t.strip() for t in args.tiers.split(",") if t.strip() in TIERS)
     # gnomon-pure produces forecasts and nothing else, so it is a T2/T4
@@ -382,6 +443,7 @@ def main() -> int:
     details_dir = output_dir / "details"
     details_dir.mkdir(parents=True, exist_ok=True)
     records_path = output_dir / "gnomonbench.jsonl"
+    partial_records_path = output_dir / "gnomonbench.partial.jsonl"
     prior_summary_path = output_dir / "summary.json"
     prior_summary = (json.loads(prior_summary_path.read_text())
                      if args.resume and prior_summary_path.is_file() else {})
@@ -391,10 +453,13 @@ def main() -> int:
             if line.strip():
                 record = json.loads(line)
                 prior_records[str(record.get("task_id"))] = record
-    # RecordWriter appends; a rerun into the same output dir must replace
-    # the previous run's rows (as summary.json is), not accumulate them.
-    records_path.unlink(missing_ok=True)
-    records = RecordWriter(records_path)
+    # Write a complete replacement beside the canonical record file and
+    # publish it atomically only after every selected row has finished.
+    # A provider, MCP child, or operator interrupt must not destroy the
+    # prior resumable run halfway through its rewrite.
+    partial_records_path.unlink(missing_ok=True)
+    partial_records_path.touch()
+    records = RecordWriter(partial_records_path)
 
     choice_by_tier: dict[str, list[int]] = {}
     choice_rows_by_tier: dict[str, int] = {}
@@ -416,12 +481,21 @@ def main() -> int:
     mcp_rows_answered = 0
     compiler_calls = compiler_events = compiler_hypotheses = compiler_rejected = 0
     compiler_receipts_reused = 0
+    question_compiler_calls = question_compiler_accepted = 0
+    question_compiler_rejected = question_compiler_receipts_reused = 0
+    temporal_answer_receipts = temporal_answers_returned = 0
+    temporal_primary_unchanged = 0
+    typed_questions_requested = typed_questions_with_engine_answer = 0
+    typed_engine_answers_officially_correct = 0
+    typed_answers_comparable_to_submission = 0
+    typed_answers_preserved_by_agent = 0
     context_channels_considered = context_events_admitted = 0
     context_events_rejected = context_events_applied = 0
     context_events_scenario_only = 0
     covariate_channels_considered = covariate_channels_admitted = 0
     infrastructure_retries = 0
     infrastructure_failures: dict[str, int] = {}
+    terminal_errors: dict[str, int] = {}
     resumed_rows = 0
     channels_abstained = 0
     total = 0
@@ -447,7 +521,9 @@ def main() -> int:
             detail_path = details_dir / f"{row_id}.json"
             prior_record = prior_records.get(str(row_id))
             if (args.resume and detail_path.is_file() and prior_record
-                    and not prior_record.get("error")):
+                    and not prior_record.get("error")
+                    and not (args.retry_voided
+                             and prior_record.get("row_abstained"))):
                 saved = json.loads(detail_path.read_text())
                 outcome = {
                     "answer": saved.get("answer") or {},
@@ -475,6 +551,9 @@ def main() -> int:
                             mcp_profile=args.mcp_profile,
                             compile_context=args.compile_context,
                             context_receipts_dir=args.context_receipts_dir,
+                            compile_questions=args.compile_questions,
+                            question_receipts_dir=args.question_receipts_dir,
+                            mcp_call_timeout=args.request_timeout,
                         )
                         break
                     except Exception as error:
@@ -488,6 +567,8 @@ def main() -> int:
                             infrastructure_failures.get(key, 0) + 1)
         except Exception as error:
             errored += 1
+            key = type(error).__name__ + ": " + str(error)[:160]
+            terminal_errors[key] = terminal_errors.get(key, 0) + 1
             records.write(RunRecord(task_id=row_id, success=False,
                                     extra={"error": str(error)[:400],
                                            "error_type": type(error).__name__,
@@ -498,6 +579,8 @@ def main() -> int:
             verdict = score_row(row, outcome["answer"], official_metrics)
         except Exception as error:
             errored += 1
+            key = "score/" + type(error).__name__ + ": " + str(error)[:160]
+            terminal_errors[key] = terminal_errors.get(key, 0) + 1
             records.write(RunRecord(
                 task_id=row_id, success=False,
                 appropriate_abstention=bool(outcome.get("abstained")),
@@ -617,6 +700,58 @@ def main() -> int:
             compiler_calls += int(mcp_info.get("compiler_calls", 0))
             compiler_receipts_reused += int(bool(
                 mcp_info.get("context_receipt_reused")))
+            temporal_compilation = mcp_info.get("temporal_compilation") or {}
+            question_compiler_calls += int(bool(
+                temporal_compilation.get("compiler_called")))
+            question_compiler_receipts_reused += int(bool(
+                temporal_compilation.get("receipt_reused")))
+            question_compiler_accepted += int(
+                temporal_compilation.get("accepted", 0))
+            question_compiler_rejected += int(
+                temporal_compilation.get("rejected", 0))
+            receipt_answers: dict[str, dict[str, Any]] = {}
+            for answer_receipt in mcp_info.get("temporal_answer_receipts") or []:
+                temporal_answer_receipts += 1
+                temporal_answers_returned += len(
+                    answer_receipt.get("answers") or [])
+                temporal_primary_unchanged += int(
+                    answer_receipt.get("primary_forecast_unchanged") is True)
+                for typed_answer in answer_receipt.get("answers") or []:
+                    question = typed_answer.get("question") or {}
+                    question_id = str(question.get("id") or "").split(":", 1)[0]
+                    if question_id:
+                        # Later receipts for the same immutable artifact do
+                        # not multiply the evaluation denominator.
+                        receipt_answers[question_id] = typed_answer
+            requested_order = list((row.get("mcq") or {}).keys())
+            requested_keys = set(requested_order)
+            row_engine_answers = align_typed_answers(
+                requested_order, list(receipt_answers.values()))
+            typed_questions_requested += len(requested_order)
+            final_choices = (outcome.get("answer") or {}).get("mcq") or {}
+            per_question = choice.get("per_question") or {}
+            for question_id in requested_keys & set(row_engine_answers):
+                typed_questions_with_engine_answer += 1
+                typed_engine_answers_officially_correct += int(bool(
+                    per_question.get(question_id)))
+                best = row_engine_answers[question_id].get("best_estimate") or {}
+                candidates = {str(value).strip().lower() for value in (
+                    best.get("value"), best.get("display_value"))
+                    if value is not None}
+                # The host is allowed to perform only the same deterministic
+                # unambiguous vocabulary projection used at submission. Count
+                # that as preservation, not as an LLM paraphrase.
+                from gnomon.temporal_vocabulary import project_temporal_choice
+                options = (((row.get("mcq") or {}).get(question_id) or {})
+                           .get("options") or [])
+                projected = project_temporal_choice(best.get("value"), options)
+                if projected:
+                    candidates.add(str(projected["display_value"]).strip().lower())
+                if candidates:
+                    typed_answers_comparable_to_submission += 1
+                    typed_answers_preserved_by_agent += int(
+                        str(final_choices.get(question_id, "")).strip().lower()
+                        in candidates)
             compiled = mcp_info.get("compiled_context") or {}
             compiler_events += int(compiled.get("accepted_events", 0))
             compiler_hypotheses += int(compiled.get("accepted_hypotheses", 0))
@@ -667,9 +802,21 @@ def main() -> int:
                        default=str) + "\n",
             encoding="utf-8",
         )
+        if client is not None:
+            # Provider usage must survive Ctrl-C just like completed rows.
+            # Write a replaceable snapshot after each durable detail rather
+            # than reconstructing token counts from compacted transcripts.
+            checkpoint = output_dir / "usage.checkpoint.json"
+            checkpoint_tmp = output_dir / "usage.checkpoint.tmp.json"
+            checkpoint_tmp.write_text(json.dumps({
+                "llm_usage": client.usage_summary,
+                "completed_details": len(list(details_dir.glob("*.json"))),
+            }, indent=2) + "\n", encoding="utf-8")
+            os.replace(checkpoint_tmp, checkpoint)
         if total % 20 == 0:
             print(f"...{total} rows")
 
+    os.replace(partial_records_path, records_path)
     summary = {
         "benchmark": "temporalbench",
         "condition": args.condition,
@@ -679,6 +826,9 @@ def main() -> int:
         "rows": total,
         "row_offset": args.offset,
         "rows_errored": errored,
+        "run_status": ("failed" if total and errored == total else
+                       "partial" if errored else "complete"),
+        "terminal_error_breakdown": dict(sorted(terminal_errors.items())),
         "rows_with_abstentions": abstained_rows,
         # Rows the harness ended without an answer (a breached cap, a run
         # that never submitted). They are in `rows`, out of every
@@ -736,6 +886,10 @@ def main() -> int:
         "compile_context": args.compile_context if args.condition == "gnomon-mcp" else None,
         "context_receipts_dir": (args.context_receipts_dir
                                  if args.condition == "gnomon-mcp" else None),
+        "compile_questions": (args.compile_questions
+                              if args.condition == "gnomon-mcp" else None),
+        "question_receipts_dir": (args.question_receipts_dir
+                                  if args.condition == "gnomon-mcp" else None),
         **({"mcp_economics": {
             "cumulative_tokens": mcp_run_tokens,
             "mean_tokens_per_attempted_row": round(
@@ -760,6 +914,42 @@ def main() -> int:
                 "context_events_published_as_scenario_only":
                     context_events_scenario_only}
                if args.compile_context else {}),
+            **({"question_compiler_calls": question_compiler_calls,
+                "question_compiler_receipts_reused":
+                    question_compiler_receipts_reused,
+                "questions_accepted": question_compiler_accepted,
+                "question_proposals_rejected": question_compiler_rejected,
+                "temporal_answer_receipts": temporal_answer_receipts,
+                "temporal_answers_returned": temporal_answers_returned,
+                "answer_receipts_primary_forecast_unchanged":
+                    temporal_primary_unchanged,
+                "choice_reasoning_stages": {
+                    "questions_requested": typed_questions_requested,
+                    "questions_with_engine_answer":
+                        typed_questions_with_engine_answer,
+                    "compiler_to_engine_coverage": round(
+                        typed_questions_with_engine_answer
+                        / typed_questions_requested, 4)
+                        if typed_questions_requested else None,
+                    "officially_correct_with_engine_answer":
+                        typed_engine_answers_officially_correct,
+                    "official_accuracy_conditional_on_engine_answer": round(
+                        typed_engine_answers_officially_correct
+                        / typed_questions_with_engine_answer, 4)
+                        if typed_questions_with_engine_answer else None,
+                    "engine_answers_comparable_to_agent_submission":
+                        typed_answers_comparable_to_submission,
+                    "agent_preserved_canonical_answer":
+                        typed_answers_preserved_by_agent,
+                    "agent_preservation_rate": round(
+                        typed_answers_preserved_by_agent
+                        / typed_answers_comparable_to_submission, 4)
+                        if typed_answers_comparable_to_submission else None,
+                    "note": ("Official accuracy measures the submitted task "
+                             "answer; preservation only compares exact canonical "
+                             "or explicitly projected display values."),
+                }}
+               if args.compile_questions else {}),
             **({
                 "future_covariate_channels_considered": covariate_channels_considered,
                 "future_covariate_channels_admitted": covariate_channels_admitted,
@@ -809,9 +999,13 @@ def main() -> int:
                                + current_usage.get(key, 0))
         summary["llm_usage"] = cumulative
         summary["llm_usage_this_invocation"] = current_usage
+        if prior_summary.get("merged_usage_sources"):
+            summary["merged_usage_sources"] = prior_summary[
+                "merged_usage_sources"]
     (output_dir / "summary.json").write_text(
         json.dumps(summary, indent=2) + "\n", encoding="utf-8"
     )
+    (output_dir / "usage.checkpoint.json").unlink(missing_ok=True)
     # Provenance beside the results on direct CLI runs too, mirroring
     # run_all.py's field conventions (run_all overwrites this with its
     # own manifest when it is the caller).
@@ -832,6 +1026,7 @@ def main() -> int:
         max_retries=args.max_retries if client is not None else None,
         infrastructure_retries=args.infrastructure_retries,
         resume=args.resume or None,
+        retry_voided=args.retry_voided or None,
         # Not part of `target`: best_effort changes the condition's
         # behaviour, not the task set, so it must not make report.py
         # refuse a control-vs-treatment join. It still has to be visible
@@ -844,9 +1039,16 @@ def main() -> int:
                          if args.condition == "gnomon-mcp" else None),
         context_receipts_dir=(args.context_receipts_dir
                               if args.condition == "gnomon-mcp" else None),
+        compile_questions=(args.compile_questions
+                           if args.condition == "gnomon-mcp" else None),
+        question_receipts_dir=(args.question_receipts_dir
+                               if args.condition == "gnomon-mcp" else None),
     )
     print(json.dumps(summary, indent=2))
-    return 0
+    # A fully failed run has produced diagnostics, not benchmark evidence.
+    # Returning success here allowed stale compiler receipts (and similar
+    # deterministic setup failures) to look like a completed zero-score run.
+    return 1 if total and errored == total else 0
 
 
 if __name__ == "__main__":

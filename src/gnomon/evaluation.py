@@ -3,14 +3,30 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from statistics import mean
+from statistics import mean, median
 from typing import Any, Callable
 
 from .contracts import GnomonError
 from .models import BASELINES, MODELS, predict
 from .tsfm import TSFMError, TSFMUnavailable, tsfm_candidates
+from .forecast_adapter import (
+    LegacyModelAdapter, StatisticalAdapter, predict_checked,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def _predict_statistical(name: str, history: list[float], horizon: int,
+                         season: int) -> list[float]:
+    """All built-ins cross the same validated result boundary as TSFMs."""
+    return predict_checked(
+        StatisticalAdapter(name, predict), history, horizon, season)
+
+
+def _predict_adapter(adapter: Any, history: list[float], horizon: int,
+                     season: int) -> list[float]:
+    return predict_checked(
+        LegacyModelAdapter(adapter), history, horizon, season)
 
 
 @dataclass(frozen=True)
@@ -534,7 +550,7 @@ def select_model_lightweight(
     train = train_at(origin)
     for name in MODELS:
         try:
-            prediction = predict(name, train, holdout, season)
+            prediction = _predict_statistical(name, train, holdout, season)
             scores[name] = error_score(actual, prediction)
             forecasts[name] = prediction
         except (ValueError, ArithmeticError):
@@ -820,7 +836,7 @@ def evaluate(
         train = train_at(origin)
         for name in pool:
             try:
-                forecast = predict(name, train, horizon, season)
+                forecast = _predict_statistical(name, train, horizon, season)
             except ValueError:
                 fold_scores[name].append(None)
                 fold_forecasts[name].append([])
@@ -844,7 +860,7 @@ def evaluate(
             actual = values[origin : origin + horizon]
             train = train_at(origin)
             try:
-                forecast = adapter.predict(train, horizon, season)
+                forecast = _predict_adapter(adapter, train, horizon, season)
                 if len(forecast) != horizon:
                     tsfm_fold_scores[adapter.name].append(None)  # type: ignore[arg-type]
                     tsfm_fold_forecasts[adapter.name].append([])  # type: ignore[arg-type]
@@ -1151,11 +1167,61 @@ def evaluate(
     # evidence, so the gate reads the disjoint skeleton.
     single_fold = len(residual_origins) < 2
     margin = max(minimum_improvement, SINGLE_FOLD_SELECTION_MARGIN) if single_fold else minimum_improvement
+    selection_stability: dict[str, object] = {
+        "paired_folds": 0, "candidate_win_rate": None,
+        "median_relative_gain": None, "passed": True,
+    }
     if candidate_scores:
         candidate = min(candidate_scores, key=candidate_scores.get)  # type: ignore[arg-type]
         candidate_score = candidate_scores[candidate]
-        if baseline_score > 0 and candidate_score <= baseline_score * (1 - margin):
+        # Mean loss alone can promote a candidate on one spectacular fold
+        # while it loses most regimes.  When aligned fold losses are
+        # available, require it to win a majority and have positive median
+        # relative gain. This is channel-agnostic and makes baseline fallback
+        # a consequence of repeatable evidence, not a hard-coded vital name.
+        def _fold_vector(name: str) -> list[float | None] | None:
+            if name in fold_scores:
+                return fold_scores[name]
+            if name in tsfm_fold_scores:
+                return tsfm_fold_scores[name]
+            if name in extra_fold_scores:
+                return extra_fold_scores[name]
+            if name == "ensemble":
+                return ensemble_fold_scores
+            return None
+
+        candidate_folds = _fold_vector(candidate)
+        baseline_folds = _fold_vector(strongest_baseline)
+        stable = True
+        if candidate_folds is not None and baseline_folds is not None:
+            paired = [(float(base), float(contender))
+                      for base, contender in zip(baseline_folds, candidate_folds)
+                      if base is not None and contender is not None
+                      and math.isfinite(float(base))
+                      and math.isfinite(float(contender))]
+            if len(paired) >= 3:
+                gains = [(base - contender) / max(abs(base), 1e-12)
+                         for base, contender in paired]
+                win_rate = sum(contender < base for base, contender in paired) / len(paired)
+                median_gain = median(gains)
+                stable = win_rate > .5 and median_gain > 0
+                selection_stability = {
+                    "paired_folds": len(paired),
+                    "candidate_win_rate": win_rate,
+                    "median_relative_gain": median_gain,
+                    "passed": stable,
+                }
+        if (baseline_score > 0
+                and candidate_score <= baseline_score * (1 - margin)
+                and stable):
             selected = candidate
+        elif not stable:
+            notes.append(
+                f"Selection stability gate: {candidate} improved mean loss "
+                f"but won only {selection_stability['candidate_win_rate']:.0%} "
+                f"of {selection_stability['paired_folds']} paired folds; "
+                f"{strongest_baseline} remains the published candidate."
+            )
     selection_guardrail_applied = (
         bool(candidate_scores) and single_fold and selected == strongest_baseline
     )
@@ -1221,14 +1287,16 @@ def evaluate(
             if member_scores.get(name) is None:
                 continue
             try:
-                forecasts[name] = predict(name, train, steps, season)
+                forecasts[name] = _predict_statistical(
+                    name, train, steps, season)
             except (ValueError, ArithmeticError):
                 continue
         for adapter in tsfm_adapters:
             if member_scores.get(adapter.name) is None:
                 continue
             try:
-                forecasts[adapter.name] = adapter.predict(train, steps, season)
+                forecasts[adapter.name] = _predict_adapter(
+                    adapter, train, steps, season)
             except Exception:
                 logger.debug("ensemble member %s failed on a fold", adapter.name,
                              exc_info=True)
@@ -1247,7 +1315,7 @@ def evaluate(
         which ``train`` does not carry."""
         steps = horizon if fc_horizon is None else fc_horizon
         if name in MODELS:
-            return predict(name, train, steps, season)
+            return _predict_statistical(name, train, steps, season)
         if name == "ensemble":
             return _ensemble_predict(train, fc_horizon=steps)
         if name in extra_candidates:
@@ -1255,7 +1323,7 @@ def evaluate(
         adapter = next((a for a in tsfm_adapters if a.name == name), None)
         if adapter is None:
             raise ValueError(f"no adapter available for {name}")
-        return adapter.predict(train, steps, season)
+        return _predict_adapter(adapter, train, steps, season)
 
     # Get calibration prediction from the selected model; fall back to the
     # strongest baseline if a TSFM/ensemble selection cannot predict here.
@@ -1268,7 +1336,8 @@ def evaluate(
                 selected, strongest_baseline, exc,
             )
         selected = strongest_baseline
-        calibration_prediction = predict(selected, train_at(calibration_origin), horizon, season)
+        calibration_prediction = _predict_statistical(
+            selected, train_at(calibration_origin), horizon, season)
 
     # Pool residuals of the selected model across every selection fold plus
     # the calibration fold: one horizon of residuals is too small a sample
@@ -1358,7 +1427,8 @@ def evaluate(
         try:
             test_prediction = _predict_selected(selected, train_at(test_origin), test_origin)
         except Exception:
-            test_prediction = predict(strongest_baseline, train_at(test_origin), horizon, season)
+            test_prediction = _predict_statistical(
+                strongest_baseline, train_at(test_origin), horizon, season)
         covered = []
         for step, (actual, prediction) in enumerate(zip(test_actual, test_prediction), 1):
             spread = spreads.get(step)
@@ -1397,14 +1467,16 @@ def evaluate(
             if member_scores.get(name) is None:
                 continue
             try:
-                forecasts[name] = predict(name, history, horizon, season)
+                forecasts[name] = _predict_statistical(
+                    name, history, horizon, season)
             except (ValueError, ArithmeticError):
                 continue
         for adapter in tsfm_adapters:
             if member_scores.get(adapter.name) is None:
                 continue
             try:
-                forecasts[adapter.name] = adapter.predict(history, horizon, season)
+                forecasts[adapter.name] = _predict_adapter(
+                    adapter, history, horizon, season)
             except Exception:
                 logger.debug("ensemble member %s failed at fit", adapter.name,
                              exc_info=True)
@@ -1453,6 +1525,14 @@ def evaluate(
                 except Exception:
                     logger.debug("no pinned revision for %s", member,
                                  exc_info=True)
+            elif adapter is not None:
+                revision = getattr(adapter, "revision", None)
+                remote_model = getattr(
+                    getattr(adapter, "_provider", None), "model", "")
+                revisions[member] = (
+                    f"{remote_model or member}@{revision}"
+                    if revision else f"unversioned:{remote_model or member}"
+                )
         return revisions
 
     ensemble_candidate = None
@@ -1515,9 +1595,16 @@ def evaluate(
             selected,
         )
     elif any(adapter.name == selected for adapter in tsfm_adapters):
+        selected_adapter = next(
+            adapter for adapter in tsfm_adapters if adapter.name == selected)
         final_candidate = _spec_for(
             CandidateIdentity(
                 kind="tsfm", name=selected,
+                config={
+                    "adapter_protocol": "0.1",
+                    "adapter_backend": str(getattr(
+                        selected_adapter, "backend", "in_process")),
+                },
                 revisions=_revisions((selected,)),
                 fallback_policy="strongest_baseline_recalibrated",
             ),

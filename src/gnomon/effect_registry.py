@@ -37,6 +37,7 @@ class EffectPrior:
     source: str
     version: str
     expires_at: str | None = None
+    known_at: str | None = None
 
     def precision(self) -> float:
         return 1.0 / (self.standard_error * self.standard_error)
@@ -84,6 +85,7 @@ def prior_from_dict(raw: dict[str, Any]) -> EffectPrior:
         duration_steps=_pair(raw["duration_steps"], "duration_steps"),
         sample_size=sample_size, source=source, version=version,
         expires_at=(str(raw["expires_at"]) if raw.get("expires_at") else None),
+        known_at=(str(raw["known_at"]) if raw.get("known_at") else None),
     )
 
 
@@ -97,6 +99,10 @@ def load_effect_registry(path: str | Path, *, now: datetime | None = None) -> li
         raise ValueError("effect registry prior_id values must be unique")
     moment = now or datetime.now(timezone.utc)
     for entry in entries:
+        if entry.known_at:
+            known = datetime.fromisoformat(entry.known_at)
+            if known.tzinfo is None:
+                raise ValueError(f"effect prior {entry.prior_id!r} known_at needs a timezone")
         if entry.expires_at:
             expiry = datetime.fromisoformat(entry.expires_at)
             if expiry.tzinfo is None:

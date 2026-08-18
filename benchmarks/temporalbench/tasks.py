@@ -115,8 +115,16 @@ def iter_rows(
                 progressed = True
         if not progressed:
             break
-    for tier, members in by_tier.items():
-        yield from members[:taken[tier]]
+    # Emit the selected cohort round-robin as well as selecting it that
+    # way.  This makes every smaller limit a prefix of every larger one,
+    # so ``iter_rows(limit=offset + shard_size)[offset:]`` forms genuinely
+    # disjoint resumable shards.  Grouping the selected members by tier at
+    # this point preserved balance but made the row order depend on the
+    # requested limit, causing adjacent offset shards to overlap.
+    for index in range(max(taken.values(), default=0)):
+        for tier, members in by_tier.items():
+            if index < taken[tier]:
+                yield members[index]
 
 
 def extract_json_object(text: str) -> dict[str, Any]:

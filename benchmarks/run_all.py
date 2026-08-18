@@ -94,6 +94,36 @@ REGISTRY: dict[str, dict[str, Any]] = {
         "accepts": {"output_dir"},
         "limit_flag": "--limit",
     },
+    "volatilitybench": {
+        "module": "benchmarks.volatilitybench.run_volatilitybench",
+        "accepts": set(),
+        "limit_flag": None,
+    },
+    "propertybench": {
+        "module": "benchmarks.propertybench.run_propertybench",
+        "accepts": {"output_dir"},
+        "limit_flag": None,
+    },
+    "compilerbench": {
+        "module": "benchmarks.compilerbench.run_compilerbench",
+        "accepts": {"model", "output_dir"},
+        "limit_flag": "--count",
+    },
+    "contextcachebench": {
+        "module": "benchmarks.contextcachebench.run_contextcachebench",
+        "accepts": {"output_dir"},
+        "limit_flag": "--cases",
+    },
+    "adapterbench": {
+        "module": "benchmarks.adapterbench.run_adapterbench",
+        "accepts": {"output_dir"},
+        "limit_flag": None,
+    },
+    "transitionbench": {
+        "module": "benchmarks.transitionbench.run_transitionbench",
+        "accepts": {"output_dir"},
+        "limit_flag": None,
+    },
 }
 
 

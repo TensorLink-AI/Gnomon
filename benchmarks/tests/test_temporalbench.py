@@ -19,7 +19,16 @@ from benchmarks.temporalbench.scoring import (
     score_t1,
     score_t3,
 )
+from benchmarks.temporalbench.score_per_channel import (
+    stable_scaled_error_denominator,
+)
 from benchmarks.temporalbench.tasks import extract_json_object, prompt_input_arrays
+
+
+def test_scaled_error_denominator_flags_near_constant_history():
+    assert stable_scaled_error_denominator([10.0, 10.0, 10.0]) is False
+    assert stable_scaled_error_denominator([10.0, 10.5, 9.5, 11.0]) is True
+    assert stable_scaled_error_denominator([None, 10.0, None]) is False
 
 
 def test_extract_json_object_from_prose():
@@ -128,6 +137,43 @@ def test_temporalbench_axis_is_anchored_to_official_cutoff(tmp_path):
         run.finish()
 
 
+def test_temporalbench_observation_axis_does_not_infer_source_window_cadence(
+        tmp_path):
+    """The arrays omit timestamps; a 4h cluster gap is not a 4h grid."""
+    from benchmarks.temporalbench.mcp_agent import _Run
+
+    class Client:
+        total_prompt_tokens = 0
+        total_completion_tokens = 0
+
+    class Session:
+        def close(self):
+            pass
+
+    row = {
+        "tier": "T2",
+        "meta": {"n_horizon": 2, "main_key": "target",
+                 "history_end": "2030-01-02T10:00:00",
+                 "cluster_start": "2030-01-02T14:00:00"},
+        "input": {"history": {"target": [1.0, 2.0, 3.0]}},
+        "ground_truth": {"target": [4.0, 5.0]},
+    }
+    run = _Run(row, Client(), session_factory=lambda jail: Session(),
+               work_dir=str(tmp_path), profile="evidence")
+    try:
+        assert run.time_step.total_seconds() == 3600
+        assert run.epoch == datetime(2030, 1, 2, 8, tzinfo=timezone.utc)
+        timestamps = [line.split(",", 1)[0]
+                      for line in run.csv_path.read_text().splitlines()[1:]]
+        assert timestamps == [
+            "2030-01-02T08:00:00+00:00",
+            "2030-01-02T09:00:00+00:00",
+            "2030-01-02T10:00:00+00:00",
+        ]
+    finally:
+        run.finish()
+
+
 def test_prompt_input_arrays_prefers_structured_input():
     row = {"input": {"history": {"hr": [1, 2, None], "note": "x"}}}
     arrays = prompt_input_arrays(row)
@@ -138,6 +184,27 @@ def test_prompt_input_arrays_falls_back_to_prompt_block():
     row = {"input": None,
            "prompt": 'Task text...\nInput (JSON):\n{"hr": [5, 6], "label": "a"}\nOutput...'}
     assert prompt_input_arrays(row) == {"hr": [5.0, 6.0]}
+
+
+def test_control_gets_one_format_only_repair_without_new_evidence():
+    from benchmarks.temporalbench.run_temporalbench import answer_row
+
+    class Client:
+        def __init__(self):
+            self.calls = []
+
+        def completions(self, messages, *, n):
+            self.calls.append(messages)
+            return (["I think the answer is upward."] if len(self.calls) == 1
+                    else ['{"trend":"upward"}'])
+
+    client = Client()
+    outcome = answer_row({"prompt": "Forecast it."}, "control", client)
+    assert outcome["answer"] == {"trend": "upward"}
+    assert len(client.calls) == 2
+    repair = client.calls[1][-1]["content"]
+    assert "same answer" in repair
+    assert "Do not revise" in repair
 
 
 def test_score_t1_exact_match_case_insensitive():
@@ -159,6 +226,22 @@ def test_score_mcq_matches_labels():
     result = score_mcq(row, {"future_vs_history": "uncertain",
                              "volatility_change": "increased"})
     assert result["correct"] == 1 and result["total"] == 2
+
+
+def test_typed_answer_alignment_accepts_semantic_and_positional_ids():
+    from benchmarks.temporalbench.run_temporalbench import align_typed_answers
+
+    answers = [
+        {"question": {"id": "q2"}, "best_estimate": {"value": "stable"}},
+        {"question": {"id": "seasonality_shift"},
+         "best_estimate": {"value": "continued"}},
+        {"question": {"id": "invented"}, "best_estimate": {"value": "x"}},
+    ]
+    aligned = align_typed_answers(
+        ["future_vs_history", "volatility_change", "seasonality_shift"],
+        answers)
+    assert set(aligned) == {"volatility_change", "seasonality_shift"}
+    assert aligned["volatility_change"]["best_estimate"]["value"] == "stable"
 
 
 def test_uncertain_mcq_uses_option_casing():
@@ -375,9 +458,14 @@ def test_limit_is_stratified_across_tiers(tmp_path):
         "".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8"
     )
     taken = list(iter_rows(tmp_path, tiers=("T1", "T2"), limit=4))
-    assert [row["tier"] for row in taken] == ["T1", "T1", "T2", "T2"]
+    assert [row["tier"] for row in taken] == ["T1", "T2", "T1", "T2"]
     # Within a tier, file order is kept.
-    assert [row["id"] for row in taken] == ["t1-0", "t1-1", "t2-0", "t2-1"]
+    assert [row["id"] for row in taken] == ["t1-0", "t2-0", "t1-1", "t2-1"]
+    # Larger balanced cohorts extend, rather than reshuffle, smaller ones;
+    # offset shards therefore cannot overlap solely because their limits
+    # differ.
+    larger = list(iter_rows(tmp_path, tiers=("T1", "T2"), limit=6))
+    assert [row["id"] for row in larger[:4]] == [row["id"] for row in taken]
     # An unlimited iteration still streams every matching row in order.
     assert [row["id"] for row in iter_rows(tmp_path, tiers=("T1", "T2"))] == [
         row["id"] for row in rows

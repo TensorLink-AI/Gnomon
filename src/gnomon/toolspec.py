@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from .context import load_events_file
-from .contracts import ForecastArtifact
+from .contracts import ForecastArtifact, GnomonError, REPAIR_OPTIONS
 from .runtime import capabilities, forecast, inspect_dataset
 
 #: The inline event channel, shared by every tool that accepts context
@@ -20,12 +20,8 @@ _CONTEXT_EVENTS_PROPERTY: dict[str, Any] = {
     "context_events": {
         "type": "array",
         "description": (
-            "Context events supplied inline — the same objects a "
-            "context-events file carries; concatenated with "
-            "context_events_file. Admission is separate and strict "
-            "(constraint:/override:/structural: events need the "
-            "future_events/structural_events flags and a verbatim "
-            "source_span) — dry-run with gnomon_preflight_context first."
+            "Inline context events; combined with context_events_file. "
+            "Admission remains strict; preflight deterministic claims first."
         ),
         "items": {
             "type": "object",
@@ -43,6 +39,13 @@ _CONTEXT_EVENTS_PROPERTY: dict[str, Any] = {
             "required": ["event_id", "event_type", "entity_scope",
                          "effective_start", "effective_end", "known_at"],
         },
+    },
+    "context_ref": {
+        "type": "string",
+        "description": (
+            "Prior context receipt; replaces both event inputs. Timing and "
+            "admission are rechecked."
+        ),
     },
 }
 
@@ -170,6 +173,12 @@ _REPLAY_PROPERTIES: dict[str, Any] = {
     },
 }
 
+_TEMPORAL_QUESTIONS_PROPERTY: dict[str, Any] = {
+    # Kept intentionally tiny: detailed validation is returned by the
+    # compiler, while every schema byte is repaid on every agent turn.
+    "questions": {"type": "array", "items": {"type": "object"}},
+}
+
 FORECAST_PREVIEW_ROWS = 12
 
 #: Hard ceiling on a tool response's serialised size. Tuned to hold a
@@ -191,7 +200,8 @@ _PROTECTED_KEYS = frozenset({
     "limitations", "limitation_groups", "warnings", "assumptions", "reasons",
     "recovery_actions", "next_actions", "disclosures", "notes", "staleness",
     "artifact_id", "artifact_path", "data_ref", "error", "repair_options",
-    "context_outcome",
+    "context_outcome", "question", "answer", "executable", "calibration",
+    "direction_probabilities", "primary_forecast_unchanged",
 })
 
 _TRIM_HEAD = 3
@@ -630,6 +640,19 @@ def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
     The first forecast rows are inlined so an agent can quote numbers without
     a second read; the full series always lives in forecast.csv."""
     from .support import artifact_headline, forecast_notability
+    from .temporal_profile import compact_temporal_profile
+
+    def response_facts(item: Any) -> dict[str, Any] | None:
+        if not item.temporal_facts:
+            return None
+        facts = dict(item.temporal_facts)
+        if facts.get("temporal_profile") and item.support not in {
+                "best_effort", "unsupported", "invalid", "inconclusive"}:
+            facts["temporal_profile"] = compact_temporal_profile(
+                facts["temporal_profile"])
+        else:
+            facts.pop("temporal_profile", None)
+        return facts
     payload = {
         "schema_version": "0.1",
         "status": "complete",
@@ -653,6 +676,16 @@ def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
                 "notes": item.notes,
                 "forecast_preview": item.forecast[:FORECAST_PREVIEW_ROWS],
                 "forecast_rows": len(item.forecast),
+                **({
+                    "primary_forecast_preview":
+                        item.primary_forecast[:FORECAST_PREVIEW_ROWS],
+                    "primary_forecast_rows": len(item.primary_forecast),
+                    "forecast_role": "context_conditioned_projection",
+                    "primary_forecast_location":
+                        "artifact.results[].primary_forecast",
+                } if item.primary_forecast else {
+                    "forecast_role": "primary_forecast",
+                }),
                 "threshold": item.threshold,
                 "context": item.context,
                 "context_outcome": item.context_outcome,
@@ -670,7 +703,7 @@ def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
                 "covariates": item.covariates,
                 "notability": forecast_notability(item),
                 "execution_identity": _execution_identity(artifact, item),
-                **({"temporal_facts": item.temporal_facts}
+                **({"temporal_facts": response_facts(item)}
                    if item.temporal_facts else {}),
             }
             for item in artifact.results
@@ -693,6 +726,19 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
     disclosures is the one thing this codebase exists to not do.
     """
     from .support import forecast_notability
+    from .temporal_profile import compact_temporal_profile
+
+    def response_facts(item: Any) -> dict[str, Any] | None:
+        if not item.temporal_facts:
+            return None
+        facts = dict(item.temporal_facts)
+        if facts.get("temporal_profile") and item.support not in {
+                "best_effort", "unsupported", "invalid", "inconclusive"}:
+            facts["temporal_profile"] = compact_temporal_profile(
+                facts["temporal_profile"])
+        else:
+            facts.pop("temporal_profile", None)
+        return facts
     results = []
     for item in artifact.results:
         results.append({
@@ -714,9 +760,23 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
             ],
             # The row count survives even when the budget trims the rows.
             "forecast_rows": len(item.forecast),
+            **({
+                "primary_forecast_preview": [
+                    {"timestamp": row["timestamp"], "q50": row["q50"],
+                     "q10": row["q10"], "q90": row["q90"],
+                     **({"tier": row["tier"]} if "tier" in row else {})}
+                    for row in item.primary_forecast[:FORECAST_PREVIEW_ROWS]
+                ],
+                "primary_forecast_rows": len(item.primary_forecast),
+                "forecast_role": "context_conditioned_projection",
+                "primary_forecast_location":
+                    "artifact.results[].primary_forecast",
+            } if item.primary_forecast else {
+                "forecast_role": "primary_forecast",
+            }),
             "notability": forecast_notability(item),
             "execution_identity": _execution_identity(artifact, item),
-            **({"temporal_facts": item.temporal_facts}
+            **({"temporal_facts": response_facts(item)}
                if item.temporal_facts else {}),
             **({"threshold": item.threshold} if item.threshold else {}),
             **({"context_outcome": item.context_outcome}
@@ -1021,6 +1081,7 @@ def _run_describe(arguments: dict[str, Any]) -> dict[str, Any]:
     from .data import resolve_target_spec
     from .operators import anomaly_score, changepoint_detection, seasonality_analysis
     from .pipeline import load_stage
+    from .temporal_profile import compact_temporal_profile, temporal_profile
 
     target_spec = str(arguments["target_column"])
     targets = (resolve_target_spec(
@@ -1029,6 +1090,7 @@ def _run_describe(arguments: dict[str, Any]) -> dict[str, Any]:
         series_column=arguments.get("series_column"),
     ) if "," in target_spec or target_spec.lower() == "auto" else [target_spec])
     reports: dict[str, Any] = {}
+    execution_inputs: dict[str, tuple[list[float], int]] = {}
     for target in targets:
         loaded = load_stage(
             arguments["input"], time_column=arguments["time_column"],
@@ -1036,6 +1098,7 @@ def _run_describe(arguments: dict[str, Any]) -> dict[str, Any]:
             frequency=arguments.get("frequency"),
             as_of=_parse_as_of(arguments.get("as_of")),
             store_path=arguments.get("store_path"), regrid=arguments.get("regrid"),
+            repair=arguments.get("repair", "safe"),
         )
         for group_name, observations in sorted(loaded.groups.items()):
             values = [item.value for item in observations]
@@ -1053,7 +1116,22 @@ def _run_describe(arguments: dict[str, Any]) -> dict[str, Any]:
                 anomalies.get("anomalies", []),
                 key=lambda row: -abs(float(row["score"])),
             )[:5]
-            name = target if group_name == "__default__" else f"{target}:{group_name}"
+            # A long-form panel has one value column and a separate public
+            # series identity.  The loader's ``target:group`` name remains
+            # useful inside forecast artifacts, but exposing ``value:cpu``
+            # to question authors makes an implementation detail part of the
+            # reasoning API.  Describe and typed questions therefore use the
+            # group identity at this boundary.
+            name = (group_name if arguments.get("series_column")
+                    and group_name != "__default__"
+                    else target if group_name == "__default__"
+                    else f"{target}:{group_name}")
+            profile = temporal_profile(
+                values, season=int(seasonality.get("period") or 1))
+            execution_inputs[name] = (
+                [float(value) for value in values],
+                int(seasonality.get("period") or 1),
+            )
             reports[name] = {
                 "observations": len(values), "series_start": timestamps[0].isoformat(),
                 "series_end": timestamps[-1].isoformat(), "frequency": loaded.frequency,
@@ -1072,14 +1150,28 @@ def _run_describe(arguments: dict[str, Any]) -> dict[str, Any]:
                 "anomalies": {"count": len(anomalies.get("anomalies", [])),
                               "most_extreme": notable_anomalies,
                               "support": anomalies.get("support")},
+                "temporal_profile": compact_temporal_profile(profile),
             }
     ranked = sorted(reports, key=lambda name: (
         -float(reports[name]["change"]["absolute_final_step"]), name))
+    temporal_answers: list[dict[str, Any]] = []
+    if arguments.get("questions") is not None:
+        from .temporal_question import compile_temporal_questions
+        from .temporal_reasoning import answer_scoped_question
+
+        questions = compile_temporal_questions(
+            arguments["questions"], available_targets=reports,
+            default_verb="describe")
+        for question in questions:
+            temporal_answers.append(answer_scoped_question(
+                question, reports=reports, execution_inputs=execution_inputs,
+                forecast_values=arguments.get("_forecast_values")))
     return _json_temporal_values({
         "schema_version": "0.1", "status": "valid",
         "headline": f"Described {len(reports)} series through "
                     f"{max(report['series_end'] for report in reports.values())}.",
         "reports": reports,
+        **({"answers": temporal_answers} if temporal_answers else {}),
         "triage": {
             "ranking_rule": "largest absolute final-step change",
             "most_notable": ranked[0] if ranked else None,
@@ -1246,6 +1338,193 @@ def _context_events_from(arguments: dict[str, Any]):
     return events
 
 
+def _materialise_context(
+    arguments: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    """Resolve or register immutable typed context before numeric execution."""
+    carries_context = any(arguments.get(key) is not None for key in (
+        "context_ref", "context_events", "context_events_file"))
+    if not carries_context:
+        return arguments, None
+    from .context import event_to_dict
+    from .context_store import ContextReceiptStore
+    from .soft_context import make_context_receipt
+
+    supplied = [key for key in ("context_ref", "context_events",
+                                "context_events_file")
+                if arguments.get(key) is not None]
+    if "context_ref" in supplied and len(supplied) > 1:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "context_ref replaces context_events and context_events_file; "
+            "do not supply both.",
+            {"conflicts": supplied},
+        )
+    store = ContextReceiptStore.default()
+    if arguments.get("context_ref"):
+        reference = str(arguments["context_ref"])
+        try:
+            receipt = store.get(reference)
+        except KeyError as error:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "context_ref is unknown in this project namespace.",
+                {"context_ref": reference},
+                repair_options=[{
+                    "action": "resupply_context",
+                    "description": ("Send context_events or context_events_file "
+                                    "again to receive a fresh context_ref."),
+                }],
+            ) from error
+        events = []
+        for raw in receipt.get("events") or []:
+            item = dict(raw)
+            item["attributes"] = {
+                **dict(item.get("attributes") or {}),
+                "context_receipt_id": receipt["receipt_id"],
+            }
+            events.append(item)
+        return ({**{key: value for key, value in arguments.items()
+                    if key not in {"context_ref", "context_events_file"}},
+                 "context_events": events}, {
+            "status": "hit", "context_ref": reference,
+            "receipt_id": receipt["receipt_id"], "compiler_reused": True,
+            "store_schema_version": "0.1",
+        })
+
+    parsed = _context_events_from(arguments) or []
+    raw_events = [event_to_dict(event) for event in parsed]
+    receipt = make_context_receipt(
+        documents=[], events=raw_events, hypotheses=[], rejected=[],
+        rejected_hypotheses=[],
+        proposer={"kind": "validated_typed_context", "version": "0.1"},
+    )
+    reference = store.put(receipt)
+    bound_events = []
+    for raw in raw_events:
+        item = dict(raw)
+        item["attributes"] = {
+            **dict(item.get("attributes") or {}),
+            "context_receipt_id": receipt["receipt_id"],
+        }
+        bound_events.append(item)
+    return ({**{key: value for key, value in arguments.items()
+                if key != "context_events_file"},
+             "context_events": bound_events}, {
+        "status": "stored", "context_ref": reference,
+        "receipt_id": receipt["receipt_id"], "compiler_reused": False,
+        "store_schema_version": "0.1",
+    })
+
+
+def _attach_temporal_answers(payload: dict[str, Any], artifact: ForecastArtifact,
+                             path: Any, arguments: dict[str, Any]) -> None:
+    """Attach opt-in diagnostics without touching the primary artifact."""
+    if arguments.get("questions") is None:
+        return
+    from .context_store import ContextReceiptStore, temporal_answer_cache_key
+    from .temporal_question import compile_temporal_questions
+    from .temporal_reasoning import TEMPORAL_ANSWER_CONTRACT_VERSION
+
+    target_spec = str(arguments.get("target_column") or "")
+    panel_prefix = f"{target_spec}:" if arguments.get("series_column") else ""
+
+    def public_name(name: Any) -> str:
+        value = str(name)
+        return (value[len(panel_prefix):]
+                if panel_prefix and value.startswith(panel_prefix) else value)
+
+    result_names = [public_name(result.series) for result in artifact.results
+                    if str(result.series) != "__default__"]
+    explicit_names = [item.strip() for item in target_spec.split(",")
+                      if item.strip() and item.strip().lower() != "auto"]
+    available_targets = (result_names if arguments.get("series_column")
+                         else explicit_names or result_names)
+    if len(artifact.results) == 1 and explicit_names \
+            and not arguments.get("series_column"):
+        available_targets = explicit_names[:1]
+    questions = compile_temporal_questions(
+        arguments["questions"], available_targets=available_targets,
+        default_verb="describe")
+    store = ContextReceiptStore.default()
+    answer_keys = [temporal_answer_cache_key(
+        artifact_id=artifact.forecast_id, question=question.to_dict(),
+        as_of=arguments.get("as_of"),
+        answer_contract_version=TEMPORAL_ANSWER_CONTRACT_VERSION,
+    ) for question in questions]
+    cached = [store.get_temporal_answer(key) for key in answer_keys]
+    cache_hits = sum(answer is not None for answer in cached)
+
+    forecast_values = {
+        public_name(result.series): [float(row["point"]) for row in result.forecast]
+        for result in artifact.results
+    }
+    if len(artifact.results) == 1:
+        forecast_values[str(arguments["target_column"])] = next(iter(
+            forecast_values.values()))
+    if cache_hits == len(answer_keys):
+        full_answers = [dict(answer) for answer in cached if answer is not None]
+        for question, answer in zip(questions, full_answers):
+            if answer.get("artifact_id") != artifact.forecast_id \
+                    or answer.get("question") != question.to_dict():
+                raise GnomonError(
+                    "TEMPORAL_ANSWER_CACHE_INTEGRITY",
+                    "Cached temporal answer does not match its primary or question.")
+        cache_status = "hit"
+    else:
+        describe_arguments = {
+            key: arguments.get(key) for key in (
+                "input", "time_column", "target_column", "series_column",
+                "frequency", "as_of", "store_path", "regrid", "repair",
+                "questions")
+        }
+        describe_arguments["_forecast_values"] = forecast_values
+        described = _run_describe(describe_arguments)
+        full_answers = [
+            {**answer, "artifact_id": artifact.forecast_id}
+            for answer in described.get("answers", [])
+        ]
+        if len(full_answers) != len(answer_keys):
+            raise GnomonError(
+                "TEMPORAL_ANSWER_CACHE_INTEGRITY",
+                "Temporal execution did not return one answer per question.")
+        for key, answer in zip(answer_keys, full_answers):
+            store.put_temporal_answer(key, answer)
+        cache_status = "stored" if cache_hits == 0 else "refreshed"
+    # Keep the inline contract quotable. Constituent executions remain in the
+    # immutable receipt; repeating every child through each agent turn harms
+    # both token economics and preservation of the scalar decision.
+    payload["answers"] = []
+    for answer in full_answers:
+        compact = {key: value for key, value in answer.items()
+                   if key not in {"per_series", "calibration"}}
+        children = answer.get("per_series") or []
+        if children:
+            compact["constituent_summary"] = {
+                "count": len(children),
+                "support": {
+                    label: sum((child.get("answer") or {}).get("support") == label
+                               for child in children)
+                    for label in ("supported", "weak", "abstained")
+                },
+                "details_in_answer_receipt": True,
+            }
+        payload["answers"].append(compact)
+    import json as _json
+    answer_receipt = path / "temporal_answers.json"
+    answer_receipt.write_text(_json.dumps({
+        "schema_version": "0.2", "artifact_id": artifact.forecast_id,
+        "primary_forecast_unchanged": True, "answers": full_answers,
+    }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    payload["answer_receipt"] = str(answer_receipt)
+    payload["answer_cache"] = {
+        "status": cache_status, "hits": cache_hits,
+        "questions": len(answer_keys),
+        "answer_contract_version": TEMPORAL_ANSWER_CONTRACT_VERSION,
+        "primary_forecast_unchanged": True,
+    }
+
+
 def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
     target_spec = str(arguments["target_column"])
     if "," in target_spec or target_spec.strip().lower() == "auto":
@@ -1292,6 +1571,7 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
     payload = (forecast_summary(artifact, path)
                if arguments.get("format") == "full"
                else brief_summary(artifact, path))
+    _attach_temporal_answers(payload, artifact, path, arguments)
     if arguments.get("project"):
         from .tracking import register_artifact
         payload["tracking_ids"] = register_artifact(
@@ -1360,9 +1640,11 @@ def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str
         input_provenance=arguments.get("input_provenance"),
         config=config,
     )
-    if arguments.get("format") == "full":
-        return forecast_summary(artifact, path)
-    return brief_summary(artifact, path)
+    payload = (forecast_summary(artifact, path)
+               if arguments.get("format") == "full"
+               else brief_summary(artifact, path))
+    _attach_temporal_answers(payload, artifact, path, arguments)
+    return payload
 
 
 def _run_preflight_context(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -1441,6 +1723,21 @@ def _run_submit_actuals(arguments: dict[str, Any]) -> dict[str, Any]:
     from .tracking import TrackingStore
     store = TrackingStore()
     project = str(arguments["project"])
+    raw_occurrences = list(arguments.get("effect_occurrences") or [])
+
+    def record_occurrences() -> list[dict[str, Any]]:
+        recorded = []
+        for index, item in enumerate(raw_occurrences, 1):
+            if not isinstance(item, dict):
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    f"effect_occurrences[{index}] must be an object.",
+                )
+            recorded.append(store.record_effect_occurrence(
+                str(item.get("effect_id", "")), str(item.get("status", "")),
+                known_at=str(item.get("known_at", "")), note=item.get("note"),
+            ))
+        return recorded
     inline = arguments.get("actuals")
     if inline is not None and arguments.get("actuals_file"):
         raise GnomonError(
@@ -1453,12 +1750,14 @@ def _run_submit_actuals(arguments: dict[str, Any]) -> dict[str, Any]:
         if not results:
             return {
                 "schema_version": "0.1", "status": "ok", "project": project,
+                "effect_occurrences": record_occurrences(),
                 **store.explain_unscored(
                     project, [item[-2] for item in tuples]),
             }
         return {"schema_version": "0.1", "status": "ok",
                 "scored": len(results),
-                "results": [item.__dict__ for item in results]}
+                "results": [item.__dict__ for item in results],
+                "effect_occurrences": record_occurrences()}
     if not arguments.get("actuals_file"):
         raise GnomonError(
             "INVALID_ARGUMENTS",
@@ -1484,10 +1783,12 @@ def _run_submit_actuals(arguments: dict[str, Any]) -> dict[str, Any]:
         )
         return {
             "schema_version": "0.1", "status": "ok", "project": project,
+            "effect_occurrences": record_occurrences(),
             **store.explain_unscored(project, [row[resolved_time] for row in rows]),
         }
     return {"schema_version": "0.1", "status": "ok", "scored": len(results),
-            "results": [item.__dict__ for item in results]}
+            "results": [item.__dict__ for item in results],
+            "effect_occurrences": record_occurrences()}
 
 
 def _run_open_forecasts(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -1578,6 +1879,7 @@ TOOLS: list[dict[str, Any]] = [
                     "Numeric column, comma list, or auto for every numeric channel."
                 )},
                 **_REPLAY_PROPERTIES,
+                **_TEMPORAL_QUESTIONS_PROPERTY,
             },
             "required": [],
         },
@@ -1586,8 +1888,8 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "gnomon_forecast",
         "description": (
-            "Forecast one or many columns in one call (`target_column`: "
-            "`\"cpu,mem,requests\"` or `\"auto\"`). Call directly: it infers an unambiguous schema, "
+            "Forecast columns (`target_column`: `\"cpu,mem,requests\"` or `\"auto\"`). "
+            "Call directly: it infers an unambiguous schema, "
             "validates, backtests, and returns a quotable preview; do not call "
             "capabilities, inspect, or get_artifact first. Each series gets a "
             "selected model or disclosed abstention. Context and covariates "
@@ -1640,6 +1942,7 @@ TOOLS: list[dict[str, Any]] = [
                 **_COVARIATE_MAPPING_PROPERTY,
                 "covariate_time_column": {"type": "string", "description": "Valid-at column (default timestamp)."},
                 "covariate_known_at_column": {"type": "string", "description": "Availability timestamp column (default known_at)."},
+                **_TEMPORAL_QUESTIONS_PROPERTY,
                 "covariate_series_column": {"type": "string", "description": "Optional series column in the covariate CSV."},
                 "repair": {"type": "string", "enum": ["off", "safe", "aggressive"], "description": "Messy-data handling (default safe): off rejects anything non-strict; safe normalises cell text; aggressive also fills gaps and snaps timestamps — every fix disclosed in warnings and evidence."},
                 "minimum_support": {"type": "string",
@@ -1715,6 +2018,18 @@ TOOLS: list[dict[str, Any]] = [
             "time_column": {"type": "string", "description": "Timestamp column in the actuals file. Inferred from a conventional name or a two-column layout when omitted."},
             "target_column": {"type": "string", "description": "Realised value column. Inferred when unambiguous."},
             "series_column": {"type": "string", "description": "Series column, required for multi-series projects."},
+            "effect_occurrences": {"type": "array", "description": (
+                "Optional confirmations for tracked context scenarios. Actual "
+                "values do not prove an event happened; each item supplies "
+                "effect_id, status (confirmed/cancelled/revised), known_at, "
+                "and optional note."
+            ), "items": {"type": "object", "properties": {
+                "effect_id": {"type": "string"},
+                "status": {"type": "string", "enum": [
+                    "confirmed", "cancelled", "revised"]},
+                "known_at": {"type": "string"},
+                "note": {"type": "string"},
+            }, "required": ["effect_id", "status", "known_at"]}},
         }, "required": ["project"]},
         "runner": _run_submit_actuals,
     },
@@ -1882,6 +2197,7 @@ def _run_decide(arguments: dict[str, Any]) -> dict[str, Any]:
         output=arguments.get("output_dir") or "gnomon-output",
         input_provenance=arguments.get("input_provenance"),
         regrid=arguments.get("regrid"),
+        questions=arguments.get("questions"),
     )
     return {**payload, "artifact_path": str(path)}
 
@@ -1904,6 +2220,55 @@ def _run_status(arguments: dict[str, Any]) -> dict[str, Any]:
                 "performance is recorded per tracking project.",
             )
         return _run_model_performance(arguments)
+    if section == "effects":
+        if not arguments.get("project"):
+            from .contracts import GnomonError
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "section='effects' needs a project: effect memory is scoped "
+                "to a tracking project.",
+            )
+        effects = TrackingStore().event_effects(
+            str(arguments["project"]),
+            event_type=arguments.get("event_type"),
+            series=arguments.get("series"),
+            include_unresolved=not bool(arguments.get("resolved_only")),
+        )
+        return {"schema_version": "0.1", "project": arguments["project"],
+                "effects": effects}
+    if section == "effect_prior":
+        from .contracts import GnomonError
+        from .effect_registry import prior_from_dict
+        from .effect_resolution import resolve_effect_evidence
+
+        required = ("project", "event_type", "series", "as_of")
+        missing = [name for name in required if not arguments.get(name)]
+        if missing:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "section='effect_prior' needs project, event_type, series, and as_of.",
+                {"missing": missing},
+            )
+        try:
+            priors = [prior_from_dict(raw)
+                      for raw in (arguments.get("external_priors") or [])]
+            resolved = resolve_effect_evidence(
+                TrackingStore(), project=str(arguments["project"]),
+                event_type=str(arguments["event_type"]),
+                series=str(arguments["series"]), as_of=str(arguments["as_of"]),
+                external_priors=priors,
+                target=str(arguments.get("target") or "*"),
+                domain=str(arguments.get("domain") or "*"),
+                population=str(arguments.get("population") or "*"),
+                unit=str(arguments.get("unit") or "*"),
+                human_assumption=arguments.get("human_assumption"),
+            )
+        except (TypeError, ValueError) as exc:
+            raise GnomonError("INVALID_ARGUMENTS", str(exc)) from exc
+        return {"schema_version": "0.1", "project": arguments["project"],
+                "event_type": arguments["event_type"],
+                "series": arguments["series"], "as_of": arguments["as_of"],
+                "resolution": resolved}
     status = TrackingStore().status(arguments.get("project"))
     if section == "decisions":
         return {
@@ -1944,6 +2309,7 @@ def _run_monitor(arguments: dict[str, Any]) -> dict[str, Any]:
         output=arguments.get("output_dir") or "gnomon-output",
         input_provenance=arguments.get("input_provenance"),
         regrid=arguments.get("regrid"),
+        questions=arguments.get("questions"),
     )
     return {**payload, "artifact_path": str(path)}
 
@@ -2033,6 +2399,34 @@ def _run_unified(arguments: dict[str, Any]) -> dict[str, Any]:
                                        "detect", "decide", "monitor"]})
     merged = {**arguments, **question_fields}
     merged.pop("question", None)
+    if kind == "robust_decision":
+        from datetime import datetime, timezone
+        from .decision_model import robust_scenario_decision
+        from .tracking import TrackingStore
+
+        required = ("decision_id", "project", "forecast_id", "actions",
+                    "utilities", "scenario_ids")
+        missing = [name for name in required if not merged.get(name)]
+        if missing:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "robust_decision needs a complete stated utility matrix.",
+                {"missing": missing},
+            )
+        try:
+            artifact = robust_scenario_decision(
+                decision_id=str(merged["decision_id"]),
+                project=str(merged["project"]),
+                forecast_id=str(merged["forecast_id"]),
+                actions=list(merged["actions"]),
+                utilities=dict(merged["utilities"]),
+                scenario_ids=list(merged["scenario_ids"]),
+                created_at=datetime.now(timezone.utc).isoformat(),
+            )
+        except (TypeError, ValueError) as exc:
+            raise GnomonError("INVALID_ARGUMENTS", str(exc)) from exc
+        TrackingStore().save_decision_artifact(artifact)
+        return {"schema_version": "0.1", "decision": artifact.to_dict()}
     runners = {
         "describe": _run_describe,
         "forecast": _run_forecast,
@@ -2060,8 +2454,34 @@ def _run_track(arguments: dict[str, Any]) -> dict[str, Any]:
         return _run_submit_actuals(arguments)
     if action == "resolve_outcome":
         return _run_resolve_outcome(arguments)
+    if action == "record_adapter_shadow":
+        from .tracking import TrackingStore
+        return TrackingStore().record_adapter_shadow_outcome(
+            project=str(arguments["project"]),
+            outcome_id=str(arguments["outcome_id"]),
+            candidate=str(arguments["candidate"]),
+            revision=arguments.get("revision"),
+            baseline=str(arguments["baseline"]),
+            candidate_error=float(arguments["candidate_error"]),
+            baseline_error=float(arguments["baseline_error"]),
+            known_at=str(arguments["known_at"]),
+        )
+    if action == "assess_adapter_shadow":
+        from .tracking import TrackingStore
+        return TrackingStore().assess_adapter_shadow(
+            project=str(arguments["project"]),
+            candidate=str(arguments["candidate"]),
+            revision=arguments.get("revision"),
+            baseline=str(arguments["baseline"]),
+            as_of=arguments.get("as_of"),
+            min_outcomes=int(arguments.get("min_outcomes", 30)),
+            min_improvement=float(arguments.get("min_improvement", .05)),
+            min_win_rate=float(arguments.get("min_win_rate", .60)),
+        )
     raise GnomonError("INVALID_ARGUMENTS", "action is required.",
-                      {"allowed": ["status", "submit_actuals", "resolve_outcome"]})
+                      {"allowed": ["status", "submit_actuals", "resolve_outcome",
+                                   "record_adapter_shadow",
+                                   "assess_adapter_shadow"]})
 
 
 def _run_explain_run(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -2183,7 +2603,9 @@ TOOLS.extend([
         "name": "gnomon_run",
         "description": (
             "Experimental unified temporal execution verb. Set question.kind "
-            "to describe, forecast, investigate, detect, decide, or monitor."
+            "to describe, forecast, investigate, detect, decide, monitor, or "
+            "robust_decision. Robust decisions use caller-supplied utilities "
+            "without inventing scenario probabilities."
         ),
         "inputSchema": {"type": "object", "properties": {
             **_INPUT_PROPERTIES, **_REPLAY_PROPERTIES,
@@ -2196,13 +2618,24 @@ TOOLS.extend([
                 "Enable the separately gated structural-event lane.")},
             "question": {"type": "object", "properties": {
                 "kind": {"type": "string", "enum": [
-                    "describe", "forecast", "investigate", "detect", "decide", "monitor"]},
+                    "describe", "forecast", "investigate", "detect", "decide", "monitor",
+                    "robust_decision"]},
                 "suspected_cause": {"type": "string"},
             }, "required": ["kind"]},
             "horizon": {"type": "integer", "minimum": 1},
             "threshold": {"type": "number"},
-            "actions": {"type": "array", "items": {"type": "string"}},
+            "actions": {"type": "array", "items": {"oneOf": [
+                {"type": "string"},
+                {"type": "object", "properties": {
+                    "name": {"type": "string"},
+                    "feasible": {"type": "boolean"},
+                    "constraint_results": {"type": "object"},
+                }, "required": ["name"]},
+            ]}},
             "utilities": {"type": "object"},
+            "decision_id": {"type": "string"},
+            "forecast_id": {"type": "string"},
+            "scenario_ids": {"type": "array", "items": {"type": "string"}},
             "alert_cost": {"type": "number"},
             "miss_cost": {"type": "number"},
             "output_dir": {"type": "string"},
@@ -2221,7 +2654,8 @@ TOOLS.extend([
         ),
         "inputSchema": {"type": "object", "properties": {
             "action": {"type": "string", "enum": [
-                "status", "submit_actuals", "resolve_outcome"]},
+                "status", "submit_actuals", "resolve_outcome",
+                "record_adapter_shadow", "assess_adapter_shadow"]},
             "project": {"type": "string"},
             "section": {"type": "string", "enum": [
                 "open_forecasts", "performance", "decisions", "all"]},
@@ -2235,6 +2669,17 @@ TOOLS.extend([
             "realised_utilities": {"type": "object"},
             "constraint_violations": {"type": "array", "items": {"type": "string"}},
             "note": {"type": "string"},
+            "outcome_id": {"type": "string"},
+            "candidate": {"type": "string"},
+            "revision": {"type": "string"},
+            "baseline": {"type": "string"},
+            "candidate_error": {"type": "number", "minimum": 0},
+            "baseline_error": {"type": "number", "minimum": 0},
+            "known_at": {"type": "string"},
+            "as_of": {"type": "string"},
+            "min_outcomes": {"type": "integer", "minimum": 1},
+            "min_improvement": {"type": "number"},
+            "min_win_rate": {"type": "number", "minimum": 0, "maximum": 1},
         }, "required": ["action"]},
         "runner": _run_track,
     },
@@ -2262,7 +2707,7 @@ TOOLS.extend([
             "The one tracking read: open forecasts, due horizons, "
             "unresolved decisions, and realised-performance summaries. "
             "Narrow with `section` (open_forecasts / performance / "
-            "decisions) to get exactly what the retired standalone tools "
+            "decisions / effects / effect_prior) to get exactly the tracking evidence "
             "returned. Descriptive evidence an agent can cite — never "
             "causal; do not treat observational rankings as causal "
             "evidence."
@@ -2274,17 +2719,43 @@ TOOLS.extend([
             )},
             "section": {"type": "string",
                         "enum": ["open_forecasts", "performance",
-                                 "decisions", "all"],
+                                 "decisions", "effects", "effect_prior", "all"],
                         "description": (
                             "Slice to return (default all). open_forecasts: "
                             "unscored forecasts with due horizons; "
                             "performance: realised per-model performance "
                             "for a project; decisions: unresolved decisions "
-                            "and the resolution summary."
+                            "and the resolution summary; effects: frozen "
+                            "context scenarios and realised effect estimates; "
+                            "effect_prior: resolve the governed evidence ladder."
                         )},
             "model": {"type": "string", "description": (
                 "With section='performance': narrow to one model's "
                 "realised runs."
+            )},
+            "event_type": {"type": "string", "description": (
+                "With section='effects': restrict to one event type."
+            )},
+            "series": {"type": "string", "description": (
+                "With section='effects': restrict to one series."
+            )},
+            "resolved_only": {"type": "boolean", "description": (
+                "With section='effects': omit scenarios awaiting outcomes."
+            )},
+            "as_of": {"type": "string", "description": (
+                "With section='effect_prior': timezone-aware knowledge cutoff."
+            )},
+            "target": {"type": "string"},
+            "domain": {"type": "string"},
+            "population": {"type": "string"},
+            "unit": {"type": "string"},
+            "external_priors": {"type": "array", "items": {"type": "object"},
+                                "description": (
+                                    "Versioned external effect priors; each needs known_at."
+                                )},
+            "human_assumption": {"type": "object", "description": (
+                "Explicit sensitivity assumption with location and known_at; "
+                "never treated as learned probabilistic evidence."
             )},
         }, "required": []},
         "runner": _run_status,
@@ -2545,8 +3016,6 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
                 if _takes_data and not arguments.get("input") \
                         and arguments.get("observations") is None \
                         and not arguments.get("data_ref"):
-                    from .contracts import GnomonError
-
                     raise GnomonError(
                         "INVALID_ARGUMENTS",
                         "Supply the data: input (a file path or "
@@ -2569,6 +3038,7 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
                         ("actuals", "actuals"),
                     ) if isinstance(arguments.get(key), list)
                 ]
+                arguments, context_cache = _materialise_context(arguments)
                 arguments = _materialise_observations(arguments)
                 assumptions: list[str] = []
                 if inline_channels:
@@ -2596,7 +3066,36 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
                         f"horizon was not supplied; defaulted to {horizon}, "
                         f"one seasonal period of the inferred grid."
                     )
-                payload = disclose_assumptions(_runner(arguments), assumptions)
+                try:
+                    computed = _runner(arguments)
+                except GnomonError as error:
+                    if error.code == "IRREGULAR_TIME_GRID":
+                        retry_arguments = {**arguments, "repair": "aggressive"}
+                        if data_ref:
+                            retry_arguments = {
+                                key: value for key, value in retry_arguments.items()
+                                if key not in _DATA_BINDING_KEYS
+                            }
+                            retry_arguments.update({
+                                "data_ref": data_ref, "repair": "aggressive"})
+                        error.repair_options = [{
+                            "action": "retry_with_aggressive_repair",
+                            "description": (
+                                "Retry once with capped interpolation and "
+                                "timestamp snapping; every repair is disclosed."),
+                            "tool_call": {"name": _name,
+                                          "arguments": retry_arguments},
+                        }, *(error.repair_options
+                             if error.repair_options is not None else
+                             REPAIR_OPTIONS.get(error.code, []))]
+                    raise
+                payload = disclose_assumptions(computed, assumptions)
+                if context_cache and isinstance(payload, dict):
+                    payload = {
+                        **payload,
+                        "context_ref": context_cache["context_ref"],
+                        "context_cache": context_cache,
+                    }
                 if data_ref and isinstance(payload, dict):
                     payload = {**payload, "data_ref": data_ref}
                     # Runners cannot know the token until the shared wrapper

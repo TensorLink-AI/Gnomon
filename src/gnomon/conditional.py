@@ -35,6 +35,10 @@ from typing import Any
 from .context import ContextEvent, backtest_admissible, event_applies, validate_context_event
 from .context_model import event_effect
 from .evaluation import interval_from_spread
+from .effects import (
+    EffectDistribution, EffectProvenance, effect_contract,
+    latest_knowledge_time,
+)
 
 CONDITIONAL_SUPPORT = "conditional_on_event"
 
@@ -42,6 +46,26 @@ CONDITIONAL_SUPPORT = "conditional_on_event"
 #: reports. Used only to convert the effect's standard error into the same
 #: units as the conformal half-widths it widens.
 _Z80 = 1.2815515655446004
+
+
+def _known_after_cutoff(known_at: str, cutoff: datetime) -> bool:
+    """Compare knowledge time using the dataset's timezone convention.
+
+    Context validation requires an offset, while legacy datasets may be
+    timezone-naive. The rest of the context pipeline aligns those events by
+    wall clock and discloses it; scenario availability must use the identical
+    convention rather than crashing or silently switching semantics.
+    """
+    known = datetime.fromisoformat(known_at)
+    if cutoff.tzinfo is None:
+        known = known.replace(tzinfo=None)
+    return known > cutoff
+
+
+def _effect_known_at(events: list[ContextEvent], cutoff: datetime) -> str:
+    """Latest input knowledge time, preserving an explicit offset."""
+    return latest_knowledge_time(
+        cutoff, [event.known_at for event in events])
 
 
 @dataclass
@@ -53,6 +77,7 @@ class ConditionalForecast:
     effect: float
     effect_standard_error: float
     occurrences_in_history: int
+    effect_contract: dict[str, Any]
 
     def to_public_dict(self) -> dict[str, Any]:
         return {
@@ -63,6 +88,7 @@ class ConditionalForecast:
             "measured_effect": self.effect,
             "effect_standard_error": self.effect_standard_error,
             "occurrences_in_history": self.occurrences_in_history,
+            "effect": self.effect_contract,
         }
 
 
@@ -103,6 +129,12 @@ def sensitivity_scenarios(
         if validate_context_event(event) or not event_applies(event, series_name) \
                 or event.status == "cancelled":
             continue
+        if _known_after_cutoff(event.known_at, timestamps[-1]):
+            excluded.append({
+                "event_id": event.event_id,
+                "reason": "event was not knowable at the forecast cutoff",
+            })
+            continue
         soft = (event.attributes or {}).get("soft_context") or {}
         direction = soft.get("direction", "unknown")
         family = soft.get("effect_family", "unknown")
@@ -139,6 +171,21 @@ def sensitivity_scenarios(
             rows.append({"timestamp": timestamp.isoformat(), "point": point,
                          "q10": low, "q50": centre, "q90": high})
         if rows:
+            known_at = _effect_known_at([event], timestamps[-1])
+            source_refs = ([event.source.reference]
+                           if event.source is not None else [])
+            effect = effect_contract(
+                EffectDistribution(
+                    "assumption", sign * scale, 0.0, sign * scale,
+                    sign * scale, None, 0,
+                ),
+                EffectProvenance(
+                    "standardized_sensitivity", False, known_at,
+                    ", ".join(source_refs) or None, None, None,
+                    "one robust first-difference innovation scale",
+                ),
+                shape=family,
+            )
             scenarios.append({
                 "events": [event.event_id],
                 "support": "hypothetical_sensitivity",
@@ -147,6 +194,7 @@ def sensitivity_scenarios(
                 "assumed_effect": sign * scale,
                 "assumed_effect_unit": "one robust first-difference innovation scale",
                 "effect_family": family,
+                "effect": effect,
                 "assumptions": [
                     f"assumes {event.event_id} occurs as described",
                     "this is a standardized sensitivity path, not the expected or primary forecast",
@@ -244,6 +292,15 @@ def assess_conditional(
         return forecasts, excluded
 
     cutoff = timestamps[-1]
+    knowable: list[ContextEvent] = []
+    for event in candidates:
+        if _known_after_cutoff(event.known_at, cutoff):
+            excluded.append({
+                "event_id": event.event_id,
+                "reason": "event was not knowable at the forecast cutoff",
+            })
+        else:
+            knowable.append(event)
     # Grouped by event_type, because that is the unit an effect is measurable
     # on. A promotion planned for next month is a distinct record from the
     # three promotions already in the history, and it is those three that say
@@ -251,7 +308,7 @@ def assess_conditional(
     # itself would make every forward-looking event unmeasurable by
     # construction — which is the abstention this exists to convert.
     by_type: dict[str, list[ContextEvent]] = {}
-    for event in candidates:
+    for event in knowable:
         by_type.setdefault(event.event_type, []).append(event)
 
     for event_type, group in sorted(by_type.items()):
@@ -329,5 +386,21 @@ def assess_conditional(
             effect=effect,
             effect_standard_error=standard_error,
             occurrences_in_history=occurrences,
+            effect_contract=effect_contract(
+                EffectDistribution(
+                    "normal", effect, standard_error,
+                    effect - widening, effect + widening, 0.8, occurrences,
+                ),
+                EffectProvenance(
+                    "same_event_same_series", True,
+                    _effect_known_at(group, timestamps[-1]),
+                    None, 1.0,
+                    (abs(effect) / (abs(effect) + standard_error)
+                     if abs(effect) + standard_error > 0 else 0.0),
+                    "detrended active-minus-inactive mean",
+                ),
+                shape=str((group[-1].attributes or {}).get("soft_context", {}).get(
+                    "effect_family", "temporary_pulse")),
+            ),
         ))
     return forecasts, excluded

@@ -23,7 +23,8 @@
 
 ## The problem
 
-Gnomon today is stateless. Every forecast is a one-shot: run it, get the result, move on. There's no way to:
+Before persistent tracking, every forecast was a one-shot: run it, get the
+result, move on. There was no way to:
 - Remember what was predicted last week and compare it to what actually happened
 - Track which models win on which datasets over time
 - Alert an agent when a threshold crossing was predicted and occurred
@@ -85,8 +86,8 @@ Storage: a single SQLite database at `~/.local/share/gnomon/registry.db`. Zero d
 ### CLI commands
 
 ```bash
-# Register a forecast (called automatically by `gnomon forecast` when --project is set)
-gnomon track register --project api-capacity --forecast-id forecast_abc123
+# Register a forecast automatically by assigning it to a project
+gnomon forecast observations.csv --project api-capacity
 
 # List forecasts for a project
 gnomon track list --project api-capacity
@@ -100,7 +101,7 @@ gnomon track actuals --project api-capacity --file actuals.csv
 gnomon track score --forecast-id forecast_abc123 --file actuals.csv
 
 # Compare two forecasts
-gnomon track compare --forecast-id forecast_abc123 --forecast-id forecast_def456
+gnomon track compare --a forecast_abc123 --b forecast_def456
 
 # Show model performance over time
 gnomon track performance --project api-capacity --model seasonal_naive
@@ -110,6 +111,23 @@ gnomon track performance --project api-capacity --model seasonal_naive
 gnomon track leaderboard --project api-capacity
 # → ranked table of models by average score across all forecasts
 ```
+
+An adapter that is not yet trusted can be measured beside the publisher
+without changing any forecast:
+
+```bash
+gnomon track shadow-record --project api-capacity --outcome-id 2026-08-18 \
+  --candidate hosted-tsfm --revision sha256:abc --baseline last_value \
+  --candidate-error 8.1 --baseline-error 10.0 \
+  --known-at 2026-08-18T12:00:00+00:00
+gnomon track shadow-assess --project api-capacity \
+  --candidate hosted-tsfm --revision sha256:abc --baseline last_value
+```
+
+The assessment is replayable with `--as-of`. Passing its sample, paired
+improvement, and win-rate gates returns `review_for_promotion`; it never
+changes configuration or promotes a model automatically. Unpinned adapters
+cannot graduate.
 
 ### How scoring works
 
@@ -192,54 +210,21 @@ When the reminder fires, the agent:
 3. Calls `gnomon track actuals` to score it
 4. Reports the result
 
-### Agent-agnostic (MCP events + webhooks)
+### Agent-agnostic MCP tracking
 
-The MCP server can expose new tools for persistent tracking:
+The current MCP surface keeps tracking deliberately small:
 
-```json
-{
-  "name": "gnomon_track_forecast",
-  "description": "Register a forecast in a project for ongoing tracking and scoring",
-  "inputSchema": {
-    "properties": {
-      "forecast_id": {"type": "string"},
-      "project": {"type": "string"},
-      "threshold": {"type": "number"}
-    }
-  }
-}
-```
+- `gnomon_forecast` registers its artifact when `project` is supplied.
+- `gnomon_submit_actuals` submits observations and scores matching open
+  forecasts.
+- `gnomon_status` reads open forecasts, realised performance, decisions, and
+  effect evidence; use its `section` argument to keep the response compact.
+- `gnomon_resolve_outcome` resolves the decision lifecycle with realised
+  utility and regret rather than a bare correctness label.
 
-```json
-{
-  "name": "gnomon_submit_actuals",
-  "description": "Submit actual values to score previous forecasts",
-  "inputSchema": {
-    "properties": {
-      "project": {"type": "string"},
-      "actuals_file": {"type": "string"}
-    }
-  }
-}
-```
-
-```json
-{
-  "name": "gnomon_model_performance",
-  "description": "Show which models perform best on a project over time",
-  "inputSchema": {
-    "properties": {
-      "project": {"type": "string"}
-    }
-  }
-}
-```
-
-Any MCP-capable agent (Claude Desktop, Cursor, another Hermes instance, a custom agent) can:
-1. Run a forecast (`gnomon_forecast`)
-2. Track it (`gnomon_track_forecast`)
-3. Later submit actuals (`gnomon_submit_actuals`)
-4. See which models won over time (`gnomon_model_performance`)
+Any MCP-capable agent can therefore run and register a forecast, submit its
+outcome when the horizon closes, and query the resulting evidence without a
+separate registration or model-performance tool.
 
 ### Webhook events (for external systems)
 
@@ -270,7 +255,7 @@ The key insight: **Gnomon's persistence layer is agent-agnostic.** The registry 
 | Framework | Integration |
 |---|---|
 | Hermes Agent | Memory + cron + reminders (deepest integration) |
-| Claude Desktop | MCP tools (`gnomon_track_forecast`, `gnomon_submit_actuals`) |
+| Claude Desktop | MCP tools (`gnomon_forecast`, `gnomon_submit_actuals`, `gnomon_status`) |
 | Cursor / VS Code | MCP tools (same protocol) |
 | Custom Python agent | Python API (`from gnomon.tracking import Project`) |
 | Shell scripts / CI | CLI commands (`gnomon track *`) |
@@ -305,12 +290,29 @@ not a controlled head-to-head experiment.
 
 ### Phase 1: Registry + Scoring (CLI only)
 - `src/gnomon/tracking.py` — SQLite registry, scoring, model performance
-- `gnomon track register/list/actuals/score/compare/performance/leaderboard`
+- `gnomon track list/actuals/score/compare/performance/leaderboard`
+- `gnomon track effects --project NAME` queries frozen context scenarios and
+  their realised effect distributions. The registry retains unresolved rows,
+  missing counterfactuals and confounding in the denominator; it is an
+  observational event memory, not a causal estimator.
+- `gnomon track effect-occurrence --effect-id ID --status confirmed
+  --known-at ISO_TIME` records whether the planned event actually happened.
+  Resolved values remain ineligible for learning while occurrence is
+  unverified, cancelled, confounded, or missing a counterfactual.
+- `gnomon track effect-prior` runs the knowledge-time-bounded evidence ladder
+  and reports leave-one-event-out validation, shrinkage and conflicts.
+- `gnomon_status` with `section: "effect_prior"` exposes the same governed
+  read to agents without adding another default MCP tool.
+- `gnomon track robust-decision` persists a probability-free maximin decision
+  across the primary and conditioned scenarios for later regret scoring.
+- `gnomon_run` with `question.kind: "robust_decision"` exposes the same
+  probability-free choice on the experimental unified MCP surface.
 - Automatic registration when `--project` flag is passed to `gnomon forecast`
 - Tests
 
 ### Phase 2: MCP Tools
-- `gnomon_track_forecast`, `gnomon_submit_actuals`, `gnomon_model_performance`
+- `gnomon_forecast` with `project`, `gnomon_submit_actuals`, `gnomon_status`,
+  and `gnomon_resolve_outcome`
 - Added to `toolspec.py` and `mcp_server.py`
 - Hermes plugin updated to expose them
 

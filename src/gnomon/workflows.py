@@ -432,6 +432,29 @@ def parse_context_response(
             "context_receipt": receipt, "receipt_id": receipt["receipt_id"]}
 
 
+def persist_context_compilation(
+    result: dict[str, Any], *, store_path: str | None = None,
+    namespace: str | None = None, cache_key: str | None = None,
+) -> dict[str, Any]:
+    """Persist a validated compilation and attach its reusable reference."""
+    import os
+    from .context_store import ContextReceiptStore
+
+    receipt = result.get("context_receipt")
+    if not isinstance(receipt, dict):
+        raise ValueError("validated context result has no context_receipt")
+    resolved_namespace = namespace or os.environ.get(
+        "GNOMON_CONTEXT_NAMESPACE", "local")
+    store = (ContextReceiptStore(store_path, namespace=resolved_namespace)
+             if store_path else ContextReceiptStore.default())
+    reference = store.put(receipt, cache_key=cache_key)
+    return {**result, "context_ref": reference, "context_cache": {
+        "status": "stored", "context_ref": reference,
+        "receipt_id": receipt["receipt_id"], "compiler_reused": False,
+        "namespace": resolved_namespace,
+    }}
+
+
 TASK_RESPONSE_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {

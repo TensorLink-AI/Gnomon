@@ -73,9 +73,19 @@ def test_context_admitted_when_it_demonstrates_stable_lift(tmp_path) -> None:
     result = artifact.results[0]
     assert result.context is not None
     assert result.context["admitted"] is True
+    assert result.context["effect"]["distribution"]["distribution"] == "empirical"
+    assert result.context["effect"]["provenance"]["provenance_class"] == (
+        "same_event_same_series")
+    assert result.context["effect"]["provenance"]["observed"] is True
     assert result.selected_model == "event_adjusted"
     assert result.context_outcome["status"] == "applied"
     assert result.context_outcome["primary_forecast_changed"] is True
+    assert result.context_outcome["canonical_primary_preserved"] is True
+    assert result.primary_forecast
+    assert [row["point"] for row in result.primary_forecast] != [
+        row["point"] for row in result.forecast]
+    assert result.context_outcome["canonical_primary_location"] == (
+        "artifact.results[].primary_forecast")
     assert result.context["mean_improvement"] > 0.02
     assert any(evidence.kind == "context_ablation" for evidence in artifact.evidence)
     # Day 135 (a promo day, %10 == 5) falls inside the 7-day horizon:
@@ -139,6 +149,9 @@ def test_cli_forecast_with_context_file(tmp_path, capsys) -> None:
     payload = json.loads(capsys.readouterr().out)
     assert payload["results"][0]["context"]["admitted"] is True
     assert payload["results"][0]["selected_model"] == "event_adjusted"
+    assert payload["results"][0]["primary_forecast_preview"]
+    assert payload["results"][0]["forecast_role"] == (
+        "context_conditioned_projection")
 
 
 def test_invalid_context_file_fails_loudly(tmp_path, capsys) -> None:

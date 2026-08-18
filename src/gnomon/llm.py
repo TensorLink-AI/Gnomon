@@ -13,8 +13,8 @@ explanations. It may never generate, edit, or override forecast values,
 evaluation metrics, uncertainty, model selection, or abstention. Nothing in
 this module is reachable from the numerical pipeline.
 
-Status: experimental. The protocol is stable in intent but not yet covered
-by the release-gate suite, and no workflow in v0.1 calls it.
+Status: experimental. Temporal intent compilation uses this boundary, while
+the numerical pipeline remains independent of it.
 """
 
 from __future__ import annotations

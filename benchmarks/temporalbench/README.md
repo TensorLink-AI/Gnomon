@@ -120,6 +120,30 @@ without another compiler call. The summary exposes receipt reuse and counts
 compiler calls separately. A changed narrative refuses the cached receipt
 rather than silently compiling against different text.
 
+Add `--compile-questions` to compile the T2/T4 choice-question text into the
+same typed temporal-question contract used by the public tools. The compiler
+sees question text and target names only—never options, labels, forecasts, or
+future observations—and deterministic validation may accept or reject each
+proposal independently. `--question-receipts-dir` persists immutable,
+fingerprinted proposed/accepted/rejected receipts for matched runs. Summary
+provenance reports question-compiler calls, receipt replays, accepted
+questions, and rejected proposals separately from context compilation and MCP
+engine calls. This arm tests host integration; the primary forecast remains
+the same fitted executable and cannot be modified by compiler output.
+`mcp_economics.choice_reasoning_stages` separates requested questions,
+questions that reached a typed engine answer, official accuracy conditional on
+that answer, and exact preservation of the canonical/display value by the host
+agent. A compiler miss is therefore not reported as an estimator failure, and
+an agent paraphrase is not reported as missing engine coverage.
+
+```bash
+python -m benchmarks.temporalbench.run_temporalbench \
+  --data-dir ~/temporalbench --condition gnomon-mcp \
+  --mcp-profile evidence --compile-questions \
+  --question-receipts-dir results/tb-question-receipts \
+  --model "$MODEL" --tiers T2,T4 --output-dir results/tb-compiled-questions
+```
+
 An artifact whose run abstained (`support:
 "unsupported"`) is rejected at submission with the honest options
 restated, including retrying the tool with `best_effort: true`: on
@@ -285,6 +309,14 @@ say; abstained, errored and harness-voided rows are excluded and
 counted separately, so compare arms via
 `benchmarks/report.py`'s matched join), `details/` per row,
 `gnomonbench.jsonl`, `manifest.json` (run provenance).
+
+Long runs may be split with disjoint `--offset`/`--limit` ranges. Merge them
+with `python -m benchmarks.temporalbench.merge_shards --target RUN SHARD...`,
+then invoke the canonical target with `--resume`. Duplicate task ids must be
+byte-equivalent or the merge refuses; the normal runner then recomputes one
+summary over the complete matched set.
+Use `--resume --retry-voided` after fixing a harness-cap defect: successful
+rows replay, while only prior `row_abstained` cases execute again.
 
 Notes: the benchmark is new (Feb 2026) and its README announces
 human-annotated updates — re-download before comparing across dates.

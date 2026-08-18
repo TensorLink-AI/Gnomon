@@ -6,6 +6,7 @@ from gnomon.workflows import (
     build_task_formulation_prompt,
     parse_context_response,
     parse_task_response,
+    persist_context_compilation,
 )
 
 DOCUMENT = DocumentRef(
@@ -64,6 +65,14 @@ def test_context_receipt_is_stable_and_compiler_identity_is_versioned() -> None:
     )
     assert first["context_receipt"] == replay["context_receipt"]
     assert first["receipt_id"] != changed["receipt_id"]
+
+
+def test_validated_compilation_can_be_persisted_for_product_replay(tmp_path) -> None:
+    result = parse_context_response({"events": [PROPOSAL]}, [DOCUMENT])
+    stored = persist_context_compilation(
+        result, store_path=str(tmp_path), namespace="project-a")
+    assert stored["context_ref"].startswith("context_")
+    assert stored["context_cache"]["receipt_id"] == result["receipt_id"]
 
 
 def test_compiler_may_classify_an_effect_but_cannot_supply_magnitude() -> None:

@@ -127,7 +127,10 @@ quotes comes from an evidence-linked, verified artifact. It cannot invent
 values for an unsupported series; it can only report Gnomon's abstention and
 its recovery options. Data-reading calls return a session-scoped `data_ref`,
 so follow-up verbs reuse the resolved data and schema without resending the
-observations. See the [MCP quickstart](docs/quickstart-mcp.md) for
+observations. Context-aware calls return a persistent, project-scoped
+`context_ref`; later calls reuse the validated interpretation while Gnomon
+rechecks knowledge timing and numerical admission. See the
+[MCP quickstart](docs/quickstart-mcp.md) for
 client configs, the vintage workflow, and the full tool surface.
 (A `pip install gnomon-forecast` / `uvx gnomon-forecast` path arrives with the
 PyPI release.)
@@ -313,10 +316,42 @@ never rebuilds the winner from a model name.
   deterministic adjudication ladder picks the winner and records the
   comparison as evidence. Novel grounded events can additionally yield a
   separately labelled, non-probabilistic sensitivity path without changing
-  the governed primary forecast. See
-  [Covariate enrichment](docs/covariates.md).
+  the governed primary forecast. Every conditional path carries a typed
+  effect distribution and provenance class; with `--project`, Gnomon freezes
+  the primary/scenario pair and learns the realised onset, duration and
+  magnitude when actuals arrive (`gnomon track effects --project NAME`). The
+  registry does not infer occurrence from correlation: a dated event
+  confirmation is required before an estimate becomes eligible for learning.
+  If context changes the selected output, the artifact retains the immutable
+  history-only path as `primary_forecast` and labels `forecast` as a
+  context-conditioned projection.
+  See [Covariate enrichment](docs/covariates.md).
+- **Organizational effect learning**, gated by confirmed outcomes,
+  leave-one-event-out validation and posterior-predictive calibration; robust
+  decisions can compare the primary with credible context scenarios without
+  inventing scenario probabilities. Agents can resolve evidence through
+  `gnomon_status(section="effect_prior")`; the experimental unified surface
+  accepts `question.kind="robust_decision"`. See
+  [EffectBench](benchmarks/effectbench/README.md).
+- **Canonical temporal profiles** separate trend persistence, seasonal
+  stability, residual observation volatility, forecast-horizon marginal
+  variability, expected-path movement, interval uncertainty, regimes,
+  extremes, and dependence. A smooth point path is never presented as proof
+  of low observation volatility.
+- **Fitted temporal-property executables** answer typed questions about level,
+  trend, seasonal continuation, residual volatility, regime shifts, extremes,
+  and paired dependence. Every predictive executable is selected at rolling
+  origins, carries its candidate identity and calibrated support, and returns
+  a weak best estimate when categorical evidence misses the publication gate.
+  Weak answers are explicitly ineligible for automation; abstention is reserved
+  for cases with no meaningful computable estimate. These are additive receipts:
+  they cannot rewrite the published forecast. `gnomon_forecast`,
+  `gnomon_decide`, and `gnomon_monitor` share the same compact answer contract.
 - **Decision tracking** with realised-outcome scoring: regret against the
   best feasible action in hindsight, never a bare "correct".
+- **Temporal-answer tracking** joins immutable question receipts to the
+  realised horizon when actuals arrive; `gnomon_status` reports open and
+  resolved answer counts alongside forecasts and decisions.
 - **Trap-family episode evaluation** (`gnomon eval episodes`): temporal
   leakage, invented numbers, and silent-warning failures are caught
   mechanically.

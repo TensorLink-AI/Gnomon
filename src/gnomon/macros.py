@@ -18,6 +18,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+import json
 
 from .artifacts import write_json_artifact
 from .contracts import (
@@ -47,6 +48,61 @@ def _series_payloads(loaded) -> dict[str, tuple[list[datetime], list[float]]]:
         name: ([item.timestamp for item in items], [item.value for item in items])
         for name, items in sorted(loaded.groups.items())
     }
+
+
+def _attach_temporal_questions(
+    payload: dict[str, Any], artifact: Any, forecast_dir: Path,
+    *, input_path: str, time_column: str, target_column: str,
+    series_column: str | None, frequency: str | None, as_of: datetime | None,
+    store_path: str | None, regrid: str | None,
+    questions: list[dict[str, Any]] | None,
+) -> None:
+    """Add the same compact typed-answer receipt used by forecast MCP."""
+    if not questions:
+        return
+    from .operators import seasonality_analysis
+    from .temporal_question import compile_temporal_questions
+    from .temporal_reasoning import answer_scoped_question
+
+    loaded = load_stage(
+        input_path, time_column=time_column, target_column=target_column,
+        series_column=series_column, frequency=frequency, as_of=as_of,
+        store_path=store_path, regrid=regrid,
+    )
+    reports: dict[str, dict[str, Any]] = {}
+    execution_inputs: dict[str, tuple[list[float], int]] = {}
+    forecasts = {(target_column if result.series == "__default__" else result.series):
+                 [float(row["point"]) for row in result.forecast]
+                 for result in artifact.results}
+    for group_name, items in sorted(loaded.groups.items()):
+        name = target_column if group_name == "__default__" else group_name
+        values = [float(item.value) for item in items]
+        seasonal = seasonality_analysis(values, loaded.frequency)
+        season = int(seasonal.get("period") or 1)
+        execution_inputs[name] = (values, season)
+        reports[name] = {
+            "level": {"latest": values[-1], "minimum": min(values),
+                      "maximum": max(values)},
+            "trend": {"slope_per_step": ((values[-1] - values[0]) /
+                                           max(1, len(values) - 1)),
+                      "direction": "up" if values[-1] > values[0] else
+                      "down" if values[-1] < values[0] else "flat"},
+            "seasonality": seasonal, "changepoints": [],
+        }
+    compiled = compile_temporal_questions(
+        questions, available_targets=reports, default_verb="predict",
+        default_horizon=artifact.task.horizon)
+    answers = [answer_scoped_question(
+        question, reports=reports, execution_inputs=execution_inputs,
+        forecast_values=forecasts) for question in compiled]
+    payload["answers"] = [
+        {**answer, "artifact_id": artifact.forecast_id} for answer in answers]
+    receipt = forecast_dir / "temporal_answers.json"
+    receipt.write_text(json.dumps({
+        "schema_version": "0.2", "artifact_id": artifact.forecast_id,
+        "primary_forecast_unchanged": True, "answers": payload["answers"],
+    }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    payload["answer_receipt"] = str(receipt)
 
 
 def _base_lineage(task: TemporalTask, loaded, artifact_id: str, kind: str,
@@ -403,6 +459,7 @@ def decide(
     clock: Clock | None = None,
     input_provenance: str | None = None,
     regrid: str | None = None,
+    questions: list[dict[str, Any]] | None = None,
 ) -> tuple[dict[str, Any], Path]:
     """Scenario generation → feasible actions → uncertainty propagation →
     constraints/costs (degraded without utilities) → choose or abstain.
@@ -544,6 +601,12 @@ def decide(
         "evaluation": {key: value for key, value in evaluation.items() if key != "support"},
         "support_assessment": support,
     }
+    _attach_temporal_questions(
+        payload, artifact, forecast_dir, input_path=input_path,
+        time_column=time_column, target_column=target_column,
+        series_column=series_column, frequency=frequency, as_of=as_of,
+        store_path=store_path, regrid=regrid, questions=questions,
+    )
 
     lineage = Lineage(task.task_id(), _task_dict(task))
     lineage.artifacts.append(ArtifactRecord(
@@ -645,6 +708,7 @@ def monitor(
     clock: Clock | None = None,
     input_provenance: str | None = None,
     regrid: str | None = None,
+    questions: list[dict[str, Any]] | None = None,
 ) -> tuple[dict[str, Any], Path]:
     """Trigger definition → sequential risk estimation → alert-cost-aware
     thresholding, building on the tracking store's open-forecast lifecycle."""
@@ -750,6 +814,12 @@ def monitor(
         "forecast_artifact_path": str(forecast_dir),
         "triggers": triggers,
     }
+    _attach_temporal_questions(
+        payload, artifact, forecast_dir, input_path=input_path,
+        time_column=time_column, target_column=target_column,
+        series_column=series_column, frequency=frequency, as_of=as_of,
+        store_path=store_path, regrid=regrid, questions=questions,
+    )
     if project:
         from .tracking import register_artifact
         payload["tracking_ids"] = register_artifact(artifact, project, str(forecast_dir))

@@ -164,3 +164,61 @@ def score_outcome(
             "predicted_probability_of_realised": artifact.scenario_probabilities.get(realised_scenario),
         }
     return outcome
+
+
+def robust_scenario_decision(
+    *, decision_id: str, project: str, forecast_id: str,
+    actions: list[dict[str, Any]],
+    utilities: dict[str, dict[str, float]],
+    scenario_ids: list[str], created_at: str,
+) -> DecisionArtifact:
+    """Choose the feasible action with best worst-case stated utility.
+
+    Context scenarios do not receive invented probabilities. Maximin is
+    therefore the honest default: rank by worst utility across the immutable
+    primary and every credible conditioned scenario, then by mean utility and
+    name for deterministic ties.
+    """
+    required = tuple(dict.fromkeys(["primary", *scenario_ids]))
+    options: list[ActionOption] = []
+    evaluations: dict[str, dict[str, float]] = {}
+    for raw in actions:
+        name = str(raw["name"])
+        feasible = bool(raw.get("feasible", True))
+        payoffs = utilities.get(name) or {}
+        missing = [scenario for scenario in required if scenario not in payoffs]
+        if missing and feasible:
+            raise ValueError(
+                f"action {name!r} lacks utilities for scenarios: {', '.join(missing)}"
+            )
+        values = [float(payoffs[scenario]) for scenario in required] if not missing else []
+        worst = min(values) if values else None
+        average = sum(values) / len(values) if values else None
+        evaluations[name] = {"worst": worst, "mean": average} if values else {}
+        options.append(ActionOption(
+            name=name, feasible=feasible,
+            constraint_results=dict(raw.get("constraint_results") or {}),
+            expected_utility=None, downside_risk=worst,
+        ))
+    feasible_names = [option.name for option in options if option.feasible]
+    selected = None
+    if feasible_names:
+        selected = max(
+            sorted(feasible_names),
+            key=lambda name: (evaluations[name]["worst"],
+                              evaluations[name]["mean"]),
+        )
+    return DecisionArtifact(
+        decision_id=decision_id, project=project, forecast_id=forecast_id,
+        options=options, selected_action=selected,
+        decision_rule="maximin across immutable primary and credible context scenarios",
+        scenario_probabilities=None, utilities=utilities,
+        assumptions=[
+            "No probabilities were assigned to context scenarios.",
+            "Utilities are caller supplied; Gnomon does not infer preferences.",
+            "The primary scenario and every named conditioned scenario receive equal worst-case consideration.",
+        ],
+        sensitivity={"scenario_ids": list(required),
+                     "action_evaluations": evaluations},
+        created_at=created_at, degraded=False,
+    )

@@ -135,6 +135,9 @@ def context_outcome(
                     if isinstance(item, dict) and item.get("event_id"))
         return {
             "status": "applied", "primary_forecast_changed": True,
+            "canonical_primary_preserved": True,
+            "selected_output_role": "context_conditioned_projection",
+            "canonical_primary_location": "artifact.results[].primary_forecast",
             "events": sorted(set(used)),
             **({"context_receipt_ids": receipt_ids} if receipt_ids else {}),
             "basis": "a deterministic context candidate passed its numeric admission gate",

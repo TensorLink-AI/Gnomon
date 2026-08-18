@@ -468,12 +468,98 @@ _TABLE_DEFINITIONS: dict[str, str] = {
         CREATE INDEX IF NOT EXISTS idx_event_outcomes_project
             ON event_outcomes(project);
     """,
+    # Scenario contracts are immutable snapshots of the primary and
+    # context-conditioned paths.  They are registered even when context was
+    # not admitted to the primary forecast, which is what lets outcome
+    # tracking learn from honest what-if answers without rewriting history.
+    "effect_scenarios": """
+        CREATE TABLE IF NOT EXISTS effect_scenarios (
+            effect_id TEXT PRIMARY KEY,
+            project TEXT NOT NULL,
+            forecast_id TEXT NOT NULL,
+            series TEXT NOT NULL,
+            event_type TEXT,
+            event_ids TEXT NOT NULL,
+            provenance_class TEXT NOT NULL,
+            observed INTEGER NOT NULL,
+            known_at TEXT NOT NULL,
+            source_reference TEXT,
+            effect_shape TEXT NOT NULL,
+            effect_distribution TEXT NOT NULL,
+            effect_provenance TEXT NOT NULL,
+            primary_points TEXT NOT NULL,
+            scenario_points TEXT NOT NULL,
+            timestamps TEXT NOT NULL,
+            occurrence_status TEXT NOT NULL DEFAULT 'unverified',
+            occurrence_known_at TEXT,
+            occurrence_note TEXT,
+            created_at TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_effect_scenarios_lookup
+            ON effect_scenarios(project, event_type, series, known_at);
+    """,
+    # One realised estimate per frozen scenario.  Missing counterfactuals and
+    # confounding are rows, not swallowed exceptions, so the registry's
+    # denominator remains auditable.
+    "event_effect_registry": """
+        CREATE TABLE IF NOT EXISTS event_effect_registry (
+            effect_id TEXT PRIMARY KEY,
+            project TEXT NOT NULL,
+            forecast_id TEXT NOT NULL,
+            series TEXT NOT NULL,
+            event_type TEXT,
+            resolved_at TEXT NOT NULL,
+            outcome_known_at TEXT NOT NULL,
+            estimate REAL,
+            baseline_bias REAL,
+            standard_error REAL,
+            lower REAL,
+            upper REAL,
+            interval_probability REAL,
+            onset_steps INTEGER,
+            duration_steps INTEGER,
+            expected_effect_shape TEXT NOT NULL,
+            realised_effect_shape TEXT NOT NULL,
+            sample_count INTEGER NOT NULL,
+            confounding_status TEXT NOT NULL,
+            counterfactual_quality TEXT NOT NULL,
+            missing_counterfactual INTEGER NOT NULL,
+            residuals TEXT NOT NULL,
+            FOREIGN KEY(effect_id) REFERENCES effect_scenarios(effect_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_event_effect_registry_lookup
+            ON event_effect_registry(project, event_type, series);
+    """,
+    # Typed temporal answers are additive claims about an immutable forecast.
+    # Keeping the exact payload and its later realised path makes support and
+    # abstention auditable without changing the forecast row or its scores.
+    "temporal_answer_receipts": """
+        CREATE TABLE IF NOT EXISTS temporal_answer_receipts (
+            project TEXT NOT NULL,
+            forecast_id TEXT NOT NULL,
+            series TEXT NOT NULL,
+            question_id TEXT NOT NULL,
+            property TEXT NOT NULL,
+            support TEXT NOT NULL,
+            payload TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            resolved_at TEXT,
+            outcome_payload TEXT,
+            PRIMARY KEY (project, forecast_id, series, question_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_temporal_answer_receipts
+            ON temporal_answer_receipts(project, property, resolved_at);
+    """,
 }
 
 #: Bumped to 4 when ``forecasts`` and ``model_performance`` gained their
 #: composite keys; to 5 when the proposer-calibration ledger tables
-#: (event_proposals / event_admissions / event_outcomes) were added.
-SCHEMA_VERSION = "5"
+#: (event_proposals / event_admissions / event_outcomes) were added; to 6 for
+#: frozen effect scenarios and bitemporal realised-effect estimates.
+SCHEMA_VERSION = "7"
 
 #: Empirical-Bayes shrinkage strength for proposer skill: a proposer's
 #: mean lift is pulled toward 0 (and a hit rate toward 0.5) with the
@@ -481,6 +567,8 @@ SCHEMA_VERSION = "5"
 #: cannot mint a skilled proposer. The existing leaderboard's plain AVG
 #: has no such guard; this table does not repeat that defect.
 PROPOSER_SKILL_SHRINKAGE = 10.0
+EFFECT_POOL_SHRINKAGE = 3.0
+MIN_EFFECT_POOL_EPISODES = 5
 
 
 class TrackingStore:
@@ -540,6 +628,40 @@ class TrackingStore:
                 (SCHEMA_VERSION,),
             )
         self._migrate_composite_keys()
+
+    def record_adapter_shadow_outcome(
+        self, *, project: str, outcome_id: str, candidate: str,
+        revision: str | None, baseline: str, candidate_error: float,
+        baseline_error: float, known_at: str,
+    ) -> dict[str, Any]:
+        """Persist one paired challenger/baseline outcome in this registry."""
+        from .adapter_promotion import AdapterOutcomeLedger
+        AdapterOutcomeLedger(self.path).record(
+            project=project, outcome_id=outcome_id, candidate=candidate,
+            revision=revision, baseline=baseline,
+            candidate_error=candidate_error, baseline_error=baseline_error,
+            known_at=known_at,
+        )
+        return {
+            "schema_version": "0.1", "status": "recorded",
+            "project": project, "outcome_id": outcome_id,
+            "candidate": candidate, "revision": revision or "unversioned",
+            "baseline": baseline, "known_at": known_at,
+        }
+
+    def assess_adapter_shadow(
+        self, *, project: str, candidate: str, revision: str | None,
+        baseline: str, as_of: str | None = None, min_outcomes: int = 30,
+        min_improvement: float = .05, min_win_rate: float = .60,
+    ) -> dict[str, Any]:
+        """Return a review recommendation; never mutate model selection."""
+        from .adapter_promotion import AdapterOutcomeLedger
+        return AdapterOutcomeLedger(self.path).assess(
+            project=project, candidate=candidate, revision=revision,
+            baseline=baseline, as_of=as_of, min_outcomes=min_outcomes,
+            min_improvement=min_improvement,
+            min_win_rate=min_win_rate,
+        ).to_dict()
 
     def _migrate_composite_keys(self) -> None:
         """Rebuild registries that were keyed on ``forecast_id`` alone.
@@ -653,6 +775,67 @@ class TrackingStore:
                 artifact_path, created_at, task, fingerprint,
             ))
         logger.info("Registered forecast %s in project %s", forecast_id, project)
+
+    def record_temporal_answers(
+        self, project: str, forecast_id: str, series: str,
+        answers: list[dict[str, Any]], *, created_at: str | None = None,
+    ) -> None:
+        """Persist immutable typed-answer receipts for realised follow-up."""
+        created_at = created_at or datetime.now(timezone.utc).isoformat()
+        with self._connect() as conn:
+            for item in answers:
+                question = item.get("question") or {}
+                answer = item.get("answer") or {}
+                target = question.get("target")
+                if isinstance(target, str) and series != "__default__" \
+                        and target not in {series, "*"}:
+                    continue
+                conn.execute("""
+                    INSERT OR IGNORE INTO temporal_answer_receipts
+                        (project, forecast_id, series, question_id, property,
+                         support, payload, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (project, forecast_id, series,
+                      str(question.get("id") or "q1"),
+                      str(question.get("property") or "unknown"),
+                      str(answer.get("support") or "abstained"),
+                      json.dumps(item, sort_keys=True), created_at))
+
+    def temporal_answer_receipts(
+        self, project: str, *, resolved: bool | None = None,
+    ) -> list[dict[str, Any]]:
+        query = "SELECT * FROM temporal_answer_receipts WHERE project = ?"
+        params: list[Any] = [project]
+        if resolved is not None:
+            query += " AND resolved_at IS " + ("NOT NULL" if resolved else "NULL")
+        query += " ORDER BY created_at, forecast_id, series, question_id"
+        with self._connect() as conn:
+            rows = conn.execute(query, params).fetchall()
+        return [{**dict(row), "payload": json.loads(row["payload"]),
+                 "outcome_payload": (json.loads(row["outcome_payload"])
+                                     if row["outcome_payload"] else None)}
+                for row in rows]
+
+    def _resolve_temporal_answers(
+        self, record: ForecastRecord, actuals: list[float], resolved_at: str,
+    ) -> None:
+        """Join due typed claims to the realised path without reinterpretation."""
+        if not actuals:
+            return
+        outcome = {
+            "points": len(actuals), "first": actuals[0], "last": actuals[-1],
+            "median": float(statistics.median(actuals)), "minimum": min(actuals),
+            "maximum": max(actuals),
+            "slope_per_step": (actuals[-1] - actuals[0]) / max(1, len(actuals) - 1),
+        }
+        with self._connect() as conn:
+            conn.execute("""
+                UPDATE temporal_answer_receipts
+                SET resolved_at = ?, outcome_payload = ?
+                WHERE project = ? AND forecast_id = ? AND series = ?
+                  AND resolved_at IS NULL
+            """, (resolved_at, json.dumps(outcome, sort_keys=True),
+                  record.project, record.forecast_id, record.series))
 
     # ---- Listing ----
 
@@ -1054,11 +1237,27 @@ class TrackingStore:
             )
             results.append(result)
             try:
+                self._resolve_temporal_answers(
+                    record, matched_actuals, result.scored_at)
+            except Exception:
+                logger.warning("Temporal-answer resolution failed for %s",
+                               record.forecast_id, exc_info=True)
+            try:
                 self._resolve_event_outcomes(record, matched_actuals, result)
             except Exception:
                 # An unresolvable ledger row must not block forecast scoring;
                 # the outcome stays open and a later submit can retry it.
                 logger.warning("Event-outcome resolution failed for %s",
+                               record.forecast_id, exc_info=True)
+            try:
+                explicit_known = [value for value in matched_known if value]
+                self._resolve_effect_scenarios(
+                    record, matched_actuals,
+                    outcome_known_at=(max(explicit_known) if explicit_known
+                                      else result.scored_at),
+                )
+            except Exception:
+                logger.warning("Effect-registry resolution failed for %s",
                                record.forecast_id, exc_info=True)
 
         return results
@@ -1118,6 +1317,423 @@ class TrackingStore:
                 )
                 written += 1
         return written
+
+    def record_effect_scenarios(
+        self, project: str, forecast_id: str, series: str,
+        primary: list[dict[str, Any]], scenarios: list[dict[str, Any]],
+        context_events: list[Any],
+    ) -> int:
+        """Persist immutable baseline/scenario pairs for later learning."""
+        import hashlib
+
+        by_id = {event.event_id: event for event in context_events}
+        primary_by_time = {str(row["timestamp"]): float(row["point"])
+                           for row in primary if "timestamp" in row and "point" in row}
+        written = 0
+        created_at = datetime.now(timezone.utc).isoformat()
+        with self._connect() as conn:
+            for scenario in scenarios:
+                contract = scenario.get("effect") or {}
+                distribution = contract.get("distribution")
+                provenance = contract.get("provenance")
+                rows = scenario.get("forecast") or []
+                event_ids = [str(item) for item in scenario.get("events") or []]
+                if not distribution or not provenance or not rows:
+                    continue
+                scenario_by_time = {str(row["timestamp"]): float(row["point"])
+                                    for row in rows if "timestamp" in row and "point" in row}
+                timestamps = [timestamp for timestamp in scenario_by_time
+                              if timestamp in primary_by_time]
+                if not timestamps:
+                    continue
+                event_types = sorted({by_id[event_id].event_type for event_id in event_ids
+                                      if event_id in by_id})
+                event_type = event_types[0] if len(event_types) == 1 else (
+                    "+".join(event_types) if event_types else None)
+                identity = json.dumps({
+                    "project": project, "forecast_id": forecast_id,
+                    "series": series,
+                    "events": sorted(event_ids), "effect": contract,
+                    "timestamps": timestamps,
+                }, sort_keys=True, separators=(",", ":"))
+                effect_id = hashlib.sha256(
+                    b"effect_scenario\x00" + identity.encode("utf-8")
+                ).hexdigest()[:24]
+                conn.execute(
+                    """
+                    INSERT OR REPLACE INTO effect_scenarios
+                        (effect_id, project, forecast_id, series, event_type,
+                         event_ids, provenance_class, observed, known_at,
+                         source_reference, effect_shape, effect_distribution,
+                         effect_provenance, primary_points, scenario_points,
+                         timestamps, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (effect_id, project, forecast_id, series, event_type,
+                     json.dumps(sorted(event_ids)), provenance["provenance_class"],
+                     int(bool(provenance.get("observed"))), provenance["known_at"],
+                     provenance.get("source_reference"),
+                     contract.get("shape", "unknown"), json.dumps(distribution),
+                     json.dumps(provenance),
+                     json.dumps([primary_by_time[t] for t in timestamps]),
+                     json.dumps([scenario_by_time[t] for t in timestamps]),
+                     json.dumps(timestamps), created_at),
+                )
+                written += 1
+        return written
+
+    def _resolve_effect_scenarios(
+        self, record: ForecastRecord, matched_actuals: list[float],
+        *, outcome_known_at: str | None = None,
+    ) -> int:
+        """Estimate realised effects against each scenario's frozen baseline.
+
+        This is descriptive rather than causal. Overlapping scenario windows
+        are marked confounded instead of receiving individual attribution.
+        """
+        with self._connect() as conn:
+            scenarios = conn.execute(
+                "SELECT * FROM effect_scenarios WHERE project = ? AND "
+                "forecast_id = ? AND series = ?",
+                (record.project, record.forecast_id, record.series),
+            ).fetchall()
+        if not scenarios:
+            return 0
+        parsed: dict[str, tuple[list[float], list[float]]] = {}
+        active_sets: dict[str, set[int]] = {}
+        for row in scenarios:
+            primary = [float(value) for value in json.loads(row["primary_points"])]
+            scenario = [float(value) for value in json.loads(row["scenario_points"])]
+            parsed[row["effect_id"]] = (primary, scenario)
+            active_sets[row["effect_id"]] = {
+                index for index, pair in enumerate(zip(primary, scenario))
+                if not math.isclose(pair[0], pair[1], rel_tol=1e-12, abs_tol=1e-12)
+            }
+        resolved_at = datetime.now(timezone.utc).isoformat()
+        known_at = outcome_known_at or resolved_at
+        with self._connect() as conn:
+            for row in scenarios:
+                effect_id = row["effect_id"]
+                primary, _ = parsed[effect_id]
+                usable = min(len(primary), len(matched_actuals))
+                active = sorted(index for index in active_sets[effect_id] if index < usable)
+                inactive = [index for index in range(usable) if index not in active_sets[effect_id]]
+                missing = not primary or not active or usable == 0
+                overlaps = any(
+                    bool(active_sets[effect_id].intersection(indices))
+                    for other_id, indices in active_sets.items() if other_id != effect_id
+                )
+                inactive_residuals = [matched_actuals[index] - primary[index]
+                                      for index in inactive]
+                baseline_bias = (statistics.mean(inactive_residuals)
+                                 if inactive_residuals else 0.0)
+                residuals = ([matched_actuals[index] - primary[index] - baseline_bias
+                              for index in active] if not missing else [])
+                estimate = statistics.mean(residuals) if residuals else None
+                standard_error = None
+                lower = upper = None
+                if len(residuals) >= 2:
+                    active_variance = statistics.variance(residuals) / len(residuals)
+                    inactive_variance = (statistics.variance(inactive_residuals) /
+                                         len(inactive_residuals)
+                                         if len(inactive_residuals) >= 2 else 0.0)
+                    standard_error = math.sqrt(active_variance + inactive_variance)
+                    lower = estimate - 1.2815515655446004 * standard_error
+                    upper = estimate + 1.2815515655446004 * standard_error
+                elif residuals:
+                    lower = upper = estimate
+                onset = duration = None
+                realised_shape = "unknown"
+                if residuals:
+                    centre = statistics.median(residuals)
+                    noise = 1.4826 * statistics.median(
+                        abs(value - centre) for value in residuals)
+                    threshold = max(noise, abs(centre) * 0.1, 1e-12)
+                    detected = [offset for offset, value in enumerate(residuals)
+                                if abs(value) >= threshold]
+                    if detected:
+                        onset = detected[0]
+                        duration = detected[-1] - detected[0] + 1
+                    if len(residuals) >= 3:
+                        x_mean = (len(residuals) - 1) / 2
+                        denominator = sum((index - x_mean) ** 2
+                                          for index in range(len(residuals)))
+                        slope = (sum((index - x_mean) * (value - centre)
+                                     for index, value in enumerate(residuals)) /
+                                 denominator if denominator else 0.0)
+                        level = max(abs(centre), noise, 1e-12)
+                        if abs(slope) * len(residuals) >= 0.5 * level:
+                            realised_shape = "trend_change"
+                        elif abs(residuals[-1]) < 0.5 * abs(residuals[0]):
+                            realised_shape = "temporary_pulse"
+                        else:
+                            realised_shape = "level_shift"
+                conn.execute(
+                    """
+                    INSERT OR REPLACE INTO event_effect_registry
+                        (effect_id, project, forecast_id, series, event_type,
+                         resolved_at, outcome_known_at, estimate, baseline_bias,
+                         standard_error, lower, upper,
+                         interval_probability, onset_steps, duration_steps,
+                         expected_effect_shape, realised_effect_shape,
+                         sample_count, confounding_status, counterfactual_quality,
+                         missing_counterfactual, residuals)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (effect_id, record.project, record.forecast_id, record.series,
+                     row["event_type"], resolved_at, known_at, estimate,
+                     baseline_bias, standard_error,
+                     lower, upper, 0.8 if standard_error is not None else None,
+                     onset, duration, row["effect_shape"], realised_shape,
+                     len(residuals),
+                     "overlapping_scenarios" if overlaps else "none_detected",
+                     ("inactive_horizon_bias_adjusted" if inactive_residuals
+                      else "frozen_forecast_only"),
+                     int(missing), json.dumps(residuals)),
+                )
+        return len(scenarios)
+
+    def record_effect_occurrence(
+        self, effect_id: str, status: str, *, known_at: str,
+        note: str | None = None,
+    ) -> dict[str, Any]:
+        """Confirm, cancel, or revise the event behind a frozen scenario.
+
+        Actual values cannot establish occurrence.  This explicit event-time
+        outcome prevents a cancelled deployment from entering organizational
+        memory as though it happened merely because its forecast horizon
+        elapsed.
+        """
+        allowed = {"confirmed", "cancelled", "revised"}
+        if status not in allowed:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                f"effect occurrence status must be one of {', '.join(sorted(allowed))}.",
+            )
+        try:
+            parsed = datetime.fromisoformat(known_at)
+        except (TypeError, ValueError) as exc:
+            raise GnomonError(
+                "INVALID_ARGUMENTS", "effect occurrence known_at must be ISO-8601."
+            ) from exc
+        if parsed.tzinfo is None:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "effect occurrence known_at requires an explicit timezone offset.",
+            )
+        with self._connect() as conn:
+            existing = conn.execute(
+                "SELECT effect_id FROM effect_scenarios WHERE effect_id = ?",
+                (effect_id,),
+            ).fetchone()
+            if existing is None:
+                raise GnomonError(
+                    "EFFECT_NOT_FOUND", f"No tracked effect has id {effect_id!r}.",
+                )
+            conn.execute(
+                "UPDATE effect_scenarios SET occurrence_status = ?, "
+                "occurrence_known_at = ?, occurrence_note = ? WHERE effect_id = ?",
+                (status, known_at, note, effect_id),
+            )
+        return {"effect_id": effect_id, "status": status,
+                "known_at": known_at, "note": note}
+
+    def event_effects(
+        self, project: str, *, event_type: str | None = None,
+        series: str | None = None, include_unresolved: bool = True,
+    ) -> list[dict[str, Any]]:
+        """Query the auditable event-effect memory for an organization."""
+        clauses = ["s.project = ?"]
+        parameters: list[Any] = [project]
+        if event_type is not None:
+            clauses.append("s.event_type = ?")
+            parameters.append(event_type)
+        if series is not None:
+            clauses.append("s.series = ?")
+            parameters.append(series)
+        if not include_unresolved:
+            clauses.append("r.effect_id IS NOT NULL")
+        query = f"""
+            SELECT s.*, r.resolved_at, r.outcome_known_at,
+                   r.estimate, r.baseline_bias, r.standard_error,
+                   r.lower, r.upper, r.interval_probability, r.onset_steps,
+                   r.duration_steps, r.expected_effect_shape,
+                   r.realised_effect_shape, r.sample_count, r.confounding_status,
+                   r.counterfactual_quality, r.missing_counterfactual, r.residuals
+            FROM effect_scenarios s
+            LEFT JOIN event_effect_registry r ON r.effect_id = s.effect_id
+            WHERE {' AND '.join(clauses)}
+            ORDER BY s.known_at, s.effect_id
+        """
+        with self._connect() as conn:
+            result: list[dict[str, Any]] = []
+            for row in conn.execute(query, parameters):
+                item = dict(row)
+                for name in ("event_ids", "effect_distribution",
+                             "effect_provenance", "timestamps", "residuals"):
+                    if item.get(name) is not None:
+                        item[name] = json.loads(item[name])
+                item.pop("primary_points", None)
+                item.pop("scenario_points", None)
+                item["observed"] = bool(item["observed"])
+                item["eligible_for_learning"] = (
+                    item.get("occurrence_status") == "confirmed"
+                    and item.get("resolved_at") is not None
+                    and not bool(item.get("missing_counterfactual"))
+                    and item.get("confounding_status") == "none_detected"
+                )
+                if item.get("missing_counterfactual") is not None:
+                    item["missing_counterfactual"] = bool(item["missing_counterfactual"])
+                result.append(item)
+            return result
+
+    def pooled_effect_prior(
+        self, project: str, event_type: str, series: str, *,
+        as_of: str, exclude_effect_id: str | None = None,
+        require_validation: bool = True,
+    ) -> dict[str, Any]:
+        """Leakage-safe organizational analogue prior.
+
+        Only confirmed, resolved, unconfounded effects known by ``as_of``
+        enter the pool. Local estimates shrink toward the organization-wide
+        event-type mean; leave-one-event-out error must beat a zero-effect
+        baseline before the result is eligible to influence a scenario.
+        """
+        try:
+            cutoff = datetime.fromisoformat(as_of)
+        except (TypeError, ValueError) as exc:
+            raise GnomonError(
+                "INVALID_ARGUMENTS", "effect prior as_of must be ISO-8601."
+            ) from exc
+        if cutoff.tzinfo is None:
+            raise GnomonError(
+                "INVALID_ARGUMENTS", "effect prior as_of requires a timezone offset."
+            )
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT s.effect_id, s.series, s.known_at, r.outcome_known_at,
+                       r.estimate, r.standard_error, r.sample_count
+                FROM effect_scenarios s
+                JOIN event_effect_registry r ON r.effect_id = s.effect_id
+                WHERE s.project = ? AND s.event_type = ?
+                  AND s.occurrence_status = 'confirmed'
+                  AND r.missing_counterfactual = 0
+                  AND r.confounding_status = 'none_detected'
+                  AND r.estimate IS NOT NULL
+                """,
+                (project, event_type),
+            ).fetchall()
+        eligible = [row for row in rows
+                    if datetime.fromisoformat(row["outcome_known_at"]) <= cutoff
+                    and row["effect_id"] != exclude_effect_id]
+
+        def estimate(members: list[sqlite3.Row], target_series: str) -> dict[str, Any] | None:
+            if not members:
+                return None
+            all_values = [float(row["estimate"]) for row in members]
+            local_values = [float(row["estimate"]) for row in members
+                            if row["series"] == target_series]
+            organization_mean = statistics.mean(all_values)
+            if local_values:
+                local_mean = statistics.mean(local_values)
+                weight = len(local_values) / (len(local_values) + EFFECT_POOL_SHRINKAGE)
+                location = weight * local_mean + (1 - weight) * organization_mean
+                provenance = "same_event_same_series"
+            else:
+                local_mean, weight = None, 0.0
+                location = organization_mean
+                provenance = "same_event_related_series"
+            # This prior predicts the *next event*, not merely the population
+            # mean. Dividing between-event variance by n produced a precise
+            # estimate of the mean but a catastrophically narrow predictive
+            # interval. Posterior-predictive variance retains heterogeneity
+            # and adds the typical measurement variance.
+            between_variance = (statistics.variance(all_values)
+                                if len(all_values) >= 2 else 0.0)
+            measurement_variance = statistics.mean(
+                float(row["standard_error"] or 0.0) ** 2 for row in members)
+            scale = math.sqrt(between_variance + measurement_variance)
+            return {
+                "location": location, "scale": scale,
+                "lower": location - 1.2815515655446004 * scale,
+                "upper": location + 1.2815515655446004 * scale,
+                "sample_count": len(all_values),
+                "local_sample_count": len(local_values),
+                "local_mean": local_mean,
+                "organization_mean": organization_mean,
+                "local_weight": weight,
+                "provenance_class": provenance,
+            }
+
+        pooled = estimate(eligible, series)
+        loo_errors: list[float] = []
+        zero_errors: list[float] = []
+        for held_out in eligible:
+            training = [row for row in eligible
+                        if row["effect_id"] != held_out["effect_id"]]
+            prediction = estimate(training, str(held_out["series"]))
+            if prediction is None:
+                continue
+            truth = float(held_out["estimate"])
+            loo_errors.append(abs(truth - float(prediction["location"])))
+            zero_errors.append(abs(truth))
+        validation = {
+            "method": "leave_one_event_out",
+            "episodes": len(loo_errors),
+            "pooled_mae": statistics.mean(loo_errors) if loo_errors else None,
+            "zero_effect_mae": statistics.mean(zero_errors) if zero_errors else None,
+            "beats_zero_effect": bool(loo_errors) and (
+                statistics.mean(loo_errors) < statistics.mean(zero_errors)),
+        }
+        if pooled is not None and loo_errors:
+            ordered = sorted(loo_errors)
+            # Split-conformal finite-sample rank for 80% predictive coverage.
+            rank = min(len(ordered), math.ceil(0.8 * (len(ordered) + 1)))
+            conformal_half_width = ordered[rank - 1]
+            parametric_half_width = 1.2815515655446004 * pooled["scale"]
+            half_width = max(conformal_half_width, parametric_half_width)
+            pooled["scale"] = half_width / 1.2815515655446004
+            pooled["lower"] = pooled["location"] - half_width
+            pooled["upper"] = pooled["location"] + half_width
+            validation["conformal_half_width"] = conformal_half_width
+            validation["predictive_half_width"] = half_width
+            validation["calibration_rank"] = rank
+        validated = (
+            len(loo_errors) >= MIN_EFFECT_POOL_EPISODES
+            and validation["beats_zero_effect"]
+        )
+        if pooled is None:
+            return {"status": "insufficient_evidence", "event_type": event_type,
+                    "series": series, "as_of": as_of, "validation": validation}
+        return {
+            "status": ("validated" if validated else "insufficient_evidence"),
+            "event_type": event_type, "series": series, "as_of": as_of,
+            "eligible_for_scenario": validated or not require_validation,
+            "distribution": {
+                "distribution": "normal", "location": pooled["location"],
+                "scale": pooled["scale"], "lower": pooled["lower"],
+                "upper": pooled["upper"], "interval_probability": 0.8,
+                "sample_count": pooled["sample_count"],
+                "unit": "target_series_units",
+            },
+            "provenance": {
+                "provenance_class": pooled["provenance_class"],
+                "observed": True, "known_at": as_of,
+                "source_reference": f"tracking:{project}",
+                "similarity": (1.0 if pooled["local_sample_count"] else None),
+                "reliability": min(1.0, len(loo_errors) / 20.0),
+                "method": "hierarchical mean shrinkage toward organization event type",
+            },
+            "pooling": {key: pooled[key] for key in (
+                "local_sample_count", "local_mean", "organization_mean",
+                "local_weight")},
+            "validation": validation,
+            "exclusions": {
+                "unconfirmed_or_unresolved": len(rows) - len(eligible),
+                "excluded_effect_id": exclude_effect_id,
+            },
+        }
 
     def _resolve_event_outcomes(
         self, record: ForecastRecord, matched_actuals: list[float],
@@ -1691,6 +2307,10 @@ class TrackingStore:
             "decision_summary": decision_summary,
             "model_performance": leaderboard,
             "coverage_adaptation": self.coverage_adaptation(project) if project else [],
+            "temporal_answers": ({
+                "open": len(self.temporal_answer_receipts(project, resolved=False)),
+                "resolved": len(self.temporal_answer_receipts(project, resolved=True)),
+            } if project else {"open": 0, "resolved": 0}),
             "warning": "Realised performance is observational evidence, never causal.",
         }
 
@@ -2124,10 +2744,57 @@ def register_artifact(artifact: Any, project: str, artifact_path: str,
             fingerprint=fingerprint_json(values, schema.frequency),
         )
         registered.append(tracking_id)
+        answer_receipt = Path(artifact_path) / "temporal_answers.json"
+        if answer_receipt.exists():
+            try:
+                payload = json.loads(answer_receipt.read_text(encoding="utf-8"))
+                store.record_temporal_answers(
+                    project, artifact.forecast_id, result.series,
+                    list(payload.get("answers") or []),
+                    created_at=getattr(artifact, "created_at", None),
+                )
+            except (OSError, ValueError, TypeError):
+                logger.warning("Could not register temporal-answer receipt %s",
+                               answer_receipt, exc_info=True)
         if context_events:
             store.record_event_proposals(
                 project, tracking_id, result.series,
                 _proposal_rows(result.series, result, artifact.evidence,
                                context_events),
             )
+            store.record_effect_scenarios(
+                project, tracking_id, result.series, result.forecast,
+                [*result.conditional_forecasts, *result.sensitivity_scenarios],
+                context_events,
+            )
+            # Fold-admitted context is a selected forecast candidate rather
+            # than a scenario-only answer, but the effect registry still
+            # needs the immutable history-only path it replaced.  The
+            # pipeline persists that path before replacement; register the
+            # pair separately so tracking never mistakes the conditioned
+            # forecast for its own counterfactual.
+            counterfactual = next((
+                item.payload for item in artifact.evidence
+                if item.kind == "enrichment_counterfactual"
+                and item.series == result.series
+            ), None)
+            context_effect = (result.context or {}).get("effect")
+            used_events = list((result.context or {}).get("events_used") or [])
+            if counterfactual and context_effect and used_events:
+                timestamps = list(counterfactual.get("timestamps") or [])
+                points = list(counterfactual.get("points") or [])
+                primary_rows = [
+                    {"timestamp": timestamp, "point": point}
+                    for timestamp, point in zip(timestamps, points)
+                ]
+                store.record_effect_scenarios(
+                    project, tracking_id, result.series, primary_rows,
+                    [{
+                        "events": used_events,
+                        "support": "fold_admitted_context",
+                        "effect": context_effect,
+                        "forecast": result.forecast,
+                    }],
+                    context_events,
+                )
     return registered

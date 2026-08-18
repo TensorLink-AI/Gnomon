@@ -232,6 +232,9 @@ class SeriesResult:
     # Standardised, explicitly hypothetical paths for grounded future events
     # whose effect cannot be estimated. Never replaces ``forecast``.
     sensitivity_scenarios: list[dict[str, Any]] = field(default_factory=list)
+    # Canonical history-only forecast, emitted when context changed the
+    # legacy selected `forecast` projection. It is frozen before enrichment.
+    primary_forecast: list[dict[str, Any]] = field(default_factory=list)
     # The future-context lane's decisions (gnomon.future_context), present
     # only when `context.future_events: on` considered at least one
     # namespaced event. Additive on the same terms as
@@ -286,6 +289,8 @@ class ForecastArtifact:
                 result.pop("conditional_forecasts", None)
             if not result.get("sensitivity_scenarios"):
                 result.pop("sensitivity_scenarios", None)
+            if not result.get("primary_forecast"):
+                result.pop("primary_forecast", None)
             if not result.get("future_context"):
                 result.pop("future_context", None)
             if not result.get("context_outcome"):
@@ -400,6 +405,21 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
     ],
     "ARTIFACT_NOT_FOUND": [
         {"action": "check_path", "description": "Pass the artifact directory returned by the macro (it contains artifact.json)."},
+    ],
+    "TEMPORAL_ANSWER_CACHE_INTEGRITY": [
+        {"action": "isolate_cache_namespace", "description": (
+            "Retry with a fresh GNOMON_CONTEXT_NAMESPACE to recompute the "
+            "typed answer without trusting the conflicting cached entry.")},
+        {"action": "inspect_cache_store", "description": (
+            "Preserve the cache for diagnosis; verify storage integrity and "
+            "the configured GNOMON_CONTEXT_STORE before removing only the "
+            "identified corrupted entry.")},
+    ],
+    "EFFECT_NOT_FOUND": [
+        {"action": "list_effects", "description": (
+            "Query `gnomon track effects --project NAME` or call "
+            "gnomon_status with section='effects', then use a returned effect_id."
+        )},
     ],
 
     "UNKNOWN_TSFM": [
@@ -562,6 +582,11 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
     "RESIDUAL_PROVENANCE_MISMATCH": [
         {"action": "report_bug", "description": "A stage replaced the point forecast without replacing its residuals, so the interval would have described a different model. This is a defect in Gnomon; details names both models."},
     ],
+    "INVALID_TEMPORAL_QUESTION": [
+        {"action": "retry", "description": (
+            "Issue the ready-to-use repair call in error.details, selecting "
+            "one exact target and a supported property and measure.")},
+    ],
 }
 
 
@@ -633,8 +658,8 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "section": "intent", "sections": "intent",
     "jsonl": "intent", "include_lineage": "intent", "limit": "intent",
     "latest": "intent", "note": "intent", "name": "intent",
-    "status_only": "intent",
-    "question": "intent", "fields": "intent", "where": "intent",
+    "status_only": "intent", "resolved_only": "intent",
+    "question": "intent", "questions": "intent", "fields": "intent", "where": "intent",
     "order_by": "intent",
     # Recorded verbatim in the investigation artifact, influence "none" —
     # a stated hypothesis, like a note, not a change to what counts as
@@ -643,6 +668,7 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "action": "intent", "expected_outcome": "intent",
     "actual_outcome": "intent", "correct": "intent",
     "decision_id": "intent", "forecast_id": "intent",
+    "effect_id": "intent", "status": "intent",
     "forecast_a": "intent", "forecast_b": "intent",
     "artifact_path": "intent", "model": "intent", "params": "intent",
     "plan": "intent", "proposer": "intent", "proposer_id": "intent",
@@ -651,12 +677,15 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "trials": "intent", "event_type": "intent", "config": "intent",
     "version": "intent", "violations": "intent",
     "constraint_violations": "intent",
+    "scenarios": "intent", "scenario_ids": "intent",
+    "context_store": "intent", "context_namespace": "intent",
+    "candidate": "intent", "revision": "intent", "outcome_id": "intent",
     # -- data --------------------------------------------------------------
     "input": "data", "observations": "data", "data_ref": "data",
     "file": "data", "files": "data",
     "dataset": "data", "time_column": "data", "target_column": "data",
     "series_column": "data", "frequency": "data", "timezone": "data",
-    "known_at_column": "data", "seasonal_period": "data",
+    "known_at": "data", "known_at_column": "data", "seasonal_period": "data",
     "series": "data", "series_name": "data", "series_names": "data",
     "variable": "data", "labels": "data",
     "covariates": "data", "covariates_file": "data",
@@ -664,10 +693,16 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "covariate_known_at": "data", "covariate_mapping": "data",
     "covariate_time_column": "data", "covariate_series_column": "data",
     "covariate_known_at_column": "data",
-    "actuals": "data", "actuals_file": "data", "actuals_time": "data",
+    "actuals": "data", "actuals_file": "data", "effect_occurrences": "data",
+    "actuals_time": "data",
     "actuals_target": "data", "actuals_series": "data",
     "context_file": "data", "events_file": "data",
     "context_events": "data", "context_events_file": "data",
+    "context_ref": "data",
+    "external_registry": "data", "external_priors": "data",
+    "human_assumption": "data",
+    "domain": "data", "population": "data", "unit": "data", "target": "data",
+    "candidate_error": "data", "baseline_error": "data",
     # -- epistemic ---------------------------------------------------------
     "minimum_baseline_improvement": "epistemic",
     "repair": "epistemic",
@@ -681,6 +716,8 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "multivariate": "epistemic",
     "future_events": "epistemic",
     "structural_events": "epistemic",
+    "min_outcomes": "epistemic", "min_improvement": "epistemic",
+    "min_win_rate": "epistemic",
 }
 
 #: The trace each epistemic parameter leaves when moved off its default.
@@ -727,4 +764,13 @@ EPISTEMIC_TRACES: dict[str, str] = {
         "`context_trusted` support state"),
     "structural_events": (
         "default-off; same `context_trusted` pricing as future_events"),
+    "min_outcomes": (
+        "returned in the shadow assessment policy; insufficient samples add "
+        "`insufficient_paired_outcomes` and block promotion review"),
+    "min_improvement": (
+        "returned through the shadow assessment result; failing it adds "
+        "`mean_improvement_below_gate` and blocks promotion review"),
+    "min_win_rate": (
+        "returned through the shadow assessment result; failing it adds "
+        "`win_rate_below_gate` and blocks promotion review"),
 }

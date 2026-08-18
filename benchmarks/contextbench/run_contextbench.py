@@ -167,6 +167,22 @@ def run_case(case: Case, oracle: Oracle, work_root: Path, *,
         )
         default_policy_smape = smape(oracle.actual, default_points)
     context_result = context_artifact.results[0]
+    scenario_contracts = [
+        item.get("effect") for item in (
+            [*context_result.conditional_forecasts,
+             *context_result.sensitivity_scenarios]
+        )
+    ]
+    if isinstance((context_result.context or {}).get("effect"), dict):
+        scenario_contracts.append(context_result.context["effect"])
+    typed_scenario_contracts = all(
+        isinstance(contract, dict)
+        and isinstance(contract.get("distribution"), dict)
+        and isinstance(contract.get("provenance"), dict)
+        and bool(contract["provenance"].get("provenance_class"))
+        and bool(contract["provenance"].get("known_at"))
+        for contract in scenario_contracts
+    )
     contextual = _points(context_result)
     if len(baseline) != case.horizon or len(contextual) != case.horizon:
         raise RuntimeError(f"{case.case_id}: an arm did not publish the full horizon")
@@ -185,7 +201,12 @@ def run_case(case: Case, oracle: Oracle, work_root: Path, *,
                for row, truth in zip(context_result.forecast, oracle.actual)
                if row.get("q10") is not None and row.get("q90") is not None]
     persisted_baseline = read_artifact(baseline_path)["results"][0]["forecast"]
-    persisted_context = read_artifact(context_path)["results"][0]["forecast"]
+    persisted_context_result = read_artifact(context_path)["results"][0]
+    persisted_context = persisted_context_result["forecast"]
+    primary = list(context_result.primary_forecast)
+    context_effect_admitted = bool(
+        (context_result.context or {}).get("admitted")
+        and (context_result.context or {}).get("effect"))
     return {
         "case_id": case.case_id, "family": case.family,
         "oracle_dimensions": dict(oracle.dimensions),
@@ -222,11 +243,20 @@ def run_case(case: Case, oracle: Oracle, work_root: Path, *,
         "temporal_leakage": _leaked(context_artifact, case.frequency),
         "publication_parity": (persisted_baseline == baseline_result.forecast
                                and persisted_context == context_result.forecast),
+        "primary_forecast_required": context_effect_admitted,
+        "primary_forecast_present": bool(primary),
+        "primary_forecast_parity": (
+            (not context_effect_admitted)
+            or (primary == baseline_result.forecast
+                and persisted_context_result.get("primary_forecast") == primary)
+        ),
         "history_forecast": baseline, "context_forecast": contextual,
         "actual": list(oracle.actual), "counterfactual": list(oracle.counterfactual),
         "context_gate": context_result.context,
         "covariate_gate": context_result.covariates,
         "context_outcome": context_result.context_outcome,
+        "scenario_contract_count": len(scenario_contracts),
+        "typed_scenario_contracts": typed_scenario_contracts,
         "latency_seconds": round(time.perf_counter() - started, 6),
     }
 
@@ -292,6 +322,10 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
         "complete": len(rows) == int(manifest["cases"]),
         "zero_leakage": not any(row["temporal_leakage"] for row in rows),
         "publication_parity": all(row["publication_parity"] for row in rows),
+        "primary_forecast_parity": all(
+            row.get("primary_forecast_parity", True) for row in rows),
+        "scenario_effect_contracts_typed": all(
+            row.get("typed_scenario_contracts", True) for row in rows),
         "false_influence_below_1pct": false_rate < 0.01,
         "admission_precision_at_least_90pct": precision >= 0.90,
         "disposition_contract_exact": dispositions_correct == len(rows),
@@ -465,6 +499,14 @@ def summarize(rows: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str,
             "disposition_accuracy": dispositions_correct / len(rows) if rows else None,
             "mean_interval_coverage": mean(coverage_rows) if coverage_rows else None,
             "leakage_count": sum(row["temporal_leakage"] for row in rows),
+            "scenario_contracts": sum(
+                row.get("scenario_contract_count", 0) for row in rows),
+            "typed_scenario_contract_rate": (sum(
+                row.get("scenario_contract_count", 0)
+                for row in rows if row.get("typed_scenario_contracts", True)) /
+                sum(row.get("scenario_contract_count", 0) for row in rows)
+                if any(row.get("scenario_contract_count", 0) for row in rows)
+                else None),
         },
         "gates": gates, "decision_ready": all(gates.values()),
     }
