@@ -106,6 +106,14 @@ def test_registry_covers_all_adapters():
     assert adapters == set(REGISTRY)
 
 
+def test_reasoningbench_gets_model_output_and_case_limit():
+    cmd = _cmd("reasoningbench", "reason", {})
+    text = " ".join(cmd)
+    assert "--model openai/gpt-4o" in text
+    assert "--cases 25" in text
+    assert "--output-dir results/batch/reason" in text
+
+
 def test_orchestrator_completes_more_than_one_run(tmp_path, monkeypatch):
     """A batch of two must not die after the first.
 

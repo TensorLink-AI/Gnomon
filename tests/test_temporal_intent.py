@@ -79,3 +79,34 @@ def test_receipt_normalizes_json_encoded_questions_before_sibling_validation() -
         adapter=adapter)
     assert [item.id for item in receipt["accepted"]] == ["v"]
     assert receipt["rejected"] == []
+
+
+def test_omitted_target_inherits_nearest_explicit_discourse_focus() -> None:
+    adapter = Adapter({"status": "compiled", "questions": [
+        {"id": "q1", "verb": "compare", "property": "level",
+         "target": "heart_rate"},
+        {"id": "q2", "verb": "compare", "property": "volatility",
+         "target": {"kind": "aggregate", "members": ["heart_rate", "spo2"]}},
+        {"id": "q3", "verb": "compare", "property": "seasonality",
+         "target": {"kind": "aggregate", "members": ["heart_rate", "spo2"]}},
+    ]})
+    receipt = compile_temporal_text_receipt(
+        "Median heart rate change?\nVolatility change?\nSeasonality alignment?",
+        available_targets=["heart_rate", "spo2"], adapter=adapter)
+    assert [item.target for item in receipt["accepted"]] == [
+        "heart_rate", "heart_rate", "heart_rate"]
+    # The receipt retains what the model actually proposed.
+    assert isinstance(receipt["proposed"]["questions"][1]["target"], dict)
+
+
+def test_explicit_collective_question_does_not_inherit_series_focus() -> None:
+    adapter = Adapter({"status": "compiled", "questions": [
+        {"id": "q1", "verb": "compare", "property": "level",
+         "target": "cpu"},
+        {"id": "q2", "verb": "compare", "property": "volatility",
+         "target": {"kind": "aggregate", "members": ["cpu", "mem"]}},
+    ]})
+    result = compile_temporal_text(
+        "CPU level change?\nVolatility across all metrics?",
+        available_targets=["cpu", "mem"], adapter=adapter)
+    assert result[1].scope == "aggregate"

@@ -22,7 +22,7 @@ Design invariants (from the system design):
 
 Supported models (with optional extras):
   - chronos: Amazon Chronos-Bolt (mini 21M, small 48M) — ``pip install chronos-forecasting``
-  - toto: Datadog Toto-2.0-22m (22M) — ``pip install toto-models``
+  - toto: Datadog Toto-2.0 (4M/22M) — ``pip install toto-models``
   - flowstate: IBM Granite FlowState R1.1 (18.5M) — ``pip install tsfm_public``
   - ttm: IBM Granite TinyTimeMixer R2 (1-3M) — ``pip install tsfm_public``
   - moirai: Salesforce Moirai-2.0-R-Small (~14M) — ``pip install uni2ts``
@@ -56,6 +56,7 @@ logger = logging.getLogger(__name__)
 TSFM_REVISIONS: dict[str, str] = {
     "amazon/chronos-bolt-mini": "251268337516a88e253628c43e1d26ec577b376b",
     "amazon/chronos-bolt-small": "772f3d25d38aec6d914c8949dab4462e2d46f5d8",
+    "Datadog/Toto-2.0-4m": "8306a9801cf98c0f5ffe4b2dcc8f496e616d84d9",
     "Datadog/Toto-2.0-22m": "685e4ae3e2be8d8998025e53dd98e7fdcb296a89",
     "ibm-granite/granite-timeseries-ttm-r2": "d6a79570cac0f33d526601cd3a0fc7c80a8f9a2f",
     "Salesforce/moirai-2.0-R-small": "30f43ff08c8494f4943ae1521e9d4e94a0fbb389",
@@ -97,6 +98,7 @@ def resolved_weights(name: str) -> dict[str, str]:
 _ADAPTER_MODEL_IDS: dict[str, tuple[str, ...]] = {
     "chronos_bolt_mini": ("amazon/chronos-bolt-mini",),
     "chronos_bolt_small": ("amazon/chronos-bolt-small",),
+    "toto2_4m": ("Datadog/Toto-2.0-4m",),
     "toto2_22m": ("Datadog/Toto-2.0-22m",),
     "flowstate": ("ibm-granite/granite-timeseries-flowstate-r1",),
     "ttm": ("ibm-granite/granite-timeseries-ttm-r2",),
@@ -143,8 +145,15 @@ _CAPABILITIES: dict[str, TSFMCapabilities] = {
         native_quantiles=True, max_context_length=2048,
         source="https://github.com/amazon-science/chronos-forecasting",
     ),
+    "toto2_4m": TSFMCapabilities(
+        multivariate_targets=True, native_quantiles=True,
+        min_context_length=32,
+        source="https://github.com/DataDog/toto",
+        verified_on="2026-08-19",
+    ),
     "toto2_22m": TSFMCapabilities(
         multivariate_targets=True, native_quantiles=True,
+        min_context_length=32,
         source="https://github.com/DataDog/toto",
     ),
     "flowstate": TSFMCapabilities(
@@ -337,6 +346,7 @@ def check_tsfm(name: str) -> bool:
     dep_map = {
         "chronos_bolt_mini": "chronos",
         "chronos_bolt_small": "chronos",
+        "toto2_4m": "toto2",
         "toto2_22m": "toto2",
         "flowstate": "tsfm_public",
         "ttm": "tsfm_public",
@@ -497,21 +507,27 @@ def _register_chronos():
 # ---------------------------------------------------------------------------
 
 class Toto2Adapter:
-    """Adapter for Datadog Toto-2.0-22m.
+    """Adapter for Datadog Toto-2.0 checkpoints.
 
     Toto 2.0 is a decoder-only patched transformer with alternating
     time/variate attention and a quantile output head. SOTA on
     observability benchmarks (BOOM) and competitive on GIFT-Eval.
     """
 
-    name: str = "toto2_22m"
-    params_m: float = 22.0
     supports_quantiles = True
-
-    _MODEL_ID = "Datadog/Toto-2.0-22m"
+    min_history = 32
     _QUANTILE_LEVELS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+    _PATCH_SIZE = 32
 
-    def __init__(self):
+    def __init__(self, name: str = "toto2_22m"):
+        variants = {
+            "toto2_4m": ("Datadog/Toto-2.0-4m", 4.14),
+            "toto2_22m": ("Datadog/Toto-2.0-22m", 22.0),
+        }
+        if name not in variants:
+            raise TSFMUnavailable(f"Unknown Toto 2.0 adapter: {name}")
+        self.name = name
+        self._MODEL_ID, self.params_m = variants[name]
         self._model = None
 
     def _ensure_loaded(self):
@@ -536,10 +552,20 @@ class Toto2Adapter:
         torch = _import_torch()
         try:
             device = next(self._model.parameters()).device
-            target = torch.tensor(history, dtype=torch.float32, device=device)
+            # Toto's public forecast path reduces context into fixed-size
+            # patches and currently requires the context axis to divide
+            # exactly.  Real histories almost never satisfy that accidentally.
+            # Left padding represents unobserved pre-history and preserves the
+            # newest observation as the forecast anchor.
+            padding = (-len(history)) % self._PATCH_SIZE
+            padded = ([0.0] * padding) + list(history)
+            observed = ([False] * padding) + ([True] * len(history))
+            target = torch.tensor(padded, dtype=torch.float32, device=device)
             # Shape: (batch, n_variates, time_steps)
             target = target.unsqueeze(0).unsqueeze(0)
-            target_mask = torch.ones_like(target, dtype=torch.bool)
+            target_mask = torch.tensor(
+                observed, dtype=torch.bool, device=device,
+            ).unsqueeze(0).unsqueeze(0)
             series_ids = torch.zeros(1, 1, dtype=torch.long, device=device)
 
             quantiles = self._model.forecast(
@@ -549,7 +575,7 @@ class Toto2Adapter:
                     "series_ids": series_ids,
                 },
                 horizon=horizon,
-                has_missing_values=False,
+                has_missing_values=bool(padding),
             )
             # Shape: (9, batch, n_variates, horizon)
             return quantiles
@@ -560,10 +586,10 @@ class Toto2Adapter:
 
     def predict(self, history: list[float], horizon: int, season: int) -> list[float]:
         q = self._forecast_quantiles(history, horizon)
-        torch = _import_torch()
         arr = q.detach().cpu().numpy()
-        # Squeeze batch and variate dims: (9, 1, 1, horizon) → (9, horizon)
-        arr = arr.squeeze()
+        # Preserve the horizon axis when horizon == 1. ``squeeze`` alone
+        # collapses (9, 1, 1, 1) to (9,) and turns the median into a scalar.
+        arr = arr.reshape(len(self._QUANTILE_LEVELS), -1)
         # Median is at index 4 (0.5 in [0.1..0.9])
         median_idx = 4
         return arr[median_idx].tolist()
@@ -576,7 +602,8 @@ class Toto2Adapter:
         quantiles: tuple[float, ...] = (0.1, 0.5, 0.9),
     ) -> list[dict[str, float]]:
         q = self._forecast_quantiles(history, horizon)
-        arr = q.detach().cpu().numpy().squeeze()
+        arr = q.detach().cpu().numpy().reshape(
+            len(self._QUANTILE_LEVELS), -1)
         # Map requested quantiles to the closest available levels
         results = []
         for step in range(arr.shape[1]):
@@ -593,7 +620,8 @@ class Toto2Adapter:
 
 
 def _register_toto():
-    register_tsfm("toto2_22m", Toto2Adapter)
+    register_tsfm("toto2_4m", lambda: Toto2Adapter("toto2_4m"))
+    register_tsfm("toto2_22m", lambda: Toto2Adapter("toto2_22m"))
 
 
 # ---------------------------------------------------------------------------

@@ -163,6 +163,24 @@ SUBMIT_TOOL = {
                     "description": "question key -> chosen option string, keyed as the task's output format specifies",
                     "additionalProperties": {"type": "string"},
                 },
+                "choice_basis": {
+                    "type": "object",
+                    "description": (
+                        "Required only when an mcq choice overrides a weak "
+                        "canonical answer: question key -> typed opposing "
+                        "evidence. task_context evidence must be an exact "
+                        "quote from the task prompt."),
+                    "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                            "kind": {"type": "string", "enum": [
+                                "computed_opposition", "task_context"]},
+                            "evidence": {"type": "string"},
+                        },
+                        "required": ["kind", "evidence"],
+                        "additionalProperties": False,
+                    },
+                },
                 "reasoning": {"type": "string"},
             },
         },
@@ -233,6 +251,14 @@ Also answer every multiple-choice question of the task in
 When a typed answer has `support: abstained`, or says no categorical threshold
 was supplied, preserve that limitation by choosing `Uncertain` when it is one
 of the task's options; a baseline estimate is not a supported category.
+Typed answers marked supported and automation-eligible are binding. A weak
+canonical answer is advisory but remains the default: override it only when
+independent task context or computed opposing evidence specifically supports a
+different option, and provide `choice_basis[question]` with its typed basis.
+For task context, `evidence` must be an exact quote from this task. Weakness or
+uncertainty alone is not opposing evidence. The
+host preserves both canonical and synthesized values and never rewrites the
+immutable receipt.
 you may fix arguments and retry within the caps ({max_rounds} rounds,
 {max_calls} tool calls).
 """
@@ -1040,7 +1066,39 @@ class _RunBase:
 
     def _mcp_info(self) -> dict[str, Any]:
         temporal_answer_receipts: list[dict[str, Any]] = []
+        artifact_forecast_identity: list[dict[str, Any]] = []
         for artifact_path in sorted(self.artifact_paths):
+            artifact_json = Path(artifact_path) / "artifact.json"
+            if artifact_json.is_file():
+                try:
+                    artifact = json.loads(artifact_json.read_text(
+                        encoding="utf-8"))
+                except (OSError, json.JSONDecodeError) as error:
+                    artifact_forecast_identity.append({
+                        "artifact_path": artifact_path,
+                        "read_error": f"{type(error).__name__}: {error}",
+                    })
+                else:
+                    final_identities = {
+                        item.get("series"): item.get("payload")
+                        for item in artifact.get("evidence", [])
+                        if isinstance(item, dict)
+                        and item.get("kind") == "final_candidate"
+                    }
+                    artifact_forecast_identity.append({
+                        "artifact_path": artifact_path,
+                        "artifact_id": artifact.get("artifact_id"),
+                        "series": [{
+                            "series": result.get("series"),
+                            "selected_model": result.get("selected_model"),
+                            "support": result.get("support"),
+                            "candidate_identity": (
+                                result.get("candidate_identity")
+                                or final_identities.get(result.get("series"))),
+                            "admission": result.get("admission"),
+                        } for result in artifact.get("results", [])
+                         if isinstance(result, dict)],
+                    })
             receipt_path = Path(artifact_path) / "temporal_answers.json"
             if not receipt_path.is_file():
                 continue
@@ -1086,6 +1144,8 @@ class _RunBase:
             },
             **({"temporal_answer_receipts": temporal_answer_receipts}
                if temporal_answer_receipts else {}),
+            **({"artifact_forecast_identity": artifact_forecast_identity}
+               if artifact_forecast_identity else {}),
             "tool_sequence": [
                 {key: value for key, value in entry.items()
                  if key in ("tool", "is_error", "code", "jail_violations",
@@ -1191,7 +1251,12 @@ class _RunBase:
                     if (self.row.get("_host_compiled_forecast")
                             and self.row.get("_require_gnomon_execution")
                             and self.artifact_paths
-                            and hasattr(self, "target_keys")):
+                            and hasattr(self, "target_keys")
+                            # Typed questions require the model's distinct
+                            # synthesis submission. Auto-submitting the
+                            # forecast artifact with an empty MCQ object would
+                            # erase exactly the advisory lane being measured.
+                            and not self.temporal_compilation.get("questions")):
                         artifact_path = sorted(self.artifact_paths)[-1]
                         accepted = self._handle_submit({
                             "forecast": {
@@ -1407,6 +1472,14 @@ class _RunBase:
         if name in {"gnomon_forecast", "gnomon_run"} \
                 and covariate_arguments:
             arguments = {**arguments, **covariate_arguments}
+        admission_registry = getattr(self, "model_evidence_registry", None)
+        if name == "gnomon_forecast" and admission_registry:
+            arguments = {
+                **arguments,
+                "model_admission": "evidence_weighted",
+                "model_evidence_registry": str(admission_registry),
+            }
+            entry["model_admission"] = "evidence_weighted"
 
         violations = jail_violations(arguments, self.jail)
         if violations:
@@ -1512,7 +1585,8 @@ class _Run(_RunBase):
                  profile: str = "full", compile_context: bool = False,
                  context_receipts_dir: str | None = None,
                  compile_questions: bool = False,
-                 question_receipts_dir: str | None = None):
+                 question_receipts_dir: str | None = None,
+                 model_evidence_registry: str | None = None):
         meta = row.get("meta") or {}
         self.horizon = int(meta.get("n_horizon") or 0)
         if self.horizon < 1:
@@ -1526,6 +1600,13 @@ class _Run(_RunBase):
                          context_receipts_dir=context_receipts_dir,
                          compile_questions=compile_questions,
                          question_receipts_dir=question_receipts_dir)
+        self.model_evidence_registry = None
+        if model_evidence_registry:
+            import shutil
+            source = Path(model_evidence_registry).resolve()
+            target = self.jail / "model-evidence.json"
+            shutil.copyfile(source, target)
+            self.model_evidence_registry = target
 
     def _row_channels(self, row: dict[str, Any]) -> dict[str, list[float]]:
         arrays = prompt_input_arrays(row)
@@ -1541,6 +1622,12 @@ class _Run(_RunBase):
             parameters = tool["function"]["parameters"]
             parameters["properties"].pop("reasoning", None)
             parameters["required"] = ["forecast"]
+            if getattr(self, "temporal_compilation", {}).get("questions"):
+                # A forecast-only auto-submit would erase the agent layer.
+                # Empty choice_basis is valid when every canonical answer is
+                # retained, but making the field explicit forces the host and
+                # model to acknowledge the dual contract.
+                parameters["required"].extend(["mcq", "choice_basis"])
             parameters["additionalProperties"] = False
             return tool
         return SUBMIT_TOOL
@@ -1823,24 +1910,85 @@ class _Run(_RunBase):
                     "mcq must be an object mapping question ids to answers"
                 ],
             }
-        mcq = {str(key): str(value) for key, value in raw_mcq.items()}
+        synthesized_mcq = {str(key): str(value)
+                           for key, value in raw_mcq.items()}
+        mcq = dict(synthesized_mcq)
         projected = self._project_receipt_choices()
-        if projected:
+        canonical_mcq = {key: value["display_value"]
+                         for key, value in projected.items()}
+        raw_basis = arguments.get("choice_basis") or {}
+        if not isinstance(raw_basis, Mapping):
+            return {"accepted": False, "authored_by": "harness",
+                    "problems": ["choice_basis must be an object"]}
+        accepted_overrides: dict[str, dict[str, str]] = {}
+        binding = {key: value for key, value in projected.items()
+                   if value["authority"] == "binding"}
+        if binding:
+            # A supported automation-eligible result remains software's
+            # answer. Weak evidence is advisory: retain the model's explicit
+            # synthesis and score it separately without mutating the receipt.
             mcq.update({key: value["display_value"]
-                        for key, value in projected.items()})
+                        for key, value in binding.items()})
+        for key, value in projected.items():
+            proposed = synthesized_mcq.get(key)
+            differs = (proposed is not None and
+                       str(proposed).strip().lower()
+                       != str(value["display_value"]).strip().lower())
+            if value["authority"] == "advisory" and differs:
+                basis = raw_basis.get(key) if isinstance(raw_basis, Mapping) else None
+                kind = str((basis or {}).get("kind") or "") \
+                    if isinstance(basis, Mapping) else ""
+                evidence = str((basis or {}).get("evidence") or "").strip() \
+                    if isinstance(basis, Mapping) else ""
+                matches_adjudicated_alternative = (
+                    value.get("has_computed_opposition") is True
+                    and str(proposed).strip().lower() == str(
+                        value.get("computed_alternative") or ""
+                    ).strip().lower()
+                )
+                valid = (
+                    kind == "computed_opposition"
+                    and matches_adjudicated_alternative
+                    and bool(evidence)
+                ) or (
+                    kind == "task_context" and bool(evidence)
+                    and evidence in str(self.row.get("prompt") or "")
+                    # A quote establishes provenance, not predictive truth.
+                    # Context may govern publication only after the engine's
+                    # outcome-backed adjudicator validates the same choice.
+                    and matches_adjudicated_alternative
+                )
+                if valid:
+                    accepted_overrides[key] = {"kind": kind,
+                                               "evidence": evidence}
+                else:
+                    mcq[key] = value["display_value"]
+            if key not in mcq:
+                # No synthesis was supplied. Canonical weak evidence remains
+                # visible as the fallback, explicitly labelled advisory.
+                mcq[key] = value["display_value"]
+        if projected:
             self.trace.append({
                 "tool": "host_choice_projection",
-                "host_submission": "canonical_temporal_answer",
+                "host_submission": "support_tiered_temporal_answer",
                 "projected": projected,
             })
         self.submission = {
             "forecast": resolved, "mcq": mcq, "support": support,
             "routes": routes, "reasoning": arguments.get("reasoning"),
             "sensitivity_forecast": dict(self._available_sensitivity),
+            "canonical_mcq": canonical_mcq,
+            "synthesized_mcq": synthesized_mcq,
+            "choice_authority": {
+                key: ("advisory_override" if key in accepted_overrides else
+                      "advisory_canonical_default"
+                      if value["authority"] == "advisory" else "binding")
+                for key, value in projected.items()},
+            "choice_basis": accepted_overrides,
         }
         return {"accepted": True, "routes": routes}
 
-    def _project_receipt_choices(self) -> dict[str, dict[str, str]]:
+    def _project_receipt_choices(self) -> dict[str, dict[str, Any]]:
         """Project immutable engine answers into explicit task vocabulary."""
         from gnomon.temporal_vocabulary import project_temporal_choice
 
@@ -1867,20 +2015,38 @@ class _Run(_RunBase):
         projected: dict[str, dict[str, str]] = {}
         for key, answer in aligned.items():
             best = answer.get("best_estimate") or {}
-            # The engine owns the answer; support controls whether software
-            # may *act* on it, not whether an LLM may replace it.  Project a
-            # weak but explicit best estimate as deterministically as a
-            # supported one and preserve support in the receipt/trace.  A
-            # genuine abstention has no projectable canonical value.
+            # Supported automation-eligible answers bind the published
+            # software answer. Weak estimates are advisory evidence for a
+            # separately labelled model synthesis. A genuine abstention has
+            # no projectable canonical value.
             options = ((self.row.get("mcq") or {}).get(key) or {}).get(
                 "options") or []
             choice = project_temporal_choice(best.get("value"), options)
             if choice is not None:
+                reasoning = (answer.get("answer") or {}).get("reasoning") or {}
+                adjudication = reasoning.get("adjudication") or {}
+                synthesis = adjudication.get("synthesis_eligibility") or {}
+                alternative = adjudication.get("alternative") or {}
+                alternative_choice = project_temporal_choice(
+                    alternative.get("value"), options)
+                computed_alternative = (
+                    alternative_choice.get("display_value")
+                    if alternative_choice else None)
                 projected[key] = {
                     **choice,
                     "support": str(best.get("support") or "unknown"),
                     "automation_eligible": bool(
                         best.get("automation_eligible") is True),
+                    "authority": ("binding" if
+                                  best.get("support") == "supported"
+                                  and best.get("automation_eligible") is True
+                                  else "advisory"),
+                    "has_computed_opposition": bool(
+                        synthesis.get("eligible") is True
+                        and computed_alternative is not None),
+                    "computed_alternative": computed_alternative,
+                    "adjudication_relationship": adjudication.get(
+                        "relationship", "unresolved"),
                 }
         return projected
 
@@ -1902,6 +2068,10 @@ class _Run(_RunBase):
             "sensitivity_forecast": self.submission.get(
                 "sensitivity_forecast", {}),
             "submit_reasoning": self.submission["reasoning"],
+            "canonical_mcq": self.submission.get("canonical_mcq", {}),
+            "synthesized_mcq": self.submission.get("synthesized_mcq", {}),
+            "choice_authority": self.submission.get("choice_authority", {}),
+            "choice_basis": self.submission.get("choice_basis", {}),
             **({"last_call": self.submission["last_call"]}
                if self.submission.get("last_call") else {}),
             "mcp": self._mcp_info(),
@@ -2054,7 +2224,8 @@ def run_row(row: dict[str, Any], client: Any, *,
             context_receipts_dir: str | None = None,
             compile_questions: bool = False,
             question_receipts_dir: str | None = None,
-            mcp_call_timeout: float | None = None) -> dict[str, Any]:
+            mcp_call_timeout: float | None = None,
+            model_evidence_registry: str | None = None) -> dict[str, Any]:
     """Drive one T2/T4 row through the real MCP surface; return the same
     outcome shape ``answer_row`` produces for the other conditions."""
     if session_factory is None:
@@ -2068,7 +2239,8 @@ def run_row(row: dict[str, Any], client: Any, *,
                        compile_context=compile_context,
                        context_receipts_dir=context_receipts_dir,
                        compile_questions=compile_questions,
-                       question_receipts_dir=question_receipts_dir))
+                       question_receipts_dir=question_receipts_dir,
+                       model_evidence_registry=model_evidence_registry))
 
 
 def mcq_row(row: dict[str, Any], client: Any, *,

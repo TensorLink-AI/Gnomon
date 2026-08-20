@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from benchmarks.temporalbench.gnomon_runner import (
     MCQ_ABSTAIN,
     _observed,
+    forecast_target_map,
     uncertain_mcq,
 )
 from benchmarks.temporalbench.scoring import (
@@ -31,6 +32,32 @@ def test_scaled_error_denominator_flags_near_constant_history():
     assert stable_scaled_error_denominator([None, 10.0, None]) is False
 
 
+def test_forecast_target_map_preserves_panel_channel_identities():
+    arrays = {"heart_rate": [70.0], "spo2": [98.0]}
+    row = {"ground_truth": {"heart_rate": [71.0], "spo2": [97.0]}}
+    assert forecast_target_map(row, arrays) == {
+        "heart_rate": "heart_rate", "spo2": "spo2"}
+
+
+def test_forecast_target_map_resolves_official_single_target_aliases():
+    psml = {
+        "meta": {"main_key": "load_power", "target_col": "load_power"},
+        "ground_truth": {"future_main": [0.9]},
+    }
+    assert forecast_target_map(psml, {"load_power": [1.0], "temperature": [20.0]}) \
+        == {"future_main": "load_power"}
+
+    retail = {"meta": {}, "ground_truth": {"future_sales": [12.0]}}
+    assert forecast_target_map(
+        retail, {"sales_censored": [10.0], "discount": [0.0]}) \
+        == {"future_sales": "sales_censored"}
+
+
+def test_forecast_target_map_refuses_ambiguous_unknown_alias():
+    row = {"meta": {}, "ground_truth": {"future_main": [1.0]}}
+    assert forecast_target_map(row, {"x": [1.0], "y": [2.0]}) == {}
+
+
 def test_extract_json_object_from_prose():
     text = 'Answer:\n```json\n{"trend": "upward", "n": 3}\n```'
     assert extract_json_object(text) == {"trend": "upward", "n": 3}
@@ -46,6 +73,32 @@ def test_infrastructure_failure_classification():
     assert infrastructure_failure(RuntimeError(
         "MCP tools/list failed: subprocess closed"))
     assert not infrastructure_failure(ValueError("No JSON object found"))
+
+
+def test_resume_recovers_canonical_and_interrupted_partial(tmp_path):
+    from benchmarks.temporalbench.run_temporalbench import load_resumable_records
+
+    canonical = tmp_path / "gnomonbench.jsonl"
+    partial = tmp_path / "gnomonbench.partial.jsonl"
+    canonical.write_text(json.dumps({"task_id": "a", "success": True}) + "\n",
+                         encoding="utf-8")
+    partial.write_text(json.dumps({"task_id": "b", "success": True}) + "\n",
+                       encoding="utf-8")
+    assert set(load_resumable_records(canonical, partial)) == {"a", "b"}
+
+
+def test_resume_rejects_conflicting_duplicate_records(tmp_path):
+    import pytest
+    from benchmarks.temporalbench.run_temporalbench import load_resumable_records
+
+    canonical = tmp_path / "gnomonbench.jsonl"
+    partial = tmp_path / "gnomonbench.partial.jsonl"
+    canonical.write_text(json.dumps({"task_id": "a", "success": True}) + "\n",
+                         encoding="utf-8")
+    partial.write_text(json.dumps({"task_id": "a", "success": False}) + "\n",
+                       encoding="utf-8")
+    with pytest.raises(ValueError, match="conflicting resumable records"):
+        load_resumable_records(canonical, partial)
 
 
 def test_artifact_keeps_primary_and_captures_sensitivity_separately(tmp_path):

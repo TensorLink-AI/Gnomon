@@ -52,6 +52,7 @@
         "moirai2_small": null,
         "moment_small": null,
         "toto2_22m": null,
+        "toto2_4m": null,
         "ttm": null
       },
       "baseline_improvement": 1.0,
@@ -241,7 +242,7 @@
         ]
       },
       "notes": [
-        "No foundation-model candidate competed: chronos_bolt_mini, chronos_bolt_small, flowstate, moirai2_small, moment_small, toto2_22m, ttm are eligible for this series but no sandbox is installed. Run `gnomon tsfm install chronos_bolt_mini` to add one; it enters the same folds against the same baselines."
+        "No foundation-model candidate competed: chronos_bolt_mini, chronos_bolt_small, flowstate, moirai2_small, moment_small, toto2_22m, toto2_4m, ttm are eligible for this series but no sandbox is installed. Run `gnomon tsfm install chronos_bolt_mini` to add one; it enters the same folds against the same baselines."
       ]
     }
   ],
@@ -274,6 +275,7 @@
           "moirai2_small": null,
           "moment_small": null,
           "toto2_22m": null,
+          "toto2_4m": null,
           "ttm": null
         },
         "measured_interval_coverage": 1.0,

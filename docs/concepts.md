@@ -96,6 +96,13 @@ actionable category only when fold count, balanced accuracy, Brier skill, and
 probability gates all pass; otherwise the continuous estimate and weak best
 state remain available without becoming an automated claim.
 
+When a caller asks about the behavior of an already-published forecast,
+Gnomon projects volatility from that immutable path instead of fitting a
+second, history-only future. The projection removes the path's own seasonal
+structure, compares its robust residual scale with recent historical
+residual scale, and is always labelled weak and uncalibrated: it describes
+what the forecast says, not what future observations are guaranteed to do.
+
 Targets are explicit scopes: `series` binds one exact channel; `each` returns
 one independently supported answer per named channel; and `aggregate` requires
 a named aggregation. Cross-unit volatility currently permits only
@@ -351,6 +358,17 @@ The compact answer remains the canonical value for quoting. Supporting
 evidence helps the language model explain and qualify that value; weak or
 conditional evidence is not eligible for automated action.
 
+Canonical computation and agent synthesis are separate contracts. Supported,
+automation-eligible answers bind publication. A weak answer is advisory but
+remains the default; an agent may attach a separately labelled synthesis, while
+changing the published choice requires typed opposing evidence. Computed
+opposition must win the deterministic adjudication in the immutable receipt,
+come from at least two independently supported source kinds, and authorize only
+the exact projected alternative those receipts support. Task-context evidence
+must retain an exact source quote and pass the same outcome-backed adjudication;
+a quote alone establishes provenance, not predictive truth. Neither lane can
+rewrite the primary forecast.
+
 Observed transition support is graded separately from identifiability. A
 borderline estimate can be measurable and useful while remaining `weak`.
 Likewise, a point estimate near zero does not prove stability: a supported
@@ -362,6 +380,17 @@ answer envelope. The plan distinguishes observed, predictive, and conditional
 inference; names the evidence basis or what is missing; and surfaces conflicts
 between predictive and observed evidence. It gives the host model authority to
 explain and qualify, never to replace the fitted executable's canonical value.
+The plan additionally projects the receipts into three contrastive lists —
+`because`, `against`, and `unknown` — and may retrieve up to three separated
+historical states with completed outcomes. Analogue matching uses normalized
+level, slope, and residual scale; those outcomes are historical evidence, not
+extra forecast folds. `suggested_next` names an observation or recovery action
+that can resolve missing or conflicting evidence. Conditional context enters
+the same plan only through the artifact's typed effect and provenance contract.
+Tracked or governed effects retain their property-specific vocabulary; an
+unvalidated assumption remains conditional and cannot earn synthesis authority.
+Evidence weights rank receipts but are never presented as probabilities. A
+probability is exposed only when a fitted executable supplied its calibration.
 
 ## Model-neutral forecast boundary
 
@@ -379,3 +408,26 @@ baseline only after outcomes become known. The shadow ledger can emit
 but it never changes the publishing model automatically. Promotion is an
 explicit deployment decision and the fitted executable still owns every
 published number.
+
+### Pretrained-model admission on short histories
+
+Pretrained and locally fitted models answer the same comparative question —
+expected future loss against the strongest robust baseline — but do not have
+to obtain evidence in the same way. A local statistical candidate is supported
+primarily by this series' rolling folds. A TSFM or pinned remote model may also
+carry a versioned external prior compiled from held-out series. External
+evidence is never renamed local validation.
+
+The default policy remains `strict`. `evidence_weighted` is opt-in and requires
+an explicit evidence registry. Results are labelled `locally_validated`,
+`externally_validated`, `jointly_validated`, `prior_assisted`, or
+`baseline_fallback`. Uncertain transfer evidence produces an immutable
+shrinkage blend; sufficiently strong independent evidence can make a
+pretrained model primary. High overlap risk, an unpinned adapter, invalid
+output, or absent evidence cannot do so.
+
+Admission reports component evidence rather than an opaque trust score: local
+folds and losses, external sample and uncertainty, output diagnostics, and
+conflicts. A compact deterministic reasoning frame organizes those facts for
+an agent to explain; it cannot replace the fitted executable or rewrite the
+context-free primary path.

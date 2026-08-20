@@ -137,6 +137,8 @@ def test_forecast_records_covariate_evidence(tmp_path) -> None:
 
 def test_capabilities_are_adapter_level_and_machine_actionable() -> None:
     matrix = capability_matrix()
+    assert matrix["toto2_4m"]["multivariate_targets"] is True
+    assert matrix["toto2_4m"]["future_known_covariates"] is False
     assert matrix["toto2_22m"]["multivariate_targets"] is True
     assert matrix["toto2_22m"]["future_known_covariates"] is False
     eligible, excluded = eligible_tsfms(

@@ -250,6 +250,9 @@ class SeriesResult:
     # future-event lanes. It prevents compiler acceptance from being
     # mistaken for numerical application.
     context_outcome: dict[str, Any] | None = None
+    # Model-class-aware admission provenance. Absent under the strict legacy
+    # policy; never inferred from the selected model's name.
+    admission: dict[str, Any] | None = None
 
 
 @dataclass
@@ -295,6 +298,8 @@ class ForecastArtifact:
                 result.pop("future_context", None)
             if not result.get("context_outcome"):
                 result.pop("context_outcome", None)
+            if not result.get("admission"):
+                result.pop("admission", None)
             # Agent-response projection only. The v0.2 artifact format is
             # byte-frozen; canonical descriptors can be recomputed and must
             # not churn persisted artifacts or their hashes.
@@ -424,6 +429,10 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
 
     "UNKNOWN_TSFM": [
         {"action": "list_available", "description": "Installable names are in details.available and in gnomon_capabilities under models.tsfm_available."},
+    ],
+    "MISSING_MODEL_EVIDENCE_REGISTRY": [
+        {"action": "set_model_evidence_registry", "description": "Pass the path to a versioned model-evidence registry produced by independent validation."},
+        {"action": "use_strict_admission", "description": "Set model_admission=strict to use only candidates supported by this series' local backtest."},
     ],
     "SANDBOX_UNAVAILABLE": [
         {"action": "install_uv", "description": "Sandboxed TSFM installs need uv on PATH; install it from https://docs.astral.sh/uv/ and retry."},
@@ -700,6 +709,7 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "context_events": "data", "context_events_file": "data",
     "context_ref": "data",
     "external_registry": "data", "external_priors": "data",
+    "model_evidence_registry": "data",
     "human_assumption": "data",
     "domain": "data", "population": "data", "unit": "data", "target": "data",
     "candidate_error": "data", "baseline_error": "data",
@@ -718,6 +728,7 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "structural_events": "epistemic",
     "min_outcomes": "epistemic", "min_improvement": "epistemic",
     "min_win_rate": "epistemic",
+    "model_admission": "epistemic",
 }
 
 #: The trace each epistemic parameter leaves when moved off its default.
@@ -773,4 +784,9 @@ EPISTEMIC_TRACES: dict[str, str] = {
     "min_win_rate": (
         "returned through the shadow assessment result; failing it adds "
         "`win_rate_below_gate` and blocks promotion review"),
+    "model_admission": (
+        "evidence_weighted requires a versioned model-evidence registry; "
+        "the selected admission state, evidence sources, candidate weight, "
+        "and policy version are persisted in the immutable candidate identity "
+        "and result admission block"),
 }

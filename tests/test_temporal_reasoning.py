@@ -152,3 +152,41 @@ def test_volatility_aggregate_preserves_observed_panel_evidence() -> None:
     assert answer["identifiability"]["future_direction"] == \
         "conditional_on_persistence"
     assert answer["identifiability"]["primary_forecast_unchanged"] is True
+
+
+def test_volatility_with_forecast_describes_immutable_path_not_second_prediction() -> None:
+    values = [float(index % 7) for index in range(70)]
+    forecast = [values[-1]] * 14
+    question = TemporalQuestion(
+        "q", "compare", "x", "volatility", horizon=14)
+    answer = answer_scoped_question(
+        question, reports={"x": REPORT}, execution_inputs={"x": (values, 1)},
+        forecast_values={"x": forecast})
+    assert answer["decision_rule"] == {
+        "kind": "published_forecast_projection", "property": "volatility",
+        "version": "0.1"}
+    assert answer["answer"]["future_to_reference_ratio"] is not None
+    assert answer["best_estimate"]["value"] == "decreased"
+    assert answer["best_estimate"]["support"] == "weak"
+    assert answer["answer"]["reasoning"]["primary_forecast_unchanged"] is True
+
+
+def test_scenario_question_carries_provenance_without_rewriting_answer() -> None:
+    values = [20 + .1 * index + (index % 7) for index in range(160)]
+    question = TemporalQuestion(
+        "q", "predict", "x", "trend", horizon=7,
+        context_policy="scenario")
+    answer = answer_scoped_question(
+        question, reports={"x": REPORT}, execution_inputs={"x": (values, 7)},
+        conditional_effects={"x": {
+            "measured_effect": {"distribution": {"location": 2.0}},
+            "provenance": "artifact_context_contract",
+        }})
+    assert answer["conditional_effect"]["role"] == \
+        "conditional_evidence_only"
+    assert answer["conditional_effect"]["primary_forecast_unchanged"] is True
+    reasoning = answer["answer"]["reasoning"]
+    assert reasoning["mode"] == "conditional"
+    assert "conditional_effect_receipt" not in reasoning.get(
+        "missing_evidence", [])
+    assert reasoning["authority"] == "fitted_executable"

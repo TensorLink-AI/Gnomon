@@ -585,6 +585,24 @@ def _series_result(
             ),
             cap=False,
         )
+    admission = assessment.admission_decision
+    if admission is not None:
+        support_assessment.disclosures.append(SupportReason(
+            "model_admission",
+            f"{admission.candidate} was admitted as {admission.state} using "
+            f"{admission.point_policy}; candidate weight "
+            f"{admission.candidate_weight:.3f}. External transfer evidence "
+            f"is distinct from {admission.evidence.independent_folds} local "
+            f"independent fold(s).",
+        ))
+        if (admission.state == "prior_assisted"
+                and support_assessment.status == "supported"):
+            support_assessment.status = "conditionally_supported"
+            support_assessment.reasons.append(SupportReason(
+                "prior_assisted_selection",
+                "The candidate had useful external transfer evidence but "
+                "was not independently validated on enough local folds.",
+            ))
     from .support import TIER_ORDER, achieved_tier
     tier = achieved_tier(support_assessment.status, bool(rows))
     if tier is not None and TIER_ORDER[tier] < TIER_ORDER[minimum_support]:
@@ -709,6 +727,8 @@ def _series_result(
                 sensitivity_scenarios=state.sensitivity_scenarios,
             ) if context_events else None
         ),
+        admission=(admission.to_payload(compact=True)
+                   if admission is not None else None),
     )
     evidence = list(state.evidence)
     evidence.extend([

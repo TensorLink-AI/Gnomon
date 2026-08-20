@@ -42,17 +42,22 @@ from __future__ import annotations
 import json
 import logging
 import os
+import atexit
+import select
 import shutil
 import subprocess
 import sys
 import tempfile
 import textwrap
+import threading
 from pathlib import Path
 from typing import Any
 
 from .tsfm import TSFMAdapter, TSFMError, TSFMUnavailable
 
 logger = logging.getLogger(__name__)
+_ADAPTER_POOL: dict[tuple[str, str, str], "SubprocessAdapter"] = {}
+_ADAPTER_POOL_LOCK = threading.Lock()
 
 # ---------------------------------------------------------------------------
 # Configuration: where to store sandbox venvs
@@ -87,6 +92,10 @@ TSFM_PIP_SPECS: dict[str, list[str]] = {
     ],
     "chronos_bolt_small": [
         "chronos-forecasting==2.3.1",
+        "torch==2.13.0",
+    ],
+    "toto2_4m": [
+        "toto-models==1.0.0",
         "torch==2.13.0",
     ],
     "toto2_22m": [
@@ -328,6 +337,7 @@ WORKER_SCRIPT = textwrap.dedent("""\
     # today — numbers the parent's content-addressed forecast_id (which
     # records the *pinned* revision) could not honestly cover.
     REVISIONS = {}
+    MODELS = {}
 
 
     def pinned(model_id):
@@ -340,11 +350,10 @@ WORKER_SCRIPT = textwrap.dedent("""\
         return revision
 
 
-    def main():
-        request = json.load(sys.stdin)
+    def handle(request):
         tsfm_name = request["tsfm_name"]
         mode = request.get("mode", "predict")
-        history = request["history"]
+        history = request.get("history", [])
         REVISIONS.update(request.get("revisions") or {})
 
         try:
@@ -359,12 +368,36 @@ WORKER_SCRIPT = textwrap.dedent("""\
                     request.get("frequency", "h"),
                     request.get("want_quantiles", False),
                 )
+            elif mode == "predict_batch":
+                result = {"points": [
+                    run_tsfm(
+                        tsfm_name, item, request["horizon"], request["season"],
+                        request.get("quantiles", [0.1, 0.5, 0.9]),
+                        request.get("frequency", "h"), False,
+                    )["point"]
+                    for item in request["histories"]
+                ]}
             else:
                 raise ValueError(f"Unknown mode: {mode}")
-            json.dump(result, sys.stdout)
+            return result
         except Exception as exc:
-            json.dump({"error": str(exc), "traceback": traceback.format_exc()}, sys.stdout)
-            sys.exit(1)
+            return {"error": str(exc), "traceback": traceback.format_exc()}
+
+
+    def main():
+        # A sandbox is a dependency boundary, not a per-call lifecycle.
+        # Keep the process (and therefore the pinned model weights) alive and
+        # exchange one JSON object per line.  EOF remains a clean shutdown.
+        for line in sys.stdin:
+            if not line.strip():
+                continue
+            try:
+                request = json.loads(line)
+                result = handle(request)
+            except Exception as exc:
+                result = {"error": str(exc), "traceback": traceback.format_exc()}
+            sys.stdout.write(json.dumps(result) + "\\n")
+            sys.stdout.flush()
 
 
     def run_tsfm(name, history, horizon, season, quantiles, frequency, want_quantiles):
@@ -372,8 +405,8 @@ WORKER_SCRIPT = textwrap.dedent("""\
 
         if name == "chronos_bolt_mini" or name == "chronos_bolt_small":
             return run_chronos(name, history, horizon, quantiles, want_quantiles)
-        elif name == "toto2_22m":
-            return run_toto(history, horizon, quantiles, want_quantiles)
+        elif name == "toto2_4m" or name == "toto2_22m":
+            return run_toto(name, history, horizon, quantiles, want_quantiles)
         elif name == "flowstate":
             return run_flowstate(history, horizon, quantiles, frequency, want_quantiles)
         elif name == "ttm":
@@ -423,26 +456,38 @@ WORKER_SCRIPT = textwrap.dedent("""\
         return {"point": point, "quantiles": steps}
 
 
-    def run_toto(history, horizon, quantiles, want_quantiles):
+    def run_toto(name, history, horizon, quantiles, want_quantiles):
         import torch
         from toto2 import Toto2Model
 
-        model = Toto2Model.from_pretrained(
-            "Datadog/Toto-2.0-22m", revision=pinned("Datadog/Toto-2.0-22m"),
-        )
-        model = model.to("cpu").eval()
+        model_id = {
+            "toto2_4m": "Datadog/Toto-2.0-4m",
+            "toto2_22m": "Datadog/Toto-2.0-22m",
+        }[name]
+        model = MODELS.get(model_id)
+        if model is None:
+            model = Toto2Model.from_pretrained(
+                model_id, revision=pinned(model_id),
+            )
+            model = model.to("cpu").eval()
+            MODELS[model_id] = model
 
-        target = torch.tensor(history, dtype=torch.float32)
+        patch_size = 32
+        padding = (-len(history)) % patch_size
+        target = torch.tensor([0.0] * padding + history, dtype=torch.float32)
         target = target.unsqueeze(0).unsqueeze(0)  # (batch, n_var, time)
-        mask = torch.ones_like(target, dtype=torch.bool)
+        mask = torch.tensor(
+            [False] * padding + [True] * len(history), dtype=torch.bool,
+        ).unsqueeze(0).unsqueeze(0)
         ids = torch.zeros(1, 1, dtype=torch.long)
 
         q = model.forecast(
             {"target": target, "target_mask": mask, "series_ids": ids},
             horizon=horizon,
-            has_missing_values=False,
+            has_missing_values=bool(padding),
         )
-        arr = q.detach().cpu().numpy().squeeze()  # (9, horizon)
+        # Preserve horizon as an axis for one-step forecasts.
+        arr = q.detach().cpu().numpy().reshape(9, -1)
         levels = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
         median_idx = 4
         point = arr[median_idx].tolist()
@@ -689,7 +734,7 @@ class SubprocessAdapter:
         timeout: int = 300,
     ):
         self.name = name
-        from .tsfm import resolved_weights
+        from .tsfm import resolved_weights, tsfm_capabilities
         pins = resolved_weights(name)
         self.revision = ",".join(
             f"{model_id}@{revision}"
@@ -699,6 +744,10 @@ class SubprocessAdapter:
         # Infer metadata from the registration in tsfm.py
         self._params_m = self._lookup_params(name)
         self._supports_quantiles = self._lookup_supports_quantiles(name)
+        minimum = tsfm_capabilities(name).min_context_length
+        self.min_history = minimum if minimum > 1 else None
+        self._process: subprocess.Popen[str] | None = None
+        self._process_lock = threading.Lock()
 
     @property
     def params_m(self) -> float:
@@ -712,6 +761,7 @@ class SubprocessAdapter:
         params_map = {
             "chronos_bolt_mini": 21.0,
             "chronos_bolt_small": 48.0,
+            "toto2_4m": 4.14,
             "toto2_22m": 22.0,
             "flowstate": 18.5,
             "ttm": 3.0,
@@ -724,8 +774,8 @@ class SubprocessAdapter:
         no_quantiles = {"ttm", "moment_small"}
         return name not in no_quantiles
 
-    def _run_subprocess(self, request: dict[str, Any]) -> dict[str, Any]:
-        """Run the worker script in the sandbox venv and return the result."""
+    def _start_worker(self) -> subprocess.Popen[str]:
+        """Start one long-lived worker for this adapter instance."""
         try:
             sandbox_dir = ensure_sandbox(self.name)
         except TSFMUnavailable:
@@ -741,6 +791,37 @@ class SubprocessAdapter:
                 f"Sandbox venv for {self.name} exists but Python binary not found at {venv_python}"
             )
 
+        try:
+            return subprocess.Popen(
+                [str(venv_python), str(worker)],
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE, text=True, bufsize=1,
+            )
+        except FileNotFoundError as exc:
+            raise TSFMError(f"Failed to start sandbox process: {exc}") from exc
+
+    def close(self) -> None:
+        """Release a persistent sandbox worker without affecting its venv."""
+        process = self._process
+        self._process = None
+        if process is None or process.poll() is not None:
+            return
+        try:
+            if process.stdin is not None:
+                process.stdin.close()
+            process.wait(timeout=2)
+        except Exception:
+            process.terminate()
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except Exception:
+            pass
+
+    def _run_subprocess(self, request: dict[str, Any]) -> dict[str, Any]:
+        """Exchange one request with the persistent isolated worker."""
+        request = dict(request)
         request["tsfm_name"] = self.name
         request["frequency"] = self.frequency
         # The worker refuses to load weights without these: the forecast id
@@ -751,41 +832,38 @@ class SubprocessAdapter:
 
         request["revisions"] = resolved_weights(self.name)
 
-        try:
-            proc = subprocess.run(
-                [str(venv_python), str(worker)],
-                input=json.dumps(request),
-                capture_output=True,
-                text=True,
-                timeout=self.timeout,
-            )
-        except subprocess.TimeoutExpired:
-            raise TSFMError(
-                f"Sandbox for {self.name} timed out after {self.timeout}s"
-            )
-        except FileNotFoundError as exc:
-            raise TSFMError(f"Failed to start sandbox process: {exc}") from exc
-
-        if proc.returncode != 0:
-            # Try to parse error from stdout
+        with self._process_lock:
+            process = self._process
+            if process is None or process.poll() is not None:
+                process = self._start_worker()
+                self._process = process
+            assert process.stdin is not None and process.stdout is not None
             try:
-                err_response = json.loads(proc.stdout)
-                if "error" in err_response:
-                    raise TSFMError(
-                        f"Sandbox {self.name} failed: {err_response['error']}"
-                    )
-            except json.JSONDecodeError:
-                pass
-            raise TSFMError(
-                f"Sandbox {self.name} exited with code {proc.returncode}: {proc.stderr[:500]}"
-            )
+                process.stdin.write(json.dumps(request) + "\n")
+                process.stdin.flush()
+            except (BrokenPipeError, OSError) as exc:
+                self.close()
+                raise TSFMError(
+                    f"Sandbox {self.name} worker stopped before request: {exc}") from exc
 
-        try:
-            response = json.loads(proc.stdout)
-        except json.JSONDecodeError as exc:
-            raise TSFMError(
-                f"Sandbox {self.name} produced invalid JSON output: {exc}"
-            ) from exc
+            ready, _, _ = select.select(
+                [process.stdout.fileno()], [], [], self.timeout)
+            if not ready:
+                self.close()
+                raise TSFMError(
+                    f"Sandbox for {self.name} timed out after {self.timeout}s")
+            output = process.stdout.readline()
+            if not output:
+                stderr = process.stderr.read(500) if process.stderr else ""
+                self.close()
+                raise TSFMError(
+                    f"Sandbox {self.name} exited without a response: {stderr}")
+            try:
+                response = json.loads(output)
+            except json.JSONDecodeError as exc:
+                self.close()
+                raise TSFMError(
+                    f"Sandbox {self.name} produced invalid JSON output: {exc}") from exc
 
         if "error" in response:
             raise TSFMError(f"Sandbox {self.name} returned error: {response['error']}")
@@ -804,6 +882,27 @@ class SubprocessAdapter:
         if point is None:
             raise TSFMError(f"Sandbox {self.name} returned no point forecast")
         return point
+
+    def predict_many(
+        self, histories: list[list[float]], horizon: int, season: int,
+    ) -> list[list[float]]:
+        """Forecast a fold batch in one isolated process/model load.
+
+        This preserves sandbox dependency isolation while avoiding one weight
+        load per rolling origin.  Evaluation still validates every returned
+        trajectory independently before it may be scored.
+        """
+        if not histories:
+            return []
+        response = self._run_subprocess({
+            "mode": "predict_batch", "histories": histories,
+            "horizon": horizon, "season": season,
+        })
+        points = response.get("points")
+        if not isinstance(points, list) or len(points) != len(histories):
+            raise TSFMError(
+                f"Sandbox {self.name} returned an invalid forecast batch")
+        return [[float(value) for value in forecast] for forecast in points]
 
     def predict_quantiles(
         self,
@@ -890,9 +989,29 @@ def sandbox_tsfm_candidates(
     candidates: list[TSFMAdapter] = []
     for name in ready:
         try:
-            adapter = SubprocessAdapter(name, frequency=frequency)
+            # Multi-series forecasts evaluate channels concurrently.  Reuse
+            # one worker per model/frequency in this process so those
+            # evaluations share a single pinned weight load; the adapter's
+            # request lock serialises access to its line protocol.
+            key = (str(SANDBOX_ROOT.resolve()), name, frequency)
+            with _ADAPTER_POOL_LOCK:
+                adapter = _ADAPTER_POOL.get(key)
+                if adapter is None:
+                    adapter = SubprocessAdapter(name, frequency=frequency)
+                    _ADAPTER_POOL[key] = adapter
             candidates.append(adapter)
             logger.info("Sandbox TSFM '%s' ready", name)
         except Exception:
             logger.debug("Failed to create SubprocessAdapter for %s", name, exc_info=True)
     return candidates
+
+
+def _close_adapter_pool() -> None:
+    with _ADAPTER_POOL_LOCK:
+        adapters = list(_ADAPTER_POOL.values())
+        _ADAPTER_POOL.clear()
+    for adapter in adapters:
+        adapter.close()
+
+
+atexit.register(_close_adapter_pool)

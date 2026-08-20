@@ -19,11 +19,62 @@ from gnomon.config import GnomonConfig
 from gnomon.ids import FixedClock
 from gnomon.models import MODELS, predict
 from gnomon.runtime import forecast
+from gnomon.candidate import (
+    CandidateIdentity, CandidateSpec, FittedCandidate, candidate_predict,
+    candidate_predict_many, eligible_origins,
+)
 
 CLOCK = FixedClock(datetime(2026, 7, 1, tzinfo=timezone.utc))
 NOISE = [0.5, -0.3, 0.2, -0.4, 0.1, 0.3, -0.2, -0.1, 0.4, -0.5]
 HORIZON = 7
 RESTRICTED = ["drift", "theta"]
+
+
+def test_candidate_capabilities_govern_all_downstream_replays() -> None:
+    """The rule is adapter-neutral: callers need not identify model families."""
+    spec = CandidateSpec(
+        CandidateIdentity(kind="model", name="any-local-or-api-model"),
+        lambda history, season: FittedCandidate(
+            CandidateIdentity(kind="model", name="any-local-or-api-model"),
+            lambda horizon: [history[-1]] * horizon,
+        ),
+        min_history=32,
+        max_horizon=12,
+    )
+    evaluation = type("Evaluation", (), {
+        "final_candidate": spec, "selected_model": "opaque-model",
+    })()
+
+    assert eligible_origins(evaluation, [16, 24, 32, 40], 12) == [32, 40]
+    assert eligible_origins(evaluation, [32, 40], 13) == []
+    assert candidate_predict(evaluation, [1.0] * 32, 12, 1) == [1.0] * 12
+    with pytest.raises(ValueError, match="does not support"):
+        candidate_predict(evaluation, [1.0] * 24, 12, 1)
+
+
+def test_candidate_batch_replay_is_backend_neutral_and_single_call() -> None:
+    calls: list[list[int]] = []
+
+    def batch(histories, horizon, season):
+        calls.append([len(history) for history in histories])
+        return [[history[-1]] * horizon for history in histories]
+
+    spec = CandidateSpec(
+        CandidateIdentity(kind="model", name="batch-capable-model"),
+        lambda history, season: FittedCandidate(
+            CandidateIdentity(kind="model", name="batch-capable-model"),
+            lambda horizon: [history[-1]] * horizon,
+        ),
+        min_history=4, predict_many=batch,
+    )
+    evaluation = type("Evaluation", (), {
+        "final_candidate": spec, "selected_model": "batch-capable-model",
+    })()
+
+    result = candidate_predict_many(
+        evaluation, [[1.0] * 4, [2.0] * 8, [3.0] * 12], 3, 1)
+    assert calls == [[4, 8, 12]]
+    assert result == [[1.0] * 3, [2.0] * 3, [3.0] * 3]
 
 
 def _values(periods: int = 160) -> list[float]:
@@ -328,6 +379,133 @@ def test_selected_tsfm_publishes_through_the_evaluated_adapter(monkeypatch):
                   if item.kind == "final_candidate")
     assert record.payload["kind"] == "tsfm"
     assert record.payload["revisions"][adapter.name] == "stub/quadratic@rev-1"
+
+
+def test_short_history_tsfm_prior_produces_replayable_admission_blend(monkeypatch):
+    """A TSFM may transfer external evidence without pretending one local
+    fold was a ranked tournament; the exact blend must publish."""
+    import gnomon.evaluation as evaluation_module
+    import gnomon.tsfm as tsfm_module
+    from gnomon.admission import ExternalModelPrior
+    from gnomon.config import GnomonConfig as Config
+    from gnomon.evaluation import evaluate
+
+    class _Adapter:
+        name = "transfer_tsfm"
+        _MODEL_ID = "stub/transfer"
+
+        def predict(self, history, horizon, season):
+            return [history[-1] + 1] * horizon
+
+    adapter = _Adapter()
+    monkeypatch.setattr(tsfm_module, "eligible_tsfms",
+                        lambda **kwargs: ([adapter.name], {}))
+    monkeypatch.setattr(evaluation_module, "tsfm_candidates",
+                        lambda *args, **kwargs: [adapter])
+    values = [float(index) for index in range(50)]
+    prior = ExternalModelPrior(
+        model=adapter.name, revision="stub/transfer@r1",
+        regime=(("scope", "global"),), comparisons=100,
+        mean_relative_gain=.03, standard_error=.05,
+        source_ids=("leave-domain-out",), registry_version="r1",
+        overlap_risk="low",
+    )
+    config = Config()
+    config.models.tsfm_candidates = [adapter.name]
+    result = evaluate(
+        values, 10, 5, .02, frequency="D", tsfm_names=[adapter.name],
+        config=config, external_priors={adapter.name: prior},
+    )
+    assert result.admission_decision is not None
+    assert result.admission_decision.state == "prior_assisted"
+    assert result.selected_model == "admission_blend"
+    assert result.final_candidate.identity.kind == "blend"
+    assert result.final_candidate.identity.name == result.selected_model
+    points = result.final_candidate.fit(values, 5).predict(3)
+    weight = result.admission_decision.candidate_weight
+    assert points == [weight * 50 + (1 - weight) * 49] * 3
+    from gnomon.pipeline import SeriesState, predict_stage
+    state = SeriesState(
+        name="s", values=values, timestamps=[], future_timestamps=[],
+        season=5, assessment=result)
+    predict_stage(state, horizon=3, frequency="D", selection_strategy="best")
+    assert state.selected_model == "admission_blend"
+    assert state.points == points
+    assert any(item.kind == "final_candidate" for item in state.evidence)
+
+
+def test_transfer_prior_reaches_series_too_short_for_separated_folds(monkeypatch):
+    import gnomon.evaluation as evaluation_module
+    import gnomon.tsfm as tsfm_module
+    import gnomon.tsfm_sandbox as sandbox_module
+    from gnomon.admission import ExternalModelPrior
+    from gnomon.evaluation import evaluate
+
+    class _Adapter:
+        name = "short_transfer"
+        _MODEL_ID = "stub/short"
+        def predict(self, history, horizon, season):
+            return [history[-1] + 1] * horizon
+
+    adapter = _Adapter()
+    monkeypatch.setattr(tsfm_module, "eligible_tsfms",
+                        lambda **kwargs: ([adapter.name], {}))
+    monkeypatch.setattr(evaluation_module, "tsfm_candidates",
+                        lambda *args, **kwargs: [adapter])
+    monkeypatch.setattr(sandbox_module, "sandbox_available_tsfms", lambda: [])
+    monkeypatch.setattr(tsfm_module, "pinned_revision", lambda model: "r1")
+    prior = ExternalModelPrior(
+        model=adapter.name, revision="stub/short@r1",
+        regime=(("scope", "global"),), comparisons=200,
+        mean_relative_gain=.04, standard_error=.06,
+        source_ids=("held-out",), registry_version="r1", overlap_risk="low")
+    values = [float(index) for index in range(50)]
+    result = evaluate(
+        values, 29, 1, .02, frequency="h", tsfm_names=[adapter.name],
+        external_priors={adapter.name: prior})
+    assert result.admission_decision is not None
+    assert result.admission_decision.evidence.independent_folds == 1
+    assert result.selected_model == "admission_blend"
+    assert result.final_candidate.fit(values, 1).predict(2)
+
+
+def test_lightweight_path_resolves_pinned_prior_from_registry(monkeypatch):
+    import gnomon.evaluation as evaluation_module
+    import gnomon.tsfm as tsfm_module
+    import gnomon.tsfm_sandbox as sandbox_module
+    from gnomon.admission import ExternalModelPrior
+    from gnomon.evaluation import evaluate
+
+    class _Adapter:
+        name = "registry_tsfm"
+        _MODEL_ID = "stub/registry"
+        def predict(self, history, horizon, season):
+            return [history[-1]] * horizon
+
+    class _Registry:
+        def lookup(self, model, revision, regime):
+            assert model == "registry_tsfm"
+            assert revision == "stub/registry@pin-1"
+            return ExternalModelPrior(
+                model=model, revision=revision, regime=regime.items(),
+                comparisons=100, mean_relative_gain=.1, standard_error=.02,
+                source_ids=("external",), registry_version="r1",
+                overlap_risk="low")
+
+    adapter = _Adapter()
+    monkeypatch.setattr(tsfm_module, "eligible_tsfms",
+                        lambda **kwargs: ([adapter.name], {}))
+    monkeypatch.setattr(evaluation_module, "tsfm_candidates",
+                        lambda *args, **kwargs: [adapter])
+    monkeypatch.setattr(sandbox_module, "sandbox_available_tsfms", lambda: [])
+    monkeypatch.setattr(tsfm_module, "pinned_revision", lambda model: "pin-1")
+    result = evaluate(
+        [float(index) for index in range(50)], 29, 1, .02,
+        frequency="h", tsfm_names=[adapter.name],
+        evidence_registry=_Registry())
+    assert result.admission_decision.state in {
+        "externally_validated", "prior_assisted"}
+    assert result.final_candidate is not None
 
 
 def test_fallback_moves_identity_and_calibration_together(tmp_path):

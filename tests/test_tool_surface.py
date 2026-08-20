@@ -734,8 +734,12 @@ def test_typed_question_returns_compact_answer_without_changing_primary(
     assert asked["answers"][0]["question"]["target"] == "cpu"
     assert asked["answers"][0]["artifact_id"] == asked["artifact_id"]
     assert set(asked["answers"][0]) == {
-        "question", "best_estimate", "decision_rule", "answer", "headline",
-        "limitations", "artifact_id"}
+        "question", "best_estimate", "synthesis_policy", "decision_rule",
+        "answer", "headline", "limitations", "artifact_id"}
+    policy = asked["answers"][0]["synthesis_policy"]
+    assert policy["canonical_immutable"] is True
+    assert policy["synthesis_must_be_separately_labelled"] is True
+    assert policy["publication_default"] in {"canonical", "labelled_synthesis"}
     assert asked["answers"][0]["best_estimate"]["value"] == \
         asked["answers"][0]["answer"]["direction"]
     assert "calibration" not in asked["answers"][0]

@@ -84,8 +84,10 @@ from benchmarks.temporalbench.tasks import (  # noqa: E402
 AGENT_PREAMBLE = """\
 Deterministic tool evidence computed from the task's own data by the
 Gnomon engine (backtested forecasts, graded anomaly detection, season
-detection). Base every numeric judgement on this evidence; where a
-forecast is required in the output, reproduce these arrays exactly.
+detection). Base every numeric judgement on this evidence. On T2/T4,
+return only the task's `mcq` object and omit `forecast`: the harness owns and
+injects Gnomon's immutable arrays after your answer. Repeating hundreds of
+forecast values here can only introduce truncation or transcription error.
 
 <gnomon_evidence>
 {evidence}
@@ -186,7 +188,9 @@ def answer_row(row: dict[str, Any], condition: str,
                context_receipts_dir: str | None = None,
                compile_questions: bool = False,
                question_receipts_dir: str | None = None,
-               mcp_call_timeout: float | None = None) -> dict[str, Any]:
+               mcp_call_timeout: float | None = None,
+               named_tsfm: str | None = None,
+               model_evidence_registry: str | None = None) -> dict[str, Any]:
     """Produce the row's answer object under the given condition.
 
     ``channel_support`` in the result maps each forecast channel to its
@@ -233,11 +237,14 @@ def answer_row(row: dict[str, Any], condition: str,
                 profile_args["question_receipts_dir"] = question_receipts_dir
         if mcp_call_timeout is not None:
             profile_args["mcp_call_timeout"] = mcp_call_timeout
+        if model_evidence_registry and row.get("tier") in ("T2", "T4"):
+            profile_args["model_evidence_registry"] = model_evidence_registry
         if row.get("tier") in ("T2", "T4"):
             return run_row(row, client, **profile_args)
         return mcq_row(row, client, **profile_args)
 
-    analysis = gnomon_runner.analyse_row(row, best_effort=best_effort)
+    analysis = gnomon_runner.analyse_row(
+        row, best_effort=best_effort, named_tsfm=named_tsfm)
     tier = row.get("tier")
     if condition == "gnomon-pure":
         if tier not in ("T2", "T4"):
@@ -265,7 +272,21 @@ def answer_row(row: dict[str, Any], condition: str,
     completion = client.completions(
         [{"role": "user", "content": prompt}], n=1
     )[0]
-    answer = extract_json_object(completion)
+    try:
+        answer = extract_json_object(completion)
+    except ValueError:
+        # Evidence arms need the same bounded format repair as the raw
+        # control. The model has already reasoned; this turn may only package
+        # its existing choices, never recompute them or alter Gnomon's arrays.
+        completion = client.completions([
+            {"role": "user", "content": prompt},
+            {"role": "assistant", "content": completion},
+            {"role": "user", "content": (
+                "Return only your existing multiple-choice answers as "
+                "{\"mcq\": {...}} JSON. Do not explain, recompute, or include "
+                "forecast arrays; the harness injects those immutably.")},
+        ], n=1)[0]
+        answer = extract_json_object(completion)
     abstained: list[str] = []
     support: dict[str, str] = {}
     if tier in ("T2", "T4"):
@@ -312,6 +333,24 @@ def align_typed_answers(
         if key is not None:
             aligned[key] = answer
     return aligned
+
+
+def load_resumable_records(*paths: Path) -> dict[str, dict[str, Any]]:
+    """Recover complete durable lines from canonical and partial runs."""
+    records: dict[str, dict[str, Any]] = {}
+    for source in paths:
+        if not source.is_file():
+            continue
+        for line in source.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            record = json.loads(line)
+            identifier = str(record.get("task_id"))
+            previous = records.get(identifier)
+            if previous is not None and previous != record:
+                raise ValueError(f"conflicting resumable records for {identifier}")
+            records[identifier] = record
+    return records
 
 
 def main() -> int:
@@ -393,6 +432,16 @@ def main() -> int:
              "score that includes them. Default off: an abstention "
              "stays an abstention unless explicitly traded for a "
              "labeled fallback.")
+    parser.add_argument(
+        "--named-tsfm",
+        help="gnomon-agent/gnomon-pure model-supply experiment: use this "
+             "pinned sandbox TSFM directly and label its forecasts "
+             "experimental_named_model. This bypasses local candidate "
+             "selection and is not Gnomon's governed default.")
+    parser.add_argument(
+        "--model-evidence-registry",
+        help="gnomon-mcp: copy this versioned registry into each jailed row "
+             "and explicitly request evidence-weighted model admission.")
     args = parser.parse_args()
 
     data_dir = Path(args.data_dir).expanduser().resolve()
@@ -419,6 +468,8 @@ def main() -> int:
         parser.error("--compile-questions applies to gnomon-mcp only")
     if args.question_receipts_dir and not args.compile_questions:
         parser.error("--question-receipts-dir requires --compile-questions")
+    if args.named_tsfm and args.condition not in {"gnomon-agent", "gnomon-pure"}:
+        parser.error("--named-tsfm applies only to gnomon-agent or gnomon-pure")
 
     tiers = tuple(t.strip() for t in args.tiers.split(",") if t.strip() in TIERS)
     # gnomon-pure produces forecasts and nothing else, so it is a T2/T4
@@ -447,12 +498,8 @@ def main() -> int:
     prior_summary_path = output_dir / "summary.json"
     prior_summary = (json.loads(prior_summary_path.read_text())
                      if args.resume and prior_summary_path.is_file() else {})
-    prior_records: dict[str, dict[str, Any]] = {}
-    if args.resume and records_path.is_file():
-        for line in records_path.read_text().splitlines():
-            if line.strip():
-                record = json.loads(line)
-                prior_records[str(record.get("task_id"))] = record
+    prior_records = (load_resumable_records(records_path, partial_records_path)
+                     if args.resume else {})
     # Write a complete replacement beside the canonical record file and
     # publish it atomically only after every selected row has finished.
     # A provider, MCP child, or operator interrupt must not destroy the
@@ -489,6 +536,10 @@ def main() -> int:
     typed_engine_answers_officially_correct = 0
     typed_answers_comparable_to_submission = 0
     typed_answers_preserved_by_agent = 0
+    canonical_choice_correct = canonical_choice_total = 0
+    synthesized_choice_correct = synthesized_choice_total = 0
+    hybrid_choice_correct = hybrid_choice_total = 0
+    advisory_overrides = advisory_overrides_helped = advisory_overrides_hurt = 0
     context_channels_considered = context_events_admitted = 0
     context_events_rejected = context_events_applied = 0
     context_events_scenario_only = 0
@@ -534,6 +585,10 @@ def main() -> int:
                     "covariate_execution": saved.get("covariate_execution") or {},
                     "sensitivity_forecast": saved.get(
                         "sensitivity_forecast") or {},
+                    "canonical_mcq": saved.get("canonical_mcq") or {},
+                    "synthesized_mcq": saved.get("synthesized_mcq") or {},
+                    "choice_authority": saved.get("choice_authority") or {},
+                    "choice_basis": saved.get("choice_basis") or {},
                     "mcp": saved.get("mcp") or {},
                     **({"row_abstained": True}
                        if prior_record.get("row_abstained") else {}),
@@ -554,6 +609,8 @@ def main() -> int:
                             compile_questions=args.compile_questions,
                             question_receipts_dir=args.question_receipts_dir,
                             mcp_call_timeout=args.request_timeout,
+                            named_tsfm=args.named_tsfm,
+                            model_evidence_registry=args.model_evidence_registry,
                         )
                         break
                     except Exception as error:
@@ -592,6 +649,32 @@ def main() -> int:
                    else time.time() - started)
 
         choice = verdict.get("choice") or {}
+        canonical_mcq = outcome.get("canonical_mcq") or {}
+        synthesized_mcq = outcome.get("synthesized_mcq") or {}
+        choice_authority = outcome.get("choice_authority") or {}
+        canonical_score = scoring.score_mcq(row, canonical_mcq)
+        synthesized_score = scoring.score_mcq(row, synthesized_mcq)
+        canonical_choice_correct += canonical_score["correct"]
+        canonical_choice_total += sum(key in canonical_mcq
+                                      for key in (row.get("mcq") or {}))
+        synthesized_choice_correct += synthesized_score["correct"]
+        synthesized_choice_total += sum(key in synthesized_mcq
+                                        for key in (row.get("mcq") or {}))
+        for key, authority in choice_authority.items():
+            if authority != "advisory_override" or key not in synthesized_mcq \
+                    or key not in canonical_mcq:
+                continue
+            if str(synthesized_mcq[key]).strip().lower() == \
+                    str(canonical_mcq[key]).strip().lower():
+                continue
+            advisory_overrides += 1
+            expected = (((row.get("mcq") or {}).get(key) or {}).get("label"))
+            synth_ok = str(synthesized_mcq[key]).strip().lower() == \
+                str(expected).strip().lower()
+            canonical_ok = str(canonical_mcq[key]).strip().lower() == \
+                str(expected).strip().lower()
+            advisory_overrides_helped += int(synth_ok and not canonical_ok)
+            advisory_overrides_hurt += int(canonical_ok and not synth_ok)
         tier = verdict["tier"]
         # A row the harness voided (a breached cap, a run that never
         # submitted) did not answer the questions wrongly — it did not
@@ -603,6 +686,8 @@ def main() -> int:
         if voided:
             rows_voided += 1
         if choice.get("total") and not voided:
+            hybrid_choice_correct += int(choice["correct"])
+            hybrid_choice_total += int(choice["total"])
             choice_rows_by_tier[tier] = choice_rows_by_tier.get(tier, 0) + 1
             choice_by_tier.setdefault(tier, []).extend(
                 [1] * choice["correct"] + [0] * (choice["total"] - choice["correct"])
@@ -732,8 +817,6 @@ def main() -> int:
             per_question = choice.get("per_question") or {}
             for question_id in requested_keys & set(row_engine_answers):
                 typed_questions_with_engine_answer += 1
-                typed_engine_answers_officially_correct += int(bool(
-                    per_question.get(question_id)))
                 best = row_engine_answers[question_id].get("best_estimate") or {}
                 candidates = {str(value).strip().lower() for value in (
                     best.get("value"), best.get("display_value"))
@@ -747,6 +830,11 @@ def main() -> int:
                 projected = project_temporal_choice(best.get("value"), options)
                 if projected:
                     candidates.add(str(projected["display_value"]).strip().lower())
+                    expected = (((row.get("mcq") or {}).get(question_id) or {})
+                                .get("label"))
+                    typed_engine_answers_officially_correct += int(
+                        str(projected["display_value"]).strip().lower()
+                        == str(expected).strip().lower())
                 if candidates:
                     typed_answers_comparable_to_submission += 1
                     typed_answers_preserved_by_agent += int(
@@ -797,6 +885,10 @@ def main() -> int:
                         "covariate_execution": covariate_execution or None,
                         "sensitivity_forecast": sensitivity or None,
                         "sensitivity_diagnostic": sensitivity_diagnostic,
+                        "canonical_mcq": canonical_mcq or None,
+                        "synthesized_mcq": synthesized_mcq or None,
+                        "choice_authority": choice_authority or None,
+                        "choice_basis": outcome.get("choice_basis") or None,
                         "mcp": outcome.get("mcp"),
                         "answer": outcome["answer"]}, indent=2,
                        default=str) + "\n",
@@ -844,6 +936,26 @@ def main() -> int:
             for tier, flags in sorted(choice_by_tier.items())
         },
         "choice_rows_scored_by_tier": dict(sorted(choice_rows_by_tier.items())),
+        "choice_contract": {
+            "canonical_correct": canonical_choice_correct,
+            "canonical_total": canonical_choice_total,
+            "canonical_accuracy": (canonical_choice_correct
+                                   / canonical_choice_total
+                                   if canonical_choice_total else None),
+            "synthesized_correct": synthesized_choice_correct,
+            "synthesized_total": synthesized_choice_total,
+            "synthesized_accuracy": (synthesized_choice_correct
+                                     / synthesized_choice_total
+                                     if synthesized_choice_total else None),
+            "hybrid_correct": hybrid_choice_correct,
+            "hybrid_total": hybrid_choice_total,
+            "hybrid_accuracy": (hybrid_choice_correct / hybrid_choice_total
+                                if hybrid_choice_total else None),
+            "advisory_overrides": advisory_overrides,
+            "advisory_overrides_helped": advisory_overrides_helped,
+            "advisory_overrides_hurt": advisory_overrides_hurt,
+            "primary_forecast_unchanged": True,
+        },
         "forecast_metrics_mean_scored_only": {
             key: sum(values) / len(values)
             for key, values in sorted(forecast_metrics_acc.items())
@@ -890,6 +1002,8 @@ def main() -> int:
                               if args.condition == "gnomon-mcp" else None),
         "question_receipts_dir": (args.question_receipts_dir
                                   if args.condition == "gnomon-mcp" else None),
+        "model_evidence_registry": (args.model_evidence_registry
+                                    if args.condition == "gnomon-mcp" else None),
         **({"mcp_economics": {
             "cumulative_tokens": mcp_run_tokens,
             "mean_tokens_per_attempted_row": round(
@@ -1033,6 +1147,7 @@ def main() -> int:
         # in provenance, hence its own field (None keeps old manifests
         # byte-identical).
         best_effort=args.best_effort or None,
+        named_tsfm=args.named_tsfm,
         mcp_profile=(args.mcp_profile
                      if args.condition == "gnomon-mcp" else None),
         compile_context=(args.compile_context
@@ -1043,6 +1158,8 @@ def main() -> int:
                            if args.condition == "gnomon-mcp" else None),
         question_receipts_dir=(args.question_receipts_dir
                                if args.condition == "gnomon-mcp" else None),
+        model_evidence_registry=(args.model_evidence_registry
+                                 if args.condition == "gnomon-mcp" else None),
     )
     print(json.dumps(summary, indent=2))
     # A fully failed run has produced diagnostics, not benchmark evidence.

@@ -48,6 +48,8 @@ class ModelsConfig:
     statistical_candidates: list[str] | None = None
     tsfm_candidates: list[str] = field(default_factory=list)
     tsfm_overrides: dict[str, dict[str, Any]] = field(default_factory=dict)
+    admission_policy: str = "strict"
+    evidence_registry_path: str = ""
 
 
 @dataclass
@@ -414,6 +416,8 @@ ALLOWED_KEYS: frozenset[str] = frozenset({
     "models.statistical.enabled",
     "models.statistical.candidates",
     "models.tsfm.candidates",
+    "models.admission.policy",
+    "models.admission.evidence_registry_path",
     "backends.sandbox.enabled",
     "backends.api.enabled",
     "backends.api.timeout",
@@ -563,7 +567,28 @@ def _parse_config(raw: dict[str, Any]) -> GnomonConfig:
         statistical_candidates=_section(models_raw, "statistical").get("candidates"),
         tsfm_candidates=_section(models_raw, "tsfm").get("candidates", []),
         tsfm_overrides=_section(models_raw, "tsfm").get("overrides", {}),
+        admission_policy=_section(models_raw, "admission").get("policy", "strict"),
+        evidence_registry_path=_section(models_raw, "admission").get(
+            "evidence_registry_path", ""),
     )
+    if cfg.models.admission_policy not in ("strict", "evidence_weighted"):
+        from .contracts import GnomonError
+        raise GnomonError(
+            "UNSUPPORTED_CONFIG_KEY",
+            "models.admission.policy must be strict or evidence_weighted.",
+            {"keys": ["models.admission.policy"],
+             "supplied": cfg.models.admission_policy},
+        )
+    if (cfg.models.admission_policy == "evidence_weighted"
+            and not cfg.models.evidence_registry_path):
+        from .contracts import GnomonError
+        raise GnomonError(
+            "CONFIG_UNREADABLE",
+            "models.admission.policy=evidence_weighted requires an explicit "
+            "models.admission.evidence_registry_path; a TSFM name alone is "
+            "not external evidence.",
+            {"keys": ["models.admission.evidence_registry_path"]},
+        )
 
     # Backends
     backends_raw = _section(raw, "backends")

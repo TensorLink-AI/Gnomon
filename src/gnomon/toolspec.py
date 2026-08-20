@@ -200,7 +200,7 @@ _PROTECTED_KEYS = frozenset({
     "limitations", "limitation_groups", "warnings", "assumptions", "reasons",
     "recovery_actions", "next_actions", "disclosures", "notes", "staleness",
     "artifact_id", "artifact_path", "data_ref", "error", "repair_options",
-    "context_outcome", "question", "answer", "executable", "calibration",
+    "context_outcome", "admission", "question", "answer", "executable", "calibration",
     "direction_probabilities", "primary_forecast_unchanged",
 })
 
@@ -1165,7 +1165,8 @@ def _run_describe(arguments: dict[str, Any]) -> dict[str, Any]:
         for question in questions:
             temporal_answers.append(answer_scoped_question(
                 question, reports=reports, execution_inputs=execution_inputs,
-                forecast_values=arguments.get("_forecast_values")))
+                forecast_values=arguments.get("_forecast_values"),
+                conditional_effects=arguments.get("_conditional_effects")))
     return _json_temporal_values({
         "schema_version": "0.1", "status": "valid",
         "headline": f"Described {len(reports)} series through "
@@ -1462,6 +1463,23 @@ def _attach_temporal_answers(payload: dict[str, Any], artifact: ForecastArtifact
     if len(artifact.results) == 1:
         forecast_values[str(arguments["target_column"])] = next(iter(
             forecast_values.values()))
+    conditional_effects: dict[str, dict[str, Any]] = {}
+    for result in artifact.results:
+        public = public_name(result.series)
+        effect = (result.context or {}).get("effect") if result.context else None
+        if effect or result.context_outcome or result.conditional_forecasts \
+                or result.sensitivity_scenarios:
+            conditional_effects[public] = {
+                **({"measured_effect": effect} if effect else {}),
+                **({"outcome": result.context_outcome}
+                   if result.context_outcome else {}),
+                "conditional_forecast_count": len(result.conditional_forecasts),
+                "sensitivity_scenario_count": len(result.sensitivity_scenarios),
+                "provenance": "artifact_context_contract",
+            }
+    if len(artifact.results) == 1 and conditional_effects:
+        conditional_effects[str(arguments["target_column"])] = next(iter(
+            conditional_effects.values()))
     if cache_hits == len(answer_keys):
         full_answers = [dict(answer) for answer in cached if answer is not None]
         for question, answer in zip(questions, full_answers):
@@ -1479,6 +1497,7 @@ def _attach_temporal_answers(payload: dict[str, Any], artifact: ForecastArtifact
                 "questions")
         }
         describe_arguments["_forecast_values"] = forecast_values
+        describe_arguments["_conditional_effects"] = conditional_effects
         described = _run_describe(describe_arguments)
         full_answers = [
             {**answer, "artifact_id": artifact.forecast_id}
@@ -1498,6 +1517,12 @@ def _attach_temporal_answers(payload: dict[str, Any], artifact: ForecastArtifact
     for answer in full_answers:
         compact = {key: value for key, value in answer.items()
                    if key not in {"per_series", "calibration"}}
+        reasoning = ((answer.get("answer") or {}).get("reasoning"))
+        if isinstance(reasoning, dict):
+            from .temporal_planner import compact_evidence_plan
+            compact_answer = dict(compact.get("answer") or {})
+            compact_answer["reasoning"] = compact_evidence_plan(reasoning)
+            compact["answer"] = compact_answer
         children = answer.get("per_series") or []
         if children:
             compact["constituent_summary"] = {
@@ -1531,7 +1556,8 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
         return _run_forecast_multi(arguments, target_spec)
     events = _context_events_from(arguments)
     config = None
-    if arguments.get("future_events") or arguments.get("structural_events"):
+    if (arguments.get("future_events") or arguments.get("structural_events")
+            or arguments.get("model_admission") == "evidence_weighted"):
         # MCP tool calls do not read ambient project config — deliberately,
         # so the admission lanes must be reachable as explicit
         # per-call parameters or they are unreachable from the agent
@@ -1542,6 +1568,17 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
         config.context.future_events = bool(arguments.get("future_events"))
         config.context.structural_events = bool(
             arguments.get("structural_events"))
+        if arguments.get("model_admission") == "evidence_weighted":
+            registry = arguments.get("model_evidence_registry")
+            if not registry:
+                raise GnomonError(
+                    "MISSING_MODEL_EVIDENCE_REGISTRY",
+                    "model_admission=evidence_weighted requires "
+                    "model_evidence_registry; a model name is not evidence.",
+                    {"required": ["model_evidence_registry"]},
+                )
+            config.models.admission_policy = "evidence_weighted"
+            config.models.evidence_registry_path = str(registry)
     covariates = _covariates_from(arguments)
     artifact, path = forecast(
         arguments["input"],
@@ -1613,12 +1650,24 @@ def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str
     events = _context_events_from(arguments)
     covariates = _covariates_from(arguments)
     config = None
-    if arguments.get("future_events") or arguments.get("structural_events"):
+    if (arguments.get("future_events") or arguments.get("structural_events")
+            or arguments.get("model_admission") == "evidence_weighted"):
         from .config import GnomonConfig
 
         config = GnomonConfig()
         config.context.future_events = bool(arguments.get("future_events"))
         config.context.structural_events = bool(arguments.get("structural_events"))
+        if arguments.get("model_admission") == "evidence_weighted":
+            registry = arguments.get("model_evidence_registry")
+            if not registry:
+                raise GnomonError(
+                    "MISSING_MODEL_EVIDENCE_REGISTRY",
+                    "model_admission=evidence_weighted requires "
+                    "model_evidence_registry; a model name is not evidence.",
+                    {"required": ["model_evidence_registry"]},
+                )
+            config.models.admission_policy = "evidence_weighted"
+            config.models.evidence_registry_path = str(registry)
     artifact, path = forecast_multi(
         str(arguments["input"]),
         time_column=arguments["time_column"],
@@ -1920,7 +1969,9 @@ TOOLS: list[dict[str, Any]] = [
                     "quantile levels. The on-disk artifact is identical "
                     "either way."
                 )},
-                "candidates": {"type": "array", "items": {"type": "string"}, "description": "Restrict the model pool to these names (e.g. gnomon_route's recommendation). The mandatory baselines always compete regardless."},
+                "candidates": {"type": "array", "items": {"type": "string"}, "description": "Restrict candidates; mandatory baselines still compete."},
+                "model_admission": {"type": "string", "enum": ["strict", "evidence_weighted"], "description": "Default: strict."},
+                "model_evidence_registry": {"type": "string", "description": "Registry for evidence_weighted."},
                 "output_dir": {"type": "string", "description": (
                     "Directory for the immutable artifact. Omit to use "
                     "workspace.default_output_dir from gnomon_capabilities "

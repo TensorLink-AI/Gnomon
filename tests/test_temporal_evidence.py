@@ -3,7 +3,8 @@ from __future__ import annotations
 import random
 
 from gnomon.temporal_evidence import (
-    aggregate_evidence, compare_windows, window_evidence,
+    aggregate_evidence, compare_windows, competing_hypotheses,
+    historical_analogues, multi_resolution_evidence, window_evidence,
 )
 
 
@@ -99,3 +100,49 @@ def test_stable_volatility_needs_and_carries_equivalence_interval() -> None:
     assert evidence.support == "supported"
     assert item["interval"][0] >= .8
     assert item["interval"][1] <= 1.25
+
+
+def test_multi_resolution_discloses_short_long_disagreement() -> None:
+    rng = random.Random(19)
+    values = [rng.gauss(0, .2) for _ in range(160)]
+    values += [3 + rng.gauss(0, .2) for _ in range(32)]
+    receipt = multi_resolution_evidence(values, property="level", season=1)
+    assert len(receipt["resolutions"]) >= 3
+    assert receipt["provenance"]["uses_future_observations"] is False
+    assert receipt["provenance"]["window_selection"] == \
+        "history_and_declared_season_only"
+
+
+def test_competing_hypotheses_preserve_runner_up_and_forecast_authority() -> None:
+    rng = random.Random(27)
+    reference = [rng.gauss(0, .25) for _ in range(128)]
+    recent = [2.5 + .03 * index + rng.gauss(0, .7)
+              for index in range(128)]
+    receipt = competing_hypotheses(reference + recent, season=1)
+    assert receipt["winner"] is not None
+    assert receipt["runner_up"] is not None
+    assert receipt["primary_forecast_unchanged"] is True
+    assert receipt["interpretation"] == \
+        "observed_explanations_not_causal_probabilities"
+
+
+def test_historical_analogues_use_only_completed_past_outcomes() -> None:
+    # Four repeated rise-then-fall episodes leave a rising current tail.  The
+    # analogue engine may summarize completed prior outcomes but cannot alter
+    # the primary forecast or claim access to the current future.
+    episode = [float(index) for index in range(8)] + [float(8 - index)
+                                                     for index in range(8)]
+    receipt = historical_analogues(
+        episode * 4 + episode[:8], property="trend", window=8)
+    assert receipt["available"] is True
+    assert receipt["matches"]
+    assert all(row["state_end_offset"] <= -8 for row in receipt["matches"])
+    assert receipt["provenance"]["outcomes_are_historical_only"] is True
+    assert receipt["primary_forecast_unchanged"] is True
+
+
+def test_historical_analogues_abstain_without_separated_outcomes() -> None:
+    receipt = historical_analogues(
+        [float(index) for index in range(20)], property="level", window=8)
+    assert receipt["available"] is False
+    assert receipt["matches"] == []

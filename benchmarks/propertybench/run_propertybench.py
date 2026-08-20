@@ -16,7 +16,9 @@ sys.path.insert(0, str(ROOT / "src"))
 from gnomon.temporal_executables import (  # noqa: E402
     _property_value, fit_dependence_executable, fit_temporal_executable,
 )
-from gnomon.temporal_reasoning import _seasonality_alignment  # noqa: E402
+from gnomon.temporal_reasoning import (  # noqa: E402
+    _forecast_volatility_alignment, _seasonality_alignment,
+)
 from gnomon.temporal_evidence import (  # noqa: E402
     aggregate_evidence, compare_windows,
 )
@@ -194,6 +196,35 @@ def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
                                if row["expected"] == label)
         for label in ("increased", "decreased", "stable")
     }
+    # A published forecast is already an immutable computed path. Questions
+    # about its dispersion must describe that path rather than launch a second
+    # history-only volatility prediction. These fresh paths vary level and
+    # trend so the check is specifically about residual dispersion.
+    forecast_volatility_rows = []
+    for expected, multiplier in (("increased", 2.2), ("decreased", .35),
+                                 ("stable", 1.0)):
+        for replicate in range(replicates * 3):
+            case_seed = seed + 400_000 + replicate
+            rng = random.Random(case_seed)
+            history = [100 + .03 * index + rng.gauss(0, 1)
+                       for index in range(180)]
+            anchor = history[-1]
+            future = [anchor + .03 * (index + 1)
+                      + rng.gauss(0, multiplier)
+                      for index in range(36)]
+            result = _forecast_volatility_alignment(history, future, 1)
+            forecast_volatility_rows.append({
+                "expected": expected, "observed": result["direction"],
+                "ratio": result["future_to_reference_ratio"],
+                "correct": result["direction"] == expected,
+                "seed": case_seed,
+            })
+    forecast_volatility_recalls = {
+        label: statistics.mean(bool(row["correct"])
+                               for row in forecast_volatility_rows
+                               if row["expected"] == label)
+        for label in ("increased", "decreased", "stable")
+    }
     gates = {
         "complete": len(rows) == sum(len(v) * replicates for v in regimes.values()) + 6 * replicates,
         "claimed_direction_accuracy_at_least_70pct": bool(claims) and statistics.mean(
@@ -208,6 +239,8 @@ def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
             statistics.mean(alignment_recalls.values()) >= .8),
         "panel_volatility_balanced_accuracy_at_least_75pct": (
             statistics.mean(panel_recalls.values()) >= .75),
+        "forecast_path_volatility_balanced_accuracy_at_least_80pct": (
+            statistics.mean(forecast_volatility_recalls.values()) >= .8),
     }
     property_gates = {
         prop: {
@@ -236,6 +269,13 @@ def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
                 "cases": len(panel_rows), "class_recall": panel_recalls,
                 "balanced_accuracy": statistics.mean(panel_recalls.values()),
                 "rows": panel_rows,
+            },
+            "forecast_path_volatility": {
+                "cases": len(forecast_volatility_rows),
+                "class_recall": forecast_volatility_recalls,
+                "balanced_accuracy": statistics.mean(
+                    forecast_volatility_recalls.values()),
+                "rows": forecast_volatility_rows,
             },
             "graduated": all(gates.values()), "rows": rows}
 

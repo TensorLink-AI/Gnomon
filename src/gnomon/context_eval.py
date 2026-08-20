@@ -41,7 +41,7 @@ from .evaluation import (
     error_score,
     interval_from_spread,
 )
-from .models import predict
+from .models import MODELS
 
 COVERAGE_DEGRADATION_LIMIT = 0.1
 CONTEXT_MODEL_NAME = "event_adjusted"
@@ -301,6 +301,10 @@ def assess_context(
     # the penultimate fold calibrates, the final fold reports.
     minimum_train = max(2 * season, 2 * horizon, 8)
     origins = list(range(minimum_train, len(values) - horizon + 1, horizon))
+    from .candidate import (
+        candidate_predict, candidate_predict_many, eligible_origins,
+    )
+    origins = eligible_origins(base, origins, horizon)
     if len(origins) < 4:
         assessment = ContextAssessment(
             True, False, [],
@@ -316,6 +320,20 @@ def assess_context(
         )
         return assessment
     selection_origins, calibration_origin, test_origin = origins[:-2], origins[-2], origins[-1]
+
+    # The entire ablation replays one immutable executable at known origins.
+    # Batch-capable backends load/serve once; scalar backends retain identical
+    # semantics through CandidateSpec's fallback.  Include calibration, test,
+    # and publication now so later stages cannot accidentally restart an
+    # isolated model for each fold.
+    replay_origins = [*selection_origins, calibration_origin, test_origin]
+    replay_histories = [values[:origin] for origin in replay_origins] + [values]
+    replay_points = candidate_predict_many(
+        base, replay_histories, horizon, season)
+    base_path_cache = {
+        len(history): points
+        for history, points in zip(replay_histories, replay_points)
+    }
 
     def _reject(code: str, measured: Any, detail: str) -> ContextAssessment:
         assessment = ContextAssessment(
@@ -338,11 +356,20 @@ def assess_context(
     # improvements collapse. The comparison here is therefore between two
     # complete models, which is also what makes it a fair contest.
     #
+    def base_predict(history: list[float]) -> list[float]:
+        cached = base_path_cache.get(len(history))
+        if cached is not None:
+            return list(cached)
+        return candidate_predict(base, history, horizon, season)
+
     base_paths = {
-        origin: predict(base.selected_model, values[:origin], horizon, season)
-        for origin in selection_origins
+        origin: base_predict(values[:origin]) for origin in selection_origins
     }
-    base_residuals = rolling_residuals(values, base.selected_model, season)
+    builtin_base = base.selected_model in MODELS
+    base_residuals = (
+        rolling_residuals(values, base.selected_model, season)
+        if builtin_base else []
+    )
     # A proposer who read "3-day promotion, expect pull-forward" holds real
     # prior knowledge about the effect's shape. `expected_shape` lets it in
     # as a *nomination*: the contest narrows to that shape alone — one
@@ -364,8 +391,13 @@ def assess_context(
     # has removed ordinary trend and seasonality; the episode candidate freezes
     # that model before each event so it cannot adapt midway through a pulse.
     candidates = [("drift", shape) for shape in contested_shapes]
-    candidates += [("residual", shape) for shape in contested_shapes]
-    candidates += [("episode", shape) for shape in contested_shapes]
+    # Residual and episode estimators require one-step refits over the whole
+    # history. They are defined for built-ins; an opaque/API/TSFM executable
+    # still receives the fair drift-effect contest against its exact fold
+    # paths, without being redispatched through the classical registry.
+    if builtin_base:
+        candidates += [("residual", shape) for shape in contested_shapes]
+        candidates += [("episode", shape) for shape in contested_shapes]
     by_estimator: dict[str, dict[str, list[float]]] = {
         "drift": {}, "residual": {}, "episode": {}}
     episode_cache: dict[int, list[tuple[float, int, int]]] = {}
@@ -457,10 +489,10 @@ def assess_context(
             return episode_residual_adjusted(
                 values[:origin], horizon, season, historical_flags,
                 future_flags,
-                predict(base.selected_model, values[:origin], horizon, season),
+                base_predict(values[:origin]),
                 base.selected_model, selected_shape)
         if selected_estimator == "residual":
-            base_path = predict(base.selected_model, values[:origin], horizon, season)
+            base_path = base_predict(values[:origin])
             return residual_event_adjusted(
                 base_residuals[:origin], horizon, historical_flags,
                 future_flags, base_path, selected_shape)
@@ -657,7 +689,7 @@ def assess_context(
             values, horizon, season,
             event_flags(eligible, timestamps, final_cutoff),
             event_flags(eligible, future_timestamps, final_cutoff),
-            predict(base.selected_model, values, horizon, season),
+            base_predict(values),
             base.selected_model, selected_shape,
         )
     elif selected_estimator == "residual":
@@ -665,7 +697,7 @@ def assess_context(
             base_residuals, horizon,
             event_flags(eligible, timestamps, final_cutoff),
             event_flags(eligible, future_timestamps, final_cutoff),
-            predict(base.selected_model, values, horizon, season),
+            base_predict(values),
             selected_shape,
         )
     else:
@@ -693,7 +725,7 @@ def assess_context(
             "effect_survives_shrinkage", True,
             measured=round(assessment.shrinkage, 6), threshold=MINIMUM_SHRINKAGE,
         )
-        history_only = predict(base.selected_model, values, horizon, season)
+        history_only = base_predict(values)
         assessment.points = [
             plain + assessment.shrinkage * (adjusted - plain)
             for plain, adjusted in zip(history_only, assessment.points)

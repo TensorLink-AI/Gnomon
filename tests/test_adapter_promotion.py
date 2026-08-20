@@ -1,5 +1,6 @@
 from gnomon.adapter_promotion import AdapterOutcomeLedger
 from gnomon.tracking import TrackingStore
+import pytest
 
 
 def test_shadow_ledger_recommends_but_never_auto_promotes(tmp_path) -> None:
@@ -91,3 +92,27 @@ def test_tracking_store_exposes_shadow_workflow(tmp_path) -> None:
     assert recorded["status"] == "recorded"
     assert assessed["eligible"] is True
     assert assessed["automatic_promotion"] is False
+
+
+def test_external_prior_excludes_target_project_and_preserves_regime(tmp_path):
+    ledger = AdapterOutcomeLedger(tmp_path / "tracking.sqlite")
+    regime = {"frequency_class": "subdaily"}
+    for index in range(35):
+        ledger.record(
+            project="source", outcome_id=f"o{index}", candidate="m",
+            revision="m@1", baseline="last", candidate_error=.8,
+            baseline_error=1., known_at="2026-01-01T00:00:00+00:00",
+            regime=regime,
+        )
+    ledger.record(
+        project="target", outcome_id="self", candidate="m",
+        revision="m@1", baseline="last", candidate_error=10.,
+        baseline_error=1., known_at="2026-01-01T00:00:00+00:00",
+        regime=regime,
+    )
+    prior = ledger.external_prior(
+        candidate="m", revision="m@1", baseline="last", regime=regime,
+        registry_version="r1", exclude_project="target")
+    assert prior.comparisons == 35
+    assert prior.mean_relative_gain == pytest.approx(.2)
+    assert all(not source.startswith("target:") for source in prior.source_ids)

@@ -41,6 +41,16 @@ Ours (this directory) — the three conditions:
 | `gnomon-agent` | answers choice questions given Gnomon's evidence | Gnomon — forecast arrays in the final answer are Gnomon's, not editable by the model |
 | `gnomon-mcp` (all tiers) | drives the real `gnomon mcp serve` tool surface itself | T2/T4, per channel: a Gnomon artifact used verbatim, or the model's own values labeled `model` — the route is recorded per channel. T1/T3: the model's own answers, with the same tool surface available |
 
+With typed questions, the MCP arm records `canonical_mcq` (immutable engine
+answer), `synthesized_mcq` (model proposal), and the final governed `mcq`.
+Supported answers bind the final view. Weak answers remain canonical by default;
+an override needs the adjudicator to validate the exact alternative from at
+least two independently supported evidence kinds. A context quote alone is
+provenance, not authority, and evidence weights are never presented as
+probabilities.
+`choice_contract` scores all three views and reports override help/harm, so model
+reasoning is measurable without disguising it as an engine-authored answer.
+
 Disclosed adapter decisions (see `gnomon_runner.py`): rows carry
 index-aligned arrays rather than timestamped observations, so Gnomon models each
 channel on a regular axis anchored to the row's official `history_end` and
@@ -130,11 +140,23 @@ provenance reports question-compiler calls, receipt replays, accepted
 questions, and rejected proposals separately from context compilation and MCP
 engine calls. This arm tests host integration; the primary forecast remains
 the same fitted executable and cannot be modified by compiler output.
+Follow-up questions that omit a target inherit an explicit target from the
+preceding question; explicit collective wording (for example, `all` or
+`across`) remains aggregate. The raw model proposal is retained in the receipt
+beside this deterministic discourse resolution.
 `mcp_economics.choice_reasoning_stages` separates requested questions,
 questions that reached a typed engine answer, official accuracy conditional on
 that answer, and exact preservation of the canonical/display value by the host
 agent. A compiler miss is therefore not reported as an estimator failure, and
 an agent paraphrase is not reported as missing engine coverage.
+
+For a model-supply experiment on histories too short for Gnomon's separated
+selection/calibration/test contract, `gnomon-agent` and `gnomon-pure` accept
+`--named-tsfm NAME`. This calls the pinned sandbox model directly and labels
+every channel `experimental_named_model`; it does not claim that the model won
+Gnomon's local evaluation and must not be reported as the governed default.
+The agent returns choices only—the harness injects the immutable model arrays—
+so output truncation cannot corrupt or duplicate forecasts.
 
 ```bash
 python -m benchmarks.temporalbench.run_temporalbench \

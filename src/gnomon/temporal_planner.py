@@ -10,9 +10,10 @@ from __future__ import annotations
 from typing import Any
 
 from .temporal_question import TemporalQuestion
+from .temporal_adjudication import adjudicate_temporal_evidence
 
 
-PLANNER_VERSION = "0.1"
+PLANNER_VERSION = "0.3"
 
 _RECOVERY = {
     "rolling_origin_scale_fit": "collect more history or request a shorter horizon",
@@ -135,6 +136,7 @@ def _available(requirement: str, result: dict[str, Any],
 def build_evidence_plan(question: TemporalQuestion,
                         result: dict[str, Any], *,
                         observed_evidence: dict[str, Any] | None = None,
+                        analogues: dict[str, Any] | None = None,
                         ) -> dict[str, Any]:
     """Return a bounded reasoning pack that cannot override the answer."""
     mode = inference_mode(question)
@@ -187,4 +189,87 @@ def build_evidence_plan(question: TemporalQuestion,
         plan["basis"] = requirements[:3]
     if contradictions:
         plan["contradictions"] = contradictions[:2]
+    # A compact contrastive projection gives the LLM the structure humans use
+    # to reason: what supports the answer, what pushes against it, and what is
+    # still unknown.  These are references to computed receipts, never new
+    # numerical claims authored by the model.
+    because = [{"evidence": row["kind"],
+                "direction": row.get("direction"),
+                "support": row.get("support")}
+               for row in evidence
+               if row.get("direction") in {canonical, None}
+               and row.get("support") != "abstained"]
+    against = [{"evidence": item["between"][1],
+                "direction": item["observed"]}
+               for item in contradictions]
+    unknown = list(missing)
+    if analogues and analogues.get("available"):
+        analogue_direction = analogues.get("consensus_direction")
+        analogue_row = {
+            "evidence": "historical_analogues",
+            "direction": analogue_direction,
+            "agreement": analogues.get("agreement"),
+        }
+        if analogue_direction == canonical:
+            because.append(analogue_row)
+        elif analogue_direction not in {None, "uncertain"}:
+            against.append(analogue_row)
+        else:
+            unknown.append("historical_analogue_outcomes_disagree")
+        plan["historical_analogues"] = {
+            key: analogues[key] for key in (
+                "version", "window_steps", "consensus_direction",
+                "agreement", "matches") if key in analogues
+        }
+    elif analogues and analogues.get("reason"):
+        unknown.append(str(analogues["reason"]))
+    plan["contrast"] = {
+        "because": because[:3], "against": against[:2],
+        "unknown": list(dict.fromkeys(unknown))[:3],
+    }
+    suggestions = list(plan.get("recovery") or [])
+    if contradictions:
+        suggestions.append(
+            "wait for the next window and re-evaluate the observed/predictive disagreement")
+    if analogues and not analogues.get("available"):
+        suggestions.append("collect enough history for non-overlapping analogue outcomes")
+    plan["suggested_next"] = list(dict.fromkeys(suggestions))[:2]
+    plan["adjudication"] = adjudicate_temporal_evidence(
+        result, evidence=evidence, analogues=analogues,
+        conditional_effect=result.get("conditional_effect"), missing=missing)
     return plan
+
+
+def compact_evidence_plan(plan: dict[str, Any]) -> dict[str, Any]:
+    """Project a full reasoning receipt into the bounded agent contract.
+
+    The receipt retains diagnostics, executable requirements, analogue
+    matches and contradiction provenance.  The inline projection only tells
+    an agent what supports the answer, what pushes against it, what remains
+    unknown, and the single best next step.  It deliberately contains no
+    second copy of the canonical answer and therefore cannot rewrite it.
+    """
+    contrast = plan.get("contrast") or {}
+    projected = {
+        "version": plan.get("version", PLANNER_VERSION),
+        "authority": "fitted_executable",
+        "primary_forecast_unchanged": True,
+        "because": list(contrast.get("because") or [])[:2],
+        "against": list(contrast.get("against") or [])[:1],
+        "unknown": list(contrast.get("unknown") or [])[:2],
+        "next": list(plan.get("suggested_next") or [])[:1],
+        "details_in_answer_receipt": True,
+    }
+    adjudication = plan.get("adjudication") or {}
+    eligibility = adjudication.get("synthesis_eligibility") or {}
+    alternative = adjudication.get("alternative") or {}
+    projected["adjudication"] = {
+        "relationship": adjudication.get("relationship", "unresolved"),
+        "alternative": ({
+            "value": alternative.get("value"),
+            "support": alternative.get("support"),
+        } if alternative else None),
+        "synthesis_eligible": bool(eligibility.get("eligible")),
+        "what_would_flip": list(adjudication.get("what_would_flip") or [])[:1],
+    }
+    return projected

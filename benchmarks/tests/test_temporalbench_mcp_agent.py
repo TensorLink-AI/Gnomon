@@ -777,6 +777,14 @@ def test_product_contract_submit_schema_cannot_spend_tokens_on_reasoning():
         "properties"]
 
 
+def test_typed_questions_require_explicit_synthesis_and_basis_maps():
+    run = object.__new__(mcp_agent._Run)
+    run.row = {"_require_gnomon_execution": True}
+    run.temporal_compilation = {"questions": [{"id": "q1"}]}
+    parameters = run._submit_tool()["function"]["parameters"]
+    assert parameters["required"] == ["forecast", "mcq", "choice_basis"]
+
+
 def test_natural_routing_still_requires_product_execution(tmp_path):
     run = object.__new__(mcp_agent._Run)
     run.row = {"_require_gnomon_execution": True}
@@ -1486,16 +1494,24 @@ def test_host_projects_all_unambiguous_canonical_receipt_answers(tmp_path):
         "answers": [
             {"question": {"id": "q1"},
              "best_estimate": {"value": "higher",
+                               "support": "supported",
                                "automation_eligible": True}},
             {"question": {"id": "q2"},
              "best_estimate": {"value": "stable",
+                               "support": "supported",
                                "automation_eligible": True}},
             {"question": {"id": "q3"},
              "best_estimate": {"value": "weaker",
+                               "support": "weak",
                                "automation_eligible": False}},
             {"question": {"id": "q4"},
              "best_estimate": {"value": "increased",
-                               "automation_eligible": False}},
+                               "support": "weak",
+                               "automation_eligible": False},
+             "answer": {"reasoning": {"adjudication": {
+                 "relationship": "alternative_preferred",
+                 "alternative": {"value": "decreased"},
+                 "synthesis_eligibility": {"eligible": True}}}}},
         ],
     }), encoding="utf-8")
     run = _Run.__new__(_Run)
@@ -1516,3 +1532,141 @@ def test_host_projects_all_unambiguous_canonical_receipt_answers(tmp_path):
     assert "seasonality" not in projected  # ``weaker`` is not ``no``.
     assert projected["weak_volatility"]["display_value"] == "increased"
     assert projected["weak_volatility"]["automation_eligible"] is False
+    assert projected["level"]["authority"] == "binding"
+    assert projected["weak_volatility"]["authority"] == "advisory"
+    assert projected["weak_volatility"]["has_computed_opposition"] is True
+    assert projected["weak_volatility"]["computed_alternative"] == "decreased"
+
+
+def test_submission_binds_supported_but_preserves_weak_synthesis() -> None:
+    from benchmarks.temporalbench.mcp_agent import _Run
+
+    run = _Run.__new__(_Run)
+    run.row = {"mcq": {"strong": {}, "weak": {}}}
+    run.target_keys = ["x"]
+    run.horizon = 2
+    run.submission = None
+    run.mcp_calls = 0
+    run.trace = []
+    run.artifact_paths = set()
+    run._project_receipt_choices = lambda: {
+        "strong": {"display_value": "Higher", "authority": "binding"},
+        "weak": {"display_value": "increased", "authority": "advisory",
+                 "has_computed_opposition": True,
+                 "computed_alternative": "decreased"},
+    }
+    accepted = run._handle_submit({
+        "forecast": {"x": {"values": [1.0, 2.0]}},
+        "mcq": {"strong": "Lower", "weak": "decreased"},
+        "choice_basis": {"weak": {
+            "kind": "computed_opposition", "evidence": "observed disagrees"}},
+    })
+    assert accepted["accepted"] is True
+    assert run.submission["mcq"] == {
+        "strong": "Higher", "weak": "decreased"}
+    assert run.submission["canonical_mcq"] == {
+        "strong": "Higher", "weak": "increased"}
+    assert run.submission["synthesized_mcq"] == {
+        "strong": "Lower", "weak": "decreased"}
+    assert run.submission["choice_authority"]["weak"] == "advisory_override"
+
+
+def test_unsubstantiated_weak_override_keeps_canonical_default() -> None:
+    from benchmarks.temporalbench.mcp_agent import _Run
+    run = _Run.__new__(_Run)
+    run.row = {"mcq": {"weak": {}}, "prompt": "No opposing statement."}
+    run.target_keys = ["x"]
+    run.horizon = 1
+    run.submission = None
+    run.mcp_calls = 0
+    run.trace = []
+    run.artifact_paths = set()
+    run._project_receipt_choices = lambda: {
+        "weak": {"display_value": "increased", "authority": "advisory",
+                 "has_computed_opposition": False}}
+    accepted = run._handle_submit({
+        "forecast": {"x": {"values": [1.0]}},
+        "mcq": {"weak": "decreased"},
+    })
+    assert accepted["accepted"] is True
+    assert run.submission["mcq"]["weak"] == "increased"
+    assert run.submission["synthesized_mcq"]["weak"] == "decreased"
+    assert run.submission["choice_authority"]["weak"] == \
+        "advisory_canonical_default"
+
+
+def test_computed_opposition_only_authorizes_its_projected_alternative() -> None:
+    from benchmarks.temporalbench.mcp_agent import _Run
+    run = _Run.__new__(_Run)
+    run.row = {"mcq": {"weak": {}}, "prompt": ""}
+    run.target_keys = ["x"]
+    run.horizon = 1
+    run.submission = None
+    run.mcp_calls = 0
+    run.trace = []
+    run.artifact_paths = set()
+    run._project_receipt_choices = lambda: {
+        "weak": {"display_value": "increased", "authority": "advisory",
+                 "has_computed_opposition": True,
+                 "computed_alternative": "decreased"}}
+    accepted = run._handle_submit({
+        "forecast": {"x": {"values": [1.0]}},
+        "mcq": {"weak": "constant"},
+        "choice_basis": {"weak": {
+            "kind": "computed_opposition", "evidence": "two receipts"}},
+    })
+    assert accepted["accepted"] is True
+    assert run.submission["mcq"]["weak"] == "increased"
+    assert run.submission["choice_basis"] == {}
+
+
+def test_exact_context_quote_needs_outcome_backed_adjudication() -> None:
+    from benchmarks.temporalbench.mcp_agent import _Run
+    run = _Run.__new__(_Run)
+    quote = "A deploy may increase latency."
+    run.row = {"mcq": {"weak": {}}, "prompt": quote}
+    run.target_keys = ["x"]
+    run.horizon = 1
+    run.submission = None
+    run.mcp_calls = 0
+    run.trace = []
+    run.artifact_paths = set()
+    run._project_receipt_choices = lambda: {
+        "weak": {"display_value": "stable", "authority": "advisory",
+                 "has_computed_opposition": False,
+                 "computed_alternative": None}}
+    accepted = run._handle_submit({
+        "forecast": {"x": {"values": [1.0]}},
+        "mcq": {"weak": "increased"},
+        "choice_basis": {"weak": {"kind": "task_context",
+                                    "evidence": quote}},
+    })
+    assert accepted["accepted"] is True
+    assert run.submission["mcq"]["weak"] == "stable"
+    assert run.submission["synthesized_mcq"]["weak"] == "increased"
+
+
+def test_validated_context_can_publish_exact_adjudicated_alternative() -> None:
+    from benchmarks.temporalbench.mcp_agent import _Run
+    run = _Run.__new__(_Run)
+    quote = "Repeated scored deploys increased latency."
+    run.row = {"mcq": {"weak": {}}, "prompt": quote}
+    run.target_keys = ["x"]
+    run.horizon = 1
+    run.submission = None
+    run.mcp_calls = 0
+    run.trace = []
+    run.artifact_paths = set()
+    run._project_receipt_choices = lambda: {
+        "weak": {"display_value": "stable", "authority": "advisory",
+                 "has_computed_opposition": True,
+                 "computed_alternative": "increased"}}
+    accepted = run._handle_submit({
+        "forecast": {"x": {"values": [1.0]}},
+        "mcq": {"weak": "increased"},
+        "choice_basis": {"weak": {"kind": "task_context",
+                                    "evidence": quote}},
+    })
+    assert accepted["accepted"] is True
+    assert run.submission["mcq"]["weak"] == "increased"
+    assert run.submission["choice_authority"]["weak"] == "advisory_override"

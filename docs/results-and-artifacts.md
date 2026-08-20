@@ -154,6 +154,13 @@ revisions, fallback policy, and the visible-history fingerprint. Evaluation
 passes this executable specification across the publication seam; the
 pipeline does not reconstruct it from `selected_model`.
 
+With evidence-weighted model admission, `results[*].admission` and the
+`model_admission` evidence receipt preserve the admission state, local and
+external evidence separately, candidate weight, diagnostics, policy version,
+and deterministic reasoning frame. A `prior_assisted` result is capped at
+`conditionally_supported`. A blend's executable identity records its exact
+members and fitted weights, so replay never repeats or improvises admission.
+
 ## Artifact files
 
 ### `artifact.json`
@@ -200,10 +207,27 @@ mutates `artifact.json` or `forecast.csv`.
 The inline tool response exposes the canonical scalar `best_estimate`, its
 `decision_rule`, and a constituent support summary. Detailed per-series
 executions remain here rather than being resent through every agent turn.
+The bounded `answer.reasoning` packet contains typed evidence for and against
+the canonical answer, unresolved evidence, historical analogues when enough
+completed history exists, and at most two suggested next actions. These fields
+help a language model explain the result; their contract explicitly prevents
+them from replacing the canonical answer or immutable primary forecast. Its
+compact `adjudication` projection states whether the canonical or an alternative
+is preferred, the supported alternative when one exists, and whether synthesis
+is publication-eligible. The full receipt records source kinds, provenance,
+evidence balance, calibration metadata, and what additional evidence would
+change the decision.
 It also reports `answer_cache` provenance. A hit is scoped to the immutable
 forecast ID, canonical typed question, `as_of`, project namespace, and answer
 contract version; it reuses computation without changing this receipt or the
 primary forecast.
+
+Every answer includes `synthesis_policy`: canonical authority, publication
+default, whether model synthesis is allowed, and whether an override needs
+opposing evidence. Hosts retain canonical, proposed synthesis, accepted basis,
+and final governed choice as separate audit fields. A weak proposal cannot
+silently become canonical: even exactly quoted task context must support the
+same alternative that the outcome-backed adjudicator found eligible.
 
 ## Reproducibility limits
 

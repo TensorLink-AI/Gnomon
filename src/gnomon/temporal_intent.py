@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import copy
+import re
 from typing import Any
 
 from .llm import LLMAdapter
@@ -9,7 +11,7 @@ from .temporal_question import (
     TemporalQuestion, compile_temporal_question, compile_temporal_questions,
 )
 
-INTENT_COMPILER_VERSION = "0.4"
+INTENT_COMPILER_VERSION = "0.5"
 
 
 INTENT_SCHEMA: dict[str, Any] = {
@@ -50,6 +52,50 @@ INTENT_SCHEMA: dict[str, Any] = {
             }, "required": ["id", "verb", "property", "target"]}},
     }, "required": ["status", "questions"],
 }
+
+
+def _question_segments(text: str) -> list[str]:
+    """Return ordered question clauses without interpreting their answer."""
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    questions = [line for line in lines if "?" in line]
+    return questions or [item.strip() + "?" for item in text.split("?")
+                         if item.strip()]
+
+
+def _resolve_discourse_focus(
+    text: str, questions: Any, available_targets: list[str],
+) -> Any:
+    """Bind omitted targets to the nearest explicit series deterministically.
+
+    The LLM proposes semantic structure, but it cannot silently broaden a
+    singular discourse focus into a cross-series aggregate. Explicit
+    collective language remains authoritative.
+    """
+    if not isinstance(questions, list):
+        return questions
+    segments = _question_segments(text)
+    if len(segments) != len(questions):
+        return questions
+    aliases = {
+        target: {target.lower(), target.lower().replace("_", " ")}
+        for target in available_targets
+    }
+    collective = re.compile(
+        r"\b(all|across|each|every|fleet|group|metrics|series|channels)\b",
+        re.IGNORECASE)
+    focus: str | None = None
+    resolved = copy.deepcopy(questions)
+    for segment, raw in zip(segments, resolved):
+        lowered = segment.lower()
+        named = [target for target, names in aliases.items()
+                 if any(re.search(rf"\b{re.escape(name)}\b", lowered)
+                        for name in names)]
+        if len(named) == 1:
+            focus = named[0]
+            raw["target"] = focus
+        elif not named and focus is not None and not collective.search(segment):
+            raw["target"] = focus
+    return resolved
 
 
 def compile_temporal_text(
@@ -107,8 +153,10 @@ def compile_temporal_text(
             {"compiler_status": "refused"},
         )
     try:
+        proposed_questions = _resolve_discourse_focus(
+            text, proposed.get("questions"), available_targets)
         return compile_temporal_questions(
-            proposed.get("questions"), available_targets=available_targets,
+            proposed_questions, available_targets=available_targets,
             default_verb=default_verb, default_horizon=default_horizon)
     except Exception as error:
         # Preserve the proposal in the typed error receipt. It remains
@@ -130,8 +178,9 @@ def compile_temporal_text_receipt(
             self.proposal: dict[str, Any] | None = None
 
         def complete(self, prompt: str, response_schema: dict[str, Any]):
-            self.proposal = adapter.complete(prompt, response_schema)
-            return self.proposal
+            response = adapter.complete(prompt, response_schema)
+            self.proposal = copy.deepcopy(response)
+            return response
 
     capture = Capture()
     try:
@@ -150,6 +199,8 @@ def compile_temporal_text_receipt(
                 proposed_questions = json.loads(proposed_questions)
             except (TypeError, ValueError):
                 proposed_questions = []
+        proposed_questions = _resolve_discourse_focus(
+            text, proposed_questions, available_targets)
         for index, raw in enumerate(proposed_questions):
             try:
                 accepted.append(compile_temporal_question(

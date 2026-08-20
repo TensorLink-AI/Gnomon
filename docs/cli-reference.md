@@ -294,7 +294,8 @@ pins. Model weights download from the Hugging Face Hub on first inference:
 
 ```bash
 gnomon tsfm list                        # installable vs installed, with verified capabilities
-gnomon tsfm install chronos_bolt_mini   # create the sandbox venv + dependencies
+gnomon tsfm install toto2_4m             # smallest Toto 2.0 sandbox + pinned weights
+gnomon tsfm install chronos_bolt_mini   # another forecast candidate
 gnomon tsfm install moment_small        # multi-task: also unlocks a detect candidate
 gnomon tsfm install-all                 # every registered adapter
 gnomon tsfm remove chronos_bolt_mini    # delete the sandbox venv

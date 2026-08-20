@@ -8,6 +8,13 @@ candidates = ["drift", "linear_trend", "window_average", "theta", "ets"]
 [models.tsfm]
 candidates = []
 
+# Strict is the default. Evidence-weighted admission requires a versioned JSON
+# registry compiled from independent pinned-revision outcomes. Relative paths
+# resolve beside this configuration file.
+[models.admission]
+policy = "strict" # strict | evidence_weighted
+# evidence_registry_path = "model-evidence.json"
+
 # [models.tsfm.overrides.chronos_bolt_mini]
 # backend = "sandbox" # auto | sandbox | api | skip
 

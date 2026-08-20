@@ -122,3 +122,11 @@ def test_sandbox_adapter_identity_carries_pinned_weight_revision() -> None:
     adapter = SubprocessAdapter("chronos_bolt_mini")
     assert adapter.revision is not None
     assert "amazon/chronos-bolt-mini@" in adapter.revision
+
+
+def test_adapter_minimum_history_is_rejected_before_model_inference() -> None:
+    adapter = LegacyModelAdapter(SubprocessAdapter("toto2_4m"))
+    assert adapter.capabilities.min_history == 32
+    request = ForecastRequest.from_values([1.0] * 31, 2, 1)
+    with pytest.raises(ForecastAdapterError, match="history"):
+        adapter.forecast(request)

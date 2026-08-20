@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from gnomon.temporal_planner import build_evidence_plan, inference_mode
+from gnomon.temporal_planner import (
+    build_evidence_plan, compact_evidence_plan, inference_mode,
+)
 from gnomon.temporal_question import TemporalQuestion
 
 
@@ -74,7 +76,11 @@ def test_reasoning_pack_has_a_hard_small_shape() -> None:
         "direction": "increased", "support": "supported",
         "effective_series": 100, "agreement": .91}
     plan = build_evidence_plan(question, result)
-    assert len(json.dumps(plan, separators=(",", ":"))) < 1400
+    # The full immutable receipt includes bounded adjudication provenance;
+    # only its compact projection is paid on every agent turn.
+    assert len(json.dumps(plan, separators=(",", ":"))) < 2100
+    assert len(json.dumps(compact_evidence_plan(plan),
+                          separators=(",", ":"))) < 850
     assert len(plan.get("evidence", [])) <= 3
     assert len(plan.get("missing_evidence", [])) <= 3
     assert len(plan.get("contradictions", [])) <= 2
@@ -96,3 +102,52 @@ def test_predictive_plan_preserves_conflicting_observed_transition() -> None:
         "canonical": "upward", "observed": "downward",
         "resolution": "retain canonical answer; disclose observed disagreement",
     }
+    assert plan["contrast"]["against"][0]["direction"] == "downward"
+    assert plan["suggested_next"]
+    assert plan["adjudication"]["relationship"] == "alternative_preferred"
+    assert plan["adjudication"]["primary_forecast_unchanged"] is True
+
+
+def test_analogue_evidence_is_contrastive_not_authoritative() -> None:
+    question = TemporalQuestion(
+        "q", "predict", "x", "trend", horizon=10)
+    result = _result("upward", "supported")
+    analogues = {
+        "version": "0.1", "available": True, "window_steps": 12,
+        "consensus_direction": "downward", "agreement": .67,
+        "matches": [{"state_end_offset": -24, "distance": .1,
+                     "outcome_direction": "downward",
+                     "outcome_support": "weak"}],
+    }
+    plan = build_evidence_plan(question, result, analogues=analogues)
+    assert plan["authority"] == "fitted_executable"
+    assert result["best_estimate"]["value"] == "upward"
+    assert plan["contrast"]["against"] == [{
+        "evidence": "historical_analogues", "direction": "downward",
+        "agreement": .67,
+    }]
+    assert plan["primary_forecast_unchanged"] is True
+
+
+def test_compact_projection_keeps_reasoning_not_receipt_bulk() -> None:
+    plan = {
+        "version": "0.2", "authority": "fitted_executable",
+        "primary_forecast_unchanged": True,
+        "evidence": [{"kind": "large", "values": list(range(100))}],
+        "historical_analogues": {"matches": list(range(20))},
+        "contrast": {
+            "because": [{"evidence": str(i)} for i in range(4)],
+            "against": [{"evidence": str(i)} for i in range(3)],
+            "unknown": ["a", "b", "c"],
+        },
+        "suggested_next": ["observe", "refit"],
+    }
+    compact = compact_evidence_plan(plan)
+    assert len(compact["because"]) == 2
+    assert len(compact["against"]) == 1
+    assert compact["unknown"] == ["a", "b"]
+    assert compact["next"] == ["observe"]
+    assert "evidence" not in compact
+    assert "historical_analogues" not in compact
+    assert compact["details_in_answer_receipt"] is True
+    assert compact["adjudication"]["relationship"] == "unresolved"

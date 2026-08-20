@@ -61,16 +61,28 @@ class TestWorkerRevisionPinning:
 
         captured: dict = {}
 
+        class FakeStdin:
+            def write(self, value):
+                captured["request"] = json.loads(value)
+            def flush(self):
+                pass
+
+        class FakeStdout:
+            def fileno(self):
+                return 42
+            def readline(self):
+                return json.dumps({"point": [1.0, 1.0, 1.0]}) + "\n"
+
         class FakeProc:
-            returncode = 0
-            stdout = json.dumps({"point": [1.0, 1.0, 1.0]})
-            stderr = ""
+            stdin = FakeStdin()
+            stdout = FakeStdout()
+            stderr = None
+            def poll(self):
+                return None
 
-        def fake_run(cmd, input=None, **kwargs):
-            captured["request"] = json.loads(input)
-            return FakeProc()
-
-        monkeypatch.setattr(tsfm_sandbox.subprocess, "run", fake_run)
+        monkeypatch.setattr(adapter, "_start_worker", lambda: FakeProc())
+        monkeypatch.setattr(tsfm_sandbox.select, "select",
+                            lambda *args: ([42], [], []))
         adapter.predict([1.0] * 30, 3, 7)
         expected = resolved_weights("chronos_bolt_mini")
         assert expected  # the adapter has pinned weights to send

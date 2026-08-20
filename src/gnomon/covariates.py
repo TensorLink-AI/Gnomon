@@ -14,7 +14,6 @@ from typing import Any
 from .contracts import GnomonError
 from .data import fingerprint
 from .evaluation import Evaluation, error_score, quantile
-from .models import MODELS, predict
 from .temporal import default_season, next_timestamp, validate_and_group
 
 
@@ -595,6 +594,8 @@ def assess_covariates(
         return CovariateAssessment(False, False, rejected=[{"reason": "base evaluation is unsupported"}])
     minimum_train = max(2 * season, 2 * horizon, 8)
     origins = list(range(minimum_train, len(values) - horizon + 1, horizon))
+    from .candidate import candidate_predict, eligible_origins
+    origins = eligible_origins(base, origins, horizon)
     if len(origins) < 4:
         return CovariateAssessment(True, False, rejected=[{
             "reason": "at least four rolling origins are required for leakage-safe covariate selection"
@@ -621,22 +622,22 @@ def assess_covariates(
             fold_scores.append(score)
         return fold_scores
 
-    current_scores: list[float] | None = None
-    if base.selected_model in MODELS:
-        current_scores = []
-        for origin in selection:
-            score = error_score(
-                values[origin:origin + horizon],
-                predict(base.selected_model, values[:origin], horizon, season),
-            )
-            if score is None:
-                current_scores = None
-                break
-            current_scores.append(score)
+    current_scores: list[float] | None = []
+    for origin in selection:
+        try:
+            points = candidate_predict(base, values[:origin], horizon, season)
+        except (ValueError, ArithmeticError):
+            current_scores = None
+            break
+        score = error_score(values[origin:origin + horizon], points)
+        if score is None:
+            current_scores = None
+            break
+        current_scores.append(score)
     if current_scores is None:
         return CovariateAssessment(True, False, rejected=[{
-            "reason": "covariate admission requires a built-in univariate comparison "
-                      "model scoreable on every selection fold"
+            "reason": "covariate admission requires the evaluated executable "
+                      "to be scoreable on every eligible selection fold"
         }])
 
     for spec in dataset.specs:

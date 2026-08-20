@@ -14,6 +14,8 @@ from typing import Any
 
 
 EVIDENCE_VERSION = "0.1"
+MULTI_RESOLUTION_VERSION = "0.1"
+ANALOGUE_VERSION = "0.1"
 
 
 @dataclass(frozen=True)
@@ -128,9 +130,24 @@ def _seasonal_transition(reference: list[float], recent: list[float],
         direction = "stable"
     else:
         direction = "unstable"
+    reference_cycles = max(2, len(reference) // season)
+    recent_cycles = max(2, len(recent) // season)
+    # Approximate uncertainty for the ratio of phase-template dispersions.
+    # It is intentionally conservative: cycles, not individual observations,
+    # are the effective sample size for a seasonal-strength claim.
+    log_se = 1.64 * math.sqrt(
+        1 / (2 * (reference_cycles - 1))
+        + 1 / (2 * (recent_cycles - 1)))
+    ratio_interval = [
+        math.exp(math.log(strength_ratio) - 1.6448536269514722 * log_se),
+        math.exp(math.log(strength_ratio) + 1.6448536269514722 * log_se),
+    ]
     return {"estimate": {"phase_shift_steps": shift,
                          "template_correlation": correlation,
-                         "strength_ratio": strength_ratio},
+                         "strength_ratio": strength_ratio,
+                         "strength_ratio_interval": ratio_interval,
+                         "effective_reference_cycles": reference_cycles,
+                         "effective_recent_cycles": recent_cycles},
             "direction": direction, "reason": None}
 
 
@@ -184,12 +201,38 @@ def compare_windows(values: list[float], *, season: int = 1,
             math.exp(math.log(ratio) + z90 * log_se),
         ]
     seasonal = _seasonal_transition(reference, recent, season)
-    reference_extremes = sum(abs(value) > 3.5 * max(reference_scale, 1e-12)
-                             for value in reference_residuals) / len(reference_residuals)
-    recent_extremes = sum(abs(value) > 3.5 * max(reference_scale, 1e-12)
-                          for value in recent_residuals) / len(recent_residuals)
+    reference_extreme_count = sum(
+        abs(value) > 3.5 * max(reference_scale, 1e-12)
+        for value in reference_residuals)
+    recent_extreme_count = sum(
+        abs(value) > 3.5 * max(reference_scale, 1e-12)
+        for value in recent_residuals)
+    reference_extremes = reference_extreme_count / len(reference_residuals)
+    recent_extremes = recent_extreme_count / len(recent_residuals)
     extreme_delta = recent_extremes - reference_extremes
     regime_strength = max(abs(level_delta), abs(trend_delta))
+    # Jeffreys-smoothed binomial variance avoids the zero-width Wald interval
+    # when neither short window happened to contain a tail event.  Absence in
+    # a finite sample is not proof that the tail rate is exactly zero.
+    reference_tail_p = ((reference_extreme_count + .5)
+                        / (len(reference_residuals) + 1))
+    recent_tail_p = ((recent_extreme_count + .5)
+                     / (len(recent_residuals) + 1))
+    extreme_se = math.sqrt(
+        reference_tail_p * (1 - reference_tail_p)
+        / len(reference_residuals)
+        + recent_tail_p * (1 - recent_tail_p) / len(recent_residuals))
+    extreme_interval = [extreme_delta - z90 * extreme_se,
+                        extreme_delta + z90 * extreme_se]
+    regime_upper = max(abs(bound) for bound in
+                       (*level_interval, *trend_interval))
+    regime_lower = max(
+        0.0,
+        min(abs(level_interval[0]), abs(level_interval[1]))
+        if level_interval[0] * level_interval[1] > 0 else 0.0,
+        min(abs(trend_interval[0]), abs(trend_interval[1]))
+        if trend_interval[0] * trend_interval[1] > 0 else 0.0,
+    )
     return {
         "identifiable": ratio is not None,
         "reason": None if ratio is not None else "zero_reference_dispersion",
@@ -212,9 +255,13 @@ def compare_windows(values: list[float], *, season: int = 1,
                            "recent_scale": recent_scale},
             "seasonality": seasonal,
             "regime": {"estimate": regime_strength,
+                       "interval": [regime_lower, regime_upper],
+                       "interval_level": .90,
                        "direction": "shift" if regime_strength >= 1 else
                                     "no_shift"},
             "extreme": {"estimate": extreme_delta,
+                        "interval": extreme_interval,
+                        "interval_level": .90,
                         "direction": "increased" if extreme_delta > .02 else
                                      "decreased" if extreme_delta < -.02 else
                                      "stable"},
@@ -246,6 +293,182 @@ def window_evidence(values: list[float], *, property: str, season: int = 1,
     )
 
 
+def multi_resolution_evidence(
+    values: list[float], *, property: str, season: int = 1,
+) -> dict[str, Any]:
+    """Compare a transition at several observable time scales.
+
+    The resolutions are derived only from history length and the declared
+    season.  This is deliberately label-free: callers get agreement,
+    disagreement, and the runner-up rather than a forced single-scale story.
+    Duplicate or infeasible windows are omitted.
+    """
+    numeric = [float(value) for value in values if math.isfinite(float(value))]
+    season = max(1, int(season))
+    candidates = (
+        ("immediate", max(8, season)),
+        ("recent", max(16, 2 * season)),
+        ("seasonal", max(24, 4 * season)),
+        ("long_run", max(32, min(len(numeric) // 2, 8 * season))),
+    )
+    rows: list[dict[str, Any]] = []
+    seen: set[int] = set()
+    for label, width in candidates:
+        width = min(width, len(numeric) // 2)
+        if width in seen or width < max(6, season):
+            continue
+        seen.add(width)
+        evidence = window_evidence(
+            numeric, property=property, season=season, window=width)
+        if evidence.identifiable:
+            rows.append({
+                "resolution": label,
+                "window_steps": width,
+                "direction": evidence.direction,
+                "support": evidence.support,
+                "estimate": evidence.estimate,
+            })
+    weights = {"supported": 2.0, "weak": 1.0, "abstained": 0.0}
+    scores: dict[str, float] = {}
+    for row in rows:
+        direction = str(row["direction"])
+        scores[direction] = scores.get(direction, 0.0) + weights[row["support"]]
+    ranked = sorted(scores.items(), key=lambda item: (-item[1], item[0]))
+    total = sum(scores.values())
+    best = ranked[0] if ranked else ("uncertain", 0.0)
+    runner_up = ranked[1] if len(ranked) > 1 else None
+    agreement = best[1] / total if total else 0.0
+    return {
+        "version": MULTI_RESOLUTION_VERSION,
+        "property": property,
+        "direction": best[0] if agreement > .5 else "uncertain",
+        "support": ("supported" if len(rows) >= 2 and agreement >= .75
+                    and best[1] >= 3 else
+                    "weak" if agreement > .5 else "abstained"),
+        "agreement": agreement,
+        "runner_up": ({"direction": runner_up[0], "score": runner_up[1]}
+                      if runner_up else None),
+        "resolution_divergence": len(scores) > 1,
+        "resolutions": rows,
+        "provenance": {
+            "kind": "observed_multi_resolution_windows",
+            "uses_future_observations": False,
+            "window_selection": "history_and_declared_season_only",
+        },
+    }
+
+
+def competing_hypotheses(values: list[float], *, season: int = 1,
+                         limit: int = 3) -> dict[str, Any]:
+    """Rank observed explanations without treating one property as truth.
+
+    Scores describe evidence strength and scale agreement, not causal
+    probability.  This receipt is suitable for an LLM to explain, but cannot
+    replace a fitted predictive executable or mutate its forecast.
+    """
+    candidates = []
+    for prop in ("level", "trend", "seasonality", "volatility", "regime",
+                 "extreme"):
+        receipt = multi_resolution_evidence(
+            values, property=prop, season=season)
+        if receipt["direction"] in {"uncertain", "similar", "constant",
+                                    "stable", "no_shift"}:
+            continue
+        support_weight = {"supported": 2.0, "weak": 1.0,
+                          "abstained": 0.0}[receipt["support"]]
+        score = support_weight * float(receipt["agreement"])
+        candidates.append({
+            "hypothesis": prop,
+            "direction": receipt["direction"],
+            "support": receipt["support"],
+            "score": score,
+            "resolution_divergence": receipt["resolution_divergence"],
+            "evidence": receipt["resolutions"],
+        })
+    candidates.sort(key=lambda row: (-row["score"], row["hypothesis"]))
+    winner = candidates[0] if candidates else None
+    runner_up = candidates[1] if len(candidates) > 1 else None
+    return {
+        "version": MULTI_RESOLUTION_VERSION,
+        "winner": ({key: winner[key] for key in
+                    ("hypothesis", "direction", "support", "score")}
+                   if winner else None),
+        "runner_up": ({key: runner_up[key] for key in
+                       ("hypothesis", "direction", "support", "score")}
+                      if runner_up else None),
+        "margin": ((winner["score"] - runner_up["score"])
+                   if winner and runner_up else
+                   winner["score"] if winner else 0.0),
+        "candidates": candidates[:max(1, int(limit))],
+        "interpretation": "observed_explanations_not_causal_probabilities",
+        "primary_forecast_unchanged": True,
+    }
+
+
+def historical_analogues(
+    values: list[float], *, property: str, season: int = 1,
+    window: int | None = None, limit: int = 3,
+) -> dict[str, Any]:
+    """Retrieve similar *past* states and disclose what followed.
+
+    Similarity uses normalized level, slope, and residual scale.  Candidate
+    outcomes are measured only from observations after each historical state;
+    the current tail is never scored against unavailable future values.  The
+    receipt is evidence for explanation, not a forecast replacement.
+    """
+    numeric = [float(value) for value in values if math.isfinite(float(value))]
+    season = max(1, int(season))
+    width = int(window or max(8, 2 * season))
+    if len(numeric) < 4 * width:
+        return {"version": ANALOGUE_VERSION, "available": False,
+                "reason": "insufficient_nonoverlapping_history",
+                "matches": [], "primary_forecast_unchanged": True}
+
+    global_scale = max(_scale(numeric), 1e-12)
+
+    def state(segment: list[float]) -> tuple[float, float, float]:
+        return (_median(segment) / global_scale,
+                _slope(segment) * width / global_scale,
+                _scale(_residuals(segment, season)) / global_scale)
+
+    current = state(numeric[-width:])
+    candidates: list[dict[str, Any]] = []
+    # A stride prevents densely-overlapping neighbours from masquerading as
+    # independent analogues.  Leave a full outcome window after every state.
+    for end in range(width, len(numeric) - width + 1, width):
+        before, after = numeric[end - width:end], numeric[end:end + width]
+        candidate = state(before)
+        distance = math.sqrt(sum((left - right) ** 2
+                                 for left, right in zip(current, candidate)))
+        outcome = window_evidence(
+            before + after, property=property, season=season, window=width)
+        candidates.append({
+            "state_end_offset": end - len(numeric),
+            "distance": round(distance, 6),
+            "outcome_direction": outcome.direction,
+            "outcome_support": outcome.support,
+        })
+    candidates.sort(key=lambda row: (row["distance"], row["state_end_offset"]))
+    matches = candidates[:max(1, min(int(limit), 5))]
+    directions = [str(row["outcome_direction"]) for row in matches
+                  if row["outcome_direction"] not in {None, "uncertain"}]
+    counts = {label: directions.count(label) for label in sorted(set(directions))}
+    consensus = (max(counts, key=counts.get) if counts
+                 and max(counts.values()) > len(directions) / 2 else "uncertain")
+    return {
+        "version": ANALOGUE_VERSION, "available": bool(matches),
+        "property": property, "window_steps": width,
+        "consensus_direction": consensus,
+        "agreement": (max(counts.values()) / len(directions)
+                      if counts and directions else 0.0),
+        "matches": matches,
+        "provenance": {"kind": "historical_pre_state_nearest_neighbours",
+                       "uses_future_observations": False,
+                       "outcomes_are_historical_only": True},
+        "primary_forecast_unchanged": True,
+    }
+
+
 def _transition_support(property: str, direction: str | None,
                         item: dict[str, Any], season: int) -> str:
     """Grade distance from a threshold without using benchmark labels."""
@@ -269,10 +492,20 @@ def _transition_support(property: str, direction: str | None,
                       and interval[1] <= 1.25))
     elif property == "regime" and isinstance(estimate, (int, float)):
         value = float(estimate)
-        clear = value >= 1.5 if direction == "shift" else False
+        clear = (value >= 1.5 and bool(interval and interval[0] >= 1.0)
+                 if direction == "shift" else
+                 bool(interval and interval[1] < 1.0))
     elif property == "extreme" and isinstance(estimate, (int, float)):
         value = abs(float(estimate))
-        clear = value >= .04 if direction != "stable" else False
+        clear = (value >= .04 and bool(interval and (
+            interval[0] > 0 or interval[1] < 0))
+                 if direction != "stable" else
+                 # A two-percentage-point point threshold is a detection
+                 # rule, not an equivalence margin.  Require the entire
+                 # interval inside a tighter one-point band before claiming
+                 # the tail rate is unchanged.
+                 bool(interval and interval[0] >= -.01
+                      and interval[1] <= .01))
     elif property == "seasonality" and isinstance(estimate, dict):
         ratio = float(estimate.get("strength_ratio"))
         correlation = float(estimate.get("template_correlation"))
@@ -286,10 +519,11 @@ def _transition_support(property: str, direction: str | None,
         elif direction == "weakened":
             clear = ratio <= .55
         elif direction == "stable":
-            # A small point estimate is not evidence of equivalence. Until
-            # the executable carries an equivalence interval, stability is a
-            # useful weak observation rather than a supported null claim.
-            clear = False
+            ratio_interval = estimate.get("strength_ratio_interval")
+            clear = bool(
+                ratio_interval and ratio_interval[0] >= .65
+                and ratio_interval[1] <= 1.35 and correlation >= .7
+                and min(shift, season - shift) <= max(1, round(.1 * season)))
         else:
             clear = False
     else:

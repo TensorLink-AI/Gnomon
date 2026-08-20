@@ -129,6 +129,11 @@ def run(seed: int = 73100, replicates: int = 30) -> dict[str, object]:
                     else None)
                 for difficulty in difficulties
             },
+            "supported_claim_precision": (
+                statistics.mean(bool(row["correct"]) for row in subset
+                                if row["support"] == "supported")
+                if any(row["support"] == "supported" for row in subset)
+                else None),
         }
     gates = {
         "every_property_easy_accuracy_at_least_75pct": all(
@@ -140,6 +145,10 @@ def run(seed: int = 73100, replicates: int = 30) -> dict[str, object]:
         "supported_claim_precision_at_least_90pct": statistics.mean(
             bool(row["correct"]) for row in rows
             if row["support"] == "supported") >= .90,
+        "every_property_supported_precision_at_least_90pct": all(
+            item["supported_claim_precision"] is None
+            or item["supported_claim_precision"] >= .90
+            for item in by_property.values()),
         # Marginal cases intentionally straddle decision thresholds. They are
         # reported as a response curve, not used as a target to tune against.
         "all_cases_present": len(rows) == (

@@ -34,6 +34,7 @@ class TestRegistry:
         names = available_tsfms()
         assert "chronos_bolt_mini" in names
         assert "chronos_bolt_small" in names
+        assert "toto2_4m" in names
         assert "toto2_22m" in names
         assert "flowstate" in names
         assert "ttm" in names
@@ -83,6 +84,7 @@ class TestProtocolCompliance:
     @pytest.mark.parametrize("adapter_name", [
         "chronos_bolt_mini",
         "chronos_bolt_small",
+        "toto2_4m",
         "toto2_22m",
         "flowstate",
         "ttm",
@@ -94,6 +96,26 @@ class TestProtocolCompliance:
         # without deps. Instead, verify the class exists in the registry.
         names = available_tsfms()
         assert adapter_name in names
+
+    def test_toto_one_step_forecast_preserves_horizon_axis(self, monkeypatch):
+        import numpy as np
+        from gnomon.tsfm import Toto2Adapter
+
+        class _Tensor:
+            def detach(self):
+                return self
+            def cpu(self):
+                return self
+            def numpy(self):
+                return np.arange(9.0).reshape(9, 1, 1, 1)
+
+        adapter = Toto2Adapter("toto2_4m")
+        monkeypatch.setattr(adapter, "_forecast_quantiles",
+                            lambda history, horizon: _Tensor())
+        assert adapter.predict([1.0] * 32, 1, 1) == [4.0]
+        rows = adapter.predict_quantiles(
+            [1.0] * 32, 1, 1, quantiles=(.1, .5, .9))
+        assert rows == [{"0.1": 0.0, "0.5": 4.0, "0.9": 8.0}]
 
 
 class TestCapabilities:
@@ -112,10 +134,19 @@ class TestCapabilities:
         caps = capabilities()
         available = set(caps["models"]["tsfm_available"])
         expected = {
-            "chronos_bolt_mini", "chronos_bolt_small", "toto2_22m",
+            "chronos_bolt_mini", "chronos_bolt_small", "toto2_4m", "toto2_22m",
             "flowstate", "ttm", "moirai2_small", "moment_small",
         }
         assert expected.issubset(available)
+
+    def test_toto_patch_context_is_machine_actionable(self):
+        from gnomon.tsfm import eligible_tsfms, tsfm_capabilities
+
+        assert tsfm_capabilities("toto2_4m").min_context_length == 32
+        eligible, excluded = eligible_tsfms(
+            history_length=31, horizon=1, frequency="D")
+        assert "toto2_4m" not in eligible
+        assert "needs at least 32" in excluded["toto2_4m"][0]
 
 
 class TestSandbox:
@@ -143,6 +174,28 @@ class TestSandbox:
         from gnomon.tsfm_sandbox import SubprocessAdapter
         adapter = SubprocessAdapter("ttm")
         assert adapter.supports_quantiles is False
+
+    def test_toto_4m_sandbox_identity(self):
+        from gnomon.tsfm_sandbox import SubprocessAdapter
+        adapter = SubprocessAdapter("toto2_4m")
+        assert adapter.params_m == 4.14
+        assert adapter.supports_quantiles is True
+        assert "Datadog/Toto-2.0-4m@" in str(adapter.revision)
+
+    def test_sandbox_predict_many_validates_batch_shape(self, monkeypatch):
+        from gnomon.tsfm_sandbox import SubprocessAdapter
+        adapter = SubprocessAdapter("toto2_4m")
+        monkeypatch.setattr(adapter, "_run_subprocess", lambda request: {
+            "points": [[1.0, 2.0], [3.0, 4.0]],
+        })
+        assert adapter.predict_many([[0.0] * 33, [1.0] * 35], 2, 1) == [
+            [1.0, 2.0], [3.0, 4.0]]
+
+        monkeypatch.setattr(adapter, "_run_subprocess", lambda request: {
+            "points": [[1.0, 2.0]],
+        })
+        with pytest.raises(Exception, match="invalid forecast batch"):
+            adapter.predict_many([[0.0] * 33, [1.0] * 35], 2, 1)
 
     def test_moment_does_not_support_quantiles(self):
         from gnomon.tsfm_sandbox import SubprocessAdapter

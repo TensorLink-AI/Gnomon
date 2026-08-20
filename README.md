@@ -201,7 +201,7 @@ fluently. Gnomon is a harness:
 
 ```bash
 bash install.sh --local          # --local installs this checkout
-gnomon tsfm install chronos_bolt_mini   # optional: adds a foundation-model candidate
+gnomon tsfm install toto2_4m            # optional: smallest foundation-model candidate
 
 gnomon forecast examples/daily_requests.csv --horizon 3
 ```
@@ -293,12 +293,18 @@ never rebuilds the winner from a model name.
 - **Bitemporal store** (`gnomon ingest`, `store:<dataset>` inputs): every
   value carries *when it became known*; `--as-of` replays any historical
   instant and the artifact proves nothing later was touched.
-- **A foundation-model tier** (`gnomon tsfm install chronos_bolt_mini`):
-  seven adapters — Chronos-Bolt (mini and small), Toto, Moment, Moirai,
+- **A foundation-model tier** (`gnomon tsfm install toto2_4m`):
+  eight adapters — Chronos-Bolt (mini and small), Toto 2.0 (4M and 22M),
+  Moment, Moirai,
   Granite TTM, and FlowState — each in its own sandboxed venv, at a pinned
   weight revision, so their conflicting dependencies never touch yours. Once
   installed they enter the same backtest folds against the same mandatory
-  baselines — a TSFM wins only by out-forecasting them on your data. When
+  baselines. That local contest is the default. For histories too short to
+  rank candidates, an opt-in evidence-weighted policy can use a versioned
+  held-out registry as a TSFM transfer prior, publishing either an explicitly
+  externally validated model or an immutable shrinkage blend. External
+  evidence is never called local validation, and without a qualifying pinned-
+  revision registry the robust baseline still publishes. When
   an eligible tier is *not* installed the result says so in a note, so the
   stronger candidate is never silently absent.
   Local sandboxes are the default trust path. A CLI/Python project may opt

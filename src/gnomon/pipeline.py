@@ -378,6 +378,18 @@ def evaluate_stage(
     # candidates in gnomon.yaml silently did nothing.
     tsfm_candidates = list(getattr(getattr(config, "models", None),
                                    "tsfm_candidates", None) or []) or None
+    evidence_registry = None
+    model_config = getattr(config, "models", None)
+    if (model_config is not None
+            and getattr(model_config, "admission_policy", "strict")
+            == "evidence_weighted"):
+        from pathlib import Path
+        from .model_evidence import ModelEvidenceRegistry
+        registry_path = Path(model_config.evidence_registry_path)
+        source_path = getattr(config, "_source_path", None)
+        if not registry_path.is_absolute() and source_path:
+            registry_path = Path(source_path).parent / registry_path
+        evidence_registry = ModelEvidenceRegistry.load(registry_path)
     assessment = evaluate(
         state.values, horizon, state.season, minimum_baseline_improvement,
         frequency=frequency,
@@ -386,6 +398,7 @@ def evaluate_stage(
         strict_abstention=strict_abstention,
         train_at=train_at,
         extra_candidates=extra_candidates,
+        evidence_registry=evidence_registry,
     )
     state.assessment = assessment
     state.selected_model = assessment.selected_model
@@ -395,6 +408,11 @@ def evaluate_stage(
     state.residuals = assessment.residuals
     state.residuals_by_lead = dict(assessment.residuals_by_lead)
     state.residual_source = assessment.selected_model
+    if assessment.admission_decision is not None:
+        state.evidence.append(Evidence(
+            f"model_admission:{state.name}", "model_admission", state.name,
+            assessment.admission_decision.to_payload(),
+        ))
 
 
 def _record_final_candidate(state: SeriesState, identity: Any) -> None:
@@ -487,7 +505,7 @@ def predict_stage(
         state.residual_source = "ensemble"
     elif (final_spec is not None
           and final_spec.identity.name == assessment.selected_model
-          and final_spec.identity.kind in ("builtin", "cross_series", "tsfm")):
+          and final_spec.identity.kind in ("builtin", "cross_series", "tsfm", "blend")):
         # The winner's own specification, refit at the end of the observed
         # history the same way every fold forecast was refit at its own
         # origin.
@@ -495,10 +513,10 @@ def predict_stage(
             fitted = final_spec.fit(values, season)
             state.points = fitted.predict(horizon)
             state.selected_model = assessment.selected_model
-            if final_spec.identity.kind in ("cross_series", "tsfm"):
+            if final_spec.identity.kind in ("cross_series", "tsfm", "blend"):
                 _record_final_candidate(state, fitted.identity)
         except Exception as exc:
-            if final_spec.identity.kind != "tsfm":
+            if final_spec.identity.kind not in ("tsfm", "blend"):
                 raise
             import logging
             logging.getLogger(__name__).warning(

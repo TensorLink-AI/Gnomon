@@ -65,7 +65,7 @@ def _forecast(case: Case, root: Path, *, enriched: bool,
               use_covariates: bool = True,
               asserted_policy: bool = True) -> tuple[Any, Path]:
     from gnomon.context import events_from_list
-    from gnomon.config import GnomonConfig
+    from gnomon.config import load_config
     from gnomon.covariates import covariates_from_rows
     from gnomon.runtime import forecast
 
@@ -79,7 +79,11 @@ def _forecast(case: Case, root: Path, *, enriched: bool,
     if enriched and use_covariates and case.covariates:
         covariates = covariates_from_rows(
             list(case.covariates), list(case.covariate_mapping))
-    config = GnomonConfig()
+    # Honor the same resolved runtime configuration as production. Constructing
+    # a fresh dataclass here silently discarded GNOMON_CONFIG_PATH, so an arm
+    # labeled TSFM could evaluate a classical pool while a later nested stage
+    # reloaded the ambient TSFM configuration.
+    config = load_config()
     if enriched:
         # ContextBench exercises every shipped admission lane.  Leaving
         # these default-off would measure configuration rather than the

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from statistics import mean, median
 from typing import Any, Callable
 
@@ -11,6 +11,11 @@ from .models import BASELINES, MODELS, predict
 from .tsfm import TSFMError, TSFMUnavailable, tsfm_candidates
 from .forecast_adapter import (
     LegacyModelAdapter, StatisticalAdapter, predict_checked,
+)
+from .admission import (
+    AdmissionDecision, AdmissionEvidence, ExternalModelPrior,
+    decide_admission, local_evidence,
+    output_diagnostics,
 )
 
 logger = logging.getLogger(__name__)
@@ -27,6 +32,23 @@ def _predict_adapter(adapter: Any, history: list[float], horizon: int,
                      season: int) -> list[float]:
     return predict_checked(
         LegacyModelAdapter(adapter), history, horizon, season)
+
+
+def _predict_adapter_many(
+    adapter: Any, histories: list[list[float]], horizon: int, season: int,
+) -> list[list[float]] | None:
+    """Use an adapter's optional batch path, validating every trajectory."""
+    if not histories or not hasattr(adapter, "predict_many"):
+        return None
+    from .forecast_adapter import ForecastRequest, ForecastResult
+    raw = adapter.predict_many(histories, horizon, season)
+    if len(raw) != len(histories):
+        raise ValueError("adapter batch cardinality mismatch")
+    checked: list[list[float]] = []
+    for history, forecast in zip(histories, raw):
+        request = ForecastRequest.from_values(history, horizon, season)
+        checked.append(ForecastResult(tuple(forecast)).validate(request).points())
+    return checked
 
 
 @dataclass(frozen=True)
@@ -92,6 +114,9 @@ class Evaluation:
     #: The ensemble's specification whenever the ensemble competed,
     #: selected or not — the `--ensemble` override publishes through it.
     ensemble_candidate: Any = field(default=None, compare=False, repr=False)
+    #: How the publishing candidate earned admission. Absent under the legacy
+    #: policy and on abstentions, preserving existing artifacts by default.
+    admission_decision: AdmissionDecision | None = None
 
 
 #: The metric every selection decision is made on. Named so that hindsight
@@ -587,6 +612,156 @@ def select_model_lightweight(
                       selection_guardrail_applied=guardrail_applied)
 
 
+def _admit_pretrained_lightweight(
+    assessment: Evaluation, values: list[float], horizon: int, season: int,
+    frequency: str, tsfm_names: list[str] | None,
+    external_priors: dict[str, ExternalModelPrior] | None,
+    evidence_registry: Any,
+) -> Evaluation:
+    """Apply transfer evidence when separated folds do not fit at all.
+
+    The trailing holdout remains one local observation, never a tournament.
+    External evidence can supply the missing prior; the result stays degraded
+    and prior-assisted support is capped later by the runtime.
+    """
+    if not assessment.supported or not assessment.strongest_baseline:
+        return assessment
+    from .tsfm import eligible_tsfms, pinned_revision
+    from .tsfm_sandbox import sandbox_available_tsfms, sandbox_tsfm_candidates
+    eligible, _ = eligible_tsfms(
+        history_length=len(values), horizon=horizon, frequency=frequency)
+    requested = tsfm_names if tsfm_names is not None else eligible
+    requested = [name for name in requested if name in eligible]
+    sandbox_names = sandbox_available_tsfms()
+    adapters = (sandbox_tsfm_candidates(requested=requested, frequency=frequency)
+                if sandbox_names and requested
+                else tsfm_candidates(requested=requested, frequency=frequency))
+    if not adapters:
+        return assessment
+    priors = dict(external_priors or {})
+    if evidence_registry is not None:
+        from .model_evidence import describe_regime
+        regime = describe_regime(values, horizon, season, frequency)
+        for adapter in adapters:
+            model_id = getattr(adapter, "_MODEL_ID", None)
+            raw_revision = getattr(adapter, "revision", None)
+            remote_model = getattr(getattr(adapter, "_provider", None), "model", "")
+            try:
+                revision = (f"{model_id}@{pinned_revision(model_id)}" if model_id
+                            else f"{remote_model or adapter.name}@{raw_revision}"
+                            if raw_revision else None)
+            except Exception:
+                revision = None
+            if revision:
+                prior = evidence_registry.lookup(adapter.name, revision, regime)
+                if prior is not None:
+                    priors[adapter.name] = prior
+    usable = [adapter for adapter in adapters
+              if adapter.name in priors and priors[adapter.name].usable()]
+    if not usable:
+        return assessment
+    adapter = max(usable, key=lambda item: priors[item.name].mean_relative_gain)
+    baseline = assessment.strongest_baseline
+    holdout = min(horizon, max(1, len(values) // 4))
+    origin = len(values) - holdout
+    train = values[:origin]
+    actual = values[origin:]
+    try:
+        candidate_holdout = _predict_adapter(adapter, train, holdout, season)
+        baseline_holdout = _predict_statistical(baseline, train, holdout, season)
+        candidate_path = _predict_adapter(adapter, values, horizon, season)
+        baseline_path = _predict_statistical(baseline, values, horizon, season)
+    except Exception:
+        return assessment
+    candidate_loss = error_score(actual, candidate_holdout)
+    baseline_loss = error_score(actual, baseline_holdout)
+    diagnostics = output_diagnostics(values, candidate_path, baseline_path)
+    evidence = local_evidence(
+        model_class="pretrained", candidate_losses=[candidate_loss],
+        baseline_losses=[baseline_loss], external_prior=priors[adapter.name],
+        diagnostics=diagnostics)
+    decision = decide_admission(
+        candidate=adapter.name, baseline=baseline, evidence=evidence)
+    if decision.point_policy == "baseline":
+        return replace(assessment, admission_decision=decision)
+
+    from .candidate import (
+        CandidateIdentity, CandidateSpec, FittedCandidate,
+        blended_candidate_spec,
+    )
+    from .ids import content_id
+    from .versioning import RUNTIME_VERSION
+
+    def statistical_spec(name: str) -> CandidateSpec:
+        identity = CandidateIdentity(
+            kind="builtin", name=name, revisions={"runtime": RUNTIME_VERSION},
+            fallback_policy="none")
+        def fit(history: list[float], _season: int | None) -> FittedCandidate:
+            fitted = identity.with_fit(
+                weights=None,
+                data_fingerprint=content_id("history", {"values": history}))
+            return FittedCandidate(
+                fitted, lambda steps: _predict_statistical(
+                    name, history, steps, season))
+        return CandidateSpec(identity, fit)
+
+    model_id = getattr(adapter, "_MODEL_ID", None)
+    raw_revision = getattr(adapter, "revision", None)
+    revision = (f"{model_id}@{pinned_revision(model_id)}" if model_id
+                else str(raw_revision or "unversioned"))
+    candidate_identity = CandidateIdentity(
+        kind="tsfm", name=adapter.name,
+        config={"adapter_protocol": "0.1"},
+        revisions={"runtime": RUNTIME_VERSION, adapter.name: revision},
+        fallback_policy="strongest_baseline_recalibrated")
+    capabilities = LegacyModelAdapter(adapter).capabilities
+    def fit_candidate(history: list[float], _season: int | None) -> FittedCandidate:
+        fitted = candidate_identity.with_fit(
+            weights=None,
+            data_fingerprint=content_id("history", {"values": history}))
+        return FittedCandidate(
+            fitted, lambda steps: _predict_adapter(
+                adapter, history, steps, season))
+    candidate_spec = CandidateSpec(
+        candidate_identity, fit_candidate,
+        min_history=capabilities.min_history,
+        max_horizon=capabilities.max_horizon)
+    baseline_spec = statistical_spec(baseline)
+    if decision.point_policy == "candidate":
+        selected = adapter.name
+        final = candidate_spec
+        residual_prediction = candidate_holdout
+    else:
+        selected = "admission_blend"
+        final = blended_candidate_spec(
+            candidate_spec, baseline_spec, decision.candidate_weight,
+            policy_version=decision.policy_version,
+            admission_state=decision.state, name="admission_blend")
+        residual_prediction = [
+            decision.candidate_weight * candidate
+            + (1 - decision.candidate_weight) * base
+            for candidate, base in zip(candidate_holdout, baseline_holdout)]
+    residuals = [observed - predicted
+                 for observed, predicted in zip(actual, residual_prediction)]
+    scores = dict(assessment.selection_scores)
+    scores[adapter.name] = candidate_loss
+    return replace(
+        assessment, selected_model=selected, selection_scores=scores,
+        improvement=((baseline_loss - candidate_loss) / baseline_loss
+                     if baseline_loss and candidate_loss is not None else None),
+        residuals=residuals,
+        warnings=[*assessment.warnings,
+                  "Pretrained transfer admission used one trailing holdout; "
+                  "external evidence is reported separately and rolling "
+                  "calibration remains unavailable."],
+        notes=[*assessment.notes,
+               f"TSFM admission: {adapter.name} is {decision.state}; "
+               f"candidate weight {decision.candidate_weight:.3f}."],
+        tsfm_scores={adapter.name: candidate_loss},
+        final_candidate=final, admission_decision=decision,
+    )
+
+
 #: Longest fit history a single fold's model fit sees, stretched to at
 #: least four seasonal periods. Fold structure is never windowed — only
 #: the history handed to each fit. Mirrors the anomaly grading window
@@ -609,6 +784,8 @@ def evaluate(
     extra_candidates: dict[str, Callable[[int, int], list[float]]] | None = None,
     selection_stride: int | None = None,
     selection_loss: str = "wape",
+    external_priors: dict[str, ExternalModelPrior] | None = None,
+    evidence_registry: Any = None,
 ) -> Evaluation:
     """``train_at(origin)`` returns the training history for a fold whose
     forecast origin is index ``origin`` — by default a plain prefix slice,
@@ -657,8 +834,16 @@ def evaluate(
     origins = _origins(len(values), horizon, minimum_train)
     empty_scores = {name: None for name in MODELS}
     if len(origins) < 2:
+        lightweight = select_model_lightweight(
+            values, horizon, season, train_at)
+        if external_priors or evidence_registry is not None:
+            admitted = _admit_pretrained_lightweight(
+                lightweight, values, horizon, season, frequency, tsfm_names,
+                external_priors, evidence_registry)
+            if admitted.admission_decision is not None:
+                return admitted
         if not strict_abstention:
-            return select_model_lightweight(values, horizon, season, train_at)
+            return lightweight
         minimum_required = minimum_train + 2 * horizon
         full_required = minimum_train + 4 * horizon
         message = (
@@ -805,12 +990,38 @@ def evaluate(
                 except Exception:
                     logger.debug("API adapter %s failed to initialize", name, exc_info=True)
 
+    if evidence_registry is not None and external_priors is None:
+        from .model_evidence import describe_regime
+        from .tsfm import pinned_revision
+        regime = describe_regime(values, horizon, season, frequency)
+        external_priors = {}
+        for adapter in tsfm_adapters:
+            model_id = getattr(adapter, "_MODEL_ID", None)
+            if model_id:
+                try:
+                    revision = f"{model_id}@{pinned_revision(model_id)}"
+                except Exception:
+                    continue
+            else:
+                raw_revision = getattr(adapter, "revision", None)
+                remote_model = getattr(
+                    getattr(adapter, "_provider", None), "model", "")
+                if not raw_revision:
+                    # Unversioned remote behavior cannot consume a prior for
+                    # a reproducible revision.
+                    continue
+                revision = f"{remote_model or adapter.name}@{raw_revision}"
+            prior = evidence_registry.lookup(adapter.name, revision, regime)
+            if prior is not None:
+                external_priors[adapter.name] = prior
+
     # Disclose the model tier that could not compete. A fresh install has no
     # TSFM sandboxes, so without this note the operator most likely to benefit
     # from a stronger candidate never learns one was eligible.
     from .tsfm import installed_tsfms
+    installed_names = set(sandbox_names) | set(installed_tsfms())
     notes: list[str] = list(capability_notes)
-    if requested_names and not sandbox_names and not installed_tsfms():
+    if requested_names and not installed_names:
         notes.append(
             f"No foundation-model candidate competed: "
             f"{', '.join(requested_names)} "
@@ -856,11 +1067,28 @@ def evaluate(
     tsfm_fold_scores: dict[str, list[float]] = {a.name: [] for a in tsfm_adapters}
     tsfm_fold_forecasts: dict[str, list[list[float]]] = {a.name: [] for a in tsfm_adapters}
     for adapter in tsfm_adapters:
-        for origin in selection_origins:
+        batched: list[list[float]] | None = None
+        if hasattr(adapter, "predict_many") and selection_origins:
+            try:
+                batched = _predict_adapter_many(
+                    adapter,
+                    [train_at(origin) for origin in selection_origins],
+                    horizon, season,
+                )
+                if len(batched) != len(selection_origins):
+                    batched = None
+            except Exception as exc:
+                logger.debug("TSFM %s batch prediction failed: %s",
+                             adapter.name, exc)
+                batched = None
+        for fold_index, origin in enumerate(selection_origins):
             actual = values[origin : origin + horizon]
             train = train_at(origin)
             try:
-                forecast = _predict_adapter(adapter, train, horizon, season)
+                if batched is None:
+                    forecast = _predict_adapter(adapter, train, horizon, season)
+                else:
+                    forecast = batched[fold_index]
                 if len(forecast) != horizon:
                     tsfm_fold_scores[adapter.name].append(None)  # type: ignore[arg-type]
                     tsfm_fold_forecasts[adapter.name].append([])  # type: ignore[arg-type]
@@ -890,6 +1118,20 @@ def evaluate(
             tsfm_scores[name] = mean(valid)
         else:
             tsfm_scores[name] = None
+            # Lazy in-process adapters can be instantiated before their
+            # optional package is importable. Do not call those "installed";
+            # the earlier absent-tier note already explains that state.
+            if name in installed_names:
+                minimum = getattr(
+                    next((adapter for adapter in tsfm_adapters
+                          if adapter.name == name), None), "min_history", None)
+                requirement = (f"; requires at least {minimum} history points"
+                               if minimum else "")
+                notes.append(
+                    f"Installed TSFM {name} did not enter selection: completed "
+                    f"{len(valid)} of {len(selection_origins)} required folds"
+                    f"{requirement}. Partial-fold scores are not admitted."
+                )
 
     # --- Run cross-series candidates on the same selection folds ---
     extra_candidates = dict(extra_candidates or {})
@@ -1244,6 +1486,97 @@ def evaluate(
             f"margin, but still a single comparison."
         )
 
+    # A pretrained candidate may carry independent transfer evidence.  It is
+    # not equivalent to a locally fitted model with one fold: local outcomes
+    # update the prior, but lack of local folds does not erase evidence earned
+    # on held-out series.  This lane is dormant unless the caller supplies a
+    # versioned prior whose exact model revision/regime it already verified.
+    admission_decision: AdmissionDecision | None = None
+    admission_candidate: str | None = None
+    admission_weight: float | None = None
+    if external_priors and tsfm_adapters:
+        eligible_prior_candidates = [
+            adapter.name for adapter in tsfm_adapters
+            if adapter.name in external_priors
+            and external_priors[adapter.name].usable()
+        ]
+        if eligible_prior_candidates:
+            # Prior expected gain only chooses which pretrained candidate is
+            # adjudicated; the admission decision still uses aligned local
+            # folds and the strongest baseline as its safety reference.
+            admission_candidate = max(
+                eligible_prior_candidates,
+                key=lambda name: external_priors[name].mean_relative_gain,
+            )
+            selected_adapter = next(
+                adapter for adapter in tsfm_adapters
+                if adapter.name == admission_candidate)
+            try:
+                candidate_path = _predict_adapter(
+                    selected_adapter, values, horizon, season)
+                baseline_path = _predict_statistical(
+                    strongest_baseline, values, horizon, season)
+                diagnostics = output_diagnostics(
+                    values, candidate_path, baseline_path)
+                candidate_direction = candidate_path[-1] - candidate_path[0]
+                baseline_direction = baseline_path[-1] - baseline_path[0]
+                conflicts = (
+                    ("candidate and baseline forecast directions disagree",)
+                    if candidate_direction * baseline_direction < 0
+                    and (diagnostics.candidate_baseline_disagreement or 0) >= 1
+                    else ()
+                )
+            except Exception as exc:
+                from .admission import OutputDiagnostics
+                diagnostics = OutputDiagnostics(
+                    valid=False,
+                    reasons=(f"candidate final-fit diagnostic failed: {type(exc).__name__}",),
+                )
+                conflicts = ("candidate output could not be diagnosed",)
+            evidence = local_evidence(
+                model_class="pretrained",
+                candidate_losses=list(tsfm_fold_scores[admission_candidate]),
+                baseline_losses=list(fold_scores[strongest_baseline]),
+                external_prior=external_priors[admission_candidate],
+                diagnostics=diagnostics,
+            )
+            if conflicts:
+                evidence = AdmissionEvidence(
+                    **{**evidence.__dict__, "conflicts": conflicts})
+            admission_decision = decide_admission(
+                candidate=admission_candidate, baseline=strongest_baseline,
+                evidence=evidence,
+                minimum_local_improvement=minimum_improvement,
+            )
+            admission_weight = admission_decision.candidate_weight
+            if admission_decision.point_policy == "candidate":
+                selected = admission_candidate
+            elif admission_decision.point_policy == "shrunk_blend":
+                selected = "admission_blend"
+                candidate_items = tsfm_fold_scores[admission_candidate]
+                baseline_items = fold_scores[strongest_baseline]
+                blended_items: list[float | None] = []
+                for candidate_item, baseline_item in zip(
+                        candidate_items, baseline_items):
+                    if candidate_item is None or baseline_item is None:
+                        blended_items.append(None)
+                    else:
+                        blended_items.append(
+                            admission_weight * candidate_item
+                            + (1 - admission_weight) * baseline_item)
+                # This is only a reporting estimate. Calibration and test
+                # always replay the actual point-wise blend below.
+                valid_blended = [item for item in blended_items if item is not None]
+                if valid_blended:
+                    extra_scores["admission_blend"] = mean(valid_blended)
+            notes.append(
+                f"TSFM admission: {admission_candidate} is "
+                f"{admission_decision.state}; point policy "
+                f"{admission_decision.point_policy} with candidate weight "
+                f"{admission_decision.candidate_weight:.3f}. External evidence "
+                f"is not represented as local validation."
+            )
+
     # --- Calibration ---
     all_scores = {**scores, **tsfm_scores, **extra_scores}
     if ensemble_score is not None:
@@ -1318,6 +1651,19 @@ def evaluate(
             return _predict_statistical(name, train, steps, season)
         if name == "ensemble":
             return _ensemble_predict(train, fc_horizon=steps)
+        if name == "admission_blend":
+            if admission_candidate is None or admission_weight is None:
+                raise ValueError("admission blend has no bound candidate")
+            candidate_points = _predict_selected(
+                admission_candidate, train, origin, fc_horizon=steps)
+            baseline_points = _predict_statistical(
+                strongest_baseline, train, steps, season)
+            return [
+                admission_weight * candidate_point
+                + (1 - admission_weight) * baseline_point
+                for candidate_point, baseline_point
+                in zip(candidate_points, baseline_points)
+            ]
         if name in extra_candidates:
             return extra_candidates[name](origin, steps)
         adapter = next((a for a in tsfm_adapters if a.name == name), None)
@@ -1370,9 +1716,23 @@ def evaluate(
                 pooled.append(a - p)
                 by_lead.setdefault(step, []).append(a - p)
 
-        for origin in origins:
+        adapter = next((candidate for candidate in tsfm_adapters
+                        if candidate.name == name), None)
+        batch_predictions: list[list[float]] | None = None
+        if adapter is not None and origins:
             try:
-                prediction = _predict_selected(name, train_at(origin), origin)
+                batch_predictions = _predict_adapter_many(
+                    adapter, [train_at(origin) for origin in origins],
+                    horizon, season)
+            except Exception:
+                logger.debug("TSFM %s residual batch failed", name,
+                             exc_info=True)
+        for index, origin in enumerate(origins):
+            try:
+                prediction = (batch_predictions[index]
+                              if batch_predictions is not None
+                              else _predict_selected(
+                                  name, train_at(origin), origin))
             except Exception:
                 continue
             record(values[origin : origin + horizon], prediction)
@@ -1490,7 +1850,12 @@ def evaluate(
             if ensemble_cfg else 0.7,
         )
 
-    def _spec_for(identity: CandidateIdentity, name: str) -> CandidateSpec:
+    def _spec_for(identity: CandidateIdentity, name: str, *,
+                  min_history: int | None = None,
+                  max_horizon: int | None = None,
+                  batch_predictor: Callable[
+                      [list[list[float]], int, int | None],
+                      list[list[float]]] | None = None) -> CandidateSpec:
         def fit(history: list[float], _season: int | None) -> FittedCandidate:
             from .ids import content_id
             # The visible-data fingerprint is of the history this instance
@@ -1507,7 +1872,10 @@ def evaluate(
                     name, history, len(history), fc_horizon=steps,
                 )
             return FittedCandidate(fitted_identity, predictor)
-        return CandidateSpec(identity, fit)
+        return CandidateSpec(
+            identity, fit, min_history=min_history, max_horizon=max_horizon,
+            predict_many=batch_predictor,
+        )
 
     #: Dependency and weight revisions: the implementation version always,
     #: plus the pinned weight revision of every TSFM that competed.
@@ -1597,6 +1965,19 @@ def evaluate(
     elif any(adapter.name == selected for adapter in tsfm_adapters):
         selected_adapter = next(
             adapter for adapter in tsfm_adapters if adapter.name == selected)
+        selected_capabilities = LegacyModelAdapter(selected_adapter).capabilities
+
+        def selected_batch_predictor(
+            histories: list[list[float]], steps: int, _season: int | None,
+        ) -> list[list[float]]:
+            batched = _predict_adapter_many(
+                selected_adapter, histories, steps, season)
+            if batched is None:
+                return [_predict_adapter(
+                    selected_adapter, history, steps, season)
+                    for history in histories]
+            return batched
+
         final_candidate = _spec_for(
             CandidateIdentity(
                 kind="tsfm", name=selected,
@@ -1604,11 +1985,35 @@ def evaluate(
                     "adapter_protocol": "0.1",
                     "adapter_backend": str(getattr(
                         selected_adapter, "backend", "in_process")),
+                    "min_history": selected_capabilities.min_history,
+                    "max_horizon": selected_capabilities.max_horizon,
                 },
                 revisions=_revisions((selected,)),
                 fallback_policy="strongest_baseline_recalibrated",
             ),
             selected,
+            min_history=selected_capabilities.min_history,
+            max_horizon=selected_capabilities.max_horizon,
+            batch_predictor=(selected_batch_predictor
+                             if hasattr(selected_adapter, "predict_many")
+                             else None),
+        )
+    elif (selected == "admission_blend" and admission_candidate is not None
+          and admission_weight is not None and admission_decision is not None):
+        final_candidate = _spec_for(
+            CandidateIdentity(
+                kind="blend", name="admission_blend",
+                members=(admission_candidate, strongest_baseline),
+                strategy="evidence_weighted_shrinkage",
+                config={
+                    "candidate_weight": admission_weight,
+                    "policy_version": admission_decision.policy_version,
+                    "admission_state": admission_decision.state,
+                },
+                revisions=_revisions((admission_candidate,)),
+                fallback_policy="strongest_baseline_recalibrated",
+            ),
+            "admission_blend",
         )
 
     return Evaluation(selected, strongest_baseline, {**scores, **extra_scores},
@@ -1626,6 +2031,7 @@ def evaluate(
                       residuals_pooled_across_selection=pool_residuals,
                       selection_fold_count=len(residual_origins),
                       selection_guardrail_applied=selection_guardrail_applied,
+                      admission_decision=admission_decision,
                       residual_fold_count=(
                           len(residual_origins) + 1 if pool_residuals else 1
                       ))

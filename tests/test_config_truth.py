@@ -182,10 +182,25 @@ KEY_EFFECTS: dict[str, tuple[str, object]] = {
 #: strategy-specific min_models are alternative spellings of one field.
 STRUCTURAL_KEYS = {
     "evaluation.selection",
+    "models.admission.policy",
+    "models.admission.evidence_registry_path",
     "ensemble.median.min_models",
     "ensemble.voting.min_models",
     "ensemble.voting.threshold",
 }
+
+
+def test_evidence_weighted_admission_requires_explicit_registry(tmp_path):
+    path = tmp_path / "gnomon.toml"
+    path.write_text('[models.admission]\npolicy = "evidence_weighted"\n')
+    with pytest.raises(GnomonError, match="evidence_registry_path"):
+        load_config(str(path))
+    path.write_text(
+        '[models.admission]\npolicy = "evidence_weighted"\n'
+        'evidence_registry_path = "forge.json"\n')
+    cfg = load_config(str(path))
+    assert cfg.models.admission_policy == "evidence_weighted"
+    assert cfg.models.evidence_registry_path == "forge.json"
 
 
 def test_every_allowlisted_key_is_accounted_for():

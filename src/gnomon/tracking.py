@@ -633,6 +633,7 @@ class TrackingStore:
         self, *, project: str, outcome_id: str, candidate: str,
         revision: str | None, baseline: str, candidate_error: float,
         baseline_error: float, known_at: str,
+        regime: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """Persist one paired challenger/baseline outcome in this registry."""
         from .adapter_promotion import AdapterOutcomeLedger
@@ -640,13 +641,13 @@ class TrackingStore:
             project=project, outcome_id=outcome_id, candidate=candidate,
             revision=revision, baseline=baseline,
             candidate_error=candidate_error, baseline_error=baseline_error,
-            known_at=known_at,
+            known_at=known_at, regime=regime,
         )
         return {
             "schema_version": "0.1", "status": "recorded",
             "project": project, "outcome_id": outcome_id,
             "candidate": candidate, "revision": revision or "unversioned",
-            "baseline": baseline, "known_at": known_at,
+            "baseline": baseline, "known_at": known_at, "regime": regime,
         }
 
     def assess_adapter_shadow(

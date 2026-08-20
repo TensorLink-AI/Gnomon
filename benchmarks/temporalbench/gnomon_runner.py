@@ -48,6 +48,7 @@ from __future__ import annotations
 import csv
 import sys
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -65,6 +66,43 @@ def _observed(values: list[float | None]) -> list[float]:
     forward-filling would flatten real variation and hand the anomaly
     and season detectors runs of values nobody recorded."""
     return [float(value) for value in values if value is not None]
+
+
+def forecast_target_map(row: dict[str, Any], arrays: dict[str, list[Any]]) -> dict[str, str]:
+    """Map official forecast keys to their historical input series.
+
+    TemporalBench uses two representations.  Panel rows keep the same names
+    in history and ground truth (for example MIMIC's ``heart_rate``), while
+    single-target rows deliberately call the truth ``future_main`` or
+    ``future_sales``.  Those aliases are output identities, not columns in
+    the historical input.  Keeping the mapping explicit prevents an empty
+    forecast from being mistaken for model abstention on the latter rows.
+    """
+    meta = row.get("meta") or {}
+    ground_truth = row.get("ground_truth")
+    truth_keys = list(ground_truth) if isinstance(ground_truth, dict) else []
+    if not truth_keys:
+        main = meta.get("main_key") or meta.get("target")
+        return {str(main): str(main)} if main in arrays else {}
+    if len(truth_keys) > 1:
+        return {str(key): str(key) for key in truth_keys if key in arrays}
+
+    output_key = str(truth_keys[0])
+    candidates = [
+        meta.get("main_key"), meta.get("target"), meta.get("target_col"),
+        "sales_censored" if output_key == "future_sales" else None,
+        output_key.removeprefix("future_"),
+    ]
+    input_key = next((str(key) for key in candidates if key in arrays), None)
+    if input_key is None:
+        # Last-resort structural rule for third-party additions: select the
+        # sole non-time history series, but refuse ambiguity instead of
+        # guessing among covariates.
+        non_time = [str(key) for key in arrays
+                    if str(key).lower() not in {"timestamp", "timestamps", "time"}]
+        if len(non_time) == 1:
+            input_key = non_time[0]
+    return {output_key: input_key} if input_key is not None else {}
 
 
 def forecast_channel(values: list[float | None], horizon: int,
@@ -118,6 +156,7 @@ def forecast_channel(values: list[float | None], horizon: int,
 def forecast_channels(
     channels: dict[str, list[float | None]], horizon: int,
     work_dir: str | None = None, best_effort: bool = False,
+    named_tsfm: str | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Batched Gnomon forecasts for several channels in ONE invocation.
 
@@ -135,6 +174,39 @@ def forecast_channels(
     from gnomon.runtime import forecast_multi
 
     observed = {key: _observed(values) for key, values in channels.items()}
+    if named_tsfm:
+        # Model-supply experiment: bypass local model selection explicitly,
+        # while labelling every output as an unevaluated named-model prior.
+        # TemporalBench's ~50-point histories cannot support its 29-step
+        # horizon plus separated selection/calibration/test windows, so this
+        # arm answers the distinct question "what does the pinned TSFM itself
+        # add?" It must never be reported as Gnomon's governed default.
+        from gnomon.tsfm_sandbox import SubprocessAdapter
+
+        def predict(item: tuple[str, list[float]]) -> tuple[str, dict[str, Any]]:
+            key, history = item
+            try:
+                adapter = SubprocessAdapter(named_tsfm, frequency="h")
+                values = adapter.predict(history, horizon, 24)
+                return key, {
+                    "abstained": False,
+                    "support": "experimental_named_model",
+                    "selected_model": named_tsfm,
+                    "candidate_identity": {
+                        "kind": "tsfm", "name": named_tsfm,
+                        "backend": adapter.backend,
+                        "revision": adapter.revision,
+                        "selection_policy": "caller_named_unvalidated_prior",
+                    },
+                    "values": [float(value) for value in values],
+                }
+            except Exception as error:
+                return key, {"abstained": True,
+                             "reason": f"{type(error).__name__}: {error}"}
+
+        workers = min(3, max(1, len(observed)))
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            return dict(executor.map(predict, observed.items()))
     keys = list(observed)
     length = max((len(values) for values in observed.values()), default=0)
     if len(keys) < 2 or length == 0 or "timestamp" in keys:
@@ -181,7 +253,8 @@ def forecast_channels(
 
 
 def analyse_row(row: dict[str, Any], work_dir: str | None = None,
-                best_effort: bool = False) -> dict[str, Any]:
+                best_effort: bool = False,
+                named_tsfm: str | None = None) -> dict[str, Any]:
     """Deterministic Gnomon evidence for one row: per-channel forecasts
     (T2/T4), plus season/anomaly/stats findings on the main channel."""
     from gnomon.anomaly import detect_anomalies
@@ -191,9 +264,7 @@ def analyse_row(row: dict[str, Any], work_dir: str | None = None,
     meta = row.get("meta") or {}
     main_key = meta.get("main_key") or next(iter(arrays), None)
     horizon = int(meta.get("n_horizon") or 0)
-    ground_truth = row.get("ground_truth")
-    target_keys = (list(ground_truth.keys()) if isinstance(ground_truth, dict)
-                   else meta.get("target_keys") or ([main_key] if main_key else []))
+    target_map = forecast_target_map(row, arrays)
 
     analysis: dict[str, Any] = {"main_key": main_key, "channels": {}}
     main_values = _observed(arrays.get(main_key, [])) if main_key else []
@@ -221,11 +292,13 @@ def analyse_row(row: dict[str, Any], work_dir: str | None = None,
         # channel: same per-channel numbers, one shared load, concurrent
         # evaluation. forecast_channels falls back to the single-channel
         # path when only one channel needs forecasting.
-        wanted = {key: arrays[key] for key in target_keys if key in arrays}
+        wanted = {output_key: arrays[input_key]
+                  for output_key, input_key in target_map.items()}
         if wanted:
             analysis["channels"].update(
                 forecast_channels(wanted, horizon, work_dir,
-                                  best_effort=best_effort)
+                                  best_effort=best_effort,
+                                  named_tsfm=named_tsfm)
             )
     return analysis
 

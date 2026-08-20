@@ -10,11 +10,11 @@ from .temporal_question import TemporalQuestion
 from .temporal_executables import (
     fit_dependence_executable, fit_temporal_executable,
 )
-from .volatility import fit_volatility_executable
+from .volatility import fit_volatility_executable, residuals
 from .temporal_evidence import aggregate_evidence, compare_windows
 
 
-TEMPORAL_ANSWER_CONTRACT_VERSION = "0.5"
+TEMPORAL_ANSWER_CONTRACT_VERSION = "0.7"
 
 
 def _correlation(left: list[float], right: list[float]) -> float | None:
@@ -27,6 +27,37 @@ def _correlation(left: list[float], right: list[float]) -> float | None:
     return (sum((a - left_mean) * (b - right_mean)
                 for a, b in zip(left, right)) / denominator
             if denominator > 1e-12 else None)
+
+
+def _robust_scale(values: list[float]) -> float:
+    if len(values) < 2:
+        return 0.0
+    centre = statistics.median(values)
+    mad = statistics.median(abs(value - centre) for value in values)
+    return float(1.4826 * mad if mad > 1e-12 else statistics.stdev(values))
+
+
+def _forecast_volatility_alignment(values: list[float], forecast: list[float],
+                                   season: int) -> dict[str, Any]:
+    """Measure dispersion of the immutable forecast in history units."""
+    history_residuals = residuals(values, max(1, season))
+    # Fit the forecast's own causal residual structure. Concatenating history
+    # would treat a changed level or seasonal template at the publication
+    # boundary as repeated random dispersion, especially when the horizon is
+    # shorter than the detected period.
+    future_residuals = residuals(forecast, max(1, season)) if forecast else []
+    width = min(48, len(history_residuals))
+    reference = _robust_scale(history_residuals[-width:]) if width >= 2 else 0.0
+    future = _robust_scale(future_residuals)
+    ratio = future / reference if reference > 1e-12 else None
+    direction = ("increased" if ratio is not None and ratio > 1.25 else
+                 "decreased" if ratio is not None and ratio < .8 else
+                 "stable" if ratio is not None else "uncertain")
+    return {"direction": direction, "reference_residual_scale": reference,
+            "forecast_residual_scale": future,
+            "future_to_reference_ratio": ratio,
+            "history_residual_points": width,
+            "forecast_residual_points": len(future_residuals)}
 
 
 def _seasonality_alignment(values: list[float], forecast: list[float],
@@ -105,6 +136,18 @@ def _envelope(question: TemporalQuestion, *, direction: str | None,
         # Detailed estimates remain evidence; consumers must not synthesize a
         # competing answer from child rows.
         "best_estimate": best_estimate,
+        "synthesis_policy": {
+            "canonical_immutable": True,
+            "canonical_authority": (
+                "binding" if support == "supported" else
+                "unavailable" if support == "abstained" else "advisory"),
+            "llm_may_synthesize": support != "supported",
+            "publication_default": (
+                "canonical" if support != "abstained" else "labelled_synthesis"),
+            "override_requires_opposing_evidence": support == "weak",
+            "synthesis_must_be_separately_labelled": True,
+            "primary_forecast_unchanged": True,
+        },
         "decision_rule": decision_rule,
         "answer": {
             "direction": direction, "estimate": estimate,
@@ -124,6 +167,54 @@ def answer_descriptive_question(
     forecast_values: list[float] | None = None,
 ) -> dict[str, Any]:
     prop = question.property
+    if prop == "volatility" and question.verb in {"predict", "compare"} \
+            and forecast_values:
+        estimate = _forecast_volatility_alignment(
+            values, forecast_values, season)
+        direction = estimate["direction"]
+        measurable = direction != "uncertain"
+        result = _envelope(
+            question, direction=direction,
+            estimate=estimate["forecast_residual_scale"], interval=None,
+            support=("weak" if measurable else "abstained"),
+            headline=(f"Published forecast residual scale for "
+                      f"{question.target} is "
+                      f"{estimate['forecast_residual_scale']:.6g} versus "
+                      f"recent history {estimate['reference_residual_scale']:.6g}."),
+            limitations=(
+                ["This describes the immutable published forecast path; it "
+                 "is not a calibrated claim about realised future volatility."]
+                if measurable else
+                ["The history has insufficient residual variation for a "
+                 "forecast-to-history volatility comparison."]),
+            executable={"kind": "published_forecast_projection",
+                        "property": "volatility", "version": "0.1"},
+        )
+        result["answer"].update(estimate)
+        # Keep the volatility answer contract uniform across fitted forecasts
+        # and immutable-path projections.  This is deliberately an
+        # uncalibrated point distribution: describing the published path does
+        # not create probability mass or pretend that realised volatility was
+        # fitted from future observations.
+        result["answer"]["property_distribution"] = {
+            "quantity": "future_to_reference_residual_scale_ratio",
+            "estimate": ratio if (ratio := estimate[
+                "future_to_reference_ratio"]) is not None else 0.0,
+            "lower": ratio if ratio is not None else 0.0,
+            "upper": ratio if ratio is not None else 0.0,
+            "probabilities": {},
+            "point_state": direction,
+            "folds": 0,
+            "balanced_accuracy": 0.0,
+            "brier_skill": 0.0,
+            "support": "weak" if measurable else "abstained",
+        }
+        result["calibration"] = {
+            "available": False,
+            "direction_candidate": "published_forecast_projection",
+            "reason": "immutable_path_description_not_realised_outcome_fit",
+        }
+        return result
     if prop == "volatility" and question.verb in {"predict", "compare"}:
         fitted = fit_volatility_executable(
             values, horizon=question.horizon or 1, season=season)
@@ -369,7 +460,11 @@ def _execute_scoped_question(
     panel_evidence = aggregate_evidence(observed_rows, property="volatility")
     calibrated_children = [child for child in children
                            if int(((child["answer"].get("property_distribution")
-                                    or {}).get("folds") or 0)) >= 2]
+                                    or {}).get("folds") or 0)) >= 2
+                           or ((child["answer"].get("executable") or {}).get(
+                               "kind") == "published_forecast_projection"
+                               and (child["answer"].get("executable") or {}).get(
+                                   "property") == "volatility")]
     ratios = [child["answer"].get("future_to_reference_ratio")
               for child in calibrated_children]
     ratios = [float(item) for item in ratios if item is not None]
@@ -424,18 +519,43 @@ def answer_scoped_question(
     question: TemporalQuestion, *, reports: dict[str, dict[str, Any]],
     execution_inputs: dict[str, tuple[list[float], int]],
     forecast_values: dict[str, list[float]] | None = None,
+    conditional_effects: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Execute one question and attach a bounded, non-authoritative plan."""
     result = _execute_scoped_question(
         question, reports=reports, execution_inputs=execution_inputs,
         forecast_values=forecast_values)
-    from .temporal_evidence import window_evidence
+    if question.context_policy in {"measure", "scenario"}:
+        effect = (conditional_effects or {}).get(question.target)
+        if effect:
+            result["conditional_effect"] = {
+                **effect, "role": "conditional_evidence_only",
+                "primary_forecast_unchanged": True,
+            }
+    from .temporal_evidence import (
+        competing_hypotheses, historical_analogues,
+        multi_resolution_evidence, window_evidence,
+    )
     from .temporal_planner import build_evidence_plan
     observed = None
     if question.scope == "series" and question.target in execution_inputs:
         values, season = execution_inputs[question.target]
         observed = window_evidence(
             values, property=question.property, season=season).to_dict()
+        analogues = historical_analogues(
+            values, property=question.property, season=season)
+    else:
+        analogues = None
     result["answer"]["reasoning"] = build_evidence_plan(
-        question, result, observed_evidence=observed)
+        question, result, observed_evidence=observed, analogues=analogues)
+    if question.scope == "series" and question.target in execution_inputs:
+        values, season = execution_inputs[question.target]
+        result["answer"]["reasoning"]["multi_resolution"] = \
+            multi_resolution_evidence(
+                values, property=question.property, season=season)
+        # A full differential is useful for broad change/detection questions,
+        # but would be needless response tax on a narrow property question.
+        if question.verb == "detect" or question.property == "regime":
+            result["answer"]["reasoning"]["competing_hypotheses"] = \
+                competing_hypotheses(values, season=season)
     return result

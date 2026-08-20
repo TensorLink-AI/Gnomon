@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 import math
+import json
 import sqlite3
 import statistics
 from pathlib import Path
@@ -60,10 +61,16 @@ class AdapterOutcomeLedger:
                     PRIMARY KEY (project, outcome_id, candidate, revision, baseline)
                 )
             """)
+            columns = {row[1] for row in connection.execute(
+                "PRAGMA table_info(adapter_shadow_outcomes)")}
+            if "regime_json" not in columns:
+                connection.execute(
+                    "ALTER TABLE adapter_shadow_outcomes ADD COLUMN regime_json TEXT")
 
     def record(self, *, project: str, outcome_id: str, candidate: str,
                revision: str | None, baseline: str, candidate_error: float,
-               baseline_error: float, known_at: str) -> None:
+               baseline_error: float, known_at: str,
+               regime: dict[str, str] | None = None) -> None:
         values = (float(candidate_error), float(baseline_error))
         if any(not math.isfinite(value) or value < 0 for value in values):
             raise ValueError("shadow errors must be finite and non-negative")
@@ -72,10 +79,52 @@ class AdapterOutcomeLedger:
             connection.execute("""
                 INSERT OR REPLACE INTO adapter_shadow_outcomes
                 (project, outcome_id, candidate, revision, baseline,
-                 candidate_error, baseline_error, known_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                 candidate_error, baseline_error, known_at, regime_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (project, outcome_id, candidate, revision or "unversioned",
-                  baseline, *values, known_at))
+                  baseline, *values, known_at,
+                  json.dumps(regime, sort_keys=True) if regime else None))
+
+    def external_prior(
+        self, *, candidate: str, revision: str, baseline: str,
+        regime: dict[str, str], registry_version: str,
+        exclude_project: str | None = None, min_outcomes: int = 30,
+    ):
+        """Compile transfer evidence without counting the target project.
+
+        The target's outcomes remain local evidence; including them here
+        would count the same observations twice and call them independent.
+        """
+        from .admission import ExternalModelPrior
+        query = """SELECT project, outcome_id, candidate_error, baseline_error
+                   FROM adapter_shadow_outcomes
+                   WHERE candidate=? AND revision=? AND baseline=?
+                     AND regime_json=?"""
+        arguments: list[object] = [
+            candidate, revision, baseline, json.dumps(regime, sort_keys=True)]
+        if exclude_project is not None:
+            query += " AND project != ?"
+            arguments.append(exclude_project)
+        with sqlite3.connect(self.path) as connection:
+            rows = connection.execute(query, arguments).fetchall()
+        gains = [(base - contender) / base
+                 for _, _, contender, base in rows if base > 1e-12]
+        if len(gains) < max(2, min_outcomes):
+            return None
+        standard_error = max(
+            statistics.stdev(gains) / math.sqrt(len(gains)), 1e-6)
+        return ExternalModelPrior(
+            model=candidate, revision=revision,
+            regime=tuple(sorted(regime.items())), comparisons=len(gains),
+            mean_relative_gain=statistics.mean(gains),
+            standard_error=standard_error,
+            source_ids=tuple(
+                f"{project}:{outcome_id}" for project, outcome_id, _, _ in rows),
+            registry_version=registry_version, overlap_risk="low",
+            baseline_reference=("strongest_robust_baseline"
+                                if baseline == "strongest_robust_baseline"
+                                else baseline),
+        )
 
     def assess(self, *, project: str, candidate: str, revision: str | None,
                baseline: str, as_of: str | None = None,

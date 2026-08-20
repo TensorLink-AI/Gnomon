@@ -81,6 +81,7 @@ class APIAdapter:
         params_map = {
             "chronos_bolt_mini": 21.0,
             "chronos_bolt_small": 48.0,
+            "toto2_4m": 4.14,
             "toto2_22m": 22.0,
             "flowstate": 18.5,
             "ttm": 3.0,
