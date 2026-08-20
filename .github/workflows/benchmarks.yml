@@ -1,0 +1,171 @@
+name: Benchmarks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "23 2 * * 1"
+  workflow_dispatch:
+    inputs:
+      live_temporalbench:
+        description: "Run paid matched TemporalBench through Engy"
+        required: true
+        type: boolean
+        default: false
+      model:
+        description: "Engy model id"
+        required: false
+        default: "deepseek-v4-flash-0731"
+      limit:
+        description: "Rows per matched TemporalBench arm"
+        required: false
+        default: "80"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: benchmarks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  release-integrity:
+    name: Validate published benchmark evidence
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install test dependencies
+        run: python -m pip install --upgrade pip ".[dev]"
+      - name: Validate every curated release
+        run: |
+          for release in results/benchmark-releases/*; do
+            test -d "$release" || continue
+            python -m benchmarks.release validate "$release"
+          done
+      - name: Test release tooling
+        run: python -m pytest -q benchmarks/tests/test_release.py
+
+  deterministic-smoke:
+    name: Deterministic benchmark smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install Gnomon
+        run: python -m pip install --upgrade pip ".[dev]"
+      - name: Run independent product checks
+        run: |
+          # Fixed, previously graduated seed: this is a regression check, not
+          # evidence of cross-seed robustness. The scheduled job varies seeds.
+          python -m benchmarks.propertybench.run_propertybench --seed 94721 --replicates 20 --output-dir benchmark-results/propertybench
+          python -m benchmarks.transitionbench.run_transitionbench --replicates 3 --output-dir benchmark-results/transitionbench
+          python -m benchmarks.adapterbench.run_adapterbench --output-dir benchmark-results/adapterbench
+          python -m benchmarks.volatilitybench.run_volatilitybench --output-dir benchmark-results/volatilitybench
+          python -m benchmarks.contextcachebench.run_contextcachebench --cases 12 --replays-per-case 10 --output-dir benchmark-results/contextcachebench
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: deterministic-benchmark-smoke
+          path: benchmark-results/
+          if-no-files-found: error
+          retention-days: 14
+
+  deterministic-full:
+    name: Scheduled deterministic suite
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install Gnomon
+        run: python -m pip install --upgrade pip ".[dev]"
+      - name: Run full independent product checks
+        run: |
+          # Exit 2 means a statistically complete run missed a product gate;
+          # retain and publish that result. Any other non-zero status is an
+          # execution failure and fails the workflow.
+          for seed in 94721 9100 27183; do
+            set +e
+            python -m benchmarks.propertybench.run_propertybench --seed "$seed" --replicates 20 --output-dir "benchmark-results-full/propertybench-$seed"
+            status=$?
+            set -e
+            test "$status" -eq 0 -o "$status" -eq 2
+          done
+          python -m benchmarks.transitionbench.run_transitionbench --replicates 30 --output-dir benchmark-results-full/transitionbench
+          python -m benchmarks.adapterbench.run_adapterbench --output-dir benchmark-results-full/adapterbench
+          python -m benchmarks.volatilitybench.run_volatilitybench --output-dir benchmark-results-full/volatilitybench
+          python -m benchmarks.contextcachebench.run_contextcachebench --cases 24 --replays-per-case 10 --output-dir benchmark-results-full/contextcachebench
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: deterministic-benchmark-full
+          path: benchmark-results-full/
+          if-no-files-found: error
+          retention-days: 30
+
+  live-temporalbench:
+    name: Matched TemporalBench (paid, opt-in)
+    if: github.event_name == 'workflow_dispatch' && inputs.live_temporalbench
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ENGY_API_KEY: ${{ secrets.ENGY_API_KEY }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Require Engy credential
+        run: test -n "$ENGY_API_KEY"
+      - name: Install benchmark dependencies
+        run: python -m pip install --upgrade pip ".[dev]" huggingface_hub numpy
+      - name: Download TemporalBench
+        run: python -m benchmarks.temporalbench.run_temporalbench --download --data-dir benchmark-data/temporalbench
+      - name: Run matched base LLM
+        run: |
+          set +e
+          python -m benchmarks.temporalbench.run_temporalbench \
+            --data-dir benchmark-data/temporalbench --condition control \
+            --model "${{ inputs.model }}" --base-url https://api.engy.ai/v1 \
+            --api-key-env ENGY_API_KEY --tiers T2,T4 --limit "${{ inputs.limit }}" \
+            --temperature 0 --infrastructure-retries 2 \
+            --output-dir live-results/base-llm
+          status=$?
+          set -e
+          test "$status" -eq 0 -o "$status" -eq 2
+      - name: Run matched Gnomon Evidence
+        run: |
+          set +e
+          python -m benchmarks.temporalbench.run_temporalbench \
+            --data-dir benchmark-data/temporalbench --condition gnomon-mcp \
+            --model "${{ inputs.model }}" --base-url https://api.engy.ai/v1 \
+            --api-key-env ENGY_API_KEY --tiers T2,T4 --limit "${{ inputs.limit }}" \
+            --temperature 0 --infrastructure-retries 2 --mcp-profile evidence \
+            --compile-context --compile-questions \
+            --context-receipts-dir live-results/context-receipts \
+            --question-receipts-dir live-results/question-receipts \
+            --output-dir live-results/evidence
+          status=$?
+          set -e
+          test "$status" -eq 0 -o "$status" -eq 2
+      - name: Produce matched comparison
+        run: python -m benchmarks.report --root live-results --compare base-llm evidence --json --output live-results/comparison.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: temporalbench-matched
+          path: live-results/
+          if-no-files-found: error
+          retention-days: 30

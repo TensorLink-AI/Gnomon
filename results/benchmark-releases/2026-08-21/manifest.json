@@ -1,0 +1,136 @@
+{
+  "benchmarks": [
+    {
+      "arm": null,
+      "benchmark": "propertybench",
+      "bytes": 5490,
+      "file": "propertybench.json",
+      "scope": "full",
+      "sha256": "cc96b8a9a67042f6257b11836522a6c295b3bed37bf1fe146e125c4059d4d80c",
+      "status": "complete"
+    },
+    {
+      "arm": null,
+      "benchmark": "transitionbench",
+      "bytes": 5328,
+      "file": "transitionbench.json",
+      "scope": "full",
+      "sha256": "3506348a8e042b22c002e52da6747a4549aad86adfca452e94f412da01890170",
+      "status": "complete"
+    },
+    {
+      "arm": null,
+      "benchmark": "adapterbench",
+      "bytes": 3908,
+      "file": "adapterbench.json",
+      "scope": "full",
+      "sha256": "fdb025f690e93b51988508b0a9b4d84bd20bc90bb5854a1104633c851a82e88f",
+      "status": "complete"
+    },
+    {
+      "arm": null,
+      "benchmark": "volatilitybench",
+      "bytes": 5551,
+      "file": "volatilitybench.json",
+      "scope": "full",
+      "sha256": "5f9e5705ff560b27b05fc39925faba266d5507f7a2c1d9360232aa4f3ea45860",
+      "status": "diagnostic_not_graduated"
+    },
+    {
+      "arm": "matched-base-and-enriched",
+      "benchmark": "reasoningbench",
+      "bytes": 2760,
+      "file": "reasoningbench.json",
+      "scope": "full",
+      "sha256": "093e9e077fefcef475748efdab66069a89611862ac32c7980dca7ded3e1feb21",
+      "status": "complete"
+    },
+    {
+      "arm": "raw-llm",
+      "benchmark": "contextbench",
+      "bytes": 2920,
+      "file": "contextbench-raw-llm.json",
+      "scope": "full",
+      "sha256": "87e0a31fa5a425be96685bb4481a9dd69f000921951b5e6bdb618a8288c0df4c",
+      "status": "complete"
+    },
+    {
+      "arm": "compiled-context",
+      "benchmark": "contextbench",
+      "bytes": 2932,
+      "file": "contextbench-compiled.json",
+      "scope": "full",
+      "sha256": "0a1274f190440459636de56f54cd0c7fb705b4fe4202ad1bbead41db9dc11193",
+      "status": "complete"
+    },
+    {
+      "arm": "evidence-r1",
+      "benchmark": "contextbench",
+      "bytes": 5206,
+      "file": "contextbench-evidence.json",
+      "scope": "full",
+      "sha256": "241fcd3cc20c0fb05eda0ed7269b14c4f023385b08fc3c34f824aa4dfe5f76a3",
+      "status": "complete"
+    },
+    {
+      "arm": "base-llm",
+      "benchmark": "temporalbench",
+      "bytes": 4347,
+      "file": "temporalbench-base-llm.json",
+      "scope": "full",
+      "sha256": "ca716ac8ac53e10f18c37e4155e17252b645bf4bf1910eaefbc219664891e531",
+      "status": "complete"
+    },
+    {
+      "arm": "evidence",
+      "benchmark": "temporalbench",
+      "bytes": 6529,
+      "file": "temporalbench-evidence.json",
+      "scope": "full",
+      "sha256": "54c44fb6c74a40912b21a48ec99f9564ae74b6e5814b3877a2e995d50333b0e2",
+      "status": "complete"
+    }
+  ],
+  "curated_by_commit": "038291efb123c4ec7f62afce3d059baabfc2f0fc",
+  "not_included": [
+    {
+      "benchmark": "leaktrap",
+      "reason": "Already versioned separately under results/leaktrap with its published write-up."
+    },
+    {
+      "benchmark": "contextcachebench",
+      "reason": "Validated in CI, but no dated full release run was retained locally."
+    },
+    {
+      "benchmark": "workflow",
+      "reason": "Its bundled smoke corpus is a CI contract check, not publishable product evidence."
+    },
+    {
+      "benchmark": "compilerbench",
+      "reason": "No current complete release-grade run was found."
+    },
+    {
+      "benchmark": "cik",
+      "reason": "No current complete release-grade matched run was found."
+    },
+    {
+      "benchmark": "anomllm",
+      "reason": "No current complete release-grade matched run was found."
+    },
+    {
+      "benchmark": "mtbench",
+      "reason": "No current complete release-grade matched run was found."
+    },
+    {
+      "benchmark": "timesage-mt",
+      "reason": "No current complete release-grade matched run was found."
+    }
+  ],
+  "policy": {
+    "aggregate_only": true,
+    "raw_runs_are_ci_artifacts": true,
+    "smoke_results_are_not_full_results": true
+  },
+  "release": "2026-08-21",
+  "schema_version": "1.0"
+}

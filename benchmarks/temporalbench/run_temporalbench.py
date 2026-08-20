@@ -383,8 +383,11 @@ def main() -> int:
     parser.add_argument("--temperature", type=float, default=0.2)
     parser.add_argument("--request-timeout", type=int, default=180,
                         help="seconds per provider request (default: 180)")
-    parser.add_argument("--max-retries", type=int, default=2,
-                        help="bounded retries for transient provider failures")
+    parser.add_argument(
+        "--max-retries", type=int, default=0,
+        help=("retries inside one provider call (default: 0); TemporalBench "
+              "already retries infrastructure failures at row scope, so "
+              "raising both values multiplies outage latency"))
     parser.add_argument(
         "--infrastructure-retries", type=int, default=2,
         help=("whole-row retries after exhausted provider/transport or MCP "

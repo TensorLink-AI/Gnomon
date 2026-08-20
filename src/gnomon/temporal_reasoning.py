@@ -11,10 +11,12 @@ from .temporal_executables import (
     fit_dependence_executable, fit_temporal_executable,
 )
 from .volatility import fit_volatility_executable, residuals
-from .temporal_evidence import aggregate_evidence, compare_windows
+from .temporal_evidence import (
+    aggregate_evidence, compare_windows, multi_resolution_evidence,
+)
 
 
-TEMPORAL_ANSWER_CONTRACT_VERSION = "0.7"
+TEMPORAL_ANSWER_CONTRACT_VERSION = "0.8"
 
 
 def _correlation(left: list[float], right: list[float]) -> float | None:
@@ -98,7 +100,11 @@ def _seasonality_alignment(values: list[float], forecast: list[float],
     tolerance = max(1, round(.1 * season))
     if best < .35:
         direction = "absent"
-    elif zero is not None and zero >= .55 and circular_shift <= tolerance:
+    elif (zero is not None and zero >= .55
+          and (circular_shift <= tolerance or best - zero < .15)):
+        # A distant phase can win by a tiny correlation margin on noisy or
+        # short forecasts.  That is not evidence of a phase transition: the
+        # zero-shift template remains an equivalently good explanation.
         direction = "continued"
     elif (best >= .55 and circular_shift > tolerance
           and (zero is None or best - zero >= .15)):
@@ -136,6 +142,17 @@ def _envelope(question: TemporalQuestion, *, direction: str | None,
         # Detailed estimates remain evidence; consumers must not synthesize a
         # competing answer from child rows.
         "best_estimate": best_estimate,
+        "support": {
+            "state": support,
+            "automation_eligible": support == "supported",
+            "meaning": (
+                "calibrated evidence supports automatic use"
+                if support == "supported" else
+                "best available estimate; human or agent qualification required"
+                if support == "weak" else
+                "the evidence does not distinguish a publishable conclusion"
+            ),
+        },
         "synthesis_policy": {
             "canonical_immutable": True,
             "canonical_authority": (
@@ -169,51 +186,67 @@ def answer_descriptive_question(
     prop = question.property
     if prop == "volatility" and question.verb in {"predict", "compare"} \
             and forecast_values:
-        estimate = _forecast_volatility_alignment(
+        path_projection = _forecast_volatility_alignment(
             values, forecast_values, season)
-        direction = estimate["direction"]
+        fitted = fit_volatility_executable(
+            values, horizon=question.horizon or len(forecast_values),
+            season=season)
+        fitted_answer = fitted.execute()
+        direction = fitted_answer["direction"]
+        source = "fold_safe_volatility_executable"
+        observed = multi_resolution_evidence(
+            values, property="volatility", season=season)
+        if direction == "uncertain" and observed["direction"] in {
+                "increased", "decreased", "stable"}:
+            # With too few predictive folds, a repeatable observed transition
+            # may support a weak persistence-conditioned best estimate.  It
+            # never becomes automation-eligible or rewrites the point path.
+            direction = str(observed["direction"])
+            source = "observed_transition_conditional_on_persistence"
         measurable = direction != "uncertain"
         result = _envelope(
             question, direction=direction,
-            estimate=estimate["forecast_residual_scale"], interval=None,
+            estimate=fitted_answer["estimate"],
+            interval=fitted_answer["interval"],
             support=("weak" if measurable else "abstained"),
-            headline=(f"Published forecast residual scale for "
-                      f"{question.target} is "
-                      f"{estimate['forecast_residual_scale']:.6g} versus "
-                      f"recent history {estimate['reference_residual_scale']:.6g}."),
-            limitations=(
-                ["This describes the immutable published forecast path; it "
-                 "is not a calibrated claim about realised future volatility."]
-                if measurable else
-                ["The history has insufficient residual variation for a "
-                 "forecast-to-history volatility comparison."]),
-            executable={"kind": "published_forecast_projection",
-                        "property": "volatility", "version": "0.1"},
+            headline=(f"Expected future residual scale for {question.target} "
+                      f"is {fitted_answer['estimate']:.6g}; directional "
+                      f"support is {'weak' if measurable else 'abstained'}."),
+            limitations=[
+                "Point-forecast smoothness is diagnostic only and does not "
+                "measure the future process variance.",
+                *( ["Direction conditions the observed multi-resolution "
+                     "transition on persistence; it is not automation-eligible."]
+                   if source.endswith("persistence") else []),
+            ],
+            executable={"kind": "fitted_volatility_with_path_diagnostic",
+                        "property": "volatility", "version": "0.2"},
         )
-        result["answer"].update(estimate)
-        # Keep the volatility answer contract uniform across fitted forecasts
-        # and immutable-path projections.  This is deliberately an
-        # uncalibrated point distribution: describing the published path does
-        # not create probability mass or pretend that realised volatility was
-        # fitted from future observations.
-        result["answer"]["property_distribution"] = {
-            "quantity": "future_to_reference_residual_scale_ratio",
-            "estimate": ratio if (ratio := estimate[
-                "future_to_reference_ratio"]) is not None else 0.0,
-            "lower": ratio if ratio is not None else 0.0,
-            "upper": ratio if ratio is not None else 0.0,
-            "probabilities": {},
-            "point_state": direction,
-            "folds": 0,
-            "balanced_accuracy": 0.0,
-            "brier_skill": 0.0,
-            "support": "weak" if measurable else "abstained",
-        }
-        result["calibration"] = {
-            "available": False,
-            "direction_candidate": "published_forecast_projection",
-            "reason": "immutable_path_description_not_realised_outcome_fit",
-        }
+        result["answer"].update({
+            "reference_scale": fitted_answer["reference_scale"],
+            "future_to_reference_ratio": fitted_answer[
+                "future_to_reference_ratio"],
+            "ratio_interval": fitted_answer["ratio_interval"],
+            "direction_probabilities": fitted_answer[
+                "direction_probabilities"],
+            "direction_support": "weak" if measurable else "abstained",
+            "property_distribution": fitted_answer["property_distribution"],
+            "decision": fitted_answer["decision"],
+            "direction_source": source,
+            "observed_transition": observed,
+            "process_claim": {
+                "property": "future_realized_volatility",
+                "direction": direction,
+                "support": "weak" if measurable else "abstained",
+                "source": source,
+            },
+            "forecast_path_behavior": {
+                **path_projection,
+                "claim_type": "deterministic_path_diagnostic",
+                "not_a_process_variance_claim": True,
+            },
+        })
+        result["calibration"] = fitted.diagnostics
         return result
     if prop == "volatility" and question.verb in {"predict", "compare"}:
         fitted = fit_volatility_executable(
@@ -311,7 +344,7 @@ def answer_descriptive_question(
                          estimate.get("zero_correlation")})
         direction = estimate["direction"]
         measurable = direction not in {None, "uncertain"}
-        return _envelope(
+        result = _envelope(
             question, direction=direction, estimate=estimate, interval=None,
             support=("weak" if measurable else "abstained"),
             headline=(f"Seasonal alignment for {question.target}: {direction}."),
@@ -323,6 +356,23 @@ def answer_descriptive_question(
             ]), executable={"kind": "published_forecast_projection",
                             "property": "seasonality", "version": "0.2"},
         )
+        result["answer"].update({
+            "forecast_path_behavior": {
+                "direction": estimate.get("direction"),
+                "zero_correlation": estimate.get("zero_correlation"),
+                "best_correlation": estimate.get("best_correlation"),
+                "phase_shift_steps": estimate.get("phase_shift_steps"),
+                "claim_type": "deterministic_path_alignment",
+                "not_a_future_process_claim": True,
+            },
+            "process_claim": {
+                "property": "future_realized_seasonality",
+                "direction": "uncertain",
+                "support": "abstained",
+                "source": "not_identified_by_point_forecast_alignment",
+            },
+        })
+        return result
     if prop == "level":
         estimate = report["level"]["latest"]
         direction = None
@@ -548,6 +598,19 @@ def answer_scoped_question(
         analogues = None
     result["answer"]["reasoning"] = build_evidence_plan(
         question, result, observed_evidence=observed, analogues=analogues)
+    adjudication = result["answer"]["reasoning"].get("adjudication") or {}
+    conditional = adjudication.get("conditional_candidate")
+    if conditional:
+        # A second, explicitly conditional answer is useful without allowing
+        # documentary context to mutate the fitted primary answer.
+        result["conditional_answer"] = {
+            "if_context_holds": conditional.get("value"),
+            "support": conditional.get("support", "weak"),
+            "baseline": (result.get("best_estimate") or {}).get("value"),
+            "provenance": conditional.get("provenance") or {},
+            "publication_role": "labelled_conditional_scenario",
+            "primary_forecast_unchanged": True,
+        }
     if question.scope == "series" and question.target in execution_inputs:
         values, season = execution_inputs[question.target]
         result["answer"]["reasoning"]["multi_resolution"] = \

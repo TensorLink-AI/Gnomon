@@ -191,3 +191,26 @@ def test_zero_retries_still_performs_the_initial_request(monkeypatch):
     assert len(attempts) == 1
     assert client.usage_summary["requests"] == 0
     assert client.usage_summary["transport_attempts"] == 1
+
+
+def test_absolute_deadline_bounds_trickling_transport(monkeypatch):
+    import time
+
+    class SlowResponse:
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def read(self):
+            time.sleep(.2)
+            return b'{"choices": []}'
+
+    monkeypatch.setattr("urllib.request.urlopen",
+                        lambda *args, **kwargs: SlowResponse())
+    client = OpenRouterClient(
+        "test/model", api_key="k", max_retries=0, timeout=.02)
+    started = time.monotonic()
+    with pytest.raises(OpenRouterError, match="absolute request deadline"):
+        client._request(MESSAGES, n=1, temperature=None, max_tokens=10,
+                        tools=None, tool_choice=None)
+    assert time.monotonic() - started < .15

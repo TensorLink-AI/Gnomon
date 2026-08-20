@@ -8,6 +8,7 @@ from pathlib import Path
 import random
 import statistics
 import sys
+import argparse
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
@@ -284,6 +285,13 @@ def run() -> dict[str, object]:
                 "all": _direction_metrics(balanced_selected),
                 "development_families": _direction_metrics(development),
                 "held_out_families": _direction_metrics(held_out),
+                "by_shape": {
+                    shape: _direction_metrics([
+                        row for row in balanced_selected
+                        if row["shape"] == shape])
+                    for shape in sorted({str(row["shape"])
+                                         for row in balanced_selected})
+                },
                 "held_out_shapes": ["step", "heavy_tail"],
                 "mean_absolute_log_scale_error": statistics.mean(
                     row["absolute_log_scale_error"] for row in balanced_selected),
@@ -294,5 +302,23 @@ def run() -> dict[str, object]:
             "rows": rows}
 
 
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output-dir")
+    args = parser.parse_args()
+    result = run()
+    if args.output_dir:
+        output = Path(args.output_dir)
+        output.mkdir(parents=True, exist_ok=True)
+        (output / "summary.json").write_text(
+            json.dumps(result, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8")
+    print(json.dumps({key: value for key, value in result.items()
+                      if key != "rows"}, indent=2, sort_keys=True))
+    # Volatility direction is intentionally a diagnostic until its independent
+    # balanced suite graduates; benchmark execution itself remains successful.
+    return 0
+
+
 if __name__ == "__main__":
-    print(json.dumps(run(), indent=2, sort_keys=True))
+    raise SystemExit(main())

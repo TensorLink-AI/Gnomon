@@ -735,13 +735,16 @@ def test_typed_question_returns_compact_answer_without_changing_primary(
     assert asked["answers"][0]["artifact_id"] == asked["artifact_id"]
     assert set(asked["answers"][0]) == {
         "question", "best_estimate", "synthesis_policy", "decision_rule",
-        "answer", "headline", "limitations", "artifact_id"}
+        "answer", "headline", "limitations", "artifact_id", "support"}
     policy = asked["answers"][0]["synthesis_policy"]
     assert policy["canonical_immutable"] is True
     assert policy["synthesis_must_be_separately_labelled"] is True
     assert policy["publication_default"] in {"canonical", "labelled_synthesis"}
     assert asked["answers"][0]["best_estimate"]["value"] == \
         asked["answers"][0]["answer"]["direction"]
+    # The full evidence remains in temporal_answers.json; the turn-by-turn
+    # answer must stay small enough to quote without repaying receipt bulk.
+    assert len(json.dumps(asked["answers"][0], sort_keys=True)) < 6000
     assert "calibration" not in asked["answers"][0]
     assert asked["answers"][0]["answer"]["property_distribution"]["quantity"] == \
         "future_to_reference_residual_scale_ratio"

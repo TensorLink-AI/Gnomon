@@ -1,0 +1,92 @@
+{
+  "release_metadata": {
+    "arm": "compiled-context",
+    "benchmark": "contextbench",
+    "notes": [],
+    "scope": "full",
+    "source": "results/contextbench-full-20260816/llm-compiled/summary.json",
+    "source_sha256": "1c0cb7ebd76f4deda92cacfcef83c5883624904ce27ed9f7f12b29f26ec2bec6",
+    "status": "complete"
+  },
+  "summary": {
+    "answered": 80,
+    "benchmark": "contextbench",
+    "compiler_calls": 204,
+    "compiler_container_coercions": 103,
+    "compiler_event_precision": 1.0,
+    "compiler_event_recall": 0.9939577039274925,
+    "compiler_event_recall_macro": 0.9958333333333333,
+    "compiler_false_events": 0,
+    "condition": "compiled-context",
+    "corpus_manifest_sha256": "1d618428d9f5acc64abe0dd6ddf5c0dce873503f342cd5684f5ef758e5d92446",
+    "errors": 0,
+    "families": {
+      "future_covariate": {
+        "applied": 16,
+        "compiler_event_recall": null,
+        "compiler_false_events": 0,
+        "context_smape": 2.5407696249006144,
+        "history_smape": 5.522191394477597,
+        "incremental_smape": 2.9814217695769822
+      },
+      "irrelevant": {
+        "applied": 2,
+        "compiler_event_recall": 1.0,
+        "compiler_false_events": 0,
+        "context_smape": 0.5971492498796713,
+        "history_smape": 0.60047745252974,
+        "incremental_smape": 0.003328202650068751
+      },
+      "prior_only": {
+        "applied": 0,
+        "compiler_event_recall": 1.0,
+        "compiler_false_events": 0,
+        "context_smape": 0.5376897205530125,
+        "history_smape": 0.5376897205530125,
+        "incremental_smape": 0.0
+      },
+      "repeated_event": {
+        "applied": 14,
+        "compiler_event_recall": 0.9875,
+        "compiler_false_events": 0,
+        "context_smape": 3.4884061017245114,
+        "history_smape": 4.081542568754712,
+        "incremental_smape": 0.5931364670302015
+      }
+    },
+    "fresh_seed": true,
+    "generator": "contextbench-synthetic-v1",
+    "llm_usage": {
+      "accounting_scope": "this_invocation",
+      "base_url": "https://api.engy.ai/v1",
+      "completion_tokens": 153847,
+      "cost_usd": 0.0,
+      "model": "deepseek-v4-flash-0731",
+      "prompt_tokens": 190593,
+      "requests": 129,
+      "transport_attempts": 129,
+      "truncation_escalations": 0
+    },
+    "llm_usage_observations": {
+      "accounting_complete": true,
+      "completion_tokens": 251937,
+      "prompt_tokens": 303832,
+      "requests": 204
+    },
+    "llm_usage_this_invocation": {
+      "accounting_scope": "this_invocation",
+      "base_url": "https://api.engy.ai/v1",
+      "completion_tokens": 153847,
+      "cost_usd": 0.0,
+      "model": "deepseek-v4-flash-0731",
+      "prompt_tokens": 190593,
+      "requests": 129,
+      "transport_attempts": 129,
+      "truncation_escalations": 0
+    },
+    "resumed_answered_rows": 16,
+    "resumed_terminal_rows": 16,
+    "rows_executed_this_invocation": 64,
+    "seed": 6389543763778923479
+  }
+}

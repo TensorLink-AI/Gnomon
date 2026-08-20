@@ -1,0 +1,95 @@
+{
+  "release_metadata": {
+    "arm": "matched-base-and-enriched",
+    "benchmark": "reasoningbench",
+    "notes": [],
+    "scope": "full",
+    "source": "results/reasoningbench-replication-20260820/summary.json",
+    "source_sha256": "fd5dffd6db6f00ecc140b9844658e611b06e374d254c8a08eeb037f14b1f5d7c",
+    "status": "complete"
+  },
+  "summary": {
+    "base_url": "https://api.engy.ai/v1",
+    "cases": 72,
+    "design": {
+      "generated_held_out_seeds": true,
+      "labels_absent_from_prompts": true,
+      "matched": true,
+      "primary_forecast_unchanged": true
+    },
+    "metrics": {
+      "control": {
+        "all_correct": 0.18055555555555555,
+        "analogue_outcome": 1,
+        "by_claim": {
+          "aligned": 0.1388888888888889,
+          "conflicting": 0.2222222222222222
+        },
+        "by_difficulty": {
+          "easy": 0.2916666666666667,
+          "marginal": 0.041666666666666664,
+          "moderate": 0.20833333333333334
+        },
+        "by_property": {
+          "extreme": 0.25,
+          "level": 0.4166666666666667,
+          "regime": 0.16666666666666666,
+          "seasonality": 0,
+          "trend": 0.16666666666666666,
+          "volatility": 0.08333333333333333
+        },
+        "confidence": 0.6111111111111112,
+        "diagnosis": 0.625,
+        "grounded_correct": 0.4166666666666667,
+        "next_action": 0.2222222222222222,
+        "synthesis_correct": 0.2222222222222222,
+        "valid_json_rate": 1
+      },
+      "evidence": {
+        "all_correct": 0.6527777777777778,
+        "analogue_outcome": 1,
+        "by_claim": {
+          "aligned": 0.5833333333333334,
+          "conflicting": 0.7222222222222222
+        },
+        "by_difficulty": {
+          "easy": 0.8333333333333334,
+          "marginal": 0.375,
+          "moderate": 0.75
+        },
+        "by_property": {
+          "extreme": 0.5,
+          "level": 0.9166666666666666,
+          "regime": 0.9166666666666666,
+          "seasonality": 0.4166666666666667,
+          "trend": 0.8333333333333334,
+          "volatility": 0.3333333333333333
+        },
+        "confidence": 0.75,
+        "diagnosis": 0.8333333333333334,
+        "grounded_correct": 0.6527777777777778,
+        "next_action": 0.9861111111111112,
+        "synthesis_correct": 0.9861111111111112,
+        "valid_json_rate": 1
+      }
+    },
+    "model": "deepseek-v4-flash-0731",
+    "paired": {
+      "control_only": 0,
+      "exact_mcnemar_p": 1.1641532182693481e-10,
+      "treatment_only": 34
+    },
+    "schema_version": "0.1",
+    "seed": 28177,
+    "usage": {
+      "control": {
+        "completion_tokens": 2737,
+        "prompt_tokens": 81816
+      },
+      "evidence": {
+        "completion_tokens": 2780,
+        "prompt_tokens": 88991
+      }
+    }
+  }
+}

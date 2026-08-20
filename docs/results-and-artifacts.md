@@ -160,6 +160,9 @@ external evidence separately, candidate weight, diagnostics, policy version,
 and deterministic reasoning frame. A `prior_assisted` result is capped at
 `conditionally_supported`. A blend's executable identity records its exact
 members and fitted weights, so replay never repeats or improvises admission.
+Policy `evidence-weighted-v2` additionally records registry-match relevance;
+wildcard transfer evidence is discounted and local/external directional
+conflict is preserved in the receipt.
 
 ## Artifact files
 
@@ -205,7 +208,7 @@ is stored once and later joined to the realised horizon; it never replaces or
 mutates `artifact.json` or `forecast.csv`.
 
 The inline tool response exposes the canonical scalar `best_estimate`, its
-`decision_rule`, and a constituent support summary. Detailed per-series
+`decision_rule`, a prominent `support` state, and a constituent support summary. Detailed per-series
 executions remain here rather than being resent through every agent turn.
 The bounded `answer.reasoning` packet contains typed evidence for and against
 the canonical answer, unresolved evidence, historical analogues when enough
@@ -217,6 +220,18 @@ is preferred, the supported alternative when one exists, and whether synthesis
 is publication-eligible. The full receipt records source kinds, provenance,
 evidence balance, calibration metadata, and what additional evidence would
 change the decision.
+Weak answers also expose up to three `ranked_hypotheses`. Their weights count
+independent receipt evidence and are explicitly not probabilities. Agents may
+explain this ordering, but only a calibrated fitted distribution may publish
+probability language.
+
+Forecast-based volatility and seasonality answers separate
+`forecast_path_behavior` from `process_claim`. A smooth or phase-aligned point
+path is a deterministic diagnostic; it is never presented as proof that the
+future stochastic process loses volatility, seasonality, or uncertainty.
+When verified context implies a different outcome, `conditional_answer`
+publishes a second, labelled “if context holds” lane with provenance while the
+baseline and primary forecast remain immutable.
 It also reports `answer_cache` provenance. A hit is scoped to the immutable
 forecast ID, canonical typed question, `as_of`, project namespace, and answer
 contract version; it reuses computation without changing this receipt or the

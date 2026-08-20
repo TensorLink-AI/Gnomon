@@ -182,6 +182,45 @@ class TestSandbox:
         assert adapter.supports_quantiles is True
         assert "Datadog/Toto-2.0-4m@" in str(adapter.revision)
 
+    def test_sandbox_timeout_opens_per_run_circuit(self, monkeypatch):
+        from gnomon.tsfm import TSFMError
+        from gnomon.tsfm_sandbox import SubprocessAdapter
+        import gnomon.tsfm_sandbox as sandbox
+
+        class Input:
+            def write(self, value):
+                return len(value)
+            def flush(self):
+                return None
+            def close(self):
+                return None
+
+        class Output:
+            def fileno(self):
+                return 0
+
+        class Process:
+            stdin = Input()
+            stdout = Output()
+            def poll(self):
+                return None
+            def wait(self, timeout=None):
+                return 0
+            def terminate(self):
+                return None
+
+        adapter = SubprocessAdapter("toto2_4m", timeout=1)
+        starts = []
+        monkeypatch.setattr(adapter, "_start_worker",
+                            lambda: starts.append(True) or Process())
+        monkeypatch.setattr(sandbox.select, "select",
+                            lambda *args: ([], [], []))
+        with pytest.raises(TSFMError, match="circuit is open"):
+            adapter.predict([1.0] * 33, 1, 1)
+        with pytest.raises(TSFMError, match="circuit is open"):
+            adapter.predict([1.0] * 33, 1, 1)
+        assert len(starts) == 1
+
     def test_sandbox_predict_many_validates_batch_shape(self, monkeypatch):
         from gnomon.tsfm_sandbox import SubprocessAdapter
         adapter = SubprocessAdapter("toto2_4m")

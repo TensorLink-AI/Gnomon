@@ -534,6 +534,7 @@ def compile_row_temporal_questions(
         "compiler_version": INTENT_COMPILER_VERSION,
     }, sort_keys=True))
     receipt_path = None
+    failed_cached_receipt: dict[str, Any] | None = None
     if receipt_dir:
         safe_id = "".join(c if c.isalnum() or c in "-_" else "_"
                           for c in str(row.get("id") or "temporalbench"))
@@ -542,8 +543,33 @@ def compile_row_temporal_questions(
             cached = json.loads(receipt_path.read_text(encoding="utf-8"))
             if cached.get("input_fingerprint") != fingerprint:
                 raise ValueError("cached temporal-intent receipt does not match input")
-            return {**cached, "attempted": True, "compiler_called": False,
-                    "receipt_reused": True}
+            if cached.get("questions"):
+                return {**cached, "attempted": True, "compiler_called": False,
+                        "receipt_reused": True}
+            # A failed proposal is an immutable diagnostic, not a reusable
+            # compilation result. Retry into a sibling receipt so one
+            # malformed provider response cannot permanently erase all typed
+            # questions from future/resumed benchmark runs.
+            failed_cached_receipt = cached
+            original_receipt_path = receipt_path
+            retry_number = 1
+            while True:
+                suffix = ".retry" if retry_number == 1 else \
+                    f".retry{retry_number}"
+                receipt_path = original_receipt_path.with_name(
+                    original_receipt_path.stem + suffix + ".json")
+                if not receipt_path.is_file():
+                    break
+                retry = json.loads(receipt_path.read_text(encoding="utf-8"))
+                if retry.get("input_fingerprint") != fingerprint:
+                    raise ValueError(
+                        "cached temporal-intent retry does not match input")
+                if retry.get("questions"):
+                    return {**retry, "attempted": True,
+                            "compiler_called": False,
+                            "receipt_reused": True,
+                            "prior_failed_receipt": True}
+                retry_number += 1
 
     class Adapter:
         def complete(self, prompt: str, response_schema: dict[str, Any]):
@@ -573,6 +599,8 @@ def compile_row_temporal_questions(
                   "rejected": [{"type": type(error).__name__, "message": str(error),
                                 "details": getattr(error, "details", {})}],
                   "compiler_called": True}
+    if failed_cached_receipt is not None:
+        result["prior_failed_receipt"] = True
     if receipt_path is not None:
         receipt_path.parent.mkdir(parents=True, exist_ok=True)
         rendered = json.dumps(result, indent=2, sort_keys=True) + "\n"

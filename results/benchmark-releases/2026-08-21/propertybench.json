@@ -1,0 +1,179 @@
+{
+  "release_metadata": {
+    "arm": null,
+    "benchmark": "propertybench",
+    "notes": [
+      "Independent synthetic property validation; raw case rows omitted."
+    ],
+    "scope": "full",
+    "source": "results/propertybench-product-contract-20260821/summary.json",
+    "source_sha256": "2eacdae34816f843d0e7a614853cfa3e8244f0f3733a1c53f86905377d41cfbd",
+    "status": "complete"
+  },
+  "summary": {
+    "by_property": {
+      "dependence": {
+        "best_estimate_direction_accuracy": 0.9166666666666666,
+        "cases": 120,
+        "claim_rate": 0.7916666666666666,
+        "claimed_direction_accuracy": 0.968421052631579,
+        "interval_coverage": 0.8210526315789474,
+        "mean_absolute_error": 0.08762196957208664
+      },
+      "extreme": {
+        "best_estimate_direction_accuracy": 0.61,
+        "cases": 100,
+        "claim_rate": 0.15,
+        "claimed_direction_accuracy": 1,
+        "interval_coverage": 0.9333333333333333,
+        "mean_absolute_error": 3.7699860586437453
+      },
+      "level": {
+        "best_estimate_direction_accuracy": 0.625,
+        "cases": 80,
+        "claim_rate": 0.0,
+        "claimed_direction_accuracy": null,
+        "interval_coverage": null,
+        "mean_absolute_error": 3.9533138895212803
+      },
+      "regime": {
+        "best_estimate_direction_accuracy": 0.575,
+        "cases": 80,
+        "claim_rate": 0.175,
+        "claimed_direction_accuracy": 1,
+        "interval_coverage": 1,
+        "mean_absolute_error": 3.7066670131365322
+      },
+      "seasonality": {
+        "best_estimate_direction_accuracy": 1,
+        "cases": 60,
+        "claim_rate": 1.0,
+        "claimed_direction_accuracy": 1,
+        "interval_coverage": 1,
+        "mean_absolute_error": 0.015288928471449071
+      },
+      "trend": {
+        "best_estimate_direction_accuracy": 0.825,
+        "cases": 80,
+        "claim_rate": 0.25,
+        "claimed_direction_accuracy": 1,
+        "interval_coverage": 1,
+        "mean_absolute_error": 0.04995374576389668
+      }
+    },
+    "cases": 520,
+    "forecast_path_volatility": {
+      "balanced_accuracy": 0.8055555555555556,
+      "cases": 180,
+      "class_recall": {
+        "decreased": 1,
+        "increased": 0.9166666666666666,
+        "stable": 0.5
+      }
+    },
+    "gates": {
+      "best_estimate_direction_accuracy_at_least_60pct": true,
+      "claim_rate_at_least_10pct": true,
+      "claimed_direction_accuracy_at_least_70pct": true,
+      "complete": true,
+      "every_property_claim_gate": true,
+      "forecast_path_volatility_balanced_accuracy_at_least_80pct": true,
+      "panel_volatility_balanced_accuracy_at_least_75pct": true,
+      "primary_immutable": true,
+      "seasonality_alignment_balanced_accuracy_at_least_80pct": true,
+      "seasonality_alignment_stress_balanced_accuracy_at_least_65pct": true,
+      "supported_interval_coverage_at_least_70pct": true
+    },
+    "graduated": true,
+    "panel_volatility": {
+      "balanced_accuracy": 0.9388888888888889,
+      "cases": 180,
+      "class_recall": {
+        "decreased": 1,
+        "increased": 1,
+        "stable": 0.8166666666666667
+      }
+    },
+    "property_gates": {
+      "dependence": {
+        "best_estimate_accuracy_at_least_50pct": true,
+        "claimed_accuracy_at_least_70pct": true,
+        "supported_coverage_at_least_70pct": true
+      },
+      "extreme": {
+        "best_estimate_accuracy_at_least_50pct": true,
+        "claimed_accuracy_at_least_70pct": true,
+        "supported_coverage_at_least_70pct": true
+      },
+      "level": {
+        "best_estimate_accuracy_at_least_50pct": true,
+        "claimed_accuracy_at_least_70pct": true,
+        "supported_coverage_at_least_70pct": true
+      },
+      "regime": {
+        "best_estimate_accuracy_at_least_50pct": true,
+        "claimed_accuracy_at_least_70pct": true,
+        "supported_coverage_at_least_70pct": true
+      },
+      "seasonality": {
+        "best_estimate_accuracy_at_least_50pct": true,
+        "claimed_accuracy_at_least_70pct": true,
+        "supported_coverage_at_least_70pct": true
+      },
+      "trend": {
+        "best_estimate_accuracy_at_least_50pct": true,
+        "claimed_accuracy_at_least_70pct": true,
+        "supported_coverage_at_least_70pct": true
+      }
+    },
+    "schema_version": "0.2",
+    "seasonality_alignment": {
+      "balanced_accuracy": 0.9722222222222222,
+      "cases": 180,
+      "class_recall": {
+        "absent": 0.9166666666666666,
+        "continued": 1,
+        "shifting": 1
+      }
+    },
+    "seasonality_alignment_stress": {
+      "balanced_accuracy": 0.9666666666666667,
+      "by_family": {
+        "amplitude_drift": {
+          "balanced_accuracy": 0.9833333333333333,
+          "class_recall": {
+            "absent": 0.95,
+            "continued": 1,
+            "shifting": 1
+          }
+        },
+        "asymmetric": {
+          "balanced_accuracy": 0.9416666666666667,
+          "class_recall": {
+            "absent": 0.825,
+            "continued": 1,
+            "shifting": 1
+          }
+        },
+        "harmonic": {
+          "balanced_accuracy": 0.9666666666666667,
+          "class_recall": {
+            "absent": 0.9,
+            "continued": 1,
+            "shifting": 1
+          }
+        },
+        "low_snr": {
+          "balanced_accuracy": 0.975,
+          "class_recall": {
+            "absent": 0.925,
+            "continued": 1,
+            "shifting": 1
+          }
+        }
+      },
+      "cases": 480
+    },
+    "seed": 94721
+  }
+}

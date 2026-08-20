@@ -1,0 +1,184 @@
+{
+  "release_metadata": {
+    "arm": null,
+    "benchmark": "transitionbench",
+    "notes": [
+      "Easy, moderate, and marginal transition signals."
+    ],
+    "scope": "full",
+    "source": "results/transitionbench-current-20260820/summary.json",
+    "source_sha256": "26128d0862e0757dde17454cca6e463f72ec0d144027c892ed0258618e18e7ec",
+    "status": "complete"
+  },
+  "summary": {
+    "by_property": {
+      "extreme": {
+        "accuracy_by_difficulty": {
+          "easy": 1,
+          "marginal": 0.3888888888888889,
+          "moderate": 0.9888888888888889
+        },
+        "balanced_accuracy": 0.7925925925925926,
+        "cases": 270,
+        "class_recall": {
+          "decreased": 0.6888888888888889,
+          "increased": 0.7222222222222222,
+          "stable": 0.9666666666666667
+        },
+        "identifiable_rate": 1,
+        "supported_accuracy_by_difficulty": {
+          "easy": 1,
+          "marginal": 1,
+          "moderate": 1
+        },
+        "supported_claim_precision": 1,
+        "supported_rate_by_difficulty": {
+          "easy": 0.6666666666666666,
+          "marginal": 0.011111111111111112,
+          "moderate": 0.6333333333333333
+        }
+      },
+      "level": {
+        "accuracy_by_difficulty": {
+          "easy": 0.9555555555555556,
+          "marginal": 0.9666666666666667,
+          "moderate": 0.9222222222222223
+        },
+        "balanced_accuracy": 0.9481481481481482,
+        "cases": 270,
+        "class_recall": {
+          "higher": 1,
+          "lower": 1,
+          "similar": 0.8444444444444444
+        },
+        "identifiable_rate": 1,
+        "supported_accuracy_by_difficulty": {
+          "easy": 1,
+          "marginal": 1,
+          "moderate": 1
+        },
+        "supported_claim_precision": 1,
+        "supported_rate_by_difficulty": {
+          "easy": 0.6666666666666666,
+          "marginal": 0.5333333333333333,
+          "moderate": 0.6666666666666666
+        }
+      },
+      "regime": {
+        "accuracy_by_difficulty": {
+          "easy": 1,
+          "marginal": 0.7166666666666667,
+          "moderate": 1
+        },
+        "balanced_accuracy": 0.9055555555555556,
+        "cases": 180,
+        "class_recall": {
+          "no_shift": 1,
+          "shift": 0.8111111111111111
+        },
+        "identifiable_rate": 1,
+        "supported_accuracy_by_difficulty": {
+          "easy": 1,
+          "marginal": 0.9375,
+          "moderate": 1
+        },
+        "supported_claim_precision": 0.9868421052631579,
+        "supported_rate_by_difficulty": {
+          "easy": 1,
+          "marginal": 0.5333333333333333,
+          "moderate": 1
+        }
+      },
+      "seasonality": {
+        "accuracy_by_difficulty": {
+          "easy": 1,
+          "marginal": 0.25833333333333336,
+          "moderate": 1
+        },
+        "balanced_accuracy": 0.7527777777777778,
+        "cases": 360,
+        "class_recall": {
+          "phase_shifted": 0.6666666666666666,
+          "stable": 1,
+          "strengthened": 0.6777777777777778,
+          "weakened": 0.6666666666666666
+        },
+        "identifiable_rate": 1,
+        "supported_accuracy_by_difficulty": {
+          "easy": 1,
+          "marginal": null,
+          "moderate": 1
+        },
+        "supported_claim_precision": 1,
+        "supported_rate_by_difficulty": {
+          "easy": 0.75,
+          "marginal": 0,
+          "moderate": 0.38333333333333336
+        }
+      },
+      "trend": {
+        "accuracy_by_difficulty": {
+          "easy": 1,
+          "marginal": 1,
+          "moderate": 1
+        },
+        "balanced_accuracy": 1,
+        "cases": 270,
+        "class_recall": {
+          "constant": 1,
+          "downward": 1,
+          "upward": 1
+        },
+        "identifiable_rate": 1,
+        "supported_accuracy_by_difficulty": {
+          "easy": 1,
+          "marginal": 1,
+          "moderate": 1
+        },
+        "supported_claim_precision": 1,
+        "supported_rate_by_difficulty": {
+          "easy": 0.9888888888888889,
+          "marginal": 0.32222222222222224,
+          "moderate": 0.9888888888888889
+        }
+      },
+      "volatility": {
+        "accuracy_by_difficulty": {
+          "easy": 0.9444444444444444,
+          "marginal": 0.6666666666666666,
+          "moderate": 0.9222222222222223
+        },
+        "balanced_accuracy": 0.8444444444444444,
+        "cases": 270,
+        "class_recall": {
+          "decreased": 0.8333333333333334,
+          "increased": 0.8444444444444444,
+          "stable": 0.8555555555555555
+        },
+        "identifiable_rate": 1,
+        "supported_accuracy_by_difficulty": {
+          "easy": 1,
+          "marginal": 0.9285714285714286,
+          "moderate": 1
+        },
+        "supported_claim_precision": 0.9914529914529915,
+        "supported_rate_by_difficulty": {
+          "easy": 0.6666666666666666,
+          "marginal": 0.15555555555555556,
+          "moderate": 0.4777777777777778
+        }
+      }
+    },
+    "cases": 1620,
+    "gates": {
+      "all_cases_present": true,
+      "every_property_easy_accuracy_at_least_75pct": true,
+      "every_property_supported_precision_at_least_90pct": true,
+      "overall_moderate_accuracy_at_least_65pct": true,
+      "supported_claim_precision_at_least_90pct": true
+    },
+    "graduated": true,
+    "schema_version": "0.1",
+    "seed": 73100
+  }
+}
