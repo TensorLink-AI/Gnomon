@@ -98,8 +98,30 @@ class TestProtocolCompliance:
         assert adapter_name in names
 
     def test_toto_one_step_forecast_preserves_horizon_axis(self, monkeypatch):
-        import numpy as np
         from gnomon.tsfm import Toto2Adapter
+
+        class _Row:
+            def __init__(self, values):
+                self._values = values
+
+            def tolist(self):
+                return list(self._values)
+
+        class _Array:
+            """Small ndarray stand-in; NumPy is an optional TSFM dependency."""
+
+            shape = (9, 1)
+
+            def reshape(self, *shape):
+                assert shape == (9, -1)
+                return self
+
+            def __getitem__(self, key):
+                if isinstance(key, tuple):
+                    row, column = key
+                    assert column == 0
+                    return float(row)
+                return _Row([float(key)])
 
         class _Tensor:
             def detach(self):
@@ -107,7 +129,7 @@ class TestProtocolCompliance:
             def cpu(self):
                 return self
             def numpy(self):
-                return np.arange(9.0).reshape(9, 1, 1, 1)
+                return _Array()
 
         adapter = Toto2Adapter("toto2_4m")
         monkeypatch.setattr(adapter, "_forecast_quantiles",
