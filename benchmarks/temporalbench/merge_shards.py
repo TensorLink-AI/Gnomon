@@ -19,9 +19,14 @@ def merge_shards(target: Path, shards: list[Path]) -> dict[str, int]:
                       if summary_path.is_file() else {})
     cumulative_usage = dict(target_summary.get("llm_usage") or {})
     merged_usage_sources = set(target_summary.get("merged_usage_sources") or [])
+    manifests: list[tuple[Path, dict]] = []
     if cumulative_usage and not merged_usage_sources:
         merged_usage_sources.add(str(target.resolve()))
     for source in [target, *shards]:
+        manifest_path = source / "manifest.json"
+        if source != target and manifest_path.is_file():
+            manifests.append((source, json.loads(
+                manifest_path.read_text(encoding="utf-8"))))
         records_path = source / "gnomonbench.jsonl"
         if not records_path.is_file():
             # The runner writes complete JSON lines to a durable partial file
@@ -73,6 +78,36 @@ def merge_shards(target: Path, shards: list[Path]) -> dict[str, int]:
         target_summary["merged_usage_sources"] = sorted(merged_usage_sources)
         summary_path.write_text(
             json.dumps(target_summary, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8")
+    if manifests:
+        # Shard commands differ by offset/output directory, but every field
+        # describing the experimental arm must agree. Preserve one verified
+        # manifest plus the source commands instead of dropping provenance
+        # and forcing the matched reporter to assume comparability.
+        ignored = {"command"}
+        reference = {key: value for key, value in manifests[0][1].items()
+                     if key not in ignored}
+        for source, manifest in manifests[1:]:
+            comparable = {key: value for key, value in manifest.items()
+                          if key not in ignored}
+            if comparable != reference:
+                differing = sorted(
+                    key for key in set(reference) | set(comparable)
+                    if reference.get(key) != comparable.get(key))
+                raise ValueError(
+                    f"incompatible shard manifest {source}: "
+                    + ", ".join(differing))
+        merged_manifest = dict(reference)
+        merged_manifest.update({
+            "command": "merge_shards",
+            "merged_shards": [str(source.resolve())
+                               for source, _ in manifests],
+            "source_commands": [manifest.get("command")
+                                for _, manifest in manifests],
+            "rows": len(records),
+        })
+        (target / "manifest.json").write_text(
+            json.dumps(merged_manifest, indent=2, sort_keys=True) + "\n",
             encoding="utf-8")
     return {"records": len(records), "details": len(detail_payloads)}
 

@@ -12,7 +12,7 @@ from collections import defaultdict
 from typing import Any
 
 
-ADJUDICATION_VERSION = "0.1"
+ADJUDICATION_VERSION = "0.2"
 _SUPPORT_WEIGHT = {"supported": 1.0, "weak": .5, "abstained": 0.0}
 _NON_ANSWERS = {None, "", "uncertain"}
 
@@ -63,9 +63,12 @@ def _context_candidate(effect: dict[str, Any] | None,
     # MCP forecast receipts wrap the canonical effect contract so they can
     # carry scenario/outcome counts beside it.  Direct describe calls may pass
     # the contract itself.
+    wrapper = effect
     effect = effect.get("measured_effect") or effect.get("effect") or effect
     distribution = effect.get("distribution") or {}
-    provenance = effect.get("provenance") or {}
+    provenance = effect.get("provenance") or wrapper.get("provenance") or {}
+    if not isinstance(provenance, dict):
+        provenance = {"source_reference": str(provenance)}
     location = distribution.get("location")
     if not isinstance(location, (int, float)) or float(location) == 0:
         return None
@@ -201,6 +204,12 @@ def adjudicate_temporal_evidence(
             "quantity": "receipt_evidence_weight_not_probability",
         },
         "candidates": ranked[:3],
+        "conditional_candidate": ({
+            "value": context["value"],
+            "support": context["support"],
+            "provenance": context["provenance"],
+            "conditional_only": context["conditional_only"],
+        } if context else None),
         "calibration": calibration,
         "synthesis_eligibility": {
             "eligible": synthesis_eligible,

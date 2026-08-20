@@ -1,0 +1,88 @@
+{
+  "release": "2026-08-21",
+  "output_dir": "results/benchmark-releases/2026-08-21",
+  "benchmarks": [
+    {
+      "benchmark": "propertybench",
+      "scope": "full",
+      "source": "results/propertybench-product-contract-20260821/summary.json",
+      "file": "propertybench.json",
+      "notes": ["Independent synthetic property validation; raw case rows omitted."]
+    },
+    {
+      "benchmark": "transitionbench",
+      "scope": "full",
+      "source": "results/transitionbench-current-20260820/summary.json",
+      "file": "transitionbench.json",
+      "notes": ["Easy, moderate, and marginal transition signals."]
+    },
+    {
+      "benchmark": "adapterbench",
+      "scope": "full",
+      "source": "results/adapterbench-20260818-final/summary.json",
+      "file": "adapterbench.json"
+    },
+    {
+      "benchmark": "volatilitybench",
+      "scope": "full",
+      "status": "diagnostic_not_graduated",
+      "source": "results/volatilitybench-product-contract-20260821/summary.json",
+      "file": "volatilitybench.json",
+      "notes": ["Magnitude estimation is useful; independent directional classification has not graduated."]
+    },
+    {
+      "benchmark": "reasoningbench",
+      "arm": "matched-base-and-enriched",
+      "scope": "full",
+      "source": "results/reasoningbench-replication-20260820/summary.json",
+      "file": "reasoningbench.json"
+    },
+    {
+      "benchmark": "contextbench",
+      "arm": "raw-llm",
+      "scope": "full",
+      "source": "results/contextbench-full-20260816/llm-raw/summary.json",
+      "file": "contextbench-raw-llm.json"
+    },
+    {
+      "benchmark": "contextbench",
+      "arm": "compiled-context",
+      "scope": "full",
+      "source": "results/contextbench-full-20260816/llm-compiled/summary.json",
+      "file": "contextbench-compiled.json"
+    },
+    {
+      "benchmark": "contextbench",
+      "arm": "evidence-r1",
+      "scope": "full",
+      "source": "results/contextbench-full-20260816/surface-evidence-r1/summary.json",
+      "file": "contextbench-evidence.json",
+      "notes": ["One of three completed evidence replicates; the full local run retains all replicates."]
+    },
+    {
+      "benchmark": "temporalbench",
+      "arm": "base-llm",
+      "scope": "full",
+      "source": "results/key-suite-20260819/temporalbench-base-merged/summary.json",
+      "file": "temporalbench-base-llm.json"
+    },
+    {
+      "benchmark": "temporalbench",
+      "arm": "evidence",
+      "scope": "full",
+      "source": "results/temporalbench-enriched-20260820/merged/summary.json",
+      "file": "temporalbench-evidence.json",
+      "notes": ["Latest complete 80-case Evidence run; newer 2026-08-21 run was an 8-case contract smoke and is intentionally excluded."]
+    }
+  ],
+  "not_included": [
+    {"benchmark": "leaktrap", "reason": "Already versioned separately under results/leaktrap with its published write-up."},
+    {"benchmark": "contextcachebench", "reason": "Validated in CI, but no dated full release run was retained locally."},
+    {"benchmark": "workflow", "reason": "Its bundled smoke corpus is a CI contract check, not publishable product evidence."},
+    {"benchmark": "compilerbench", "reason": "No current complete release-grade run was found."},
+    {"benchmark": "cik", "reason": "No current complete release-grade matched run was found."},
+    {"benchmark": "anomllm", "reason": "No current complete release-grade matched run was found."},
+    {"benchmark": "mtbench", "reason": "No current complete release-grade matched run was found."},
+    {"benchmark": "timesage-mt", "reason": "No current complete release-grade matched run was found."}
+  ]
+}

@@ -426,8 +426,29 @@ shrinkage blend; sufficiently strong independent evidence can make a
 pretrained model primary. High overlap risk, an unpinned adapter, invalid
 output, or absent evidence cannot do so.
 
+Registry matches retain their transfer relevance. Evidence scoped to an exact
+temporal regime receives full weight; each wildcard dimension reduces both
+its expected transferable gain and effective precision. A broad prior cannot
+by itself claim external validation, and a contrary local holdout is recorded
+as a conflict and reduces—not silently vetoes—prior assistance. These
+semantics are identified as `evidence-weighted-v2` in executable receipts.
+
 Admission reports component evidence rather than an opaque trust score: local
 folds and losses, external sample and uncertainty, output diagnostics, and
 conflicts. A compact deterministic reasoning frame organizes those facts for
 an agent to explain; it cannot replace the fitted executable or rewrite the
 context-free primary path.
+
+### Process evidence versus forecast-path behavior
+
+A point forecast describes the path Gnomon published; it does not reveal the
+variance or seasonal structure of observations that have not occurred.
+Temporal answers therefore keep deterministic `forecast_path_behavior`
+separate from a calibrated `process_claim`. Unsupported process questions
+retain a useful ranked hypothesis and recovery action, but are labelled weak
+or unresolved rather than borrowing certainty from a smooth forecast array.
+
+Context follows the same rule. It may produce a provenance-carrying
+`conditional_answer` (“if this event holds …”), but it cannot mutate the
+context-free primary forecast. Realized outcomes can later strengthen or
+retire that conditional effect through tracking.

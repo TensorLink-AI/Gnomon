@@ -67,6 +67,33 @@ def test_temporal_question_compiler_uses_text_not_labels_and_reuses_receipt(
     assert reused["compiler_called"] is False
 
 
+def test_failed_temporal_receipt_is_diagnostic_not_permanent_cache(
+        tmp_path) -> None:
+    row = _row(sparse_temp=False)
+    row["mcq"] = {"volatility_change": {
+        "question": "Will hr become more volatile?",
+        "options": ["increased", "decreased"], "label": "decreased"}}
+    receipts = tmp_path / "receipts"
+    failed_client = ScriptedClient([{"tool_calls": [
+        ("submit_temporal_intent", {
+            "status": "compiled", "questions": "malformed"})]}])
+    failed = mcp_agent.compile_row_temporal_questions(
+        row, failed_client, ["hr", "spo2"], str(receipts))
+    assert not failed["questions"]
+
+    recovered_client = ScriptedClient([{"tool_calls": [
+        ("submit_temporal_intent", {
+            "status": "compiled", "questions": [{
+                "id": "v", "verb": "predict", "property": "volatility",
+                "target": "hr", "horizon": 4}]})]}])
+    recovered = mcp_agent.compile_row_temporal_questions(
+        row, recovered_client, ["hr", "spo2"], str(receipts))
+    assert recovered["prior_failed_receipt"] is True
+    assert recovered["questions"][0]["property"] == "volatility"
+    assert (receipts / f"{row['id']}.json").exists()
+    assert (receipts / f"{row['id']}.retry.json").exists()
+
+
 def test_every_forecast_profile_has_a_host_compiled_first_tool():
     assert {
         profile: preferred_execution_tool(profile, True, host_compiled=True)

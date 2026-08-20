@@ -10,7 +10,7 @@ versioned decision.  It contains no dataset, channel, or benchmark labels.
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from math import erf, isfinite, sqrt
 from statistics import mean, median, stdev
 from typing import Literal
@@ -22,6 +22,7 @@ AdmissionState = Literal[
     "prior_assisted", "baseline_fallback", "unsupported",
 ]
 PointPolicy = Literal["candidate", "baseline", "shrunk_blend"]
+ADMISSION_POLICY_VERSION = "evidence-weighted-v2"
 
 
 @dataclass(frozen=True)
@@ -43,6 +44,10 @@ class ExternalModelPrior:
     registry_version: str
     overlap_risk: Literal["low", "unknown", "high"] = "unknown"
     baseline_reference: str = "strongest_robust_baseline"
+    # Fraction of the queried regime dimensions matched exactly.  Wildcards
+    # make evidence portable, not equally relevant: a broad prior should
+    # contribute less precision than a close held-out match.
+    relevance: float = 1.0
 
     def usable(self, *, minimum_comparisons: int = 30) -> bool:
         return (
@@ -53,6 +58,7 @@ class ExternalModelPrior:
             and bool(self.source_ids)
             and self.overlap_risk != "high"
             and self.baseline_reference == "strongest_robust_baseline"
+            and 0 < self.relevance <= 1
         )
 
 
@@ -122,7 +128,7 @@ class AdmissionDecision:
     candidate_weight: float
     evidence: AdmissionEvidence
     reasons: tuple[str, ...]
-    policy_version: str = "evidence-weighted-v1"
+    policy_version: str = ADMISSION_POLICY_VERSION
 
     def to_payload(self, *, compact: bool = False) -> dict[str, object]:
         payload = asdict(self)
@@ -238,11 +244,24 @@ def _combined_gain(evidence: AdmissionEvidence) -> tuple[float, float, str] | No
     estimates: list[tuple[float, float, str]] = []
     prior = evidence.external_prior
     if prior is not None and prior.usable():
-        estimates.append((prior.mean_relative_gain, prior.standard_error, "external"))
+        # Discount both the expected transfer and its effective precision
+        # when the registry row used wildcards for this query.  This prevents
+        # broad evidence from behaving like a channel/regime-specific trial.
+        relevance = max(.05, min(1.0, prior.relevance))
+        estimates.append((prior.mean_relative_gain * relevance,
+                          prior.standard_error / sqrt(relevance), "external"))
     if (evidence.relative_improvement is not None
             and evidence.local_gain_standard_error is not None):
         estimates.append((evidence.relative_improvement,
                           evidence.local_gain_standard_error, "local"))
+    elif (evidence.independent_folds == 1
+          and evidence.relative_improvement is not None):
+        # One holdout is indicative, not repeatable.  Give it deliberately
+        # low precision instead of discarding its direction entirely: a
+        # local loss must temper a transfer prior, but cannot veto it.
+        estimates.append((evidence.relative_improvement,
+                          max(.15, abs(evidence.relative_improvement)),
+                          "local_indicative"))
     if not estimates:
         return None
     precision = sum(1 / (se * se) for _, se, _ in estimates)
@@ -268,6 +287,16 @@ def decide_admission(
             evidence, ("candidate output failed deterministic validity checks",),
         )
 
+    prior = evidence.external_prior
+    local_external_conflict = bool(
+        prior is not None and prior.usable()
+        and evidence.relative_improvement is not None
+        and prior.mean_relative_gain * evidence.relative_improvement < 0)
+    if local_external_conflict and not evidence.conflicts:
+        evidence = replace(
+            evidence,
+            conflicts=("local and external gain directions disagree",))
+
     local_valid = (
         evidence.independent_folds >= 2
         and evidence.relative_improvement is not None
@@ -277,12 +306,13 @@ def decide_admission(
     )
     combined = _combined_gain(evidence)
     external_valid = bool(
-        evidence.external_prior is not None
-        and evidence.external_prior.usable()
-        and evidence.external_prior.mean_relative_gain > 0
+        prior is not None
+        and prior.usable()
+        and prior.relevance >= .75
+        and prior.mean_relative_gain > 0
         and _normal_probability_positive(
-            evidence.external_prior.mean_relative_gain,
-            evidence.external_prior.standard_error,
+            prior.mean_relative_gain,
+            prior.standard_error,
         ) >= .95
     )
 
@@ -309,6 +339,14 @@ def decide_admission(
         mu, se, _ = combined
         probability = _normal_probability_positive(mu, se)
         weight = max(0.0, min(1.0, 2 * probability - 1))
+        if state == "prior_assisted" and prior is not None:
+            # Prior assistance is explicitly weaker than validation.  The
+            # relevance factor prices wildcard transfer, while a contrary
+            # local holdout halves rather than vetoes the remaining prior.
+            weight *= prior.relevance
+            if local_external_conflict:
+                weight *= .5
+            weight = min(weight, .75)
 
     if state in {"locally_validated", "jointly_validated"}:
         point_policy: PointPolicy = "candidate"

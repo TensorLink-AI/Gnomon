@@ -1,0 +1,84 @@
+{
+  "release_metadata": {
+    "arm": "raw-llm",
+    "benchmark": "contextbench",
+    "notes": [],
+    "scope": "full",
+    "source": "results/contextbench-full-20260816/llm-raw/summary.json",
+    "source_sha256": "ae1da4c68f73433e5f0174bcb1adf48c6f51a1a4b3eef86e69837ea7973d8b07",
+    "status": "complete"
+  },
+  "summary": {
+    "answered": 80,
+    "benchmark": "contextbench",
+    "condition": "raw-llm",
+    "context_claim_accuracy": 0.4625,
+    "corpus_manifest_sha256": "1d618428d9f5acc64abe0dd6ddf5c0dce873503f342cd5684f5ef758e5d92446",
+    "errors": 0,
+    "families": {
+      "future_covariate": {
+        "context_smape": 4.651580557317225,
+        "history_smape": 5.897877076287569,
+        "incremental_smape": 1.2462965189703445,
+        "incremental_smape_beyond_noise_floor": 0.9875853683164684,
+        "null_replication_absolute_delta": 0.2587111506538761
+      },
+      "irrelevant": {
+        "context_smape": 3.8692256338580524,
+        "history_smape": 3.1787148899458915,
+        "incremental_smape": -0.6905107439121606,
+        "incremental_smape_beyond_noise_floor": -2.1256319794645613,
+        "null_replication_absolute_delta": 1.4351212355524006
+      },
+      "prior_only": {
+        "context_smape": 4.1936747105170555,
+        "history_smape": 2.854538832322314,
+        "incremental_smape": -1.3391358781947418,
+        "incremental_smape_beyond_noise_floor": -2.0920324771447625,
+        "null_replication_absolute_delta": 0.7528965989500206
+      },
+      "repeated_event": {
+        "context_smape": 4.729808222817046,
+        "history_smape": 4.602222748498419,
+        "incremental_smape": -0.12758547431862668,
+        "incremental_smape_beyond_noise_floor": -0.8889306398715959,
+        "null_replication_absolute_delta": 0.7613451655529693
+      }
+    },
+    "fresh_seed": true,
+    "generator": "contextbench-synthetic-v1",
+    "llm_usage": {
+      "accounting_scope": "this_invocation",
+      "base_url": "https://api.engy.ai/v1",
+      "completion_tokens": 25556,
+      "cost_usd": 0.0,
+      "model": "deepseek-v4-flash-0731",
+      "prompt_tokens": 433952,
+      "requests": 123,
+      "transport_attempts": 123,
+      "truncation_escalations": 0
+    },
+    "llm_usage_observations": {
+      "accounting_complete": true,
+      "completion_tokens": 52100,
+      "prompt_tokens": 883082,
+      "requests": 240
+    },
+    "llm_usage_this_invocation": {
+      "accounting_scope": "this_invocation",
+      "base_url": "https://api.engy.ai/v1",
+      "completion_tokens": 25556,
+      "cost_usd": 0.0,
+      "model": "deepseek-v4-flash-0731",
+      "prompt_tokens": 433952,
+      "requests": 123,
+      "transport_attempts": 123,
+      "truncation_escalations": 0
+    },
+    "mean_null_replication_absolute_delta": 0.8020185376773167,
+    "resumed_answered_rows": 39,
+    "resumed_terminal_rows": 39,
+    "rows_executed_this_invocation": 41,
+    "seed": 6389543763778923479
+  }
+}

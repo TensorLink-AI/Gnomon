@@ -22,6 +22,12 @@ def _usage(path, requests, prompt_tokens):
     }}))
 
 
+def _manifest(path, **extra):
+    payload = {"benchmark": "temporalbench", "target": "tiers=T2,T4",
+               "condition": "gnomon-mcp", "command": str(path), **extra}
+    (path / "manifest.json").write_text(json.dumps(payload))
+
+
 def test_merge_shards_builds_resumable_union(tmp_path):
     left, right, target = tmp_path / "left", tmp_path / "right", tmp_path / "all"
     _shard(left, "b", 2)
@@ -31,6 +37,33 @@ def test_merge_shards_builds_resumable_union(tmp_path):
     rows = [json.loads(line) for line in
             (target / "gnomonbench.jsonl").read_text().splitlines()]
     assert [row["task_id"] for row in rows] == ["a", "b"]
+
+
+def test_merge_shards_preserves_verified_manifest(tmp_path):
+    left, right, target = tmp_path / "left", tmp_path / "right", tmp_path / "all"
+    _shard(left, "a", 1)
+    _shard(right, "b", 2)
+    _manifest(left)
+    _manifest(right)
+
+    merge_shards(target, [left, right])
+
+    manifest = json.loads((target / "manifest.json").read_text())
+    assert manifest["benchmark"] == "temporalbench"
+    assert manifest["rows"] == 2
+    assert len(manifest["merged_shards"]) == 2
+    assert len(manifest["source_commands"]) == 2
+
+
+def test_merge_shards_rejects_incompatible_manifests(tmp_path):
+    left, right, target = tmp_path / "left", tmp_path / "right", tmp_path / "all"
+    _shard(left, "a", 1)
+    _shard(right, "b", 2)
+    _manifest(left, model="one")
+    _manifest(right, model="two")
+
+    with pytest.raises(ValueError, match="incompatible shard manifest.*model"):
+        merge_shards(target, [left, right])
 
 
 def test_merge_shards_accumulates_usage_once_across_repeated_merge(tmp_path):

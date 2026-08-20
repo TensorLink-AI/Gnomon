@@ -166,6 +166,71 @@ def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
                                if row["expected"] == label)
         for label in ("continued", "shifting", "absent")
     }
+    # Mechanism-held-out alignment stress. The original sinusoid-only lane is
+    # intentionally easy; production sees harmonics, asymmetric cycles,
+    # amplitude drift and signals close to the noise floor. These cases share
+    # no TemporalBench labels or series and report each family separately so
+    # one convenient waveform cannot hide a failure mode.
+    alignment_stress_rows = []
+    families = ("harmonic", "asymmetric", "amplitude_drift", "low_snr")
+    for family_index, family in enumerate(families):
+        for expected in ("continued", "shifting", "absent"):
+            for replicate in range(replicates * 2):
+                period = (12, 24, 48)[replicate % 3]
+                case_seed = (seed + 250_000 + family_index * 10_000
+                             + replicate + 100 * ("continued", "shifting",
+                                                  "absent").index(expected))
+                rng = random.Random(case_seed)
+                length = 7 * period
+                noise = 1.5 if family == "low_snr" else .55
+
+                def wave(index: int, *, shift: float = 0.0,
+                         future: bool = False) -> float:
+                    phase = 2 * math.pi * (index - shift) / period
+                    if family == "harmonic":
+                        shape = math.sin(phase) + .45 * math.sin(2 * phase + .4)
+                    elif family == "asymmetric":
+                        shape = (1.0 if math.sin(phase) >= .35 else
+                                 -.55 if math.sin(phase) <= -.65 else
+                                 math.sin(phase))
+                    else:
+                        shape = math.sin(phase)
+                    amplitude = 3.0
+                    if family == "amplitude_drift":
+                        amplitude *= (.65 + .7 * index /
+                                      max(length + 2 * period - 1, 1))
+                    return 10 + amplitude * shape + rng.gauss(0, noise)
+
+                history = [wave(index) for index in range(length)]
+                if expected == "absent":
+                    future = [10 + rng.gauss(0, noise)
+                              for _ in range(2 * period)]
+                else:
+                    phase_shift = 0 if expected == "continued" else period // 4
+                    future = [wave(length + index, shift=phase_shift,
+                                   future=True)
+                              for index in range(2 * period)]
+                observed = _seasonality_alignment(history, future, period)
+                alignment_stress_rows.append({
+                    "family": family, "period": period, "expected": expected,
+                    "observed": observed["direction"], "seed": case_seed,
+                    "correct": observed["direction"] == expected,
+                })
+    stress_by_family = {}
+    for family in families:
+        subset = [row for row in alignment_stress_rows
+                  if row["family"] == family]
+        recalls = {
+            label: statistics.mean(bool(row["correct"]) for row in subset
+                                   if row["expected"] == label)
+            for label in ("continued", "shifting", "absent")
+        }
+        stress_by_family[family] = {
+            "class_recall": recalls,
+            "balanced_accuracy": statistics.mean(recalls.values()),
+        }
+    stress_balanced = statistics.mean(
+        row["balanced_accuracy"] for row in stress_by_family.values())
     # Independent panel cases exercise the distinction between temporal folds
     # and breadth across related signals.  Magnitude, noise, and the number of
     # disagreeing channels vary; no TemporalBench labels or channel names are
@@ -237,6 +302,8 @@ def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
         "primary_immutable": all(bool(row["primary_forecast_unchanged"]) for row in rows),
         "seasonality_alignment_balanced_accuracy_at_least_80pct": (
             statistics.mean(alignment_recalls.values()) >= .8),
+        "seasonality_alignment_stress_balanced_accuracy_at_least_65pct": (
+            stress_balanced >= .65),
         "panel_volatility_balanced_accuracy_at_least_75pct": (
             statistics.mean(panel_recalls.values()) >= .75),
         "forecast_path_volatility_balanced_accuracy_at_least_80pct": (
@@ -264,6 +331,12 @@ def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
                 "cases": len(alignment_rows), "class_recall": alignment_recalls,
                 "balanced_accuracy": statistics.mean(alignment_recalls.values()),
                 "rows": alignment_rows,
+            },
+            "seasonality_alignment_stress": {
+                "cases": len(alignment_stress_rows),
+                "by_family": stress_by_family,
+                "balanced_accuracy": stress_balanced,
+                "rows": alignment_stress_rows,
             },
             "panel_volatility": {
                 "cases": len(panel_rows), "class_recall": panel_recalls,

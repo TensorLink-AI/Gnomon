@@ -60,6 +60,12 @@ results/news-regime-explore/raw/
 !results/short-history-guardrail/
 results/short-history-guardrail/raw/
 
+# Curated aggregate-only benchmark releases. Raw runs remain ignored and are
+# retained as CI artifacts; benchmarks.release validates size, provenance,
+# digests, and sensitive-field exclusions for these directories.
+!results/benchmark-releases/
+!results/benchmark-releases/**
+
 
 # Root-level run scratch: per-machine census JSONs, arm run directories,
 # their *-work task trees, and downloaded model checkpoints. The citable

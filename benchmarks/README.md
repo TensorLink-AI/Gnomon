@@ -6,6 +6,36 @@ Comparing arms afterwards: `python -m benchmarks.report --root <results dir>`,
 which joins arms on task id, reports matched-subset means with paired
 significance tests, and refuses comparisons whose manifests disagree.
 
+## Published result releases and CI
+
+Raw benchmark directories are regenerable, can contain prompts or provider
+responses, and are too large for Git. CI uploads them as expiring workflow
+artifacts. Small aggregate-only releases under `results/benchmark-releases/`
+are the citable record kept in the repository. Each release records source and
+curated-file SHA-256 digests, run scope, status, model arm, and limitations.
+
+Build and validate one with:
+
+```bash
+python -m benchmarks.release build benchmarks/releases/2026-08-21.json
+python -m benchmarks.release validate results/benchmark-releases/2026-08-21
+```
+
+The Benchmarks GitHub workflow validates committed evidence and runs a small
+deterministic product suite on pull requests. A fuller deterministic suite runs
+weekly and on manual dispatch. Paid TemporalBench calls are manual-only,
+matched against the same model and rows through Engy, and require the
+`ENGY_API_KEY` repository secret; ordinary pull requests never spend API
+credits. An eight-row preflight or other smoke run must retain scope `smoke`
+and cannot be presented as a full benchmark result.
+
+Benchmark programs reserve exit status `2` for a completed evaluation whose
+product graduation gates did not pass. Scheduled CI preserves and uploads such
+a result—it is evidence, not an infrastructure outage—while any other non-zero
+status fails the job. Pull-request regression checks use a declared fixed seed;
+the scheduled PropertyBench job also runs multiple seeds so that one favorable
+fixture cannot masquerade as cross-seed robustness.
+
 Faithful, locally runnable implementations of published time-series
 reasoning benchmarks, used to measure whether Gnomon improves an agent —
 and by how much — on evaluations the community already trusts.

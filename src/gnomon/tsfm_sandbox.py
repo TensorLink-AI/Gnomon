@@ -748,6 +748,11 @@ class SubprocessAdapter:
         self.min_history = minimum if minimum > 1 else None
         self._process: subprocess.Popen[str] | None = None
         self._process_lock = threading.Lock()
+        # A timed-out model process is unhealthy for the remainder of this
+        # run.  Opening a circuit avoids paying the full timeout again for
+        # every fold/channel; a new command creates a fresh adapter and may
+        # try the pinned model again.
+        self._circuit_error: str | None = None
 
     @property
     def params_m(self) -> float:
@@ -795,7 +800,12 @@ class SubprocessAdapter:
             return subprocess.Popen(
                 [str(venv_python), str(worker)],
                 stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE, text=True, bufsize=1,
+                # Model libraries can emit many warnings.  A persistent
+                # worker must not retain an unread stderr pipe: once its OS
+                # buffer fills, inference blocks forever.  Protocol errors
+                # are returned as structured JSON on stdout, so discard
+                # incidental library logging here.
+                stderr=subprocess.DEVNULL, text=True, bufsize=1,
             )
         except FileNotFoundError as exc:
             raise TSFMError(f"Failed to start sandbox process: {exc}") from exc
@@ -821,6 +831,8 @@ class SubprocessAdapter:
 
     def _run_subprocess(self, request: dict[str, Any]) -> dict[str, Any]:
         """Exchange one request with the persistent isolated worker."""
+        if self._circuit_error is not None:
+            raise TSFMError(self._circuit_error)
         request = dict(request)
         request["tsfm_name"] = self.name
         request["frequency"] = self.frequency
@@ -850,14 +862,16 @@ class SubprocessAdapter:
                 [process.stdout.fileno()], [], [], self.timeout)
             if not ready:
                 self.close()
+                self._circuit_error = (
+                    f"Sandbox for {self.name} timed out after {self.timeout}s; "
+                    "adapter circuit is open for this run")
                 raise TSFMError(
-                    f"Sandbox for {self.name} timed out after {self.timeout}s")
+                    self._circuit_error)
             output = process.stdout.readline()
             if not output:
-                stderr = process.stderr.read(500) if process.stderr else ""
                 self.close()
                 raise TSFMError(
-                    f"Sandbox {self.name} exited without a response: {stderr}")
+                    f"Sandbox {self.name} exited without a response")
             try:
                 response = json.loads(output)
             except json.JSONDecodeError as exc:

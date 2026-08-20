@@ -98,8 +98,30 @@ class TestProtocolCompliance:
         assert adapter_name in names
 
     def test_toto_one_step_forecast_preserves_horizon_axis(self, monkeypatch):
-        import numpy as np
         from gnomon.tsfm import Toto2Adapter
+
+        class _Row:
+            def __init__(self, values):
+                self._values = values
+
+            def tolist(self):
+                return list(self._values)
+
+        class _Array:
+            """Small ndarray stand-in; NumPy is an optional TSFM dependency."""
+
+            shape = (9, 1)
+
+            def reshape(self, *shape):
+                assert shape == (9, -1)
+                return self
+
+            def __getitem__(self, key):
+                if isinstance(key, tuple):
+                    row, column = key
+                    assert column == 0
+                    return float(row)
+                return _Row([float(key)])
 
         class _Tensor:
             def detach(self):
@@ -107,7 +129,7 @@ class TestProtocolCompliance:
             def cpu(self):
                 return self
             def numpy(self):
-                return np.arange(9.0).reshape(9, 1, 1, 1)
+                return _Array()
 
         adapter = Toto2Adapter("toto2_4m")
         monkeypatch.setattr(adapter, "_forecast_quantiles",
@@ -181,6 +203,45 @@ class TestSandbox:
         assert adapter.params_m == 4.14
         assert adapter.supports_quantiles is True
         assert "Datadog/Toto-2.0-4m@" in str(adapter.revision)
+
+    def test_sandbox_timeout_opens_per_run_circuit(self, monkeypatch):
+        from gnomon.tsfm import TSFMError
+        from gnomon.tsfm_sandbox import SubprocessAdapter
+        import gnomon.tsfm_sandbox as sandbox
+
+        class Input:
+            def write(self, value):
+                return len(value)
+            def flush(self):
+                return None
+            def close(self):
+                return None
+
+        class Output:
+            def fileno(self):
+                return 0
+
+        class Process:
+            stdin = Input()
+            stdout = Output()
+            def poll(self):
+                return None
+            def wait(self, timeout=None):
+                return 0
+            def terminate(self):
+                return None
+
+        adapter = SubprocessAdapter("toto2_4m", timeout=1)
+        starts = []
+        monkeypatch.setattr(adapter, "_start_worker",
+                            lambda: starts.append(True) or Process())
+        monkeypatch.setattr(sandbox.select, "select",
+                            lambda *args: ([], [], []))
+        with pytest.raises(TSFMError, match="circuit is open"):
+            adapter.predict([1.0] * 33, 1, 1)
+        with pytest.raises(TSFMError, match="circuit is open"):
+            adapter.predict([1.0] * 33, 1, 1)
+        assert len(starts) == 1
 
     def test_sandbox_predict_many_validates_batch_shape(self, monkeypatch):
         from gnomon.tsfm_sandbox import SubprocessAdapter

@@ -1,0 +1,143 @@
+{
+  "release_metadata": {
+    "arm": null,
+    "benchmark": "adapterbench",
+    "notes": [],
+    "scope": "full",
+    "source": "results/adapterbench-20260818-final/summary.json",
+    "source_sha256": "5dabce5e03ef4cfd8c1afe8c76870dd8e257fc02f1c852cb89828e545c64eb58",
+    "status": "complete"
+  },
+  "summary": {
+    "adversarial": {
+      "nondeterministic": {
+        "adapter": "nondeterministic",
+        "checks": {
+          "deterministic_replay": false,
+          "finite_exact_horizon": true,
+          "input_immutable": true,
+          "variable_horizon": true
+        },
+        "conformant": false,
+        "kind": "test",
+        "protocol_version": "0.1"
+      },
+      "nonfinite": {
+        "adapter": "nonfinite",
+        "checks": {
+          "deterministic_replay": false,
+          "finite_exact_horizon": false,
+          "input_immutable": true,
+          "variable_horizon": false
+        },
+        "conformant": false,
+        "kind": "test",
+        "protocol_version": "0.1"
+      },
+      "short_horizon": {
+        "adapter": "short_horizon",
+        "checks": {
+          "deterministic_replay": false,
+          "finite_exact_horizon": false,
+          "input_immutable": true,
+          "variable_horizon": false
+        },
+        "conformant": false,
+        "kind": "test",
+        "protocol_version": "0.1"
+      }
+    },
+    "gates": {
+      "all_adversarial_adapters_rejected": true,
+      "all_statistical_adapters_conform": true
+    },
+    "graduated": true,
+    "schema_version": "0.1",
+    "valid": {
+      "drift": {
+        "adapter": "drift",
+        "checks": {
+          "deterministic_replay": true,
+          "finite_exact_horizon": true,
+          "input_immutable": true,
+          "variable_horizon": true
+        },
+        "conformant": true,
+        "kind": "statistical",
+        "protocol_version": "0.1"
+      },
+      "ets": {
+        "adapter": "ets",
+        "checks": {
+          "deterministic_replay": true,
+          "finite_exact_horizon": true,
+          "input_immutable": true,
+          "variable_horizon": true
+        },
+        "conformant": true,
+        "kind": "statistical",
+        "protocol_version": "0.1"
+      },
+      "last_value": {
+        "adapter": "last_value",
+        "checks": {
+          "deterministic_replay": true,
+          "finite_exact_horizon": true,
+          "input_immutable": true,
+          "variable_horizon": true
+        },
+        "conformant": true,
+        "kind": "statistical",
+        "protocol_version": "0.1"
+      },
+      "linear_trend": {
+        "adapter": "linear_trend",
+        "checks": {
+          "deterministic_replay": true,
+          "finite_exact_horizon": true,
+          "input_immutable": true,
+          "variable_horizon": true
+        },
+        "conformant": true,
+        "kind": "statistical",
+        "protocol_version": "0.1"
+      },
+      "seasonal_naive": {
+        "adapter": "seasonal_naive",
+        "checks": {
+          "deterministic_replay": true,
+          "finite_exact_horizon": true,
+          "input_immutable": true,
+          "variable_horizon": true
+        },
+        "conformant": true,
+        "kind": "statistical",
+        "protocol_version": "0.1"
+      },
+      "theta": {
+        "adapter": "theta",
+        "checks": {
+          "deterministic_replay": true,
+          "finite_exact_horizon": true,
+          "input_immutable": true,
+          "variable_horizon": true
+        },
+        "conformant": true,
+        "kind": "statistical",
+        "protocol_version": "0.1"
+      },
+      "window_average": {
+        "adapter": "window_average",
+        "checks": {
+          "deterministic_replay": true,
+          "finite_exact_horizon": true,
+          "input_immutable": true,
+          "variable_horizon": true
+        },
+        "conformant": true,
+        "kind": "statistical",
+        "protocol_version": "0.1"
+      }
+    }
+  }
+}

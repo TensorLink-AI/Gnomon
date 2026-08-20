@@ -120,7 +120,7 @@ class OpenRouterClient:
         temperature: float = 1.0,
         max_tokens: int = 10000,
         max_retries: int = 5,
-        timeout: int = DEFAULT_TIMEOUT_SECONDS,
+        timeout: float = DEFAULT_TIMEOUT_SECONDS,
     ) -> None:
         self.model = model
         if not api_key and "OPENROUTER_API_KEY" not in os.environ:
@@ -264,8 +264,39 @@ class OpenRouterClient:
                 method="POST",
             )
             try:
-                with urllib.request.urlopen(request, timeout=self.timeout) as raw:
-                    parsed = json.loads(raw.read().decode("utf-8"))
+                # ``urlopen(timeout=...)`` is an inactivity timeout, not a
+                # request deadline. A chunked provider can trickle bytes and
+                # keep resetting it forever. Run the complete transport read
+                # in a daemon and impose the benchmark's wall-clock budget on
+                # the attempt. The abandoned daemon owns and eventually
+                # closes its response; benchmark retry/resume owns recovery.
+                result: list[object] = []
+
+                def transport() -> None:
+                    try:
+                        with urllib.request.urlopen(
+                                request, timeout=self.timeout) as raw:
+                            result.append(json.loads(
+                                raw.read().decode("utf-8")))
+                    except BaseException as error:  # handed back to caller
+                        result.append(error)
+
+                worker = threading.Thread(
+                    target=transport, name="gnomon-llm-transport", daemon=True)
+                worker.start()
+                worker.join(self.timeout)
+                if worker.is_alive():
+                    raise TimeoutError(
+                        f"absolute request deadline exceeded after "
+                        f"{self.timeout}s")
+                if not result:
+                    raise TimeoutError("transport ended without a result")
+                if isinstance(result[0], BaseException):
+                    raise result[0]
+                parsed = result[0]
+                if not isinstance(parsed, dict):
+                    raise json.JSONDecodeError(
+                        "response must be a JSON object", repr(parsed), 0)
                 if "error" in parsed and "choices" not in parsed:
                     raise OpenRouterError(str(parsed["error"]))
                 self._account(parsed)

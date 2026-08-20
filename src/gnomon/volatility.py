@@ -415,8 +415,9 @@ def fit_volatility_executable(
     # ratio, but do not turn a noisy recent/reference ratio into a categorical
     # increase or decrease.  This is an estimator rule, independent of any
     # downstream task vocabulary.
-    published_direction = (strongest if distribution.folds >= 2
-                           else "uncertain")
+    published_direction = (
+        strongest if decision["automation_eligible"] else
+        point_direction if distribution.folds >= 2 else "uncertain")
     return FittedVolatilityExecutable(
         candidate=chosen, scale=prediction, lower=max(0.0, lower),
         upper=max(lower, upper), horizon=horizon,
@@ -457,6 +458,8 @@ def fit_volatility_executable(
             "direction_brier_skill": effective_brier_skill,
             "direction_momentum_detected": momentum_detected,
             "direction_momentum_log_change": momentum_change,
+            "direction_publication_rule": (
+                "calibrated_mode_when_automation_eligible_else_weak_point_state"),
             "calibration_ratios": len(calibration),
         },
     )

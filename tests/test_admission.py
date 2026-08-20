@@ -1,5 +1,6 @@
 from gnomon.admission import (
-    ExternalModelPrior, OutputDiagnostics, decide_admission, local_evidence,
+    ADMISSION_POLICY_VERSION, ExternalModelPrior, OutputDiagnostics,
+    decide_admission, local_evidence,
 )
 from gnomon.candidate import (
     CandidateIdentity, CandidateSpec, FittedCandidate, blended_candidate_spec,
@@ -37,6 +38,34 @@ def test_uncertain_external_prior_is_shrunk_not_presented_as_local_proof():
     assert decision.point_policy == "shrunk_blend"
     assert 0 < decision.candidate_weight < 1
     assert decision.evidence.independent_folds == 0
+    assert decision.policy_version == ADMISSION_POLICY_VERSION
+
+
+def test_broad_prior_and_contrary_local_holdout_are_both_priced():
+    prior = ExternalModelPrior(
+        **{**_prior(gain=.055, se=.034).__dict__, "relevance": .5})
+    evidence = local_evidence(
+        model_class="pretrained", candidate_losses=[1.12],
+        baseline_losses=[1.0], external_prior=prior)
+    decision = decide_admission(
+        candidate="foundation", baseline="last", evidence=evidence)
+    assert decision.state == "prior_assisted"
+    assert decision.point_policy == "shrunk_blend"
+    assert decision.candidate_weight < .25
+    assert "local and external gain directions disagree" in \
+        decision.evidence.conflicts
+
+
+def test_broad_prior_cannot_claim_external_validation():
+    prior = ExternalModelPrior(
+        **{**_prior(gain=.2, se=.01).__dict__, "relevance": .5})
+    decision = decide_admission(
+        candidate="foundation", baseline="last",
+        evidence=local_evidence(
+            model_class="pretrained", candidate_losses=[],
+            baseline_losses=[], external_prior=prior))
+    assert decision.state == "prior_assisted"
+    assert decision.candidate_weight <= .5
 
 
 def test_training_overlap_risk_disqualifies_external_prior():

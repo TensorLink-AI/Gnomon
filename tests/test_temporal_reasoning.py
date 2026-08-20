@@ -154,7 +154,7 @@ def test_volatility_aggregate_preserves_observed_panel_evidence() -> None:
     assert answer["identifiability"]["primary_forecast_unchanged"] is True
 
 
-def test_volatility_with_forecast_describes_immutable_path_not_second_prediction() -> None:
+def test_volatility_with_forecast_keeps_path_smoothness_diagnostic_only() -> None:
     values = [float(index % 7) for index in range(70)]
     forecast = [values[-1]] * 14
     question = TemporalQuestion(
@@ -163,11 +163,18 @@ def test_volatility_with_forecast_describes_immutable_path_not_second_prediction
         question, reports={"x": REPORT}, execution_inputs={"x": (values, 1)},
         forecast_values={"x": forecast})
     assert answer["decision_rule"] == {
-        "kind": "published_forecast_projection", "property": "volatility",
-        "version": "0.1"}
+        "kind": "fitted_volatility_with_path_diagnostic",
+        "property": "volatility", "version": "0.2"}
     assert answer["answer"]["future_to_reference_ratio"] is not None
-    assert answer["best_estimate"]["value"] == "decreased"
-    assert answer["best_estimate"]["support"] == "weak"
+    assert answer["answer"]["forecast_path_behavior"]["direction"] == \
+        "decreased"
+    assert answer["answer"]["direction_source"] != \
+        "published_forecast_projection"
+    assert answer["answer"]["forecast_path_behavior"][
+        "not_a_process_variance_claim"] is True
+    assert answer["answer"]["process_claim"]["property"] == \
+        "future_realized_volatility"
+    assert "smoothness" in answer["limitations"][0]
     assert answer["answer"]["reasoning"]["primary_forecast_unchanged"] is True
 
 
@@ -190,3 +197,23 @@ def test_scenario_question_carries_provenance_without_rewriting_answer() -> None
     assert "conditional_effect_receipt" not in reasoning.get(
         "missing_evidence", [])
     assert reasoning["authority"] == "fitted_executable"
+    assert answer["conditional_answer"]["if_context_holds"] == "upward"
+    assert answer["conditional_answer"]["baseline"] == \
+        answer["best_estimate"]["value"]
+    assert answer["conditional_answer"]["primary_forecast_unchanged"] is True
+
+
+def test_seasonality_separates_path_alignment_from_process_claim() -> None:
+    values = [1.0, 3.0] * 40
+    answer = answer_descriptive_question(
+        TemporalQuestion("q", "compare", "x", "seasonality", horizon=8),
+        report=REPORT, values=values, season=2,
+        forecast_values=[1.0, 3.0] * 4)
+    assert answer["best_estimate"]["value"] == "continued"
+    assert answer["answer"]["forecast_path_behavior"][
+        "not_a_future_process_claim"] is True
+    assert answer["answer"]["process_claim"] == {
+        "property": "future_realized_seasonality",
+        "direction": "uncertain", "support": "abstained",
+        "source": "not_identified_by_point_forecast_alignment",
+    }

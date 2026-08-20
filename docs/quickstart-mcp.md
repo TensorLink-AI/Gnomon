@@ -156,6 +156,15 @@ absolute final-step change, the named ranking rule, top entries, and a
 `remainder_preserved` fact. These typed fields are safer to quote than asking
 the host model to reconstruct a ranking from prose.
 
+Typed temporal answers distinguish the behavior of the immutable published
+forecast from claims about the future process. In particular,
+`forecast_path_behavior` is only a deterministic description of the point
+path; calibrated or explicitly weak process evidence lives in `process_claim`.
+The top-level `support` object states whether automation is eligible. When
+context supports a different scenario, `conditional_answer` preserves its
+provenance and keeps `primary_forecast_unchanged: true`; it is never a silent
+replacement for the governed forecast.
+
 Every non-error verb response also carries a compact routing projection where
 the underlying result makes it applicable: `artifact_id`, `tier_floor`, typed
 `limitation_groups`, and aggregated `recovery_actions`. Repeated warning text

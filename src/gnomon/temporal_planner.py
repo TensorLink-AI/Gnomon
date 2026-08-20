@@ -254,7 +254,7 @@ def compact_evidence_plan(plan: dict[str, Any]) -> dict[str, Any]:
         "version": plan.get("version", PLANNER_VERSION),
         "authority": "fitted_executable",
         "primary_forecast_unchanged": True,
-        "because": list(contrast.get("because") or [])[:2],
+        "because": list(contrast.get("because") or [])[:1],
         "against": list(contrast.get("against") or [])[:1],
         "unknown": list(contrast.get("unknown") or [])[:2],
         "next": list(plan.get("suggested_next") or [])[:1],
@@ -263,6 +263,7 @@ def compact_evidence_plan(plan: dict[str, Any]) -> dict[str, Any]:
     adjudication = plan.get("adjudication") or {}
     eligibility = adjudication.get("synthesis_eligibility") or {}
     alternative = adjudication.get("alternative") or {}
+    ranked = list(adjudication.get("candidates") or [])[:3]
     projected["adjudication"] = {
         "relationship": adjudication.get("relationship", "unresolved"),
         "alternative": ({
@@ -271,5 +272,12 @@ def compact_evidence_plan(plan: dict[str, Any]) -> dict[str, Any]:
         } if alternative else None),
         "synthesis_eligible": bool(eligibility.get("eligible")),
         "what_would_flip": list(adjudication.get("what_would_flip") or [])[:1],
+        "ranked_hypotheses": [{
+            "value": row.get("value"),
+            "support": row.get("support"),
+            "evidence_weight": row.get("evidence_weight"),
+            "conditional_only": bool(row.get("conditional_only")),
+        } for row in ranked],
+        "weight_meaning": "receipt evidence weight, not probability",
     }
     return projected

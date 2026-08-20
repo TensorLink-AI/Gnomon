@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -124,6 +124,7 @@ class ModelEvidenceRegistry:
                 overlap_risk=str(row.get("overlap_risk", "unknown")),  # type: ignore[arg-type]
                 baseline_reference=str(row.get(
                     "baseline_reference", "strongest_robust_baseline")),
+                relevance=float(row.get("relevance", 1.0)),
             ))
         return cls(version, tuple(priors), source_path=str(source))
 
@@ -141,6 +142,7 @@ class ModelEvidenceRegistry:
                 "source_ids": list(prior.source_ids),
                 "overlap_risk": prior.overlap_risk,
                 "baseline_reference": prior.baseline_reference,
+                "relevance": prior.relevance,
             } for prior in self.priors],
         }
         target.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n",
@@ -174,4 +176,9 @@ class ModelEvidenceRegistry:
         if len(best) > 1:
             raise EvidenceRegistryError(
                 f"duplicate external evidence for {model}@{revision} and regime")
-        return best[0]
+        # Exact dimensions carry full transfer relevance; explicitly broad
+        # wildcard dimensions are valid but reduce how much precision the
+        # admission policy may borrow from this row.
+        dimension_count = max(len(requested), 1)
+        relevance = max(.1, specificity / dimension_count)
+        return replace(best[0], relevance=relevance)

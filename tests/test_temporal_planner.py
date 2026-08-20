@@ -141,13 +141,31 @@ def test_compact_projection_keeps_reasoning_not_receipt_bulk() -> None:
             "unknown": ["a", "b", "c"],
         },
         "suggested_next": ["observe", "refit"],
+        "adjudication": {
+            "relationship": "canonical_preferred",
+            "candidates": [
+                {"value": "stable", "support": "weak",
+                 "evidence_weight": .7, "conditional_only": False},
+                {"value": "increased", "support": "weak",
+                 "evidence_weight": .4, "conditional_only": True},
+            ],
+            "synthesis_eligibility": {"eligible": False},
+            "what_would_flip": ["more outcomes"],
+        },
     }
     compact = compact_evidence_plan(plan)
-    assert len(compact["because"]) == 2
+    assert len(compact["because"]) == 1
     assert len(compact["against"]) == 1
     assert compact["unknown"] == ["a", "b"]
     assert compact["next"] == ["observe"]
     assert "evidence" not in compact
     assert "historical_analogues" not in compact
     assert compact["details_in_answer_receipt"] is True
-    assert compact["adjudication"]["relationship"] == "unresolved"
+    hypotheses = compact["adjudication"]["ranked_hypotheses"]
+    assert [row["value"] for row in hypotheses] == ["stable", "increased"]
+    assert compact["adjudication"]["weight_meaning"].endswith(
+        "not probability")
+
+    import json
+    assert len(json.dumps(compact)) < 1600
+    assert compact["adjudication"]["relationship"] == "canonical_preferred"
