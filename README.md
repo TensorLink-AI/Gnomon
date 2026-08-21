@@ -544,6 +544,27 @@ difference from the surveyed systems is where verification lives: there it
 is typically LLM self-critique; here the verifier is deterministic code,
 and the LLM is structurally unable to override it.
 
+The design tracks measured findings in that literature rather than
+intuition. That general-purpose LLMs mishandle numerical temporal
+reasoning is an empirical result, not an assumption
+([*Language Models Still Struggle to Zero-shot Reason about Time
+Series*](https://aclanthology.org/2024.findings-emnlp.201/), EMNLP 2024).
+That naive methods are hard to beat — and therefore worth mandating as
+baselines — is the point of [*Are Language Models Actually Useful for
+Time Series Forecasting?*](https://openreview.net/forum?id=DV15UbHCY1)
+(NeurIPS 2024) and the [context-parroting
+baseline](https://arxiv.org/abs/2505.11349). That evaluation-time
+future leakage silently inflates results is the warning of [*Time
+Travel is Cheating*](https://arxiv.org/abs/2505.11065). Gnomon's answer
+to each is structural rather than behavioural: baselines that cannot be
+configured out, an `as_of` enforced by the snapshot, and a verifier the
+model cannot argue with. And rather than inventing its own yardsticks,
+`benchmarks/` ships runnable adapters for the field's published tasks —
+[Context is Key](https://arxiv.org/abs/2410.18959) (ICML 2025) for
+context-aware forecasting and
+[AnomLLM](https://github.com/rose-stl-lab/AnomLLM) for anomaly
+reasoning — so its claims can be scored on the literature's own terms.
+
 ## Current limits
 
 Gnomon remains a focused foundation, not a universal forecasting platform.
