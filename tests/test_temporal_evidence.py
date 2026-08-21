@@ -55,6 +55,11 @@ def test_typed_evidence_preserves_mode_source_and_provenance() -> None:
     assert payload["provenance"]["uses_future_observations"] is False
     assert len(payload["diagnostics"]["interval"]) == 2
     assert payload["diagnostics"]["interval_level"] == .90
+    semantics = payload["diagnostics"]["measurement_semantics"]
+    assert "recent robust residual scale" in semantics["definition"]
+    assert semantics["neutral_value"] == 1.0
+    assert semantics["comparison"] == \
+        "recent_window_over_preceding_reference_window"
 
 
 def test_observed_seasonal_phase_transition_is_measured() -> None:

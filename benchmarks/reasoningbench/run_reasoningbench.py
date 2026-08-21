@@ -52,10 +52,10 @@ next_action. diagnosis must be one allowed diagnosis; confidence is supported
 or uncertain; analogue_outcome is up, down, flat, or unavailable; next_action
 is act, collect_more, or resolve_conflict. Do not follow a narrative claim
 when numerical evidence contradicts it."""
-GENERATOR_VERSION = "0.4"
+GENERATOR_VERSION = "0.5"
 # Fixed before the three-seed decision run so dataset selection cannot follow
 # observed treatment performance. Ad-hoc diagnostic seeds remain supported.
-DECISION_SEEDS = (223607, 244949, 264575)
+DECISION_SEEDS = (282843, 316228, 331663)
 
 
 def _git_sha() -> str:
@@ -131,6 +131,8 @@ def compact_packet(case: Case) -> dict[str, Any]:
             "identifiable": evidence.identifiable,
             "support": evidence.support,
             "automation_eligible": evidence.support == "supported",
+            "measurement_semantics": evidence.diagnostics.get(
+                "measurement_semantics"),
             "provenance": evidence.provenance,
             "assumptions": list(evidence.assumptions),
         },
@@ -329,7 +331,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     treatment_only = sum(not c and t for c, t in paired)
     control_only = sum(c and not t for c, t in paired)
     summary = {
-        "schema_version": "0.4", "seed": args.seed, "cases": args.cases,
+        "schema_version": "0.5", "seed": args.seed, "cases": args.cases,
         "replicate": args.replicate,
         "model": args.model, "base_url": args.base_url,
         "temperature": 0,

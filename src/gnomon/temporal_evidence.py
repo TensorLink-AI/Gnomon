@@ -17,6 +17,39 @@ EVIDENCE_VERSION = "0.1"
 MULTI_RESOLUTION_VERSION = "0.1"
 ANALOGUE_VERSION = "0.1"
 
+_MEASUREMENT_SEMANTICS: dict[str, dict[str, Any]] = {
+    "level": {
+        "definition": "recent median minus reference median, scaled by innovation noise",
+        "comparison": "recent_window_vs_preceding_reference_window",
+        "neutral_value": 0.0,
+    },
+    "trend": {
+        "definition": "recent linear slope minus reference linear slope, scaled by innovation noise",
+        "comparison": "recent_window_vs_preceding_reference_window",
+        "neutral_value": 0.0,
+    },
+    "volatility": {
+        "definition": "recent robust residual scale divided by reference robust residual scale",
+        "comparison": "recent_window_over_preceding_reference_window",
+        "neutral_value": 1.0,
+    },
+    "seasonality": {
+        "definition": "recent/reference seasonal strength ratio plus best circular phase alignment",
+        "comparison": "recent_window_vs_preceding_reference_window",
+        "neutral_value": {"strength_ratio": 1.0, "phase_shift_steps": 0},
+    },
+    "regime": {
+        "definition": "largest absolute standardized level or trend change",
+        "comparison": "recent_window_vs_preceding_reference_window",
+        "neutral_value": 0.0,
+    },
+    "extreme": {
+        "definition": "recent extreme-event rate minus reference extreme-event rate",
+        "comparison": "recent_window_vs_preceding_reference_window",
+        "neutral_value": 0.0,
+    },
+}
+
 
 @dataclass(frozen=True)
 class TemporalEvidence:
@@ -289,6 +322,8 @@ def window_evidence(values: list[float], *, property: str, season: int = 1,
         identifiable=identifiable,
         provenance=comparison.get("provenance") or {},
         diagnostics={"window_steps": comparison.get("window_steps"),
+                     "measurement_semantics": dict(
+                         _MEASUREMENT_SEMANTICS.get(property, {})),
                      "interval": item.get("interval"),
                      "interval_level": item.get("interval_level"),
                      "interval_method": item.get("interval_method"),
