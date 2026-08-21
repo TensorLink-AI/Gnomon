@@ -16,7 +16,7 @@ from statistics import mean
 from typing import Any
 
 from benchmarks.common.envfile import load_env_file
-from benchmarks.common.openrouter import OpenRouterClient
+from benchmarks.common.openrouter import OpenRouterClient, OpenRouterError
 from benchmarks.temporalbench.mcp_agent import coerce_json_containers
 from gnomon.workflows import (
     DocumentRef, build_context_investigation_prompt,
@@ -136,6 +136,23 @@ def _response_usage(response: Any) -> tuple[int, int]:
             int(getattr(usage, "completion_tokens", 0) or 0))
 
 
+def _failure(error: Exception, *, case: Case, started: float,
+             stage: str) -> dict[str, Any]:
+    if isinstance(error, OpenRouterError):
+        status, failure_class = "error", "provider_failure"
+    elif isinstance(error, (ValueError, json.JSONDecodeError)):
+        status, failure_class = "product_failure", "agent_non_submission"
+    else:
+        status, failure_class = "error", "harness_failure"
+    return {
+        "case_id": case.case_id, "family": case.family, "status": status,
+        "failure_class": failure_class, "failure_stage": stage,
+        "error": f"{type(error).__name__}: {error}",
+        "should_influence": None,
+        "latency_seconds": round(time.perf_counter() - started, 6),
+    }
+
+
 def raw_case(case: Case, oracle: Oracle, client: OpenRouterClient) -> dict[str, Any]:
     started = time.perf_counter()
     request_usage: list[tuple[int, int]] = []
@@ -180,14 +197,19 @@ def raw_case(case: Case, oracle: Oracle, client: OpenRouterClient) -> dict[str, 
             "should_influence": oracle.should_influence,
             "prompt_tokens": sum(item[0] for item in request_usage),
             "completion_tokens": sum(item[1] for item in request_usage),
+            "requests": len(request_usage),
             "usage_accounting_version": 2,
             "latency_seconds": round(time.perf_counter() - started, 6),
         }
     except Exception as error:
-        return {"case_id": case.case_id, "family": case.family, "status": "error",
-                "error": f"{type(error).__name__}: {error}",
-                "should_influence": oracle.should_influence,
-                "latency_seconds": round(time.perf_counter() - started, 6)}
+        failure = _failure(error, case=case, started=started,
+                           stage="raw_forecast_submission")
+        failure["should_influence"] = oracle.should_influence
+        failure["prompt_tokens"] = sum(item[0] for item in request_usage)
+        failure["completion_tokens"] = sum(item[1] for item in request_usage)
+        failure["requests"] = len(request_usage)
+        failure["usage_accounting_version"] = 2
+        return failure
 
 
 def compile_events(case: Case, client: OpenRouterClient) -> dict[str, Any]:
@@ -328,16 +350,20 @@ def compiled_case(case: Case, oracle: Oracle, client: OpenRouterClient,
         })
         return row
     except Exception as error:
-        return {"case_id": case.case_id, "family": case.family, "status": "error",
-                "error": f"{type(error).__name__}: {error}",
-                "should_influence": oracle.should_influence,
-                "latency_seconds_total": round(time.perf_counter() - started, 6)}
+        failure = _failure(error, case=case, started=started,
+                           stage="compiled_context")
+        failure["should_influence"] = oracle.should_influence
+        failure["latency_seconds_total"] = failure.pop("latency_seconds")
+        return failure
 
 
 def summarize(rows: list[dict[str, Any]], condition: str,
               client: OpenRouterClient,
               manifest: dict[str, Any] | None = None) -> dict[str, Any]:
     answered = [row for row in rows if row.get("status") == "answered"]
+    product_failures = [row for row in rows
+                        if row.get("status") == "product_failure"]
+    execution_errors = [row for row in rows if row.get("status") == "error"]
     families: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in answered:
         families[row["family"]].append(row)
@@ -345,7 +371,20 @@ def summarize(rows: list[dict[str, Any]], condition: str,
     summary: dict[str, Any] = {
         "benchmark": "contextbench", "condition": condition,
         "rows": len(rows), "answered": len(answered),
-        "errors": len(rows) - len(answered),
+        "completion_rate": len(answered) / len(rows) if rows else 0.0,
+        "product_failures": len(product_failures),
+        "errors": len(execution_errors),
+        "failure_denominators": {
+            "attempted_cases": len(rows),
+            "successful_cases": len(answered),
+            "product_failures": len(product_failures),
+            "provider_failures": sum(
+                row.get("failure_class") == "provider_failure"
+                for row in execution_errors),
+            "harness_failures": sum(
+                row.get("failure_class") == "harness_failure"
+                for row in execution_errors),
+        },
         "llm_usage": invocation_usage,
         "llm_usage_this_invocation": invocation_usage,
         "families": {},
@@ -354,18 +393,22 @@ def summarize(rows: list[dict[str, Any]], condition: str,
             "generator": manifest.get("generator")}
            if manifest else {}),
     }
+    terminal_observations = answered + product_failures
     usage_complete = all(row.get("usage_accounting_version") == 2
-                         for row in answered)
+                         for row in terminal_observations)
     summary["llm_usage_observations"] = {
         "accounting_complete": usage_complete,
-        "prompt_tokens": (sum(int(row.get("prompt_tokens", 0)) for row in answered)
+        "prompt_tokens": (sum(int(row.get("prompt_tokens", 0))
+                              for row in terminal_observations)
                           if usage_complete else None),
         "completion_tokens": (
-            sum(int(row.get("completion_tokens", 0)) for row in answered)
+            sum(int(row.get("completion_tokens", 0))
+                for row in terminal_observations)
             if usage_complete else None),
         "requests": (
-            sum(3 if condition == "raw-llm"
-                else int(row.get("compiler_calls", 0)) for row in answered)
+            sum(int(row.get("requests", 0)) if condition == "raw-llm"
+                else int(row.get("compiler_calls", 0))
+                for row in terminal_observations)
             if usage_complete else None),
     }
     for family, members in sorted(families.items()):
@@ -487,7 +530,8 @@ def main() -> int:
             if not line.strip():
                 continue
             row = json.loads(line)
-            if row.get("status") == "answered" or not args.retry_errors:
+            if (row.get("status") in {"answered", "product_failure"}
+                    or not args.retry_errors):
                 retained[str(row["case_id"])] = row
     pending = [case for case in cases if case.case_id not in retained]
 

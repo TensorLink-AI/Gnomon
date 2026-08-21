@@ -316,6 +316,18 @@ def test_scripted_raw_arm_scores_only_after_model_submission():
     assert case.case_id not in prompt and '"family"' not in prompt
 
 
+def test_raw_arm_counts_wrong_length_submission_as_product_failure():
+    raw_cases, raw_oracles = generate(5, per_family=1)
+    case = Case.from_dict(raw_cases[0])
+    oracle = load_oracles_from_rows(raw_oracles)[case.case_id]
+    row = raw_case(case, oracle, _ScriptedClient({
+        "forecast": [1.0], "context_used": False}))
+    assert row["status"] == "product_failure"
+    assert row["failure_class"] == "agent_non_submission"
+    assert row["failure_stage"] == "raw_forecast_submission"
+    assert row["usage_accounting_version"] == 2
+
+
 def load_oracles_from_rows(rows):
     from benchmarks.contextbench.schema import Oracle
     return {row["case_id"]: Oracle.from_dict(row) for row in rows}
