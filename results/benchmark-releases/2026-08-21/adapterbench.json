@@ -2,11 +2,15 @@
   "release_metadata": {
     "arm": null,
     "benchmark": "adapterbench",
+    "configuration_identity": "summary-only; environment not retained",
+    "dataset_identity": "adapterbench corpus recorded in summary",
+    "evaluated_commit": "unknown",
+    "harness_commit": "unknown",
     "notes": [],
     "scope": "full",
     "source": "results/adapterbench-20260818-final/summary.json",
     "source_sha256": "5dabce5e03ef4cfd8c1afe8c76870dd8e257fc02f1c852cb89828e545c64eb58",
-    "status": "complete"
+    "status": "historical_unverified"
   },
   "summary": {
     "adversarial": {

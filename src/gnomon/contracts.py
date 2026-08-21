@@ -579,9 +579,6 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
     ],
 
     # --- Internal ---------------------------------------------------------
-    "TRACKING_ERROR": [
-        {"action": "review_message", "description": "The registry rejected the operation; the message states why."},
-    ],
     "INTERNAL_ERROR": [
         {"action": "report_bug", "description": "This is a defect in Gnomon, not in the input. details names the surface and the exception type; please report it with the command that produced it."},
     ],

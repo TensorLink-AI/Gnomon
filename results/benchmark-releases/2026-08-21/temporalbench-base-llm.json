@@ -2,11 +2,15 @@
   "release_metadata": {
     "arm": "base-llm",
     "benchmark": "temporalbench",
+    "configuration_identity": "summary-only; environment not retained",
+    "dataset_identity": "TemporalBench T2/T4 subset recorded in summary",
+    "evaluated_commit": "unknown",
+    "harness_commit": "unknown",
     "notes": [],
-    "scope": "full",
+    "scope": "subset",
     "source": "results/key-suite-20260819/temporalbench-base-merged/summary.json",
     "source_sha256": "f4386f1274c4bf5d39fb867598c702bdee8472724a617361b37e152848566074",
-    "status": "complete"
+    "status": "historical_unverified"
   },
   "summary": {
     "benchmark": "temporalbench",

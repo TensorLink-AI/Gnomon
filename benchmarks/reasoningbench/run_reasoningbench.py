@@ -97,32 +97,39 @@ def generate_cases(seed: int, count: int) -> list[Case]:
 def compact_packet(case: Case) -> dict[str, Any]:
     evidence = window_evidence(list(case.values), property=case.prop,
                                season=case.season, window=96)
-    nearest = sorted(case.analogues)[:2]
-    consensus = (nearest[0][1] if nearest[0][1] == nearest[1][1]
-                 else "unavailable")
-    claim_direction = case.claim.rsplit(" ", 1)[-1].rstrip(".")
-    conflict = claim_direction != evidence.direction
-    next_step = ("wait for another observation window before deciding"
-                 if evidence.support != "supported" else
-                 "reconcile the source note with the measured history"
-                 if conflict else
-                 "proceed while continuing ordinary monitoring")
+    # Measurements, not projected answer keys.  The former packet exposed
+    # direction, analogue consensus, and an almost-enumerated next action, so
+    # transcription could masquerade as reasoning.
     return {
-        "authority": "computed_temporal_evidence",
+        "authority": "computed_temporal_measurements",
         "primary_forecast_unchanged": True,
-        "because": [{"evidence": "observed_transition",
-                     "direction": evidence.direction,
-                     "support": evidence.support}],
-        "against": ([{"evidence": "narrative_claim",
-                      "direction": claim_direction}] if conflict else []),
-        "unknown": ([] if evidence.support == "supported"
-                    else ["transition_near_detection_threshold"]),
-        "historical_analogue_consensus": consensus,
-        # Natural product guidance, not the scorer's enum.  The model must
-        # synthesize it with support/conflict into the requested action.
-        "next": [next_step],
+        "measurement": {
+            "property": evidence.property,
+            "quantity": evidence.mode,
+            "estimate": evidence.estimate,
+            "uncertainty_interval": evidence.diagnostics.get("interval"),
+            "interval_level": evidence.diagnostics.get("interval_level"),
+            "effective_window_steps": evidence.diagnostics.get("window_steps"),
+            "identifiable": evidence.identifiable,
+            "provenance": evidence.provenance,
+            "assumptions": list(evidence.assumptions),
+        },
         "details_in_answer_receipt": True,
     }
+
+
+def packet_exposes_answer(case: Case, packet: dict[str, Any]) -> bool:
+    """Detect direct scalar projection of any scorer answer into a packet."""
+    forbidden = set(expected(case).values())
+
+    def scalars(value: Any) -> list[str]:
+        if isinstance(value, dict):
+            return [item for child in value.values() for item in scalars(child)]
+        if isinstance(value, list):
+            return [item for child in value for item in scalars(child)]
+        return [value.strip().lower()] if isinstance(value, str) else []
+
+    return bool(forbidden.intersection(scalars(packet)))
 
 
 def prompt(case: Case, packet: dict[str, Any] | None) -> str:
@@ -184,6 +191,11 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                               base_url=args.base_url, temperature=0,
                               max_tokens=700, max_retries=4)
     cases = generate_cases(args.seed, args.cases)
+    leaking = [case.case_id for case in cases
+               if packet_exposes_answer(case, compact_packet(case))]
+    if leaking:
+        raise ValueError("reasoning packet exposes scorer answers for: "
+                         + ", ".join(leaking[:5]))
     output = Path(args.output_dir); output.mkdir(parents=True, exist_ok=True)
     rows_path = output / "rows.jsonl"
     completed: dict[tuple[str, str], dict[str, Any]] = {}
@@ -206,7 +218,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 "difficulty": case.difficulty, "claim_conflicts": case.claim_conflicts,
                 "expected": truth, "answer": parsed, "scores": scores,
                 "grounded_correct": all(scores[key] for key in (
-                    "diagnosis", "confidence", "analogue_outcome")),
+                    "diagnosis", "confidence")),
                 "synthesis_correct": scores["next_action"],
                 "all_correct": all(scores.values()),
                 "usage": {
@@ -238,7 +250,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             row["all_correct"] for row in subset)
         metrics[arm]["grounded_correct"] = statistics.mean(
             row.get("grounded_correct", all(row["scores"][key] for key in (
-                "diagnosis", "confidence", "analogue_outcome"))) for row in subset)
+                "diagnosis", "confidence"))) for row in subset)
         metrics[arm]["synthesis_correct"] = statistics.mean(
             row.get("synthesis_correct", row["scores"]["next_action"])
             for row in subset)
@@ -287,6 +299,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         },
         "design": {"matched": True, "generated_held_out_seeds": True,
                    "labels_absent_from_prompts": True,
+                   "answer_values_absent_from_evidence_packet": True,
+                   "analogue_rows_identical_between_arms": True,
                    "primary_forecast_unchanged": True},
     }
     (output / "summary.json").write_text(

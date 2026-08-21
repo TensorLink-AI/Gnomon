@@ -342,6 +342,17 @@ def _run_mcq(row, steps, tmp_path, sessions=None):
                    session_factory=_factory(sessions), work_dir=str(tmp_path))
 
 
+def test_mcq_row_accepts_mcp_timeout_for_t1_t3(tmp_path) -> None:
+    """The common runner forwards this option for every tier."""
+    outcome = mcq_row(
+        _t1_row(), ScriptedClient([{"tool_calls": [("submit_answer", {
+            "answers": {"trend": "upward", "volatility": "increased"},
+            "reasoning": "bounded"
+        })]}]), session_factory=_factory(), work_dir=str(tmp_path),
+        mcp_call_timeout=12.0)
+    assert "answer" in outcome
+
+
 # -- exits and routes -------------------------------------------------------
 
 def test_artifact_and_values_exits_with_routes_and_labels(tmp_path):

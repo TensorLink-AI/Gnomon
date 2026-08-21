@@ -289,6 +289,9 @@ def window_evidence(values: list[float], *, property: str, season: int = 1,
         identifiable=identifiable,
         provenance=comparison.get("provenance") or {},
         diagnostics={"window_steps": comparison.get("window_steps"),
+                     "interval": item.get("interval"),
+                     "interval_level": item.get("interval_level"),
+                     "interval_method": item.get("interval_method"),
                      "reason": item.get("reason") or comparison.get("reason")},
     )
 

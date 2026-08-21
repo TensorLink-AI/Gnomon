@@ -128,6 +128,7 @@ def main() -> int:
 
     counts = {"mechanical_pass": 0, "mechanical_fail": 0,
               "judge_pass": 0, "judge_fail": 0, "unscored": 0}
+    robust_mechanical: list[bool] = []
     per_tier: dict[str, list[bool]] = {}
     rows: list[list] = []
     tasks_failed = 0
@@ -187,6 +188,9 @@ def main() -> int:
                           else "judge")
                 counts[f"{bucket}_{'pass' if verdict['passed'] else 'fail'}"] += 1
                 per_tier.setdefault(task.tier, []).append(bool(verdict["passed"]))
+                if verdict["basis"] == "mechanical" \
+                        and verdict.get("numerosity_robust"):
+                    robust_mechanical.append(bool(verdict["passed"]))
                 rows.append([task.task_id, task.tier, record["user_turn_id"],
                              verdict["basis"], verdict["passed"],
                              len(record["tool_calls"])])
@@ -222,6 +226,10 @@ def main() -> int:
         "mechanical_turns": mechanical_total,
         "mechanical_pass_rate": (counts["mechanical_pass"] / mechanical_total
                                  if mechanical_total else None),
+        "numerosity_robust_mechanical_turns": len(robust_mechanical),
+        "numerosity_robust_mechanical_pass_rate": (
+            sum(robust_mechanical) / len(robust_mechanical)
+            if robust_mechanical else None),
         "judge_turns": judge_total,
         "judge_pass_rate": (counts["judge_pass"] / judge_total
                             if judge_total else None),

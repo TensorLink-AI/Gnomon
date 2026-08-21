@@ -2,11 +2,15 @@
   "release_metadata": {
     "arm": "compiled-context",
     "benchmark": "contextbench",
+    "configuration_identity": "summary-only; environment not retained",
+    "dataset_identity": "contextbench corpus recorded in summary",
+    "evaluated_commit": "unknown",
+    "harness_commit": "unknown",
     "notes": [],
     "scope": "full",
     "source": "results/contextbench-full-20260816/llm-compiled/summary.json",
     "source_sha256": "1c0cb7ebd76f4deda92cacfcef83c5883624904ce27ed9f7f12b29f26ec2bec6",
-    "status": "complete"
+    "status": "historical_unverified"
   },
   "summary": {
     "answered": 80,

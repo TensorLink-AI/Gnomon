@@ -64,6 +64,8 @@ def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
             for replicate in range(replicates):
                 case_seed = seed + 10_000 * list(regimes).index(prop) + 100 * regime_index + replicate
                 history, future, season = _paths(case_seed, regime)
+                history_before = list(history)
+                future_before = list(future)
                 fitted = fit_temporal_executable(
                     history, property=prop, horizon=len(future), season=season)
                 actual = _property_value(prop, history, future, season)
@@ -79,8 +81,8 @@ def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
                     "direction_correct": (fitted.direction == actual_label
                                           if fitted.support == "supported" else None),
                     "covered": fitted.lower <= actual <= fitted.upper,
-                    "primary_forecast_unchanged": fitted.diagnostics[
-                        "primary_forecast_unchanged"],
+                    "inputs_unchanged": (history == history_before
+                                         and future == future_before),
                 })
 
     # Dependence is generated independently and scored in the same currency.
@@ -97,6 +99,7 @@ def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
                 left.append(left[-1] + x)
                 right.append(right[-1] + y)
                 shocks.append((x, y))
+            left_before, right_before = list(left), list(right)
             fitted = fit_dependence_executable(left[:421], right[:421], horizon=24)
             future = shocks[420:444]
             from gnomon.temporal_executables import _correlation
@@ -114,8 +117,8 @@ def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
                                       if fitted.support == "supported" else None),
                 "covered": (fitted.lower is not None and actual is not None
                             and fitted.lower <= actual <= fitted.upper),
-                "primary_forecast_unchanged": fitted.diagnostics[
-                    "primary_forecast_unchanged"],
+                "inputs_unchanged": (left == left_before
+                                     and right == right_before),
             })
 
     by_property = {}
@@ -299,7 +302,7 @@ def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
         "claim_rate_at_least_10pct": len(claims) / len(rows) >= .1,
         "best_estimate_direction_accuracy_at_least_60pct": statistics.mean(
             bool(row["best_estimate_direction_correct"]) for row in rows) >= .6,
-        "primary_immutable": all(bool(row["primary_forecast_unchanged"]) for row in rows),
+        "inputs_immutable": all(bool(row["inputs_unchanged"]) for row in rows),
         "seasonality_alignment_balanced_accuracy_at_least_80pct": (
             statistics.mean(alignment_recalls.values()) >= .8),
         "seasonality_alignment_stress_balanced_accuracy_at_least_65pct": (

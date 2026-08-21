@@ -2,13 +2,17 @@
   "release_metadata": {
     "arm": null,
     "benchmark": "transitionbench",
+    "configuration_identity": "summary-only; environment not retained",
+    "dataset_identity": "transitionbench seed recorded in summary",
+    "evaluated_commit": "unknown",
+    "harness_commit": "unknown",
     "notes": [
       "Easy, moderate, and marginal transition signals."
     ],
     "scope": "full",
     "source": "results/transitionbench-current-20260820/summary.json",
     "source_sha256": "26128d0862e0757dde17454cca6e463f72ec0d144027c892ed0258618e18e7ec",
-    "status": "complete"
+    "status": "historical_unverified"
   },
   "summary": {
     "by_property": {

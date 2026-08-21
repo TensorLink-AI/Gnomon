@@ -18,6 +18,7 @@ def _names(monkeypatch) -> list[str]:
 
 
 def test_retired_tools_are_not_defined_or_flag_restorable(monkeypatch) -> None:
+    from gnomon.mcp_server import _handle
     from gnomon.toolspec import runner_for
 
     retired = {
@@ -790,6 +791,34 @@ def test_typed_aggregate_binds_panel_series_not_value_column(tmp_path) -> None:
     receipt = json.loads(Path(result["answer_receipt"]).read_text())
     assert receipt["primary_forecast_unchanged"] is True
     assert receipt["artifact_id"] == result["artifact_id"]
+
+
+def test_daily_requests_predictive_volatility_is_strict_json(tmp_path) -> None:
+    """Regression: missing Brier diagnostics once leaked IEEE infinity.
+
+    MCP's strict encoder then crashed and mislabeled the valid forecast as a
+    tracking error.  The real example fixture pins the complete answer path.
+    """
+    import json
+    from pathlib import Path
+    from gnomon.mcp_server import _handle
+
+    source = Path(__file__).resolve().parents[1] / "examples" / "daily_requests.csv"
+    result = _handle({"method": "tools/call", "params": {
+        "name": "gnomon_forecast", "arguments": {
+            "input": str(source), "time_column": "timestamp",
+            "target_column": "requests", "frequency": "D", "horizon": 14,
+            "output_dir": str(tmp_path / "daily-volatility"),
+            "questions": [{"id": "v", "verb": "predict",
+                           "target": "requests", "property": "volatility",
+                           "horizon": 14}],
+        }}})
+    encoded = json.dumps(result, allow_nan=False)
+    assert result["isError"] is False
+    answer = result["structuredContent"]["answers"][0]["answer"]
+    assert answer["direction"] in {
+        "increased", "decreased", "stable", "uncertain"}
+    assert "Infinity" not in encoded and "NaN" not in encoded
 
 
 def test_irregular_grid_error_carries_literal_aggressive_repair_call(tmp_path) -> None:

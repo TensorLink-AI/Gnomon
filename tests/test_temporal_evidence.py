@@ -53,6 +53,8 @@ def test_typed_evidence_preserves_mode_source_and_provenance() -> None:
     assert payload["source"] == "adjacent_observed_windows"
     assert payload["direction"] == "increased"
     assert payload["provenance"]["uses_future_observations"] is False
+    assert len(payload["diagnostics"]["interval"]) == 2
+    assert payload["diagnostics"]["interval_level"] == .90
 
 
 def test_observed_seasonal_phase_transition_is_measured() -> None:

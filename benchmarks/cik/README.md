@@ -26,18 +26,11 @@ Ours (this directory):
   model routing generalised to any OpenRouter model id. Prompting and
   parsing are inherited, not overridden.
 - `gnomon_forecaster.py` — the treatment. Disclosed adapter decisions:
-  RCRPS needs sample paths, so samples are drawn deterministically from
-  the piecewise-linear inverse CDF through Gnomon's q10/q50/q90 with tails
-  clamped at the outer quantiles. That conversion has two consequences
-  for RCRPS, which is computed on sample paths. The paths are
-  comonotonic — every sample sits at the same probability level at every
-  step — so per-timestep CRPS is unaffected but the joint distribution
-  over paths is degenerate. And clamping keeps every sample inside
-  [q10, q90], so a constraint lying beyond the outer quantiles can never
-  be violated by these samples: the clamp can suppress RCRPS's
-  constraint-violation penalty relative to a sampler with real tails.
-  For that penalty term the conversion can favor the treatment — read
-  treatment-vs-control penalty differences with that in mind. Other
+  RCRPS needs sample paths, so each lead receives a deterministic stratified
+  marginal through q10/q50/q90, with linearly extrapolated tails and a
+  lead-specific stratum permutation. This removes the former clamping and
+  comonotonicity advantage, while remaining a disclosed three-quantile
+  approximation rather than a learned joint distribution. Other
   decisions: CiK's timezone-naive indexes are written as UTC;
   LLM-proposed events carry a verifiable `dataset` source referencing
   the task's own context text, with `known_at` at the history start (the

@@ -290,7 +290,12 @@ outcome and regret scoring.
 
 Every event needs a `known_at`. It is what makes the backtest honest: a
 fold cutting at T may only use events knowable by T, so an event recorded
-after the fact cannot improve a historical fold.
+after the fact cannot improve a historical fold. Inline MCP/JSON events are
+always marked `unverified_external`: their caller-declared `known_at` and
+source may create a labelled future scenario but cannot enter historical
+folds. An operator-controlled context file is the current trust boundary for
+declared source metadata. This prevents an agent from backdating its own event;
+it does not cryptographically verify that a human-authored file is truthful.
 
 Events must carry an explicit timezone offset. When the dataset's own
 timestamps are naive — as every example here is — the windows are matched

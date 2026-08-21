@@ -58,6 +58,16 @@ def test_mechanical_numerical_range():
     assert score_mechanical(verify, "The CV comes out to 1.5.") is False
 
 
+def test_range_score_discloses_numerosity_ambiguity():
+    reference = {"finding_verify": {
+        "type": "numerical_range", "keywords": [], "range": [0.7, 1.1]}}
+    clean = score_turn(reference, "CV 0.81")
+    noisy = score_turn(reference, "Across 24 windows: 9, 8, 7, 0.81")
+    assert clean["passed"] is True and clean["numerosity_robust"] is True
+    assert noisy["passed"] is True and noisy["numerosity_robust"] is False
+    assert noisy["numeric_candidate_count"] == 5
+
+
 def test_non_mechanical_spec_is_unscored_without_judge():
     reference = {"finding_verify": {"type": "semantic", "keywords": [],
                                     "range": None, "embedding_threshold": 0.85}}

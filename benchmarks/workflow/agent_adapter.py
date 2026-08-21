@@ -7,6 +7,7 @@ turn the bundled smoke corpus into statistical product evidence.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import csv
 import hashlib
 import json
@@ -284,7 +285,8 @@ def _normalize(case_id: str, value: dict[str, Any], *, calls: int,
         "disclosures": disclosures, "claims": claims,
         "facts": facts,
         "engine_facts": engine_evidence.get("engine_facts") or {},
-        # The harness supplied only cutoff-safe input, so leakage is structurally measured false.
+        # This is a harness access-control measurement, not an agent's claim.
+        # The digest lets audits bind the verdict to the exact cutoff projection.
         "temporal_leakage": False,
         "publish_matches_evaluated": value.get("publish_matches_evaluated"),
         "repair_completed": value.get("repair_completed"),
@@ -299,6 +301,9 @@ def _normalize(case_id: str, value: dict[str, Any], *, calls: int,
         "response_tokens": client.total_completion_tokens,
         "latency_seconds": time.time() - started,
         "metadata": {"tool_sequence": tool_names,
+                     "leakage_measurement": "cutoff_projection_v1",
+                     "cutoff_projection_sha256": engine_evidence.get(
+                         "cutoff_projection_sha256"),
                      "surface_required_calls": engine_evidence.get(
                          "surface_required_calls", 0),
                      "recovery_calls": engine_evidence.get("recovery_calls", 0),
@@ -567,6 +572,11 @@ def main() -> int:
         else:
             value, calls, sequence, engine_evidence = mcp(case, client, csv_path, jail, args.condition)
             value = _recover_engine_answer(case, value, engine_evidence)
+        cutoff_projection = json.dumps(
+            case.get("available_at_cutoff") or {}, sort_keys=True,
+            separators=(",", ":"), allow_nan=False).encode("utf-8")
+        engine_evidence["cutoff_projection_sha256"] = hashlib.sha256(
+            cutoff_projection).hexdigest()
         print(json.dumps(_normalize(case["id"], value, calls=calls, client=client,
                                     started=started, tool_names=sequence,
                                     engine_evidence=engine_evidence)))

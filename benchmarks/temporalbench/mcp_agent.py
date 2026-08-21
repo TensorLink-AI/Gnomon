@@ -2276,14 +2276,16 @@ def mcq_row(row: dict[str, Any], client: Any, *,
             work_dir: str | None = None,
             profile: str = "full",
             compile_context: bool = False,
-            context_receipts_dir: str | None = None) -> dict[str, Any]:
+            context_receipts_dir: str | None = None,
+            mcp_call_timeout: float | None = None) -> dict[str, Any]:
     """Drive one T1/T3 row through the same surface with the tier's own
     answer shape; the answer object is what that tier's scorer reads."""
     if session_factory is None:
         _ensure_checkout_importable()
         session_factory = lambda jail: StdioMcpSession(
             jail, command=[sys.executable, "-m", "gnomon", "mcp", "serve",
-                           "--profile", profile])
+                           "--profile", profile],
+            call_timeout=mcp_call_timeout)
     return _drive(_McqRun(row, client, session_factory=session_factory,
                           work_dir=work_dir, profile=profile,
                           compile_context=compile_context,

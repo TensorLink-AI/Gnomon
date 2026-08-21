@@ -39,6 +39,7 @@ VERIFIABLE_SOURCE_TYPES = frozenset(
     {"planning_file", "calendar", "artifact", "url", "dataset"}
 )
 CONTEXT_STATUSES = frozenset({"confirmed", "tentative", "cancelled"})
+UNVERIFIED_EXTERNAL_CREATOR = "unverified_external"
 
 
 @dataclass(frozen=True)
@@ -165,7 +166,8 @@ def event_to_dict(event: ContextEvent) -> dict[str, Any]:
     return payload
 
 
-def event_from_dict(raw: dict[str, Any]) -> ContextEvent:
+def event_from_dict(raw: dict[str, Any], *,
+                    trust_declared_creator: bool = False) -> ContextEvent:
     source = raw.get("source")
     return ContextEvent(
         event_id=str(raw.get("event_id", "")),
@@ -179,11 +181,17 @@ def event_from_dict(raw: dict[str, Any]) -> ContextEvent:
         attributes=dict(raw.get("attributes") or {}),
         source=ContextSource(str(source.get("type", "")), str(source.get("reference", "")))
         if isinstance(source, dict) else None,
-        created_by=str(raw.get("created_by", "user")),
+        # Inline MCP/JSON callers cannot self-promote a source assertion into
+        # verified historical knowledge by writing ``created_by: user``. File
+        # loading is an explicit operator-controlled boundary and opts in.
+        created_by=(str(raw.get("created_by", "user"))
+                    if trust_declared_creator
+                    else UNVERIFIED_EXTERNAL_CREATOR),
     )
 
 
-def events_from_list(raw_events: list) -> list[ContextEvent]:
+def events_from_list(raw_events: list, *,
+                     trust_declared_creator: bool = False) -> list[ContextEvent]:
     """Build and structurally validate events from raw dicts, loudly.
 
     Shared by the file loader and the inline ``context_events`` tool
@@ -192,7 +200,9 @@ def events_from_list(raw_events: list) -> list[ContextEvent]:
     from it. Any invalid event fails the whole batch; silently dropping
     a proposed event would hide it from the admission record.
     """
-    events = [event_from_dict(item) for item in raw_events]
+    events = [event_from_dict(
+        item, trust_declared_creator=trust_declared_creator)
+        for item in raw_events]
     problems = {
         event.event_id or f"index {index}": event_problems
         for index, event in enumerate(events)
@@ -225,7 +235,7 @@ def load_events_file(path: str) -> list[ContextEvent]:
             "INVALID_CONTEXT_FILE",
             'Context events file must be an object with an "events" array.',
         )
-    return events_from_list(raw_events)
+    return events_from_list(raw_events, trust_declared_creator=True)
 
 
 def backtest_admissible(event: ContextEvent) -> bool:
@@ -238,6 +248,8 @@ def backtest_admissible(event: ContextEvent) -> bool:
     if validate_context_event(event):
         return False
     return (
+        event.created_by != UNVERIFIED_EXTERNAL_CREATOR
+        and
         event.source is not None
         and event.source.type in VERIFIABLE_SOURCE_TYPES
         and bool(event.source.reference)

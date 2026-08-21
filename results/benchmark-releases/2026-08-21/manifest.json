@@ -3,96 +3,91 @@
     {
       "arm": null,
       "benchmark": "propertybench",
-      "bytes": 5490,
+      "bytes": 5739,
       "file": "propertybench.json",
       "scope": "full",
-      "sha256": "cc96b8a9a67042f6257b11836522a6c295b3bed37bf1fe146e125c4059d4d80c",
-      "status": "complete"
+      "sha256": "4896e39a8169f1d84781365f33b94d53e8664be481894f34fff2ad4052b29fab",
+      "status": "historical_unverified"
     },
     {
       "arm": null,
       "benchmark": "transitionbench",
-      "bytes": 5328,
+      "bytes": 5549,
       "file": "transitionbench.json",
       "scope": "full",
-      "sha256": "3506348a8e042b22c002e52da6747a4549aad86adfca452e94f412da01890170",
-      "status": "complete"
+      "sha256": "d1b39670084ee806efd19f447501fa74cf1678ecb08f06c0bbe1bca16233ea50",
+      "status": "historical_unverified"
     },
     {
       "arm": null,
       "benchmark": "adapterbench",
-      "bytes": 3908,
+      "bytes": 4128,
       "file": "adapterbench.json",
       "scope": "full",
-      "sha256": "fdb025f690e93b51988508b0a9b4d84bd20bc90bb5854a1104633c851a82e88f",
-      "status": "complete"
+      "sha256": "aeef9b0757594f730d82a9e91abd762f5825d7725a5dd9b804ee764336ad249e",
+      "status": "historical_unverified"
     },
     {
       "arm": null,
       "benchmark": "volatilitybench",
-      "bytes": 5551,
+      "bytes": 5758,
       "file": "volatilitybench.json",
       "scope": "full",
-      "sha256": "5f9e5705ff560b27b05fc39925faba266d5507f7a2c1d9360232aa4f3ea45860",
-      "status": "diagnostic_not_graduated"
-    },
-    {
-      "arm": "matched-base-and-enriched",
-      "benchmark": "reasoningbench",
-      "bytes": 2760,
-      "file": "reasoningbench.json",
-      "scope": "full",
-      "sha256": "093e9e077fefcef475748efdab66069a89611862ac32c7980dca7ded3e1feb21",
-      "status": "complete"
+      "sha256": "6788633e8a2762acc88cf04f3a2722edf5d0cda45dd4463662a8047e1c737cd4",
+      "status": "historical_unverified"
     },
     {
       "arm": "raw-llm",
       "benchmark": "contextbench",
-      "bytes": 2920,
+      "bytes": 3140,
       "file": "contextbench-raw-llm.json",
       "scope": "full",
-      "sha256": "87e0a31fa5a425be96685bb4481a9dd69f000921951b5e6bdb618a8288c0df4c",
-      "status": "complete"
+      "sha256": "ded83ee87387eb16fc37e800db92580dc6805331b5df4675108475de7cacefd7",
+      "status": "historical_unverified"
     },
     {
       "arm": "compiled-context",
       "benchmark": "contextbench",
-      "bytes": 2932,
+      "bytes": 3152,
       "file": "contextbench-compiled.json",
       "scope": "full",
-      "sha256": "0a1274f190440459636de56f54cd0c7fb705b4fe4202ad1bbead41db9dc11193",
-      "status": "complete"
+      "sha256": "3f8bc0011ea9c7fbfe2df68fbd10a3888727521e579a3d891420f945548a81c2",
+      "status": "historical_unverified"
     },
     {
       "arm": "evidence-r1",
       "benchmark": "contextbench",
-      "bytes": 5206,
+      "bytes": 5426,
       "file": "contextbench-evidence.json",
       "scope": "full",
-      "sha256": "241fcd3cc20c0fb05eda0ed7269b14c4f023385b08fc3c34f824aa4dfe5f76a3",
-      "status": "complete"
+      "sha256": "ef124a086378fe8c23ee814985e67f2d93f0bb7be8b906e5346883449365a5f4",
+      "status": "historical_unverified"
     },
     {
       "arm": "base-llm",
       "benchmark": "temporalbench",
-      "bytes": 4347,
+      "bytes": 4576,
       "file": "temporalbench-base-llm.json",
-      "scope": "full",
-      "sha256": "ca716ac8ac53e10f18c37e4155e17252b645bf4bf1910eaefbc219664891e531",
-      "status": "complete"
+      "scope": "subset",
+      "sha256": "ce3f30e7f3f34fec068c04df9ceb45825357554ca2bb33a83b3a2a2fa4207b29",
+      "status": "historical_unverified"
     },
     {
       "arm": "evidence",
       "benchmark": "temporalbench",
-      "bytes": 6529,
+      "bytes": 6758,
       "file": "temporalbench-evidence.json",
-      "scope": "full",
-      "sha256": "54c44fb6c74a40912b21a48ec99f9564ae74b6e5814b3877a2e995d50333b0e2",
-      "status": "complete"
+      "scope": "subset",
+      "sha256": "98f60cc7991a6dd466924276b7923dbaa9ce1d9493336c4cd7bd063ea754872f",
+      "status": "historical_unverified"
     }
   ],
-  "curated_by_commit": "038291efb123c4ec7f62afce3d059baabfc2f0fc",
+  "curated_by_commit": "6d7d41f4456cd88929f67cf2a91c679c4f5317c8",
   "not_included": [
+    {
+      "benchmark": "reasoningbench",
+      "reason": "Withdrawn: the original evidence packet projected answer-valued fields. The corrected non-transcribable harness needs a fresh matched run."
+    },
     {
       "benchmark": "leaktrap",
       "reason": "Already versioned separately under results/leaktrap with its published write-up."
@@ -132,5 +127,5 @@
     "smoke_results_are_not_full_results": true
   },
   "release": "2026-08-21",
-  "schema_version": "1.0"
+  "schema_version": "1.1"
 }

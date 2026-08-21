@@ -1210,8 +1210,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                     return 2
             elif args.tsfm_command == "remove":
                 name = args.name
-                remove_sandbox(name)
-                print(json.dumps({"status": "ok", "removed": name}, indent=2))
+                removed = remove_sandbox(name)
+                print(json.dumps({"status": "ok", "removed": name,
+                                  "existed": removed}, indent=2))
                 return 0
             elif args.tsfm_command == "install-all":
                 results = {}
@@ -1892,8 +1893,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     except GnomonError as exc:
         print(json.dumps(exc.to_dict(), indent=2), file=sys.stderr)
         return 2
-    except (ValueError, FileNotFoundError) as exc:
-        error = GnomonError("TRACKING_ERROR", str(exc))
+    except FileNotFoundError as exc:
+        error = GnomonError("INPUT_NOT_FOUND", str(exc))
+        print(json.dumps(error.to_dict(), indent=2), file=sys.stderr)
+        return 2
+    except ValueError as exc:
+        error = GnomonError("INVALID_ARGUMENTS", str(exc))
         print(json.dumps(error.to_dict(), indent=2), file=sys.stderr)
         return 2
     except Exception as exc:

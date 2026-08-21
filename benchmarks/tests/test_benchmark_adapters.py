@@ -44,15 +44,18 @@ def test_quantile_samples_shape_and_median():
     samples = samples_from_quantile_rows(rows, 25)
     assert len(samples) == 25
     assert all(len(trajectory) == 2 for trajectory in samples)
-    median = samples[12]  # probability (12 + 0.5) / 25 = 0.5
-    assert median == [10.0, 20.0]
+    # Each lead preserves its own stratified marginal; paths are deliberately
+    # not comonotonic across leads.
+    assert sorted(path[0] for path in samples)[12] == 10.0
+    assert sorted(path[1] for path in samples)[12] == 20.0
+    assert any(path[0] < 10 < path[1] for path in samples)
 
 
-def test_quantile_samples_clamped_tails_and_order():
+def test_quantile_samples_extrapolate_tails_and_preserve_marginal_order():
     rows = [{"point": 5.0, "q10": 2.0, "q50": 5.0, "q90": 9.0}]
     samples = samples_from_quantile_rows(rows, 100)
     values = [trajectory[0] for trajectory in samples]
-    assert min(values) == 2.0 and max(values) == 9.0
+    assert min(values) < 2.0 and max(values) > 9.0
     assert values == sorted(values)
 
 

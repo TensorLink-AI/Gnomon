@@ -2,6 +2,7 @@ from argparse import Namespace
 
 from benchmarks.reasoningbench.run_reasoningbench import (
     compact_packet, exact_sign_p, expected, generate_cases, parse_answer,
+    packet_exposes_answer,
 )
 
 
@@ -19,7 +20,10 @@ def test_packet_is_compact_and_does_not_contain_generator_truth() -> None:
     assert len(str(packet)) < 1000
     assert "expected" not in packet
     assert packet["primary_forecast_unchanged"] is True
-    assert packet["next"][0] not in {"act", "collect_more", "resolve_conflict"}
+    assert "direction" not in str(packet)
+    assert "historical_analogue_consensus" not in packet
+    assert "next" not in packet
+    assert packet_exposes_answer(case, packet) is False
 
 
 def test_expected_uses_generator_truth_and_computed_support() -> None:

@@ -70,10 +70,10 @@ Public claims follow the same rule as forecast claims: measured or absent.
   forecast accuracy.
 - “Local-first” means built-in execution needs no network or API key; optional
   downloads and configured remote backends must be named as such.
-- “Cheap” is stated with its measurement, never as an absolute. The fresh
-  1,800-execution workflow experiment measured the default `evidence` surface
-  at one median call and 12.7K conversation tokens per case; provider, model,
-  corpus, and replicate count travel with any external comparison.
+- “Cheap” is stated only with a retained, reproducible measurement, never as
+  an absolute. Provider, model, corpus, evaluated commit, harness commit, and
+  replicate count must travel with any external comparison. No current
+  workflow result meets that publication bar.
 - “Audit-ready” may describe traceable artifacts. “Compliant” requires a named
   standard, deployment controls, and evidence outside this repository.
 - Foundation models are optional candidates. Gnomon does not claim that one

@@ -339,14 +339,21 @@ def fit_volatility_executable(
         name: _balanced_accuracy(probability_pairs[name])
         for name in candidates if probability_pairs[name]
     }
-    base_rate_brier = (statistics.mean(base_rate_losses)
-                       if base_rate_losses else math.inf)
-    constant_brier = candidate_brier.get("constant", math.inf)
-    direction_baseline = min(base_rate_brier, constant_brier)
+    # Missing diagnostics are represented as ``None`` at the public boundary,
+    # never IEEE infinity.  The latter is accepted by Python's JSON encoder by
+    # default but rejected by the strict MCP/CLI encoders, which used to turn a
+    # valid volatility answer into a mislabeled TRACKING_ERROR.
+    base_rate_brier_value = (statistics.mean(base_rate_losses)
+                             if base_rate_losses else None)
+    constant_brier_value = candidate_brier.get("constant")
+    finite_baselines = [value for value in (
+        base_rate_brier_value, constant_brier_value)
+        if value is not None and math.isfinite(value)]
+    direction_baseline = min(finite_baselines) if finite_baselines else None
     direction_eligible = [
         name for name, loss in candidate_brier.items()
         if candidate_balanced.get(name, 0.0) > 1 / 3
-        and math.isfinite(direction_baseline)
+        and direction_baseline is not None
         and loss <= direction_baseline * (1 - minimum_improvement)
     ]
     # Brier loss alone rewards the modal class on imbalanced histories. Among
@@ -359,7 +366,7 @@ def fit_volatility_executable(
         if direction_eligible else "constant")
     direction_brier_skill = (
         (direction_baseline - candidate_brier[best_direction]) / direction_baseline
-        if math.isfinite(direction_baseline) and direction_baseline > 0
+        if direction_baseline is not None and direction_baseline > 0
         and best_direction in direction_eligible else 0.0
     )
     momentum_detected, momentum_change = _momentum_signal(errors)
@@ -453,8 +460,8 @@ def fit_volatility_executable(
             "fold_direction_balanced_accuracy": direction_balanced,
             "direction_candidate": direction_candidate,
             "direction_candidate_brier": candidate_brier,
-            "direction_base_rate_brier": base_rate_brier,
-            "direction_constant_brier": constant_brier,
+            "direction_base_rate_brier": base_rate_brier_value,
+            "direction_constant_brier": constant_brier_value,
             "direction_brier_skill": effective_brier_skill,
             "direction_momentum_detected": momentum_detected,
             "direction_momentum_log_change": momentum_change,

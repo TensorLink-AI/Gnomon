@@ -42,7 +42,10 @@ tokens (`2026-01-02`, `12:30:05`, ISO datetimes) are excluded from
 number extraction, identically for both arms — but ANY remaining
 in-range number anywhere in the response passes, and the tools arm's
 prompt elicits more numbers per response, so the check's expected
-benefit scales with response numerosity. Whether the official judge
+benefit scales with response numerosity. Summaries therefore report the raw
+mechanical rate and a `numerosity_robust` subset containing at most one numeric
+candidate; neither is presented as the unpublished official judge score.
+Whether the official judge
 shares this leniency is not knowable from the published dataset.
 
 **Context-bound confound, disclosed:** both conditions' system prompts

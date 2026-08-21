@@ -33,6 +33,8 @@ def _observation(case, **overrides):
                         "reported_absolute_error": 0.0}},
         "repair_completed": True, "tracking_completed": True,
         "quote_matches": True, "tool_calls": 1, "cumulative_tokens": 100,
+        "metadata": {"leakage_measurement": "cutoff_projection_v1",
+                     "cutoff_projection_sha256": "a" * 64},
     }
     if case.oracle.should_abstain:
         values.update(status="abstained", support="abstained")

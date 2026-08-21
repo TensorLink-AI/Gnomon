@@ -6,6 +6,8 @@ from gnomon.context import (
     ContextEvent,
     ContextSource,
     backtest_admissible,
+    events_from_list,
+    event_to_dict,
     validate_context_event,
 )
 from gnomon.llm import LLMAdapter, LLMUnavailable, NullLLMAdapter
@@ -58,6 +60,13 @@ def test_unsourced_event_is_never_backtest_admissible() -> None:
 def test_llm_assertion_source_is_never_backtest_admissible() -> None:
     event = _event(source=ContextSource(type="assertion", reference="model claim"))
     assert backtest_admissible(event) is False
+
+
+def test_inline_event_cannot_self_attest_historical_known_at() -> None:
+    raw = event_to_dict(_event(created_by="user"))
+    parsed = events_from_list([raw])[0]
+    assert parsed.created_by == "unverified_external"
+    assert backtest_admissible(parsed) is False
 
 
 def test_null_adapter_degrades_deterministically() -> None:

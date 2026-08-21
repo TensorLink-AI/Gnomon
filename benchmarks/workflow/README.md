@@ -137,7 +137,9 @@ members or weights from an agent transcript. Full strategy/member/weight
 publication equality is a mandatory engine invariant covered by
 `tests/test_executable_candidate.py`. Quotation is independently checked by
 comparing submitted headline numbers with artifact numbers. Model
-self-attestation cannot satisfy either scored check.
+self-attestation cannot satisfy either scored check. Leakage safety likewise
+requires the harness-generated `cutoff_projection_v1` measurement and digest;
+an observation containing only `temporal_leakage: false` fails strict trust.
 
 ## Production comparison policy
 

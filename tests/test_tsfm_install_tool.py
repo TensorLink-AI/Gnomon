@@ -44,6 +44,18 @@ def test_unknown_name_refuses_with_the_available_list(sandbox_root) -> None:
     assert raised.value.details["available"]
 
 
+def test_remove_unknown_name_never_resolves_a_filesystem_target(
+        sandbox_root) -> None:
+    from gnomon.tsfm import TSFMUnavailable
+    from gnomon.tsfm_sandbox import remove_sandbox
+
+    sentinel = sandbox_root.parent / "sentinel"
+    sentinel.write_text("keep", encoding="utf-8")
+    with pytest.raises(TSFMUnavailable):
+        remove_sandbox("..")
+    assert sentinel.read_text(encoding="utf-8") == "keep"
+
+
 def test_absent_sandbox_reports_absent_without_side_effects(sandbox_root) -> None:
     from gnomon.toolspec import _run_install_tsfm
 

@@ -7,17 +7,21 @@ prevents an LLM from changing an engine answer.
 
 Each arm receives the same 192-point history, narrative claim, historical
 episodes, question, and output vocabulary. The `control` arm gets no computed
-answer. The `evidence` arm additionally gets Gnomon's bounded agent projection:
-observed transition and support, any contradiction, analogue consensus, named
-unknowns, and a natural-language next step. Generator truth stays exclusively
-in the scorer. Cases sweep six temporal properties and easy, moderate, and
-marginal effect sizes using fresh seeded noise.
+answer. The `evidence` arm additionally gets bounded numeric measurements and
+their provenance, identifiability, and assumptions. It does **not** receive a
+canonical direction, analogue consensus, recommended action, or any scalar in
+the scorer's answer vocabulary. Generator truth stays exclusively in the
+scorer. Cases sweep six temporal properties and easy, moderate, and marginal
+effect sizes using fresh seeded noise.
 
 The benchmark reports diagnosis, confidence, historical-analogue use, useful
 follow-up choice, their conjunction, property/difficulty/claim splits, paired
 exact McNemar tests, and tokens by arm. Directly grounded fields and synthesized
-next actions are reported separately. Full evidence is not repeated in the
-prompt: production keeps it in the immutable `temporal_answers.json` receipt.
+next actions are reported separately. Analogue accuracy is a shared prompt
+comprehension diagnostic, not a Gnomon treatment effect. This benchmark
+measures tool-conditioned synthesis, not a general increase in model reasoning.
+Full evidence is not repeated in the prompt: production keeps it in the
+immutable `temporal_answers.json` receipt.
 
 ```bash
 uv run python -m benchmarks.reasoningbench.run_reasoningbench \

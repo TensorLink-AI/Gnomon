@@ -226,7 +226,11 @@ def eligible_events(
         elif not backtest_admissible(event):
             excluded.append({
                 "event_id": event.event_id,
-                "reason": "no verifiable source; not admissible for backtesting",
+                "reason": ("no verifiable source; not admissible for backtesting"
+                           if event.source is None else
+                    "caller-declared known_at/source was not established at an "
+                    "operator-controlled boundary; scenario-only, not admissible "
+                    "for historical folds"),
             })
         else:
             eligible.append(event)

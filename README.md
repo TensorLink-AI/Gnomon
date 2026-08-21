@@ -138,10 +138,10 @@ PyPI release.)
 Conversation cost is an engineering constraint, not a completed claim. Wide
 data is handled in one batched call; brief responses keep disclosures while
 moving bulk rows to immutable artifacts; repeated calls can use a session
-`data_ref` instead of resending observations. A fresh 1,800-execution workflow
-experiment selected the two-tool `evidence` profile as the default: 96.3%
-correctness and 89% trust at one median call and 12.7K tokens per case. `full`
-remains explicit opt-in for administration and deep audit.
+`data_ref` instead of resending observations. The two-tool `evidence` profile
+is the current default; `full` remains explicit opt-in for administration and
+deep audit. We do not publish workflow accuracy or token claims until the
+underlying complete run and its provenance are retained as citable evidence.
 
 ## Why this needs an execution layer
 

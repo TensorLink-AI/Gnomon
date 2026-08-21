@@ -19,20 +19,12 @@ Two modes, both scored by the untouched official RCRPS metric:
 
 Adapter decisions, disclosed:
 
-- Gnomon emits three quantities per horizon step: q10/q50/q90. RCRPS is
-  estimated from samples, so samples are drawn deterministically from
-  the piecewise-linear inverse CDF through those quantiles, clamped at
-  q10/q90. Two consequences for RCRPS, which is computed on sample
-  paths, must be disclosed. First, the paths are comonotonic: each
-  sample sits at the same probability level at every step, so
-  per-timestep CRPS is unaffected but the joint distribution over paths
-  is degenerate. Second, clamping means no sample ever lies beyond the
-  outer quantiles, so a constraint that would only be violated in the
-  tails can never be violated by these samples — the clamping can
-  SUPPRESS RCRPS's constraint-violation penalty relative to a sampler
-  with real tails. For that penalty term the conversion can favor this
-  adapter; it is not self-penalizing. See
-  :func:`samples_from_quantile_rows`.
+- Gnomon emits q10/q50/q90 per horizon step. RCRPS needs samples, so the
+  adapter deterministically stratifies each marginal, linearly extrapolates
+  beyond the outer quantiles, and permutes strata by lead. This avoids the
+  former clamped-tail and comonotonic-path advantage. It is still a
+  three-quantile approximation, not a claim that Gnomon emitted a full joint
+  predictive distribution. See :func:`samples_from_quantile_rows`.
 - CiK context text is benchmark-supplied ground truth available at
   forecast time, so proposed events carry a verifiable source of type
   ``dataset`` referencing the task's context, with ``known_at`` set to
@@ -164,16 +156,11 @@ def samples_from_quantile_rows(
 ) -> list[list[float]]:
     """Deterministic samples from per-step (q10, q50, q90) quantiles.
 
-    Uses stratified probabilities ``(i + 0.5) / n_samples`` mapped through
-    the piecewise-linear inverse CDF defined by the three quantiles.
-    Probabilities beyond the outer quantiles clamp to q10/q90.
-
-    Disclosed biases (see the module docstring): sample paths are
-    comonotonic — sample ``i`` sits at probability ``(i + 0.5) /
-    n_samples`` at every step — so the joint distribution over paths is
-    degenerate; and the clamp keeps every sample inside [q10, q90], which
-    can suppress RCRPS's constraint-violation penalty in the treatment's
-    favor compared to a sampler with real tails.
+    Uses a deterministic Latin-hypercube marginal at every lead. Quantiles
+    below q10 and above q90 are linearly extrapolated using the adjacent
+    segment rather than clamped, so constraint penalties remain observable.
+    A lead-specific cyclic permutation prevents every path from occupying the
+    same quantile at every horizon while preserving each marginal exactly.
 
     Returns a list of ``n_samples`` trajectories, each of length
     ``len(rows)``.
@@ -190,9 +177,11 @@ def samples_from_quantile_rows(
 
     def inverse_cdf(p: float, low: float, mid: float, high: float) -> float:
         if p <= QUANTILE_LEVELS[0]:
-            return low
+            slope = (mid - low) / (QUANTILE_LEVELS[1] - QUANTILE_LEVELS[0])
+            return low + (p - QUANTILE_LEVELS[0]) * slope
         if p >= QUANTILE_LEVELS[2]:
-            return high
+            slope = (high - mid) / (QUANTILE_LEVELS[2] - QUANTILE_LEVELS[1])
+            return high + (p - QUANTILE_LEVELS[2]) * slope
         if p <= QUANTILE_LEVELS[1]:
             fraction = (p - QUANTILE_LEVELS[0]) / (QUANTILE_LEVELS[1] - QUANTILE_LEVELS[0])
             return low + fraction * (mid - low)
@@ -201,9 +190,11 @@ def samples_from_quantile_rows(
 
     samples = []
     for index in range(n_samples):
-        probability = (index + 0.5) / n_samples
         samples.append(
-            [inverse_cdf(probability, low, mid, high) for low, mid, high in quantiles]
+            [inverse_cdf(
+                ((index + step * max(1, n_samples // 3)) % n_samples + 0.5)
+                / n_samples, low, mid, high)
+             for step, (low, mid, high) in enumerate(quantiles)]
         )
     return samples
 
