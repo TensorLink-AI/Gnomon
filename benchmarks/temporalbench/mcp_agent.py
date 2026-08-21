@@ -970,6 +970,10 @@ class _RunBase:
         self.product_schema_bytes = 0
         self.harness_schema_bytes = 0
         self.artifact_paths: set[str] = set()
+        # Descriptive typed answers are returned inline rather than written
+        # to a forecast artifact.  Retain the engine-authored structures for
+        # coverage reporting; the final model submission remains separate.
+        self.descriptive_answer_receipts: list[dict[str, Any]] = []
         # Compiler acceptance is textual grounding, not permission to alter a
         # forecast.  Keep the engine's later admission/application decision
         # separately so the benchmark cannot report "context used" merely
@@ -1114,7 +1118,9 @@ class _RunBase:
                 "mcp": self._mcp_info()}
 
     def _mcp_info(self) -> dict[str, Any]:
-        temporal_answer_receipts: list[dict[str, Any]] = []
+        temporal_answer_receipts: list[dict[str, Any]] = [
+            dict(receipt) for receipt in self.descriptive_answer_receipts
+        ]
         artifact_forecast_identity: list[dict[str, Any]] = []
         for artifact_path in sorted(self.artifact_paths):
             artifact_json = Path(artifact_path) / "artifact.json"
@@ -1203,7 +1209,8 @@ class _RunBase:
                             "superseded", "coerced", "submit_rejected",
                             "last_call_repair", "submission_fallback",
                             "host_submission", "typed_questions",
-                            "compiled_questions", "host_data_binding")}
+                            "compiled_questions", "engine_answers",
+                            "host_data_binding")}
                 for entry in self.trace
             ],
             # Harness-only provenance used by cross-benchmark adapters to
@@ -1604,6 +1611,31 @@ class _RunBase:
             self.complete_description_ready = True
         structured = result.get("structuredContent") or {}
         if isinstance(structured, dict):
+            if (name == "gnomon_describe" and not result.get("isError")
+                    and entry.get("compiled_questions", 0) > 0):
+                answers = structured.get("answers") or []
+                if isinstance(answers, list):
+                    receipt = {
+                        "source": "inline_describe",
+                        # Describe creates no primary forecast, so forecast
+                        # immutability is not applicable rather than a
+                        # tautological pass.
+                        "primary_forecast_unchanged": None,
+                        "answers": [item for item in answers
+                                    if isinstance(item, dict)],
+                    }
+                    # A repeated identical call must not multiply the
+                    # denominator.  Keep one receipt per answer-id set.
+                    answer_ids = tuple(str((item.get("question") or {}).get(
+                        "id") or "") for item in receipt["answers"])
+                    if not any(
+                        tuple(str((item.get("question") or {}).get("id") or "")
+                              for item in prior.get("answers") or [])
+                        == answer_ids
+                        for prior in self.descriptive_answer_receipts
+                    ):
+                        self.descriptive_answer_receipts.append(receipt)
+                    entry["engine_answers"] = len(receipt["answers"])
             code = ((structured.get("error") or {}).get("code")
                     or structured.get("code"))
             if code:

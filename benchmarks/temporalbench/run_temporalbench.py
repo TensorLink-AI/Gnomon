@@ -817,7 +817,14 @@ def main() -> int:
                         # Later receipts for the same immutable artifact do
                         # not multiply the evaluation denominator.
                         receipt_answers[question_id] = typed_answer
-            requested_order = list((row.get("mcq") or {}).keys())
+            if tier == "T3":
+                requested_order = [
+                    str(question.get("id") or "")
+                    for question in temporal_compilation.get("questions") or []
+                    if isinstance(question, dict) and question.get("id")
+                ]
+            else:
+                requested_order = list((row.get("mcq") or {}).keys())
             requested_keys = set(requested_order)
             row_engine_answers = align_typed_answers(
                 requested_order, list(receipt_answers.values()))
@@ -835,7 +842,7 @@ def main() -> int:
                 # that as preservation, not as an LLM paraphrase.
                 from gnomon.temporal_vocabulary import project_temporal_choice
                 options = (((row.get("mcq") or {}).get(question_id) or {})
-                           .get("options") or [])
+                           .get("options") or []) if tier != "T3" else []
                 projected = project_temporal_choice(best.get("value"), options)
                 if projected:
                     candidates.add(str(projected["display_value"]).strip().lower())

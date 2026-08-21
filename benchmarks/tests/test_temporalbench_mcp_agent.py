@@ -1240,6 +1240,11 @@ def test_evidence_t3_attaches_compiled_pack_questions_to_describe(tmp_path):
     assert first["compiled_questions"] == 1
     assert first["is_error"] is False
     assert outcome["mcp"]["calls"] == 1
+    receipts = outcome["mcp"]["temporal_answer_receipts"]
+    assert len(receipts) == 1
+    assert receipts[0]["source"] == "inline_describe"
+    assert receipts[0]["primary_forecast_unchanged"] is None
+    assert len(receipts[0]["answers"]) == 1
     assert len(client.requests) == 3  # compiler, describe, forced submission
 
 
