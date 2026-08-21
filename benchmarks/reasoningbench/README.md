@@ -7,11 +7,13 @@ prevents an LLM from changing an engine answer.
 
 Each arm receives the same 192-point history, narrative claim, historical
 episodes, question, and output vocabulary. The `control` arm gets no computed
-answer. The `evidence` arm additionally gets bounded numeric measurements and
-their provenance, identifiability, and assumptions. It does **not** receive a
-canonical direction, analogue consensus, recommended action, or any scalar in
-the scorer's answer vocabulary. Generator truth stays exclusively in the
-scorer. Cases sweep six temporal properties and easy, moderate, and marginal
+answer. The `evidence` arm additionally gets bounded numeric measurements,
+their provenance, identifiability, assumptions, and Gnomon's calibrated
+support status. It does **not** receive a canonical diagnosis, analogue
+consensus, or recommended action. Support is reported separately as a grounded
+engine field; diagnosis plus useful next action is the primary reasoning
+endpoint. Generator truth stays exclusively in the scorer. Cases sweep six
+temporal properties and easy, moderate, and marginal
 effect sizes using fresh seeded noise.
 
 The benchmark reports diagnosis, confidence, historical-analogue use, useful
@@ -33,8 +35,9 @@ For Engy, the defaults use `deepseek-v4-flash-0731` at
 `https://api.engy.ai/v1` and read `ENGY_API_KEY` from `.env`. Use `--resume` to
 score saved rows without repeating successful calls.
 
-Decision runs use the pre-committed generator seeds `99173`, `271828`, and
-`314159`; do not select or discard a seed after seeing its result. Provider
+Version 0.3 decision runs use the pre-committed, previously unseen generator
+seeds `161803`, `141421`, and `173205`; do not select or discard a seed after
+seeing its result. Provider
 replicates use `--replicate N`. Every summary binds the evaluated/harness commit, exact
 harness digest, generator version, seed, case count, model, and temperature.
 Never merge rows whose provenance differs except for the declared seed or

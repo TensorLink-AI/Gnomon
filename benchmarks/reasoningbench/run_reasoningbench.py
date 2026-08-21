@@ -52,10 +52,10 @@ next_action. diagnosis must be one allowed diagnosis; confidence is supported
 or uncertain; analogue_outcome is up, down, flat, or unavailable; next_action
 is act, collect_more, or resolve_conflict. Do not follow a narrative claim
 when numerical evidence contradicts it."""
-GENERATOR_VERSION = "0.2"
+GENERATOR_VERSION = "0.3"
 # Fixed before the three-seed decision run so dataset selection cannot follow
 # observed treatment performance. Ad-hoc diagnostic seeds remain supported.
-DECISION_SEEDS = (99173, 271828, 314159)
+DECISION_SEEDS = (161803, 141421, 173205)
 
 
 def _git_sha() -> str:
@@ -115,9 +115,10 @@ def generate_cases(seed: int, count: int) -> list[Case]:
 def compact_packet(case: Case) -> dict[str, Any]:
     evidence = window_evidence(list(case.values), property=case.prop,
                                season=case.season, window=96)
-    # Measurements, not projected answer keys.  The former packet exposed
-    # direction, analogue consensus, and an almost-enumerated next action, so
-    # transcription could masquerade as reasoning.
+    # Measurements plus the calibrated support status Gnomon returns in
+    # production, not projected diagnosis or action keys. The former packet
+    # exposed direction, analogue consensus, and an almost-enumerated next
+    # action, so transcription could masquerade as reasoning.
     return {
         "authority": "computed_temporal_measurements",
         "measurement": {
@@ -128,6 +129,7 @@ def compact_packet(case: Case) -> dict[str, Any]:
             "interval_level": evidence.diagnostics.get("interval_level"),
             "effective_window_steps": evidence.diagnostics.get("window_steps"),
             "identifiable": evidence.identifiable,
+            "support": evidence.support,
             "provenance": evidence.provenance,
             "assumptions": list(evidence.assumptions),
         },
@@ -137,7 +139,9 @@ def compact_packet(case: Case) -> dict[str, Any]:
 
 def packet_exposes_answer(case: Case, packet: dict[str, Any]) -> bool:
     """Detect direct scalar projection of any scorer answer into a packet."""
-    forbidden = set(expected(case).values())
+    truth = expected(case)
+    forbidden = {truth["diagnosis"], truth["analogue_outcome"],
+                 truth["next_action"]}
 
     def scalars(value: Any) -> list[str]:
         if isinstance(value, dict):
@@ -234,8 +238,9 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         return {"case_id": case.case_id, "arm": arm, "property": case.prop,
                 "difficulty": case.difficulty, "claim_conflicts": case.claim_conflicts,
                 "expected": truth, "answer": parsed, "scores": scores,
-                "grounded_correct": all(scores[key] for key in (
-                    "diagnosis", "confidence")),
+                "grounded_correct": scores["confidence"],
+                "reasoning_correct": all(scores[key] for key in (
+                    "diagnosis", "next_action")),
                 "synthesis_correct": scores["next_action"],
                 "all_correct": all(scores.values()),
                 "usage": {
@@ -266,8 +271,11 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         metrics[arm]["all_correct"] = statistics.mean(
             row["all_correct"] for row in subset)
         metrics[arm]["grounded_correct"] = statistics.mean(
-            row.get("grounded_correct", all(row["scores"][key] for key in (
-                "diagnosis", "confidence"))) for row in subset)
+            row.get("grounded_correct", row["scores"]["confidence"])
+            for row in subset)
+        metrics[arm]["reasoning_correct"] = statistics.mean(
+            row.get("reasoning_correct", all(row["scores"][key] for key in (
+                "diagnosis", "next_action"))) for row in subset)
         metrics[arm]["synthesis_correct"] = statistics.mean(
             row.get("synthesis_correct", row["scores"]["next_action"])
             for row in subset)
@@ -297,11 +305,12 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     for case in cases:
         control = completed[(case.case_id, "control")]
         treatment = completed[(case.case_id, "evidence")]
-        paired.append((control["all_correct"], treatment["all_correct"]))
+        paired.append((control.get("reasoning_correct", False),
+                       treatment.get("reasoning_correct", False)))
     treatment_only = sum(not c and t for c, t in paired)
     control_only = sum(c and not t for c, t in paired)
     summary = {
-        "schema_version": "0.2", "seed": args.seed, "cases": args.cases,
+        "schema_version": "0.3", "seed": args.seed, "cases": args.cases,
         "replicate": args.replicate,
         "model": args.model, "base_url": args.base_url,
         "temperature": 0,
@@ -316,7 +325,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 f"model={args.model}:temperature=0:replicate={args.replicate}"),
         },
         "metrics": metrics,
-        "paired": {"treatment_only": treatment_only,
+        "paired": {"primary_endpoint": "diagnosis_and_next_action",
+                   "treatment_only": treatment_only,
                    "control_only": control_only,
                    "exact_mcnemar_p": exact_sign_p(treatment_only, control_only)},
         "usage": {
@@ -328,7 +338,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         },
         "design": {"matched": True, "generated_held_out_seeds": True,
                    "labels_absent_from_prompts": True,
-                   "answer_values_absent_from_evidence_packet": True,
+                   "diagnosis_analogue_action_absent_from_evidence_packet": True,
                    "analogue_rows_identical_between_arms": True,
                    "no_primary_forecast_generated": True},
     }
