@@ -408,6 +408,12 @@ def _series_result(
             step: list(values)
             for step, values in state.residuals_by_lead.items()
         }
+        state.primary_warnings = list(state.warnings)
+        state.primary_support = (
+            "degraded" if state.assessment and state.assessment.degraded
+            else "supported_ensemble" if state.selected_model == "ensemble"
+            else "weakly_supported" if state.warnings else "supported"
+        )
     if context_events:
         context_stage(
             state, context_events, horizon=horizon,
@@ -676,7 +682,18 @@ def _series_result(
             state.primary_residuals_by_lead, len(state.primary_points),
             state.primary_residuals, recentre=not assessment.degraded,
         )
-        primary_tier = achieved_tier(support_assessment.status, True)
+        # The primary lane is immutable evidence, not merely immutable
+        # points. An admitted context candidate can earn a different support
+        # status; projecting that status back onto the frozen primary path
+        # rewrites its epistemic meaning. Recreate the tier from the support
+        # state captured before enrichment.
+        primary_assessment = assess_forecast_support(
+            state.primary_support or "unsupported",
+            state.primary_warnings,
+            assessment,
+            known_time_assumed=loaded.snapshot.assumed_known_time,
+        )
+        primary_tier = achieved_tier(primary_assessment.status, True)
         for step, (timestamp, point) in enumerate(
                 zip(state.future_timestamps, state.primary_points), 1):
             if step not in primary_spreads:

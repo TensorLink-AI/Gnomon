@@ -74,7 +74,13 @@ def _forecast(case: Case, root: Path, *, enriched: bool,
         _write_history(case, source)
     raw_events = (event_override if event_override is not None
                   else list(case.context_events))
-    events = events_from_list(raw_events) if enriched and raw_events else None
+    # The generated corpus is the operator-controlled source for this engine
+    # evaluation: its manifest hashes cases before execution and keeps the
+    # future oracle separate. Model/agent-proposed inline events must *not*
+    # use this trust path; surface evaluations bind compiled documents to a
+    # validated file inside their jailed host instead.
+    events = (events_from_list(raw_events, trust_declared_creator=True)
+              if enriched and raw_events else None)
     covariates = None
     if enriched and use_covariates and case.covariates:
         covariates = covariates_from_rows(

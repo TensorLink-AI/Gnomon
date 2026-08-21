@@ -926,6 +926,19 @@ class _RunBase:
                     event["attributes"] = attributes
                 aligned.append(event)
             self.context_compilation["events"] = aligned
+        self.context_events_file = None
+        if self.context_compilation.get("events"):
+            # ``compile_context`` is a host-side integration step over the
+            # benchmark document, not an assertion made by the tool-driving
+            # model. Bind that reviewed receipt through the production file
+            # trust boundary. Passing the same events inline correctly leaves
+            # them unverified/scenario-only and would measure a different arm.
+            context_file = self.jail / "compiled-context-events.json"
+            context_file.write_text(json.dumps({
+                "schema_version": "0.1",
+                "events": self.context_compilation["events"],
+            }, sort_keys=True) + "\n", encoding="utf-8")
+            self.context_events_file = context_file
         self.started = time.time()
         self.covariate_arguments = self._row_covariates(row)
         if "timestamp" in self.channels:
@@ -1494,7 +1507,7 @@ class _RunBase:
         if name in {"gnomon_forecast", "gnomon_run"} \
                 and context_compilation.get("events"):
             arguments = {**arguments,
-                         "context_events": context_compilation["events"],
+                         "context_events_file": str(self.context_events_file),
                          "future_events": True}
         covariate_arguments = getattr(self, "covariate_arguments", {})
         if name in {"gnomon_forecast", "gnomon_run"} \

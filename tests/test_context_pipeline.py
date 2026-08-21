@@ -65,6 +65,10 @@ def test_event_adjusted_refuses_without_history_occurrences() -> None:
 def test_context_admitted_when_it_demonstrates_stable_lift(tmp_path) -> None:
     csv_path = tmp_path / "promo.csv"
     _write_csv(csv_path, 130)
+    baseline_artifact, _ = forecast(
+        str(csv_path), time_column="timestamp", target_column="requests",
+        horizon=7, frequency="D", output=str(tmp_path / "baseline"),
+    )
     artifact, _ = forecast(
         str(csv_path), time_column="timestamp", target_column="requests",
         horizon=7, frequency="D", output=str(tmp_path / "out"),
@@ -82,6 +86,9 @@ def test_context_admitted_when_it_demonstrates_stable_lift(tmp_path) -> None:
     assert result.context_outcome["primary_forecast_changed"] is True
     assert result.context_outcome["canonical_primary_preserved"] is True
     assert result.primary_forecast
+    # Context may earn a different support tier, but cannot retroactively
+    # relabel the immutable history-only answer.
+    assert result.primary_forecast == baseline_artifact.results[0].forecast
     assert [row["point"] for row in result.primary_forecast] != [
         row["point"] for row in result.forecast]
     assert result.context_outcome["canonical_primary_location"] == (

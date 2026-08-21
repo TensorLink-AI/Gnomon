@@ -43,6 +43,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from benchmarks.catalog import CATALOG, as_dict as catalog_entry  # noqa: E402
 from benchmarks.common.manifest import read_manifest, write_manifest  # noqa: E402
 
 # Which shared defaults each adapter's CLI can accept. "limit_flag"
@@ -144,7 +145,19 @@ REGISTRY: dict[str, dict[str, Any]] = {
         "accepts": {"output_dir"},
         "limit_flag": "--cases",
     },
+    "effectbench": {
+        "module": "benchmarks.effectbench.run_effectbench",
+        "accepts": {"output_dir"},
+        "limit_flag": None,
+    },
 }
+
+if set(REGISTRY) != set(CATALOG):
+    raise RuntimeError(
+        "benchmark registry/catalog drift: "
+        f"registry_only={sorted(set(REGISTRY) - set(CATALOG))}, "
+        f"catalog_only={sorted(set(CATALOG) - set(REGISTRY))}"
+    )
 
 
 def load_config(path: Path) -> dict[str, Any]:
@@ -285,6 +298,7 @@ def main() -> int:
             run_args = dict(run.get("args") or {})
             orchestrator_view = {
                 "benchmark": benchmark_of(run),
+                "benchmark_contract": catalog_entry(benchmark_of(run)),
                 "condition": (run_args.get("condition") or run_args.get("method")
                               or run_args.get("mode") or run_args.get("subcommand")),
                 "target": run.get("target") or run_args.get("indicator"),

@@ -96,6 +96,8 @@ class SeriesState:
     primary_points: list[float] = field(default_factory=list)
     primary_residuals: list[float] = field(default_factory=list)
     primary_residuals_by_lead: dict[int, list[float]] = field(default_factory=dict)
+    primary_support: str | None = None
+    primary_warnings: list[str] = field(default_factory=list)
     #: Typed, correct-but-surprising facts for the support assessment.
     #: Never affects support status — see SupportAssessment.disclosures.
     disclosures: list[SupportReason] = field(default_factory=list)

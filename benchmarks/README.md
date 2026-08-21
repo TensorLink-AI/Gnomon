@@ -99,7 +99,7 @@ cross-arm comparison goes through the official tables and
 | [TemporalBench](temporalbench/) (2026) | Four-tier contextual and event-informed reasoning (T1 understanding → T4 event-conditioned prediction); forecasts scored by the dataset's own metric module, choice questions by a disclosed local exact match | `benchmarks/temporalbench` |
 | [CompilerBench](compilerbench/) | Held-out language-to-typed-intent compilation, including ambiguity and adversarial target invention | `benchmarks/compilerbench` |
 
-All five were selected because they exercise what Gnomon owns — context
+These external adapters were selected because they exercise what Gnomon owns — context
 admission under a leakage gate, calibrated intervals, graded detection,
 tool-grounded multi-turn analysis, structured abstention — rather than
 an LLM's ability to read raw number sequences. See each subdirectory's
@@ -107,8 +107,10 @@ README for setup, the exact conditions, and any faithfulness caveats
 (TimeSage-MT's official judge is not public; its README explains what
 is and is not comparable).
 
-Two internally-authored benchmarks sit alongside the five published
-adapters:
+Internally-authored benchmarks sit alongside the published adapters. Their
+claim boundary matters: only rows labelled **reasoning harness** measure an
+LLM using Gnomon. Engine, compiler, policy, and safety-contract rows isolate a
+lower layer deliberately and must never be described as agent-reasoning lift.
 
 | Benchmark | What it measures | Adapter |
 | --- | --- | --- |
@@ -120,6 +122,16 @@ adapters:
 | [ContextCacheBench](contextcachebench/) (internal) | Persistent receipt and numeric-assessment replay: forecast parity, cache hits, and payload reduction | `benchmarks/contextcachebench` |
 | [AdapterBench](adapterbench/) (internal) | Model-neutral adapter conformance, installed-backend coverage, and adversarial contract rejection | `benchmarks/adapterbench` |
 | [TransitionBench](transitionbench/) (internal) | Observed level, trend, volatility, seasonality, regime, and extreme transitions across easy, moderate, and marginal signals; reports support precision separately from raw classification | `benchmarks/transitionbench` |
+| [ReasoningBench](reasoningbench/) (internal) | Matched LLM synthesis with and without Gnomon's compact production evidence packet | `benchmarks/reasoningbench` |
+| [AdmissionBench](admissionbench/) (internal) | Held-out regret and harmful-admission behavior for model admission | `benchmarks/admissionbench` |
+| [AdjudicationBench](adjudicationbench/) (internal) | Evidence authority, conflict, and synthesis invariants | `benchmarks/adjudicationbench` |
+| [EffectBench](effectbench/) (internal) | Effect-registry transfer, false influence, interval calibration, and decision regret | `benchmarks/effectbench` |
+| ModelBench (internal) | Immutable primary-forecast model comparison with agent/context behavior excluded | `benchmarks/modelbench` |
+
+The machine-readable source of truth is `benchmarks/catalog.py`. Batch
+manifests embed its `benchmark_contract`, and CI rejects catalog/orchestrator
+drift. A benchmark with no `reasoning_harness` treatment cannot support a
+claim that Gnomon improved an LLM's reasoning.
 
 LeakTrap is ours, not a community benchmark — its numbers validate
 Gnomon's bitemporal contract and are not comparable to anything

@@ -7,6 +7,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from benchmarks.catalog import CATALOG
 from benchmarks.run_all import REGISTRY, build_command, summary_path
 
 CONFIG = {
@@ -14,6 +15,13 @@ CONFIG = {
     "output_root": "results/batch",
     "defaults": {"limit": 25, "temperature": 0.3},
 }
+
+
+def test_registry_and_claim_catalog_cover_the_same_benchmarks():
+    assert set(REGISTRY) == set(CATALOG)
+    assert CATALOG["temporalbench"].layer == "reasoning_harness"
+    assert CATALOG["propertybench"].layer == "engine"
+    assert CATALOG["effectbench"].layer == "safety_contract"
 
 
 def _cmd(benchmark, name, args, config=CONFIG):
