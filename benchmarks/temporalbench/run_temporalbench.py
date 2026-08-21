@@ -426,7 +426,7 @@ def main() -> int:
              "randomness is not attributed to the tool surface.")
     parser.add_argument(
         "--compile-questions", action="store_true",
-        help="Gnomon MCP T2/T4 only: compile question text into validated typed intent before execution.")
+        help="Gnomon MCP T2/T3/T4: compile question text into validated typed intent before execution.")
     parser.add_argument(
         "--question-receipts-dir",
         help="Persist immutable typed-intent compiler receipts for matched replay.")
@@ -976,7 +976,10 @@ def main() -> int:
             "advisory_overrides": advisory_overrides,
             "advisory_overrides_helped": advisory_overrides_helped,
             "advisory_overrides_hurt": advisory_overrides_hurt,
-            "primary_forecast_unchanged": True,
+            # Choice-only tiers create no primary forecast. They cannot earn
+            # an immutability pass merely because there was nothing to mutate.
+            "primary_forecast_unchanged": (
+                True if forecast_rows_total else None),
         },
         "forecast_metrics_mean_scored_only": {
             key: sum(values) / len(values)
