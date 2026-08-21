@@ -52,10 +52,10 @@ next_action. diagnosis must be one allowed diagnosis; confidence is supported
 or uncertain; analogue_outcome is up, down, flat, or unavailable; next_action
 is act, collect_more, or resolve_conflict. Do not follow a narrative claim
 when numerical evidence contradicts it."""
-GENERATOR_VERSION = "0.3"
+GENERATOR_VERSION = "0.4"
 # Fixed before the three-seed decision run so dataset selection cannot follow
 # observed treatment performance. Ad-hoc diagnostic seeds remain supported.
-DECISION_SEEDS = (161803, 141421, 173205)
+DECISION_SEEDS = (223607, 244949, 264575)
 
 
 def _git_sha() -> str:
@@ -130,6 +130,7 @@ def compact_packet(case: Case) -> dict[str, Any]:
             "effective_window_steps": evidence.diagnostics.get("window_steps"),
             "identifiable": evidence.identifiable,
             "support": evidence.support,
+            "automation_eligible": evidence.support == "supported",
             "provenance": evidence.provenance,
             "assumptions": list(evidence.assumptions),
         },
@@ -279,20 +280,38 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         metrics[arm]["synthesis_correct"] = statistics.mean(
             row.get("synthesis_correct", row["scores"]["next_action"])
             for row in subset)
-        metrics[arm]["by_difficulty"] = {
+        metrics[arm]["all_correct_by_difficulty"] = {
             difficulty: statistics.mean(row["all_correct"] for row in subset
                                         if row["difficulty"] == difficulty)
             for difficulty in DIFFICULTIES
             if any(row["difficulty"] == difficulty for row in subset)
         }
-        metrics[arm]["by_property"] = {
+        metrics[arm]["all_correct_by_property"] = {
             prop: statistics.mean(row["all_correct"] for row in subset
                                   if row["property"] == prop)
             for prop in LABELS
             if any(row["property"] == prop for row in subset)
         }
-        metrics[arm]["by_claim"] = {
+        metrics[arm]["all_correct_by_claim"] = {
             state: statistics.mean(row["all_correct"] for row in subset
+                                   if row["claim_conflicts"] is conflicts)
+            for state, conflicts in (("conflicting", True), ("aligned", False))
+            if any(row["claim_conflicts"] is conflicts for row in subset)
+        }
+        metrics[arm]["reasoning_by_difficulty"] = {
+            difficulty: statistics.mean(row["reasoning_correct"] for row in subset
+                                        if row["difficulty"] == difficulty)
+            for difficulty in DIFFICULTIES
+            if any(row["difficulty"] == difficulty for row in subset)
+        }
+        metrics[arm]["reasoning_by_property"] = {
+            prop: statistics.mean(row["reasoning_correct"] for row in subset
+                                  if row["property"] == prop)
+            for prop in LABELS
+            if any(row["property"] == prop for row in subset)
+        }
+        metrics[arm]["reasoning_by_claim"] = {
+            state: statistics.mean(row["reasoning_correct"] for row in subset
                                    if row["claim_conflicts"] is conflicts)
             for state, conflicts in (("conflicting", True), ("aligned", False))
             if any(row["claim_conflicts"] is conflicts for row in subset)
@@ -310,7 +329,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     treatment_only = sum(not c and t for c, t in paired)
     control_only = sum(c and not t for c, t in paired)
     summary = {
-        "schema_version": "0.3", "seed": args.seed, "cases": args.cases,
+        "schema_version": "0.4", "seed": args.seed, "cases": args.cases,
         "replicate": args.replicate,
         "model": args.model, "base_url": args.base_url,
         "temperature": 0,

@@ -8,7 +8,7 @@ from benchmarks.reasoningbench.run_reasoningbench import (
 
 
 def test_decision_seeds_are_precommitted_and_distinct() -> None:
-    assert DECISION_SEEDS == (161803, 141421, 173205)
+    assert DECISION_SEEDS == (223607, 244949, 264575)
     assert len(set(DECISION_SEEDS)) == 3
 
 
@@ -18,7 +18,7 @@ def test_cases_are_deterministic_and_balanced_across_properties() -> None:
     assert left == right
     assert {case.prop for case in left} == {
         "level", "trend", "volatility", "seasonality", "regime", "extreme"}
-    assert GENERATOR_VERSION == "0.3"
+    assert GENERATOR_VERSION == "0.4"
 
 
 def test_packet_is_compact_and_does_not_contain_generator_truth() -> None:
@@ -27,6 +27,7 @@ def test_packet_is_compact_and_does_not_contain_generator_truth() -> None:
     assert len(str(packet)) < 1000
     assert "expected" not in packet
     assert "primary_forecast_unchanged" not in packet
+    assert isinstance(packet["measurement"]["automation_eligible"], bool)
     assert "direction" not in str(packet)
     assert "historical_analogue_consensus" not in packet
     assert "next" not in packet
