@@ -17,7 +17,7 @@ from benchmarks.contextbench.run_contextbench import (
 )
 from benchmarks.contextbench.run_contextbench import main as run_main
 from benchmarks.contextbench.run_llm import (
-    compile_events, raw_case, safe_payload,
+    _bounded_context_tool, compile_events, raw_case, safe_payload,
 )
 from benchmarks.contextbench.run_surfaces import surface_row
 from benchmarks.contextbench.report_surfaces import aggregate
@@ -26,6 +26,7 @@ from benchmarks.contextbench.report_contextbench import (
 )
 from benchmarks.contextbench.schema import Case, load_cases, load_oracles
 from gnomon.context_model import rolling_residuals
+from gnomon.workflows import normalise_context_response_containers
 
 
 def test_generator_is_reproducible_seed_sensitive_and_balanced():
@@ -346,6 +347,22 @@ def test_scripted_compiler_is_quote_grounded_and_magnitude_free():
     assert attributes["evidence_quote"] == quote
 
 
+def test_schedule_compiler_schema_is_bounded_and_source_grounded_only():
+    from gnomon.workflows import CONTEXT_RESPONSE_SCHEMA
+
+    tool = _bounded_context_tool(
+        {"response_schema": CONTEXT_RESPONSE_SCHEMA}, 4)
+    schema = tool["function"]["parameters"]
+    events = schema["properties"]["events"]
+    assert events["maxItems"] == 4
+    assert set(events["items"]["properties"]) == set(
+        events["items"]["required"])
+    assert "hypotheses" not in schema["properties"]
+    # The reusable product schema must not be mutated by an adapter.
+    assert "effect_family" in CONTEXT_RESPONSE_SCHEMA[
+        "properties"]["events"]["items"]["properties"]
+
+
 def test_compiler_repairs_json_encoded_schema_containers():
     raw_cases, _ = generate(9, per_family=1)
     case = Case.from_dict(next(
@@ -361,11 +378,11 @@ def test_compiler_repairs_json_encoded_schema_containers():
         "effective_end": source["effective_end"],
         "known_at": "2025-01-01T00:00:00+00:00", "evidence_quote": quote,
     }])
-    compiled = compile_events(case, _ScriptedClient({
-        "events": encoded, "hypotheses": "[]"}))
-    assert len(compiled["events"]) == 1
-    assert compiled["events"][0]["entity_scope"] == ["*"]
-    assert compiled["container_coercions"]
+    repaired, repairs = normalise_context_response_containers({
+        "events": encoded, "hypotheses": "[]"})
+    assert len(repaired["events"]) == 1
+    assert repaired["events"][0]["entity_scope"] == ["value"]
+    assert repairs == ["events", "hypotheses"]
 
 
 def test_compiler_repairs_provider_trailing_fields_inside_events_string():
@@ -385,9 +402,10 @@ def test_compiler_repairs_provider_trailing_fields_inside_events_string():
     }
     for suffix in (', "hypotheses": []', ', "hypotheses": []}'):
         malformed = json.dumps([event]) + suffix
-        compiled = compile_events(case, _ScriptedClient({"events": malformed}))
-        assert len(compiled["events"]) == 1
-        assert "events+trailing_fields" in compiled["container_coercions"]
+        repaired, repairs = normalise_context_response_containers(
+            {"events": malformed})
+        assert len(repaired["events"]) == 1
+        assert "events+trailing_fields" in repairs
 
 
 def test_surface_report_separates_product_and_provider_failures(tmp_path):

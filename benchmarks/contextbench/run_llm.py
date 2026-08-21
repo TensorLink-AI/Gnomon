@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import os
@@ -19,6 +20,7 @@ from benchmarks.common.openrouter import OpenRouterClient
 from benchmarks.temporalbench.mcp_agent import coerce_json_containers
 from gnomon.workflows import (
     DocumentRef, build_context_investigation_prompt,
+    extract_explicit_schedule_context,
     normalise_context_response_containers, parse_context_response,
 )
 
@@ -42,6 +44,42 @@ FORECAST_TOOL = {
         },
     },
 }
+
+_CONTEXT_CHUNK_EVENTS = 4
+
+
+def _bounded_context_tool(request: dict[str, Any], max_events: int
+                          ) -> dict[str, Any]:
+    """Return the product schema with an explicit per-document output cap.
+
+    The ordinary workflow schema cannot know how many source events a caller
+    supplied.  This adapter does: every input line can ground at most one
+    event.  Encoding that fact in the schema prevents tool providers from
+    expanding a small source chunk into an unbounded, usually truncated JSON
+    payload.  It does not supply event values or consult the oracle.
+    """
+    schema = copy.deepcopy(request["response_schema"])
+    events = schema["properties"]["events"]
+    events["maxItems"] = max(0, max_events)
+    # These chunks contain only schedule rows selected from the source, so
+    # request the seven source-grounded fields the validator needs. Asking a
+    # provider to populate every optional soft-context field made each event
+    # several times larger and caused otherwise valid tool arguments to be
+    # truncated. Missing soft fields deliberately parse to ``unknown``; they
+    # are not inferred from benchmark truth.
+    required = set(events["items"]["required"])
+    events["items"]["properties"] = {
+        key: value for key, value in events["items"]["properties"].items()
+        if key in required
+    }
+    schema["properties"].pop("hypotheses", None)
+    return {"type": "function", "function": {
+        "name": "submit_context",
+        "description": (
+            "Submit only context explicitly grounded in this bounded source "
+            f"chunk; return at most {max_events} events."),
+        "parameters": schema,
+    }}
 
 
 def safe_payload(case: Case) -> dict[str, Any]:
@@ -162,8 +200,28 @@ def compile_events(case: Case, client: OpenRouterClient) -> dict[str, Any]:
     header = lines[0] if lines else ""
     event_lines = [line for line in lines if " affects the value series from " in line]
     footer = lines[-1] if lines else ""
-    chunks = [event_lines[index:index + 8]
-              for index in range(0, len(event_lines), 8)] or [[]]
+    source_reference = ("contextbench:" + hashlib.sha256(
+        case.case_id.encode()).hexdigest()[:16])
+    full_document = DocumentRef(
+        "context.txt", case.narrative, source_type=source_type,
+        reference=source_reference)
+    explicit_raw = extract_explicit_schedule_context([full_document])
+    explicit = parse_context_response(
+        {"events": explicit_raw["events"]}, [full_document],
+        proposer={"proposer_id": "deterministic:explicit_schedule_v1",
+                  "kind": "deterministic"})
+    for event_index, event in enumerate(explicit["events"]):
+        event["event_id"] = f"event_schedule_{event_index:03d}"
+    consumed_quotes = {
+        str((event.get("attributes") or {}).get("evidence_quote", ""))
+        for event in explicit["events"]
+    }
+    # Only residual schedule-like lines go to the semantic compiler. Literal
+    # ISO schedule rows are already losslessly parsed and quote-grounded.
+    event_lines = [line for line in event_lines if line not in consumed_quotes]
+    chunks = [event_lines[index:index + _CONTEXT_CHUNK_EVENTS]
+              for index in range(0, len(event_lines),
+                                 _CONTEXT_CHUNK_EVENTS)]
 
     def compile_chunk(item: tuple[int, list[str]]) -> dict[str, Any]:
         chunk_index, chunk_lines = item
@@ -171,15 +229,10 @@ def compile_events(case: Case, client: OpenRouterClient) -> dict[str, Any]:
         document = DocumentRef(
             f"context-chunk-{chunk_index}.txt", content,
             source_type=source_type,
-            reference=("contextbench:" + hashlib.sha256(
-                case.case_id.encode()).hexdigest()[:16] +
-                f":chunk:{chunk_index}"))
+            reference=(source_reference + f":chunk:{chunk_index}"))
         request = build_context_investigation_prompt(
             [document], ["*"], future_events=False)
-        tool = {"type": "function", "function": {
-            "name": "submit_context", "description": "Submit extracted context.",
-            "parameters": request["response_schema"],
-        }}
+        tool = _bounded_context_tool(request, len(chunk_lines))
         response = client.chat(
             [{"role": "system", "content": request["instructions"]}],
             tools=[tool], tool_choice="required", max_tokens=5000)
@@ -214,18 +267,25 @@ def compile_events(case: Case, client: OpenRouterClient) -> dict[str, Any]:
     # Bounded chunks are independent quoted documents. Parallel compilation
     # prevents a 30-occurrence schedule becoming a 5× latency penalty while
     # preserving deterministic result order below.
-    with ThreadPoolExecutor(max_workers=min(4, len(chunks))) as pool:
-        compiled_chunks = list(pool.map(
-            compile_chunk, list(enumerate(chunks))))
+    if chunks:
+        with ThreadPoolExecutor(max_workers=min(4, len(chunks))) as pool:
+            compiled_chunks = list(pool.map(
+                compile_chunk, list(enumerate(chunks))))
+    else:
+        compiled_chunks = []
     return {
-        "events": [event for chunk in compiled_chunks
-                   for event in chunk.get("events") or []],
-        "rejected": [item for chunk in compiled_chunks
-                     for item in chunk.get("rejected") or []],
+        "events": [*explicit["events"], *[
+            event for chunk in compiled_chunks
+            for event in chunk.get("events") or []]],
+        "rejected": [*explicit["rejected"], *[
+            item for chunk in compiled_chunks
+            for item in chunk.get("rejected") or []]],
         "hypotheses": [item for chunk in compiled_chunks
                        for item in chunk.get("hypotheses") or []],
-        "compiler_called": True,
+        "compiler_called": bool(compiled_chunks),
         "compiler_calls": len(compiled_chunks),
+        "deterministic_events": len(explicit["events"]),
+        "residual_lines": explicit_raw["residual_lines"],
         "raw_proposals": [chunk.get("raw_proposal") for chunk in compiled_chunks],
         "container_coercions": [item for chunk in compiled_chunks
                                 for item in chunk.get("container_coercions") or []],

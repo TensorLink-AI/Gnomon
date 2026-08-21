@@ -190,6 +190,45 @@ def test_temporalbench_axis_is_anchored_to_official_cutoff(tmp_path):
         run.finish()
 
 
+def test_host_compiled_context_is_written_inside_initialized_jail(tmp_path):
+    from benchmarks.temporalbench.mcp_agent import _Run
+
+    class Client:
+        total_prompt_tokens = 0
+        total_completion_tokens = 0
+
+    class Session:
+        def close(self):
+            pass
+
+    row = {
+        "tier": "T4", "id": "compiled-context",
+        "meta": {"n_horizon": 1, "main_key": "target",
+                 "history_end": "2030-01-02T10:00:00+00:00"},
+        "input": {"history": {"target": [1.0, 2.0, 3.0]}},
+        "ground_truth": {"target": [4.0]},
+        "_validated_context": {"events": [{
+            "event_id": "e1", "event_type": "deploy",
+            "entity_scope": ["*"],
+            "effective_start": "2030-01-02T11:00:00+00:00",
+            "effective_end": "2030-01-02T12:00:00+00:00",
+            "known_at": "2030-01-02T09:00:00+00:00",
+            "status": "confirmed", "confidence": 1.0,
+            "attributes": {}, "created_by": "llm",
+            "source": {"type": "benchmark_prompt", "reference": "row"},
+        }]},
+    }
+    run = _Run(row, Client(), session_factory=lambda jail: Session(),
+               work_dir=str(tmp_path), profile="evidence",
+               compile_context=True)
+    try:
+        assert run.context_events_file is not None
+        assert run.context_events_file.parent == run.jail
+        assert run.context_events_file.is_file()
+    finally:
+        run.finish()
+
+
 def test_temporalbench_observation_axis_does_not_infer_source_window_cadence(
         tmp_path):
     """The arrays omit timestamps; a 4h cluster gap is not a 4h grid."""

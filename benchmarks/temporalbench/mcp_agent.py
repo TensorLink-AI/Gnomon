@@ -865,6 +865,10 @@ class _RunBase:
         self.profile = profile
         self.client = client
         self.channels = self._row_channels(row)
+        # The jail is also the trust boundary for host-compiled context, so it
+        # must exist before compilation receipts are materialised below.
+        self.jail = Path(tempfile.mkdtemp(prefix="tb-mcp-",
+                                          dir=work_dir)).resolve()
         # Evidence executes through a host-bound panel schema. Long form gives
         # each observation-indexed channel its own consecutive axis; a wide
         # table pads unequal histories and turns absent readings into gaps.
@@ -944,8 +948,6 @@ class _RunBase:
         if "timestamp" in self.channels:
             raise ValueError("a channel named 'timestamp' collides with the "
                              "time column of the run CSV")
-        self.jail = Path(tempfile.mkdtemp(prefix="tb-mcp-",
-                                          dir=work_dir)).resolve()
         self.csv_path: Path | None = None
         if self.channels:
             self.csv_path = self.jail / "history.csv"
