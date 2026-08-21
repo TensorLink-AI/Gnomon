@@ -818,11 +818,15 @@ def main() -> int:
                         # not multiply the evaluation denominator.
                         receipt_answers[question_id] = typed_answer
             if tier == "T3":
-                requested_order = [
-                    str(question.get("id") or "")
-                    for question in temporal_compilation.get("questions") or []
-                    if isinstance(question, dict) and question.get("id")
-                ]
+                # T3's persisted MCP record deliberately carries compiler
+                # counts, not raw benchmark question text. Inline describe
+                # receipts can therefore establish unique returned answers
+                # and coverage, but not a label/options projection.
+                requested_count = int(temporal_compilation.get("accepted", 0))
+                typed_questions_requested += requested_count
+                typed_questions_with_engine_answer += min(
+                    requested_count, len(receipt_answers))
+                requested_order = []
             else:
                 requested_order = list((row.get("mcq") or {}).keys())
             requested_keys = set(requested_order)
