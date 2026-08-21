@@ -542,6 +542,7 @@ def main() -> int:
     temporal_answer_receipts = temporal_answers_returned = 0
     temporal_primary_unchanged = 0
     typed_questions_requested = typed_questions_with_engine_answer = 0
+    typed_engine_answers_officially_comparable = 0
     typed_engine_answers_officially_correct = 0
     typed_answers_comparable_to_submission = 0
     typed_answers_preserved_by_agent = 0
@@ -849,6 +850,7 @@ def main() -> int:
                            .get("options") or []) if tier != "T3" else []
                 projected = project_temporal_choice(best.get("value"), options)
                 if projected:
+                    typed_engine_answers_officially_comparable += 1
                     candidates.add(str(projected["display_value"]).strip().lower())
                     expected = (((row.get("mcq") or {}).get(question_id) or {})
                                 .get("label"))
@@ -1067,10 +1069,12 @@ def main() -> int:
                         if typed_questions_requested else None,
                     "officially_correct_with_engine_answer":
                         typed_engine_answers_officially_correct,
+                    "engine_answers_comparable_to_official_options":
+                        typed_engine_answers_officially_comparable,
                     "official_accuracy_conditional_on_engine_answer": round(
                         typed_engine_answers_officially_correct
-                        / typed_questions_with_engine_answer, 4)
-                        if typed_questions_with_engine_answer else None,
+                        / typed_engine_answers_officially_comparable, 4)
+                        if typed_engine_answers_officially_comparable else None,
                     "engine_answers_comparable_to_agent_submission":
                         typed_answers_comparable_to_submission,
                     "agent_preserved_canonical_answer":
