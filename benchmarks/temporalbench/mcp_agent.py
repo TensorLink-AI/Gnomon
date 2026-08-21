@@ -977,6 +977,7 @@ class _RunBase:
         self.context_execution: dict[str, dict[str, Any]] = {}
         self.covariate_execution: dict[str, dict[str, Any]] = {}
         self.complete_artifact_ready = False
+        self.complete_description_ready = False
         self.submission: dict[str, Any] | None = None
         self.tokens_at_start = (getattr(client, "total_prompt_tokens", 0)
                                 + getattr(client, "total_completion_tokens", 0))
@@ -1319,6 +1320,10 @@ class _RunBase:
                     return self._last_call(
                         messages, submit_tool,
                         "forecast artifact ready; engine browsing closed")
+                if self.complete_description_ready and not self.submission:
+                    return self._last_call(
+                        messages, submit_tool,
+                        "typed descriptive answers ready; engine browsing closed")
             if self.submission:
                 break
         if not self.submission:
@@ -1593,6 +1598,10 @@ class _RunBase:
             # Transport death is a harness failure, disclosed as such.
             return self._abstain_outcome(f"mcp transport failed: {error}")
         entry["is_error"] = bool(result.get("isError"))
+        if (name == "gnomon_describe" and not entry["is_error"]
+                and entry.get("host_data_binding") == "long_panel"
+                and entry.get("compiled_questions", 0) > 0):
+            self.complete_description_ready = True
         structured = result.get("structuredContent") or {}
         if isinstance(structured, dict):
             code = ((structured.get("error") or {}).get("code")

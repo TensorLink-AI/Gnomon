@@ -1239,6 +1239,8 @@ def test_evidence_t3_attaches_compiled_pack_questions_to_describe(tmp_path):
     assert first["host_data_binding"] == "long_panel"
     assert first["compiled_questions"] == 1
     assert first["is_error"] is False
+    assert outcome["mcp"]["calls"] == 1
+    assert len(client.requests) == 3  # compiler, describe, forced submission
 
 
 def test_mcq_submit_schema_is_the_row_s_own_shape():
