@@ -17,9 +17,11 @@ import statistics
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 
-from gnomon.temporal_adjudication import adjudicate_temporal_evidence
+from benchmarks.common.immutability import call_preserving_inputs  # noqa: E402
+from gnomon.temporal_adjudication import adjudicate_temporal_evidence  # noqa: E402
 
 
 LABELS = {
@@ -78,7 +80,12 @@ def run(seed: int = 92417, replicates: int = 20) -> dict[str, object]:
             for scenario, support, evidence, effect, expected in scenarios:
                 rng.shuffle(evidence)
                 fitted = replicate % 2 == 0
-                adjudication = adjudicate_temporal_evidence(
+                # Behavioral immutability: hand the adjudicator the original
+                # result/evidence/effect objects and compare them element-wise
+                # to a pre-call deep copy — its own primary_forecast_unchanged
+                # diagnostic is a constant and cannot gate anything.
+                adjudication, inputs_unmutated = call_preserving_inputs(
+                    adjudicate_temporal_evidence,
                     _result(canonical, support, fitted), evidence=evidence,
                     conditional_effect=effect)
                 eligibility = adjudication["synthesis_eligibility"]["eligible"]
@@ -93,8 +100,10 @@ def run(seed: int = 92417, replicates: int = 20) -> dict[str, object]:
                     "property": prop, "scenario": scenario,
                     "expected_eligible": expected, "eligible": eligibility,
                     "correct": eligibility is expected,
+                    # Attested by the engine; recorded, never gated on.
                     "primary_unchanged": adjudication[
                         "primary_forecast_unchanged"],
+                    "inputs_unmutated": inputs_unmutated,
                     "invented_probability": invented,
                     "fitted_probability_preserved": preserved if fitted else None,
                 })
@@ -107,8 +116,11 @@ def run(seed: int = 92417, replicates: int = 20) -> dict[str, object]:
     }
     gates = {
         "authority_accuracy_100pct": all(row["correct"] for row in rows),
-        "primary_forecast_immutable_100pct": all(
-            row["primary_unchanged"] for row in rows),
+        # Behavioral, not attested: primary_unchanged is the engine's own
+        # constant-True diagnostic, so the gate is the observed before/after
+        # comparison of every adjudicate call's inputs instead.
+        "inputs_unmutated_100pct": bool(rows) and all(
+            row["inputs_unmutated"] for row in rows),
         "invented_probability_0pct": not any(
             row["invented_probability"] for row in rows),
         "fitted_probability_preserved_100pct": all(

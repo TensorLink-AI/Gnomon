@@ -26,9 +26,12 @@
   `primary_forecast_unchanged` benchmark gates are replaced by behavioral
   input-mutation checks; PropertyBench derives distinct seeds per expected
   class; the workflow benchmark verifies publish-parity and quote-fidelity
-  against the artifact on disk instead of trusting arm attestations; and
-  the documented `full` MCP profile count is corrected to 18 with its
-  experimental-tool exclusion stated.
+  against the artifact on disk instead of trusting arm attestations;
+  TimeSage range checks are sentence-scoped so pass probability no longer
+  grows with response numerosity; CiK sample paths extrapolate exponential
+  tails beyond q10/q90 instead of clamping, so the treatment can again
+  violate stated constraint bounds; and the documented `full` MCP profile
+  count is corrected to 18 with its experimental-tool exclusion stated.
 
 - **Benchmark evidence releases and CI (PR #74, 2026-08-21).** Curated
   aggregate-only benchmark releases under `results/benchmark-releases/`

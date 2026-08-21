@@ -1269,6 +1269,53 @@ def test_answer_row_passes_the_experiment_profile(monkeypatch):
     assert seen == [{"profile": "core", "mcp_call_timeout": 17}]
 
 
+def test_cli_default_kwargs_reach_mcq_row_without_typeerror(monkeypatch):
+    """main() builds one kwargs set for both tier paths, and with the
+    parser DEFAULTS it always carries mcp_call_timeout
+    (``args.request_timeout``, default 180). ``mcq_row`` therefore has to
+    accept every option the CLI threads unconditionally: before the fix
+    each T1/T3 row died with a TypeError before its first model turn —
+    the arm "ran" while every question row was a terminal error. The
+    prior test gap was exercising ``answer_row`` with internal defaults
+    instead of the CLI's real kwargs, so this test passes exactly what
+    ``run_temporalbench.main`` passes."""
+    from benchmarks.temporalbench import run_temporalbench
+
+    seen = {}
+
+    class RecordingSession(InProcessMcpSession):
+        """Stands in for StdioMcpSession: same surface in-process, plus a
+        record of the call_timeout the default factory binds."""
+
+        def __init__(self, cwd, command=None, call_timeout=None):
+            seen["call_timeout"] = call_timeout
+            super().__init__(cwd)
+
+    monkeypatch.setattr(mcp_agent, "StdioMcpSession", RecordingSession)
+    client = ScriptedClient([
+        {"tool_calls": [("submit_answer", {"answers": {
+            "trend": "upward", "volatility": "increased"}})]},
+    ])
+    # The exact keyword set main() passes for every row, at CLI defaults
+    # (mcp_profile default "evidence", request_timeout default 180).
+    outcome = run_temporalbench.answer_row(
+        _t1_row(), "gnomon-mcp", client,
+        best_effort=False,
+        mcp_profile="evidence",
+        compile_context=False,
+        context_receipts_dir=None,
+        compile_questions=False,
+        question_receipts_dir=None,
+        mcp_call_timeout=180,
+        named_tsfm=None,
+        model_evidence_registry=None,
+    )
+    assert outcome["answer"] == {"trend": "upward", "volatility": "increased"}
+    # The timeout reaches the session exactly as on T2/T4: a hung server
+    # call on a question tier must not stall the run forever either.
+    assert seen["call_timeout"] == 180
+
+
 def test_mcp_condition_keeps_the_requested_tiers(tmp_path, monkeypatch):
     """`--condition gnomon-mcp --tiers T1,T2,T3,T4` must run all four:
     the arm is no longer T2/T4 by construction."""

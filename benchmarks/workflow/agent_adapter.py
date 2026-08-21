@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import argparse
 import csv
-import hashlib
 import json
 import math
 import sys
@@ -23,50 +22,41 @@ from benchmarks.cik.mcp_agent import StdioMcpSession, _tool_calls_as_dicts
 from benchmarks.common.openrouter import OpenRouterClient
 from benchmarks.temporalbench.mcp_agent import openai_tool_specs
 from benchmarks.temporalbench.tasks import extract_json_object
+# Shared with run_workflow's artifact verification so both sides derive
+# identities identically; the local underscore names remain the adapter's
+# public-for-tests surface.
+from benchmarks.workflow.provenance import (
+    artifact_evidence as _artifact_evidence,
+    identity_fingerprint as _identity_fingerprint,
+)
 
 PROFILES = {"core", "describe", "evidence", "mega", "full"}
 MAX_ROUNDS = 6
 MAX_TOOL_CALLS = 4
 
 
-def _identity_fingerprint(name: str, data_fingerprint: str) -> str:
-    payload = json.dumps({"candidate": name, "data": data_fingerprint},
-                         sort_keys=True, separators=(",", ":"))
-    return "sha256:" + hashlib.sha256(payload.encode("utf-8")).hexdigest()
+def _export_artifact_for_verification(artifact_path: str | Path,
+                                      case_id: str) -> str:
+    """Copy the artifact's identity files out of the temporary jail.
 
-
-def _artifact_evidence(artifact_path: str | Path,
-                       artifact: dict[str, Any]) -> dict[str, Any]:
-    """Extract independently recorded evaluation/publication identities.
-
-    Composite evaluation identity lives in ``final_candidate`` evidence;
-    publication identity lives in the immutable artifact result.  Built-ins
-    deliberately have no extra evidence record, so their selected-model field
-    is the contract boundary.  Full member/weight equality is enforced by the
-    engine's executable-candidate tests, not inferred from an agent response.
+    The jail is deleted when this adapter process exits, which would leave
+    the runner nothing to re-read and keep every trust claim attested-only.
+    When run_workflow names an export directory, artifact.json and
+    evidence.jsonl are copied there and THAT durable path is reported as
+    the observation's artifact_path.
     """
-    results = artifact.get("results") or []
-    if len(results) != 1:
-        return {"parity_evidence_level": "unavailable"}
-    published_name = results[0].get("selected_model")
-    source = artifact.get("source_fingerprint")
-    evaluated_name = None
-    evidence_path = Path(artifact_path) / "evidence.jsonl"
-    if evidence_path.is_file():
-        for line in evidence_path.read_text(encoding="utf-8").splitlines():
-            record = json.loads(line)
-            if record.get("kind") == "final_candidate":
-                evaluated_name = (record.get("payload") or {}).get("name")
-    level = "composite_candidate" if evaluated_name else "builtin_selected_model"
-    evaluated_name = evaluated_name or published_name
-    if not evaluated_name or not published_name or not source:
-        return {"parity_evidence_level": "unavailable"}
-    return {
-        "evaluated_fingerprint": _identity_fingerprint(evaluated_name, source),
-        "published_fingerprint": _identity_fingerprint(published_name, source),
-        "artifact_id": artifact.get("forecast_id"),
-        "parity_evidence_level": level,
-    }
+    import shutil
+
+    export_root = os.environ.get("WORKFLOW_ARTIFACT_EXPORT_DIR")
+    if not export_root:
+        return str(artifact_path)
+    destination = Path(export_root) / f"{case_id}-{Path(artifact_path).name}"
+    destination.mkdir(parents=True, exist_ok=True)
+    for name in ("artifact.json", "evidence.jsonl"):
+        source = Path(artifact_path) / name
+        if source.is_file():
+            shutil.copy2(source, destination / name)
+    return str(destination)
 
 
 def _find_triage(value: Any) -> dict[str, Any] | None:
@@ -305,6 +295,7 @@ def _normalize(case_id: str, value: dict[str, Any], *, calls: int,
                      "redundant_calls": engine_evidence.get("redundant_calls", 0),
                      **({"error": "model_submission_error"} if status == "error" else {}),
                      "artifact_id": engine_evidence.get("artifact_id"),
+                     "artifact_path": engine_evidence.get("artifact_path"),
                      "agent_artifact_id": value.get("artifact_id"),
                      "parity_evidence_level": engine_evidence.get("parity_evidence_level"),
                      "envelope_repairs": {
@@ -458,6 +449,11 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                         try:
                             from gnomon.artifacts import read_artifact
                             artifact = read_artifact(artifact_path)
+                            # Recorded so run_workflow can re-read the artifact
+                            # and verify the trust claims independently.
+                            engine_evidence["artifact_path"] = \
+                                _export_artifact_for_verification(
+                                    artifact_path, str(case.get("id", "case")))
                             engine_evidence.update(_artifact_evidence(artifact_path, artifact))
                             answer_keys = set((case.get("answer_schema") or {}).get("numbers") or [])
                             if "next" in answer_keys:

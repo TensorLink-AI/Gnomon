@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import concurrent.futures
 import json
+import os
 import shlex
 import subprocess
 from dataclasses import replace
@@ -21,9 +22,71 @@ from typing import Any
 from benchmarks.common.manifest import write_manifest
 from benchmarks.workflow.schema import Case, Observation, load_cases, load_observations
 from benchmarks.workflow.scoring import score_run
-from benchmarks.workflow.provenance import atomic_write_text, corpus_sha256, write_observations
+from benchmarks.workflow.provenance import (
+    artifact_evidence, atomic_write_text, corpus_sha256, write_observations)
 
 DEFAULT_CASES = Path(__file__).with_name("cases") / "smoke.jsonl"
+
+#: Set for arm subprocesses: an adapter that produces artifacts inside a
+#: temporary jail copies the identity files (artifact.json, evidence.jsonl)
+#: here so the runner can still re-read them after the jail is gone.
+ARTIFACT_EXPORT_ENV = "WORKFLOW_ARTIFACT_EXPORT_DIR"
+
+
+def _artifact_headline_numbers(artifact: dict[str, Any]) -> dict[str, float]:
+    """The artifact's own quotable numbers, derived the same way the
+    adapters derive theirs: the first forecast row's q50 (or point)."""
+    results = artifact.get("results") or []
+    if len(results) != 1:
+        return {}
+    forecast = results[0].get("forecast") or []
+    if not forecast:
+        return {}
+    point = forecast[0].get("q50", forecast[0].get("point"))
+    try:
+        return {"next": float(point)} if point is not None else {}
+    except (TypeError, ValueError):
+        return {}
+
+
+def verify_observation_artifact(obs: Observation) -> Observation:
+    """Attested → verified: re-read the artifact an observation names.
+
+    The publish-parity and quote-fidelity trust components otherwise rest
+    entirely on arm-supplied observation fields, so a fabricated
+    observation passes trust. When the observation's metadata carries an
+    ``artifact_path`` that still exists, the runner (a) recomputes the
+    evaluated/published fingerprint comparison from the artifact's own
+    recorded identity and (b) compares the claimed headline numbers with
+    the artifact's numbers, storing both in ``verified_*`` fields that
+    scoring prefers over the attested values. Observations without a
+    readable artifact — the raw control among them — stay attested-only.
+    """
+    artifact_path = obs.metadata.get("artifact_path")
+    if not artifact_path:
+        return obs
+    manifest = Path(str(artifact_path)) / "artifact.json"
+    if not manifest.is_file():
+        return obs
+    try:
+        artifact = json.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return obs
+    identity = artifact_evidence(Path(str(artifact_path)), artifact)
+    evaluated = identity.get("evaluated_fingerprint")
+    published = identity.get("published_fingerprint")
+    verified_parity = ((evaluated == published)
+                       if evaluated and published else None)
+    artifact_numbers = _artifact_headline_numbers(artifact)
+    claimed = obs.headline_numbers or obs.numbers
+    verified_quote = (all(
+        key in claimed and float(claimed[key]) == float(value)
+        for key, value in artifact_numbers.items())
+        if artifact_numbers else None)
+    if verified_parity is None and verified_quote is None:
+        return obs
+    return replace(obs, verified_publish_parity=verified_parity,
+                   verified_quote_match=verified_quote)
 
 
 def case_payload(case: Case) -> dict[str, Any]:
@@ -262,9 +325,17 @@ def main() -> int:
     prior_path = output_dir / "observations.jsonl"
     prior = (load_observations(prior_path)
              if args.resume and prior_path.is_file() and not args.submission else None)
+    if not args.submission:
+        # Arm subprocesses inherit this: adapters export each artifact's
+        # identity files beside the results so verification survives the
+        # arm's temporary jail.
+        export_dir = output_dir / "artifacts"
+        export_dir.mkdir(parents=True, exist_ok=True)
+        os.environ[ARTIFACT_EXPORT_ENV] = str(export_dir)
     observations = load_observations(args.submission) if args.submission else \
         run_command(cases, args.arm_command, args.timeout, args.jobs,
                     args.infrastructure_retries, prior, prior_path)
+    observations = [verify_observation_artifact(row) for row in observations]
     result = score_run(cases, observations, arm=args.arm)
     output_dir.mkdir(parents=True, exist_ok=True)
     atomic_write_text(output_dir / "summary.json",

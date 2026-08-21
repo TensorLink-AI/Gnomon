@@ -48,12 +48,29 @@ def test_quantile_samples_shape_and_median():
     assert median == [10.0, 20.0]
 
 
-def test_quantile_samples_clamped_tails_and_order():
+def test_quantile_samples_extend_exponential_tails_beyond_q10_q90():
+    """The old clamp kept every sample inside [q10, q90], so a constraint
+    bound beyond q90 could never be violated. Tails now extrapolate
+    exponentially, calibrated from the q50→q10 / q50→q90 spreads, and
+    pass exactly through the outer quantiles at p = 0.1 / 0.9."""
+    import math
+
     rows = [{"point": 5.0, "q10": 2.0, "q50": 5.0, "q90": 9.0}]
     samples = samples_from_quantile_rows(rows, 100)
     values = [trajectory[0] for trajectory in samples]
-    assert min(values) == 2.0 and max(values) == 9.0
     assert values == sorted(values)
+    # Mass now lies beyond the outer quantiles on both sides.
+    assert max(values) > 9.0
+    assert min(values) < 2.0
+    # Calibration: the extreme stratified probabilities 0.005 / 0.995 sit
+    # spread * ln(0.5 / 0.005) / ln(0.5 / 0.1) beyond the median.
+    stretch = math.log(0.5 / 0.005) / math.log(5)
+    assert abs(values[-1] - (5.0 + 4.0 * stretch)) < 1e-9
+    assert abs(values[0] - (5.0 - 3.0 * stretch)) < 1e-9
+    # Continuity at the knots: samples nearest p = 0.1 / 0.9 stay near the
+    # outer quantiles rather than jumping.
+    assert abs(values[10] - 2.0) < 0.15  # p = 0.105
+    assert abs(values[89] - 9.0) < 0.2   # p = 0.895
 
 
 def test_quantile_samples_handles_missing_quantiles():
