@@ -14,7 +14,8 @@ from gnomon.workflows import (
 def test_explicit_schedule_parser_is_verbatim_and_leaves_residual_prose():
     document = DocumentRef(
         "schedule.txt",
-        "Published at 2026-01-01T00:00:00+00:00.\n"
+        "The complete schedule was published and became knowable at "
+        "2026-01-01T00:00:00+00:00.\n"
         "deploy affects the value series from 2026-02-01T01:00:00+00:00 "
         "through 2026-02-01T03:00:00+00:00.\n"
         "Operators expect a busy morning.",
@@ -26,6 +27,7 @@ def test_explicit_schedule_parser_is_verbatim_and_leaves_residual_prose():
         "effective_start": "2026-02-01T01:00:00+00:00",
         "effective_end": "2026-02-01T03:00:00+00:00",
         "known_at": "2026-01-01T00:00:00+00:00",
+        "status": "confirmed", "confidence": 1.0,
         "evidence_quote": (
             "deploy affects the value series from "
             "2026-02-01T01:00:00+00:00 through "

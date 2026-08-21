@@ -52,6 +52,10 @@ _ISO_TIMESTAMP = (
 _KNOWN_AT_RE = re.compile(
     rf"\b(?:known|knowable|published|announced)\s+(?:at|on)\s+"
     rf"(?P<known_at>{_ISO_TIMESTAMP})\b", re.IGNORECASE)
+_CONFIRMED_SCHEDULE_RE = re.compile(
+    r"\b(?:(?:complete|confirmed)\s+)?schedule\s+(?:was\s+)?published\b",
+    re.IGNORECASE,
+)
 _SCHEDULE_ROW_RE = re.compile(
     rf"^(?P<event_type>[^.]+?)\s+affects\s+(?:the\s+)?"
     rf"(?P<scope>[^.]+?)\s+from\s+(?P<start>{_ISO_TIMESTAMP})\s+"
@@ -73,6 +77,8 @@ def extract_explicit_schedule_context(
     for document_index, document in enumerate(documents):
         known_match = _KNOWN_AT_RE.search(document.content)
         known_at = known_match.group("known_at") if known_match else None
+        confirmed_schedule = bool(_CONFIRMED_SCHEDULE_RE.search(
+            document.content))
         for line_number, source_line in enumerate(
                 document.content.splitlines(), start=1):
             line = source_line.strip()
@@ -108,6 +114,8 @@ def extract_explicit_schedule_context(
                 "effective_end": match.group("end"),
                 "known_at": known_at,
                 "evidence_quote": source_line,
+                "status": "confirmed" if confirmed_schedule else "tentative",
+                "confidence": 1.0 if confirmed_schedule else 0.5,
             })
     return {"events": proposals, "residual_lines": residual}
 

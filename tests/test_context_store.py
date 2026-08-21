@@ -37,6 +37,35 @@ def test_receipt_store_round_trips_and_finds_by_interpretation_key(tmp_path):
     assert store.find(key) == _receipt()
 
 
+def test_context_materializer_preserves_file_trust_and_inline_distrust(
+        tmp_path, monkeypatch):
+    from gnomon.context import backtest_admissible
+    from gnomon.toolspec import _materialise_context
+
+    store = ContextReceiptStore(tmp_path / "store")
+    monkeypatch.setattr(ContextReceiptStore, "default", lambda: store)
+    event = {
+        "event_id": "deploy", "event_type": "deployment",
+        "entity_scope": ["*"],
+        "effective_start": "2026-01-02T00:00:00+00:00",
+        "effective_end": "2026-01-03T00:00:00+00:00",
+        "known_at": "2026-01-01T00:00:00+00:00",
+        "source": {"type": "calendar", "reference": "ops.ics"},
+        "created_by": "llm",
+    }
+    event_file = tmp_path / "events.json"
+    event_file.write_text(json.dumps({
+        "schema_version": "0.1", "events": [event]}))
+
+    file_arguments, _ = _materialise_context({
+        "context_events_file": str(event_file)})
+    inline_arguments, _ = _materialise_context({"context_events": [event]})
+    assert backtest_admissible(
+        file_arguments["_materialized_context_events"][0])
+    assert not backtest_admissible(
+        inline_arguments["_materialized_context_events"][0])
+
+
 def test_one_receipt_can_satisfy_multiple_interpretation_keys(tmp_path):
     store = ContextReceiptStore(tmp_path)
     receipt = _receipt()
