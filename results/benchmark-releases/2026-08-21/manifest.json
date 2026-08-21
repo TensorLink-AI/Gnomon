@@ -82,7 +82,7 @@
       "status": "historical_unverified"
     }
   ],
-  "curated_by_commit": "6d7d41f4456cd88929f67cf2a91c679c4f5317c8",
+  "curated_by_commit": "4240bad5e97275337aa136de494b424d9a98a396",
   "not_included": [
     {
       "benchmark": "reasoningbench",
