@@ -227,8 +227,8 @@ def answer_row(row: dict[str, Any], condition: str,
         # T1/T3 carry no forecast channels, so they take the same
         # session with the tier's own answer shape.
         # Keep tier-independent session options separate from forecast-only
-        # compiler options.  Passing the latter through to ``mcq_row`` made
-        # all-tier Evidence runs fail before the model was called.
+        # model-admission options. Question compilation applies to both the
+        # forecasting questions and T3's descriptive question pack.
         common_args = ({} if mcp_profile == "full"
                        else {"profile": mcp_profile})
         if compile_context:
@@ -237,14 +237,14 @@ def answer_row(row: dict[str, Any], condition: str,
                 common_args["context_receipts_dir"] = context_receipts_dir
         if mcp_call_timeout is not None:
             common_args["mcp_call_timeout"] = mcp_call_timeout
+        if compile_questions:
+            common_args["compile_questions"] = True
+            if question_receipts_dir:
+                common_args["question_receipts_dir"] = question_receipts_dir
         if row.get("tier") not in ("T2", "T4"):
             return mcq_row(row, client, **common_args)
 
         forecast_args = dict(common_args)
-        if compile_questions:
-            forecast_args["compile_questions"] = True
-            if question_receipts_dir:
-                forecast_args["question_receipts_dir"] = question_receipts_dir
         if model_evidence_registry:
             forecast_args["model_evidence_registry"] = model_evidence_registry
         return run_row(row, client, **forecast_args)

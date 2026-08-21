@@ -67,6 +67,26 @@ def test_temporal_question_compiler_uses_text_not_labels_and_reuses_receipt(
     assert reused["compiler_called"] is False
 
 
+def test_t3_question_compiler_reads_pack_text_but_seals_oracle_fields(
+        tmp_path) -> None:
+    row = _t3_row()
+    row["pack"][0]["evidence"] = {"answer_key_fact": 999}
+    client = ScriptedClient([{"tool_calls": [("submit_temporal_intent", {
+        "status": "compiled", "questions": [{
+            "id": "q1", "verb": "describe", "property": "level",
+            "target": "hr"}]})]}])
+
+    result = mcp_agent.compile_row_temporal_questions(
+        row, client, ["hr"], str(tmp_path / "receipts"))
+
+    assert result["questions"][0]["property"] == "level"
+    request = client.requests[0]
+    rendered = json.dumps(request, sort_keys=True)
+    assert "answer_key_fact" not in rendered
+    assert '"label"' not in rendered
+    assert "Higher" not in rendered
+
+
 def test_failed_temporal_receipt_is_diagnostic_not_permanent_cache(
         tmp_path) -> None:
     row = _row(sparse_temp=False)
@@ -276,7 +296,8 @@ class ScriptedClient:
         self.total_completion_tokens = 0
 
     def chat(self, messages, *, n=1, tools=None, tool_choice=None, **kwargs):
-        self.requests.append({"tools": tools, "tool_choice": tool_choice})
+        self.requests.append({"messages": messages, "tools": tools,
+                              "tool_choice": tool_choice})
         assert self.steps, "model script exhausted before submission"
         step = self.steps.pop(0)
         action = step(messages) if callable(step) else step
@@ -1137,8 +1158,10 @@ def _t3_row() -> dict:
     return {
         "id": "tb-mcp-t3", "tier": "T3", "source_dataset": "MIMIC",
         "prompt": 'Answer the pack. Input (JSON): {"hr": [70, 71, 72, 73]}',
-        "pack": [{"options": ["Higher", "Lower"], "label": "Higher"},
-                 {"options": ["Yes", "No"], "label": "No"}],
+        "pack": [{"question": "Is hr higher at the end?",
+                  "options": ["Higher", "Lower"], "label": "Higher"},
+                 {"question": "Is hr level stable?",
+                  "options": ["Yes", "No"], "label": "No"}],
     }
 
 
@@ -1192,6 +1215,30 @@ def test_evidence_t3_describe_uses_host_resolved_panel_binding(tmp_path):
     assert outcome["mcp"]["tool_sequence"][0]["host_data_binding"] == \
         "long_panel"
     assert outcome["mcp"]["tool_sequence"][0]["is_error"] is False
+
+
+def test_evidence_t3_attaches_compiled_pack_questions_to_describe(tmp_path):
+    client = ScriptedClient([
+        {"tool_calls": [("submit_temporal_intent", {
+            "status": "compiled", "questions": [{
+                "id": "q1", "verb": "describe", "property": "level",
+                "target": "hr"}]})]},
+        {"tool_calls": [("gnomon_describe", {})]},
+        {"tool_calls": [("submit_answer", {
+            "answers": ["Higher", "No"],
+        })]},
+    ])
+
+    outcome = mcq_row(
+        _t3_row(), client, session_factory=_factory(),
+        work_dir=str(tmp_path), profile="evidence",
+        compile_questions=True,
+        question_receipts_dir=str(tmp_path / "question-receipts"))
+
+    first = outcome["mcp"]["tool_sequence"][0]
+    assert first["host_data_binding"] == "long_panel"
+    assert first["compiled_questions"] == 1
+    assert first["is_error"] is False
 
 
 def test_mcq_submit_schema_is_the_row_s_own_shape():
@@ -1309,8 +1356,8 @@ def test_answer_row_passes_the_experiment_profile(monkeypatch):
     assert seen == [{"profile": "core", "mcp_call_timeout": 17}]
 
 
-def test_answer_row_keeps_forecast_compiler_options_off_mcq_path(monkeypatch):
-    """T1/T3 share MCP context, but not the T2/T4 question compiler."""
+def test_answer_row_passes_question_compiler_to_mcq_path(monkeypatch):
+    """T3 question packs use the same host compiler as forecast MCQs."""
     from benchmarks.temporalbench import run_temporalbench
 
     seen = []
@@ -1330,6 +1377,8 @@ def test_answer_row_keeps_forecast_compiler_options_off_mcq_path(monkeypatch):
         "compile_context": True,
         "context_receipts_dir": "context",
         "mcp_call_timeout": 17,
+        "compile_questions": True,
+        "question_receipts_dir": "questions",
     }]
 
 

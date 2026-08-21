@@ -522,8 +522,12 @@ def compile_row_temporal_questions(
         INTENT_COMPILER_VERSION, INTENT_SCHEMA, compile_temporal_text_receipt,
     )
 
+    if row.get("tier") == "T3":
+        question_items = row.get("pack") or []
+    else:
+        question_items = (row.get("mcq") or {}).values()
     text = "\n".join(str(item.get("question") or "")
-                     for item in (row.get("mcq") or {}).values()
+                     for item in question_items
                      if isinstance(item, dict)).strip()
     if not text:
         return {"attempted": False, "questions": []}
@@ -588,7 +592,8 @@ def compile_row_temporal_questions(
     try:
         receipt = compile_temporal_text_receipt(
             text, available_targets=targets, adapter=Adapter(),
-            default_verb="predict",
+            default_verb=("describe" if row.get("tier") == "T3"
+                          else "predict"),
             default_horizon=default_horizon)
         result = {"input_fingerprint": fingerprint,
                   "proposed": receipt["proposed"],
@@ -878,7 +883,7 @@ class _RunBase:
         self.temporal_compilation = (
             compile_row_temporal_questions(
                 row, client, list(self.channels), question_receipts_dir)
-            if compile_questions and row.get("tier") in {"T2", "T4"}
+            if compile_questions and row.get("tier") in {"T2", "T3", "T4"}
             else {"attempted": False, "questions": []}
         )
         raw_origin = row.get("_time_origin")
@@ -1476,16 +1481,20 @@ class _RunBase:
             # still chooses the verb and typed questions; schema facts are
             # supplied by the host that owns them.
             questions = arguments.get("questions")
+            compiled_questions = (getattr(
+                self, "temporal_compilation", {}) or {}).get("questions") or []
             arguments = {
                 "input": str(self.csv_path),
                 "time_column": "timestamp",
                 "target_column": "value",
                 "series_column": "series",
                 "frequency": getattr(self, "frequency", "h"),
-                **({"questions": questions} if questions else {}),
+                **({"questions": compiled_questions or questions}
+                   if compiled_questions or questions else {}),
             }
             entry["host_data_binding"] = "long_panel"
             entry["typed_questions"] = len(questions or [])
+            entry["compiled_questions"] = len(compiled_questions)
         elif (name == "gnomon_forecast" and getattr(self, "target_keys", None)
                 and (self.profile == "evidence"
                      or self.row.get("_host_compiled_forecast")
@@ -2153,7 +2162,9 @@ class _McqRun(_RunBase):
     def __init__(self, row: dict[str, Any], client: Any,
                  session_factory: Any = None, work_dir: str | None = None,
                  profile: str = "full", compile_context: bool = False,
-                 context_receipts_dir: str | None = None):
+                 context_receipts_dir: str | None = None,
+                 compile_questions: bool = False,
+                 question_receipts_dir: str | None = None):
         self.tool, self.answer_rule = mcq_submit_tool(row)
         self.expected_fields = list(row.get("labels") or {})
         self.expected_count = len(row.get("pack") or [])
@@ -2162,7 +2173,9 @@ class _McqRun(_RunBase):
         super().__init__(row, client, session_factory=session_factory,
                          work_dir=work_dir, profile=profile,
                          compile_context=compile_context,
-                         context_receipts_dir=context_receipts_dir)
+                         context_receipts_dir=context_receipts_dir,
+                         compile_questions=compile_questions,
+                         question_receipts_dir=question_receipts_dir)
 
     def _row_channels(self, row: dict[str, Any]) -> dict[str, list[float]]:
         try:
@@ -2310,6 +2323,8 @@ def mcq_row(row: dict[str, Any], client: Any, *,
             profile: str = "full",
             compile_context: bool = False,
             context_receipts_dir: str | None = None,
+            compile_questions: bool = False,
+            question_receipts_dir: str | None = None,
             mcp_call_timeout: float | None = None) -> dict[str, Any]:
     """Drive one T1/T3 row through the same surface with the tier's own
     answer shape; the answer object is what that tier's scorer reads."""
@@ -2322,7 +2337,9 @@ def mcq_row(row: dict[str, Any], client: Any, *,
     return _drive(_McqRun(row, client, session_factory=session_factory,
                           work_dir=work_dir, profile=profile,
                           compile_context=compile_context,
-                          context_receipts_dir=context_receipts_dir))
+                          context_receipts_dir=context_receipts_dir,
+                          compile_questions=compile_questions,
+                          question_receipts_dir=question_receipts_dir))
 
 
 def _ensure_checkout_importable() -> None:
