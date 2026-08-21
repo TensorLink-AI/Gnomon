@@ -1,7 +1,7 @@
 from argparse import Namespace
 
 from benchmarks.reasoningbench.run_reasoningbench import (
-    compact_packet, exact_sign_p, expected, generate_cases, parse_answer,
+    GENERATOR_VERSION, compact_packet, exact_sign_p, expected, generate_cases, parse_answer,
     packet_exposes_answer,
 )
 
@@ -12,6 +12,7 @@ def test_cases_are_deterministic_and_balanced_across_properties() -> None:
     assert left == right
     assert {case.prop for case in left} == {
         "level", "trend", "volatility", "seasonality", "regime", "extreme"}
+    assert GENERATOR_VERSION == "0.2"
 
 
 def test_packet_is_compact_and_does_not_contain_generator_truth() -> None:

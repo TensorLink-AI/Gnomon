@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
+import hashlib
 import json
 import math
 import os
@@ -20,6 +21,7 @@ from pathlib import Path
 import random
 import re
 import statistics
+import subprocess
 import sys
 import threading
 from typing import Any
@@ -50,6 +52,19 @@ next_action. diagnosis must be one allowed diagnosis; confidence is supported
 or uncertain; analogue_outcome is up, down, flat, or unavailable; next_action
 is act, collect_more, or resolve_conflict. Do not follow a narrative claim
 when numerical evidence contradicts it."""
+GENERATOR_VERSION = "0.2"
+
+
+def _git_sha() -> str:
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return "unknown"
+
+
+def _harness_sha256() -> str:
+    return hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
 
 
 @dataclass(frozen=True)
@@ -284,8 +299,20 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     treatment_only = sum(not c and t for c, t in paired)
     control_only = sum(c and not t for c, t in paired)
     summary = {
-        "schema_version": "0.1", "seed": args.seed, "cases": args.cases,
+        "schema_version": "0.2", "seed": args.seed, "cases": args.cases,
+        "replicate": args.replicate,
         "model": args.model, "base_url": args.base_url,
+        "temperature": 0,
+        "provenance": {
+            "evaluated_commit": _git_sha(),
+            "harness_commit": _git_sha(),
+            "harness_sha256": _harness_sha256(),
+            "dataset_identity": (
+                f"reasoningbench-generator-{GENERATOR_VERSION}:"
+                f"seed={args.seed}:cases={args.cases}"),
+            "configuration_identity": (
+                f"model={args.model}:temperature=0:replicate={args.replicate}"),
+        },
         "metrics": metrics,
         "paired": {"treatment_only": treatment_only,
                    "control_only": control_only,
@@ -315,6 +342,7 @@ def main() -> int:
     parser.add_argument("--base-url", default="https://api.engy.ai/v1")
     parser.add_argument("--cases", type=int, default=72)
     parser.add_argument("--seed", type=int, default=82026)
+    parser.add_argument("--replicate", type=int, default=1)
     parser.add_argument("--concurrency", type=int, default=8)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--resume", action="store_true")

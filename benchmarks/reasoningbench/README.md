@@ -32,3 +32,9 @@ uv run python -m benchmarks.reasoningbench.run_reasoningbench \
 For Engy, the defaults use `deepseek-v4-flash-0731` at
 `https://api.engy.ai/v1` and read `ENGY_API_KEY` from `.env`. Use `--resume` to
 score saved rows without repeating successful calls.
+
+Decision runs pre-commit generator seeds and provider replicates. Pass
+`--replicate N`; every summary binds the evaluated/harness commit, exact
+harness digest, generator version, seed, case count, model, and temperature.
+Never merge rows whose provenance differs except for the declared seed or
+replicate dimension.
