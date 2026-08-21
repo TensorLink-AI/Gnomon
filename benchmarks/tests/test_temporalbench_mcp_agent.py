@@ -1165,6 +1165,35 @@ def test_t3_answers_are_the_pack_list_in_order(tmp_path):
     assert score_t3(_t3_row(), outcome["answer"]["answers"])["correct"] == 2
 
 
+def test_evidence_t3_describe_uses_host_resolved_panel_binding(tmp_path):
+    """The agent chooses the verb/questions, never the data schema."""
+    row = _t3_row()
+
+    def submit_after_describe(messages):
+        payload = _last_tool_payload(messages)
+        assert payload.get("status") != "error", payload
+        return {"tool_calls": [("submit_answer", {
+            "answers": ["Higher", "No"],
+        })]}
+
+    client = ScriptedClient([
+        {"tool_calls": [("gnomon_describe", {
+            "input": "/outside/invented.csv",
+            "target_column": "invented",
+            "frequency": "10min",
+        })]},
+        submit_after_describe,
+    ])
+    outcome = mcq_row(
+        row, client, session_factory=_factory(), work_dir=str(tmp_path),
+        profile="evidence")
+
+    assert outcome["answer"] == {"answers": ["Higher", "No"]}
+    assert outcome["mcp"]["tool_sequence"][0]["host_data_binding"] == \
+        "long_panel"
+    assert outcome["mcp"]["tool_sequence"][0]["is_error"] is False
+
+
 def test_mcq_submit_schema_is_the_row_s_own_shape():
     from benchmarks.temporalbench.mcp_agent import mcq_submit_tool
 

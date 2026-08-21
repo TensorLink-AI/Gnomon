@@ -1197,7 +1197,7 @@ class _RunBase:
                             "superseded", "coerced", "submit_rejected",
                             "last_call_repair", "submission_fallback",
                             "host_submission", "typed_questions",
-                            "compiled_questions")}
+                            "compiled_questions", "host_data_binding")}
                 for entry in self.trace
             ],
             # Harness-only provenance used by cross-benchmark adapters to
@@ -1468,7 +1468,25 @@ class _RunBase:
         # task. Compile them into the execution call so the model chooses the
         # verb, not an accidental per-channel execution plan. This mirrors the
         # production host compiler and makes one wide-series request one run.
-        if (name == "gnomon_forecast" and getattr(self, "target_keys", None)
+        if (name == "gnomon_describe" and self.profile == "evidence"
+                and getattr(self, "channels", None)):
+            # The host already resolved the task arrays into one lossless
+            # long-form panel. Bind descriptive calls to that same data
+            # contract, just as forecast calls are bound below. The model
+            # still chooses the verb and typed questions; schema facts are
+            # supplied by the host that owns them.
+            questions = arguments.get("questions")
+            arguments = {
+                "input": str(self.csv_path),
+                "time_column": "timestamp",
+                "target_column": "value",
+                "series_column": "series",
+                "frequency": getattr(self, "frequency", "h"),
+                **({"questions": questions} if questions else {}),
+            }
+            entry["host_data_binding"] = "long_panel"
+            entry["typed_questions"] = len(questions or [])
+        elif (name == "gnomon_forecast" and getattr(self, "target_keys", None)
                 and (self.profile == "evidence"
                      or self.row.get("_host_compiled_forecast")
                      or self.row.get("_require_gnomon_execution"))):
