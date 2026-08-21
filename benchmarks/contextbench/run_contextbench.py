@@ -63,7 +63,8 @@ def _write_history(case: Case, path: Path) -> None:
 def _forecast(case: Case, root: Path, *, enriched: bool,
               event_override: list[dict[str, Any]] | None = None,
               use_covariates: bool = True,
-              asserted_policy: bool = True) -> tuple[Any, Path]:
+              asserted_policy: bool = True,
+              candidates: list[str] | None = None) -> tuple[Any, Path]:
     from gnomon.context import events_from_list
     from gnomon.config import load_config
     from gnomon.covariates import covariates_from_rows
@@ -104,6 +105,7 @@ def _forecast(case: Case, root: Path, *, enriched: bool,
         output=str(root / output_name),
         context_events=events, covariates=covariates,
         config=config,
+        candidates=candidates,
         minimum_support="best_effort",
     )
 
