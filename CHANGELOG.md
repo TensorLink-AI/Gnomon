@@ -2,6 +2,77 @@
 
 ## Unreleased
 
+- **Corrective integrity revision (2026-08-21).** The ReasoningBench result
+  in the 2026-08-21 benchmark release is withdrawn: the evidence packet
+  handed to the treatment arm directly encoded three of the four scored
+  expected answers, so the published 18.1% → 65.3% uplift primarily measured
+  transcription; the harness has been redesigned (packet stripped of scored
+  answers, generator-defined truth) and no ReasoningBench number is citable
+  until a fresh matched run is committed. The previously cited
+  "1,800-execution workflow experiment" (96.3% correctness, 89% trust,
+  12.7K tokens) is removed from the README, product position, and MCP
+  quickstart: its raw output was never preserved, so the `evidence` default
+  profile now stands as an explicitly provisional product decision. The
+  benchmark-release schema (1.1) requires per-row provenance — evaluated
+  commit, harness commit, dataset identity, provider/model, configuration,
+  and explicit validity limitations — and the 2026-08-21 release is
+  annotated as pre-hardening evidence that does not validate later code.
+  Live fixes: the MCP `predict`/`volatility` question no longer crashes
+  (non-finite sentinels no longer reach serialization, and the server
+  sanitizes payloads defensively); TemporalBench's `gnomon-mcp` condition
+  no longer crashes on T1/T3 rows; LLM-compiled context events with an
+  ungrounded model-asserted `known_at` are no longer backtest-admissible;
+  `gnomon tsfm remove` survives partial deletion failures; the tautological
+  `primary_forecast_unchanged` benchmark gates are replaced by behavioral
+  input-mutation checks; PropertyBench derives distinct seeds per expected
+  class; the workflow benchmark verifies publish-parity and quote-fidelity
+  against the artifact on disk instead of trusting arm attestations; and
+  the documented `full` MCP profile count is corrected to 18 with its
+  experimental-tool exclusion stated.
+
+- **Benchmark evidence releases and CI (PR #74, 2026-08-21).** Curated
+  aggregate-only benchmark releases under `results/benchmark-releases/`
+  with source and curated-file SHA-256 digests and CI validation; a
+  benchmarks workflow (deterministic suite on pull requests at a fresh
+  pinned seed, weekly multi-seed PropertyBench, manual-only paid runs);
+  an absolute wall-clock deadline in the shared LLM client; retryable
+  intent-compilation receipts; a sandbox timeout circuit breaker and
+  stderr-deadlock fix; wildcard-relevance discounting and local/external
+  conflict recording in evidence-weighted admission; a mechanism-held-out
+  seasonality stress lane in PropertyBench; and a clean-install test suite
+  (the TSFM adapter test no longer requires NumPy).
+
+- **Evidence-weighted temporal model admission (2026-08-20).** Opt-in
+  `models.admission.policy = "evidence_weighted"`: a versioned, immutable
+  external model-evidence registry (exact model + pinned revision + coarse
+  pre-cutoff regime bins), deterministic admission states
+  (`locally_validated`, `externally_validated`, `jointly_validated`,
+  `prior_assisted`, `baseline_fallback`) with explicit labelling — external
+  evidence is never renamed local validation, and `prior_assisted` results
+  are capped below `supported`. Ships with AdmissionBench and
+  AdjudicationBench self-consistency gates and a registry builder in
+  ModelBench.
+
+- **Governed temporal reasoning and adapter runtime (PR #73, 2026-08-19).**
+  Twelve `temporal_*` modules and `volatility.py`: fitted temporal-property
+  executables (level, trend, seasonality, volatility, regime, extreme,
+  dependence) selected at rolling origins with calibrated support and
+  binding/advisory synthesis policy; observed-transition evidence with
+  multi-resolution receipts, competing hypotheses, and historical
+  analogues; deterministic evidence adjudication; a model-neutral
+  `ForecastAdapter` protocol with adversarial conformance checks; adapter
+  shadow-outcome promotion; and the volatility/property/transition/effect/
+  compiler/context-cache/adapter benchmark gates. Removed surfaces are
+  recorded in `COMPATIBILITY.md`.
+
+- **Governed soft-context execution (PR #68, 2026-08-15).** Typed,
+  provenance-preserving context compilation receipts (`context_ref`),
+  fold-gated admission with typed rejections, conditional scenarios that
+  never rewrite the primary forecast, workflow and context benchmarks —
+  and the default MCP profile changed from `full` to `evidence` (recorded
+  here retroactively; the change originally shipped without a changelog
+  entry).
+
 - **One agent contract, with unused surfaces removed.** MCP is now the sole
   agent-facing contract. The hand-maintained Hermes plugin, experimental
   planner and `gnomon plan` CLI family, and the seven v0.2 compatibility

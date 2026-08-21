@@ -5,6 +5,17 @@
     "notes": [
       "Magnitude estimation is useful; independent directional classification has not graduated."
     ],
+    "provenance": {
+      "configuration": "single fixed draw (the runner had no seed parameter at run time)",
+      "dataset": "in-repo synthetic volatility families (development and held-out shapes)",
+      "evaluated_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+      "harness_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+      "provider_model": "none (deterministic evaluation; no LLM or hosted provider)",
+      "validity_limitations": [
+        "Direction classification has not graduated: held-out balanced direction accuracy is 51.4% and the estimator loses to the majority-direction baseline; direction outputs are diagnostic only.",
+        "Scale-error improvement over the constant baseline rests on one fixed draw."
+      ]
+    },
     "scope": "full",
     "source": "results/volatilitybench-product-contract-20260821/summary.json",
     "source_sha256": "df42e1246096827f68e922f32d87a9aaafac50847cbe3225e02b14d0c1e995a5",

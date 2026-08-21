@@ -248,3 +248,23 @@ def test_relative_links_resolve(source):
         and not (path.parent / target).exists()
     ]
     assert not broken, f"{source} links to missing files: {broken}"
+
+
+# -- MCP profile table matches the code ------------------------------------
+
+PROFILE_ROW = re.compile(r"^\| `([a-z]+)` \| (\d+) \|", re.MULTILINE)
+
+
+def test_quickstart_profile_tool_counts_match_toolspec(monkeypatch):
+    from gnomon import toolspec
+
+    table = (REPO / "docs" / "quickstart-mcp.md").read_text(encoding="utf-8")
+    documented = dict(PROFILE_ROW.findall(table))
+    assert documented, "quickstart profile table not found"
+    expected = set(toolspec.PROFILES) | {"full"}
+    assert set(documented) == expected
+    for profile, count in documented.items():
+        monkeypatch.setenv("GNOMON_MCP_PROFILE", profile)
+        assert len(toolspec.visible_tools()) == int(count), (
+            f"quickstart documents {count} tools for {profile!r}; "
+            f"toolspec serves {len(toolspec.visible_tools())}")

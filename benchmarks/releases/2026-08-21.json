@@ -7,20 +7,57 @@
       "scope": "full",
       "source": "results/propertybench-product-contract-20260821/summary.json",
       "file": "propertybench.json",
-      "notes": ["Independent synthetic property validation; raw case rows omitted."]
+      "notes": [
+        "Independent synthetic property validation; raw case rows omitted."
+      ],
+      "provenance": {
+        "configuration": "seed 9100, replicates 12 (pinned release seed)",
+        "dataset": "in-repo synthetic generators (benchmarks/propertybench/run_propertybench.py)",
+        "evaluated_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+        "harness_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+        "provider_model": "none (deterministic evaluation; no LLM or hosted provider)",
+        "validity_limitations": [
+          "Core property ground truth is the engine's own property functional: this certifies predictive self-consistency on held-out synthetic futures, not agreement with an external notion of the property.",
+          "Passes every declared gate at the pinned seed 9100; alternate seeds 777 and 555 fail declared gates at the same code revision, so this run is not evidence of cross-seed robustness.",
+          "Panel and forecast-path case seeds omitted the class index at run time, so expected-class variants reused identical random draws (effective sample smaller than nominal)."
+        ]
+      }
     },
     {
       "benchmark": "transitionbench",
       "scope": "full",
       "source": "results/transitionbench-current-20260820/summary.json",
       "file": "transitionbench.json",
-      "notes": ["Easy, moderate, and marginal transition signals."]
+      "notes": [
+        "Easy, moderate, and marginal transition signals."
+      ],
+      "provenance": {
+        "configuration": "default seed 73100",
+        "dataset": "in-repo synthetic generators (benchmarks/transitionbench/run_transitionbench.py)",
+        "evaluated_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+        "harness_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+        "provider_model": "none (deterministic evaluation; no LLM or hosted provider)",
+        "validity_limitations": [
+          "Marginal strata are placed relative to the product's own decision thresholds; the seasonality and extreme marginal labels are unreachable by the defined estimator, so marginal accuracy is diagnostic only (deliberately ungated)."
+        ]
+      }
     },
     {
       "benchmark": "adapterbench",
       "scope": "full",
       "source": "results/adapterbench-20260818-final/summary.json",
-      "file": "adapterbench.json"
+      "file": "adapterbench.json",
+      "provenance": {
+        "configuration": "full conformance set; no randomness",
+        "dataset": "in-repo conformance and adversarial adapter fixtures",
+        "evaluated_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+        "harness_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+        "provider_model": "none (deterministic evaluation; no LLM or hosted provider)",
+        "validity_limitations": [
+          "The external-adapter conformance gate is vacuously true when no TSFM sandboxes are installed in the run environment.",
+          "Adversarial coverage is limited to short-horizon, non-finite, and nondeterminism behaviors; input mutation and malformed-quantile behaviors are not adversarially exercised."
+        ]
+      }
     },
     {
       "benchmark": "volatilitybench",
@@ -28,28 +65,54 @@
       "status": "diagnostic_not_graduated",
       "source": "results/volatilitybench-product-contract-20260821/summary.json",
       "file": "volatilitybench.json",
-      "notes": ["Magnitude estimation is useful; independent directional classification has not graduated."]
-    },
-    {
-      "benchmark": "reasoningbench",
-      "arm": "matched-base-and-enriched",
-      "scope": "full",
-      "source": "results/reasoningbench-replication-20260820/summary.json",
-      "file": "reasoningbench.json"
+      "notes": [
+        "Magnitude estimation is useful; independent directional classification has not graduated."
+      ],
+      "provenance": {
+        "configuration": "single fixed draw (the runner had no seed parameter at run time)",
+        "dataset": "in-repo synthetic volatility families (development and held-out shapes)",
+        "evaluated_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+        "harness_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+        "provider_model": "none (deterministic evaluation; no LLM or hosted provider)",
+        "validity_limitations": [
+          "Direction classification has not graduated: held-out balanced direction accuracy is 51.4% and the estimator loses to the majority-direction baseline; direction outputs are diagnostic only.",
+          "Scale-error improvement over the constant baseline rests on one fixed draw."
+        ]
+      }
     },
     {
       "benchmark": "contextbench",
       "arm": "raw-llm",
       "scope": "full",
       "source": "results/contextbench-full-20260816/llm-raw/summary.json",
-      "file": "contextbench-raw-llm.json"
+      "file": "contextbench-raw-llm.json",
+      "provenance": {
+        "configuration": "seed and fresh_seed recorded in the summary; one replicate",
+        "dataset": "in-repo synthetic context corpus (corpus_manifest_sha256 recorded in the summary)",
+        "evaluated_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+        "harness_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+        "provider_model": "deepseek-v4-flash-0731 via https://api.engy.ai/v1",
+        "validity_limitations": [
+          "Measures raw-LLM context-claim accuracy; this arm is a complementary lane, not the same metric as the evidence arm, so the three contextbench files are not a three-way matched comparison."
+        ]
+      }
     },
     {
       "benchmark": "contextbench",
       "arm": "compiled-context",
       "scope": "full",
       "source": "results/contextbench-full-20260816/llm-compiled/summary.json",
-      "file": "contextbench-compiled.json"
+      "file": "contextbench-compiled.json",
+      "provenance": {
+        "configuration": "seed and fresh_seed recorded in the summary; one replicate",
+        "dataset": "in-repo synthetic context corpus (corpus_manifest_sha256 recorded in the summary)",
+        "evaluated_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+        "harness_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+        "provider_model": "deepseek-v4-flash-0731 via https://api.engy.ai/v1",
+        "validity_limitations": [
+          "Measures compiler event precision/recall; this arm is a complementary lane, not the same metric as the evidence arm, so the three contextbench files are not a three-way matched comparison."
+        ]
+      }
     },
     {
       "benchmark": "contextbench",
@@ -57,14 +120,39 @@
       "scope": "full",
       "source": "results/contextbench-full-20260816/surface-evidence-r1/summary.json",
       "file": "contextbench-evidence.json",
-      "notes": ["One of three completed evidence replicates; the full local run retains all replicates."]
+      "notes": [
+        "One of three completed evidence replicates; the full local run retains all replicates."
+      ],
+      "provenance": {
+        "configuration": "seed and fresh_seed recorded in the summary; one replicate (identified as evidence-r1)",
+        "dataset": "in-repo synthetic context corpus (corpus_manifest_sha256 recorded in the summary)",
+        "evaluated_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+        "harness_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+        "provider_model": "deepseek-v4-flash-0731 via https://api.engy.ai/v1",
+        "validity_limitations": [
+          "Single replicate; confidence intervals in the summary reflect within-run counts only.",
+          "The harness rewrites the engine disposition for the future_covariate family into the two accepted values, so disposition accuracy cannot fail on that family (20-25% of the corpus)."
+        ]
+      }
     },
     {
       "benchmark": "temporalbench",
       "arm": "base-llm",
       "scope": "full",
       "source": "results/key-suite-20260819/temporalbench-base-merged/summary.json",
-      "file": "temporalbench-base-llm.json"
+      "file": "temporalbench-base-llm.json",
+      "provenance": {
+        "configuration": "T2/T4 rows (80); temperature not recorded in the summary (CLI default 0.2 unless overridden)",
+        "dataset": "TemporalBench (Hugging Face); dataset revision was not pinned at run time",
+        "evaluated_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+        "harness_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+        "provider_model": "deepseek-v4-flash-0731 via https://api.engy.ai/v1",
+        "validity_limitations": [
+          "Choice accuracy is the repository's local case-insensitive exact match, not verified against the benchmark leaderboard's scorer.",
+          "Scored-only denominators exclude rows whose responses never parsed.",
+          "OW-MASE and OW-RMSSE can be dominated by near-zero scaling denominators; read OW-sMAPE and per-channel scaled errors alongside them."
+        ]
+      }
     },
     {
       "benchmark": "temporalbench",
@@ -72,17 +160,66 @@
       "scope": "full",
       "source": "results/temporalbench-enriched-20260820/merged/summary.json",
       "file": "temporalbench-evidence.json",
-      "notes": ["Latest complete 80-case Evidence run; newer 2026-08-21 run was an 8-case contract smoke and is intentionally excluded."]
+      "notes": [
+        "Latest complete 80-case Evidence run; newer 2026-08-21 run was an 8-case contract smoke and is intentionally excluded."
+      ],
+      "provenance": {
+        "configuration": "condition gnomon-mcp, evidence profile, compile_context and compile_questions enabled; T2/T4 rows (80)",
+        "dataset": "TemporalBench (Hugging Face); dataset revision was not pinned at run time",
+        "evaluated_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+        "harness_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+        "provider_model": "deepseek-v4-flash-0731 via https://api.engy.ai/v1",
+        "validity_limitations": [
+          "All 240 typed choice answers were engine-authored (agent_preservation_rate 1.0): choice accuracy here measures the engine's deterministic projection, not model reasoning.",
+          "T1/T3 rows are absent because the gnomon-mcp condition crashed on those tiers at run time; that defect was fixed after this run.",
+          "This run predates the temporal-answer-contract hardening merged alongside this release and does not validate it.",
+          "Prompt-token cost was 8.5x the base arm (1.63M vs 0.19M prompt tokens).",
+          "No forecast channel reached the supported tier (362 degraded, 118 best-effort of 480)."
+        ]
+      }
     }
   ],
   "not_included": [
-    {"benchmark": "leaktrap", "reason": "Already versioned separately under results/leaktrap with its published write-up."},
-    {"benchmark": "contextcachebench", "reason": "Validated in CI, but no dated full release run was retained locally."},
-    {"benchmark": "workflow", "reason": "Its bundled smoke corpus is a CI contract check, not publishable product evidence."},
-    {"benchmark": "compilerbench", "reason": "No current complete release-grade run was found."},
-    {"benchmark": "cik", "reason": "No current complete release-grade matched run was found."},
-    {"benchmark": "anomllm", "reason": "No current complete release-grade matched run was found."},
-    {"benchmark": "mtbench", "reason": "No current complete release-grade matched run was found."},
-    {"benchmark": "timesage-mt", "reason": "No current complete release-grade matched run was found."}
+    {
+      "benchmark": "leaktrap",
+      "reason": "Already versioned separately under results/leaktrap with its published write-up."
+    },
+    {
+      "benchmark": "contextcachebench",
+      "reason": "Validated in CI, but no dated full release run was retained locally."
+    },
+    {
+      "benchmark": "workflow",
+      "reason": "Its bundled smoke corpus is a CI contract check, not publishable product evidence."
+    },
+    {
+      "benchmark": "compilerbench",
+      "reason": "No current complete release-grade run was found."
+    },
+    {
+      "benchmark": "cik",
+      "reason": "No current complete release-grade matched run was found."
+    },
+    {
+      "benchmark": "anomllm",
+      "reason": "No current complete release-grade matched run was found."
+    },
+    {
+      "benchmark": "mtbench",
+      "reason": "No current complete release-grade matched run was found."
+    },
+    {
+      "benchmark": "timesage-mt",
+      "reason": "No current complete release-grade matched run was found."
+    }
+  ],
+  "evidence_caveat": "Every run in this release was evaluated at a commit at or before 038291efb123c4ec7f62afce3d059baabfc2f0fc. Nothing here validates code added after that commit, including the temporal-reasoning and admission hardening merged in PR #74 and the fixes in the revising commit.",
+  "withdrawn": [
+    {
+      "arm": "matched-base-and-enriched",
+      "benchmark": "reasoningbench",
+      "reason": "Instrument invalid: the evidence packet handed to the treatment arm included fields that directly encode three of the four scored expected answers (evidence support -> confidence, forced analogue consensus -> analogue_outcome, next-hint phrasing -> next_action), so the reported 18.1% -> 65.3% uplift primarily measured transcription of the packet, not improved temporal reasoning. Withdrawn pending harness redesign and a fresh matched run.",
+      "withdrawn": "2026-08-21"
+    }
   ]
 }

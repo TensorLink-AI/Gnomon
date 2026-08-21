@@ -73,8 +73,8 @@ build can do.** Prefer it to any prose here, including this file.
 - Mandatory last-value and seasonal-naive baselines that a candidate must
   beat by a configured margin.
 - Drift, linear-trend, window-average, Theta, and ETS candidates, plus an
-  opt-in sandboxed TSFM tier of seven pinned adapters — Chronos-Bolt (mini
-  and small), Toto, Moment, Moirai, Granite TTM, FlowState
+  opt-in sandboxed TSFM tier of eight pinned adapters — Chronos-Bolt (mini
+  and small), Toto 2.0 (4M and 22M), Moment, Moirai, Granite TTM, FlowState
   (`gnomon tsfm install`).
 - Split-conformal intervals at nine quantile levels from a dedicated
   calibration fold.

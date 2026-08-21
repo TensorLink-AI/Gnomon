@@ -16,7 +16,14 @@ import subprocess
 from typing import Any
 
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
+# Every released result row must state where its numbers came from and what
+# they do not prove.  "unrecorded (...)" is an acceptable value — an honest
+# gap is provenance; an absent field is not.
+REQUIRED_PROVENANCE = (
+    "evaluated_commit", "harness_commit", "dataset", "provider_model",
+    "configuration", "validity_limitations",
+)
 DROP_KEYS = {
     "rows", "observations", "responses", "transcripts", "receipts",
     "per_case", "case_results", "raw_results", "question_receipts",
@@ -80,6 +87,7 @@ def build(spec_path: Path) -> Path:
     for entry in spec["benchmarks"]:
         source = Path(entry["source"])
         payload = json.loads(source.read_text(encoding="utf-8"))
+        provenance = _checked_provenance(entry)
         curated = {
             "release_metadata": {
                 "benchmark": entry["benchmark"],
@@ -89,6 +97,7 @@ def build(spec_path: Path) -> Path:
                 "source": source.as_posix(),
                 "source_sha256": _digest(source),
                 "notes": entry.get("notes", []),
+                "provenance": provenance,
             },
             "summary": _compact(payload),
         }
@@ -105,18 +114,22 @@ def build(spec_path: Path) -> Path:
             "status": entry.get("status", "complete"),
             "sha256": _digest(destination),
             "bytes": destination.stat().st_size,
+            "evaluated_commit": provenance["evaluated_commit"],
         })
     manifest = {
         "schema_version": SCHEMA_VERSION,
         "release": spec["release"],
         "curated_by_commit": _git_sha(),
+        "evidence_caveat": spec.get("evidence_caveat"),
         "policy": {
             "aggregate_only": True,
             "raw_runs_are_ci_artifacts": True,
             "smoke_results_are_not_full_results": True,
+            "results_validate_only_their_evaluated_commit": True,
         },
         "benchmarks": records,
         "not_included": spec.get("not_included", []),
+        "withdrawn": spec.get("withdrawn", []),
     }
     (output / "manifest.json").write_text(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n",
@@ -124,6 +137,25 @@ def build(spec_path: Path) -> Path:
     )
     validate(output)
     return output
+
+
+def _checked_provenance(entry: dict[str, Any]) -> dict[str, Any]:
+    provenance = entry.get("provenance")
+    identity = (entry.get("benchmark"), entry.get("arm"))
+    if not isinstance(provenance, dict):
+        raise ValueError(f"missing provenance for {identity}")
+    for key in REQUIRED_PROVENANCE:
+        value = provenance.get(key)
+        if key == "validity_limitations":
+            if (not isinstance(value, list) or not value
+                    or not all(isinstance(item, str) and item.strip()
+                               for item in value)):
+                raise ValueError(
+                    f"{identity} needs at least one validity limitation; "
+                    "'none identified' must be stated, never implied")
+        elif not isinstance(value, str) or not value.strip():
+            raise ValueError(f"{identity} provenance is missing {key}")
+    return {key: provenance[key] for key in REQUIRED_PROVENANCE}
 
 
 def validate(release_dir: Path) -> None:
@@ -135,6 +167,11 @@ def validate(release_dir: Path) -> None:
     for omission in manifest.get("not_included", []):
         if not omission.get("benchmark") or not omission.get("reason"):
             raise ValueError("every omitted benchmark needs a name and reason")
+    for withdrawal in manifest.get("withdrawn", []):
+        if not (withdrawal.get("benchmark") and withdrawal.get("reason")
+                and withdrawal.get("withdrawn")):
+            raise ValueError(
+                "every withdrawn result needs a name, a reason, and a date")
     for record in manifest.get("benchmarks", []):
         identity = (record["benchmark"], record.get("arm"))
         if identity in seen:
@@ -156,6 +193,10 @@ def validate(release_dir: Path) -> None:
             raise ValueError(f"scope mismatch: {path}")
         if record.get("scope") == "smoke" and record.get("status") == "full":
             raise ValueError(f"smoke run mislabeled as full: {path}")
+        _checked_provenance({
+            "benchmark": record.get("benchmark"), "arm": record.get("arm"),
+            "provenance": metadata.get("provenance"),
+        })
 
 
 def main() -> int:

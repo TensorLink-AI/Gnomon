@@ -5,6 +5,18 @@
     "notes": [
       "Independent synthetic property validation; raw case rows omitted."
     ],
+    "provenance": {
+      "configuration": "seed 9100, replicates 12 (pinned release seed)",
+      "dataset": "in-repo synthetic generators (benchmarks/propertybench/run_propertybench.py)",
+      "evaluated_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+      "harness_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+      "provider_model": "none (deterministic evaluation; no LLM or hosted provider)",
+      "validity_limitations": [
+        "Core property ground truth is the engine's own property functional: this certifies predictive self-consistency on held-out synthetic futures, not agreement with an external notion of the property.",
+        "Passes every declared gate at the pinned seed 9100; alternate seeds 777 and 555 fail declared gates at the same code revision, so this run is not evidence of cross-seed robustness.",
+        "Panel and forecast-path case seeds omitted the class index at run time, so expected-class variants reused identical random draws (effective sample smaller than nominal)."
+      ]
+    },
     "scope": "full",
     "source": "results/propertybench-product-contract-20260821/summary.json",
     "source_sha256": "2eacdae34816f843d0e7a614853cfa3e8244f0f3733a1c53f86905377d41cfbd",

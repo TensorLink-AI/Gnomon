@@ -3,6 +3,18 @@
     "arm": "base-llm",
     "benchmark": "temporalbench",
     "notes": [],
+    "provenance": {
+      "configuration": "T2/T4 rows (80); temperature not recorded in the summary (CLI default 0.2 unless overridden)",
+      "dataset": "TemporalBench (Hugging Face); dataset revision was not pinned at run time",
+      "evaluated_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+      "harness_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+      "provider_model": "deepseek-v4-flash-0731 via https://api.engy.ai/v1",
+      "validity_limitations": [
+        "Choice accuracy is the repository's local case-insensitive exact match, not verified against the benchmark leaderboard's scorer.",
+        "Scored-only denominators exclude rows whose responses never parsed.",
+        "OW-MASE and OW-RMSSE can be dominated by near-zero scaling denominators; read OW-sMAPE and per-channel scaled errors alongside them."
+      ]
+    },
     "scope": "full",
     "source": "results/key-suite-20260819/temporalbench-base-merged/summary.json",
     "source_sha256": "f4386f1274c4bf5d39fb867598c702bdee8472724a617361b37e152848566074",

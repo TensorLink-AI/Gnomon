@@ -93,15 +93,16 @@ dataset reports `known_time_provenance: partially_assumed`.
 | `mega` | 3 | Experimental inspect/run/track consolidation arm |
 | `decision` | 11 | `core` plus decide, monitor, route, status, and outcome resolution |
 | `data` | 9 | `core` plus ingest, dataset listing, and actuals scoring |
-| `full` | 21 | Every stable tool, including context/covariate validation and TSFM installation |
+| `full` | 18 | Every stable tool, including context/covariate validation and TSFM installation. Excludes the three experimental surface tools (`gnomon_describe`, `gnomon_run`, `gnomon_track`) — switching from the default `evidence` to `full` therefore loses `gnomon_describe` |
 
 `evidence` is the default. Select a broader surface explicitly with
 `gnomon mcp serve --profile core|describe|evidence|mega|decision|data|full`; `gnomon_capabilities`
-reports the active profile under `mcp_profile`. A future default-profile
-The earlier [surface experiment](design/mcp-surface-experiment-results.md)
-retained `full`; it is superseded by the fresh workflow experiment after the
-response-contract and routing fixes. `full` remains available, but its measured
-53.6K tokens per case makes it unsuitable as the ambient agent surface.
+reports the active profile under `mcp_profile`. The only preserved
+[surface experiment](design/mcp-surface-experiment-results.md) (four rows)
+retained `full` and measured it at 53.6K tokens per case; the follow-up run
+previously cited as superseding it was not preserved, so the `evidence`
+default is a provisional product decision pending a reproducible, committed
+workflow run.
 
 ## Where artifacts land
 

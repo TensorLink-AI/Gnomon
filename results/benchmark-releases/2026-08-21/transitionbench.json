@@ -5,6 +5,16 @@
     "notes": [
       "Easy, moderate, and marginal transition signals."
     ],
+    "provenance": {
+      "configuration": "default seed 73100",
+      "dataset": "in-repo synthetic generators (benchmarks/transitionbench/run_transitionbench.py)",
+      "evaluated_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+      "harness_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+      "provider_model": "none (deterministic evaluation; no LLM or hosted provider)",
+      "validity_limitations": [
+        "Marginal strata are placed relative to the product's own decision thresholds; the seasonality and extreme marginal labels are unreachable by the defined estimator, so marginal accuracy is diagnostic only (deliberately ungated)."
+      ]
+    },
     "scope": "full",
     "source": "results/transitionbench-current-20260820/summary.json",
     "source_sha256": "26128d0862e0757dde17454cca6e463f72ec0d144027c892ed0258618e18e7ec",
