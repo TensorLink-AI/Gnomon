@@ -3,6 +3,17 @@
     "arm": null,
     "benchmark": "adapterbench",
     "notes": [],
+    "provenance": {
+      "configuration": "full conformance set; no randomness",
+      "dataset": "in-repo conformance and adversarial adapter fixtures",
+      "evaluated_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+      "harness_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+      "provider_model": "none (deterministic evaluation; no LLM or hosted provider)",
+      "validity_limitations": [
+        "The external-adapter conformance gate is vacuously true when no TSFM sandboxes are installed in the run environment.",
+        "Adversarial coverage is limited to short-horizon, non-finite, and nondeterminism behaviors; input mutation and malformed-quantile behaviors are not adversarially exercised."
+      ]
+    },
     "scope": "full",
     "source": "results/adapterbench-20260818-final/summary.json",
     "source_sha256": "5dabce5e03ef4cfd8c1afe8c76870dd8e257fc02f1c852cb89828e545c64eb58",

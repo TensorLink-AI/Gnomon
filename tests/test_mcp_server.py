@@ -77,3 +77,44 @@ def test_tool_error_is_structured_not_fatal() -> None:
 def test_unknown_method_returns_jsonrpc_error() -> None:
     responses = _talk([{"jsonrpc": "2.0", "id": 1, "method": "resources/list"}])
     assert responses[0]["error"]["code"] == -32601
+
+
+def test_describe_volatility_question_serializes(monkeypatch) -> None:
+    # Degenerate example data leaves the volatility direction baselines with
+    # no samples; math.inf sentinels in the diagnostics used to make
+    # json.dumps(allow_nan=False) raise, mislabelled as TRACKING_ERROR.
+    from gnomon import mcp_server
+
+    monkeypatch.delenv("GNOMON_MCP_PROFILE", raising=False)
+
+    result = mcp_server._handle({
+        "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+        "params": {"name": "gnomon_describe", "arguments": {
+            "input": str(REPO_ROOT / "examples" / "daily_requests.csv"),
+            "questions": [{"verb": "predict", "property": "volatility",
+                           "target": "requests"}]}}})
+    assert result["isError"] is False
+    payload = json.loads(result["content"][0]["text"])
+    answer = payload["answers"][0]
+    assert answer["question"]["property"] == "volatility"
+    assert "direction" in answer["answer"]
+
+
+def test_json_safe_nulls_non_finite_floats() -> None:
+    import math
+
+    from gnomon.mcp_server import _json_safe
+
+    assert _json_safe({
+        "inf": math.inf, "nan": math.nan,
+        "nested": [1.0, {"neg": -math.inf}, (math.nan,)],
+    }) == {"inf": None, "nan": None, "nested": [1.0, {"neg": None}, [None]]}
+
+
+def test_unserializable_tool_result_reports_internal_error() -> None:
+    from gnomon.mcp_server import _tool_result
+
+    result = _tool_result({"payload": object()}, False)
+    assert result["isError"] is True
+    payload = json.loads(result["content"][0]["text"])
+    assert payload["error"]["code"] == "INTERNAL_ERROR"

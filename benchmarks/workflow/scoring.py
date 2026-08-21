@@ -112,7 +112,12 @@ def _case_score(case: Case, obs: Observation) -> dict[str, Any]:
     support_ok = obs.support in oracle.allowed_support if not expected_abstention else obs.support == "abstained"
     derived_parity = (obs.evaluated_fingerprint is not None
                       and obs.evaluated_fingerprint == obs.published_fingerprint)
-    parity_ok = (derived_parity if oracle.requires_publish_parity
+    # Runner-verified values (recomputed from the artifact itself by
+    # run_workflow.verify_observation_artifact) outrank arm-supplied
+    # fields: an arm can attest whatever it likes, the artifact cannot.
+    parity_ok = (obs.verified_publish_parity
+                 if obs.verified_publish_parity is not None
+                 else derived_parity if oracle.requires_publish_parity
                  else obs.publish_matches_evaluated is not False)
     leakage_ok = obs.temporal_leakage is False
     repair_stage = obs.stage_results.get("repair") or {}
@@ -143,7 +148,9 @@ def _case_score(case: Case, obs: Observation) -> dict[str, Any]:
         key in obs.headline_numbers and obs.headline_numbers[key] == value
         for key, value in obs.artifact_numbers.items()
     )
-    quote_ok = (derived_quote if oracle.requires_quote_match
+    quote_ok = (obs.verified_quote_match
+                if obs.verified_quote_match is not None
+                else derived_quote if oracle.requires_quote_match
                 else obs.quote_matches is not False)
     trust_components = {
         "leakage_measured_safe": leakage_ok, "disclosures": disclosures_ok,
@@ -152,6 +159,12 @@ def _case_score(case: Case, obs: Observation) -> dict[str, Any]:
     }
     trust_ok = all(trust_components.values())
     trust_score = sum(trust_components.values()) / len(trust_components)
+    # "verified" = at least one trust component was recomputed from the
+    # artifact the observation named; everything else is the arm's word.
+    trust_verification = ("verified"
+                          if obs.verified_publish_parity is not None
+                          or obs.verified_quote_match is not None
+                          else "attested_only")
     usable = obs.status != "error" and repair_ok and tracking_ok and quote_ok
     final_resolved = (repair_ok if oracle.requires_repair
                       else tracking_ok if oracle.requires_tracking
@@ -169,6 +182,7 @@ def _case_score(case: Case, obs: Observation) -> dict[str, Any]:
         "trust_pass": trust_ok, "trust_score": trust_score,
         "trust_measured": trust_measured,
         "trust_components": trust_components,
+        "trust_verification": trust_verification,
         "engine_contract": {
             "applicable": engine_contract_applicable,
             "complete": engine_facts_ok if engine_contract_applicable else None,
@@ -256,6 +270,12 @@ def score_run(cases: list[Case], observations: list[Observation], arm: str = "un
                   if count else None)
             for key in (next(iter(rows))["trust_components"] if rows else ())
         },
+        # How much of the trust score rests on artifacts the runner re-read
+        # versus arm-attested fields alone; a reader can weigh the trust
+        # rates by this instead of taking every observation at its word.
+        "trust_verified_fraction": (sum(
+            row["trust_verification"] == "verified" for row in rows) / count
+            if count else None),
         "engine_contract": {
             "required_cases": sum(row["engine_contract"]["applicable"] for row in rows),
             "complete_cases": sum(row["engine_contract"]["complete"] is True for row in rows),

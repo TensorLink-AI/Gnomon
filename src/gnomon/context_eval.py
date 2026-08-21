@@ -25,6 +25,7 @@ from statistics import mean
 from typing import Any
 
 from .context import (
+    KNOWN_AT_GROUNDING_ATTRIBUTE,
     ContextEvent,
     backtest_admissible,
     event_applies,
@@ -224,9 +225,17 @@ def eligible_events(
                 "reason": "cancelled event cannot affect the primary forecast",
             })
         elif not backtest_admissible(event):
+            grounding = (event.attributes or {}).get(
+                KNOWN_AT_GROUNDING_ATTRIBUTE)
+            reason = (
+                "known_at is not grounded in the cited document; "
+                "not admissible for backtesting"
+                if event.created_by == "llm" and isinstance(grounding, dict)
+                and grounding.get("grounded") is not True
+                else "no verifiable source; not admissible for backtesting")
             excluded.append({
                 "event_id": event.event_id,
-                "reason": "no verifiable source; not admissible for backtesting",
+                "reason": reason,
             })
         else:
             eligible.append(event)

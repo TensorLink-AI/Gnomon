@@ -58,6 +58,46 @@ def test_mechanical_numerical_range():
     assert score_mechanical(verify, "The CV comes out to 1.5.") is False
 
 
+def test_range_check_requires_proximity_to_question_content_terms():
+    """An unrelated in-range number elsewhere in the response must not
+    satisfy the range: the passing number has to share a sentence with a
+    content term drawn from the turn's question (or the spec's keywords)."""
+    from benchmarks.timesage_mt.scoring import content_terms
+
+    verify = {"type": "numerical_range", "keywords": [], "range": [0.7, 1.1]}
+    question = "What is the coefficient of variation of this series?"
+    terms = content_terms(verify, question)
+    assert "coefficient" in terms
+    assert "what" not in terms and "series" not in terms
+    assert score_mechanical(
+        verify, "The coefficient of variation is 0.81. The window holds "
+                "4096 rows.", context_terms=terms) is True
+    # 0.9 is in range but sits in a sentence about something else.
+    assert score_mechanical(
+        verify, "The coefficient of variation could not be computed. "
+                "The mean is 0.9 for this window.", context_terms=terms) is False
+
+
+def test_range_with_keywords_is_scoped_to_keyword_sentences():
+    verify = {"type": "numerical_range", "keywords": ["cv"], "range": [0.7, 1.1]}
+    assert score_mechanical(verify, "The CV is 0.81.") is True
+    assert score_mechanical(
+        verify, "CV was not computable here. The mean is 0.9.") is False
+
+
+def test_score_turn_threads_the_question_into_range_proximity():
+    reference = {"finding_verify": {"type": "numerical_range", "keywords": [],
+                                    "range": [20, 30]}}
+    question = "What is the dominant seasonal period?"
+    good = score_turn(reference, "The dominant period is 24 hours. "
+                                 "We also saw 3 anomalies.", question=question)
+    assert good == {"scored": True, "passed": True, "basis": "mechanical"}
+    bad = score_turn(reference, "Seasonality is unclear for this period. "
+                                "There were 25 anomalies today.",
+                     question=question)
+    assert bad == {"scored": True, "passed": False, "basis": "mechanical"}
+
+
 def test_non_mechanical_spec_is_unscored_without_judge():
     reference = {"finding_verify": {"type": "semantic", "keywords": [],
                                     "range": None, "embedding_threshold": 0.85}}

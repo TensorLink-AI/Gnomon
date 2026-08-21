@@ -5,6 +5,20 @@
     "notes": [
       "Latest complete 80-case Evidence run; newer 2026-08-21 run was an 8-case contract smoke and is intentionally excluded."
     ],
+    "provenance": {
+      "configuration": "condition gnomon-mcp, evidence profile, compile_context and compile_questions enabled; T2/T4 rows (80)",
+      "dataset": "TemporalBench (Hugging Face); dataset revision was not pinned at run time",
+      "evaluated_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+      "harness_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+      "provider_model": "deepseek-v4-flash-0731 via https://api.engy.ai/v1",
+      "validity_limitations": [
+        "All 240 typed choice answers were engine-authored (agent_preservation_rate 1.0): choice accuracy here measures the engine's deterministic projection, not model reasoning.",
+        "T1/T3 rows are absent because the gnomon-mcp condition crashed on those tiers at run time; that defect was fixed after this run.",
+        "This run predates the temporal-answer-contract hardening merged alongside this release and does not validate it.",
+        "Prompt-token cost was 8.5x the base arm (1.63M vs 0.19M prompt tokens).",
+        "No forecast channel reached the supported tier (362 degraded, 118 best-effort of 480)."
+      ]
+    },
     "scope": "full",
     "source": "results/temporalbench-enriched-20260820/merged/summary.json",
     "source_sha256": "1c2ea63c5161d9b742ab7fcf9054a4af64cbbf78cae0f94815e20f2b087e2193",

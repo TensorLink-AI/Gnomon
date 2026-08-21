@@ -21,18 +21,16 @@ Adapter decisions, disclosed:
 
 - Gnomon emits three quantities per horizon step: q10/q50/q90. RCRPS is
   estimated from samples, so samples are drawn deterministically from
-  the piecewise-linear inverse CDF through those quantiles, clamped at
-  q10/q90. Two consequences for RCRPS, which is computed on sample
-  paths, must be disclosed. First, the paths are comonotonic: each
+  the piecewise-linear inverse CDF through those quantiles, with
+  exponential tails beyond q10/q90 calibrated from the q50→q10 and
+  q50→q90 spreads. One consequence for RCRPS, which is computed on
+  sample paths, must be disclosed: the paths are comonotonic — each
   sample sits at the same probability level at every step, so
   per-timestep CRPS is unaffected but the joint distribution over paths
-  is degenerate. Second, clamping means no sample ever lies beyond the
-  outer quantiles, so a constraint that would only be violated in the
-  tails can never be violated by these samples — the clamping can
-  SUPPRESS RCRPS's constraint-violation penalty relative to a sampler
-  with real tails. For that penalty term the conversion can favor this
-  adapter; it is not self-penalizing. See
-  :func:`samples_from_quantile_rows`.
+  is degenerate. The tails exist precisely so that a constraint bound
+  beyond q90 CAN be violated by these samples: the earlier clamp at the
+  outer quantiles suppressed RCRPS's constraint-violation penalty in
+  this adapter's favor. See :func:`samples_from_quantile_rows`.
 - CiK context text is benchmark-supplied ground truth available at
   forecast time, so proposed events carry a verifiable source of type
   ``dataset`` referencing the task's context, with ``known_at`` set to
@@ -48,6 +46,7 @@ Adapter decisions, disclosed:
 from __future__ import annotations
 
 import csv
+import math
 import sys
 import tempfile
 import time
@@ -166,14 +165,19 @@ def samples_from_quantile_rows(
 
     Uses stratified probabilities ``(i + 0.5) / n_samples`` mapped through
     the piecewise-linear inverse CDF defined by the three quantiles.
-    Probabilities beyond the outer quantiles clamp to q10/q90.
+    Probabilities beyond the outer quantiles follow an exponential tail
+    calibrated so the median→outer-quantile spread is reproduced: the
+    quantile function ``mid ± spread · ln(0.5 / tail_p) / ln(5)`` passes
+    exactly through q10/q90 at p = 0.1/0.9 and keeps extending beyond
+    them. A hard clamp at q10/q90 previously meant no sample could ever
+    violate a constraint bound past the outer quantiles, suppressing
+    RCRPS's violation penalty in this adapter's favor.
 
-    Disclosed biases (see the module docstring): sample paths are
+    Disclosed bias (see the module docstring): sample paths are
     comonotonic — sample ``i`` sits at probability ``(i + 0.5) /
     n_samples`` at every step — so the joint distribution over paths is
-    degenerate; and the clamp keeps every sample inside [q10, q90], which
-    can suppress RCRPS's constraint-violation penalty in the treatment's
-    favor compared to a sampler with real tails.
+    degenerate. A degenerate spread (q10 == q50 or q50 == q90) yields a
+    flat tail on that side, identical to the old clamp.
 
     Returns a list of ``n_samples`` trajectories, each of length
     ``len(rows)``.
@@ -188,11 +192,17 @@ def samples_from_quantile_rows(
         low, mid, high = sorted((q10, q50, q90))
         quantiles.append((low, mid, high))
 
+    # ln(0.5 / 0.1): the log tail-probability ratio between the median and
+    # the outer quantiles, so each tail's scale comes from the observed
+    # q50→q10 / q50→q90 spread and the curve is continuous at both.
+    tail_log = math.log(QUANTILE_LEVELS[1] / QUANTILE_LEVELS[0])
+
     def inverse_cdf(p: float, low: float, mid: float, high: float) -> float:
         if p <= QUANTILE_LEVELS[0]:
-            return low
+            return mid - (mid - low) * math.log(QUANTILE_LEVELS[1] / p) / tail_log
         if p >= QUANTILE_LEVELS[2]:
-            return high
+            return mid + (high - mid) * math.log(
+                (1 - QUANTILE_LEVELS[1]) / (1 - p)) / tail_log
         if p <= QUANTILE_LEVELS[1]:
             fraction = (p - QUANTILE_LEVELS[0]) / (QUANTILE_LEVELS[1] - QUANTILE_LEVELS[0])
             return low + fraction * (mid - low)

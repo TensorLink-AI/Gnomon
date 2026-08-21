@@ -3,95 +3,96 @@
     {
       "arm": null,
       "benchmark": "propertybench",
-      "bytes": 5490,
+      "bytes": 6783,
+      "evaluated_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
       "file": "propertybench.json",
       "scope": "full",
-      "sha256": "cc96b8a9a67042f6257b11836522a6c295b3bed37bf1fe146e125c4059d4d80c",
+      "sha256": "6a70775bcf7fd9d369ecfe04363acf171269d89b4f4b393f2bd1f294ccc68ec8",
       "status": "complete"
     },
     {
       "arm": null,
       "benchmark": "transitionbench",
-      "bytes": 5328,
+      "bytes": 6255,
+      "evaluated_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
       "file": "transitionbench.json",
       "scope": "full",
-      "sha256": "3506348a8e042b22c002e52da6747a4549aad86adfca452e94f412da01890170",
+      "sha256": "e4dee23def55af38d4fc1237ed3cdaae807f47f8776a0790c5c1624054375c2e",
       "status": "complete"
     },
     {
       "arm": null,
       "benchmark": "adapterbench",
-      "bytes": 3908,
+      "bytes": 4897,
+      "evaluated_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
       "file": "adapterbench.json",
       "scope": "full",
-      "sha256": "fdb025f690e93b51988508b0a9b4d84bd20bc90bb5854a1104633c851a82e88f",
+      "sha256": "97a49b5dd9e915a572f81a6881128ec67e99506ed277dc043f945794cda12837",
       "status": "complete"
     },
     {
       "arm": null,
       "benchmark": "volatilitybench",
-      "bytes": 5551,
+      "bytes": 6563,
+      "evaluated_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
       "file": "volatilitybench.json",
       "scope": "full",
-      "sha256": "5f9e5705ff560b27b05fc39925faba266d5507f7a2c1d9360232aa4f3ea45860",
+      "sha256": "dc461ccca72820794a1d3bf73225eae18f72439872ee342247d0347ea9d55ca9",
       "status": "diagnostic_not_graduated"
-    },
-    {
-      "arm": "matched-base-and-enriched",
-      "benchmark": "reasoningbench",
-      "bytes": 2760,
-      "file": "reasoningbench.json",
-      "scope": "full",
-      "sha256": "093e9e077fefcef475748efdab66069a89611862ac32c7980dca7ded3e1feb21",
-      "status": "complete"
     },
     {
       "arm": "raw-llm",
       "benchmark": "contextbench",
-      "bytes": 2920,
+      "bytes": 3839,
+      "evaluated_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
       "file": "contextbench-raw-llm.json",
       "scope": "full",
-      "sha256": "87e0a31fa5a425be96685bb4481a9dd69f000921951b5e6bdb618a8288c0df4c",
+      "sha256": "f4576be40deea90867c58423f2b89eb9d7ac67b925f7f8b08eae06c84e1d0fec",
       "status": "complete"
     },
     {
       "arm": "compiled-context",
       "benchmark": "contextbench",
-      "bytes": 2932,
+      "bytes": 3852,
+      "evaluated_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
       "file": "contextbench-compiled.json",
       "scope": "full",
-      "sha256": "0a1274f190440459636de56f54cd0c7fb705b4fe4202ad1bbead41db9dc11193",
+      "sha256": "605a0feacc57382b093278ed1e28dc92823268a78a9150d4695736e38c198ad5",
       "status": "complete"
     },
     {
       "arm": "evidence-r1",
       "benchmark": "contextbench",
-      "bytes": 5206,
+      "bytes": 6243,
+      "evaluated_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
       "file": "contextbench-evidence.json",
       "scope": "full",
-      "sha256": "241fcd3cc20c0fb05eda0ed7269b14c4f023385b08fc3c34f824aa4dfe5f76a3",
+      "sha256": "54712cace83dd6a2f6e3b9bd08329aba1ceb785aeb461f8f0671581c86166148",
       "status": "complete"
     },
     {
       "arm": "base-llm",
       "benchmark": "temporalbench",
-      "bytes": 4347,
+      "bytes": 5456,
+      "evaluated_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
       "file": "temporalbench-base-llm.json",
       "scope": "full",
-      "sha256": "ca716ac8ac53e10f18c37e4155e17252b645bf4bf1910eaefbc219664891e531",
+      "sha256": "a07f5695b5c0e459107a37283cec48cdfa2b29e12f50234e5528226a155aa778",
       "status": "complete"
     },
     {
       "arm": "evidence",
       "benchmark": "temporalbench",
-      "bytes": 6529,
+      "bytes": 7912,
+      "evaluated_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
       "file": "temporalbench-evidence.json",
       "scope": "full",
-      "sha256": "54c44fb6c74a40912b21a48ec99f9564ae74b6e5814b3877a2e995d50333b0e2",
+      "sha256": "16bcf764ed6d0b11c84e35c33d18e18b1e89021ea0758216f6d409f9c58ba7a5",
       "status": "complete"
     }
   ],
   "curated_by_commit": "038291efb123c4ec7f62afce3d059baabfc2f0fc",
+  "evidence_caveat": "Every run in this release was evaluated at a commit at or before 038291efb123c4ec7f62afce3d059baabfc2f0fc. Nothing here validates code added after that commit, including the temporal-reasoning and admission hardening merged in PR #74 and the fixes in the revising commit.",
   "not_included": [
     {
       "benchmark": "leaktrap",
@@ -129,8 +130,21 @@
   "policy": {
     "aggregate_only": true,
     "raw_runs_are_ci_artifacts": true,
+    "results_validate_only_their_evaluated_commit": true,
     "smoke_results_are_not_full_results": true
   },
   "release": "2026-08-21",
-  "schema_version": "1.0"
+  "revised": {
+    "date": "2026-08-21",
+    "reason": "Corrective integrity revision: reasoningbench result withdrawn (invalid instrument), required provenance and validity limitations added to every row, and wording corrected. See the revising commit for details."
+  },
+  "schema_version": "1.1",
+  "withdrawn": [
+    {
+      "arm": "matched-base-and-enriched",
+      "benchmark": "reasoningbench",
+      "reason": "Instrument invalid: the evidence packet handed to the treatment arm included fields that directly encode three of the four scored expected answers (evidence support -> confidence, forced analogue consensus -> analogue_outcome, next-hint phrasing -> next_action), so the reported 18.1% -> 65.3% uplift primarily measured transcription of the packet, not improved temporal reasoning. Withdrawn pending harness redesign and a fresh matched run.",
+      "withdrawn": "2026-08-21"
+    }
+  ]
 }

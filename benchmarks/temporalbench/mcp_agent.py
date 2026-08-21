@@ -2120,7 +2120,9 @@ class _McqRun(_RunBase):
     def __init__(self, row: dict[str, Any], client: Any,
                  session_factory: Any = None, work_dir: str | None = None,
                  profile: str = "full", compile_context: bool = False,
-                 context_receipts_dir: str | None = None):
+                 context_receipts_dir: str | None = None,
+                 compile_questions: bool = False,
+                 question_receipts_dir: str | None = None):
         self.tool, self.answer_rule = mcq_submit_tool(row)
         self.expected_fields = list(row.get("labels") or {})
         self.expected_count = len(row.get("pack") or [])
@@ -2129,7 +2131,9 @@ class _McqRun(_RunBase):
         super().__init__(row, client, session_factory=session_factory,
                          work_dir=work_dir, profile=profile,
                          compile_context=compile_context,
-                         context_receipts_dir=context_receipts_dir)
+                         context_receipts_dir=context_receipts_dir,
+                         compile_questions=compile_questions,
+                         question_receipts_dir=question_receipts_dir)
 
     def _row_channels(self, row: dict[str, Any]) -> dict[str, list[float]]:
         try:
@@ -2276,18 +2280,31 @@ def mcq_row(row: dict[str, Any], client: Any, *,
             work_dir: str | None = None,
             profile: str = "full",
             compile_context: bool = False,
-            context_receipts_dir: str | None = None) -> dict[str, Any]:
+            context_receipts_dir: str | None = None,
+            compile_questions: bool = False,
+            question_receipts_dir: str | None = None,
+            mcp_call_timeout: float | None = None) -> dict[str, Any]:
     """Drive one T1/T3 row through the same surface with the tier's own
-    answer shape; the answer object is what that tier's scorer reads."""
+    answer shape; the answer object is what that tier's scorer reads.
+
+    The signature mirrors ``run_row`` for every option the CLI threads
+    unconditionally (the question compiler is a T2/T4 feature, so
+    ``_RunBase`` records it as unattempted here; the call timeout binds
+    to the stdio session exactly as on T2/T4): the runner builds one
+    kwargs dict for both tiers, and a keyword only one tier accepts
+    turned every T1/T3 row into a TypeError under CLI defaults."""
     if session_factory is None:
         _ensure_checkout_importable()
         session_factory = lambda jail: StdioMcpSession(
             jail, command=[sys.executable, "-m", "gnomon", "mcp", "serve",
-                           "--profile", profile])
+                           "--profile", profile],
+            call_timeout=mcp_call_timeout)
     return _drive(_McqRun(row, client, session_factory=session_factory,
                           work_dir=work_dir, profile=profile,
                           compile_context=compile_context,
-                          context_receipts_dir=context_receipts_dir))
+                          context_receipts_dir=context_receipts_dir,
+                          compile_questions=compile_questions,
+                          question_receipts_dir=question_receipts_dir))
 
 
 def _ensure_checkout_importable() -> None:

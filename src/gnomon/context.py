@@ -40,6 +40,14 @@ VERIFIABLE_SOURCE_TYPES = frozenset(
 )
 CONTEXT_STATUSES = frozenset({"confirmed", "tentative", "cancelled"})
 
+# Attribute recorded by the LLM compiler (`workflows.parse_context_response`):
+# the deterministic verdict on whether the event's ``known_at`` is grounded in
+# the cited document (a metadata date, or the date written in the text) rather
+# than taken from the model's assertion alone. `backtest_admissible` consults
+# it for llm-created events; a compiler-attested ungrounded ``known_at`` bars
+# the event from historical folds. Caller-authored events never carry it.
+KNOWN_AT_GROUNDING_ATTRIBUTE = "known_at_grounding"
+
 
 @dataclass(frozen=True)
 class ContextSource:
@@ -233,10 +241,18 @@ def backtest_admissible(event: ContextEvent) -> bool:
 
     Requires a verifiable source: ``known_at`` claimed without checkable
     provenance cannot rule out future leakage, so such events are limited
-    to the future horizon.
+    to the future horizon. For llm-created events the compiler additionally
+    records whether ``known_at`` itself is grounded in the cited document;
+    a recorded ungrounded verdict is disqualifying — a hindsight model
+    could otherwise date an invented event before a historical anomaly and
+    have the fold ablation "measure" it.
     """
     if validate_context_event(event):
         return False
+    if event.created_by == "llm":
+        grounding = (event.attributes or {}).get(KNOWN_AT_GROUNDING_ATTRIBUTE)
+        if isinstance(grounding, dict) and grounding.get("grounded") is not True:
+            return False
     return (
         event.source is not None
         and event.source.type in VERIFIABLE_SOURCE_TYPES

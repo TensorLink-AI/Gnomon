@@ -17,9 +17,11 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import date, datetime
 from typing import Any
 
 from .context import (
+    KNOWN_AT_GROUNDING_ATTRIBUTE,
     ContextEvent,
     ContextSource,
     backtest_admissible,
@@ -43,6 +45,53 @@ class DocumentRef:
     content: str
     source_type: str = "planning_file"
     reference: str = ""
+    #: Caller-attested document date (ISO), e.g. a file's export or
+    #: modification date. When present it grounds ``known_at`` for every
+    #: event cited to this document without a date in the text.
+    date: str = ""
+
+
+_MONTHS = ("January", "February", "March", "April", "May", "June", "July",
+           "August", "September", "October", "November", "December")
+
+
+def _date_renderings(day: date) -> list[str]:
+    """Common textual spellings of a calendar date, English, deterministic."""
+    month = _MONTHS[day.month - 1]
+    renderings = [day.isoformat()]
+    for month_name in (month, month[:3]):
+        for day_text in (str(day.day), f"{day.day:02d}"):
+            renderings.extend((
+                f"{day_text} {month_name} {day.year}",
+                f"{month_name} {day_text}, {day.year}",
+                f"{month_name} {day_text} {day.year}",
+            ))
+    return renderings
+
+
+def _ground_known_at(known_at: str, document: DocumentRef, quote: str) -> dict[str, Any]:
+    """Deterministic verdict: is ``known_at`` knowable from the document?
+
+    The compiler model asserts ``known_at``; this check refuses to take
+    that assertion alone (`gnomon.context`). Grounded means either the
+    caller attached an explicit document date, or the calendar date of
+    ``known_at`` is written verbatim in the cited document's text (the
+    verified evidence quote is part of that text). Anything else leaves
+    the event usable for the future horizon only.
+    """
+    if document.date:
+        return {"grounded": True, "method": "document_metadata_date",
+                "document_date": document.date}
+    try:
+        day = datetime.fromisoformat(known_at).date()
+    except (TypeError, ValueError):
+        return {"grounded": False, "reason": "known_at_not_parseable"}
+    for rendering in _date_renderings(day):
+        if rendering in quote or rendering in document.content:
+            return {"grounded": True, "method": "date_in_document",
+                    "rendering": rendering}
+    return {"grounded": False,
+            "reason": "known_at_date_not_found_in_cited_document"}
 
 
 CONTEXT_RESPONSE_SCHEMA: dict[str, Any] = {
@@ -282,6 +331,10 @@ def parse_context_response(
         attributes.pop("claim", None)
         # `proposer` is ledger identity (see docstring): caller-set only.
         attributes.pop("proposer", None)
+        # The known_at grounding verdict is computed below, never accepted
+        # from the model: a self-attested grounding would reopen the leakage
+        # aperture it exists to close.
+        attributes.pop(KNOWN_AT_GROUNDING_ATTRIBUTE, None)
         # Numerical effect size belongs to measured evidence.  These common
         # spellings are reserved so a proposer cannot smuggle a magnitude
         # through the otherwise-extensible attributes object.
@@ -340,6 +393,8 @@ def parse_context_response(
             # document, which is exactly the check `source_span` exists to
             # carry; the lane's deterministic parser takes it from here.
             attributes["source_span"] = quote
+        attributes[KNOWN_AT_GROUNDING_ATTRIBUTE] = _ground_known_at(
+            str(proposal.get("known_at", "")), document, quote)
         event = ContextEvent(
             event_id=f"event_llm_{index:02d}",
             event_type=event_type,

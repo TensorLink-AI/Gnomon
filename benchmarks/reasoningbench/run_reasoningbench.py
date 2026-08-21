@@ -12,13 +12,15 @@ from __future__ import annotations
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+import hashlib
 import json
 import math
 import os
 from pathlib import Path
 import random
 import re
+import secrets
 import statistics
 import sys
 import threading
@@ -44,6 +46,12 @@ LABELS = {
 }
 DIFFICULTIES = ("easy", "moderate", "marginal")
 ACTIONS = ("act", "collect_more", "resolve_conflict")
+#: The no-change label of each property: the generator's difficulty scaling
+#: multiplies an effect of zero for these, so a "marginal" null case is
+#: constructed identically to an "easy" one and is not near any threshold.
+NULL_LABELS = {"level": "similar", "trend": "constant", "volatility": "stable",
+               "seasonality": "stable", "regime": "no_shift",
+               "extreme": "stable"}
 SYSTEM = """You are a careful temporal analyst. Infer only from supplied data.
 Return one JSON object with keys diagnosis, confidence, analogue_outcome, and
 next_action. diagnosis must be one allowed diagnosis; confidence is supported
@@ -75,52 +83,72 @@ def generate_cases(seed: int, count: int) -> list[Case]:
         expected = rng.choice(LABELS[prop])
         values, season = _case(seed * 10_000 + index, prop, expected,
                                difficulty=difficulty)
-        conflicts = index % 2 == 0
+        # Alternate conflict within each property block AND across blocks:
+        # plain ``index % 2`` was aliased with ``index % len(LABELS)``, so
+        # each property either always or never conflicted and the claim
+        # dimension collapsed into the property label.
+        conflicts = (index + index // len(LABELS)) % 2 == 0
         alternatives = [item for item in LABELS[prop] if item != expected]
         claimed = rng.choice(alternatives) if conflicts else expected
         claim = f"An operations note confidently says the recent {prop} is {claimed}."
         # Analogue distances and outcomes emulate a compact episode registry.
-        # The nearest two agree; rows are shuffled so position cannot answer.
-        analogue_expected = rng.choice(("up", "down", "flat"))
+        # The nearest two only sometimes agree: a forced consensus made the
+        # field a constant of the construction, so any strategy that copied
+        # the nearest row scored it without checking agreement. When they
+        # disagree the honest answer is "unavailable". Rows are shuffled so
+        # position cannot answer.
+        nearest = rng.choice(("up", "down", "flat"))
         other = rng.choice([x for x in ("up", "down", "flat")
-                            if x != analogue_expected])
-        analogues = [(0.08 + rng.random() * .05, analogue_expected),
-                     (0.14 + rng.random() * .05, analogue_expected),
+                            if x != nearest])
+        agree = rng.random() < .6
+        analogues = [(0.08 + rng.random() * .05, nearest),
+                     (0.14 + rng.random() * .05, nearest if agree else other),
                      (0.65 + rng.random() * .2, other)]
         rng.shuffle(analogues)
         cases.append(Case(
             f"r{seed}-{index:04d}", prop, difficulty, tuple(values), season,
-            expected, claim, conflicts, tuple(analogues), analogue_expected))
+            expected, claim, conflicts, tuple(analogues),
+            nearest if agree else "unavailable"))
     return cases
 
 
+def corpus_sha256(cases: list[Case]) -> str:
+    """Content hash of the generated corpus, mirroring ContextBench's
+    ``cases_sha256``: the summary names exactly which cases produced its
+    numbers, so a rerun against edited generation code cannot silently
+    pass as the same corpus."""
+    rendered = "".join(
+        json.dumps(asdict(case), sort_keys=True, separators=(",", ":")) + "\n"
+        for case in cases)
+    return hashlib.sha256(rendered.encode("utf-8")).hexdigest()
+
+
 def compact_packet(case: Case) -> dict[str, Any]:
+    """Computed numeric evidence only — nothing the scorer expects back.
+
+    The earlier packet restated three of the four scored fields: its
+    ``support`` label was the expected ``confidence``, its analogue
+    consensus was the expected ``analogue_outcome`` (and generation forced
+    the consensus to exist), and its ``next`` sentence paraphrased the
+    action enum 1:1 — a copy strategy scored all three without reading a
+    number. What remains is the measured transition a control arm could in
+    principle derive from the raw history itself: direction, magnitude and
+    window size. The measured direction is evidence, not the answer — the
+    scored diagnosis is the generator's construction, and on marginal
+    tiers the measurement diverges from it."""
     evidence = window_evidence(list(case.values), property=case.prop,
                                season=case.season, window=96)
-    nearest = sorted(case.analogues)[:2]
-    consensus = (nearest[0][1] if nearest[0][1] == nearest[1][1]
-                 else "unavailable")
-    claim_direction = case.claim.rsplit(" ", 1)[-1].rstrip(".")
-    conflict = claim_direction != evidence.direction
-    next_step = ("wait for another observation window before deciding"
-                 if evidence.support != "supported" else
-                 "reconcile the source note with the measured history"
-                 if conflict else
-                 "proceed while continuing ordinary monitoring")
+    estimate = evidence.estimate
     return {
         "authority": "computed_temporal_evidence",
         "primary_forecast_unchanged": True,
-        "because": [{"evidence": "observed_transition",
-                     "direction": evidence.direction,
-                     "support": evidence.support}],
-        "against": ([{"evidence": "narrative_claim",
-                      "direction": claim_direction}] if conflict else []),
-        "unknown": ([] if evidence.support == "supported"
-                    else ["transition_near_detection_threshold"]),
-        "historical_analogue_consensus": consensus,
-        # Natural product guidance, not the scorer's enum.  The model must
-        # synthesize it with support/conflict into the requested action.
-        "next": [next_step],
+        "window_stats": {
+            "property": case.prop,
+            "measured_direction": evidence.direction,
+            "estimate": (round(float(estimate), 4)
+                         if isinstance(estimate, (int, float)) else None),
+            "window_steps": evidence.diagnostics.get("window_steps"),
+        },
         "details_in_answer_receipt": True,
     }
 
@@ -153,19 +181,27 @@ def parse_answer(text: str) -> dict[str, str]:
 
 
 def expected(case: Case) -> dict[str, str]:
-    evidence = window_evidence(list(case.values), property=case.prop,
-                               season=case.season, window=96)
-    claim_direction = case.claim.rsplit(" ", 1)[-1].rstrip(".")
-    conflict = claim_direction != evidence.direction
+    """Truth from GENERATOR-known quantities only.
+
+    Nothing here reads ``window_evidence`` or anything the treatment
+    packet carries: an expected answer derived from the packet's own
+    internals is the packet, and copying it back scores perfectly. The
+    effect size is the generator's difficulty tier (a marginal non-null
+    effect is constructed near the detection threshold, so a categorical
+    assertion is not warranted; a null label is unscaled and clean at
+    every tier), the conflict is the generator's own claimed-vs-expected
+    construction, and the analogue outcome is the generator's realized
+    consensus of the two nearest episodes — "unavailable" when it made
+    them disagree."""
+    marginal_effect = (case.difficulty == "marginal"
+                       and case.expected != NULL_LABELS[case.prop])
+    confidence = "uncertain" if marginal_effect else "supported"
     return {
-        # Generator truth scores diagnosis; engine support scores whether a
-        # categorical assertion is warranted at this sample size.
         "diagnosis": case.expected,
-        "confidence": ("supported" if evidence.support == "supported"
-                       else "uncertain"),
+        "confidence": confidence,
         "analogue_outcome": case.expected_analogue,
-        "next_action": ("collect_more" if evidence.support != "supported" else
-                        "resolve_conflict" if conflict else "act"),
+        "next_action": ("collect_more" if confidence == "uncertain" else
+                        "resolve_conflict" if case.claim_conflicts else "act"),
     }
 
 
@@ -272,7 +308,12 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     treatment_only = sum(not c and t for c, t in paired)
     control_only = sum(c and not t for c, t in paired)
     summary = {
-        "schema_version": "0.1", "seed": args.seed, "cases": args.cases,
+        "schema_version": "0.2", "seed": args.seed, "cases": args.cases,
+        # Corpus integrity beside the seed, mirroring ContextBench: the
+        # hash names the exact generated cases, and fresh_seed records
+        # whether the run used a held-out seed drawn at invocation.
+        "fresh_seed": bool(getattr(args, "fresh_seed", False)),
+        "corpus_sha256": corpus_sha256(cases),
         "model": args.model, "base_url": args.base_url,
         "metrics": metrics,
         "paired": {"treatment_only": treatment_only,
@@ -287,6 +328,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         },
         "design": {"matched": True, "generated_held_out_seeds": True,
                    "labels_absent_from_prompts": True,
+                   "packet_excludes_scored_answers": True,
                    "primary_forecast_unchanged": True},
     }
     (output / "summary.json").write_text(
@@ -300,11 +342,19 @@ def main() -> int:
     parser.add_argument("--model", default="deepseek-v4-flash-0731")
     parser.add_argument("--base-url", default="https://api.engy.ai/v1")
     parser.add_argument("--cases", type=int, default=72)
-    parser.add_argument("--seed", type=int, default=82026)
+    seeds = parser.add_mutually_exclusive_group()
+    seeds.add_argument("--seed", type=int)
+    seeds.add_argument("--fresh-seed", action="store_true",
+                       help="draw a held-out seed at invocation; the summary "
+                            "records it with fresh_seed=true so a report can "
+                            "distinguish held-out runs from replays")
     parser.add_argument("--concurrency", type=int, default=8)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--resume", action="store_true")
-    args = parser.parse_args(); run(args); return 0
+    args = parser.parse_args()
+    if args.seed is None:
+        args.seed = (secrets.randbits(63) if args.fresh_seed else 82026)
+    run(args); return 0
 
 
 if __name__ == "__main__":

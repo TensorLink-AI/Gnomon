@@ -7,9 +7,12 @@ Endpoint: `https://api.engy.ai/v1`
 
 ## Decision
 
-> Superseded 2026-08-14: this records the first experiment. After the response
-> contract and routing fixes, the fresh 1,800-execution workflow experiment
-> selected `evidence` as the default. The historical result follows.
+> Revision note 2026-08-21: a follow-up run was previously cited here as
+> superseding this result and selecting `evidence` as the default. That run's
+> raw output was never preserved, so its numbers are withdrawn and it cannot
+> supersede anything. This document records the only preserved surface
+> experiment. The current `evidence` default stands as a provisional product
+> decision pending a reproducible, committed workflow run.
 
 Keep `full` as the default MCP profile. All four candidates were run against
 the same first T1, T2, T3, and T4 TemporalBench rows with the same model,

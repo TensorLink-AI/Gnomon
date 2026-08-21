@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import sys
 from typing import Any, TextIO
 
@@ -48,6 +49,21 @@ ENVELOPE_SCHEMA: dict[str, Any] = {
 }
 
 
+def _json_safe(value: Any) -> Any:
+    """Non-finite floats become null; strict JSON has no inf/nan spelling.
+
+    Tools are expected to emit JSON-safe payloads themselves, but a single
+    escaped sentinel must degrade to a null field, never crash the result.
+    """
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, dict):
+        return {key: _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(item) for item in value]
+    return value
+
+
 def _tool_result(payload: dict[str, Any], is_error: bool) -> dict[str, Any]:
     """A tool result in both shapes the advertised protocol supports.
 
@@ -57,7 +73,17 @@ def _tool_result(payload: dict[str, Any], is_error: bool) -> dict[str, Any]:
     agent should not have to `JSON.parse` a string and validate it against
     nothing.
     """
-    text = json.dumps(payload, allow_nan=False)
+    try:
+        text = json.dumps(_json_safe(payload), allow_nan=False)
+    except (TypeError, ValueError) as exc:
+        # A payload the sanitizer cannot save is a server bug, not a
+        # registry rejection: report it as such rather than letting the
+        # ValueError escape into the tool-dispatch TRACKING_ERROR handler.
+        logger.exception("Tool result not JSON-serializable")
+        is_error = True
+        text = json.dumps(GnomonError(
+            "INTERNAL_ERROR", f"tool result not serializable: {exc}",
+        ).to_dict(), allow_nan=False)
     return {
         "content": [{"type": "text", "text": text}],
         # Round-tripped rather than passed through, so the structured form

@@ -362,6 +362,69 @@ def test_tracking_requires_artifact_binding_and_correct_error(outcome):
     assert row["usable"] is False
 
 
+def _verification_artifact(tmp_path, *, parity: bool, next_value: float) -> Path:
+    """A real on-disk artifact: identity in evidence.jsonl + artifact.json."""
+    path = tmp_path / "artifact"
+    path.mkdir()
+    (path / "evidence.jsonl").write_text(json.dumps({
+        "kind": "final_candidate", "payload": {"name": "ensemble"}
+    }) + "\n", encoding="utf-8")
+    (path / "artifact.json").write_text(json.dumps({
+        "forecast_id": "f-1", "source_fingerprint": "sha256:data",
+        "results": [{"selected_model": "ensemble" if parity else "different",
+                     "forecast": [{"q50": next_value}]}],
+    }), encoding="utf-8")
+    return path
+
+
+def test_fabricated_trust_fields_fail_against_the_real_artifact(tmp_path):
+    """An observation that attests perfect parity and faithful quoting while
+    the artifact it names records a mismatched identity and a different
+    headline number must fail trust once the runner re-reads the artifact."""
+    from benchmarks.workflow.run_workflow import verify_observation_artifact
+
+    case = load_cases(DEFAULT_CASES)[0]  # requires parity and quote match
+    artifact = _verification_artifact(tmp_path, parity=False, next_value=42.0)
+    fabricated = _observation(case, metadata={"artifact_path": str(artifact)})
+    verified = verify_observation_artifact(fabricated)
+    assert verified.verified_publish_parity is False
+    assert verified.verified_quote_match is False
+    row = score_run([case], [verified], "fixture")["rows"][0]
+    assert row["trust_verification"] == "verified"
+    assert row["publish_parity_pass"] is False
+    assert row["quote_pass"] is False
+    assert row["trust_pass"] is False
+
+
+def test_matching_artifact_upgrades_trust_from_attested_to_verified(tmp_path):
+    from benchmarks.workflow.run_workflow import verify_observation_artifact
+
+    case = load_cases(DEFAULT_CASES)[0]
+    artifact = _verification_artifact(tmp_path, parity=True, next_value=10.0)
+    obs = verify_observation_artifact(
+        _observation(case, metadata={"artifact_path": str(artifact)}))
+    assert obs.verified_publish_parity is True
+    assert obs.verified_quote_match is True
+    result = score_run([case], [obs], "fixture")
+    assert result["rows"][0]["trust_verification"] == "verified"
+    assert result["rows"][0]["trust_pass"] is True
+    assert result["trust_verified_fraction"] == 1.0
+
+
+def test_observations_without_a_readable_artifact_stay_attested_only(tmp_path):
+    from benchmarks.workflow.run_workflow import verify_observation_artifact
+
+    cases = load_cases(DEFAULT_CASES)
+    # No artifact_path at all (raw control), and a path that no longer
+    # exists: neither may invent a verification either way.
+    gone = _observation(cases[0], metadata={"artifact_path": str(tmp_path / "gone")})
+    assert verify_observation_artifact(gone) is gone
+    result = score_run(cases, [_observation(case) for case in cases], "control")
+    assert result["trust_verified_fraction"] == 0.0
+    assert all(row["trust_verification"] == "attested_only"
+               for row in result["rows"])
+
+
 def test_publish_parity_is_derived_from_fingerprints_not_model_claim():
     case = next(case for case in generate_publication_cases(per_kind=1)
                 if case.oracle.requires_publish_parity)

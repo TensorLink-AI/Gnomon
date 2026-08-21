@@ -177,8 +177,13 @@ def main() -> int:
                            "condition": args.condition, "turns": []}
         for record in turn_records:
             reference = task.reference_turn_after(record["user_turn_id"] or 0)
+            question = next(
+                (turn.get("text") for turn in task.dialogue
+                 if turn.get("role") == "user"
+                 and turn.get("turn_id") == record["user_turn_id"]), None)
             verdict = scoring.score_turn(reference or {}, record["response"],
-                                         judge_client=judge)
+                                         judge_client=judge,
+                                         question=question)
             record["verdict"] = verdict
             task_transcript["turns"].append(record)
             turn_key = f"{task.task_id}-turn{record['user_turn_id']}"

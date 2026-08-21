@@ -3,6 +3,16 @@
     "arm": "raw-llm",
     "benchmark": "contextbench",
     "notes": [],
+    "provenance": {
+      "configuration": "seed and fresh_seed recorded in the summary; one replicate",
+      "dataset": "in-repo synthetic context corpus (corpus_manifest_sha256 recorded in the summary)",
+      "evaluated_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+      "harness_commit": "unrecorded (raw run predates the release curation commit 038291efb123c4ec7f62afce3d059baabfc2f0fc and its exact revision was not captured; not later than that commit)",
+      "provider_model": "deepseek-v4-flash-0731 via https://api.engy.ai/v1",
+      "validity_limitations": [
+        "Measures raw-LLM context-claim accuracy; this arm is a complementary lane, not the same metric as the evidence arm, so the three contextbench files are not a three-way matched comparison."
+      ]
+    },
     "scope": "full",
     "source": "results/contextbench-full-20260816/llm-raw/summary.json",
     "source_sha256": "ae1da4c68f73433e5f0174bcb1adf48c6f51a1a4b3eef86e69837ea7973d8b07",

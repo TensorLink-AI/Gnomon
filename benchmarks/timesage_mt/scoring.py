@@ -23,11 +23,15 @@ The checks themselves:
   ``2026/01/02``, ``12:30:05``, ISO datetimes) are excluded from
   extraction, identically for both arms.
 
-Remaining range leniency, disclosed: ANY in-range number anywhere in
-the response passes, and the tools-arm prompt elicits more numbers per
-response, so the check's expected benefit scales with response
-numerosity. Whether the official judge shares this leniency is not
-knowable from the published dataset.
+Range proximity, identically for both arms: when the spec or the turn's
+question yields content terms (the spec's keywords, plus content words
+of the question), the in-range number must appear in a sentence that
+also contains one of those terms — an unrelated in-range number
+elsewhere in the response no longer passes, which previously rewarded
+whichever arm emitted more numbers per response. A spec with no
+derivable content terms keeps the whole-response check, disclosed.
+Whether the official judge shares any of this is not knowable from the
+published dataset.
 """
 
 from __future__ import annotations
@@ -77,11 +81,43 @@ def numbers_in(text: str) -> list[float]:
     return values
 
 
-def score_mechanical(verify: dict[str, Any], response: str) -> bool | None:
+#: Function words excluded when drawing content terms from a question so
+#: "what", "series", "please" cannot anchor the range check by accident.
+_STOPWORDS = frozenset((
+    "about", "after", "again", "aggregate", "also", "analyze", "before",
+    "between", "compare", "could", "describe", "does", "each", "explain",
+    "find", "first", "from", "give", "have", "identify", "into", "last",
+    "list", "many", "measure", "much", "over", "please", "profile",
+    "provide", "report", "series", "should", "show", "some", "state",
+    "tell", "that", "them", "then", "there", "these", "this", "using",
+    "value", "values", "what", "when", "where", "which", "with", "would",
+))
+
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+|\n+")
+
+
+def content_terms(verify: dict[str, Any], question: str | None) -> list[str]:
+    """Content terms a range answer must sit beside: the spec's own
+    keywords, then content words (4+ letters, non-stopword) of the
+    turn's question."""
+    terms = [str(keyword).lower() for keyword in (verify.get("keywords") or [])]
+    for word in re.findall(r"[a-zA-Z]{4,}", (question or "").lower()):
+        if word not in _STOPWORDS and word not in terms:
+            terms.append(word)
+    return terms
+
+
+def score_mechanical(verify: dict[str, Any], response: str,
+                     context_terms: list[str] | None = None) -> bool | None:
     """Apply the mechanical parts of one finding_verify spec.
 
     Returns True/False when the spec is mechanically checkable, or None
-    when it requires embedding/judge evaluation.
+    when it requires embedding/judge evaluation. With ``context_terms``
+    (see ``content_terms``), the range check is sentence-scoped: the
+    in-range number must share a sentence with one of the terms, so an
+    unrelated number elsewhere in a number-dense response cannot pass a
+    range about something else. Without any terms the whole response
+    remains the scope, disclosed in the module docstring.
     """
     verify_type = verify.get("type")
     keywords = verify.get("keywords") or []
@@ -95,7 +131,12 @@ def score_mechanical(verify: dict[str, Any], response: str) -> bool | None:
         "numerical_range", "keyword", None
     ):
         low, high = float(value_range[0]), float(value_range[1])
-        checks.append(any(low <= v <= high for v in numbers_in(response)))
+        terms = context_terms or [str(k).lower() for k in keywords]
+        scopes = ([sentence for sentence in _SENTENCE_SPLIT.split(response)
+                   if any(term in sentence.lower() for term in terms)]
+                  if terms else [response])
+        checks.append(any(low <= v <= high
+                          for scope in scopes for v in numbers_in(scope)))
     if checks:
         return all(checks)
     return None
@@ -121,15 +162,19 @@ def score_with_judge(
 def score_turn(
     reference_turn: dict[str, Any], response: str,
     judge_client: Any | None = None,
+    question: str | None = None,
 ) -> dict[str, Any]:
     """Score one agent response against its reference turn.
 
+    ``question`` is the user turn the response answers; its content
+    words scope the range check (see ``score_mechanical``).
     Returns ``{"scored": bool, "passed": bool | None, "basis": str}``.
     """
     verify = reference_turn.get("finding_verify")
     if not verify:
         return {"scored": False, "passed": None, "basis": "no_verify_spec"}
-    mechanical = score_mechanical(verify, response)
+    mechanical = score_mechanical(verify, response,
+                                  context_terms=content_terms(verify, question))
     if mechanical is not None:
         return {"scored": True, "passed": mechanical, "basis": "mechanical"}
     if judge_client is not None:

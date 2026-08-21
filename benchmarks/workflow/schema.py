@@ -29,6 +29,10 @@ OBSERVATION_FIELDS = {"case_id", "status", "support", "numbers", "choices",
                       "published_fingerprint", "headline_numbers",
                       "artifact_numbers", "stage_results"}
 OBSERVATION_FIELDS |= {"engine_facts"}
+# Runner-verified trust values.  Arms never set these: run_workflow re-reads
+# the artifact an observation names and records what the artifact itself
+# supports, so a fabricated observation cannot author its own verification.
+OBSERVATION_FIELDS |= {"verified_publish_parity", "verified_quote_match"}
 
 
 def _require(condition: bool, message: str) -> None:
@@ -198,6 +202,10 @@ class Observation:
     headline_numbers: dict[str, float] = field(default_factory=dict)
     artifact_numbers: dict[str, float] = field(default_factory=dict)
     stage_results: dict[str, Any] = field(default_factory=dict)
+    # Written by run_workflow's artifact verification, never by an arm; None
+    # means "no artifact could be re-read", i.e. attested-only trust.
+    verified_publish_parity: bool | None = None
+    verified_quote_match: bool | None = None
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "Observation":
@@ -243,6 +251,12 @@ class Observation:
             artifact_numbers={str(k): float(v) for k, v in
                               (value.get("artifact_numbers") or {}).items()},
             stage_results=dict(value.get("stage_results") or {}),
+            verified_publish_parity=_optional_bool(
+                value.get("verified_publish_parity"),
+                "verified_publish_parity", case_id),
+            verified_quote_match=_optional_bool(
+                value.get("verified_quote_match"),
+                "verified_quote_match", case_id),
         )
 
 

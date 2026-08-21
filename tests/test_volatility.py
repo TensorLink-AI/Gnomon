@@ -55,6 +55,30 @@ def test_no_residual_history_still_abstains() -> None:
     assert math.isfinite(fitted.scale)
 
 
+def _non_finite_floats(value: object, path: str = "") -> list[str]:
+    if isinstance(value, float) and not math.isfinite(value):
+        return [path]
+    if isinstance(value, dict):
+        return [found for key, item in value.items()
+                for found in _non_finite_floats(item, f"{path}.{key}")]
+    if isinstance(value, (list, tuple)):
+        return [found for index, item in enumerate(value)
+                for found in _non_finite_floats(item, f"{path}[{index}]")]
+    return []
+
+
+def test_degenerate_series_diagnostics_are_json_safe() -> None:
+    # A near-deterministic series skips every fold, leaving the direction
+    # brier baselines with no samples. Those must publish as None, never
+    # math.inf: the diagnostics reach json.dumps(allow_nan=False) over MCP.
+    fitted = fit_volatility_executable(
+        [100.0 + 3.0 * step for step in range(35)], horizon=1)
+    assert _non_finite_floats(fitted.diagnostics) == []
+    assert _non_finite_floats(fitted.execute()) == []
+    assert fitted.diagnostics["direction_base_rate_brier"] is None
+    assert fitted.diagnostics["direction_constant_brier"] is None
+
+
 def test_long_horizon_uses_disclosed_proxy_without_automation() -> None:
     fitted = fit_volatility_executable(_series(9, [1], block=50), horizon=69)
     assert fitted.diagnostics["proxy_horizon_calibration"] is True

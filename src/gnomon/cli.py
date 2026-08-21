@@ -1210,7 +1210,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                     return 2
             elif args.tsfm_command == "remove":
                 name = args.name
-                remove_sandbox(name)
+                try:
+                    remove_sandbox(name)
+                except (TSFMUnavailable, TSFMError) as exc:
+                    print(json.dumps({
+                        "status": "error",
+                        "error": {"code": "SANDBOX_REMOVE_FAILED",
+                                  "message": str(exc)},
+                    }, indent=2), file=sys.stderr)
+                    return 2
                 print(json.dumps({"status": "ok", "removed": name}, indent=2))
                 return 0
             elif args.tsfm_command == "install-all":

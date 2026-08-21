@@ -11,8 +11,10 @@ import statistics
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 
+from benchmarks.common.immutability import call_preserving_inputs  # noqa: E402
 from gnomon.temporal_executables import (  # noqa: E402
     _property_value, fit_dependence_executable, fit_temporal_executable,
 )
@@ -51,6 +53,17 @@ def _paths(seed: int, regime: str, *, n: int = 420,
 
 def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
     rows: list[dict[str, object]] = []
+    # Behavioral immutability: every engine invocation goes through
+    # call_preserving_inputs, and the gate is the observed count of calls
+    # that mutated an input — not the engine's own attested diagnostic.
+    engine_calls = engine_calls_mutated = 0
+
+    def engine(fn, *args, **kwargs):
+        nonlocal engine_calls, engine_calls_mutated
+        result, unmutated = call_preserving_inputs(fn, *args, **kwargs)
+        engine_calls += 1
+        engine_calls_mutated += int(not unmutated)
+        return result
     regimes = {
         "level": ("flat", "up", "down", "shift"),
         "trend": ("flat", "up", "down", "season_up"),
@@ -64,7 +77,8 @@ def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
             for replicate in range(replicates):
                 case_seed = seed + 10_000 * list(regimes).index(prop) + 100 * regime_index + replicate
                 history, future, season = _paths(case_seed, regime)
-                fitted = fit_temporal_executable(
+                fitted = engine(
+                    fit_temporal_executable,
                     history, property=prop, horizon=len(future), season=season)
                 actual = _property_value(prop, history, future, season)
                 from gnomon.temporal_executables import _label
@@ -97,7 +111,8 @@ def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
                 left.append(left[-1] + x)
                 right.append(right[-1] + y)
                 shocks.append((x, y))
-            fitted = fit_dependence_executable(left[:421], right[:421], horizon=24)
+            fitted = engine(fit_dependence_executable,
+                            left[:421], right[:421], horizon=24)
             future = shocks[420:444]
             from gnomon.temporal_executables import _correlation
             actual = _correlation([x for x, _ in future], [y for _, y in future])
@@ -155,7 +170,8 @@ def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
                 else:
                     future = [10 + rng.gauss(0, .35)
                               for _ in range(2 * period)]
-                observed = _seasonality_alignment(history, future, period)
+                observed = engine(_seasonality_alignment,
+                                  history, future, period)
                 alignment_rows.append({
                     "period": period, "expected": expected,
                     "observed": observed["direction"], "seed": case_seed,
@@ -210,7 +226,8 @@ def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
                     future = [wave(length + index, shift=phase_shift,
                                    future=True)
                               for index in range(2 * period)]
-                observed = _seasonality_alignment(history, future, period)
+                observed = engine(_seasonality_alignment,
+                                  history, future, period)
                 alignment_stress_rows.append({
                     "family": family, "period": period, "expected": expected,
                     "observed": observed["direction"], "seed": case_seed,
@@ -236,20 +253,25 @@ def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
     # disagreeing channels vary; no TemporalBench labels or channel names are
     # used here.
     panel_rows = []
-    for expected, multiplier in (("increased", 2.5), ("decreased", .35),
-                                 ("stable", 1.0)):
+    for class_index, (expected, multiplier) in enumerate(
+            (("increased", 2.5), ("decreased", .35), ("stable", 1.0))):
         for replicate in range(replicates * 3):
             evidence = {}
             for member in range(7):
-                case_seed = seed + 300_000 + replicate * 100 + member
+                # The class index must be in the seed: without it the three
+                # expected-class variants replayed identical draws (recent
+                # was the same Gaussian sequence rescaled), so the lane's
+                # effective sample was a third of its case count.
+                case_seed = (seed + 300_000 + class_index * 10_000
+                             + replicate * 100 + member)
                 rng = random.Random(case_seed)
                 reference = [rng.gauss(0, 1) for _ in range(48)]
                 # One dissenting channel prevents a synthetic unanimity test.
                 factor = (1.0 if member == replicate % 7 else multiplier)
                 recent = [rng.gauss(0, factor) for _ in range(48)]
-                evidence[str(member)] = compare_windows(
-                    reference + recent, window=48)
-            result = aggregate_evidence(evidence, property="volatility")
+                evidence[str(member)] = engine(
+                    compare_windows, reference + recent, window=48)
+            result = engine(aggregate_evidence, evidence, property="volatility")
             panel_rows.append({
                 "expected": expected, "observed": result["direction"],
                 "support": result["support"],
@@ -266,10 +288,11 @@ def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
     # history-only volatility prediction. These fresh paths vary level and
     # trend so the check is specifically about residual dispersion.
     forecast_volatility_rows = []
-    for expected, multiplier in (("increased", 2.2), ("decreased", .35),
-                                 ("stable", 1.0)):
+    for class_index, (expected, multiplier) in enumerate(
+            (("increased", 2.2), ("decreased", .35), ("stable", 1.0))):
         for replicate in range(replicates * 3):
-            case_seed = seed + 400_000 + replicate
+            # Same per-class seed requirement as the panel lane above.
+            case_seed = seed + 400_000 + class_index * 10_000 + replicate
             rng = random.Random(case_seed)
             history = [100 + .03 * index + rng.gauss(0, 1)
                        for index in range(180)]
@@ -277,7 +300,8 @@ def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
             future = [anchor + .03 * (index + 1)
                       + rng.gauss(0, multiplier)
                       for index in range(36)]
-            result = _forecast_volatility_alignment(history, future, 1)
+            result = engine(_forecast_volatility_alignment,
+                            history, future, 1)
             forecast_volatility_rows.append({
                 "expected": expected, "observed": result["direction"],
                 "ratio": result["future_to_reference_ratio"],
@@ -299,7 +323,11 @@ def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
         "claim_rate_at_least_10pct": len(claims) / len(rows) >= .1,
         "best_estimate_direction_accuracy_at_least_60pct": statistics.mean(
             bool(row["best_estimate_direction_correct"]) for row in rows) >= .6,
-        "primary_immutable": all(bool(row["primary_forecast_unchanged"]) for row in rows),
+        # Behavioral, not attested: the engines' own primary_forecast_unchanged
+        # diagnostic is a constant True, so gating on it was tautological. The
+        # per-row field is still recorded; the GATE is the element-wise
+        # before/after comparison of every engine call's inputs.
+        "inputs_unmutated": engine_calls > 0 and engine_calls_mutated == 0,
         "seasonality_alignment_balanced_accuracy_at_least_80pct": (
             statistics.mean(alignment_recalls.values()) >= .8),
         "seasonality_alignment_stress_balanced_accuracy_at_least_65pct": (
@@ -325,6 +353,8 @@ def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
     gates["every_property_claim_gate"] = all(
         all(values.values()) for values in property_gates.values())
     return {"schema_version": "0.2", "seed": seed, "cases": len(rows),
+            "engine_calls": engine_calls,
+            "engine_calls_mutated_inputs": engine_calls_mutated,
             "by_property": by_property, "gates": gates,
             "property_gates": property_gates,
             "seasonality_alignment": {

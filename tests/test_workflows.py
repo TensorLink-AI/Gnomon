@@ -94,6 +94,87 @@ def test_compiler_may_classify_an_effect_but_cannot_supply_magnitude() -> None:
     assert "effect_size" not in attributes
 
 
+def test_ungrounded_known_at_is_not_backtest_admissible() -> None:
+    # The date is only in the model's assertion: not in the document text,
+    # and the caller attached no document date. A hindsight model could
+    # otherwise pre-date an invented event into the historical folds.
+    ungrounded = {**PROPOSAL, "known_at": "2026-07-10T00:00:00+10:00"}
+    result = parse_context_response({"events": [ungrounded]}, [DOCUMENT])
+    assert result["rejected"] == []
+    event = result["events"][0]
+    assert event["backtest_admissible"] is False
+    grounding = event["attributes"]["known_at_grounding"]
+    assert grounding["grounded"] is False
+    assert grounding["reason"] == "known_at_date_not_found_in_cited_document"
+
+
+def test_ungrounded_known_at_excluded_from_folds_with_typed_reason() -> None:
+    from gnomon.context import event_from_dict
+    from gnomon.context_eval import eligible_events
+
+    ungrounded = {**PROPOSAL, "known_at": "2026-07-10T00:00:00+10:00"}
+    result = parse_context_response({"events": [ungrounded]}, [DOCUMENT])
+    event = event_from_dict(result["events"][0])
+    eligible, excluded = eligible_events([event], "api-prod")
+    assert eligible == []
+    assert excluded[0]["reason"] == (
+        "known_at is not grounded in the cited document; "
+        "not admissible for backtesting")
+
+
+def test_known_at_grounded_by_date_written_in_document() -> None:
+    result = parse_context_response({"events": [PROPOSAL]}, [DOCUMENT])
+    event = result["events"][0]
+    assert event["backtest_admissible"] is True
+    grounding = event["attributes"]["known_at_grounding"]
+    assert grounding == {"grounded": True, "method": "date_in_document",
+                         "rendering": "2026-07-22"}
+
+
+def test_known_at_grounded_by_textual_date_rendering() -> None:
+    # "14 August 2026" is in the evidence quote; the ISO form is not.
+    proposal = {**PROPOSAL, "known_at": "2026-08-14T00:00:00+10:00"}
+    result = parse_context_response({"events": [proposal]}, [DOCUMENT])
+    event = result["events"][0]
+    assert event["backtest_admissible"] is True
+    assert event["attributes"]["known_at_grounding"]["rendering"] == \
+        "14 August 2026"
+
+
+def test_known_at_grounded_by_document_metadata_date() -> None:
+    dated = DocumentRef(
+        name="export.md",
+        content="Enterprise A launches next month.",
+        source_type="planning_file",
+        reference="/notes/export.md",
+        date="2026-07-22",
+    )
+    proposal = {
+        **PROPOSAL,
+        "evidence_quote": "Enterprise A launches next month.",
+    }
+    result = parse_context_response({"events": [proposal]}, [dated])
+    event = result["events"][0]
+    assert event["backtest_admissible"] is True
+    assert event["attributes"]["known_at_grounding"] == {
+        "grounded": True, "method": "document_metadata_date",
+        "document_date": "2026-07-22"}
+
+
+def test_model_supplied_grounding_verdict_is_discarded() -> None:
+    # Same discipline as `source_span` and `proposer`: a self-attested
+    # grounding would reopen the leakage aperture the verdict closes.
+    ungrounded = {
+        **PROPOSAL,
+        "known_at": "2026-07-10T00:00:00+10:00",
+        "attributes": {"known_at_grounding": {"grounded": True}},
+    }
+    result = parse_context_response({"events": [ungrounded]}, [DOCUMENT])
+    event = result["events"][0]
+    assert event["backtest_admissible"] is False
+    assert event["attributes"]["known_at_grounding"]["grounded"] is False
+
+
 def test_non_verbatim_quote_is_rejected() -> None:
     tampered = {**PROPOSAL, "evidence_quote": "Enterprise A definitely doubles traffic"}
     result = parse_context_response({"events": [tampered]}, [DOCUMENT])

@@ -339,14 +339,18 @@ def fit_volatility_executable(
         name: _balanced_accuracy(probability_pairs[name])
         for name in candidates if probability_pairs[name]
     }
+    # Empty-sample baselines are None, never math.inf: these values reach the
+    # published diagnostics, which must stay strict-JSON serializable.
     base_rate_brier = (statistics.mean(base_rate_losses)
-                       if base_rate_losses else math.inf)
-    constant_brier = candidate_brier.get("constant", math.inf)
-    direction_baseline = min(base_rate_brier, constant_brier)
+                       if base_rate_losses else None)
+    constant_brier = candidate_brier.get("constant")
+    observed_baselines = [item for item in (base_rate_brier, constant_brier)
+                          if item is not None]
+    direction_baseline = min(observed_baselines) if observed_baselines else None
     direction_eligible = [
         name for name, loss in candidate_brier.items()
         if candidate_balanced.get(name, 0.0) > 1 / 3
-        and math.isfinite(direction_baseline)
+        and direction_baseline is not None
         and loss <= direction_baseline * (1 - minimum_improvement)
     ]
     # Brier loss alone rewards the modal class on imbalanced histories. Among
@@ -359,7 +363,7 @@ def fit_volatility_executable(
         if direction_eligible else "constant")
     direction_brier_skill = (
         (direction_baseline - candidate_brier[best_direction]) / direction_baseline
-        if math.isfinite(direction_baseline) and direction_baseline > 0
+        if direction_baseline is not None and direction_baseline > 0
         and best_direction in direction_eligible else 0.0
     )
     momentum_detected, momentum_change = _momentum_signal(errors)
