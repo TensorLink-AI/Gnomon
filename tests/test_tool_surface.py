@@ -884,6 +884,31 @@ def test_cross_unit_aggregate_preserves_per_series_evidence(
         "cpu", "mem"]
 
 
+def test_describe_brief_projects_typed_answers_within_agent_budget(
+        tmp_path, monkeypatch) -> None:
+    import json
+    from gnomon.toolspec import runner_for
+
+    monkeypatch.setenv("GNOMON_MCP_PROFILE", "evidence")
+    path = _wide_csv(tmp_path, columns=("cpu", "mem"), days=100)
+    payload = runner_for("gnomon_describe")({
+        "input": str(path), "target_column": "cpu,mem", "format": "brief",
+        "questions": [{
+            "id": "fleet-v", "verb": "predict", "property": "volatility",
+            "horizon": 7, "target": {
+                "kind": "aggregate", "members": ["cpu", "mem"],
+                "aggregation": "median_normalized_scale_ratio"},
+        }],
+    })
+
+    assert payload["view"]["format"] == "brief"
+    assert payload["answers"][0]["headline"]
+    assert "per_series" not in payload["answers"][0]
+    assert payload["answers"][0]["reasoning"][
+        "primary_forecast_unchanged"] is True
+    assert len(json.dumps(payload, sort_keys=True)) < 12_000
+
+
 def test_mega_profile_is_three_tools_and_runs_a_descriptive_question(
         tmp_path, monkeypatch) -> None:
     from gnomon.toolspec import runner_for, visible_tools

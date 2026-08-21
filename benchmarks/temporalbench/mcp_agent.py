@@ -1489,6 +1489,7 @@ class _RunBase:
                 "target_column": "value",
                 "series_column": "series",
                 "frequency": getattr(self, "frequency", "h"),
+                "format": "brief",
                 **({"questions": compiled_questions or questions}
                    if compiled_questions or questions else {}),
             }

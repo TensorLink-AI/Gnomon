@@ -1167,7 +1167,7 @@ def _run_describe(arguments: dict[str, Any]) -> dict[str, Any]:
                 question, reports=reports, execution_inputs=execution_inputs,
                 forecast_values=arguments.get("_forecast_values"),
                 conditional_effects=arguments.get("_conditional_effects")))
-    return _json_temporal_values({
+    payload = _json_temporal_values({
         "schema_version": "0.1", "status": "valid",
         "headline": f"Described {len(reports)} series through "
                     f"{max(report['series_end'] for report in reports.values())}.",
@@ -1186,6 +1186,42 @@ def _run_describe(arguments: dict[str, Any]) -> dict[str, Any]:
         # user actually asks what happens next.
         "suggested_next": [],
     })
+    if arguments.get("format") == "brief" and temporal_answers:
+        from .temporal_planner import compact_evidence_plan
+
+        compact_answers = []
+        for item in temporal_answers:
+            answer = dict(item.get("answer") or {})
+            reasoning = answer.get("reasoning")
+            compact_reasoning = (compact_evidence_plan(reasoning)
+                                 if isinstance(reasoning, dict) else None)
+            if compact_reasoning:
+                adjudication = dict(
+                    compact_reasoning.get("adjudication") or {})
+                adjudication.pop("ranked_hypotheses", None)
+                adjudication.pop("weight_meaning", None)
+                compact_reasoning["adjudication"] = adjudication
+            question = dict(item.get("question") or {})
+            compact_answers.append({
+                key: value for key, value in {
+                    "question": {key: question.get(key) for key in (
+                        "id", "verb", "target", "property", "horizon")
+                        if question.get(key) is not None},
+                    "headline": item.get("headline"),
+                    "best_estimate": item.get("best_estimate"),
+                    "reasoning": compact_reasoning,
+                    "limitations": item.get("limitations"),
+                }.items() if value is not None
+            })
+        payload["answers"] = compact_answers
+        payload.pop("reports", None)
+        payload["view"] = {
+            "format": "brief",
+            "full_available": True,
+            "note": ("Compact typed answers and per-series diagnostics; "
+                     "use format='full' for complete reasoning receipts."),
+        }
+    return payload
 
 
 def _json_temporal_values(value: Any) -> Any:
@@ -1958,6 +1994,10 @@ TOOLS: list[dict[str, Any]] = [
                 )},
                 **_REPLAY_PROPERTIES,
                 **_TEMPORAL_QUESTIONS_PROPERTY,
+                "format": {"type": "string", "enum": ["brief", "full"],
+                           "description": ("brief returns compact typed "
+                               "answers and per-series diagnostics; full "
+                               "returns complete reasoning receipts.")},
             },
             "required": [],
         },
