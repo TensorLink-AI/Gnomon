@@ -117,7 +117,6 @@ def compact_packet(case: Case) -> dict[str, Any]:
     # transcription could masquerade as reasoning.
     return {
         "authority": "computed_temporal_measurements",
-        "primary_forecast_unchanged": True,
         "measurement": {
             "property": evidence.property,
             "quantity": evidence.mode,
@@ -328,7 +327,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                    "labels_absent_from_prompts": True,
                    "answer_values_absent_from_evidence_packet": True,
                    "analogue_rows_identical_between_arms": True,
-                   "primary_forecast_unchanged": True},
+                   "no_primary_forecast_generated": True},
     }
     (output / "summary.json").write_text(
         json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")

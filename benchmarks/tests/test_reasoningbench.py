@@ -20,7 +20,7 @@ def test_packet_is_compact_and_does_not_contain_generator_truth() -> None:
     packet = compact_packet(case)
     assert len(str(packet)) < 1000
     assert "expected" not in packet
-    assert packet["primary_forecast_unchanged"] is True
+    assert "primary_forecast_unchanged" not in packet
     assert "direction" not in str(packet)
     assert "historical_analogue_consensus" not in packet
     assert "next" not in packet
