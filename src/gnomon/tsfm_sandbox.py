@@ -301,11 +301,46 @@ def start_install(name: str) -> dict[str, Any]:
 
 
 def remove_sandbox(name: str) -> None:
-    """Remove a sandbox venv."""
+    """Remove a sandbox venv.
+
+    Deletion must survive transient filesystem refusals — overlayfs has
+    returned "Directory not empty" from a plain ``rmtree`` — so read-only
+    entries are made writable and retried, and the whole tree gets a
+    bounded number of passes. The ready marker is deleted first: whatever
+    happens after that, ``tsfm list`` reports the sandbox as not installed
+    rather than presenting a partial venv as usable.
+
+    Raises:
+        TSFMError: If the tree still cannot be fully deleted; the message
+            names the leftover path to remove manually.
+    """
     venv_dir = _sandbox_dir(name)
-    if venv_dir.exists():
-        shutil.rmtree(venv_dir)
-        logger.info("Removed sandbox for %s", name)
+    if not venv_dir.exists():
+        return
+    (venv_dir / ".gnomon-sandbox-ready").unlink(missing_ok=True)
+
+    failures: list[BaseException] = []
+
+    def _chmod_and_retry(function: Any, path: Any, exc_info: Any) -> None:
+        try:
+            os.chmod(path, 0o700)
+            function(path)
+        except OSError as exc:
+            failures.append(exc)
+
+    for _ in range(3):
+        failures.clear()
+        shutil.rmtree(venv_dir, onerror=_chmod_and_retry)
+        if not venv_dir.exists():
+            logger.info("Removed sandbox for %s", name)
+            return
+    raise TSFMError(
+        f"Failed to remove sandbox for {name}: {venv_dir} could not be "
+        f"fully deleted after 3 attempts"
+        + (f" (last error: {failures[-1]})" if failures else "")
+        + ". The sandbox is marked not installed; delete the directory "
+        "manually and re-run `gnomon tsfm remove` to finish."
+    )
 
 
 def list_sandboxes() -> list[str]:

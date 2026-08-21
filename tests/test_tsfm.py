@@ -270,6 +270,87 @@ class TestSandbox:
         # (or contain only sandboxes that actually exist)
         assert isinstance(candidates, list)
 
+    def _install_fake_sandbox(self, monkeypatch, tmp_path, name):
+        import gnomon.tsfm_sandbox as sandbox
+        root = tmp_path / "sandboxes"
+        monkeypatch.setattr(sandbox, "SANDBOX_ROOT", root)
+        venv_dir = root / name
+        venv_dir.mkdir(parents=True)
+        (venv_dir / ".gnomon-sandbox-ready").write_text("tsfm=test\n")
+        (venv_dir / "leftover.txt").write_text("payload")
+        return sandbox, venv_dir
+
+    def test_remove_sandbox_persistent_failure_is_typed_and_honest(
+            self, monkeypatch, tmp_path):
+        import os
+        from gnomon.tsfm import TSFMError
+        sandbox, venv_dir = self._install_fake_sandbox(
+            monkeypatch, tmp_path, "chronos_bolt_mini")
+
+        attempts = []
+
+        def stuck_rmtree(path, onerror=None, **kwargs):
+            # Overlayfs behaviour: the tree survives and rmtree reports
+            # "Directory not empty" through the onerror channel.
+            attempts.append(path)
+            error = OSError(39, "Directory not empty")
+            if onerror is None:
+                raise error
+            onerror(os.rmdir, str(path), (OSError, error, None))
+
+        monkeypatch.setattr(sandbox.shutil, "rmtree", stuck_rmtree)
+        with pytest.raises(TSFMError) as raised:
+            sandbox.remove_sandbox("chronos_bolt_mini")
+        assert "delete the directory manually" in str(raised.value)
+        assert len(attempts) == 3
+        # The partial sandbox must not be reported as installed.
+        assert sandbox.sandbox_exists("chronos_bolt_mini") is False
+        assert "chronos_bolt_mini" not in sandbox.list_sandboxes()
+
+    def test_remove_sandbox_recovers_from_transient_failure(
+            self, monkeypatch, tmp_path):
+        import os
+        import shutil as real_shutil
+        sandbox, venv_dir = self._install_fake_sandbox(
+            monkeypatch, tmp_path, "chronos_bolt_mini")
+
+        real_rmtree, attempts = real_shutil.rmtree, []
+
+        def flaky_rmtree(path, onerror=None, **kwargs):
+            attempts.append(path)
+            if len(attempts) == 1:
+                onerror(os.rmdir, str(path),
+                        (OSError, OSError(39, "Directory not empty"), None))
+                return
+            real_rmtree(path)
+
+        monkeypatch.setattr(sandbox.shutil, "rmtree", flaky_rmtree)
+        sandbox.remove_sandbox("chronos_bolt_mini")
+        assert not venv_dir.exists()
+        assert len(attempts) == 2
+
+    def test_cli_tsfm_remove_failure_reports_typed_error(
+            self, monkeypatch, tmp_path):
+        import contextlib
+        import io
+        import json
+        import os
+        from gnomon.cli import main
+        sandbox, venv_dir = self._install_fake_sandbox(
+            monkeypatch, tmp_path, "chronos_bolt_mini")
+
+        def stuck_rmtree(path, onerror=None, **kwargs):
+            onerror(os.rmdir, str(path),
+                    (OSError, OSError(39, "Directory not empty"), None))
+
+        monkeypatch.setattr(sandbox.shutil, "rmtree", stuck_rmtree)
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(stdout), \
+                contextlib.redirect_stderr(stderr):
+            assert main(["tsfm", "remove", "chronos_bolt_mini"]) == 2
+        payload = json.loads(stderr.getvalue())
+        assert payload["error"]["code"] == "SANDBOX_REMOVE_FAILED"
+
     def test_tsfm_pip_specs_cover_all_adapters(self):
         from gnomon.tsfm_sandbox import TSFM_PIP_SPECS
         from gnomon.tsfm import available_tsfms
