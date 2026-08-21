@@ -1280,6 +1280,30 @@ def test_answer_row_passes_the_experiment_profile(monkeypatch):
     assert seen == [{"profile": "core", "mcp_call_timeout": 17}]
 
 
+def test_answer_row_keeps_forecast_compiler_options_off_mcq_path(monkeypatch):
+    """T1/T3 share MCP context, but not the T2/T4 question compiler."""
+    from benchmarks.temporalbench import run_temporalbench
+
+    seen = []
+    monkeypatch.setattr(
+        mcp_agent, "mcq_row",
+        lambda row, client, **kwargs: seen.append(kwargs) or {},
+    )
+    run_temporalbench.answer_row(
+        {"tier": "T1", "prompt": "x"}, "gnomon-mcp", None,
+        mcp_profile="evidence", compile_context=True,
+        context_receipts_dir="context", compile_questions=True,
+        question_receipts_dir="questions", mcp_call_timeout=17,
+        model_evidence_registry="registry.json",
+    )
+    assert seen == [{
+        "profile": "evidence",
+        "compile_context": True,
+        "context_receipts_dir": "context",
+        "mcp_call_timeout": 17,
+    }]
+
+
 def test_mcp_condition_keeps_the_requested_tiers(tmp_path, monkeypatch):
     """`--condition gnomon-mcp --tiers T1,T2,T3,T4` must run all four:
     the arm is no longer T2/T4 by construction."""

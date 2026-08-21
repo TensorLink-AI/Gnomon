@@ -226,22 +226,28 @@ def answer_row(row: dict[str, Any], condition: str,
         # fallback via the gnomon_forecast tool — the realistic path.
         # T1/T3 carry no forecast channels, so they take the same
         # session with the tier's own answer shape.
-        profile_args = {} if mcp_profile == "full" else {"profile": mcp_profile}
+        # Keep tier-independent session options separate from forecast-only
+        # compiler options.  Passing the latter through to ``mcq_row`` made
+        # all-tier Evidence runs fail before the model was called.
+        common_args = ({} if mcp_profile == "full"
+                       else {"profile": mcp_profile})
         if compile_context:
-            profile_args["compile_context"] = True
+            common_args["compile_context"] = True
             if context_receipts_dir:
-                profile_args["context_receipts_dir"] = context_receipts_dir
-        if compile_questions:
-            profile_args["compile_questions"] = True
-            if question_receipts_dir:
-                profile_args["question_receipts_dir"] = question_receipts_dir
+                common_args["context_receipts_dir"] = context_receipts_dir
         if mcp_call_timeout is not None:
-            profile_args["mcp_call_timeout"] = mcp_call_timeout
-        if model_evidence_registry and row.get("tier") in ("T2", "T4"):
-            profile_args["model_evidence_registry"] = model_evidence_registry
-        if row.get("tier") in ("T2", "T4"):
-            return run_row(row, client, **profile_args)
-        return mcq_row(row, client, **profile_args)
+            common_args["mcp_call_timeout"] = mcp_call_timeout
+        if row.get("tier") not in ("T2", "T4"):
+            return mcq_row(row, client, **common_args)
+
+        forecast_args = dict(common_args)
+        if compile_questions:
+            forecast_args["compile_questions"] = True
+            if question_receipts_dir:
+                forecast_args["question_receipts_dir"] = question_receipts_dir
+        if model_evidence_registry:
+            forecast_args["model_evidence_registry"] = model_evidence_registry
+        return run_row(row, client, **forecast_args)
 
     analysis = gnomon_runner.analyse_row(
         row, best_effort=best_effort, named_tsfm=named_tsfm)
