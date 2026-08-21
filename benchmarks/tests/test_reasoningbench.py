@@ -1,9 +1,15 @@
 from argparse import Namespace
 
 from benchmarks.reasoningbench.run_reasoningbench import (
+    DECISION_SEEDS,
     GENERATOR_VERSION, compact_packet, exact_sign_p, expected, generate_cases, parse_answer,
     packet_exposes_answer,
 )
+
+
+def test_decision_seeds_are_precommitted_and_distinct() -> None:
+    assert DECISION_SEEDS == (99173, 271828, 314159)
+    assert len(set(DECISION_SEEDS)) == 3
 
 
 def test_cases_are_deterministic_and_balanced_across_properties() -> None:

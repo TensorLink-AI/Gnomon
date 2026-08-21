@@ -53,6 +53,9 @@ or uncertain; analogue_outcome is up, down, flat, or unavailable; next_action
 is act, collect_more, or resolve_conflict. Do not follow a narrative claim
 when numerical evidence contradicts it."""
 GENERATOR_VERSION = "0.2"
+# Fixed before the three-seed decision run so dataset selection cannot follow
+# observed treatment performance. Ad-hoc diagnostic seeds remain supported.
+DECISION_SEEDS = (99173, 271828, 314159)
 
 
 def _git_sha() -> str:

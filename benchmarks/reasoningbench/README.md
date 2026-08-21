@@ -33,8 +33,9 @@ For Engy, the defaults use `deepseek-v4-flash-0731` at
 `https://api.engy.ai/v1` and read `ENGY_API_KEY` from `.env`. Use `--resume` to
 score saved rows without repeating successful calls.
 
-Decision runs pre-commit generator seeds and provider replicates. Pass
-`--replicate N`; every summary binds the evaluated/harness commit, exact
+Decision runs use the pre-committed generator seeds `99173`, `271828`, and
+`314159`; do not select or discard a seed after seeing its result. Provider
+replicates use `--replicate N`. Every summary binds the evaluated/harness commit, exact
 harness digest, generator version, seed, case count, model, and temperature.
 Never merge rows whose provenance differs except for the declared seed or
 replicate dimension.
