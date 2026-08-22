@@ -23,6 +23,7 @@ from gnomon.temporal_reasoning import (  # noqa: E402
 from gnomon.temporal_evidence import (  # noqa: E402
     aggregate_evidence, compare_windows,
 )
+from benchmarks.common.manifest import write_manifest  # noqa: E402
 
 
 def _paths(seed: int, regime: str, *, n: int = 420,
@@ -412,6 +413,16 @@ def main() -> int:
         output.mkdir(parents=True, exist_ok=True)
         (output / "summary.json").write_text(
             json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        write_manifest(
+            output,
+            benchmark="propertybench",
+            target="general-temporal-properties",
+            condition="gnomon-engine",
+            seed=args.seed,
+            replicates=args.replicates,
+            cases=result["cases"],
+            run_status="complete",
+        )
     print(json.dumps({key: value for key, value in result.items() if key != "rows"},
                      indent=2, sort_keys=True))
     return 0 if result["graduated"] else 2
