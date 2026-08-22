@@ -98,6 +98,17 @@ forecast values here can only introduce truncation or transcription error.
 EVIDENCE_BUDGET = 40_000
 
 
+def primary_forecast_immutability(
+        condition: str, forecast_rows: int,
+        route_mix: dict[str, int]) -> bool | None:
+    """Report a governed invariant only when the arm can establish it."""
+    if not forecast_rows or condition == "control":
+        return None
+    if condition == "gnomon-mcp":
+        return bool(route_mix) and set(route_mix) == {"gnomon"}
+    return True
+
+
 def infrastructure_failure(error: Exception) -> bool:
     """Whether replaying the whole row is safe and potentially useful.
 
@@ -978,8 +989,8 @@ def main() -> int:
             "advisory_overrides_hurt": advisory_overrides_hurt,
             # Choice-only tiers create no primary forecast. They cannot earn
             # an immutability pass merely because there was nothing to mutate.
-            "primary_forecast_unchanged": (
-                True if forecast_rows_total else None),
+            "primary_forecast_unchanged": primary_forecast_immutability(
+                args.condition, forecast_rows_total, route_mix),
         },
         "forecast_metrics_mean_scored_only": {
             key: sum(values) / len(values)

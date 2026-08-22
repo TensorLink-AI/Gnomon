@@ -23,6 +23,9 @@ from benchmarks.temporalbench.scoring import (
 from benchmarks.temporalbench.score_per_channel import (
     stable_scaled_error_denominator,
 )
+from benchmarks.temporalbench.run_temporalbench import (
+    primary_forecast_immutability,
+)
 from benchmarks.temporalbench.tasks import extract_json_object, prompt_input_arrays
 
 
@@ -564,3 +567,23 @@ def test_limit_is_stratified_across_tiers(tmp_path):
     ]
     # A limit larger than the row count returns everything.
     assert len(list(iter_rows(tmp_path, tiers=("T1", "T2"), limit=99))) == 8
+
+
+def test_raw_control_cannot_claim_forecast_immutability():
+    assert primary_forecast_immutability("control", 20, {}) is None
+
+
+def test_choice_only_run_has_no_forecast_immutability_claim():
+    assert primary_forecast_immutability("gnomon-mcp", 0, {}) is None
+
+
+def test_mcp_immutability_requires_every_channel_to_use_gnomon():
+    assert primary_forecast_immutability(
+        "gnomon-mcp", 20, {"gnomon": 60}) is True
+    assert primary_forecast_immutability(
+        "gnomon-mcp", 20, {"gnomon": 59, "model": 1}) is False
+    assert primary_forecast_immutability("gnomon-mcp", 20, {}) is False
+
+
+def test_direct_gnomon_arm_owns_forecast_arrays():
+    assert primary_forecast_immutability("gnomon-agent", 20, {}) is True
