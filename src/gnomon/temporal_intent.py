@@ -86,7 +86,8 @@ _PROPERTY_CUES: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("trend", re.compile(r"\b(trend|slope|growth rate|decline rate)\w*\b", re.I)),
     ("regime", re.compile(r"\b(regime|structural break|change point|changepoint)\w*\b", re.I)),
     ("extreme", re.compile(r"\b(extreme|maximum|minimum|peak|tail risk)\w*\b", re.I)),
-    ("dependence", re.compile(r"\b(correlat|dependence|relationship between)\w*\b", re.I)),
+    ("dependence", re.compile(
+        r"\b(correlat\w*|depend\w*|related|relationship between)\b", re.I)),
     ("level", re.compile(r"\b(median|mean|average|level|higher|lower)\w*\b", re.I)),
 )
 
@@ -123,6 +124,13 @@ def _canonical_measure(prop: str, segment: str) -> str | None:
     return None
 
 
+def _explicit_horizon(segment: str) -> int | None:
+    match = re.search(
+        r"\b(?:next|for)\s+(\d+)\s+(?:periods?|steps?|points?)\b",
+        segment, re.I)
+    return int(match.group(1)) if match else None
+
+
 def _route_explicit_questions(
     text: str, questions: Any, available_targets: list[str],
     default_verb: str, default_horizon: int | None,
@@ -149,13 +157,20 @@ def _route_explicit_questions(
         proposed["id"] = str(proposed.get("id") or f"q{index + 1}")
         proposed["property"] = prop
         proposed["verb"] = str(proposed.get("verb") or default_verb)
-        if default_horizon is not None and proposed.get("horizon") is None:
+        horizon = _explicit_horizon(segment)
+        if horizon is not None:
+            proposed["horizon"] = horizon
+        elif default_horizon is not None and proposed.get("horizon") is None:
             proposed["horizon"] = default_horizon
         measure = _canonical_measure(prop, segment)
         if measure:
             proposed["measure"] = measure
         named = _named_targets(segment, available_targets)
-        if len(named) == 1:
+        each_scope = bool(re.search(r"\b(each|every|separately)\b", segment, re.I))
+        if each_scope:
+            proposed["target"] = {"kind": "each", "members": list(
+                named or available_targets)}
+        elif len(named) == 1:
             proposed["target"] = named[0]
         elif len(named) >= 2 and prop == "dependence":
             proposed["target"] = {"kind": "pair", "members": named}
@@ -207,8 +222,7 @@ def _resolve_discourse_focus(
         if len(named) == 1:
             focus = named[0]
             raw["target"] = focus
-        elif (not named and focus is not None
-              and "target" not in raw and not collective.search(segment)):
+        elif not named and focus is not None and not collective.search(segment):
             raw["target"] = focus
     return resolved
 
