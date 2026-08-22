@@ -84,7 +84,9 @@ _PROPERTY_CUES: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("volatility", re.compile(
         r"\b(volatil\w*|variance|variab\w*|dispersion|nois\w*)\b", re.I)),
     ("seasonality", re.compile(r"\b(season|periodic|cycle|phase alignment)\w*\b", re.I)),
-    ("trend", re.compile(r"\b(trend|slope|growth rate|decline rate)\w*\b", re.I)),
+    ("trend", re.compile(
+        r"\b(trend|slope|growth rate|decline rate|moving up|moving down)\w*\b",
+        re.I)),
     ("regime", re.compile(r"\b(regime|structural break|change point|changepoint)\w*\b", re.I)),
     ("extreme", re.compile(r"\b(extreme|maximum|minimum|peak|tail risk)\w*\b", re.I)),
     ("dependence", re.compile(
@@ -149,6 +151,47 @@ def _proposal_has_unknown_target(question: dict[str, Any],
         return (not isinstance(members, list)
                 or any(member not in available_targets for member in members))
     return False
+
+
+def _recover_explicit_questions(
+    text: str, available_targets: list[str], default_verb: str,
+    default_horizon: int | None,
+) -> list[dict[str, Any]]:
+    """Recover only fully explicit intents from malformed model structure.
+
+    This is deliberately narrower than the LLM compiler: every clause must
+    contain a unique statistical property and an unambiguous target binding.
+    It cannot choose among unnamed series or infer a semantic substitution.
+    """
+    segments = _question_segments(text)
+    recovered: list[dict[str, Any]] = []
+    for index, segment in enumerate(segments):
+        prop = _explicit_property(segment)
+        named = _named_targets(segment, available_targets)
+        if prop is None:
+            return []
+        if len(named) == 1:
+            target: Any = named[0]
+        elif len(named) == 2 and prop == "dependence":
+            target = {"kind": "pair", "members": named}
+        elif len(available_targets) == 1:
+            target = available_targets[0]
+        else:
+            return []
+        question: dict[str, Any] = {
+            "id": f"q{index + 1}", "verb": default_verb,
+            "property": prop, "target": target,
+        }
+        horizon = _explicit_horizon(segment)
+        if horizon is not None:
+            question["horizon"] = horizon
+        elif default_horizon is not None:
+            question["horizon"] = default_horizon
+        measure = _canonical_measure(prop, segment)
+        if measure:
+            question["measure"] = measure
+        recovered.append(question)
+    return recovered
 
 
 def _route_explicit_questions(
@@ -344,9 +387,21 @@ def compile_temporal_text(
                 "The temporal request is materially ambiguous."),
             {"compiler_status": "refused"},
         )
+    raw_questions = proposed.get("questions") or []
+    if isinstance(raw_questions, str):
+        import json
+        try:
+            decoded = json.loads(raw_questions)
+            if isinstance(decoded, list):
+                raw_questions = decoded
+        except (TypeError, ValueError):
+            pass
     routed_questions = _route_explicit_questions(
-        text, proposed.get("questions") or [], available_targets,
+        text, raw_questions, available_targets,
         default_verb, default_horizon)
+    if not isinstance(raw_questions, list):
+        routed_questions = _recover_explicit_questions(
+            text, available_targets, default_verb, default_horizon)
     if not routed_questions:
         from .contracts import GnomonError
         raise GnomonError(
