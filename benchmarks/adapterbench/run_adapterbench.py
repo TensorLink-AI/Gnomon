@@ -10,6 +10,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
+from benchmarks.common.manifest import code_revision, write_manifest  # noqa: E402
 from gnomon.forecast_adapter import (  # noqa: E402
     ForecastAdapterError, ForecastRequest, ForecastResult,
     LegacyModelAdapter, StatisticalAdapter, conformance_report,
@@ -75,12 +76,20 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-dir")
     args = parser.parse_args()
+    run_revision = code_revision()
     result = run()
+    result["evaluated_commit"] = run_revision
     if args.output_dir:
         output = Path(args.output_dir)
         output.mkdir(parents=True, exist_ok=True)
         (output / "summary.json").write_text(
             json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        write_manifest(
+            output, benchmark="adapterbench", condition="conformance",
+            target="forecast-adapter-protocol-v0.1",
+            installed_external=sorted(result["installed_external"]),
+            code_revision=run_revision,
+        )
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if result["graduated"] else 2
 

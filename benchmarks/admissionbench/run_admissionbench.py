@@ -17,6 +17,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
+from benchmarks.common.manifest import code_revision, write_manifest  # noqa: E402
 from gnomon.admission import (  # noqa: E402
     ExternalModelPrior,
     decide_admission,
@@ -114,7 +115,9 @@ def main() -> int:
     parser.add_argument("--output", type=Path)
     parser.add_argument("--output-dir", type=Path)
     arguments = parser.parse_args()
+    run_revision = code_revision()
     summary = run(arguments.seed, arguments.cases)
+    summary["evaluated_commit"] = run_revision
     encoded = json.dumps(summary, indent=2, sort_keys=True)
     output = arguments.output
     if arguments.output_dir:
@@ -122,6 +125,12 @@ def main() -> int:
     if output:
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(encoded + "\n", encoding="utf-8")
+        write_manifest(
+            output.parent, benchmark="admissionbench",
+            condition="evidence-weighted-policy",
+            target=f"seed={arguments.seed};cases={arguments.cases}",
+            code_revision=run_revision,
+        )
     print(encoded)
     return 0 if all(summary["gates"].values()) else 2
 

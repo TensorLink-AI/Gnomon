@@ -10,11 +10,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import subprocess
 import time
 from collections import Counter
 from pathlib import Path
 from statistics import mean
+
+from benchmarks.common.manifest import code_revision, write_manifest
 
 from benchmarks.contextbench.run_contextbench import _forecast, _points, smape
 from benchmarks.contextbench.schema import load_cases, load_oracles
@@ -30,6 +31,7 @@ def main() -> int:
         help="Comma-separated candidate ids actually admitted to evaluation; "
              "--arm is only the human-readable condition label.")
     args = parser.parse_args()
+    run_revision = code_revision()
     candidates = [item.strip() for item in args.candidates.split(",")
                   if item.strip()]
     if not candidates:
@@ -77,9 +79,7 @@ def main() -> int:
         "benchmark": "contextbench-primary-models-v1",
         "arm": args.arm,
         "configured_candidates": candidates,
-        "evaluated_commit": subprocess.run(
-            ["git", "rev-parse", "HEAD"], capture_output=True, text=True,
-            check=False).stdout.strip() or "unknown",
+        "evaluated_commit": run_revision or "unknown",
         "cases": len(observations),
         "mean_smape": mean(row["smape"] for row in observations),
         "families": by_family,
@@ -90,6 +90,15 @@ def main() -> int:
     }
     (output / "summary.json").write_text(
         json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    corpus_manifest = json.loads(
+        (corpus / "manifest.json").read_text(encoding="utf-8")
+    ) if (corpus / "manifest.json").exists() else {}
+    write_manifest(
+        output, benchmark="contextbench-primary-models-v1",
+        condition=args.arm, model=",".join(candidates),
+        target=f"cases_sha256={corpus_manifest.get('cases_sha256', 'unknown')}",
+        corpus_manifest=corpus_manifest, code_revision=run_revision,
+    )
     print(json.dumps(summary, indent=2, sort_keys=True))
     return 0
 
