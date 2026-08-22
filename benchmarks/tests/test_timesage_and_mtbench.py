@@ -242,6 +242,28 @@ def test_failed_task_turns_keyed_like_scored_turns():
     ]
 
 
+def test_timesage_usage_aggregation_preserves_requests_and_provenance():
+    from benchmarks.timesage_mt.run_timesage import _sum_usage
+
+    combined = _sum_usage([
+        {"model": "deepseek", "base_url": "https://example.test/v1",
+         "requests": 2, "transport_attempts": 3, "prompt_tokens": 100,
+         "completion_tokens": 20, "cost_usd": 0.1,
+         "truncation_escalations": 1},
+        {"model": "deepseek", "base_url": "https://example.test/v1",
+         "requests": 4, "transport_attempts": 4, "prompt_tokens": 300,
+         "completion_tokens": 40, "cost_usd": 0.2,
+         "truncation_escalations": 0},
+    ])
+
+    assert combined == {
+        "model": "deepseek", "base_url": "https://example.test/v1",
+        "requests": 6, "transport_attempts": 7, "prompt_tokens": 400,
+        "completion_tokens": 60, "cost_usd": 0.3,
+        "truncation_escalations": 1,
+    }
+
+
 def test_official_mape_fallback_masks_zeros():
     assert official_mape([0.0, 10.0], [5.0, 11.0]) == 10.0
     assert official_mape([2.0, 4.0], [2.0, 4.0]) == 0.0

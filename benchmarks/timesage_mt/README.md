@@ -75,11 +75,13 @@ python -m benchmarks.timesage_mt.run_timesage --download --data-dir ~/timesage-m
 # Control vs treatment, same model, same tasks
 python -m benchmarks.timesage_mt.run_timesage \
     --data-dir ~/timesage-mt --condition direct \
-    --model openai/gpt-4o --tiers L1,L2 --output-dir results/ts-direct
+    --model openai/gpt-4o --tiers L1,L2 --workers 4 --timeout 180 \
+    --output-dir results/ts-direct
 
 python -m benchmarks.timesage_mt.run_timesage \
     --data-dir ~/timesage-mt --condition gnomon-tools \
-    --model openai/gpt-4o --tiers L1,L2 --output-dir results/ts-gnomon
+    --model openai/gpt-4o --tiers L1,L2 --workers 4 --timeout 180 \
+    --output-dir results/ts-gnomon
 
 gnomon eval compare \
     --baseline results/ts-direct/gnomonbench.jsonl \
@@ -100,3 +102,12 @@ tasks round-robin across the requested tiers (extra slots to earlier
 tiers), so a limited run samples every tier it asked for instead of
 silently reducing to the earliest. Limited runs are still declared
 non-comparable.
+
+Task dialogues are independent, so `--workers` parallelizes tasks without
+changing the conversation inside a task. Each completed transcript contains
+its own model, endpoint, usage, and elapsed-time provenance and is written
+immediately. If a provider outage interrupts a run, repeat the same command
+with `--resume`; only complete transcripts matching the requested condition
+and model are reused, while missing or legacy transcripts are rerun. Usage is
+then reconstructed by summing those per-task receipts rather than guessed from
+the surviving process. `--timeout` bounds each individual API request.
