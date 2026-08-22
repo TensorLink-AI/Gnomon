@@ -1,0 +1,44 @@
+{
+  "release_metadata": {
+    "arm": "typed-temporal-intent",
+    "benchmark": "compilerbench",
+    "configuration_identity": "DeepSeek V4 Flash 0731 via Engy; typed intent compiler",
+    "dataset_identity": "synthetic-v1 seed=951 count=80",
+    "evaluated_commit": "92b6b27",
+    "harness_commit": "92b6b27",
+    "notes": [
+      "80/80 completed; exact-target accuracy 93.48%; ambiguity and refusal accuracy 100%; no invented targets accepted."
+    ],
+    "scope": "full",
+    "source": "results/defensible-temporal-20260823/compiler-summary.json",
+    "source_sha256": "777037ac9a6de58c91d7a40188d27a258bdf18de5c9a12f4c3f4da2c71ae2a98",
+    "status": "complete"
+  },
+  "summary": {
+    "accuracy": 0.9625,
+    "ambiguity_refusal_accuracy": 1.0,
+    "cases": 80,
+    "code_revision": "92b6b27",
+    "completed": 80,
+    "exact_target_accuracy": 0.9347826086956522,
+    "infrastructure_errors": 0,
+    "infrastructure_retries": 0,
+    "invented_targets_accepted": 0,
+    "llm_usage": {
+      "base_url": "https://api.engy.ai/v1",
+      "completion_tokens": 9708,
+      "cost_usd": 0.0,
+      "model": "deepseek-v4-flash-0731",
+      "prompt_tokens": 101788,
+      "requests": 80,
+      "transport_attempts": 80,
+      "truncation_escalations": 0
+    },
+    "malformed_model_outputs": 0,
+    "model": "deepseek-v4-flash-0731",
+    "refusal_accuracy": 1.0,
+    "refusal_cases": 11,
+    "schema_version": "0.1",
+    "seed": 951
+  }
+}

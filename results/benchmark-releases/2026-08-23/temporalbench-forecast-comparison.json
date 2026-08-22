@@ -1,0 +1,84 @@
+{
+  "release_metadata": {
+    "arm": "gnomon-evidence-vs-deepseek",
+    "benchmark": "temporalbench-forecast",
+    "configuration_identity": "paired official sMAPE; exact sign test",
+    "dataset_identity": "40 matched forecast tasks from the official 80-case T1-T4 sample",
+    "evaluated_commit": "92b6b27",
+    "harness_commit": "92b6b27",
+    "notes": [
+      "Mean sMAPE 12.31 control versus 10.90 Gnomon; 21 wins, 19 losses; p=0.8746, so no accuracy superiority claim."
+    ],
+    "scope": "subset",
+    "source": "results/defensible-temporal-20260823/temporalbench-forecast-comparison.json",
+    "source_sha256": "f6fccf16ee01b23dc668c9fbaee7cabdb8f29738d262109c0c5a2db317048b22",
+    "status": "complete"
+  },
+  "summary": {
+    "comparisons": [
+      {
+        "baseline": "control",
+        "baseline_only": 0,
+        "benchmark": "temporalbench",
+        "comparable": true,
+        "matched_tasks": 80,
+        "metrics": {
+          "smape": {
+            "baseline_mean": 12.308642,
+            "baseline_median": 10.704158,
+            "direction_recognised": true,
+            "lower_is_better": true,
+            "scored_by_both": 40,
+            "test": {
+              "n": 40,
+              "p_value": 0.8746293123804207,
+              "test": "sign_exact",
+              "ties": 0,
+              "treatment_losses": 19,
+              "treatment_wins": 21
+            },
+            "treatment_mean": 10.902214,
+            "treatment_median": 10.565511
+          }
+        },
+        "success_by_basis": {
+          "all_choices_correct": {
+            "baseline": 0.0,
+            "n": 40,
+            "treatment": 0.025
+          },
+          "completion": {
+            "baseline": 1.0,
+            "n": 40,
+            "treatment": 1.0
+          }
+        },
+        "success_rate": {
+          "baseline": 0.5,
+          "treatment": 0.5125
+        },
+        "success_test": {
+          "n": 80,
+          "p_value": 1.0,
+          "test": "mcnemar_exact",
+          "treatment_broke": 0,
+          "treatment_fixed": 1
+        },
+        "treatment": "evidence",
+        "treatment_only": 0
+      }
+    ],
+    "cost": {
+      "control": {
+        "cost_usd": 0.0,
+        "requests": 83,
+        "truncation_escalations": 0
+      },
+      "evidence": {
+        "cost_usd": 0.0,
+        "requests": 280,
+        "truncation_escalations": 0
+      }
+    }
+  }
+}

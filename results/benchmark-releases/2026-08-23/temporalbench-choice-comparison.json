@@ -1,0 +1,97 @@
+{
+  "release_metadata": {
+    "arm": "gnomon-evidence-vs-deepseek",
+    "benchmark": "temporalbench-choice",
+    "configuration_identity": "exact task-and-field paired verdicts; two-sided exact McNemar test",
+    "dataset_identity": "302 field-level questions from the matched official 80-case T1-T4 sample",
+    "evaluated_commit": "92b6b27",
+    "harness_commit": "86668e6",
+    "notes": [
+      "Gnomon 35.76% versus control 28.48%; 64 fixed, 42 broken; p=0.04087."
+    ],
+    "scope": "subset",
+    "source": "results/defensible-temporal-20260823/temporalbench-choice-comparison.json",
+    "source_sha256": "db4a47d83a9ea3936a81593870307be4c5cd738aff87a4a6c7aab60b2b964c52",
+    "status": "complete"
+  },
+  "summary": {
+    "baseline": "<absolute-path-redacted>",
+    "baseline_code_revision": "e8f1add",
+    "by_tier": {
+      "T1": {
+        "baseline_accuracy": 0.3625,
+        "baseline_correct": 29,
+        "paired_test": {
+          "n": 80,
+          "p_value": 0.5234670639038086,
+          "test": "mcnemar_exact",
+          "treatment_broke": 9,
+          "treatment_fixed": 13
+        },
+        "questions": 80,
+        "treatment_accuracy": 0.4125,
+        "treatment_correct": 33
+      },
+      "T2": {
+        "baseline_accuracy": 0.23333333333333334,
+        "baseline_correct": 14,
+        "paired_test": {
+          "n": 60,
+          "p_value": 0.361594608053565,
+          "test": "mcnemar_exact",
+          "treatment_broke": 12,
+          "treatment_fixed": 18
+        },
+        "questions": 60,
+        "treatment_accuracy": 0.3333333333333333,
+        "treatment_correct": 20
+      },
+      "T3": {
+        "baseline_accuracy": 0.2549019607843137,
+        "baseline_correct": 26,
+        "paired_test": {
+          "n": 102,
+          "p_value": 0.0931396484375,
+          "test": "mcnemar_exact",
+          "treatment_broke": 7,
+          "treatment_fixed": 16
+        },
+        "questions": 102,
+        "treatment_accuracy": 0.3431372549019608,
+        "treatment_correct": 35
+      },
+      "T4": {
+        "baseline_accuracy": 0.2833333333333333,
+        "baseline_correct": 17,
+        "paired_test": {
+          "n": 60,
+          "p_value": 0.720100131817162,
+          "test": "mcnemar_exact",
+          "treatment_broke": 14,
+          "treatment_fixed": 17
+        },
+        "questions": 60,
+        "treatment_accuracy": 0.3333333333333333,
+        "treatment_correct": 20
+      }
+    },
+    "matched_tasks": 80,
+    "overall": {
+      "baseline_accuracy": 0.2847682119205298,
+      "baseline_correct": 86,
+      "paired_test": {
+        "n": 302,
+        "p_value": 0.04087197060775484,
+        "test": "mcnemar_exact",
+        "treatment_broke": 42,
+        "treatment_fixed": 64
+      },
+      "questions": 302,
+      "treatment_accuracy": 0.3576158940397351,
+      "treatment_correct": 108
+    },
+    "schema_version": "0.1",
+    "treatment": "<absolute-path-redacted>",
+    "treatment_code_revision": "92b6b27"
+  }
+}
