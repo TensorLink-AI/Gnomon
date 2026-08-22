@@ -27,13 +27,93 @@ Treatment (Gnomon owns the numbers; forecasting families only)::
 from __future__ import annotations
 
 import argparse
+from contextlib import nullcontext
 import json
 import sys
+import tempfile
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
+
+
+def _json_safe(value: Any) -> Any:
+    """Convert parquet/numpy values into the official JSON task shape."""
+    if hasattr(value, "tolist"):
+        return _json_safe(value.tolist())
+    if hasattr(value, "item"):
+        return _json_safe(value.item())
+    if isinstance(value, dict):
+        return {str(key): _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(item) for item in value]
+    return value
+
+
+def materialize_official_json_view(
+    dataset_folder: Path, output: Path, *, limit: int | None = None,
+) -> int:
+    """Expose either official storage layout as per-task JSON.
+
+    MTBench's published download currently contains parquet shards while its
+    official evaluators glob only ``*.json``.  This lossless view lets those
+    unmodified evaluators consume their own download and also gives matched
+    control/treatment runs the same deterministic prefix under ``--limit``.
+    """
+    output.mkdir(parents=True, exist_ok=True)
+    json_files = sorted(dataset_folder.glob("*.json"))
+    rows: list[dict[str, Any]] = []
+    if json_files:
+        for path in json_files[:limit]:
+            rows.append(json.loads(path.read_text(encoding="utf-8")))
+    else:
+        shards = sorted(dataset_folder.rglob("*.parquet"))
+        if not shards:
+            raise FileNotFoundError(
+                f"No task JSONs or parquet shards found in {dataset_folder}")
+        import pandas as pd
+        for shard in shards:
+            rows.extend(shard_frame for shard_frame in
+                        pd.read_parquet(shard).to_dict("records"))
+            if limit is not None and len(rows) >= limit:
+                rows = rows[:limit]
+                break
+    for index, raw in enumerate(rows):
+        row = _json_safe(raw)
+        for field in ("text", "technical"):
+            value = row.get(field)
+            if isinstance(value, str) and value.lstrip().startswith("{"):
+                try:
+                    row[field] = json.loads(value)
+                except json.JSONDecodeError:
+                    pass
+        (output / f"sample-{index:06d}.json").write_text(
+            json.dumps(row) + "\n", encoding="utf-8")
+    return len(rows)
+
+
+def _replace_dataset_argument(
+    script_args: list[str], script_dir: Path, replacement: Path,
+) -> tuple[list[str], Path]:
+    """Replace the official script's required dataset argument."""
+    resolved: Path | None = None
+    updated = list(script_args)
+    for index, arg in enumerate(updated):
+        if arg.startswith("--dataset_folder="):
+            value = arg.split("=", 1)[1]
+            resolved = (script_dir / value).resolve() if not Path(value).is_absolute() else Path(value)
+            updated[index] = f"--dataset_folder={replacement}"
+            break
+        if arg == "--dataset_folder" and index + 1 < len(updated):
+            value = updated[index + 1]
+            resolved = (script_dir / value).resolve() if not Path(value).is_absolute() else Path(value)
+            updated[index + 1] = str(replacement)
+            break
+    if resolved is None:
+        raise ValueError("official MTBench script args must include --dataset_folder")
+    return updated, resolved
 
 
 def main() -> int:
@@ -50,6 +130,9 @@ def main() -> int:
     control.add_argument("--model", required=True,
                          help="OpenRouter model id serving the completions")
     control.add_argument("--temperature", type=float, default=0.7)
+    control.add_argument("--limit", type=int, default=None,
+                         help="Matched deterministic task prefix; applied by "
+                              "materializing the official data as JSON")
     control.add_argument("script_args", nargs=argparse.REMAINDER,
                          help="Arguments after -- go to the official script")
 
@@ -74,10 +157,28 @@ def main() -> int:
         from benchmarks.mtbench.openrouter_patch import run_official_script
 
         script_args = [a for a in args.script_args if a != "--"]
-        client = run_official_script(
-            Path(args.mtbench_root).expanduser().resolve(),
-            args.script, script_args, args.model, args.temperature,
-        )
+        mtbench_root = Path(args.mtbench_root).expanduser().resolve()
+        script_dir = (mtbench_root / args.script).resolve().parent
+        # The upstream evaluator cannot read the parquet layout shipped by
+        # its own downloader.  Materialize only when necessary (always for a
+        # matched limited run, or when no per-task JSONs exist).
+        placeholder = Path("/tmp/gnomon-mtbench-dataset")
+        prepared_args, dataset_folder = _replace_dataset_argument(
+            script_args, script_dir, placeholder)
+        needs_view = args.limit is not None or not any(dataset_folder.glob("*.json"))
+        context = tempfile.TemporaryDirectory(prefix="gnomon-mtbench-") if needs_view else nullcontext(None)
+        with context as temp:
+            if needs_view:
+                view = Path(temp)
+                materialize_official_json_view(
+                    dataset_folder, view, limit=args.limit)
+                prepared_args, _ = _replace_dataset_argument(
+                    script_args, script_dir, view)
+            else:
+                prepared_args = script_args
+            client = run_official_script(
+                mtbench_root, args.script, prepared_args, args.model,
+                args.temperature)
         print(json.dumps({"llm_usage": client.usage_summary}, indent=2))
         return 0
 

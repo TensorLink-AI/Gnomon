@@ -17,6 +17,7 @@ from benchmarks.mtbench.gnomon_forecaster import (
     official_mape,
     write_bar_csv,
 )
+from benchmarks.mtbench.run_mtbench import materialize_official_json_view
 from benchmarks.timesage_mt.scoring import numbers_in, score_mechanical, score_turn
 from benchmarks.timesage_mt.tasks import TimeSageTask, load_tasks, read_visible_series
 
@@ -264,6 +265,32 @@ def test_mtbench_sample_loading_and_bar_axis(tmp_path):
     assert start.startswith("2020-01-01") and end.startswith("2020-01-03")
     assert "+00:00" in lines[1]
     assert OFFICIAL_MSE_FAILURE_LIMIT == 100.0
+
+
+def test_mtbench_materializes_official_parquet_for_unmodified_scorer(tmp_path):
+    import pandas as pd
+
+    source = tmp_path / "download" / "data"
+    source.mkdir(parents=True)
+    frame = pd.DataFrame([
+        {"input_window": [1.0, 2.0], "output_window": [3.0],
+         "input_timestamps": [1, 2],
+         "text": json.dumps({"content": "first"}),
+         "technical": json.dumps({"in_macd": [0.1], "out_macd": [0.2]})},
+        {"input_window": [4.0, 5.0], "output_window": [6.0],
+         "input_timestamps": [3, 4],
+         "text": json.dumps({"content": "second"}),
+         "technical": json.dumps({"in_macd": [0.3], "out_macd": [0.4]})},
+    ])
+    frame.to_parquet(source / "tasks.parquet")
+    output = tmp_path / "json-view"
+    assert materialize_official_json_view(
+        source.parent, output, limit=1) == 1
+    rows = list(output.glob("*.json"))
+    assert len(rows) == 1
+    task = json.loads(rows[0].read_text())
+    assert task["text"]["content"] == "first"
+    assert task["technical"]["out_macd"] == [0.2]
 
 
 def _write_multi_tier_fixture(root: Path, counts: dict) -> None:
