@@ -15,6 +15,7 @@ def test_release_builder_removes_case_data_and_records_digest(
         "results": [{"response": "also private"}],
         "breakdown": {"easy": .9},
         "shards": ["/root/Gnomon/results/run/shard-0"],
+        "external_dataset": "/runner/external/data.parquet",
     }), encoding="utf-8")
     output = tmp_path / "release"
     spec = tmp_path / "spec.json"
@@ -36,6 +37,7 @@ def test_release_builder_removes_case_data_and_records_digest(
     assert "results" not in payload["summary"]
     assert payload["summary"]["breakdown"] == {"easy": .9}
     assert payload["summary"]["shards"] == ["results/run/shard-0"]
+    assert payload["summary"]["external_dataset"] == "<absolute-path-redacted>"
     assert payload["release_metadata"]["source_sha256"] == hashlib.sha256(
         source.read_bytes()).hexdigest()
     validate(output)

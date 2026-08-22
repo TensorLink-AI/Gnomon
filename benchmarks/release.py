@@ -59,6 +59,8 @@ def _compact(value: Any) -> Any:
         marker = "/Gnomon/"
         if value.startswith("/") and marker in value:
             return value.split(marker, 1)[1]
+        if value.startswith("/"):
+            return "<absolute-path-redacted>"
     return value
 
 
