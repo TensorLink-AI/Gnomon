@@ -185,6 +185,43 @@ def answer_descriptive_question(
     forecast_values: list[float] | None = None,
 ) -> dict[str, Any]:
     prop = question.property
+    if prop == "trend" and question.verb in {"describe", "detect"}:
+        n = len(values)
+        centre = (n - 1) / 2
+        denominator = sum((index - centre) ** 2 for index in range(n))
+        slope = (sum((index - centre) * value
+                     for index, value in enumerate(values)) / denominator
+                 if denominator else 0.0)
+        intercept = (statistics.mean(values) - slope * centre
+                     if values else 0.0)
+        residuals_ = [value - (intercept + slope * index)
+                      for index, value in enumerate(values)]
+        residual_variance = (sum(value * value for value in residuals_) /
+                             (n - 2) if n > 2 else math.inf)
+        standard_error = (math.sqrt(residual_variance / denominator)
+                          if denominator and math.isfinite(residual_variance)
+                          else math.inf)
+        distinguishable = n >= 8 and abs(slope) > 1.96 * standard_error
+        direction = ("upward" if distinguishable and slope > 0 else
+                     "downward" if distinguishable else "constant")
+        support = "supported" if n >= 8 else "abstained"
+        return _envelope(
+            question, direction=direction, estimate={
+                "slope_per_step": slope,
+                "slope_standard_error": standard_error,
+                "two_sided_threshold": 1.96,
+            }, interval=({"lower": slope - 1.96 * standard_error,
+                          "upper": slope + 1.96 * standard_error}
+                         if math.isfinite(standard_error) else None),
+            support=support,
+            headline=(f"Observed trend for {question.target}: {direction}; "
+                      f"slope is {slope:.6g} per step."),
+            limitations=([] if support == "supported" else [
+                "At least eight observations are required to distinguish a "
+                "linear trend from residual variation."
+            ]), executable={"kind": "observed_linear_trend",
+                            "property": "trend", "version": "0.1",
+                            "threshold": "two_sided_1.96_standard_errors"})
     if prop == "volatility" and question.verb in {"describe", "detect"}:
         observed = multi_resolution_evidence(
             values, property="volatility", season=season)

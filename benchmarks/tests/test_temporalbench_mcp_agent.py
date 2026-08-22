@@ -132,7 +132,9 @@ def test_t1_compiler_uses_public_question_names_and_seals_options(
         "status": "compiled", "questions": [
             {"id": "trend", "verb": "describe", "property": "trend",
              "target": "heart_rate"},
-            {"id": "outliers", "verb": "describe", "property": "disturbance",
+            # The proposer makes the dangerous semantic substitution. The
+            # explicit router must recover the actual observed request.
+            {"id": "outliers", "verb": "describe", "property": "extreme",
              "target": "heart_rate"},
         ]})]}])
 
