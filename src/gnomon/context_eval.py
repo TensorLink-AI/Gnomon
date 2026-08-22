@@ -309,6 +309,20 @@ def assess_context(
         candidate_predict, candidate_predict_many, eligible_origins,
     )
     origins = eligible_origins(base, origins, horizon)
+    # An event-effect executable does not exist before its first historically
+    # observable occurrence. Treating those origins as candidate failures made
+    # high-frequency series especially brittle: the long seasonal warm-up can
+    # still leave an early evaluation origin before the first event. Restrict
+    # the contest to origins where the effect is identifiable, while keeping
+    # the exact same origins for every estimator and shape. The cutoff-aware
+    # flags also exclude events that were not yet known at that origin.
+    event_fit_origins = []
+    for origin in origins:
+        historical_flags = event_flags(
+            eligible, timestamps[:origin], timestamps[origin - 1])
+        if any(historical_flags) and not all(historical_flags):
+            event_fit_origins.append(origin)
+    origins = event_fit_origins
     if len(origins) < 4:
         assessment = ContextAssessment(
             True, False, [],
