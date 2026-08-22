@@ -33,7 +33,7 @@ INTENT_SCHEMA: dict[str, Any] = {
                     "test", "decompose", "regress"]},
                 "property": {"type": "string", "enum": [
                     "level", "trend", "seasonality", "volatility", "regime",
-                    "extreme", "dependence", "stationarity", "decomposition",
+                    "extreme", "disturbance", "dependence", "stationarity", "decomposition",
                     "regression"]},
                 "target": {"oneOf": [
                     {"type": "string"},
@@ -88,6 +88,7 @@ _PROPERTY_CUES: tuple[tuple[str, re.Pattern[str]], ...] = (
         r"\b(trend|slope|growth rate|decline rate|moving up|moving down)\w*\b",
         re.I)),
     ("regime", re.compile(r"\b(regime|structural break|change point|changepoint)\w*\b", re.I)),
+    ("disturbance", re.compile(r"\b(outlier|anomal|spike|disturbance)\w*\b", re.I)),
     ("extreme", re.compile(r"\b(extreme|maximum|minimum|peak|tail risk)\w*\b", re.I)),
     ("dependence", re.compile(
         r"\b(correlat\w*|depend\w*|related|relationship between)\b", re.I)),

@@ -91,7 +91,9 @@ def test_failed_temporal_receipt_is_diagnostic_not_permanent_cache(
         tmp_path) -> None:
     row = _row(sparse_temp=False)
     row["mcq"] = {"volatility_change": {
-        "question": "Will hr become more volatile?",
+        # Deliberately lacks an explicit property so deterministic recovery
+        # cannot turn the malformed provider payload into a valid receipt.
+        "question": "Will hr change?",
         "options": ["increased", "decreased"], "label": "decreased"}}
     receipts = tmp_path / "receipts"
     failed_client = ScriptedClient([{"tool_calls": [
@@ -112,6 +114,46 @@ def test_failed_temporal_receipt_is_diagnostic_not_permanent_cache(
     assert recovered["questions"][0]["property"] == "volatility"
     assert (receipts / f"{row['id']}.json").exists()
     assert (receipts / f"{row['id']}.retry.json").exists()
+
+
+def test_t1_compiler_uses_public_question_names_and_seals_options(
+        tmp_path) -> None:
+    row = {
+        "id": "t1-explicit", "tier": "T1", "meta": {
+            "main_key": "heart_rate", "n_horizon": 1},
+        "labels": {"trend": "constant", "outliers": "stable"},
+        "prompt": (
+            "Task: answer about heart_rate.\n"
+            "1) Trend: {\"upward\", \"downward\", \"constant\"}\n"
+            "2) Outliers: {\"sudden_spike\", \"level_shift\", \"stable\"}\n"
+            "Input (JSON): {\"heart_rate\":[1,2,3],\"secret\":999}\n"),
+    }
+    client = ScriptedClient([{"tool_calls": [("submit_temporal_intent", {
+        "status": "compiled", "questions": [
+            {"id": "trend", "verb": "describe", "property": "trend",
+             "target": "heart_rate"},
+            {"id": "outliers", "verb": "describe", "property": "disturbance",
+             "target": "heart_rate"},
+        ]})]}])
+
+    result = mcp_agent.compile_row_temporal_questions(
+        row, client, ["heart_rate"], str(tmp_path / "receipts"))
+
+    assert [item["property"] for item in result["questions"]] == [
+        "trend", "disturbance"]
+    rendered = json.dumps(client.requests[0], sort_keys=True)
+    assert "sudden_spike" not in rendered
+    assert "level_shift" not in rendered
+    assert "secret" not in rendered
+
+
+def test_t1_binding_excludes_coordinate_arrays_from_series() -> None:
+    row = {
+        "tier": "T1", "meta": {"main_key": "heart_rate"},
+        "prompt": ("Input (JSON):\n{\"heart_rate\":[70,null,72],"
+                   "\"time_position_in_day\":[0,30,60]}")}
+    run = object.__new__(mcp_agent._McqRun)
+    assert run._row_channels(row) == {"heart_rate": [70.0, 72.0]}
 
 
 def test_every_forecast_profile_has_a_host_compiled_first_tool():
