@@ -15,7 +15,7 @@ INTENT_COMPILER_VERSION = "0.5"
 # A structured intent is tiny, but reasoning providers may spend substantially
 # more tokens deciding it before emitting the tool call. Measured 700-token
 # caps produced syntactically valid `compiled` envelopes with no questions.
-INTENT_COMPILER_MAX_TOKENS = 3000
+INTENT_COMPILER_MAX_TOKENS = 10000
 
 
 INTENT_SCHEMA: dict[str, Any] = {
