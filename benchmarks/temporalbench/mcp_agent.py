@@ -519,7 +519,8 @@ def compile_row_temporal_questions(
     """Compile question text only; labels, options and futures stay sealed."""
     from gnomon.soft_context import content_fingerprint
     from gnomon.temporal_intent import (
-        INTENT_COMPILER_VERSION, INTENT_SCHEMA, compile_temporal_text_receipt,
+        INTENT_COMPILER_MAX_TOKENS, INTENT_COMPILER_VERSION, INTENT_SCHEMA,
+        compile_temporal_text_receipt,
     )
 
     if row.get("tier") == "T3":
@@ -583,7 +584,8 @@ def compile_row_temporal_questions(
             response = client.chat(
                 [{"role": "system", "content": prompt}], n=1, tools=[submit],
                 tool_choice={"type": "function", "function": {
-                    "name": "submit_temporal_intent"}}, max_tokens=700)
+                    "name": "submit_temporal_intent"}},
+                max_tokens=INTENT_COMPILER_MAX_TOKENS)
             calls = _tool_calls_as_dicts(response.choices[0].message)
             call = next(item for item in calls
                         if item["function"]["name"] == "submit_temporal_intent")

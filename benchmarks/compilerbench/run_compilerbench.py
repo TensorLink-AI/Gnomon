@@ -18,7 +18,10 @@ from benchmarks.common.manifest import code_revision, write_manifest
 from benchmarks.common.openrouter import OpenRouterClient
 from benchmarks.compilerbench.generate import cases
 from gnomon.contracts import GnomonError
-from gnomon.temporal_intent import compile_temporal_text
+from gnomon.temporal_intent import (
+    INTENT_COMPILER_MAX_TOKENS,
+    compile_temporal_text,
+)
 
 
 def _sum_usage(summaries: list[dict[str, Any]]) -> dict[str, Any]:
@@ -52,7 +55,8 @@ class ChatAdapter:
         response = self.client.chat(
             [{"role": "system", "content": prompt}], tools=[tool],
             tool_choice={"type": "function", "function": {
-                "name": "submit_temporal_intent"}}, max_tokens=700)
+                    "name": "submit_temporal_intent"}},
+            max_tokens=INTENT_COMPILER_MAX_TOKENS)
         call = response.choices[0].message.tool_calls[0]
         return json.loads(call.function.arguments)
 
@@ -137,7 +141,8 @@ def main() -> None:
                 # not provider infrastructure failure.
                 semantic_refusal = (
                     details.get("compiler_status") == "refused"
-                    or isinstance(proposal.get("questions"), list)
+                    or (isinstance(proposal.get("questions"), list)
+                        and bool(proposal["questions"]))
                 )
                 result = _score(row, None, f"{type(exc).__name__}: {exc}",
                                 details, semantic_refusal=semantic_refusal)

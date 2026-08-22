@@ -63,6 +63,14 @@ def test_predictive_zero_horizon_remains_invalid() -> None:
             adapter=adapter)
 
 
+def test_compiled_status_cannot_silently_contain_no_question() -> None:
+    adapter = Adapter({"status": "compiled", "questions": []})
+    with pytest.raises(GnomonError) as raised:
+        compile_temporal_text(
+            "What is CPU doing?", available_targets=["cpu"], adapter=adapter)
+    assert raised.value.details["compiler_status"] == "malformed"
+
+
 def test_llm_proposal_cannot_invent_target_or_aggregation() -> None:
     adapter = Adapter({"status": "compiled", "questions": [{
         "property": "volatility", "target": {

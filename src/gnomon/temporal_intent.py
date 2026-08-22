@@ -12,6 +12,10 @@ from .temporal_question import (
 )
 
 INTENT_COMPILER_VERSION = "0.5"
+# A structured intent is tiny, but reasoning providers may spend substantially
+# more tokens deciding it before emitting the tool call. Measured 700-token
+# caps produced syntactically valid `compiled` envelopes with no questions.
+INTENT_COMPILER_MAX_TOKENS = 3000
 
 
 INTENT_SCHEMA: dict[str, Any] = {
@@ -173,6 +177,13 @@ def compile_temporal_text(
             str(proposed.get("refusal_reason") or
                 "The temporal request is materially ambiguous."),
             {"compiler_status": "refused"},
+        )
+    if not proposed.get("questions"):
+        from .contracts import GnomonError
+        raise GnomonError(
+            "INVALID_TEMPORAL_QUESTION",
+            "The intent compiler returned compiled status without a question.",
+            {"compiler_status": "malformed", "compiler_proposal": proposed},
         )
     try:
         proposed_questions = _resolve_discourse_focus(
