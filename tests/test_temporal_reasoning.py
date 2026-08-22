@@ -15,6 +15,41 @@ REPORT = {
 }
 
 
+def test_descriptive_volatility_uses_observed_windows_not_future_fit() -> None:
+    values = ([10 + (-1) ** index * .1 for index in range(40)]
+              + [10 + (-1) ** index * 2 for index in range(40)])
+    answer = answer_descriptive_question(
+        TemporalQuestion("q", "describe", "x", "volatility"),
+        report=REPORT, values=values, season=1)
+    assert answer["answer"]["direction"] in {
+        "increased", "stable", "uncertain"}
+    assert answer["answer"]["estimate"]["resolutions"]
+    assert answer["answer"]["executable"]["kind"] == \
+        "observed_multi_resolution_windows"
+
+
+def test_descriptive_disturbance_distinguishes_shift_spike_and_stable() -> None:
+    question = TemporalQuestion("q", "describe", "x", "disturbance")
+    base = {**REPORT, "anomalies": {"count": 0}}
+    shifted = {**base, "changepoints": {
+        "regimes": [{"classification": "regime_shift"}],
+        "support": {"status": "supported"}}}
+    spike = {**base, "changepoints": {
+        "regimes": [{"classification": "transient_anomaly"}],
+        "support": {"status": "supported"}}}
+    stable = {**base, "changepoints": {
+        "regimes": [], "support": {"status": "supported"}}}
+    assert answer_descriptive_question(
+        question, report=shifted, values=[1.0] * 20, season=1
+    )["answer"]["direction"] == "level_shift"
+    assert answer_descriptive_question(
+        question, report=spike, values=[1.0] * 20, season=1
+    )["answer"]["direction"] == "sudden_spike"
+    assert answer_descriptive_question(
+        question, report=stable, values=[1.0] * 20, season=1
+    )["answer"]["direction"] == "stable"
+
+
 def test_seasonality_alignment_distinguishes_fixed_shifted_and_flat() -> None:
     import math
     season = 24

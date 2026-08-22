@@ -237,6 +237,28 @@ def main() -> int:
                                     if stable_pairs else None)
         return result
 
+    all_pairs = [p for pairs in per_channel.values() for p in pairs]
+    stable_all = [pair for pairs in per_channel_stable.values()
+                  for pair in pairs]
+
+    def mix_line(mix: dict[str, int]) -> str:
+        return ", ".join(f"{label} {count}"
+                         for label, count in sorted(mix.items())) or "(none)"
+
+    result = {
+        "coverage": coverage,
+        "support_mix": {"baseline": base_mix, "treatment": treat_mix},
+        "per_channel": {c: stable_summary(c, p)
+                        for c, p in per_channel.items()},
+        "overall": summarise(all_pairs) if all_pairs else None,
+        "overall_stable_history": (summarise(stable_all)
+                                   if stable_all else None),
+        "records": record_rows,
+    }
+    if args.json:
+        print(json.dumps(result, indent=2))
+        return 0
+
     total_channels = sum(coverage.values())
     print(f"records compared: {len(record_rows)} "
           f"(of {len(shared_ids)} with truth in both arms)")
@@ -252,26 +274,14 @@ def main() -> int:
         print(f"{channel:16s} {s['n']:4d} {s['baseline_median']:11.4f} "
               f"{s['treatment_median']:11.4f} "
               f"{s['treatment_wins']:>6d}/{s['n']:<4d}")
-
-    all_pairs = [p for pairs in per_channel.values() for p in pairs]
-    if all_pairs:
-        s = summarise(all_pairs)
-        print(f"\n{'ALL':16s} {s['n']:4d} {s['baseline_median']:11.4f} "
-              f"{s['treatment_median']:11.4f} "
-              f"{s['treatment_wins']:>6d}/{s['n']:<4d}")
-        stable_all = [pair for pairs in per_channel_stable.values()
-                      for pair in pairs]
-        if stable_all:
-            stable = summarise(stable_all)
-            print(f"{'ALL stable-scale':16s} {stable['n']:4d} "
-                  f"{stable['baseline_median']:11.4f} "
-                  f"{stable['treatment_median']:11.4f} "
-                  f"{stable['treatment_wins']:>6d}/{stable['n']:<4d}")
-
-    def mix_line(mix: dict[str, int]) -> str:
-        return ", ".join(f"{label} {count}"
-                         for label, count in sorted(mix.items())) or "(none)"
-
+    for label, summary in (("ALL", result["overall"]),
+                           ("ALL stable-scale",
+                            result["overall_stable_history"])):
+        if summary:
+            print(f"{label:16s} {summary['n']:4d} "
+                  f"{summary['baseline_median']:11.4f} "
+                  f"{summary['treatment_median']:11.4f} "
+                  f"{summary['treatment_wins']:>6d}/{summary['n']:<4d}")
     print()
     print("support-label mix over the compared channel scores "
           "(best_effort = disclosed fallback rows carrying NO RELIABLE "
@@ -279,15 +289,6 @@ def main() -> int:
           "records no support labels):")
     print(f"  baseline:  {mix_line(base_mix)}")
     print(f"  treatment: {mix_line(treat_mix)}")
-
-    if args.json:
-        print(json.dumps({
-            "coverage": coverage,
-            "support_mix": {"baseline": base_mix, "treatment": treat_mix},
-            "per_channel": {c: stable_summary(c, p)
-                            for c, p in per_channel.items()},
-            "records": record_rows,
-        }, indent=2))
     return 0
 
 

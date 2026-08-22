@@ -185,6 +185,67 @@ def answer_descriptive_question(
     forecast_values: list[float] | None = None,
 ) -> dict[str, Any]:
     prop = question.property
+    if prop == "volatility" and question.verb in {"describe", "detect"}:
+        observed = multi_resolution_evidence(
+            values, property="volatility", season=season)
+        direction = observed.get("direction")
+        support = str(observed.get("support") or "abstained")
+        return _envelope(
+            question, direction=direction, estimate={
+                "agreement": observed.get("agreement"),
+                "resolutions": observed.get("resolutions", []),
+            }, interval=None, support=support,
+            headline=(f"Observed volatility transition for {question.target}: "
+                      f"{direction}; support is {support}."),
+            limitations=([] if support == "supported" else [
+                "Observed windows do not support automatic use of this "
+                "volatility classification."
+            ]), executable={"kind": "observed_multi_resolution_windows",
+                            "property": "volatility", "version": "0.1"})
+    if prop == "seasonality" and question.verb in {"describe", "detect"}:
+        if season <= 1 or report.get("seasonality", {}).get("period") is None:
+            direction, support, observed = "absent", "supported", None
+        else:
+            observed = multi_resolution_evidence(
+                values, property="seasonality", season=season)
+            direction = observed.get("direction")
+            support = str(observed.get("support") or "abstained")
+        return _envelope(
+            question, direction=direction,
+            estimate=(observed or {"period": None}), interval=None,
+            support=support,
+            headline=(f"Observed seasonal state for {question.target}: "
+                      f"{direction}; support is {support}."),
+            limitations=([] if support == "supported" else [
+                "The observed cycles do not distinguish a stable phase from "
+                "a phase transition."
+            ]), executable={"kind": "observed_seasonal_transition",
+                            "property": "seasonality", "version": "0.1"})
+    if prop == "disturbance" and question.verb in {"describe", "detect"}:
+        changes = report.get("changepoints") or {}
+        regimes = changes.get("regimes", []) if isinstance(changes, dict) else []
+        classifications = {str(item.get("classification")) for item in regimes}
+        anomaly_count = int((report.get("anomalies") or {}).get("count") or 0)
+        if "regime_shift" in classifications:
+            direction = "level_shift"
+        elif "transient_anomaly" in classifications or anomaly_count:
+            direction = "sudden_spike"
+        else:
+            direction = "stable"
+        support = ("supported" if isinstance(changes, dict)
+                   and (changes.get("support") or {}).get("status") == "supported"
+                   else "weak")
+        return _envelope(
+            question, direction=direction, estimate={
+                "classification": direction,
+                "regime_edges": len(regimes), "anomaly_count": anomaly_count,
+            }, interval=None, support=support,
+            headline=f"Observed disturbance shape for {question.target}: {direction}.",
+            limitations=([] if support == "supported" else [
+                "The available post-change window does not fully distinguish "
+                "a transient excursion from a persistent level shift."
+            ]), executable={"kind": "observed_disturbance_classifier",
+                            "property": "disturbance", "version": "0.1"})
     if prop == "volatility" and question.verb in {"predict", "compare"} \
             and forecast_values:
         path_projection = _forecast_volatility_alignment(
