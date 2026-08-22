@@ -57,6 +57,8 @@ def parse_args() -> argparse.Namespace:
                         help="Optional OpenAI-compatible endpoint override")
     parser.add_argument("--api-key-env", default="OPENROUTER_API_KEY",
                         help="Environment variable for --base-url credentials")
+    parser.add_argument("--request-timeout", type=float, default=180.0,
+                        help="Per-request transport timeout in seconds")
     return parser.parse_args()
 
 
@@ -82,6 +84,12 @@ def main() -> int:
     from data.synthetic import SyntheticDataset  # noqa: E402
     import openai_api  # noqa: E402
     from openai_api import send_openai_request  # noqa: E402
+
+    upstream_openai = openai_api.OpenAI
+    def bounded_openai(*client_args, **client_kwargs):
+        client_kwargs.setdefault("timeout", args.request_timeout)
+        return upstream_openai(*client_args, **client_kwargs)
+    openai_api.OpenAI = bounded_openai
 
     if args.base_url:
         api_key = os.environ.get(args.api_key_env)
@@ -147,7 +155,8 @@ def main() -> int:
             args.model.replace("/", "--") / args.variant,
             benchmark="anomllm", condition=f"control/{args.variant}",
             target=args.data, model=args.model, base_url=args.base_url,
-            workers=args.workers, status="ok", completed=len(done),
+            workers=args.workers, request_timeout=args.request_timeout,
+            status="ok", completed=len(done),
         )
         return 0
 
@@ -202,7 +211,8 @@ def main() -> int:
         args.model.replace("/", "--") / args.variant,
         benchmark="anomllm", condition=f"control/{args.variant}",
         target=args.data, model=args.model, base_url=args.base_url,
-        workers=args.workers, status=status, completed=total_complete,
+        workers=args.workers, request_timeout=args.request_timeout,
+        status=status, completed=total_complete,
         expected=len(eval_dataset), failed=counter["failed"],
         null_responses=counter["null"],
     )
