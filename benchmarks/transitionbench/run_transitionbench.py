@@ -10,6 +10,8 @@ import random
 import statistics
 import sys
 
+from benchmarks.common.manifest import write_manifest
+
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
@@ -172,6 +174,11 @@ def main() -> int:
         output.mkdir(parents=True, exist_ok=True)
         (output / "summary.json").write_text(
             json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        write_manifest(
+            output, benchmark="transitionbench",
+            target="general-temporal-transitions", condition="gnomon-engine",
+            seed=args.seed, replicates=args.replicates,
+            cases=result["cases"], run_status="complete")
     print(json.dumps({key: value for key, value in result.items() if key != "rows"},
                      indent=2, sort_keys=True))
     return 0 if result["graduated"] else 2
