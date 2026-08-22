@@ -541,8 +541,8 @@ def compile_row_temporal_questions(
             match = re.match(r"^\s*\d+\)\s*([^:{]+)", line)
             if match:
                 lines.append(f"Describe the {match.group(1).strip()} of "
-                             f"{targets[0]}." if len(targets) == 1
-                             else f"Describe the {match.group(1).strip()}.")
+                             f"{targets[0]}?" if len(targets) == 1
+                             else f"Describe the {match.group(1).strip()}?")
         text = "\n".join(lines).strip()
     else:
         question_items = (row.get("mcq") or {}).values()

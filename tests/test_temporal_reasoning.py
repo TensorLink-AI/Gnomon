@@ -28,6 +28,19 @@ def test_descriptive_volatility_uses_observed_windows_not_future_fit() -> None:
         "observed_multi_resolution_windows"
 
 
+def test_descriptive_trend_requires_slope_beyond_sampling_uncertainty() -> None:
+    noisy_flat = [10 + ((index * 17) % 11 - 5) for index in range(50)]
+    rising = [10 + .5 * index + ((index * 17) % 11 - 5) * .05
+              for index in range(50)]
+    question = TemporalQuestion("q", "describe", "x", "trend")
+    assert answer_descriptive_question(
+        question, report=REPORT, values=noisy_flat, season=1
+    )["answer"]["direction"] == "constant"
+    assert answer_descriptive_question(
+        question, report=REPORT, values=rising, season=1
+    )["answer"]["direction"] == "upward"
+
+
 def test_descriptive_disturbance_distinguishes_shift_spike_and_stable() -> None:
     question = TemporalQuestion("q", "describe", "x", "disturbance")
     base = {**REPORT, "anomalies": {"count": 0}}

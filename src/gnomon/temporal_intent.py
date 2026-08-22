@@ -345,7 +345,10 @@ def compile_temporal_text(
            "when the request says 'forecast horizon' without another number, "
            "use that value. " if default_horizon is not None else "") +
         "Allowed properties: level, trend, seasonality, volatility, regime, "
-        "extreme, dependence, stationarity, decomposition, regression. "
+        "extreme, disturbance, dependence, stationarity, decomposition, "
+        "regression. Use disturbance for observed outliers, spikes, or the "
+        "distinction between a transient anomaly and persistent level shift; "
+        "extreme is a future tail-risk or maximum/minimum question. "
         "Use test/stationarity for ADF or KPSS, decompose/decomposition for "
         "a requested fixed-period decomposition, and regress/regression for "
         "a target with explicit explanatory_variables. Preserve an explicitly "

@@ -69,6 +69,21 @@ def test_merge_shards_accepts_documented_resume_recovery(tmp_path):
     assert "resume" not in manifest
 
 
+def test_merge_shards_accepts_different_partition_controls(tmp_path):
+    left, right, target = tmp_path / "left", tmp_path / "right", tmp_path / "all"
+    _shard(left, "a", 1)
+    _shard(right, "b", 2)
+    _manifest(left, model="same", offset=0, limit=5)
+    _manifest(right, model="same", offset=5, limit=2)
+
+    merge_shards(target, [left, right])
+
+    manifest = json.loads((target / "manifest.json").read_text())
+    assert manifest["rows"] == 2
+    assert "offset" not in manifest
+    assert "limit" not in manifest
+
+
 def test_merge_shards_rejects_incompatible_manifests(tmp_path):
     left, right, target = tmp_path / "left", tmp_path / "right", tmp_path / "all"
     _shard(left, "a", 1)

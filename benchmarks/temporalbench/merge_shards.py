@@ -88,7 +88,12 @@ def merge_shards(target: Path, shards: list[Path]) -> dict[str, int]:
         # not the experimental arm that produced them. Their exact commands
         # remain in source_commands, while compatibility is enforced on model,
         # endpoint, condition, code, task filters, and harness limits.
-        ignored = {"command", "resume", "retry_voided"}
+        # Partition controls are expected to differ across disjoint shards;
+        # they do not define an experimental arm. Their exact values remain
+        # auditable in ``source_commands``. Everything that can change model
+        # or harness behaviour remains a strict compatibility field.
+        ignored = {"command", "resume", "retry_voided", "limit", "offset",
+                   "row_offset"}
         reference = {key: value for key, value in manifests[0][1].items()
                      if key not in ignored}
         for source, manifest in manifests[1:]:
