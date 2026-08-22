@@ -93,7 +93,7 @@ def merge_shards(target: Path, shards: list[Path]) -> dict[str, int]:
         # auditable in ``source_commands``. Everything that can change model
         # or harness behaviour remains a strict compatibility field.
         ignored = {"command", "resume", "retry_voided", "limit", "offset",
-                   "row_offset"}
+                   "row_offset", "run_status"}
         reference = {key: value for key, value in manifests[0][1].items()
                      if key not in ignored}
         for source, manifest in manifests[1:]:
