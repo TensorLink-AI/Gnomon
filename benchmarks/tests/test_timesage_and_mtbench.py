@@ -316,9 +316,23 @@ def test_mtbench_materializes_official_parquet_for_unmodified_scorer(tmp_path):
         source.parent, output, limit=1) == 1
     rows = list(output.glob("*.json"))
     assert len(rows) == 1
+    assert rows[0].name == "tasks#0000.json"
     task = json.loads(rows[0].read_text())
     assert task["text"]["content"] == "first"
     assert task["technical"]["out_macd"] == [0.2]
+
+
+def test_mtbench_json_view_preserves_existing_task_identity(tmp_path):
+    source = tmp_path / "tasks"
+    source.mkdir()
+    task = {"input_window": [1.0], "output_window": [2.0]}
+    (source / "canonical-task.json").write_text(json.dumps(task))
+
+    output = tmp_path / "view"
+    assert materialize_official_json_view(source, output) == 1
+    assert [path.name for path in output.glob("*.json")] == [
+        "canonical-task.json"
+    ]
 
 
 def _write_multi_tier_fixture(root: Path, counts: dict) -> None:

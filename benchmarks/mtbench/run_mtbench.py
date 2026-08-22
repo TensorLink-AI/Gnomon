@@ -66,10 +66,13 @@ def materialize_official_json_view(
     """
     output.mkdir(parents=True, exist_ok=True)
     json_files = sorted(dataset_folder.glob("*.json"))
-    rows: list[dict[str, Any]] = []
+    rows: list[tuple[str, dict[str, Any]]] = []
     if json_files:
         for path in json_files[:limit]:
-            rows.append(json.loads(path.read_text(encoding="utf-8")))
+            rows.append((
+                path.name,
+                json.loads(path.read_text(encoding="utf-8")),
+            ))
     else:
         shards = sorted(dataset_folder.rglob("*.parquet"))
         if not shards:
@@ -77,12 +80,15 @@ def materialize_official_json_view(
                 f"No task JSONs or parquet shards found in {dataset_folder}")
         import pandas as pd
         for shard in shards:
-            rows.extend(shard_frame for shard_frame in
-                        pd.read_parquet(shard).to_dict("records"))
+            rows.extend(
+                (f"{shard.stem}#{position:04d}.json", shard_frame)
+                for position, shard_frame in enumerate(
+                    pd.read_parquet(shard).to_dict("records"))
+            )
             if limit is not None and len(rows) >= limit:
                 rows = rows[:limit]
                 break
-    for index, raw in enumerate(rows):
+    for filename, raw in rows:
         row = _json_safe(raw)
         for field in ("text", "technical"):
             value = row.get(field)
@@ -91,7 +97,7 @@ def materialize_official_json_view(
                     row[field] = json.loads(value)
                 except json.JSONDecodeError:
                     pass
-        (output / f"sample-{index:06d}.json").write_text(
+        (output / filename).write_text(
             json.dumps(row) + "\n", encoding="utf-8")
     return len(rows)
 
