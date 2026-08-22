@@ -1,0 +1,52 @@
+{
+  "baseline": "results/temporalbench-reasoning-boundary-0ac55e4/control-final-v3",
+  "baseline_code_revision": "0ac55e4",
+  "by_tier": {
+    "T2": {
+      "baseline_accuracy": 0.3333333333333333,
+      "baseline_correct": 40,
+      "paired_test": {
+        "n": 120,
+        "p_value": 1.0,
+        "test": "mcnemar_exact",
+        "treatment_broke": 33,
+        "treatment_fixed": 33
+      },
+      "questions": 120,
+      "treatment_accuracy": 0.3333333333333333,
+      "treatment_correct": 40
+    },
+    "T4": {
+      "baseline_accuracy": 0.3,
+      "baseline_correct": 36,
+      "paired_test": {
+        "n": 120,
+        "p_value": 0.6988834276200057,
+        "test": "mcnemar_exact",
+        "treatment_broke": 28,
+        "treatment_fixed": 32
+      },
+      "questions": 120,
+      "treatment_accuracy": 0.3333333333333333,
+      "treatment_correct": 40
+    }
+  },
+  "matched_tasks": 80,
+  "overall": {
+    "baseline_accuracy": 0.31666666666666665,
+    "baseline_correct": 76,
+    "paired_test": {
+      "n": 240,
+      "p_value": 0.7893959446881437,
+      "test": "mcnemar_exact",
+      "treatment_broke": 61,
+      "treatment_fixed": 65
+    },
+    "questions": 240,
+    "treatment_accuracy": 0.3333333333333333,
+    "treatment_correct": 80
+  },
+  "schema_version": "0.1",
+  "treatment": "results/temporalbench-reasoning-boundary-0ac55e4/evidence-final-v3",
+  "treatment_code_revision": "0ac55e4"
+}

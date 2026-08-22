@@ -1,0 +1,915 @@
+{
+  "cases": 100,
+  "gates": {
+    "actionable_rejection": true,
+    "argument_completeness": true,
+    "canonical_immutability": true,
+    "fact_traceability": true,
+    "redundancy_attribution": true
+  },
+  "graduated": true,
+  "rows": [
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-0",
+      "redundancy_attributed": true,
+      "redundant_calls": 1,
+      "traceable": true,
+      "verb": "forecast"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-1",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "detect"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-2",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "decide"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-3",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "monitor"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-4",
+      "redundancy_attributed": true,
+      "redundant_calls": 1,
+      "traceable": true,
+      "verb": "describe"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-5",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "forecast"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-6",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "detect"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-7",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "decide"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-8",
+      "redundancy_attributed": true,
+      "redundant_calls": 1,
+      "traceable": true,
+      "verb": "monitor"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-9",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "describe"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-10",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "forecast"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-11",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "detect"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-12",
+      "redundancy_attributed": true,
+      "redundant_calls": 1,
+      "traceable": true,
+      "verb": "decide"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-13",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "monitor"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-14",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "describe"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-15",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "forecast"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-16",
+      "redundancy_attributed": true,
+      "redundant_calls": 1,
+      "traceable": true,
+      "verb": "detect"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-17",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "decide"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-18",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "monitor"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-19",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "describe"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-20",
+      "redundancy_attributed": true,
+      "redundant_calls": 1,
+      "traceable": true,
+      "verb": "forecast"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-21",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "detect"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-22",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "decide"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-23",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "monitor"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-24",
+      "redundancy_attributed": true,
+      "redundant_calls": 1,
+      "traceable": true,
+      "verb": "describe"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-25",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "forecast"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-26",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "detect"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-27",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "decide"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-28",
+      "redundancy_attributed": true,
+      "redundant_calls": 1,
+      "traceable": true,
+      "verb": "monitor"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-29",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "describe"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-30",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "forecast"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-31",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "detect"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-32",
+      "redundancy_attributed": true,
+      "redundant_calls": 1,
+      "traceable": true,
+      "verb": "decide"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-33",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "monitor"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-34",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "describe"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-35",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "forecast"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-36",
+      "redundancy_attributed": true,
+      "redundant_calls": 1,
+      "traceable": true,
+      "verb": "detect"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-37",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "decide"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-38",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "monitor"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-39",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "describe"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-40",
+      "redundancy_attributed": true,
+      "redundant_calls": 1,
+      "traceable": true,
+      "verb": "forecast"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-41",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "detect"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-42",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "decide"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-43",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "monitor"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-44",
+      "redundancy_attributed": true,
+      "redundant_calls": 1,
+      "traceable": true,
+      "verb": "describe"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-45",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "forecast"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-46",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "detect"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-47",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "decide"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-48",
+      "redundancy_attributed": true,
+      "redundant_calls": 1,
+      "traceable": true,
+      "verb": "monitor"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-49",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "describe"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-50",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "forecast"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-51",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "detect"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-52",
+      "redundancy_attributed": true,
+      "redundant_calls": 1,
+      "traceable": true,
+      "verb": "decide"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-53",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "monitor"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-54",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "describe"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-55",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "forecast"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-56",
+      "redundancy_attributed": true,
+      "redundant_calls": 1,
+      "traceable": true,
+      "verb": "detect"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-57",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "decide"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-58",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "monitor"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-59",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "describe"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-60",
+      "redundancy_attributed": true,
+      "redundant_calls": 1,
+      "traceable": true,
+      "verb": "forecast"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-61",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "detect"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-62",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "decide"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-63",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "monitor"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-64",
+      "redundancy_attributed": true,
+      "redundant_calls": 1,
+      "traceable": true,
+      "verb": "describe"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-65",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "forecast"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-66",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "detect"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-67",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "decide"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-68",
+      "redundancy_attributed": true,
+      "redundant_calls": 1,
+      "traceable": true,
+      "verb": "monitor"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-69",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "describe"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-70",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "forecast"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-71",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "detect"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-72",
+      "redundancy_attributed": true,
+      "redundant_calls": 1,
+      "traceable": true,
+      "verb": "decide"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-73",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "monitor"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-74",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "describe"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-75",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "forecast"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-76",
+      "redundancy_attributed": true,
+      "redundant_calls": 1,
+      "traceable": true,
+      "verb": "detect"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-77",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "decide"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-78",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "monitor"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-79",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "describe"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-80",
+      "redundancy_attributed": true,
+      "redundant_calls": 1,
+      "traceable": true,
+      "verb": "forecast"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-81",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "detect"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-82",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "decide"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-83",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "monitor"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-84",
+      "redundancy_attributed": true,
+      "redundant_calls": 1,
+      "traceable": true,
+      "verb": "describe"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-85",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "forecast"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-86",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "detect"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-87",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "decide"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-88",
+      "redundancy_attributed": true,
+      "redundant_calls": 1,
+      "traceable": true,
+      "verb": "monitor"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-89",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "describe"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-90",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "forecast"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-91",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "detect"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-92",
+      "redundancy_attributed": true,
+      "redundant_calls": 1,
+      "traceable": true,
+      "verb": "decide"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-93",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "monitor"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-94",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "describe"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-95",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "forecast"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-96",
+      "redundancy_attributed": true,
+      "redundant_calls": 1,
+      "traceable": true,
+      "verb": "detect"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-97",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "decide"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-98",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "monitor"
+    },
+    {
+      "argument_complete": true,
+      "canonical_unchanged": true,
+      "id": "case-99",
+      "redundancy_attributed": true,
+      "redundant_calls": 0,
+      "traceable": true,
+      "verb": "describe"
+    }
+  ],
+  "schema_version": "0.1",
+  "seed": 27183
+}

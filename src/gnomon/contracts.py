@@ -690,6 +690,8 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "scenarios": "intent", "scenario_ids": "intent",
     "context_store": "intent", "context_namespace": "intent",
     "candidate": "intent", "revision": "intent", "outcome_id": "intent",
+    "question_id": "intent", "synthesis_id": "intent",
+    "resolved": "intent",
     # -- data --------------------------------------------------------------
     "input": "data", "observations": "data", "data_ref": "data",
     "file": "data", "files": "data",
@@ -714,6 +716,8 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "human_assumption": "data",
     "domain": "data", "population": "data", "unit": "data", "target": "data",
     "candidate_error": "data", "baseline_error": "data",
+    "canonical": "data", "synthesis": "data", "evidence_refs": "data",
+    "outcome": "data", "resolved_at": "data",
     # -- epistemic ---------------------------------------------------------
     "minimum_baseline_improvement": "epistemic",
     "repair": "epistemic",
