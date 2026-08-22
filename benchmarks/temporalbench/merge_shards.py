@@ -18,6 +18,10 @@ def merge_shards(target: Path, shards: list[Path]) -> dict[str, int]:
     target_summary = (json.loads(summary_path.read_text(encoding="utf-8"))
                       if summary_path.is_file() else {})
     cumulative_usage = dict(target_summary.get("llm_usage") or {})
+    cumulative_infrastructure_retries = int(
+        target_summary.get("infrastructure_retries") or 0)
+    cumulative_infrastructure_failures = dict(
+        target_summary.get("infrastructure_failures_retried") or {})
     merged_usage_sources = set(target_summary.get("merged_usage_sources") or [])
     manifests: list[tuple[Path, dict]] = []
     if cumulative_usage and not merged_usage_sources:
@@ -61,6 +65,12 @@ def merge_shards(target: Path, shards: list[Path]) -> dict[str, int]:
             continue
         source_summary = json.loads(
             source_summary_path.read_text(encoding="utf-8"))
+        cumulative_infrastructure_retries += int(
+            source_summary.get("infrastructure_retries") or 0)
+        for name, count in (source_summary.get(
+                "infrastructure_failures_retried") or {}).items():
+            cumulative_infrastructure_failures[name] = (
+                cumulative_infrastructure_failures.get(name, 0) + int(count))
         usage = source_summary.get("llm_usage") or {}
         for key in ("requests", "transport_attempts", "prompt_tokens",
                     "completion_tokens", "cost_usd",
@@ -75,6 +85,9 @@ def merge_shards(target: Path, shards: list[Path]) -> dict[str, int]:
         (details / name).write_text(content, encoding="utf-8")
     if cumulative_usage:
         target_summary["llm_usage"] = cumulative_usage
+        target_summary["infrastructure_retries"] = cumulative_infrastructure_retries
+        target_summary["infrastructure_failures_retried"] = dict(sorted(
+            cumulative_infrastructure_failures.items()))
         target_summary["merged_usage_sources"] = sorted(merged_usage_sources)
         summary_path.write_text(
             json.dumps(target_summary, indent=2, sort_keys=True) + "\n",

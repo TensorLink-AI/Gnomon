@@ -623,8 +623,11 @@ def main() -> int:
     context_events_rejected = context_events_applied = 0
     context_events_scenario_only = 0
     covariate_channels_considered = covariate_channels_admitted = 0
-    infrastructure_retries = 0
-    infrastructure_failures: dict[str, int] = {}
+    infrastructure_retries = int(
+        prior_summary.get("infrastructure_retries") or 0) if args.resume else 0
+    infrastructure_failures: dict[str, int] = dict(
+        prior_summary.get("infrastructure_failures_retried") or {}
+    ) if args.resume else {}
     terminal_errors: dict[str, int] = {}
     resumed_rows = 0
     channels_abstained = 0
