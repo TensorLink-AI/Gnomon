@@ -574,13 +574,17 @@ def _execute_scoped_question(
         for member in members
     }
     panel_evidence = aggregate_evidence(observed_rows, property="volatility")
-    calibrated_children = [child for child in children
-                           if int(((child["answer"].get("property_distribution")
-                                    or {}).get("folds") or 0)) >= 2
-                           or ((child["answer"].get("executable") or {}).get(
-                               "kind") == "published_forecast_projection"
-                               and (child["answer"].get("executable") or {}).get(
-                                   "property") == "volatility")]
+    calibrated_children = [
+        child for child in children
+        if (int(((child["answer"].get("property_distribution") or {}).get(
+                    "folds") or 0)) >= 2
+            and not bool((child.get("calibration") or {}).get(
+                "proxy_horizon_calibration")))
+        or ((child["answer"].get("executable") or {}).get("kind")
+            == "published_forecast_projection"
+            and (child["answer"].get("executable") or {}).get("property")
+            == "volatility")
+    ]
     ratios = [child["answer"].get("future_to_reference_ratio")
               for child in calibrated_children]
     ratios = [float(item) for item in ratios if item is not None]
