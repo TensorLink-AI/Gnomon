@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **Multi-series triage disclosures are one canonical, copyable contract.**
+  Wide-response bounding now refreshes the single `triage` block instead of
+  attaching a second, differently-shaped `series_triage` summary. Every
+  triage block carries the ranking rule, the `most_notable` winner, the
+  preserved-remainder count and tiers, and — where an artifact exists — the
+  artifact identity, as deterministic fields an agent copies rather than
+  facts it must remember to restate. The `triage` subtree joins the
+  protected keys, so a budget trim can never take the disclosure with it.
+
 - **Short-history volatility answers publish a weak best estimate instead of
   abstaining.** Histories too short for rolling-origin folds previously
   answered every volatility-direction question "uncertain". The fitted
