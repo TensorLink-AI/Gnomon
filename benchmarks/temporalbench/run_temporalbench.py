@@ -69,7 +69,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
-from benchmarks.common.manifest import write_manifest  # noqa: E402
+from benchmarks.common.manifest import (  # noqa: E402
+    code_revision, read_manifest, write_manifest,
+)
 from benchmarks.common.openrouter import OpenRouterClient  # noqa: E402
 from benchmarks.common.records import RecordWriter, RunRecord  # noqa: E402
 from benchmarks.temporalbench import gnomon_runner, scoring  # noqa: E402
@@ -111,6 +113,20 @@ def primary_forecast_immutability(
         return (route_mix.get("gnomon", 0) > 0
                 and set(route_mix).issubset({"gnomon", "abstain"}))
     return True
+
+
+def resume_revision_provenance(
+    *, current: str | None, prior: str | None,
+    resumed_rows: int, total_rows: int,
+) -> tuple[str | None, list[str], str | None]:
+    """Separate execution provenance from later deterministic rescoring."""
+    executed_now = max(0, total_rows - resumed_rows)
+    revisions = {item for item in (prior if resumed_rows else None,
+                                   current if executed_now else None) if item}
+    execution = (next(iter(revisions)) if len(revisions) == 1 else
+                 "mixed" if len(revisions) > 1 else current or prior)
+    summarized_by = (current if resumed_rows and current != execution else None)
+    return execution, sorted(revisions), summarized_by
 
 
 def infrastructure_failure(error: Exception) -> bool:
@@ -515,6 +531,8 @@ def main() -> int:
               if args.model else None)
 
     output_dir = Path(args.output_dir)
+    current_revision = code_revision()
+    prior_manifest = read_manifest(output_dir) if args.resume else {}
     details_dir = output_dir / "details"
     details_dir.mkdir(parents=True, exist_ok=True)
     records_path = output_dir / "gnomonbench.jsonl"
@@ -1165,6 +1183,11 @@ def main() -> int:
     # Provenance beside the results on direct CLI runs too, mirroring
     # run_all.py's field conventions (run_all overwrites this with its
     # own manifest when it is the caller).
+    execution_revision, execution_revisions, summarized_by_revision = \
+        resume_revision_provenance(
+            current=current_revision,
+            prior=prior_manifest.get("code_revision"),
+            resumed_rows=resumed_rows, total_rows=total)
     write_manifest(
         output_dir,
         benchmark="temporalbench",
@@ -1173,6 +1196,10 @@ def main() -> int:
         target="tiers=" + ",".join(tiers or TIERS)
                + (";datasets=" + ",".join(datasets) if datasets else ""),
         command=" ".join(sys.argv),
+        code_revision=execution_revision,
+        execution_code_revisions=(execution_revisions
+                                  if len(execution_revisions) > 1 else None),
+        summarized_by_revision=summarized_by_revision,
         limit=args.limit,
         # Which endpoint served the model: not part of `target` (it does
         # not change the task set), but it does change what the score is

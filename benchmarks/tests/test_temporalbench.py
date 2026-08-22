@@ -25,6 +25,7 @@ from benchmarks.temporalbench.score_per_channel import (
 )
 from benchmarks.temporalbench.run_temporalbench import (
     primary_forecast_immutability,
+    resume_revision_provenance,
 )
 from benchmarks.temporalbench.tasks import extract_json_object, prompt_input_arrays
 
@@ -591,3 +592,15 @@ def test_mcp_immutability_requires_every_channel_to_use_gnomon():
 
 def test_direct_gnomon_arm_owns_forecast_arrays():
     assert primary_forecast_immutability("gnomon-agent", 20, {}) is True
+
+
+def test_resume_provenance_does_not_promote_old_executions() -> None:
+    assert resume_revision_provenance(
+        current="new", prior="old", resumed_rows=80, total_rows=80) == (
+            "old", ["old"], "new")
+    assert resume_revision_provenance(
+        current="new", prior="old", resumed_rows=79, total_rows=80) == (
+            "mixed", ["new", "old"], "new")
+    assert resume_revision_provenance(
+        current="new", prior=None, resumed_rows=0, total_rows=80) == (
+            "new", ["new"], None)
