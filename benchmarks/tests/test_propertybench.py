@@ -1,4 +1,5 @@
 from benchmarks.propertybench.run_propertybench import run
+from benchmarks.propertybench.aggregate import aggregate
 
 
 def test_propertybench_is_deterministic_complete_and_immutable() -> None:
@@ -32,3 +33,36 @@ def test_propertybench_is_deterministic_complete_and_immutable() -> None:
     assert dependence_stress["cases"] == 32
     assert set(dependence_stress["class_recall"]) == {
         "negative", "weak", "positive"}
+
+
+def test_propertybench_aggregate_pools_rows_and_rejects_duplicate_seeds(
+        tmp_path) -> None:
+    import json
+    import pytest
+    from benchmarks.common.manifest import write_manifest
+
+    for seed, correct in ((11, [True, False, True]),
+                          (22, [True, True, False])):
+        directory = tmp_path / str(seed)
+        directory.mkdir()
+        rows = [
+            {"expected": label, "correct": value}
+            for label, value in zip(("increased", "decreased", "stable"),
+                                    correct)
+        ]
+        (directory / "summary.json").write_text(json.dumps({
+            "seed": seed,
+            "graduated": False,
+            "future_process_volatility": {
+                "cases": 3, "balanced_accuracy": sum(correct) / 3,
+                "rows": rows,
+            },
+        }))
+        write_manifest(directory, benchmark="propertybench", replicates=1,
+                       code_revision="abc")
+    result = aggregate([tmp_path / "11", tmp_path / "22"])
+    assert result["cases"] == 6
+    assert result["balanced_accuracy"] == pytest.approx(2 / 3)
+    assert result["gate"]["passed"] is True
+    with pytest.raises(ValueError, match="duplicate seed"):
+        aggregate([tmp_path / "11", tmp_path / "11"])

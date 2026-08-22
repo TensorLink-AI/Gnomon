@@ -19,3 +19,18 @@ them as automation-grade claims. The generators never expose benchmark labels
 to the product code.
 
 Run `python -m benchmarks.propertybench.run_propertybench --output-dir results/propertybench`.
+
+Use multiple independently chosen seeds for a graduation claim. The aggregate
+report pools held-out row classifications, retains every constituent score,
+and refuses duplicate seeds or mixed code revisions:
+
+```bash
+python -m benchmarks.propertybench.aggregate \
+  results/propertybench-seed-9100 \
+  results/propertybench-seed-94721 \
+  results/propertybench-seed-27183 \
+  --output results/propertybench-multiseed.json
+```
+
+The runner writes an exact-code manifest beside each `summary.json`. Do not use
+an output made before manifests existed as release evidence.
