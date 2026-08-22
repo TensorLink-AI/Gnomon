@@ -53,11 +53,24 @@ def parse_args() -> argparse.Namespace:
                         help="Concurrent in-flight requests (default: 12)")
     parser.add_argument("--num-retries", type=int, default=4,
                         help="Attempts per series before giving up (default: 4)")
+    parser.add_argument("--base-url", default=None,
+                        help="Optional OpenAI-compatible endpoint override")
+    parser.add_argument("--api-key-env", default="OPENROUTER_API_KEY",
+                        help="Environment variable for --base-url credentials")
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
+
+    # Keep secrets out of the official checkout and command line.  This also
+    # lets the exact official request sender target any OpenAI-compatible
+    # provider without rewriting credentials.yml.
+    repo_root = Path(__file__).resolve().parents[2]
+    sys.path.insert(0, str(repo_root))
+    from benchmarks.common.envfile import load_env_file  # noqa: E402
+    from benchmarks.common.manifest import write_manifest  # noqa: E402
+    load_env_file(repo_root)
 
     root = Path(args.anomllm_root).expanduser().resolve()
     # The official code resolves credentials.yml, data/ and results/ relative to
@@ -67,7 +80,16 @@ def main() -> int:
 
     from config import create_batch_api_configs  # noqa: E402
     from data.synthetic import SyntheticDataset  # noqa: E402
+    import openai_api  # noqa: E402
     from openai_api import send_openai_request  # noqa: E402
+
+    if args.base_url:
+        api_key = os.environ.get(args.api_key_env)
+        if not api_key:
+            raise SystemExit(
+                f"{args.api_key_env} is required when --base-url is set")
+        openai_api.credentials[args.model] = {
+            "api_key": api_key, "base_url": args.base_url}
 
     request_func = create_batch_api_configs()[args.variant]
 
@@ -120,6 +142,13 @@ def main() -> int:
     print(f"{len(eval_dataset)} series, {len(done)} already done, "
           f"{len(pending)} to run on {args.workers} workers", flush=True)
     if not pending:
+        write_manifest(
+            root / "gnomonbench" / "synthetic" / args.data /
+            args.model.replace("/", "--") / args.variant,
+            benchmark="anomllm", condition=f"control/{args.variant}",
+            target=args.data, model=args.model, base_url=args.base_url,
+            workers=args.workers, status="ok", completed=len(done),
+        )
         return 0
 
     write_lock = threading.Lock()
@@ -166,7 +195,18 @@ def main() -> int:
     print(f"done: {counter['finished']} written "
           f"({counter['null']} with null content), "
           f"{counter['failed']} abandoned", flush=True)
-    return 0
+    total_complete = len(done) + counter["finished"] - counter["null"]
+    status = "ok" if total_complete == len(eval_dataset) else "incomplete"
+    write_manifest(
+        root / "gnomonbench" / "synthetic" / args.data /
+        args.model.replace("/", "--") / args.variant,
+        benchmark="anomllm", condition=f"control/{args.variant}",
+        target=args.data, model=args.model, base_url=args.base_url,
+        workers=args.workers, status=status, completed=total_complete,
+        expected=len(eval_dataset), failed=counter["failed"],
+        null_responses=counter["null"],
+    )
+    return 0 if status == "ok" else 2
 
 
 if __name__ == "__main__":
