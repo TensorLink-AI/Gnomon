@@ -61,6 +61,7 @@ class TemporalQuestion:
     differencing: int = 0
     seasonal_period: int | None = None
     validation: dict[str, Any] | None = None
+    decision_policy: dict[str, Any] | str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         payload = {key: value for key, value in asdict(self).items()
@@ -236,6 +237,13 @@ def compile_temporal_question(
     validation = raw.get("validation")
     if validation is not None and not isinstance(validation, dict):
         failures["validation"] = "must be an object"
+    decision_policy = raw.get("decision_policy")
+    if decision_policy is not None:
+        try:
+            from .temporal_distribution import bounded_decision_policy
+            bounded_decision_policy(decision_policy)
+        except ValueError as exc:
+            failures["decision_policy"] = str(exc)
     if prop == "decomposition" and period is None:
         failures["period"] = "fixed-period decomposition requires an explicit period"
     if prop == "regression" and not explanatory:
@@ -265,6 +273,9 @@ def compile_temporal_question(
         explanatory_variables=explanatory,
         differencing=differencing, seasonal_period=seasonal_period,
         validation=(dict(validation) if isinstance(validation, dict) else None),
+        decision_policy=(dict(decision_policy)
+                         if isinstance(decision_policy, dict)
+                         else decision_policy),
     )
 
 

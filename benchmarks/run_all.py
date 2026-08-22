@@ -150,6 +150,11 @@ REGISTRY: dict[str, dict[str, Any]] = {
         "accepts": {"output_dir"},
         "limit_flag": None,
     },
+    "boundarybench": {
+        "module": "benchmarks.boundarybench.run_boundarybench",
+        "accepts": {"output_dir"},
+        "limit_flag": "--cases",
+    },
 }
 
 if set(REGISTRY) != set(CATALOG):

@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **One source-addressed reasoning boundary.** Every public verb now projects
+  its immutable result as `because / against / unknown / what_would_flip`,
+  names the source field for each quotable fact, states when further calls add
+  nothing, and returns actionable typed rejection. Decision policies are
+  public but bounded. Separately labelled LLM synthesis has independent
+  immutable receipts and outcome scores, and resolved supervision data can be
+  exported only with explicit consent through a de-identified temporal split.
+  BoundaryBench measures immutability, traceability, rejection repair and
+  redundant-call attribution independently of forecast accuracy.
+
 - **Benchmark evidence is fail-closed.** Dated releases now record the exact
   evaluated commit, harness commit, dataset identity, and configuration
   identity. A result with unknown provenance cannot be labelled complete or

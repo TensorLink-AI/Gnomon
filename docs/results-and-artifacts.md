@@ -225,6 +225,13 @@ independent receipt evidence and are explicitly not probabilities. Agents may
 explain this ordering, but only a calibrated fitted distribution may publish
 probability language.
 
+Every MCP response also carries a top-level compact `reasoning` boundary. Its
+`facts` entries point to the single response field an agent may quote,
+`sufficiency` names what is already answered, and the contrast fields shape an
+explanation without introducing new computed claims. Errors carry a terminal
+`rejection` with a reason, missing evidence, and the shortest available
+ready-to-run admissibility path.
+
 Forecast-based volatility and seasonality answers separate
 `forecast_path_behavior` from `process_claim`. A smooth or phase-aligned point
 path is a deterministic diagnostic; it is never presented as proof that the
@@ -243,6 +250,10 @@ opposing evidence. Hosts retain canonical, proposed synthesis, accepted basis,
 and final governed choice as separate audit fields. A weak proposal cannot
 silently become canonical: even exactly quoted task context must support the
 same alternative that the outcome-backed adjudicator found eligible.
+
+Accepted synthesis contributions live in `temporal_synthesis_receipts` and are
+resolved separately from `temporal_answer_receipts`; their score can show help,
+harm, or an insufficiently typed outcome without changing forecast history.
 
 ## Reproducibility limits
 

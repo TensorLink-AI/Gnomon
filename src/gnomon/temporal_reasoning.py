@@ -12,6 +12,7 @@ from .temporal_executables import (
     fit_temporal_executable,
 )
 from .volatility import fit_volatility_executable, residuals
+from .temporal_distribution import bounded_decision_policy
 from .temporal_evidence import (
     aggregate_evidence, compare_windows, multi_resolution_evidence,
 )
@@ -319,7 +320,8 @@ def answer_descriptive_question(
             values, forecast_values, season)
         fitted = fit_volatility_executable(
             values, horizon=question.horizon or len(forecast_values),
-            season=season)
+            season=season,
+            decision_policy=bounded_decision_policy(question.decision_policy))
         fitted_answer = fitted.execute()
         direction = fitted_answer["direction"]
         source = "fold_safe_volatility_executable"
@@ -378,7 +380,8 @@ def answer_descriptive_question(
         return result
     if prop == "volatility" and question.verb in {"predict", "compare"}:
         fitted = fit_volatility_executable(
-            values, horizon=question.horizon or 1, season=season)
+            values, horizon=question.horizon or 1, season=season,
+            decision_policy=bounded_decision_policy(question.decision_policy))
         answer = fitted.execute()
         result = _envelope(
             question, direction=answer["direction"],

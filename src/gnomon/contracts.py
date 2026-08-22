@@ -609,6 +609,8 @@ class GnomonError(Exception):
         self.repair_options = repair_options
 
     def to_dict(self) -> dict[str, Any]:
+        repairs = (self.repair_options if self.repair_options is not None
+                   else REPAIR_OPTIONS.get(self.code, []))
         return {
             "schema_version": "0.1",
             "status": "error",
@@ -617,11 +619,13 @@ class GnomonError(Exception):
                 "message": self.message,
                 "retryable": False,
                 "details": self.details,
-                "repair_options": (
-                    self.repair_options
-                    if self.repair_options is not None
-                    else REPAIR_OPTIONS.get(self.code, [])
-                ),
+                "repair_options": repairs,
+            },
+            "rejection": {
+                "code": self.code, "reason": self.message,
+                "missing": self.details,
+                "admissibility_path": repairs[:1],
+                "terminal": True,
             },
         }
 
