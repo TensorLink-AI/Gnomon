@@ -105,7 +105,11 @@ def primary_forecast_immutability(
     if not forecast_rows or condition == "control":
         return None
     if condition == "gnomon-mcp":
-        return bool(route_mix) and set(route_mix) == {"gnomon"}
+        # An abstention publishes no array and therefore cannot mutate the
+        # primary forecast. Only a submitted model-authored channel violates
+        # this invariant.
+        return (route_mix.get("gnomon", 0) > 0
+                and set(route_mix).issubset({"gnomon", "abstain"}))
     return True
 
 

@@ -581,7 +581,11 @@ def test_mcp_immutability_requires_every_channel_to_use_gnomon():
     assert primary_forecast_immutability(
         "gnomon-mcp", 20, {"gnomon": 60}) is True
     assert primary_forecast_immutability(
+        "gnomon-mcp", 20, {"gnomon": 59, "abstain": 1}) is True
+    assert primary_forecast_immutability(
         "gnomon-mcp", 20, {"gnomon": 59, "model": 1}) is False
+    assert primary_forecast_immutability(
+        "gnomon-mcp", 20, {"abstain": 60}) is False
     assert primary_forecast_immutability("gnomon-mcp", 20, {}) is False
 
 
