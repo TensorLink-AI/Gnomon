@@ -46,7 +46,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 
-from benchmarks.common.manifest import write_manifest  # noqa: E402
+from benchmarks.common.manifest import code_revision, write_manifest  # noqa: E402
 from benchmarks.common.openrouter import OpenRouterClient  # noqa: E402
 from benchmarks.common.records import RecordWriter, RunRecord  # noqa: E402
 from benchmarks.timesage_mt import harness, scoring  # noqa: E402
@@ -171,6 +171,9 @@ def main() -> int:
             return 0
     if not args.condition or not args.model or not args.output_dir:
         parser.error("--condition, --model and --output-dir are required to run")
+    # Capture before any API work. A long run must not claim a checkout that
+    # happened to become HEAD while its already-imported code was executing.
+    run_revision = code_revision()
 
     tiers = tuple(t.strip() for t in args.tiers.split(",") if t.strip() in TIERS)
     tasks = load_tasks(data_dir, tiers=tiers or TIERS, limit=args.limit)
@@ -209,6 +212,7 @@ def main() -> int:
                 if (saved.get("task_id") == task.task_id
                         and saved.get("condition") == args.condition
                         and saved.get("model") == args.model
+                        and saved.get("code_revision") == run_revision
                         and isinstance(saved.get("llm_usage"), dict)
                         and len(saved.get("turns", [])) == len(task.user_turns)):
                     task_results[task.task_id] = (
@@ -243,6 +247,7 @@ def main() -> int:
                 checkpoint = {
                     "task_id": task.task_id, "tier": task.tier,
                     "condition": args.condition, "model": args.model,
+                    "code_revision": run_revision,
                     "elapsed_seconds": elapsed, "llm_usage": usage,
                     "turns": turn_records,
                 }
@@ -298,6 +303,7 @@ def main() -> int:
         task_transcript = {
             "task_id": task.task_id, "tier": task.tier,
             "condition": args.condition, "model": args.model,
+            "code_revision": run_revision,
             "elapsed_seconds": elapsed, "llm_usage": usage, "turns": [],
         }
         for record in turn_records:
@@ -342,6 +348,7 @@ def main() -> int:
         "benchmark": "timesage-mt",
         "condition": args.condition,
         "model": args.model,
+        "code_revision": run_revision,
         "judge_model": args.judge_model,
         "tiers": list(tiers or TIERS),
         "tasks": len(tasks),
@@ -387,6 +394,7 @@ def main() -> int:
         limit=args.limit,
         judge_model=args.judge_model,
         base_url=client.base_url,
+        code_revision=run_revision,
     )
     print(json.dumps(summary, indent=2))
     return 0
