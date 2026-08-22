@@ -14,12 +14,14 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
 from gnomon.temporal_executables import (  # noqa: E402
-    _property_value, fit_dependence_executable,
+    _correlation, _property_value, fit_dependence_executable,
     fit_future_seasonality_executable, fit_temporal_executable,
 )
 from gnomon.temporal_reasoning import (  # noqa: E402
     _forecast_volatility_alignment, _seasonality_alignment,
 )
+from gnomon.volatility import fit_volatility_executable, residuals  # noqa: E402
+from gnomon.operators import regime_detection  # noqa: E402
 from gnomon.temporal_evidence import (  # noqa: E402
     aggregate_evidence, compare_windows,
 )
@@ -104,7 +106,6 @@ def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
             left_before, right_before = list(left), list(right)
             fitted = fit_dependence_executable(left[:421], right[:421], horizon=24)
             future = shocks[420:444]
-            from gnomon.temporal_executables import _correlation
             actual = _correlation([x for x, _ in future], [y for _, y in future])
             actual_label = ("positive" if actual is not None and actual >= .3 else
                             "negative" if actual is not None and actual <= -.3 else "weak")
@@ -295,6 +296,170 @@ def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
                                if row["expected"] == label)
         for label in ("increased", "decreased", "stable")
     }
+    # Forecasting the variance of a stochastic process is distinct from
+    # describing the smoothness of an already-published point path.  Score the
+    # fitted executable against genuinely unseen observations from several
+    # mechanisms, including negative controls where level movement must not be
+    # mistaken for volatility.  Expected labels are computed from the held-out
+    # realization using the product's public ratio definition; generator names
+    # are never passed to the executable.
+    process_volatility_rows = []
+    volatility_families = (
+        "stationary", "gradual_up", "gradual_down", "late_shift_up",
+        "late_shift_down", "level_trend", "heavy_tailed",
+    )
+    for family_index, family in enumerate(volatility_families):
+        for replicate in range(replicates * 4):
+            case_seed = seed + 450_000 + family_index * 10_000 + replicate
+            rng = random.Random(case_seed)
+            history_length, future_length = 480, 48
+
+            def sigma(index: int) -> float:
+                total = history_length + future_length
+                if family == "gradual_up":
+                    return .45 + 2.55 * index / max(total - 1, 1)
+                if family == "gradual_down":
+                    return 3.0 - 2.55 * index / max(total - 1, 1)
+                if family == "late_shift_up":
+                    return 2.5 if index >= history_length - 24 else .7
+                if family == "late_shift_down":
+                    return .45 if index >= history_length - 24 else 2.2
+                return 1.0
+
+            values = []
+            for index in range(history_length + future_length):
+                level = 100 + (.08 * index if family == "level_trend" else 0)
+                if family == "heavy_tailed":
+                    shock = rng.gauss(0, 1)
+                    if rng.random() < .06:
+                        shock *= 5
+                else:
+                    shock = rng.gauss(0, sigma(index))
+                values.append(level + shock)
+            history, future = values[:history_length], values[history_length:]
+            fitted = fit_volatility_executable(
+                history, horizon=future_length, season=1).execute()
+            history_errors = residuals(history, 1)
+            combined_errors = residuals(history + future, 1)
+            realized = combined_errors[len(history_errors):]
+            reference = statistics.median(
+                abs(item - statistics.median(history_errors[-48:]))
+                for item in history_errors[-48:]) * 1.4826
+            future_scale = statistics.median(
+                abs(item - statistics.median(realized)) for item in realized
+            ) * 1.4826
+            ratio = future_scale / max(reference, 1e-12)
+            expected = ("increased" if ratio > 1.25 else
+                        "decreased" if ratio < .8 else "stable")
+            process_volatility_rows.append({
+                "family": family, "seed": case_seed,
+                "expected": expected, "observed": fitted["direction"],
+                "support": fitted["direction_support"],
+                "realized_ratio": ratio,
+                "correct": fitted["direction"] == expected,
+            })
+    process_volatility_recalls = {
+        label: (statistics.mean(bool(row["correct"])
+                                for row in process_volatility_rows
+                                if row["expected"] == label)
+                if any(row["expected"] == label
+                       for row in process_volatility_rows) else None)
+        for label in ("increased", "decreased", "stable")
+    }
+    process_volatility_balanced = statistics.mean(
+        value for value in process_volatility_recalls.values()
+        if value is not None)
+    # Observed regime diagnosis is not the same question as predicting an
+    # unannounced future break. Exercise sustained shifts, paired transient
+    # excursions, variance-only controls, and stable histories. This catches
+    # the common error where the closing edge of a transient is mislabeled as
+    # a second permanent regime.
+    regime_transition_rows = []
+    for expected in ("no_change", "regime_shift", "transient_anomaly",
+                     "no_level_shift"):
+        for replicate in range(replicates * 4):
+            case_seed = seed + 475_000 + 10_000 * (
+                "no_change", "regime_shift", "transient_anomaly",
+                "no_level_shift").index(expected) + replicate
+            rng = random.Random(case_seed)
+            values = []
+            for index in range(240):
+                level = (8.0 if expected == "regime_shift" and index >= 200
+                         else 8.0 if expected == "transient_anomaly"
+                         and 200 <= index < 208 else 0.0)
+                scale = (3.0 if expected == "no_level_shift" and index >= 200
+                         else 1.0)
+                values.append(level + rng.gauss(0, scale))
+            result = regime_detection(list(range(len(values))), values)
+            observed = result["classification"] or "no_change"
+            target = "no_change" if expected == "no_level_shift" else expected
+            regime_transition_rows.append({
+                "family": expected, "seed": case_seed,
+                "expected": target, "observed": observed,
+                "correct": observed == target,
+            })
+    regime_transition_recalls = {
+        label: statistics.mean(
+            bool(row["correct"]) for row in regime_transition_rows
+            if row["expected"] == label)
+        for label in ("no_change", "regime_shift", "transient_anomaly")
+    }
+    regime_transition_balanced = statistics.mean(
+        regime_transition_recalls.values())
+    # Dependence must survive common trends, lag-only association, changing
+    # sign, and heteroskedastic noise. The executable sees paired levels, while
+    # the oracle is the unseen contemporaneous innovation correlation.
+    dependence_stress_rows = []
+    for family in ("common_trend", "lag_only", "recent_flip",
+                   "heteroskedastic"):
+        for replicate in range(replicates * 4):
+            case_seed = seed + 485_000 + 10_000 * (
+                "common_trend", "lag_only", "recent_flip",
+                "heteroskedastic").index(family) + replicate
+            rng = random.Random(case_seed)
+            left_shocks, right_shocks = [], []
+            previous_left = 0.0
+            for index in range(444):
+                left_shock = rng.gauss(0, 1)
+                if family == "common_trend":
+                    right_shock = rng.gauss(0, 1)
+                elif family == "lag_only":
+                    right_shock = .9 * previous_left + rng.gauss(0, .3)
+                elif family == "recent_flip":
+                    right_shock = (.9 if index < 360 else -.9) * left_shock \
+                        + rng.gauss(0, .3)
+                else:
+                    right_shock = .7 * left_shock + rng.gauss(
+                        0, .2 + 1.5 * index / 444)
+                left_shocks.append(left_shock)
+                right_shocks.append(right_shock)
+                previous_left = left_shock
+            drift = .05 if family == "common_trend" else 0.0
+            left, right = [0.0], [0.0]
+            for left_shock, right_shock in zip(left_shocks, right_shocks):
+                left.append(left[-1] + drift + left_shock)
+                right.append(right[-1] + drift + right_shock)
+            fitted = fit_dependence_executable(
+                left[:421], right[:421], horizon=24).execute()
+            actual = _correlation(
+                left_shocks[420:444], right_shocks[420:444])
+            expected = ("positive" if actual is not None and actual >= .3 else
+                        "negative" if actual is not None and actual <= -.3
+                        else "weak")
+            dependence_stress_rows.append({
+                "family": family, "seed": case_seed,
+                "expected": expected, "observed": fitted["direction"],
+                "support": fitted["support"],
+                "correct": fitted["direction"] == expected,
+            })
+    dependence_stress_recalls = {
+        label: statistics.mean(
+            bool(row["correct"]) for row in dependence_stress_rows
+            if row["expected"] == label)
+        for label in ("negative", "weak", "positive")
+    }
+    dependence_stress_balanced = statistics.mean(
+        dependence_stress_recalls.values())
     # Future seasonality is a process forecast, not point-path alignment.
     # Exercise stable phase, repeatable phase drift, and unpredictable phase
     # changes on fresh generators. The last family should abstain rather than
@@ -347,6 +512,12 @@ def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
             statistics.mean(panel_recalls.values()) >= .75),
         "forecast_path_volatility_balanced_accuracy_at_least_80pct": (
             statistics.mean(forecast_volatility_recalls.values()) >= .8),
+        "future_process_volatility_balanced_accuracy_at_least_55pct": (
+            process_volatility_balanced >= .55),
+        "observed_regime_transition_balanced_accuracy_at_least_80pct": (
+            regime_transition_balanced >= .8),
+        "dependence_stress_balanced_accuracy_at_least_70pct": (
+            dependence_stress_balanced >= .7),
         "future_process_seasonality_balanced_accuracy_at_least_80pct": (
             statistics.mean(future_seasonality_recalls.values()) >= .8),
     }
@@ -358,8 +529,12 @@ def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
             "supported_coverage_at_least_70pct": (
                 metrics["interval_coverage"] is None
                 or metrics["interval_coverage"] >= .7),
-            "best_estimate_accuracy_at_least_50pct": (
-                metrics["best_estimate_direction_accuracy"] >= .5),
+            **({"unannounced_breaks_not_claimed": not any(
+                row["claimed"] for row in rows
+                if row["property"] == "regime" and row["regime"] == "shift")}
+               if prop == "regime" else
+               {"best_estimate_accuracy_at_least_50pct": (
+                   metrics["best_estimate_direction_accuracy"] >= .5)}),
         }
         for prop, metrics in by_property.items()
     }
@@ -390,6 +565,24 @@ def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
                 "balanced_accuracy": statistics.mean(
                     forecast_volatility_recalls.values()),
                 "rows": forecast_volatility_rows,
+            },
+            "future_process_volatility": {
+                "cases": len(process_volatility_rows),
+                "class_recall": process_volatility_recalls,
+                "balanced_accuracy": process_volatility_balanced,
+                "rows": process_volatility_rows,
+            },
+            "observed_regime_transitions": {
+                "cases": len(regime_transition_rows),
+                "class_recall": regime_transition_recalls,
+                "balanced_accuracy": regime_transition_balanced,
+                "rows": regime_transition_rows,
+            },
+            "dependence_stress": {
+                "cases": len(dependence_stress_rows),
+                "class_recall": dependence_stress_recalls,
+                "balanced_accuracy": dependence_stress_balanced,
+                "rows": dependence_stress_rows,
             },
             "future_process_seasonality": {
                 "cases": len(future_seasonality_rows),
