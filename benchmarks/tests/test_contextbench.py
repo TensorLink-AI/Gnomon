@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import subprocess
 import sys
 from types import SimpleNamespace
 
@@ -74,6 +75,28 @@ def test_generated_files_are_strict_and_hash_addressed(tmp_path, monkeypatch):
     assert manifest["fresh_seed"] is False
     assert len(manifest["cases_sha256"]) == 64
     assert len(manifest["oracle_sha256"]) == 64
+
+
+def test_documented_engine_runner_executes_from_clean_checkout(tmp_path):
+    corpus = tmp_path / "corpus"
+    output = tmp_path / "run"
+    # Reuse the generator CLI for its hash-addressed manifest rather than
+    # synthesising benchmark metadata in the smoke test.
+    subprocess.run(
+        [sys.executable, "-m", "benchmarks.contextbench.generate",
+         "--output-dir", str(corpus), "--seed", "73", "--per-family", "1"],
+        cwd=Path(__file__).resolve().parents[2], check=True,
+        capture_output=True, text=True,
+    )
+    result = subprocess.run(
+        [sys.executable, "-m", "benchmarks.contextbench.run_contextbench",
+         "--corpus-dir", str(corpus), "--output-dir", str(output),
+         "--limit", "1", "--allow-gate-failure"],
+        cwd=Path(__file__).resolve().parents[2], check=False,
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert (output / "summary.json").is_file()
 
 
 def test_stress_generator_is_reproducible_and_covers_production_strata():
