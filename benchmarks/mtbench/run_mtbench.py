@@ -38,6 +38,8 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 
+from benchmarks.common.manifest import write_manifest  # noqa: E402
+
 
 def _json_safe(value: Any) -> Any:
     """Convert parquet/numpy values into the official JSON task shape."""
@@ -116,6 +118,17 @@ def _replace_dataset_argument(
     return updated, resolved
 
 
+def _script_argument(script_args: list[str], name: str) -> str | None:
+    """Read either ``--name=value`` or ``--name value``."""
+    flag = f"--{name}"
+    for index, arg in enumerate(script_args):
+        if arg.startswith(flag + "="):
+            return arg.split("=", 1)[1]
+        if arg == flag and index + 1 < len(script_args):
+            return script_args[index + 1]
+    return None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -179,6 +192,27 @@ def main() -> int:
             client = run_official_script(
                 mtbench_root, args.script, prepared_args, args.model,
                 args.temperature)
+        save_path = _script_argument(script_args, "save_path")
+        if save_path:
+            resolved_save = (script_dir / save_path).resolve() \
+                if not Path(save_path).is_absolute() else Path(save_path)
+            write_manifest(
+                resolved_save,
+                benchmark="mtbench",
+                condition="control/" + str(
+                    _script_argument(script_args, "mode") or "unspecified"),
+                target="/".join(dataset_folder.parts[-2:]),
+                model=args.model,
+                temperature=args.temperature,
+                limit=args.limit,
+                official_script=args.script,
+                indicator=_script_argument(script_args, "indicator"),
+                base_url=client.base_url,
+                llm_usage=client.usage_summary,
+                command=" ".join([sys.executable, "-m",
+                                  "benchmarks.mtbench.run_mtbench"] + sys.argv[1:]),
+                status="ok",
+            )
         print(json.dumps({"llm_usage": client.usage_summary}, indent=2))
         return 0
 
