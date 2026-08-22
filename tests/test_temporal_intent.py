@@ -121,10 +121,33 @@ def test_omitted_target_inherits_nearest_explicit_discourse_focus() -> None:
     receipt = compile_temporal_text_receipt(
         "Median heart rate change?\nVolatility change?\nSeasonality alignment?",
         available_targets=["heart_rate", "spo2"], adapter=adapter)
-    assert [item.target for item in receipt["accepted"]] == [
-        "heart_rate", "heart_rate", "heart_rate"]
+    assert receipt["accepted"][0].target == "heart_rate"
+    assert receipt["accepted"][1].scope == "aggregate"
+    assert receipt["accepted"][2].scope == "aggregate"
+    assert receipt["accepted"][1].members == ("heart_rate", "spo2")
     # The receipt retains what the model actually proposed.
     assert isinstance(receipt["proposed"]["questions"][1]["target"], dict)
+
+
+def test_explicit_property_router_repairs_property_drift_and_missing_slots() -> None:
+    adapter = Adapter({"status": "compiled", "questions": [
+        {"id": "q1", "verb": "compare", "property": "volatility",
+         "target": "heart_rate"},
+        {"id": "q2", "verb": "compare", "property": "seasonality",
+         "target": {"kind": "aggregate", "members": ["heart_rate"]}},
+    ]})
+    receipt = compile_temporal_text_receipt(
+        "Median heart rate change?\nVolatility change?\nSeasonality alignment?",
+        available_targets=["heart_rate", "spo2"], adapter=adapter,
+        default_verb="predict", default_horizon=12)
+
+    assert [item.property for item in receipt["accepted"]] == [
+        "level", "volatility", "seasonality"]
+    assert receipt["accepted"][0].target == "heart_rate"
+    assert all(item.scope == "aggregate" for item in receipt["accepted"][1:])
+    assert all(item.members == ("heart_rate", "spo2")
+               for item in receipt["accepted"][1:])
+    assert receipt["rejected"] == []
 
 
 def test_explicit_collective_question_does_not_inherit_series_focus() -> None:

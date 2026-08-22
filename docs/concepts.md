@@ -13,6 +13,14 @@ authority. The ordinary deterministic compiler still accepts or refuses every
 proposal. Tool-using models are not expected to discover optional question
 fields reliably on their own.
 
+Compilation is deliberately two-stage. A small deterministic router binds
+explicit statistical terms and named series to one typed question slot; the
+host model resolves genuinely semantic wording and optional arguments. The
+normal validator then enforces target scope, aggregation, uniqueness, and
+capability support. This prevents a model from silently changing an explicit
+volatility question into level, while retaining model flexibility for ordinary
+language that has no unique lexical interpretation.
+
 Every accepted question then passes through one `DatasetContract`, capability
 registry, and `ExecutionPlan`. The dataset contract distinguishes univariate,
 multivariate, panel, supervised-table, and wide-waveform layouts before an
@@ -54,9 +62,11 @@ vintages or configurations.
 accept optional typed questions and
 return one compact answer per question. These diagnostics sit beside the
 primary forecast: they cannot modify model selection or the immutable primary
-answer. Predictive comparisons use that exact published path: level questions
-return history and forecast medians plus absolute and relative change, and
-seasonality questions return alignment with the repeated historical phase.
+answer. Level questions use the exact published path to return history and
+forecast medians plus absolute and relative change. Forecast-path seasonality
+alignment is exposed only as a deterministic path diagnostic. A claim about
+the future process's seasonal phase instead comes from a separate fitted
+rolling-origin executable that never reads the point forecast.
 When no task-specific categorical threshold is supplied, Gnomon applies a
 documented property default and labels the resulting best estimate `weak`.
 Weak answers remain useful for exploration but carry
@@ -78,7 +88,7 @@ identity is checked on every hit, and a cache result never upgrades weak
 support or automation eligibility.
 
 Predictive properties use fitted executable receipts. Level, trend, seasonal
-continuation, regime magnitude, and extreme risk compare small deterministic
+phase-state persistence, regime magnitude, and extreme risk compare small deterministic
 candidates on rolling origins; paired dependence selects a return-correlation
 window the same way. Candidate selection, finite-sample calibration, and the
 published estimate are one object. Rare-event absence is not promoted into an

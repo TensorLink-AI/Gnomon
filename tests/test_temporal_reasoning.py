@@ -51,20 +51,21 @@ def test_level_comparison_returns_weak_direction_from_immutable_path() -> None:
 
 
 def test_seasonality_comparison_reports_alignment_and_weak_best_label() -> None:
+    values = [1.0, 3.0] * 40
     answer = answer_descriptive_question(
-        TemporalQuestion("q", "compare", "x", "seasonality"),
-        report=REPORT, values=[1.0, 3.0, 1.0, 3.0], season=2,
+        TemporalQuestion("q", "compare", "x", "seasonality", horizon=8),
+        report=REPORT, values=values, season=2,
         forecast_values=[1.0, 3.0, 1.0, 3.0],
     )
-    assert answer["answer"]["estimate"][
-        "forecast_vs_repeated_history_correlation"] == 1.0
-    assert answer["answer"]["direction"] == "continued"
-    assert answer["answer"]["support"] == "weak"
+    assert answer["answer"]["forecast_path_behavior"]["zero_correlation"] == 1.0
+    assert answer["answer"]["direction"] == "fixed"
+    assert answer["answer"]["executable"]["kind"] == \
+        "fitted_future_seasonality"
 
 
 def test_predictive_properties_use_fitted_executable_without_forecast() -> None:
     values = [20 + .1 * index + (index % 7) for index in range(300)]
-    for prop in ("level", "trend", "seasonality", "regime", "extreme"):
+    for prop in ("level", "trend", "regime", "extreme"):
         answer = answer_descriptive_question(
             TemporalQuestion("q", "predict", "x", prop, horizon=14),
             report=REPORT, values=values, season=7)
@@ -120,13 +121,13 @@ def test_seasonality_aggregate_returns_one_quotable_answer() -> None:
     answer = answer_scoped_question(
         question, reports={"x": REPORT, "y": REPORT},
         execution_inputs={
-            "x": ([1.0, 3.0, 1.0, 3.0], 2),
-            "y": ([2.0, 4.0, 2.0, 4.0], 2),
+            "x": ([1.0, 3.0] * 40, 2),
+            "y": ([2.0, 4.0] * 40, 2),
         }, forecast_values={
             "x": [1.0, 3.0, 1.0, 3.0],
             "y": [2.0, 4.0, 2.0, 4.0],
         })
-    assert answer["best_estimate"]["value"] == "continued"
+    assert answer["best_estimate"]["value"] == "fixed"
     assert answer["answer"]["estimate"]["contributing_series"] == 2
     assert answer["decision_rule"]["aggregation"] == "median_alignment"
 
@@ -209,11 +210,11 @@ def test_seasonality_separates_path_alignment_from_process_claim() -> None:
         TemporalQuestion("q", "compare", "x", "seasonality", horizon=8),
         report=REPORT, values=values, season=2,
         forecast_values=[1.0, 3.0] * 4)
-    assert answer["best_estimate"]["value"] == "continued"
+    assert answer["best_estimate"]["value"] == "fixed"
     assert answer["answer"]["forecast_path_behavior"][
         "not_a_future_process_claim"] is True
     assert answer["answer"]["process_claim"] == {
         "property": "future_realized_seasonality",
-        "direction": "uncertain", "support": "abstained",
-        "source": "not_identified_by_point_forecast_alignment",
+        "direction": "fixed", "support": "supported",
+        "source": "fold_safe_future_seasonality_executable",
     }

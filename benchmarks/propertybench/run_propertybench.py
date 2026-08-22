@@ -14,7 +14,8 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
 from gnomon.temporal_executables import (  # noqa: E402
-    _property_value, fit_dependence_executable, fit_temporal_executable,
+    _property_value, fit_dependence_executable,
+    fit_future_seasonality_executable, fit_temporal_executable,
 )
 from gnomon.temporal_reasoning import (  # noqa: E402
     _forecast_volatility_alignment, _seasonality_alignment,
@@ -293,6 +294,40 @@ def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
                                if row["expected"] == label)
         for label in ("increased", "decreased", "stable")
     }
+    # Future seasonality is a process forecast, not point-path alignment.
+    # Exercise stable phase, repeatable phase drift, and unpredictable phase
+    # changes on fresh generators. The last family should abstain rather than
+    # manufacture a deterministic direction.
+    future_seasonality_rows = []
+    for expected in ("fixed", "shifting", "uncertain"):
+        for replicate in range(replicates * 2):
+            case_seed = seed + 500_000 + 100 * (
+                "fixed", "shifting", "uncertain").index(expected) + replicate
+            rng = random.Random(case_seed)
+            period = (12, 24, 48)[replicate % 3]
+            phase_step = (0 if expected == "fixed" else period // 4
+                          if expected == "shifting" else None)
+            values = []
+            for index in range(30 * period):
+                block = index // (2 * period)
+                shift = (block * phase_step if phase_step is not None
+                         else rng.randrange(period))
+                values.append(10 + 4 * math.sin(
+                    2 * math.pi * (index - shift) / period)
+                    + rng.gauss(0, .35))
+            observed = fit_future_seasonality_executable(
+                values, horizon=2 * period, season=period).execute()
+            future_seasonality_rows.append({
+                "expected": expected, "observed": observed["direction"],
+                "support": observed["support"], "seed": case_seed,
+                "correct": observed["direction"] == expected,
+            })
+    future_seasonality_recalls = {
+        label: statistics.mean(bool(row["correct"])
+                               for row in future_seasonality_rows
+                               if row["expected"] == label)
+        for label in ("fixed", "shifting", "uncertain")
+    }
     gates = {
         "complete": len(rows) == sum(len(v) * replicates for v in regimes.values()) + 6 * replicates,
         "claimed_direction_accuracy_at_least_70pct": bool(claims) and statistics.mean(
@@ -311,6 +346,8 @@ def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
             statistics.mean(panel_recalls.values()) >= .75),
         "forecast_path_volatility_balanced_accuracy_at_least_80pct": (
             statistics.mean(forecast_volatility_recalls.values()) >= .8),
+        "future_process_seasonality_balanced_accuracy_at_least_80pct": (
+            statistics.mean(future_seasonality_recalls.values()) >= .8),
     }
     property_gates = {
         prop: {
@@ -352,6 +389,13 @@ def run(*, seed: int = 9100, replicates: int = 12) -> dict[str, object]:
                 "balanced_accuracy": statistics.mean(
                     forecast_volatility_recalls.values()),
                 "rows": forecast_volatility_rows,
+            },
+            "future_process_seasonality": {
+                "cases": len(future_seasonality_rows),
+                "class_recall": future_seasonality_recalls,
+                "balanced_accuracy": statistics.mean(
+                    future_seasonality_recalls.values()),
+                "rows": future_seasonality_rows,
             },
             "graduated": all(gates.values()), "rows": rows}
 
