@@ -1154,6 +1154,18 @@ def _run_describe(arguments: dict[str, Any]) -> dict[str, Any]:
             }
     ranked = sorted(reports, key=lambda name: (
         -float(reports[name]["change"]["absolute_final_step"]), name))
+    from .temporal_contracts import classify_dataset_contract
+    dataset_contract = classify_dataset_contract(
+        list(reports),
+        observations={name: int(report["observations"])
+                      for name, report in reports.items()},
+        frequency=next((str(report.get("frequency")) for report in reports.values()
+                        if report.get("frequency")), None),
+        time_column=arguments.get("time_column"),
+        series_column=arguments.get("series_column"),
+        label_column=arguments.get("label_column"),
+        truncated=bool(arguments.get("_input_truncated", False)),
+    )
     temporal_answers: list[dict[str, Any]] = []
     if arguments.get("questions") is not None:
         from .temporal_question import compile_temporal_questions
@@ -1171,6 +1183,7 @@ def _run_describe(arguments: dict[str, Any]) -> dict[str, Any]:
         "schema_version": "0.1", "status": "valid",
         "headline": f"Described {len(reports)} series through "
                     f"{max(report['series_end'] for report in reports.values())}.",
+        "dataset_contract": dataset_contract.to_dict(),
         "reports": reports,
         **({"answers": temporal_answers} if temporal_answers else {}),
         "triage": {
@@ -1981,9 +1994,12 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "gnomon_describe",
         "description": (
-            "Answer descriptive temporal questions without forecasting or "
-            "backtesting: level, trend, seasonality, changepoints, anomalies, "
-            "and extremes. Use for what-happened questions."
+            "Execute typed temporal questions without changing a primary "
+            "forecast: description, ADF/KPSS stationarity, explicit-period "
+            "additive decomposition, and exogenous regression with expanding-"
+            "window validation. Unsupported methods return one typed refusal; "
+            "Gnomon never substitutes anomaly detection for stationarity, "
+            "period discovery for decomposition, or forecasting for regression."
         ),
         "inputSchema": {
             "type": "object",

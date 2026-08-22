@@ -1616,6 +1616,24 @@ def capabilities() -> dict[str, object]:
             "inline_data_channels": True,
             "structural_regrid": True, "long_series_fit_window": True,
             "tsfm_install": True,
+            "typed_execution_planner": True,
+            "dataset_shape_contract": True,
+            "stationarity_testing": True,
+            "fixed_period_decomposition": True,
+            "exogenous_regression": True,
+        },
+        "temporal_execution": {
+            "surface": "gnomon describe / gnomon_describe",
+            "operations": {
+                "stationarity": ["ADF(0) with constant", "KPSS level"],
+                "decomposition": ["additive centered moving average"],
+                "regression": ["ridge linear with expanding-window validation"],
+            },
+            "semantic_contract": (
+                "Unsupported methods abstain once; forecast, anomaly detection, "
+                "period discovery, and regression are never substituted for "
+                "one another."
+            ),
         },
         "forecast_surface": {
             # Machine-readable notes on the two agent-facing additions, so a

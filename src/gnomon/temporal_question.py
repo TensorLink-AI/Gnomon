@@ -9,14 +9,18 @@ from typing import Any, Iterable
 from .contracts import GnomonError
 
 
-VERBS = frozenset({"describe", "predict", "compare", "detect", "decide"})
+VERBS = frozenset({
+    "describe", "predict", "compare", "detect", "decide",
+    "test", "decompose", "regress",
+})
 PROPERTIES = frozenset({
     "level", "trend", "seasonality", "volatility", "regime", "extreme",
-    "dependence",
+    "dependence", "stationarity", "decomposition", "regression",
 })
 MEASURES = frozenset({
     "point", "slope", "period", "residual_scale", "marginal_variability",
-    "change", "maximum", "minimum", "correlation",
+    "change", "maximum", "minimum", "correlation", "test_statistic",
+    "components", "coefficients", "validation_error",
 })
 CONTEXT_POLICIES = frozenset({"ignore", "measure", "scenario"})
 AGGREGATIONS = {
@@ -50,11 +54,23 @@ class TemporalQuestion:
     members: tuple[str, ...] = ()
     aggregation: str | None = None
     answer_vocabulary: dict[str, str] | None = None
+    method: str | None = None
+    period: int | None = None
+    explanatory_variables: tuple[str, ...] = ()
+    differencing: int = 0
+    seasonal_period: int | None = None
+    validation: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         payload = {key: value for key, value in asdict(self).items()
                    if value is not None and key not in {"scope", "members",
-                                                        "aggregation"}}
+                                                        "aggregation",
+                                                        "explanatory_variables",
+                                                        "differencing"}}
+        if self.explanatory_variables:
+            payload["explanatory_variables"] = list(self.explanatory_variables)
+        if self.differencing:
+            payload["differencing"] = self.differencing
         if self.scope != "series":
             payload["target"] = {
                 "kind": self.scope, "members": list(self.members),
@@ -177,6 +193,58 @@ def compile_temporal_question(
             for key, value in vocabulary.items())):
         failures["answer_vocabulary"] = (
             "must map non-empty canonical strings to non-empty display strings")
+    method_raw = raw.get("method")
+    method = str(method_raw).strip().lower() if method_raw is not None else None
+    period_raw = raw.get("period")
+    period: int | None = None
+    if period_raw is not None:
+        if isinstance(period_raw, bool) or not isinstance(period_raw, int) \
+                or period_raw < 2:
+            failures["period"] = "must be an integer of at least 2 periods"
+        else:
+            period = period_raw
+    explanatory_raw = raw.get("explanatory_variables", [])
+    if not isinstance(explanatory_raw, list) or any(
+            not isinstance(item, str) for item in explanatory_raw):
+        failures["explanatory_variables"] = "must be an array of target names"
+        explanatory: tuple[str, ...] = ()
+    else:
+        explanatory = tuple(str(item) for item in explanatory_raw)
+        invalid_explanatory = [item for item in explanatory if item not in targets]
+        if invalid_explanatory:
+            failures["explanatory_variables"] = {
+                "invalid": invalid_explanatory, "allowed": targets}
+        if target in explanatory:
+            failures["explanatory_variables"] = "cannot contain the target"
+    differencing_raw = raw.get("differencing", 0)
+    if isinstance(differencing_raw, bool) or not isinstance(differencing_raw, int) \
+            or differencing_raw < 0 or differencing_raw > 2:
+        failures["differencing"] = "must be 0, 1, or 2"
+        differencing = 0
+    else:
+        differencing = differencing_raw
+    seasonal_period_raw = raw.get("seasonal_period")
+    seasonal_period: int | None = None
+    if seasonal_period_raw is not None:
+        if isinstance(seasonal_period_raw, bool) \
+                or not isinstance(seasonal_period_raw, int) \
+                or seasonal_period_raw < 2:
+            failures["seasonal_period"] = "must be an integer of at least 2"
+        else:
+            seasonal_period = seasonal_period_raw
+    validation = raw.get("validation")
+    if validation is not None and not isinstance(validation, dict):
+        failures["validation"] = "must be an object"
+    if prop == "decomposition" and period is None:
+        failures["period"] = "fixed-period decomposition requires an explicit period"
+    if prop == "regression" and not explanatory:
+        failures["explanatory_variables"] = (
+            "exogenous regression requires at least one explicit predictor")
+    if prop in {"stationarity", "decomposition", "regression"} \
+            and scope != "series":
+        failures["target.kind"] = (
+            f"{prop} currently requires one explicit target series; "
+            "use separate questions for multiple targets")
     if failures:
         raise GnomonError(
             "INVALID_TEMPORAL_QUESTION",
@@ -192,6 +260,10 @@ def compile_temporal_question(
             str(aggregation) if aggregation is not None else None),
         answer_vocabulary=(dict(vocabulary)
                            if isinstance(vocabulary, dict) else None),
+        method=method, period=period,
+        explanatory_variables=explanatory,
+        differencing=differencing, seasonal_period=seasonal_period,
+        validation=(dict(validation) if isinstance(validation, dict) else None),
     )
 
 

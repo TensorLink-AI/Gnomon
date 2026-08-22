@@ -74,6 +74,24 @@ with the exact list of repairs each level would apply and a `suggested_next`
 command including any required flag. `gnomon inspect` fails only when no repair
 level can read the file.
 
+## `gnomon describe`
+
+Execute typed temporal questions without changing or requiring a primary
+forecast:
+
+```bash
+gnomon describe data.csv --questions '[
+  {"id":"adf","verb":"test","property":"stationarity",
+   "target":"value","method":"adf"}
+]' --format full
+```
+
+`--questions` also accepts `@questions.json`. Registered operations include
+ADF/KPSS stationarity tests, explicit-period additive decomposition, and
+exogenous ridge-linear regression with expanding-window validation. An exact
+unsupported method returns one typed abstention and a ready alternative; it is
+never replaced with a merely related calculation.
+
 ## `gnomon forecast`
 
 The minimal invocation is the whole invocation for most files:

@@ -13,6 +13,22 @@ authority. The ordinary deterministic compiler still accepts or refuses every
 proposal. Tool-using models are not expected to discover optional question
 fields reliably on their own.
 
+Every accepted question then passes through one `DatasetContract`, capability
+registry, and `ExecutionPlan`. The dataset contract distinguishes univariate,
+multivariate, panel, supervised-table, and wide-waveform layouts before an
+executable sees values. The planner either selects one registered capability
+or returns a terminal typed unsupported answer. It never substitutes forecast
+for regression, anomaly detection for stationarity, or discovered seasonality
+for an explicitly requested decomposition period.
+
+The registered statistical capabilities are deliberately precise: ADF(0) with
+a constant, KPSS level-stationarity, additive centered-moving-average
+decomposition at an explicit period, and ridge-linear exogenous regression
+with expanding-window validation. Their exact variants and assumptions are
+part of the executable identity. An STL request is therefore not silently
+answered by the additive decomposer. CLI, MCP, and Python dispatch share this
+planner and answer contract.
+
 Production hosts should persist a content-addressed compiler receipt containing
 the source fingerprint plus the model's proposal and each independently
 accepted or rejected question. Replaying the receipt avoids changing intent

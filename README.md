@@ -353,6 +353,12 @@ never rebuilds the winner from a model name.
   for cases with no meaningful computable estimate. These are additive receipts:
   they cannot rewrite the published forecast. `gnomon_forecast`,
   `gnomon_decide`, and `gnomon_monitor` share the same compact answer contract.
+- **An integration-first temporal capability registry** routes each typed
+  question and resolved dataset shape into one execution plan. It includes
+  exact ADF(0)/KPSS-level stationarity tests, explicit-period additive
+  decomposition, and ridge-linear exogenous regression with expanding-window
+  validation. Unsupported methods terminate once; Gnomon never relabels a
+  forecast, anomaly detector, or generic seasonal scan as the requested test.
 - **Decision tracking** with realised-outcome scoring: regret against the
   best feasible action in hindsight, never a bare "correct".
 - **Temporal-answer tracking** joins immutable question receipts to the

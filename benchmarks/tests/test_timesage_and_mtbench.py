@@ -133,6 +133,26 @@ def test_toolbox_series_stats_and_unknown_column(tmp_path):
     assert "error" in toolbox.call("no_such_tool", {})
 
 
+def test_timesage_numeric_columns_survive_missing_values():
+    rows = [
+        {"date": f"2023-01-{index + 1:02d}",
+         "target": "" if index == 3 else float(index),
+         "driver": float(index * 2)}
+        for index in range(20)
+    ]
+    from benchmarks.timesage_mt.harness import ToolBox
+
+    toolbox = ToolBox(_fallback_task(rows))
+    assert set(toolbox.columns) == {"target", "driver"}
+    stats = toolbox.call("series_stats", {"column": "target"})
+    assert stats["count"] == 19
+    assert stats["missing_count"] == 1
+    stationarity = toolbox.call(
+        "gnomon_stationarity_test", {"column": "target", "method": "adf"})
+    assert stationarity["repaired_missing"] == 1
+    assert stationarity["executable"]["kind"] == "fitted_stationarity_test"
+
+
 def _fallback_task(rows, rows_visible=None):
     """Synthetic task with no per-task CSV, exercising the
     time_series_json fallback in read_visible_series."""

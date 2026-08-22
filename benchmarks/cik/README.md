@@ -46,6 +46,7 @@ Ours (this directory):
 | `control` | official DirectPrompt via OpenRouter | the LLM |
 | `gnomon-pure` | none (context ignored) | Gnomon |
 | `gnomon-agent` | proposes typed context events only | Gnomon |
+| `gnomon-conditional` | proposes typed events; prospective effects may alter only a labelled conditional path | Gnomon |
 | `gnomon-mcp` | holds Gnomon's real MCP tools, uses them or not | Gnomon (verbatim artifact) or the LLM, labeled per run |
 
 `gnomon-mcp` is the integrated "agent chooses" arm
@@ -64,7 +65,10 @@ On any arm, an optional-tool win is evidence about the *pipeline*,
 never about Gnomon's own forecasting quality — it can come entirely
 from knowing when not to call.
 
-`gnomon-agent` additionally accepts `--future-context`, which turns on
+`gnomon-conditional` is the stable, manifest-visible form of the conditional
+arm. It enables Gnomon's `context.future_events` lane while retaining the
+unmodified primary path in the same artifact. `gnomon-agent --future-context`
+remains as a compatibility spelling. In either form,
 Gnomon's `context.future_events` lane: the proposer may also quote
 verbatim `source_span`s for stated bounds (`constraint:*`) and stated
 deterministic windows (`override:*`). The adapter verifies each span is a
@@ -101,6 +105,10 @@ python -m benchmarks.cik.run_cik --method control \
 # Treatment: same model, numbers owned by Gnomon
 python -m benchmarks.cik.run_cik --method gnomon-agent \
     --model openai/gpt-4o --output-dir results/cik-gpt4o-gnomon
+
+# Conditional context: same primary plus a separately labelled scenario
+python -m benchmarks.cik.run_cik --method gnomon-conditional \
+    --model openai/gpt-4o --output-dir results/cik-gpt4o-conditional
 
 # Harness floor: no LLM anywhere
 python -m benchmarks.cik.run_cik --method gnomon-pure \

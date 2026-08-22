@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import csv
 import json
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -160,8 +161,21 @@ def read_visible_series(task: TimeSageTask) -> tuple[list[str], dict[str, list[f
     timestamps = [str(row[time_column]) for row in rows]
     numeric: dict[str, list[float]] = {}
     for column in columns[1:]:
-        try:
-            numeric[column] = [float(row[column]) for row in rows]
-        except (TypeError, ValueError):
-            continue
+        parsed: list[float] = []
+        nonnumeric = False
+        finite = 0
+        for row in rows:
+            raw = row.get(column)
+            if raw is None or str(raw).strip() in {"", "NA", "NaN", "null"}:
+                parsed.append(math.nan)
+                continue
+            try:
+                value = float(raw)
+            except (TypeError, ValueError):
+                nonnumeric = True
+                break
+            parsed.append(value)
+            finite += int(math.isfinite(value))
+        if not nonnumeric and finite:
+            numeric[column] = parsed
     return timestamps, numeric, text

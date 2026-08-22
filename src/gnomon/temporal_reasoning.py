@@ -410,6 +410,79 @@ def _execute_scoped_question(
     forecast_values: dict[str, list[float]] | None = None,
 ) -> dict[str, Any]:
     """Execute explicit multi-series scope without hiding its constituents."""
+    from .statistical_executables import (
+        fit_decomposition_executable,
+        fit_regression_executable,
+        fit_stationarity_executable,
+    )
+    from .temporal_contracts import (
+        classify_dataset_contract, plan_execution, unsupported_answer,
+    )
+
+    dataset = classify_dataset_contract(
+        list(execution_inputs),
+        observations={name: len(values) for name, (values, _) in
+                      execution_inputs.items()},
+        frequency=next((str(report.get("frequency")) for report in reports.values()
+                        if report.get("frequency")), None),
+    )
+    plan = plan_execution(question, dataset)
+    if plan.status != "ready":
+        return unsupported_answer(question, plan)
+    if question.property in {"stationarity", "decomposition", "regression"}:
+        try:
+            if question.property == "stationarity":
+                values, _ = execution_inputs[question.target]
+                fitted = fit_stationarity_executable(
+                    values, target=question.target,
+                    method=question.method or "adf",
+                    differencing=question.differencing,
+                    seasonal_period=question.seasonal_period,
+                ).execute()
+            elif question.property == "decomposition":
+                values, _ = execution_inputs[question.target]
+                fitted = fit_decomposition_executable(
+                    values, target=question.target,
+                    period=int(question.period or 0),
+                ).execute()
+            else:
+                values, _ = execution_inputs[question.target]
+                fitted = fit_regression_executable(
+                    values,
+                    {name: execution_inputs[name][0]
+                     for name in question.explanatory_variables},
+                    target=question.target,
+                ).execute()
+        except (KeyError, ValueError) as error:
+            result = _envelope(
+                question, direction=None, estimate=None, interval=None,
+                support="abstained",
+                headline=f"{question.property} was not executed: {error}.",
+                limitations=[str(error)],
+                executable={"kind": "execution_abstention",
+                            "property": question.property, "version": "0.1"},
+            )
+            result["execution_plan"] = plan.to_dict()
+            result["next_actions"] = [{
+                "action": "provide_more_history_or_correct_roles",
+                "arguments": {"target": question.target},
+            }]
+            return result
+        result = _envelope(
+            question, direction=fitted["direction"],
+            estimate=fitted["estimate"], interval=fitted.get("interval"),
+            support=fitted["support"],
+            headline=(f"{question.property} for {question.target}: "
+                      f"{fitted['direction']}; support is {fitted['support']}."),
+            limitations=[], executable=fitted["executable"],
+        )
+        result["answer"].update({
+            key: value for key, value in fitted.items()
+            if key not in {"direction", "estimate", "interval", "support",
+                           "automation_eligible", "executable"}
+        })
+        result["execution_plan"] = plan.to_dict()
+        return result
     if question.scope == "series":
         values, season = execution_inputs[question.target]
         return answer_descriptive_question(
@@ -578,10 +651,21 @@ def answer_scoped_question(
     if question.context_policy in {"measure", "scenario"}:
         effect = (conditional_effects or {}).get(question.target)
         if effect:
+            from .temporal_contracts import assess_context
             result["conditional_effect"] = {
                 **effect, "role": "conditional_evidence_only",
                 "primary_forecast_unchanged": True,
             }
+            result["context_assessment"] = assess_context(effect).to_dict()
+    if question.property in {"stationarity", "decomposition", "regression"}:
+        result["answer"]["reasoning"] = {
+            "version": "0.1",
+            "authority": "fitted_executable",
+            "llm_role": "explain_and_qualify_only",
+            "primary_forecast_unchanged": True,
+            "basis": [result.get("answer", {}).get("executable", {}).get("kind")],
+        }
+        return result
     from .temporal_evidence import (
         competing_hypotheses, historical_analogues,
         multi_resolution_evidence, window_evidence,

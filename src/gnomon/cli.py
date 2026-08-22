@@ -144,6 +144,18 @@ def build_parser() -> argparse.ArgumentParser:
              "data frequency (7 on daily data means a weekly cycle)",
     )
 
+    describe_parser = subcommands.add_parser(
+        "describe", help="Execute typed temporal questions without a forecast")
+    _common_input(describe_parser)
+    describe_parser.add_argument(
+        "--questions", required=True,
+        help="JSON array of typed questions, or @path/to/questions.json",
+    )
+    describe_parser.add_argument(
+        "--format", choices=("brief", "full"), default="brief",
+        help="Compact answer envelope or full evidence receipts (default brief)",
+    )
+
     forecast_parser = subcommands.add_parser("forecast", help="Run an evaluated forecast")
     _common_input(forecast_parser)
     forecast_parser.add_argument(
@@ -1665,6 +1677,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             from .runtime import capabilities
 
             payload = capabilities()
+        elif args.command == "describe":
+            from .toolspec import _run_describe
+
+            payload = _run_describe({
+                "input": args.input,
+                "time_column": args.time_column,
+                "target_column": args.target_column,
+                "series_column": args.series_column,
+                "frequency": args.frequency,
+                "regrid": args.regrid,
+                "questions": _json_argument(
+                    args.questions, argument="questions"),
+                "format": args.format,
+            })
         elif args.command == "inspect":
             from .runtime import inspect_dataset
 

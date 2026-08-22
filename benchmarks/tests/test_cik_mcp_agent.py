@@ -361,6 +361,24 @@ def test_run_cik_accepts_the_method_and_rejects_lane_flags(tmp_path):
         build_method(flagged)
 
 
+def test_run_cik_conditional_is_an_explicit_immutable_primary_arm(
+        tmp_path, monkeypatch):
+    from benchmarks.cik import gnomon_forecaster
+    from benchmarks.cik.run_cik import build_method, build_parser
+
+    monkeypatch.setattr(gnomon_forecaster, "OpenRouterClient",
+                        lambda *args, **kwargs: object())
+    args = build_parser().parse_args([
+        "--method", "gnomon-conditional", "--model", "x/y",
+        "--output-dir", str(tmp_path)])
+    method = build_method(args)
+
+    assert method.mode == "agent"
+    assert method.future_context is True
+    assert method.structural_context is False
+    assert "future=on" in method.cache_name
+
+
 def test_cache_name_carries_temperature_and_contract_version():
     """The official cache reuses results by this name; without the
     temperature and the arm's contract version, a rerun at different

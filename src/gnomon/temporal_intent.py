@@ -28,10 +28,12 @@ INTENT_SCHEMA: dict[str, Any] = {
             "properties": {
                 "id": {"type": "string"},
                 "verb": {"type": "string", "enum": [
-                    "describe", "predict", "compare", "detect", "decide"]},
+                    "describe", "predict", "compare", "detect", "decide",
+                    "test", "decompose", "regress"]},
                 "property": {"type": "string", "enum": [
                     "level", "trend", "seasonality", "volatility", "regime",
-                    "extreme", "dependence"]},
+                    "extreme", "dependence", "stationarity", "decomposition",
+                    "regression"]},
                 "target": {"oneOf": [
                     {"type": "string"},
                     {"type": "object", "additionalProperties": False,
@@ -50,6 +52,14 @@ INTENT_SCHEMA: dict[str, Any] = {
                     "correlation"]},
                 "context_policy": {"type": "string", "enum": [
                     "ignore", "measure", "scenario"]},
+                "method": {"type": "string"},
+                "period": {"type": "integer", "minimum": 2},
+                "seasonal_period": {"type": "integer", "minimum": 2},
+                "differencing": {"type": "integer", "minimum": 0,
+                                  "maximum": 2},
+                "explanatory_variables": {"type": "array",
+                    "items": {"type": "string"}},
+                "validation": {"type": "object"},
                 "answer_vocabulary": {
                     "type": "object",
                     "additionalProperties": {"type": "string"}},
@@ -141,7 +151,13 @@ def compile_temporal_text(
            "when the request says 'forecast horizon' without another number, "
            "use that value. " if default_horizon is not None else "") +
         "Allowed properties: level, trend, seasonality, volatility, regime, "
-        "extreme, dependence. Target is an exact series name, or an object "
+        "extreme, dependence, stationarity, decomposition, regression. "
+        "Use test/stationarity for ADF or KPSS, decompose/decomposition for "
+        "a requested fixed-period decomposition, and regress/regression for "
+        "a target with explicit explanatory_variables. Preserve an explicitly "
+        "requested method and period exactly; never translate ADF into anomaly "
+        "detection, STL into generic season discovery, or regression into a "
+        "forecast. Target is an exact series name, or an object "
         "with kind pair/each/aggregate and explicit members. Dependence or "
         "correlation between two named series uses pair. The only cross-unit "
         "volatility aggregate is median_normalized_scale_ratio; a seasonality "
