@@ -30,7 +30,9 @@ from benchmarks.common.openrouter import OpenRouterClient  # noqa: E402
 
 try:
     from cik_benchmark.baselines.direct_prompt import DirectPrompt
-except ImportError as error:  # pragma: no cover - exercised only without cik
+except ModuleNotFoundError as error:  # pragma: no cover - environment only
+    if error.name and not error.name.startswith("cik_benchmark"):
+        raise
     raise ImportError(
         "The official CiK benchmark package is required for the control "
         "condition. Install it with:\n"
