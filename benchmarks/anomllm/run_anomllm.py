@@ -46,7 +46,7 @@ from benchmarks.anomllm.gnomon_detector import (  # noqa: E402
     default_records_path,
     run_gnomon_condition,
 )
-from benchmarks.common.manifest import write_manifest  # noqa: E402
+from benchmarks.common.manifest import code_revision, write_manifest  # noqa: E402
 
 DATASETS = (
     "point", "range", "freq", "trend", "flat-trend",
@@ -120,6 +120,7 @@ def main() -> int:
     parser.add_argument("--control-variant", default="0shot-text",
                         help="Official prompt variant for the control")
     args = parser.parse_args()
+    run_revision = code_revision()
 
     anomllm_root = Path(args.anomllm_root).expanduser().resolve()
     if not (anomllm_root / "src" / "result_agg.py").exists():
@@ -150,6 +151,7 @@ def main() -> int:
             target=args.data,
             command=command,
             status="ok",
+            code_revision=run_revision,
         )
 
     if args.control_model:
@@ -172,6 +174,7 @@ def main() -> int:
             model=args.control_model,
             command=command,
             status="ok" if exit_code == 0 else f"exit {exit_code}",
+            code_revision=run_revision,
         )
 
     print(

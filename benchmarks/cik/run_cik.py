@@ -52,7 +52,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 
-from benchmarks.common.manifest import write_manifest  # noqa: E402
+from benchmarks.common.manifest import code_revision, write_manifest  # noqa: E402
 from benchmarks.common.records import RecordWriter, RunRecord  # noqa: E402
 
 ABSTAIN_MARKER = "GNOMON_ABSTAINED"
@@ -146,6 +146,7 @@ def build_method(args):
 
 
 def run(args) -> int:
+    run_revision = code_revision()
     from cik_benchmark import ALL_TASKS
     from cik_benchmark.config import DEFAULT_N_SAMPLES
     from cik_benchmark.evaluation import evaluate_all_tasks, evaluate_task
@@ -194,6 +195,7 @@ def run(args) -> int:
         task_filter=args.task_filter,
         fail_on_invalid=args.fail_on_invalid if args.method == "control" else None,
         status="ok",
+        code_revision=run_revision,
     )
     return 0
 

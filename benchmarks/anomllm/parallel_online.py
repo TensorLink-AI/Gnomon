@@ -71,8 +71,9 @@ def main() -> int:
     repo_root = Path(__file__).resolve().parents[2]
     sys.path.insert(0, str(repo_root))
     from benchmarks.common.envfile import load_env_file  # noqa: E402
-    from benchmarks.common.manifest import write_manifest  # noqa: E402
+    from benchmarks.common.manifest import code_revision, write_manifest  # noqa: E402
     load_env_file(repo_root)
+    run_revision = code_revision()
 
     root = Path(args.anomllm_root).expanduser().resolve()
     # The official code resolves credentials.yml, data/ and results/ relative to
@@ -157,6 +158,7 @@ def main() -> int:
             target=args.data, model=args.model, base_url=args.base_url,
             workers=args.workers, request_timeout=args.request_timeout,
             status="ok", completed=len(done),
+            code_revision=run_revision,
         )
         return 0
 
@@ -215,6 +217,7 @@ def main() -> int:
         status=status, completed=total_complete,
         expected=len(eval_dataset), failed=counter["failed"],
         null_responses=counter["null"],
+        code_revision=run_revision,
     )
     return 0 if status == "ok" else 2
 

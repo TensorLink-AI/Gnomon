@@ -38,7 +38,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 
-from benchmarks.common.manifest import write_manifest  # noqa: E402
+from benchmarks.common.manifest import code_revision, write_manifest  # noqa: E402
 
 
 def _json_safe(value: Any) -> Any:
@@ -166,6 +166,7 @@ def main() -> int:
     gnomon.add_argument("--limit", type=int, default=None)
 
     args = parser.parse_args()
+    run_revision = code_revision()
     if args.command == "control":
         from benchmarks.mtbench.openrouter_patch import run_official_script
 
@@ -212,6 +213,7 @@ def main() -> int:
                 command=" ".join([sys.executable, "-m",
                                   "benchmarks.mtbench.run_mtbench"] + sys.argv[1:]),
                 status="ok",
+                code_revision=run_revision,
             )
         print(json.dumps({"llm_usage": client.usage_summary}, indent=2))
         return 0
