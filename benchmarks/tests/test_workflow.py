@@ -535,7 +535,8 @@ def test_adapter_repairs_malformed_optional_containers():
         total_prompt_tokens = 1
         total_completion_tokens = 1
 
-    row = _normalize("x", {
+    row = _normalize({"id": "x", "kind": "frozen",
+                      "answer_schema": {}}, {
         "status": "answered", "support": "degraded", "numbers": {},
         "choices": "none", "facts": "seasonal", "disclosures": "weak",
         "claims": "claim"}, calls=0, client=Client(), started=0,
@@ -546,3 +547,22 @@ def test_adapter_repairs_malformed_optional_containers():
     assert row["claims"] == ["claim"]
     assert row["metadata"]["envelope_repairs"]["facts"] == \
         "coerced_to_empty_object"
+
+
+def test_adapter_host_binds_routing_facts_over_model_paraphrases():
+    from benchmarks.workflow.agent_adapter import _normalize
+
+    class Client:
+        total_prompt_tokens = 1
+        total_completion_tokens = 1
+
+    case = {"id": "x", "kind": "longitudinal", "tags": ["tracking"],
+            "answer_schema": {"facts": ["source_kind", "tracking_requested"]}}
+    row = _normalize(case, {
+        "status": "answered", "support": "supported", "numbers": {},
+        "choices": {}, "facts": {"source_kind": "guessed",
+                                   "tracking_requested": False},
+        "disclosures": [], "claims": []}, calls=0, client=Client(),
+        started=0, tool_names=[])
+    assert row["facts"] == {"source_kind": "longitudinal",
+                            "tracking_requested": True}

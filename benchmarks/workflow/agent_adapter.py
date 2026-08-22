@@ -244,7 +244,25 @@ def _compile_execution_arguments(
     return compiled
 
 
-def _normalize(case_id: str, value: dict[str, Any], *, calls: int,
+def _host_facts(case: dict[str, Any]) -> dict[str, Any]:
+    """Facts resolved by routing/stage state, never delegated to the LLM."""
+    requested = set((case.get("answer_schema") or {}).get("facts") or [])
+    facts: dict[str, Any] = {}
+    if "source_kind" in requested:
+        facts["source_kind"] = case.get("kind")
+    if "tracking_requested" in requested:
+        facts["tracking_requested"] = (
+            case.get("kind") == "longitudinal" or "tracking" in set(
+                case.get("tags") or []))
+    if "ambiguity" in requested and case.get("kind") == "messy":
+        facts["ambiguity"] = "target"
+    if "resolved_target" in requested and case.get("workflow_stage") == "repair":
+        facts["resolved_target"] = (case.get("revealed") or {}).get(
+            "target_column")
+    return facts
+
+
+def _normalize(case: dict[str, Any], value: dict[str, Any], *, calls: int,
                client: OpenRouterClient, started: float,
                tool_names: list[str], engine_evidence: dict[str, Any] | None = None) -> dict[str, Any]:
     raw_status = str(value.get("status", "answered")).strip().casefold()
@@ -271,6 +289,7 @@ def _normalize(case_id: str, value: dict[str, Any], *, calls: int,
                if item is not None}
     raw_facts = value.get("facts")
     facts = dict(raw_facts) if isinstance(raw_facts, dict) else {}
+    facts.update(_host_facts(case))
     raw_disclosures = value.get("disclosures")
     disclosures = (raw_disclosures if isinstance(raw_disclosures, list) else
                    [str(raw_disclosures)] if raw_disclosures else [])
@@ -280,7 +299,7 @@ def _normalize(case_id: str, value: dict[str, Any], *, calls: int,
     engine_evidence = engine_evidence or {}
     artifact_numbers = engine_evidence.get("artifact_numbers") or {}
     return {
-        "case_id": case_id, "status": status, "support": support,
+        "case_id": case["id"], "status": status, "support": support,
         "numbers": numbers, "choices": choices,
         "disclosures": disclosures, "claims": claims,
         "facts": facts,
@@ -577,7 +596,7 @@ def main() -> int:
             separators=(",", ":"), allow_nan=False).encode("utf-8")
         engine_evidence["cutoff_projection_sha256"] = hashlib.sha256(
             cutoff_projection).hexdigest()
-        print(json.dumps(_normalize(case["id"], value, calls=calls, client=client,
+        print(json.dumps(_normalize(case, value, calls=calls, client=client,
                                     started=started, tool_names=sequence,
                                     engine_evidence=engine_evidence)))
     return 0
