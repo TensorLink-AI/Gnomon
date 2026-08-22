@@ -43,6 +43,8 @@ from collections import OrderedDict
 from pathlib import Path
 from statistics import median
 
+from benchmarks.common.manifest import incompatibilities, read_manifest
+from benchmarks.report import sign_test
 from .tasks import load_official_metrics
 
 
@@ -151,14 +153,39 @@ def stable_scaled_error_denominator(history: object) -> bool:
     return scale > 1e-6 * level
 
 
+def summarise_pairs(pairs: list[tuple[float, float]]) -> dict[str, object]:
+    """Summarise paired errors, including an exact directional test."""
+    baseline = [pair[0] for pair in pairs]
+    treatment = [pair[1] for pair in pairs]
+    paired_baseline = {str(index): pair[0] for index, pair in enumerate(pairs)}
+    paired_treatment = {str(index): pair[1] for index, pair in enumerate(pairs)}
+    test = sign_test(paired_baseline, paired_treatment, lower_is_better=True)
+    return {
+        "n": len(pairs),
+        "baseline_median": round(median(baseline), 4),
+        "treatment_median": round(median(treatment), 4),
+        "treatment_wins": test["treatment_wins"],
+        "treatment_losses": test["treatment_losses"],
+        "ties": test["ties"],
+        "paired_sign_p_value": test["p_value"],
+        "near_constant_denominators_excluded": 0,
+    }
+
+
 def main() -> int:
     args = parse_args()
     data_dir = Path(args.data_dir).expanduser()
     metrics_module = load_official_metrics(data_dir)
 
     truth_by_id = load_truth(data_dir)
-    base, base_support = load_forecasts(Path(args.baseline).expanduser())
-    treat, treat_support = load_forecasts(Path(args.treatment).expanduser())
+    baseline_dir = Path(args.baseline).expanduser()
+    treatment_dir = Path(args.treatment).expanduser()
+    problems = incompatibilities(read_manifest(baseline_dir),
+                                 read_manifest(treatment_dir))
+    if problems:
+        raise ValueError("incompatible runs: " + "; ".join(problems))
+    base, base_support = load_forecasts(baseline_dir)
+    treat, treat_support = load_forecasts(treatment_dir)
 
     shared_ids = sorted(set(base) & set(treat) & set(truth_by_id))
     per_channel: dict[str, list[tuple[float, float]]] = {}
@@ -216,24 +243,12 @@ def main() -> int:
                     per_channel_stable.setdefault(channel, []).append(
                         (b_val, t_val))
 
-    def summarise(pairs):
-        b = [p[0] for p in pairs]
-        t = [p[1] for p in pairs]
-        wins = sum(1 for x, y in pairs if y < x)
-        return {
-            "n": len(pairs),
-            "baseline_median": round(median(b), 4),
-            "treatment_median": round(median(t), 4),
-            "treatment_wins": wins,
-            "near_constant_denominators_excluded": 0,
-        }
-
     def stable_summary(channel, pairs):
-        result = summarise(pairs)
+        result = summarise_pairs(pairs)
         stable_pairs = per_channel_stable.get(channel, [])
         result["near_constant_denominators_excluded"] = (
             len(pairs) - len(stable_pairs))
-        result["stable_history"] = (summarise(stable_pairs)
+        result["stable_history"] = (summarise_pairs(stable_pairs)
                                     if stable_pairs else None)
         return result
 
@@ -246,12 +261,16 @@ def main() -> int:
                          for label, count in sorted(mix.items())) or "(none)"
 
     result = {
+        "baseline_code_revision": read_manifest(baseline_dir).get(
+            "code_revision"),
+        "treatment_code_revision": read_manifest(treatment_dir).get(
+            "code_revision"),
         "coverage": coverage,
         "support_mix": {"baseline": base_mix, "treatment": treat_mix},
         "per_channel": {c: stable_summary(c, p)
                         for c, p in per_channel.items()},
-        "overall": summarise(all_pairs) if all_pairs else None,
-        "overall_stable_history": (summarise(stable_all)
+        "overall": summarise_pairs(all_pairs) if all_pairs else None,
+        "overall_stable_history": (summarise_pairs(stable_all)
                                    if stable_all else None),
         "records": record_rows,
     }
