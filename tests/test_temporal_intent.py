@@ -43,6 +43,26 @@ def test_host_resolved_horizon_is_part_of_compiler_instruction() -> None:
     assert "host-resolved forecast horizon is 29 periods" in adapter.prompt
 
 
+def test_descriptive_zero_horizon_is_canonicalized_to_unspecified() -> None:
+    adapter = Adapter({"status": "compiled", "questions": [{
+        "id": "level", "verb": "describe", "property": "level",
+        "target": "cpu", "measure": "point", "horizon": 0}]})
+    result = compile_temporal_text(
+        "What is CPU at now?", available_targets=["cpu"], adapter=adapter)
+    assert result[0].target == "cpu"
+    assert result[0].horizon is None
+
+
+def test_predictive_zero_horizon_remains_invalid() -> None:
+    adapter = Adapter({"status": "compiled", "questions": [{
+        "id": "future", "verb": "predict", "property": "volatility",
+        "target": "cpu", "horizon": 0}]})
+    with pytest.raises(GnomonError):
+        compile_temporal_text(
+            "Will CPU become more volatile?", available_targets=["cpu"],
+            adapter=adapter)
+
+
 def test_llm_proposal_cannot_invent_target_or_aggregation() -> None:
     adapter = Adapter({"status": "compiled", "questions": [{
         "property": "volatility", "target": {

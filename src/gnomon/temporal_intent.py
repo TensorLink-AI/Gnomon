@@ -98,6 +98,28 @@ def _resolve_discourse_focus(
     return resolved
 
 
+def _normalize_nonsemantic_optionals(questions: Any) -> Any:
+    """Drop optional fields that encode absence rather than meaning.
+
+    Some structured-output models emit ``horizon: 0`` for a descriptive
+    question about the present.  Zero is not a forecast horizon and the
+    field is optional, so retaining it turns a correct intent into a
+    validation failure.  Canonicalize that representation only for
+    descriptive questions; predictive requests with invalid horizons must
+    still fail rather than silently changing the requested window.
+    """
+    if not isinstance(questions, list):
+        return questions
+    normalized = copy.deepcopy(questions)
+    for raw in normalized:
+        if not isinstance(raw, dict) or raw.get("verb") != "describe":
+            continue
+        horizon = raw.get("horizon")
+        if isinstance(horizon, int) and not isinstance(horizon, bool) and horizon <= 0:
+            raw.pop("horizon", None)
+    return normalized
+
+
 def compile_temporal_text(
     text: str, *, available_targets: list[str], adapter: LLMAdapter,
     default_verb: str = "describe", default_horizon: int | None = None,
@@ -155,6 +177,8 @@ def compile_temporal_text(
     try:
         proposed_questions = _resolve_discourse_focus(
             text, proposed.get("questions"), available_targets)
+        proposed_questions = _normalize_nonsemantic_optionals(
+            proposed_questions)
         return compile_temporal_questions(
             proposed_questions, available_targets=available_targets,
             default_verb=default_verb, default_horizon=default_horizon)
@@ -201,6 +225,8 @@ def compile_temporal_text_receipt(
                 proposed_questions = []
         proposed_questions = _resolve_discourse_focus(
             text, proposed_questions, available_targets)
+        proposed_questions = _normalize_nonsemantic_optionals(
+            proposed_questions)
         for index, raw in enumerate(proposed_questions):
             try:
                 accepted.append(compile_temporal_question(
