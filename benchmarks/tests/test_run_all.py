@@ -1,12 +1,14 @@
 """Tests for the run_all orchestrator's command building (no execution)."""
 
 import sys
+import subprocess
 from pathlib import Path
 
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from benchmarks.catalog import CATALOG
 from benchmarks.run_all import REGISTRY, build_command, summary_path
 
 CONFIG = {
@@ -14,6 +16,31 @@ CONFIG = {
     "output_root": "results/batch",
     "defaults": {"limit": 25, "temperature": 0.3},
 }
+
+
+def test_registry_and_claim_catalog_cover_the_same_benchmarks():
+    assert set(REGISTRY) == set(CATALOG)
+    assert CATALOG["temporalbench"].layer == "reasoning_harness"
+    assert CATALOG["propertybench"].layer == "engine"
+    assert CATALOG["effectbench"].layer == "safety_contract"
+
+
+@pytest.mark.parametrize("module", [
+    "benchmarks.effectbench.run_effectbench",
+    "benchmarks.admissionbench.run_admissionbench",
+    "benchmarks.contextbench.run_llm",
+    "benchmarks.contextbench.run_surfaces",
+    "benchmarks.modelbench.build_tsfm_registry",
+])
+def test_documented_module_entrypoints_import_cleanly(module):
+    result = subprocess.run(
+        [sys.executable, "-m", module, "--help"],
+        cwd=Path(__file__).resolve().parents[2],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
 
 
 def _cmd(benchmark, name, args, config=CONFIG):

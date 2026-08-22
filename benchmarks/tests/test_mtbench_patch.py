@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from benchmarks.cik.gnomon_forecaster import events_from_proposals
 from benchmarks.mtbench.gnomon_forecaster import official_mape, sample_metrics
 from benchmarks.mtbench.openrouter_patch import build_send_functions
+from benchmarks.mtbench.run_mtbench import _script_argument
 from benchmarks.mtbench.tool_agent import TOOL_SPECS
 
 
@@ -87,3 +88,10 @@ def test_sample_metrics_matches_official_math():
     assert metrics["mae"] == (1.0 + 2.0) / 2
     assert metrics["rmse"] == metrics["mse"] ** 0.5
     assert metrics["mape"] == 100.0 * (0.5 + 0.5) / 2
+
+
+def test_official_script_argument_supports_both_argparse_forms():
+    args = ["--dataset_folder=/tmp/data", "--save_path", "/tmp/out"]
+    assert _script_argument(args, "dataset_folder") == "/tmp/data"
+    assert _script_argument(args, "save_path") == "/tmp/out"
+    assert _script_argument(args, "indicator") is None

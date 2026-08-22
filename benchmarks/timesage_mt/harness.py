@@ -33,13 +33,16 @@ from __future__ import annotations
 
 import csv
 import json
+import math
 import sys
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "src"))
 
 from benchmarks.common.openrouter import OpenRouterClient  # noqa: E402
 from benchmarks.timesage_mt.tasks import TimeSageTask, read_visible_series  # noqa: E402
@@ -63,6 +66,8 @@ every number you state must come from a tool result in this
 conversation — never estimate or recall numbers yourself. Call tools as
 needed, then answer clearly, quoting the tool-derived values that
 support your conclusion. If a tool abstains or errors, say so honestly.
+Do not call a different operation as a substitute for an unsupported request;
+report the limitation once and offer the exact supported alternative.
 
 The user's dataset (the only rows you are allowed to see) is below in
 CSV form; tools compute over exactly this data.
@@ -127,6 +132,45 @@ TOOL_SPECS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "gnomon_stationarity_test",
+            "description": "Registered ADF(0, constant) or KPSS(level) executable. Returns the statistic, critical values, assumptions, and conclusion; never substitutes anomaly detection.",
+            "parameters": {"type": "object", "properties": {
+                "column": {"type": "string"},
+                "method": {"type": "string", "enum": ["adf", "kpss"]},
+                "differencing": {"type": "integer", "minimum": 0,
+                                  "maximum": 2},
+                "seasonal_period": {"type": "integer", "minimum": 2}},
+                "required": ["column", "method"]},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "gnomon_decompose",
+            "description": "Registered additive centered-moving-average decomposition at an explicit period. It is not STL and is never labelled STL.",
+            "parameters": {"type": "object", "properties": {
+                "column": {"type": "string"},
+                "period": {"type": "integer", "minimum": 2},
+                "method": {"type": "string",
+                           "enum": ["centered_moving_average"]}},
+                "required": ["column", "period"]},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "gnomon_exogenous_regression",
+            "description": "Registered ridge-linear exogenous regression with expanding-window validation. This is not a generic forecast.",
+            "parameters": {"type": "object", "properties": {
+                "target": {"type": "string"},
+                "predictors": {"type": "array",
+                               "items": {"type": "string"}, "minItems": 1}},
+                "required": ["target", "predictors"]},
+        },
+    },
 ]
 
 
@@ -158,6 +202,28 @@ class ToolBox:
             )
         return self.columns[name]
 
+    def _complete_column(self, name: str) -> tuple[list[float], int]:
+        """Linearly repair missing internal values and disclose the count."""
+        raw = self._column(name)
+        finite = [index for index, value in enumerate(raw) if math.isfinite(value)]
+        if not finite:
+            raise ValueError(f"Column {name!r} has no finite observations")
+        repaired = list(raw)
+        for index, value in enumerate(repaired):
+            if math.isfinite(value):
+                continue
+            left = max((item for item in finite if item < index), default=None)
+            right = min((item for item in finite if item > index), default=None)
+            if left is None:
+                repaired[index] = repaired[right]
+            elif right is None:
+                repaired[index] = repaired[left]
+            else:
+                fraction = (index - left) / (right - left)
+                repaired[index] = repaired[left] + fraction * (
+                    repaired[right] - repaired[left])
+        return repaired, len(raw) - len(finite)
+
     def _aware_timestamps(self) -> list[str]:
         aware = []
         for value in self.timestamps:
@@ -178,6 +244,9 @@ class ToolBox:
                 "detect_season": self.detect_season,
                 "gnomon_forecast": self.gnomon_forecast,
                 "gnomon_detect_anomalies": self.gnomon_detect_anomalies,
+                "gnomon_stationarity_test": self.gnomon_stationarity_test,
+                "gnomon_decompose": self.gnomon_decompose,
+                "gnomon_exogenous_regression": self.gnomon_exogenous_regression,
             }[name]
         except KeyError:
             return {"error": f"unknown tool {name}"}
@@ -189,13 +258,14 @@ class ToolBox:
             return {"error": str(error)}
 
     def series_stats(self, column: str) -> dict[str, Any]:
-        values = self._column(column)
+        raw = self._column(column)
+        values = [value for value in raw if math.isfinite(value)]
         n = len(values)
         mean = sum(values) / n
         variance = sum((v - mean) ** 2 for v in values) / (n - 1) if n > 1 else 0.0
         std = variance ** 0.5
         return {
-            "column": column, "count": n,
+            "column": column, "count": n, "missing_count": len(raw) - n,
             "mean": round(mean, 6), "std": round(std, 6),
             "min": min(values), "max": max(values),
             "coefficient_of_variation": round(std / mean, 6) if mean else None,
@@ -216,14 +286,56 @@ class ToolBox:
     def detect_season(self, column: str) -> dict[str, Any]:
         from gnomon.temporal import detect_season
 
-        values = self._column(column)
+        values, repaired = self._complete_column(column)
         season, strength, basis = detect_season(values, self._frequency())
         return {"column": column, "period_observations": season,
-                "strength": round(strength, 4), "basis": basis}
+                "strength": round(strength, 4), "basis": basis,
+                "repaired_missing": repaired}
+
+    def gnomon_stationarity_test(
+        self, column: str, method: str, differencing: int = 0,
+        seasonal_period: int | None = None,
+    ) -> dict[str, Any]:
+        from gnomon.statistical_executables import fit_stationarity_executable
+        values, repaired = self._complete_column(column)
+        result = fit_stationarity_executable(
+            values, target=column, method=method,
+            differencing=differencing, seasonal_period=seasonal_period,
+        ).execute()
+        return {**result, "repaired_missing": repaired}
+
+    def gnomon_decompose(
+        self, column: str, period: int,
+        method: str = "centered_moving_average",
+    ) -> dict[str, Any]:
+        if method != "centered_moving_average":
+            return {"unsupported": True,
+                    "message": "Only centered_moving_average is implemented; no substitute was run."}
+        from gnomon.statistical_executables import fit_decomposition_executable
+        values, repaired = self._complete_column(column)
+        result = fit_decomposition_executable(
+            values, target=column, period=period).execute()
+        estimate = dict(result["estimate"])
+        estimate["component_points"] = len(estimate.pop("trend"))
+        estimate.pop("seasonal")
+        estimate.pop("residual")
+        return {**result, "estimate": estimate, "repaired_missing": repaired}
+
+    def gnomon_exogenous_regression(
+        self, target: str, predictors: list[str],
+    ) -> dict[str, Any]:
+        from gnomon.statistical_executables import fit_regression_executable
+        y, y_repaired = self._complete_column(target)
+        repaired = {target: y_repaired}
+        x: dict[str, list[float]] = {}
+        for name in predictors:
+            x[name], repaired[name] = self._complete_column(name)
+        result = fit_regression_executable(y, x, target=target).execute()
+        return {**result, "repaired_missing": repaired}
 
     def _write_csv(self, column: str) -> Path:
         aware = self._aware_timestamps()
-        values = self._column(column)
+        values, _ = self._complete_column(column)
         if not aware or len(aware) != len(values):
             raise ValueError("visible series has no parseable regular time axis")
         run_dir = Path(tempfile.mkdtemp(prefix="timesage-gnomon-", dir=self.work_dir))
@@ -272,7 +384,7 @@ class ToolBox:
         from gnomon.runtime import forecast_multi
 
         aware = self._aware_timestamps()
-        values = {name: self._column(name) for name in columns}
+        values = {name: self._complete_column(name)[0] for name in columns}
         if not aware or any(len(aware) != len(items) for items in values.values()):
             raise ValueError("visible series has no parseable regular time axis")
         run_dir = Path(tempfile.mkdtemp(prefix="timesage-gnomon-", dir=self.work_dir))
@@ -314,7 +426,7 @@ class ToolBox:
         from gnomon.anomaly import DEFAULT_THRESHOLD, detect_anomalies
         from gnomon.temporal import detect_season
 
-        values = self._column(column)
+        values, repaired = self._complete_column(column)
         season, _, _ = detect_season(values, self._frequency())
         detection = detect_anomalies(
             self.timestamps, values, season=season,
@@ -326,6 +438,7 @@ class ToolBox:
             "support": detection.get("support", {}).get("status"),
             "anomalies": detection.get("anomalies", [])[:64],
             "anomaly_count": len(detection.get("anomalies", [])),
+            "repaired_missing": repaired,
         }
 
 

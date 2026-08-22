@@ -65,6 +65,10 @@ def test_event_adjusted_refuses_without_history_occurrences() -> None:
 def test_context_admitted_when_it_demonstrates_stable_lift(tmp_path) -> None:
     csv_path = tmp_path / "promo.csv"
     _write_csv(csv_path, 130)
+    baseline_artifact, _ = forecast(
+        str(csv_path), time_column="timestamp", target_column="requests",
+        horizon=7, frequency="D", output=str(tmp_path / "baseline"),
+    )
     artifact, _ = forecast(
         str(csv_path), time_column="timestamp", target_column="requests",
         horizon=7, frequency="D", output=str(tmp_path / "out"),
@@ -82,6 +86,9 @@ def test_context_admitted_when_it_demonstrates_stable_lift(tmp_path) -> None:
     assert result.context_outcome["primary_forecast_changed"] is True
     assert result.context_outcome["canonical_primary_preserved"] is True
     assert result.primary_forecast
+    # Context may earn a different support tier, but cannot retroactively
+    # relabel the immutable history-only answer.
+    assert result.primary_forecast == baseline_artifact.results[0].forecast
     assert [row["point"] for row in result.primary_forecast] != [
         row["point"] for row in result.forecast]
     assert result.context_outcome["canonical_primary_location"] == (
@@ -93,6 +100,41 @@ def test_context_admitted_when_it_demonstrates_stable_lift(tmp_path) -> None:
     promo_row = result.forecast[5]
     plain_row = result.forecast[4]
     assert promo_row["point"] - plain_row["point"] > PROMO_EFFECT / 2
+
+
+def test_context_selection_skips_pre_event_folds_without_rejecting_candidate(
+        tmp_path) -> None:
+    """A fold before the first event cannot adjudicate an event model."""
+    csv_path = tmp_path / "late_events.csv"
+    event_days = {day for day in range(25, 140, 10)}
+    with open(csv_path, "w", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["timestamp", "requests"])
+        for day in range(130):
+            value = 100.0 + 0.2 * day + (20.0 if day in event_days else 0.0)
+            writer.writerow([(START + timedelta(days=day)).isoformat(), value])
+    events = []
+    for day in sorted(event_days):
+        moment = START + timedelta(days=day)
+        events.append(ContextEvent(
+            event_id=f"late_{day}", event_type="promotion",
+            entity_scope=("*",), effective_start=moment.isoformat(),
+            effective_end=moment.isoformat(),
+            known_at=(START - timedelta(days=1)).isoformat(),
+            source=ContextSource("calendar", "late-promos.ics"),
+        ))
+    artifact, _ = forecast(
+        str(csv_path), time_column="timestamp", target_column="requests",
+        horizon=7, frequency="D", output=str(tmp_path / "out"),
+        context_events=events,
+    )
+    context = artifact.results[0].context
+    assert not any(
+        check.get("code") == "candidate_fits_every_fold"
+        and check.get("passed") is False
+        for check in context.get("gate_checks", [])
+    )
+    assert context.get("shape_scores")
 
 
 def test_unsourced_events_are_excluded_and_context_rejected(tmp_path) -> None:

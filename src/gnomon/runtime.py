@@ -242,6 +242,12 @@ def _config_fingerprint(config: Any) -> dict[str, object] | None:
         # first-write-wins served whichever artifact landed first.
         "statistical_candidates": sorted(
             getattr(models, "statistical_candidates", None) or []) or None,
+        # An explicit baseline-only pool has empty statistical/TSFM candidate
+        # lists but is not the same run as the open default pool.
+        "candidate_pool_restricted": (
+            True if getattr(models, "_candidate_pool_restricted", False)
+            else None
+        ),
         # Interval-shaping options change the published numbers without
         # changing any name in the run, so leaving them out let two runs
         # with materially different bands collide on one content-addressed
@@ -279,11 +285,14 @@ def _restricted_pool(config: Any) -> list[str] | None:
     if models is None:
         return None
     statistical = getattr(models, "statistical_candidates", None)
-    if not statistical:
+    explicitly_restricted = getattr(
+        models, "_candidate_pool_restricted", False)
+    if not statistical and not explicitly_restricted:
         # `tsfm_candidates` alone is not a restriction: listing TSFMs is how
         # they become available at all, and an empty list is the default.
         return None
-    return sorted(set(statistical) | set(getattr(models, "tsfm_candidates", None) or []))
+    return sorted(set(statistical or [])
+                  | set(getattr(models, "tsfm_candidates", None) or []))
 
 
 def _restrict_candidates(config: Any, candidates: list[str]):
@@ -320,6 +329,10 @@ def _restrict_candidates(config: Any, candidates: list[str]):
     resolved.models.tsfm_candidates = [
         name for name in candidates if name in known_tsfms
     ]
+    # `None`/empty historically means "unconfigured, consider everything".
+    # Preserve the caller's explicit restriction even for baseline-only or
+    # classical-only pools, where one side of the split is necessarily empty.
+    resolved.models._candidate_pool_restricted = True
     return resolved
 
 
@@ -408,6 +421,12 @@ def _series_result(
             step: list(values)
             for step, values in state.residuals_by_lead.items()
         }
+        state.primary_warnings = list(state.warnings)
+        state.primary_support = (
+            "degraded" if state.assessment and state.assessment.degraded
+            else "supported_ensemble" if state.selected_model == "ensemble"
+            else "weakly_supported" if state.warnings else "supported"
+        )
     if context_events:
         context_stage(
             state, context_events, horizon=horizon,
@@ -676,7 +695,18 @@ def _series_result(
             state.primary_residuals_by_lead, len(state.primary_points),
             state.primary_residuals, recentre=not assessment.degraded,
         )
-        primary_tier = achieved_tier(support_assessment.status, True)
+        # The primary lane is immutable evidence, not merely immutable
+        # points. An admitted context candidate can earn a different support
+        # status; projecting that status back onto the frozen primary path
+        # rewrites its epistemic meaning. Recreate the tier from the support
+        # state captured before enrichment.
+        primary_assessment = assess_forecast_support(
+            state.primary_support or "unsupported",
+            state.primary_warnings,
+            assessment,
+            known_time_assumed=loaded.snapshot.assumed_known_time,
+        )
+        primary_tier = achieved_tier(primary_assessment.status, True)
         for step, (timestamp, point) in enumerate(
                 zip(state.future_timestamps, state.primary_points), 1):
             if step not in primary_spreads:
@@ -1586,6 +1616,24 @@ def capabilities() -> dict[str, object]:
             "inline_data_channels": True,
             "structural_regrid": True, "long_series_fit_window": True,
             "tsfm_install": True,
+            "typed_execution_planner": True,
+            "dataset_shape_contract": True,
+            "stationarity_testing": True,
+            "fixed_period_decomposition": True,
+            "exogenous_regression": True,
+        },
+        "temporal_execution": {
+            "surface": "gnomon describe / gnomon_describe",
+            "operations": {
+                "stationarity": ["ADF(0) with constant", "KPSS level"],
+                "decomposition": ["additive centered moving average"],
+                "regression": ["ridge linear with expanding-window validation"],
+            },
+            "semantic_contract": (
+                "Unsupported methods abstain once; forecast, anomaly detection, "
+                "period discovery, and regression are never substituted for "
+                "one another."
+            ),
         },
         "forecast_surface": {
             # Machine-readable notes on the two agent-facing additions, so a

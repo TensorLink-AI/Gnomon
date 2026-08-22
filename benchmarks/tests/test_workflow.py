@@ -33,6 +33,8 @@ def _observation(case, **overrides):
                         "reported_absolute_error": 0.0}},
         "repair_completed": True, "tracking_completed": True,
         "quote_matches": True, "tool_calls": 1, "cumulative_tokens": 100,
+        "metadata": {"leakage_measurement": "cutoff_projection_v1",
+                     "cutoff_projection_sha256": "a" * 64},
     }
     if case.oracle.should_abstain:
         values.update(status="abstained", support="abstained")
@@ -533,7 +535,8 @@ def test_adapter_repairs_malformed_optional_containers():
         total_prompt_tokens = 1
         total_completion_tokens = 1
 
-    row = _normalize("x", {
+    row = _normalize({"id": "x", "kind": "frozen",
+                      "answer_schema": {}}, {
         "status": "answered", "support": "degraded", "numbers": {},
         "choices": "none", "facts": "seasonal", "disclosures": "weak",
         "claims": "claim"}, calls=0, client=Client(), started=0,
@@ -544,3 +547,38 @@ def test_adapter_repairs_malformed_optional_containers():
     assert row["claims"] == ["claim"]
     assert row["metadata"]["envelope_repairs"]["facts"] == \
         "coerced_to_empty_object"
+
+
+def test_adapter_host_binds_routing_facts_over_model_paraphrases():
+    from benchmarks.workflow.agent_adapter import _normalize
+
+    class Client:
+        total_prompt_tokens = 1
+        total_completion_tokens = 1
+
+    case = {"id": "x", "kind": "longitudinal", "tags": ["tracking"],
+            "answer_schema": {"facts": ["source_kind", "tracking_requested"]}}
+    row = _normalize(case, {
+        "status": "answered", "support": "supported", "numbers": {},
+        "choices": {}, "facts": {"source_kind": "guessed",
+                                   "tracking_requested": False},
+        "disclosures": [], "claims": []}, calls=0, client=Client(),
+        started=0, tool_names=[])
+    assert row["facts"] == {"source_kind": "longitudinal",
+                            "tracking_requested": True}
+
+
+def test_adapter_rejects_incomplete_artifact_submission_without_recomputing():
+    from benchmarks.workflow.agent_adapter import _submission_problems
+
+    case = {"answer_schema": {"numbers": ["next"],
+                               "choices": ["pattern"]}}
+    evidence = {"artifact_id": "forecast-1",
+                "artifact_numbers": {"next": 12.5}}
+    assert _submission_problems(case, {
+        "numbers": {}, "choices": {}, "artifact_id": None}, evidence) == [
+            "numbers.next is missing", "choices.pattern is missing",
+            "artifact_id must copy the immutable artifact identity"]
+    assert _submission_problems(case, {
+        "numbers": {"next": 12.5}, "choices": {"pattern": "period-3"},
+        "artifact_id": "forecast-1"}, evidence) == []

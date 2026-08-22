@@ -300,12 +300,28 @@ def start_install(name: str) -> dict[str, Any]:
             "log_path": str(log_path)}
 
 
-def remove_sandbox(name: str) -> None:
-    """Remove a sandbox venv."""
+def remove_sandbox(name: str) -> bool:
+    """Remove a known model sandbox and report whether it existed.
+
+    Removal is intentionally stricter than path construction: an unknown name
+    must never be transformed into a filesystem target, and a symlink must not
+    be followed as a directory tree.
+    """
+    if name not in TSFM_PIP_SPECS:
+        raise TSFMUnavailable(f"Unknown TSFM for sandboxing: {name}")
     venv_dir = _sandbox_dir(name)
+    root = SANDBOX_ROOT.resolve()
+    if venv_dir.parent.resolve() != root:
+        raise TSFMError("Refusing to remove a sandbox outside GNOMON_TSFM_SANDBOX_ROOT")
+    if venv_dir.is_symlink():
+        venv_dir.unlink()
+        logger.info("Removed sandbox link for %s", name)
+        return True
     if venv_dir.exists():
         shutil.rmtree(venv_dir)
         logger.info("Removed sandbox for %s", name)
+        return True
+    return False
 
 
 def list_sandboxes() -> list[str]:

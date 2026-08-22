@@ -8,7 +8,8 @@ import statistics
 
 from .temporal_question import TemporalQuestion
 from .temporal_executables import (
-    fit_dependence_executable, fit_temporal_executable,
+    fit_dependence_executable, fit_future_seasonality_executable,
+    fit_temporal_executable,
 )
 from .volatility import fit_volatility_executable, residuals
 from .temporal_evidence import (
@@ -196,13 +197,6 @@ def answer_descriptive_question(
         source = "fold_safe_volatility_executable"
         observed = multi_resolution_evidence(
             values, property="volatility", season=season)
-        if direction == "uncertain" and observed["direction"] in {
-                "increased", "decreased", "stable"}:
-            # With too few predictive folds, a repeatable observed transition
-            # may support a weak persistence-conditioned best estimate.  It
-            # never becomes automation-eligible or rewrites the point path.
-            direction = str(observed["direction"])
-            source = "observed_transition_conditional_on_persistence"
         measurable = direction != "uncertain"
         result = _envelope(
             question, direction=direction,
@@ -215,9 +209,10 @@ def answer_descriptive_question(
             limitations=[
                 "Point-forecast smoothness is diagnostic only and does not "
                 "measure the future process variance.",
-                *( ["Direction conditions the observed multi-resolution "
-                     "transition on persistence; it is not automation-eligible."]
-                   if source.endswith("persistence") else []),
+                *( ["Observed volatility changed, but persistence has not "
+                     "earned canonical predictive influence."]
+                   if direction == "uncertain" and observed.get("direction")
+                   not in {None, "uncertain", "stable"} else []),
             ],
             executable={"kind": "fitted_volatility_with_path_diagnostic",
                         "property": "volatility", "version": "0.2"},
@@ -234,6 +229,11 @@ def answer_descriptive_question(
             "decision": fitted_answer["decision"],
             "direction_source": source,
             "observed_transition": observed,
+            "conditional_on_persistence": ({
+                "direction": observed.get("direction"), "support": "weak",
+                "canonical_primary_unchanged": True,
+            } if direction == "uncertain" and observed.get("direction")
+                  not in {None, "uncertain"} else None),
             "process_claim": {
                 "property": "future_realized_volatility",
                 "direction": direction,
@@ -334,44 +334,37 @@ def answer_descriptive_question(
             ], executable={"kind": "published_forecast_projection",
                             "property": "level", "version": "0.1"},
         )
-    if prop == "seasonality" and question.verb in {"compare", "predict"} \
-            and forecast_values:
-        estimate = _seasonality_alignment(values, forecast_values, season)
-        estimate.update({"history_period": season if season > 1 else None,
-                         "comparison_points": len(forecast_values),
-                         # Compatibility field: zero-shift alignment.
-                         "forecast_vs_repeated_history_correlation":
-                         estimate.get("zero_correlation")})
-        direction = estimate["direction"]
+    if prop == "seasonality" and question.verb in {"compare", "predict"}:
+        fitted = fit_future_seasonality_executable(
+            values, horizon=question.horizon or max(4, season),
+            season=season).execute()
+        path = (_seasonality_alignment(values, forecast_values, season)
+                if forecast_values else None)
+        direction = fitted["direction"]
         measurable = direction not in {None, "uncertain"}
         result = _envelope(
-            question, direction=direction, estimate=estimate, interval=None,
-            support=("weak" if measurable else "abstained"),
-            headline=(f"Seasonal alignment for {question.target}: {direction}."),
-            limitations=(["Phase alignment is an exploratory best estimate "
-                           "and is not eligible for automatic action."]
-                         if measurable else [
-                "The history or published horizon does not contain enough "
-                "variation to estimate alignment."
-            ]), executable={"kind": "published_forecast_projection",
-                            "property": "seasonality", "version": "0.2"},
+            question, direction=direction, estimate=fitted["estimate"],
+            interval=None, support=fitted["support"],
+            headline=(f"Expected future seasonal phase state for "
+                      f"{question.target}: {direction}."),
+            limitations=(["The future-process estimate is weak and is not "
+                           "eligible for automatic action."]
+                         if fitted["support"] == "weak" else []),
+            executable=fitted["executable"],
         )
         result["answer"].update({
-            "forecast_path_behavior": {
-                "direction": estimate.get("direction"),
-                "zero_correlation": estimate.get("zero_correlation"),
-                "best_correlation": estimate.get("best_correlation"),
-                "phase_shift_steps": estimate.get("phase_shift_steps"),
-                "claim_type": "deterministic_path_alignment",
-                "not_a_future_process_claim": True,
-            },
+            "direction_probabilities": fitted["direction_probabilities"],
+            **({"forecast_path_behavior": {
+                **path, "claim_type": "deterministic_path_alignment",
+                "not_a_future_process_claim": True}}
+               if path else {}),
             "process_claim": {
                 "property": "future_realized_seasonality",
-                "direction": "uncertain",
-                "support": "abstained",
-                "source": "not_identified_by_point_forecast_alignment",
+                "direction": direction, "support": fitted["support"],
+                "source": "fold_safe_future_seasonality_executable",
             },
         })
+        result["calibration"] = fitted["diagnostics"]
         return result
     if prop == "level":
         estimate = report["level"]["latest"]
@@ -410,6 +403,79 @@ def _execute_scoped_question(
     forecast_values: dict[str, list[float]] | None = None,
 ) -> dict[str, Any]:
     """Execute explicit multi-series scope without hiding its constituents."""
+    from .statistical_executables import (
+        fit_decomposition_executable,
+        fit_regression_executable,
+        fit_stationarity_executable,
+    )
+    from .temporal_contracts import (
+        classify_dataset_contract, plan_execution, unsupported_answer,
+    )
+
+    dataset = classify_dataset_contract(
+        list(execution_inputs),
+        observations={name: len(values) for name, (values, _) in
+                      execution_inputs.items()},
+        frequency=next((str(report.get("frequency")) for report in reports.values()
+                        if report.get("frequency")), None),
+    )
+    plan = plan_execution(question, dataset)
+    if plan.status != "ready":
+        return unsupported_answer(question, plan)
+    if question.property in {"stationarity", "decomposition", "regression"}:
+        try:
+            if question.property == "stationarity":
+                values, _ = execution_inputs[question.target]
+                fitted = fit_stationarity_executable(
+                    values, target=question.target,
+                    method=question.method or "adf",
+                    differencing=question.differencing,
+                    seasonal_period=question.seasonal_period,
+                ).execute()
+            elif question.property == "decomposition":
+                values, _ = execution_inputs[question.target]
+                fitted = fit_decomposition_executable(
+                    values, target=question.target,
+                    period=int(question.period or 0),
+                ).execute()
+            else:
+                values, _ = execution_inputs[question.target]
+                fitted = fit_regression_executable(
+                    values,
+                    {name: execution_inputs[name][0]
+                     for name in question.explanatory_variables},
+                    target=question.target,
+                ).execute()
+        except (KeyError, ValueError) as error:
+            result = _envelope(
+                question, direction=None, estimate=None, interval=None,
+                support="abstained",
+                headline=f"{question.property} was not executed: {error}.",
+                limitations=[str(error)],
+                executable={"kind": "execution_abstention",
+                            "property": question.property, "version": "0.1"},
+            )
+            result["execution_plan"] = plan.to_dict()
+            result["next_actions"] = [{
+                "action": "provide_more_history_or_correct_roles",
+                "arguments": {"target": question.target},
+            }]
+            return result
+        result = _envelope(
+            question, direction=fitted["direction"],
+            estimate=fitted["estimate"], interval=fitted.get("interval"),
+            support=fitted["support"],
+            headline=(f"{question.property} for {question.target}: "
+                      f"{fitted['direction']}; support is {fitted['support']}."),
+            limitations=[], executable=fitted["executable"],
+        )
+        result["answer"].update({
+            key: value for key, value in fitted.items()
+            if key not in {"direction", "estimate", "interval", "support",
+                           "automation_eligible", "executable"}
+        })
+        result["execution_plan"] = plan.to_dict()
+        return result
     if question.scope == "series":
         values, season = execution_inputs[question.target]
         return answer_descriptive_question(
@@ -466,17 +532,17 @@ def _execute_scoped_question(
         alignments = []
         directions = []
         for child in children:
-            estimate = child["answer"].get("estimate")
-            if isinstance(estimate, dict):
-                value = estimate.get("forecast_vs_repeated_history_correlation")
+            path = child["answer"].get("forecast_path_behavior") or {}
+            if isinstance(path, dict):
+                value = path.get("zero_correlation")
                 if value is not None and math.isfinite(float(value)):
                     alignments.append(float(value))
             child_direction = (child.get("best_estimate") or {}).get("value")
-            if child_direction in {"continued", "shifting", "absent"}:
+            if child_direction in {"fixed", "shifting"}:
                 directions.append(str(child_direction))
         estimate = statistics.median(alignments) if alignments else None
         counts = {label: directions.count(label)
-                  for label in ("continued", "shifting", "absent")}
+                  for label in ("fixed", "shifting")}
         direction = (max(counts, key=counts.get) if directions
                      and max(counts.values()) > len(children) / 2
                      else "uncertain")
@@ -578,10 +644,21 @@ def answer_scoped_question(
     if question.context_policy in {"measure", "scenario"}:
         effect = (conditional_effects or {}).get(question.target)
         if effect:
+            from .temporal_contracts import assess_context
             result["conditional_effect"] = {
                 **effect, "role": "conditional_evidence_only",
                 "primary_forecast_unchanged": True,
             }
+            result["context_assessment"] = assess_context(effect).to_dict()
+    if question.property in {"stationarity", "decomposition", "regression"}:
+        result["answer"]["reasoning"] = {
+            "version": "0.1",
+            "authority": "fitted_executable",
+            "llm_role": "explain_and_qualify_only",
+            "primary_forecast_unchanged": True,
+            "basis": [result.get("answer", {}).get("executable", {}).get("kind")],
+        }
+        return result
     from .temporal_evidence import (
         competing_hypotheses, historical_analogues,
         multi_resolution_evidence, window_evidence,

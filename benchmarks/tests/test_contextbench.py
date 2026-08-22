@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import subprocess
 import sys
 from types import SimpleNamespace
 
@@ -17,7 +18,7 @@ from benchmarks.contextbench.run_contextbench import (
 )
 from benchmarks.contextbench.run_contextbench import main as run_main
 from benchmarks.contextbench.run_llm import (
-    compile_events, raw_case, safe_payload,
+    _bounded_context_tool, compile_events, raw_case, safe_payload,
 )
 from benchmarks.contextbench.run_surfaces import surface_row
 from benchmarks.contextbench.report_surfaces import aggregate
@@ -26,6 +27,7 @@ from benchmarks.contextbench.report_contextbench import (
 )
 from benchmarks.contextbench.schema import Case, load_cases, load_oracles
 from gnomon.context_model import rolling_residuals
+from gnomon.workflows import normalise_context_response_containers
 
 
 def test_generator_is_reproducible_seed_sensitive_and_balanced():
@@ -73,6 +75,28 @@ def test_generated_files_are_strict_and_hash_addressed(tmp_path, monkeypatch):
     assert manifest["fresh_seed"] is False
     assert len(manifest["cases_sha256"]) == 64
     assert len(manifest["oracle_sha256"]) == 64
+
+
+def test_documented_engine_runner_executes_from_clean_checkout(tmp_path):
+    corpus = tmp_path / "corpus"
+    output = tmp_path / "run"
+    # Reuse the generator CLI for its hash-addressed manifest rather than
+    # synthesising benchmark metadata in the smoke test.
+    subprocess.run(
+        [sys.executable, "-m", "benchmarks.contextbench.generate",
+         "--output-dir", str(corpus), "--seed", "73", "--per-family", "1"],
+        cwd=Path(__file__).resolve().parents[2], check=True,
+        capture_output=True, text=True,
+    )
+    result = subprocess.run(
+        [sys.executable, "-m", "benchmarks.contextbench.run_contextbench",
+         "--corpus-dir", str(corpus), "--output-dir", str(output),
+         "--limit", "1", "--allow-gate-failure"],
+        cwd=Path(__file__).resolve().parents[2], check=False,
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert (output / "summary.json").is_file()
 
 
 def test_stress_generator_is_reproducible_and_covers_production_strata():
@@ -315,6 +339,18 @@ def test_scripted_raw_arm_scores_only_after_model_submission():
     assert case.case_id not in prompt and '"family"' not in prompt
 
 
+def test_raw_arm_counts_wrong_length_submission_as_product_failure():
+    raw_cases, raw_oracles = generate(5, per_family=1)
+    case = Case.from_dict(raw_cases[0])
+    oracle = load_oracles_from_rows(raw_oracles)[case.case_id]
+    row = raw_case(case, oracle, _ScriptedClient({
+        "forecast": [1.0], "context_used": False}))
+    assert row["status"] == "product_failure"
+    assert row["failure_class"] == "agent_non_submission"
+    assert row["failure_stage"] == "raw_forecast_submission"
+    assert row["usage_accounting_version"] == 2
+
+
 def load_oracles_from_rows(rows):
     from benchmarks.contextbench.schema import Oracle
     return {row["case_id"]: Oracle.from_dict(row) for row in rows}
@@ -346,6 +382,22 @@ def test_scripted_compiler_is_quote_grounded_and_magnitude_free():
     assert attributes["evidence_quote"] == quote
 
 
+def test_schedule_compiler_schema_is_bounded_and_source_grounded_only():
+    from gnomon.workflows import CONTEXT_RESPONSE_SCHEMA
+
+    tool = _bounded_context_tool(
+        {"response_schema": CONTEXT_RESPONSE_SCHEMA}, 4)
+    schema = tool["function"]["parameters"]
+    events = schema["properties"]["events"]
+    assert events["maxItems"] == 4
+    assert set(events["items"]["properties"]) == set(
+        events["items"]["required"])
+    assert "hypotheses" not in schema["properties"]
+    # The reusable product schema must not be mutated by an adapter.
+    assert "effect_family" in CONTEXT_RESPONSE_SCHEMA[
+        "properties"]["events"]["items"]["properties"]
+
+
 def test_compiler_repairs_json_encoded_schema_containers():
     raw_cases, _ = generate(9, per_family=1)
     case = Case.from_dict(next(
@@ -361,11 +413,11 @@ def test_compiler_repairs_json_encoded_schema_containers():
         "effective_end": source["effective_end"],
         "known_at": "2025-01-01T00:00:00+00:00", "evidence_quote": quote,
     }])
-    compiled = compile_events(case, _ScriptedClient({
-        "events": encoded, "hypotheses": "[]"}))
-    assert len(compiled["events"]) == 1
-    assert compiled["events"][0]["entity_scope"] == ["*"]
-    assert compiled["container_coercions"]
+    repaired, repairs = normalise_context_response_containers({
+        "events": encoded, "hypotheses": "[]"})
+    assert len(repaired["events"]) == 1
+    assert repaired["events"][0]["entity_scope"] == ["value"]
+    assert repairs == ["events", "hypotheses"]
 
 
 def test_compiler_repairs_provider_trailing_fields_inside_events_string():
@@ -385,9 +437,10 @@ def test_compiler_repairs_provider_trailing_fields_inside_events_string():
     }
     for suffix in (', "hypotheses": []', ', "hypotheses": []}'):
         malformed = json.dumps([event]) + suffix
-        compiled = compile_events(case, _ScriptedClient({"events": malformed}))
-        assert len(compiled["events"]) == 1
-        assert "events+trailing_fields" in compiled["container_coercions"]
+        repaired, repairs = normalise_context_response_containers(
+            {"events": malformed})
+        assert len(repaired["events"]) == 1
+        assert "events+trailing_fields" in repairs
 
 
 def test_surface_report_separates_product_and_provider_failures(tmp_path):

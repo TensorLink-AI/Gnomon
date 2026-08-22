@@ -2,11 +2,15 @@
   "release_metadata": {
     "arm": "raw-llm",
     "benchmark": "contextbench",
+    "configuration_identity": "summary-only; environment not retained",
+    "dataset_identity": "contextbench corpus recorded in summary",
+    "evaluated_commit": "unknown",
+    "harness_commit": "unknown",
     "notes": [],
     "scope": "full",
     "source": "results/contextbench-full-20260816/llm-raw/summary.json",
     "source_sha256": "ae1da4c68f73433e5f0174bcb1adf48c6f51a1a4b3eef86e69837ea7973d8b07",
-    "status": "complete"
+    "status": "historical_unverified"
   },
   "summary": {
     "answered": 80,

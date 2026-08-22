@@ -12,6 +12,7 @@ from benchmarks.common.manifest import (  # noqa: E402
     write_manifest,
 )
 from benchmarks.report import (  # noqa: E402
+    comparison_costs,
     compare,
     derived_metrics,
     load_run,
@@ -36,6 +37,19 @@ def test_task_ids_normalise_across_layouts():
     assert normalise_task_id("shard#0007") == "shard_0007"
     assert normalise_task_id("shard_0007.json") == "shard_0007"
     assert normalise_task_id("shard#0007") == normalise_task_id("shard_0007.json")
+
+
+def test_comparison_costs_excludes_unrelated_runs():
+    runs = {
+        "control": {"summary": {},
+                    "manifest": {"llm_usage": {"requests": 2}}},
+        "treatment": {"summary": {"llm_usage": {"requests": 3}}},
+        "unrelated": {"summary": {"llm_usage": {"requests": 999}}},
+    }
+    costs = comparison_costs(runs, [["control", "treatment"]])
+    assert set(costs) == {"control", "treatment"}
+    assert costs["control"]["requests"] == 2
+    assert costs["treatment"]["requests"] == 3
 
 
 def test_manifest_round_trips_and_flags_target_mismatch(tmp_path):

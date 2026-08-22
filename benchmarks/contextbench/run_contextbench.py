@@ -13,7 +13,11 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from statistics import mean
+import sys
 from typing import Any
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "src"))
 
 from .schema import Case, Oracle, load_cases, load_oracles
 
@@ -63,7 +67,8 @@ def _write_history(case: Case, path: Path) -> None:
 def _forecast(case: Case, root: Path, *, enriched: bool,
               event_override: list[dict[str, Any]] | None = None,
               use_covariates: bool = True,
-              asserted_policy: bool = True) -> tuple[Any, Path]:
+              asserted_policy: bool = True,
+              candidates: list[str] | None = None) -> tuple[Any, Path]:
     from gnomon.context import events_from_list
     from gnomon.config import load_config
     from gnomon.covariates import covariates_from_rows
@@ -74,7 +79,13 @@ def _forecast(case: Case, root: Path, *, enriched: bool,
         _write_history(case, source)
     raw_events = (event_override if event_override is not None
                   else list(case.context_events))
-    events = events_from_list(raw_events) if enriched and raw_events else None
+    # The generated corpus is the operator-controlled source for this engine
+    # evaluation: its manifest hashes cases before execution and keeps the
+    # future oracle separate. Model/agent-proposed inline events must *not*
+    # use this trust path; surface evaluations bind compiled documents to a
+    # validated file inside their jailed host instead.
+    events = (events_from_list(raw_events, trust_declared_creator=True)
+              if enriched and raw_events else None)
     covariates = None
     if enriched and use_covariates and case.covariates:
         covariates = covariates_from_rows(
@@ -98,6 +109,7 @@ def _forecast(case: Case, root: Path, *, enriched: bool,
         output=str(root / output_name),
         context_events=events, covariates=covariates,
         config=config,
+        candidates=candidates,
         minimum_support="best_effort",
     )
 

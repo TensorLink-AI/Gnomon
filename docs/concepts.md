@@ -13,6 +13,30 @@ authority. The ordinary deterministic compiler still accepts or refuses every
 proposal. Tool-using models are not expected to discover optional question
 fields reliably on their own.
 
+Compilation is deliberately two-stage. A small deterministic router binds
+explicit statistical terms and named series to one typed question slot; the
+host model resolves genuinely semantic wording and optional arguments. The
+normal validator then enforces target scope, aggregation, uniqueness, and
+capability support. This prevents a model from silently changing an explicit
+volatility question into level, while retaining model flexibility for ordinary
+language that has no unique lexical interpretation.
+
+Every accepted question then passes through one `DatasetContract`, capability
+registry, and `ExecutionPlan`. The dataset contract distinguishes univariate,
+multivariate, panel, supervised-table, and wide-waveform layouts before an
+executable sees values. The planner either selects one registered capability
+or returns a terminal typed unsupported answer. It never substitutes forecast
+for regression, anomaly detection for stationarity, or discovered seasonality
+for an explicitly requested decomposition period.
+
+The registered statistical capabilities are deliberately precise: ADF(0) with
+a constant, KPSS level-stationarity, additive centered-moving-average
+decomposition at an explicit period, and ridge-linear exogenous regression
+with expanding-window validation. Their exact variants and assumptions are
+part of the executable identity. An STL request is therefore not silently
+answered by the additive decomposer. CLI, MCP, and Python dispatch share this
+planner and answer contract.
+
 Production hosts should persist a content-addressed compiler receipt containing
 the source fingerprint plus the model's proposal and each independently
 accepted or rejected question. Replaying the receipt avoids changing intent
@@ -38,9 +62,11 @@ vintages or configurations.
 accept optional typed questions and
 return one compact answer per question. These diagnostics sit beside the
 primary forecast: they cannot modify model selection or the immutable primary
-answer. Predictive comparisons use that exact published path: level questions
-return history and forecast medians plus absolute and relative change, and
-seasonality questions return alignment with the repeated historical phase.
+answer. Level questions use the exact published path to return history and
+forecast medians plus absolute and relative change. Forecast-path seasonality
+alignment is exposed only as a deterministic path diagnostic. A claim about
+the future process's seasonal phase instead comes from a separate fitted
+rolling-origin executable that never reads the point forecast.
 When no task-specific categorical threshold is supplied, Gnomon applies a
 documented property default and labels the resulting best estimate `weak`.
 Weak answers remain useful for exploration but carry
@@ -62,7 +88,7 @@ identity is checked on every hit, and a cache result never upgrades weak
 support or automation eligibility.
 
 Predictive properties use fitted executable receipts. Level, trend, seasonal
-continuation, regime magnitude, and extreme risk compare small deterministic
+phase-state persistence, regime magnitude, and extreme risk compare small deterministic
 candidates on rolling origins; paired dependence selects a return-correlation
 window the same way. Candidate selection, finite-sample calibration, and the
 published estimate are one object. Rare-event absence is not promoted into an
@@ -290,7 +316,12 @@ outcome and regret scoring.
 
 Every event needs a `known_at`. It is what makes the backtest honest: a
 fold cutting at T may only use events knowable by T, so an event recorded
-after the fact cannot improve a historical fold.
+after the fact cannot improve a historical fold. Inline MCP/JSON events are
+always marked `unverified_external`: their caller-declared `known_at` and
+source may create a labelled future scenario but cannot enter historical
+folds. An operator-controlled context file is the current trust boundary for
+declared source metadata. This prevents an agent from backdating its own event;
+it does not cryptographically verify that a human-authored file is truthful.
 
 Events must carry an explicit timezone offset. When the dataset's own
 timestamps are naive — as every example here is — the windows are matched

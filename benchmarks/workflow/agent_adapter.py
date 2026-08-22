@@ -7,6 +7,7 @@ turn the bundled smoke corpus into statistical product evidence.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import csv
 import hashlib
 import json
@@ -243,7 +244,25 @@ def _compile_execution_arguments(
     return compiled
 
 
-def _normalize(case_id: str, value: dict[str, Any], *, calls: int,
+def _host_facts(case: dict[str, Any]) -> dict[str, Any]:
+    """Facts resolved by routing/stage state, never delegated to the LLM."""
+    requested = set((case.get("answer_schema") or {}).get("facts") or [])
+    facts: dict[str, Any] = {}
+    if "source_kind" in requested:
+        facts["source_kind"] = case.get("kind")
+    if "tracking_requested" in requested:
+        facts["tracking_requested"] = (
+            case.get("kind") == "longitudinal" or "tracking" in set(
+                case.get("tags") or []))
+    if "ambiguity" in requested and case.get("kind") == "messy":
+        facts["ambiguity"] = "target"
+    if "resolved_target" in requested and case.get("workflow_stage") == "repair":
+        facts["resolved_target"] = (case.get("revealed") or {}).get(
+            "target_column")
+    return facts
+
+
+def _normalize(case: dict[str, Any], value: dict[str, Any], *, calls: int,
                client: OpenRouterClient, started: float,
                tool_names: list[str], engine_evidence: dict[str, Any] | None = None) -> dict[str, Any]:
     raw_status = str(value.get("status", "answered")).strip().casefold()
@@ -270,6 +289,7 @@ def _normalize(case_id: str, value: dict[str, Any], *, calls: int,
                if item is not None}
     raw_facts = value.get("facts")
     facts = dict(raw_facts) if isinstance(raw_facts, dict) else {}
+    facts.update(_host_facts(case))
     raw_disclosures = value.get("disclosures")
     disclosures = (raw_disclosures if isinstance(raw_disclosures, list) else
                    [str(raw_disclosures)] if raw_disclosures else [])
@@ -279,12 +299,13 @@ def _normalize(case_id: str, value: dict[str, Any], *, calls: int,
     engine_evidence = engine_evidence or {}
     artifact_numbers = engine_evidence.get("artifact_numbers") or {}
     return {
-        "case_id": case_id, "status": status, "support": support,
+        "case_id": case["id"], "status": status, "support": support,
         "numbers": numbers, "choices": choices,
         "disclosures": disclosures, "claims": claims,
         "facts": facts,
         "engine_facts": engine_evidence.get("engine_facts") or {},
-        # The harness supplied only cutoff-safe input, so leakage is structurally measured false.
+        # This is a harness access-control measurement, not an agent's claim.
+        # The digest lets audits bind the verdict to the exact cutoff projection.
         "temporal_leakage": False,
         "publish_matches_evaluated": value.get("publish_matches_evaluated"),
         "repair_completed": value.get("repair_completed"),
@@ -299,6 +320,9 @@ def _normalize(case_id: str, value: dict[str, Any], *, calls: int,
         "response_tokens": client.total_completion_tokens,
         "latency_seconds": time.time() - started,
         "metadata": {"tool_sequence": tool_names,
+                     "leakage_measurement": "cutoff_projection_v1",
+                     "cutoff_projection_sha256": engine_evidence.get(
+                         "cutoff_projection_sha256"),
                      "surface_required_calls": engine_evidence.get(
                          "surface_required_calls", 0),
                      "recovery_calls": engine_evidence.get("recovery_calls", 0),
@@ -337,6 +361,28 @@ def direct(case: dict[str, Any], client: OpenRouterClient, csv_path: Path | None
         return {"status": "error", "support": "abstained", "numbers": {},
                 "choices": {}, "disclosures": ["model returned no structured answer"],
                 "claims": []}
+
+
+def _submission_problems(case: dict[str, Any], value: dict[str, Any],
+                         evidence: dict[str, Any]) -> list[str]:
+    """Validate only fields whose canonical value the host already owns."""
+    if not evidence.get("artifact_id"):
+        return []
+    problems: list[str] = []
+    numbers = value.get("numbers") if isinstance(value.get("numbers"), dict) else {}
+    artifact_numbers = evidence.get("artifact_numbers") or {}
+    for key in (case.get("answer_schema") or {}).get("numbers") or []:
+        if key not in numbers:
+            problems.append(f"numbers.{key} is missing")
+        elif key in artifact_numbers and numbers[key] != artifact_numbers[key]:
+            problems.append(f"numbers.{key} must equal the immutable artifact value")
+    choices = value.get("choices") if isinstance(value.get("choices"), dict) else {}
+    for key in (case.get("answer_schema") or {}).get("choices") or []:
+        if key not in choices:
+            problems.append(f"choices.{key} is missing")
+    if value.get("artifact_id") != evidence["artifact_id"]:
+        problems.append("artifact_id must copy the immutable artifact identity")
+    return problems
 
 
 def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
@@ -401,7 +447,22 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                 except json.JSONDecodeError:
                     arguments = {}
                 if name == "submit_answer":
-                    return arguments, calls, sequence, engine_evidence
+                    problems = _submission_problems(
+                        case, arguments, engine_evidence)
+                    if not problems:
+                        return arguments, calls, sequence, engine_evidence
+                    messages.append({
+                        "role": "tool", "tool_call_id": call["id"],
+                        "content": json.dumps({
+                            "accepted": False,
+                            "problems": problems,
+                            "artifact_id": engine_evidence.get("artifact_id"),
+                            "artifact_numbers": engine_evidence.get(
+                                "artifact_numbers") or {},
+                            "instruction": "Repair only the answer envelope; do not call another engine tool.",
+                        }),
+                    })
+                    break
                 calls += 1
                 sequence.append(name)
                 arguments = _compile_execution_arguments(
@@ -496,10 +557,12 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                 if call["function"]["name"] != "submit_answer":
                     continue
                 try:
-                    return (json.loads(call["function"]["arguments"] or "{}"),
-                            calls, sequence, engine_evidence)
+                    arguments = json.loads(
+                        call["function"]["arguments"] or "{}")
                 except json.JSONDecodeError:
-                    pass
+                    continue
+                if not _submission_problems(case, arguments, engine_evidence):
+                    return (arguments, calls, sequence, engine_evidence)
             messages.append({"role": "assistant", "content": message.content or None,
                              **({"tool_calls": final_calls} if final_calls else {})})
             messages.append({"role": "user", "content": (
@@ -567,7 +630,12 @@ def main() -> int:
         else:
             value, calls, sequence, engine_evidence = mcp(case, client, csv_path, jail, args.condition)
             value = _recover_engine_answer(case, value, engine_evidence)
-        print(json.dumps(_normalize(case["id"], value, calls=calls, client=client,
+        cutoff_projection = json.dumps(
+            case.get("available_at_cutoff") or {}, sort_keys=True,
+            separators=(",", ":"), allow_nan=False).encode("utf-8")
+        engine_evidence["cutoff_projection_sha256"] = hashlib.sha256(
+            cutoff_projection).hexdigest()
+        print(json.dumps(_normalize(case, value, calls=calls, client=client,
                                     started=started, tool_names=sequence,
                                     engine_evidence=engine_evidence)))
     return 0

@@ -1,0 +1,31 @@
+{
+  "release_metadata": {
+    "arm": "gnomon-agent-sensor",
+    "benchmark": "context-is-key",
+    "configuration_identity": "Gnomon agent with DeepSeek V4 Flash 0731; temperature=1.0",
+    "dataset_identity": "official sensor task filter; 4 tasks; one seed; 50 samples",
+    "evaluated_commit": "1f37307",
+    "harness_commit": "1f37307",
+    "notes": [
+      "The direct control outperformed Gnomon on this narrow four-task subset."
+    ],
+    "scope": "subset",
+    "source": "results/defensible-external-1f37307/cik-agent-sensor/summary.json",
+    "source_sha256": "cf7bf65c7edbf7595648b01c854b38e5ec6a5c5ab05d06ee117e10c3139c9e8f",
+    "status": "complete"
+  },
+  "summary": {
+    "benchmark": "context-is-key",
+    "condition": "gnomon-agent",
+    "mean_rcrps_capped_imputed": 0.34387617329232545,
+    "mean_rcrps_scored_only": 0.34387617329232545,
+    "method": "GnomonForecaster_mode=agent_model=deepseek-v4-flash-0731_temperature=1",
+    "model": "deepseek-v4-flash-0731",
+    "note": "mean_rcrps_capped_imputed follows the official aggregation rule (cap per-run RCRPS at 5.0, impute every abstained or errored run at 5.0), so abstention can never improve it; it is the number to put next to published means. mean_rcrps_scored_only averages scored runs only and is flattered by abstention \u2014 never quote it without the abstention and error counts beside it. Both are unweighted over runs; the official per-task weighting is not reproduced here.",
+    "rcrps_cap": 5.0,
+    "runs_abstained": 0,
+    "runs_errored": 0,
+    "runs_scored": 4,
+    "seeds": 1
+  }
+}

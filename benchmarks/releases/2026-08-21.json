@@ -7,49 +7,71 @@
       "scope": "full",
       "source": "results/propertybench-product-contract-20260821/summary.json",
       "file": "propertybench.json",
-      "notes": ["Independent synthetic property validation; raw case rows omitted."]
+      "status": "historical_unverified",
+      "evaluated_commit": "unknown",
+      "harness_commit": "unknown",
+      "dataset_identity": "propertybench seed recorded in summary",
+      "configuration_identity": "summary-only; environment not retained",
+      "notes": ["Single seed passed, but seeds 777 and 555 fail at current HEAD; this is not graduated evidence."]
     },
     {
       "benchmark": "transitionbench",
       "scope": "full",
       "source": "results/transitionbench-current-20260820/summary.json",
       "file": "transitionbench.json",
+      "status": "historical_unverified",
+      "evaluated_commit": "unknown",
+      "harness_commit": "unknown",
+      "dataset_identity": "transitionbench seed recorded in summary",
+      "configuration_identity": "summary-only; environment not retained",
       "notes": ["Easy, moderate, and marginal transition signals."]
     },
     {
       "benchmark": "adapterbench",
       "scope": "full",
       "source": "results/adapterbench-20260818-final/summary.json",
-      "file": "adapterbench.json"
+      "file": "adapterbench.json",
+      "status": "historical_unverified",
+      "evaluated_commit": "unknown",
+      "harness_commit": "unknown",
+      "dataset_identity": "adapterbench corpus recorded in summary",
+      "configuration_identity": "summary-only; environment not retained"
     },
     {
       "benchmark": "volatilitybench",
       "scope": "full",
-      "status": "diagnostic_not_graduated",
+      "status": "historical_unverified",
+      "evaluated_commit": "unknown",
+      "harness_commit": "unknown",
+      "dataset_identity": "volatilitybench corpus recorded in summary",
+      "configuration_identity": "summary-only; environment not retained",
       "source": "results/volatilitybench-product-contract-20260821/summary.json",
       "file": "volatilitybench.json",
       "notes": ["Magnitude estimation is useful; independent directional classification has not graduated."]
-    },
-    {
-      "benchmark": "reasoningbench",
-      "arm": "matched-base-and-enriched",
-      "scope": "full",
-      "source": "results/reasoningbench-replication-20260820/summary.json",
-      "file": "reasoningbench.json"
     },
     {
       "benchmark": "contextbench",
       "arm": "raw-llm",
       "scope": "full",
       "source": "results/contextbench-full-20260816/llm-raw/summary.json",
-      "file": "contextbench-raw-llm.json"
+      "file": "contextbench-raw-llm.json",
+      "status": "historical_unverified",
+      "evaluated_commit": "unknown",
+      "harness_commit": "unknown",
+      "dataset_identity": "contextbench corpus recorded in summary",
+      "configuration_identity": "summary-only; environment not retained"
     },
     {
       "benchmark": "contextbench",
       "arm": "compiled-context",
       "scope": "full",
       "source": "results/contextbench-full-20260816/llm-compiled/summary.json",
-      "file": "contextbench-compiled.json"
+      "file": "contextbench-compiled.json",
+      "status": "historical_unverified",
+      "evaluated_commit": "unknown",
+      "harness_commit": "unknown",
+      "dataset_identity": "contextbench corpus recorded in summary",
+      "configuration_identity": "summary-only; environment not retained"
     },
     {
       "benchmark": "contextbench",
@@ -57,25 +79,41 @@
       "scope": "full",
       "source": "results/contextbench-full-20260816/surface-evidence-r1/summary.json",
       "file": "contextbench-evidence.json",
+      "status": "historical_unverified",
+      "evaluated_commit": "unknown",
+      "harness_commit": "unknown",
+      "dataset_identity": "contextbench corpus recorded in summary",
+      "configuration_identity": "summary-only; environment not retained",
       "notes": ["One of three completed evidence replicates; the full local run retains all replicates."]
     },
     {
       "benchmark": "temporalbench",
       "arm": "base-llm",
-      "scope": "full",
+      "scope": "subset",
       "source": "results/key-suite-20260819/temporalbench-base-merged/summary.json",
-      "file": "temporalbench-base-llm.json"
+      "file": "temporalbench-base-llm.json",
+      "status": "historical_unverified",
+      "evaluated_commit": "unknown",
+      "harness_commit": "unknown",
+      "dataset_identity": "TemporalBench T2/T4 subset recorded in summary",
+      "configuration_identity": "summary-only; environment not retained"
     },
     {
       "benchmark": "temporalbench",
       "arm": "evidence",
-      "scope": "full",
+      "scope": "subset",
       "source": "results/temporalbench-enriched-20260820/merged/summary.json",
       "file": "temporalbench-evidence.json",
+      "status": "historical_unverified",
+      "evaluated_commit": "unknown",
+      "harness_commit": "unknown",
+      "dataset_identity": "TemporalBench T2/T4 subset recorded in summary",
+      "configuration_identity": "summary-only; environment not retained",
       "notes": ["Latest complete 80-case Evidence run; newer 2026-08-21 run was an 8-case contract smoke and is intentionally excluded."]
     }
   ],
   "not_included": [
+    {"benchmark": "reasoningbench", "reason": "Withdrawn: the original evidence packet projected answer-valued fields. The corrected non-transcribable harness needs a fresh matched run."},
     {"benchmark": "leaktrap", "reason": "Already versioned separately under results/leaktrap with its published write-up."},
     {"benchmark": "contextcachebench", "reason": "Validated in CI, but no dated full release run was retained locally."},
     {"benchmark": "workflow", "reason": "Its bundled smoke corpus is a CI contract check, not publishable product evidence."},

@@ -5,15 +5,20 @@ JSON file is traceable to an ignored raw summary through the source digest in
 `release_metadata`; `manifest.json` hashes the curated files. Per-case rows,
 prompts, responses, receipts, credentials, and caches are excluded.
 
-## Headline results
+## Historical results (not current-code validation)
+
+Every retained run in this release predates the release hardening and lacks a
+recorded evaluated/harness commit. They are preserved as historical aggregate
+observations, not as evidence that commit `6d7d41f` or later passes a product
+gate. A future release may use `complete` or `graduated` only when both commits,
+the dataset identity, and the configuration identity are recorded.
 
 | Evaluation | Scope | Result | Interpretation |
 | --- | ---: | --- | --- |
-| PropertyBench | 520 cases | Graduated; every declared gate passed | Fitted property contracts and immutable-primary behavior pass independent synthetic checks. |
-| TransitionBench | 1,620 cases | Graduated | Easy accuracy, moderate accuracy, and supported-claim precision gates passed. |
-| AdapterBench | Full conformance set | Graduated | Statistical adapters conformed and adversarial adapters were rejected. |
+| PropertyBench | 520 cases | Historical single-seed pass; **not graduated** | Current-code seeds 777 and 555 fail different gates, so the retained run cannot support a graduation claim. |
+| TransitionBench | 1,620 cases | Historical unverified | The aggregate is retained, but the evaluated and harness commits were not recorded. |
+| AdapterBench | Full conformance set | Historical unverified | The aggregate is retained, but the evaluated and harness commits were not recorded. |
 | VolatilityBench | 180 primary cases plus balanced suite | Direction not graduated | Scale error improves over the constant baseline in the balanced suite, but held-out balanced direction accuracy is 51.4%; direction remains weak/diagnostic. |
-| ReasoningBench | 72 matched cases | All-correct: 18.1% base → 65.3% Evidence; exact McNemar p = 1.16e-10 | Evidence improved the same DeepSeek model on the benchmark's structured reasoning criteria. This is an internal benchmark, not an external leaderboard result. |
 | ContextBench | 80 cases per included arm | Evidence: 100% disposition accuracy, 93.8% admission precision, 75% recall, 5% false influence, zero leakage | Context admission is useful but not perfect; false influence and missed influence remain product risks. One Evidence replicate is included here and identified as such. |
 | TemporalBench base LLM | 80 T2/T4 rows | T2 choice 34.2%, T4 27.5%, OW-sMAPE 11.478 | Same DeepSeek control used for the matched product comparison. Choice scoring is the repository's disclosed local exact match. |
 | TemporalBench Evidence | 80 T2/T4 rows | T2 choice 32.5%, T4 32.5%, OW-sMAPE 10.756; one call median/p95 | Latest complete Evidence run. It predates the newest answer-contract smoke test and therefore does not prove that the newest code improves the full result. |
@@ -26,6 +31,11 @@ use the raw CI artifact with `benchmarks.report` for matched inference.
 The newer `temporalbench-product-contract-preflight-20260821` run contained
 only eight cases. It is deliberately excluded rather than being presented as a
 full TemporalBench result.
+
+The former ReasoningBench headline was withdrawn. Its evidence packet exposed
+answer-valued direction, analogue, and action fields, so the paired statistic
+primarily measured transcription. The corrected harness rejects any packet
+that directly contains scorer-answer values and requires a fresh matched run.
 
 ## Coverage gaps
 

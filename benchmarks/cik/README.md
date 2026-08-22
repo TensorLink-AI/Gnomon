@@ -26,18 +26,11 @@ Ours (this directory):
   model routing generalised to any OpenRouter model id. Prompting and
   parsing are inherited, not overridden.
 - `gnomon_forecaster.py` — the treatment. Disclosed adapter decisions:
-  RCRPS needs sample paths, so samples are drawn deterministically from
-  the piecewise-linear inverse CDF through Gnomon's q10/q50/q90 with tails
-  clamped at the outer quantiles. That conversion has two consequences
-  for RCRPS, which is computed on sample paths. The paths are
-  comonotonic — every sample sits at the same probability level at every
-  step — so per-timestep CRPS is unaffected but the joint distribution
-  over paths is degenerate. And clamping keeps every sample inside
-  [q10, q90], so a constraint lying beyond the outer quantiles can never
-  be violated by these samples: the clamp can suppress RCRPS's
-  constraint-violation penalty relative to a sampler with real tails.
-  For that penalty term the conversion can favor the treatment — read
-  treatment-vs-control penalty differences with that in mind. Other
+  RCRPS needs sample paths, so each lead receives a deterministic stratified
+  marginal through q10/q50/q90, with linearly extrapolated tails and a
+  lead-specific stratum permutation. This removes the former clamping and
+  comonotonicity advantage, while remaining a disclosed three-quantile
+  approximation rather than a learned joint distribution. Other
   decisions: CiK's timezone-naive indexes are written as UTC;
   LLM-proposed events carry a verifiable `dataset` source referencing
   the task's own context text, with `known_at` at the history start (the
@@ -53,6 +46,7 @@ Ours (this directory):
 | `control` | official DirectPrompt via OpenRouter | the LLM |
 | `gnomon-pure` | none (context ignored) | Gnomon |
 | `gnomon-agent` | proposes typed context events only | Gnomon |
+| `gnomon-conditional` | proposes typed events; prospective effects may alter only a labelled conditional path | Gnomon |
 | `gnomon-mcp` | holds Gnomon's real MCP tools, uses them or not | Gnomon (verbatim artifact) or the LLM, labeled per run |
 
 `gnomon-mcp` is the integrated "agent chooses" arm
@@ -71,7 +65,10 @@ On any arm, an optional-tool win is evidence about the *pipeline*,
 never about Gnomon's own forecasting quality — it can come entirely
 from knowing when not to call.
 
-`gnomon-agent` additionally accepts `--future-context`, which turns on
+`gnomon-conditional` is the stable, manifest-visible form of the conditional
+arm. It enables Gnomon's `context.future_events` lane while retaining the
+unmodified primary path in the same artifact. `gnomon-agent --future-context`
+remains as a compatibility spelling. In either form,
 Gnomon's `context.future_events` lane: the proposer may also quote
 verbatim `source_span`s for stated bounds (`constraint:*`) and stated
 deterministic windows (`override:*`). The adapter verifies each span is a
@@ -108,6 +105,10 @@ python -m benchmarks.cik.run_cik --method control \
 # Treatment: same model, numbers owned by Gnomon
 python -m benchmarks.cik.run_cik --method gnomon-agent \
     --model openai/gpt-4o --output-dir results/cik-gpt4o-gnomon
+
+# Conditional context: same primary plus a separately labelled scenario
+python -m benchmarks.cik.run_cik --method gnomon-conditional \
+    --model openai/gpt-4o --output-dir results/cik-gpt4o-conditional
 
 # Harness floor: no LLM anywhere
 python -m benchmarks.cik.run_cik --method gnomon-pure \

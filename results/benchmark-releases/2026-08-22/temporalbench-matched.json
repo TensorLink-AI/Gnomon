@@ -1,0 +1,88 @@
+{
+  "release_metadata": {
+    "arm": "gnomon-evidence-vs-control",
+    "benchmark": "temporalbench",
+    "configuration_identity": "matched DeepSeek V4 Flash 0731 direct control versus real MCP Evidence profile; abstentions penalized at paired baseline sMAPE",
+    "dataset_identity": "official labeled split sha256=adbdfc679f49ce5dcf15da0e0bc101043944f3812048193b7d956c7fd6286b5a; matched stratified 80-case T1-T4 subset",
+    "evaluated_commit": "29f7a3f",
+    "harness_commit": "8898cf2",
+    "notes": [],
+    "scope": "subset",
+    "source": "results/temporalbench-29f7a3f/final-matched-report.json",
+    "source_sha256": "f4a46f2b2f0571749707ae4bfc4c5276afa5be3a0257c5ad17e55d87e1e432fb",
+    "status": "complete"
+  },
+  "summary": {
+    "comparisons": [
+      {
+        "baseline": "control-final",
+        "baseline_only": 0,
+        "benchmark": "temporalbench",
+        "comparable": true,
+        "matched_tasks": 80,
+        "metrics": {
+          "smape": {
+            "baseline_mean": 13.84758,
+            "baseline_median": 10.916206,
+            "direction_recognised": true,
+            "lower_is_better": true,
+            "penalized": {
+              "abstentions_imputed": 1,
+              "baseline_mean": 13.716994,
+              "basis": "abstentions charged at the baseline's score on the same task",
+              "treatment_mean": 10.931446
+            },
+            "scored_by_both": 39,
+            "test": {
+              "n": 39,
+              "p_value": 0.5223973804968409,
+              "test": "sign_exact",
+              "ties": 0,
+              "treatment_losses": 17,
+              "treatment_wins": 22
+            },
+            "treatment_mean": 10.990608,
+            "treatment_median": 10.603228
+          }
+        },
+        "success_by_basis": {
+          "all_choices_correct": {
+            "baseline": 0.0,
+            "n": 40,
+            "treatment": 0.0
+          },
+          "completion": {
+            "baseline": 1.0,
+            "n": 40,
+            "treatment": 0.975
+          }
+        },
+        "success_rate": {
+          "baseline": 0.5,
+          "treatment": 0.4875
+        },
+        "success_test": {
+          "n": 80,
+          "p_value": 1.0,
+          "test": "mcnemar_exact",
+          "treatment_broke": 1,
+          "treatment_fixed": 0
+        },
+        "treatment": "evidence-final",
+        "treatment_only": 0
+      }
+    ],
+    "cost": {
+      "control-final": {
+        "cost_usd": 0.0,
+        "requests": 82,
+        "truncation_escalations": 0
+      },
+      "evidence-final": {
+        "cost_usd": 0.0,
+        "requests": 294,
+        "truncation_escalations": 0
+      }
+    }
+  }
+}

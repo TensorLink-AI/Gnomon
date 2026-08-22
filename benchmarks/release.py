@@ -16,10 +16,14 @@ import subprocess
 from typing import Any
 
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
 DROP_KEYS = {
     "rows", "observations", "responses", "transcripts", "receipts",
     "per_case", "case_results", "raw_results", "question_receipts",
+    # Several adapters use the generic name ``results`` for one record per
+    # task. Aggregate releases must not publish those rows merely because a
+    # small benchmark happened to contain fewer than the list-size guard.
+    "results",
 }
 FORBIDDEN_KEY_PARTS = ("api_key", "authorization", "credential", "secret")
 MAX_SUMMARY_BYTES = 1_000_000
@@ -55,6 +59,8 @@ def _compact(value: Any) -> Any:
         marker = "/Gnomon/"
         if value.startswith("/") and marker in value:
             return value.split(marker, 1)[1]
+        if value.startswith("/"):
+            return "<absolute-path-redacted>"
     return value
 
 
@@ -88,6 +94,11 @@ def build(spec_path: Path) -> Path:
                 "status": entry.get("status", "complete"),
                 "source": source.as_posix(),
                 "source_sha256": _digest(source),
+                "evaluated_commit": entry.get("evaluated_commit", "unknown"),
+                "harness_commit": entry.get("harness_commit", "unknown"),
+                "dataset_identity": entry.get("dataset_identity", "unknown"),
+                "configuration_identity": entry.get(
+                    "configuration_identity", "unknown"),
                 "notes": entry.get("notes", []),
             },
             "summary": _compact(payload),
@@ -154,6 +165,19 @@ def validate(release_dir: Path) -> None:
             raise ValueError(f"invalid run scope: {path}")
         if metadata.get("scope") != record.get("scope"):
             raise ValueError(f"scope mismatch: {path}")
+        provenance = ("evaluated_commit", "harness_commit", "dataset_identity",
+                      "configuration_identity")
+        if any(not metadata.get(field) for field in provenance):
+            raise ValueError(f"incomplete result provenance: {path}")
+        if record.get("status") in {"complete", "graduated"} and any(
+                metadata.get(field) == "unknown" for field in provenance):
+            raise ValueError(f"publishable result has unknown provenance: {path}")
+        if record.get("status") == "graduated":
+            summary = payload.get("summary", {})
+            gates = summary.get("gates")
+            if summary.get("graduated") is not True or not isinstance(gates, dict) \
+                    or not gates or not all(value is True for value in gates.values()):
+                raise ValueError(f"graduated result has failing gates: {path}")
         if record.get("scope") == "smoke" and record.get("status") == "full":
             raise ValueError(f"smoke run mislabeled as full: {path}")
 

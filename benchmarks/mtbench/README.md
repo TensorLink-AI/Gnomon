@@ -103,7 +103,7 @@ substitutes your OpenRouter model):
 python -m benchmarks.mtbench.run_mtbench control \
     --mtbench-root ~/MTBench \
     --script evaluation/finance/value_prediction.py \
-    --model openai/gpt-4o -- \
+    --model openai/gpt-4o --limit 50 -- \
     --dataset_folder=../../data/processed/finance/aligned_in30days_out7days \
     --save_path=../../results/finance/pred_time_in30_out7/openrouter-gpt-4o/combined \
     --indicator=time --model=gpt-4o --mode=combined
@@ -132,7 +132,12 @@ python -m benchmarks.mtbench.run_mtbench gnomon \
 
 Both subcommands default to the same temperature (0.7, upstream's
 chatgpt default); the ground rules require the two arms of a comparison
-to share it, so configs should set it explicitly for both.
+to share it, so configs should set it explicitly for both. The control
+adapter accepts `--limit` too and applies the same deterministic task
+prefix as the treatment. It also losslessly materializes the official
+download's parquet shards as temporary per-task JSON, because MTBench's
+published evaluator only globs JSON even though its downloader currently
+ships parquet. The official evaluator and scorer remain unmodified.
 
 Outputs: `summary.json` (official-style mean MSE/MAE/RMSE/MAPE over
 samples passing the official filter, plus abstention/error counts and
@@ -141,9 +146,7 @@ sample, and `gnomonbench.jsonl` for the treatment arm. The control arm
 emits no GnomonBench records — the official script writes its own
 result files — so treatment-vs-control comparison goes through
 `benchmarks/report.py`, which joins the two arms per task via its
-`output_details` loader, not `gnomon eval compare`. Note also that
-`benchmarks/run_all.py` injects `--limit` only into the treatment
-subcommand: a config pairing a full-dataset control with a limited
-treatment produces two `summary.json` means that are not directly
-comparable; the per-task matched join in `report.py` is the comparison
-path.
+`output_details` loader, not `gnomon eval compare`. Limited comparisons
+must pass the same `--limit` to both arms. The per-task matched join in
+`report.py` remains the comparison path; summary means alone never establish
+that the same sample IDs completed.

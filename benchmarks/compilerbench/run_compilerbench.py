@@ -14,10 +14,34 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
 from benchmarks.common.envfile import load_env_file
+from benchmarks.common.manifest import code_revision, write_manifest
 from benchmarks.common.openrouter import OpenRouterClient
 from benchmarks.compilerbench.generate import cases
 from gnomon.contracts import GnomonError
-from gnomon.temporal_intent import compile_temporal_text
+from gnomon.temporal_intent import (
+    INTENT_COMPILER_MAX_TOKENS,
+    compile_temporal_text,
+)
+
+
+def _sum_usage(summaries: list[dict[str, Any]]) -> dict[str, Any]:
+    if not summaries:
+        return {}
+    return {
+        "model": summaries[0].get("model"),
+        "base_url": summaries[0].get("base_url"),
+        "requests": sum(int(row.get("requests", 0)) for row in summaries),
+        "transport_attempts": sum(
+            int(row.get("transport_attempts", 0)) for row in summaries),
+        "prompt_tokens": sum(
+            int(row.get("prompt_tokens", 0)) for row in summaries),
+        "completion_tokens": sum(
+            int(row.get("completion_tokens", 0)) for row in summaries),
+        "cost_usd": round(sum(
+            float(row.get("cost_usd", 0)) for row in summaries), 6),
+        "truncation_escalations": sum(
+            int(row.get("truncation_escalations", 0)) for row in summaries),
+    }
 
 
 class ChatAdapter:
@@ -31,7 +55,8 @@ class ChatAdapter:
         response = self.client.chat(
             [{"role": "system", "content": prompt}], tools=[tool],
             tool_choice={"type": "function", "function": {
-                "name": "submit_temporal_intent"}}, max_tokens=700)
+                    "name": "submit_temporal_intent"}},
+            max_tokens=INTENT_COMPILER_MAX_TOKENS)
         call = response.choices[0].message.tool_calls[0]
         return json.loads(call.function.arguments)
 
@@ -84,6 +109,7 @@ def main() -> None:
     parser.add_argument("--infrastructure-retries", type=int, default=2)
     parser.add_argument("--output-dir", default="results/compilerbench")
     args = parser.parse_args()
+    run_revision = code_revision()
     load_env_file()
     rows = cases(seed=args.seed, count=args.count)
     if args.ids:
@@ -91,6 +117,7 @@ def main() -> None:
         rows = [row for row in rows if row["id"] in wanted]
 
     def run(row: dict[str, Any]) -> dict[str, Any]:
+        usage: list[dict[str, Any]] = []
         for attempt in range(args.infrastructure_retries + 1):
             client = OpenRouterClient(
                 args.model, api_key=os.environ.get(args.api_key_env),
@@ -101,8 +128,11 @@ def main() -> None:
                     adapter=ChatAdapter(client), default_verb="describe")
                 result = _score(row, compiled, None)
                 result["infrastructure_retries"] = attempt
+                usage.append(client.usage_summary)
+                result["llm_usage"] = _sum_usage(usage)
                 return result
             except GnomonError as exc:
+                usage.append(client.usage_summary)
                 details = getattr(exc, "details", None) or {}
                 proposal = details.get("compiler_proposal") or {}
                 # A declared refusal or a well-formed proposal rejected by the
@@ -111,18 +141,22 @@ def main() -> None:
                 # not provider infrastructure failure.
                 semantic_refusal = (
                     details.get("compiler_status") == "refused"
-                    or isinstance(proposal.get("questions"), list)
+                    or (isinstance(proposal.get("questions"), list)
+                        and bool(proposal["questions"]))
                 )
                 result = _score(row, None, f"{type(exc).__name__}: {exc}",
                                 details, semantic_refusal=semantic_refusal)
                 result["infrastructure_retries"] = attempt
+                result["llm_usage"] = _sum_usage(usage)
                 return result
             except Exception as exc:
+                usage.append(client.usage_summary)
                 if attempt < args.infrastructure_retries:
                     continue
                 result = _score(row, None, f"{type(exc).__name__}: {exc}",
                                 infrastructure_error=True)
                 result["infrastructure_retries"] = attempt
+                result["llm_usage"] = _sum_usage(usage)
                 return result
         raise AssertionError("unreachable")
 
@@ -147,6 +181,7 @@ def main() -> None:
                  and not isinstance((item["error_details"].get(
                      "compiler_proposal") or {}).get("questions"), list)]
     summary = {"schema_version": "0.1", "model": args.model,
+               "code_revision": run_revision,
                "seed": args.seed,
                "cases": len(results),
                "completed": len(completed),
@@ -167,9 +202,16 @@ def main() -> None:
                "invented_targets_accepted": sum(not item["refused"]
                                                 for item in adversarial),
                "malformed_model_outputs": len(malformed),
+               "llm_usage": _sum_usage([
+                   item.get("llm_usage", {}) for item in results]),
                "results": results}
     (output / "summary.json").write_text(
         json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_manifest(
+        output, benchmark="compilerbench", condition="compiled-intent",
+        model=args.model, target=f"seed={args.seed};count={args.count}",
+        base_url=args.base_url, code_revision=run_revision,
+    )
     print(json.dumps({key: value for key, value in summary.items()
                       if key != "results"}, indent=2))
 

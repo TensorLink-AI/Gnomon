@@ -450,9 +450,22 @@ def compare(baseline: dict[str, Any], treatment: dict[str, Any],
 
 
 def cost_of(run: dict[str, Any]) -> dict[str, Any]:
-    usage = (run.get("summary") or {}).get("llm_usage") or {}
+    usage = ((run.get("summary") or {}).get("llm_usage")
+             or (run.get("manifest") or {}).get("llm_usage") or {})
     return {"cost_usd": usage.get("cost_usd"), "requests": usage.get("requests"),
             "truncation_escalations": usage.get("truncation_escalations")}
+
+
+def comparison_costs(
+    runs: dict[str, dict[str, Any]], pairs: list[list[str]],
+) -> dict[str, dict[str, Any]]:
+    """Return costs only for arms named in this report.
+
+    A result root may contain unrelated benchmarks. Including every sibling
+    made a two-arm comparison appear to carry their requests and costs too.
+    """
+    selected = {name for pair in pairs for name in pair}
+    return {name: cost_of(runs[name]) for name in sorted(selected)}
 
 
 def format_comparison(result: dict[str, Any]) -> str:
@@ -567,7 +580,7 @@ def main() -> int:
 
     if args.json or args.output:
         payload = {"comparisons": results,
-                   "cost": {n: cost_of(r) for n, r in runs.items()}}
+                   "cost": comparison_costs(runs, pairs)}
         rendered = json.dumps(payload, indent=2)
         if args.output:
             destination = Path(args.output)

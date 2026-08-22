@@ -374,3 +374,109 @@ def fit_dependence_executable(left: list[float], right: list[float], *,
                      "quantity": "paired_first_difference_correlation",
                      "primary_forecast_unchanged": True},
     )
+
+
+def _seasonal_phase_state(reference: list[float], candidate: list[float],
+                          season: int) -> tuple[str, int | None, float | None]:
+    """Compare two observed windows; never inspect a point forecast."""
+    if season <= 1 or len(reference) < 2 * season or len(candidate) < season:
+        return "uncertain", None, None
+    template = [_median(reference[offset::season]) for offset in range(season)]
+    correlations: list[tuple[int, float]] = []
+    for shift in range(season):
+        # Candidate follows reference in time. Preserve that phase offset when
+        # window length is not an exact multiple of the seasonal period.
+        expected = [template[(len(reference) + index - shift) % season]
+                    for index in range(len(candidate))]
+        correlation = _correlation(expected, candidate)
+        if correlation is not None:
+            correlations.append((shift, correlation))
+    if not correlations:
+        return "uncertain", None, None
+    zero = next((value for shift, value in correlations if shift == 0), None)
+    best_shift, best = max(correlations, key=lambda item: item[1])
+    distance = min(best_shift, season - best_shift)
+    tolerance = max(1, round(.1 * season))
+    if zero is not None and zero >= .45 and (distance <= tolerance
+                                              or best - zero < .15):
+        return "fixed", 0, zero
+    if best >= .55 and distance > tolerance \
+            and (zero is None or best - zero >= .15):
+        return "shifting", best_shift, best
+    return "uncertain", best_shift, best
+
+
+@dataclass(frozen=True)
+class FittedSeasonalityExecutable:
+    direction: str
+    support: str
+    probabilities: dict[str, float]
+    phase_shift_steps: int | None
+    diagnostics: dict[str, Any]
+
+    def execute(self) -> dict[str, Any]:
+        return {
+            "direction": self.direction,
+            "estimate": {"phase_shift_steps": self.phase_shift_steps},
+            "interval": None, "support": self.support,
+            "automation_eligible": self.support == "supported",
+            "direction_probabilities": self.probabilities,
+            "executable": {"kind": "fitted_future_seasonality",
+                           "property": "seasonality", "version": "0.1"},
+            "diagnostics": self.diagnostics,
+        }
+
+
+def fit_future_seasonality_executable(
+    values: list[float], *, horizon: int, season: int,
+    minimum_folds: int = 5,
+) -> FittedSeasonalityExecutable:
+    """Forecast fixed-vs-shifting seasonality with ordered validation.
+
+    The candidate is persistence of the most recently observed phase state.
+    Rolling origins estimate its confusion distribution. Point-forecast
+    alignment is intentionally absent from this executable.
+    """
+    numeric = [float(value) for value in values if math.isfinite(float(value))]
+    season, horizon = max(1, int(season)), max(1, int(horizon))
+    width = max(2 * season, horizon)
+    origins = list(range(2 * width, len(numeric) - horizon + 1,
+                         max(1, horizon)))
+    pairs: list[tuple[str, str]] = []
+    for origin in origins:
+        prior = numeric[origin - 2 * width:origin - width]
+        recent = numeric[origin - width:origin]
+        future = numeric[origin:origin + horizon]
+        predicted, _, _ = _seasonal_phase_state(prior, recent, season)
+        actual, _, _ = _seasonal_phase_state(recent, future, season)
+        pairs.append((predicted, actual))
+    current, current_shift, _ = _seasonal_phase_state(
+        numeric[-2 * width:-width], numeric[-width:], season)
+    labels = ("fixed", "shifting", "uncertain")
+    matching_actual = [actual for predicted, actual in pairs
+                       if predicted == current]
+    counts = {label: matching_actual.count(label) for label in labels}
+    probabilities = {label: (counts[label] + 1) /
+                     (len(matching_actual) + len(labels)) for label in labels}
+    selected = max(labels, key=lambda label: (
+        probabilities[label], label == current))
+    accuracy = (statistics.mean(predicted == actual for predicted, actual in pairs)
+                if pairs else 0.0)
+    supported = (len(pairs) >= minimum_folds and accuracy >= .7
+                 and probabilities[selected] >= .7
+                 and selected != "uncertain")
+    # A process that failed to preserve its phase-state classification out of
+    # sample has no defensible directional forecast. Preserve the estimated
+    # distribution in the receipt, but abstain instead of publishing whichever
+    # smoothed class happened to be largest.
+    direction = ("uncertain" if pairs and accuracy < .5 else
+                 selected if pairs else current)
+    return FittedSeasonalityExecutable(
+        direction=direction, support=("supported" if supported else "weak"
+                                      if direction != "uncertain" else "abstained"),
+        probabilities=probabilities, phase_shift_steps=current_shift,
+        diagnostics={"folds": len(pairs), "fold_direction_accuracy": accuracy,
+                     "quantity": "future_process_seasonal_phase_state",
+                     "point_forecast_used": False,
+                     "primary_forecast_unchanged": True},
+    )

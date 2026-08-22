@@ -7,9 +7,10 @@ Endpoint: `https://api.engy.ai/v1`
 
 ## Decision
 
-> Superseded 2026-08-14: this records the first experiment. After the response
-> contract and routing fixes, the fresh 1,800-execution workflow experiment
-> selected `evidence` as the default. The historical result follows.
+> Historical experiment. A later workflow run influenced the default-profile
+> decision, but its complete citable evidence and provenance were not retained;
+> its numerical claims have therefore been withdrawn. The historical result
+> below remains explicitly scoped to four rows and revision `0c97e29`.
 
 Keep `full` as the default MCP profile. All four candidates were run against
 the same first T1, T2, T3, and T4 TemporalBench rows with the same model,

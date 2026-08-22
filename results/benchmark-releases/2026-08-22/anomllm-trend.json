@@ -1,0 +1,48 @@
+{
+  "release_metadata": {
+    "arm": "gnomon-vs-deepseek-trend",
+    "benchmark": "anomllm",
+    "configuration_identity": "official result_agg.py; Gnomon detector versus DeepSeek V4 Flash 0731 zero-shot text",
+    "dataset_identity": "official AnomLLM synthetic/trend family; 400 series",
+    "evaluated_commit": "1f37307",
+    "harness_commit": "1f37307",
+    "notes": [
+      "Only the trend family was available and evaluated; no claim is made for the other AnomLLM families."
+    ],
+    "scope": "subset",
+    "source": "results/defensible-external-1f37307/anomllm-trend-matched/summary.json",
+    "source_sha256": "e5a83fb5c4e3014ed9a3b82d9ebc5e4047b14ee4c86ef07eed961dd88ef94b3e",
+    "status": "complete"
+  },
+  "summary": {
+    "benchmark": "anomllm",
+    "code_revision": "1f37307",
+    "control": {
+      "affiliation_f1": 0.32137,
+      "affiliation_precision": 0.3139875,
+      "affiliation_recall": 0.3355675,
+      "f1": 0.2644825,
+      "model": "deepseek-v4-flash-0731",
+      "precision": 0.271655,
+      "recall": 0.274725,
+      "variant": "0shot-text"
+    },
+    "dataset": "trend",
+    "gnomon": {
+      "affiliation_f1": 0.5888075,
+      "affiliation_precision": 0.5898575,
+      "affiliation_recall": 0.5879025,
+      "f1": 0.5790775,
+      "precision": 0.589285,
+      "recall": 0.577425,
+      "supported": 400,
+      "variant": "gnomon-1f37307"
+    },
+    "limitations": [
+      "Only the trend synthetic family was present in the local official checkout; this is not evidence across AnomLLM's other families.",
+      "The official scorer also discovered stale local variants; only the two complete, provenance-checked variants named above are compared."
+    ],
+    "official_scorer": "AnomLLM src/result_agg.py",
+    "series": 400
+  }
+}

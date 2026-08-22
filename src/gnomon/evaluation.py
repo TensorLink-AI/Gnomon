@@ -262,8 +262,12 @@ def active_models(config: Any = None) -> dict[str, Any]:
     if not getattr(models_config, "statistical_enabled", True):
         return {name: MODELS[name] for name in MODELS if name in BASELINES}
     requested = getattr(models_config, "statistical_candidates", None)
-    if not requested:
+    explicitly_restricted = getattr(
+        models_config, "_candidate_pool_restricted", False)
+    if not requested and not explicitly_restricted:
         return dict(MODELS)
+    if not requested:
+        return {name: MODELS[name] for name in MODELS if name in BASELINES}
     unknown = [name for name in requested if name not in MODELS]
     if unknown:
         raise GnomonError(

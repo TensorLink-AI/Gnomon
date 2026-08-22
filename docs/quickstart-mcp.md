@@ -93,7 +93,7 @@ dataset reports `known_time_provenance: partially_assumed`.
 | `mega` | 3 | Experimental inspect/run/track consolidation arm |
 | `decision` | 11 | `core` plus decide, monitor, route, status, and outcome resolution |
 | `data` | 9 | `core` plus ingest, dataset listing, and actuals scoring |
-| `full` | 21 | Every stable tool, including context/covariate validation and TSFM installation |
+| `full` | 18 | Every stable tool, including context/covariate validation and TSFM installation |
 
 `evidence` is the default. Select a broader surface explicitly with
 `gnomon mcp serve --profile core|describe|evidence|mega|decision|data|full`; `gnomon_capabilities`

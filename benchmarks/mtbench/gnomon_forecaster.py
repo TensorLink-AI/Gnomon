@@ -50,10 +50,12 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "src"))
 
 from benchmarks.cik.gnomon_forecaster import events_from_proposals  # noqa: E402
-from benchmarks.common.manifest import write_manifest  # noqa: E402
+from benchmarks.common.manifest import code_revision, write_manifest  # noqa: E402
 from benchmarks.common.openrouter import (  # noqa: E402
     OpenRouterClient,
     extract_json_array,
@@ -318,6 +320,7 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
     if limit:
         samples = samples[:limit]
 
+    run_revision = code_revision()
     output_dir.mkdir(parents=True, exist_ok=True)
     details_dir = output_dir / "output_details"
     details_dir.mkdir(exist_ok=True)
@@ -490,5 +493,6 @@ def run(dataset_folder: Path, output_dir: Path, *, mode: str,
         command=" ".join(sys.argv),
         limit=limit,
         base_url=client.base_url if client is not None else None,
+        code_revision=run_revision,
     )
     return summary

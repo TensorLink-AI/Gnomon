@@ -2,13 +2,17 @@
   "release_metadata": {
     "arm": "evidence-r1",
     "benchmark": "contextbench",
+    "configuration_identity": "summary-only; environment not retained",
+    "dataset_identity": "contextbench corpus recorded in summary",
+    "evaluated_commit": "unknown",
+    "harness_commit": "unknown",
     "notes": [
       "One of three completed evidence replicates; the full local run retains all replicates."
     ],
     "scope": "full",
     "source": "results/contextbench-full-20260816/surface-evidence-r1/summary.json",
     "source_sha256": "1dd4b23c2bb7a925243f2d1eb48cad1c5b904f67c3b8b9644288dca7a9d7e22a",
-    "status": "complete"
+    "status": "historical_unverified"
   },
   "summary": {
     "answered": 80,

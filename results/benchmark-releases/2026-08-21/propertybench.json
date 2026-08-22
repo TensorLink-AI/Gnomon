@@ -2,13 +2,17 @@
   "release_metadata": {
     "arm": null,
     "benchmark": "propertybench",
+    "configuration_identity": "summary-only; environment not retained",
+    "dataset_identity": "propertybench seed recorded in summary",
+    "evaluated_commit": "unknown",
+    "harness_commit": "unknown",
     "notes": [
-      "Independent synthetic property validation; raw case rows omitted."
+      "Single seed passed, but seeds 777 and 555 fail at current HEAD; this is not graduated evidence."
     ],
     "scope": "full",
     "source": "results/propertybench-product-contract-20260821/summary.json",
     "source_sha256": "2eacdae34816f843d0e7a614853cfa3e8244f0f3733a1c53f86905377d41cfbd",
-    "status": "complete"
+    "status": "historical_unverified"
   },
   "summary": {
     "by_property": {

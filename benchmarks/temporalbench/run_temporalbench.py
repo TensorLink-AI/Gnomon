@@ -69,7 +69,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
-from benchmarks.common.manifest import write_manifest  # noqa: E402
+from benchmarks.common.manifest import (  # noqa: E402
+    code_revision, read_manifest, write_manifest,
+)
 from benchmarks.common.openrouter import OpenRouterClient  # noqa: E402
 from benchmarks.common.records import RecordWriter, RunRecord  # noqa: E402
 from benchmarks.temporalbench import gnomon_runner, scoring  # noqa: E402
@@ -96,6 +98,35 @@ forecast values here can only introduce truncation or transcription error.
 """
 
 EVIDENCE_BUDGET = 40_000
+
+
+def primary_forecast_immutability(
+        condition: str, forecast_rows: int,
+        route_mix: dict[str, int]) -> bool | None:
+    """Report a governed invariant only when the arm can establish it."""
+    if not forecast_rows or condition == "control":
+        return None
+    if condition == "gnomon-mcp":
+        # An abstention publishes no array and therefore cannot mutate the
+        # primary forecast. Only a submitted model-authored channel violates
+        # this invariant.
+        return (route_mix.get("gnomon", 0) > 0
+                and set(route_mix).issubset({"gnomon", "abstain"}))
+    return True
+
+
+def resume_revision_provenance(
+    *, current: str | None, prior: str | None,
+    resumed_rows: int, total_rows: int,
+) -> tuple[str | None, list[str], str | None]:
+    """Separate execution provenance from later deterministic rescoring."""
+    executed_now = max(0, total_rows - resumed_rows)
+    revisions = {item for item in (prior if resumed_rows else None,
+                                   current if executed_now else None) if item}
+    execution = (next(iter(revisions)) if len(revisions) == 1 else
+                 "mixed" if len(revisions) > 1 else current or prior)
+    summarized_by = (current if resumed_rows and current != execution else None)
+    return execution, sorted(revisions), summarized_by
 
 
 def infrastructure_failure(error: Exception) -> bool:
@@ -226,22 +257,28 @@ def answer_row(row: dict[str, Any], condition: str,
         # fallback via the gnomon_forecast tool — the realistic path.
         # T1/T3 carry no forecast channels, so they take the same
         # session with the tier's own answer shape.
-        profile_args = {} if mcp_profile == "full" else {"profile": mcp_profile}
+        # Keep tier-independent session options separate from forecast-only
+        # model-admission options. Question compilation applies to both the
+        # forecasting questions and T3's descriptive question pack.
+        common_args = ({} if mcp_profile == "full"
+                       else {"profile": mcp_profile})
         if compile_context:
-            profile_args["compile_context"] = True
+            common_args["compile_context"] = True
             if context_receipts_dir:
-                profile_args["context_receipts_dir"] = context_receipts_dir
-        if compile_questions:
-            profile_args["compile_questions"] = True
-            if question_receipts_dir:
-                profile_args["question_receipts_dir"] = question_receipts_dir
+                common_args["context_receipts_dir"] = context_receipts_dir
         if mcp_call_timeout is not None:
-            profile_args["mcp_call_timeout"] = mcp_call_timeout
-        if model_evidence_registry and row.get("tier") in ("T2", "T4"):
-            profile_args["model_evidence_registry"] = model_evidence_registry
-        if row.get("tier") in ("T2", "T4"):
-            return run_row(row, client, **profile_args)
-        return mcq_row(row, client, **profile_args)
+            common_args["mcp_call_timeout"] = mcp_call_timeout
+        if compile_questions:
+            common_args["compile_questions"] = True
+            if question_receipts_dir:
+                common_args["question_receipts_dir"] = question_receipts_dir
+        if row.get("tier") not in ("T2", "T4"):
+            return mcq_row(row, client, **common_args)
+
+        forecast_args = dict(common_args)
+        if model_evidence_registry:
+            forecast_args["model_evidence_registry"] = model_evidence_registry
+        return run_row(row, client, **forecast_args)
 
     analysis = gnomon_runner.analyse_row(
         row, best_effort=best_effort, named_tsfm=named_tsfm)
@@ -420,7 +457,7 @@ def main() -> int:
              "randomness is not attributed to the tool surface.")
     parser.add_argument(
         "--compile-questions", action="store_true",
-        help="Gnomon MCP T2/T4 only: compile question text into validated typed intent before execution.")
+        help="Gnomon MCP T2/T3/T4: compile question text into validated typed intent before execution.")
     parser.add_argument(
         "--question-receipts-dir",
         help="Persist immutable typed-intent compiler receipts for matched replay.")
@@ -494,6 +531,8 @@ def main() -> int:
               if args.model else None)
 
     output_dir = Path(args.output_dir)
+    current_revision = code_revision()
+    prior_manifest = read_manifest(output_dir) if args.resume else {}
     details_dir = output_dir / "details"
     details_dir.mkdir(parents=True, exist_ok=True)
     records_path = output_dir / "gnomonbench.jsonl"
@@ -536,6 +575,7 @@ def main() -> int:
     temporal_answer_receipts = temporal_answers_returned = 0
     temporal_primary_unchanged = 0
     typed_questions_requested = typed_questions_with_engine_answer = 0
+    typed_engine_answers_officially_comparable = 0
     typed_engine_answers_officially_correct = 0
     typed_answers_comparable_to_submission = 0
     typed_answers_preserved_by_agent = 0
@@ -811,7 +851,18 @@ def main() -> int:
                         # Later receipts for the same immutable artifact do
                         # not multiply the evaluation denominator.
                         receipt_answers[question_id] = typed_answer
-            requested_order = list((row.get("mcq") or {}).keys())
+            if tier == "T3":
+                # T3's persisted MCP record deliberately carries compiler
+                # counts, not raw benchmark question text. Inline describe
+                # receipts can therefore establish unique returned answers
+                # and coverage, but not a label/options projection.
+                requested_count = int(temporal_compilation.get("accepted", 0))
+                typed_questions_requested += requested_count
+                typed_questions_with_engine_answer += min(
+                    requested_count, len(receipt_answers))
+                requested_order = []
+            else:
+                requested_order = list((row.get("mcq") or {}).keys())
             requested_keys = set(requested_order)
             row_engine_answers = align_typed_answers(
                 requested_order, list(receipt_answers.values()))
@@ -829,9 +880,10 @@ def main() -> int:
                 # that as preservation, not as an LLM paraphrase.
                 from gnomon.temporal_vocabulary import project_temporal_choice
                 options = (((row.get("mcq") or {}).get(question_id) or {})
-                           .get("options") or [])
+                           .get("options") or []) if tier != "T3" else []
                 projected = project_temporal_choice(best.get("value"), options)
                 if projected:
+                    typed_engine_answers_officially_comparable += 1
                     candidates.add(str(projected["display_value"]).strip().lower())
                     expected = (((row.get("mcq") or {}).get(question_id) or {})
                                 .get("label"))
@@ -957,7 +1009,10 @@ def main() -> int:
             "advisory_overrides": advisory_overrides,
             "advisory_overrides_helped": advisory_overrides_helped,
             "advisory_overrides_hurt": advisory_overrides_hurt,
-            "primary_forecast_unchanged": True,
+            # Choice-only tiers create no primary forecast. They cannot earn
+            # an immutability pass merely because there was nothing to mutate.
+            "primary_forecast_unchanged": primary_forecast_immutability(
+                args.condition, forecast_rows_total, route_mix),
         },
         "forecast_metrics_mean_scored_only": {
             key: sum(values) / len(values)
@@ -1050,10 +1105,12 @@ def main() -> int:
                         if typed_questions_requested else None,
                     "officially_correct_with_engine_answer":
                         typed_engine_answers_officially_correct,
+                    "engine_answers_comparable_to_official_options":
+                        typed_engine_answers_officially_comparable,
                     "official_accuracy_conditional_on_engine_answer": round(
                         typed_engine_answers_officially_correct
-                        / typed_questions_with_engine_answer, 4)
-                        if typed_questions_with_engine_answer else None,
+                        / typed_engine_answers_officially_comparable, 4)
+                        if typed_engine_answers_officially_comparable else None,
                     "engine_answers_comparable_to_agent_submission":
                         typed_answers_comparable_to_submission,
                     "agent_preserved_canonical_answer":
@@ -1126,6 +1183,11 @@ def main() -> int:
     # Provenance beside the results on direct CLI runs too, mirroring
     # run_all.py's field conventions (run_all overwrites this with its
     # own manifest when it is the caller).
+    execution_revision, execution_revisions, summarized_by_revision = \
+        resume_revision_provenance(
+            current=current_revision,
+            prior=prior_manifest.get("code_revision"),
+            resumed_rows=resumed_rows, total_rows=total)
     write_manifest(
         output_dir,
         benchmark="temporalbench",
@@ -1134,6 +1196,10 @@ def main() -> int:
         target="tiers=" + ",".join(tiers or TIERS)
                + (";datasets=" + ",".join(datasets) if datasets else ""),
         command=" ".join(sys.argv),
+        code_revision=execution_revision,
+        execution_code_revisions=(execution_revisions
+                                  if len(execution_revisions) > 1 else None),
+        summarized_by_revision=summarized_by_revision,
         limit=args.limit,
         # Which endpoint served the model: not part of `target` (it does
         # not change the task set), but it does change what the score is

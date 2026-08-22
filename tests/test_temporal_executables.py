@@ -2,7 +2,8 @@ import math
 import random
 
 from gnomon.temporal_executables import (
-    fit_dependence_executable, fit_temporal_executable,
+    fit_dependence_executable, fit_future_seasonality_executable,
+    fit_temporal_executable,
 )
 
 
@@ -74,3 +75,31 @@ def test_dependence_uses_paired_differences_and_calibrates() -> None:
     assert answer["direction"] == "positive"
     assert answer["support"] == "supported"
     assert answer["diagnostics"]["primary_forecast_unchanged"] is True
+
+
+def test_future_seasonality_distinguishes_fixed_from_repeatable_phase_shift() -> None:
+    fixed = [math.sin(2 * math.pi * index / 12) for index in range(360)]
+    shifting = []
+    for block in range(15):
+        shifting.extend(math.sin(2 * math.pi * (index + 3 * block) / 12)
+                        for index in range(24))
+
+    fixed_answer = fit_future_seasonality_executable(
+        fixed, horizon=24, season=12).execute()
+    shifting_answer = fit_future_seasonality_executable(
+        shifting, horizon=24, season=12).execute()
+
+    assert fixed_answer["direction"] == "fixed"
+    assert shifting_answer["direction"] == "shifting"
+    assert fixed_answer["diagnostics"]["point_forecast_used"] is False
+    assert shifting_answer["diagnostics"]["folds"] >= 5
+
+
+def test_future_seasonality_preserves_phase_for_nonperiod_window_width() -> None:
+    fixed = [math.sin(2 * math.pi * index / 12) for index in range(600)]
+
+    answer = fit_future_seasonality_executable(
+        fixed, horizon=31, season=12).execute()
+
+    assert answer["direction"] == "fixed"
+    assert answer["support"] == "supported"

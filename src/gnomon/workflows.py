@@ -16,6 +16,7 @@ the task. The response is schema-bound JSON with no tool access.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -43,6 +44,80 @@ class DocumentRef:
     content: str
     source_type: str = "planning_file"
     reference: str = ""
+
+
+_ISO_TIMESTAMP = (
+    r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})"
+)
+_KNOWN_AT_RE = re.compile(
+    rf"\b(?:known|knowable|published|announced)\s+(?:at|on)\s+"
+    rf"(?P<known_at>{_ISO_TIMESTAMP})\b", re.IGNORECASE)
+_CONFIRMED_SCHEDULE_RE = re.compile(
+    r"\b(?:(?:complete|confirmed)\s+)?schedule\s+(?:was\s+)?published\b",
+    re.IGNORECASE,
+)
+_SCHEDULE_ROW_RE = re.compile(
+    rf"^(?P<event_type>[^.]+?)\s+affects\s+(?:the\s+)?"
+    rf"(?P<scope>[^.]+?)\s+from\s+(?P<start>{_ISO_TIMESTAMP})\s+"
+    rf"through\s+(?P<end>{_ISO_TIMESTAMP})\.?$", re.IGNORECASE)
+
+
+def extract_explicit_schedule_context(
+    documents: list[DocumentRef],
+) -> dict[str, Any]:
+    """Parse literal schedule rows without asking an LLM to copy timestamps.
+
+    This intentionally recognises one narrow, auditable grammar.  Every value
+    comes from a verbatim source line, and a document-wide ``known_at`` must be
+    stated explicitly.  Unrecognised prose is returned as ``residual_lines``
+    for a semantic compiler; it is never guessed or silently discarded.
+    """
+    proposals: list[dict[str, Any]] = []
+    residual: list[dict[str, Any]] = []
+    for document_index, document in enumerate(documents):
+        known_match = _KNOWN_AT_RE.search(document.content)
+        known_at = known_match.group("known_at") if known_match else None
+        confirmed_schedule = bool(_CONFIRMED_SCHEDULE_RE.search(
+            document.content))
+        for line_number, source_line in enumerate(
+                document.content.splitlines(), start=1):
+            line = source_line.strip()
+            match = _SCHEDULE_ROW_RE.fullmatch(line)
+            if not match:
+                if line and not (known_match and known_match.group(0) in line):
+                    residual.append({
+                        "document_index": document_index,
+                        "line_number": line_number,
+                        "text": source_line,
+                    })
+                continue
+            if known_at is None:
+                residual.append({
+                    "document_index": document_index,
+                    "line_number": line_number,
+                    "text": source_line,
+                    "reason": "document does not state when schedule was knowable",
+                })
+                continue
+            scope = match.group("scope").strip()
+            if scope.lower() in {"value series", "all series"}:
+                entity_scope = ["*"]
+            else:
+                # Preserve an explicitly named scope verbatim. Alias and
+                # target resolution belong to the caller's schema layer.
+                entity_scope = [scope]
+            proposals.append({
+                "document_index": document_index,
+                "event_type": match.group("event_type").strip(),
+                "entity_scope": entity_scope,
+                "effective_start": match.group("start"),
+                "effective_end": match.group("end"),
+                "known_at": known_at,
+                "evidence_quote": source_line,
+                "status": "confirmed" if confirmed_schedule else "tentative",
+                "confidence": 1.0 if confirmed_schedule else 0.5,
+            })
+    return {"events": proposals, "residual_lines": residual}
 
 
 CONTEXT_RESPONSE_SCHEMA: dict[str, Any] = {

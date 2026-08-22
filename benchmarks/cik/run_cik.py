@@ -10,6 +10,9 @@ Conditions:
 - ``gnomon-pure``   Gnomon alone, context text ignored
 - ``gnomon-agent``  OpenRouter LLM proposes typed context events; Gnomon
                   validates, computes, or abstains
+- ``gnomon-conditional``  the same proposer with Gnomon's explicitly labelled
+                  prospective context lane enabled; the immutable primary is
+                  retained beside every conditional forecast
 - ``gnomon-mcp``    OpenRouter model may call Gnomon's real MCP surface or
                   submit its own labeled forecast
 
@@ -48,9 +51,11 @@ import math
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "src"))
 
-from benchmarks.common.manifest import write_manifest  # noqa: E402
+from benchmarks.common.manifest import code_revision, write_manifest  # noqa: E402
 from benchmarks.common.records import RecordWriter, RunRecord  # noqa: E402
 
 ABSTAIN_MARKER = "GNOMON_ABSTAINED"
@@ -129,11 +134,19 @@ def build_method(args):
             args.model, temperature=args.temperature,
             trace_dir=Path(args.output_dir) / "mcp-traces",
         )
+    conditional_arm = args.method == "gnomon-conditional"
+    if conditional_arm:
+        # This is deliberately a named condition rather than an easy-to-miss
+        # flag combination. It keeps the benchmark's primary and conditional
+        # arms identifiable in manifests and cache keys.
+        args.future_context = True
     if args.structural_context and not args.future_context:
         raise SystemExit("--structural-context requires --future-context")
     from benchmarks.cik.gnomon_forecaster import GnomonForecaster
 
-    mode = "agent" if args.method == "gnomon-agent" else "pure"
+    mode = "agent" if args.method in {
+        "gnomon-agent", "gnomon-conditional"
+    } else "pure"
     if args.future_context and mode != "agent":
         raise SystemExit("--future-context requires --method gnomon-agent")
     return GnomonForecaster(
@@ -144,6 +157,7 @@ def build_method(args):
 
 
 def run(args) -> int:
+    run_revision = code_revision()
     from cik_benchmark import ALL_TASKS
     from cik_benchmark.config import DEFAULT_N_SAMPLES
     from cik_benchmark.evaluation import evaluate_all_tasks, evaluate_task
@@ -192,6 +206,7 @@ def run(args) -> int:
         task_filter=args.task_filter,
         fail_on_invalid=args.fail_on_invalid if args.method == "control" else None,
         status="ok",
+        code_revision=run_revision,
     )
     return 0
 
@@ -298,7 +313,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--method",
         required=True,
-        choices=["control", "gnomon-pure", "gnomon-agent", "gnomon-mcp"],
+        choices=["control", "gnomon-pure", "gnomon-agent",
+                 "gnomon-conditional", "gnomon-mcp"],
         help="gnomon-mcp: the model holds Gnomon's real MCP tools and "
              "chooses per task whether to use them; the route is "
              "classified from the transcript "
@@ -306,7 +322,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--model",
-        help="OpenRouter model id (control and gnomon-agent), e.g. openai/gpt-4o",
+        help="OpenRouter model id (control and agent conditions), e.g. openai/gpt-4o",
     )
     parser.add_argument("--seeds", type=int, default=5,
                         help="Seeds per task (official: 5)")
@@ -349,8 +365,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
-    if args.method == "gnomon-agent" and not args.model:
-        parser.error("--model is required for gnomon-agent")
+    if args.method in {"gnomon-agent", "gnomon-conditional"} and not args.model:
+        parser.error(f"--model is required for {args.method}")
     return run(args)
 
 

@@ -63,8 +63,9 @@ Per task-seed run:
 Both exits are converted to score samples by the same
 `samples_from_quantile_rows` sampler already used (and disclosed) by the
 gnomon-agent arm, so neither exit gets a different distribution shape.
-The sampler's known biases (comonotonic paths, clamped tails) apply
-equally to both.
+The sampler applies the same stratified marginals, extrapolated tails, and
+lead-specific permutations to both exits. It remains a three-quantile
+approximation, but neither exit receives the former clamped/comonotonic bias.
 
 The earlier draft's rule "the model never writes a number" was written
 for a mandatory-Gnomon posture and cannot survive a free choice: a model

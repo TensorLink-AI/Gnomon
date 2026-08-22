@@ -55,6 +55,20 @@ def test_merge_shards_preserves_verified_manifest(tmp_path):
     assert len(manifest["source_commands"]) == 2
 
 
+def test_merge_shards_accepts_documented_resume_recovery(tmp_path):
+    left, right, target = tmp_path / "left", tmp_path / "right", tmp_path / "all"
+    _shard(left, "a", 1)
+    _shard(right, "b", 2)
+    _manifest(left, model="same", resume=True)
+    _manifest(right, model="same")
+
+    merge_shards(target, [left, right])
+
+    manifest = json.loads((target / "manifest.json").read_text())
+    assert manifest["rows"] == 2
+    assert "resume" not in manifest
+
+
 def test_merge_shards_rejects_incompatible_manifests(tmp_path):
     left, right, target = tmp_path / "left", tmp_path / "right", tmp_path / "all"
     _shard(left, "a", 1)

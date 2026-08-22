@@ -131,7 +131,15 @@ def score_turn(
         return {"scored": False, "passed": None, "basis": "no_verify_spec"}
     mechanical = score_mechanical(verify, response)
     if mechanical is not None:
-        return {"scored": True, "passed": mechanical, "basis": "mechanical"}
+        candidates = numbers_in(response) if verify.get("range") else []
+        # The published local rule remains available for fidelity, but a
+        # response containing many candidate numbers is not clean accuracy
+        # evidence: its chance of landing in a broad range grows with output
+        # numerosity. Consumers can gate on ``numerosity_robust`` or report the
+        # unambiguous subset beside the raw mechanical score.
+        return {"scored": True, "passed": mechanical, "basis": "mechanical",
+                "numeric_candidate_count": len(candidates),
+                "numerosity_robust": len(candidates) <= 1}
     if judge_client is not None:
         passed = score_with_judge(verify, reference_turn, response, judge_client)
         return {"scored": True, "passed": passed, "basis": "llm_judge"}

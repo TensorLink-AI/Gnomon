@@ -67,6 +67,26 @@ def test_temporal_question_compiler_uses_text_not_labels_and_reuses_receipt(
     assert reused["compiler_called"] is False
 
 
+def test_t3_question_compiler_reads_pack_text_but_seals_oracle_fields(
+        tmp_path) -> None:
+    row = _t3_row()
+    row["pack"][0]["evidence"] = {"answer_key_fact": 999}
+    client = ScriptedClient([{"tool_calls": [("submit_temporal_intent", {
+        "status": "compiled", "questions": [{
+            "id": "q1", "verb": "describe", "property": "level",
+            "target": "hr"}]})]}])
+
+    result = mcp_agent.compile_row_temporal_questions(
+        row, client, ["hr"], str(tmp_path / "receipts"))
+
+    assert result["questions"][0]["property"] == "level"
+    request = client.requests[0]
+    rendered = json.dumps(request, sort_keys=True)
+    assert "answer_key_fact" not in rendered
+    assert '"label"' not in rendered
+    assert "Higher" not in rendered
+
+
 def test_failed_temporal_receipt_is_diagnostic_not_permanent_cache(
         tmp_path) -> None:
     row = _row(sparse_temp=False)
@@ -276,7 +296,8 @@ class ScriptedClient:
         self.total_completion_tokens = 0
 
     def chat(self, messages, *, n=1, tools=None, tool_choice=None, **kwargs):
-        self.requests.append({"tools": tools, "tool_choice": tool_choice})
+        self.requests.append({"messages": messages, "tools": tools,
+                              "tool_choice": tool_choice})
         assert self.steps, "model script exhausted before submission"
         step = self.steps.pop(0)
         action = step(messages) if callable(step) else step
@@ -340,6 +361,17 @@ def _run(row, steps, tmp_path, sessions=None):
 def _run_mcq(row, steps, tmp_path, sessions=None):
     return mcq_row(row, ScriptedClient(steps),
                    session_factory=_factory(sessions), work_dir=str(tmp_path))
+
+
+def test_mcq_row_accepts_mcp_timeout_for_t1_t3(tmp_path) -> None:
+    """The common runner forwards this option for every tier."""
+    outcome = mcq_row(
+        _t1_row(), ScriptedClient([{"tool_calls": [("submit_answer", {
+            "answers": {"trend": "upward", "volatility": "increased"},
+            "reasoning": "bounded"
+        })]}]), session_factory=_factory(), work_dir=str(tmp_path),
+        mcp_call_timeout=12.0)
+    assert "answer" in outcome
 
 
 # -- exits and routes -------------------------------------------------------
@@ -1126,8 +1158,10 @@ def _t3_row() -> dict:
     return {
         "id": "tb-mcp-t3", "tier": "T3", "source_dataset": "MIMIC",
         "prompt": 'Answer the pack. Input (JSON): {"hr": [70, 71, 72, 73]}',
-        "pack": [{"options": ["Higher", "Lower"], "label": "Higher"},
-                 {"options": ["Yes", "No"], "label": "No"}],
+        "pack": [{"question": "Is hr higher at the end?",
+                  "options": ["Higher", "Lower"], "label": "Higher"},
+                 {"question": "Is hr level stable?",
+                  "options": ["Yes", "No"], "label": "No"}],
     }
 
 
@@ -1152,6 +1186,68 @@ def test_t3_answers_are_the_pack_list_in_order(tmp_path):
     ], tmp_path)
     assert outcome["answer"] == {"answers": ["Higher", "No"]}
     assert score_t3(_t3_row(), outcome["answer"]["answers"])["correct"] == 2
+
+
+def test_evidence_t3_describe_uses_host_resolved_panel_binding(tmp_path):
+    """The agent chooses the verb/questions, never the data schema."""
+    row = _t3_row()
+
+    def submit_after_describe(messages):
+        payload = _last_tool_payload(messages)
+        assert payload.get("status") != "error", payload
+        return {"tool_calls": [("submit_answer", {
+            "answers": ["Higher", "No"],
+        })]}
+
+    client = ScriptedClient([
+        {"tool_calls": [("gnomon_describe", {
+            "input": "/outside/invented.csv",
+            "target_column": "invented",
+            "frequency": "10min",
+        })]},
+        submit_after_describe,
+    ])
+    outcome = mcq_row(
+        row, client, session_factory=_factory(), work_dir=str(tmp_path),
+        profile="evidence")
+
+    assert outcome["answer"] == {"answers": ["Higher", "No"]}
+    assert outcome["mcp"]["tool_sequence"][0]["host_data_binding"] == \
+        "long_panel"
+    assert outcome["mcp"]["tool_sequence"][0]["is_error"] is False
+
+
+def test_evidence_t3_attaches_compiled_pack_questions_to_describe(tmp_path):
+    client = ScriptedClient([
+        {"tool_calls": [("submit_temporal_intent", {
+            "status": "compiled", "questions": [{
+                "id": "q1", "verb": "describe", "property": "level",
+                "target": "hr"}]})]},
+        {"tool_calls": [("gnomon_describe", {})]},
+        {"tool_calls": [("submit_answer", {
+            "answers": ["Higher", "No"],
+        })]},
+    ])
+
+    outcome = mcq_row(
+        _t3_row(), client, session_factory=_factory(),
+        work_dir=str(tmp_path), profile="evidence",
+        compile_questions=True,
+        question_receipts_dir=str(tmp_path / "question-receipts"))
+
+    first = outcome["mcp"]["tool_sequence"][0]
+    assert first["host_data_binding"] == "long_panel"
+    # The deterministic property router restores the second explicit level
+    # question omitted by the mocked semantic proposal.
+    assert first["compiled_questions"] == 2
+    assert first["is_error"] is False
+    assert outcome["mcp"]["calls"] == 1
+    receipts = outcome["mcp"]["temporal_answer_receipts"]
+    assert len(receipts) == 1
+    assert receipts[0]["source"] == "inline_describe"
+    assert receipts[0]["primary_forecast_unchanged"] is None
+    assert len(receipts[0]["answers"]) == 2
+    assert len(client.requests) == 3  # compiler, describe, forced submission
 
 
 def test_mcq_submit_schema_is_the_row_s_own_shape():
@@ -1267,6 +1363,32 @@ def test_answer_row_passes_the_experiment_profile(monkeypatch):
         mcp_profile="core", mcp_call_timeout=17,
     )
     assert seen == [{"profile": "core", "mcp_call_timeout": 17}]
+
+
+def test_answer_row_passes_question_compiler_to_mcq_path(monkeypatch):
+    """T3 question packs use the same host compiler as forecast MCQs."""
+    from benchmarks.temporalbench import run_temporalbench
+
+    seen = []
+    monkeypatch.setattr(
+        mcp_agent, "mcq_row",
+        lambda row, client, **kwargs: seen.append(kwargs) or {},
+    )
+    run_temporalbench.answer_row(
+        {"tier": "T1", "prompt": "x"}, "gnomon-mcp", None,
+        mcp_profile="evidence", compile_context=True,
+        context_receipts_dir="context", compile_questions=True,
+        question_receipts_dir="questions", mcp_call_timeout=17,
+        model_evidence_registry="registry.json",
+    )
+    assert seen == [{
+        "profile": "evidence",
+        "compile_context": True,
+        "context_receipts_dir": "context",
+        "mcp_call_timeout": 17,
+        "compile_questions": True,
+        "question_receipts_dir": "questions",
+    }]
 
 
 def test_mcp_condition_keeps_the_requested_tiers(tmp_path, monkeypatch):

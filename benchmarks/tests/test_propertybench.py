@@ -7,7 +7,7 @@ def test_propertybench_is_deterministic_complete_and_immutable() -> None:
     assert first == second
     assert first["cases"] == 52
     assert first["gates"]["complete"] is True
-    assert first["gates"]["primary_immutable"] is True
+    assert first["gates"]["inputs_immutable"] is True
     stress = first["seasonality_alignment_stress"]
     assert stress["cases"] == 48
     assert set(stress["by_family"]) == {

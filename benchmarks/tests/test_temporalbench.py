@@ -23,6 +23,10 @@ from benchmarks.temporalbench.scoring import (
 from benchmarks.temporalbench.score_per_channel import (
     stable_scaled_error_denominator,
 )
+from benchmarks.temporalbench.run_temporalbench import (
+    primary_forecast_immutability,
+    resume_revision_provenance,
+)
 from benchmarks.temporalbench.tasks import extract_json_object, prompt_input_arrays
 
 
@@ -186,6 +190,45 @@ def test_temporalbench_axis_is_anchored_to_official_cutoff(tmp_path):
     try:
         assert run.time_step.total_seconds() == 3600
         assert run.epoch == datetime(2030, 1, 2, 8, tzinfo=timezone.utc)
+    finally:
+        run.finish()
+
+
+def test_host_compiled_context_is_written_inside_initialized_jail(tmp_path):
+    from benchmarks.temporalbench.mcp_agent import _Run
+
+    class Client:
+        total_prompt_tokens = 0
+        total_completion_tokens = 0
+
+    class Session:
+        def close(self):
+            pass
+
+    row = {
+        "tier": "T4", "id": "compiled-context",
+        "meta": {"n_horizon": 1, "main_key": "target",
+                 "history_end": "2030-01-02T10:00:00+00:00"},
+        "input": {"history": {"target": [1.0, 2.0, 3.0]}},
+        "ground_truth": {"target": [4.0]},
+        "_validated_context": {"events": [{
+            "event_id": "e1", "event_type": "deploy",
+            "entity_scope": ["*"],
+            "effective_start": "2030-01-02T11:00:00+00:00",
+            "effective_end": "2030-01-02T12:00:00+00:00",
+            "known_at": "2030-01-02T09:00:00+00:00",
+            "status": "confirmed", "confidence": 1.0,
+            "attributes": {}, "created_by": "llm",
+            "source": {"type": "benchmark_prompt", "reference": "row"},
+        }]},
+    }
+    run = _Run(row, Client(), session_factory=lambda jail: Session(),
+               work_dir=str(tmp_path), profile="evidence",
+               compile_context=True)
+    try:
+        assert run.context_events_file is not None
+        assert run.context_events_file.parent == run.jail
+        assert run.context_events_file.is_file()
     finally:
         run.finish()
 
@@ -525,3 +568,39 @@ def test_limit_is_stratified_across_tiers(tmp_path):
     ]
     # A limit larger than the row count returns everything.
     assert len(list(iter_rows(tmp_path, tiers=("T1", "T2"), limit=99))) == 8
+
+
+def test_raw_control_cannot_claim_forecast_immutability():
+    assert primary_forecast_immutability("control", 20, {}) is None
+
+
+def test_choice_only_run_has_no_forecast_immutability_claim():
+    assert primary_forecast_immutability("gnomon-mcp", 0, {}) is None
+
+
+def test_mcp_immutability_requires_every_channel_to_use_gnomon():
+    assert primary_forecast_immutability(
+        "gnomon-mcp", 20, {"gnomon": 60}) is True
+    assert primary_forecast_immutability(
+        "gnomon-mcp", 20, {"gnomon": 59, "abstain": 1}) is True
+    assert primary_forecast_immutability(
+        "gnomon-mcp", 20, {"gnomon": 59, "model": 1}) is False
+    assert primary_forecast_immutability(
+        "gnomon-mcp", 20, {"abstain": 60}) is False
+    assert primary_forecast_immutability("gnomon-mcp", 20, {}) is False
+
+
+def test_direct_gnomon_arm_owns_forecast_arrays():
+    assert primary_forecast_immutability("gnomon-agent", 20, {}) is True
+
+
+def test_resume_provenance_does_not_promote_old_executions() -> None:
+    assert resume_revision_provenance(
+        current="new", prior="old", resumed_rows=80, total_rows=80) == (
+            "old", ["old"], "new")
+    assert resume_revision_provenance(
+        current="new", prior="old", resumed_rows=79, total_rows=80) == (
+            "mixed", ["new", "old"], "new")
+    assert resume_revision_provenance(
+        current="new", prior=None, resumed_rows=0, total_rows=80) == (
+            "new", ["new"], None)

@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+- **Benchmark evidence is fail-closed.** Dated releases now record the exact
+  evaluated commit, harness commit, dataset identity, and configuration
+  identity. A result with unknown provenance cannot be labelled complete or
+  graduated, and a graduation claim must agree with every recorded gate. The
+  2026-08-21 release is relabelled historical/unverified; its transcribable
+  ReasoningBench result and unsupported workflow-cost claim are withdrawn.
+  ReasoningBench treatment packets now contain measurements rather than
+  canonical directions, analogue answers, or recommended actions.
+
+- **Strict temporal answers stay JSON-safe.** Missing volatility calibration
+  diagnostics are `null`, never IEEE infinity, so predictive-volatility MCP
+  calls no longer fail strict encoding or surface as `TRACKING_ERROR`.
+  TemporalBench T1/T3 sessions accept the same MCP timeout as T2/T4, and
+  invalid arguments and missing inputs have accurate error codes.
+
+- **Inline context cannot self-attest `known_at`.** Events supplied through
+  MCP/inline JSON are marked `unverified_external` regardless of a caller's
+  `created_by` claim. They may produce labelled future scenarios but cannot
+  enter historical folds. Operator-loaded context files remain an explicit
+  trust boundary; Gnomon discloses that their source metadata is declared,
+  not cryptographically verified.
+
+- **Benchmark and adapter safety fixes.** PropertyBench verifies actual input
+  immutability instead of trusting an executable's self-attestation. CiK's
+  quantile conversion extrapolates tails and permutes marginal strata across
+  leads instead of clamping every path into q10–q90 comonotonically. TSFM
+  removal rejects unknown names before resolving a filesystem target and
+  safely unlinks sandbox symlinks.
+
 - **One agent contract, with unused surfaces removed.** MCP is now the sole
   agent-facing contract. The hand-maintained Hermes plugin, experimental
   planner and `gnomon plan` CLI family, and the seven v0.2 compatibility

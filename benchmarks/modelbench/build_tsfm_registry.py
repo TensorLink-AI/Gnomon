@@ -15,12 +15,16 @@ import math
 import random
 import statistics
 from pathlib import Path
+import sys
 
-from gnomon.admission import ExternalModelPrior
-from gnomon.evaluation import error_score
-from gnomon.model_evidence import ModelEvidenceRegistry
-from gnomon.models import BASELINES, predict
-from gnomon.tsfm_sandbox import SubprocessAdapter
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "src"))
+
+from gnomon.admission import ExternalModelPrior  # noqa: E402
+from gnomon.evaluation import error_score  # noqa: E402
+from gnomon.model_evidence import ModelEvidenceRegistry  # noqa: E402
+from gnomon.models import BASELINES, predict  # noqa: E402
+from gnomon.tsfm_sandbox import SubprocessAdapter  # noqa: E402
 
 
 def _case(seed: int, family: str, n: int = 50,

@@ -9,7 +9,7 @@ oracle. A model cannot pass by learning benchmark case identifiers.
 ```bash
 PYTHONPATH=src:. python -m benchmarks.effectbench.generate \
   --output-dir results/effectbench/corpus --seed 8127 --cases 80
-PYTHONPATH=src:. python -m benchmarks.effectbench.run \
+PYTHONPATH=src:. python -m benchmarks.effectbench.run_effectbench \
   --corpus-dir results/effectbench/corpus \
   --output-dir results/effectbench/run
 ```

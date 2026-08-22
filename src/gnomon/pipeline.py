@@ -96,6 +96,8 @@ class SeriesState:
     primary_points: list[float] = field(default_factory=list)
     primary_residuals: list[float] = field(default_factory=list)
     primary_residuals_by_lead: dict[int, list[float]] = field(default_factory=dict)
+    primary_support: str | None = None
+    primary_warnings: list[str] = field(default_factory=list)
     #: Typed, correct-but-surprising facts for the support assessment.
     #: Never affects support status — see SupportAssessment.disclosures.
     disclosures: list[SupportReason] = field(default_factory=list)
@@ -376,8 +378,17 @@ def evaluate_stage(
     # compete; an empty list is the unconfigured default (all eligible).
     # This key was parsed and documented but never passed, so listing
     # candidates in gnomon.yaml silently did nothing.
-    tsfm_candidates = list(getattr(getattr(config, "models", None),
-                                   "tsfm_candidates", None) or []) or None
+    models_config = getattr(config, "models", None)
+    configured_tsfms = getattr(models_config, "tsfm_candidates", None)
+    explicitly_restricted = getattr(
+        models_config, "_candidate_pool_restricted", False)
+    # `None` means discover every eligible TSFM; `[]` means the caller
+    # explicitly admitted no TSFM. Collapsing both through `or None` let an
+    # installed foundation model escape a classical-only candidate pool.
+    tsfm_candidates = (
+        list(configured_tsfms or [])
+        if explicitly_restricted or configured_tsfms else None
+    )
     evidence_registry = None
     model_config = getattr(config, "models", None)
     if (model_config is not None

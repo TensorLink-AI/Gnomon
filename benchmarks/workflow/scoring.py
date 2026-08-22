@@ -114,7 +114,11 @@ def _case_score(case: Case, obs: Observation) -> dict[str, Any]:
                       and obs.evaluated_fingerprint == obs.published_fingerprint)
     parity_ok = (derived_parity if oracle.requires_publish_parity
                  else obs.publish_matches_evaluated is not False)
-    leakage_ok = obs.temporal_leakage is False
+    leakage_ok = (obs.temporal_leakage is False
+                  and obs.metadata.get("leakage_measurement")
+                  == "cutoff_projection_v1"
+                  and len(str(obs.metadata.get(
+                      "cutoff_projection_sha256", ""))) == 64)
     repair_stage = obs.stage_results.get("repair") or {}
     outcome_stage = obs.stage_results.get("outcome") or {}
     repair_oracle = next((Oracle.from_dict(stage.get("oracle") or {})

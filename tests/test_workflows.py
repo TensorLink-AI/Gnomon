@@ -4,10 +4,48 @@ from gnomon.workflows import (
     DocumentRef,
     build_context_investigation_prompt,
     build_task_formulation_prompt,
+    extract_explicit_schedule_context,
     parse_context_response,
     parse_task_response,
     persist_context_compilation,
 )
+
+
+def test_explicit_schedule_parser_is_verbatim_and_leaves_residual_prose():
+    document = DocumentRef(
+        "schedule.txt",
+        "The complete schedule was published and became knowable at "
+        "2026-01-01T00:00:00+00:00.\n"
+        "deploy affects the value series from 2026-02-01T01:00:00+00:00 "
+        "through 2026-02-01T03:00:00+00:00.\n"
+        "Operators expect a busy morning.",
+    )
+    result = extract_explicit_schedule_context([document])
+    assert result["events"] == [{
+        "document_index": 0, "event_type": "deploy",
+        "entity_scope": ["*"],
+        "effective_start": "2026-02-01T01:00:00+00:00",
+        "effective_end": "2026-02-01T03:00:00+00:00",
+        "known_at": "2026-01-01T00:00:00+00:00",
+        "status": "confirmed", "confidence": 1.0,
+        "evidence_quote": (
+            "deploy affects the value series from "
+            "2026-02-01T01:00:00+00:00 through "
+            "2026-02-01T03:00:00+00:00."),
+    }]
+    assert [row["text"] for row in result["residual_lines"]] == [
+        "Operators expect a busy morning."]
+
+
+def test_explicit_schedule_without_known_at_is_not_admitted():
+    result = extract_explicit_schedule_context([DocumentRef(
+        "undated.txt",
+        "deploy affects api from 2026-02-01T01:00:00+00:00 through "
+        "2026-02-01T03:00:00+00:00.",
+    )])
+    assert result["events"] == []
+    assert result["residual_lines"][0]["reason"].startswith(
+        "document does not state")
 
 DOCUMENT = DocumentRef(
     name="launches.md",

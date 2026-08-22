@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import os
@@ -12,18 +13,26 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from statistics import mean
+import sys
 from typing import Any
 
-from benchmarks.common.envfile import load_env_file
-from benchmarks.common.openrouter import OpenRouterClient
-from benchmarks.temporalbench.mcp_agent import coerce_json_containers
-from gnomon.workflows import (
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "src"))
+
+from benchmarks.common.envfile import load_env_file  # noqa: E402
+from benchmarks.common.openrouter import (  # noqa: E402
+    OpenRouterClient,
+    OpenRouterError,
+)
+from benchmarks.temporalbench.mcp_agent import coerce_json_containers  # noqa: E402
+from gnomon.workflows import (  # noqa: E402
     DocumentRef, build_context_investigation_prompt,
+    extract_explicit_schedule_context,
     normalise_context_response_containers, parse_context_response,
 )
 
-from .run_contextbench import run_case, smape
-from .schema import Case, Oracle, load_cases, load_oracles
+from .run_contextbench import run_case, smape  # noqa: E402
+from .schema import Case, Oracle, load_cases, load_oracles  # noqa: E402
 
 
 FORECAST_TOOL = {
@@ -42,6 +51,42 @@ FORECAST_TOOL = {
         },
     },
 }
+
+_CONTEXT_CHUNK_EVENTS = 4
+
+
+def _bounded_context_tool(request: dict[str, Any], max_events: int
+                          ) -> dict[str, Any]:
+    """Return the product schema with an explicit per-document output cap.
+
+    The ordinary workflow schema cannot know how many source events a caller
+    supplied.  This adapter does: every input line can ground at most one
+    event.  Encoding that fact in the schema prevents tool providers from
+    expanding a small source chunk into an unbounded, usually truncated JSON
+    payload.  It does not supply event values or consult the oracle.
+    """
+    schema = copy.deepcopy(request["response_schema"])
+    events = schema["properties"]["events"]
+    events["maxItems"] = max(0, max_events)
+    # These chunks contain only schedule rows selected from the source, so
+    # request the seven source-grounded fields the validator needs. Asking a
+    # provider to populate every optional soft-context field made each event
+    # several times larger and caused otherwise valid tool arguments to be
+    # truncated. Missing soft fields deliberately parse to ``unknown``; they
+    # are not inferred from benchmark truth.
+    required = set(events["items"]["required"])
+    events["items"]["properties"] = {
+        key: value for key, value in events["items"]["properties"].items()
+        if key in required
+    }
+    schema["properties"].pop("hypotheses", None)
+    return {"type": "function", "function": {
+        "name": "submit_context",
+        "description": (
+            "Submit only context explicitly grounded in this bounded source "
+            f"chunk; return at most {max_events} events."),
+        "parameters": schema,
+    }}
 
 
 def safe_payload(case: Case) -> dict[str, Any]:
@@ -98,6 +143,23 @@ def _response_usage(response: Any) -> tuple[int, int]:
             int(getattr(usage, "completion_tokens", 0) or 0))
 
 
+def _failure(error: Exception, *, case: Case, started: float,
+             stage: str) -> dict[str, Any]:
+    if isinstance(error, OpenRouterError):
+        status, failure_class = "error", "provider_failure"
+    elif isinstance(error, (ValueError, json.JSONDecodeError)):
+        status, failure_class = "product_failure", "agent_non_submission"
+    else:
+        status, failure_class = "error", "harness_failure"
+    return {
+        "case_id": case.case_id, "family": case.family, "status": status,
+        "failure_class": failure_class, "failure_stage": stage,
+        "error": f"{type(error).__name__}: {error}",
+        "should_influence": None,
+        "latency_seconds": round(time.perf_counter() - started, 6),
+    }
+
+
 def raw_case(case: Case, oracle: Oracle, client: OpenRouterClient) -> dict[str, Any]:
     started = time.perf_counter()
     request_usage: list[tuple[int, int]] = []
@@ -142,14 +204,19 @@ def raw_case(case: Case, oracle: Oracle, client: OpenRouterClient) -> dict[str, 
             "should_influence": oracle.should_influence,
             "prompt_tokens": sum(item[0] for item in request_usage),
             "completion_tokens": sum(item[1] for item in request_usage),
+            "requests": len(request_usage),
             "usage_accounting_version": 2,
             "latency_seconds": round(time.perf_counter() - started, 6),
         }
     except Exception as error:
-        return {"case_id": case.case_id, "family": case.family, "status": "error",
-                "error": f"{type(error).__name__}: {error}",
-                "should_influence": oracle.should_influence,
-                "latency_seconds": round(time.perf_counter() - started, 6)}
+        failure = _failure(error, case=case, started=started,
+                           stage="raw_forecast_submission")
+        failure["should_influence"] = oracle.should_influence
+        failure["prompt_tokens"] = sum(item[0] for item in request_usage)
+        failure["completion_tokens"] = sum(item[1] for item in request_usage)
+        failure["requests"] = len(request_usage)
+        failure["usage_accounting_version"] = 2
+        return failure
 
 
 def compile_events(case: Case, client: OpenRouterClient) -> dict[str, Any]:
@@ -162,8 +229,28 @@ def compile_events(case: Case, client: OpenRouterClient) -> dict[str, Any]:
     header = lines[0] if lines else ""
     event_lines = [line for line in lines if " affects the value series from " in line]
     footer = lines[-1] if lines else ""
-    chunks = [event_lines[index:index + 8]
-              for index in range(0, len(event_lines), 8)] or [[]]
+    source_reference = ("contextbench:" + hashlib.sha256(
+        case.case_id.encode()).hexdigest()[:16])
+    full_document = DocumentRef(
+        "context.txt", case.narrative, source_type=source_type,
+        reference=source_reference)
+    explicit_raw = extract_explicit_schedule_context([full_document])
+    explicit = parse_context_response(
+        {"events": explicit_raw["events"]}, [full_document],
+        proposer={"proposer_id": "deterministic:explicit_schedule_v1",
+                  "kind": "deterministic"})
+    for event_index, event in enumerate(explicit["events"]):
+        event["event_id"] = f"event_schedule_{event_index:03d}"
+    consumed_quotes = {
+        str((event.get("attributes") or {}).get("evidence_quote", ""))
+        for event in explicit["events"]
+    }
+    # Only residual schedule-like lines go to the semantic compiler. Literal
+    # ISO schedule rows are already losslessly parsed and quote-grounded.
+    event_lines = [line for line in event_lines if line not in consumed_quotes]
+    chunks = [event_lines[index:index + _CONTEXT_CHUNK_EVENTS]
+              for index in range(0, len(event_lines),
+                                 _CONTEXT_CHUNK_EVENTS)]
 
     def compile_chunk(item: tuple[int, list[str]]) -> dict[str, Any]:
         chunk_index, chunk_lines = item
@@ -171,15 +258,10 @@ def compile_events(case: Case, client: OpenRouterClient) -> dict[str, Any]:
         document = DocumentRef(
             f"context-chunk-{chunk_index}.txt", content,
             source_type=source_type,
-            reference=("contextbench:" + hashlib.sha256(
-                case.case_id.encode()).hexdigest()[:16] +
-                f":chunk:{chunk_index}"))
+            reference=(source_reference + f":chunk:{chunk_index}"))
         request = build_context_investigation_prompt(
             [document], ["*"], future_events=False)
-        tool = {"type": "function", "function": {
-            "name": "submit_context", "description": "Submit extracted context.",
-            "parameters": request["response_schema"],
-        }}
+        tool = _bounded_context_tool(request, len(chunk_lines))
         response = client.chat(
             [{"role": "system", "content": request["instructions"]}],
             tools=[tool], tool_choice="required", max_tokens=5000)
@@ -214,18 +296,25 @@ def compile_events(case: Case, client: OpenRouterClient) -> dict[str, Any]:
     # Bounded chunks are independent quoted documents. Parallel compilation
     # prevents a 30-occurrence schedule becoming a 5× latency penalty while
     # preserving deterministic result order below.
-    with ThreadPoolExecutor(max_workers=min(4, len(chunks))) as pool:
-        compiled_chunks = list(pool.map(
-            compile_chunk, list(enumerate(chunks))))
+    if chunks:
+        with ThreadPoolExecutor(max_workers=min(4, len(chunks))) as pool:
+            compiled_chunks = list(pool.map(
+                compile_chunk, list(enumerate(chunks))))
+    else:
+        compiled_chunks = []
     return {
-        "events": [event for chunk in compiled_chunks
-                   for event in chunk.get("events") or []],
-        "rejected": [item for chunk in compiled_chunks
-                     for item in chunk.get("rejected") or []],
+        "events": [*explicit["events"], *[
+            event for chunk in compiled_chunks
+            for event in chunk.get("events") or []]],
+        "rejected": [*explicit["rejected"], *[
+            item for chunk in compiled_chunks
+            for item in chunk.get("rejected") or []]],
         "hypotheses": [item for chunk in compiled_chunks
                        for item in chunk.get("hypotheses") or []],
-        "compiler_called": True,
+        "compiler_called": bool(compiled_chunks),
         "compiler_calls": len(compiled_chunks),
+        "deterministic_events": len(explicit["events"]),
+        "residual_lines": explicit_raw["residual_lines"],
         "raw_proposals": [chunk.get("raw_proposal") for chunk in compiled_chunks],
         "container_coercions": [item for chunk in compiled_chunks
                                 for item in chunk.get("container_coercions") or []],
@@ -268,16 +357,20 @@ def compiled_case(case: Case, oracle: Oracle, client: OpenRouterClient,
         })
         return row
     except Exception as error:
-        return {"case_id": case.case_id, "family": case.family, "status": "error",
-                "error": f"{type(error).__name__}: {error}",
-                "should_influence": oracle.should_influence,
-                "latency_seconds_total": round(time.perf_counter() - started, 6)}
+        failure = _failure(error, case=case, started=started,
+                           stage="compiled_context")
+        failure["should_influence"] = oracle.should_influence
+        failure["latency_seconds_total"] = failure.pop("latency_seconds")
+        return failure
 
 
 def summarize(rows: list[dict[str, Any]], condition: str,
               client: OpenRouterClient,
               manifest: dict[str, Any] | None = None) -> dict[str, Any]:
     answered = [row for row in rows if row.get("status") == "answered"]
+    product_failures = [row for row in rows
+                        if row.get("status") == "product_failure"]
+    execution_errors = [row for row in rows if row.get("status") == "error"]
     families: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in answered:
         families[row["family"]].append(row)
@@ -285,7 +378,20 @@ def summarize(rows: list[dict[str, Any]], condition: str,
     summary: dict[str, Any] = {
         "benchmark": "contextbench", "condition": condition,
         "rows": len(rows), "answered": len(answered),
-        "errors": len(rows) - len(answered),
+        "completion_rate": len(answered) / len(rows) if rows else 0.0,
+        "product_failures": len(product_failures),
+        "errors": len(execution_errors),
+        "failure_denominators": {
+            "attempted_cases": len(rows),
+            "successful_cases": len(answered),
+            "product_failures": len(product_failures),
+            "provider_failures": sum(
+                row.get("failure_class") == "provider_failure"
+                for row in execution_errors),
+            "harness_failures": sum(
+                row.get("failure_class") == "harness_failure"
+                for row in execution_errors),
+        },
         "llm_usage": invocation_usage,
         "llm_usage_this_invocation": invocation_usage,
         "families": {},
@@ -294,18 +400,22 @@ def summarize(rows: list[dict[str, Any]], condition: str,
             "generator": manifest.get("generator")}
            if manifest else {}),
     }
+    terminal_observations = answered + product_failures
     usage_complete = all(row.get("usage_accounting_version") == 2
-                         for row in answered)
+                         for row in terminal_observations)
     summary["llm_usage_observations"] = {
         "accounting_complete": usage_complete,
-        "prompt_tokens": (sum(int(row.get("prompt_tokens", 0)) for row in answered)
+        "prompt_tokens": (sum(int(row.get("prompt_tokens", 0))
+                              for row in terminal_observations)
                           if usage_complete else None),
         "completion_tokens": (
-            sum(int(row.get("completion_tokens", 0)) for row in answered)
+            sum(int(row.get("completion_tokens", 0))
+                for row in terminal_observations)
             if usage_complete else None),
         "requests": (
-            sum(3 if condition == "raw-llm"
-                else int(row.get("compiler_calls", 0)) for row in answered)
+            sum(int(row.get("requests", 0)) if condition == "raw-llm"
+                else int(row.get("compiler_calls", 0))
+                for row in terminal_observations)
             if usage_complete else None),
     }
     for family, members in sorted(families.items()):
@@ -427,7 +537,8 @@ def main() -> int:
             if not line.strip():
                 continue
             row = json.loads(line)
-            if row.get("status") == "answered" or not args.retry_errors:
+            if (row.get("status") in {"answered", "product_failure"}
+                    or not args.retry_errors):
                 retained[str(row["case_id"])] = row
     pending = [case for case in cases if case.case_id not in retained]
 

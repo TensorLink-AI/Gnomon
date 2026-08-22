@@ -7,10 +7,18 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from statistics import mean
+import sys
 
-from gnomon.decision_model import robust_scenario_decision
-from gnomon.effects import EffectDistribution, EffectProvenance, effect_contract
-from gnomon.tracking import ForecastRecord, TrackingStore
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "src"))
+
+from gnomon.decision_model import robust_scenario_decision  # noqa: E402
+from gnomon.effects import (  # noqa: E402
+    EffectDistribution,
+    EffectProvenance,
+    effect_contract,
+)
+from gnomon.tracking import ForecastRecord, TrackingStore  # noqa: E402
 
 
 def _rows(path: Path) -> list[dict]:

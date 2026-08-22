@@ -8,10 +8,15 @@ from typing import Any
 
 from .llm import LLMAdapter
 from .temporal_question import (
-    TemporalQuestion, compile_temporal_question, compile_temporal_questions,
+    AGGREGATIONS, TemporalQuestion, compile_temporal_question,
+    compile_temporal_questions,
 )
 
-INTENT_COMPILER_VERSION = "0.5"
+INTENT_COMPILER_VERSION = "0.6"
+# A structured intent is tiny, but reasoning providers may spend substantially
+# more tokens deciding it before emitting the tool call. Measured 700-token
+# caps produced syntactically valid `compiled` envelopes with no questions.
+INTENT_COMPILER_MAX_TOKENS = 10000
 
 
 INTENT_SCHEMA: dict[str, Any] = {
@@ -24,10 +29,12 @@ INTENT_SCHEMA: dict[str, Any] = {
             "properties": {
                 "id": {"type": "string"},
                 "verb": {"type": "string", "enum": [
-                    "describe", "predict", "compare", "detect", "decide"]},
+                    "describe", "predict", "compare", "detect", "decide",
+                    "test", "decompose", "regress"]},
                 "property": {"type": "string", "enum": [
                     "level", "trend", "seasonality", "volatility", "regime",
-                    "extreme", "dependence"]},
+                    "extreme", "dependence", "stationarity", "decomposition",
+                    "regression"]},
                 "target": {"oneOf": [
                     {"type": "string"},
                     {"type": "object", "additionalProperties": False,
@@ -46,6 +53,14 @@ INTENT_SCHEMA: dict[str, Any] = {
                     "correlation"]},
                 "context_policy": {"type": "string", "enum": [
                     "ignore", "measure", "scenario"]},
+                "method": {"type": "string"},
+                "period": {"type": "integer", "minimum": 2},
+                "seasonal_period": {"type": "integer", "minimum": 2},
+                "differencing": {"type": "integer", "minimum": 0,
+                                  "maximum": 2},
+                "explanatory_variables": {"type": "array",
+                    "items": {"type": "string"}},
+                "validation": {"type": "object"},
                 "answer_vocabulary": {
                     "type": "object",
                     "additionalProperties": {"type": "string"}},
@@ -60,6 +75,155 @@ def _question_segments(text: str) -> list[str]:
     questions = [line for line in lines if "?" in line]
     return questions or [item.strip() + "?" for item in text.split("?")
                          if item.strip()]
+
+
+_PROPERTY_CUES: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("stationarity", re.compile(r"\b(stationar|unit root|adf|kpss)\w*\b", re.I)),
+    ("decomposition", re.compile(r"\b(decompos|stl)\w*\b", re.I)),
+    ("regression", re.compile(r"\b(regress|exogenous|predictor|coefficient)\w*\b", re.I)),
+    ("volatility", re.compile(
+        r"\b(volatil\w*|variance|variab\w*|dispersion|nois\w*)\b", re.I)),
+    ("seasonality", re.compile(r"\b(season|periodic|cycle|phase alignment)\w*\b", re.I)),
+    ("trend", re.compile(r"\b(trend|slope|growth rate|decline rate)\w*\b", re.I)),
+    ("regime", re.compile(r"\b(regime|structural break|change point|changepoint)\w*\b", re.I)),
+    ("extreme", re.compile(r"\b(extreme|maximum|minimum|peak|tail risk)\w*\b", re.I)),
+    ("dependence", re.compile(
+        r"\b(correlat\w*|depend\w*|related|relationship between)\b", re.I)),
+    ("level", re.compile(r"\b(median|mean|average|level|higher|lower)\w*\b", re.I)),
+)
+
+
+def _explicit_property(segment: str) -> str | None:
+    """Return a property only when lexical evidence is unique.
+
+    This is a semantic parser for standard statistical terms, not a fuzzy
+    classifier. Ambiguous clauses remain under LLM interpretation.
+    """
+    matches = [prop for prop, pattern in _PROPERTY_CUES if pattern.search(segment)]
+    # A seasonality question often contains the word correlation to describe
+    # its alignment measure. The requested property remains seasonality.
+    if "seasonality" in matches and "dependence" in matches:
+        matches.remove("dependence")
+    return matches[0] if len(set(matches)) == 1 else None
+
+
+def _named_targets(segment: str, available_targets: list[str]) -> list[str]:
+    lowered = segment.lower()
+    positioned = []
+    for target in available_targets:
+        starts = [match.start() for alias in {
+            target.lower(), target.lower().replace("_", " ")}
+            for match in [re.search(
+                rf"(?<![a-z0-9]){re.escape(alias)}(?![a-z0-9])", lowered)]
+            if match]
+        if starts:
+            positioned.append((min(starts), target))
+    return [target for _, target in sorted(positioned)]
+
+
+def _canonical_measure(prop: str, segment: str) -> str | None:
+    lowered = segment.lower()
+    if prop == "seasonality" and "alignment" in lowered:
+        return "change"
+    if any(word in lowered for word in ("change", "higher", "lower", "future")):
+        return "change"
+    if prop == "level" and any(word in lowered for word in ("median", "mean", "average")):
+        return "change"
+    return None
+
+
+def _explicit_horizon(segment: str) -> int | None:
+    match = re.search(
+        r"\b(?:next|for)\s+(\d+)\s+(?:periods?|steps?|points?)\b",
+        segment, re.I)
+    return int(match.group(1)) if match else None
+
+
+def _proposal_has_unknown_target(question: dict[str, Any],
+                                 available_targets: list[str]) -> bool:
+    target = question.get("target")
+    if isinstance(target, str):
+        return target not in available_targets
+    if isinstance(target, dict):
+        members = target.get("members")
+        return (not isinstance(members, list)
+                or any(member not in available_targets for member in members))
+    return False
+
+
+def _route_explicit_questions(
+    text: str, questions: Any, available_targets: list[str],
+    default_verb: str, default_horizon: int | None,
+) -> Any:
+    """Bind explicit property slots, then let arguments remain validated.
+
+    Numbered/line-separated questions form an ordered contract. For clauses
+    with an unambiguous statistical term, the model cannot change the
+    property, omit the slot, or inherit a singular target into a clearly
+    fleet-level volatility/seasonality question.
+    """
+    if not isinstance(questions, list):
+        return questions
+    segments = _question_segments(text)
+    routed: list[dict[str, Any]] = []
+    for index, segment in enumerate(segments):
+        prop = _explicit_property(segment)
+        proposed = copy.deepcopy(questions[index]) \
+            if index < len(questions) and isinstance(questions[index], dict) else {}
+        if prop is None:
+            if proposed:
+                routed.append(proposed)
+            continue
+        # Do not launder an invented model target into a valid one. The normal
+        # validator must retain and reject that safety failure.
+        if _proposal_has_unknown_target(proposed, available_targets):
+            routed.append(proposed)
+            continue
+        prior_property = proposed.get("property")
+        proposed["id"] = str(proposed.get("id") or f"q{index + 1}")
+        proposed["property"] = prop
+        if prior_property and prior_property != prop:
+            for key in ("measure", "method", "period", "seasonal_period", "differencing",
+                        "explanatory_variables", "validation"):
+                proposed.pop(key, None)
+            proposed["verb"] = {
+                "stationarity": "test", "decomposition": "decompose",
+                "regression": "regress", "dependence": "compare",
+            }.get(prop, default_verb)
+        else:
+            proposed["verb"] = str(proposed.get("verb") or default_verb)
+        horizon = _explicit_horizon(segment)
+        if horizon is not None:
+            proposed["horizon"] = horizon
+        elif default_horizon is not None and proposed.get("horizon") is None:
+            proposed["horizon"] = default_horizon
+        measure = _canonical_measure(prop, segment)
+        if measure:
+            proposed["measure"] = measure
+        named = _named_targets(segment, available_targets)
+        each_scope = bool(re.search(r"\b(each|every|separately)\b", segment, re.I))
+        if each_scope:
+            proposed["target"] = {"kind": "each", "members": list(
+                named or available_targets)}
+        elif len(named) == 1:
+            proposed["target"] = named[0]
+        elif len(named) >= 2 and prop == "dependence":
+            proposed["target"] = {"kind": "pair", "members": named}
+        elif len(named) >= 2 and prop in {"volatility", "seasonality"}:
+            proposed["target"] = {
+                "kind": "aggregate", "members": named,
+                "aggregation": AGGREGATIONS[prop],
+            }
+        elif len(available_targets) == 1:
+            proposed["target"] = available_targets[0]
+        elif not named and prop in {"volatility", "seasonality"}:
+            proposed["target"] = {
+                "kind": "aggregate", "members": list(available_targets),
+                "aggregation": AGGREGATIONS[prop],
+            }
+        routed.append(proposed)
+    # If no clause was explicit, retain the model proposal unchanged.
+    return routed if any(_explicit_property(item) for item in segments) else questions
 
 
 def _resolve_discourse_focus(
@@ -98,6 +262,28 @@ def _resolve_discourse_focus(
     return resolved
 
 
+def _normalize_nonsemantic_optionals(questions: Any) -> Any:
+    """Drop optional fields that encode absence rather than meaning.
+
+    Some structured-output models emit ``horizon: 0`` for a descriptive
+    question about the present.  Zero is not a forecast horizon and the
+    field is optional, so retaining it turns a correct intent into a
+    validation failure.  Canonicalize that representation only for
+    descriptive questions; predictive requests with invalid horizons must
+    still fail rather than silently changing the requested window.
+    """
+    if not isinstance(questions, list):
+        return questions
+    normalized = copy.deepcopy(questions)
+    for raw in normalized:
+        if not isinstance(raw, dict) or raw.get("verb") != "describe":
+            continue
+        horizon = raw.get("horizon")
+        if isinstance(horizon, int) and not isinstance(horizon, bool) and horizon <= 0:
+            raw.pop("horizon", None)
+    return normalized
+
+
 def compile_temporal_text(
     text: str, *, available_targets: list[str], adapter: LLMAdapter,
     default_verb: str = "describe", default_horizon: int | None = None,
@@ -115,7 +301,13 @@ def compile_temporal_text(
            "when the request says 'forecast horizon' without another number, "
            "use that value. " if default_horizon is not None else "") +
         "Allowed properties: level, trend, seasonality, volatility, regime, "
-        "extreme, dependence. Target is an exact series name, or an object "
+        "extreme, dependence, stationarity, decomposition, regression. "
+        "Use test/stationarity for ADF or KPSS, decompose/decomposition for "
+        "a requested fixed-period decomposition, and regress/regression for "
+        "a target with explicit explanatory_variables. Preserve an explicitly "
+        "requested method and period exactly; never translate ADF into anomaly "
+        "detection, STL into generic season discovery, or regression into a "
+        "forecast. Target is an exact series name, or an object "
         "with kind pair/each/aggregate and explicit members. Dependence or "
         "correlation between two named series uses pair. The only cross-unit "
         "volatility aggregate is median_normalized_scale_ratio; a seasonality "
@@ -152,9 +344,22 @@ def compile_temporal_text(
                 "The temporal request is materially ambiguous."),
             {"compiler_status": "refused"},
         )
+    routed_questions = _route_explicit_questions(
+        text, proposed.get("questions") or [], available_targets,
+        default_verb, default_horizon)
+    if not routed_questions:
+        from .contracts import GnomonError
+        raise GnomonError(
+            "INVALID_TEMPORAL_QUESTION",
+            "The intent compiler returned compiled status without a question.",
+            {"compiler_status": "malformed", "compiler_proposal": proposed},
+        )
     try:
+        proposed_questions = routed_questions
         proposed_questions = _resolve_discourse_focus(
-            text, proposed.get("questions"), available_targets)
+            text, proposed_questions, available_targets)
+        proposed_questions = _normalize_nonsemantic_optionals(
+            proposed_questions)
         return compile_temporal_questions(
             proposed_questions, available_targets=available_targets,
             default_verb=default_verb, default_horizon=default_horizon)
@@ -193,14 +398,21 @@ def compile_temporal_text_receipt(
         proposal = capture.proposal or {}
         accepted, rejected = [], []
         proposed_questions = proposal.get("questions") or []
+        proposal_was_list = isinstance(proposed_questions, list)
         if isinstance(proposed_questions, str):
             import json
             try:
                 proposed_questions = json.loads(proposed_questions)
             except (TypeError, ValueError):
                 proposed_questions = []
+        if proposal_was_list:
+            proposed_questions = _route_explicit_questions(
+                text, proposed_questions, available_targets,
+                default_verb, default_horizon)
         proposed_questions = _resolve_discourse_focus(
             text, proposed_questions, available_targets)
+        proposed_questions = _normalize_nonsemantic_optionals(
+            proposed_questions)
         for index, raw in enumerate(proposed_questions):
             try:
                 accepted.append(compile_temporal_question(

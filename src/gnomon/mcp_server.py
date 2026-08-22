@@ -111,9 +111,13 @@ def _handle(message: dict[str, Any]) -> dict[str, Any] | None:
                 GnomonError("INVALID_ARGUMENTS", f"Missing required argument: {exc.args[0]}").to_dict(),
                 True,
             )
-        except (ValueError, FileNotFoundError) as exc:
+        except FileNotFoundError as exc:
             return _tool_result(
-                GnomonError("TRACKING_ERROR", str(exc)).to_dict(), True,
+                GnomonError("INPUT_NOT_FOUND", str(exc)).to_dict(), True,
+            )
+        except ValueError as exc:
+            return _tool_result(
+                GnomonError("INVALID_ARGUMENTS", str(exc)).to_dict(), True,
             )
         except Exception as exc:
             # A bug in a tool must reach the model as a repairable result,

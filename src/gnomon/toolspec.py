@@ -1154,6 +1154,18 @@ def _run_describe(arguments: dict[str, Any]) -> dict[str, Any]:
             }
     ranked = sorted(reports, key=lambda name: (
         -float(reports[name]["change"]["absolute_final_step"]), name))
+    from .temporal_contracts import classify_dataset_contract
+    dataset_contract = classify_dataset_contract(
+        list(reports),
+        observations={name: int(report["observations"])
+                      for name, report in reports.items()},
+        frequency=next((str(report.get("frequency")) for report in reports.values()
+                        if report.get("frequency")), None),
+        time_column=arguments.get("time_column"),
+        series_column=arguments.get("series_column"),
+        label_column=arguments.get("label_column"),
+        truncated=bool(arguments.get("_input_truncated", False)),
+    )
     temporal_answers: list[dict[str, Any]] = []
     if arguments.get("questions") is not None:
         from .temporal_question import compile_temporal_questions
@@ -1167,10 +1179,11 @@ def _run_describe(arguments: dict[str, Any]) -> dict[str, Any]:
                 question, reports=reports, execution_inputs=execution_inputs,
                 forecast_values=arguments.get("_forecast_values"),
                 conditional_effects=arguments.get("_conditional_effects")))
-    return _json_temporal_values({
+    payload = _json_temporal_values({
         "schema_version": "0.1", "status": "valid",
         "headline": f"Described {len(reports)} series through "
                     f"{max(report['series_end'] for report in reports.values())}.",
+        "dataset_contract": dataset_contract.to_dict(),
         "reports": reports,
         **({"answers": temporal_answers} if temporal_answers else {}),
         "triage": {
@@ -1186,6 +1199,42 @@ def _run_describe(arguments: dict[str, Any]) -> dict[str, Any]:
         # user actually asks what happens next.
         "suggested_next": [],
     })
+    if arguments.get("format") == "brief" and temporal_answers:
+        from .temporal_planner import compact_evidence_plan
+
+        compact_answers = []
+        for item in temporal_answers:
+            answer = dict(item.get("answer") or {})
+            reasoning = answer.get("reasoning")
+            compact_reasoning = (compact_evidence_plan(reasoning)
+                                 if isinstance(reasoning, dict) else None)
+            if compact_reasoning:
+                adjudication = dict(
+                    compact_reasoning.get("adjudication") or {})
+                adjudication.pop("ranked_hypotheses", None)
+                adjudication.pop("weight_meaning", None)
+                compact_reasoning["adjudication"] = adjudication
+            question = dict(item.get("question") or {})
+            compact_answers.append({
+                key: value for key, value in {
+                    "question": {key: question.get(key) for key in (
+                        "id", "verb", "target", "property", "horizon")
+                        if question.get(key) is not None},
+                    "headline": item.get("headline"),
+                    "best_estimate": item.get("best_estimate"),
+                    "reasoning": compact_reasoning,
+                    "limitations": item.get("limitations"),
+                }.items() if value is not None
+            })
+        payload["answers"] = compact_answers
+        payload.pop("reports", None)
+        payload["view"] = {
+            "format": "brief",
+            "full_available": True,
+            "note": ("Compact typed answers and per-series diagnostics; "
+                     "use format='full' for complete reasoning receipts."),
+        }
+    return payload
 
 
 def _json_temporal_values(value: Any) -> Any:
@@ -1339,10 +1388,22 @@ def _context_events_from(arguments: dict[str, Any]):
     return events
 
 
+def _materialized_or_public_events(arguments: dict[str, Any]):
+    """Consume trusted internal events or validate the public channels."""
+    events = arguments.pop("_materialized_context_events", None)
+    return events if events is not None else _context_events_from(arguments)
+
+
 def _materialise_context(
     arguments: dict[str, Any],
 ) -> tuple[dict[str, Any], dict[str, Any] | None]:
     """Resolve or register immutable typed context before numeric execution."""
+    if "_materialized_context_events" in arguments:
+        # Private transport used only after this function has validated the
+        # public channels. A direct runner caller must not be able to inject
+        # pre-trusted objects through it.
+        raise GnomonError(
+            "INVALID_ARGUMENTS", "reserved internal context field supplied")
     carries_context = any(arguments.get(key) is not None for key in (
         "context_ref", "context_events", "context_events_file"))
     if not carries_context:
@@ -1385,9 +1446,16 @@ def _materialise_context(
                 "context_receipt_id": receipt["receipt_id"],
             }
             events.append(item)
+        # The immutable store preserves whether the original channel was a
+        # trusted file or an unverified inline claim. Rehydrate that recorded
+        # creator exactly; do not demote a file event or promote an inline one.
+        from .context import events_from_list
+        materialized = events_from_list(
+            events, trust_declared_creator=True)
         return ({**{key: value for key, value in arguments.items()
-                    if key not in {"context_ref", "context_events_file"}},
-                 "context_events": events}, {
+                    if key not in {"context_ref", "context_events_file",
+                                   "context_events"}},
+                 "_materialized_context_events": materialized}, {
             "status": "hit", "context_ref": reference,
             "receipt_id": receipt["receipt_id"], "compiler_reused": True,
             "store_schema_version": "0.1",
@@ -1409,9 +1477,19 @@ def _materialise_context(
             "context_receipt_id": receipt["receipt_id"],
         }
         bound_events.append(item)
+    # Carry already-validated typed objects to the numeric runner. Serialising
+    # and reparsing them through the public inline channel would erase the
+    # operator-controlled file boundary and incorrectly make them
+    # scenario-only.
+    from dataclasses import replace
+
+    materialized = []
+    for event, raw in zip(parsed, bound_events):
+        materialized.append(replace(
+            event, attributes=dict(raw.get("attributes") or {})))
     return ({**{key: value for key, value in arguments.items()
-                if key != "context_events_file"},
-             "context_events": bound_events}, {
+                if key not in {"context_events_file", "context_events"}},
+             "_materialized_context_events": materialized}, {
         "status": "stored", "context_ref": reference,
         "receipt_id": receipt["receipt_id"], "compiler_reused": False,
         "store_schema_version": "0.1",
@@ -1554,7 +1632,7 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
     target_spec = str(arguments["target_column"])
     if "," in target_spec or target_spec.strip().lower() == "auto":
         return _run_forecast_multi(arguments, target_spec)
-    events = _context_events_from(arguments)
+    events = _materialized_or_public_events(arguments)
     config = None
     if (arguments.get("future_events") or arguments.get("structural_events")
             or arguments.get("model_admission") == "evidence_weighted"):
@@ -1647,7 +1725,7 @@ def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str
             f"target at a time.",
             {"unsupported_with_multi_target": unsupported, "targets": targets},
         )
-    events = _context_events_from(arguments)
+    events = _materialized_or_public_events(arguments)
     covariates = _covariates_from(arguments)
     config = None
     if (arguments.get("future_events") or arguments.get("structural_events")
@@ -1700,7 +1778,7 @@ def _run_preflight_context(arguments: dict[str, Any]) -> dict[str, Any]:
     from .contracts import GnomonError
     from .preflight import preflight_context_events
 
-    events = _context_events_from(arguments)
+    events = _materialized_or_public_events(arguments)
     if not events:
         raise GnomonError(
             "INVALID_ARGUMENTS",
@@ -1916,9 +1994,12 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "gnomon_describe",
         "description": (
-            "Answer descriptive temporal questions without forecasting or "
-            "backtesting: level, trend, seasonality, changepoints, anomalies, "
-            "and extremes. Use for what-happened questions."
+            "Execute typed temporal questions without changing a primary "
+            "forecast: description, ADF/KPSS stationarity, explicit-period "
+            "additive decomposition, and exogenous regression with expanding-"
+            "window validation. Unsupported methods return one typed refusal; "
+            "Gnomon never substitutes anomaly detection for stationarity, "
+            "period discovery for decomposition, or forecasting for regression."
         ),
         "inputSchema": {
             "type": "object",
@@ -1929,6 +2010,10 @@ TOOLS: list[dict[str, Any]] = [
                 )},
                 **_REPLAY_PROPERTIES,
                 **_TEMPORAL_QUESTIONS_PROPERTY,
+                "format": {"type": "string", "enum": ["brief", "full"],
+                           "description": ("brief returns compact typed "
+                               "answers and per-series diagnostics; full "
+                               "returns complete reasoning receipts.")},
             },
             "required": [],
         },
@@ -2166,7 +2251,7 @@ def _parse_as_of(raw: Any):
 
 def _run_investigate_change(arguments: dict[str, Any]) -> dict[str, Any]:
     from .macros import investigate_change
-    events = _context_events_from(arguments)
+    events = _materialized_or_public_events(arguments)
     payload, path = investigate_change(
         arguments["input"],
         time_column=arguments["time_column"],

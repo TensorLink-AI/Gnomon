@@ -9,6 +9,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from benchmarks.mtbench.gnomon_forecaster import (
@@ -17,6 +19,7 @@ from benchmarks.mtbench.gnomon_forecaster import (
     official_mape,
     write_bar_csv,
 )
+from benchmarks.mtbench.run_mtbench import materialize_official_json_view
 from benchmarks.timesage_mt.scoring import numbers_in, score_mechanical, score_turn
 from benchmarks.timesage_mt.tasks import TimeSageTask, load_tasks, read_visible_series
 
@@ -56,6 +59,16 @@ def test_mechanical_numerical_range():
     verify = {"type": "numerical_range", "keywords": [], "range": [0.7, 1.1]}
     assert score_mechanical(verify, "The CV comes out to 0.81.") is True
     assert score_mechanical(verify, "The CV comes out to 1.5.") is False
+
+
+def test_range_score_discloses_numerosity_ambiguity():
+    reference = {"finding_verify": {
+        "type": "numerical_range", "keywords": [], "range": [0.7, 1.1]}}
+    clean = score_turn(reference, "CV 0.81")
+    noisy = score_turn(reference, "Across 24 windows: 9, 8, 7, 0.81")
+    assert clean["passed"] is True and clean["numerosity_robust"] is True
+    assert noisy["passed"] is True and noisy["numerosity_robust"] is False
+    assert noisy["numeric_candidate_count"] == 5
 
 
 def test_non_mechanical_spec_is_unscored_without_judge():
@@ -118,6 +131,26 @@ def test_toolbox_series_stats_and_unknown_column(tmp_path):
     assert round(stats["mean"], 2) == 51.33
     assert "error" in toolbox.call("series_stats", {"column": "nope"})
     assert "error" in toolbox.call("no_such_tool", {})
+
+
+def test_timesage_numeric_columns_survive_missing_values():
+    rows = [
+        {"date": f"2023-01-{index + 1:02d}",
+         "target": "" if index == 3 else float(index),
+         "driver": float(index * 2)}
+        for index in range(20)
+    ]
+    from benchmarks.timesage_mt.harness import ToolBox
+
+    toolbox = ToolBox(_fallback_task(rows))
+    assert set(toolbox.columns) == {"target", "driver"}
+    stats = toolbox.call("series_stats", {"column": "target"})
+    assert stats["count"] == 19
+    assert stats["missing_count"] == 1
+    stationarity = toolbox.call(
+        "gnomon_stationarity_test", {"column": "target", "method": "adf"})
+    assert stationarity["repaired_missing"] == 1
+    assert stationarity["executable"]["kind"] == "fitted_stationarity_test"
 
 
 def _fallback_task(rows, rows_visible=None):
@@ -231,6 +264,28 @@ def test_failed_task_turns_keyed_like_scored_turns():
     ]
 
 
+def test_timesage_usage_aggregation_preserves_requests_and_provenance():
+    from benchmarks.timesage_mt.run_timesage import _sum_usage
+
+    combined = _sum_usage([
+        {"model": "deepseek", "base_url": "https://example.test/v1",
+         "requests": 2, "transport_attempts": 3, "prompt_tokens": 100,
+         "completion_tokens": 20, "cost_usd": 0.1,
+         "truncation_escalations": 1},
+        {"model": "deepseek", "base_url": "https://example.test/v1",
+         "requests": 4, "transport_attempts": 4, "prompt_tokens": 300,
+         "completion_tokens": 40, "cost_usd": 0.2,
+         "truncation_escalations": 0},
+    ])
+
+    assert combined == {
+        "model": "deepseek", "base_url": "https://example.test/v1",
+        "requests": 6, "transport_attempts": 7, "prompt_tokens": 400,
+        "completion_tokens": 60, "cost_usd": 0.3,
+        "truncation_escalations": 1,
+    }
+
+
 def test_official_mape_fallback_masks_zeros():
     assert official_mape([0.0, 10.0], [5.0, 11.0]) == 10.0
     assert official_mape([2.0, 4.0], [2.0, 4.0]) == 0.0
@@ -254,6 +309,50 @@ def test_mtbench_sample_loading_and_bar_axis(tmp_path):
     assert start.startswith("2020-01-01") and end.startswith("2020-01-03")
     assert "+00:00" in lines[1]
     assert OFFICIAL_MSE_FAILURE_LIMIT == 100.0
+
+
+def test_mtbench_materializes_official_parquet_for_unmodified_scorer(tmp_path):
+    # Parquet support belongs to the optional external-benchmark environment,
+    # not Gnomon's zero-dependency runtime. The JSON path remains covered in
+    # the base matrix; exercise the official parquet bridge when its reader is
+    # actually installed.
+    pd = pytest.importorskip("pandas")
+
+    source = tmp_path / "download" / "data"
+    source.mkdir(parents=True)
+    frame = pd.DataFrame([
+        {"input_window": [1.0, 2.0], "output_window": [3.0],
+         "input_timestamps": [1, 2],
+         "text": json.dumps({"content": "first"}),
+         "technical": json.dumps({"in_macd": [0.1], "out_macd": [0.2]})},
+        {"input_window": [4.0, 5.0], "output_window": [6.0],
+         "input_timestamps": [3, 4],
+         "text": json.dumps({"content": "second"}),
+         "technical": json.dumps({"in_macd": [0.3], "out_macd": [0.4]})},
+    ])
+    frame.to_parquet(source / "tasks.parquet")
+    output = tmp_path / "json-view"
+    assert materialize_official_json_view(
+        source.parent, output, limit=1) == 1
+    rows = list(output.glob("*.json"))
+    assert len(rows) == 1
+    assert rows[0].name == "tasks#0000.json"
+    task = json.loads(rows[0].read_text())
+    assert task["text"]["content"] == "first"
+    assert task["technical"]["out_macd"] == [0.2]
+
+
+def test_mtbench_json_view_preserves_existing_task_identity(tmp_path):
+    source = tmp_path / "tasks"
+    source.mkdir()
+    task = {"input_window": [1.0], "output_window": [2.0]}
+    (source / "canonical-task.json").write_text(json.dumps(task))
+
+    output = tmp_path / "view"
+    assert materialize_official_json_view(source, output) == 1
+    assert [path.name for path in output.glob("*.json")] == [
+        "canonical-task.json"
+    ]
 
 
 def _write_multi_tier_fixture(root: Path, counts: dict) -> None:

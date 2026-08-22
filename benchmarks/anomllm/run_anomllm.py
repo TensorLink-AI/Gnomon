@@ -37,14 +37,16 @@ import subprocess
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "src"))
 
 from benchmarks.anomllm.gnomon_detector import (  # noqa: E402
     RESCALED_VARIANT,
     default_records_path,
     run_gnomon_condition,
 )
-from benchmarks.common.manifest import write_manifest  # noqa: E402
+from benchmarks.common.manifest import code_revision, write_manifest  # noqa: E402
 
 DATASETS = (
     "point", "range", "freq", "trend", "flat-trend",
@@ -105,6 +107,8 @@ def main() -> int:
                         help=f"Dataset name, e.g. one of {', '.join(DATASETS)}")
     parser.add_argument("--threshold", type=float, default=None,
                         help="Gnomon detection threshold (default: Gnomon's)")
+    parser.add_argument("--workers", type=int, default=1,
+                        help="Parallel detector processes; output order remains deterministic")
     parser.add_argument("--variant-name", default="detect",
                         type=gnomon_variant_name,
                         help="Variant label for Gnomon's results file "
@@ -116,6 +120,7 @@ def main() -> int:
     parser.add_argument("--control-variant", default="0shot-text",
                         help="Official prompt variant for the control")
     args = parser.parse_args()
+    run_revision = code_revision()
 
     anomllm_root = Path(args.anomllm_root).expanduser().resolve()
     if not (anomllm_root / "src" / "result_agg.py").exists():
@@ -133,6 +138,7 @@ def main() -> int:
         summary = run_gnomon_condition(
             anomllm_root, args.data,
             threshold=args.threshold, variant_name=args.variant_name,
+            workers=args.workers,
         )
         print(json.dumps(summary, indent=2))
         # Same provenance run_all.py records, next to the sidecar, so a
@@ -145,6 +151,7 @@ def main() -> int:
             target=args.data,
             command=command,
             status="ok",
+            code_revision=run_revision,
         )
 
     if args.control_model:
@@ -167,6 +174,7 @@ def main() -> int:
             model=args.control_model,
             command=command,
             status="ok" if exit_code == 0 else f"exit {exit_code}",
+            code_revision=run_revision,
         )
 
     print(

@@ -2,13 +2,17 @@
   "release_metadata": {
     "arm": null,
     "benchmark": "volatilitybench",
+    "configuration_identity": "summary-only; environment not retained",
+    "dataset_identity": "volatilitybench corpus recorded in summary",
+    "evaluated_commit": "unknown",
+    "harness_commit": "unknown",
     "notes": [
       "Magnitude estimation is useful; independent directional classification has not graduated."
     ],
     "scope": "full",
     "source": "results/volatilitybench-product-contract-20260821/summary.json",
     "source_sha256": "df42e1246096827f68e922f32d87a9aaafac50847cbe3225e02b14d0c1e995a5",
-    "status": "diagnostic_not_graduated"
+    "status": "historical_unverified"
   },
   "summary": {
     "balanced_suite": {

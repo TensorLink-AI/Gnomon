@@ -519,11 +519,16 @@ def compile_row_temporal_questions(
     """Compile question text only; labels, options and futures stay sealed."""
     from gnomon.soft_context import content_fingerprint
     from gnomon.temporal_intent import (
-        INTENT_COMPILER_VERSION, INTENT_SCHEMA, compile_temporal_text_receipt,
+        INTENT_COMPILER_MAX_TOKENS, INTENT_COMPILER_VERSION, INTENT_SCHEMA,
+        compile_temporal_text_receipt,
     )
 
+    if row.get("tier") == "T3":
+        question_items = row.get("pack") or []
+    else:
+        question_items = (row.get("mcq") or {}).values()
     text = "\n".join(str(item.get("question") or "")
-                     for item in (row.get("mcq") or {}).values()
+                     for item in question_items
                      if isinstance(item, dict)).strip()
     if not text:
         return {"attempted": False, "questions": []}
@@ -579,7 +584,8 @@ def compile_row_temporal_questions(
             response = client.chat(
                 [{"role": "system", "content": prompt}], n=1, tools=[submit],
                 tool_choice={"type": "function", "function": {
-                    "name": "submit_temporal_intent"}}, max_tokens=700)
+                    "name": "submit_temporal_intent"}},
+                max_tokens=INTENT_COMPILER_MAX_TOKENS)
             calls = _tool_calls_as_dicts(response.choices[0].message)
             call = next(item for item in calls
                         if item["function"]["name"] == "submit_temporal_intent")
@@ -588,7 +594,8 @@ def compile_row_temporal_questions(
     try:
         receipt = compile_temporal_text_receipt(
             text, available_targets=targets, adapter=Adapter(),
-            default_verb="predict",
+            default_verb=("describe" if row.get("tier") == "T3"
+                          else "predict"),
             default_horizon=default_horizon)
         result = {"input_fingerprint": fingerprint,
                   "proposed": receipt["proposed"],
@@ -865,6 +872,10 @@ class _RunBase:
         self.profile = profile
         self.client = client
         self.channels = self._row_channels(row)
+        # The jail is also the trust boundary for host-compiled context, so it
+        # must exist before compilation receipts are materialised below.
+        self.jail = Path(tempfile.mkdtemp(prefix="tb-mcp-",
+                                          dir=work_dir)).resolve()
         # Evidence executes through a host-bound panel schema. Long form gives
         # each observation-indexed channel its own consecutive axis; a wide
         # table pads unequal histories and turns absent readings into gaps.
@@ -874,7 +885,7 @@ class _RunBase:
         self.temporal_compilation = (
             compile_row_temporal_questions(
                 row, client, list(self.channels), question_receipts_dir)
-            if compile_questions and row.get("tier") in {"T2", "T4"}
+            if compile_questions and row.get("tier") in {"T2", "T3", "T4"}
             else {"attempted": False, "questions": []}
         )
         raw_origin = row.get("_time_origin")
@@ -926,13 +937,24 @@ class _RunBase:
                     event["attributes"] = attributes
                 aligned.append(event)
             self.context_compilation["events"] = aligned
+        self.context_events_file = None
+        if self.context_compilation.get("events"):
+            # ``compile_context`` is a host-side integration step over the
+            # benchmark document, not an assertion made by the tool-driving
+            # model. Bind that reviewed receipt through the production file
+            # trust boundary. Passing the same events inline correctly leaves
+            # them unverified/scenario-only and would measure a different arm.
+            context_file = self.jail / "compiled-context-events.json"
+            context_file.write_text(json.dumps({
+                "schema_version": "0.1",
+                "events": self.context_compilation["events"],
+            }, sort_keys=True) + "\n", encoding="utf-8")
+            self.context_events_file = context_file
         self.started = time.time()
         self.covariate_arguments = self._row_covariates(row)
         if "timestamp" in self.channels:
             raise ValueError("a channel named 'timestamp' collides with the "
                              "time column of the run CSV")
-        self.jail = Path(tempfile.mkdtemp(prefix="tb-mcp-",
-                                          dir=work_dir)).resolve()
         self.csv_path: Path | None = None
         if self.channels:
             self.csv_path = self.jail / "history.csv"
@@ -950,6 +972,10 @@ class _RunBase:
         self.product_schema_bytes = 0
         self.harness_schema_bytes = 0
         self.artifact_paths: set[str] = set()
+        # Descriptive typed answers are returned inline rather than written
+        # to a forecast artifact.  Retain the engine-authored structures for
+        # coverage reporting; the final model submission remains separate.
+        self.descriptive_answer_receipts: list[dict[str, Any]] = []
         # Compiler acceptance is textual grounding, not permission to alter a
         # forecast.  Keep the engine's later admission/application decision
         # separately so the benchmark cannot report "context used" merely
@@ -957,6 +983,7 @@ class _RunBase:
         self.context_execution: dict[str, dict[str, Any]] = {}
         self.covariate_execution: dict[str, dict[str, Any]] = {}
         self.complete_artifact_ready = False
+        self.complete_description_ready = False
         self.submission: dict[str, Any] | None = None
         self.tokens_at_start = (getattr(client, "total_prompt_tokens", 0)
                                 + getattr(client, "total_completion_tokens", 0))
@@ -1093,7 +1120,9 @@ class _RunBase:
                 "mcp": self._mcp_info()}
 
     def _mcp_info(self) -> dict[str, Any]:
-        temporal_answer_receipts: list[dict[str, Any]] = []
+        temporal_answer_receipts: list[dict[str, Any]] = [
+            dict(receipt) for receipt in self.descriptive_answer_receipts
+        ]
         artifact_forecast_identity: list[dict[str, Any]] = []
         for artifact_path in sorted(self.artifact_paths):
             artifact_json = Path(artifact_path) / "artifact.json"
@@ -1182,7 +1211,8 @@ class _RunBase:
                             "superseded", "coerced", "submit_rejected",
                             "last_call_repair", "submission_fallback",
                             "host_submission", "typed_questions",
-                            "compiled_questions")}
+                            "compiled_questions", "engine_answers",
+                            "host_data_binding")}
                 for entry in self.trace
             ],
             # Harness-only provenance used by cross-benchmark adapters to
@@ -1299,6 +1329,10 @@ class _RunBase:
                     return self._last_call(
                         messages, submit_tool,
                         "forecast artifact ready; engine browsing closed")
+                if self.complete_description_ready and not self.submission:
+                    return self._last_call(
+                        messages, submit_tool,
+                        "typed descriptive answers ready; engine browsing closed")
             if self.submission:
                 break
         if not self.submission:
@@ -1453,7 +1487,30 @@ class _RunBase:
         # task. Compile them into the execution call so the model chooses the
         # verb, not an accidental per-channel execution plan. This mirrors the
         # production host compiler and makes one wide-series request one run.
-        if (name == "gnomon_forecast" and getattr(self, "target_keys", None)
+        if (name == "gnomon_describe" and self.profile == "evidence"
+                and getattr(self, "channels", None)):
+            # The host already resolved the task arrays into one lossless
+            # long-form panel. Bind descriptive calls to that same data
+            # contract, just as forecast calls are bound below. The model
+            # still chooses the verb and typed questions; schema facts are
+            # supplied by the host that owns them.
+            questions = arguments.get("questions")
+            compiled_questions = (getattr(
+                self, "temporal_compilation", {}) or {}).get("questions") or []
+            arguments = {
+                "input": str(self.csv_path),
+                "time_column": "timestamp",
+                "target_column": "value",
+                "series_column": "series",
+                "frequency": getattr(self, "frequency", "h"),
+                "format": "brief",
+                **({"questions": compiled_questions or questions}
+                   if compiled_questions or questions else {}),
+            }
+            entry["host_data_binding"] = "long_panel"
+            entry["typed_questions"] = len(questions or [])
+            entry["compiled_questions"] = len(compiled_questions)
+        elif (name == "gnomon_forecast" and getattr(self, "target_keys", None)
                 and (self.profile == "evidence"
                      or self.row.get("_host_compiled_forecast")
                      or self.row.get("_require_gnomon_execution"))):
@@ -1494,7 +1551,7 @@ class _RunBase:
         if name in {"gnomon_forecast", "gnomon_run"} \
                 and context_compilation.get("events"):
             arguments = {**arguments,
-                         "context_events": context_compilation["events"],
+                         "context_events_file": str(self.context_events_file),
                          "future_events": True}
         covariate_arguments = getattr(self, "covariate_arguments", {})
         if name in {"gnomon_forecast", "gnomon_run"} \
@@ -1550,8 +1607,37 @@ class _RunBase:
             # Transport death is a harness failure, disclosed as such.
             return self._abstain_outcome(f"mcp transport failed: {error}")
         entry["is_error"] = bool(result.get("isError"))
+        if (name == "gnomon_describe" and not entry["is_error"]
+                and entry.get("host_data_binding") == "long_panel"
+                and entry.get("compiled_questions", 0) > 0):
+            self.complete_description_ready = True
         structured = result.get("structuredContent") or {}
         if isinstance(structured, dict):
+            if (name == "gnomon_describe" and not result.get("isError")
+                    and entry.get("compiled_questions", 0) > 0):
+                answers = structured.get("answers") or []
+                if isinstance(answers, list):
+                    receipt = {
+                        "source": "inline_describe",
+                        # Describe creates no primary forecast, so forecast
+                        # immutability is not applicable rather than a
+                        # tautological pass.
+                        "primary_forecast_unchanged": None,
+                        "answers": [item for item in answers
+                                    if isinstance(item, dict)],
+                    }
+                    # A repeated identical call must not multiply the
+                    # denominator.  Keep one receipt per answer-id set.
+                    answer_ids = tuple(str((item.get("question") or {}).get(
+                        "id") or "") for item in receipt["answers"])
+                    if not any(
+                        tuple(str((item.get("question") or {}).get("id") or "")
+                              for item in prior.get("answers") or [])
+                        == answer_ids
+                        for prior in self.descriptive_answer_receipts
+                    ):
+                        self.descriptive_answer_receipts.append(receipt)
+                    entry["engine_answers"] = len(receipt["answers"])
             code = ((structured.get("error") or {}).get("code")
                     or structured.get("code"))
             if code:
@@ -2120,7 +2206,9 @@ class _McqRun(_RunBase):
     def __init__(self, row: dict[str, Any], client: Any,
                  session_factory: Any = None, work_dir: str | None = None,
                  profile: str = "full", compile_context: bool = False,
-                 context_receipts_dir: str | None = None):
+                 context_receipts_dir: str | None = None,
+                 compile_questions: bool = False,
+                 question_receipts_dir: str | None = None):
         self.tool, self.answer_rule = mcq_submit_tool(row)
         self.expected_fields = list(row.get("labels") or {})
         self.expected_count = len(row.get("pack") or [])
@@ -2129,7 +2217,9 @@ class _McqRun(_RunBase):
         super().__init__(row, client, session_factory=session_factory,
                          work_dir=work_dir, profile=profile,
                          compile_context=compile_context,
-                         context_receipts_dir=context_receipts_dir)
+                         context_receipts_dir=context_receipts_dir,
+                         compile_questions=compile_questions,
+                         question_receipts_dir=question_receipts_dir)
 
     def _row_channels(self, row: dict[str, Any]) -> dict[str, list[float]]:
         try:
@@ -2276,18 +2366,24 @@ def mcq_row(row: dict[str, Any], client: Any, *,
             work_dir: str | None = None,
             profile: str = "full",
             compile_context: bool = False,
-            context_receipts_dir: str | None = None) -> dict[str, Any]:
+            context_receipts_dir: str | None = None,
+            compile_questions: bool = False,
+            question_receipts_dir: str | None = None,
+            mcp_call_timeout: float | None = None) -> dict[str, Any]:
     """Drive one T1/T3 row through the same surface with the tier's own
     answer shape; the answer object is what that tier's scorer reads."""
     if session_factory is None:
         _ensure_checkout_importable()
         session_factory = lambda jail: StdioMcpSession(
             jail, command=[sys.executable, "-m", "gnomon", "mcp", "serve",
-                           "--profile", profile])
+                           "--profile", profile],
+            call_timeout=mcp_call_timeout)
     return _drive(_McqRun(row, client, session_factory=session_factory,
                           work_dir=work_dir, profile=profile,
                           compile_context=compile_context,
-                          context_receipts_dir=context_receipts_dir))
+                          context_receipts_dir=context_receipts_dir,
+                          compile_questions=compile_questions,
+                          question_receipts_dir=question_receipts_dir))
 
 
 def _ensure_checkout_importable() -> None:
