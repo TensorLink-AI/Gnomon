@@ -134,6 +134,122 @@ def _robust_scale(values: list[float]) -> float:
     return mad if mad > 1e-12 else statistics.stdev(values)
 
 
+def _short_history_case(seed: int, regime: str, length: int,
+                        scale: float) -> tuple[list[float], float, str]:
+    """Short-history case with a sealed 128-draw oracle.
+
+    These prefixes are too short for rolling-origin folds, so the fitted
+    executable runs on its short-history fallback path.  The oracle is the
+    realized future residual scale relative to the prefix's own reference
+    window — the exact quantity the executable publishes.
+    """
+    rng = random.Random(seed)
+    values, level = [], 100.0
+    horizon = 8
+
+    def sigma(index: int) -> float:
+        fraction = index / max(length - 1, 1)
+        if regime == "ramp_up":
+            return scale * (1 + 2 * fraction)
+        if regime == "ramp_down":
+            return scale * (3 - 2 * fraction)
+        if regime == "late_jump":
+            return scale * (2.5 if index >= length - length // 4 else 1.0)
+        if regime == "late_calm":
+            return scale * (1.0 if index >= length - length // 4 else 2.5)
+        return scale
+
+    for index in range(length):
+        level += .03
+        values.append(level + rng.gauss(0, sigma(index)))
+    prefix_count = len(residuals(values))
+    end_sigma = sigma(length - 1)
+    realised_scales = []
+    for draw in range(128):
+        future_rng = random.Random(seed * 10_000 + draw)
+        future, future_level = [], level
+        for offset in range(horizon):
+            step = end_sigma
+            if regime in {"ramp_up", "ramp_down"}:
+                step = sigma(length - 1 + offset + 1) if regime == "ramp_up" \
+                    else max(.3 * scale, sigma(length - 1) - 2 * scale
+                             * (offset + 1) / max(length - 1, 1))
+            future_level += .03
+            future.append(future_level + future_rng.gauss(0, max(.05, step)))
+        held_out = residuals(values + future)[prefix_count:]
+        if len(held_out) >= 2:
+            realised_scales.append(_robust_scale(held_out))
+    oracle = statistics.median(realised_scales)
+    errors = residuals(values)
+    window = max(8, min(48, len(errors) // 2))
+    reference = max(_robust_scale(errors[-window:]), 1e-12)
+    ratio = oracle / reference
+    direction = ("increased" if ratio > 1.25 else
+                 "decreased" if ratio < .8 else "stable")
+    return values, max(oracle, 1e-12), direction
+
+
+def _short_history_suite() -> dict[str, object]:
+    """Measure the short-history fallback against honest baselines.
+
+    ``abstain_all`` is the pre-change behaviour (every short history answered
+    "uncertain"); ``always_stable`` is the persistence-null baseline. The
+    fallback graduates only if its best-estimate accuracy beats both.
+    """
+    rows: list[dict[str, object]] = []
+    regimes = ("flat", "ramp_up", "ramp_down", "late_jump", "late_calm")
+    for regime_index, regime in enumerate(regimes):
+        for length_index, length in enumerate((28, 40, 60)):
+            for scale_index, scale in enumerate((.5, 2.0)):
+                for replicate in range(8):
+                    seed = (500_000 + regime_index * 10_000
+                            + length_index * 1_000 + scale_index * 100
+                            + replicate)
+                    values, oracle, direction = _short_history_case(
+                        seed, regime, length, scale)
+                    fitted = fit_volatility_executable(values, horizon=8)
+                    estimate = max(fitted.scale, 1e-12)
+                    rows.append({
+                        "regime": regime, "length": length, "scale": scale,
+                        "seed": seed, "candidate": fitted.candidate,
+                        "direction": fitted.direction,
+                        "oracle_direction": direction,
+                        "fallback_used": bool(fitted.diagnostics.get(
+                            "short_history_point_estimate")),
+                        "correct": fitted.direction == direction,
+                        "absolute_log_scale_error": abs(
+                            math.log(estimate / oracle)),
+                    })
+    labels = ("increased", "stable", "decreased")
+    class_counts = {label: sum(row["oracle_direction"] == label
+                               for row in rows) for label in labels}
+    recalls = {}
+    for label in labels:
+        members = [row for row in rows if row["oracle_direction"] == label]
+        recalls[label] = (statistics.mean(row["correct"] for row in members)
+                         if members else None)
+    accuracy = statistics.mean(row["correct"] for row in rows)
+    always_stable = statistics.mean(
+        row["oracle_direction"] == "stable" for row in rows)
+    return {
+        "cases": len(rows),
+        "fallback_rate": statistics.mean(row["fallback_used"] for row in rows),
+        "uncertain_rate": statistics.mean(
+            row["direction"] == "uncertain" for row in rows),
+        "best_estimate_direction_accuracy": accuracy,
+        "class_counts": class_counts,
+        "class_recall": recalls,
+        "balanced_direction_accuracy": statistics.mean(
+            value for value in recalls.values() if value is not None),
+        "abstain_all_baseline_accuracy": 0.0,
+        "always_stable_baseline_accuracy": always_stable,
+        "beats_always_stable": accuracy > always_stable,
+        "mean_absolute_log_scale_error": statistics.mean(
+            row["absolute_log_scale_error"] for row in rows),
+        "rows": rows,
+    }
+
+
 def _direction_metrics(rows: list[dict[str, object]]) -> dict[str, object]:
     labels = ("increased", "stable", "decreased")
     recalls = {}
@@ -260,7 +376,11 @@ def run() -> dict[str, object]:
                                     if row["shape"] in {"ramp", "seasonal"}])
     held_out = _balanced_subset([row for row in balanced_rows
                                  if row["shape"] in {"step", "heavy_tail"}])
-    return {"schema_version": "0.3", "cases": len(rows),
+    short_history = _short_history_suite()
+    short_history_rows = short_history.pop("rows")
+    return {"schema_version": "0.4", "cases": len(rows),
+            "short_history_suite": short_history,
+            "short_history_rows": short_history_rows,
             "independent_seeds": len({row["seed"] for row in rows}),
             "supported": len(supported),
             "mean_absolute_log_scale_error": statistics.mean(
@@ -314,7 +434,8 @@ def main() -> int:
             json.dumps(result, indent=2, sort_keys=True) + "\n",
             encoding="utf-8")
     print(json.dumps({key: value for key, value in result.items()
-                      if key != "rows"}, indent=2, sort_keys=True))
+                      if key not in {"rows", "short_history_rows"}},
+                     indent=2, sort_keys=True))
     # Volatility direction is intentionally a diagnostic until its independent
     # balanced suite graduates; benchmark execution itself remains successful.
     return 0
