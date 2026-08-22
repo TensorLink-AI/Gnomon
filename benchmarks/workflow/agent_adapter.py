@@ -363,6 +363,28 @@ def direct(case: dict[str, Any], client: OpenRouterClient, csv_path: Path | None
                 "claims": []}
 
 
+def _submission_problems(case: dict[str, Any], value: dict[str, Any],
+                         evidence: dict[str, Any]) -> list[str]:
+    """Validate only fields whose canonical value the host already owns."""
+    if not evidence.get("artifact_id"):
+        return []
+    problems: list[str] = []
+    numbers = value.get("numbers") if isinstance(value.get("numbers"), dict) else {}
+    artifact_numbers = evidence.get("artifact_numbers") or {}
+    for key in (case.get("answer_schema") or {}).get("numbers") or []:
+        if key not in numbers:
+            problems.append(f"numbers.{key} is missing")
+        elif key in artifact_numbers and numbers[key] != artifact_numbers[key]:
+            problems.append(f"numbers.{key} must equal the immutable artifact value")
+    choices = value.get("choices") if isinstance(value.get("choices"), dict) else {}
+    for key in (case.get("answer_schema") or {}).get("choices") or []:
+        if key not in choices:
+            problems.append(f"choices.{key} is missing")
+    if value.get("artifact_id") != evidence["artifact_id"]:
+        problems.append("artifact_id must copy the immutable artifact identity")
+    return problems
+
+
 def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
         jail: Path, profile: str) -> tuple[dict[str, Any], int, list[str], dict[str, Any]]:
     # The server deliberately runs with the case jail as cwd. Ensure that
@@ -425,7 +447,22 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                 except json.JSONDecodeError:
                     arguments = {}
                 if name == "submit_answer":
-                    return arguments, calls, sequence, engine_evidence
+                    problems = _submission_problems(
+                        case, arguments, engine_evidence)
+                    if not problems:
+                        return arguments, calls, sequence, engine_evidence
+                    messages.append({
+                        "role": "tool", "tool_call_id": call["id"],
+                        "content": json.dumps({
+                            "accepted": False,
+                            "problems": problems,
+                            "artifact_id": engine_evidence.get("artifact_id"),
+                            "artifact_numbers": engine_evidence.get(
+                                "artifact_numbers") or {},
+                            "instruction": "Repair only the answer envelope; do not call another engine tool.",
+                        }),
+                    })
+                    break
                 calls += 1
                 sequence.append(name)
                 arguments = _compile_execution_arguments(
@@ -520,10 +557,12 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                 if call["function"]["name"] != "submit_answer":
                     continue
                 try:
-                    return (json.loads(call["function"]["arguments"] or "{}"),
-                            calls, sequence, engine_evidence)
+                    arguments = json.loads(
+                        call["function"]["arguments"] or "{}")
                 except json.JSONDecodeError:
-                    pass
+                    continue
+                if not _submission_problems(case, arguments, engine_evidence):
+                    return (arguments, calls, sequence, engine_evidence)
             messages.append({"role": "assistant", "content": message.content or None,
                              **({"tool_calls": final_calls} if final_calls else {})})
             messages.append({"role": "user", "content": (

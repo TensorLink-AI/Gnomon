@@ -566,3 +566,19 @@ def test_adapter_host_binds_routing_facts_over_model_paraphrases():
         started=0, tool_names=[])
     assert row["facts"] == {"source_kind": "longitudinal",
                             "tracking_requested": True}
+
+
+def test_adapter_rejects_incomplete_artifact_submission_without_recomputing():
+    from benchmarks.workflow.agent_adapter import _submission_problems
+
+    case = {"answer_schema": {"numbers": ["next"],
+                               "choices": ["pattern"]}}
+    evidence = {"artifact_id": "forecast-1",
+                "artifact_numbers": {"next": 12.5}}
+    assert _submission_problems(case, {
+        "numbers": {}, "choices": {}, "artifact_id": None}, evidence) == [
+            "numbers.next is missing", "choices.pattern is missing",
+            "artifact_id must copy the immutable artifact identity"]
+    assert _submission_problems(case, {
+        "numbers": {"next": 12.5}, "choices": {"pattern": "period-3"},
+        "artifact_id": "forecast-1"}, evidence) == []
