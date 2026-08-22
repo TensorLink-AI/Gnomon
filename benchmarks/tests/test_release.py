@@ -12,6 +12,7 @@ def test_release_builder_removes_case_data_and_records_digest(
     source = tmp_path / "source.json"
     source.write_text(json.dumps({
         "score": .8, "rows": [{"prompt": "private"}],
+        "results": [{"response": "also private"}],
         "breakdown": {"easy": .9},
         "shards": ["/root/Gnomon/results/run/shard-0"],
     }), encoding="utf-8")
@@ -32,6 +33,7 @@ def test_release_builder_removes_case_data_and_records_digest(
     build(spec)
     payload = json.loads((output / "example.json").read_text())
     assert "rows" not in payload["summary"]
+    assert "results" not in payload["summary"]
     assert payload["summary"]["breakdown"] == {"easy": .9}
     assert payload["summary"]["shards"] == ["results/run/shard-0"]
     assert payload["release_metadata"]["source_sha256"] == hashlib.sha256(
