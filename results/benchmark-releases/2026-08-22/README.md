@@ -1,8 +1,9 @@
 # Gnomon external benchmark evidence — 2026-08-22
 
-This release contains aggregate results produced by Gnomon commit `1f37307`
-and audited on PR #77. The report/release harness was subsequently hardened at
-`b45a69c`. Raw prompts, responses, per-case rows, credentials, and caches are
+This release contains aggregate results produced by the commits named in each
+result and audited on PR #77. The newest TemporalBench execution used product
+commit `29f7a3f` and was resummarized by the hardened harness at `8898cf2`.
+Raw prompts, responses, per-case rows, credentials, and caches are
 excluded. Every retained JSON names the evaluated code, harness, dataset, and
 configuration; `manifest.json` hashes the curated files.
 
@@ -11,6 +12,8 @@ configuration; `manifest.json` hashes the curated files.
 | Evaluation | Scope | Result | Defensible interpretation |
 | --- | ---: | --- | --- |
 | CompilerBench | 80/80 cases | 100% exact intent accuracy; 100% refusal and ambiguity accuracy; zero invented targets | The latest compiler completed this generated corpus. The earlier truncation failure was fixed with a general output-completeness check and sufficient compile budget. One seed is not a universal language-understanding claim. |
+| TemporalBench choice reasoning | Matched 80-case T1-T4 subset | Overall local choice accuracy 27.8% direct vs 32.8% Evidence; T2/T4 choices 26.7% vs 31.7%; paired T2/T4 McNemar p=0.539 | Positive but inconclusive. Level reasoning improved strongly (15% to 45%), while volatility remained over-conservative and answered `Uncertain` on every case. Choice scoring is local, not leaderboard-verified. |
+| TemporalBench forecasting | 39/40 forecast rows scored by both arms | Mean official sMAPE 13.85 direct vs 10.99 Evidence; Evidence won 22 and lost 17, sign p=0.522. Penalized Evidence mean 10.93 with its abstention charged at the paired control score | Positive mean, not statistically significant. Gnomon abstained on six of 240 channel slots and all submitted arrays were Gnomon-authored. Per-channel MASE was mixed. |
 | AdapterBench | Full conformance set | All seven statistical adapters and installed Toto2-4M adapter conformed; all three adversarial adapters were rejected | The adapter protocol graduates for the implementations actually installed and tested. |
 | AdmissionBench | 5,000 cases | Evidence-weighted loss 0.9251 vs 0.9768 always-candidate and 1.0007 always-baseline | The model-admission policy passed its independent synthetic gates. This validates policy behavior, not Toto accuracy on a real domain. |
 | Toto2-4M model comparison | 80 held-out synthetic cases | sMAPE 2.8463 classical-only vs 2.3082 with Toto; Toto arm won 61, lost 16, tied 3; paired sign p=2.42e-7 | Toto added value on this pinned synthetic corpus. It is not evidence that Toto wins across real-world domains or against other TSFMs. |
@@ -41,6 +44,9 @@ size limit.
 - The matched MTBench comparison covers a 20-case prefix of one finance task.
 - The Toto comparison uses one held-out synthetic corpus and one installed
   model adapter.
+- TemporalBench covers a stratified 80-case subset. Its choice scorer is local;
+  the forecast metrics use the official module. One Evidence forecast row
+  abstained, and the matched report prices that abstention into sMAPE.
 - ReasoningBench remains withdrawn; no answer-bearing historical result was
   republished.
 

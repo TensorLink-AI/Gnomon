@@ -3,10 +3,37 @@
     {
       "arm": "compiled-intent",
       "benchmark": "compilerbench",
-      "bytes": 1398,
+      "bytes": 1386,
       "file": "compilerbench.json",
       "scope": "full",
-      "sha256": "672fd74482221d41a5057295ad537dedcfa089fdc5fa70fa2bd9808c41b68f40",
+      "sha256": "521bf17876bdd74cb79e279eba26e487d68259ed626b6fe256bb8a2a6640b37e",
+      "status": "complete"
+    },
+    {
+      "arm": "deepseek-control",
+      "benchmark": "temporalbench",
+      "bytes": 5262,
+      "file": "temporalbench-control.json",
+      "scope": "subset",
+      "sha256": "0e79c3e4062c064aaf38f8d57a5065bcf08b7b5a8f48a338119433e0b36fa6e0",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-evidence",
+      "benchmark": "temporalbench",
+      "bytes": 7479,
+      "file": "temporalbench-evidence.json",
+      "scope": "subset",
+      "sha256": "c0ab3e8f3f26306bb530fcb4b6da9d77cc4bfc2937b8bfdd80a269a064096da3",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-evidence-vs-control",
+      "benchmark": "temporalbench",
+      "bytes": 2670,
+      "file": "temporalbench-matched.json",
+      "scope": "subset",
+      "sha256": "d69e5548291df311e311a154d90caeb32510da0ba8c271605cfe0d992ddc414e",
       "status": "complete"
     },
     {
@@ -91,7 +118,7 @@
       "status": "complete"
     }
   ],
-  "curated_by_commit": "395c89d485dbf8f5c4da1f84695baa37af55c5d3",
+  "curated_by_commit": "8898cf21b04d6ee6c566aab7c3e68c33f532b11d",
   "not_included": [
     {
       "benchmark": "anomllm-other-families",
