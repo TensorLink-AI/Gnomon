@@ -186,3 +186,18 @@ def test_explicit_each_and_dependence_scope_override_semantic_drift() -> None:
     assert related[0].members == ("mem", "cpu")
     assert related[0].verb == "compare"
     assert related[0].explanatory_variables == ()
+
+
+def test_explicit_noisier_request_cannot_drift_to_level() -> None:
+    result = compile_temporal_text(
+        "Will error_rate become noisier over the next 6 periods?",
+        available_targets=["error_rate"], adapter=Adapter({
+            "status": "compiled", "questions": [{
+                "id": "q1", "verb": "predict", "property": "level",
+                "target": "error_rate", "measure": "point",
+            }]}))
+
+    assert result[0].property == "volatility"
+    assert result[0].target == "error_rate"
+    assert result[0].horizon == 6
+    assert result[0].measure is None

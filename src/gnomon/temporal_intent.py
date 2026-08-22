@@ -81,7 +81,8 @@ _PROPERTY_CUES: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("stationarity", re.compile(r"\b(stationar|unit root|adf|kpss)\w*\b", re.I)),
     ("decomposition", re.compile(r"\b(decompos|stl)\w*\b", re.I)),
     ("regression", re.compile(r"\b(regress|exogenous|predictor|coefficient)\w*\b", re.I)),
-    ("volatility", re.compile(r"\b(volatil|variance|variability|dispersion)\w*\b", re.I)),
+    ("volatility", re.compile(
+        r"\b(volatil\w*|variance|variab\w*|dispersion|nois\w*)\b", re.I)),
     ("seasonality", re.compile(r"\b(season|periodic|cycle|phase alignment)\w*\b", re.I)),
     ("trend", re.compile(r"\b(trend|slope|growth rate|decline rate)\w*\b", re.I)),
     ("regime", re.compile(r"\b(regime|structural break|change point|changepoint)\w*\b", re.I)),
@@ -138,6 +139,18 @@ def _explicit_horizon(segment: str) -> int | None:
     return int(match.group(1)) if match else None
 
 
+def _proposal_has_unknown_target(question: dict[str, Any],
+                                 available_targets: list[str]) -> bool:
+    target = question.get("target")
+    if isinstance(target, str):
+        return target not in available_targets
+    if isinstance(target, dict):
+        members = target.get("members")
+        return (not isinstance(members, list)
+                or any(member not in available_targets for member in members))
+    return False
+
+
 def _route_explicit_questions(
     text: str, questions: Any, available_targets: list[str],
     default_verb: str, default_horizon: int | None,
@@ -161,11 +174,16 @@ def _route_explicit_questions(
             if proposed:
                 routed.append(proposed)
             continue
+        # Do not launder an invented model target into a valid one. The normal
+        # validator must retain and reject that safety failure.
+        if _proposal_has_unknown_target(proposed, available_targets):
+            routed.append(proposed)
+            continue
         prior_property = proposed.get("property")
         proposed["id"] = str(proposed.get("id") or f"q{index + 1}")
         proposed["property"] = prop
         if prior_property and prior_property != prop:
-            for key in ("method", "period", "seasonal_period", "differencing",
+            for key in ("measure", "method", "period", "seasonal_period", "differencing",
                         "explanatory_variables", "validation"):
                 proposed.pop(key, None)
             proposed["verb"] = {
