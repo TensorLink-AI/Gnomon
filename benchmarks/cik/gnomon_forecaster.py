@@ -46,7 +46,9 @@ import time
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "src"))
 
 from benchmarks.common.openrouter import OpenRouterClient, extract_json_array  # noqa: E402
 

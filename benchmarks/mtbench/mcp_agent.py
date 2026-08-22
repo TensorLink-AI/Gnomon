@@ -42,7 +42,9 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "src"))
 
 from benchmarks.cik.mcp_agent import (  # noqa: E402 — library reuse
     StdioMcpSession,

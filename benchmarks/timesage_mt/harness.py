@@ -39,7 +39,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "src"))
 
 from benchmarks.common.openrouter import OpenRouterClient  # noqa: E402
 from benchmarks.timesage_mt.tasks import TimeSageTask, read_visible_series  # noqa: E402
