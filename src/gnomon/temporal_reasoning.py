@@ -20,6 +20,48 @@ from .temporal_evidence import (
 TEMPORAL_ANSWER_CONTRACT_VERSION = "0.8"
 
 
+def _observed_trend(values: list[float], report: dict[str, Any]) -> dict[str, Any]:
+    """Estimate within-regime drift without relabelling level shifts as trend."""
+    n = len(values)
+    changes = report.get("changepoints") or {}
+    edges = sorted({int(item.get("index"))
+                    for item in (changes.get("regimes", [])
+                                 if isinstance(changes, dict) else [])
+                    if isinstance(item, dict)
+                    and 4 <= int(item.get("index", -1)) <= n - 4})
+    bounds = [0, *edges, n]
+    segments = [(lo, hi) for lo, hi in zip(bounds, bounds[1:])
+                if hi - lo >= 4]
+    numerator = denominator = 0.0
+    for lo, hi in segments:
+        centre = (hi - lo - 1) / 2
+        for offset, value in enumerate(values[lo:hi]):
+            shifted = offset - centre
+            numerator += shifted * value
+            denominator += shifted * shifted
+    slope = numerator / denominator if denominator else 0.0
+    residuals_: list[float] = []
+    for lo, hi in segments:
+        centre = (hi - lo - 1) / 2
+        segment = values[lo:hi]
+        intercept = statistics.mean(segment)
+        residuals_.extend(value - (intercept + slope * (offset - centre))
+                          for offset, value in enumerate(segment))
+    degrees = n - len(segments) - 1
+    variance = (sum(value * value for value in residuals_) / degrees
+                if degrees > 0 else math.inf)
+    standard_error = (math.sqrt(variance / denominator)
+                      if denominator and math.isfinite(variance) else math.inf)
+    distinguishable = n >= 8 and abs(slope) > 1.96 * standard_error
+    return {
+        "direction": ("upward" if distinguishable and slope > 0 else
+                      "downward" if distinguishable else "constant"),
+        "slope_per_step": slope, "slope_standard_error": standard_error,
+        "regime_fixed_effects": max(0, len(segments) - 1),
+        "observations": n,
+    }
+
+
 def _correlation(left: list[float], right: list[float]) -> float | None:
     if len(left) != len(right) or len(left) < 3:
         return None
@@ -186,29 +228,17 @@ def answer_descriptive_question(
 ) -> dict[str, Any]:
     prop = question.property
     if prop == "trend" and question.verb in {"describe", "detect"}:
-        n = len(values)
-        centre = (n - 1) / 2
-        denominator = sum((index - centre) ** 2 for index in range(n))
-        slope = (sum((index - centre) * value
-                     for index, value in enumerate(values)) / denominator
-                 if denominator else 0.0)
-        intercept = (statistics.mean(values) - slope * centre
-                     if values else 0.0)
-        residuals_ = [value - (intercept + slope * index)
-                      for index, value in enumerate(values)]
-        residual_variance = (sum(value * value for value in residuals_) /
-                             (n - 2) if n > 2 else math.inf)
-        standard_error = (math.sqrt(residual_variance / denominator)
-                          if denominator and math.isfinite(residual_variance)
-                          else math.inf)
-        distinguishable = n >= 8 and abs(slope) > 1.96 * standard_error
-        direction = ("upward" if distinguishable and slope > 0 else
-                     "downward" if distinguishable else "constant")
+        observed_trend = _observed_trend(values, report)
+        n = observed_trend["observations"]
+        slope = observed_trend["slope_per_step"]
+        standard_error = observed_trend["slope_standard_error"]
+        direction = observed_trend["direction"]
         support = "supported" if n >= 8 else "abstained"
         return _envelope(
             question, direction=direction, estimate={
                 "slope_per_step": slope,
                 "slope_standard_error": standard_error,
+                "regime_fixed_effects": observed_trend["regime_fixed_effects"],
                 "two_sided_threshold": 1.96,
             }, interval=({"lower": slope - 1.96 * standard_error,
                           "upper": slope + 1.96 * standard_error}

@@ -41,6 +41,18 @@ def test_descriptive_trend_requires_slope_beyond_sampling_uncertainty() -> None:
     )["answer"]["direction"] == "upward"
 
 
+def test_descriptive_trend_does_not_turn_level_shift_into_drift() -> None:
+    values = [10.0] * 25 + [20.0] * 25
+    report = {**REPORT, "changepoints": {
+        "regimes": [{"index": 25, "classification": "regime_shift"}],
+        "support": {"status": "supported"}}}
+    answer = answer_descriptive_question(
+        TemporalQuestion("q", "describe", "x", "trend"),
+        report=report, values=values, season=1)
+    assert answer["answer"]["direction"] == "constant"
+    assert answer["answer"]["estimate"]["regime_fixed_effects"] == 1
+
+
 def test_descriptive_disturbance_distinguishes_shift_spike_and_stable() -> None:
     question = TemporalQuestion("q", "describe", "x", "disturbance")
     base = {**REPORT, "anomalies": {"count": 0}}
