@@ -206,6 +206,49 @@ def test_baselines_survive_a_candidate_restriction(tmp_path):
     assert artifact.results[0].strongest_baseline in {"last_value", "seasonal_naive"}
 
 
+def test_explicit_classical_pool_excludes_installed_tsfms(tmp_path, monkeypatch):
+    """An installed backend cannot escape a caller-narrowed contest."""
+    import gnomon.pipeline as pipeline_module
+    from gnomon.runtime import forecast
+
+    seen: dict = {}
+    original = pipeline_module.evaluate
+
+    def spy(*args, **kwargs):
+        seen["tsfm_names"] = kwargs.get("tsfm_names")
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(pipeline_module, "evaluate", spy)
+    artifact, _ = forecast(
+        str(_csv(tmp_path)), time_column="timestamp", target_column="value",
+        horizon=7, output=str(tmp_path / "classical"), clock=CLOCK,
+        candidates=["last_value", "drift", "theta"],
+    )
+
+    assert seen["tsfm_names"] == []
+    scored = {
+        name for name, score in artifact.results[0].selection_scores.items()
+        if score is not None
+    }
+    assert scored <= {"last_value", "seasonal_naive", "drift", "theta"}
+
+
+def test_explicit_baseline_only_pool_is_not_the_open_default(tmp_path):
+    from gnomon.runtime import forecast
+
+    artifact, _ = forecast(
+        str(_csv(tmp_path)), time_column="timestamp", target_column="value",
+        horizon=7, output=str(tmp_path / "baseline-only"), clock=CLOCK,
+        candidates=["last_value"],
+    )
+    scored = {
+        name for name, score in artifact.results[0].selection_scores.items()
+        if score is not None
+    }
+    # Both mandatory baselines remain, but no non-baseline candidate leaks in.
+    assert scored <= {"last_value", "seasonal_naive"}
+
+
 def test_unknown_candidate_is_refused(tmp_path):
     from gnomon.contracts import GnomonError
     from gnomon.runtime import forecast

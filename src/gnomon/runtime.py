@@ -242,6 +242,12 @@ def _config_fingerprint(config: Any) -> dict[str, object] | None:
         # first-write-wins served whichever artifact landed first.
         "statistical_candidates": sorted(
             getattr(models, "statistical_candidates", None) or []) or None,
+        # An explicit baseline-only pool has empty statistical/TSFM candidate
+        # lists but is not the same run as the open default pool.
+        "candidate_pool_restricted": (
+            True if getattr(models, "_candidate_pool_restricted", False)
+            else None
+        ),
         # Interval-shaping options change the published numbers without
         # changing any name in the run, so leaving them out let two runs
         # with materially different bands collide on one content-addressed
@@ -279,11 +285,14 @@ def _restricted_pool(config: Any) -> list[str] | None:
     if models is None:
         return None
     statistical = getattr(models, "statistical_candidates", None)
-    if not statistical:
+    explicitly_restricted = getattr(
+        models, "_candidate_pool_restricted", False)
+    if not statistical and not explicitly_restricted:
         # `tsfm_candidates` alone is not a restriction: listing TSFMs is how
         # they become available at all, and an empty list is the default.
         return None
-    return sorted(set(statistical) | set(getattr(models, "tsfm_candidates", None) or []))
+    return sorted(set(statistical or [])
+                  | set(getattr(models, "tsfm_candidates", None) or []))
 
 
 def _restrict_candidates(config: Any, candidates: list[str]):
@@ -320,6 +329,10 @@ def _restrict_candidates(config: Any, candidates: list[str]):
     resolved.models.tsfm_candidates = [
         name for name in candidates if name in known_tsfms
     ]
+    # `None`/empty historically means "unconfigured, consider everything".
+    # Preserve the caller's explicit restriction even for baseline-only or
+    # classical-only pools, where one side of the split is necessarily empty.
+    resolved.models._candidate_pool_restricted = True
     return resolved
 
 
