@@ -13,19 +13,23 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from statistics import mean
+import sys
 from typing import Any
 
-from benchmarks.common.envfile import load_env_file
-from benchmarks.common.openrouter import OpenRouterClient
-from benchmarks.common.openrouter import OpenRouterError
-from benchmarks.temporalbench.mcp_agent import run_row
-from gnomon.artifacts import read_artifact
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "src"))
 
-from .generate import EPOCH as CONTEXT_EPOCH
-from .run_contextbench import frequency_step
-from .run_contextbench import smape, valid_disposition, wilson
-from .run_llm import compile_events
-from .schema import Case, Oracle, load_cases, load_oracles
+from benchmarks.common.envfile import load_env_file  # noqa: E402
+from benchmarks.common.openrouter import OpenRouterClient  # noqa: E402
+from benchmarks.common.openrouter import OpenRouterError  # noqa: E402
+from benchmarks.temporalbench.mcp_agent import run_row  # noqa: E402
+from gnomon.artifacts import read_artifact  # noqa: E402
+
+from .generate import EPOCH as CONTEXT_EPOCH  # noqa: E402
+from .run_contextbench import frequency_step  # noqa: E402
+from .run_contextbench import smape, valid_disposition, wilson  # noqa: E402
+from .run_llm import compile_events  # noqa: E402
+from .schema import Case, Oracle, load_cases, load_oracles  # noqa: E402
 
 PROFILES = {"core", "describe", "evidence", "mega", "full"}
 ROUTING_POLICIES = {"compiled", "unrouted"}

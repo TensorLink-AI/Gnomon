@@ -12,8 +12,16 @@ import json
 import math
 import random
 from pathlib import Path
+import sys
 
-from gnomon.admission import ExternalModelPrior, decide_admission, local_evidence
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "src"))
+
+from gnomon.admission import (  # noqa: E402
+    ExternalModelPrior,
+    decide_admission,
+    local_evidence,
+)
 
 
 def run(seed: int = 20260820, cases: int = 1000) -> dict[str, object]:

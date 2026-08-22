@@ -13,19 +13,26 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from statistics import mean
+import sys
 from typing import Any
 
-from benchmarks.common.envfile import load_env_file
-from benchmarks.common.openrouter import OpenRouterClient, OpenRouterError
-from benchmarks.temporalbench.mcp_agent import coerce_json_containers
-from gnomon.workflows import (
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "src"))
+
+from benchmarks.common.envfile import load_env_file  # noqa: E402
+from benchmarks.common.openrouter import (  # noqa: E402
+    OpenRouterClient,
+    OpenRouterError,
+)
+from benchmarks.temporalbench.mcp_agent import coerce_json_containers  # noqa: E402
+from gnomon.workflows import (  # noqa: E402
     DocumentRef, build_context_investigation_prompt,
     extract_explicit_schedule_context,
     normalise_context_response_containers, parse_context_response,
 )
 
-from .run_contextbench import run_case, smape
-from .schema import Case, Oracle, load_cases, load_oracles
+from .run_contextbench import run_case, smape  # noqa: E402
+from .schema import Case, Oracle, load_cases, load_oracles  # noqa: E402
 
 
 FORECAST_TOOL = {

@@ -25,10 +25,16 @@ def test_registry_and_claim_catalog_cover_the_same_benchmarks():
     assert CATALOG["effectbench"].layer == "safety_contract"
 
 
-def test_effectbench_documented_module_entrypoint_imports_cleanly():
+@pytest.mark.parametrize("module", [
+    "benchmarks.effectbench.run_effectbench",
+    "benchmarks.admissionbench.run_admissionbench",
+    "benchmarks.contextbench.run_llm",
+    "benchmarks.contextbench.run_surfaces",
+    "benchmarks.modelbench.build_tsfm_registry",
+])
+def test_documented_module_entrypoints_import_cleanly(module):
     result = subprocess.run(
-        [sys.executable, "-m", "benchmarks.effectbench.run_effectbench",
-         "--help"],
+        [sys.executable, "-m", module, "--help"],
         cwd=Path(__file__).resolve().parents[2],
         capture_output=True,
         text=True,
