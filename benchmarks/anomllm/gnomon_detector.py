@@ -35,6 +35,7 @@ import pickle
 import re
 import sys
 import time
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -103,6 +104,13 @@ def binary_f1(truth: list[int], prediction: list[int]) -> float:
     precision = true_positive / predicted
     recall = true_positive / actual
     return 2 * precision * recall / (precision + recall)
+
+
+def _detect_job(job: tuple[int, list[float], float | None]) -> tuple[int, dict[str, Any], float]:
+    """Pickle-safe worker; ``executor.map`` preserves dataset order."""
+    number, values, threshold = job
+    started = time.time()
+    return number, detect_series(values, threshold), time.time() - started
 
 
 #: Variant names whose files upstream ``postprocess_configs`` rescales
@@ -203,6 +211,7 @@ def run_gnomon_condition(
     variant_name: str = "detect",
     model_dir: str = "gnomon",
     records_path: Path | None = None,
+    workers: int = 1,
 ) -> dict[str, Any]:
     """Produce the Gnomon prediction file for one dataset.
 
@@ -211,6 +220,8 @@ def run_gnomon_condition(
     ``gnomonbench/`` tree (never under ``results/``, which the official
     aggregator sweeps), and returns a run summary.
     """
+    if workers < 1:
+        raise ValueError("workers must be at least 1")
     # Enforced here, not just at the CLI: the official aggregator
     # rescales every integer in files under these variant names,
     # silently corrupting full-resolution indices.
@@ -239,54 +250,67 @@ def run_gnomon_condition(
     f1_scores: list[float] = []
     clean_correct = 0
     supported = 0
-    for number, series in enumerate(dataset["series"], start=1):
-        values = series_values(series)
-        started = time.time()
-        detection = detect_series(values, threshold)
-        elapsed = time.time() - started
-        flagged = [
-            round((datetime.fromisoformat(a["timestamp"]) - EPOCH) / STEP)
-            for a in detection["anomalies"]
-        ]
-        intervals = flagged_indices_to_intervals(flagged)
-        custom_id = f"{data_name}_{model_dir}_{variant_name}_{number:05d}"
-        row = {
-            "custom_id": custom_id,
-            "request": {
-                "adapter": "gnomon",
-                "detector": detection.get("detector"),
-                "selection_basis": detection.get("selection_basis"),
-                "support": detection.get("support", {}).get("status"),
-            },
-            "response": json.dumps(intervals),
-        }
-        with results_path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(row) + "\n")
+    values_by_number = {
+        number: series_values(series)
+        for number, series in enumerate(dataset["series"], start=1)
+    }
+    jobs = [(number, values, threshold)
+            for number, values in values_by_number.items()]
+    if workers > 1:
+        executor = ProcessPoolExecutor(max_workers=workers)
+        detections = executor.map(_detect_job, jobs)
+    else:
+        executor = None
+        detections = map(_detect_job, jobs)
+    try:
+        for number, detection, elapsed in detections:
+            values = values_by_number[number]
+            flagged = [
+                round((datetime.fromisoformat(a["timestamp"]) - EPOCH) / STEP)
+                for a in detection["anomalies"]
+            ]
+            intervals = flagged_indices_to_intervals(flagged)
+            custom_id = f"{data_name}_{model_dir}_{variant_name}_{number:05d}"
+            row = {
+                "custom_id": custom_id,
+                "request": {
+                    "adapter": "gnomon",
+                    "detector": detection.get("detector"),
+                    "selection_basis": detection.get("selection_basis"),
+                    "support": detection.get("support", {}).get("status"),
+                },
+                "response": json.dumps(intervals),
+            }
+            with results_path.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(row) + "\n")
 
-        status = detection.get("support", {}).get("status")
-        if status in ("supported", "conditionally_supported"):
-            supported += 1
-        f1 = None
-        truth = ground_truth_intervals(dataset["anom"][number - 1])
-        if truth is not None:
-            truth_vector = intervals_to_vector(truth, len(values))
-            prediction_vector = intervals_to_vector(intervals, len(values))
-            f1 = binary_f1(truth_vector, prediction_vector)
-            f1_scores.append(f1)
-            if sum(truth_vector) == 0 and sum(prediction_vector) == 0:
-                # Correctly quiet on a series with nothing to find —
-                # scores 1.0 under the official convention, and counted
-                # here so the silence stays visible in the summary.
-                clean_correct += 1
-        records.write(RunRecord(
-            task_id=custom_id,
-            success=bool(detection.get("detector")),
-            appropriate_abstention=detection.get("detector") is None,
-            tool_calls=1,
-            latency_seconds=round(elapsed, 4),
-            extra={"f1": f1, "support": status,
-                   "detector": detection.get("detector")},
-        ))
+            status = detection.get("support", {}).get("status")
+            if status in ("supported", "conditionally_supported"):
+                supported += 1
+            f1 = None
+            truth = ground_truth_intervals(dataset["anom"][number - 1])
+            if truth is not None:
+                truth_vector = intervals_to_vector(truth, len(values))
+                prediction_vector = intervals_to_vector(intervals, len(values))
+                f1 = binary_f1(truth_vector, prediction_vector)
+                f1_scores.append(f1)
+                if sum(truth_vector) == 0 and sum(prediction_vector) == 0:
+                    # Correctly quiet on a series with nothing to find —
+                    # scores 1.0 under the official convention, and counted
+                    # here so the silence stays visible in the summary.
+                    clean_correct += 1
+            records.write(RunRecord(
+                task_id=custom_id,
+                success=bool(detection.get("detector")),
+                appropriate_abstention=detection.get("detector") is None,
+                tool_calls=1,
+                latency_seconds=round(elapsed, 4),
+                extra={"f1": f1, "support": status,
+                       "detector": detection.get("detector")},
+            ))
+    finally:
+        if executor is not None:
+            executor.shutdown()
 
     summary = {
         "benchmark": "anomllm",
@@ -294,6 +318,7 @@ def run_gnomon_condition(
         "condition": f"{model_dir}/{variant_name}",
         "series": len(dataset["series"]),
         "supported": supported,
+        "workers": workers,
         "scored_series": len(f1_scores),
         "clean_series_correctly_silent": clean_correct,
         "preview_mean_pointwise_f1_official_convention": (

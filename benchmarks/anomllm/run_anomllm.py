@@ -107,6 +107,8 @@ def main() -> int:
                         help=f"Dataset name, e.g. one of {', '.join(DATASETS)}")
     parser.add_argument("--threshold", type=float, default=None,
                         help="Gnomon detection threshold (default: Gnomon's)")
+    parser.add_argument("--workers", type=int, default=1,
+                        help="Parallel detector processes; output order remains deterministic")
     parser.add_argument("--variant-name", default="detect",
                         type=gnomon_variant_name,
                         help="Variant label for Gnomon's results file "
@@ -135,6 +137,7 @@ def main() -> int:
         summary = run_gnomon_condition(
             anomllm_root, args.data,
             threshold=args.threshold, variant_name=args.variant_name,
+            workers=args.workers,
         )
         print(json.dumps(summary, indent=2))
         # Same provenance run_all.py records, next to the sidecar, so a
