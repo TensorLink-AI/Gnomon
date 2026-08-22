@@ -84,6 +84,14 @@ def run(seed: int = 20260820, cases: int = 1000) -> dict[str, object]:
             })
     harmful = [row for row in rows if row["true_gain"] < 0]
     helpful = [row for row in rows if row["true_gain"] > .05]
+    short = [row for row in rows if row["folds"] <= 1]
+    short_harmful = [row for row in short if row["true_gain"] < 0]
+    short_helpful = [row for row in short if row["true_gain"] > .05]
+    short_losses = {
+        "always_baseline": sum(row["baseline_loss"] for row in short) / len(short),
+        "always_candidate": sum(row["candidate_loss"] for row in short) / len(short),
+        "evidence_weighted": sum(row["published_loss"] for row in short) / len(short),
+    }
     summary = {
         "schema_version": "0.1", "seed": seed, "cases": cases,
         "mean_loss": {"always_baseline": baseline_mean,
@@ -97,6 +105,16 @@ def run(seed: int = 20260820, cases: int = 1000) -> dict[str, object]:
         "reliability": reliability,
         "states": {state: sum(row["state"] == state for row in rows)
                    for state in sorted({row["state"] for row in rows})},
+        "short_history": {
+            "definition": "at most one local fold",
+            "cases": len(short), "mean_loss": short_losses,
+            "harmful_candidate_mean_weight": sum(
+                row["weight"] for row in short_harmful) / len(short_harmful),
+            "helpful_candidate_mean_weight": sum(
+                row["weight"] for row in short_helpful) / len(short_helpful),
+            "states": {state: sum(row["state"] == state for row in short)
+                       for state in sorted({row["state"] for row in short})},
+        },
     }
     summary["gates"] = {
         "beats_always_baseline": published_mean < baseline_mean,
@@ -104,6 +122,13 @@ def run(seed: int = 20260820, cases: int = 1000) -> dict[str, object]:
         "helpful_weight_exceeds_harmful":
             summary["helpful_candidate_mean_weight"]
             > summary["harmful_candidate_mean_weight"],
+        "short_history_beats_always_baseline": (
+            short_losses["evidence_weighted"] < short_losses["always_baseline"]),
+        "short_history_beats_always_candidate": (
+            short_losses["evidence_weighted"] < short_losses["always_candidate"]),
+        "short_history_helpful_weight_exceeds_harmful": (
+            summary["short_history"]["helpful_candidate_mean_weight"]
+            > summary["short_history"]["harmful_candidate_mean_weight"]),
     }
     return summary
 

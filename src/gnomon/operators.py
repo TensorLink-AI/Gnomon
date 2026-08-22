@@ -262,6 +262,34 @@ def regime_detection(
             "classification": classification,
             "support": status.to_dict(),
         })
+    # A temporary excursion normally appears as two opposing changepoints.
+    # Judging the return edge in isolation compares the restored baseline with
+    # a pre-window dominated by the excursion and falsely calls a new regime.
+    # Reconcile adjacent edges against the level before the first edge; this is
+    # structural interpretation of detected changes, not a new detector.
+    for index in range(1, len(regimes)):
+        opening, closing = regimes[index - 1], regimes[index]
+        if float(opening["shift"]) * float(closing["shift"]) >= 0:
+            continue
+        before = values[max(0, int(opening["index"]) - 24):
+                        int(opening["index"])]
+        after = values[int(closing["index"]):]
+        if len(before) < MIN_PERSIST or len(after) < MIN_PERSIST:
+            continue
+        scale = max(_robust_scale(before), 1e-12)
+        return_distance = abs(_mean(after) - _mean(before)) / scale
+        opening_size = abs(float(opening["shift"])) / scale
+        if return_distance < max(1.0, opening_size / 2):
+            sensitivity = dict(
+                (closing.get("support") or {}).get("sensitivity") or {})
+            sensitivity.update({
+                "paired_reversal": True,
+                "opening_index": int(opening["index"]),
+                "return_distance": return_distance,
+            })
+            closing["classification"] = "transient_anomaly"
+            closing["support"] = SupportAssessment(
+                "supported", sensitivity=sensitivity).to_dict()
     overall = regimes[-1]["classification"]
     return {**detection, "regimes": regimes, "classification": overall}
 

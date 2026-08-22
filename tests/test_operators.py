@@ -61,10 +61,13 @@ def test_regime_shift_vs_transient():
 
     transient = _noisy(100, 18) + [140, 142, 141, 143] + _noisy(100, 13, offset=3)
     result = regime_detection(_ts(35), transient)
-    assert result["classification"] in ("transient_anomaly", "regime_shift")
-    # The planted excursion reverts, so at least one regime must be transient.
+    assert result["classification"] == "transient_anomaly"
+    # The return edge is interpreted jointly with the opening edge; treating
+    # it alone would falsely label restoration of the baseline as a new regime.
     classifications = [regime["classification"] for regime in result["regimes"]]
     assert "transient_anomaly" in classifications
+    assert result["regimes"][-1]["support"]["sensitivity"][
+        "paired_reversal"] is True
 
 
 def test_regime_short_post_window_is_inconclusive():
