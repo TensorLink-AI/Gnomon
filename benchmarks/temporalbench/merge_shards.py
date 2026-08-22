@@ -84,7 +84,11 @@ def merge_shards(target: Path, shards: list[Path]) -> dict[str, int]:
         # describing the experimental arm must agree. Preserve one verified
         # manifest plus the source commands instead of dropping provenance
         # and forcing the matched reporter to assume comparability.
-        ignored = {"command"}
+        # Resume/retry flags describe how an invocation recovered observations,
+        # not the experimental arm that produced them. Their exact commands
+        # remain in source_commands, while compatibility is enforced on model,
+        # endpoint, condition, code, task filters, and harness limits.
+        ignored = {"command", "resume", "retry_voided"}
         reference = {key: value for key, value in manifests[0][1].items()
                      if key not in ignored}
         for source, manifest in manifests[1:]:
