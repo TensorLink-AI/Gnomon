@@ -108,9 +108,16 @@ def _explicit_property(segment: str) -> str | None:
 
 def _named_targets(segment: str, available_targets: list[str]) -> list[str]:
     lowered = segment.lower()
-    return [target for target in available_targets if any(
-        re.search(rf"(?<![a-z0-9]){re.escape(alias)}(?![a-z0-9])", lowered)
-        for alias in {target.lower(), target.lower().replace("_", " ")})]
+    positioned = []
+    for target in available_targets:
+        starts = [match.start() for alias in {
+            target.lower(), target.lower().replace("_", " ")}
+            for match in [re.search(
+                rf"(?<![a-z0-9]){re.escape(alias)}(?![a-z0-9])", lowered)]
+            if match]
+        if starts:
+            positioned.append((min(starts), target))
+    return [target for _, target in sorted(positioned)]
 
 
 def _canonical_measure(prop: str, segment: str) -> str | None:
@@ -154,9 +161,19 @@ def _route_explicit_questions(
             if proposed:
                 routed.append(proposed)
             continue
+        prior_property = proposed.get("property")
         proposed["id"] = str(proposed.get("id") or f"q{index + 1}")
         proposed["property"] = prop
-        proposed["verb"] = str(proposed.get("verb") or default_verb)
+        if prior_property and prior_property != prop:
+            for key in ("method", "period", "seasonal_period", "differencing",
+                        "explanatory_variables", "validation"):
+                proposed.pop(key, None)
+            proposed["verb"] = {
+                "stationarity": "test", "decomposition": "decompose",
+                "regression": "regress", "dependence": "compare",
+            }.get(prop, default_verb)
+        else:
+            proposed["verb"] = str(proposed.get("verb") or default_verb)
         horizon = _explicit_horizon(segment)
         if horizon is not None:
             proposed["horizon"] = horizon

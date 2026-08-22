@@ -172,7 +172,7 @@ def test_explicit_each_and_dependence_scope_override_semantic_drift() -> None:
                 "target": {"kind": "aggregate", "members": ["cpu", "mem"]},
             }]}), default_horizon=12)
     related = compile_temporal_text(
-        "Are cpu and mem related?", available_targets=["cpu", "mem"],
+        "Are mem and cpu related?", available_targets=["cpu", "mem"],
         adapter=Adapter({"status": "compiled", "questions": [{
             "id": "q1", "verb": "regress", "property": "regression",
             "target": "cpu", "explanatory_variables": ["mem"],
@@ -183,3 +183,6 @@ def test_explicit_each_and_dependence_scope_override_semantic_drift() -> None:
     assert each[0].horizon == 12
     assert related[0].property == "dependence"
     assert related[0].scope == "pair"
+    assert related[0].members == ("mem", "cpu")
+    assert related[0].verb == "compare"
+    assert related[0].explanatory_variables == ()
