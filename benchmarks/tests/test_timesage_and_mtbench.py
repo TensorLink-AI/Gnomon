@@ -9,6 +9,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from benchmarks.mtbench.gnomon_forecaster import (
@@ -290,7 +292,11 @@ def test_mtbench_sample_loading_and_bar_axis(tmp_path):
 
 
 def test_mtbench_materializes_official_parquet_for_unmodified_scorer(tmp_path):
-    import pandas as pd
+    # Parquet support belongs to the optional external-benchmark environment,
+    # not Gnomon's zero-dependency runtime. The JSON path remains covered in
+    # the base matrix; exercise the official parquet bridge when its reader is
+    # actually installed.
+    pd = pytest.importorskip("pandas")
 
     source = tmp_path / "download" / "data"
     source.mkdir(parents=True)
