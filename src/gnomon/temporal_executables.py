@@ -246,7 +246,8 @@ def fit_temporal_executable(values: list[float], *, property: str,
         # smooth level/trend properties. Their rolling errors need a larger
         # finite-sample envelope; this affects uncertainty only, never the
         # selected candidate or categorical best estimate.
-        expansion = 2.0 if property in {"regime", "extreme"} else 1.5
+        expansion = (3.0 if property == "regime" else
+                     2.0 if property == "extreme" else 1.5)
         radius = expansion * max(abs(error) for error in calibration)
         lower, upper = estimate - radius, estimate + radius
     else:

@@ -1,0 +1,116 @@
+{
+  "benchmarks": [
+    {
+      "arm": "typed-temporal-intent",
+      "benchmark": "compilerbench",
+      "bytes": 1432,
+      "file": "compilerbench.json",
+      "scope": "full",
+      "sha256": "43f84eb790ff2a1cee67912ab725affc9f0c223f8810e4365ac9a02ed4f95603",
+      "status": "complete"
+    },
+    {
+      "arm": "deepseek-control",
+      "benchmark": "temporalbench",
+      "bytes": 5119,
+      "file": "temporalbench-control.json",
+      "scope": "subset",
+      "sha256": "49652df68091c8070fda972fc5061a8f2611c9ae532cf3aff2dd14ebf1c67d85",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-evidence",
+      "benchmark": "temporalbench",
+      "bytes": 7354,
+      "file": "temporalbench-evidence.json",
+      "scope": "subset",
+      "sha256": "13bf93ea25424a95a979766ffd77e95d4197151744bb4d1c6f38fc4caabd40b6",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-evidence-vs-deepseek",
+      "benchmark": "temporalbench-choice",
+      "bytes": 2966,
+      "file": "temporalbench-choice-comparison.json",
+      "scope": "subset",
+      "sha256": "df5ae14a95f76ab06af693dc4d0987e7a7a692cbf21a1e3addfcb91050e1e8f2",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-evidence-vs-deepseek",
+      "benchmark": "temporalbench-forecast",
+      "bytes": 2388,
+      "file": "temporalbench-forecast-comparison.json",
+      "scope": "subset",
+      "sha256": "a3c87813f0b202e70a2f71fcf9d293b6b19a9190f1d169c20791694d7777da1c",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-evidence-vs-deepseek",
+      "benchmark": "temporalbench-channel-forecast",
+      "bytes": 29248,
+      "file": "temporalbench-per-channel.json",
+      "scope": "subset",
+      "sha256": "4a7d1c42afebcd8e04ede8dc47f6f7773e4281c613b283c5617fa84d431680ae",
+      "status": "complete"
+    },
+    {
+      "arm": "multi-seed-general-properties",
+      "benchmark": "propertybench",
+      "bytes": 2063,
+      "file": "propertybench-multiseed.json",
+      "scope": "full",
+      "sha256": "bab67ec24a216f7edc8f3c508f3ae0f9ba71ae7f582183369cd0bf5d7c604029",
+      "status": "complete"
+    },
+    {
+      "arm": "general-transition-executables",
+      "benchmark": "transitionbench",
+      "bytes": 5554,
+      "file": "transitionbench.json",
+      "scope": "full",
+      "sha256": "9d8ae20db04d9e7e81905a19cc7e3c09285ab55a1f1db90720ba12c438209aee",
+      "status": "graduated"
+    },
+    {
+      "arm": "future-process-volatility",
+      "benchmark": "volatilitybench",
+      "bytes": 5820,
+      "file": "volatilitybench.json",
+      "scope": "full",
+      "sha256": "aa89fd79f4776320371d5e40c103ecd7e20b6996f11ceb5b66b1c9fba654ff4e",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-structural",
+      "benchmark": "leakage-trap",
+      "bytes": 1807,
+      "file": "leaktrap.json",
+      "scope": "full",
+      "sha256": "510e591188fbe10b16a8cb199eb5091f35ace6534f90d578903d8e4c9c93fb81",
+      "status": "complete"
+    }
+  ],
+  "curated_by_commit": "b0f244acec2ed6a4fcf66292b6dea6942e66ebf1",
+  "not_included": [
+    {
+      "benchmark": "reasoningbench",
+      "reason": "Withdrawn answer-bearing harness has not been used for this claim."
+    },
+    {
+      "benchmark": "volatilitybench-graduation",
+      "reason": "Direction remains diagnostic and is explicitly not graduated."
+    },
+    {
+      "benchmark": "temporalbench-superiority",
+      "reason": "Forecast comparisons show no significant difference; only non-regression and point estimates are reported."
+    }
+  ],
+  "policy": {
+    "aggregate_only": true,
+    "raw_runs_are_ci_artifacts": true,
+    "smoke_results_are_not_full_results": true
+  },
+  "release": "2026-08-23",
+  "schema_version": "1.1"
+}

@@ -65,6 +65,7 @@ from __future__ import annotations
 
 import csv
 import json
+import re
 import sys
 import tempfile
 from collections.abc import Mapping
@@ -525,14 +526,37 @@ def compile_row_temporal_questions(
 
     if row.get("tier") == "T3":
         question_items = row.get("pack") or []
+        text = "\n".join(str(item.get("question") or "")
+                         for item in question_items
+                         if isinstance(item, dict)).strip()
+    elif row.get("tier") == "T1":
+        # T1 carries its descriptive request in the public prompt rather
+        # than ``mcq``.  Compile only the instruction section: the input
+        # arrays are already host-bound and the output template/options are
+        # answer vocabulary, not evidence about the requested property.
+        instruction = str(row.get("prompt") or "").split(
+            "Input (JSON):", 1)[0]
+        lines = []
+        for line in instruction.splitlines():
+            match = re.match(r"^\s*\d+\)\s*([^:{]+)", line)
+            if match:
+                lines.append(f"Describe the {match.group(1).strip()} of "
+                             f"{targets[0]}?" if len(targets) == 1
+                             else f"Describe the {match.group(1).strip()}?")
+        text = "\n".join(lines).strip()
     else:
         question_items = (row.get("mcq") or {}).values()
-    text = "\n".join(str(item.get("question") or "")
-                     for item in question_items
-                     if isinstance(item, dict)).strip()
+        text = "\n".join(str(item.get("question") or "")
+                         for item in question_items
+                         if isinstance(item, dict)).strip()
     if not text:
         return {"attempted": False, "questions": []}
-    default_horizon = int((row.get("meta") or {}).get("n_horizon") or 1)
+    # A descriptive question concerns the observed history.  It must not
+    # silently inherit an adjacent forecast task's future horizon; doing so
+    # changes “what happened?” into “what will happen over N steps?”.
+    descriptive = row.get("tier") in {"T1", "T3"}
+    default_horizon = (1 if descriptive else
+                       int((row.get("meta") or {}).get("n_horizon") or 1))
     fingerprint = content_fingerprint(json.dumps({
         "text": text, "targets": targets,
         "default_horizon": default_horizon,
@@ -594,7 +618,7 @@ def compile_row_temporal_questions(
     try:
         receipt = compile_temporal_text_receipt(
             text, available_targets=targets, adapter=Adapter(),
-            default_verb=("describe" if row.get("tier") == "T3"
+            default_verb=("describe" if descriptive
                           else "predict"),
             default_horizon=default_horizon)
         result = {"input_fingerprint": fingerprint,
@@ -885,7 +909,7 @@ class _RunBase:
         self.temporal_compilation = (
             compile_row_temporal_questions(
                 row, client, list(self.channels), question_receipts_dir)
-            if compile_questions and row.get("tier") in {"T2", "T3", "T4"}
+            if compile_questions and row.get("tier") in {"T1", "T2", "T3", "T4"}
             else {"attempted": False, "questions": []}
         )
         raw_origin = row.get("_time_origin")
@@ -2229,6 +2253,13 @@ class _McqRun(_RunBase):
             # row without one simply has no CSV, and the prompt says so
             # rather than naming a file that is not there.
             return {}
+        if row.get("tier") == "T1":
+            # T1 asks about one series and may also include coordinate arrays
+            # such as ``time_position_in_day``.  Those are not response
+            # variables and must never be materialised as peer series.
+            target = str((row.get("meta") or {}).get("main_key") or "")
+            values = _observed(arrays.get(target, []))
+            return {target: values} if target and values else {}
         return {key: _observed(values) for key, values in arrays.items()
                 if _observed(values)}
 

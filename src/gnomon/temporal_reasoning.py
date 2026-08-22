@@ -20,6 +20,48 @@ from .temporal_evidence import (
 TEMPORAL_ANSWER_CONTRACT_VERSION = "0.8"
 
 
+def _observed_trend(values: list[float], report: dict[str, Any]) -> dict[str, Any]:
+    """Estimate within-regime drift without relabelling level shifts as trend."""
+    n = len(values)
+    changes = report.get("changepoints") or {}
+    edges = sorted({int(item.get("index"))
+                    for item in (changes.get("regimes", [])
+                                 if isinstance(changes, dict) else [])
+                    if isinstance(item, dict)
+                    and 4 <= int(item.get("index", -1)) <= n - 4})
+    bounds = [0, *edges, n]
+    segments = [(lo, hi) for lo, hi in zip(bounds, bounds[1:])
+                if hi - lo >= 4]
+    numerator = denominator = 0.0
+    for lo, hi in segments:
+        centre = (hi - lo - 1) / 2
+        for offset, value in enumerate(values[lo:hi]):
+            shifted = offset - centre
+            numerator += shifted * value
+            denominator += shifted * shifted
+    slope = numerator / denominator if denominator else 0.0
+    residuals_: list[float] = []
+    for lo, hi in segments:
+        centre = (hi - lo - 1) / 2
+        segment = values[lo:hi]
+        intercept = statistics.mean(segment)
+        residuals_.extend(value - (intercept + slope * (offset - centre))
+                          for offset, value in enumerate(segment))
+    degrees = n - len(segments) - 1
+    variance = (sum(value * value for value in residuals_) / degrees
+                if degrees > 0 else math.inf)
+    standard_error = (math.sqrt(variance / denominator)
+                      if denominator and math.isfinite(variance) else math.inf)
+    distinguishable = n >= 8 and abs(slope) > 1.96 * standard_error
+    return {
+        "direction": ("upward" if distinguishable and slope > 0 else
+                      "downward" if distinguishable else "constant"),
+        "slope_per_step": slope, "slope_standard_error": standard_error,
+        "regime_fixed_effects": max(0, len(segments) - 1),
+        "observations": n,
+    }
+
+
 def _correlation(left: list[float], right: list[float]) -> float | None:
     if len(left) != len(right) or len(left) < 3:
         return None
@@ -185,6 +227,92 @@ def answer_descriptive_question(
     forecast_values: list[float] | None = None,
 ) -> dict[str, Any]:
     prop = question.property
+    if prop == "trend" and question.verb in {"describe", "detect"}:
+        observed_trend = _observed_trend(values, report)
+        n = observed_trend["observations"]
+        slope = observed_trend["slope_per_step"]
+        standard_error = observed_trend["slope_standard_error"]
+        direction = observed_trend["direction"]
+        support = "supported" if n >= 8 else "abstained"
+        return _envelope(
+            question, direction=direction, estimate={
+                "slope_per_step": slope,
+                "slope_standard_error": standard_error,
+                "regime_fixed_effects": observed_trend["regime_fixed_effects"],
+                "two_sided_threshold": 1.96,
+            }, interval=({"lower": slope - 1.96 * standard_error,
+                          "upper": slope + 1.96 * standard_error}
+                         if math.isfinite(standard_error) else None),
+            support=support,
+            headline=(f"Observed trend for {question.target}: {direction}; "
+                      f"slope is {slope:.6g} per step."),
+            limitations=([] if support == "supported" else [
+                "At least eight observations are required to distinguish a "
+                "linear trend from residual variation."
+            ]), executable={"kind": "observed_linear_trend",
+                            "property": "trend", "version": "0.1",
+                            "threshold": "two_sided_1.96_standard_errors"})
+    if prop == "volatility" and question.verb in {"describe", "detect"}:
+        observed = multi_resolution_evidence(
+            values, property="volatility", season=season)
+        direction = observed.get("direction")
+        support = str(observed.get("support") or "abstained")
+        return _envelope(
+            question, direction=direction, estimate={
+                "agreement": observed.get("agreement"),
+                "resolutions": observed.get("resolutions", []),
+            }, interval=None, support=support,
+            headline=(f"Observed volatility transition for {question.target}: "
+                      f"{direction}; support is {support}."),
+            limitations=([] if support == "supported" else [
+                "Observed windows do not support automatic use of this "
+                "volatility classification."
+            ]), executable={"kind": "observed_multi_resolution_windows",
+                            "property": "volatility", "version": "0.1"})
+    if prop == "seasonality" and question.verb in {"describe", "detect"}:
+        if season <= 1 or report.get("seasonality", {}).get("period") is None:
+            direction, support, observed = "absent", "supported", None
+        else:
+            observed = multi_resolution_evidence(
+                values, property="seasonality", season=season)
+            direction = observed.get("direction")
+            support = str(observed.get("support") or "abstained")
+        return _envelope(
+            question, direction=direction,
+            estimate=(observed or {"period": None}), interval=None,
+            support=support,
+            headline=(f"Observed seasonal state for {question.target}: "
+                      f"{direction}; support is {support}."),
+            limitations=([] if support == "supported" else [
+                "The observed cycles do not distinguish a stable phase from "
+                "a phase transition."
+            ]), executable={"kind": "observed_seasonal_transition",
+                            "property": "seasonality", "version": "0.1"})
+    if prop == "disturbance" and question.verb in {"describe", "detect"}:
+        changes = report.get("changepoints") or {}
+        regimes = changes.get("regimes", []) if isinstance(changes, dict) else []
+        classifications = {str(item.get("classification")) for item in regimes}
+        anomaly_count = int((report.get("anomalies") or {}).get("count") or 0)
+        if "regime_shift" in classifications:
+            direction = "level_shift"
+        elif "transient_anomaly" in classifications or anomaly_count:
+            direction = "sudden_spike"
+        else:
+            direction = "stable"
+        support = ("supported" if isinstance(changes, dict)
+                   and (changes.get("support") or {}).get("status") == "supported"
+                   else "weak")
+        return _envelope(
+            question, direction=direction, estimate={
+                "classification": direction,
+                "regime_edges": len(regimes), "anomaly_count": anomaly_count,
+            }, interval=None, support=support,
+            headline=f"Observed disturbance shape for {question.target}: {direction}.",
+            limitations=([] if support == "supported" else [
+                "The available post-change window does not fully distinguish "
+                "a transient excursion from a persistent level shift."
+            ]), executable={"kind": "observed_disturbance_classifier",
+                            "property": "disturbance", "version": "0.1"})
     if prop == "volatility" and question.verb in {"predict", "compare"} \
             and forecast_values:
         path_projection = _forecast_volatility_alignment(
@@ -574,13 +702,17 @@ def _execute_scoped_question(
         for member in members
     }
     panel_evidence = aggregate_evidence(observed_rows, property="volatility")
-    calibrated_children = [child for child in children
-                           if int(((child["answer"].get("property_distribution")
-                                    or {}).get("folds") or 0)) >= 2
-                           or ((child["answer"].get("executable") or {}).get(
-                               "kind") == "published_forecast_projection"
-                               and (child["answer"].get("executable") or {}).get(
-                                   "property") == "volatility")]
+    calibrated_children = [
+        child for child in children
+        if (int(((child["answer"].get("property_distribution") or {}).get(
+                    "folds") or 0)) >= 2
+            and not bool((child.get("calibration") or {}).get(
+                "proxy_horizon_calibration")))
+        or ((child["answer"].get("executable") or {}).get("kind")
+            == "published_forecast_projection"
+            and (child["answer"].get("executable") or {}).get("property")
+            == "volatility")
+    ]
     ratios = [child["answer"].get("future_to_reference_ratio")
               for child in calibrated_children]
     ratios = [float(item) for item in ratios if item is not None]

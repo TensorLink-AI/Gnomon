@@ -71,6 +71,24 @@ def test_compiled_status_cannot_silently_contain_no_question() -> None:
     assert raised.value.details["compiler_status"] == "malformed"
 
 
+def test_malformed_structure_recovers_only_fully_explicit_intent() -> None:
+    result = compile_temporal_text(
+        "Is error_rate moving up or down?",
+        available_targets=["api_latency", "request_rate", "error_rate"],
+        adapter=Adapter({"status": "compiled", "questions": "not-an-array"}),
+    )
+    assert len(result) == 1
+    assert result[0].property == "trend"
+    assert result[0].target == "error_rate"
+
+    with pytest.raises(GnomonError):
+        compile_temporal_text(
+            "Is something moving up or down?",
+            available_targets=["api_latency", "error_rate"],
+            adapter=Adapter({"status": "compiled", "questions": "not-an-array"}),
+        )
+
+
 def test_llm_proposal_cannot_invent_target_or_aggregation() -> None:
     adapter = Adapter({"status": "compiled", "questions": [{
         "property": "volatility", "target": {

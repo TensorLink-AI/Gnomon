@@ -17,9 +17,15 @@ curated-file SHA-256 digests, run scope, status, model arm, and limitations.
 Build and validate one with:
 
 ```bash
-python -m benchmarks.release build benchmarks/releases/2026-08-21.json
-python -m benchmarks.release validate results/benchmark-releases/2026-08-21
+python -m benchmarks.release build benchmarks/releases/2026-08-23.json
+python -m benchmarks.release validate results/benchmark-releases/2026-08-23
 ```
+
+The latest citable result is the
+[2026-08-23 defensible temporal-reasoning release](../results/benchmark-releases/2026-08-23/README.md).
+It reports a statistically significant matched TemporalBench choice lift,
+non-significant forecast differences, independent property gates, and the
+volatility-direction lane that remains ungraduated.
 
 The Benchmarks GitHub workflow validates committed evidence and runs a small
 deterministic product suite on pull requests. A fuller deterministic suite runs
@@ -56,21 +62,15 @@ Every adapter in this directory obeys three rules:
    exact match (its forecast metrics do run the dataset's own module),
    and TimeSage-MT's judge is local because the official one is not
    public.
-2. **OpenRouter is the single LLM source.** Every condition that needs a
-   model routes completions through OpenRouter and takes a full
-   OpenRouter model id (e.g. `openai/gpt-4o`,
-   `anthropic/claude-sonnet-4`), so control and treatment always use the
-   same model through the same provider. Most adapters read
-   `OPENROUTER_API_KEY` directly; AnomLLM's control instead points the
-   official code's own `credentials.yml` mechanism at OpenRouter so the
-   upstream code stays untouched (disclosed in its README). The client
-   speaks plain chat-completions, so a model OpenRouter does not host
-   can be evaluated through any OpenAI-compatible endpoint
-   (`OPENROUTER_BASE_URL`, or `--base-url` where the adapter exposes
-   it). That is provenance, not a detail: the endpoint travels into
-   `summary.json`'s `llm_usage` and the run manifest, because the same
-   model id served from elsewhere is a different measurement — and both
-   arms of a comparison must come from the same one.
+2. **Controls are provider-matched.** Every comparison uses the same model,
+   endpoint, and sampling configuration for control and treatment. OpenRouter
+   is the default and most adapters read `OPENROUTER_API_KEY`; an adapter that
+   exposes `--base-url` can instead use another OpenAI-compatible endpoint,
+   such as Engy for the released DeepSeek runs. The resolved endpoint and
+   model travel into `summary.json` and the run manifest, because the same
+   model id served elsewhere is a different measurement. AnomLLM's control
+   uses the official code's `credentials.yml` mechanism, documented in its
+   own README.
 3. **Adapter decisions are disclosed.** Where Gnomon's output shape and a
    benchmark's expected input differ (e.g. quantiles vs. sample paths),
    the conversion is deterministic, documented in the module docstring,

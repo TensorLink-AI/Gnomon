@@ -136,6 +136,10 @@ CAPABILITIES: tuple[CapabilitySpec, ...] = (
         ("univariate", "multivariate", "panel"), True, True,
         "shared_context_assessment", "temporal_property", "0.8"),
     CapabilitySpec(
+        "observed_disturbance", ("disturbance",), ("describe", "detect"),
+        ("univariate", "multivariate", "panel"), False, False,
+        "informational_only", "observed_disturbance", "0.1"),
+    CapabilitySpec(
         "stationarity", ("stationarity",), ("test", "describe"),
         ("univariate", "multivariate", "panel"), True, False,
         "informational_only", "stationarity", "0.1", ("adf", "kpss")),

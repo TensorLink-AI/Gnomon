@@ -8,6 +8,8 @@ from pathlib import Path
 import random
 import statistics
 import sys
+
+from benchmarks.common.manifest import write_manifest
 import argparse
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -313,6 +315,10 @@ def main() -> int:
         (output / "summary.json").write_text(
             json.dumps(result, indent=2, sort_keys=True) + "\n",
             encoding="utf-8")
+        write_manifest(
+            output, benchmark="volatilitybench",
+            target="future-process-volatility", condition="gnomon-engine",
+            cases=result["cases"], run_status="complete")
     print(json.dumps({key: value for key, value in result.items()
                       if key != "rows"}, indent=2, sort_keys=True))
     # Volatility direction is intentionally a diagnostic until its independent

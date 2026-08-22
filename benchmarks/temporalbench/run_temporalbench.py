@@ -535,6 +535,40 @@ def main() -> int:
     prior_manifest = read_manifest(output_dir) if args.resume else {}
     details_dir = output_dir / "details"
     details_dir.mkdir(parents=True, exist_ok=True)
+    manifest_common = {
+        "benchmark": "temporalbench",
+        "condition": args.condition,
+        "model": args.model,
+        "target": "tiers=" + ",".join(tiers or TIERS)
+                  + (";datasets=" + ",".join(datasets) if datasets else ""),
+        "command": " ".join(sys.argv),
+        "limit": args.limit,
+        "base_url": client.base_url if client is not None else None,
+        "request_timeout": args.request_timeout if client is not None else None,
+        "max_retries": args.max_retries if client is not None else None,
+        "infrastructure_retries": args.infrastructure_retries,
+        "resume": args.resume or None,
+        "retry_voided": args.retry_voided or None,
+        "best_effort": args.best_effort or None,
+        "named_tsfm": args.named_tsfm,
+        "mcp_profile": (args.mcp_profile
+                        if args.condition == "gnomon-mcp" else None),
+        "compile_context": (args.compile_context
+                            if args.condition == "gnomon-mcp" else None),
+        "context_receipts_dir": (args.context_receipts_dir
+                                 if args.condition == "gnomon-mcp" else None),
+        "compile_questions": (args.compile_questions
+                              if args.condition == "gnomon-mcp" else None),
+        "question_receipts_dir": (args.question_receipts_dir
+                                  if args.condition == "gnomon-mcp" else None),
+        "model_evidence_registry": (args.model_evidence_registry
+                                    if args.condition == "gnomon-mcp" else None),
+    }
+    # Publish provenance before the first paid request. An operator interrupt
+    # must leave resumable rows attached to the exact arm and code that made
+    # them, not an orphan partial file that a merger can only guess about.
+    write_manifest(output_dir, **manifest_common,
+                   code_revision=current_revision, run_status="in_progress")
     records_path = output_dir / "gnomonbench.jsonl"
     partial_records_path = output_dir / "gnomonbench.partial.jsonl"
     prior_summary_path = output_dir / "summary.json"
@@ -1189,46 +1223,12 @@ def main() -> int:
             prior=prior_manifest.get("code_revision"),
             resumed_rows=resumed_rows, total_rows=total)
     write_manifest(
-        output_dir,
-        benchmark="temporalbench",
-        condition=args.condition,
-        model=args.model,
-        target="tiers=" + ",".join(tiers or TIERS)
-               + (";datasets=" + ",".join(datasets) if datasets else ""),
-        command=" ".join(sys.argv),
+        output_dir, **manifest_common,
         code_revision=execution_revision,
         execution_code_revisions=(execution_revisions
                                   if len(execution_revisions) > 1 else None),
         summarized_by_revision=summarized_by_revision,
-        limit=args.limit,
-        # Which endpoint served the model: not part of `target` (it does
-        # not change the task set), but it does change what the score is
-        # a measurement of, so it belongs in provenance.
-        base_url=client.base_url if client is not None else None,
-        request_timeout=args.request_timeout if client is not None else None,
-        max_retries=args.max_retries if client is not None else None,
-        infrastructure_retries=args.infrastructure_retries,
-        resume=args.resume or None,
-        retry_voided=args.retry_voided or None,
-        # Not part of `target`: best_effort changes the condition's
-        # behaviour, not the task set, so it must not make report.py
-        # refuse a control-vs-treatment join. It still has to be visible
-        # in provenance, hence its own field (None keeps old manifests
-        # byte-identical).
-        best_effort=args.best_effort or None,
-        named_tsfm=args.named_tsfm,
-        mcp_profile=(args.mcp_profile
-                     if args.condition == "gnomon-mcp" else None),
-        compile_context=(args.compile_context
-                         if args.condition == "gnomon-mcp" else None),
-        context_receipts_dir=(args.context_receipts_dir
-                              if args.condition == "gnomon-mcp" else None),
-        compile_questions=(args.compile_questions
-                           if args.condition == "gnomon-mcp" else None),
-        question_receipts_dir=(args.question_receipts_dir
-                               if args.condition == "gnomon-mcp" else None),
-        model_evidence_registry=(args.model_evidence_registry
-                                 if args.condition == "gnomon-mcp" else None),
+        run_status="complete",
     )
     print(json.dumps(summary, indent=2))
     # A fully failed run has produced diagnostics, not benchmark evidence.
