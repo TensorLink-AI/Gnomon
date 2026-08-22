@@ -1,0 +1,177 @@
+{
+  "release_metadata": {
+    "arm": "future-process-volatility",
+    "benchmark": "volatilitybench",
+    "configuration_identity": "fitted volatility executable; direction remains diagnostic",
+    "dataset_identity": "180 independent synthetic scale cases with balanced held-out waveform families",
+    "evaluated_commit": "b0f244a",
+    "harness_commit": "b0f244a",
+    "notes": [
+      "Not graduated: direction does not beat the majority-class baseline; scale estimation and coverage are reported separately."
+    ],
+    "scope": "full",
+    "source": "results/defensible-temporal-20260823/volatilitybench-summary.json",
+    "source_sha256": "d6117570b4dce2eef43e313f1acfeceb902fde18b80143387f40b515443f59fc",
+    "status": "complete"
+  },
+  "summary": {
+    "balanced_suite": {
+      "all": {
+        "balanced_direction_accuracy": 0.5846153846153846,
+        "brier_skill_vs_uniform": 0.18692621664050224,
+        "cases": 195,
+        "claim_rate": 0,
+        "claimed_accuracy": null,
+        "class_counts": {
+          "decreased": 65,
+          "increased": 65,
+          "stable": 65
+        },
+        "class_recall": {
+          "decreased": 0.6,
+          "increased": 0.5076923076923077,
+          "stable": 0.6461538461538462
+        },
+        "mean_brier": 0.5420491889063318,
+        "uniform_brier": 0.6666666666666666
+      },
+      "by_shape": {
+        "heavy_tail": {
+          "balanced_direction_accuracy": 0.6,
+          "brier_skill_vs_uniform": 0.03081632653061206,
+          "cases": 20,
+          "claim_rate": 0,
+          "claimed_accuracy": null,
+          "class_counts": {
+            "decreased": 0,
+            "increased": 0,
+            "stable": 20
+          },
+          "class_recall": {
+            "decreased": null,
+            "increased": null,
+            "stable": 0.6
+          },
+          "mean_brier": 0.6461224489795919,
+          "uniform_brier": 0.6666666666666666
+        },
+        "ramp": {
+          "balanced_direction_accuracy": 0.6964285714285714,
+          "brier_skill_vs_uniform": 0.28863945578231287,
+          "cases": 72,
+          "claim_rate": 0,
+          "claimed_accuracy": null,
+          "class_counts": {
+            "decreased": 28,
+            "increased": 28,
+            "stable": 16
+          },
+          "class_recall": {
+            "decreased": 0.6428571428571429,
+            "increased": 0.5714285714285714,
+            "stable": 0.875
+          },
+          "mean_brier": 0.4742403628117914,
+          "uniform_brier": 0.6666666666666666
+        },
+        "seasonal": {
+          "balanced_direction_accuracy": 0.47093522093522094,
+          "brier_skill_vs_uniform": 0.14163265306122447,
+          "cases": 70,
+          "claim_rate": 0,
+          "claimed_accuracy": null,
+          "class_counts": {
+            "decreased": 37,
+            "increased": 21,
+            "stable": 12
+          },
+          "class_recall": {
+            "decreased": 0.5675675675675675,
+            "increased": 0.42857142857142855,
+            "stable": 0.4166666666666667
+          },
+          "mean_brier": 0.5722448979591837,
+          "uniform_brier": 0.6666666666666666
+        },
+        "step": {
+          "balanced_direction_accuracy": 0.5735294117647058,
+          "brier_skill_vs_uniform": 0.15569573283858995,
+          "cases": 33,
+          "claim_rate": 0,
+          "claimed_accuracy": null,
+          "class_counts": {
+            "decreased": 0,
+            "increased": 16,
+            "stable": 17
+          },
+          "class_recall": {
+            "decreased": null,
+            "increased": 0.5,
+            "stable": 0.6470588235294118
+          },
+          "mean_brier": 0.56286951144094,
+          "uniform_brier": 0.6666666666666666
+        }
+      },
+      "constant_baseline_mean_log_scale_error": 0.8036911886056257,
+      "development_families": {
+        "balanced_direction_accuracy": 0.6309523809523809,
+        "brier_skill_vs_uniform": 0.2593586005830903,
+        "cases": 84,
+        "claim_rate": 0,
+        "claimed_accuracy": null,
+        "class_counts": {
+          "decreased": 28,
+          "increased": 28,
+          "stable": 28
+        },
+        "class_recall": {
+          "decreased": 0.6428571428571429,
+          "increased": 0.5714285714285714,
+          "stable": 0.6785714285714286
+        },
+        "mean_brier": 0.49376093294460643,
+        "uniform_brier": 0.6666666666666666
+      },
+      "held_out_families": {
+        "balanced_direction_accuracy": 0.5135135135135135,
+        "brier_skill_vs_uniform": 0.09829012686155536,
+        "cases": 111,
+        "claim_rate": 0,
+        "claimed_accuracy": null,
+        "class_counts": {
+          "decreased": 37,
+          "increased": 37,
+          "stable": 37
+        },
+        "class_recall": {
+          "decreased": 0.40540540540540543,
+          "increased": 0.5135135135135135,
+          "stable": 0.6216216216216216
+        },
+        "mean_brier": 0.6011399154256297,
+        "uniform_brier": 0.6666666666666666
+      },
+      "held_out_shapes": [
+        "step",
+        "heavy_tail"
+      ],
+      "mean_absolute_log_scale_error": 0.4843367878194143
+    },
+    "best_estimate_beats_majority_direction_baseline": false,
+    "best_estimate_direction_accuracy": 0.5555555555555556,
+    "cases": 180,
+    "claimed_direction_accuracy": null,
+    "constant_baseline_mean_log_scale_error": 0.34242232056272753,
+    "direction_claim_rate": 0.0,
+    "independent_seeds": 180,
+    "interval_coverage": 1,
+    "majority_direction_baseline_accuracy": 0.7166666666666667,
+    "mean_absolute_log_scale_error": 0.13789665115918104,
+    "mean_qlike": 0.06754375618152778,
+    "schema_version": "0.3",
+    "supported": 180,
+    "supported_win_rate_vs_constant": 0.5444444444444444,
+    "win_rate_vs_constant": 0.5444444444444444
+  }
+}

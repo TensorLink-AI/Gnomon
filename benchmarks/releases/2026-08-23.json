@@ -1,0 +1,139 @@
+{
+  "release": "2026-08-23",
+  "output_dir": "results/benchmark-releases/2026-08-23",
+  "benchmarks": [
+    {
+      "benchmark": "compilerbench",
+      "arm": "typed-temporal-intent",
+      "scope": "full",
+      "source": "results/defensible-temporal-20260823/compiler-summary.json",
+      "file": "compilerbench.json",
+      "status": "complete",
+      "evaluated_commit": "92b6b27",
+      "harness_commit": "92b6b27",
+      "dataset_identity": "synthetic-v1 seed=951 count=80",
+      "configuration_identity": "DeepSeek V4 Flash 0731 via Engy; typed intent compiler",
+      "notes": ["80/80 completed; exact-target accuracy 93.48%; ambiguity and refusal accuracy 100%; no invented targets accepted."]
+    },
+    {
+      "benchmark": "temporalbench",
+      "arm": "deepseek-control",
+      "scope": "subset",
+      "source": "results/defensible-temporal-20260823/temporalbench-control-summary.json",
+      "file": "temporalbench-control.json",
+      "status": "complete",
+      "evaluated_commit": "e8f1add",
+      "harness_commit": "e8f1add",
+      "dataset_identity": "official labeled split sha256=adbdfc679f49ce5dcf15da0e0bc101043944f3812048193b7d956c7fd6286b5a; matched 80-case T1-T4 sample",
+      "configuration_identity": "DeepSeek V4 Flash 0731 via Engy; direct official prompt"
+    },
+    {
+      "benchmark": "temporalbench",
+      "arm": "gnomon-evidence",
+      "scope": "subset",
+      "source": "results/defensible-temporal-20260823/temporalbench-evidence-summary.json",
+      "file": "temporalbench-evidence.json",
+      "status": "complete",
+      "evaluated_commit": "92b6b27",
+      "harness_commit": "92b6b27",
+      "dataset_identity": "official labeled split sha256=adbdfc679f49ce5dcf15da0e0bc101043944f3812048193b7d956c7fd6286b5a; matched 80-case T1-T4 sample",
+      "configuration_identity": "DeepSeek V4 Flash 0731 via Engy; real MCP Evidence profile; compiled temporal questions and context",
+      "notes": ["80/80 completed with one observed tool call median and p95; primary forecast immutable; no context covariate admitted."]
+    },
+    {
+      "benchmark": "temporalbench-choice",
+      "arm": "gnomon-evidence-vs-deepseek",
+      "scope": "subset",
+      "source": "results/defensible-temporal-20260823/temporalbench-choice-comparison.json",
+      "file": "temporalbench-choice-comparison.json",
+      "status": "complete",
+      "evaluated_commit": "92b6b27",
+      "harness_commit": "86668e6",
+      "dataset_identity": "302 field-level questions from the matched official 80-case T1-T4 sample",
+      "configuration_identity": "exact task-and-field paired verdicts; two-sided exact McNemar test",
+      "notes": ["Gnomon 35.76% versus control 28.48%; 64 fixed, 42 broken; p=0.04087."]
+    },
+    {
+      "benchmark": "temporalbench-forecast",
+      "arm": "gnomon-evidence-vs-deepseek",
+      "scope": "subset",
+      "source": "results/defensible-temporal-20260823/temporalbench-forecast-comparison.json",
+      "file": "temporalbench-forecast-comparison.json",
+      "status": "complete",
+      "evaluated_commit": "92b6b27",
+      "harness_commit": "92b6b27",
+      "dataset_identity": "40 matched forecast tasks from the official 80-case T1-T4 sample",
+      "configuration_identity": "paired official sMAPE; exact sign test",
+      "notes": ["Mean sMAPE 12.31 control versus 10.90 Gnomon; 21 wins, 19 losses; p=0.8746, so no accuracy superiority claim."]
+    },
+    {
+      "benchmark": "temporalbench-channel-forecast",
+      "arm": "gnomon-evidence-vs-deepseek",
+      "scope": "subset",
+      "source": "results/defensible-temporal-20260823/temporalbench-per-channel.json",
+      "file": "temporalbench-per-channel.json",
+      "status": "complete",
+      "evaluated_commit": "92b6b27",
+      "harness_commit": "86668e6",
+      "dataset_identity": "240 paired channel forecasts from the official matched forecast sample",
+      "configuration_identity": "official per-channel MASE on shared channels; exact paired sign tests",
+      "notes": ["Overall 87 wins, 108 losses and 45 ties; p=0.1519. SpO2 is nominally weaker but does not survive six-channel multiplicity correction."]
+    },
+    {
+      "benchmark": "propertybench",
+      "arm": "multi-seed-general-properties",
+      "scope": "full",
+      "source": "results/defensible-temporal-20260823/propertybench-multiseed.json",
+      "file": "propertybench-multiseed.json",
+      "status": "complete",
+      "evaluated_commit": "5c362c2",
+      "harness_commit": "5c362c2",
+      "dataset_identity": "independent seeds 9100, 94721, 27183; 2016 future-process-volatility cases",
+      "configuration_identity": "precommitted 55% balanced-accuracy gate; pooled row-level classifications",
+      "notes": ["Pooled balanced accuracy 56.81%; the marginal 54.84% seed is retained in the report rather than excluded."]
+    },
+    {
+      "benchmark": "transitionbench",
+      "arm": "general-transition-executables",
+      "scope": "full",
+      "source": "results/defensible-temporal-20260823/transitionbench-summary.json",
+      "file": "transitionbench.json",
+      "status": "graduated",
+      "evaluated_commit": "b0f244a",
+      "harness_commit": "b0f244a",
+      "dataset_identity": "synthetic transition corpus seed=73100 replicates=24 cases=1296",
+      "configuration_identity": "level, trend, volatility, seasonality, regime, and extremes across easy, moderate, and marginal effects"
+    },
+    {
+      "benchmark": "volatilitybench",
+      "arm": "future-process-volatility",
+      "scope": "full",
+      "source": "results/defensible-temporal-20260823/volatilitybench-summary.json",
+      "file": "volatilitybench.json",
+      "status": "complete",
+      "evaluated_commit": "b0f244a",
+      "harness_commit": "b0f244a",
+      "dataset_identity": "180 independent synthetic scale cases with balanced held-out waveform families",
+      "configuration_identity": "fitted volatility executable; direction remains diagnostic",
+      "notes": ["Not graduated: direction does not beat the majority-class baseline; scale estimation and coverage are reported separately."]
+    },
+    {
+      "benchmark": "leakage-trap",
+      "arm": "gnomon-structural",
+      "scope": "full",
+      "source": "results/defensible-temporal-20260823/leaktrap-summary.json",
+      "file": "leaktrap.json",
+      "status": "complete",
+      "evaluated_commit": "92b6b27",
+      "harness_commit": "92b6b27",
+      "dataset_identity": "LeakTrap seed=7 tasks=40",
+      "configuration_identity": "Gnomon snapshot-enforced condition",
+      "notes": ["0/40 leak flags; 0/40 future transcription; 40/40 structural access proofs."]
+    }
+  ],
+  "not_included": [
+    {"benchmark": "reasoningbench", "reason": "Withdrawn answer-bearing harness has not been used for this claim."},
+    {"benchmark": "volatilitybench-graduation", "reason": "Direction remains diagnostic and is explicitly not graduated."},
+    {"benchmark": "temporalbench-superiority", "reason": "Forecast comparisons show no significant difference; only non-regression and point estimates are reported."}
+  ]
+}
