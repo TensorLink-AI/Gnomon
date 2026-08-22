@@ -1,0 +1,53 @@
+{
+  "release_metadata": {
+    "arm": "gnomon-vs-direct",
+    "benchmark": "timesage-mt",
+    "configuration_identity": "matched DeepSeek V4 Flash 0731 direct vs Gnomon-tools; temperature=0.2; no judge model",
+    "dataset_identity": "official TimeSage-MT prefix; 12 tasks across L1-L4; 27 mechanically scored turns",
+    "evaluated_commit": "1f37307",
+    "harness_commit": "b45a69c",
+    "notes": [
+      "This is not leaderboard-comparable: 37 turns were not mechanically scoreable, six task CSVs were truncated, and no official/local judge was used."
+    ],
+    "scope": "subset",
+    "source": "results/defensible-external-1f37307/timesage-matched-summary.json",
+    "source_sha256": "d7246978b3f363f38b10e0399bd68e128abb2e18767fa443182e264861777a34",
+    "status": "complete"
+  },
+  "summary": {
+    "comparisons": [
+      {
+        "baseline": "timesage-direct-12",
+        "baseline_only": 0,
+        "benchmark": "timesage-mt",
+        "comparable": true,
+        "matched_tasks": 27,
+        "success_rate": {
+          "baseline": 0.5556,
+          "treatment": 0.3704
+        },
+        "success_test": {
+          "n": 27,
+          "p_value": 0.2265625,
+          "test": "mcnemar_exact",
+          "treatment_broke": 8,
+          "treatment_fixed": 3
+        },
+        "treatment": "timesage-gnomon-12",
+        "treatment_only": 0
+      }
+    ],
+    "cost": {
+      "timesage-direct-12": {
+        "cost_usd": 0.0,
+        "requests": 64,
+        "truncation_escalations": 0
+      },
+      "timesage-gnomon-12": {
+        "cost_usd": 0.0,
+        "requests": 141,
+        "truncation_escalations": 0
+      }
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "release_metadata": {
+    "arm": "compiled-intent",
+    "benchmark": "compilerbench",
+    "configuration_identity": "DeepSeek V4 Flash 0731 via Engy; intent compiler max_tokens=10000",
+    "dataset_identity": "synthetic-v1 seed=925 count=80",
+    "evaluated_commit": "1f37307",
+    "harness_commit": "1f37307",
+    "notes": [
+      "All 80 cases completed; per-case compiler outputs are removed from the aggregate release."
+    ],
+    "scope": "full",
+    "source": "results/defensible-external-1f37307/compiler-925/summary.json",
+    "source_sha256": "7621f8acd9f9194056ad09a261e62384e89ddda9f614b695b8642a30058550fb",
+    "status": "complete"
+  },
+  "summary": {
+    "accuracy": 1.0,
+    "ambiguity_refusal_accuracy": 1.0,
+    "cases": 80,
+    "code_revision": "1f37307",
+    "completed": 80,
+    "exact_target_accuracy": 1.0,
+    "infrastructure_errors": 0,
+    "infrastructure_retries": 0,
+    "invented_targets_accepted": 0,
+    "llm_usage": {
+      "base_url": "https://api.engy.ai/v1",
+      "completion_tokens": 10251,
+      "cost_usd": 0.0,
+      "model": "deepseek-v4-flash-0731",
+      "prompt_tokens": 82977,
+      "requests": 80,
+      "transport_attempts": 81,
+      "truncation_escalations": 0
+    },
+    "malformed_model_outputs": 0,
+    "model": "deepseek-v4-flash-0731",
+    "refusal_accuracy": 1.0,
+    "refusal_cases": 11,
+    "schema_version": "0.1",
+    "seed": 925
+  }
+}

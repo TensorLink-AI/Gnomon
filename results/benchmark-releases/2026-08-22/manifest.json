@@ -1,0 +1,120 @@
+{
+  "benchmarks": [
+    {
+      "arm": "compiled-intent",
+      "benchmark": "compilerbench",
+      "bytes": 1398,
+      "file": "compilerbench.json",
+      "scope": "full",
+      "sha256": "672fd74482221d41a5057295ad537dedcfa089fdc5fa70fa2bd9808c41b68f40",
+      "status": "complete"
+    },
+    {
+      "arm": "toto2-4m-conformance",
+      "benchmark": "adapterbench",
+      "bytes": 8043,
+      "file": "adapterbench-toto2.json",
+      "scope": "full",
+      "sha256": "98351af22b439a2fa6085fa2a33875fe124c24948d16e08814ffaf6e58a4c2fd",
+      "status": "graduated"
+    },
+    {
+      "arm": "evidence-weighted-policy",
+      "benchmark": "admissionbench",
+      "bytes": 2333,
+      "file": "admissionbench.json",
+      "scope": "full",
+      "sha256": "652748e217c64ca1d45dc012283d0833eb4a26ca2a7769c916f848da297e7a31",
+      "status": "complete"
+    },
+    {
+      "arm": "toto2-4m-vs-classical",
+      "benchmark": "contextbench-primary-models-v1",
+      "bytes": 1604,
+      "file": "modelbench-toto2-vs-classical.json",
+      "scope": "subset",
+      "sha256": "cd6b3b0ad65417f6b0de80af79991c61f3ecf101301e39dd678a46497fed5c61",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-vs-deepseek-trend",
+      "benchmark": "anomllm",
+      "bytes": 1765,
+      "file": "anomllm-trend.json",
+      "scope": "subset",
+      "sha256": "5c9322cd5d125a56503f6defad7eb70b7355d703d87151bde4da5d2d62b99ffc",
+      "status": "complete"
+    },
+    {
+      "arm": "deepseek-control-sensor",
+      "benchmark": "context-is-key",
+      "bytes": 1561,
+      "file": "cik-control-sensor.json",
+      "scope": "subset",
+      "sha256": "9f4f0d5b00136c7716da79f681080d1ee69c099c1aaa846ba0cb24705bf73181",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-agent-sensor",
+      "benchmark": "context-is-key",
+      "bytes": 1573,
+      "file": "cik-gnomon-sensor.json",
+      "scope": "subset",
+      "sha256": "d47c1f6c9405b65e22d3a410cc1d2a104b178cac840697df8b55dfb9199f7d61",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-vs-direct",
+      "benchmark": "timesage-mt",
+      "bytes": 1636,
+      "file": "timesage-matched.json",
+      "scope": "subset",
+      "sha256": "45af1599e1db8b762131fd8654dbe4ea21d17d0650460ef4edcd39e961cea307",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-tools-vs-control",
+      "benchmark": "mtbench",
+      "bytes": 2457,
+      "file": "mtbench-matched.json",
+      "scope": "subset",
+      "sha256": "6426d20893843fde1d67dc4044b1b08517b0abd7c6c4f2f791b2c2e0c1ce579f",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-pure",
+      "benchmark": "mtbench",
+      "bytes": 1635,
+      "file": "mtbench-gnomon-pure.json",
+      "scope": "full",
+      "sha256": "ee435473ae5b02e019d0a820af03b567b8354fcebe92a62949784691470fce2a",
+      "status": "complete"
+    }
+  ],
+  "curated_by_commit": "395c89d485dbf8f5c4da1f84695baa37af55c5d3",
+  "not_included": [
+    {
+      "benchmark": "anomllm-other-families",
+      "reason": "The local official checkout contained only synthetic/trend; absent families were not inferred or fabricated."
+    },
+    {
+      "benchmark": "context-is-key-full",
+      "reason": "Only the four-task sensor subset completed under the pinned reproducible environment; the result is explicitly released as a subset."
+    },
+    {
+      "benchmark": "timesage-mt-full",
+      "reason": "The audited run is a 12-task cross-tier subset with partial mechanical scoring, not the 240-task official evaluation."
+    },
+    {
+      "benchmark": "reasoningbench",
+      "reason": "Still withdrawn: no corrected matched external run supersedes the answer-bearing historical harness."
+    }
+  ],
+  "policy": {
+    "aggregate_only": true,
+    "raw_runs_are_ci_artifacts": true,
+    "smoke_results_are_not_full_results": true
+  },
+  "release": "2026-08-22",
+  "schema_version": "1.1"
+}

@@ -1,0 +1,39 @@
+{
+  "release_metadata": {
+    "arm": "gnomon-pure",
+    "benchmark": "mtbench",
+    "configuration_identity": "Gnomon pure deterministic forecast engine; no LLM",
+    "dataset_identity": "official finance/aligned_in30days_out7days; 525 cases",
+    "evaluated_commit": "1f37307",
+    "harness_commit": "1f37307",
+    "notes": [
+      "Engine-only coverage result; it is not a matched comparison against the LLM control."
+    ],
+    "scope": "full",
+    "source": "results/defensible-external-1f37307/mtbench-pure-525/summary.json",
+    "source_sha256": "8258d85e40be72b19d7a9d90661d61e574c947448f99b4c4d918913e9478c3c1",
+    "status": "complete"
+  },
+  "summary": {
+    "abstained": 0,
+    "benchmark": "mtbench",
+    "condition": "gnomon-pure",
+    "dataset_folder": "<absolute-path-redacted>",
+    "errored": 0,
+    "failed_official_filter": 64,
+    "mape_implementation": "official evaluation.utils.calculate_mape",
+    "mape_undefined": 0,
+    "mean_mae": 2.1098818718278975,
+    "mean_mae_unfiltered": 4.075136601973695,
+    "mean_mape": 3.1966370377586424,
+    "mean_mape_unfiltered": 3.5544736193773763,
+    "mean_mse": 11.119182063653774,
+    "mean_mse_unfiltered": 84.33008725804582,
+    "mean_rmse": 2.449059034816149,
+    "mean_rmse_unfiltered": 4.653371873385902,
+    "model": null,
+    "note": "means follow the official aggregation (samples past the official mse filter); the *_unfiltered means include the filtered samples, because a mean that deletes its worst cases cannot be read alone; abstained, errored, filtered and mape_undefined counts must be reported next to them",
+    "samples": 525,
+    "scored": 461
+  }
+}

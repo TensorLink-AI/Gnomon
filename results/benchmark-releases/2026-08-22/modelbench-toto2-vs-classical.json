@@ -1,0 +1,37 @@
+{
+  "release_metadata": {
+    "arm": "toto2-4m-vs-classical",
+    "benchmark": "contextbench-primary-models-v1",
+    "configuration_identity": "classical pool versus identical pool plus sandbox:toto2_4m",
+    "dataset_identity": "cases_sha256=3fa619052dc808877870124e99f3acfded54c42e0843d1debc78a1be2322f193; 80 held-out synthetic cases",
+    "evaluated_commit": "1f37307",
+    "harness_commit": "1f37307",
+    "notes": [
+      "One synthetic ContextBench corpus; not a real-domain TSFM ranking."
+    ],
+    "scope": "subset",
+    "source": "results/defensible-external-1f37307/modelbench-matched/summary.json",
+    "source_sha256": "47b056b6df95f6ce9e62474c400d7ef24fb052fdc30ffb0b475f3ca857f96701",
+    "status": "complete"
+  },
+  "summary": {
+    "benchmark": "contextbench-primary-models-v1",
+    "cases": 80,
+    "classical_mean_smape": 2.8462685770609277,
+    "classical_plus_toto2_4m_mean_smape": 2.3081893130970177,
+    "classical_wins": 16,
+    "code_revision": "1f37307",
+    "corpus_cases_sha256": "3fa619052dc808877870124e99f3acfded54c42e0843d1debc78a1be2322f193",
+    "limitations": [
+      "This is an immutable primary-forecast comparison on one held-out synthetic ContextBench corpus, not a claim across real-world domains.",
+      "The comparison tests Toto2-4M in one pinned sandbox; it does not rank other TSFMs."
+    ],
+    "mean_smape_improvement": 0.5380792639639101,
+    "median_paired_improvement": 0.10235256046230243,
+    "paired_sign_test_two_sided_p": 2.4176312825015983e-07,
+    "seasonal_naive_selected": 3,
+    "ties": 3,
+    "toto_selected": 77,
+    "toto_wins": 61
+  }
+}

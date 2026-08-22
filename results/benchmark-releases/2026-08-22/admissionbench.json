@@ -1,0 +1,88 @@
+{
+  "release_metadata": {
+    "arm": "evidence-weighted-policy",
+    "benchmark": "admissionbench",
+    "configuration_identity": "evidence-weighted candidate admission v0.1",
+    "dataset_identity": "synthetic policy corpus seed=20260822 cases=5000",
+    "evaluated_commit": "1f37307",
+    "harness_commit": "1f37307",
+    "notes": [],
+    "scope": "full",
+    "source": "results/defensible-external-1f37307/admissionbench/summary.json",
+    "source_sha256": "cd295b2fb35356561a6010724ac46fa9f58c6758c1f55f3b434a2b61889c2b2f",
+    "status": "complete"
+  },
+  "summary": {
+    "cases": 5000,
+    "evaluated_commit": "1f37307",
+    "gates": {
+      "beats_always_baseline": true,
+      "beats_always_candidate": true,
+      "helpful_weight_exceeds_harmful": true
+    },
+    "harmful_candidate_mean_weight": 0.05099148212608562,
+    "helpful_candidate_mean_weight": 0.9063456530255364,
+    "mean_loss": {
+      "always_baseline": 1.0006552108186744,
+      "always_candidate": 0.9767922510142533,
+      "evidence_weighted": 0.9251394409137003
+    },
+    "mean_regret": 0.035395589696001185,
+    "reliability": [
+      {
+        "cases": 2277,
+        "mean_weight": 0.0027587949929082996,
+        "realised_win_rate": 0.25735617039964864,
+        "weight_band": [
+          0,
+          0.2
+        ]
+      },
+      {
+        "cases": 83,
+        "mean_weight": 0.29898385274948003,
+        "realised_win_rate": 0.5301204819277109,
+        "weight_band": [
+          0.2,
+          0.4
+        ]
+      },
+      {
+        "cases": 205,
+        "mean_weight": 0.49086152861332966,
+        "realised_win_rate": 0.697560975609756,
+        "weight_band": [
+          0.4,
+          0.6000000000000001
+        ]
+      },
+      {
+        "cases": 555,
+        "mean_weight": 0.7452182498758474,
+        "realised_win_rate": 0.7477477477477478,
+        "weight_band": [
+          0.6,
+          0.8
+        ]
+      },
+      {
+        "cases": 1880,
+        "mean_weight": 1.0,
+        "realised_win_rate": 0.7861702127659574,
+        "weight_band": [
+          0.8,
+          1.0
+        ]
+      }
+    ],
+    "schema_version": "0.1",
+    "seed": 20260822,
+    "states": {
+      "baseline_fallback": 2208,
+      "externally_validated": 795,
+      "jointly_validated": 912,
+      "locally_validated": 173,
+      "prior_assisted": 912
+    }
+  }
+}

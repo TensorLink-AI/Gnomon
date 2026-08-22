@@ -1,0 +1,78 @@
+{
+  "release_metadata": {
+    "arm": "gnomon-tools-vs-control",
+    "benchmark": "mtbench",
+    "configuration_identity": "matched DeepSeek V4 Flash 0731 combined control vs Gnomon-tools; temperature=0.7",
+    "dataset_identity": "official finance/aligned_in30days_out7days prefix; 20 canonical parquet row identities",
+    "evaluated_commit": "1f37307",
+    "harness_commit": "b45a69c",
+    "notes": [
+      "Control identities were losslessly restored from source row order only after exact ground-truth-vector verification; no model calls were rerun."
+    ],
+    "scope": "subset",
+    "source": "results/defensible-external-1f37307/mtbench-matched-summary.json",
+    "source_sha256": "7282f08ece9a6dc9d421f03985e02d12d0262aeb459645febbd04a2832c4ba5a",
+    "status": "complete"
+  },
+  "summary": {
+    "comparisons": [
+      {
+        "baseline": "mtbench-control-20-canonical",
+        "baseline_only": 0,
+        "benchmark": "mtbench",
+        "comparable": true,
+        "matched_tasks": 20,
+        "metrics": {
+          "mape": {
+            "baseline_mean": 4.175993,
+            "baseline_median": 3.454996,
+            "direction_recognised": true,
+            "lower_is_better": true,
+            "scored_by_both": 20,
+            "test": {
+              "n": 20,
+              "p_value": 1.0,
+              "test": "sign_exact",
+              "ties": 0,
+              "treatment_losses": 10,
+              "treatment_wins": 10
+            },
+            "treatment_mean": 4.076784,
+            "treatment_median": 2.906859
+          },
+          "mse": {
+            "baseline_mean": 25.673364,
+            "baseline_median": 7.95046,
+            "direction_recognised": true,
+            "lower_is_better": true,
+            "scored_by_both": 20,
+            "test": {
+              "n": 20,
+              "p_value": 1.0,
+              "test": "sign_exact",
+              "ties": 0,
+              "treatment_losses": 10,
+              "treatment_wins": 10
+            },
+            "treatment_mean": 22.514771,
+            "treatment_median": 3.615027
+          }
+        },
+        "treatment": "mtbench-tools-20",
+        "treatment_only": 0
+      }
+    ],
+    "cost": {
+      "mtbench-control-20-canonical": {
+        "cost_usd": 0.0,
+        "requests": 20,
+        "truncation_escalations": 0
+      },
+      "mtbench-tools-20": {
+        "cost_usd": 0.0,
+        "requests": 86,
+        "truncation_escalations": 0
+      }
+    }
+  }
+}
