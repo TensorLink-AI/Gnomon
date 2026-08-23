@@ -17,6 +17,7 @@ from .evaluation import error_score, scaled_error_score
 from .models import last_value
 
 PANEL_POOLED_TREND = "panel_pooled_trend"
+POOL_WEIGHT = 0.5
 
 
 def _scale(values: list[float]) -> float:
@@ -44,6 +45,7 @@ class PoolEvidence:
     baseline_loss: float
     target_scaled_gain: float
     target_origin: int
+    normalised_pool_strength: float
 
 
 class PanelTrendCandidate:
@@ -71,7 +73,11 @@ class PanelTrendCandidate:
         if len(slopes) < 3:
             raise ValueError("pooled trend needs three eligible donor channels")
         pooled = median(slopes)
-        step = pooled * _scale(target_history)
+        # Partial pooling is shrinkage, not replacement. Half weight is the
+        # symmetric midpoint between the target's robust no-change estimate
+        # and the cross-channel trend. It limits transfer regret without a
+        # fitted hyperparameter or dataset-specific rule.
+        step = POOL_WEIGHT * pooled * _scale(target_history)
         return [target_history[-1] + step * lead
                 for lead in range(1, horizon + 1)]
 
@@ -118,6 +124,19 @@ class PanelTrendCandidate:
         if donor_win_rate <= .5 or median(gains) <= 0:
             return None
 
+        # This executable represents a shared *trend*, so random agreement
+        # close to zero is not sufficient evidence. A half typical-change per
+        # step is a scale-free minimum effect size; it is independent of data
+        # units and channel names and prevents a lucky holdout in a level-only
+        # panel from minting a directional forecast.
+        pool_strength = abs(median(
+            _normalised_slope(self.series[donor][:target_origin])
+            for donor in self.donors
+            if len(self.series[donor][:target_origin]) >= 4
+        ))
+        if pool_strength < .5:
+            return None
+
         actual = target_values[target_origin:]
         candidate = self(target_origin, holdout)
         baseline = last_value(target_values[:target_origin], holdout, season)
@@ -139,7 +158,7 @@ class PanelTrendCandidate:
             return None
         return PoolEvidence(
             len(donor_pairs), donor_win_rate, median(gains), candidate_loss,
-            base_loss, scaled_gain, target_origin,
+            base_loss, scaled_gain, target_origin, pool_strength,
         )
 
 

@@ -843,6 +843,7 @@ def _admit_pooled_lightweight(
         (f"borrowed strength from {len(candidate.donors)} sibling channels",
          f"leave-one-channel-out donor comparisons: {pooled.donor_pairs}",
          f"donor win rate: {pooled.donor_win_rate:.3f}",
+         f"normalised pooled-trend strength: {pooled.normalised_pool_strength:.3f}",
          "target held-out WAPE and scaled-error gates both passed"),
         policy_version="within-panel-pooling-v1",
     )
@@ -851,7 +852,7 @@ def _admit_pooled_lightweight(
     from .versioning import RUNTIME_VERSION
     identity = CandidateIdentity(
         kind="cross_series", name=name, members=tuple(candidate.donors),
-        strategy="median_normalised_recent_trend",
+        strategy="half_shrunk_median_normalised_recent_trend",
         config={
             "admission_state": "pooled_validated",
             "donor_pairs": pooled.donor_pairs,
@@ -902,6 +903,7 @@ def _admit_pooled_lightweight(
             "borrowed_strength": True,
             "donor_loco_pairs": pooled.donor_pairs,
             "donor_win_rate": pooled.donor_win_rate,
+            "normalised_pool_strength": pooled.normalised_pool_strength,
         },
     )
 

@@ -41,6 +41,13 @@ def _series(rng: random.Random, family: str, length: int, direction: float = 1) 
     return values
 
 
+def _panel_series(rng: random.Random, length: int, slope: float,
+                  noise: float) -> list[float]:
+    level = rng.uniform(20, 80)
+    return [level + slope * index + rng.gauss(0, noise)
+            for index in range(length)]
+
+
 def _loss(actual: list[float], points: list[float]) -> float:
     if len(actual) != len(points) or not actual:
         return float("inf")
@@ -97,14 +104,20 @@ def run(seed: int = 82631, cases_per_family: int = 40) -> dict[str, object]:
                 "outcome": _outcome(enhanced_loss, base_loss),
             })
 
-    for comparable in (True, False):
+    panel_regimes = {
+        "comparable_strong": (.9, .7, False),
+        "comparable_marginal": (.25, 1.2, False),
+        "null": (0.0, 1.2, False),
+        "mixed_direction": (.9, .7, True),
+    }
+    for regime, (slope, noise, mixed_direction) in panel_regimes.items():
         for case in range(cases_per_family):
             horizon, train_length = 3, rng.choice((15, 18, 21, 24))
             full_panel: dict[str, list[float]] = {}
             for channel in range(5):
-                direction = 1 if comparable else (1 if channel % 2 == 0 else -1)
-                full_panel[f"series_{channel}"] = _series(
-                    rng, "trend", train_length + horizon, direction)
+                direction = -1 if mixed_direction and channel % 2 else 1
+                full_panel[f"series_{channel}"] = _panel_series(
+                    rng, train_length + horizon, direction * slope, noise)
             train_panel = {name: values[:train_length]
                            for name, values in full_panel.items()}
             candidate = PanelTrendCandidate("series_0", train_panel)
@@ -115,8 +128,8 @@ def run(seed: int = 82631, cases_per_family: int = 40) -> dict[str, object]:
             points = candidate(train_length, horizon) if evidence else baseline
             base_loss, published_loss = _loss(actual, baseline), _loss(actual, points)
             rows.append({
-                "case_id": f"panel-{'comparable' if comparable else 'mixed'}-{case}",
-                "lane": "pooling", "family": "comparable" if comparable else "mixed",
+                "case_id": f"panel-{regime}-{case}",
+                "lane": "pooling", "family": regime,
                 "history_length": train_length, "admitted": evidence is not None,
                 "baseline_loss": base_loss, "candidate_loss": published_loss,
                 "outcome": _outcome(published_loss, base_loss),
@@ -140,8 +153,20 @@ def run(seed: int = 82631, cases_per_family: int = 40) -> dict[str, object]:
 
     classical = [row for row in rows if row["lane"] == "classical"]
     pooling = [row for row in rows if row["lane"] == "pooling"]
-    comparable = [row for row in pooling if row["family"] == "comparable"]
-    mixed = [row for row in pooling if row["family"] == "mixed"]
+    by_regime = {regime: [row for row in pooling if row["family"] == regime]
+                 for regime in panel_regimes}
+
+    def pooling_summary(items: list[dict[str, object]]) -> dict[str, object]:
+        result = summary(items)
+        admitted = [row for row in items if row["admitted"]]
+        harmful = sum(row["outcome"] == "regression" for row in admitted)
+        return {**result, "admitted": len(admitted),
+                "admission_rate": len(admitted) / len(items),
+                "admission_precision": (
+                    sum(row["outcome"] == "uplift" for row in admitted)
+                    / len(admitted) if admitted else None),
+                "harmful_admission_rate": harmful / len(admitted)
+                if admitted else 0.0}
     result = {
         "schema_version": "0.1", "seed": seed,
         "protocol": "training-internal selection; untouched final horizon",
@@ -149,20 +174,23 @@ def run(seed: int = 82631, cases_per_family: int = 40) -> dict[str, object]:
         "classical_by_family": {family: summary(
             [row for row in classical if row["family"] == family])
             for family in FAMILIES},
-        "pooling": {
-            "comparable": {**summary(comparable), "admitted": sum(
-                bool(row["admitted"]) for row in comparable)},
-            "mixed": {**summary(mixed), "admitted": sum(
-                bool(row["admitted"]) for row in mixed)},
-        },
+        "pooling": {regime: pooling_summary(items)
+                    for regime, items in by_regime.items()},
+        "precision_gate_min_admissions": 20,
         "raw_records": rows,
     }
     result["gates"] = {
         "classical_median_gain_positive": result["classical"]["median_relative_gain"] > 0,
-        "comparable_pooling_has_uplift": result["pooling"]["comparable"]["outcomes"]["uplift"] > 0,
-        "mixed_harmful_admission_rate_below_05": (
-            result["pooling"]["mixed"]["admitted"] / len(mixed) < .05),
-        "raw_records_retained": len(rows) == cases_per_family * 7,
+        "strong_pooling_admission_precision_at_least_70pct": (
+            result["pooling"]["comparable_strong"]["admitted"] < 20
+            or result["pooling"]["comparable_strong"]["admission_precision"] >= .70),
+        "null_admission_rate_below_05": (
+            result["pooling"]["null"]["admission_rate"] < .05),
+        "marginal_admission_rate_below_05": (
+            result["pooling"]["comparable_marginal"]["admission_rate"] < .05),
+        "mixed_direction_admission_rate_below_05": (
+            result["pooling"]["mixed_direction"]["admission_rate"] < .05),
+        "raw_records_retained": len(rows) == cases_per_family * 9,
     }
     return result
 
