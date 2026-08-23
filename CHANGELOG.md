@@ -20,6 +20,9 @@
   from the requested verb, point triage facts at their real source, and give
   every uncertain path a recovery or terminal result. BoundaryBench now runs
   a real verb response and proves every gate fails under mutation.
+  On fold-starved histories, the same one holdout is no longer used to rank
+  structured baselines: the robust last-value candidate is published unless
+  repeatable folds or separately labelled transfer evidence exist.
 
 - **Installable trust checks.** The wheel exposes `gnomon self-check leakage`,
   a dependency-free generated late-revision check over the installed

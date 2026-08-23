@@ -147,20 +147,20 @@ underlying complete run and its provenance are retained as citable evidence.
 
 On the latest complete matched 80-case TemporalBench sample, the same DeepSeek
 model answered **33.3%** of 240 temporal-choice fields correctly with Gnomon's
-Evidence surface, versus **31.7%** directly. Gnomon fixed 65 fields and broke
-61; the difference was not significant (two-sided exact McNemar *p* = 0.789).
+Evidence surface, versus **30.8%** directly. Gnomon fixed 66 fields and broke
+60; the difference was not significant (two-sided exact McNemar *p* = 0.656).
 The earlier 35.8%-versus-28.5% result did not replicate and is retired as a
 product claim.
 
-Forecast superiority was also not established. Mean sMAPE was 10.76 with
-Gnomon and 11.93 directly (45 row wins, 35 losses, *p* = 0.314). Per-channel
-MASE exposed a significant regression (160 wins, 225 losses, 95 ties,
-*p* = 0.0011), particularly on respiratory rate, SpO₂, and systolic blood
-pressure. That finding gates the next release; current admission hardening is
-not described as measured improvement until it is rerun under the committed
-[evaluation protocol](docs/evaluation-protocol.md). Complete latest-code
-evidence and limitations are in the
-[reasoning-boundary release](results/benchmark-releases/2026-08-23-reasoning-boundary/README.md).
+Forecast superiority was also not established. Mean sMAPE was 10.62 with
+Gnomon and 11.34 directly (43 row wins, 36 losses, one tie, *p* = 0.500).
+Per-channel MASE no longer shows the prior significant regression: 183 wins,
+190 losses, and 107 ties (*p* = 0.756). More importantly for the release gate,
+all 480 fold-starved channels matched the robust last-value baseline exactly;
+Gnomon no longer ranks a structured baseline using the same single holdout it
+declares insufficient for candidate selection. The protocol, complete
+latest-code evidence, and limitations are in the
+[product-hardening release](results/benchmark-releases/2026-08-23-product-hardening/README.md).
 
 ## Why this needs an execution layer
 

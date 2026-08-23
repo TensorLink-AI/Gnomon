@@ -1,0 +1,70 @@
+{
+  "release_metadata": {
+    "arm": "gnomon-evidence-vs-deepseek",
+    "benchmark": "temporalbench-forecast",
+    "configuration_identity": "paired official row sMAPE with exact sign test",
+    "dataset_identity": "80 matched official T2/T4 forecast tasks",
+    "evaluated_commit": "2d14967",
+    "harness_commit": "2d14967",
+    "notes": [],
+    "scope": "subset",
+    "source": "results/temporalbench-hardening-2d14967/matched-report.json",
+    "source_sha256": "2bc82e4a20ca46bfd1bca38a5ae15317a6afbd59b65fcfa227e4f3f82952e7cb",
+    "status": "complete"
+  },
+  "summary": {
+    "comparisons": [
+      {
+        "baseline": "merged-control",
+        "baseline_only": 0,
+        "benchmark": "temporalbench",
+        "comparable": true,
+        "matched_tasks": 80,
+        "metrics": {
+          "smape": {
+            "baseline_mean": 11.340546,
+            "baseline_median": 10.513066,
+            "direction_recognised": true,
+            "lower_is_better": true,
+            "scored_by_both": 80,
+            "test": {
+              "n": 80,
+              "p_value": 0.49989687686032663,
+              "test": "sign_exact",
+              "ties": 1,
+              "treatment_losses": 36,
+              "treatment_wins": 43
+            },
+            "treatment_mean": 10.622866,
+            "treatment_median": 9.986655
+          }
+        },
+        "success_rate": {
+          "baseline": 1.0,
+          "treatment": 1.0
+        },
+        "success_test": {
+          "n": 80,
+          "p_value": 1.0,
+          "test": "mcnemar_exact",
+          "treatment_broke": 0,
+          "treatment_fixed": 0
+        },
+        "treatment": "merged-evidence",
+        "treatment_only": 0
+      }
+    ],
+    "cost": {
+      "merged-control": {
+        "cost_usd": 0.0,
+        "requests": 80,
+        "truncation_escalations": 0
+      },
+      "merged-evidence": {
+        "cost_usd": 0.0,
+        "requests": 204,
+        "truncation_escalations": 0
+      }
+    }
+  }
+}

@@ -62,6 +62,7 @@ def parse_args() -> argparse.Namespace:
                         help="Treatment arm output dir (with details/)")
     parser.add_argument("--json", action="store_true",
                         help="Emit the full result as JSON")
+    parser.add_argument("--output", help="Write the full JSON result to this path")
     return parser.parse_args()
 
 
@@ -322,8 +323,14 @@ def main() -> int:
                                    if stable_all else None),
         "records": record_rows,
     }
+    if args.output:
+        output = Path(args.output)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     if args.json:
         print(json.dumps(result, indent=2))
+        return 0
+    if args.output:
         return 0
 
     total_channels = sum(coverage.values())
