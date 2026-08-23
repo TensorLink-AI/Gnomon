@@ -6,6 +6,7 @@ with empty content and ``finish_reason: "length"``. Scoring that as an
 answer would record a wrong answer the model never gave.
 """
 
+import json
 import sys
 import urllib.error
 from pathlib import Path
@@ -191,6 +192,33 @@ def test_zero_retries_still_performs_the_initial_request(monkeypatch):
     assert len(attempts) == 1
     assert client.usage_summary["requests"] == 0
     assert client.usage_summary["transport_attempts"] == 1
+
+
+def test_reasoning_effort_is_sent_only_when_explicit(monkeypatch):
+    payloads = []
+
+    class Response:
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def read(self):
+            return json.dumps(_response("ok")).encode()
+
+    def capture(request, **kwargs):
+        payloads.append(json.loads(request.data))
+        return Response()
+
+    monkeypatch.setattr("urllib.request.urlopen", capture)
+    explicit = OpenRouterClient(
+        "test/model", api_key="k", max_retries=0, reasoning_effort="low")
+    explicit._request(MESSAGES, n=1, temperature=None, max_tokens=10,
+                      tools=None, tool_choice=None)
+    default = OpenRouterClient("test/model", api_key="k", max_retries=0)
+    default._request(MESSAGES, n=1, temperature=None, max_tokens=10,
+                     tools=None, tool_choice=None)
+    assert payloads[0]["reasoning_effort"] == "low"
+    assert "reasoning_effort" not in payloads[1]
 
 
 def test_absolute_deadline_bounds_trickling_transport(monkeypatch):

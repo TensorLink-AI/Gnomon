@@ -427,6 +427,11 @@ def main() -> int:
                         help="Skip this many rows after tier/dataset filters; "
                              "supports resumable one-row benchmark shards.")
     parser.add_argument("--temperature", type=float, default=0.2)
+    parser.add_argument(
+        "--reasoning-effort", choices=("low", "medium", "high"),
+        help=("Optional OpenAI-compatible reasoning effort; use the same "
+              "value in every matched condition."),
+    )
     parser.add_argument("--request-timeout", type=int, default=180,
                         help="seconds per provider request (default: 180)")
     parser.add_argument(
@@ -536,7 +541,8 @@ def main() -> int:
                                temperature=args.temperature,
                                max_tokens=8000, base_url=args.base_url,
                                timeout=args.request_timeout,
-                               max_retries=args.max_retries)
+                               max_retries=args.max_retries,
+                               reasoning_effort=args.reasoning_effort)
               if args.model else None)
 
     output_dir = Path(args.output_dir)
@@ -548,6 +554,7 @@ def main() -> int:
         "benchmark": "temporalbench",
         "condition": args.condition,
         "model": args.model,
+        "reasoning_effort": args.reasoning_effort,
         "target": "tiers=" + ",".join(tiers or TIERS)
                   + (";datasets=" + ",".join(datasets) if datasets else ""),
         "command": " ".join(sys.argv),
