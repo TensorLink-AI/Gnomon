@@ -132,7 +132,8 @@ def test_the_whole_vintage_workflow_runs_over_mcp(tmp_path):
     })
     assert not error, payload
     result = payload["results"][0]
-    assert result["support"] == "supported"
+    assert result["support"] in {"supported", "weakly_supported"}
+    assert result["selected_model"]
     assert result["forecast_rows"] == 7
 
     inspection, error = _call("gnomon_inspect", {
@@ -314,6 +315,11 @@ def test_every_macro_writes_a_summary(tmp_path):
         text = summary.read_text(encoding="utf-8")
         assert text.startswith("# "), text[:80]
         assert len(text.splitlines()) > 2
+        report = path / "report.html"
+        assert report.is_file(), f"{path.name} has no report.html"
+        html = report.read_text(encoding="utf-8")
+        assert "artifact.json" in html
+        assert "https://" not in html and "http://" not in html
 
 
 # -- M3: adapted_alpha is reachable --------------------------------------

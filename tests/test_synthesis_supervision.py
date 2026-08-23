@@ -29,6 +29,26 @@ def test_synthesis_is_separate_immutable_and_outcome_scored(tmp_path: Path):
         project="private-project", forecast_id="f1", series="secret-series",
         question_id="q1", synthesis_id="s1", outcome={"direction": "stable"})
     assert score["synthesis_delta"] == 1
+
+
+def test_synthesis_replay_is_idempotent_but_conflict_is_loud(tmp_path: Path):
+    store = TrackingStore(tmp_path / "registry.db")
+    arguments = dict(
+        project="p", forecast_id="f", series="x", question_id="q",
+        synthesis_id="s", canonical={"value": "up"},
+        synthesis={"label": "labelled_synthesis", "value": "up",
+                   "primary_forecast_unchanged": True},
+        evidence_refs=["e1"],
+    )
+    store.record_temporal_synthesis(**arguments)
+    store.record_temporal_synthesis(**arguments)
+    with pytest.raises(ValueError, match="conflicting synthesis receipt"):
+        store.record_temporal_synthesis(
+            **{**arguments, "synthesis": {
+                "label": "labelled_synthesis", "value": "down",
+                "primary_forecast_unchanged": True,
+            }}
+        )
     with pytest.raises(ValueError):
         store.record_temporal_synthesis(
             project="private-project", forecast_id="f1", series="secret-series",

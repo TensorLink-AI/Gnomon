@@ -2,23 +2,20 @@
 
 ## 1. Serve the tools (one command)
 
-From a checkout (until the PyPI release lands, this is the way):
+From PyPI:
 
 ```bash
-git clone https://github.com/TensorLink-AI/Gnomon && cd Gnomon
-uvx --from . gnomon mcp serve
+uvx --from gnomon-forecast gnomon mcp serve
 ```
 
-Or `pip install -e . && gnomon mcp serve`. Once `gnomon-forecast` is published
-to PyPI this becomes `uvx --from gnomon-forecast gnomon mcp serve` with no
-clone.
+For repository development, use `uvx --from . gnomon mcp serve` from a checkout.
 
 ## 2. Connect a client
 
-**Claude Code** — one command from inside the checkout:
+**Claude Code** — one command:
 
 ```bash
-claude mcp add gnomon -- uvx --from "$(pwd)" gnomon mcp serve
+claude mcp add gnomon -- uvx --from gnomon-forecast gnomon mcp serve
 ```
 
 **Claude Desktop** (`claude_desktop_config.json`) or any `.mcp.json`:
@@ -28,7 +25,7 @@ claude mcp add gnomon -- uvx --from "$(pwd)" gnomon mcp serve
   "mcpServers": {
     "gnomon": {
       "command": "uvx",
-      "args": ["--from", "/absolute/path/to/Gnomon", "gnomon", "mcp", "serve"]
+      "args": ["--from", "gnomon-forecast", "gnomon", "mcp", "serve"]
     }
   }
 }
@@ -36,6 +33,21 @@ claude mcp add gnomon -- uvx --from "$(pwd)" gnomon mcp serve
 
 **Cursor** (`.cursor/mcp.json`) and any generic stdio MCP client: same
 `command`/`args` shape.
+
+**Hermes Agent** — install the packaged Gnomon skill and the CLI, then expose
+the same stdio server through Hermes's MCP configuration:
+
+```bash
+uv tool install gnomon-forecast
+gnomon mcp serve
+```
+
+The distribution includes `share/gnomon/skills/use-gnomon`; copy or link that
+directory into the host's configured skills directory. The skill teaches the
+host to call forecast directly, preserve tiers and artifact identities, and
+avoid redundant artifact fetches. Host-specific plugin discovery paths change
+independently of Gnomon, so verify the path against the installed Hermes
+version rather than letting an installer guess it.
 
 ## 3. First grounded answer
 
@@ -52,7 +64,7 @@ gnomon monitor     examples/messy_requests.csv --time timestamp --target request
 
 Every response carries an `artifact_path` (immutable directory with
 `artifact.json`, `lineage.json`, and for forecasts `forecast.csv` +
-`summary.md`) and a `support_assessment`. Numbers live in artifacts —
+`summary.md` + offline `report.html`) and a `support_assessment`. Numbers live in artifacts —
 agents quote them, never restate them.
 
 ## 4. Vintages (optional, compounding)

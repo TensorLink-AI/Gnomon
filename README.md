@@ -145,21 +145,22 @@ underlying complete run and its provenance are retained as citable evidence.
 
 ## Measured evidence
 
-On a matched 80-case TemporalBench sample, the same DeepSeek V4 Flash model
-answered **35.76%** of 302 temporal-choice questions correctly with Gnomon's
-Evidence surface, versus **28.48%** directly. Gnomon fixed 64 choices and broke
-42 (two-sided exact McNemar *p* = 0.0409). All 80 tasks completed, with one
-observed tool call at both median and p95, and the governed primary forecast
-remained immutable.
+On the latest complete matched 80-case TemporalBench sample, the same DeepSeek
+model answered **33.3%** of 240 temporal-choice fields correctly with Gnomon's
+Evidence surface, versus **31.7%** directly. Gnomon fixed 65 fields and broke
+61; the difference was not significant (two-sided exact McNemar *p* = 0.789).
+The earlier 35.8%-versus-28.5% result did not replicate and is retired as a
+product claim.
 
-This is evidence of a temporal-reasoning lift on that sample, not a universal
-accuracy claim. Forecast superiority was not established: mean sMAPE was
-10.90 with Gnomon and 12.31 directly (21 wins, 19 losses, *p* = 0.875), while
-paired per-channel MASE also showed no significant overall difference. The
-complete result, exact revisions, dataset identity, statistical tests, and
-limitations are in the
-[2026-08-23 benchmark release](results/benchmark-releases/2026-08-23/README.md).
-Volatility direction remains diagnostic rather than graduated.
+Forecast superiority was also not established. Mean sMAPE was 10.76 with
+Gnomon and 11.93 directly (45 row wins, 35 losses, *p* = 0.314). Per-channel
+MASE exposed a significant regression (160 wins, 225 losses, 95 ties,
+*p* = 0.0011), particularly on respiratory rate, SpO₂, and systolic blood
+pressure. That finding gates the next release; current admission hardening is
+not described as measured improvement until it is rerun under the committed
+[evaluation protocol](docs/evaluation-protocol.md). Complete latest-code
+evidence and limitations are in the
+[reasoning-boundary release](results/benchmark-releases/2026-08-23-reasoning-boundary/README.md).
 
 ## Why this needs an execution layer
 
@@ -438,10 +439,11 @@ gnomon-output/forecast_<id>/
 ├── evidence.jsonl   machine-readable evaluation and support evidence
 ├── forecast.csv     future timestamps, point values, and quantiles
 ├── lineage.json     typed artifacts, evidence, and verified claims
+├── report.html      self-contained offline visual and disclosures
 └── summary.md       compact human-readable result
 ```
 
-Start with `summary.md`. Use `forecast.csv` for charts and downstream
+Start with `report.html` or `summary.md`. Use `forecast.csv` for downstream
 systems. Keep `artifact.json` when provenance, auditability, or
 reproducibility matters.
 

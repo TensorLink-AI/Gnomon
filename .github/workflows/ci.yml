@@ -63,13 +63,31 @@ jobs:
         run: shellcheck install.sh
       - name: Build distributions
         run: python -m build
+      - name: Enforce distribution boundary
+        run: |
+          python - <<'PY'
+          import pathlib, zipfile
+          files = list(pathlib.Path("dist").iterdir())
+          assert files and all(path.stat().st_size < 5_000_000 for path in files), files
+          wheel = next(path for path in files if path.suffix == ".whl")
+          with zipfile.ZipFile(wheel) as archive:
+              names = archive.namelist()
+          assert any(name.endswith("share/gnomon/skills/use-gnomon/SKILL.md") for name in names)
+          PY
       - name: Install wheel
-        run: python -m pip install dist/*.whl
+        run: |
+          START=$SECONDS
+          python -m pip install dist/*.whl
+          gnomon capabilities >/dev/null
+          ELAPSED=$((SECONDS - START))
+          echo "Fresh wheel install to first trusted runtime response: ${ELAPSED}s"
+          test "$ELAPSED" -lt 60
       - name: Smoke-test installed CLI
         run: |
           cd "$(mktemp -d)"
           gnomon capabilities
           gnomon --version
+          printf 'timestamp,value\n2026-01-01,1\n2026-01-02,2\n' | gnomon inspect - --time timestamp --target value --frequency D
       - uses: actions/upload-artifact@v4
         with:
           name: python-distributions

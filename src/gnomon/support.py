@@ -192,6 +192,8 @@ def assess_forecast_support(
         # degraded runs, so fully-evidenced artifacts are byte-unchanged.
         if assessment.degraded and assessment.selection_fold_count:
             sensitivity["selection_fold_count"] = assessment.selection_fold_count
+        if assessment.selection_stability:
+            sensitivity["selection_stability"] = assessment.selection_stability
 
     # A coverage failure is its own typed reason, prepended so that no
     # branch below can drop it. `degraded` used to replace the reason list

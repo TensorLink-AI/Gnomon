@@ -17,6 +17,7 @@ def write_artifact(
     artifact: ForecastArtifact, output_parent: str,
     lineage: dict[str, Any] | None = None,
     output_config: Any = None,
+    history: dict[str, list[dict[str, Any]]] | None = None,
 ) -> Path:
     """Write the immutable artifact directory.
 
@@ -137,6 +138,11 @@ def write_artifact(
             lines.append("")
         if write_summary:
             (temporary / "summary.md").write_text("\n".join(lines), encoding="utf-8")
+        from .reporting import render_artifact_html
+        (temporary / "report.html").write_text(
+            render_artifact_html(artifact.forecast_id, payload, history=history),
+            encoding="utf-8",
+        )
         os.replace(temporary, final)
     except Exception:
         # The partial directory is kept for diagnosis and never exposed as a
@@ -178,6 +184,10 @@ def write_json_artifact(
             handle.write("\n")
     (temporary / "summary.md").write_text(
         _macro_summary(artifact_id, payload), encoding="utf-8",
+    )
+    from .reporting import render_artifact_html
+    (temporary / "report.html").write_text(
+        render_artifact_html(artifact_id, payload), encoding="utf-8",
     )
     os.replace(temporary, final)
     return final

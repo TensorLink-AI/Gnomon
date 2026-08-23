@@ -190,6 +190,8 @@ def main() -> int:
     shared_ids = sorted(set(base) & set(treat) & set(truth_by_id))
     per_channel: dict[str, list[tuple[float, float]]] = {}
     per_channel_stable: dict[str, list[tuple[float, float]]] = {}
+    versus_naive: dict[str, list[tuple[float, float]]] = {}
+    abstention_priced: list[tuple[float, float]] = []
     record_rows = []
     coverage = {"base_only": 0, "treat_only": 0, "both": 0, "neither": 0}
     # Support-label mix over the channels actually scored, per arm:
@@ -210,6 +212,42 @@ def main() -> int:
                    "base_only" if in_b else
                    "treat_only" if in_t else "neither")
             coverage[key] += 1
+            channel_history = (history or {}).get(channel) \
+                if isinstance(history, dict) else None
+            if not isinstance(channel_history, (list, tuple)) or not channel_history:
+                continue
+            finite_history = []
+            for value in channel_history:
+                try:
+                    numeric = float(value)
+                except (TypeError, ValueError):
+                    continue
+                if math.isfinite(numeric):
+                    finite_history.append(numeric)
+            if not finite_history:
+                continue
+            naive = {channel: [finite_history[-1]] * len(truth[channel])}
+            naive_summary, naive_detail = subset_metrics(
+                metrics_module, truth, history, naive, [channel])
+            if not naive_summary:
+                continue
+            naive_mase = (naive_detail.get(channel) or {}).get("MASE")
+            if naive_mase is None:
+                continue
+            if in_t:
+                treatment_summary, treatment_detail = subset_metrics(
+                    metrics_module, truth, history,
+                    {channel: t_fc[channel]}, [channel])
+                treatment_mase = ((treatment_detail or {}).get(channel) or {}).get("MASE")
+                if treatment_summary and treatment_mase is not None:
+                    versus_naive.setdefault(channel, []).append(
+                        (naive_mase, treatment_mase))
+                    abstention_priced.append((naive_mase, treatment_mase))
+            else:
+                # Pricing an abstention at the registered robust fallback
+                # prevents a policy from improving its score by suppressing
+                # difficult channels.
+                abstention_priced.append((naive_mase, naive_mase))
         if not both:
             continue
 
@@ -269,6 +307,16 @@ def main() -> int:
         "support_mix": {"baseline": base_mix, "treatment": treat_mix},
         "per_channel": {c: stable_summary(c, p)
                         for c, p in per_channel.items()},
+        "treatment_vs_last_value": {
+            c: summarise_pairs(pairs) for c, pairs in versus_naive.items()
+        },
+        "publication": {
+            "eligible_channel_slots_with_naive_scale": len(abstention_priced),
+            "treatment_published": coverage["both"] + coverage["treat_only"],
+            "treatment_abstained_where_baseline_published": coverage["base_only"],
+            "abstention_priced_as_last_value": (
+                summarise_pairs(abstention_priced) if abstention_priced else None),
+        },
         "overall": summarise_pairs(all_pairs) if all_pairs else None,
         "overall_stable_history": (summarise_pairs(stable_all)
                                    if stable_all else None),

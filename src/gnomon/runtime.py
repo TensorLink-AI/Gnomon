@@ -1062,6 +1062,10 @@ def forecast(
     return artifact, write_artifact(
         artifact, output, lineage=lineage.to_dict(),
         output_config=getattr(config, "output", None),
+        history={name: [
+            {"timestamp": item.timestamp.isoformat(), "value": item.value}
+            for item in observations
+        ] for name, observations in loaded.groups.items()},
     )
 
 
@@ -1403,6 +1407,11 @@ def forecast_multi(
     return artifact, write_artifact(
         artifact, output, lineage=lineage.to_dict(),
         output_config=getattr(config, "output", None),
+        history={target: [
+            {"timestamp": item.timestamp.isoformat(), "value": item.value}
+            for item in datasets[target].groups[target]
+        ] for target in target_columns
+          if isinstance(datasets[target], LoadedDataset)},
     )
 
 

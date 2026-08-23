@@ -117,6 +117,8 @@ class Evaluation:
     #: How the publishing candidate earned admission. Absent under the legacy
     #: policy and on abstentions, preserving existing artifacts by default.
     admission_decision: AdmissionDecision | None = None
+    #: Aligned evidence for the WAPE + fold-local-MASE publication gate.
+    selection_stability: dict[str, object] = field(default_factory=dict)
 
 
 #: The metric every selection decision is made on. Named so that hindsight
@@ -148,6 +150,25 @@ def error_score(actual: list[float], predicted: list[float]) -> float | None:
         # every aggregate it touches would silently become.
         return None
     return total / scale
+
+
+def scaled_error_score(
+    train: list[float], actual: list[float], predicted: list[float], season: int,
+) -> float | None:
+    """Fold-local MASE using only history available at that origin."""
+    lag = season if season > 1 and len(train) > season else 1
+    differences = [abs(train[index] - train[index - lag])
+                   for index in range(lag, len(train))]
+    scale = mean(differences) if differences else 0.0
+    level = median(abs(value) for value in train) if train else 0.0
+    if (scale <= max(1e-12, 1e-6 * max(level, 1.0))
+            or not math.isfinite(scale)):
+        return None
+    errors = [abs(observed - estimate)
+              for observed, estimate in zip(actual, predicted)]
+    if not errors or any(not math.isfinite(item) for item in errors):
+        return None
+    return mean(errors) / scale
 
 
 def quantile(values: list[float], probability: float) -> float:
@@ -1140,6 +1161,8 @@ def evaluate(
     # --- Run cross-series candidates on the same selection folds ---
     extra_candidates = dict(extra_candidates or {})
     extra_fold_scores: dict[str, list[float | None]] = {name: [] for name in extra_candidates}
+    extra_fold_forecasts: dict[str, list[list[float]]] = {
+        name: [] for name in extra_candidates}
     for name, predictor in extra_candidates.items():
         for origin in selection_origins:
             actual = values[origin : origin + horizon]
@@ -1149,11 +1172,14 @@ def evaluate(
                 logger.debug("candidate %s failed on fold at origin %d", name, origin,
                              exc_info=True)
                 extra_fold_scores[name].append(None)
+                extra_fold_forecasts[name].append([])
                 continue
             if len(forecast) != horizon:
                 extra_fold_scores[name].append(None)
+                extra_fold_forecasts[name].append([])
                 continue
             extra_fold_scores[name].append(error_score(actual, forecast))
+            extra_fold_forecasts[name].append(forecast)
     extra_scores: dict[str, float | None] = {}
     for name, items in extra_fold_scores.items():
         valid = [item for item in items if item is not None]
@@ -1165,6 +1191,7 @@ def evaluate(
 
     # --- Compute ensemble forecast on selection folds ---
     ensemble_fold_scores: list[float | None] = []
+    ensemble_fold_forecasts: list[list[float]] = []
     if ensemble_enabled or meta_model_enabled:
         from .ensemble import compute_ensemble_forecast, ENSEMBLE_MODEL_NAME
 
@@ -1205,10 +1232,13 @@ def evaluate(
                     )
                     actual = values[selection_origins[fold_idx] : selection_origins[fold_idx] + horizon]
                     ensemble_fold_scores.append(error_score(actual, combined))
+                    ensemble_fold_forecasts.append(combined)
                 except Exception:
                     ensemble_fold_scores.append(None)
+                    ensemble_fold_forecasts.append([])
             else:
                 ensemble_fold_scores.append(None)
+                ensemble_fold_forecasts.append([])
 
     ensemble_score: float | None = None
     if ensemble_enabled and ensemble_fold_scores:
@@ -1220,6 +1250,7 @@ def evaluate(
     # --- Meta-model training ---
     meta_model_weights: dict[str, float] | None = None
     meta_model_score: float | None = None
+    meta_model_fold_forecasts: list[list[float]] = []
     if meta_model_enabled:
         from .meta_model import train_meta_model
         # Collect fold forecasts and actuals for training
@@ -1297,10 +1328,13 @@ def evaluate(
                             combined = pmm(fold_weights, fold_map)
                             actual = values[selection_origins[fold_idx] : selection_origins[fold_idx] + horizon]
                             mm_scores.append(error_score(actual, combined))
+                            meta_model_fold_forecasts.append(combined)
                         except Exception:
                             mm_scores.append(None)
+                            meta_model_fold_forecasts.append([])
                     else:
                         mm_scores.append(None)
+                        meta_model_fold_forecasts.append([])
                 valid_mm = [x for x in mm_scores if x is not None]
                 if valid_mm and len(valid_mm) == len(selection_origins):
                     meta_model_score = mean(valid_mm)
@@ -1415,7 +1449,8 @@ def evaluate(
     margin = max(minimum_improvement, SINGLE_FOLD_SELECTION_MARGIN) if single_fold else minimum_improvement
     selection_stability: dict[str, object] = {
         "paired_folds": 0, "candidate_win_rate": None,
-        "median_relative_gain": None, "passed": True,
+        "median_relative_gain": None, "scaled_error_improvement": None,
+        "scaled_error_passed": False, "passed": True,
     }
     if candidate_scores:
         candidate = min(candidate_scores, key=candidate_scores.get)  # type: ignore[arg-type]
@@ -1455,17 +1490,67 @@ def evaluate(
                     "paired_folds": len(paired),
                     "candidate_win_rate": win_rate,
                     "median_relative_gain": median_gain,
+                    "scaled_error_improvement": None,
+                    "scaled_error_passed": False,
                     "passed": stable,
                 }
+        def _forecast_vector(name: str) -> list[list[float]] | None:
+            if name in fold_forecasts:
+                return fold_forecasts[name]
+            if name in tsfm_fold_forecasts:
+                return tsfm_fold_forecasts[name]
+            if name in extra_fold_forecasts:
+                return extra_fold_forecasts[name]
+            if name == "ensemble":
+                return ensemble_fold_forecasts
+            if name == "meta_model":
+                return meta_model_fold_forecasts
+            return None
+
+        candidate_predictions = _forecast_vector(candidate)
+        baseline_predictions = _forecast_vector(strongest_baseline)
+        scaled_passed = False
+        if candidate_predictions is not None and baseline_predictions is not None:
+            scaled_pairs = []
+            for index, origin in enumerate(selection_origins):
+                if (index >= len(candidate_predictions)
+                        or index >= len(baseline_predictions)
+                        or not candidate_predictions[index]
+                        or not baseline_predictions[index]):
+                    continue
+                actual = values[origin:origin + horizon]
+                train = train_at(origin)
+                base_scaled = scaled_error_score(
+                    train, actual, baseline_predictions[index], season)
+                candidate_scaled = scaled_error_score(
+                    train, actual, candidate_predictions[index], season)
+                if base_scaled is not None and candidate_scaled is not None:
+                    scaled_pairs.append((base_scaled, candidate_scaled))
+            if scaled_pairs:
+                base_mean = mean(item[0] for item in scaled_pairs)
+                candidate_mean = mean(item[1] for item in scaled_pairs)
+                scaled_gain = ((base_mean - candidate_mean) / base_mean
+                               if base_mean > 0 else None)
+                scaled_wins = sum(contender < base for base, contender in scaled_pairs)
+                scaled_passed = bool(
+                    scaled_gain is not None and scaled_gain >= margin
+                    and scaled_wins / len(scaled_pairs) > .5)
+                selection_stability.update({
+                    "scaled_error_paired_folds": len(scaled_pairs),
+                    "scaled_error_improvement": scaled_gain,
+                    "scaled_error_win_rate": scaled_wins / len(scaled_pairs),
+                    "scaled_error_passed": scaled_passed,
+                })
+        stable = stable and scaled_passed
+        selection_stability["passed"] = stable
         if (baseline_score > 0
                 and candidate_score <= baseline_score * (1 - margin)
                 and stable):
             selected = candidate
         elif not stable:
             notes.append(
-                f"Selection stability gate: {candidate} improved mean loss "
-                f"but won only {selection_stability['candidate_win_rate']:.0%} "
-                f"of {selection_stability['paired_folds']} paired folds; "
+                f"Selection double gate: {candidate} did not demonstrate "
+                f"repeatable improvement under both WAPE and fold-local MASE; "
                 f"{strongest_baseline} remains the published candidate."
             )
     selection_guardrail_applied = (
@@ -2036,6 +2121,7 @@ def evaluate(
                       selection_fold_count=len(residual_origins),
                       selection_guardrail_applied=selection_guardrail_applied,
                       admission_decision=admission_decision,
+                      selection_stability=selection_stability,
                       residual_fold_count=(
                           len(residual_origins) + 1 if pool_residuals else 1
                       ))

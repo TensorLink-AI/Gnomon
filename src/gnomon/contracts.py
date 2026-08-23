@@ -500,6 +500,30 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
     "UNKNOWN_TOOL": [
         {"action": "list_tools", "description": "Call tools/list for the available tool names."},
     ],
+    "SOURCE_TOO_LARGE": [
+        {"action": "reduce_source", "description": "Reduce the stdin or Prometheus range below 10 MiB, or ingest it into the temporal store in bounded batches."},
+    ],
+    "INVALID_PROMETHEUS_SOURCE": [
+        {"action": "fix_prometheus_uri", "description": "Use prom+https://HOST/api/v1/query_range with exactly one query, start, end, and step parameter; keep credentials in GNOMON_PROMETHEUS_BEARER_TOKEN."},
+    ],
+    "PROMETHEUS_REQUEST_FAILED": [
+        {"action": "retry_prometheus", "description": "Check endpoint reachability and authentication, then retry the same bounded range query."},
+    ],
+    "INVALID_PROMETHEUS_RESPONSE": [
+        {"action": "use_range_query", "description": "Use the matrix-producing /api/v1/query_range endpoint and verify that the server returns status=success."},
+    ],
+    "MONITOR_STATE_INVALID": [
+        {"action": "repair_monitor_state", "description": "Preserve the invalid state for diagnosis, then pass --state pointing to a new writable state file."},
+    ],
+    "WEBHOOK_SECRET_MISSING": [
+        {"action": "set_webhook_secret", "description": "Set the environment variable named by --webhook-secret-env, or omit signing explicitly."},
+    ],
+    "INVALID_WEBHOOK": [
+        {"action": "fix_webhook", "description": "Use an HTTP(S) URL without embedded credentials; configure authentication through the signing secret."},
+    ],
+    "INVALID_PROMETHEUS_EXPRESSION": [
+        {"action": "fix_promql", "description": "Pass one non-empty PromQL expression without a newline."},
+    ],
 
     # --- Covariates -------------------------------------------------------
     "INVALID_COVARIATE_MAPPING": [
@@ -667,6 +691,7 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "profile": "intent",
     "section": "intent", "sections": "intent",
     "jsonl": "intent", "include_lineage": "intent", "limit": "intent",
+    "check": "intent", "cases": "intent", "seed": "intent",
     "latest": "intent", "note": "intent", "name": "intent",
     "status_only": "intent", "resolved_only": "intent",
     "question": "intent", "questions": "intent", "fields": "intent", "where": "intent",
@@ -692,6 +717,9 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "candidate": "intent", "revision": "intent", "outcome_id": "intent",
     "question_id": "intent", "synthesis_id": "intent",
     "resolved": "intent",
+    "month": "intent", "state": "intent", "webhook": "intent",
+    "webhook_secret_env": "intent", "prometheus_rule_output": "intent",
+    "prometheus_expression": "data",
     # -- data --------------------------------------------------------------
     "input": "data", "observations": "data", "data_ref": "data",
     "file": "data", "files": "data",

@@ -49,3 +49,17 @@ docker run --rm ghcr.io/tensorlink-ai/gnomon:latest capabilities
 ```
 
 Package visibility is controlled in the GitHub organization/package settings.
+
+## Prometheus-to-webhook reference deployment
+
+The bounded operations demo exercises a real Prometheus range query, an
+immutable monitor artifact, durable idempotency state, webhook delivery, and
+Prometheus rule export:
+
+```bash
+docker compose -f examples/ops-demo/compose.yaml up --build --abort-on-container-exit
+```
+
+See [the demo runbook](../examples/ops-demo/README.md). The generic integration
+escape hatch is CSV over stdin (`export-command | gnomon forecast - ...`);
+Gnomon deliberately does not execute an agent-supplied shell command.

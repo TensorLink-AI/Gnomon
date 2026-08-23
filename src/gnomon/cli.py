@@ -14,7 +14,8 @@ def _common_input(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "input",
         help="Path to a CSV/TSV/JSON/JSONL/Parquet/Excel file, or "
-             "store:<dataset> to read the bitemporal store",
+             "store:<dataset>, '-' for CSV on stdin, or a CLI-only "
+             "prom+https://.../api/v1/query_range?... range source",
     )
     # Not required: inferred from the file when the schema leaves no
     # choice, and disclosed as an assumption when it is. `gnomon forecast
@@ -135,6 +136,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     capability_parser = subcommands.add_parser("capabilities", help="Report implemented capabilities")
     capability_parser.add_argument("--output", choices=["json"], default="json")
+
+    self_check_parser = subcommands.add_parser(
+        "self-check", help="Run installed-package structural trust checks")
+    self_check_parser.add_argument("check", choices=("leakage",))
+    self_check_parser.add_argument("--cases", type=int, default=8)
+    self_check_parser.add_argument("--seed", type=int, default=7)
 
     inspect_parser = subcommands.add_parser("inspect", help="Validate a temporal dataset")
     _common_input(inspect_parser)
@@ -429,6 +436,25 @@ def build_parser() -> argparse.ArgumentParser:
     monitor_parser.add_argument("--as-of", dest="as_of")
     monitor_parser.add_argument("--output", default="gnomon-output")
     monitor_parser.add_argument("--store-path", dest="store_path")
+    monitor_parser.add_argument(
+        "--state",
+        help="Durable idempotency state (default: .monitor-events.json under --output)",
+    )
+    monitor_parser.add_argument("--webhook", help="Optional HTTP(S) event receiver")
+    monitor_parser.add_argument("--webhook-secret-env",
+                                help="Environment variable used to sign webhook bodies")
+    monitor_parser.add_argument("--prometheus-rule-output",
+                                help="Write a Prometheus-compatible static threshold rule")
+    monitor_parser.add_argument("--prometheus-expression",
+                                help="PromQL expression used by the exported rule")
+
+    report_parser = subcommands.add_parser(
+        "report", help="Write an honest project track record as Markdown and HTML",
+    )
+    report_parser.add_argument("--project", required=True)
+    report_parser.add_argument("--month", help="Optional UTC calendar month, YYYY-MM")
+    report_parser.add_argument("--output", default="gnomon-report",
+                               help="Output directory (default ./gnomon-report)")
 
     ingest_parser = subcommands.add_parser(
         "ingest", help="Append observations (as vintages) to the bitemporal store"
@@ -563,6 +589,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     track_perf.add_argument("--project", required=True)
     track_perf.add_argument("--model", default=None, help="Filter by model name")
+
+    track_report = track_commands.add_parser(
+        "report", help="Write an honest project track record as Markdown and HTML"
+    )
+    track_report.add_argument("--project", required=True)
+    track_report.add_argument("--month", help="Optional UTC calendar month, YYYY-MM")
+    track_report.add_argument("--output", default="gnomon-report",
+                              help="Output directory (default ./gnomon-report)")
 
     track_shadow_record = track_commands.add_parser(
         "shadow-record", help="Record one paired realised adapter outcome")
@@ -984,6 +1018,11 @@ def _missing_arguments(message: str) -> list[str]:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = None
+    argv = list(argv) if argv is not None else sys.argv[1:]
+    # Add the explicit cron-friendly spelling without breaking the frozen
+    # `gnomon monitor DATA ...` form.
+    if len(argv) >= 2 and argv[0] == "monitor" and argv[1] == "run":
+        argv.pop(1)
     try:
         args = build_parser().parse_args(argv)
     except _ArgumentError as exc:
@@ -992,6 +1031,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     schema_assumptions: list[str] = []
     multi_targets: list[str] | None = None
     try:
+        if hasattr(args, "input"):
+            from .sources import materialize_cli_source
+            args.input, source_kind = materialize_cli_source(str(args.input))
+            args.input_provenance = source_kind
+            if source_kind:
+                schema_assumptions.append(
+                    f"Input was materialized from {source_kind}; the immutable artifact records the retrieved snapshot."
+                )
+                if source_kind == "prometheus":
+                    args.time_column = args.time_column or "timestamp"
+                    args.target_column = args.target_column or "value"
+                    args.series_column = args.series_column or "series"
         if (
             args.command == "forecast" and args.target_column
             and ("," in args.target_column
@@ -1048,6 +1099,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(exc.to_dict(), indent=2), file=sys.stderr)
         return 2
     try:
+        if args.command == "self-check":
+            from .selfcheck import leakage_self_check
+            payload = leakage_self_check(args.cases, args.seed)
+            print(json.dumps(payload, indent=2, allow_nan=False))
+            return 0 if payload["structural_claim_proven"] else 2
         if args.command == "investigate":
             from .context import load_events_file
             from .macros import investigate_change
@@ -1130,6 +1186,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         if args.command == "monitor":
             from .macros import monitor
+            from .monitoring import (
+                default_state_path, deliver_events, firing_events, prometheus_rule,
+            )
 
             payload, path = monitor(
                 args.input, time_column=args.time_column,
@@ -1141,10 +1200,30 @@ def main(argv: Sequence[str] | None = None) -> int:
                 store_path=args.store_path,
                 regrid=getattr(args, "regrid", None),
             )
-            print(json.dumps(_disclose_assumptions(
-                {**payload, "artifact_path": str(path)}, schema_assumptions,
-            ), indent=2, allow_nan=False))
-            return 0
+            events = firing_events(payload, str(path))
+            delivery = deliver_events(
+                events, state_path=args.state or default_state_path(args.output),
+                webhook=args.webhook,
+                secret_env=args.webhook_secret_env,
+            )
+            rule_path = None
+            if args.prometheus_rule_output:
+                if not args.prometheus_expression:
+                    raise GnomonError(
+                        "INVALID_ARGUMENTS",
+                        "--prometheus-expression is required with --prometheus-rule-output.",
+                    )
+                rule_path = prometheus_rule(
+                    monitor_id=payload["monitor_id"],
+                    expression=args.prometheus_expression,
+                    threshold=args.threshold, output=args.prometheus_rule_output,
+                )
+            result = {**payload, "artifact_path": str(path), "events": events,
+                      "delivery": delivery,
+                      **({"prometheus_rule": str(rule_path)} if rule_path else {})}
+            print(json.dumps(_disclose_assumptions(result, schema_assumptions),
+                             indent=2, allow_nan=False))
+            return 3 if delivery["delivery_failed"] else 0
         if args.command == "ingest":
             from .temporal_store import TemporalStore
 
@@ -1237,6 +1316,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                         results[name] = f"failed: {exc}"
                 print(json.dumps({"status": "complete", "results": results}, indent=2))
                 return 0
+        if args.command == "report":
+            from .project_report import write_project_report
+            from .tracking import TrackingStore
+            markdown_path, html_path = write_project_report(
+                TrackingStore(), args.project, args.output, month=args.month,
+            )
+            print(json.dumps({
+                "schema_version": "0.1", "status": "complete",
+                "project": args.project, "period": args.month or "all_time",
+                "markdown": str(markdown_path), "html": str(html_path),
+            }, indent=2))
+            return 0
         if args.command == "track":
             from .tracking import TrackingStore
             store = TrackingStore()
@@ -1504,6 +1595,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                         for m in lb
                     ]
                 print(json.dumps(payload, indent=2))
+                return 0
+
+            elif args.track_command == "report":
+                from .project_report import write_project_report
+                markdown_path, html_path = write_project_report(
+                    store, args.project, args.output, month=args.month,
+                )
+                print(json.dumps({
+                    "schema_version": "0.1", "status": "complete",
+                    "project": args.project, "period": args.month or "all_time",
+                    "markdown": str(markdown_path), "html": str(html_path),
+                }, indent=2))
                 return 0
 
             elif args.track_command == "shadow-record":
@@ -1805,6 +1908,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 repair=args.repair,
                 regrid=getattr(args, "regrid", None),
                 candidates=getattr(args, "candidates", None),
+                input_provenance=getattr(args, "input_provenance", None),
             )
             from .toolspec import brief_summary
             payload = (brief_summary(artifact, path) if args.brief
@@ -1891,6 +1995,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 repair=args.repair,
                 regrid=getattr(args, "regrid", None),
                 candidates=getattr(args, "candidates", None),
+                input_provenance=getattr(args, "input_provenance", None),
             )
             if getattr(args, "brief", False):
                 from .toolspec import brief_summary

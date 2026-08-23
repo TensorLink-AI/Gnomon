@@ -852,16 +852,32 @@ class TrackingStore:
         if not evidence_refs:
             raise ValueError("synthesis requires at least one evidence reference")
         created_at = created_at or datetime.now(timezone.utc).isoformat()
+        canonical_payload = json.dumps(canonical, sort_keys=True)
+        synthesis_payload = json.dumps(synthesis, sort_keys=True)
+        evidence_payload = json.dumps(sorted(set(evidence_refs)))
         with self._connect() as conn:
+            existing = conn.execute("""
+                SELECT canonical_payload, synthesis_payload, evidence_refs
+                FROM temporal_synthesis_receipts
+                WHERE project = ? AND forecast_id = ? AND series = ?
+                  AND question_id = ? AND synthesis_id = ?
+            """, (project, forecast_id, series, question_id, synthesis_id)).fetchone()
+            if existing is not None:
+                if (existing["canonical_payload"], existing["synthesis_payload"],
+                        existing["evidence_refs"]) != (
+                            canonical_payload, synthesis_payload, evidence_payload):
+                    raise ValueError(
+                        "conflicting synthesis receipt: an immutable synthesis_id "
+                        "was re-used with different content"
+                    )
+                return
             conn.execute("""
-                INSERT OR IGNORE INTO temporal_synthesis_receipts
+                INSERT INTO temporal_synthesis_receipts
                     (project, forecast_id, series, question_id, synthesis_id,
                      canonical_payload, synthesis_payload, evidence_refs, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (project, forecast_id, series, question_id, synthesis_id,
-                  json.dumps(canonical, sort_keys=True),
-                  json.dumps(synthesis, sort_keys=True),
-                  json.dumps(sorted(set(evidence_refs))), created_at))
+                  canonical_payload, synthesis_payload, evidence_payload, created_at))
 
     def resolve_temporal_synthesis(
         self, *, project: str, forecast_id: str, series: str,

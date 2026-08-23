@@ -13,6 +13,32 @@ from typing import Any
 BOUNDARY_VERSION = "0.1"
 
 
+class BoundaryContractError(ValueError):
+    """A public response contains a shape the boundary cannot safely project."""
+
+
+def _items(value: Any, field: str) -> list[Any]:
+    """Return a bounded-envelope collection or fail with a useful field name.
+
+    Strings and mappings are deliberately not coerced.  Guessing that a
+    malformed limitation or action is a one-item list would make the response
+    look governed while silently changing its contract.
+    """
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise BoundaryContractError(f"{field} must be a list, got {type(value).__name__}")
+    return value
+
+
+def _mapping(value: Any, field: str) -> dict[str, Any]:
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise BoundaryContractError(f"{field} must be an object, got {type(value).__name__}")
+    return value
+
+
 def _pointer_exists(payload: Any, pointer: str) -> bool:
     node = payload
     for token in pointer.strip("/").split("/") if pointer != "/" else []:
@@ -29,9 +55,17 @@ def _pointer_exists(payload: Any, pointer: str) -> bool:
 def verify_fact_sources(payload: dict[str, Any]) -> list[dict[str, str]]:
     """Return violations for boundary facts without a real source field."""
     envelope = payload.get("reasoning") or {}
+    if not isinstance(envelope, dict):
+        return [{"code": "REASONING_NOT_OBJECT", "fact": "reasoning"}]
     violations: list[dict[str, str]] = []
     names: set[str] = set()
-    for fact in envelope.get("facts") or []:
+    facts = envelope.get("facts") or []
+    if not isinstance(facts, list):
+        return [{"code": "FACTS_NOT_LIST", "fact": "facts"}]
+    for fact in facts:
+        if not isinstance(fact, dict):
+            violations.append({"code": "FACT_NOT_OBJECT", "fact": ""})
+            continue
         name, pointer = str(fact.get("name") or ""), str(fact.get("source") or "")
         if not name or name in names:
             violations.append({"code": "FACT_NAME_NOT_UNIQUE", "fact": name})
@@ -48,8 +82,11 @@ def actionable_rejection(payload: dict[str, Any]) -> dict[str, Any]:
     code = str(error.get("code") or payload.get("code") or "UNSUPPORTED")
     message = str(error.get("message") or payload.get("message") or
                   "The requested operation could not be completed.")
-    repairs = (error.get("repair_options") or payload.get("repair_options") or
-               payload.get("recovery_actions") or payload.get("next_actions") or [])
+    repairs = _items(
+        error.get("repair_options") or payload.get("repair_options") or
+        payload.get("recovery_actions") or payload.get("next_actions"),
+        "repair_options",
+    )
     return {
         "code": code,
         "reason": message,
@@ -69,13 +106,16 @@ def _canonical_pointer(payload: dict[str, Any]) -> str | None:
 
 def build_argument_envelope(payload: dict[str, Any]) -> dict[str, Any]:
     """Build one bounded, source-addressed argument for any response verb."""
-    existing = payload.get("reasoning") or {}
-    contrast = existing.get("contrast") or existing
-    because = list(contrast.get("because") or [])[:2]
-    against = list(contrast.get("against") or [])[:1]
-    unknown = list(contrast.get("unknown") or [])[:2]
-    flips = list(existing.get("what_would_flip") or
-                 (existing.get("adjudication") or {}).get("what_would_flip") or [])[:1]
+    existing = _mapping(payload.get("reasoning"), "reasoning")
+    contrast = _mapping(existing.get("contrast") or existing, "reasoning.contrast")
+    because = _items(contrast.get("because"), "reasoning.because")[:2]
+    against = _items(contrast.get("against"), "reasoning.against")[:1]
+    unknown = _items(contrast.get("unknown"), "reasoning.unknown")[:2]
+    adjudication = _mapping(existing.get("adjudication"), "reasoning.adjudication")
+    flips = _items(
+        existing.get("what_would_flip") or adjudication.get("what_would_flip"),
+        "reasoning.what_would_flip",
+    )[:1]
 
     if not because:
         if payload.get("support_assessment"):
@@ -85,9 +125,12 @@ def build_argument_envelope(payload: dict[str, Any]) -> dict[str, Any]:
             because = [{"source": "/results",
                         "meaning": "computed per-series results"}]
     if not unknown:
-        unknown = list(payload.get("limitations") or [])[:2]
+        unknown = _items(payload.get("limitations"), "limitations")[:2]
     if not flips:
-        actions = (payload.get("recovery_actions") or payload.get("next_actions") or [])
+        actions = _items(
+            payload.get("recovery_actions") or payload.get("next_actions"),
+            "recovery_actions",
+        )
         flips = actions[:1]
 
     facts: list[dict[str, str]] = []
@@ -96,14 +139,39 @@ def build_argument_envelope(payload: dict[str, Any]) -> dict[str, Any]:
         facts.append({"name": "canonical_answer", "source": canonical})
     for name, pointer in (("support", "/support"), ("tier_floor", "/tier_floor"),
                           ("artifact_identity", "/artifact_id"),
-                          ("series_triage", "/series_triage")):
+                          ("series_triage", "/triage")):
         if _pointer_exists(payload, pointer):
             facts.append({"name": name, "source": pointer})
 
-    supported = bool(payload.get("headline") or payload.get("results") or
-                     payload.get("answers"))
-    sufficient_for = ["quote_canonical_answer", "explain_support"] if supported else []
-    further = list(sufficient_for) if supported else []
+    task = payload.get("task") or {}
+    task = task if isinstance(task, dict) else {}
+    request_kind = str(
+        task.get("task_type") or payload.get("verb") or payload.get("kind") or ""
+    ).strip()
+    support = payload.get("support")
+    support_state = (support.get("state") if isinstance(support, dict) else support)
+    assessment = payload.get("support_assessment") or {}
+    assessment = assessment if isinstance(assessment, dict) else {}
+    assessment_state = assessment.get("status")
+    unusable = {"invalid", "unsupported", "inconclusive", "abstained"}
+    has_answer = canonical is not None
+    supported = bool(
+        request_kind and has_answer and support_state not in unusable
+        and assessment_state not in unusable
+    )
+    sufficient_for = ([f"{request_kind}:canonical_answer", "explain_support"]
+                      if supported else [])
+    further = list(sufficient_for)
+    resolution = (
+        {"kind": "recovery", "action": flips[0]}
+        if flips else
+        {"kind": "complete", "reason": "The requested canonical answer is sufficient."}
+        if supported else
+        {"kind": "terminal", "reason": (
+            "No admissible automated follow-up is available for this response; "
+            "review its typed limitations or change the requested operation."
+        )}
+    )
     return {
         "version": BOUNDARY_VERSION,
         "canonical_immutable": True,
@@ -118,15 +186,32 @@ def build_argument_envelope(payload: dict[str, Any]) -> dict[str, Any]:
             "further_calls_add_nothing_for": further,
             "requires_follow_up": not supported,
         },
+        "resolution": resolution,
     }
 
 
 def apply_reasoning_boundary(payload: dict[str, Any]) -> dict[str, Any]:
     result = dict(payload)
-    if result.get("status") == "error" or "error" in result:
-        result["rejection"] = actionable_rejection(result)
+    try:
+        if result.get("status") == "error" or "error" in result:
+            result["rejection"] = actionable_rejection(result)
+            return result
+        result["reasoning"] = build_argument_envelope(result)
+    except BoundaryContractError as exc:
+        result["status"] = "error"
+        result["error"] = {
+            "code": "INVALID_RESPONSE_CONTRACT",
+            "message": str(exc),
+            "details": {"boundary_version": BOUNDARY_VERSION},
+        }
+        result["rejection"] = {
+            "code": "INVALID_RESPONSE_CONTRACT",
+            "reason": str(exc),
+            "missing": {},
+            "admissibility_path": [],
+            "terminal": True,
+        }
         return result
-    result["reasoning"] = build_argument_envelope(result)
     violations = verify_fact_sources(result)
     if violations:
         # This indicates a Gnomon contract bug, never something for the LLM to
