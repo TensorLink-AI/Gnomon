@@ -43,6 +43,7 @@ dev = ["build>=1.2", "pytest>=8", "pyyaml>=6.0"]
 [project.scripts]
 gnomon = "gnomon.cli:main"
 gnomon-feedback = "gnomon.feedback:main"
+gnomon-supervision = "gnomon.supervision:main"
 
 [project.urls]
 Homepage = "https://github.com/TensorLink-AI/Gnomon"

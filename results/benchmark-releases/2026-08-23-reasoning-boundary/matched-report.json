@@ -1,0 +1,55 @@
+{
+  "comparisons": [
+    {
+      "comparable": true,
+      "benchmark": "temporalbench",
+      "baseline": "control-final-v3",
+      "treatment": "evidence-final-v3",
+      "matched_tasks": 80,
+      "baseline_only": 0,
+      "treatment_only": 0,
+      "success_rate": {
+        "baseline": 1.0,
+        "treatment": 1.0
+      },
+      "success_test": {
+        "test": "mcnemar_exact",
+        "n": 80,
+        "treatment_fixed": 0,
+        "treatment_broke": 0,
+        "p_value": 1.0
+      },
+      "metrics": {
+        "smape": {
+          "scored_by_both": 80,
+          "lower_is_better": true,
+          "direction_recognised": true,
+          "baseline_mean": 11.931028,
+          "treatment_mean": 10.755684,
+          "baseline_median": 10.71733,
+          "treatment_median": 10.361055,
+          "test": {
+            "test": "sign_exact",
+            "n": 80,
+            "ties": 0,
+            "treatment_wins": 45,
+            "treatment_losses": 35,
+            "p_value": 0.31430657986393706
+          }
+        }
+      }
+    }
+  ],
+  "cost": {
+    "control-final-v3": {
+      "cost_usd": 0.0,
+      "requests": 81,
+      "truncation_escalations": 0
+    },
+    "evidence-final-v3": {
+      "cost_usd": 0.0,
+      "requests": 306,
+      "truncation_escalations": 0
+    }
+  }
+}

@@ -609,6 +609,8 @@ class GnomonError(Exception):
         self.repair_options = repair_options
 
     def to_dict(self) -> dict[str, Any]:
+        repairs = (self.repair_options if self.repair_options is not None
+                   else REPAIR_OPTIONS.get(self.code, []))
         return {
             "schema_version": "0.1",
             "status": "error",
@@ -617,11 +619,13 @@ class GnomonError(Exception):
                 "message": self.message,
                 "retryable": False,
                 "details": self.details,
-                "repair_options": (
-                    self.repair_options
-                    if self.repair_options is not None
-                    else REPAIR_OPTIONS.get(self.code, [])
-                ),
+                "repair_options": repairs,
+            },
+            "rejection": {
+                "code": self.code, "reason": self.message,
+                "missing": self.details,
+                "admissibility_path": repairs[:1],
+                "terminal": True,
             },
         }
 
@@ -686,6 +690,8 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "scenarios": "intent", "scenario_ids": "intent",
     "context_store": "intent", "context_namespace": "intent",
     "candidate": "intent", "revision": "intent", "outcome_id": "intent",
+    "question_id": "intent", "synthesis_id": "intent",
+    "resolved": "intent",
     # -- data --------------------------------------------------------------
     "input": "data", "observations": "data", "data_ref": "data",
     "file": "data", "files": "data",
@@ -710,6 +716,8 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "human_assumption": "data",
     "domain": "data", "population": "data", "unit": "data", "target": "data",
     "candidate_error": "data", "baseline_error": "data",
+    "canonical": "data", "synthesis": "data", "evidence_refs": "data",
+    "outcome": "data", "resolved_at": "data",
     # -- epistemic ---------------------------------------------------------
     "minimum_baseline_improvement": "epistemic",
     "repair": "epistemic",

@@ -206,6 +206,7 @@ _PROTECTED_KEYS = frozenset({
     # remainder, and artifact identity are copied deterministically and must
     # survive any budget trim.
     "triage",
+    "reasoning", "sufficiency", "facts", "rejection",
 })
 
 _TRIM_HEAD = 3
@@ -317,7 +318,8 @@ def apply_response_contract(payload: dict[str, Any]) -> dict[str, Any]:
     artifact and in each result.
     """
     if payload.get("status") == "error" or "error" in payload:
-        return payload
+        from .reasoning_boundary import apply_reasoning_boundary
+        return apply_reasoning_boundary(payload)
     result = dict(payload)
 
     if "artifact_id" not in result:
@@ -363,7 +365,8 @@ def apply_response_contract(payload: dict[str, Any]) -> dict[str, Any]:
         ]
     if recoveries and "recovery_actions" not in result:
         result["recovery_actions"] = recoveries
-    return result
+    from .reasoning_boundary import apply_reasoning_boundary
+    return apply_reasoning_boundary(result)
 
 
 def apply_temporal_grounding(payload: dict[str, Any]) -> dict[str, Any]:
@@ -2653,10 +2656,44 @@ def _run_track(arguments: dict[str, Any]) -> dict[str, Any]:
             min_improvement=float(arguments.get("min_improvement", .05)),
             min_win_rate=float(arguments.get("min_win_rate", .60)),
         )
+    if action == "record_synthesis":
+        from .tracking import TrackingStore
+        TrackingStore().record_temporal_synthesis(
+            project=str(arguments["project"]),
+            forecast_id=str(arguments["forecast_id"]),
+            series=str(arguments["series"]),
+            question_id=str(arguments["question_id"]),
+            synthesis_id=str(arguments["synthesis_id"]),
+            canonical=dict(arguments["canonical"]),
+            synthesis=dict(arguments["synthesis"]),
+            evidence_refs=[str(item) for item in arguments["evidence_refs"]],
+        )
+        return {"status": "recorded", "synthesis_id": arguments["synthesis_id"],
+                "primary_forecast_unchanged": True}
+    if action == "resolve_synthesis":
+        from .tracking import TrackingStore
+        score = TrackingStore().resolve_temporal_synthesis(
+            project=str(arguments["project"]),
+            forecast_id=str(arguments["forecast_id"]),
+            series=str(arguments["series"]),
+            question_id=str(arguments["question_id"]),
+            synthesis_id=str(arguments["synthesis_id"]),
+            outcome=dict(arguments["outcome"]),
+            resolved_at=arguments.get("resolved_at"),
+        )
+        return {"status": "resolved", "synthesis_id": arguments["synthesis_id"],
+                "score": score, "primary_forecast_unchanged": True}
+    if action == "synthesis_status":
+        from .tracking import TrackingStore
+        rows = TrackingStore().temporal_synthesis_receipts(
+            str(arguments["project"]), resolved=arguments.get("resolved"))
+        return {"status": "ok", "project": arguments["project"],
+                "syntheses": rows}
     raise GnomonError("INVALID_ARGUMENTS", "action is required.",
                       {"allowed": ["status", "submit_actuals", "resolve_outcome",
                                    "record_adapter_shadow",
-                                   "assess_adapter_shadow"]})
+                                   "assess_adapter_shadow", "record_synthesis",
+                                   "resolve_synthesis", "synthesis_status"]})
 
 
 def _run_explain_run(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -2825,12 +2862,14 @@ TOOLS.extend([
         "name": "gnomon_track",
         "description": (
             "Experimental tracking verb. action selects status, "
-            "submit_actuals, or resolve_outcome."
+            "outcome submission/resolution, adapter shadow evidence, or "
+            "separately labelled synthesis receipts."
         ),
         "inputSchema": {"type": "object", "properties": {
             "action": {"type": "string", "enum": [
                 "status", "submit_actuals", "resolve_outcome",
-                "record_adapter_shadow", "assess_adapter_shadow"]},
+                "record_adapter_shadow", "assess_adapter_shadow",
+                "record_synthesis", "resolve_synthesis", "synthesis_status"]},
             "project": {"type": "string"},
             "section": {"type": "string", "enum": [
                 "open_forecasts", "performance", "decisions", "all"]},
@@ -2855,6 +2894,15 @@ TOOLS.extend([
             "min_outcomes": {"type": "integer", "minimum": 1},
             "min_improvement": {"type": "number"},
             "min_win_rate": {"type": "number", "minimum": 0, "maximum": 1},
+            "series": {"type": "string"},
+            "question_id": {"type": "string"},
+            "synthesis_id": {"type": "string"},
+            "canonical": {"type": "object"},
+            "synthesis": {"type": "object"},
+            "evidence_refs": {"type": "array", "items": {"type": "string"}},
+            "outcome": {"type": "object"},
+            "resolved_at": {"type": "string"},
+            "resolved": {"type": "boolean"},
         }, "required": ["action"]},
         "runner": _run_track,
     },

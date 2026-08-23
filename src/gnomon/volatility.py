@@ -249,6 +249,7 @@ class FittedVolatilityExecutable:
 def fit_volatility_executable(
     values: list[float], *, horizon: int, season: int = 1,
     minimum_improvement: float = 0.02,
+    decision_policy: TemporalDecisionPolicy | None = None,
 ) -> FittedVolatilityExecutable:
     """Select by rolling origins and fit the exact executable published.
 
@@ -479,7 +480,7 @@ def fit_volatility_executable(
         brier_skill=effective_brier_skill,
         support="supported" if scale_supported else "weak" if errors else "abstained",
     )
-    policy = TemporalDecisionPolicy()
+    policy = decision_policy or TemporalDecisionPolicy()
     decision = distribution.decide(policy)
     strongest = str(decision["probability_mode"])
     # With three or more prequential probability observations the calibrated

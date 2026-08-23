@@ -84,6 +84,20 @@ def test_merge_shards_accepts_different_partition_controls(tmp_path):
     assert "limit" not in manifest
 
 
+def test_merge_shards_accepts_interrupted_and_complete_execution_states(tmp_path):
+    left, right, target = tmp_path / "left", tmp_path / "right", tmp_path / "all"
+    _shard(left, "a", 1)
+    _shard(right, "b", 2)
+    _manifest(left, model="same", run_status="in_progress")
+    _manifest(right, model="same", run_status="complete")
+
+    merge_shards(target, [left, right])
+
+    manifest = json.loads((target / "manifest.json").read_text())
+    assert manifest["rows"] == 2
+    assert "run_status" not in manifest
+
+
 def test_merge_shards_rejects_incompatible_manifests(tmp_path):
     left, right, target = tmp_path / "left", tmp_path / "right", tmp_path / "all"
     _shard(left, "a", 1)
@@ -101,6 +115,12 @@ def test_merge_shards_accumulates_usage_once_across_repeated_merge(tmp_path):
     _shard(right, "b", 2)
     _usage(left, 2, 100)
     _usage(right, 3, 250)
+    for path, retries, reason in (
+        (left, 1, "HTTP 502"), (right, 2, "timeout")):
+        payload = json.loads((path / "summary.json").read_text())
+        payload["infrastructure_retries"] = retries
+        payload["infrastructure_failures_retried"] = {reason: retries}
+        (path / "summary.json").write_text(json.dumps(payload))
 
     merge_shards(target, [left, right])
     merge_shards(target, [left, right])
@@ -108,6 +128,9 @@ def test_merge_shards_accumulates_usage_once_across_repeated_merge(tmp_path):
     summary = json.loads((target / "summary.json").read_text())
     assert summary["llm_usage"]["requests"] == 5
     assert summary["llm_usage"]["prompt_tokens"] == 350
+    assert summary["infrastructure_retries"] == 3
+    assert summary["infrastructure_failures_retried"] == {
+        "HTTP 502": 1, "timeout": 2}
     assert len(summary["merged_usage_sources"]) == 2
 
 

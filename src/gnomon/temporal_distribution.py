@@ -9,7 +9,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
-from typing import Mapping
+from typing import Any, Mapping
+
+
+DECISION_POLICY_PROFILES: dict[str, dict[str, float | int]] = {
+    "conservative": {"minimum_probability": .85, "minimum_folds": 12,
+                     "minimum_balanced_accuracy": .75, "minimum_brier_skill": .04},
+    "standard": {"minimum_probability": .8, "minimum_folds": 8,
+                 "minimum_balanced_accuracy": .70, "minimum_brier_skill": .02},
+    "exploratory": {"minimum_probability": .7, "minimum_folds": 5,
+                    "minimum_balanced_accuracy": .60, "minimum_brier_skill": 0.0},
+}
 
 
 @dataclass(frozen=True)
@@ -20,6 +30,34 @@ class TemporalDecisionPolicy:
     minimum_folds: int = 8
     minimum_balanced_accuracy: float = .70
     minimum_brier_skill: float = .02
+
+
+def bounded_decision_policy(raw: Mapping[str, Any] | str | None
+                            ) -> TemporalDecisionPolicy:
+    """Resolve a public policy without permitting evidence-free automation."""
+    if raw is None:
+        raw = "standard"
+    if isinstance(raw, str):
+        if raw not in DECISION_POLICY_PROFILES:
+            raise ValueError("unknown decision-policy profile")
+        values = DECISION_POLICY_PROFILES[raw]
+    elif isinstance(raw, Mapping):
+        unknown = set(raw) - set(TemporalDecisionPolicy.__dataclass_fields__)
+        if unknown:
+            raise ValueError("unknown decision-policy fields: " + ", ".join(sorted(unknown)))
+        values = {**DECISION_POLICY_PROFILES["standard"], **dict(raw)}
+    else:
+        raise ValueError("decision_policy must be a profile name or object")
+    policy = TemporalDecisionPolicy(**values)
+    if not (.7 <= policy.minimum_probability <= .99):
+        raise ValueError("minimum_probability must be between 0.70 and 0.99")
+    if not (5 <= policy.minimum_folds <= 1000):
+        raise ValueError("minimum_folds must be between 5 and 1000")
+    if not (.60 <= policy.minimum_balanced_accuracy <= .99):
+        raise ValueError("minimum_balanced_accuracy must be between 0.60 and 0.99")
+    if not (0 <= policy.minimum_brier_skill <= .5):
+        raise ValueError("minimum_brier_skill must be between 0 and 0.50")
+    return policy
 
 
 @dataclass(frozen=True)
