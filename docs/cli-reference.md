@@ -513,8 +513,14 @@ results are recorded before delivery; `--webhook` posts one JSON event with a
 stable idempotency key, while `--state` overrides the per-user durable ledger.
 Use `--prometheus-rule-output` with `--prometheus-expression` to export the
 same observed threshold as a Prometheus rule. The probabilistic forecast and
-its support remain in the immutable artifact rather than being misrepresented
+its support remain in the integrity-sealed artifact rather than being misrepresented
 as PromQL.
+
+With `--project`, `monitor run` first submits currently materialized rows to
+the tracking registry and scores any forecasts whose complete horizons are now
+known. Disable this cron-friendly default with `--no-auto-score`. The temporal
+store selected by `--store-path` remains separate from the registry selected by
+`GNOMON_REGISTRY_PATH`.
 
 ## `gnomon report`
 

@@ -19,7 +19,7 @@ from typing import Literal
 ModelClass = Literal["baseline", "locally_fitted", "pretrained", "remote"]
 AdmissionState = Literal[
     "locally_validated", "externally_validated", "jointly_validated",
-    "prior_assisted", "baseline_fallback", "unsupported",
+    "pooled_validated", "prior_assisted", "baseline_fallback", "unsupported",
 ]
 PointPolicy = Literal["candidate", "baseline", "shrunk_blend"]
 ADMISSION_POLICY_VERSION = "evidence-weighted-v2"
@@ -163,7 +163,8 @@ def reasoning_frame(decision: AdmissionDecision) -> dict[str, object]:
     if not evidence.diagnostics.valid:
         sufficiency = "insufficient"
     elif decision.state in {
-            "locally_validated", "externally_validated", "jointly_validated"}:
+            "locally_validated", "externally_validated", "jointly_validated",
+            "pooled_validated"}:
         sufficiency = "sufficient"
     elif decision.state == "prior_assisted":
         sufficiency = "mixed"

@@ -21,13 +21,38 @@ from benchmarks.temporalbench.scoring import (
     score_t3,
 )
 from benchmarks.temporalbench.score_per_channel import (
+    coverage_bucket,
     stable_scaled_error_denominator,
     summarise_pairs,
 )
 from benchmarks.temporalbench.run_temporalbench import (
+    load_resume_state,
     primary_forecast_immutability,
     resume_revision_provenance,
 )
+
+
+def test_channel_coverage_buckets_presence_and_scorability_independently():
+    assert coverage_bucket(True, True) == "both"
+    assert coverage_bucket(True, False) == "base_only"
+    assert coverage_bucket(False, True) == "treat_only"
+    assert coverage_bucket(False, False) == "neither"
+
+
+def test_resume_state_falls_back_to_durable_usage_checkpoint(tmp_path):
+    checkpoint = {"llm_usage": {"requests": 3, "prompt_tokens": 90},
+                  "completed_details": 2}
+    (tmp_path / "usage.checkpoint.json").write_text(json.dumps(checkpoint))
+    assert load_resume_state(tmp_path, resume=True) == checkpoint
+    assert load_resume_state(tmp_path, resume=False) == {}
+
+
+def test_resume_state_prefers_completed_summary(tmp_path):
+    (tmp_path / "usage.checkpoint.json").write_text(json.dumps({
+        "llm_usage": {"requests": 3}}))
+    summary = {"llm_usage": {"requests": 7}, "run_status": "complete"}
+    (tmp_path / "summary.json").write_text(json.dumps(summary))
+    assert load_resume_state(tmp_path, resume=True) == summary
 from benchmarks.temporalbench.tasks import extract_json_object, prompt_input_arrays
 
 

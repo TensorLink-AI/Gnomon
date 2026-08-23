@@ -60,7 +60,7 @@ Three layers, each independently useful:
 
 ### Forecast registry
 
-Every forecast already writes an immutable artifact directory. The registry is a lightweight index that tracks:
+Every forecast already writes an integrity-sealed artifact directory. The registry is a lightweight index that tracks:
 
 ```json
 {

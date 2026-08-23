@@ -1,0 +1,70 @@
+{
+  "release_metadata": {
+    "arm": "gnomon-evidence-vs-deepseek",
+    "benchmark": "temporalbench-forecast",
+    "configuration_identity": "paired official row sMAPE with exact sign test",
+    "dataset_identity": "80 matched official T2/T4 tasks",
+    "evaluated_commit": "10b830a",
+    "harness_commit": "10b830a",
+    "notes": [],
+    "scope": "subset",
+    "source": "results/usefulness-roadmap-20260823/comparison.json",
+    "source_sha256": "00e4afdfe668afb0e55a89444096823cc583673d1b8de76f8c48124c1f3406a7",
+    "status": "complete"
+  },
+  "summary": {
+    "comparisons": [
+      {
+        "baseline": "control-final",
+        "baseline_only": 0,
+        "benchmark": "temporalbench",
+        "comparable": true,
+        "matched_tasks": 80,
+        "metrics": {
+          "smape": {
+            "baseline_mean": 11.394766,
+            "baseline_median": 10.524945,
+            "direction_recognised": true,
+            "lower_is_better": true,
+            "scored_by_both": 80,
+            "test": {
+              "n": 80,
+              "p_value": 0.11466035574580126,
+              "test": "sign_exact",
+              "ties": 1,
+              "treatment_losses": 32,
+              "treatment_wins": 47
+            },
+            "treatment_mean": 10.622866,
+            "treatment_median": 9.986655
+          }
+        },
+        "success_rate": {
+          "baseline": 1.0,
+          "treatment": 1.0
+        },
+        "success_test": {
+          "n": 80,
+          "p_value": 1.0,
+          "test": "mcnemar_exact",
+          "treatment_broke": 0,
+          "treatment_fixed": 0
+        },
+        "treatment": "evidence-final",
+        "treatment_only": 0
+      }
+    ],
+    "cost": {
+      "control-final": {
+        "cost_usd": 0.0,
+        "requests": 80,
+        "truncation_escalations": 0
+      },
+      "evidence-final": {
+        "cost_usd": 0.0,
+        "requests": 213,
+        "truncation_escalations": 0
+      }
+    }
+  }
+}

@@ -1,0 +1,138 @@
+{
+  "benchmarks": [
+    {
+      "arm": "gnomon",
+      "benchmark": "leaktrap",
+      "bytes": 1724,
+      "file": "leaktrap.json",
+      "scope": "full",
+      "sha256": "f697b569ba5682ccaf21433e49275559d0ab751ea1f4593e9cc44154cbe1dd0d",
+      "status": "complete"
+    },
+    {
+      "arm": "production-boundary",
+      "benchmark": "boundarybench",
+      "bytes": 1209,
+      "file": "boundarybench.json",
+      "scope": "full",
+      "sha256": "b2ebe694af193c725f1f35f29cf2767487273200325dfcef3072658ac1937afe",
+      "status": "graduated"
+    },
+    {
+      "arm": "model-admission",
+      "benchmark": "admissionbench",
+      "bytes": 3036,
+      "file": "admissionbench.json",
+      "scope": "full",
+      "sha256": "22c25be2f0cc09fff6012787c1e7aeed68ad90ac7dcf01761d3a471ea87d8089",
+      "status": "complete"
+    },
+    {
+      "arm": "model-adapters",
+      "benchmark": "adapterbench",
+      "bytes": 8023,
+      "file": "adapterbench.json",
+      "scope": "full",
+      "sha256": "ca635a637215e411d4c2a1a5e1454b59663be3244efdc8df6f287aa99e69a5d8",
+      "status": "graduated"
+    },
+    {
+      "arm": "seed-19087",
+      "benchmark": "short-history",
+      "bytes": 4992,
+      "file": "short-history-19087.json",
+      "scope": "full",
+      "sha256": "f2ebe2640ceb3eeef3d9915a09f3a70b362b18d3cec223fe55f90278016d9a80",
+      "status": "complete"
+    },
+    {
+      "arm": "seed-55109",
+      "benchmark": "short-history",
+      "bytes": 4990,
+      "file": "short-history-55109.json",
+      "scope": "full",
+      "sha256": "447363b84e9d13d17562523da4b39ad8fc925cafd56d895ae1f7a5454d4ce282",
+      "status": "complete"
+    },
+    {
+      "arm": "seed-82631",
+      "benchmark": "short-history",
+      "bytes": 5005,
+      "file": "short-history-82631.json",
+      "scope": "full",
+      "sha256": "9ec9d10b60d9ba966dd0d9eb3d859ebf88a9c5c4fe6e5d21b4d5f5e95fd82a3d",
+      "status": "complete"
+    },
+    {
+      "arm": "deepseek-control",
+      "benchmark": "temporalbench",
+      "bytes": 5146,
+      "file": "temporalbench-control.json",
+      "scope": "subset",
+      "sha256": "b829494225f8111e95375198aa14d443614f864a022b73c6d8e086f560df6f0e",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-evidence",
+      "benchmark": "temporalbench",
+      "bytes": 7656,
+      "file": "temporalbench-evidence.json",
+      "scope": "subset",
+      "sha256": "5e07f55346113f1d629683831595c2815c69d24675fb74a80c894c6c518be622",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-evidence-vs-deepseek",
+      "benchmark": "temporalbench-forecast",
+      "bytes": 1950,
+      "file": "forecast-comparison.json",
+      "scope": "subset",
+      "sha256": "d05c2fb770bb922ae505f1425418d541660e28af90832aacf66e6e83f1cc3e81",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-evidence-vs-deepseek",
+      "benchmark": "temporalbench-choice",
+      "bytes": 2050,
+      "file": "choice-comparison.json",
+      "scope": "subset",
+      "sha256": "c7cf9586a0897db709eaef425af1d86862ed482cc4bb518b0a2ccf2c048cd964",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-evidence-vs-deepseek",
+      "benchmark": "temporalbench-channel-forecast",
+      "bytes": 55292,
+      "file": "channel-comparison.json",
+      "scope": "subset",
+      "sha256": "79ac5e8c9fb0b49a447c871e0b0ef25d23a7493a0d9461925b9e0538f4a26850",
+      "status": "complete"
+    }
+  ],
+  "curated_by_commit": "10b830a86830e62b34d53f5ce0eca69ab750e304",
+  "not_included": [
+    {
+      "benchmark": "temporalbench-superiority",
+      "reason": "Neither choice accuracy nor row sMAPE established Gnomon superiority over direct DeepSeek at the preregistered significance level."
+    },
+    {
+      "benchmark": "powered-temporalbench-superiority",
+      "reason": "Power analysis requires approximately 1054 total pairs for 80% power at the preregistered modest effect; this 80-task run is diagnostic, not powered confirmation."
+    },
+    {
+      "benchmark": "pypi-install",
+      "reason": "Publishing requires the external PyPI Trusted Publisher environment after merge and tag; local wheel and clean-venv installation were verified instead."
+    },
+    {
+      "benchmark": "real-user-uplift",
+      "reason": "No real-user receipts exist yet; generated and external benchmark evidence cannot substitute for user outcomes."
+    }
+  ],
+  "policy": {
+    "aggregate_only": true,
+    "raw_runs_are_ci_artifacts": true,
+    "smoke_results_are_not_full_results": true
+  },
+  "release": "2026-08-23-usefulness-roadmap",
+  "schema_version": "1.1"
+}

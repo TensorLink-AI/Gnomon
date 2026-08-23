@@ -100,6 +100,15 @@ forecast values here can only introduce truncation or transcription error.
 EVIDENCE_BUDGET = 40_000
 
 
+def load_resume_state(output_dir: Path, *, resume: bool) -> dict[str, Any]:
+    """Load completed summary or the durable interrupted-run checkpoint."""
+    if not resume:
+        return {}
+    summary = output_dir / "summary.json"
+    state = summary if summary.is_file() else output_dir / "usage.checkpoint.json"
+    return json.loads(state.read_text(encoding="utf-8")) if state.is_file() else {}
+
+
 def primary_forecast_immutability(
         condition: str, forecast_rows: int,
         route_mix: dict[str, int]) -> bool | None:
@@ -418,6 +427,11 @@ def main() -> int:
                         help="Skip this many rows after tier/dataset filters; "
                              "supports resumable one-row benchmark shards.")
     parser.add_argument("--temperature", type=float, default=0.2)
+    parser.add_argument(
+        "--reasoning-effort", choices=("low", "medium", "high"),
+        help=("Optional OpenAI-compatible reasoning effort; use the same "
+              "value in every matched condition."),
+    )
     parser.add_argument("--request-timeout", type=int, default=180,
                         help="seconds per provider request (default: 180)")
     parser.add_argument(
@@ -527,7 +541,8 @@ def main() -> int:
                                temperature=args.temperature,
                                max_tokens=8000, base_url=args.base_url,
                                timeout=args.request_timeout,
-                               max_retries=args.max_retries)
+                               max_retries=args.max_retries,
+                               reasoning_effort=args.reasoning_effort)
               if args.model else None)
 
     output_dir = Path(args.output_dir)
@@ -539,6 +554,7 @@ def main() -> int:
         "benchmark": "temporalbench",
         "condition": args.condition,
         "model": args.model,
+        "reasoning_effort": args.reasoning_effort,
         "target": "tiers=" + ",".join(tiers or TIERS)
                   + (";datasets=" + ",".join(datasets) if datasets else ""),
         "command": " ".join(sys.argv),
@@ -571,9 +587,7 @@ def main() -> int:
                    code_revision=current_revision, run_status="in_progress")
     records_path = output_dir / "gnomonbench.jsonl"
     partial_records_path = output_dir / "gnomonbench.partial.jsonl"
-    prior_summary_path = output_dir / "summary.json"
-    prior_summary = (json.loads(prior_summary_path.read_text())
-                     if args.resume and prior_summary_path.is_file() else {})
+    prior_summary = load_resume_state(output_dir, resume=args.resume)
     prior_records = (load_resumable_records(records_path, partial_records_path)
                      if args.resume else {})
     # Write a complete replacement beside the canonical record file and

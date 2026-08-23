@@ -68,6 +68,7 @@ jobs:
           python -m benchmarks.propertybench.run_propertybench --seed 94721 --replicates 20 --output-dir benchmark-results/propertybench
           python -m benchmarks.transitionbench.run_transitionbench --replicates 3 --output-dir benchmark-results/transitionbench
           python -m benchmarks.adapterbench.run_adapterbench --output-dir benchmark-results/adapterbench
+          python -m benchmarks.modelbench.run_short_history --cases-per-family 12 --output-dir benchmark-results/short-history
           python -m benchmarks.volatilitybench.run_volatilitybench --output-dir benchmark-results/volatilitybench
           python -m benchmarks.contextcachebench.run_contextcachebench --cases 12 --replays-per-case 10 --output-dir benchmark-results/contextcachebench
       - uses: actions/upload-artifact@v4
@@ -104,6 +105,9 @@ jobs:
           done
           python -m benchmarks.transitionbench.run_transitionbench --replicates 30 --output-dir benchmark-results-full/transitionbench
           python -m benchmarks.adapterbench.run_adapterbench --output-dir benchmark-results-full/adapterbench
+          for seed in 82631 19087 55109; do
+            python -m benchmarks.modelbench.run_short_history --seed "$seed" --cases-per-family 40 --output-dir "benchmark-results-full/short-history-$seed"
+          done
           python -m benchmarks.volatilitybench.run_volatilitybench --output-dir benchmark-results-full/volatilitybench
           python -m benchmarks.contextcachebench.run_contextcachebench --cases 24 --replays-per-case 10 --output-dir benchmark-results-full/contextcachebench
       - uses: actions/upload-artifact@v4

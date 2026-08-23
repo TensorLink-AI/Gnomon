@@ -170,3 +170,26 @@ def test_merge_shards_recovers_usage_checkpoint_from_interrupted_shard(tmp_path)
     summary = json.loads((target / "summary.json").read_text())
     assert summary["llm_usage"]["requests"] == 4
     assert summary["llm_usage"]["prompt_tokens"] == 200
+
+
+def test_merge_shards_preserves_interrupted_target_checkpoint(tmp_path):
+    """Paid usage in an interrupted target must not disappear on merge."""
+    shard, target = tmp_path / "shard", tmp_path / "all"
+    _shard(shard, "b", 2)
+    _usage(shard, 3, 150)
+    target.mkdir()
+    (target / "details").mkdir()
+    (target / "gnomonbench.partial.jsonl").write_text(
+        json.dumps({"task_id": "a", "success": True, "value": 1}) + "\n")
+    (target / "usage.checkpoint.json").write_text(json.dumps({
+        "llm_usage": {"requests": 4, "prompt_tokens": 200,
+                      "completion_tokens": 8},
+        "completed_details": 1,
+    }))
+
+    merge_shards(target, [shard])
+
+    summary = json.loads((target / "summary.json").read_text())
+    assert summary["llm_usage"]["requests"] == 7
+    assert summary["llm_usage"]["prompt_tokens"] == 350
+    assert str(target.resolve()) in summary["merged_usage_sources"]

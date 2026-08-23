@@ -37,7 +37,8 @@
         "linear_trend": null,
         "window_average": null,
         "theta": null,
-        "ets": null
+        "ets": null,
+        "croston_sba": null
       },
       "test_scores": {
         "last_value": null,
@@ -46,7 +47,8 @@
         "linear_trend": null,
         "window_average": null,
         "theta": null,
-        "ets": null
+        "ets": null,
+        "croston_sba": null
       },
       "baseline_improvement": null,
       "interval_coverage": null,
@@ -99,7 +101,8 @@
           "linear_trend": null,
           "window_average": null,
           "theta": null,
-          "ets": null
+          "ets": null,
+          "croston_sba": null
         },
         "test_scores": {
           "last_value": null,
@@ -108,7 +111,8 @@
           "linear_trend": null,
           "window_average": null,
           "theta": null,
-          "ets": null
+          "ets": null,
+          "croston_sba": null
         },
         "measured_interval_coverage": null,
         "baseline_improvement": null,

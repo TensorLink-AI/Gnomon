@@ -1,0 +1,67 @@
+{
+  "release_metadata": {
+    "arm": "gnomon-evidence-vs-deepseek",
+    "benchmark": "temporalbench-choice",
+    "configuration_identity": "exact matched choice scoring with McNemar test",
+    "dataset_identity": "240 choices on 80 matched official T2/T4 tasks",
+    "evaluated_commit": "10b830a",
+    "harness_commit": "10b830a",
+    "notes": [],
+    "scope": "subset",
+    "source": "results/usefulness-roadmap-20260823/choices.json",
+    "source_sha256": "0de43e08280a727f8968de8b23e3e76ad684746f7aac8f359cc4188c149f04cf",
+    "status": "complete"
+  },
+  "summary": {
+    "baseline": "results/usefulness-roadmap-20260823/control-final",
+    "baseline_code_revision": "10b830a",
+    "by_tier": {
+      "T2": {
+        "baseline_accuracy": 0.3,
+        "baseline_correct": 36,
+        "paired_test": {
+          "n": 120,
+          "p_value": 0.8919231511047494,
+          "test": "mcnemar_exact",
+          "treatment_broke": 28,
+          "treatment_fixed": 26
+        },
+        "questions": 120,
+        "treatment_accuracy": 0.2833333333333333,
+        "treatment_correct": 34
+      },
+      "T4": {
+        "baseline_accuracy": 0.2833333333333333,
+        "baseline_correct": 34,
+        "paired_test": {
+          "n": 120,
+          "p_value": 1.0,
+          "test": "mcnemar_exact",
+          "treatment_broke": 27,
+          "treatment_fixed": 27
+        },
+        "questions": 120,
+        "treatment_accuracy": 0.2833333333333333,
+        "treatment_correct": 34
+      }
+    },
+    "matched_tasks": 80,
+    "overall": {
+      "baseline_accuracy": 0.2916666666666667,
+      "baseline_correct": 70,
+      "paired_test": {
+        "n": 240,
+        "p_value": 0.9234010375945975,
+        "test": "mcnemar_exact",
+        "treatment_broke": 55,
+        "treatment_fixed": 53
+      },
+      "questions": 240,
+      "treatment_accuracy": 0.2833333333333333,
+      "treatment_correct": 68
+    },
+    "schema_version": "0.1",
+    "treatment": "results/usefulness-roadmap-20260823/evidence-final",
+    "treatment_code_revision": "10b830a"
+  }
+}

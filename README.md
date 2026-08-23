@@ -57,7 +57,7 @@ Depending on the question, a governed result includes:
 - a support tier that says how much confidence the evidence earned;
 - disclosed repairs, assumptions, limitations, and recovery actions;
 - the evaluation evidence that justified publication; and
-- an immutable artifact that can be inspected, replayed, and scored later.
+- an integrity-sealed artifact that can be inspected, replayed, and scored later.
 
 ## Where Gnomon sits
 
@@ -67,7 +67,7 @@ agent / operator
       v
 Gnomon
       |  point-in-time data, evaluation, executable candidate,
-      |  support tier, deterministic headline, immutable artifact
+      |  support tier, deterministic headline, integrity-sealed artifact
       v
 built-in models or explicitly configured model backends
 ```
@@ -137,7 +137,7 @@ PyPI release.)
 
 Conversation cost is an engineering constraint, not a completed claim. Wide
 data is handled in one batched call; brief responses keep disclosures while
-moving bulk rows to immutable artifacts; repeated calls can use a session
+moving bulk rows to integrity-sealed artifacts; repeated calls can use a session
 `data_ref` instead of resending observations. The two-tool `evidence` profile
 is the current default; `full` remains explicit opt-in for administration and
 deep audit. We do not publish workflow accuracy or token claims until the
@@ -292,7 +292,7 @@ disclosed repair, then schema and temporal validation
 rolling model-selection folds ── compare with mandatory baselines
       │
       ▼
-separate calibration fold ────── estimate residual quantiles
+calibration fold (+ selection residuals by default) ── estimate quantiles
       │
       ▼
 untouched final test ─────────── measure error and interval coverage
@@ -304,9 +304,12 @@ select, retain a baseline, or abstain
 forecast + evidence + reproducible artifacts
 ```
 
-Earlier rolling folds select the method. The penultimate fold calibrates
-the interval. The final fold reports performance without changing either
-choice. The winning candidate specification is then fit on all visible
+Earlier rolling folds select the method. By default their residuals are pooled
+with the penultimate calibration fold for interval sample size; this is
+explicitly disclosed and is not strict split conformal. Set
+`evaluation.uncertainty.pool_residuals = false` for held-out calibration only.
+The final fold reports performance without changing the model choice or
+calibration rule. The winning candidate specification is then fit on all visible
 observations and that fitted executable forecasts the future. Publication
 never rebuilds the winner from a model name.
 
@@ -434,7 +437,7 @@ formats, timestamp forms, frequencies, panel rules, and history needs.
 
 ## Output
 
-Every completed run receives an immutable directory:
+Every completed run receives a content-addressed, integrity-sealed directory:
 
 ```text
 gnomon-output/forecast_<id>/
@@ -443,12 +446,16 @@ gnomon-output/forecast_<id>/
 ├── forecast.csv     future timestamps, point values, and quantiles
 ├── lineage.json     typed artifacts, evidence, and verified claims
 ├── report.html      self-contained offline visual and disclosures
-└── summary.md       compact human-readable result
+├── summary.md       compact human-readable result
+└── integrity.json   SHA-256 digest of every output above
 ```
 
 Start with `report.html` or `summary.md`. Use `forecast.csv` for downstream
 systems. Keep `artifact.json` when provenance, auditability, or
 reproducibility matters.
+Gnomon verifies `integrity.json` whenever it reads a sealed artifact. Older
+unsealed artifacts remain readable for compatibility and are not represented
+as tamper-evident.
 
 ## Installation
 

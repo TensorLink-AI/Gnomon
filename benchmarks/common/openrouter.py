@@ -121,6 +121,7 @@ class OpenRouterClient:
         max_tokens: int = 10000,
         max_retries: int = 5,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
+        reasoning_effort: str | None = None,
     ) -> None:
         self.model = model
         if not api_key and "OPENROUTER_API_KEY" not in os.environ:
@@ -133,6 +134,7 @@ class OpenRouterClient:
         self.max_tokens = max_tokens
         self.max_retries = max_retries
         self.timeout = timeout
+        self.reasoning_effort = reasoning_effort
         # chat() may fan out concurrent single-sample requests when a
         # provider ignores ``n``; accounting must not lose updates.
         self._usage_lock = threading.Lock()
@@ -242,6 +244,8 @@ class OpenRouterClient:
             # Ask OpenRouter to report token accounting and cost.
             "usage": {"include": True},
         }
+        if self.reasoning_effort is not None:
+            payload["reasoning_effort"] = self.reasoning_effort
         if tools:
             payload["tools"] = tools
         if tool_choice:

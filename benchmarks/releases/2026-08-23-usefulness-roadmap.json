@@ -1,0 +1,109 @@
+{
+  "release": "2026-08-23-usefulness-roadmap",
+  "output_dir": "results/benchmark-releases/2026-08-23-usefulness-roadmap",
+  "benchmarks": [
+    {
+      "benchmark": "leaktrap", "arm": "gnomon", "scope": "full",
+      "source": "/tmp/gnomon-usefulness-final-10b830a/leaktrap/summary.json",
+      "file": "leaktrap.json", "status": "complete",
+      "evaluated_commit": "10b830a", "harness_commit": "10b830a",
+      "dataset_identity": "LeakTrap generated corpus seed=7 tasks=40",
+      "configuration_identity": "Gnomon structural snapshot-access proof"
+    },
+    {
+      "benchmark": "boundarybench", "arm": "production-boundary", "scope": "full",
+      "source": "/tmp/gnomon-usefulness-final-10b830a/boundarybench/summary.json",
+      "file": "boundarybench.json", "status": "graduated",
+      "evaluated_commit": "10b830a", "harness_commit": "10b830a",
+      "dataset_identity": "BoundaryBench generated contract corpus seed=20260823 cases=100",
+      "configuration_identity": "real verb plus adversarial contract mutations"
+    },
+    {
+      "benchmark": "admissionbench", "arm": "model-admission", "scope": "full",
+      "source": "/tmp/gnomon-usefulness-final-10b830a/admissionbench/summary.json",
+      "file": "admissionbench.json", "status": "complete",
+      "evaluated_commit": "10b830a", "harness_commit": "10b830a",
+      "dataset_identity": "AdmissionBench generated independent/conditional/short-history cases=1000",
+      "configuration_identity": "production AdmissionState machinery and held-out admission gates"
+    },
+    {
+      "benchmark": "adapterbench", "arm": "model-adapters", "scope": "full",
+      "source": "/tmp/gnomon-usefulness-final-10b830a/adapterbench/summary.json",
+      "file": "adapterbench.json", "status": "graduated",
+      "evaluated_commit": "10b830a", "harness_commit": "10b830a",
+      "dataset_identity": "AdapterBench deterministic adapter contract corpus",
+      "configuration_identity": "production adapter registry including distinct Chronos variants"
+    },
+    {
+      "benchmark": "short-history", "arm": "seed-19087", "scope": "full",
+      "source": "/tmp/gnomon-usefulness-final-10b830a/short-history-19087/summary.json",
+      "file": "short-history-19087.json", "status": "complete",
+      "evaluated_commit": "10b830a", "harness_commit": "10b830a",
+      "dataset_identity": "generated short-history pooling/classical corpus seed=19087 cases=360",
+      "configuration_identity": "fold-safe LOCO pooling and family-nested classical selection; untouched final horizons"
+    },
+    {
+      "benchmark": "short-history", "arm": "seed-55109", "scope": "full",
+      "source": "/tmp/gnomon-usefulness-final-10b830a/short-history-55109/summary.json",
+      "file": "short-history-55109.json", "status": "complete",
+      "evaluated_commit": "10b830a", "harness_commit": "10b830a",
+      "dataset_identity": "generated short-history pooling/classical corpus seed=55109 cases=360",
+      "configuration_identity": "fold-safe LOCO pooling and family-nested classical selection; untouched final horizons"
+    },
+    {
+      "benchmark": "short-history", "arm": "seed-82631", "scope": "full",
+      "source": "/tmp/gnomon-usefulness-final-10b830a/short-history-82631/summary.json",
+      "file": "short-history-82631.json", "status": "complete",
+      "evaluated_commit": "10b830a", "harness_commit": "10b830a",
+      "dataset_identity": "generated short-history pooling/classical corpus seed=82631 cases=360",
+      "configuration_identity": "fold-safe LOCO pooling and family-nested classical selection; untouched final horizons"
+    },
+    {
+      "benchmark": "temporalbench", "arm": "deepseek-control", "scope": "subset",
+      "source": "results/usefulness-roadmap-20260823/control-final/summary.json",
+      "file": "temporalbench-control.json", "status": "complete",
+      "evaluated_commit": "10b830a", "harness_commit": "10b830a",
+      "dataset_identity": "official labeled split; preregistered matched 80-case T2/T4 sample; 240 choices and 480 channels",
+      "configuration_identity": "DeepSeek V4 Flash 0731 via Engy; temperature=0; direct official prompt"
+    },
+    {
+      "benchmark": "temporalbench", "arm": "gnomon-evidence", "scope": "subset",
+      "source": "results/usefulness-roadmap-20260823/evidence-final/summary.json",
+      "file": "temporalbench-evidence.json", "status": "complete",
+      "evaluated_commit": "10b830a", "harness_commit": "10b830a",
+      "dataset_identity": "official labeled split; preregistered matched 80-case T2/T4 sample; 240 choices and 480 channels",
+      "configuration_identity": "DeepSeek V4 Flash 0731 via Engy; temperature=0; Evidence MCP; typed questions and compiled context; bounded retry",
+      "notes": ["One of 40 T4 context receipts was materialised during this run; this adds one compiler call to economics but does not change the validated receipt supplied to the forecast."]
+    },
+    {
+      "benchmark": "temporalbench-forecast", "arm": "gnomon-evidence-vs-deepseek", "scope": "subset",
+      "source": "results/usefulness-roadmap-20260823/comparison.json",
+      "file": "forecast-comparison.json", "status": "complete",
+      "evaluated_commit": "10b830a", "harness_commit": "10b830a",
+      "dataset_identity": "80 matched official T2/T4 tasks",
+      "configuration_identity": "paired official row sMAPE with exact sign test"
+    },
+    {
+      "benchmark": "temporalbench-choice", "arm": "gnomon-evidence-vs-deepseek", "scope": "subset",
+      "source": "results/usefulness-roadmap-20260823/choices.json",
+      "file": "choice-comparison.json", "status": "complete",
+      "evaluated_commit": "10b830a", "harness_commit": "10b830a",
+      "dataset_identity": "240 choices on 80 matched official T2/T4 tasks",
+      "configuration_identity": "exact matched choice scoring with McNemar test"
+    },
+    {
+      "benchmark": "temporalbench-channel-forecast", "arm": "gnomon-evidence-vs-deepseek", "scope": "subset",
+      "source": "results/usefulness-roadmap-20260823/per-channel.json",
+      "file": "channel-comparison.json", "status": "complete",
+      "evaluated_commit": "10b830a", "harness_commit": "10b830a",
+      "dataset_identity": "480 paired channels from the official matched T2/T4 sample",
+      "configuration_identity": "per-channel MASE with last-value decomposition and retained raw paired records"
+    }
+  ],
+  "not_included": [
+    {"benchmark": "temporalbench-superiority", "reason": "Neither choice accuracy nor row sMAPE established Gnomon superiority over direct DeepSeek at the preregistered significance level."},
+    {"benchmark": "powered-temporalbench-superiority", "reason": "Power analysis requires approximately 1054 total pairs for 80% power at the preregistered modest effect; this 80-task run is diagnostic, not powered confirmation."},
+    {"benchmark": "pypi-install", "reason": "Publishing requires the external PyPI Trusted Publisher environment after merge and tag; local wheel and clean-venv installation were verified instead."},
+    {"benchmark": "real-user-uplift", "reason": "No real-user receipts exist yet; generated and external benchmark evidence cannot substitute for user outcomes."}
+  ]
+}

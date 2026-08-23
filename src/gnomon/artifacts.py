@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 import logging
 import os
@@ -12,6 +13,59 @@ from .contracts import GnomonError, ForecastArtifact
 
 logger = logging.getLogger(__name__)
 
+INTEGRITY_FILE = "integrity.json"
+
+
+def _file_digest(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return "sha256:" + digest.hexdigest()
+
+
+def _write_integrity(directory: Path) -> None:
+    """Seal the completed output files with a small, falsifiable manifest."""
+    files = {
+        path.name: _file_digest(path)
+        for path in sorted(directory.iterdir(), key=lambda item: item.name)
+        if path.is_file() and path.name != INTEGRITY_FILE
+    }
+    payload = {"algorithm": "sha256", "files": files}
+    with (directory / INTEGRITY_FILE).open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+
+
+def verify_artifact_integrity(artifact_dir: str | Path) -> dict[str, Any] | None:
+    """Verify every sealed output; legacy unsealed artifacts remain readable."""
+    directory = Path(artifact_dir).expanduser()
+    manifest_path = directory / INTEGRITY_FILE
+    if not manifest_path.is_file():
+        return None
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        files = manifest["files"]
+    except (json.JSONDecodeError, KeyError, TypeError) as exc:
+        raise GnomonError(
+            "ARTIFACT_INTEGRITY_ERROR",
+            f"Artifact integrity manifest is malformed under {directory}.",
+        ) from exc
+    if manifest.get("algorithm") != "sha256" or not isinstance(files, dict):
+        raise GnomonError(
+            "ARTIFACT_INTEGRITY_ERROR",
+            f"Artifact integrity manifest is unsupported under {directory}.",
+        )
+    for name, expected in files.items():
+        path = directory / str(name)
+        if not path.is_file() or _file_digest(path) != expected:
+            raise GnomonError(
+                "ARTIFACT_INTEGRITY_ERROR",
+                f"Stored artifact output failed integrity verification: {name}.",
+                {"artifact_path": str(directory), "file": str(name)},
+            )
+    return manifest
+
 
 def write_artifact(
     artifact: ForecastArtifact, output_parent: str,
@@ -19,7 +73,7 @@ def write_artifact(
     output_config: Any = None,
     history: dict[str, list[dict[str, Any]]] | None = None,
 ) -> Path:
-    """Write the immutable artifact directory.
+    """Write the content-addressed, integrity-sealed artifact directory.
 
     ``output_config`` is `gnomon.yaml`'s `output` section, whose six switches
     were documented and never read — a user who set `write_summary: false`
@@ -35,7 +89,8 @@ def write_artifact(
     final = parent / artifact.forecast_id
     if final.is_dir():
         # Content-addressed IDs: an existing directory holds this exact run.
-        # Artifacts are immutable, so the first write wins.
+        # Artifacts are content-addressed, so a verified first write wins.
+        verify_artifact_integrity(final)
         return final
     temporary = parent / f".{artifact.forecast_id}.tmp"
     if temporary.is_dir():
@@ -44,7 +99,7 @@ def write_artifact(
     try:
         payload = artifact.to_dict()
         if len(artifact.results) > 3:
-            # Wide-panel triage must be replayable from the immutable
+            # Wide-panel triage must be replayable from the sealed
             # artifact. Keep the frozen small-artifact shape unchanged;
             # only panels whose response is actually ranked gain this field.
             from .support import forecast_notability
@@ -143,6 +198,7 @@ def write_artifact(
             render_artifact_html(artifact.forecast_id, payload, history=history),
             encoding="utf-8",
         )
+        _write_integrity(temporary)
         os.replace(temporary, final)
     except Exception:
         # The partial directory is kept for diagnosis and never exposed as a
@@ -170,6 +226,7 @@ def write_json_artifact(
     parent.mkdir(parents=True, exist_ok=True)
     final = parent / artifact_id
     if final.is_dir():
+        verify_artifact_integrity(final)
         return final
     temporary = parent / f".{artifact_id}.tmp"
     if temporary.is_dir():
@@ -189,6 +246,7 @@ def write_json_artifact(
     (temporary / "report.html").write_text(
         render_artifact_html(artifact_id, payload), encoding="utf-8",
     )
+    _write_integrity(temporary)
     os.replace(temporary, final)
     return final
 
@@ -272,6 +330,7 @@ def read_artifact(artifact_dir: str | Path) -> dict[str, Any]:
     path = Path(artifact_dir).expanduser() / "artifact.json"
     if not path.is_file():
         raise GnomonError("ARTIFACT_NOT_FOUND", f"No artifact.json under {path.parent}")
+    verify_artifact_integrity(path.parent)
     data = json.loads(path.read_text(encoding="utf-8"))
     ensure_readable(data.get("schema_version"))
     return data

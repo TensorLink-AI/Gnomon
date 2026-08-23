@@ -1,0 +1,164 @@
+{
+  "release_metadata": {
+    "arm": "seed-55109",
+    "benchmark": "short-history",
+    "configuration_identity": "fold-safe LOCO pooling and family-nested classical selection; untouched final horizons",
+    "dataset_identity": "generated short-history pooling/classical corpus seed=55109 cases=360",
+    "evaluated_commit": "10b830a",
+    "harness_commit": "10b830a",
+    "notes": [],
+    "scope": "full",
+    "source": "/tmp/gnomon-usefulness-final-10b830a/short-history-55109/summary.json",
+    "source_sha256": "ab447a3594d72e338721563a66e28124a688e5cdb975377a33c9ba153e8f4aa3",
+    "status": "complete"
+  },
+  "summary": {
+    "classical": {
+      "baseline_median_mae": 2.381796722906386,
+      "candidate_median_mae": 0.9901448683018419,
+      "cases": 200,
+      "median_relative_gain": 0.393966056754085,
+      "outcomes": {
+        "regression": 37,
+        "safety_preservation": 26,
+        "uplift": 137
+      }
+    },
+    "classical_by_family": {
+      "intermittent": {
+        "baseline_median_mae": 2.4062856187156836,
+        "candidate_median_mae": 2.48644861141835,
+        "cases": 40,
+        "median_relative_gain": 0.0,
+        "outcomes": {
+          "regression": 14,
+          "safety_preservation": 23,
+          "uplift": 3
+        }
+      },
+      "level": {
+        "baseline_median_mae": 1.1455456983549817,
+        "candidate_median_mae": 1.081728812670632,
+        "cases": 40,
+        "median_relative_gain": 0.0080216244332528,
+        "outcomes": {
+          "regression": 17,
+          "safety_preservation": 2,
+          "uplift": 21
+        }
+      },
+      "multiplicative": {
+        "baseline_median_mae": 3.5427103639711293,
+        "candidate_median_mae": 1.8375795433123954,
+        "cases": 40,
+        "median_relative_gain": 0.48218891846059814,
+        "outcomes": {
+          "regression": 4,
+          "safety_preservation": 0,
+          "uplift": 36
+        }
+      },
+      "seasonal": {
+        "baseline_median_mae": 8.795421102107007,
+        "candidate_median_mae": 0.6810677959706826,
+        "cases": 40,
+        "median_relative_gain": 0.9261171418971595,
+        "outcomes": {
+          "regression": 0,
+          "safety_preservation": 0,
+          "uplift": 40
+        }
+      },
+      "trend": {
+        "baseline_median_mae": 1.9035504805840056,
+        "candidate_median_mae": 0.6504688569483517,
+        "cases": 40,
+        "median_relative_gain": 0.6617565876678689,
+        "outcomes": {
+          "regression": 2,
+          "safety_preservation": 1,
+          "uplift": 37
+        }
+      }
+    },
+    "evaluated_commit": "10b830a",
+    "gates": {
+      "classical_median_gain_positive": true,
+      "marginal_admission_rate_below_05": true,
+      "mixed_direction_admission_rate_below_05": true,
+      "null_admission_rate_below_05": true,
+      "raw_records_retained": true,
+      "strong_pooling_admission_precision_at_least_70pct": true
+    },
+    "pooling": {
+      "comparable_marginal": {
+        "admission_precision": null,
+        "admission_rate": 0.0,
+        "admitted": 0,
+        "baseline_median_mae": 1.2720655109672283,
+        "candidate_median_mae": 1.2720655109672283,
+        "cases": 40,
+        "harmful_admission_rate": 0.0,
+        "median_relative_gain": 0.0,
+        "outcomes": {
+          "regression": 0,
+          "safety_preservation": 40,
+          "uplift": 0
+        }
+      },
+      "comparable_strong": {
+        "admission_precision": 0.9,
+        "admission_rate": 1.0,
+        "admitted": 40,
+        "baseline_median_mae": 1.815917570165889,
+        "candidate_median_mae": 1.1293638237026706,
+        "cases": 40,
+        "harmful_admission_rate": 0.075,
+        "median_relative_gain": 0.38571490798210384,
+        "outcomes": {
+          "regression": 3,
+          "safety_preservation": 1,
+          "uplift": 36
+        }
+      },
+      "mixed_direction": {
+        "admission_precision": null,
+        "admission_rate": 0.0,
+        "admitted": 0,
+        "baseline_median_mae": 1.6156419091623633,
+        "candidate_median_mae": 1.6156419091623633,
+        "cases": 40,
+        "harmful_admission_rate": 0.0,
+        "median_relative_gain": 0.0,
+        "outcomes": {
+          "regression": 0,
+          "safety_preservation": 40,
+          "uplift": 0
+        }
+      },
+      "null": {
+        "admission_precision": null,
+        "admission_rate": 0.0,
+        "admitted": 0,
+        "baseline_median_mae": 1.1006434070746753,
+        "candidate_median_mae": 1.1006434070746753,
+        "cases": 40,
+        "harmful_admission_rate": 0.0,
+        "median_relative_gain": 0.0,
+        "outcomes": {
+          "regression": 0,
+          "safety_preservation": 40,
+          "uplift": 0
+        }
+      }
+    },
+    "precision_gate_min_admissions": 20,
+    "protocol": "training-internal selection; untouched final horizon",
+    "raw_records": {
+      "item_count": 360,
+      "omitted_from_release": true
+    },
+    "schema_version": "0.1",
+    "seed": 55109
+  }
+}

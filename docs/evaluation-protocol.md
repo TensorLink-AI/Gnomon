@@ -22,6 +22,32 @@ to the registered robust baseline without hiding failures through abstention?
 - Boundary, leakage, and reasoning-choice results are separate product
   properties. They are not combined into a forecast-accuracy headline.
 
+The four forecast arms are frozen before estimator work:
+
+1. direct matched LLM (reported as a product comparator, never an admission
+   baseline);
+2. robust last-value/registered baseline;
+3. enhanced classical plus within-file pooling;
+4. the same enhanced engine with Toto2-4m eligible under its normal admission
+   policy.
+
+Primary comparisons are arm 3 versus arm 2 and arm 4 versus arm 3. Their
+two-sided tests each use alpha 0.025 (Bonferroni familywise alpha 0.05).
+Arm 1 comparisons are secondary.
+
+## Power and strata
+
+`python -m benchmarks.power_analysis` is run before paid evaluation. The
+default design targets 80% power for a 55% non-tied paired win probability,
+prices in a 10% tie rate, and uses alpha 0.025. A smaller run may be labelled
+exploratory but cannot graduate an estimator. The calculation and parameters
+ship with the release manifest.
+
+The preregistered strata are history length (fold-starved / degraded /
+fully-separated), channel family (vitals / operational / other), and
+publication tier. Strata are descriptive unless separately powered before
+the run; no post-hoc slice becomes a graduation claim.
+
 ## Outcomes and denominators
 
 Report, before any pooled headline:
@@ -34,6 +60,20 @@ Report, before any pooled headline:
 6. error with abstentions priced as baseline error and as a separate yield
    curve. An accuracy gain obtained only by suppressing hard cases does not
    graduate.
+
+Every paired record is retained with task id, channel, stratum, arm values,
+baseline value, support/admission state, and scoring eligibility. Aggregates
+without their raw paired records are not publishable evidence.
+
+Classify every eligible channel outcome as exactly one of:
+
+- **uplift:** safely published and lower error than the robust baseline;
+- **safety preservation:** exact robust fallback or an abstention priced at
+  robust-baseline error;
+- **regression:** higher error, an unsupported publication, or a missing
+  result not covered by the preregistered abstention policy.
+
+Safety preservation remains a valuable safety row and never counts as uplift.
 
 The primary paired test is two-sided Wilcoxon signed-rank over row-level sMAPE
 when its assumptions are satisfied; otherwise use a paired randomization test.

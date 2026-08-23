@@ -62,7 +62,7 @@ gnomon monitor     examples/messy_requests.csv --time timestamp --target request
                  --horizon 14 --threshold 340 --alert-cost 1 --miss-cost 20
 ```
 
-Every response carries an `artifact_path` (immutable directory with
+Every response carries an `artifact_path` (integrity-sealed directory with
 `artifact.json`, `lineage.json`, and for forecasts `forecast.csv` +
 `summary.md` + offline `report.html`) and a `support_assessment`. Numbers live in artifacts —
 agents quote them, never restate them.
@@ -161,7 +161,7 @@ Every data-bearing response also reports `series_end` and
 `staleness` sentence. Wide forecast responses return the three most notable
 series (threshold crossing first, then relative path movement), summarize the
 remainder by support tier, and point to artifact selectors for the full panel.
-The immutable artifact still contains every series and every row.
+The integrity-sealed artifact still contains every series and every row.
 
 `gnomon_describe` also returns deterministic multi-series triage: the largest
 absolute final-step change, the named ranking rule, top entries, and a
@@ -181,7 +181,7 @@ Every non-error verb response also carries a compact routing projection where
 the underlying result makes it applicable: `artifact_id`, `tier_floor`, typed
 `limitation_groups`, and aggregated `recovery_actions`. Repeated warning text
 is grouped with its affected-series count and up to three examples; the full
-warning remains attached to every series in the immutable artifact. These
+warning remains attached to every series in the integrity-sealed artifact. These
 fields, the headline, support, assumptions, staleness, and artifact references
 are protected from trimming.
 

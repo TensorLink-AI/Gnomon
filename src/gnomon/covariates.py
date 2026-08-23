@@ -589,7 +589,10 @@ def assess_covariates(
     values: list[float], timestamps: list[datetime], future_timestamps: list[datetime],
     dataset: CovariateDataset, series: str, horizon: int, season: int,
     minimum_improvement: float, base: Evaluation,
+    history_at: Any = None,
 ) -> CovariateAssessment:
+    if history_at is None:
+        history_at = lambda origin: (values[:origin], timestamps[:origin])
     if not base.supported or not base.selected_model:
         return CovariateAssessment(False, False, rejected=[{"reason": "base evaluation is unsupported"}])
     minimum_train = max(2 * season, 2 * horizon, 8)
@@ -607,8 +610,9 @@ def assess_covariates(
     def scores(names: list[str]) -> list[float] | None:
         fold_scores: list[float] = []
         for origin in selection:
+            fold_values, fold_timestamps = history_at(origin)
             forecast = covariate_forecast(
-                values[:origin], timestamps[:origin], timestamps[origin:origin + horizon],
+                fold_values, fold_timestamps, timestamps[origin:origin + horizon],
                 dataset, names, series, timestamps[origin - 1], season,
             )
             if forecast is None:
@@ -625,7 +629,7 @@ def assess_covariates(
     current_scores: list[float] | None = []
     for origin in selection:
         try:
-            points = candidate_predict(base, values[:origin], horizon, season)
+            points = candidate_predict(base, history_at(origin)[0], horizon, season)
         except (ValueError, ArithmeticError):
             current_scores = None
             break
@@ -665,8 +669,9 @@ def assess_covariates(
     if not retained:
         return assessment
 
+    calibration_values, calibration_timestamps = history_at(calibration_origin)
     calibration = covariate_forecast(
-        values[:calibration_origin], timestamps[:calibration_origin],
+        calibration_values, calibration_timestamps,
         timestamps[calibration_origin:calibration_origin + horizon], dataset, retained,
         series, timestamps[calibration_origin - 1], season,
     )
@@ -687,8 +692,9 @@ def assess_covariates(
         step: [residual]
         for step, residual in enumerate(assessment.residuals, 1)
     }
+    test_values, test_timestamps = history_at(test_origin)
     test = covariate_forecast(
-        values[:test_origin], timestamps[:test_origin], timestamps[test_origin:test_origin + horizon],
+        test_values, test_timestamps, timestamps[test_origin:test_origin + horizon],
         dataset, retained, series, timestamps[test_origin - 1], season,
     )
     if test is not None:

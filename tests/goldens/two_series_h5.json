@@ -37,7 +37,8 @@
         "linear_trend": 0.02407187647818961,
         "window_average": 0.037710494990708415,
         "theta": 0.03274837422636675,
-        "ets": 0.013206236824607882
+        "ets": 0.013206236824607882,
+        "croston_sba": 0.11351046317693213
       },
       "test_scores": {
         "last_value": 0.03267744202389318,
@@ -47,7 +48,9 @@
         "window_average": null,
         "theta": null,
         "ets": 0.0012188864037254435,
-        "chronos_bolt": null,
+        "croston_sba": null,
+        "chronos_bolt_mini": null,
+        "chronos_bolt_small": null,
         "flowstate": null,
         "moirai2_small": null,
         "moment_small": null,
@@ -195,7 +198,8 @@
         "linear_trend": 0.022575494842780673,
         "window_average": 0.031436126262427824,
         "theta": 0.027559028470668503,
-        "ets": 0.028433121507515847
+        "ets": 0.028433121507515847,
+        "croston_sba": 0.02280140517356214
       },
       "test_scores": {
         "last_value": null,
@@ -205,7 +209,9 @@
         "window_average": null,
         "theta": null,
         "ets": null,
-        "chronos_bolt": null,
+        "croston_sba": null,
+        "chronos_bolt_mini": null,
+        "chronos_bolt_small": null,
         "flowstate": null,
         "moirai2_small": null,
         "moment_small": null,
@@ -368,7 +374,8 @@
           "linear_trend": 0.02407187647818961,
           "window_average": 0.037710494990708415,
           "theta": 0.03274837422636675,
-          "ets": 0.013206236824607882
+          "ets": 0.013206236824607882,
+          "croston_sba": 0.11351046317693213
         },
         "test_scores": {
           "last_value": 0.03267744202389318,
@@ -378,7 +385,9 @@
           "window_average": null,
           "theta": null,
           "ets": 0.0012188864037254435,
-          "chronos_bolt": null,
+          "croston_sba": null,
+          "chronos_bolt_mini": null,
+          "chronos_bolt_small": null,
           "flowstate": null,
           "moirai2_small": null,
           "moment_small": null,
@@ -420,7 +429,8 @@
           "linear_trend": 0.022575494842780673,
           "window_average": 0.031436126262427824,
           "theta": 0.027559028470668503,
-          "ets": 0.028433121507515847
+          "ets": 0.028433121507515847,
+          "croston_sba": 0.02280140517356214
         },
         "test_scores": {
           "last_value": null,
@@ -430,7 +440,9 @@
           "window_average": null,
           "theta": null,
           "ets": null,
-          "chronos_bolt": null,
+          "croston_sba": null,
+          "chronos_bolt_mini": null,
+          "chronos_bolt_small": null,
           "flowstate": null,
           "moirai2_small": null,
           "moment_small": null,

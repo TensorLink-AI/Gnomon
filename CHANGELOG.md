@@ -2,6 +2,39 @@
 
 ## Unreleased
 
+- **Useful short-history candidates without weakening the gate.** Wide files
+  can offer a scale-free pooled-trend candidate that fits donor statistics at
+  each historical origin, validates transfer leave-one-channel-out, and must
+  beat last-value on the target under both WAPE and fold-local scaled error.
+  Admitted results carry the distinct `pooled_validated` state and disclose
+  every donor. Theta and ETS choose raw versus log scale inside their family,
+  so only one representative enters the outer fold contest; Croston-SBA adds
+  a dependency-free intermittent-demand family. An independent benchmark
+  retains every untouched-horizon case and reports uplift, exact fallback
+  preservation, and regression separately.
+
+- **Governed integrations and model on-ramp.** Read-only Prometheus sources
+  are available to MCP only through an explicit host allowlist. `monitor run`
+  can score newly known actuals before opening the next tracked forecast,
+  while keeping the temporal store and tracking registry separate. Eligible
+  runs with no installed TSFM return exact CLI and full-profile MCP calls for
+  installing Toto-2.0-4m; installation never bypasses model admission.
+
+- **Pre-registered usefulness evaluation.** The matched protocol freezes
+  arms, history/channel/tier strata, two primary comparisons with corrected
+  alpha, power analysis, and retained raw paired rows before a paid run.
+  Reports distinguish estimator uplift, safety preservation, and regression;
+  matching last-value is never counted as uplift.
+
+- **Trust boundary hardening.** Plain-file `as_of` replays now apply the
+  knowledge cutoff before any data-dependent repair, so interpolation and
+  timestamp snapping cannot inspect later rows. Decide and monitor propagate
+  measured interval coverage and refuse probability-bearing outputs when it
+  is outside the verifier band. Chronos variants retain distinct adapter
+  identities. Newly written artifacts include a SHA-256 integrity manifest,
+  verified on every supported artifact read; legacy unsealed artifacts remain
+  readable and explicitly lack that guarantee.
+
 - **Production operating loop.** Every immutable artifact now includes an
   offline `report.html`; project history has a one-command Markdown/HTML
   track-record report. CLI-only Prometheus range ingestion and bounded stdin

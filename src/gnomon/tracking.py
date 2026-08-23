@@ -2679,6 +2679,11 @@ class TrackingStore:
         """Load forecast.csv and return rows as dicts."""
         if not path.exists():
             return []
+        # Tracking is an artifact read just as surely as get_artifact is.
+        # Refuse to score doctored points or intervals when the producing
+        # release sealed them; legacy unsealed artifacts remain compatible.
+        from .artifacts import verify_artifact_integrity
+        verify_artifact_integrity(path.parent)
         with open(path, encoding="utf-8-sig", newline="") as f:
             reader = csv.DictReader(f)
             rows = []
