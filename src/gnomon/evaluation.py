@@ -615,7 +615,14 @@ def select_model_lightweight(
     # ranked on it, and the strongest baseline is published with every
     # score reported as evidence (see the guardrail in `evaluate`).
     non_baselines = [name for name in valid if name not in BASELINES]
-    if baselines:
+    if "last_value" in baselines:
+        # One holdout cannot establish that a structured baseline generalises
+        # any more reliably than it can rank an incremental model.  Publish
+        # the assumption-minimal level baseline; seasonal/TSFM candidates can
+        # still enter through repeatable folds or separately labelled transfer
+        # evidence.  This rule is history-length based, never channel based.
+        selected = "last_value"
+    elif baselines:
         selected = min(baselines, key=baselines.get)  # type: ignore[arg-type]
     else:
         selected = min(valid, key=valid.get)  # type: ignore[arg-type]
@@ -627,7 +634,8 @@ def select_model_lightweight(
     if guardrail_applied:
         warnings.append(
             f"Selection under-powered: a single trailing holdout cannot rank "
-            f"candidates. The strongest baseline ({strongest}) is published; "
+            f"candidates or structured baselines. The robust level baseline "
+            f"({strongest}) is published; "
             f"candidate scores are reported as evidence, not a ranking."
         )
     residuals = [a - p for a, p in zip(actual, forecasts[selected])]
