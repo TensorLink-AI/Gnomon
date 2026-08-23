@@ -16,10 +16,13 @@ recovered by bounded row-level retry and remain disclosed in its summary.
 | Completion | 80/80 | 80/80 | equal |
 
 None of the differences against the direct LLM establishes superiority.
-Gnomon's short-history contract did meet its release gate: every one of the
-480 published channels matched the robust last-value baseline exactly. The
-previous release's statistically significant regression against last-value
-is gone without channel names or benchmark labels entering runtime code.
+Gnomon's short-history contract met its safety gate: every one of the 480
+published channels used the robust last-value fallback exactly. This removes
+the previous statistically significant regression without channel names or
+benchmark labels entering runtime code, but it does **not** improve on naive
+forecasting. The direct LLM's lower median channel MASE (0.797 versus 1.089)
+shows that useful short-history signal remains to be recovered through
+independently admitted transfer priors, pooling, or TSFMs.
 
 Evidence used one product call per task (median and p95), made zero redundant
 product calls, returned all 240 typed temporal answers, and preserved all 80
@@ -31,6 +34,11 @@ Balanced choice accuracy was 31.9% for Evidence and 24.1% for control, but the
 class behavior remains uneven: Evidence improved level-direction and aggregate
 seasonality balance while leaning heavily on `Uncertain` for volatility and
 seasonality. This is diagnostic product evidence, not an accuracy claim.
+
+The later integration of the independently tested weak best-estimate
+volatility and canonical multi-series triage contracts was not part of this
+`2d14967` measurement. It must be evaluated in a new matched run before any
+effect on these figures is claimed.
 
 ## Boundary and operational validation
 

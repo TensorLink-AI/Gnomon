@@ -39,4 +39,6 @@ decision policy. Weak best estimates remain usable for exploration, but only
 out-of-fold probability skill and calibration can make a categorical answer
 automation-eligible.
 
-Run `python3 benchmarks/volatilitybench/run_volatilitybench.py`.
+From the repository root, run
+`python3 -m benchmarks.volatilitybench.run_volatilitybench`. Running it as a
+module keeps the repository package importable in a clean shell.

@@ -155,10 +155,13 @@ product claim.
 Forecast superiority was also not established. Mean sMAPE was 10.62 with
 Gnomon and 11.34 directly (43 row wins, 36 losses, one tie, *p* = 0.500).
 Per-channel MASE no longer shows the prior significant regression: 183 wins,
-190 losses, and 107 ties (*p* = 0.756). More importantly for the release gate,
-all 480 fold-starved channels matched the robust last-value baseline exactly;
-Gnomon no longer ranks a structured baseline using the same single holdout it
-declares insufficient for candidate selection. The protocol, complete
+190 losses, and 107 ties (*p* = 0.756). This is a safety result, not an
+estimator improvement: all 480 fold-starved channels published the robust
+last-value fallback exactly, while the direct LLM's median channel MASE was
+0.797 versus Gnomon's 1.089. Gnomon no longer ranks a structured baseline using
+the same single holdout it declares insufficient for candidate selection, but
+recovering useful short-history signal requires independently validated
+transfer priors, pooling, or TSFM admission. The protocol, complete
 latest-code evidence, and limitations are in the
 [product-hardening release](results/benchmark-releases/2026-08-23-product-hardening/README.md).
 
