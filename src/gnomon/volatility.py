@@ -432,7 +432,10 @@ def fit_volatility_executable(
                          for error in ratios.get(calibration_candidate, [])
                          if direction_ratio is not None and error > 1e-12]
     short_history_fallback = False
-    if len(direction_implied) < 2 and errors and reference > 1e-12:
+    # The boundary matches the folds >= 3 publication gate below: any history
+    # without enough prequential ratios to graduate the probability mode gets
+    # the fallback point estimator instead of a warm-up-biased candidate ratio.
+    if len(direction_implied) < 3 and errors and reference > 1e-12:
         # No prequential fold ratio reaches this history, so a candidate
         # scale ratio carries warm-up bias instead of evidence.  Measured on
         # sealed short-history cases, the least-wrong point estimate is the
