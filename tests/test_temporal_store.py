@@ -314,6 +314,30 @@ def test_forecast_as_of_replay_uses_only_prior_data(tmp_path):
     assert artifact.task.as_of == as_of.isoformat()
 
 
+def test_aggressive_repair_cannot_use_rows_after_as_of(tmp_path):
+    from gnomon.pipeline import load_stage
+    from gnomon.repair import RepairLog
+
+    source = tmp_path / "gapped.csv"
+    source.write_text(
+        "timestamp,value\n"
+        "2026-01-01,10\n"
+        "2026-01-02,20\n"
+        "2026-01-04,1000\n",
+        encoding="utf-8",
+    )
+    log = RepairLog()
+    loaded = load_stage(
+        str(source), time_column="timestamp", target_column="value",
+        series_column=None, frequency="D", as_of=datetime(2026, 1, 3),
+        repair="aggressive", repair_log=log,
+    )
+    rows = loaded.groups["__default__"]
+    assert [row.timestamp.day for row in rows] == [1, 2]
+    assert [row.value for row in rows] == [10.0, 20.0]
+    assert "interpolated" not in {item.code for item in log.actions()}
+
+
 def test_forecast_as_of_before_all_data_is_structured_error(tmp_path):
     source = _daily_csv(tmp_path / "history.csv", 10)
     with pytest.raises(GnomonError) as caught:

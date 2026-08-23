@@ -127,7 +127,7 @@ lower layer deliberately and must never be described as agent-reasoning lift.
 | [AdjudicationBench](adjudicationbench/) (internal) | Evidence authority, conflict, and synthesis invariants | `benchmarks/adjudicationbench` |
 | [EffectBench](effectbench/) (internal) | Effect-registry transfer, false influence, interval calibration, and decision regret | `benchmarks/effectbench` |
 | [BoundaryBench](boundarybench/) (internal) | Agent-boundary immutability, source traceability, sufficiency, actionable rejection, and redundant-call attribution | `benchmarks/boundarybench` |
-| ModelBench (internal) | Immutable primary-forecast model comparison with agent/context behavior excluded | `benchmarks/modelbench` |
+| ModelBench (internal) | Immutable primary-forecast model comparison with agent/context behavior excluded; `run_short_history` tests nested classical selection and production LOCO panel admission on untouched horizons with raw records retained | `benchmarks/modelbench` |
 
 The machine-readable source of truth is `benchmarks/catalog.py`. Batch
 manifests embed its `benchmark_contract`, and CI rejects catalog/orchestrator

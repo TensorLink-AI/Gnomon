@@ -2,8 +2,9 @@
 
 ## Support status
 
-Every series receives one of five statuses (six with
-`context.future_events: on` — see the last row):
+Every series receives one of seven statuses. `best_effort` is the default
+labelled fallback when evaluation cannot support a forecast, while
+`context_trusted` is reachable only with future context enabled:
 
 | Status | Meaning |
 | --- | --- |
@@ -13,6 +14,7 @@ Every series receives one of five statuses (six with
 | `supported_ensemble` | An inverse-error-weighted ensemble of eligible models beat the strongest baseline. |
 | `unsupported` | There was insufficient evaluation history (the warning states the exact required and available counts) or no baseline completed every selection fold. No forecast rows are emitted. |
 | `context_trusted` | Reachable only behind `context.future_events: on`: the forecast was influenced by future-dated constraint/override events admitted on textual verifiability, which no fold ever tested. Weaker than every fold-backed status; the history-only counterfactual is in the `future_context_applied` evidence. |
+| `best_effort` | A clearly labelled robust placeholder emitted after evaluation abstained. It is not a reliable forecast and is never automation-eligible. |
 
 Each result additionally carries a `support_assessment` — a five-state
 harness-wide status (`supported` / `conditionally_supported` /
@@ -104,8 +106,9 @@ support assessment naming the size.
 
 ### What the interval is
 
-`q10`–`q90` form a nominal central 80% split-conformal interval, built from
-the residual order statistics at each lead time. Two properties are
+`q10`–`q90` form a nominal central 80% conformal-style empirical interval,
+built from residual order statistics at each lead time. With the default
+residual pooling this is not strict split conformal. Two properties are
 enforced: half-widths are fitted monotone across lead times, and levels
 within a lead cannot cross.
 
@@ -197,6 +200,14 @@ context/covariate ablations when supplied. Artifact directories also contain
 
 A compact human-readable overview. It is deliberately less detailed than
 `artifact.json`; automation should consume JSON or CSV.
+
+### `integrity.json`
+
+Every newly written artifact seals all other output files with SHA-256.
+Gnomon verifies the seal on artifact reads and raises
+`ARTIFACT_INTEGRITY_ERROR` when a file is missing or changed. Artifacts from
+older releases without a seal remain readable for compatibility; they are
+content-addressed records, but not evidence of post-write integrity.
 
 ### `temporal_answers.json`
 

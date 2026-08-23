@@ -416,7 +416,13 @@ class ChronosBoltAdapter:
     }
 
     def __init__(self, variant: str = "chronos_bolt_mini"):
+        if variant not in self._MODEL_IDS:
+            raise TSFMUnavailable(f"Unknown Chronos-Bolt adapter: {variant}")
         self._variant = variant
+        # Registry identity is part of selection, evidence, weight pinning,
+        # and forecast identity.  A family-level name made mini and small
+        # silently collide after instantiation.
+        self.name = variant
         self.params_m = 21.0 if "mini" in variant else 48.0
         self._pipeline = None
 

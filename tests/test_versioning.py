@@ -33,6 +33,19 @@ def test_read_artifact_roundtrip(tmp_path):
     assert data["forecast_id"] == artifact.forecast_id
 
 
+def test_read_artifact_rejects_tampered_sealed_output(tmp_path):
+    _, artifact_dir = forecast(
+        str(REPO / "examples" / "daily_requests.csv"),
+        time_column="timestamp", target_column="requests", horizon=3,
+        output=str(tmp_path), clock=CLOCK,
+    )
+    path = artifact_dir / "artifact.json"
+    path.write_text(path.read_text(encoding="utf-8") + " ", encoding="utf-8")
+    with pytest.raises(GnomonError) as caught:
+        read_artifact(artifact_dir)
+    assert caught.value.code == "ARTIFACT_INTEGRITY_ERROR"
+
+
 def test_read_artifact_rejects_future_schema(tmp_path):
     directory = tmp_path / "fake"
     directory.mkdir()
@@ -109,6 +122,9 @@ def test_get_artifact_names_a_foreign_build(tmp_path):
     current = runner_for("gnomon_get_artifact")({"artifact_path": str(directory)})
     assert "runtime_note" not in current
 
+    # Unsealed artifacts predate the integrity manifest and retain the
+    # compatibility behavior exercised below.
+    (directory / "integrity.json").unlink()
     artifact_path = directory / "artifact.json"
     doctored = json.loads(artifact_path.read_text(encoding="utf-8"))
     doctored["runtime_version"] = "0.4.0"

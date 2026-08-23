@@ -37,6 +37,8 @@ jobs:
           assert any(name.endswith("share/gnomon/skills/use-gnomon/SKILL.md") for name in names)
           PY
       - name: Verify wheel installation
+        env:
+          GNOMON_REGISTRY_PATH: ${{ runner.temp }}/gnomon-release-registry.sqlite
         run: |
           python -m pip install dist/*.whl
           gnomon capabilities

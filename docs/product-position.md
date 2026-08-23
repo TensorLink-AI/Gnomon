@@ -51,7 +51,7 @@ upgrade Gnomon's numerical claims.
 
 This repository ships a zero-dependency classical runtime with optional local
 TSFM sandboxes, bitemporal data, CLI and Python APIs, a stdio MCP server,
-immutable artifacts, and outcome tracking. MCP is the sole agent-facing
+integrity-sealed artifacts, and outcome tracking. MCP is the sole agent-facing
 contract.
 
 It does not ship a hosted inference service, a live benchmark service, an

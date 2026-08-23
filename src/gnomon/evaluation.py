@@ -795,6 +795,117 @@ def _admit_pretrained_lightweight(
     )
 
 
+def _admit_pooled_lightweight(
+    assessment: Evaluation, values: list[float], horizon: int, season: int,
+    minimum_improvement: float,
+    extra_candidates: dict[str, Callable[[int, int], list[float]]],
+) -> Evaluation:
+    """Admit a within-panel executable without calling donor evidence local folds.
+
+    The candidate itself owns a leave-one-channel-out comparability check.
+    Gnomon additionally requires a held-out target win under both WAPE and
+    fold-local scaled error.  This lane is distinct from external transfer:
+    every borrowed observation belongs to the caller's current snapshot.
+    """
+    if not assessment.supported or assessment.strongest_baseline != "last_value":
+        return assessment
+    eligible = []
+    for name, candidate in extra_candidates.items():
+        evidence_fn = getattr(candidate, "lightweight_evidence", None)
+        if evidence_fn is None:
+            continue
+        evidence = evidence_fn(horizon, season, minimum_improvement)
+        if evidence is not None:
+            eligible.append((name, candidate, evidence))
+    if not eligible:
+        return assessment
+    # Normally one panel candidate exists per target. If a future family adds
+    # another, choose by the preregistered held-out loss and disclose it.
+    name, candidate, pooled = min(eligible, key=lambda item: item[2].target_loss)
+    from .admission import AdmissionDecision, AdmissionEvidence, OutputDiagnostics
+    admission_evidence = AdmissionEvidence(
+        model_class="locally_fitted",
+        independent_folds=1,
+        paired_folds=1,
+        candidate_loss=pooled.target_loss,
+        baseline_loss=pooled.baseline_loss,
+        relative_improvement=(
+            (pooled.baseline_loss - pooled.target_loss) / pooled.baseline_loss),
+        candidate_win_rate=1.0,
+        median_relative_gain=(
+            (pooled.baseline_loss - pooled.target_loss) / pooled.baseline_loss),
+        local_gain_standard_error=None,
+        diagnostics=OutputDiagnostics(),
+    )
+    decision = AdmissionDecision(
+        "pooled_validated", name, "last_value", "candidate", 1.0,
+        admission_evidence,
+        (f"borrowed strength from {len(candidate.donors)} sibling channels",
+         f"leave-one-channel-out donor comparisons: {pooled.donor_pairs}",
+         f"donor win rate: {pooled.donor_win_rate:.3f}",
+         "target held-out WAPE and scaled-error gates both passed"),
+        policy_version="within-panel-pooling-v1",
+    )
+    from .candidate import CandidateIdentity, CandidateSpec, FittedCandidate
+    from .ids import content_id
+    from .versioning import RUNTIME_VERSION
+    identity = CandidateIdentity(
+        kind="cross_series", name=name, members=tuple(candidate.donors),
+        strategy="median_normalised_recent_trend",
+        config={
+            "admission_state": "pooled_validated",
+            "donor_pairs": pooled.donor_pairs,
+            "comparability": "leave_one_channel_out_fold_transfer",
+        },
+        revisions={"runtime": RUNTIME_VERSION},
+        fallback_policy="last_value_recalibrated",
+    )
+
+    def fit(history: list[float], _season: int | None) -> FittedCandidate:
+        fitted = identity.with_fit(
+            weights=None,
+            data_fingerprint=content_id("history", {"values": history}),
+        )
+        return FittedCandidate(
+            fitted, lambda steps: candidate(len(history), steps))
+
+    final = CandidateSpec(identity, fit, min_history=4)
+    origin = pooled.target_origin
+    holdout = len(values) - origin
+    prediction = candidate(origin, holdout)
+    residuals = [actual - predicted
+                 for actual, predicted in zip(values[origin:], prediction)]
+    scores = dict(assessment.selection_scores)
+    scores[name] = pooled.target_loss
+    return replace(
+        assessment, selected_model=name, selection_scores=scores,
+        improvement=admission_evidence.relative_improvement,
+        residuals=residuals,
+        warnings=[*assessment.warnings,
+                  "Short-history pooled forecast: the target has one held-out "
+                  "window; sibling-channel transfer was validated with "
+                  "leave-one-channel-out historical forecasts. The result "
+                  "borrows strength and remains degraded."],
+        notes=[*assessment.notes,
+               f"Panel pooling admitted from {len(candidate.donors)} donors; "
+               f"{pooled.donor_pairs} LOCO comparisons, donor median gain "
+               f"{pooled.donor_median_gain:.3f}."],
+        final_candidate=final, admission_decision=decision,
+        selection_guardrail_applied=False,
+        selection_stability={
+            "paired_folds": 1,
+            "candidate_win_rate": 1.0,
+            "median_relative_gain": admission_evidence.relative_improvement,
+            "scaled_error_improvement": pooled.target_scaled_gain,
+            "scaled_error_passed": True,
+            "passed": True,
+            "borrowed_strength": True,
+            "donor_loco_pairs": pooled.donor_pairs,
+            "donor_win_rate": pooled.donor_win_rate,
+        },
+    )
+
+
 #: Longest fit history a single fold's model fit sees, stretched to at
 #: least four seasonal periods. Fold structure is never windowed — only
 #: the history handed to each fit. Mirrors the anomaly grading window
@@ -869,6 +980,12 @@ def evaluate(
     if len(origins) < 2:
         lightweight = select_model_lightweight(
             values, horizon, season, train_at)
+        if extra_candidates:
+            pooled = _admit_pooled_lightweight(
+                lightweight, values, horizon, season, minimum_improvement,
+                extra_candidates)
+            if pooled.admission_decision is not None:
+                return pooled
         if external_priors or evidence_registry is not None:
             admitted = _admit_pretrained_lightweight(
                 lightweight, values, horizon, season, frequency, tsfm_names,

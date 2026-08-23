@@ -112,7 +112,7 @@ _DATA_REF_PROPERTY: dict[str, Any] = {
 }
 
 _INPUT_PROPERTIES: dict[str, Any] = {
-    "input": {"type": "string", "description": "Path to a local CSV, TSV, JSON, JSONL, Parquet, or Excel file of time-series observations, or `store:<dataset>` from the bitemporal store (see gnomon_list_datasets). Callers without a filesystem pass `observations` inline instead."},
+    "input": {"type": "string", "description": "Path to a local CSV, TSV, JSON, JSONL, Parquet, or Excel file; `store:<dataset>`; or a read-only `prom://.../api/v1/query_range?...` source whose host is allowlisted by GNOMON_PROMETHEUS_ALLOWED_HOSTS. Callers without either pass observations inline."},
     **_OBSERVATIONS_PROPERTY,
     **_DATA_REF_PROPERTY,
     "time_column": {"type": "string", "description": (
@@ -747,7 +747,35 @@ def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
             for item in artifact.results
         ],
     }
+    _attach_tsfm_on_ramp(payload, artifact)
     return _attach_multiseries_triage(payload)
+
+
+def _attach_tsfm_on_ramp(payload: dict[str, Any],
+                         artifact: ForecastArtifact) -> None:
+    """Turn the eligible-but-absent disclosure into an exact one-command path."""
+    absent = [note for result in artifact.results for note in result.notes
+              if note.startswith("No foundation-model candidate competed:")]
+    if not absent:
+        return
+    preferred = "toto2_4m" if any("toto2_4m" in note for note in absent) \
+        else None
+    if preferred is None:
+        return
+    payload["tsfm_on_ramp"] = {
+        "candidate": preferred,
+        "reason": "eligible for at least one series but not installed",
+        "command": f"gnomon tsfm install {preferred}",
+        "mcp_tool_call": {
+            "name": "gnomon_install_tsfm",
+            "arguments": {"name": preferred},
+        },
+        "mcp_profile_required": "full",
+        "admission": (
+            "After installation the candidate enters the same out-of-sample "
+            "contest; installation does not guarantee publication."
+        ),
+    }
 
 
 def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
@@ -847,6 +875,7 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
         ),
         "results": results,
     }
+    _attach_tsfm_on_ramp(payload, artifact)
     return _attach_multiseries_triage(payload)
 
 
@@ -3261,9 +3290,30 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
                         ("actuals", "actuals"),
                     ) if isinstance(arguments.get(key), list)
                 ]
+                source_kind = None
+                source = arguments.get("input")
+                if isinstance(source, str) and source.startswith(
+                        ("prom://", "prom+http://", "prom+https://")):
+                    from .sources import materialize_agent_source
+                    resolved, source_kind = materialize_agent_source(source)
+                    arguments = {
+                        **arguments,
+                        "input": resolved,
+                        "input_provenance": source_kind,
+                        "time_column": arguments.get("time_column") or "timestamp",
+                        "target_column": arguments.get("target_column") or "value",
+                        "series_column": arguments.get("series_column") or "series",
+                    }
                 arguments, context_cache = _materialise_context(arguments)
                 arguments = _materialise_observations(arguments)
                 assumptions: list[str] = []
+                if source_kind == "prometheus":
+                    assumptions.append(
+                        "Input was retrieved through the governed read-only "
+                        "Prometheus connector. The host was allowlisted, the "
+                        "response was bounded and fingerprinted, and sample "
+                        "timestamps are treated as their availability times."
+                    )
                 if inline_channels:
                     assumptions.append(
                         f"{' and '.join(inline_channels)} were supplied "

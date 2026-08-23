@@ -360,6 +360,7 @@ def _series_result(
     structural_events: bool = False,
     best_effort: bool = False,
     minimum_support: str = "best_effort",
+    additional_candidates: dict[str, Any] | None = None,
 ) -> tuple[SeriesResult, list[Evidence]]:
     """Run one series through the full stage pipeline.
 
@@ -386,7 +387,7 @@ def _series_result(
         series_name, items, horizon=horizon, frequency=loaded.frequency,
         seasonal_period=seasonal_period,
     )
-    extra_candidates: dict[str, Any] = {}
+    extra_candidates: dict[str, Any] = dict(additional_candidates or {})
     if var_frame is not None and series_name in var_frame.names:
         from .multivariate import MULTIVARIATE_MODEL_NAME
         extra_candidates[MULTIVARIATE_MODEL_NAME] = var_frame.predictor(series_name)
@@ -1252,6 +1253,15 @@ def forecast_multi(
                                        "structural_events", False)
     )
 
+    from .panel_pooling import panel_candidates
+    panel_values = {
+        target: [item.value for item in loaded.groups[target]]
+        for target, loaded in datasets.items()
+        if isinstance(loaded, LoadedDataset)
+        and target in loaded.groups
+    }
+    pooled_candidates = panel_candidates(panel_values)
+
     def run_target(target: str) -> tuple[SeriesResult, list[Evidence]]:
         loaded_or_error = datasets[target]
         if isinstance(loaded_or_error, GnomonError):
@@ -1273,6 +1283,10 @@ def forecast_multi(
                 minimum_support=minimum_support,
                 future_events=future_events,
                 structural_events=structural_events,
+                additional_candidates=(
+                    {pooled_candidates[target].name: pooled_candidates[target]}
+                    if target in pooled_candidates else None
+                ),
             )
         except GnomonError as error:
             return _abstained_target_result(target, error)

@@ -279,7 +279,10 @@ def assess_context(
     minimum_improvement: float,
     base: Evaluation,
     shrink: bool = False,
+    history_at: Any = None,
 ) -> ContextAssessment:
+    if history_at is None:
+        history_at = lambda origin: (values[:origin], timestamps[:origin])
     eligible, excluded = eligible_events(events, series_name)
     # A naive dataset used to disqualify context outright, which made the
     # whole feature unreachable for every example this repo ships — events
@@ -318,8 +321,9 @@ def assess_context(
     # flags also exclude events that were not yet known at that origin.
     event_fit_origins = []
     for origin in origins:
+        _fold_values, fold_timestamps = history_at(origin)
         historical_flags = event_flags(
-            eligible, timestamps[:origin], timestamps[origin - 1])
+            eligible, fold_timestamps, timestamps[origin - 1])
         if any(historical_flags) and not all(historical_flags):
             event_fit_origins.append(origin)
     origins = event_fit_origins
@@ -345,7 +349,7 @@ def assess_context(
     # and publication now so later stages cannot accidentally restart an
     # isolated model for each fold.
     replay_origins = [*selection_origins, calibration_origin, test_origin]
-    replay_histories = [values[:origin] for origin in replay_origins] + [values]
+    replay_histories = [history_at(origin)[0] for origin in replay_origins] + [values]
     replay_points = candidate_predict_many(
         base, replay_histories, horizon, season)
     base_path_cache = {
@@ -381,9 +385,13 @@ def assess_context(
         return candidate_predict(base, history, horizon, season)
 
     base_paths = {
-        origin: base_predict(values[:origin]) for origin in selection_origins
+        origin: base_predict(history_at(origin)[0]) for origin in selection_origins
     }
     builtin_base = base.selected_model in MODELS
+    vintage_stable = all(
+        history_at(origin) == (values[:origin], timestamps[:origin])
+        for origin in replay_origins
+    )
     base_residuals = (
         rolling_residuals(values, base.selected_model, season)
         if builtin_base else []
@@ -413,7 +421,7 @@ def assess_context(
     # history. They are defined for built-ins; an opaque/API/TSFM executable
     # still receives the fair drift-effect contest against its exact fold
     # paths, without being redispatched through the classical registry.
-    if builtin_base:
+    if builtin_base and vintage_stable:
         candidates += [("residual", shape) for shape in contested_shapes]
         candidates += [("episode", shape) for shape in contested_shapes]
     by_estimator: dict[str, dict[str, list[float]]] = {
@@ -426,26 +434,27 @@ def assess_context(
             cutoff = timestamps[origin - 1]
             actual = values[origin : origin + horizon]
             try:
+                fold_values, fold_timestamps = history_at(origin)
                 historical_flags = event_flags(
-                    eligible, timestamps[:origin], cutoff)
+                    eligible, fold_timestamps, cutoff)
                 future_flags = event_flags(
                     eligible, timestamps[origin : origin + horizon], cutoff)
                 if estimator == "episode":
                     if origin not in episode_cache:
                         episode_cache[origin] = episode_residual_observations(
-                            values[:origin], historical_flags,
+                            fold_values, historical_flags,
                             base.selected_model, season)
                     context_prediction = episode_residual_adjusted(
-                        values[:origin], horizon, season, historical_flags,
+                        fold_values, horizon, season, historical_flags,
                         future_flags, base_paths[origin], base.selected_model,
                         shape, episode_cache[origin])
                 elif estimator == "residual":
                     context_prediction = residual_event_adjusted(
-                        base_residuals[:origin], horizon, historical_flags,
+                        base_residuals[:len(fold_values)], horizon, historical_flags,
                         future_flags, base_paths[origin], shape)
                 else:
                     context_prediction = event_adjusted(
-                        values[:origin], horizon, season, historical_flags,
+                        fold_values, horizon, season, historical_flags,
                         future_flags, shape)
             except ValueError as exc:
                 failed = str(exc)
@@ -500,22 +509,23 @@ def assess_context(
 
     def context_prediction(origin: int) -> list[float]:
         cutoff = timestamps[origin - 1]
-        historical_flags = event_flags(eligible, timestamps[:origin], cutoff)
+        fold_values, fold_timestamps = history_at(origin)
+        historical_flags = event_flags(eligible, fold_timestamps, cutoff)
         future_flags = event_flags(
             eligible, timestamps[origin : origin + horizon], cutoff)
         if selected_estimator == "episode":
             return episode_residual_adjusted(
-                values[:origin], horizon, season, historical_flags,
+                fold_values, horizon, season, historical_flags,
                 future_flags,
-                base_predict(values[:origin]),
+                base_predict(fold_values),
                 base.selected_model, selected_shape)
         if selected_estimator == "residual":
-            base_path = base_predict(values[:origin])
+            base_path = base_predict(fold_values)
             return residual_event_adjusted(
-                base_residuals[:origin], horizon, historical_flags,
+                base_residuals[:len(fold_values)], horizon, historical_flags,
                 future_flags, base_path, selected_shape)
         return event_adjusted(
-            values[:origin], horizon, season, historical_flags, future_flags,
+            fold_values, horizon, season, historical_flags, future_flags,
             selected_shape)
 
     assessment = ContextAssessment(
@@ -582,7 +592,8 @@ def assess_context(
         # the schedule-search opportunity without consulting the test fold.
         origin = selection_origins[-1]
         cutoff = timestamps[origin - 1]
-        actual_flags = event_flags(eligible, timestamps[:origin], cutoff)
+        fold_values, fold_timestamps = history_at(origin)
+        actual_flags = event_flags(eligible, fold_timestamps, cutoff)
         placebo_amplitudes: list[float] = []
         for offset in (-19, -17, -13, -11, -9, -7, 7, 9, 11, 13, 17, 19):
             if offset > 0:
@@ -592,7 +603,7 @@ def assess_context(
                 shifted = actual_flags[distance:] + [False] * distance
             try:
                 observations = episode_residual_observations(
-                    values[:origin], shifted, base.selected_model, season)
+                    fold_values, shifted, base.selected_model, season)
                 placebo_amplitudes.append(abs(mean(
                     episode_residual_amplitudes(observations, selected_shape))))
             except ValueError:

@@ -39,6 +39,30 @@ from .temporal_store import InMemoryTemporalStore, Snapshot, TemporalStore
 STORE_SCHEME = "store:"
 
 
+def _knowledge_bound_plain_rows(
+    observations: list[Observation], as_of: datetime | None,
+) -> list[Observation]:
+    """Hide plain-file rows that were not knowable before repair runs.
+
+    Plain files use ``valid_time`` as their assumed ``known_time``.  Repair
+    can inspect neighbouring rows (snapping and interpolation), so applying
+    it to the complete file and snapshotting afterwards lets a historical
+    replay learn from post-``as_of`` rows even when those rows are absent
+    from the final series.  The knowledge boundary must therefore precede
+    every data-dependent repair.
+    """
+    if as_of is None:
+        return observations
+    for item in observations:
+        if (item.timestamp.tzinfo is None) != (as_of.tzinfo is None):
+            raise GnomonError(
+                "SNAPSHOT_TIMEZONE_MISMATCH",
+                "as_of versus the dataset mixes timezone-aware and naive "
+                "timestamps; they cannot be compared.",
+            )
+    return [item for item in observations if item.timestamp <= as_of]
+
+
 @dataclass(frozen=True)
 class LoadedDataset:
     """Output of the load stage: validated observations grouped by series,
@@ -102,6 +126,12 @@ class SeriesState:
     #: Never affects support status — see SupportAssessment.disclosures.
     disclosures: list[SupportReason] = field(default_factory=list)
     evidence: list[Evidence] = field(default_factory=list)
+    # Point-in-time fold histories.  Enrichment ablations must replay the
+    # same vintage-bounded inputs as base evaluation rather than slicing the
+    # final as-of vintage and accidentally learning revisions unavailable at
+    # the fold cutoff.
+    fold_history_at: Any = field(default=None, compare=False, repr=False)
+    fold_histories_are_prefixes: bool = True
 
 
 def _regrid_frequency(requested: str | None, implied: str, policy: str) -> str:
@@ -158,6 +188,7 @@ def load_stage(
             input_path, time_column, target_column, series_column,
             repair=repair, repair_log=log,
         )
+        raw_observations = _knowledge_bound_plain_rows(raw_observations, as_of)
         # Calendar first, messiness second: the declared regrid settles the
         # grid before repair_observations measures gaps against it —
         # otherwise aggressive repair tries to interpolate every weekend
@@ -237,6 +268,8 @@ def load_stage_multi(
                 rows, columns, time_column, target, None,
                 repair=repair, repair_log=log, default_series=target,
             )
+            raw_observations = _knowledge_bound_plain_rows(
+                raw_observations, as_of)
             target_frequency = frequency
             if regrid:
                 from .repair import regrid_observations
@@ -338,6 +371,7 @@ def evaluate_stage(
     that fold's cutoff instant — identical to prefix slices for
     single-vintage data, honest under revisions."""
     train_at = None
+    history_at = None
     if snapshot is not None and variable is not None:
         entity, timestamps = state.name, state.timestamps
         # One materialisation decides the shape of every fold read. For
@@ -356,23 +390,39 @@ def evaluate_stage(
             and [item.value for item in full] == list(state.values)
             and all(item.known_time <= item.valid_time for item in full)
         )
+        state.fold_histories_are_prefixes = single_vintage
         if single_vintage:
             prefix_values = state.values
 
             def train_at(origin: int) -> list[float]:
                 return prefix_values[:origin]
+
+            def history_at(origin: int) -> tuple[list[float], list[datetime]]:
+                return prefix_values[:origin], state.timestamps[:origin]
         else:
-            fold_cache: dict[int, list[float]] = {}
+            fold_cache: dict[int, tuple[list[float], list[datetime]]] = {}
 
             def train_at(origin: int) -> list[float]:
                 if origin not in fold_cache:
                     cutoff = timestamps[origin - 1]
-                    fold_cache[origin] = [
-                        item.value
-                        for item in snapshot.series(entity, variable, cutoff=cutoff)
+                    visible = [
+                        item for item in snapshot.series(
+                            entity, variable, cutoff=cutoff)
                         if item.valid_time <= cutoff
                     ]
+                    fold_cache[origin] = (
+                        [item.value for item in visible],
+                        [item.valid_time for item in visible],
+                    )
+                return fold_cache[origin][0]
+
+            def history_at(origin: int) -> tuple[list[float], list[datetime]]:
+                train_at(origin)
                 return fold_cache[origin]
+    if history_at is None:
+        history_at = lambda origin: (  # noqa: E731
+            state.values[:origin], state.timestamps[:origin])
+    state.fold_history_at = history_at
 
     # `models.tsfm.candidates` restricts which foundation models may
     # compete; an empty list is the unconfigured default (all eligible).
@@ -809,7 +859,7 @@ def context_stage(
     assessment_key = None
     # Cache only receipt-bound events. CLI callers supplying loose events
     # retain the established uncached path; no weak identity is invented.
-    if len(receipt_ids) == 1:
+    if len(receipt_ids) == 1 and state.fold_histories_are_prefixes:
         from .context_store import (
             ContextReceiptStore, assessment_cache_key,
         )
@@ -845,6 +895,7 @@ def context_stage(
             state.values, state.timestamps, state.future_timestamps,
             context_events, state.name, horizon, state.season,
             minimum_baseline_improvement, state.assessment,
+            history_at=state.fold_history_at,
         )
         if assessment_cache is not None and assessment_key is not None:
             assessment_cache.put_assessment(
@@ -942,7 +993,7 @@ def covariate_stage(
     covariate_assessment = assess_covariates(
         state.values, state.timestamps, state.future_timestamps, covariates,
         state.name, horizon, state.season, minimum_baseline_improvement,
-        state.assessment,
+        state.assessment, history_at=state.fold_history_at,
     )
     state.covariate_assessment = covariate_assessment
     state.covariate_public = covariate_assessment.to_public_dict()

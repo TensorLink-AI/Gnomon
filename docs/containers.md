@@ -53,7 +53,7 @@ Package visibility is controlled in the GitHub organization/package settings.
 ## Prometheus-to-webhook reference deployment
 
 The bounded operations demo exercises a real Prometheus range query, an
-immutable monitor artifact, durable idempotency state, webhook delivery, and
+integrity-sealed monitor artifact, durable idempotency state, webhook delivery, and
 Prometheus rule export:
 
 ```bash

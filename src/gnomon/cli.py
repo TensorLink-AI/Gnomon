@@ -433,6 +433,11 @@ def build_parser() -> argparse.ArgumentParser:
     monitor_parser.add_argument("--alert-cost", type=float, dest="alert_cost")
     monitor_parser.add_argument("--miss-cost", type=float, dest="miss_cost")
     monitor_parser.add_argument("--project")
+    monitor_parser.add_argument(
+        "--auto-score", action=argparse.BooleanOptionalAction, default=True,
+        help=("When --project is set, submit the current source rows as "
+              "actuals before opening the new forecast (default on)."),
+    )
     monitor_parser.add_argument("--as-of", dest="as_of")
     monitor_parser.add_argument("--output", default="gnomon-output")
     monitor_parser.add_argument("--store-path", dest="store_path")
@@ -1037,7 +1042,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.input_provenance = source_kind
             if source_kind:
                 schema_assumptions.append(
-                    f"Input was materialized from {source_kind}; the immutable artifact records the retrieved snapshot."
+                    f"Input was materialized from {source_kind}; the integrity-sealed artifact records the retrieved snapshot."
                 )
                 if source_kind == "prometheus":
                     args.time_column = args.time_column or "timestamp"
@@ -1190,6 +1195,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                 default_state_path, deliver_events, firing_events, prometheus_rule,
             )
 
+            resolved_forecasts = []
+            if args.project and args.auto_score:
+                from .tracking import TrackingStore
+                resolved_forecasts = [
+                    result.__dict__ for result in
+                    TrackingStore().submit_actuals_csv(
+                        args.project, args.input,
+                        time_column=args.time_column,
+                        target_column=args.target_column,
+                        series_column=args.series_column,
+                    )
+                ]
             payload, path = monitor(
                 args.input, time_column=args.time_column,
                 target_column=args.target_column, horizon=args.horizon,
@@ -1219,6 +1236,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     threshold=args.threshold, output=args.prometheus_rule_output,
                 )
             result = {**payload, "artifact_path": str(path), "events": events,
+                      "auto_scored_forecasts": resolved_forecasts,
                       "delivery": delivery,
                       **({"prometheus_rule": str(rule_path)} if rule_path else {})}
             print(json.dumps(_disclose_assumptions(result, schema_assumptions),

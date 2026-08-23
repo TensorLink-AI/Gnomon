@@ -62,7 +62,7 @@ def test_forecast_selects_drift_and_writes_complete_artifact(tmp_path: Path) -> 
     assert result.forecast[0]["point"] == pytest.approx(130.0)
     assert set(path.name for path in directory.iterdir()) == {
         "artifact.json", "forecast.csv", "evidence.jsonl", "summary.md",
-        "lineage.json", "report.html",
+        "lineage.json", "report.html", "integrity.json",
     }
     report = (directory / "report.html").read_text(encoding="utf-8")
     assert "<svg" in report

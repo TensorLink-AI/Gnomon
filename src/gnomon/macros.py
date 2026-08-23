@@ -493,13 +493,24 @@ def decide(
     )
     created_at = clock.now().isoformat()
 
-    if not result.forecast or not result.threshold:
+    from .contracts import interval_calibration_is_verifiable
+    calibration_ok = interval_calibration_is_verifiable(result.interval_coverage)
+    if not result.forecast or not result.threshold or not calibration_ok:
         evaluation: dict[str, Any] = {"evaluations": [], "selected": None}
         # Two distinct honest refusals: no rows at all, or rows published
         # below the calibrated tiers (best_effort / horizon split) — which
         # carry no exceedance probabilities to ground a decision on. A
         # decision must never rest on naive fallback rows, labelled or not.
-        if result.forecast:
+        if result.forecast and not calibration_ok:
+            support = inconclusive(
+                "interval_coverage_out_of_band",
+                f"Measured interval coverage is {result.interval_coverage:.1%}; "
+                "the point path remains available, but its intervals cannot "
+                "carry an exceedance probability or decision.",
+                "Collect more resolved outcomes or shorten the horizon, then "
+                "re-run the decision.",
+            ).to_dict()
+        elif result.forecast:
             support = inconclusive(
                 "forecast_not_calibrated",
                 "The underlying forecast published only sub-supported rows "
@@ -616,7 +627,9 @@ def decide(
     lineage.artifacts.append(ArtifactRecord(decision_id, "decision", created_at))
     lineage.evidence.append(EvidenceRecord(
         f"evaluation:{result.series}", "rolling_evaluation", result.series,
-        {"selection_scores": result.selection_scores, "test_scores": result.test_scores},
+        {"selection_scores": result.selection_scores,
+         "test_scores": result.test_scores,
+         "measured_interval_coverage": result.interval_coverage},
         (artifact.forecast_id,),
     ))
     if result.threshold:
@@ -735,9 +748,22 @@ def monitor(
     alert_probability = alert_cost / (alert_cost + miss_cost) if costed else 0.5
 
     triggers = []
+    from .contracts import interval_calibration_is_verifiable
     for result in artifact.results:
-        if not result.forecast or not result.threshold:
-            if result.forecast:
+        calibration_ok = interval_calibration_is_verifiable(
+            result.interval_coverage)
+        if not result.forecast or not result.threshold or not calibration_ok:
+            if result.forecast and not calibration_ok:
+                assessment = inconclusive(
+                    "interval_coverage_out_of_band",
+                    f"Measured interval coverage is "
+                    f"{result.interval_coverage:.1%}; the point path remains "
+                    "available, but this trigger cannot use its exceedance "
+                    "probabilities.",
+                    "Collect more resolved outcomes or shorten the horizon, "
+                    "then re-run the monitor.",
+                )
+            elif result.forecast:
                 assessment = inconclusive(
                     "forecast_not_calibrated",
                     "The underlying forecast published only sub-supported "
@@ -834,10 +860,13 @@ def monitor(
     for result in artifact.results:
         lineage.evidence.append(EvidenceRecord(
             f"evaluation:{result.series}", "rolling_evaluation", result.series,
-            {"selection_scores": result.selection_scores},
+            {"selection_scores": result.selection_scores,
+             "test_scores": result.test_scores,
+             "measured_interval_coverage": result.interval_coverage},
             (artifact.forecast_id,),
         ))
-        if result.threshold:
+        if (result.threshold
+                and interval_calibration_is_verifiable(result.interval_coverage)):
             lineage.evidence.append(EvidenceRecord(
                 f"threshold_risk:{result.series}", "threshold_analysis", result.series,
                 result.threshold, (artifact.forecast_id,),

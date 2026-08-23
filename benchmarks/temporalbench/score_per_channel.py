@@ -194,6 +194,7 @@ def main() -> int:
     versus_naive: dict[str, list[tuple[float, float]]] = {}
     abstention_priced: list[tuple[float, float]] = []
     record_rows = []
+    paired_channel_records = []
     coverage = {"base_only": 0, "treat_only": 0, "both": 0, "neither": 0}
     # Support-label mix over the channels actually scored, per arm:
     # best_effort rows are disclosed fallbacks and must never blend
@@ -275,9 +276,38 @@ def main() -> int:
             t_ch = (t_detail or {}).get(channel) or {}
             b_val, t_val = b_ch.get("MASE"), t_ch.get("MASE")
             if b_val is not None and t_val is not None:
-                per_channel.setdefault(channel, []).append((b_val, t_val))
                 channel_history = (history or {}).get(channel) \
                     if isinstance(history, dict) else None
+                finite_history = []
+                for value in channel_history or []:
+                    try:
+                        numeric = float(value)
+                    except (TypeError, ValueError):
+                        continue
+                    if math.isfinite(numeric):
+                        finite_history.append(numeric)
+                naive_mase = None
+                if finite_history:
+                    naive = {channel: [finite_history[-1]] * len(truth[channel])}
+                    _, naive_detail = subset_metrics(
+                        metrics_module, truth, history, naive, [channel])
+                    naive_mase = ((naive_detail or {}).get(channel) or {}).get("MASE")
+                outcome = ("safety_preservation" if naive_mase is not None
+                           and math.isclose(t_val, naive_mase, rel_tol=0, abs_tol=1e-12)
+                           else "uplift" if naive_mase is not None and t_val < naive_mase
+                           else "regression" if naive_mase is not None and t_val > naive_mase
+                           else "unclassified")
+                paired_channel_records.append({
+                    "task_id": task_id, "channel": channel,
+                    "baseline_mase": b_val, "treatment_mase": t_val,
+                    "last_value_mase": naive_mase,
+                    "treatment_vs_last_value": outcome,
+                    "baseline_support": (base_support.get(task_id) or {}).get(
+                        channel, "unlabeled"),
+                    "treatment_support": (treat_support.get(task_id) or {}).get(
+                        channel, "unlabeled"),
+                })
+                per_channel.setdefault(channel, []).append((b_val, t_val))
                 if stable_scaled_error_denominator(channel_history):
                     per_channel_stable.setdefault(channel, []).append(
                         (b_val, t_val))
@@ -322,6 +352,13 @@ def main() -> int:
         "overall_stable_history": (summarise_pairs(stable_all)
                                    if stable_all else None),
         "records": record_rows,
+        "raw_paired_channel_records": paired_channel_records,
+        "outcome_counts_vs_last_value": {
+            label: sum(row["treatment_vs_last_value"] == label
+                       for row in paired_channel_records)
+            for label in ("uplift", "safety_preservation", "regression",
+                          "unclassified")
+        },
     }
     if args.output:
         output = Path(args.output)

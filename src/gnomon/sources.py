@@ -51,7 +51,10 @@ def _prometheus_url(reference: str) -> str:
     raise GnomonError("INVALID_PROMETHEUS_SOURCE", "Unsupported Prometheus source URI.")
 
 
-def materialize_prometheus(reference: str, *, timeout: float = 30.0) -> Path:
+def materialize_prometheus(
+    reference: str, *, timeout: float = 30.0,
+    allowed_hosts: set[str] | None = None,
+) -> Path:
     url = _prometheus_url(reference)
     parsed = urllib.parse.urlsplit(url)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
@@ -60,6 +63,13 @@ def materialize_prometheus(reference: str, *, timeout: float = 30.0) -> Path:
         raise GnomonError(
             "INVALID_PROMETHEUS_SOURCE",
             "Do not put credentials or fragments in a Prometheus URI; use GNOMON_PROMETHEUS_BEARER_TOKEN.",
+        )
+    if allowed_hosts is not None and parsed.hostname not in allowed_hosts:
+        raise GnomonError(
+            "PROMETHEUS_HOST_NOT_ALLOWED",
+            f"Prometheus host {parsed.hostname!r} is not in the governed "
+            "connector allowlist.",
+            {"host": parsed.hostname, "allowed_hosts": sorted(allowed_hosts)},
         )
     if parsed.path.rstrip("/") != "/api/v1/query_range":
         raise GnomonError(
@@ -130,3 +140,14 @@ def materialize_cli_source(reference: str) -> tuple[str, str | None]:
     if reference.startswith(("prom://", "prom+http://", "prom+https://")):
         return str(materialize_prometheus(reference)), "prometheus"
     return reference, None
+
+
+def materialize_agent_source(reference: str) -> tuple[str, str | None]:
+    """Resolve read-only agent connectors under an explicit host allowlist."""
+    if not reference.startswith(("prom://", "prom+http://", "prom+https://")):
+        return reference, None
+    configured = os.environ.get("GNOMON_PROMETHEUS_ALLOWED_HOSTS", "")
+    allowed = {item.strip() for item in configured.split(",") if item.strip()}
+    allowed.update({"localhost", "127.0.0.1", "::1"})
+    return str(materialize_prometheus(
+        reference, allowed_hosts=allowed)), "prometheus"

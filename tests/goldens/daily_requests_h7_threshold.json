@@ -37,7 +37,8 @@
         "linear_trend": 0.0,
         "window_average": 0.1390728476821192,
         "theta": 0.04194260485651183,
-        "ets": 0.002459530487144692
+        "ets": 0.002459530487144692,
+        "croston_sba": 0.23911432927815185
       },
       "test_scores": {
         "last_value": 0.06217616580310881,
@@ -47,7 +48,9 @@
         "window_average": null,
         "theta": null,
         "ets": null,
-        "chronos_bolt": null,
+        "croston_sba": null,
+        "chronos_bolt_mini": null,
+        "chronos_bolt_small": null,
         "flowstate": null,
         "moirai2_small": null,
         "moment_small": null,
@@ -270,7 +273,8 @@
           "linear_trend": 0.0,
           "window_average": 0.1390728476821192,
           "theta": 0.04194260485651183,
-          "ets": 0.002459530487144692
+          "ets": 0.002459530487144692,
+          "croston_sba": 0.23911432927815185
         },
         "test_scores": {
           "last_value": 0.06217616580310881,
@@ -280,7 +284,9 @@
           "window_average": null,
           "theta": null,
           "ets": null,
-          "chronos_bolt": null,
+          "croston_sba": null,
+          "chronos_bolt_mini": null,
+          "chronos_bolt_small": null,
           "flowstate": null,
           "moirai2_small": null,
           "moment_small": null,

@@ -40,6 +40,7 @@ def test_the_preferred_toml_example_loads(tmp_path):
     assert isinstance(config, GnomonConfig)
     assert config.models.statistical_candidates == [
         "drift", "linear_trend", "window_average", "theta", "ets",
+        "croston_sba",
     ]
 
 

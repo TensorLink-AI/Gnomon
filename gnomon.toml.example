@@ -3,7 +3,7 @@
 
 [models.statistical]
 enabled = true
-candidates = ["drift", "linear_trend", "window_average", "theta", "ets"]
+candidates = ["drift", "linear_trend", "window_average", "theta", "ets", "croston_sba"]
 
 [models.tsfm]
 candidates = []

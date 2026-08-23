@@ -311,6 +311,13 @@ class ForecastArtifact:
 # next without human help. This layer is what lets hosts self-correct — it
 # appreciates as models improve, because better models act on it better.
 REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
+    "ARTIFACT_INTEGRITY_ERROR": [
+        {"action": "restore_artifact", "description": "Restore the artifact from its original sealed copy or rerun the source computation; do not trust files whose integrity manifest disagrees."},
+    ],
+    "PROMETHEUS_HOST_NOT_ALLOWED": [
+        {"action": "allow_prometheus_host", "description": "Add the intended hostname to GNOMON_PROMETHEUS_ALLOWED_HOSTS, then retry the same read-only call."},
+        {"action": "use_local_export", "description": "Export the query to CSV and pass the local file without expanding network access."},
+    ],
     "INVALID_HORIZON": [
         {"action": "set_horizon", "description": "Pass a horizon of at least 1 period."},
     ],
@@ -718,6 +725,7 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "question_id": "intent", "synthesis_id": "intent",
     "resolved": "intent",
     "month": "intent", "state": "intent", "webhook": "intent",
+    "auto_score": "intent",
     "webhook_secret_env": "intent", "prometheus_rule_output": "intent",
     "prometheus_expression": "data",
     # -- data --------------------------------------------------------------

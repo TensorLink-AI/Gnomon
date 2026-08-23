@@ -14,6 +14,7 @@ import sys
 sys.path.insert(0, "src")
 
 from gnomon.tsfm import (
+    ChronosBoltAdapter,
     TSFMAdapter,
     TSFMUnavailable,
     available_tsfms,
@@ -25,6 +26,7 @@ from gnomon.tsfm import (
 )
 from gnomon.evaluation import evaluate
 from gnomon.runtime import capabilities
+from gnomon.toolspec import forecast_summary
 
 
 class TestRegistry:
@@ -40,6 +42,12 @@ class TestRegistry:
         assert "ttm" in names
         assert "moirai2_small" in names
         assert "moment_small" in names
+
+    def test_chronos_variants_keep_distinct_runtime_identity(self):
+        assert ChronosBoltAdapter("chronos_bolt_mini").name == "chronos_bolt_mini"
+        assert ChronosBoltAdapter("chronos_bolt_small").name == "chronos_bolt_small"
+        with pytest.raises(TSFMUnavailable):
+            ChronosBoltAdapter("chronos_bolt_typo")
 
     def test_unknown_adapter_raises(self):
         with pytest.raises(KeyError):
@@ -58,6 +66,35 @@ class TestRegistry:
 
 class TestGracefulDegradation:
     """Adapters without deps degrade gracefully."""
+
+    def test_fresh_install_response_has_exact_toto_on_ramp(
+        self, tmp_path, monkeypatch,
+    ):
+        from datetime import date, timedelta
+        from gnomon.runtime import forecast
+
+        monkeypatch.setattr("gnomon.tsfm.installed_tsfms", lambda: [])
+        monkeypatch.setattr(
+            "gnomon.tsfm_sandbox.sandbox_available_tsfms", lambda: [])
+        source = tmp_path / "series.csv"
+        source.write_text(
+            "timestamp,value\n" + "\n".join(
+                f"{(date(2026, 1, 1) + timedelta(days=index)).isoformat()},"
+                f"{100 + index}"
+                for index in range(40)) + "\n",
+            encoding="utf-8",
+        )
+        artifact, directory = forecast(
+            str(source), time_column="timestamp", target_column="value",
+            horizon=3, output=str(tmp_path / "out"),
+        )
+        payload = forecast_summary(artifact, directory)
+        assert payload["tsfm_on_ramp"]["command"] == \
+            "gnomon tsfm install toto2_4m"
+        assert payload["tsfm_on_ramp"]["mcp_tool_call"] == {
+            "name": "gnomon_install_tsfm",
+            "arguments": {"name": "toto2_4m"},
+        }
 
     def test_tsfm_candidates_empty_without_deps(self):
         # With no optional deps installed, candidates should be empty

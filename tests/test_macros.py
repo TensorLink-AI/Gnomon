@@ -212,6 +212,37 @@ def test_monitor_with_costs_gives_optimal_rule(tmp_path):
     assert risk_claims and risk_claims[0]["calibration_ref"] is not None
 
 
+@pytest.mark.parametrize("verb", ["decide", "monitor"])
+def test_probability_macros_refuse_out_of_band_forecast_coverage(
+    tmp_path, monkeypatch, verb,
+):
+    import gnomon.runtime as runtime_module
+
+    original = runtime_module.forecast
+
+    def miscalibrated(*args, **kwargs):
+        artifact, path = original(*args, **kwargs)
+        artifact.results[0].interval_coverage = 0.25
+        return artifact, path
+
+    monkeypatch.setattr(runtime_module, "forecast", miscalibrated)
+    common = dict(
+        input_path=str(_forecastable(tmp_path)), time_column="timestamp",
+        target_column="value", horizon=6, threshold=165.0,
+        output=str(tmp_path / verb), clock=CLOCK,
+    )
+    if verb == "decide":
+        payload, _ = decide(**common, actions=[{"name": "wait"}])
+        assert payload["evaluation"]["selected"] is None
+        support = payload["support_assessment"]
+        assert payload["scenario_probabilities"] is None
+    else:
+        payload, _ = monitor(**common, alert_cost=1.0, miss_cost=9.0)
+        assert payload["triggers"][0]["armed"] is False
+        support = payload["triggers"][0]["support_assessment"]
+    assert support["reasons"][0]["code"] == "interval_coverage_out_of_band"
+
+
 def test_decide_and_monitor_share_immutable_typed_answer_contract(tmp_path):
     source = str(_forecastable(tmp_path))
     question = [{"id": "trend", "verb": "predict", "target": "value",
@@ -283,3 +314,25 @@ def test_cli_investigate_decide_monitor(tmp_path, capsys):
     ]) == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["triggers"][0]["armed"] is True
+
+
+def test_cli_monitor_auto_scores_in_registry_not_temporal_store(
+        tmp_path, capsys, monkeypatch):
+    """The temporal-store override must never be reused as the registry DB."""
+    source = _forecastable(tmp_path)
+    temporal_store = tmp_path / "temporal-store"
+    temporal_store.mkdir()
+    registry = tmp_path / "tracking.sqlite"
+    monkeypatch.setenv("GNOMON_REGISTRY_PATH", str(registry))
+
+    assert main([
+        "monitor", "run", str(source), "--time", "timestamp",
+        "--target", "value", "--horizon", "6", "--threshold", "165",
+        "--alert-cost", "1", "--miss-cost", "9", "--project", "ops",
+        "--store-path", str(temporal_store),
+        "--output", str(tmp_path / "out"),
+    ]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["auto_scored_forecasts"] == []
+    assert registry.is_file()
+    assert temporal_store.is_dir()
