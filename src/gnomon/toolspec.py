@@ -1000,9 +1000,8 @@ def _brief_capabilities(full: dict[str, Any]) -> dict[str, Any]:
         "sections_available": sorted(full),
         "elided": sorted({path.split(".", 1)[0] for path in elided}),
         "note": (
-            "Brief view: every section and every capability name is "
-            "present; sections in `elided` omit prose/detail. Use format "
-            "'full' or request named sections for verbatim detail."
+            "Every section and capability name is present; `elided` omits "
+            "detail. Request format 'full' or named sections for detail."
         ),
     }
     return brief
