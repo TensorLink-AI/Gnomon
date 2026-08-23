@@ -324,6 +324,19 @@ gnomon eval compare --baseline results/tb-control/gnomonbench.jsonl \
                   --treatment results/tb-gnomon/gnomonbench.jsonl
 ```
 
+Compare multiple-choice reasoning at the individual question level, rather
+than using row `success` (completion on forecast tiers, all-correct on
+descriptive tiers):
+
+```bash
+python -m benchmarks.temporalbench.compare_choices \
+    --baseline results/tb-control --treatment results/tb-mcp \
+    --output results/tb-mcp/choice-comparison.json
+```
+
+This joins exact task-and-field identities, reports paired exact McNemar tests
+overall and by tier, and refuses incompatible benchmark targets.
+
 `--datasets` filters by source (e.g. `--datasets MIMIC`). Outputs:
 `summary.json` (per-tier choice accuracy and mean official forecast
 metrics — both over scored rows only, as their `*_scored_only` names

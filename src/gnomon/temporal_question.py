@@ -15,7 +15,7 @@ VERBS = frozenset({
 })
 PROPERTIES = frozenset({
     "level", "trend", "seasonality", "volatility", "regime", "extreme",
-    "dependence", "stationarity", "decomposition", "regression",
+    "disturbance", "dependence", "stationarity", "decomposition", "regression",
 })
 MEASURES = frozenset({
     "point", "slope", "period", "residual_scale", "marginal_variability",
@@ -35,7 +35,8 @@ _PROPERTY_ALIASES = {
     "variance": "volatility", "variability": "volatility",
     "noise": "volatility", "dispersion": "volatility",
     "changepoint": "regime", "shift": "regime",
-    "outlier": "extreme", "peak": "extreme",
+    "outlier": "disturbance", "anomaly": "disturbance", "spike": "disturbance",
+    "peak": "extreme",
     "relationship": "dependence", "correlation": "dependence",
 }
 

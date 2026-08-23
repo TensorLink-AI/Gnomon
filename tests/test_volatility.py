@@ -29,7 +29,7 @@ def test_fitted_executable_is_deterministic_and_self_identifying() -> None:
     assert set(first.diagnostics["qlike_scores"]) == {
         "constant", "recent", "ewma_slow", "ewma", "ewma_fast",
         "scale_trend", "robust_scale_trend", "regime_mixture",
-        "scale_momentum"}
+        "scale_momentum", "scale_momentum_long"}
     assert published["property_distribution"]["quantity"] == \
         "future_to_reference_residual_scale_ratio"
     assert abs(sum(published["direction_probabilities"].values()) - 1) < 1e-9

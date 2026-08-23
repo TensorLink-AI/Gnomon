@@ -1,5 +1,10 @@
 # Gnomon external benchmark evidence — 2026-08-22
 
+> Historical release. The newer
+> [2026-08-23 validation](../2026-08-23/README.md) supersedes its Gnomon
+> temporal-reasoning and TemporalBench results; the external benchmark rows
+> not rerun there remain scoped evidence from this release.
+
 This release contains aggregate results produced by the commits named in each
 result and audited on PR #77. The newest TemporalBench execution used product
 commit `29f7a3f` and was resummarized by the hardened harness at `8898cf2`.

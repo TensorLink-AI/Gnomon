@@ -62,9 +62,15 @@ def _quantile(values: list[float], probability: float) -> float:
     return float(ordered[index])
 
 
-def _momentum_signal(history: list[float]) -> tuple[bool, float]:
+def _momentum_signal(history: list[float], *, width: int | None = None
+                     ) -> tuple[bool, float]:
     """Robust recent log-scale slope from overlapping windows."""
-    width = max(24, min(48, len(history) // 5))
+    # Keep the diagnostic local enough to see a newly established variance
+    # regime.  A 48-point window mixes equal amounts of the old and new regime
+    # for a common half-horizon transition and systematically erases it.  The
+    # lower bound still leaves enough observations for robust MAD estimation.
+    width = (max(16, min(32, len(history) // 8)) if width is None
+             else max(16, min(int(width), max(16, len(history) // 4))))
     step = max(8, width // 2)
     if len(history) < width + 3 * step:
         return False, 0.0
@@ -81,7 +87,11 @@ def _momentum_signal(history: list[float]) -> tuple[bool, float]:
     adjacent = [math.log(points[index + 1][1] / points[index][1])
                 for index in range(len(points) - 1)]
     agreeing = sum(item * net > 0 for item in adjacent)
-    persistent = abs(net) >= .15 and agreeing >= 2
+    # Robust scale ratios from 16--32 observations vary materially even under
+    # a stationary process.  Require roughly a 35% net scale change before
+    # extrapolating momentum; weaker movement remains part of the calibrated
+    # distribution rather than becoming a directional forecast.
+    persistent = abs(net) >= .50 and agreeing >= 2
     return persistent, slope
 
 
@@ -151,9 +161,11 @@ def _predict(kind: str, history: list[float], horizon: int, season: int = 1) -> 
         weight = max(0.0, min(1.0, (evidence - .1) / .6))
         return math.exp((1 - weight) * math.log(baseline)
                         + weight * math.log(recent))
-    if kind == "scale_momentum":
-        persistent, slope = _momentum_signal(history)
-        width = max(24, min(48, len(history) // 5))
+    if kind in {"scale_momentum", "scale_momentum_long"}:
+        width = (max(16, min(32, len(history) // 8))
+                 if kind == "scale_momentum" else
+                 max(24, min(48, len(history) // 5)))
+        persistent, slope = _momentum_signal(history, width=width)
         recent = max(_scale(history[-width:]),
                      1e-12)
         if not persistent:
@@ -247,12 +259,12 @@ def fit_volatility_executable(
     numeric = [float(item) for item in values if math.isfinite(float(item))]
     errors = residuals(numeric, max(1, int(season)))
     candidates = (("constant", "recent", "ewma_slow", "ewma", "ewma_fast",
-                   "scale_trend", "robust_scale_trend", "regime_mixture",
-                   "scale_momentum",
+                  "scale_trend", "robust_scale_trend", "regime_mixture",
+                   "scale_momentum", "scale_momentum_long",
                    "seasonal_phase") if season > 1 else
                   ("constant", "recent", "ewma_slow", "ewma", "ewma_fast",
                    "scale_trend", "robust_scale_trend", "regime_mixture",
-                   "scale_momentum"))
+                   "scale_momentum", "scale_momentum_long"))
     # Very long requested horizons must not erase all historical evidence.
     # Validate on the longest disjoint proxy horizon the observed residual
     # history can support, then execute the fitted scale model at the real
@@ -263,8 +275,12 @@ def fit_volatility_executable(
     minimum_history = max(
         24, (2 if proxy_calibration else 3) * target_span,
         2 * max(1, season))
+    # Half-horizon origins provide enough distinct market/process states for
+    # directional calibration without peeking past any cutoff.  Targets may
+    # overlap, so downstream confidence still depends on effective fold count
+    # and conservative intervals; selection itself remains strictly causal.
     origins = list(range(minimum_history, len(errors) - target_span + 1,
-                         max(1, horizon)))
+                         max(1, target_span // 2)))
     losses: dict[str, list[float]] = {name: [] for name in candidates}
     qlikes: dict[str, list[float]] = {name: [] for name in candidates}
     direction_pairs: dict[str, list[tuple[str, str]]] = {
@@ -391,6 +407,11 @@ def fit_volatility_executable(
         and best_direction in direction_eligible else 0.0
     )
     momentum_detected, momentum_change = _momentum_signal(errors)
+    long_momentum_detected, long_momentum_change = _momentum_signal(
+        errors, width=max(24, min(48, len(errors) // 5)))
+    fallback_momentum = (
+        "scale_momentum" if momentum_detected else
+        "scale_momentum_long" if long_momentum_detected else chosen)
     direction_candidate = (
         best_direction if direction_brier_skill >= minimum_improvement
         and candidate_balanced.get(best_direction, 0.0) > 1 / 3
@@ -399,7 +420,7 @@ def fit_volatility_executable(
         # executable. Its support remains weak and its Brier skill is zero;
         # this publishes useful magnitude without laundering it into an
         # automated directional claim.
-        else "scale_momentum" if momentum_detected else chosen
+        else fallback_momentum
     )
     direction_prediction = max(
         _predict(direction_candidate, errors, horizon, season), 1e-12
@@ -457,16 +478,18 @@ def fit_volatility_executable(
     )
     policy = TemporalDecisionPolicy()
     decision = distribution.decide(policy)
-    strongest = str(decision["best_state"])
-    # A short history earns no prequential probability calibration, but the
-    # fitted scale executable still produces a real future/reference ratio.
-    # Publish that point state as the weak best estimate — the uniform
-    # probabilities, weak support and automation ineligibility make the
-    # missing calibration explicit — and reserve "uncertain" for the case
-    # where no reference ratio is computable at all.  An abstention where a
-    # meaningful estimate exists withholds information without adding honesty.
+    strongest = str(decision["probability_mode"])
+    # With three or more prequential probability observations the calibrated
+    # probability mode is the graduated best estimate.  Below that there is
+    # no calibrated directional evidence — but the fitted scale executable
+    # still produces a real future/reference ratio, so its point state is
+    # published as the weak best estimate: uniform probabilities, weak
+    # support, and automation ineligibility keep the missing calibration
+    # explicit.  "Uncertain" is reserved for histories where no reference
+    # ratio is computable at all; an abstention where a meaningful estimate
+    # exists withholds information without adding honesty.
     published_direction = (
-        strongest if decision["automation_eligible"] else
+        strongest if distribution.folds >= 3 else
         point_direction if direction_ratio is not None else "uncertain")
     return FittedVolatilityExecutable(
         candidate=chosen, scale=prediction, lower=max(0.0, lower),
@@ -508,9 +531,11 @@ def fit_volatility_executable(
             "direction_brier_skill": effective_brier_skill,
             "direction_momentum_detected": momentum_detected,
             "direction_momentum_log_change": momentum_change,
+            "direction_long_momentum_detected": long_momentum_detected,
+            "direction_long_momentum_log_change": long_momentum_change,
             "direction_publication_rule": (
-                "calibrated_mode_when_automation_eligible_else_weak_point_"
-                "state_when_ratio_computable"),
+                "calibrated_mode_when_folds_ge_3_else_weak_point_state_"
+                "when_ratio_computable"),
             "short_history_point_estimate": short_history_fallback,
             "short_history_estimator": (
                 "reference_tail_persistence_log_shrunk_half"

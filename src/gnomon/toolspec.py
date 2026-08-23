@@ -1117,7 +1117,7 @@ def _run_describe(arguments: dict[str, Any]) -> dict[str, Any]:
     from statistics import mean, median
 
     from .data import resolve_target_spec
-    from .operators import anomaly_score, changepoint_detection, seasonality_analysis
+    from .operators import anomaly_score, regime_detection, seasonality_analysis
     from .pipeline import load_stage
     from .temporal_profile import compact_temporal_profile, temporal_profile
 
@@ -1147,7 +1147,7 @@ def _run_describe(arguments: dict[str, Any]) -> dict[str, Any]:
                          for index, value in enumerate(values)) / denominator
                      if denominator else 0.0)
             seasonality = seasonality_analysis(values, loaded.frequency)
-            changes = changepoint_detection(timestamps, values)
+            changes = regime_detection(timestamps, values)
             anomalies = anomaly_score(
                 timestamps, values, season=int(seasonality.get("period") or 1))
             notable_anomalies = sorted(

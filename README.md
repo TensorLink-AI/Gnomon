@@ -143,6 +143,24 @@ is the current default; `full` remains explicit opt-in for administration and
 deep audit. We do not publish workflow accuracy or token claims until the
 underlying complete run and its provenance are retained as citable evidence.
 
+## Measured evidence
+
+On a matched 80-case TemporalBench sample, the same DeepSeek V4 Flash model
+answered **35.76%** of 302 temporal-choice questions correctly with Gnomon's
+Evidence surface, versus **28.48%** directly. Gnomon fixed 64 choices and broke
+42 (two-sided exact McNemar *p* = 0.0409). All 80 tasks completed, with one
+observed tool call at both median and p95, and the governed primary forecast
+remained immutable.
+
+This is evidence of a temporal-reasoning lift on that sample, not a universal
+accuracy claim. Forecast superiority was not established: mean sMAPE was
+10.90 with Gnomon and 12.31 directly (21 wins, 19 losses, *p* = 0.875), while
+paired per-channel MASE also showed no significant overall difference. The
+complete result, exact revisions, dataset identity, statistical tests, and
+limitations are in the
+[2026-08-23 benchmark release](results/benchmark-releases/2026-08-23/README.md).
+Volatility direction remains diagnostic rather than graduated.
+
 ## Why this needs an execution layer
 
 Wire an LLM agent to your operational data and it will, sooner or later:
@@ -491,7 +509,7 @@ as explicit tool arguments rather than reading ambient project config.
 | [Development](docs/development.md) | Repository layout, tests, goldens, and contribution constraints |
 | [CI/CD](docs/ci-cd.md) | Tests, PyPI trusted publishing, and releases |
 | [Agent evaluation](docs/agent-evaluation.md) | Measure agent task uplift with and without Gnomon |
-| [External benchmarks](benchmarks/README.md) | Runnable adapters for published time-series reasoning benchmarks (CiK, AnomLLM) with OpenRouter-served controls |
+| [External benchmarks](benchmarks/README.md) | Runnable adapters and citable releases for TemporalBench, CiK, AnomLLM, MTBench, and TimeSage-MT with matched-provider controls |
 
 `CHANGELOG.md` records what each release added; `COMPATIBILITY.md` states the
 current compatibility policy and retired entry points.
@@ -549,6 +567,27 @@ branch-structured system spanning traditional analysis (`forecast`,
 difference from the surveyed systems is where verification lives: there it
 is typically LLM self-critique; here the verifier is deterministic code,
 and the LLM is structurally unable to override it.
+
+The design tracks measured findings in that literature rather than
+intuition. That general-purpose LLMs mishandle numerical temporal
+reasoning is an empirical result, not an assumption
+([*Language Models Still Struggle to Zero-shot Reason about Time
+Series*](https://aclanthology.org/2024.findings-emnlp.201/), EMNLP 2024).
+That naive methods are hard to beat — and therefore worth mandating as
+baselines — is the point of [*Are Language Models Actually Useful for
+Time Series Forecasting?*](https://openreview.net/forum?id=DV15UbHCY1)
+(NeurIPS 2024) and the [context-parroting
+baseline](https://arxiv.org/abs/2505.11349). That evaluation-time
+future leakage silently inflates results is the warning of [*Time
+Travel is Cheating*](https://arxiv.org/abs/2505.11065). Gnomon's answer
+to each is structural rather than behavioural: baselines that cannot be
+configured out, an `as_of` enforced by the snapshot, and a verifier the
+model cannot argue with. And rather than inventing its own yardsticks,
+`benchmarks/` ships runnable adapters for the field's published tasks —
+[Context is Key](https://arxiv.org/abs/2410.18959) (ICML 2025) for
+context-aware forecasting and
+[AnomLLM](https://github.com/rose-stl-lab/AnomLLM) for anomaly
+reasoning — so its claims can be scored on the literature's own terms.
 
 ## Current limits
 

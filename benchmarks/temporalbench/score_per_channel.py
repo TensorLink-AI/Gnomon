@@ -43,6 +43,8 @@ from collections import OrderedDict
 from pathlib import Path
 from statistics import median
 
+from benchmarks.common.manifest import incompatibilities, read_manifest
+from benchmarks.report import sign_test
 from .tasks import load_official_metrics
 
 
@@ -151,14 +153,39 @@ def stable_scaled_error_denominator(history: object) -> bool:
     return scale > 1e-6 * level
 
 
+def summarise_pairs(pairs: list[tuple[float, float]]) -> dict[str, object]:
+    """Summarise paired errors, including an exact directional test."""
+    baseline = [pair[0] for pair in pairs]
+    treatment = [pair[1] for pair in pairs]
+    paired_baseline = {str(index): pair[0] for index, pair in enumerate(pairs)}
+    paired_treatment = {str(index): pair[1] for index, pair in enumerate(pairs)}
+    test = sign_test(paired_baseline, paired_treatment, lower_is_better=True)
+    return {
+        "n": len(pairs),
+        "baseline_median": round(median(baseline), 4),
+        "treatment_median": round(median(treatment), 4),
+        "treatment_wins": test["treatment_wins"],
+        "treatment_losses": test["treatment_losses"],
+        "ties": test["ties"],
+        "paired_sign_p_value": test["p_value"],
+        "near_constant_denominators_excluded": 0,
+    }
+
+
 def main() -> int:
     args = parse_args()
     data_dir = Path(args.data_dir).expanduser()
     metrics_module = load_official_metrics(data_dir)
 
     truth_by_id = load_truth(data_dir)
-    base, base_support = load_forecasts(Path(args.baseline).expanduser())
-    treat, treat_support = load_forecasts(Path(args.treatment).expanduser())
+    baseline_dir = Path(args.baseline).expanduser()
+    treatment_dir = Path(args.treatment).expanduser()
+    problems = incompatibilities(read_manifest(baseline_dir),
+                                 read_manifest(treatment_dir))
+    if problems:
+        raise ValueError("incompatible runs: " + "; ".join(problems))
+    base, base_support = load_forecasts(baseline_dir)
+    treat, treat_support = load_forecasts(treatment_dir)
 
     shared_ids = sorted(set(base) & set(treat) & set(truth_by_id))
     per_channel: dict[str, list[tuple[float, float]]] = {}
@@ -216,26 +243,40 @@ def main() -> int:
                     per_channel_stable.setdefault(channel, []).append(
                         (b_val, t_val))
 
-    def summarise(pairs):
-        b = [p[0] for p in pairs]
-        t = [p[1] for p in pairs]
-        wins = sum(1 for x, y in pairs if y < x)
-        return {
-            "n": len(pairs),
-            "baseline_median": round(median(b), 4),
-            "treatment_median": round(median(t), 4),
-            "treatment_wins": wins,
-            "near_constant_denominators_excluded": 0,
-        }
-
     def stable_summary(channel, pairs):
-        result = summarise(pairs)
+        result = summarise_pairs(pairs)
         stable_pairs = per_channel_stable.get(channel, [])
         result["near_constant_denominators_excluded"] = (
             len(pairs) - len(stable_pairs))
-        result["stable_history"] = (summarise(stable_pairs)
+        result["stable_history"] = (summarise_pairs(stable_pairs)
                                     if stable_pairs else None)
         return result
+
+    all_pairs = [p for pairs in per_channel.values() for p in pairs]
+    stable_all = [pair for pairs in per_channel_stable.values()
+                  for pair in pairs]
+
+    def mix_line(mix: dict[str, int]) -> str:
+        return ", ".join(f"{label} {count}"
+                         for label, count in sorted(mix.items())) or "(none)"
+
+    result = {
+        "baseline_code_revision": read_manifest(baseline_dir).get(
+            "code_revision"),
+        "treatment_code_revision": read_manifest(treatment_dir).get(
+            "code_revision"),
+        "coverage": coverage,
+        "support_mix": {"baseline": base_mix, "treatment": treat_mix},
+        "per_channel": {c: stable_summary(c, p)
+                        for c, p in per_channel.items()},
+        "overall": summarise_pairs(all_pairs) if all_pairs else None,
+        "overall_stable_history": (summarise_pairs(stable_all)
+                                   if stable_all else None),
+        "records": record_rows,
+    }
+    if args.json:
+        print(json.dumps(result, indent=2))
+        return 0
 
     total_channels = sum(coverage.values())
     print(f"records compared: {len(record_rows)} "
@@ -252,26 +293,14 @@ def main() -> int:
         print(f"{channel:16s} {s['n']:4d} {s['baseline_median']:11.4f} "
               f"{s['treatment_median']:11.4f} "
               f"{s['treatment_wins']:>6d}/{s['n']:<4d}")
-
-    all_pairs = [p for pairs in per_channel.values() for p in pairs]
-    if all_pairs:
-        s = summarise(all_pairs)
-        print(f"\n{'ALL':16s} {s['n']:4d} {s['baseline_median']:11.4f} "
-              f"{s['treatment_median']:11.4f} "
-              f"{s['treatment_wins']:>6d}/{s['n']:<4d}")
-        stable_all = [pair for pairs in per_channel_stable.values()
-                      for pair in pairs]
-        if stable_all:
-            stable = summarise(stable_all)
-            print(f"{'ALL stable-scale':16s} {stable['n']:4d} "
-                  f"{stable['baseline_median']:11.4f} "
-                  f"{stable['treatment_median']:11.4f} "
-                  f"{stable['treatment_wins']:>6d}/{stable['n']:<4d}")
-
-    def mix_line(mix: dict[str, int]) -> str:
-        return ", ".join(f"{label} {count}"
-                         for label, count in sorted(mix.items())) or "(none)"
-
+    for label, summary in (("ALL", result["overall"]),
+                           ("ALL stable-scale",
+                            result["overall_stable_history"])):
+        if summary:
+            print(f"{label:16s} {summary['n']:4d} "
+                  f"{summary['baseline_median']:11.4f} "
+                  f"{summary['treatment_median']:11.4f} "
+                  f"{summary['treatment_wins']:>6d}/{summary['n']:<4d}")
     print()
     print("support-label mix over the compared channel scores "
           "(best_effort = disclosed fallback rows carrying NO RELIABLE "
@@ -279,15 +308,6 @@ def main() -> int:
           "records no support labels):")
     print(f"  baseline:  {mix_line(base_mix)}")
     print(f"  treatment: {mix_line(treat_mix)}")
-
-    if args.json:
-        print(json.dumps({
-            "coverage": coverage,
-            "support_mix": {"baseline": base_mix, "treatment": treat_mix},
-            "per_channel": {c: stable_summary(c, p)
-                            for c, p in per_channel.items()},
-            "records": record_rows,
-        }, indent=2))
     return 0
 
 

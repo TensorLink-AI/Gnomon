@@ -1,0 +1,66 @@
+{
+  "release_metadata": {
+    "arm": "multi-seed-general-properties",
+    "benchmark": "propertybench",
+    "configuration_identity": "precommitted 55% balanced-accuracy gate; pooled row-level classifications",
+    "dataset_identity": "independent seeds 9100, 94721, 27183; 2016 future-process-volatility cases",
+    "evaluated_commit": "5c362c2",
+    "harness_commit": "5c362c2",
+    "notes": [
+      "Pooled balanced accuracy 56.81%; the marginal 54.84% seed is retained in the report rather than excluded."
+    ],
+    "scope": "full",
+    "source": "results/defensible-temporal-20260823/propertybench-multiseed.json",
+    "source_sha256": "b07166ce1dd7239dac82546933ff998cbad522b46523fcba979b12ee39e15f32",
+    "status": "complete"
+  },
+  "summary": {
+    "balanced_accuracy": 0.5681092623423336,
+    "benchmark": "propertybench",
+    "cases": 2016,
+    "class_recall": {
+      "decreased": 0.5113314447592068,
+      "increased": 0.5211009174311927,
+      "stable": 0.6718954248366014
+    },
+    "constituent_runs": [
+      {
+        "balanced_accuracy": 0.5484374662881695,
+        "cases": 672,
+        "code_revision": "5c362c2",
+        "graduated": false,
+        "path": "<absolute-path-redacted>",
+        "replicates": 24,
+        "seed": 9100
+      },
+      {
+        "balanced_accuracy": 0.603721444017165,
+        "cases": 672,
+        "code_revision": "5c362c2",
+        "graduated": true,
+        "path": "<absolute-path-redacted>",
+        "replicates": 24,
+        "seed": 94721
+      },
+      {
+        "balanced_accuracy": 0.5523427418720297,
+        "cases": 672,
+        "code_revision": "5c362c2",
+        "graduated": true,
+        "path": "<absolute-path-redacted>",
+        "replicates": 24,
+        "seed": 27183
+      }
+    ],
+    "evaluated_code_revision": "5c362c2",
+    "gate": {
+      "name": "balanced_accuracy_at_least_55pct",
+      "passed": true,
+      "threshold": 0.55
+    },
+    "independent_seeds": 3,
+    "lane": "future_process_volatility",
+    "schema_version": "0.1",
+    "summarized_by_code_revision": "5c362c2"
+  }
+}

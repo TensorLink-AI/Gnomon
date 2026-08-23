@@ -22,6 +22,7 @@ from benchmarks.temporalbench.scoring import (
 )
 from benchmarks.temporalbench.score_per_channel import (
     stable_scaled_error_denominator,
+    summarise_pairs,
 )
 from benchmarks.temporalbench.run_temporalbench import (
     primary_forecast_immutability,
@@ -34,6 +35,13 @@ def test_scaled_error_denominator_flags_near_constant_history():
     assert stable_scaled_error_denominator([10.0, 10.0, 10.0]) is False
     assert stable_scaled_error_denominator([10.0, 10.5, 9.5, 11.0]) is True
     assert stable_scaled_error_denominator([None, 10.0, None]) is False
+
+
+def test_per_channel_summary_reports_paired_direction_and_significance():
+    result = summarise_pairs([(10.0, 5.0)] * 8)
+    assert result["treatment_wins"] == 8
+    assert result["treatment_losses"] == 0
+    assert result["paired_sign_p_value"] < .01
 
 
 def test_forecast_target_map_preserves_panel_channel_identities():

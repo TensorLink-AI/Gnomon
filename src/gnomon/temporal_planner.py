@@ -33,6 +33,7 @@ _PREDICTIVE_REQUIREMENTS = {
     "volatility": ("rolling_origin_scale_fit",),
     "regime": ("positive_transition_evidence",),
     "extreme": ("tail_calibration",),
+    "disturbance": ("observed_disturbance_cannot_be_predicted",),
     "dependence": ("paired_rolling_origin_fit",),
 }
 
@@ -43,6 +44,7 @@ _OBSERVED_REQUIREMENTS = {
     "volatility": ("detrended_observed_windows",),
     "regime": ("observed_changepoint_evidence",),
     "extreme": ("observed_tail_evidence",),
+    "disturbance": ("observed_anomaly_and_regime_evidence",),
     "dependence": ("paired_observations",),
 }
 
