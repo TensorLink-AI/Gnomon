@@ -4,6 +4,7 @@ WORKDIR /build
 RUN python -m pip install --no-cache-dir build
 COPY pyproject.toml README.md LICENSE ./
 COPY src ./src
+COPY skills ./skills
 RUN python -m build --wheel
 
 FROM python:3.12-slim AS runtime
@@ -19,4 +20,3 @@ USER gnomon
 WORKDIR /data
 ENTRYPOINT ["gnomon"]
 CMD ["capabilities"]
-

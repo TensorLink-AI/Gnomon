@@ -38,6 +38,7 @@ CATALOG: dict[str, BenchmarkContract] = {
     "admissionbench": BenchmarkContract("policy", "production model-admission policy", "Held-out admission regret and harmful-admission control."),
     "adjudicationbench": BenchmarkContract("policy", "production temporal-evidence adjudicator", "Authority/conflict invariants, not answer quality."),
     "effectbench": BenchmarkContract("safety_contract", "production effect registry, tracking, and decision runtime", "Effect transfer, false influence, calibration, and decision regret."),
+    "boundarybench": BenchmarkContract("safety_contract", "production MCP response boundary", "Canonical immutability, fact traceability, sufficiency, rejection repair, and redundant-call attribution; not reasoning accuracy."),
 }
 
 

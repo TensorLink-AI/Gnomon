@@ -1,0 +1,48 @@
+services:
+  telemetry:
+    image: python:3.12-slim
+    command: ["python", "/demo/receiver.py"]
+    volumes:
+      - ./receiver.py:/demo/receiver.py:ro
+      - webhook-events:/events
+    ports: ["9187:9187"]
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    command: ["--config.file=/etc/prometheus/prometheus.yml"]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports: ["9090:9090"]
+    depends_on: [telemetry]
+
+  volume-init:
+    image: busybox:1.37
+    command: ["sh", "-c", "chown -R 999:999 /output /state && touch /tmp/ready && tail -f /dev/null"]
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/ready"]
+      interval: 1s
+      timeout: 1s
+      retries: 10
+    volumes:
+      - monitor-output:/output
+      - monitor-state:/state
+
+  monitor:
+    build: ../..
+    entrypoint: ["python", "/demo/runner.py"]
+    volumes:
+      - ./runner.py:/demo/runner.py:ro
+      - monitor-output:/output
+      - monitor-state:/state
+    depends_on:
+      prometheus:
+        condition: service_started
+      telemetry:
+        condition: service_started
+      volume-init:
+        condition: service_healthy
+
+volumes:
+  monitor-output:
+  monitor-state:
+  webhook-events:

@@ -22,6 +22,16 @@ development-family view. This is the directional graduation surface;
 unbalanced raw accuracy remains a disclosed diagnostic, not an optimization
 target.
 
+Schema 0.4 adds a short-history suite: prefixes of 28–60 points across
+flat, ramping, and abrupt-transition regimes, each with a sealed 128-draw
+oracle for the future/reference residual-scale ratio. These histories are
+too short for rolling-origin folds, so the suite measures the executable's
+short-history fallback (reference-tail persistence) against two honest
+baselines: `abstain_all` — the pre-0.4 behaviour of answering "uncertain"
+on every short history, which scores zero — and `always_stable`, the
+persistence null. The fallback's weak best estimate must beat both; its
+`uncertain_rate` is reported so over-abstention cannot silently return.
+
 The product contract is deliberately broader than the benchmark: the fitted
 executable publishes a continuous future/reference residual-scale
 distribution, probabilities over decreased/stable/increased, and a separate
@@ -29,4 +39,6 @@ decision policy. Weak best estimates remain usable for exploration, but only
 out-of-fold probability skill and calibration can make a categorical answer
 automation-eligible.
 
-Run `python3 benchmarks/volatilitybench/run_volatilitybench.py`.
+From the repository root, run
+`python3 -m benchmarks.volatilitybench.run_volatilitybench`. Running it as a
+module keeps the repository package importable in a clean shell.

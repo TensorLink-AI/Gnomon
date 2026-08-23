@@ -599,6 +599,8 @@ def main() -> int:
     # / abstain) so the exits stay separable in analysis.
     route_mix: dict[str, int] = {}
     mcp_calls_seen: list[int] = []
+    mcp_required_calls: list[int] = []
+    mcp_redundant_calls = 0
     mcp_run_tokens = 0
     mcp_schema_bytes: set[int] = set()
     mcp_rows_answered = 0
@@ -621,8 +623,11 @@ def main() -> int:
     context_events_rejected = context_events_applied = 0
     context_events_scenario_only = 0
     covariate_channels_considered = covariate_channels_admitted = 0
-    infrastructure_retries = 0
-    infrastructure_failures: dict[str, int] = {}
+    infrastructure_retries = int(
+        prior_summary.get("infrastructure_retries") or 0) if args.resume else 0
+    infrastructure_failures: dict[str, int] = dict(
+        prior_summary.get("infrastructure_failures_retried") or {}
+    ) if args.resume else {}
     terminal_errors: dict[str, int] = {}
     resumed_rows = 0
     channels_abstained = 0
@@ -858,6 +863,9 @@ def main() -> int:
         mcp_info = outcome.get("mcp") or {}
         if mcp_info:
             mcp_calls_seen.append(int(mcp_info.get("calls", 0)))
+            mcp_required_calls.append(int(mcp_info.get(
+                "surface_required_calls", mcp_info.get("calls", 0))))
+            mcp_redundant_calls += int(mcp_info.get("redundant_calls", 0))
             mcp_run_tokens += int(mcp_info.get("run_tokens", 0))
             compiler_calls += int(mcp_info.get("compiler_calls", 0))
             compiler_receipts_reused += int(bool(
@@ -1103,6 +1111,11 @@ def main() -> int:
             "calls_median": sorted(mcp_calls_seen)[len(mcp_calls_seen) // 2],
             "calls_p95": sorted(mcp_calls_seen)[
                 max(0, (95 * len(mcp_calls_seen) + 99) // 100 - 1)],
+            "surface_required_calls_mean": round(
+                sum(mcp_required_calls) / len(mcp_required_calls), 3),
+            "redundant_calls_total": mcp_redundant_calls,
+            "redundant_calls_mean": round(
+                mcp_redundant_calls / len(mcp_calls_seen), 3),
             "schema_bytes": sorted(mcp_schema_bytes),
             "rows_answered": mcp_rows_answered,
             "rows_attempted": len(mcp_calls_seen),

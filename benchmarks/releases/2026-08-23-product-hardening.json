@@ -1,0 +1,96 @@
+{
+  "release": "2026-08-23-product-hardening",
+  "output_dir": "results/benchmark-releases/2026-08-23-product-hardening",
+  "benchmarks": [
+    {
+      "benchmark": "boundarybench",
+      "arm": "production-boundary-seed-20260823",
+      "scope": "full",
+      "source": "results/boundarybench-hardening-2d14967/seed-20260823/summary.json",
+      "file": "boundarybench-seed-20260823.json",
+      "status": "graduated",
+      "evaluated_commit": "2d14967",
+      "harness_commit": "2d14967",
+      "dataset_identity": "BoundaryBench synthetic contract corpus seed=20260823 cases=100",
+      "configuration_identity": "real verb plus generated adversarial contract cases; every gate mutation-tested"
+    },
+    {
+      "benchmark": "boundarybench",
+      "arm": "production-boundary-seed-94721",
+      "scope": "full",
+      "source": "results/boundarybench-hardening-2d14967/seed-94721/summary.json",
+      "file": "boundarybench-seed-94721.json",
+      "status": "graduated",
+      "evaluated_commit": "2d14967",
+      "harness_commit": "2d14967",
+      "dataset_identity": "BoundaryBench synthetic contract corpus seed=94721 cases=100",
+      "configuration_identity": "real verb plus generated adversarial contract cases; every gate mutation-tested"
+    },
+    {
+      "benchmark": "boundarybench",
+      "arm": "production-boundary-seed-27183",
+      "scope": "full",
+      "source": "results/boundarybench-hardening-2d14967/seed-27183/summary.json",
+      "file": "boundarybench-seed-27183.json",
+      "status": "graduated",
+      "evaluated_commit": "2d14967",
+      "harness_commit": "2d14967",
+      "dataset_identity": "BoundaryBench synthetic contract corpus seed=27183 cases=100",
+      "configuration_identity": "real verb plus generated adversarial contract cases; every gate mutation-tested"
+    },
+    {
+      "benchmark": "temporalbench",
+      "arm": "deepseek-control",
+      "scope": "subset",
+      "source": "results/temporalbench-hardening-2d14967/merged-control/summary.json",
+      "file": "temporalbench-control.json",
+      "status": "complete",
+      "evaluated_commit": "2d14967",
+      "harness_commit": "2d14967",
+      "dataset_identity": "official labeled split; preregistered matched 80-case T2/T4 sample; 240 choices and 480 channels",
+      "configuration_identity": "DeepSeek V4 Flash 0731 via Engy; temperature=0; direct official prompt; bounded infrastructure retry"
+    },
+    {
+      "benchmark": "temporalbench",
+      "arm": "gnomon-evidence",
+      "scope": "subset",
+      "source": "results/temporalbench-hardening-2d14967/merged-evidence/summary.json",
+      "file": "temporalbench-evidence.json",
+      "status": "complete",
+      "evaluated_commit": "2d14967",
+      "harness_commit": "2d14967",
+      "dataset_identity": "official labeled split; preregistered matched 80-case T2/T4 sample; 240 choices and 480 channels",
+      "configuration_identity": "DeepSeek V4 Flash 0731 via Engy; temperature=0; Evidence MCP; compiled questions/context; bounded retry"
+    },
+    {
+      "benchmark": "temporalbench-forecast",
+      "arm": "gnomon-evidence-vs-deepseek",
+      "scope": "subset",
+      "source": "results/temporalbench-hardening-2d14967/matched-report.json",
+      "file": "matched-report.json",
+      "status": "complete",
+      "evaluated_commit": "2d14967",
+      "harness_commit": "2d14967",
+      "dataset_identity": "80 matched official T2/T4 forecast tasks",
+      "configuration_identity": "paired official row sMAPE with exact sign test"
+    },
+    {
+      "benchmark": "temporalbench-channel-forecast",
+      "arm": "gnomon-evidence-vs-deepseek",
+      "scope": "subset",
+      "source": "results/temporalbench-hardening-2d14967/channel-comparison.json",
+      "file": "channel-comparison.json",
+      "status": "complete",
+      "evaluated_commit": "2d14967",
+      "harness_commit": "2d14967",
+      "dataset_identity": "480 paired channels from the official matched T2/T4 sample",
+      "configuration_identity": "official per-channel MASE; last-value decomposition; exact paired sign tests"
+    }
+  ],
+  "not_included": [
+    {
+      "benchmark": "temporalbench-superiority",
+      "reason": "Choice, row sMAPE, and per-channel MASE differences versus direct DeepSeek were not statistically significant."
+    }
+  ]
+}

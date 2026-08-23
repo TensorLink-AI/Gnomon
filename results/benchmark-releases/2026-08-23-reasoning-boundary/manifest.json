@@ -1,0 +1,94 @@
+{
+  "benchmarks": [
+    {
+      "arm": "reasoning-boundary-seed-20260823",
+      "benchmark": "boundarybench",
+      "bytes": 958,
+      "file": "boundarybench/seed-20260823.json",
+      "scope": "full",
+      "sha256": "45569c04593156b78edbf625308c8af9f146f67b0ca3cc5c8d0c97287ef587ab",
+      "status": "graduated"
+    },
+    {
+      "arm": "reasoning-boundary-seed-94721",
+      "benchmark": "boundarybench",
+      "bytes": 946,
+      "file": "boundarybench/seed-94721.json",
+      "scope": "full",
+      "sha256": "ae856bf0d670a47817780e78fc2058f058db48645817678296d00501c38f29d9",
+      "status": "graduated"
+    },
+    {
+      "arm": "reasoning-boundary-seed-27183",
+      "benchmark": "boundarybench",
+      "bytes": 946,
+      "file": "boundarybench/seed-27183.json",
+      "scope": "full",
+      "sha256": "754cc2a434e968a19e9c53745b4b892acabb12037c1f8a8f1e5a2dca602b04b4",
+      "status": "graduated"
+    },
+    {
+      "arm": "deepseek-control",
+      "benchmark": "temporalbench",
+      "bytes": 5188,
+      "file": "temporalbench-control/summary.json",
+      "scope": "subset",
+      "sha256": "800a614529728cf7bf39451a1bb943f20492682d1e87f8ccc25482529649bf27",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-evidence",
+      "benchmark": "temporalbench",
+      "bytes": 7647,
+      "file": "temporalbench-evidence/summary.json",
+      "scope": "subset",
+      "sha256": "78d7a615ad62ead07f9b8f368c833fd3bffbbfa7acd22adb38346faefabbdbe5",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-evidence-vs-deepseek",
+      "benchmark": "temporalbench-choice",
+      "bytes": 2151,
+      "file": "choice-comparison.json",
+      "scope": "subset",
+      "sha256": "906f8f29a80f2b8098ce95799130f26676ad2a0dd73881bdbf4c53bed5780fb6",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-evidence-vs-deepseek",
+      "benchmark": "temporalbench-forecast",
+      "bytes": 2043,
+      "file": "matched-report.json",
+      "scope": "subset",
+      "sha256": "cde5ca93eb141745f402bf5f804b7946fd8a8231fb7465500e3350b58e6eab8c",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-evidence-vs-deepseek",
+      "benchmark": "temporalbench-channel-forecast",
+      "bytes": 52929,
+      "file": "channel-comparison.json",
+      "scope": "subset",
+      "sha256": "16eb461b8e4c18081bf6ca6a0721dc0efafdb988d3d01d49d779f9df78703fcf",
+      "status": "complete"
+    }
+  ],
+  "curated_by_commit": "91082ab1fa05aa3b8fce02610d95b3b0a256dc4f",
+  "not_included": [
+    {
+      "benchmark": "boundarybench-reasoning-accuracy",
+      "reason": "BoundaryBench validates safety contracts and is not evidence of temporal reasoning or forecast accuracy."
+    },
+    {
+      "benchmark": "temporalbench-superiority",
+      "reason": "Choice and row-level sMAPE differences are not statistically significant; the per-channel MASE regression is disclosed."
+    }
+  ],
+  "policy": {
+    "aggregate_only": true,
+    "raw_runs_are_ci_artifacts": true,
+    "smoke_results_are_not_full_results": true
+  },
+  "release": "2026-08-23-reasoning-boundary",
+  "schema_version": "1.1"
+}

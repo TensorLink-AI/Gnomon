@@ -62,8 +62,12 @@ def test_forecast_selects_drift_and_writes_complete_artifact(tmp_path: Path) -> 
     assert result.forecast[0]["point"] == pytest.approx(130.0)
     assert set(path.name for path in directory.iterdir()) == {
         "artifact.json", "forecast.csv", "evidence.jsonl", "summary.md",
-        "lineage.json",
+        "lineage.json", "report.html",
     }
+    report = (directory / "report.html").read_text(encoding="utf-8")
+    assert "<svg" in report
+    assert "drift" in report
+    assert "https://" not in report and "http://" not in report
     persisted = json.loads((directory / "artifact.json").read_text())
     assert persisted["task"]["schema"]["time_column"] == "timestamp"
     assert persisted["evidence"][0]["payload"]["partitioning"].startswith("selection")

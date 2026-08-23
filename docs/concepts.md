@@ -423,6 +423,25 @@ unvalidated assumption remains conditional and cannot earn synthesis authority.
 Evidence weights rank receipts but are never presented as probabilities. A
 probability is exposed only when a fitted executable supplied its calibration.
 
+The same compact argument shape applies to every public verb, not only a typed
+temporal question: canonical answer, evidence `because`, evidence `against`,
+what remains `unknown`, and `what_would_flip`. Quotable facts carry JSON-pointer
+source fields and are checked before publication. A `sufficiency` block says
+which questions the response already answers and when another tool call adds no
+evidence; redundant calls after that point are measured as host policy rather
+than charged to the engine's minimum surface.
+
+Decision thresholds are explicit inputs through bounded `conservative`,
+`standard`, and `exploratory` profiles (or equivalently bounded fields). Even
+the exploratory profile retains minimum fold and discrimination floors.
+
+Separately labelled model synthesis is stored beside the canonical answer and
+never over it. Its evidence references and later outcome score remain separate.
+Resolved receipts can be exported with `gnomon-supervision`; export requires
+explicit consent and a private salt, hashes identities, excludes raw series,
+paths, context and continuous operational values, and supports a created-at
+boundary for temporal train/evaluation splits.
+
 ## Model-neutral forecast boundary
 
 Built-in statistical models, in-process TSFMs, isolated subprocess models, and

@@ -2,6 +2,65 @@
 
 ## Unreleased
 
+- **Production operating loop.** Every immutable artifact now includes an
+  offline `report.html`; project history has a one-command Markdown/HTML
+  track-record report. CLI-only Prometheus range ingestion and bounded stdin
+  ingestion feed the same bitemporal execution path. `gnomon monitor run`
+  records content-addressed events durably before optional signed webhook
+  delivery, retries failures without duplicating delivered events, and can
+  export a Prometheus-compatible static threshold rule. A Compose runbook
+  exercises the complete Prometheus-to-webhook loop.
+
+- **Baseline-safe publication and falsifiable boundaries.** Candidate
+  publication must now clear aligned WAPE stability and fold-local scaled
+  error; near-constant denominators fall back to the robust baseline rather
+  than manufacturing large scaled-error claims. Per-channel reports price
+  abstentions as last-value and expose publication yield. Boundary responses
+  reject malformed collection fields without crashing, derive sufficiency
+  from the requested verb, point triage facts at their real source, and give
+  every uncertain path a recovery or terminal result. BoundaryBench now runs
+  a real verb response and proves every gate fails under mutation.
+  On fold-starved histories, the same one holdout is no longer used to rank
+  structured baselines: the robust last-value candidate is published unless
+  repeatable folds or separately labelled transfer evidence exist.
+
+- **Installable trust checks.** The wheel exposes `gnomon self-check leakage`,
+  a dependency-free generated late-revision check over the installed
+  snapshot mechanism. CI times wheel install to first runtime response and
+  enforces the documented 60-second budget.
+
+- **One source-addressed reasoning boundary.** Every public verb now projects
+  its immutable result as `because / against / unknown / what_would_flip`,
+  names the source field for each quotable fact, states when further calls add
+  nothing, and returns actionable typed rejection. Decision policies are
+  public but bounded. Separately labelled LLM synthesis has independent
+  immutable receipts and outcome scores, and resolved supervision data can be
+  exported only with explicit consent through a de-identified temporal split.
+  BoundaryBench measures immutability, traceability, rejection repair and
+  redundant-call attribution independently of forecast accuracy.
+
+- **Multi-series triage disclosures are one canonical, copyable contract.**
+  Wide-response bounding now refreshes the single `triage` block instead of
+  attaching a second, differently-shaped `series_triage` summary. Every
+  triage block carries the ranking rule, the `most_notable` winner, the
+  preserved-remainder count and tiers, and — where an artifact exists — the
+  artifact identity, as deterministic fields an agent copies rather than
+  facts it must remember to restate. The `triage` subtree joins the
+  protected keys, so a budget trim can never take the disclosure with it.
+
+- **Short-history volatility answers publish a weak best estimate instead of
+  abstaining.** Histories too short for rolling-origin folds previously
+  answered every volatility-direction question "uncertain". The fitted
+  executable now falls back to a reference-tail persistence estimator —
+  the trailing half of the reference window, log-shrunk halfway toward the
+  window scale — that owns the published candidate, scale, ratio, and point
+  state together, so a warm-up-biased whole-history scale can no longer
+  contradict the answer. The estimate stays weak, automation-ineligible,
+  and uniform-probability; "uncertain" is reserved for histories with no
+  computable reference ratio. VolatilityBench schema 0.4 adds a sealed
+  short-history suite measuring the fallback against the abstain-all
+  (pre-change, scores zero) and always-stable baselines.
+
 - **Benchmark evidence is fail-closed.** Dated releases now record the exact
   evaluated commit, harness commit, dataset identity, and configuration
   identity. A result with unknown provenance cannot be labelled complete or

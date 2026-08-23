@@ -1,0 +1,81 @@
+{
+  "benchmarks": [
+    {
+      "arm": "production-boundary-seed-20260823",
+      "benchmark": "boundarybench",
+      "bytes": 1260,
+      "file": "boundarybench-seed-20260823.json",
+      "scope": "full",
+      "sha256": "2ae83404486d149278c7c9eedd97fbebda42f377ef2cbdd4dd2efb63779ee79f",
+      "status": "graduated"
+    },
+    {
+      "arm": "production-boundary-seed-94721",
+      "benchmark": "boundarybench",
+      "bytes": 1248,
+      "file": "boundarybench-seed-94721.json",
+      "scope": "full",
+      "sha256": "dcaa68758cc79fe7a71015062057da677f595823cb233c1277c89eaa63db3c9d",
+      "status": "graduated"
+    },
+    {
+      "arm": "production-boundary-seed-27183",
+      "benchmark": "boundarybench",
+      "bytes": 1248,
+      "file": "boundarybench-seed-27183.json",
+      "scope": "full",
+      "sha256": "a685d3c093c2848270749ec7817dd4f31fe2c6bcdabffbbd42bd55fbc3d24c32",
+      "status": "graduated"
+    },
+    {
+      "arm": "deepseek-control",
+      "benchmark": "temporalbench",
+      "bytes": 5176,
+      "file": "temporalbench-control.json",
+      "scope": "subset",
+      "sha256": "26b7654faac2d45c5eb8e61a1576a8dc0b89acae1c676090122793adcc6e688a",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-evidence",
+      "benchmark": "temporalbench",
+      "bytes": 7509,
+      "file": "temporalbench-evidence.json",
+      "scope": "subset",
+      "sha256": "a9ca64d1aac5223c7888efcb73c988834a6c724a452a0af596ed25e51bdbe29b",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-evidence-vs-deepseek",
+      "benchmark": "temporalbench-forecast",
+      "bytes": 1971,
+      "file": "matched-report.json",
+      "scope": "subset",
+      "sha256": "624c6c7c83bd94bd772e005e63f29db157cb74e34b2fce27d4540d74ca457c00",
+      "status": "complete"
+    },
+    {
+      "arm": "gnomon-evidence-vs-deepseek",
+      "benchmark": "temporalbench-channel-forecast",
+      "bytes": 55073,
+      "file": "channel-comparison.json",
+      "scope": "subset",
+      "sha256": "93f0c68aee5d4565012a724830db745f0b085f3d534152694bb455e4c800a32d",
+      "status": "complete"
+    }
+  ],
+  "curated_by_commit": "2d149675e3652b237f6416a50a8fd558d4eaf5f5",
+  "not_included": [
+    {
+      "benchmark": "temporalbench-superiority",
+      "reason": "Choice, row sMAPE, and per-channel MASE differences versus direct DeepSeek were not statistically significant."
+    }
+  ],
+  "policy": {
+    "aggregate_only": true,
+    "raw_runs_are_ci_artifacts": true,
+    "smoke_results_are_not_full_results": true
+  },
+  "release": "2026-08-23-product-hardening",
+  "schema_version": "1.1"
+}

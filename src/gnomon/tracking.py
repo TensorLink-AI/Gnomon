@@ -553,13 +553,33 @@ _TABLE_DEFINITIONS: dict[str, str] = {
         CREATE INDEX IF NOT EXISTS idx_temporal_answer_receipts
             ON temporal_answer_receipts(project, property, resolved_at);
     """,
+    "temporal_synthesis_receipts": """
+        CREATE TABLE IF NOT EXISTS temporal_synthesis_receipts (
+            project TEXT NOT NULL,
+            forecast_id TEXT NOT NULL,
+            series TEXT NOT NULL,
+            question_id TEXT NOT NULL,
+            synthesis_id TEXT NOT NULL,
+            canonical_payload TEXT NOT NULL,
+            synthesis_payload TEXT NOT NULL,
+            evidence_refs TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            resolved_at TEXT,
+            outcome_payload TEXT,
+            score_payload TEXT,
+            PRIMARY KEY (project, forecast_id, series, question_id, synthesis_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_temporal_synthesis_receipts
+            ON temporal_synthesis_receipts(project, resolved_at);
+    """,
 }
 
 #: Bumped to 4 when ``forecasts`` and ``model_performance`` gained their
 #: composite keys; to 5 when the proposer-calibration ledger tables
 #: (event_proposals / event_admissions / event_outcomes) were added; to 6 for
 #: frozen effect scenarios and bitemporal realised-effect estimates.
-SCHEMA_VERSION = "7"
+SCHEMA_VERSION = "8"
 
 #: Empirical-Bayes shrinkage strength for proposer skill: a proposer's
 #: mean lift is pulled toward 0 (and a hit rate toward 0.5) with the
@@ -816,6 +836,117 @@ class TrackingStore:
                  "outcome_payload": (json.loads(row["outcome_payload"])
                                      if row["outcome_payload"] else None)}
                 for row in rows]
+
+    def record_temporal_synthesis(
+        self, *, project: str, forecast_id: str, series: str,
+        question_id: str, synthesis_id: str,
+        canonical: dict[str, Any], synthesis: dict[str, Any],
+        evidence_refs: list[str], created_at: str | None = None,
+    ) -> None:
+        """Record a labelled model contribution beside, never over, canonical."""
+        if synthesis.get("label") not in {"labelled_synthesis", "conditional_answer",
+                                           "hypothesis_ranking"}:
+            raise ValueError("synthesis must use a recognised non-canonical label")
+        if synthesis.get("primary_forecast_unchanged") is not True:
+            raise ValueError("synthesis must attest primary_forecast_unchanged")
+        if not evidence_refs:
+            raise ValueError("synthesis requires at least one evidence reference")
+        created_at = created_at or datetime.now(timezone.utc).isoformat()
+        canonical_payload = json.dumps(canonical, sort_keys=True)
+        synthesis_payload = json.dumps(synthesis, sort_keys=True)
+        evidence_payload = json.dumps(sorted(set(evidence_refs)))
+        with self._connect() as conn:
+            existing = conn.execute("""
+                SELECT canonical_payload, synthesis_payload, evidence_refs
+                FROM temporal_synthesis_receipts
+                WHERE project = ? AND forecast_id = ? AND series = ?
+                  AND question_id = ? AND synthesis_id = ?
+            """, (project, forecast_id, series, question_id, synthesis_id)).fetchone()
+            if existing is not None:
+                if (existing["canonical_payload"], existing["synthesis_payload"],
+                        existing["evidence_refs"]) != (
+                            canonical_payload, synthesis_payload, evidence_payload):
+                    raise ValueError(
+                        "conflicting synthesis receipt: an immutable synthesis_id "
+                        "was re-used with different content"
+                    )
+                return
+            conn.execute("""
+                INSERT INTO temporal_synthesis_receipts
+                    (project, forecast_id, series, question_id, synthesis_id,
+                     canonical_payload, synthesis_payload, evidence_refs, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (project, forecast_id, series, question_id, synthesis_id,
+                  canonical_payload, synthesis_payload, evidence_payload, created_at))
+
+    def resolve_temporal_synthesis(
+        self, *, project: str, forecast_id: str, series: str,
+        question_id: str, synthesis_id: str, outcome: dict[str, Any],
+        resolved_at: str | None = None,
+    ) -> dict[str, Any]:
+        """Score canonical and synthesis independently against one outcome."""
+        resolved_at = resolved_at or datetime.now(timezone.utc).isoformat()
+        with self._connect() as conn:
+            row = conn.execute("""
+                SELECT canonical_payload, synthesis_payload
+                FROM temporal_synthesis_receipts
+                WHERE project = ? AND forecast_id = ? AND series = ?
+                  AND question_id = ? AND synthesis_id = ? AND resolved_at IS NULL
+            """, (project, forecast_id, series, question_id, synthesis_id)).fetchone()
+        if row is None:
+            raise ValueError("unknown or already-resolved synthesis receipt")
+        canonical = json.loads(row["canonical_payload"])
+        synthesis = json.loads(row["synthesis_payload"])
+        realised = next((outcome.get(key) for key in ("direction", "state", "value")
+                         if outcome.get(key) is not None), None)
+        canonical_value = canonical.get("value")
+        synthesis_value = synthesis.get("value", synthesis.get("claim"))
+        # Only typed categorical equality is scored here. Numeric claims need
+        # a property-specific scoring rule and remain unresolved rather than
+        # acquiring a convenient tolerance at this generic boundary.
+        comparable = isinstance(realised, (str, bool))
+        canonical_correct = (canonical_value == realised if comparable else None)
+        synthesis_correct = (synthesis_value == realised if comparable else None)
+        score = {
+            "rule": "typed_categorical_exact_v1",
+            "canonical_correct": canonical_correct,
+            "synthesis_correct": synthesis_correct,
+            "synthesis_delta": (
+                int(synthesis_correct) - int(canonical_correct)
+                if canonical_correct is not None and synthesis_correct is not None
+                else None),
+        }
+        with self._connect() as conn:
+            changed = conn.execute("""
+                UPDATE temporal_synthesis_receipts
+                SET resolved_at = ?, outcome_payload = ?, score_payload = ?
+                WHERE project = ? AND forecast_id = ? AND series = ?
+                  AND question_id = ? AND synthesis_id = ? AND resolved_at IS NULL
+            """, (resolved_at, json.dumps(outcome, sort_keys=True),
+                  json.dumps(score, sort_keys=True), project, forecast_id, series,
+                  question_id, synthesis_id)).rowcount
+        if changed != 1:  # defensive race check
+            raise ValueError("synthesis receipt was concurrently resolved")
+        return score
+
+    def temporal_synthesis_receipts(
+        self, project: str, *, resolved: bool | None = None,
+    ) -> list[dict[str, Any]]:
+        query = "SELECT * FROM temporal_synthesis_receipts WHERE project = ?"
+        params: list[Any] = [project]
+        if resolved is not None:
+            query += " AND resolved_at IS " + ("NOT NULL" if resolved else "NULL")
+        query += " ORDER BY created_at, synthesis_id"
+        with self._connect() as conn:
+            rows = conn.execute(query, params).fetchall()
+        decoded = []
+        for row in rows:
+            item = dict(row)
+            for key in ("canonical_payload", "synthesis_payload", "evidence_refs",
+                        "outcome_payload", "score_payload"):
+                item[key] = json.loads(item[key]) if item[key] else None
+            decoded.append(item)
+        return decoded
 
     def _resolve_temporal_answers(
         self, record: ForecastRecord, actuals: list[float], resolved_at: str,

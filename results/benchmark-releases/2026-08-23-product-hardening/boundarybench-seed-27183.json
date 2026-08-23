@@ -1,0 +1,38 @@
+{
+  "release_metadata": {
+    "arm": "production-boundary-seed-27183",
+    "benchmark": "boundarybench",
+    "configuration_identity": "real verb plus generated adversarial contract cases; every gate mutation-tested",
+    "dataset_identity": "BoundaryBench synthetic contract corpus seed=27183 cases=100",
+    "evaluated_commit": "2d14967",
+    "harness_commit": "2d14967",
+    "notes": [],
+    "scope": "full",
+    "source": "results/boundarybench-hardening-2d14967/seed-27183/summary.json",
+    "source_sha256": "8f3d7e43282ccd6b57e2462cc26536b7281ab289595a787a39f717cb9d3313a0",
+    "status": "graduated"
+  },
+  "summary": {
+    "cases": 100,
+    "gates": {
+      "actionable_rejection": true,
+      "argument_completeness": true,
+      "canonical_immutability": true,
+      "fact_traceability": true,
+      "mutation_falsifiability": true,
+      "real_verb_response": true,
+      "redundancy_attribution": true
+    },
+    "graduated": true,
+    "mutation_detection": {
+      "actionable_rejection": true,
+      "argument_completeness": true,
+      "canonical_immutability": true,
+      "fact_traceability": true,
+      "real_verb_response": true,
+      "redundancy_attribution": true
+    },
+    "schema_version": "0.1",
+    "seed": 27183
+  }
+}

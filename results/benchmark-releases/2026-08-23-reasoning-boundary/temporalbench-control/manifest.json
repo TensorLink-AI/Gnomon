@@ -1,0 +1,16 @@
+{
+  "base_url": "https://api.engy.ai/v1",
+  "benchmark": "temporalbench",
+  "code_revision": "0ac55e4",
+  "command": "/root/Gnomon/benchmarks/temporalbench/run_temporalbench.py --data-dir results/temporalbench-data-20260816 --condition control --model deepseek-v4-flash-0731 --base-url https://api.engy.ai/v1 --api-key-env ENGY_API_KEY --temperature 0 --tiers T2,T4 --limit 80 --request-timeout 180 --max-retries 3 --infrastructure-retries 2 --output-dir results/temporalbench-reasoning-boundary-0ac55e4/control-final-v3 --resume",
+  "condition": "control",
+  "infrastructure_retries": 2,
+  "limit": 80,
+  "max_retries": 3,
+  "model": "deepseek-v4-flash-0731",
+  "request_timeout": 180,
+  "resume": true,
+  "run_status": "complete",
+  "summarized_by_revision": "2c03581",
+  "target": "tiers=T2,T4"
+}

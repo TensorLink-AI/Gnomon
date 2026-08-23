@@ -17,10 +17,11 @@ available](#not-currently-available) at the end.
 | `gnomon detect` | What is abnormal? | [↓](#gnomon-detect) |
 | `gnomon decide` | What should we do? | [↓](#gnomon-decide) |
 | `gnomon monitor` | When should we intervene? | [↓](#gnomon-monitor) |
+| `gnomon report` | How has Gnomon performed on this project? | [↓](#gnomon-report) |
 
 ## Everything else
 
-`gnomon capabilities` · `gnomon inspect` · `gnomon route` · `gnomon ingest` ·
+`gnomon capabilities` · `gnomon self-check leakage` · `gnomon inspect` · `gnomon route` · `gnomon ingest` ·
 `gnomon store list` · `gnomon status` · `gnomon context prompt|validate` ·
 `gnomon covariates guide|validate` · `gnomon mcp serve` ·
 `gnomon tsfm list|install|install-all|remove` ·
@@ -45,6 +46,19 @@ gnomon capabilities --output json
 
 Use this response for feature detection instead of assuming that roadmap
 features in the product specification are installed.
+
+## `gnomon self-check`
+
+Run dependency-free structural checks from the installed package:
+
+```bash
+gnomon self-check leakage --cases 8 --seed 7
+```
+
+The leakage check generates late-revision cases and asserts from each run's
+own snapshot-access evidence that no value published after its cutoff was
+read. It checks the installed mechanism; the repository's LeakTrap benchmark
+contains the separate hosted-model control comparison.
 
 ## `gnomon inspect`
 
@@ -493,6 +507,25 @@ supplied, a flagged 0.5 default otherwise:
 gnomon monitor data.csv --time timestamp --target value --horizon 14 \
   --threshold 340 --alert-cost 1 --miss-cost 20 --project ops
 ```
+
+`gnomon monitor run` is an equivalent scheduler-friendly spelling. Armed
+results are recorded before delivery; `--webhook` posts one JSON event with a
+stable idempotency key, while `--state` overrides the per-user durable ledger.
+Use `--prometheus-rule-output` with `--prometheus-expression` to export the
+same observed threshold as a Prometheus rule. The probabilistic forecast and
+its support remain in the immutable artifact rather than being misrepresented
+as PromQL.
+
+## `gnomon report`
+
+Render the tracked record—including misses and abstentions—as Markdown and a
+self-contained HTML report:
+
+```bash
+gnomon report --project ops --month 2026-08 --output monthly-report
+```
+
+`gnomon track report` remains an equivalent spelling for compatibility.
 
 ## `gnomon ingest` and `gnomon store`
 

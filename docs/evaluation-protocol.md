@@ -1,0 +1,64 @@
+# Gnomon matched evaluation protocol
+
+Status: preregistered for estimator and publication-policy changes after
+2026-08-23. Changes to this document apply only to runs whose implementation
+commits postdate the change and must be called out in the release manifest.
+
+## Primary question
+
+Does the governed Gnomon publication policy improve forecast error relative
+to the registered robust baseline without hiding failures through abstention?
+
+## Frozen comparisons
+
+- The matched TemporalBench T2/T4 corpus contains all 80 selected rows and all
+  480 forecast channels. Conditions use identical rows and official futures.
+- The robust control is the last-value/registered baseline produced at the
+  same cutoff. An LLM control is reported separately and is never called a
+  model-admission baseline.
+- Forecast arrays are scored with TemporalBench's unmodified official metrics.
+  Per-channel MASE uses the same history, seasonality rule, and horizon in
+  every arm.
+- Boundary, leakage, and reasoning-choice results are separate product
+  properties. They are not combined into a forecast-accuracy headline.
+
+## Outcomes and denominators
+
+Report, before any pooled headline:
+
+1. complete rows and forecast channels expected, produced, and paired;
+2. publication, baseline-fallback, and abstention counts;
+3. paired sMAPE and per-channel MASE wins/losses/ties, by tier and channel;
+4. coverage with its eligible-case denominator;
+5. calls, redundant calls, tokens, timeouts, and provider failures;
+6. error with abstentions priced as baseline error and as a separate yield
+   curve. An accuracy gain obtained only by suppressing hard cases does not
+   graduate.
+
+The primary paired test is two-sided Wilcoxon signed-rank over row-level sMAPE
+when its assumptions are satisfied; otherwise use a paired randomization test.
+Per-channel direction uses an exact two-sided sign test excluding ties. Report
+effect sizes and confidence intervals beside p-values. The nominal alpha is
+0.05; exploratory slices are labelled and are not graduation gates.
+
+## Graduation
+
+A publication-policy change graduates only when:
+
+- no named channel has a material paired MASE regression against its robust
+  baseline, or that channel deterministically publishes the baseline;
+- pooled error is non-inferior to the previous Gnomon policy;
+- publication yield does not materially fall;
+- long-history candidate choices are unchanged where the new gate is
+  inapplicable, and numeric paths match within the documented tolerance;
+- LeakTrap remains 0 leaks and boundary mutation/fuzz tests pass.
+
+No dataset name, channel name, task ID, ground-truth future, MCQ option, or
+benchmark label may enter runtime selection or admission logic.
+
+## Reproducibility
+
+Every published run records the evaluated commit, dirty-tree state, task-set
+fingerprint, model/provider identity, configuration, seeds, completeness, and
+curated-file hashes. A result produced by older code may be retained as
+history but cannot be described as evidence for newer code.

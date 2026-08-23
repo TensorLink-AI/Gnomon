@@ -1,0 +1,28 @@
+{
+  "release_metadata": {
+    "arm": "reasoning-boundary-seed-94721",
+    "benchmark": "boundarybench",
+    "configuration_identity": "universal reasoning boundary; immutable canonical answer; traceable facts; typed rejection and call attribution",
+    "dataset_identity": "BoundaryBench synthetic contract corpus seed=94721 cases=100",
+    "evaluated_commit": "0ac55e4",
+    "harness_commit": "0ac55e4",
+    "notes": [],
+    "scope": "full",
+    "source": "results/boundarybench-0ac55e4/seed-94721/summary.json",
+    "source_sha256": "c3a8e4d54dee7cf758fb3852d56d531f967c49129623579e927a9158060bc67e",
+    "status": "graduated"
+  },
+  "summary": {
+    "cases": 100,
+    "gates": {
+      "actionable_rejection": true,
+      "argument_completeness": true,
+      "canonical_immutability": true,
+      "fact_traceability": true,
+      "redundancy_attribution": true
+    },
+    "graduated": true,
+    "schema_version": "0.1",
+    "seed": 94721
+  }
+}

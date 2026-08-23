@@ -1,4 +1,22 @@
-# Leakage-trap results — GLM-5.2, 2026-08-02
+# Leakage: the product guarantee and its measured trap
+
+Gnomon does not rely on an agent remembering a date rule. A forecast at a
+historical cutoff reads through a bitemporal snapshot, and the immutable
+receipt records the latest `known_time` that execution accessed.
+
+Verify that mechanism from the installed package, offline:
+
+```bash
+uvx --from gnomon-forecast gnomon self-check leakage --cases 8
+```
+
+The command succeeds only when every generated late-revision case produces a
+snapshot access log whose maximum known time is at or before its cutoff. This
+is a structural package check, not a rerun of the hosted-model comparison
+below. The complete comparative reproduction uses the repository benchmark
+because it includes generated tasks, grading receipts, and a paid model arm.
+
+## Historical matched result — GLM-5.2, 2026-08-02
 
 40 generated trap tasks, seed 7, horizon 14, 120 observations of history.
 Reproduce with:

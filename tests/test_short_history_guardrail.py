@@ -6,8 +6,8 @@ horizon 7 the fold skeleton yields one selection fold, and single-fold
 selection at the default margin picked a non-baseline on 39 of 50
 near-martingale series, running 2.9x the MSE of `last_value`; the
 median-residual recentring shifted the published path by ~1 sigma in a
-coin-flip direction. The guardrail publishes the strongest baseline when
-the contest cannot rank; degraded runs centre quantiles on the point
+coin-flip direction. The guardrail publishes the assumption-minimal level
+baseline when the contest cannot rank; degraded runs centre quantiles on the point
 path. Both fire only on fold-starved runs: a fully evidenced series is
 byte-identical (test_golden_artifacts pins that).
 """
@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import csv
 from pathlib import Path
+
+import pytest
 
 from gnomon.evaluation import (
     conformal_quantile,
@@ -97,6 +99,16 @@ class TestSelectionGuardrail:
         assert result.selection_guardrail_applied
         assert result.selected_model in BASELINES
         assert any("Selection under-powered" in w for w in result.warnings)
+
+    @pytest.mark.parametrize("season", [2, 3, 7])
+    def test_lightweight_does_not_rank_structured_baselines_on_one_holdout(self, season):
+        # The tail deliberately repeats an earlier seasonal value, tempting a
+        # one-holdout selector.  That is still one observation of generality;
+        # the robust level baseline is the production-safe default.
+        values = [100.0 + ((index * 7) % 5) for index in range(14)]
+        result = select_model_lightweight(values, 4, season)
+        assert result.selected_model == "last_value"
+        assert result.strongest_baseline == "last_value"
 
 
 class TestPointCentredIntervals:

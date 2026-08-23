@@ -145,21 +145,25 @@ underlying complete run and its provenance are retained as citable evidence.
 
 ## Measured evidence
 
-On a matched 80-case TemporalBench sample, the same DeepSeek V4 Flash model
-answered **35.76%** of 302 temporal-choice questions correctly with Gnomon's
-Evidence surface, versus **28.48%** directly. Gnomon fixed 64 choices and broke
-42 (two-sided exact McNemar *p* = 0.0409). All 80 tasks completed, with one
-observed tool call at both median and p95, and the governed primary forecast
-remained immutable.
+On the latest complete matched 80-case TemporalBench sample, the same DeepSeek
+model answered **33.3%** of 240 temporal-choice fields correctly with Gnomon's
+Evidence surface, versus **30.8%** directly. Gnomon fixed 66 fields and broke
+60; the difference was not significant (two-sided exact McNemar *p* = 0.656).
+The earlier 35.8%-versus-28.5% result did not replicate and is retired as a
+product claim.
 
-This is evidence of a temporal-reasoning lift on that sample, not a universal
-accuracy claim. Forecast superiority was not established: mean sMAPE was
-10.90 with Gnomon and 12.31 directly (21 wins, 19 losses, *p* = 0.875), while
-paired per-channel MASE also showed no significant overall difference. The
-complete result, exact revisions, dataset identity, statistical tests, and
-limitations are in the
-[2026-08-23 benchmark release](results/benchmark-releases/2026-08-23/README.md).
-Volatility direction remains diagnostic rather than graduated.
+Forecast superiority was also not established. Mean sMAPE was 10.62 with
+Gnomon and 11.34 directly (43 row wins, 36 losses, one tie, *p* = 0.500).
+Per-channel MASE no longer shows the prior significant regression: 183 wins,
+190 losses, and 107 ties (*p* = 0.756). This is a safety result, not an
+estimator improvement: all 480 fold-starved channels published the robust
+last-value fallback exactly, while the direct LLM's median channel MASE was
+0.797 versus Gnomon's 1.089. Gnomon no longer ranks a structured baseline using
+the same single holdout it declares insufficient for candidate selection, but
+recovering useful short-history signal requires independently validated
+transfer priors, pooling, or TSFM admission. The protocol, complete
+latest-code evidence, and limitations are in the
+[product-hardening release](results/benchmark-releases/2026-08-23-product-hardening/README.md).
 
 ## Why this needs an execution layer
 
@@ -438,10 +442,11 @@ gnomon-output/forecast_<id>/
 ├── evidence.jsonl   machine-readable evaluation and support evidence
 ├── forecast.csv     future timestamps, point values, and quantiles
 ├── lineage.json     typed artifacts, evidence, and verified claims
+├── report.html      self-contained offline visual and disclosures
 └── summary.md       compact human-readable result
 ```
 
-Start with `summary.md`. Use `forecast.csv` for charts and downstream
+Start with `report.html` or `summary.md`. Use `forecast.csv` for downstream
 systems. Keep `artifact.json` when provenance, auditability, or
 reproducibility matters.
 

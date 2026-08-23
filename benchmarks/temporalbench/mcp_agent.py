@@ -992,6 +992,8 @@ class _RunBase:
         self.trace: list[dict[str, Any]] = []
         self.result_log = ToolMessageLog()
         self.mcp_calls = 0
+        self.sufficient_at_call: int | None = None
+        self.redundant_calls = 0
         self.schema_bytes = 0
         self.product_schema_bytes = 0
         self.harness_schema_bytes = 0
@@ -1200,6 +1202,10 @@ class _RunBase:
                 })
         return {
             "calls": self.mcp_calls,
+            "surface_required_calls": (getattr(self, "sufficient_at_call", None)
+                                       if getattr(self, "sufficient_at_call", None) is not None
+                                       else self.mcp_calls),
+            "redundant_calls": getattr(self, "redundant_calls", 0),
             "run_tokens": self._run_tokens(),
             "schema_bytes": self.schema_bytes,
             "product_schema_bytes": self.product_schema_bytes,
@@ -1624,6 +1630,8 @@ class _RunBase:
                            f"your best answer.",
                 "authored_by": "harness",
             })
+        if getattr(self, "sufficient_at_call", None) is not None:
+            self.redundant_calls = getattr(self, "redundant_calls", 0) + 1
         self.mcp_calls += 1
         try:
             result = self.session.call_tool(name, arguments)
@@ -1637,6 +1645,12 @@ class _RunBase:
             self.complete_description_ready = True
         structured = result.get("structuredContent") or {}
         if isinstance(structured, dict):
+            sufficiency = ((structured.get("reasoning") or {}).get(
+                "sufficiency") or {})
+            if (getattr(self, "sufficient_at_call", None) is None
+                    and sufficiency.get("requires_follow_up") is False
+                    and sufficiency.get("sufficient_for")):
+                self.sufficient_at_call = self.mcp_calls
             if (name == "gnomon_describe" and not result.get("isError")
                     and entry.get("compiled_questions", 0) > 0):
                 answers = structured.get("answers") or []

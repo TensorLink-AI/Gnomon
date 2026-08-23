@@ -1,0 +1,167 @@
+{
+  "release_metadata": {
+    "arm": "gnomon-evidence",
+    "benchmark": "temporalbench",
+    "configuration_identity": "DeepSeek V4 Flash 0731 via Engy; temperature=0; Evidence MCP; compiled questions/context; bounded retry",
+    "dataset_identity": "official labeled split; preregistered matched 80-case T2/T4 sample; 240 choices and 480 channels",
+    "evaluated_commit": "2d14967",
+    "harness_commit": "2d14967",
+    "notes": [],
+    "scope": "subset",
+    "source": "results/temporalbench-hardening-2d14967/merged-evidence/summary.json",
+    "source_sha256": "db96552400bd9c86c26e87127b09f761fd771ba6610c31a209da354ece9775b2",
+    "status": "complete"
+  },
+  "summary": {
+    "benchmark": "temporalbench",
+    "best_effort": false,
+    "choice_accuracy_by_tier_scored_only": {
+      "T2": 0.3333333333333333,
+      "T4": 0.3333333333333333
+    },
+    "choice_contract": {
+      "advisory_overrides": 0,
+      "advisory_overrides_helped": 0,
+      "advisory_overrides_hurt": 0,
+      "canonical_accuracy": 0.3333333333333333,
+      "canonical_correct": 80,
+      "canonical_total": 240,
+      "hybrid_accuracy": 0.3333333333333333,
+      "hybrid_correct": 80,
+      "hybrid_total": 240,
+      "primary_forecast_unchanged": true,
+      "synthesized_accuracy": 0.30416666666666664,
+      "synthesized_correct": 73,
+      "synthesized_total": 240
+    },
+    "choice_rows_scored_by_tier": {
+      "T2": 40,
+      "T4": 40
+    },
+    "compile_context": true,
+    "compile_questions": true,
+    "condition": "gnomon-mcp",
+    "context_receipts_dir": "results/temporalbench-hardening-2d14967/context-receipts",
+    "datasets": "all",
+    "forecast_channel_routes": {
+      "gnomon": 480
+    },
+    "forecast_channel_support_mix": {
+      "best_effort": 118,
+      "degraded": 362
+    },
+    "forecast_channels_abstained": 0,
+    "forecast_metrics_mean_scored_only": {
+      "OW_MASE": 290494.3114051889,
+      "OW_RMSSE": 307489.7464065399,
+      "OW_sMAPE": 10.622866149666649
+    },
+    "forecast_rows_scored": 80,
+    "forecast_rows_total": 80,
+    "forecast_scored_fraction": 1.0,
+    "infrastructure_failures_retried": {
+      "OpenRouterError: OpenRouter request failed after 4 attempts: HTTP Error 502: Bad Gateway": 11
+    },
+    "infrastructure_retries": 11,
+    "llm_usage": {
+      "base_url": "https://api.engy.ai/v1",
+      "completion_tokens": 68988,
+      "cost_usd": 0.0,
+      "model": "deepseek-v4-flash-0731",
+      "prompt_tokens": 1399179,
+      "requests": 204,
+      "transport_attempts": 256,
+      "truncation_escalations": 0
+    },
+    "llm_usage_this_invocation": {
+      "base_url": "https://api.engy.ai/v1",
+      "completion_tokens": 0,
+      "cost_usd": 0.0,
+      "model": "deepseek-v4-flash-0731",
+      "prompt_tokens": 0,
+      "requests": 0,
+      "transport_attempts": 0,
+      "truncation_escalations": 0
+    },
+    "mcp_economics": {
+      "answer_receipts_primary_forecast_unchanged": 80,
+      "answer_yield": 1.0,
+      "calls_median": 1,
+      "calls_p95": 1,
+      "choice_reasoning_stages": {
+        "agent_preservation_rate": 1.0,
+        "agent_preserved_canonical_answer": 240,
+        "compiler_to_engine_coverage": 1.0,
+        "engine_answers_comparable_to_agent_submission": 240,
+        "engine_answers_comparable_to_official_options": 240,
+        "note": "Official accuracy measures the submitted task answer; preservation only compares exact canonical or explicitly projected display values.",
+        "official_accuracy_conditional_on_engine_answer": 0.3333,
+        "officially_correct_with_engine_answer": 80,
+        "questions_requested": 240,
+        "questions_with_engine_answer": 240
+      },
+      "compiler_calls": 26,
+      "compiler_events_accepted": 50,
+      "compiler_hypotheses_accepted": 44,
+      "compiler_proposals_rejected": 11,
+      "compiler_receipts_reused": 14,
+      "context_channels_with_engine_receipt": 192,
+      "context_events_admitted_by_engine": 0,
+      "context_events_applied_to_forecasts": 0,
+      "context_events_published_as_scenario_only": 69,
+      "context_events_rejected_by_engine": 0,
+      "cumulative_tokens": 1506352,
+      "future_covariate_channels_admitted": 0,
+      "future_covariate_channels_considered": 362,
+      "mean_tokens_per_attempted_row": 18829.4,
+      "question_compiler_calls": 52,
+      "question_compiler_receipts_reused": 28,
+      "question_proposals_rejected": 0,
+      "questions_accepted": 240,
+      "redundant_calls_mean": 0.0,
+      "redundant_calls_total": 0,
+      "rows_answered": 80,
+      "rows_attempted": 80,
+      "schema_bytes": [
+        13175
+      ],
+      "surface_required_calls_mean": 1.0,
+      "temporal_answer_receipts": 80,
+      "temporal_answers_returned": 240
+    },
+    "mcp_profile": "evidence",
+    "merged_usage_sources": [
+      "results/temporalbench-hardening-2d14967/evidence-0",
+      "results/temporalbench-hardening-2d14967/evidence-20",
+      "results/temporalbench-hardening-2d14967/evidence-40",
+      "results/temporalbench-hardening-2d14967/evidence-50",
+      "results/temporalbench-hardening-2d14967/evidence-60"
+    ],
+    "model": "deepseek-v4-flash-0731",
+    "model_evidence_registry": null,
+    "note": "forecast metrics computed by the dataset's official forecast_metrics_utils.py; choice accuracy is this adapter's LOCAL case-insensitive exact match against the official labels. The *_scored_only means average scored rows only \u2014 fully-abstained and errored rows are not in them (rows with PARTIAL channel abstentions are, scored on the channels present, and Uncertain/sentinel choice answers count as wrong). Rows the harness voided (rows_voided_by_harness \u2014 a breached cap, no submission) are out of the choice denominators too: an answer the harness never collected is not a wrong answer. So they are unmatched-subset numbers; compare arms through the per-channel path (benchmarks/temporalbench/score_per_channel.py) or benchmarks/report.py's matched join, not by subtracting summaries. success on T2/T4 records completion (the official module returned metrics), not accuracy \u2014 per-row SMAPE lives in each record's extra, and every record names what its success measured in success_basis (completion vs all_choices_correct); voided rows carry row_abstained, which report.py excludes from its success test. forecast_channel_support_mix and forecast_channels_abstained are the coverage every forecast figure rests on; quote them beside it. Any best_effort count in the mix is disclosed fallback rows (NO RELIABLE FORECAST), not supported forecasts; a 'model' count is gnomon-mcp channels the model wrote itself (see forecast_channel_routes).",
+    "question_receipts_dir": "results/temporalbench-hardening-2d14967/question-receipts",
+    "resumed_rows": 80,
+    "row_offset": 0,
+    "rows_errored": 0,
+    "rows_voided_by_harness": 0,
+    "rows_with_abstentions": 0,
+    "run_status": "complete",
+    "sensitivity_diagnostic": {
+      "channels_with_scenario": 0,
+      "losses_vs_primary": 0,
+      "mean_smape_delta_overlay_minus_primary": null,
+      "overlay_metrics_mean": {},
+      "policy": "retrospective_overlay_never_submitted",
+      "rows_with_scenario": 0,
+      "ties_vs_primary": 0,
+      "warning": "Retrospective diagnostic only. The governed primary path is the submitted forecast and the only headline score; overlay wins do not define a deployment selection policy.",
+      "wins_vs_primary": 0
+    },
+    "terminal_error_breakdown": {},
+    "tiers": [
+      "T2",
+      "T4"
+    ]
+  }
+}

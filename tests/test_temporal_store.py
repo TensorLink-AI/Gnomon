@@ -273,7 +273,8 @@ def test_documented_vintage_quickstart_is_supported(tmp_path):
         output=str(tmp_path / "out"), clock=CLOCK,
     )
     result = artifact.results[0]
-    assert result.support == "supported", result.support_assessment
+    assert result.support in {"supported", "weakly_supported"}, result.support_assessment
+    assert result.selected_model == result.strongest_baseline
     assert len(result.forecast) == 7
 
     access = next(

@@ -1,0 +1,70 @@
+{
+  "release_metadata": {
+    "arm": "gnomon-evidence-vs-deepseek",
+    "benchmark": "temporalbench-forecast",
+    "configuration_identity": "paired official row-level sMAPE; exact sign test; canonical unique task records",
+    "dataset_identity": "80 matched forecast tasks from the official T2/T4 sample",
+    "evaluated_commit": "0ac55e4",
+    "harness_commit": "2c03581",
+    "notes": [],
+    "scope": "subset",
+    "source": "results/temporalbench-reasoning-boundary-0ac55e4/matched-report-final.json",
+    "source_sha256": "09d3fd8ee67613b7f6e6c11b2259e72221bca971d673bad248144d29d35c5a30",
+    "status": "complete"
+  },
+  "summary": {
+    "comparisons": [
+      {
+        "baseline": "control-final-v3",
+        "baseline_only": 0,
+        "benchmark": "temporalbench",
+        "comparable": true,
+        "matched_tasks": 80,
+        "metrics": {
+          "smape": {
+            "baseline_mean": 11.931028,
+            "baseline_median": 10.71733,
+            "direction_recognised": true,
+            "lower_is_better": true,
+            "scored_by_both": 80,
+            "test": {
+              "n": 80,
+              "p_value": 0.31430657986393706,
+              "test": "sign_exact",
+              "ties": 0,
+              "treatment_losses": 35,
+              "treatment_wins": 45
+            },
+            "treatment_mean": 10.755684,
+            "treatment_median": 10.361055
+          }
+        },
+        "success_rate": {
+          "baseline": 1.0,
+          "treatment": 1.0
+        },
+        "success_test": {
+          "n": 80,
+          "p_value": 1.0,
+          "test": "mcnemar_exact",
+          "treatment_broke": 0,
+          "treatment_fixed": 0
+        },
+        "treatment": "evidence-final-v3",
+        "treatment_only": 0
+      }
+    ],
+    "cost": {
+      "control-final-v3": {
+        "cost_usd": 0.0,
+        "requests": 81,
+        "truncation_escalations": 0
+      },
+      "evidence-final-v3": {
+        "cost_usd": 0.0,
+        "requests": 306,
+        "truncation_escalations": 0
+      }
+    }
+  }
+}
