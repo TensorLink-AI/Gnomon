@@ -64,6 +64,17 @@ def test_misspelled_flag_suggests_the_nearest_one(tmp_path, capsys):
     assert "Did you mean --target instead of --tagret?" in error["message"]
 
 
+def test_flag_valid_only_on_another_command_is_not_suggested_as_itself(capsys):
+    assert main(["capabilities", "--brief"]) == 2
+    error = json.loads(capsys.readouterr().err)["error"]
+    assert "Did you mean --brief instead of --brief?" not in error["message"]
+    assert not error["details"].get("flag_suggestions")
+    assert error["repair_options"] == [{
+        "action": "show_usage",
+        "description": "Run `gnomon --help` for the full argument list.",
+    }]
+
+
 def test_capabilities_report_the_new_surface():
     from gnomon.runtime import capabilities
 

@@ -15,8 +15,10 @@ def merge_shards(target: Path, shards: list[Path]) -> dict[str, int]:
     records: dict[str, dict] = {}
     detail_payloads: dict[str, str] = {}
     summary_path = target / "summary.json"
-    target_summary = (json.loads(summary_path.read_text(encoding="utf-8"))
-                      if summary_path.is_file() else {})
+    target_state_path = (summary_path if summary_path.is_file() else
+                         target / "usage.checkpoint.json")
+    target_summary = (json.loads(target_state_path.read_text(encoding="utf-8"))
+                      if target_state_path.is_file() else {})
     cumulative_usage = dict(target_summary.get("llm_usage") or {})
     cumulative_infrastructure_retries = int(
         target_summary.get("infrastructure_retries") or 0)

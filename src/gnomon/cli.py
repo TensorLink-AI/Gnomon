@@ -969,7 +969,11 @@ def _suggest_flags(message: str) -> list[tuple[str, tuple[str, ...]]]:
             ))
             continue
         close = difflib.get_close_matches(unknown, known, n=1, cutoff=0.75)
-        if close:
+        # ``known`` spans every subcommand. A flag can therefore be valid
+        # somewhere else while still invalid for the active command. Never
+        # offer the user's exact token as a rename; the actionable recovery
+        # in that case is the command-specific usage text below.
+        if close and close[0] != unknown:
             suggestions.append((unknown, (close[0],)))
     return suggestions
 

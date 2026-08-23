@@ -23,6 +23,9 @@ python -m benchmarks.release validate results/benchmark-releases/2026-08-23
 
 The latest citable result is the
 [2026-08-23 defensible temporal-reasoning release](../results/benchmark-releases/2026-08-23/README.md).
+The later [usefulness-roadmap validation](../results/benchmark-releases/2026-08-23-usefulness-roadmap/README.md)
+reports uplift, safety preservation, and regression separately for product
+commit `10b830a`.
 It reports a statistically significant matched TemporalBench choice lift,
 non-significant forecast differences, independent property gates, and the
 volatility-direction lane that remains ungraduated.

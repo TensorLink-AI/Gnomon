@@ -336,3 +336,35 @@ def test_cli_monitor_auto_scores_in_registry_not_temporal_store(
     assert payload["auto_scored_forecasts"] == []
     assert registry.is_file()
     assert temporal_store.is_dir()
+
+
+def test_cli_monitor_run_scores_due_forecast_before_opening_next(
+        tmp_path, capsys, monkeypatch):
+    """The cron-friendly loop closes yesterday's receipt from today's data."""
+    source = _forecastable(tmp_path)
+    registry = tmp_path / "tracking.sqlite"
+    monkeypatch.setenv("GNOMON_REGISTRY_PATH", str(registry))
+    command = [
+        "monitor", "run", str(source), "--time", "timestamp",
+        "--target", "value", "--horizon", "6", "--threshold", "165",
+        "--alert-cost", "1", "--miss-cost", "9", "--project", "ops",
+        "--output", str(tmp_path / "out"),
+    ]
+
+    assert main(command) == 0
+    first = json.loads(capsys.readouterr().out)
+    assert first["auto_scored_forecasts"] == []
+
+    # The next scheduled read contains the six observations that were future
+    # at the first cutoff. Auto-scoring must resolve that existing receipt
+    # before the command registers a new forecast at the later cutoff.
+    values = [100 + i * 1.5 + NOISE[i % 10] * 3 for i in range(54)]
+    _csv(source, values)
+    assert main(command) == 0
+    second = json.loads(capsys.readouterr().out)
+
+    scored = second["auto_scored_forecasts"]
+    assert len(scored) == 1
+    assert scored[0]["forecast_id"] == first["forecast_id"]
+    assert scored[0]["mase"] is not None
+    assert scored[0]["scored_at"]

@@ -1,0 +1,273 @@
+{
+  "release_metadata": {
+    "arm": "model-adapters",
+    "benchmark": "adapterbench",
+    "configuration_identity": "production adapter registry including distinct Chronos variants",
+    "dataset_identity": "AdapterBench deterministic adapter contract corpus",
+    "evaluated_commit": "10b830a",
+    "harness_commit": "10b830a",
+    "notes": [],
+    "scope": "full",
+    "source": "/tmp/gnomon-usefulness-final-10b830a/adapterbench/summary.json",
+    "source_sha256": "df815adb556acb7a243d344671291a1ce5525d31cc314bbbfaba1227a6f0270b",
+    "status": "graduated"
+  },
+  "summary": {
+    "adversarial": {
+      "nondeterministic": {
+        "adapter": "nondeterministic",
+        "capabilities": {
+          "frequencies": [],
+          "future_covariates": false,
+          "max_horizon": null,
+          "min_history": null,
+          "panel": false,
+          "past_covariates": false,
+          "quantiles": false
+        },
+        "checks": {
+          "deterministic_replay": false,
+          "finite_exact_horizon": true,
+          "input_immutable": true,
+          "variable_horizon": true
+        },
+        "conformant": false,
+        "kind": "test",
+        "protocol_version": "0.1"
+      },
+      "nonfinite": {
+        "adapter": "nonfinite",
+        "capabilities": {
+          "frequencies": [],
+          "future_covariates": false,
+          "max_horizon": null,
+          "min_history": null,
+          "panel": false,
+          "past_covariates": false,
+          "quantiles": false
+        },
+        "checks": {
+          "deterministic_replay": false,
+          "finite_exact_horizon": false,
+          "input_immutable": true,
+          "variable_horizon": false
+        },
+        "conformant": false,
+        "failures": {
+          "forecast": "ForecastAdapterError: adapter returned a non-finite point forecast",
+          "variable_horizon": "ForecastAdapterError: adapter returned a non-finite point forecast"
+        },
+        "kind": "test",
+        "protocol_version": "0.1"
+      },
+      "short_horizon": {
+        "adapter": "short_horizon",
+        "capabilities": {
+          "frequencies": [],
+          "future_covariates": false,
+          "max_horizon": null,
+          "min_history": null,
+          "panel": false,
+          "past_covariates": false,
+          "quantiles": false
+        },
+        "checks": {
+          "deterministic_replay": false,
+          "finite_exact_horizon": false,
+          "input_immutable": true,
+          "variable_horizon": false
+        },
+        "conformant": false,
+        "failures": {
+          "forecast": "ForecastAdapterError: adapter returned 3 points for horizon 4",
+          "variable_horizon": "ForecastAdapterError: adapter returned 0 points for horizon 1"
+        },
+        "kind": "test",
+        "protocol_version": "0.1"
+      }
+    },
+    "evaluated_commit": "10b830a",
+    "external_coverage": {
+      "note": "No external TSFM is installed in this environment.",
+      "tested": 0
+    },
+    "gates": {
+      "all_adversarial_adapters_rejected": true,
+      "all_installed_external_adapters_conform": true,
+      "all_statistical_adapters_conform": true
+    },
+    "graduated": true,
+    "installed_external": {},
+    "schema_version": "0.1",
+    "valid": {
+      "croston_sba": {
+        "adapter": "croston_sba",
+        "capabilities": {
+          "frequencies": [],
+          "future_covariates": false,
+          "max_horizon": null,
+          "min_history": null,
+          "panel": false,
+          "past_covariates": false,
+          "quantiles": false
+        },
+        "checks": {
+          "deterministic_replay": true,
+          "finite_exact_horizon": true,
+          "input_immutable": true,
+          "variable_horizon": true
+        },
+        "conformant": true,
+        "kind": "statistical",
+        "protocol_version": "0.1"
+      },
+      "drift": {
+        "adapter": "drift",
+        "capabilities": {
+          "frequencies": [],
+          "future_covariates": false,
+          "max_horizon": null,
+          "min_history": null,
+          "panel": false,
+          "past_covariates": false,
+          "quantiles": false
+        },
+        "checks": {
+          "deterministic_replay": true,
+          "finite_exact_horizon": true,
+          "input_immutable": true,
+          "variable_horizon": true
+        },
+        "conformant": true,
+        "kind": "statistical",
+        "protocol_version": "0.1"
+      },
+      "ets": {
+        "adapter": "ets",
+        "capabilities": {
+          "frequencies": [],
+          "future_covariates": false,
+          "max_horizon": null,
+          "min_history": null,
+          "panel": false,
+          "past_covariates": false,
+          "quantiles": false
+        },
+        "checks": {
+          "deterministic_replay": true,
+          "finite_exact_horizon": true,
+          "input_immutable": true,
+          "variable_horizon": true
+        },
+        "conformant": true,
+        "kind": "statistical",
+        "protocol_version": "0.1"
+      },
+      "last_value": {
+        "adapter": "last_value",
+        "capabilities": {
+          "frequencies": [],
+          "future_covariates": false,
+          "max_horizon": null,
+          "min_history": null,
+          "panel": false,
+          "past_covariates": false,
+          "quantiles": false
+        },
+        "checks": {
+          "deterministic_replay": true,
+          "finite_exact_horizon": true,
+          "input_immutable": true,
+          "variable_horizon": true
+        },
+        "conformant": true,
+        "kind": "statistical",
+        "protocol_version": "0.1"
+      },
+      "linear_trend": {
+        "adapter": "linear_trend",
+        "capabilities": {
+          "frequencies": [],
+          "future_covariates": false,
+          "max_horizon": null,
+          "min_history": null,
+          "panel": false,
+          "past_covariates": false,
+          "quantiles": false
+        },
+        "checks": {
+          "deterministic_replay": true,
+          "finite_exact_horizon": true,
+          "input_immutable": true,
+          "variable_horizon": true
+        },
+        "conformant": true,
+        "kind": "statistical",
+        "protocol_version": "0.1"
+      },
+      "seasonal_naive": {
+        "adapter": "seasonal_naive",
+        "capabilities": {
+          "frequencies": [],
+          "future_covariates": false,
+          "max_horizon": null,
+          "min_history": null,
+          "panel": false,
+          "past_covariates": false,
+          "quantiles": false
+        },
+        "checks": {
+          "deterministic_replay": true,
+          "finite_exact_horizon": true,
+          "input_immutable": true,
+          "variable_horizon": true
+        },
+        "conformant": true,
+        "kind": "statistical",
+        "protocol_version": "0.1"
+      },
+      "theta": {
+        "adapter": "theta",
+        "capabilities": {
+          "frequencies": [],
+          "future_covariates": false,
+          "max_horizon": null,
+          "min_history": null,
+          "panel": false,
+          "past_covariates": false,
+          "quantiles": false
+        },
+        "checks": {
+          "deterministic_replay": true,
+          "finite_exact_horizon": true,
+          "input_immutable": true,
+          "variable_horizon": true
+        },
+        "conformant": true,
+        "kind": "statistical",
+        "protocol_version": "0.1"
+      },
+      "window_average": {
+        "adapter": "window_average",
+        "capabilities": {
+          "frequencies": [],
+          "future_covariates": false,
+          "max_horizon": null,
+          "min_history": null,
+          "panel": false,
+          "past_covariates": false,
+          "quantiles": false
+        },
+        "checks": {
+          "deterministic_replay": true,
+          "finite_exact_horizon": true,
+          "input_immutable": true,
+          "variable_horizon": true
+        },
+        "conformant": true,
+        "kind": "statistical",
+        "protocol_version": "0.1"
+      }
+    }
+  }
+}

@@ -1,0 +1,107 @@
+{
+  "release_metadata": {
+    "arm": "model-admission",
+    "benchmark": "admissionbench",
+    "configuration_identity": "production AdmissionState machinery and held-out admission gates",
+    "dataset_identity": "AdmissionBench generated independent/conditional/short-history cases=1000",
+    "evaluated_commit": "10b830a",
+    "harness_commit": "10b830a",
+    "notes": [],
+    "scope": "full",
+    "source": "/tmp/gnomon-usefulness-final-10b830a/admissionbench/summary.json",
+    "source_sha256": "12d552c47a6584b3514690620f22aff691bdcd815b6c252e16b79f54a13c78e5",
+    "status": "complete"
+  },
+  "summary": {
+    "cases": 1000,
+    "evaluated_commit": "10b830a",
+    "gates": {
+      "beats_always_baseline": true,
+      "beats_always_candidate": true,
+      "helpful_weight_exceeds_harmful": true,
+      "short_history_beats_always_baseline": true,
+      "short_history_beats_always_candidate": true,
+      "short_history_helpful_weight_exceeds_harmful": true
+    },
+    "harmful_candidate_mean_weight": 0.05197643647119496,
+    "helpful_candidate_mean_weight": 0.9053078499533812,
+    "mean_loss": {
+      "always_baseline": 0.9991136441407,
+      "always_candidate": 0.9731944663540467,
+      "evidence_weighted": 0.9237389507357693
+    },
+    "mean_regret": 0.0365729133931247,
+    "reliability": [
+      {
+        "cases": 465,
+        "mean_weight": 0.00276443961508522,
+        "realised_win_rate": 0.27956989247311825,
+        "weight_band": [
+          0,
+          0.2
+        ]
+      },
+      {
+        "cases": 19,
+        "mean_weight": 0.31050176502534266,
+        "realised_win_rate": 0.5789473684210527,
+        "weight_band": [
+          0.2,
+          0.4
+        ]
+      },
+      {
+        "cases": 45,
+        "mean_weight": 0.490085980610531,
+        "realised_win_rate": 0.5777777777777777,
+        "weight_band": [
+          0.4,
+          0.6000000000000001
+        ]
+      },
+      {
+        "cases": 99,
+        "mean_weight": 0.7444126094205706,
+        "realised_win_rate": 0.7777777777777778,
+        "weight_band": [
+          0.6,
+          0.8
+        ]
+      },
+      {
+        "cases": 372,
+        "mean_weight": 1.0,
+        "realised_win_rate": 0.803763440860215,
+        "weight_band": [
+          0.8,
+          1.0
+        ]
+      }
+    ],
+    "schema_version": "0.1",
+    "seed": 20260820,
+    "short_history": {
+      "cases": 500,
+      "definition": "at most one local fold",
+      "harmful_candidate_mean_weight": 0.019424496541430872,
+      "helpful_candidate_mean_weight": 0.8860245593332446,
+      "mean_loss": {
+        "always_baseline": 0.9915129974843064,
+        "always_candidate": 0.9669828324680714,
+        "evidence_weighted": 0.9202341200563171
+      },
+      "states": {
+        "baseline_fallback": 235,
+        "externally_validated": 148,
+        "prior_assisted": 117
+      }
+    },
+    "states": {
+      "baseline_fallback": 451,
+      "externally_validated": 148,
+      "jointly_validated": 187,
+      "locally_validated": 37,
+      "prior_assisted": 177
+    }
+  }
+}

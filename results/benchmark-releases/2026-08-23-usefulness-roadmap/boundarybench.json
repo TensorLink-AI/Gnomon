@@ -1,0 +1,38 @@
+{
+  "release_metadata": {
+    "arm": "production-boundary",
+    "benchmark": "boundarybench",
+    "configuration_identity": "real verb plus adversarial contract mutations",
+    "dataset_identity": "BoundaryBench generated contract corpus seed=20260823 cases=100",
+    "evaluated_commit": "10b830a",
+    "harness_commit": "10b830a",
+    "notes": [],
+    "scope": "full",
+    "source": "/tmp/gnomon-usefulness-final-10b830a/boundarybench/summary.json",
+    "source_sha256": "bf7e0668b0ccb6c0d4aa72bbeede682e1df0682db649f4cd23d8174670c3dfd6",
+    "status": "graduated"
+  },
+  "summary": {
+    "cases": 100,
+    "gates": {
+      "actionable_rejection": true,
+      "argument_completeness": true,
+      "canonical_immutability": true,
+      "fact_traceability": true,
+      "mutation_falsifiability": true,
+      "real_verb_response": true,
+      "redundancy_attribution": true
+    },
+    "graduated": true,
+    "mutation_detection": {
+      "actionable_rejection": true,
+      "argument_completeness": true,
+      "canonical_immutability": true,
+      "fact_traceability": true,
+      "real_verb_response": true,
+      "redundancy_attribution": true
+    },
+    "schema_version": "0.1",
+    "seed": 20260823
+  }
+}
