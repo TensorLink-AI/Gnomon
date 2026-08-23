@@ -173,6 +173,13 @@ def summarise_pairs(pairs: list[tuple[float, float]]) -> dict[str, object]:
     }
 
 
+def coverage_bucket(baseline: bool, treatment: bool) -> str:
+    """Name the mutually exclusive two-arm coverage state."""
+    return ("both" if baseline and treatment else
+            "base_only" if baseline else
+            "treat_only" if treatment else "neither")
+
+
 def main() -> int:
     args = parse_args()
     data_dir = Path(args.data_dir).expanduser()
@@ -196,6 +203,9 @@ def main() -> int:
     record_rows = []
     paired_channel_records = []
     coverage = {"base_only": 0, "treat_only": 0, "both": 0, "neither": 0}
+    scoring_coverage = {
+        "base_only": 0, "treat_only": 0, "both": 0, "neither": 0,
+    }
     # Support-label mix over the channels actually scored, per arm:
     # best_effort rows are disclosed fallbacks and must never blend
     # invisibly into a compared number.
@@ -210,9 +220,7 @@ def main() -> int:
         both = [c for c in truth if c in b_fc and c in t_fc]
         for channel in truth:
             in_b, in_t = channel in b_fc, channel in t_fc
-            key = ("both" if in_b and in_t else
-                   "base_only" if in_b else
-                   "treat_only" if in_t else "neither")
+            key = coverage_bucket(in_b, in_t)
             coverage[key] += 1
             channel_history = (history or {}).get(channel) \
                 if isinstance(history, dict) else None
@@ -236,12 +244,23 @@ def main() -> int:
             naive_mase = (naive_detail.get(channel) or {}).get("MASE")
             if naive_mase is None:
                 continue
+            base_scorable = False
+            base_mase = None
+            if in_b:
+                base_summary, base_detail = subset_metrics(
+                    metrics_module, truth, history,
+                    {channel: b_fc[channel]}, [channel])
+                base_mase = ((base_detail or {}).get(channel) or {}).get("MASE")
+                base_scorable = bool(base_summary and base_mase is not None)
+            treatment_scorable = False
+            treatment_mase = None
             if in_t:
                 treatment_summary, treatment_detail = subset_metrics(
                     metrics_module, truth, history,
                     {channel: t_fc[channel]}, [channel])
                 treatment_mase = ((treatment_detail or {}).get(channel) or {}).get("MASE")
                 if treatment_summary and treatment_mase is not None:
+                    treatment_scorable = True
                     versus_naive.setdefault(channel, []).append(
                         (naive_mase, treatment_mase))
                     abstention_priced.append((naive_mase, treatment_mase))
@@ -250,67 +269,57 @@ def main() -> int:
                 # prevents a policy from improving its score by suppressing
                 # difficult channels.
                 abstention_priced.append((naive_mase, naive_mase))
+            scoring_key = coverage_bucket(base_scorable, treatment_scorable)
+            scoring_coverage[scoring_key] += 1
+
+            # Score each channel independently.  Record-level official metrics
+            # are all-or-nothing, so using their detail payload here would
+            # silently discard a valid sibling whenever another channel has a
+            # malformed horizon.
+            if base_scorable and treatment_scorable:
+                b_label = (base_support.get(task_id) or {}).get(
+                    channel, "unlabeled")
+                t_label = (treat_support.get(task_id) or {}).get(
+                    channel, "unlabeled")
+                base_mix[b_label] = base_mix.get(b_label, 0) + 1
+                treat_mix[t_label] = treat_mix.get(t_label, 0) + 1
+                outcome = (
+                    "safety_preservation"
+                    if math.isclose(treatment_mase, naive_mase,
+                                    rel_tol=0, abs_tol=1e-12)
+                    else "uplift" if treatment_mase < naive_mase
+                    else "regression"
+                )
+                paired_channel_records.append({
+                    "task_id": task_id, "channel": channel,
+                    "baseline_mase": base_mase,
+                    "treatment_mase": treatment_mase,
+                    "last_value_mase": naive_mase,
+                    "treatment_vs_last_value": outcome,
+                    "baseline_support": b_label,
+                    "treatment_support": t_label,
+                })
+                per_channel.setdefault(channel, []).append(
+                    (base_mase, treatment_mase))
+                if stable_scaled_error_denominator(channel_history):
+                    per_channel_stable.setdefault(channel, []).append(
+                        (base_mase, treatment_mase))
         if not both:
             continue
 
-        b_sum, b_detail = subset_metrics(
+        b_sum, _ = subset_metrics(
             metrics_module, truth, history, b_fc, both)
-        t_sum, t_detail = subset_metrics(
+        t_sum, _ = subset_metrics(
             metrics_module, truth, history, t_fc, both)
         if not b_sum or not t_sum:
             continue
 
-        for channel in both:
-            b_label = (base_support.get(task_id) or {}).get(channel, "unlabeled")
-            t_label = (treat_support.get(task_id) or {}).get(channel, "unlabeled")
-            base_mix[b_label] = base_mix.get(b_label, 0) + 1
-            treat_mix[t_label] = treat_mix.get(t_label, 0) + 1
         record_rows.append({
             "task_id": task_id,
             "channels": both,
             "baseline": b_sum,
             "treatment": t_sum,
         })
-        for channel in both:
-            b_ch = (b_detail or {}).get(channel) or {}
-            t_ch = (t_detail or {}).get(channel) or {}
-            b_val, t_val = b_ch.get("MASE"), t_ch.get("MASE")
-            if b_val is not None and t_val is not None:
-                channel_history = (history or {}).get(channel) \
-                    if isinstance(history, dict) else None
-                finite_history = []
-                for value in channel_history or []:
-                    try:
-                        numeric = float(value)
-                    except (TypeError, ValueError):
-                        continue
-                    if math.isfinite(numeric):
-                        finite_history.append(numeric)
-                naive_mase = None
-                if finite_history:
-                    naive = {channel: [finite_history[-1]] * len(truth[channel])}
-                    _, naive_detail = subset_metrics(
-                        metrics_module, truth, history, naive, [channel])
-                    naive_mase = ((naive_detail or {}).get(channel) or {}).get("MASE")
-                outcome = ("safety_preservation" if naive_mase is not None
-                           and math.isclose(t_val, naive_mase, rel_tol=0, abs_tol=1e-12)
-                           else "uplift" if naive_mase is not None and t_val < naive_mase
-                           else "regression" if naive_mase is not None and t_val > naive_mase
-                           else "unclassified")
-                paired_channel_records.append({
-                    "task_id": task_id, "channel": channel,
-                    "baseline_mase": b_val, "treatment_mase": t_val,
-                    "last_value_mase": naive_mase,
-                    "treatment_vs_last_value": outcome,
-                    "baseline_support": (base_support.get(task_id) or {}).get(
-                        channel, "unlabeled"),
-                    "treatment_support": (treat_support.get(task_id) or {}).get(
-                        channel, "unlabeled"),
-                })
-                per_channel.setdefault(channel, []).append((b_val, t_val))
-                if stable_scaled_error_denominator(channel_history):
-                    per_channel_stable.setdefault(channel, []).append(
-                        (b_val, t_val))
 
     def stable_summary(channel, pairs):
         result = summarise_pairs(pairs)
@@ -322,6 +331,10 @@ def main() -> int:
         return result
 
     all_pairs = [p for pairs in per_channel.values() for p in pairs]
+    if len(all_pairs) != scoring_coverage["both"]:
+        raise AssertionError(
+            "paired score count diverged from independently scorable "
+            f"coverage: {len(all_pairs)} != {scoring_coverage['both']}")
     stable_all = [pair for pairs in per_channel_stable.values()
                   for pair in pairs]
 
@@ -335,6 +348,11 @@ def main() -> int:
         "treatment_code_revision": read_manifest(treatment_dir).get(
             "code_revision"),
         "coverage": coverage,
+        # Presence alone is insufficient: a model may return a named array
+        # with the wrong horizon or non-numeric values. Keep the historical
+        # presence accounting, but make the denominator behind actual scores
+        # explicit so malformed forecasts cannot masquerade as coverage.
+        "scoring_coverage": scoring_coverage,
         "support_mix": {"baseline": base_mix, "treatment": treat_mix},
         "per_channel": {c: stable_summary(c, p)
                         for c, p in per_channel.items()},

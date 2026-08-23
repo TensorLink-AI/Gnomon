@@ -21,6 +21,7 @@ from benchmarks.temporalbench.scoring import (
     score_t3,
 )
 from benchmarks.temporalbench.score_per_channel import (
+    coverage_bucket,
     stable_scaled_error_denominator,
     summarise_pairs,
 )
@@ -29,6 +30,13 @@ from benchmarks.temporalbench.run_temporalbench import (
     primary_forecast_immutability,
     resume_revision_provenance,
 )
+
+
+def test_channel_coverage_buckets_presence_and_scorability_independently():
+    assert coverage_bucket(True, True) == "both"
+    assert coverage_bucket(True, False) == "base_only"
+    assert coverage_bucket(False, True) == "treat_only"
+    assert coverage_bucket(False, False) == "neither"
 
 
 def test_resume_state_falls_back_to_durable_usage_checkpoint(tmp_path):
