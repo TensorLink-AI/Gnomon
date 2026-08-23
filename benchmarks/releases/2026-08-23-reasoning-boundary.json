@@ -1,0 +1,112 @@
+{
+  "release": "2026-08-23-reasoning-boundary",
+  "output_dir": "results/benchmark-releases/2026-08-23-reasoning-boundary",
+  "benchmarks": [
+    {
+      "benchmark": "boundarybench",
+      "arm": "reasoning-boundary-seed-20260823",
+      "scope": "full",
+      "source": "results/boundarybench-0ac55e4/seed-20260823/summary.json",
+      "file": "boundarybench/seed-20260823.json",
+      "status": "graduated",
+      "evaluated_commit": "0ac55e4",
+      "harness_commit": "0ac55e4",
+      "dataset_identity": "BoundaryBench synthetic contract corpus seed=20260823 cases=100",
+      "configuration_identity": "universal reasoning boundary; immutable canonical answer; traceable facts; typed rejection and call attribution"
+    },
+    {
+      "benchmark": "boundarybench",
+      "arm": "reasoning-boundary-seed-94721",
+      "scope": "full",
+      "source": "results/boundarybench-0ac55e4/seed-94721/summary.json",
+      "file": "boundarybench/seed-94721.json",
+      "status": "graduated",
+      "evaluated_commit": "0ac55e4",
+      "harness_commit": "0ac55e4",
+      "dataset_identity": "BoundaryBench synthetic contract corpus seed=94721 cases=100",
+      "configuration_identity": "universal reasoning boundary; immutable canonical answer; traceable facts; typed rejection and call attribution"
+    },
+    {
+      "benchmark": "boundarybench",
+      "arm": "reasoning-boundary-seed-27183",
+      "scope": "full",
+      "source": "results/boundarybench-0ac55e4/seed-27183/summary.json",
+      "file": "boundarybench/seed-27183.json",
+      "status": "graduated",
+      "evaluated_commit": "0ac55e4",
+      "harness_commit": "0ac55e4",
+      "dataset_identity": "BoundaryBench synthetic contract corpus seed=27183 cases=100",
+      "configuration_identity": "universal reasoning boundary; immutable canonical answer; traceable facts; typed rejection and call attribution"
+    },
+    {
+      "benchmark": "temporalbench",
+      "arm": "deepseek-control",
+      "scope": "subset",
+      "source": "results/temporalbench-reasoning-boundary-0ac55e4/control-final-v3/summary.json",
+      "file": "temporalbench-control/summary.json",
+      "status": "complete",
+      "evaluated_commit": "0ac55e4",
+      "harness_commit": "2c03581",
+      "dataset_identity": "official labeled split; matched 80-case T2/T4 sample; 240 choice fields and 480 forecast channels",
+      "configuration_identity": "DeepSeek V4 Flash 0731 via Engy; temperature=0; direct official prompt; bounded infrastructure retry"
+    },
+    {
+      "benchmark": "temporalbench",
+      "arm": "gnomon-evidence",
+      "scope": "subset",
+      "source": "results/temporalbench-reasoning-boundary-0ac55e4/evidence-final-v3/summary.json",
+      "file": "temporalbench-evidence/summary.json",
+      "status": "complete",
+      "evaluated_commit": "0ac55e4",
+      "harness_commit": "2c03581",
+      "dataset_identity": "official labeled split; matched 80-case T2/T4 sample; 240 choice fields and 480 forecast channels",
+      "configuration_identity": "DeepSeek V4 Flash 0731 via Engy; temperature=0; Gnomon Evidence MCP profile; compiled questions and context; bounded infrastructure retry"
+    },
+    {
+      "benchmark": "temporalbench-choice",
+      "arm": "gnomon-evidence-vs-deepseek",
+      "scope": "subset",
+      "source": "results/temporalbench-reasoning-boundary-0ac55e4/choice-comparison-final.json",
+      "file": "choice-comparison.json",
+      "status": "complete",
+      "evaluated_commit": "0ac55e4",
+      "harness_commit": "2c03581",
+      "dataset_identity": "240 field-level questions from the matched official 80-case T2/T4 sample",
+      "configuration_identity": "exact task-and-field pairing; two-sided exact McNemar tests"
+    },
+    {
+      "benchmark": "temporalbench-forecast",
+      "arm": "gnomon-evidence-vs-deepseek",
+      "scope": "subset",
+      "source": "results/temporalbench-reasoning-boundary-0ac55e4/matched-report-final.json",
+      "file": "matched-report.json",
+      "status": "complete",
+      "evaluated_commit": "0ac55e4",
+      "harness_commit": "2c03581",
+      "dataset_identity": "80 matched forecast tasks from the official T2/T4 sample",
+      "configuration_identity": "paired official row-level sMAPE; exact sign test; canonical unique task records"
+    },
+    {
+      "benchmark": "temporalbench-channel-forecast",
+      "arm": "gnomon-evidence-vs-deepseek",
+      "scope": "subset",
+      "source": "results/temporalbench-reasoning-boundary-0ac55e4/channel-comparison-final.json",
+      "file": "channel-comparison.json",
+      "status": "complete",
+      "evaluated_commit": "0ac55e4",
+      "harness_commit": "2c03581",
+      "dataset_identity": "480 paired channel forecasts from the official matched T2/T4 sample",
+      "configuration_identity": "official per-channel MASE on shared channels; exact paired sign tests; near-constant denominator disclosure"
+    }
+  ],
+  "not_included": [
+    {
+      "benchmark": "boundarybench-reasoning-accuracy",
+      "reason": "BoundaryBench validates safety contracts and is not evidence of temporal reasoning or forecast accuracy."
+    },
+    {
+      "benchmark": "temporalbench-superiority",
+      "reason": "Choice and row-level sMAPE differences are not statistically significant; the per-channel MASE regression is disclosed."
+    }
+  ]
+}
