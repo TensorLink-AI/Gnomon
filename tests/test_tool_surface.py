@@ -667,6 +667,52 @@ def test_forecast_triage_contract_preserves_remainder():
     assert payload["triage"]["ranking_rule"]
     assert payload["triage"]["remainder_count"] == 1
     assert payload["triage"]["remainder_preserved"] is True
+    # Canonical copyable fields: the winner and the artifact identity are
+    # deterministic response fields, not facts an agent must restate.
+    assert payload["triage"]["most_notable"] == "b"
+    assert payload["triage"]["artifact"]["artifact_path"] == "/tmp/artifact"
+
+
+def test_wide_response_bounding_refreshes_the_one_canonical_triage_block():
+    from gnomon.toolspec import _attach_multiseries_triage, triage_wide_response
+
+    attached = _attach_multiseries_triage({
+        "forecast_id": "fc-1", "artifact_path": "/tmp/artifact",
+        "results": [{"series": name, "notability": score, "support": "degraded",
+                     "support_assessment": {"status": "degraded"}}
+                    for name, score in (("a", 1), ("b", 4), ("c", 2),
+                                        ("d", 3), ("e", 5))],
+    })
+    bounded = triage_wide_response(attached)
+    assert "series_triage" not in bounded
+    triage = bounded["triage"]
+    # The attach-time ranking rule survives the bounding pass verbatim.
+    assert triage["ranking_rule"] == \
+        "threshold crossing, then relative path movement"
+    assert triage["most_notable"] == "e"
+    assert triage["series_count"] == 5
+    assert triage["returned"] == 3
+    assert triage["remainder_count"] == 2
+    assert triage["remainder_tiers"] == {"degraded": 2}
+    assert triage["remainder_preserved"] is True
+    assert triage["artifact"] == {"forecast_id": "fc-1",
+                                  "artifact_path": "/tmp/artifact"}
+    assert [row["series"] for row in bounded["results"]] == ["e", "b", "d"]
+
+
+def test_budget_trim_never_drops_the_triage_disclosures():
+    from gnomon.toolspec import enforce_response_budget, triage_wide_response
+
+    payload = triage_wide_response({
+        "artifact_path": "/tmp/artifact",
+        "results": [{"series": f"s{index}", "notability": index,
+                     "support": "degraded",
+                     "bulk": list(range(400))}
+                    for index in range(8)],
+    })
+    trimmed = enforce_response_budget(payload, budget_bytes=1024)
+    assert trimmed["truncated"] is True
+    assert trimmed["triage"] == payload["triage"]
 
 
 def test_describe_spike_response_is_json_serializable(tmp_path, monkeypatch):

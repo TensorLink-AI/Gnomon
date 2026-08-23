@@ -39,6 +39,28 @@
   BoundaryBench measures immutability, traceability, rejection repair and
   redundant-call attribution independently of forecast accuracy.
 
+- **Multi-series triage disclosures are one canonical, copyable contract.**
+  Wide-response bounding now refreshes the single `triage` block instead of
+  attaching a second, differently-shaped `series_triage` summary. Every
+  triage block carries the ranking rule, the `most_notable` winner, the
+  preserved-remainder count and tiers, and — where an artifact exists — the
+  artifact identity, as deterministic fields an agent copies rather than
+  facts it must remember to restate. The `triage` subtree joins the
+  protected keys, so a budget trim can never take the disclosure with it.
+
+- **Short-history volatility answers publish a weak best estimate instead of
+  abstaining.** Histories too short for rolling-origin folds previously
+  answered every volatility-direction question "uncertain". The fitted
+  executable now falls back to a reference-tail persistence estimator —
+  the trailing half of the reference window, log-shrunk halfway toward the
+  window scale — that owns the published candidate, scale, ratio, and point
+  state together, so a warm-up-biased whole-history scale can no longer
+  contradict the answer. The estimate stays weak, automation-ineligible,
+  and uniform-probability; "uncertain" is reserved for histories with no
+  computable reference ratio. VolatilityBench schema 0.4 adds a sealed
+  short-history suite measuring the fallback against the abstain-all
+  (pre-change, scores zero) and always-stable baselines.
+
 - **Benchmark evidence is fail-closed.** Dated releases now record the exact
   evaluated commit, harness commit, dataset identity, and configuration
   identity. A result with unknown provenance cannot be labelled complete or

@@ -202,6 +202,10 @@ _PROTECTED_KEYS = frozenset({
     "artifact_id", "artifact_path", "data_ref", "error", "repair_options",
     "context_outcome", "admission", "question", "answer", "executable", "calibration",
     "direction_probabilities", "primary_forecast_unchanged",
+    # The bounded multi-series disclosure contract: ranking rule, preserved
+    # remainder, and artifact identity are copied deterministically and must
+    # survive any budget trim.
+    "triage",
     "reasoning", "sufficiency", "facts", "rejection",
 })
 
@@ -410,8 +414,27 @@ def apply_temporal_grounding(payload: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+def _triage_artifact_identity(payload: dict[str, Any]) -> dict[str, Any]:
+    """Artifact identity fields the triage block carries verbatim.
+
+    Ranking rules, preserved remainders, and artifact identity are canonical
+    response fields copied deterministically — never facts an LLM must
+    remember to restate from elsewhere in the payload.
+    """
+    identity = {key: payload.get(key) for key in ("forecast_id", "artifact_path")
+                if payload.get(key) is not None}
+    return {"artifact": identity} if identity else {}
+
+
 def triage_wide_response(payload: dict[str, Any], top_k: int = 3) -> dict[str, Any]:
-    """Bound a wide response while leaving the immutable artifact complete."""
+    """Bound a wide response while leaving the immutable artifact complete.
+
+    The bounded view refreshes the one canonical ``triage`` block instead of
+    attaching a second, differently-shaped summary: the ranking rule, the
+    most notable series, the preserved remainder, and the artifact identity
+    stay deterministic fields with one name each, whichever surface bounded
+    the response.
+    """
     rows = payload.get("results")
     if not isinstance(rows, list) or len(rows) <= top_k:
         return payload
@@ -423,16 +446,28 @@ def triage_wide_response(payload: dict[str, Any], top_k: int = 3) -> dict[str, A
         assessment = row.get("support_assessment") or {}
         tier = str(assessment.get("status") or row.get("support") or "unknown")
         tier_counts[tier] = tier_counts.get(tier, 0) + 1
+    existing = (payload.get("triage")
+                if isinstance(payload.get("triage"), dict) else {})
     return {
         **payload,
         "results": ranked[:top_k],
-        "series_triage": {
-            "total": len(rows), "returned": top_k,
-            "ranking": "threshold crossing, then relative forecast movement",
+        "triage": {
+            **existing,
+            "series_count": len(rows), "returned": top_k,
+            "ranking_rule": existing.get(
+                "ranking_rule",
+                "threshold crossing, then relative forecast movement"),
+            "most_notable": (str(ranked[0].get("series"))
+                             if isinstance(ranked[0], dict)
+                             and ranked[0].get("series") is not None else
+                             existing.get("most_notable")),
             "remainder_count": len(remainder),
             "remainder_tiers": dict(sorted(tier_counts.items())),
-            "full_results": ("Use gnomon_get_artifact with series/fields/where/"
-                             "order_by/limit selectors on artifact_path."),
+            "remainder_preserved": True,
+            **_triage_artifact_identity(payload),
+            "full_results": existing.get("full_results") or (
+                "Use gnomon_get_artifact with series/fields/where/"
+                "order_by/limit selectors on artifact_path."),
         },
     }
 
@@ -850,11 +885,13 @@ def _attach_multiseries_triage(payload: dict[str, Any]) -> dict[str, Any]:
     return {**payload, "triage": {
         "series_count": len(results),
         "ranking_rule": "threshold crossing, then relative path movement",
+        "most_notable": notable[0]["series"] if notable else None,
         "notable": notable,
         "remainder_count": len(results) - len(notable),
         # A bounded response is not data loss: every omitted series remains
         # addressable in the immutable artifact named below.
         "remainder_preserved": True,
+        **_triage_artifact_identity(payload),
         "full_results": {
             "tool_call": {"name": "gnomon_get_artifact", "arguments": {
                 "artifact_path": payload.get("artifact_path"),
@@ -1063,6 +1100,7 @@ def _run_inspect_multi(arguments: dict[str, Any], target_spec: str) -> dict[str,
         **shared,
         "targets": reports,
         "triage": {
+            "series_count": len(ranked),
             "ranking_rule": "largest absolute final-step change",
             "most_notable": ranked[0] if ranked else None,
             "notable": ranked[:3],
@@ -1190,6 +1228,7 @@ def _run_describe(arguments: dict[str, Any]) -> dict[str, Any]:
         "reports": reports,
         **({"answers": temporal_answers} if temporal_answers else {}),
         "triage": {
+            "series_count": len(ranked),
             "ranking_rule": "largest absolute final-step change",
             "most_notable": ranked[0] if ranked else None,
             "notable": ranked[:3],

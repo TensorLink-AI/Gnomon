@@ -175,6 +175,19 @@ def _predict(kind: str, history: list[float], horizon: int, season: int = 1) -> 
         # it. Extrapolate across the distance between those centres.
         distance = (width + horizon) / 2
         return recent * math.exp(max(-.7, min(.7, slope * distance)))
+    if kind == "reference_tail_persistence":
+        # Designated fallback for histories too short to run rolling folds:
+        # persistence of the newest regime, estimated from the trailing half
+        # of the reference window and log-shrunk halfway toward the window
+        # scale to reflect the tiny tail sample.  Never enters fold
+        # selection; selected only when no fold evidence exists.
+        window = max(8, min(48, len(history) // 2))
+        reference = max(_scale(history[-window:]), 1e-12)
+        tail = history[-max(4, window // 2):]
+        tail_scale = _scale(tail) if len(tail) >= 4 else 0.0
+        if tail_scale <= 1e-12:
+            return reference
+        return math.sqrt(reference * tail_scale)
     if kind == "seasonal_phase":
         if season <= 1 or len(history) < 3 * season:
             return _scale(history)
@@ -327,13 +340,21 @@ def fit_volatility_executable(
     scores = {name: statistics.mean(items) for name, items in losses.items()
               if items}
     baseline = scores.get("constant", math.inf)
-    best = min(scores, key=lambda name: (scores[name], name)) if scores else "constant"
+    # With no rolling folds there is no evidence to rank candidates, and the
+    # whole-history scale is dominated by warm-up residuals from tiny early
+    # windows.  Persistence of the newest regime — the reference-window tail,
+    # shrunk toward the window scale — is the least biased default for a
+    # future-scale estimate on such short histories (measured on sealed
+    # short-history cases against whole-history and persistence baselines).
+    default_candidate = "constant" if scores else "reference_tail_persistence"
+    best = (min(scores, key=lambda name: (scores[name], name))
+            if scores else default_candidate)
     improvement = ((baseline - scores[best]) / baseline
                    if math.isfinite(baseline) and baseline > 0 else 0.0)
     advanced_supported = (len(origins) >= 3 and best != "constant"
                           and improvement >= minimum_improvement)
     scale_supported = len(origins) >= 3
-    chosen = best if advanced_supported else "constant"
+    chosen = best if advanced_supported else default_candidate
     prediction = max(_predict(chosen, errors, horizon, season), 0.0) if errors else 0.0
     reference = _scale(errors[-max(8, min(48, len(errors) // 2)):]) if errors else 0.0
     calibration = ratios.get(chosen, [])
@@ -403,13 +424,31 @@ def fit_volatility_executable(
         else fallback_momentum
     )
     direction_prediction = max(
-        _predict(direction_candidate, errors, horizon, season), 1e-12)
+        _predict(direction_candidate, errors, horizon, season), 1e-12
+    ) if errors else 1e-12
     direction_ratio = (direction_prediction / reference
                        if reference > 1e-12 else None)
     calibration_candidate = direction_candidate
     direction_implied = [direction_ratio / error
                          for error in ratios.get(calibration_candidate, [])
                          if direction_ratio is not None and error > 1e-12]
+    short_history_fallback = False
+    # The boundary matches the folds >= 3 publication gate below: any history
+    # without enough prequential ratios to graduate the probability mode gets
+    # the fallback point estimator instead of a warm-up-biased candidate ratio.
+    if len(direction_implied) < 3 and errors and reference > 1e-12:
+        # No prequential fold ratio reaches this history, so a candidate
+        # scale ratio carries warm-up bias instead of evidence.  Measured on
+        # sealed short-history cases, the least-wrong point estimate is the
+        # reference-tail persistence estimator.  This informs only the weak
+        # point state; the uniform probabilities and weak support still
+        # disclose that no calibrated directional evidence exists.
+        direction_candidate = "reference_tail_persistence"
+        direction_ratio = max(
+            _predict(direction_candidate, errors, horizon, season), 1e-12
+        ) / reference
+        direction_implied = []
+        short_history_fallback = True
     probabilities = _smoothed_probabilities(direction_implied)
     point_direction = (_direction(direction_ratio)
                        if direction_ratio is not None else "stable")
@@ -425,7 +464,12 @@ def fit_volatility_executable(
                    if distribution_samples else None)
     distribution = TemporalPropertyDistribution(
         quantity="future_to_reference_residual_scale_ratio",
-        estimate=(ratio_to_reference or 0.0),
+        # Under the short-history fallback the direction ratio is the best
+        # estimate of this quantity; a warm-up-biased candidate ratio must
+        # not masquerade as the distribution's centre.
+        estimate=(direction_ratio if short_history_fallback
+                  and direction_ratio is not None
+                  else (ratio_to_reference or 0.0)),
         lower=(ratio_lower if ratio_lower is not None else 0.0),
         upper=(ratio_upper if ratio_upper is not None else
                max(0.0, (ratio_to_reference or 0.0) * 2)),
@@ -439,13 +483,18 @@ def fit_volatility_executable(
     policy = decision_policy or TemporalDecisionPolicy()
     decision = distribution.decide(policy)
     strongest = str(decision["probability_mode"])
-    # With fewer than three prequential probability observations there is no
-    # calibrated directional evidence.  Preserve the continuous scale and
-    # ratio, but do not turn a noisy recent/reference ratio into a categorical
-    # increase or decrease.  This is an estimator rule, independent of any
-    # downstream task vocabulary.
+    # With three or more prequential probability observations the calibrated
+    # probability mode is the graduated best estimate.  Below that there is
+    # no calibrated directional evidence — but the fitted scale executable
+    # still produces a real future/reference ratio, so its point state is
+    # published as the weak best estimate: uniform probabilities, weak
+    # support, and automation ineligibility keep the missing calibration
+    # explicit.  "Uncertain" is reserved for histories where no reference
+    # ratio is computable at all; an abstention where a meaningful estimate
+    # exists withholds information without adding honesty.
     published_direction = (
-        strongest if distribution.folds >= 3 else "uncertain")
+        strongest if distribution.folds >= 3 else
+        point_direction if direction_ratio is not None else "uncertain")
     return FittedVolatilityExecutable(
         candidate=chosen, scale=prediction, lower=max(0.0, lower),
         upper=max(lower, upper), horizon=horizon,
@@ -489,7 +538,12 @@ def fit_volatility_executable(
             "direction_long_momentum_detected": long_momentum_detected,
             "direction_long_momentum_log_change": long_momentum_change,
             "direction_publication_rule": (
-                "calibrated_mode_when_automation_eligible_else_weak_point_state"),
+                "calibrated_mode_when_folds_ge_3_else_weak_point_state_"
+                "when_ratio_computable"),
+            "short_history_point_estimate": short_history_fallback,
+            "short_history_estimator": (
+                "reference_tail_persistence_log_shrunk_half"
+                if short_history_fallback else None),
             "calibration_ratios": len(calibration),
         },
     )
