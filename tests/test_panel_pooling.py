@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from gnomon.panel_pooling import PANEL_POOLED_TREND, PanelTrendCandidate
-from gnomon.runtime import forecast_multi
+from gnomon.runtime import forecast, forecast_multi
 
 
 def _panel(length: int = 15) -> dict[str, list[float]]:
@@ -51,6 +51,29 @@ def test_short_wide_panel_can_earn_distinct_pooled_admission(tmp_path) -> None:
     assert {item["state"] for item in admission} == {"pooled_validated"}
     assert all(item["evidence"]["independent_folds"] == 1
                for item in admission)
+
+
+def test_equivalent_long_panel_uses_same_pooling_lane(tmp_path) -> None:
+    panel = _panel()
+    source = tmp_path / "panel-long.csv"
+    rows = ["timestamp,series,value"]
+    start = date(2026, 1, 1)
+    for name, values in panel.items():
+        rows.extend(
+            f"{(start + timedelta(days=step)).isoformat()},{name},{value}"
+            for step, value in enumerate(values)
+        )
+    source.write_text("\n".join(rows) + "\n", encoding="utf-8")
+
+    artifact, _ = forecast(
+        str(source), time_column="timestamp", target_column="value",
+        series_column="series", horizon=5, frequency="D",
+        output=str(tmp_path / "out"),
+    )
+    assert {result.selected_model for result in artifact.results} == {
+        PANEL_POOLED_TREND}
+    assert {result.admission["state"] for result in artifact.results} == {
+        "pooled_validated"}
 
 
 def test_heterogeneous_panel_rejects_itself() -> None:

@@ -931,6 +931,15 @@ def forecast(
     if multivariate:
         from .multivariate import VarFrame
         var_frame, var_ineligible = VarFrame.build(loaded.groups)
+    # Long-form panels (the natural MCP representation) must receive the
+    # same within-file pooling candidate as equivalent wide inputs. The
+    # candidate copies this already point-in-time-bounded snapshot and every
+    # historical prediction slices every donor at its fold origin.
+    from .panel_pooling import panel_candidates
+    pooled_candidates = panel_candidates({
+        name: [item.value for item in items]
+        for name, items in loaded.groups.items()
+    })
     for series_name, items in sorted(loaded.groups.items()):
         result, series_evidence = _series_result(
             series_name, items, loaded=loaded, horizon=horizon,
@@ -947,6 +956,11 @@ def forecast(
             structural_events=structural_events_enabled,
             best_effort=best_effort,
             minimum_support=minimum_support,
+            additional_candidates=(
+                {pooled_candidates[series_name].name:
+                 pooled_candidates[series_name]}
+                if series_name in pooled_candidates else None
+            ),
         )
         if result.future_context and result.future_context.get("admitted"):
             future_context_admitted[series_name] = list(
