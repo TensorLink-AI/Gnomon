@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- **BreachBench: the client job, priced in the client's units.** A
+  matched benchmark for Gnomon's first product job — which metric may
+  breach a meaningful limit, when, and whether intervening is justified.
+  Cases are windowed slices of four bundled real telemetry-flavoured
+  series (real Wikipedia traffic, a real 5-minute sensor, real Melbourne
+  pedestrian counts spanning the COVID collapse, real US retail sales;
+  MIT-sourced, provenance documented), with thresholds at the recent
+  maximum plus sampled robust-scale margins and ground truth from the
+  realized held-out future. The treatment arm receives Gnomon's real
+  production output for the exact call — forecast with threshold
+  analysis, support tiers, warnings, and the model-assisted lane. The
+  primary metric is decision cost and regret under a stated cost model,
+  with the breach base rate held near the cost break-even so no constant
+  policy can masquerade as skill; the verdicts demand margins over the
+  model alone, over the product's own no-LLM rule, and over the best
+  constant policy before "useful" is claimed. Deterministic references,
+  paired exact sign tests, affine anonymization with the threshold
+  transformed identically, and a verified no-future-leakage guarantee.
+
 - **DossierBench: the matched uplift experiment, on real data.** Three
   arms answer the same interpretation questions with the same model at
   temperature zero — the model alone, the model plus the computed
