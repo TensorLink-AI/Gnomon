@@ -16,6 +16,18 @@ gnomon-output/
 # them, and nothing in the codebase reads these paths.
 data/
 
+# Exception: the curated real-data corpora for DossierBench and
+# BreachBench ARE versioned. They are small (~220 KB total), the
+# benchmarks cannot run without them, and their sha256 is pinned into
+# every run's dataset identity — so the exact bytes must travel with the
+# code, not a download script that can drift or be unreachable. Both the
+# directory and its contents need re-including: git does not descend into
+# an excluded directory.
+!benchmarks/breachbench/data/
+!benchmarks/breachbench/data/**
+!benchmarks/dossierbench/data/
+!benchmarks/dossierbench/data/**
+
 # CiK's official result cache. Swept in by the same `git add -A`; the runs
 # that produced it used --no-cache because the cached path fails on
 # object-dtype columns.
