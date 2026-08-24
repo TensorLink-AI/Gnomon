@@ -583,6 +583,8 @@ def main() -> int:
     parser.add_argument("--base-url")
     parser.add_argument("--api-key-env", default="ENGY_API_KEY")
     parser.add_argument("--temperature", type=float, default=0.2)
+    parser.add_argument("--reasoning-effort", default=None,
+                        choices=("none", "low", "medium", "high"))
     parser.add_argument("--jobs", type=int, default=1)
     parser.add_argument("--limit", type=int,
                         help="balanced development subset; omit for the 80-case run")
@@ -632,6 +634,7 @@ def main() -> int:
         "base_url": args.base_url, "temperature": args.temperature,
         "timeout": args.request_timeout, "max_retries": args.max_retries,
         "max_tokens": 8000,
+        "reasoning_effort": args.reasoning_effort,
     }
     output = Path(args.output_dir); output.mkdir(parents=True, exist_ok=True)
     observation_path = output / "observations.jsonl"
@@ -705,6 +708,7 @@ def main() -> int:
         "model": args.model,
         "base_url": OpenRouterClient(args.model, **client_kwargs).base_url,
         "temperature": args.temperature,
+        "reasoning_effort": args.reasoning_effort,
         "request_timeout_seconds": args.request_timeout,
         "tool_timeout_seconds": args.tool_timeout,
         "max_retries": args.max_retries,

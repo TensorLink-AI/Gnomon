@@ -478,7 +478,8 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
         client = OpenRouterClient(
             args.model, api_key=os.environ.get(args.api_key_env),
             base_url=args.base_url, temperature=0, max_tokens=500,
-            max_retries=4)
+            max_retries=4,
+            reasoning_effort=getattr(args, "reasoning_effort", None))
     source = getattr(args, "source", "real")
     if source == "real":
         cases, corpus_provenance, futures = generate_real_cases(
@@ -687,6 +688,7 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
         },
         "design": {
             "matched": True,
+            "reasoning_effort": getattr(args, "reasoning_effort", None),
             "arms_differ_by_packet_block_only": True,
             "labels_absent_from_prompts_and_packets": True,
             "same_machinery_feeds_both_packet_arms": True,
@@ -721,6 +723,8 @@ def main() -> int:
                         default="real")
     parser.add_argument("--data-dir", default=None)
     parser.add_argument("--concurrency", type=int, default=8)
+    parser.add_argument("--reasoning-effort", default=None,
+                        choices=("none", "low", "medium", "high"))
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--resume", action="store_true")
     run(parser.parse_args())

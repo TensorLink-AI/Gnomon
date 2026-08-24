@@ -428,7 +428,7 @@ def main() -> int:
                              "supports resumable one-row benchmark shards.")
     parser.add_argument("--temperature", type=float, default=0.2)
     parser.add_argument(
-        "--reasoning-effort", choices=("low", "medium", "high"),
+        "--reasoning-effort", choices=("none", "low", "medium", "high"),
         help=("Optional OpenAI-compatible reasoning effort; use the same "
               "value in every matched condition."),
     )
