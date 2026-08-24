@@ -17,13 +17,15 @@ from benchmarks.breachbench.run_breachbench import (  # noqa: E402
     product_packet,
     product_rule,
     run,
+    series_frequency,
 )
 
 
-def _args(tmp_path: Path, cases: int = 6) -> argparse.Namespace:
+def _args(tmp_path: Path, cases: int = 6,
+          resume: bool = False) -> argparse.Namespace:
     return argparse.Namespace(
         seed=20260826, cases=cases, data_dir=None,
-        output_dir=str(tmp_path / "out"), resume=False, concurrency=2,
+        output_dir=str(tmp_path / "out"), resume=resume, concurrency=2,
         model="scripted-test-model")
 
 
@@ -75,6 +77,38 @@ def test_cases_are_deterministic_real_and_outcome_labelled() -> None:
         "wiki_traffic_daily_log", "sensor_temps_5min",
         "pedestrian_counts_daily", "retail_sales_monthly"}
     assert provenance["labeling"] == "realized_future_breach_and_first_step"
+    for case in first:
+        assert case.frequency == series_frequency(case.origin)
+
+
+def test_realized_futures_never_overlap_within_a_series(tmp_path) -> None:
+    """Overlapping futures share breach events; correlated truth labels
+    would inflate the paired significance tests. A series with room for
+    only two horizon-spaced futures must refuse to yield four cases."""
+    import math
+    import pytest
+
+    data = tmp_path / "corpus"
+    data.mkdir()
+    values = [100 + 5 * math.sin(i / 3) + (i % 7) for i in range(150)]
+    data.joinpath("tiny_daily.csv").write_text(
+        "value\n" + "\n".join(str(v) for v in values), encoding="utf-8")
+    with pytest.raises(ValueError) as failure:
+        generate_cases(9, 4, data)
+    assert "future_overlap" in str(failure.value)
+    cases, provenance, futures = generate_cases(9, 2, data)
+    assert len(cases) == 2
+    assert provenance["independence"].startswith(
+        "realized_futures_non_overlapping_within_series")
+    assert sum(provenance["cases_per_series"].values()) == len(cases)
+
+
+def test_cadence_is_read_from_the_corpus_filenames() -> None:
+    assert series_frequency("sensor_temps_5min") == "5min"
+    assert series_frequency("retail_sales_monthly") == "MS"
+    assert series_frequency("wiki_traffic_daily_log") == "D"
+    assert series_frequency("pedestrian_counts_daily") == "D"
+    assert series_frequency("mystery_series") == "D"
 
 
 def test_the_product_packet_is_real_gnomon_output() -> None:
@@ -101,7 +135,60 @@ def test_answers_are_validated_not_guessed() -> None:
     assert parsed["valid"] and parsed["first_breach_step"] is None
 
 
-def test_a_matched_offline_run_prices_decisions_in_client_units(tmp_path) -> None:
+def test_malformed_steps_degrade_and_never_crash_a_paid_run() -> None:
+    # json.loads accepts NaN/Infinity, and true is an int in Python:
+    # each must degrade to a missing step, not raise mid-run.
+    for hostile in ("NaN", "Infinity", "-Infinity", "true", "1e400",
+                    '"soon"', "0", "-3"):
+        parsed = parse_answer(
+            '{"breach_expected": true, "first_breach_step": ' + hostile
+            + ', "action": "act"}', 24)
+        assert parsed["valid"] is True
+        assert parsed["first_breach_step"] is None
+    parsed = parse_answer(
+        '{"breach_expected": true, "first_breach_step": 7.0, '
+        '"action": "act"}', 24)
+    assert parsed["first_breach_step"] == 7
+
+
+def test_one_dead_call_fails_loudly_and_resume_finishes(tmp_path) -> None:
+    import pytest
+
+    import threading
+
+    class FlakyClient(ScriptedClient):
+        def __init__(self) -> None:
+            self.calls = 0
+            self._lock = threading.Lock()
+
+        def completions(self, messages, *, n=1):
+            with self._lock:
+                self.calls += 1
+                ordinal = self.calls
+            if ordinal == 3:
+                raise RuntimeError("endpoint fell over")
+            return super().completions(messages, n=n)
+
+    with pytest.raises(RuntimeError) as failure:
+        run(_args(tmp_path), client=FlakyClient())
+    assert "rerun with --resume" in str(failure.value)
+    rows_path = tmp_path / "out" / "rows.jsonl"
+    survived = rows_path.read_text().splitlines()
+    assert len(survived) == 6 * len(ARMS) - 1
+    # Stale rows from an older seed and a crash-truncated line must not
+    # leak into the resumed run's metrics.
+    with rows_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps({"case_id": "b999-0000", "arm": "control",
+                                 "cost": 0.0}) + "\n")
+        handle.write('{"case_id": "b20260826-')
+    summary = run(_args(tmp_path, resume=True), client=ScriptedClient())
+    assert summary["paired"]["paired_cases"] == 6
+    for arm in ARMS:
+        assert 0.0 <= summary["metrics"][arm]["mean_regret"] <= 10.0
+
+
+def test_a_matched_offline_run_prices_decisions_in_client_units(
+        tmp_path) -> None:
     summary = run(_args(tmp_path), client=ScriptedClient())
     assert set(summary["metrics"]) == set(ARMS)
     for arm in ARMS:

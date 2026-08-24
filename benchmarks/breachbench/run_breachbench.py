@@ -57,7 +57,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from benchmarks.common.envfile import load_env_file  # noqa: E402
 
-GENERATOR_VERSION = "0.1"
+GENERATOR_VERSION = "0.2"
 DATA_DIR = Path(__file__).resolve().parent / "data"
 HORIZON = 24
 COST_ACT = 2.0
@@ -94,6 +94,24 @@ class Case:
     truth_first_step: int | None
     outcome_cell: str
     origin: str
+    frequency: str = "D"
+
+
+#: The corpus files name their real cadence in the filename
+#: (``sensor_temps_5min``, ``retail_sales_monthly``); feeding Gnomon the
+#: true cadence matters because season detection and support tiers are
+#: frequency-aware — calling a 5-minute sensor "daily" would search for a
+#: weekly cycle that does not exist in the data.
+_CADENCE_TOKENS = (("5min", "5min"), ("hourly", "h"), ("weekly", "W"),
+                   ("monthly", "MS"), ("daily", "D"))
+
+
+def series_frequency(name: str) -> str:
+    tokens = set(name.split("_"))
+    for token, code in _CADENCE_TOKENS:
+        if token in tokens:
+            return code
+    return "D"
 
 
 def load_corpus(data_dir: Path = DATA_DIR) -> dict[str, list[float]]:
@@ -133,10 +151,15 @@ def generate_cases(
     futures: dict[str, list[float]] = {}
     cell_counts: dict[str, int] = {}
     seen: set[tuple[str, int, int, float]] = set()
+    # Realized futures must not overlap across cases from the same
+    # series: overlapping futures share breach events, and correlated
+    # truth labels would quietly inflate the paired significance tests.
+    # Histories may still overlap; that is disclosed, not hidden.
+    used_cutoffs: dict[str, list[int]] = {name: [] for name in names}
     cell_caps = {cell: int(count * fraction) + 1
                  for cell, fraction in OUTCOME_TARGETS.items()}
     skipped = {"too_short": 0, "degenerate": 0, "cell_full": 0,
-               "duplicate": 0}
+               "duplicate": 0, "future_overlap": 0, "rounding_flip": 0}
     attempts = 0
     balanced_limit = 300 * count
     while len(cases) < count and attempts < 2 * balanced_limit:
@@ -158,6 +181,10 @@ def generate_cases(
         if key in seen:
             skipped["duplicate"] += 1
             continue
+        if any(abs(cutoff - other) < HORIZON
+               for other in used_cutoffs[name]):
+            skipped["future_overlap"] += 1
+            continue
         if max(history) == min(history):
             skipped["degenerate"] += 1
             continue
@@ -171,19 +198,31 @@ def generate_cases(
         if balanced_phase and cell_counts.get(cell, 0) >= cell_caps[cell]:
             skipped["cell_full"] += 1
             continue
-        seen.add(key)
-        cell_counts[cell] = cell_counts.get(cell, 0) + 1
         # Affine anonymization; the threshold transforms with the values,
-        # so breach structure and timing are exactly invariant.
+        # so breach structure and timing are exactly invariant — verified
+        # below on the rounded numbers the model actually sees, because a
+        # value sitting within rounding distance of the threshold could
+        # otherwise flip a label relative to the shown data.
         a = rng.uniform(.6, 2.4)
         b = rng.uniform(40, 900) - a * statistics.median(history)
+        shown_values = tuple(round(a * value + b, 4) for value in history)
+        shown_threshold = round(a * threshold + b, 4)
+        shown_future = [round(a * value + b, 4) for value in future]
+        shown_steps = [step for step, value in enumerate(shown_future, 1)
+                       if value > shown_threshold]
+        if (bool(shown_steps) != truth_breach
+                or (shown_steps[0] if shown_steps else None) != first_step):
+            skipped["rounding_flip"] += 1
+            continue
+        seen.add(key)
+        used_cutoffs[name].append(cutoff)
+        cell_counts[cell] = cell_counts.get(cell, 0) + 1
         case = Case(
-            f"b{seed}-{len(cases):04d}",
-            tuple(round(a * value + b, 4) for value in history),
-            round(a * threshold + b, 4), HORIZON, truth_breach, first_step,
-            cell, name)
+            f"b{seed}-{len(cases):04d}", shown_values, shown_threshold,
+            HORIZON, truth_breach, first_step, cell, name,
+            series_frequency(name))
         cases.append(case)
-        futures[case.case_id] = [round(a * value + b, 4) for value in future]
+        futures[case.case_id] = shown_future
     if len(cases) < count:
         raise ValueError(
             f"only {len(cases)}/{count} cases after {attempts} attempts; "
@@ -191,6 +230,8 @@ def generate_cases(
     provenance = {
         "corpus_series": names,
         "corpus_points": sum(len(values) for values in corpus.values()),
+        "cases_per_series": {name: len(cutoffs) for name, cutoffs
+                             in sorted(used_cutoffs.items()) if cutoffs},
         "attempts": attempts, "skipped": skipped,
         "fully_balanced": attempts <= balanced_limit,
         "outcome_distribution": dict(sorted(cell_counts.items())),
@@ -198,84 +239,115 @@ def generate_cases(
         "breach_base_rate": statistics.mean(
             case.truth_breach for case in cases),
         "labeling": "realized_future_breach_and_first_step",
+        "independence": ("realized_futures_non_overlapping_within_series;"
+                         "histories_may_overlap"),
         "anonymization":
-            "seeded_positive_affine_transform_threshold_included",
+            "seeded_positive_affine_transform_threshold_included;"
+            "label_invariance_verified_on_rounded_shown_numbers",
     }
     return cases, provenance, futures
+
+
+def _grid_timestamps(frequency: str, count: int) -> list[str]:
+    """Synthetic anchor timestamps on the series' true cadence. The dates
+    are arbitrary (the values are anonymized anyway); the *step* is real,
+    because Gnomon's season detection and support tiers are
+    frequency-aware."""
+    from datetime import datetime, timedelta
+
+    if frequency == "MS":
+        return [f"{2000 + index // 12}-{1 + index % 12:02d}-01"
+                for index in range(count)]
+    steps = {"5min": timedelta(minutes=5), "h": timedelta(hours=1),
+             "W": timedelta(weeks=1), "D": timedelta(days=1)}
+    step = steps.get(frequency, timedelta(days=1))
+    start = datetime(2020, 1, 1)
+    if step >= timedelta(days=1):
+        return [(start + step * index).date().isoformat()
+                for index in range(count)]
+    return [(start + step * index).isoformat(sep=" ")
+            for index in range(count)]
 
 
 def product_packet(case: Case) -> dict[str, Any]:
     """Gnomon's real output for this exact client call, bounded for a
     prompt. Computed from the visible history alone."""
+    import shutil
+
     from gnomon import forecast as gnomon_forecast
     from gnomon.contracts import GnomonError
     from gnomon.support import forecast_headline
 
     run_dir = Path(tempfile.mkdtemp(prefix="breachbench-"))
-    csv_path = run_dir / "history.csv"
-    from datetime import date, timedelta
-    start = date(2020, 1, 1)
-    lines = ["timestamp,value"] + [
-        f"{start + timedelta(days=index)},{value!r}"
-        for index, value in enumerate(case.values)
-    ]
-    csv_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     try:
-        artifact, _ = gnomon_forecast(
-            str(csv_path), time_column="timestamp", target_column="value",
-            horizon=case.horizon, frequency="D", threshold=case.threshold,
-            output=str(run_dir / "out"))
-    except GnomonError as error:
-        return {"status": "abstained", "code": error.code,
-                "message": str(error.message)[:300]}
-    result = artifact.results[0]
-    rows = result.forecast or []
-    packet: dict[str, Any] = {
-        "authority": "computed_gnomon_forecast_with_threshold_analysis",
-        "support": result.support,
-        "selected_model": result.selected_model,
-        "headline": forecast_headline(
-            result.support, result.support_assessment, rows),
-        "forecast": [
-            {"step": step,
-             "q50": round(float(row.get("q50", row["point"])), 4),
-             "q10": round(float(row["q10"]), 4),
-             "q90": round(float(row["q90"]), 4),
-             **({"tier": row["tier"]} if "tier" in row else {})}
-            for step, row in enumerate(rows, 1)
-        ],
-        "warnings": [str(item)[:200] for item in (result.warnings or [])[:2]],
-    }
-    threshold = result.threshold or {}
-    if threshold:
-        stamp_to_step = {str(row.get("timestamp")): step
-                         for step, row in enumerate(rows, 1)}
-        packet["threshold_analysis"] = {
-            "threshold": case.threshold,
-            "probability_above_per_step": [
-                round(float(value), 4)
-                for value in (threshold.get("probability_above") or [])],
-            "first_step_point_above": stamp_to_step.get(
-                str(threshold.get("first_timestamp_point_above"))),
-            "first_step_interval_above": stamp_to_step.get(
-                str(threshold.get("first_timestamp_interval_above"))),
-            "basis": threshold.get("basis"),
+        csv_path = run_dir / "history.csv"
+        stamps = _grid_timestamps(case.frequency, len(case.values))
+        lines = ["timestamp,value"] + [
+            f"{stamp},{value!r}"
+            for stamp, value in zip(stamps, case.values)
+        ]
+        csv_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        try:
+            artifact, _ = gnomon_forecast(
+                str(csv_path), time_column="timestamp",
+                target_column="value", horizon=case.horizon,
+                frequency=case.frequency, threshold=case.threshold,
+                output=str(run_dir / "out"))
+        except GnomonError as error:
+            return {"status": "abstained", "code": error.code,
+                    "message": str(error.message)[:300]}
+        result = artifact.results[0]
+        rows = result.forecast or []
+        packet: dict[str, Any] = {
+            "authority": "computed_gnomon_forecast_with_threshold_analysis",
+            "support": result.support,
+            "selected_model": result.selected_model,
+            "headline": forecast_headline(
+                result.support, result.support_assessment, rows),
+            "forecast": [
+                {"step": step,
+                 "q50": round(float(row.get("q50", row["point"])), 4),
+                 "q10": round(float(row["q10"]), 4),
+                 "q90": round(float(row["q90"]), 4),
+                 **({"tier": row["tier"]} if "tier" in row else {})}
+                for step, row in enumerate(rows, 1)
+            ],
+            "warnings": [str(item)[:200]
+                         for item in (result.warnings or [])[:2]],
         }
-    else:
-        packet["threshold_analysis"] = {
-            "threshold": case.threshold,
-            "unavailable": ("exceedance probabilities require calibrated "
-                            "residuals, which these rows do not have"),
-        }
-    lane = result.model_assisted
-    if lane:
-        packet["model_assisted"] = {
-            "support": lane.get("support"),
-            "selected_model": lane.get("selected_model"),
-            "points": [round(float(v), 4)
-                       for v in (lane.get("points") or [])],
-        }
-    return packet
+        threshold = result.threshold or {}
+        if threshold:
+            stamp_to_step = {str(row.get("timestamp")): step
+                             for step, row in enumerate(rows, 1)}
+            packet["threshold_analysis"] = {
+                "threshold": case.threshold,
+                "probability_above_per_step": [
+                    round(float(value), 4)
+                    for value in (threshold.get("probability_above") or [])],
+                "first_step_point_above": stamp_to_step.get(
+                    str(threshold.get("first_timestamp_point_above"))),
+                "first_step_interval_above": stamp_to_step.get(
+                    str(threshold.get("first_timestamp_interval_above"))),
+                "basis": threshold.get("basis"),
+            }
+        else:
+            packet["threshold_analysis"] = {
+                "threshold": case.threshold,
+                "unavailable": ("exceedance probabilities require "
+                                "calibrated residuals, which these rows "
+                                "do not have"),
+            }
+        lane = result.model_assisted
+        if lane:
+            packet["model_assisted"] = {
+                "support": lane.get("support"),
+                "selected_model": lane.get("selected_model"),
+                "points": [round(float(v), 4)
+                           for v in (lane.get("points") or [])],
+            }
+        return packet
+    finally:
+        shutil.rmtree(run_dir, ignore_errors=True)
 
 
 def base_prompt(case: Case) -> str:
@@ -313,9 +385,13 @@ def parse_answer(text: str, horizon: int) -> dict[str, Any]:
         return {"valid": False}
     breach = payload.get("breach_expected")
     action = str(payload.get("action", "")).strip().lower()
-    step = payload.get("first_breach_step")
-    step = int(step) if isinstance(step, (int, float)) \
-        and 1 <= int(step) <= horizon else None
+    raw_step = payload.get("first_breach_step")
+    # ``json.loads`` accepts NaN/Infinity, and ``True`` is an ``int``:
+    # a malformed step must degrade to None, never crash a paid run.
+    step = None
+    if (isinstance(raw_step, (int, float)) and not isinstance(raw_step, bool)
+            and math.isfinite(raw_step) and 1 <= int(raw_step) <= horizon):
+        step = int(raw_step)
     if not isinstance(breach, bool) or action not in {"act", "monitor"}:
         return {"valid": False}
     return {"valid": True, "breach_expected": breach,
@@ -387,7 +463,9 @@ def verify_arm_symmetry(cases: list[Case],
                     f"{case.case_id}")
         held_out = futures.get(case.case_id) or []
         if len(held_out) >= 3:
-            marker = json.dumps(held_out[:3], separators=(",", ":"))[1:-1]
+            # Long enough that a real slow-moving history cannot contain
+            # it by coincidence; any wholesale leak still starts with it.
+            marker = json.dumps(held_out[:8], separators=(",", ":"))[1:-1]
             for arm in ARMS:
                 if marker in prompt(case, arm, packets[case.case_id]):
                     raise ValueError(
@@ -445,7 +523,6 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
                   flush=True)
     verify_arm_symmetry(cases, packets, futures)
 
-    by_id = {case.case_id: case for case in cases}
     references_rows: dict[str, list[dict[str, Any]]] = {
         "gnomon_rule_alone": [], "naive_persistence": [],
         "always_act": [], "never_act": [],
@@ -481,11 +558,27 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
     output = Path(args.output_dir)
     output.mkdir(parents=True, exist_ok=True)
     rows_path = output / "rows.jsonl"
+    valid_ids = {case.case_id for case in cases}
     completed: dict[tuple[str, str], dict[str, Any]] = {}
     if args.resume and rows_path.exists():
+        stale = malformed = 0
         for line in rows_path.read_text(encoding="utf-8").splitlines():
-            row = json.loads(line)
-            completed[(row["case_id"], row["arm"])] = row
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                # A crash mid-append can leave one truncated final line;
+                # its (case, arm) simply reruns.
+                malformed += 1
+                continue
+            if row.get("case_id") in valid_ids and row.get("arm") in ARMS:
+                completed[(row["case_id"], row["arm"])] = row
+            else:
+                # Rows from an older seed/case-count in the same output
+                # dir must not leak into this run's metrics.
+                stale += 1
+        if stale or malformed:
+            print(f"resume: ignored {stale} stale and {malformed} "
+                  f"malformed rows", flush=True)
     lock = threading.Lock()
 
     def one(case: Case, arm: str) -> dict[str, Any]:
@@ -503,14 +596,29 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
 
     jobs = [(case, arm) for case in cases for arm in ARMS
             if (case.case_id, arm) not in completed]
+    failures: list[tuple[str, str, str]] = []
     with ThreadPoolExecutor(max_workers=args.concurrency) as pool:
         pending = {pool.submit(one, *job): job for job in jobs}
         for future in as_completed(pending):
-            row = future.result()
+            case, arm = pending[future]
+            try:
+                row = future.result()
+            except Exception as error:
+                # One dead endpoint call must not discard the paid work
+                # already on disk: record, finish the rest, fail at the
+                # end. Scoring an API failure as a model answer would be
+                # worse than failing.
+                failures.append((case.case_id, arm, repr(error)[:300]))
+                continue
             with lock:
                 completed[(row["case_id"], row["arm"])] = row
                 with rows_path.open("a", encoding="utf-8") as handle:
                     handle.write(json.dumps(row, sort_keys=True) + "\n")
+    if failures:
+        raise RuntimeError(
+            f"{len(failures)}/{len(jobs)} model calls failed; completed "
+            f"rows are saved in {rows_path} — rerun with --resume to "
+            f"finish. First failure: {failures[0]}")
 
     metrics = {}
     for arm in ARMS:
@@ -554,6 +662,7 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
         "metrics": metrics,
         "paired": {
             "primary_endpoint": "per_case_decision_cost",
+            "paired_cases": len(cases),
             "control_cheaper": control_better,
             "gnomon_cheaper": gnomon_better,
             "exact_sign_p": exact_sign_p(control_better, gnomon_better),
@@ -595,6 +704,8 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
                 "threshold_transformed_identically;values_only_prompts",
         },
     }
+    if hasattr(client, "usage_summary"):
+        summary["usage"] = client.usage_summary
     (output / "summary.json").write_text(
         json.dumps(summary, indent=2, sort_keys=True) + "\n",
         encoding="utf-8")

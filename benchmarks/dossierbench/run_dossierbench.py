@@ -433,7 +433,10 @@ def verify_no_future_leakage(cases: list[Case],
         held_out = futures.get(case.case_id)
         if not held_out or len(held_out) < 3:
             continue
-        marker = json.dumps(held_out[:3], separators=(",", ":"))[1:-1]
+        # Long enough that a real slow-moving history cannot contain it
+        # by coincidence (three rounded values can legitimately recur);
+        # any wholesale leak still starts with it.
+        marker = json.dumps(held_out[:8], separators=(",", ":"))[1:-1]
         for arm in ARMS:
             if marker in prompt(case, arm, computed[case.case_id]):
                 raise ValueError(
@@ -510,11 +513,27 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
     output = Path(args.output_dir)
     output.mkdir(parents=True, exist_ok=True)
     rows_path = output / "rows.jsonl"
+    valid_ids = {case.case_id for case in cases}
     completed: dict[tuple[str, str], dict[str, Any]] = {}
     if args.resume and rows_path.exists():
+        stale = malformed = 0
         for line in rows_path.read_text(encoding="utf-8").splitlines():
-            row = json.loads(line)
-            completed[(row["case_id"], row["arm"])] = row
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                # A crash mid-append can leave one truncated final line;
+                # its (case, arm) simply reruns.
+                malformed += 1
+                continue
+            if row.get("case_id") in valid_ids and row.get("arm") in ARMS:
+                completed[(row["case_id"], row["arm"])] = row
+            else:
+                # Rows from an older seed/case-count in the same output
+                # dir must not leak into this run's metrics.
+                stale += 1
+        if stale or malformed:
+            print(f"resume: ignored {stale} stale and {malformed} "
+                  f"malformed rows", flush=True)
     lock = threading.Lock()
 
     def one(case: Case, arm: str) -> dict[str, Any]:
@@ -545,14 +564,29 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
 
     jobs = [(case, arm) for case in cases for arm in ARMS
             if (case.case_id, arm) not in completed]
+    failures: list[tuple[str, str, str]] = []
     with ThreadPoolExecutor(max_workers=args.concurrency) as pool:
         futures = {pool.submit(one, *job): job for job in jobs}
         for future in as_completed(futures):
-            row = future.result()
+            case, arm = futures[future]
+            try:
+                row = future.result()
+            except Exception as error:
+                # One dead endpoint call must not discard the paid work
+                # already on disk: record, finish the rest, fail at the
+                # end. Scoring an API failure as a model answer would be
+                # worse than failing.
+                failures.append((case.case_id, arm, repr(error)[:300]))
+                continue
             with lock:
                 completed[(row["case_id"], row["arm"])] = row
                 with rows_path.open("a", encoding="utf-8") as handle:
                     handle.write(json.dumps(row, sort_keys=True) + "\n")
+    if failures:
+        raise RuntimeError(
+            f"{len(failures)}/{len(jobs)} model calls failed; completed "
+            f"rows are saved in {rows_path} — rerun with --resume to "
+            f"finish. First failure: {failures[0]}")
 
     metrics: dict[str, Any] = {}
     for arm in ARMS:
@@ -646,6 +680,8 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
             } if source == "real" else {"synthetic_generator": True}),
         },
     }
+    if hasattr(client, "usage_summary"):
+        summary["usage"] = client.usage_summary
     (output / "summary.json").write_text(
         json.dumps(summary, indent=2, sort_keys=True) + "\n",
         encoding="utf-8")

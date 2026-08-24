@@ -12,6 +12,14 @@ with a genuine COVID regime break, real US retail sales — provenance in
 recent maximum plus a sampled robust-scale margin. Ground truth is what
 the **realized future** did: breach or not, and at which step — held out
 from the model and from Gnomon, verified absent from every prompt.
+Gnomon is fed each series' **true cadence** (5-minute, daily, monthly —
+read from the corpus filenames), because season detection and support
+tiers are frequency-aware. Realized futures **never overlap** within a
+series (cutoffs are horizon-spaced), so truth labels are not correlated
+across paired cases; histories may overlap and that is disclosed.
+Label invariance under anonymization is verified on the *rounded
+numbers the model actually sees* — a case whose rounding flips any
+breach step is discarded, never shipped.
 
 Two matched model arms (same model, temperature 0, prompts differing by
 the evidence block alone):
@@ -48,9 +56,15 @@ uv run python benchmarks/breachbench/run_breachbench.py \
 
 Anti-gaming: seeded positive affine anonymization per case with the
 threshold transformed identically (breach structure and timing exactly
-invariant), values-only prompts, soft-balanced outcome cells with the
-achieved mix disclosed, paired exact sign tests on per-case decision
-cost, durable resumable rows. BreachBench is one panel of the usefulness
+invariant, verified on the rounded shown numbers), values-only prompts,
+soft-balanced outcome cells with the achieved mix disclosed, paired
+exact sign tests on per-case decision cost, durable resumable rows.
+Operationally: a malformed model answer (NaN steps, wrong types)
+degrades to "monitor by omission" and is recorded as invalid — it never
+crashes a paid run; a failed API call is recorded and the run fails
+loudly at the end with every completed row saved (`--resume` finishes
+the remainder, ignoring stale rows from other seeds); API token usage
+and cost land in `summary.json`. BreachBench is one panel of the usefulness
 suite: DossierBench measures interpretation discrimination,
 DiscriminationBench the mechanism, temporalbench/reasoningbench/cik the
 broader agent behaviours, and LeakTrap the grounding floor.

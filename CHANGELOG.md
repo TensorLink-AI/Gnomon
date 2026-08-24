@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+- **BreachBench and DossierBench hardened to production grade.** An
+  adversarial review of the matched-uplift harnesses fixed every found
+  way a paid run could crash, mislead, or quietly bias its result.
+  Case generation (BreachBench generator 0.2): realized futures no
+  longer overlap within a series — cutoffs are horizon-spaced, so truth
+  labels are uncorrelated across paired cases and the sign tests are
+  honest — and label invariance under affine anonymization is now
+  verified on the rounded numbers the model actually sees, discarding
+  any case whose rounding flips a breach step. Gnomon is fed each
+  corpus series' true cadence (5-minute, daily, monthly) instead of a
+  blanket daily grid, so season detection and support tiers run as they
+  would for a real client; the product's own no-LLM rule improved from
+  losing to always-act to beating both constant policies (mean regret
+  1.31 versus 1.40/2.40 at a 30% breach base rate), leaving genuine
+  headroom to the hindsight optimum. Run mechanics in both benchmarks:
+  a malformed model answer (NaN or boolean steps, wrong types) degrades
+  and is recorded instead of crashing the run; one failed API call no
+  longer discards the paid work in flight — completed rows persist and
+  the run fails loudly with a `--resume` instruction; `--resume` now
+  ignores stale rows from other seeds and crash-truncated lines instead
+  of leaking them into metrics; per-case gnomon scratch directories are
+  cleaned up; the future-leakage sentinel uses an eight-value marker so
+  a slow-moving real series cannot false-positive an abort; and API
+  token usage and cost are recorded in `summary.json`.
+
 - **BreachBench: the client job, priced in the client's units.** A
   matched benchmark for Gnomon's first product job — which metric may
   breach a meaningful limit, when, and whether intervening is justified.
