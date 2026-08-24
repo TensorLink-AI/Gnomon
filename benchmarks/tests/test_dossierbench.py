@@ -14,14 +14,18 @@ from benchmarks.dossierbench.run_dossierbench import (  # noqa: E402
     answer_dossier_arm,
     computed_evidence,
     generate_cases,
+    generate_real_cases,
     run,
+    verify_no_future_leakage,
 )
 
 
-def _args(tmp_path: Path, cases: int = 12) -> argparse.Namespace:
+def _args(tmp_path: Path, cases: int = 12,
+          source: str = "real") -> argparse.Namespace:
     return argparse.Namespace(
-        seed=20260825, cases=cases, output_dir=str(tmp_path / "out"),
-        resume=False, concurrency=2, model="scripted-test-model")
+        seed=20260825, cases=cases, source=source, data_dir=None,
+        output_dir=str(tmp_path / "out"), resume=False, concurrency=2,
+        model="scripted-test-model")
 
 
 class ScriptedClient:
@@ -82,27 +86,59 @@ class RepairableClient:
                             "cited_evidence": chosen["supporting"]})]
 
 
-def test_cases_are_deterministic_with_known_truths() -> None:
-    first = generate_cases(7, 20)
-    assert first == generate_cases(7, 20)
+def test_real_cases_are_deterministic_with_outcome_labels() -> None:
+    first, provenance, futures = generate_real_cases(7, 24)
+    again, _, _ = generate_real_cases(7, 24)
+    assert first == again
     for case in first:
         assert case.truth in OPTIONS[case.property]
+        assert case.horizon and case.horizon >= 12
+        assert case.label_confidence in {"supported", "weak"}
+        if case.label_confidence == "weak":
+            assert case.truth in {"similar", "constant", "stable"}
+        assert len(futures[case.case_id]) == case.horizon
+    assert provenance["labeling"].startswith("realized_future_window")
+    assert provenance["anonymization"] == \
+        "seeded_positive_affine_transform_per_case"
+    assert set(provenance["corpus_series"]) >= {
+        "nile_annual_flow", "sunspots_yearly", "co2_weekly_mauna_loa"}
+
+
+def test_the_held_out_future_never_reaches_a_prompt() -> None:
+    cases, _, futures = generate_real_cases(11, 12)
+    computed = {case.case_id: computed_evidence(case) for case in cases}
+    verify_no_future_leakage(cases, futures, computed)
+
+
+def test_synthetic_cases_remain_available_as_a_diagnostic_mode() -> None:
+    cases = generate_cases(7, 20)
+    assert cases == generate_cases(7, 20)
+    for case in cases:
+        assert case.truth in OPTIONS[case.property]
+        assert case.horizon is None
 
 
 def test_a_matched_offline_run_produces_the_full_summary(tmp_path) -> None:
     summary = run(_args(tmp_path), client=ScriptedClient())
+    assert summary["source"] == "real"
     assert set(summary["metrics"]) == set(ARMS)
     for arm in ARMS:
         assert 0.0 <= summary["metrics"][arm]["accuracy"] <= 1.0
     references = summary["references"]
-    assert references["copy_discriminator"] > references["chance"]
+    assert set(references) == {"chance", "always_majority",
+                               "copy_conclusion", "copy_discriminator"}
+    assert all(0.0 <= value <= 1.0 for value in references.values())
     assert {row["comparison"] for row in summary["paired"]} == {
         "control_vs_dossier", "conclusion_vs_dossier", "control_vs_conclusion"}
     verdicts = summary["verdicts"]
     assert set(verdicts) >= {"uplift_over_model_alone",
                              "uplift_over_conclusion_packet",
                              "model_beyond_mechanism"}
-    assert summary["design"]["arms_differ_by_packet_block_only"] is True
+    design = summary["design"]
+    assert design["arms_differ_by_packet_block_only"] is True
+    assert design["truth_is_realized_held_out_future"] is True
+    assert design["held_out_future_absent_from_prompts_verified"] is True
+    assert summary["provenance"]["cases"]["skipped"] is not None
     rows = [json.loads(line) for line in
             (tmp_path / "out" / "rows.jsonl").read_text().splitlines()]
     assert len(rows) == 12 * len(ARMS)
@@ -110,8 +146,16 @@ def test_a_matched_offline_run_produces_the_full_summary(tmp_path) -> None:
     assert sum(repair.values()) == 12
 
 
+def test_the_synthetic_mode_still_runs_end_to_end(tmp_path) -> None:
+    summary = run(_args(tmp_path, source="synthetic"),
+                  client=ScriptedClient())
+    assert summary["source"] == "synthetic"
+    assert summary["design"]["synthetic_generator"] is True
+
+
 def _non_binding_case():
-    for case in generate_cases(20260825, 40):
+    cases, _, _ = generate_real_cases(20260825, 40)
+    for case in cases:
         computed = computed_evidence(case)
         contract = computed["packet"]["selection_contract"]
         if contract["canonical"]["role"] != "binding":

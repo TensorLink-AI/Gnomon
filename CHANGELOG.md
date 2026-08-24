@@ -2,19 +2,26 @@
 
 ## Unreleased
 
-- **DossierBench: the matched uplift experiment.** Three arms answer the
-  same known-truth interpretation questions with the same model at
+- **DossierBench: the matched uplift experiment, on real data.** Three
+  arms answer the same interpretation questions with the same model at
   temperature zero — the model alone, the model plus the computed
   conclusion, and the model plus the full evidence dossier gated by
   `repair_selection` with one repair round and the labelled canonical
-  fallback. Deterministic references (chance, copy-the-conclusion,
-  copy-the-discriminator) are scored beside the model arms at zero API
-  cost, so the summary's `verdicts` block separates genuine reasoning
-  uplift from transcription of the strongest number in the packet — the
-  harness-ceiling failure mode the cross-model evaluation identified.
-  Paired McNemar tests for all three arm pairs; truth labels exist only
-  in the scorer; the harness verifies pre-flight that arms differ by the
-  evidence block alone.
+  fallback. Cases default to windowed slices of eight bundled real
+  observational series (Mauna Loa CO2, sunspots, the Nile, US macro
+  aggregates, El Niño SST), truth-labelled by what the realized held-out
+  future actually did under production window semantics — transitions
+  require supported outcomes, nulls are admitted at disclosed weak
+  confidence — and affine-anonymized per case against verbatim recall of
+  these well-known series. Deterministic references (chance, majority
+  class, copy-the-conclusion, copy-the-discriminator) are scored beside
+  the model arms at zero API cost — near chance on the real corpus — so
+  the summary's `verdicts` block separates genuine reasoning uplift from
+  transcription of the strongest number in the packet. Paired McNemar
+  for all three arm pairs; truth labels exist only in the scorer; the
+  harness verifies pre-flight that arms differ by the evidence block
+  alone and that the held-out future reaches no prompt. A synthetic
+  generator mode remains as a mechanism diagnostic.
 
 - **Measured discrimination and the selection repair loop.** The evidence
   dossier now runs the distinguishing computation instead of only naming
