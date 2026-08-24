@@ -50,7 +50,7 @@ def test_any_breach_preserves_within_path_dependence() -> None:
     assert risk["support"] == "supported"
 
 
-def test_regime_change_withholds_probability_support() -> None:
+def test_regime_change_demotes_probability_to_best_effort() -> None:
     paths = [[0.0, 0.0] for _ in range(8)] + [
         [20.0, 20.0] for _ in range(8)
     ]
@@ -59,11 +59,59 @@ def test_regime_change_withholds_probability_support() -> None:
         measured_interval_coverage=0.8,
         calibration_is_verifiable=True,
     )
-    assert risk["support"] == "insufficient"
+    # The estimate still exists — hiding it entirely prices as never-act
+    # under asymmetric costs — but it must not carry governed authority.
+    assert risk["support"] == "best_effort"
+    assert risk["probability_any_breach"] is not None
     assert risk["residual_regime"]["status"] == "changed"
     assert "residual_regime_changed" in {
         reason["code"] for reason in risk["reasons"]
     }
+
+
+def test_starved_histories_climb_down_the_ladder_not_off_a_cliff() -> None:
+    """One event-calibration origin (the short-history reality measured on
+    every BreachBench case) must yield a labelled best-effort estimate
+    from the richer selection folds, never silence."""
+    event = _by_lead([[1.0, 1.0, 1.0]])
+    selection = _by_lead([
+        [3.0, 3.0, 3.0], [-1.0, -1.0, -1.0], [0.5, 0.5, 0.5],
+        [2.5, 2.5, 2.5],
+    ])
+    risk = estimate_horizon_breach(
+        _rows(3), 12.0, event,
+        measured_interval_coverage=0.8,
+        calibration_is_verifiable=True,
+        fallback_residuals_by_lead=selection,
+    )
+    assert risk["support"] == "best_effort"
+    assert risk["method"] == "blocked_residual_bootstrap_v1"
+    assert risk["residual_source"] == "selection_folds_reused"
+    assert risk["probability_any_breach"] is not None
+    assert risk["joint_path_count"] == 1
+    assert risk["bootstrap_path_count"] > 0
+    assert risk["effective_origins"] == 4
+    assert risk["dependence_preserved"] is False
+    codes = {reason["code"] for reason in risk["reasons"]}
+    assert {"insufficient_joint_paths", "bootstrap_synthesized_paths",
+            "selection_folds_reused"} <= codes
+    again = estimate_horizon_breach(
+        _rows(3), 12.0, event,
+        measured_interval_coverage=0.8,
+        calibration_is_verifiable=True,
+        fallback_residuals_by_lead=selection,
+    )
+    assert again == risk  # deterministic: same inputs, same paths
+
+
+def test_no_residuals_at_all_still_withholds() -> None:
+    risk = estimate_horizon_breach(
+        _rows(3), 12.0, {},
+        measured_interval_coverage=None,
+        calibration_is_verifiable=False,
+    )
+    assert risk["support"] == "insufficient"
+    assert risk["probability_any_breach"] is None
 
 
 def test_policy_separates_likelihood_from_action() -> None:
@@ -81,17 +129,47 @@ def test_policy_separates_likelihood_from_action() -> None:
     assert decision["expected_loss_if_monitor"] == 4
 
 
-def test_policy_withholds_when_interval_crosses_break_even() -> None:
+def test_unresolved_boundary_demotes_but_still_recommends() -> None:
+    # An interval straddling the break-even loses governed authority, but
+    # the operator still receives the expected-loss recommendation at the
+    # point estimate: withholding-as-monitor was measured to invert the
+    # 10:2 cost asymmetry and price as the worst constant policy.
     risk = {
-        "probability_any_breach": 0.2,
-        "probability_any_breach_interval_90": {"lower": 0.08, "upper": 0.38},
+        "probability_any_breach": 0.3,
+        "probability_any_breach_interval_90": {"lower": 0.12, "upper": 0.55},
         "breach_more_likely_than_not": False,
         "support": "supported",
     }
     decision = apply_breach_policy(risk, BreachDecisionPolicy(2, 10))
+    assert decision["recommended_action"] == "act"
+    assert decision["decision_support"] == "best_effort"
+    assert decision["reason_code"] == \
+        "policy_boundary_unresolved_point_estimate_used"
+
+
+def test_best_effort_estimates_yield_best_effort_recommendations() -> None:
+    risk = {
+        "probability_any_breach": 0.05,
+        "probability_any_breach_interval_90": {"lower": 0.01, "upper": 0.2},
+        "breach_more_likely_than_not": False,
+        "support": "best_effort",
+        "reasons": [{"code": "bootstrap_synthesized_paths", "message": "x"}],
+    }
+    decision = apply_breach_policy(risk, BreachDecisionPolicy(2, 10))
+    assert decision["recommended_action"] == "monitor"
+    assert decision["decision_support"] == "best_effort"
+    assert decision["reason_code"] == \
+        "event_estimate_not_governed_point_estimate_used"
+    assert decision["event_reasons"]
+
+
+def test_policy_withholds_only_without_any_probability() -> None:
+    decision = apply_breach_policy(
+        {"probability_any_breach": None, "support": "insufficient"},
+        BreachDecisionPolicy(2, 10))
     assert decision["recommended_action"] is None
     assert decision["decision_support"] == "insufficient"
-    assert decision["reason_code"] == "policy_boundary_not_resolved"
+    assert decision["reason_code"] == "event_probability_unavailable"
 
 
 def test_policy_refuses_invalid_or_product_invented_costs() -> None:

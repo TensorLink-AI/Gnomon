@@ -155,7 +155,9 @@ def test_decide_with_utilities_chooses(tmp_path):
     )
     assert payload["evaluation"]["selected"] is None
     assert payload["support_assessment"]["status"] == "inconclusive"
-    assert payload["exceedance"]["horizon_event"]["support"] == "insufficient"
+    # The estimate survives at the best-effort rung; governed selection
+    # is what the short history cannot buy.
+    assert payload["exceedance"]["horizon_event"]["support"] == "best_effort"
     lineage = json.loads((directory / "lineage.json").read_text())
     decision_claims = [claim for claim in lineage["claims"] if claim["claim_class"] == "decision"]
     assert not decision_claims
@@ -223,14 +225,22 @@ def test_monitor_single_shot_policy_is_typed_and_may_withhold(tmp_path):
     )
     trigger = payload["triggers"][0]
     decision = trigger["governed_decision"]
-    assert trigger["horizon_event"]["dependence_preserved"] is True
+    event = trigger["horizon_event"]
     assert decision["cost_model"] == "single_shot_mitigation_v1"
     assert decision["break_even_probability"] == 0.2
     assert decision["primary_risk_unchanged"] is True
-    # This short fixture has too few independent origins: a probability is
-    # useful evidence, but it must not become a governed action.
-    assert decision["recommended_action"] is None
-    assert decision["decision_support"] == "insufficient"
+    # This short fixture has too few independent origins: the estimate
+    # degrades down the disclosed ladder rather than vanishing, and the
+    # expected-loss recommendation is published at best-effort authority
+    # — never as a governed action.
+    assert event["support"] == "best_effort"
+    assert event["dependence_preserved"] is False
+    assert {"insufficient_joint_paths"} <= {
+        reason["code"] for reason in event["reasons"]}
+    assert decision["recommended_action"] in {"act", "monitor"}
+    assert decision["decision_support"] == "best_effort"
+    assert decision["reason_code"] == \
+        "event_estimate_not_governed_point_estimate_used"
 
 
 def test_monitor_refuses_ambiguous_alert_and_action_cost_models(tmp_path):

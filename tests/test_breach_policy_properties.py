@@ -52,5 +52,7 @@ def test_regime_gate_rejects_large_unseen_level_shifts_across_seeds() -> None:
             measured_interval_coverage=0.8,
             calibration_is_verifiable=True,
         )
-        rejected += risk["support"] == "insufficient"
+        # The estimate survives at best-effort; what a level shift must
+        # cost is governed authority.
+        rejected += risk["support"] != "supported"
     assert rejected >= 27

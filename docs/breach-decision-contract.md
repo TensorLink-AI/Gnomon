@@ -21,16 +21,37 @@ one “any breach” outcome and, where applicable, its first crossing step.
 This preserves measured cross-lead dependence. Independence composition of
 per-step marginals is never a governed estimate.
 
-The event claim is withheld when any of these holds:
+Governed (`support: supported`) authority requires all of:
 
-- fewer than eight complete post-selection paths;
-- the fixed, scale-free early/late residual comparability gate fails;
-- final-test interval coverage is absent or outside its verifiable band; or
-- an enrichment or fallback changed the executable without providing its own
-  post-selection event residuals.
+- at least eight complete post-selection replay paths;
+- the fixed, scale-free early/late residual comparability gate passing;
+- final-test interval coverage present and inside its verifiable band; and
+- no enrichment or fallback that changed the executable without providing
+  its own post-selection event residuals.
 
-The numerical estimate remains visible under `support: insufficient`; only
-its authority to drive an action is withheld.
+When any requirement fails, the estimate **degrades, it does not vanish**
+— a missing estimate was measured to price as never-act under asymmetric
+costs, the most expensive policy on the board. The ladder, each rung
+disclosed in `method`, `residual_source`, and `reasons`:
+
+1. `aligned_fold_residual_trajectory_replay_v1` — governed when all
+   requirements hold.
+2. `independence_composed_marginals_v1` (`support: best_effort`) — the
+   published per-step marginals composed under a stated independence
+   assumption. They carry the same conformal recentring and per-lead
+   spread scaling as the published intervals, which measured better on
+   decision cost than raw few-origin residual paths (1.40 vs 2.01 per
+   case on the diagnostic corpus). A blocked residual bootstrap over the
+   richest available residual source still runs, contributing the timing
+   and maximum distributions and a disclosed
+   `bootstrap_diagnostic_probability`.
+3. `blocked_residual_bootstrap_v1` (`support: best_effort`) — when no
+   marginals exist: synthesized trajectories preserving within-block
+   dependence, with the interval's sample size pinned to the real origin
+   count, never the synthetic path count.
+
+Only when nothing can be estimated at all is the probability withheld
+(`support: insufficient`).
 
 ## Single-shot policy
 
@@ -43,10 +64,16 @@ loss(monitor) = P(breach) × miss_cost
 break_even    = action_cost / (miss_cost × e)
 ```
 
-Gnomon recommends `act` only when the lower end of the event probability's
-90% interval exceeds break-even, and `monitor` only when its upper end is
-below break-even. If the interval crosses the boundary, the recommendation is
-`null` with `decision_support: insufficient`.
+Whenever a probability exists, the expected-loss comparison at the point
+estimate yields a recommendation; what varies is its authority.
+`decision_support: supported` requires a supported event estimate whose
+90% interval clears break-even entirely on one side. A best-effort
+estimate, or an interval straddling the boundary, publishes the same
+expected-loss recommendation at `decision_support: best_effort` with the
+demotion's reason attached. The recommendation is `null` only when no
+probability could be formed (`event_probability_unavailable`): silence
+defaulting to monitor was measured to invert the cost asymmetry it
+exists to respect.
 
 This policy assumes one irreversible choice now. It does not price the option
 to observe another period and act later. `alert_cost` remains a separate

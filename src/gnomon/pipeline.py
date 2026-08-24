@@ -1074,6 +1074,7 @@ def threshold_analysis_stage(
     spreads: dict[int, tuple[float, float, float]],
     *,
     residuals_by_lead: dict[int, list[float]] | None = None,
+    fallback_residuals_by_lead: dict[int, list[float]] | None = None,
     measured_interval_coverage: float | None = None,
     calibration_is_verifiable: bool = True,
 ) -> dict[str, object]:
@@ -1135,6 +1136,12 @@ def threshold_analysis_stage(
             rows, threshold, residuals_by_lead,
             measured_interval_coverage=measured_interval_coverage,
             calibration_is_verifiable=calibration_is_verifiable,
+            fallback_residuals_by_lead=fallback_residuals_by_lead,
+            # The published marginals carry the conformal recentring and
+            # per-lead spread scaling the intervals carry; they are the
+            # best-effort tier's decision basis when replay paths are
+            # scarce.
+            step_marginals=probabilities,
         )
     return result
 
@@ -1593,6 +1600,11 @@ def interval_stage(
                     if state.event_residual_source == state.residual_source
                     else {}
                 ),
+                # Short histories reserve a single event-calibration
+                # origin; the selection folds are the only residual
+                # trajectories rich enough to estimate from. Their reuse
+                # is a declared best-effort tier, never governed.
+                fallback_residuals_by_lead=state.residuals_by_lead,
                 measured_interval_coverage=state.coverage,
                 calibration_is_verifiable=(
                     interval_calibration_is_verifiable(state.coverage)

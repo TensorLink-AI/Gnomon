@@ -558,10 +558,14 @@ def decide(
             "horizon_event": horizon_event or None,
             "event_definition": (
                 "`horizon_event.probability_any_breach` is estimated by "
-                "replaying aligned rolling-origin residual trajectories and "
-                "is the only probability permitted to drive a horizon-level "
-                "expected-utility comparison. `peak_step_exceedance` is a "
-                "marginal reference. `any_step_exceedance_if_independent` is the "
+                "replaying aligned rolling-origin residual trajectories — "
+                "or, when a short history cannot supply enough of them, by "
+                "a disclosed blocked residual bootstrap published at "
+                "best-effort authority — and is the only probability "
+                "permitted to drive a horizon-level expected-utility "
+                "comparison; only `support == \"supported\"` estimates "
+                "govern one. `peak_step_exceedance` is a marginal "
+                "reference. `any_step_exceedance_if_independent` is the "
                 "probability of at least one crossing over the horizon under "
                 "an independence assumption the steps do not satisfy — an "
                 "ungoverned reference, not a substitute."

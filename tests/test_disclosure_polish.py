@@ -52,7 +52,10 @@ def test_decide_defines_the_exceedance_event(tmp_path):
             payload["scenario_probabilities"]["exceed"]
         assert event["support"] == "supported"
     else:
-        assert event["support"] == "insufficient"
+        # A short history demotes the estimate to the best-effort rung of
+        # the ladder; only governed selection is withheld, not the number.
+        assert event["support"] == "best_effort"
+        assert event["probability_any_breach"] is not None
         assert payload["evaluation"]["selected"] is None
     assert exceedance["any_step_exceedance_if_independent"] >= exceedance["peak_step_exceedance"]
     assert "aligned rolling-origin residual trajectories" in \

@@ -2,6 +2,34 @@
 
 ## Unreleased
 
+- **The governed breach estimate degrades down a ladder instead of
+  falling off a cliff.** The first governed-decision diagnostic showed
+  the horizon-event executable withholding on 180 of 180 real cases:
+  short histories reserve a single event-calibration origin, so the
+  eight complete replay trajectories the governed tier requires cannot
+  exist, and withholding priced as never-act (mean cost 3.00 — the
+  worst policy on the board, against 1.40 for the composed-marginal
+  rule). `estimate_horizon_breach` now climbs down explicitly:
+  full-authority replay when the disjoint reserve supports it;
+  otherwise a `best_effort` estimate from the independence-composed
+  published marginals (which carry the intervals' conformal recentring
+  and spread scaling, and measured 1.40 against 2.01 for raw
+  few-origin bootstrap paths on the diagnostic corpus), with a blocked
+  residual bootstrap contributing timing/maximum distributions and a
+  disclosed diagnostic probability; bootstrap-only when no marginals
+  exist, its interval's sample size pinned to real origins. Every rung
+  is disclosed in `method`, `residual_source`, and `reasons`.
+  `apply_breach_policy` matches: whenever a probability exists, the
+  expected-loss recommendation exists — `supported` only when a
+  supported estimate's interval clears break-even entirely,
+  `best_effort` with the demotion's reason otherwise — and `null` is
+  reserved for "no probability could be formed", because silence
+  defaulting to monitor inverts the very cost asymmetry the policy
+  exists to respect. On the diagnostic corpus the governed reference
+  moved from 3.00 (all withheld) to 1.40 with zero withholding. All
+  numbers are diagnostic evidence from the spent corpus; the frozen
+  fresh-corpus protocol remains the validation gate.
+
 - **BreachBench and DossierBench hardened to production grade.** An
   adversarial review of the matched-uplift harnesses fixed every found
   way a paid run could crash, mislead, or quietly bias its result.
