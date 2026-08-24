@@ -185,8 +185,12 @@ FORECAST_PREVIEW_ROWS = 12
 #: single-series brief forecast (~5KB with its full support assessment)
 #: with headroom; anything past it is bulk, and bulk lives in the
 #: artifact. The trim never touches the epistemic contract — see
-#: _PROTECTED_KEYS.
-RESPONSE_BUDGET_BYTES = 8192
+#: _PROTECTED_KEYS. Retuned 8192 → 9216 when the two-lane decision
+#: (docs/cross-model-evaluation-2026-08.md) added the bounded
+#: model-assisted lane summary and its disclosure to sub-supported
+#: responses; a horizon-split response with the lane must still carry
+#: every labelled row inline.
+RESPONSE_BUDGET_BYTES = 9216
 DESCRIBE_RESPONSE_BUDGET_BYTES = 2400
 CAPABILITIES_RESPONSE_BUDGET_BYTES = 6000
 
@@ -743,12 +747,34 @@ def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
                 "execution_identity": _execution_identity(artifact, item),
                 **({"temporal_facts": response_facts(item)}
                    if item.temporal_facts else {}),
+                **_model_assisted_summary(item),
             }
             for item in artifact.results
         ],
     }
     _attach_tsfm_on_ramp(payload, artifact)
     return _attach_multiseries_triage(payload)
+
+
+def _model_assisted_summary(item: Any) -> dict[str, Any]:
+    """The lane's bounded response form: label, model, validation, and a
+    points preview — the full points array stays in the artifact. Absent
+    entirely when the series earned no lane, so untouched responses stay
+    byte-identical."""
+    lane = getattr(item, "model_assisted", None)
+    if not lane:
+        return {}
+    points = list(lane.get("points") or [])
+    return {"model_assisted": {
+        "support": lane.get("support"),
+        "selected_model": lane.get("selected_model"),
+        "points_preview": points[:FORECAST_PREVIEW_ROWS],
+        "points_total": len(points),
+        "timestamps_match_primary_forecast": True,
+        "validation": lane.get("validation"),
+        "automation_eligible": False,
+        "location": "artifact.results[].model_assisted",
+    }}
 
 
 def _attach_tsfm_on_ramp(payload: dict[str, Any],
@@ -858,6 +884,7 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
                 "location": "artifact.results[].sensitivity_scenarios",
             } for scenario in item.sensitivity_scenarios]}
                if item.sensitivity_scenarios else {}),
+            **_model_assisted_summary(item),
         })
     from .support import artifact_headline
     payload = {

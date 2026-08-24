@@ -253,6 +253,13 @@ class SeriesResult:
     # Model-class-aware admission provenance. Absent under the strict legacy
     # policy; never inferred from the selected model's name.
     admission: dict[str, Any] | None = None
+    # The labelled model-assisted lane (gnomon.model_assisted): the best
+    # model prior the history admits, published beside the governed rows
+    # when the evaluation could not validate it. Additive on the same terms
+    # as `conditional_forecasts`: it never replaces `forecast`, carries no
+    # intervals, and absent it serialises byte-identically to a build
+    # without the feature.
+    model_assisted: dict[str, Any] | None = None
 
 
 @dataclass
@@ -300,6 +307,8 @@ class ForecastArtifact:
                 result.pop("context_outcome", None)
             if not result.get("admission"):
                 result.pop("admission", None)
+            if not result.get("model_assisted"):
+                result.pop("model_assisted", None)
             # Agent-response projection only. The v0.2 artifact format is
             # byte-frozen; canonical descriptors can be recomputed and must
             # not churn persisted artifacts or their hashes.

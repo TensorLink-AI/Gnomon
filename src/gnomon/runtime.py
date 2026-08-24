@@ -672,6 +672,27 @@ def _series_result(
             uniform_tier = achieved_tier(support_assessment.status, True)
             for row in rows:
                 row["tier"] = uniform_tier
+    model_assisted_lane: dict[str, Any] | None = None
+    if rows and support in {"best_effort", "degraded"}:
+        # The model-assisted lane: when the governed rows are the naive
+        # fallback or an underpowered-selection baseline, the best model
+        # prior the history admits is published beside them — labelled
+        # prior_assisted or conditionally_supported, never suppressed and
+        # never blended into the primary forecast.
+        from .model_assisted import build_model_assisted_lane
+        model_assisted_lane, lane_disclosure, lane_evidence = \
+            build_model_assisted_lane(
+                series_name, state.values,
+                horizon=len(state.future_timestamps),
+                season=state.season,
+                future_timestamps=state.future_timestamps,
+                assessment=assessment,
+                published_support=support,
+                selected_model=state.selected_model,
+            )
+        if model_assisted_lane is not None:
+            support_assessment.disclosures.append(lane_disclosure)
+            state.evidence.append(lane_evidence)
     primary_forecast: list[dict[str, Any]] = []
     context_changed_output = (
         bool(getattr(state.context_assessment, "admitted", False))
@@ -760,6 +781,7 @@ def _series_result(
         ),
         admission=(admission.to_payload(compact=True)
                    if admission is not None else None),
+        model_assisted=model_assisted_lane,
     )
     evidence = list(state.evidence)
     evidence.extend([
@@ -1646,7 +1668,7 @@ def capabilities() -> dict[str, object]:
             "covariate_ablation": True, "enrichment_adjudication": True,
             "season_detection": True, "ensemble_forecasting": True,
             "multivariate_var": True, "strict_abstention": True,
-            "best_effort_fallback": True,
+            "best_effort_fallback": True, "model_assisted_lane": True,
             "graduated_support": True, "horizon_split": True,
             "row_tier_labels": True, "forecast_headline": True,
             "multi_target_batching": True, "brief_output": True,
@@ -1709,6 +1731,17 @@ def capabilities() -> dict[str, object]:
                     "exists, tier-labelled; a higher floor restores the "
                     "typed refusal, and a series with no usable history "
                     "still abstains."
+                ),
+            },
+            "model_assisted_lane": {
+                "semantics": (
+                    "results[].model_assisted publishes the best admissible "
+                    "model prior — labelled prior_assisted or "
+                    "conditionally_supported by its validation strength — "
+                    "when the governed rows are a naive fallback or an "
+                    "underpowered-selection baseline. Points only, no "
+                    "intervals, never automation-eligible, never a "
+                    "replacement for the primary forecast."
                 ),
             },
             "response_budget": {
