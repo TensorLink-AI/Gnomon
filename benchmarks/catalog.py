@@ -40,6 +40,7 @@ CATALOG: dict[str, BenchmarkContract] = {
     "effectbench": BenchmarkContract("safety_contract", "production effect registry, tracking, and decision runtime", "Effect transfer, false influence, calibration, and decision regret."),
     "boundarybench": BenchmarkContract("safety_contract", "production MCP response boundary", "Canonical immutability, fact traceability, sufficiency, rejection repair, and redundant-call attribution; not reasoning accuracy."),
     "discriminationbench": BenchmarkContract("policy", "production held-out hypothesis discrimination", "Known-truth accuracy, separation reliability, and truth-retention of the discriminating-evidence mechanism; not LLM uplift."),
+    "dossierbench": BenchmarkContract("reasoning_harness", "matched LLM receives the conclusion packet or the evidence dossier with the selection repair loop", "Packet-design uplift and the transcription margin against deterministic references; mechanism accuracy lives in discriminationbench."),
 }
 
 

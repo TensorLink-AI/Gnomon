@@ -160,6 +160,11 @@ REGISTRY: dict[str, dict[str, Any]] = {
         "accepts": {"output_dir"},
         "limit_flag": "--cases",
     },
+    "dossierbench": {
+        "module": "benchmarks.dossierbench.run_dossierbench",
+        "accepts": {"model", "output_dir"},
+        "limit_flag": "--cases",
+    },
 }
 
 if set(REGISTRY) != set(CATALOG):
