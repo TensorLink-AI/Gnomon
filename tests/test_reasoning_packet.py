@@ -119,3 +119,45 @@ def test_compact_projection_carries_the_dossier_within_bounds() -> None:
     assert packet["sufficiency"] == "mixed"
     assert packet["selector"] == "model"
     assert packet["discriminator"] is not None
+
+
+def test_repair_selection_accepts_a_grounded_conclusion() -> None:
+    from gnomon.reasoning_packet import repair_selection
+
+    packet = _plan()["packet"]
+    verdict = repair_selection(
+        packet, {"value": "downward",
+                 "cited_evidence": ["observed_transition"]})
+    assert verdict == {"accepted": True, "violations": []}
+
+
+def test_repair_selection_builds_one_complete_repair_turn() -> None:
+    from gnomon.reasoning_packet import MAX_REPAIR_ROUNDS, repair_selection
+
+    packet = _plan()["packet"]
+    verdict = repair_selection(
+        packet, {"value": "downward", "cited_evidence": ["tea_leaves"]})
+    assert verdict["accepted"] is False
+    assert verdict["violations"][0]["code"] == "SELECTION_EVIDENCE_MISSING"
+    repair = verdict["repair"]
+    assert repair["rounds"] == MAX_REPAIR_ROUNDS == 1
+    assert "downward" in repair["allowed_values"]
+    assert "observed_transition" in repair["citable_evidence"]["downward"]
+    assert repair["canonical_default"] == {"value": "upward",
+                                           "support": "weak"}
+    assert repair["after_failed_repair"] == \
+        "publish_canonical_default_labelled"
+
+
+def test_repair_of_a_binding_override_restates_the_canonical() -> None:
+    from gnomon.reasoning_packet import repair_selection
+
+    question = TemporalQuestion("q", "predict", "x", "trend", horizon=10)
+    result = _result("upward", "supported")
+    result["answer"]["property_distribution"] = {"folds": 6}
+    result["answer"]["executable"] = {"kind": "fitted_temporal_property"}
+    packet = build_evidence_plan(question, result)["packet"]
+    verdict = repair_selection(packet, {"value": "downward"})
+    assert verdict["accepted"] is False
+    assert "binding" in verdict["repair"]["instruction"]
+    assert "'upward'" in verdict["repair"]["instruction"]

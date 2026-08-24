@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- **Measured discrimination and the selection repair loop.** The evidence
+  dossier now runs the distinguishing computation instead of only naming
+  it: `gnomon.discrimination` fits a minimal surrogate per competing
+  interpretation (trend, level, volatility, disturbance) strictly before a
+  held-out tail, scores every surrogate on the same held-out points, and
+  the packet reports the measured Akaike-style fit weights, the winning
+  interpretation, and a separation grade — fit evidence, never
+  probabilities, never a change to the canonical answer. Transition
+  surrogates are charged for their extra estimated parameter, so a
+  chance-level wobble cannot grade as a clear transition.
+  `repair_selection` turns a rejected model conclusion into exactly one
+  deterministic repair turn (allowed interpretations, citable evidence per
+  interpretation, the labelled canonical default to fall back to); a
+  second failure publishes the canonical default. DiscriminationBench
+  gates the mechanism on known-truth synthetic cases: accuracy well above
+  chance, "clear" separation right ≥ 90% of the time, the truth excluded
+  in ≤ 5% of cases, and quiet series confidently manufacturing a
+  transition in ≤ 10%.
+
 - **The model-assisted lane and the evidence dossier.** Adopting the
   two-lane decision from the cross-model evaluation
   (docs/cross-model-evaluation-2026-08.md): when the governed rows are a

@@ -261,7 +261,13 @@ The reasoning receipt also carries the evidence dossier, `reasoning.packet`:
 observations, the temporal property under question, the interpretations still
 compatible with the data (each with the evidence kinds for and against it),
 typed evidence sufficiency (`sufficient` / `mixed` / `insufficient`), and the
-discriminators that would distinguish the alternatives. Its
+discriminators that would distinguish the alternatives. Where the history
+permits, Gnomon also *runs* the distinguishing computation
+(`gnomon.discrimination`): each competing interpretation gets a minimal
+surrogate fitted strictly before a held-out tail, and the packet reports the
+measured relative fit per interpretation (`held_out_fit`), the winner, and a
+`separation` grade — fit evidence over the surrogate set, never
+probabilities. Its
 `selection_contract` states who concludes: a `supported` canonical answer is
 binding; anything weaker is the default the model may argue past, and
 `gnomon.reasoning_packet.verify_packet_selection` is the deterministic gate a

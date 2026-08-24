@@ -139,6 +139,7 @@ def build_evidence_plan(question: TemporalQuestion,
                         result: dict[str, Any], *,
                         observed_evidence: dict[str, Any] | None = None,
                         analogues: dict[str, Any] | None = None,
+                        discrimination: dict[str, Any] | None = None,
                         ) -> dict[str, Any]:
     """Return a bounded reasoning pack that cannot override the answer."""
     mode = inference_mode(question)
@@ -246,11 +247,17 @@ def build_evidence_plan(question: TemporalQuestion,
     # distinguish the alternatives. A supported canonical stays binding;
     # anywhere weaker the model selects and verify_packet_selection is the
     # gate its conclusion must pass.
+    if discrimination is not None:
+        # The measured held-out discrimination between competing surrogates
+        # (gnomon.discrimination) — evidence the model reasons from, kept in
+        # the receipt in full; the packet carries the merged weights.
+        plan["discrimination"] = discrimination
     from .reasoning_packet import build_reasoning_packet
     plan["packet"] = build_reasoning_packet(
         result, mode=mode, property=question.property, missing=missing,
         adjudication=plan["adjudication"],
         vocabulary=question.answer_vocabulary,
+        discrimination=discrimination,
     )
     return plan
 
@@ -288,6 +295,10 @@ def compact_evidence_plan(plan: dict[str, Any]) -> dict[str, Any]:
             ],
             "sufficiency": (packet.get("evidence_sufficiency") or {}).get(
                 "level"),
+            **({"separation": (packet.get("evidence_sufficiency") or {}).get(
+                "separation")}
+               if "separation" in (packet.get("evidence_sufficiency") or {})
+               else {}),
             "discriminator": next(
                 iter(packet.get("discriminators") or []), None),
             "selector": (packet.get("selection_contract") or {}).get(

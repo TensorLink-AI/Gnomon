@@ -120,6 +120,7 @@ def build_reasoning_packet(
     missing: list[str],
     adjudication: dict[str, Any],
     vocabulary: dict[str, Any] | None = None,
+    discrimination: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Assemble the dossier from receipts the planner already computed."""
     best = result.get("best_estimate") or {}
@@ -140,6 +141,51 @@ def build_reasoning_packet(
     }
     discriminators = list(dict.fromkeys(
         list(adjudication.get("what_would_flip") or []) + list(missing)))[:3]
+    discriminating: dict[str, Any] | None = None
+    if discrimination and discrimination.get("identifiable"):
+        # The distinguishing computation actually ran: merge the measured
+        # held-out fit weights onto the interpretations, and surface any
+        # interpretation only the surrogates mention. Fit weights are
+        # evidence over the surrogate set, never probabilities, and never
+        # move the canonical answer.
+        by_value = {str(row.get("value")): row
+                    for row in (discrimination.get("hypotheses") or [])}
+        best_fit = discrimination.get("best")
+        separation = str(discrimination.get("separation") or "none")
+        known = {row["value"] for row in interpretations}
+        for value, hypothesis in by_value.items():
+            weight = float(hypothesis.get("relative_weight") or 0.0)
+            if value in known or weight <= 0.0 or value in _NON_ANSWERS:
+                continue
+            interpretations.append({
+                "value": value,
+                "support": "weak" if weight >= .6 else "abstained",
+                "evidence_weight": 0.0,
+                "supporting": ["held_out_hypothesis_fit"],
+                "conflicting": [],
+                "compatible": True,
+            })
+        for row in interpretations:
+            hypothesis = by_value.get(row["value"])
+            if hypothesis is not None:
+                row["held_out_fit"] = hypothesis.get("relative_weight")
+                if (row["value"] == best_fit and separation != "none"
+                        and "held_out_hypothesis_fit" not in row["supporting"]):
+                    row["supporting"] = [*row["supporting"],
+                                         "held_out_hypothesis_fit"]
+        discriminating = {
+            "kind": "held_out_hypothesis_fit",
+            "best": best_fit,
+            "separation": separation,
+            "holdout_steps": discrimination.get("holdout_steps"),
+            "weights_are_fit_evidence_not_probabilities": True,
+        }
+    elif discrimination is not None:
+        discriminating = {
+            "kind": "held_out_hypothesis_fit",
+            "ran": False,
+            "reason": discrimination.get("reason"),
+        }
     binding = canonical_support == "supported"
     return {
         "version": PACKET_VERSION,
@@ -148,8 +194,13 @@ def build_reasoning_packet(
         # The raw evidence rows live once, in the plan beside this packet;
         # each interpretation's supporting/conflicting kinds index them.
         "interpretations": interpretations,
-        "evidence_sufficiency": _sufficiency(
-            canonical_support, interpretations, missing),
+        "evidence_sufficiency": {
+            **_sufficiency(canonical_support, interpretations, missing),
+            **({"separation": discriminating["separation"]}
+               if discriminating and "separation" in discriminating else {}),
+        },
+        **({"discriminating_evidence": discriminating}
+           if discriminating else {}),
         "discriminators": discriminators,
         "selection_contract": {
             "selector": "gnomon_canonical" if binding else "model",
@@ -246,3 +297,63 @@ def verify_packet_selection(
                         f"{value!r} in this packet."),
                 })
     return violations
+
+
+#: A rejected selection gets exactly one repair round. The second failure
+#: is terminal: the host publishes the canonical default, labelled — a
+#: model that cannot ground its conclusion twice does not get a third
+#: attempt at wearing down the verifier.
+MAX_REPAIR_ROUNDS = 1
+
+
+def repair_selection(packet: dict[str, Any],
+                     selection: dict[str, Any]) -> dict[str, Any]:
+    """Verify a selection and, when it fails, build the one repair turn.
+
+    Returns ``{"accepted": True, "violations": []}`` for a grounded
+    selection.  Otherwise the ``repair`` block is a complete, deterministic
+    instruction a host can hand back to the model verbatim: the allowed
+    interpretations, the evidence kinds each may cite, and the canonical
+    default to fall back to.  Rejection converts into accuracy only when
+    the model learns *why*; a bare retry re-samples the same mistake.
+    """
+    violations = verify_packet_selection(packet, selection)
+    if not violations:
+        return {"accepted": True, "violations": []}
+    contract = packet.get("selection_contract") or {}
+    canonical = contract.get("canonical") or {}
+    compatible = [row for row in (packet.get("interpretations") or [])
+                  if isinstance(row, dict) and row.get("compatible")]
+    codes = {str(item.get("code")) for item in violations}
+    if "SELECTION_OVERRIDES_BINDING" in codes:
+        instruction = (
+            f"The canonical answer {canonical.get('value')!r} is supported "
+            f"and binding; return it unchanged."
+        )
+    elif contract.get("selection_must_cite_evidence"):
+        instruction = (
+            "Select one interpretation from allowed_values and cite only "
+            "evidence kinds listed for it in citable_evidence. If none "
+            "matches your reasoning, return the canonical default."
+        )
+    else:
+        instruction = (
+            "Select one interpretation from allowed_values, or return the "
+            "canonical default."
+        )
+    return {
+        "accepted": False,
+        "violations": violations,
+        "repair": {
+            "rounds": MAX_REPAIR_ROUNDS,
+            "instruction": instruction,
+            "allowed_values": [row["value"] for row in compatible],
+            "citable_evidence": {
+                row["value"]: list(row.get("supporting") or [])
+                for row in compatible
+            },
+            "canonical_default": {"value": canonical.get("value"),
+                                  "support": canonical.get("support")},
+            "after_failed_repair": "publish_canonical_default_labelled",
+        },
+    }
