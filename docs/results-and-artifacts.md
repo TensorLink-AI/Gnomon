@@ -145,6 +145,23 @@ When `--threshold VALUE` is supplied, each supported series carries a
 - `first_timestamp_interval_above` / `first_timestamp_interval_below`:
   earliest timestamp where the 80% interval reaches across the value.
 
+The additive `horizon_event` block answers the different operational
+question: whether **any** step breaches during the horizon. It replays aligned
+residual trajectories from rolling origins reserved after model selection, so
+dependence between adjacent leads is retained. It reports:
+
+- `probability_any_breach` and a 90% finite-sample interval;
+- the first-breach-step distribution and conditional median;
+- the expected and 80% range of the horizon maximum;
+- the number and partition provenance of joint paths; and
+- `support` plus typed reasons when sample size, residual-regime stability,
+  or test-fold calibration cannot support a governed action.
+
+Gnomon never multiplies the per-step marginals and calls the result a product
+probability. On histories without eight post-selection joint origins,
+`horizon_event` remains useful descriptive evidence but its support is
+`insufficient`.
+
 These probabilities inherit every caveat of the intervals; treat them as
 calibrated only as far as `interval_coverage` supports.
 

@@ -134,9 +134,10 @@ def test_decide_without_utilities_degrades(tmp_path):
         output=str(tmp_path / "out"), clock=CLOCK,
     )
     assert payload["evaluation"]["selected"] is None
-    assert payload["support_assessment"]["status"] == "conditionally_supported"
-    assert payload["support_assessment"]["reasons"][0]["code"] == "missing_utility_inputs"
-    assert payload["scenario_probabilities"] is not None
+    assert payload["support_assessment"]["status"] == "inconclusive"
+    assert payload["support_assessment"]["reasons"][0]["code"] == \
+        "horizon_event_probability_insufficient"
+    assert payload["scenario_probabilities"] is None
     lineage = json.loads((directory / "lineage.json").read_text())
     assert not any(claim["claim_class"] == "decision" for claim in lineage["claims"])
 
@@ -152,11 +153,12 @@ def test_decide_with_utilities_chooses(tmp_path):
         },
         output=str(tmp_path / "out"), clock=CLOCK,
     )
-    assert payload["evaluation"]["selected"] in ("scale_up", "wait")
-    assert payload["support_assessment"]["status"] == "supported"
+    assert payload["evaluation"]["selected"] is None
+    assert payload["support_assessment"]["status"] == "inconclusive"
+    assert payload["exceedance"]["horizon_event"]["support"] == "insufficient"
     lineage = json.loads((directory / "lineage.json").read_text())
     decision_claims = [claim for claim in lineage["claims"] if claim["claim_class"] == "decision"]
-    assert decision_claims and decision_claims[0]["constraints_evaluated"] is True
+    assert not decision_claims
 
 
 def test_decide_refuses_when_forecast_is_not_calibrated(tmp_path):
@@ -210,6 +212,36 @@ def test_monitor_with_costs_gives_optimal_rule(tmp_path):
     lineage = json.loads((directory / "lineage.json").read_text())
     risk_claims = [claim for claim in lineage["claims"] if "sequential_risk" in claim["claim_id"]]
     assert risk_claims and risk_claims[0]["calibration_ref"] is not None
+
+
+def test_monitor_single_shot_policy_is_typed_and_may_withhold(tmp_path):
+    payload, _ = monitor(
+        str(_forecastable(tmp_path)), time_column="timestamp",
+        target_column="value", horizon=6, threshold=165.0,
+        action_cost=2.0, miss_cost=10.0,
+        output=str(tmp_path / "out"), clock=CLOCK,
+    )
+    trigger = payload["triggers"][0]
+    decision = trigger["governed_decision"]
+    assert trigger["horizon_event"]["dependence_preserved"] is True
+    assert decision["cost_model"] == "single_shot_mitigation_v1"
+    assert decision["break_even_probability"] == 0.2
+    assert decision["primary_risk_unchanged"] is True
+    # This short fixture has too few independent origins: a probability is
+    # useful evidence, but it must not become a governed action.
+    assert decision["recommended_action"] is None
+    assert decision["decision_support"] == "insufficient"
+
+
+def test_monitor_refuses_ambiguous_alert_and_action_cost_models(tmp_path):
+    with pytest.raises(GnomonError) as caught:
+        monitor(
+            str(_forecastable(tmp_path)), time_column="timestamp",
+            target_column="value", horizon=6, threshold=165.0,
+            alert_cost=1.0, action_cost=2.0, miss_cost=10.0,
+            output=str(tmp_path / "out"), clock=CLOCK,
+        )
+    assert caught.value.code == "INVALID_COSTS"
 
 
 @pytest.mark.parametrize("verb", ["decide", "monitor"])
@@ -304,7 +336,7 @@ def test_cli_investigate_decide_monitor(tmp_path, capsys):
         "--output", str(tmp_path / "out"),
     ]) == 0
     payload = json.loads(capsys.readouterr().out)
-    assert payload["support_assessment"]["status"] == "conditionally_supported"
+    assert payload["support_assessment"]["status"] == "inconclusive"
 
     assert main([
         "monitor", str(trend), "--time", "timestamp", "--target", "value",

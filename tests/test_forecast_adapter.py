@@ -5,6 +5,7 @@ import pytest
 from gnomon.forecast_adapter import (
     AdapterCapabilities, ForecastAdapterError, ForecastRequest, ForecastResult,
     LegacyModelAdapter, StatisticalAdapter, conformance_report,
+    predict_paths_checked,
 )
 from gnomon.models import predict
 from gnomon.api_inference import APIAdapter
@@ -130,3 +131,35 @@ def test_adapter_minimum_history_is_rejected_before_model_inference() -> None:
     request = ForecastRequest.from_values([1.0] * 31, 2, 1)
     with pytest.raises(ForecastAdapterError, match="history"):
         adapter.forecast(request)
+
+
+class _SamplePaths:
+    name = "paths"
+    revision = "sha256:abc"
+    supports_quantiles = False
+    supports_sample_paths = True
+
+    def predict(self, history, horizon, season):
+        return [history[-1]] * horizon
+
+    def predict_samples(self, history, horizon, season, samples):
+        return [[history[-1] + sample] * horizon for sample in range(samples)]
+
+
+def test_native_paths_require_explicit_admission_and_pinned_identity() -> None:
+    adapter = LegacyModelAdapter(_SamplePaths())
+    with pytest.raises(ForecastAdapterError, match="out-of-sample"):
+        predict_paths_checked(
+            adapter, [1, 2, 3], 2, 1, samples=3)
+    assert predict_paths_checked(
+        adapter, [1, 2, 3], 2, 1, samples=3, admitted=True
+    ) == [[3.0, 3.0], [4.0, 4.0], [5.0, 5.0]]
+
+
+def test_native_path_shape_is_fail_closed() -> None:
+    raw = _SamplePaths()
+    raw.predict_samples = lambda history, horizon, season, samples: [[1.0]]
+    with pytest.raises(ForecastAdapterError, match="expected"):
+        predict_paths_checked(
+            LegacyModelAdapter(raw), [1, 2, 3], 2, 1,
+            samples=3, admitted=True)

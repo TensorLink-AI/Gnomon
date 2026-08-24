@@ -699,6 +699,7 @@ class GnomonError(Exception):
 PARAMETER_AUTHORITY: dict[str, str] = {
     # -- intent ------------------------------------------------------------
     "horizon": "intent", "threshold": "intent", "alert_cost": "intent",
+    "action_cost": "intent", "mitigation_effectiveness": "intent",
     "miss_cost": "intent", "actions": "intent", "utilities": "intent",
     "max_acceptable_risk": "intent", "task": "intent", "task_type": "intent",
     "project": "intent", "output": "intent", "output_dir": "intent",

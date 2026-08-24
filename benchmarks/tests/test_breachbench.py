@@ -234,7 +234,8 @@ def test_a_matched_offline_run_prices_decisions_in_client_units(
         assert entry["mean_regret"] >= 0.0
         assert 0.0 <= entry["action_optimal_rate"] <= 1.0
     references = summary["references"]
-    assert set(references) >= {"gnomon_rule_alone", "gnomon_rule_composed",
+    assert set(references) >= {"gnomon_governed", "gnomon_rule_alone",
+                               "gnomon_rule_composed",
                                "naive_persistence", "always_act",
                                "never_act", "hindsight_optimal"}
     assert references["hindsight_optimal"]["mean_regret"] == 0.0
@@ -246,6 +247,7 @@ def test_a_matched_offline_run_prices_decisions_in_client_units(
     assert design["gnomon_packet_is_production_output"] is True
     assert design["held_out_future_absent_from_prompts_verified"] is True
     assert summary["paired"]["primary_endpoint"] == "per_case_decision_cost"
+    assert "agent_preservation" in summary["paired"]
     rows = [json.loads(line) for line in
             (tmp_path / "out" / "rows.jsonl").read_text().splitlines()]
     assert len(rows) == 6 * len(ARMS)

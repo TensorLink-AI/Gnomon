@@ -45,17 +45,17 @@ rate is held near the cost break-even (~30% against a 0.2 break-even),
 where neither constant policy is close to optimal and only genuine
 discrimination reduces regret.
 
-Deterministic references bound everything at zero API cost: the
-product's own no-LLM decision rule under *two* mechanical readings of
-its per-step probabilities (peak marginal, and independence-composed
-probability of any breach — the model-value verdict is taken against
-the stronger, so mechanically aggregating the packet's own numbers
-cannot pass as model skill), naive persistence, always-act, never-act,
-and the hindsight optimum. The `verdicts` block demands all three
+Deterministic references bound everything at zero API cost: the product's
+governed dependence-aware policy (with withholding priced as monitor by
+omission), the legacy peak-marginal and independence-composed diagnostics,
+naive persistence, always-act, never-act, and the hindsight optimum. The
+matched report separately measures whether the agent preserved a supported
+governed recommendation and whether it acted after Gnomon withheld authority.
+The `verdicts` block demands all three
 margins before "useful" is claimed:
 
 - cheaper decisions than the model alone (Gnomon added value),
-- cheaper than the product's own rule alone (the model added value), and
+- cheaper than the product's governed rule alone (the model added value), and
 - cheaper than the best constant policy (someone actually read the data).
 
 Run (~2 model calls per case; the Gnomon runs are local and free):

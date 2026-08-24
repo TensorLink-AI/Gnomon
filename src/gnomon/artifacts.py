@@ -184,6 +184,29 @@ def write_artifact(
                     f"- First timestamp with q90 above: {result.threshold['first_timestamp_interval_above'] or 'never in horizon'}",
                     f"- Peak probability above: {max(result.threshold['probability_above']):.1%}",
                 ])
+                event = result.threshold.get("horizon_event") or {}
+                if event:
+                    probability = event.get("probability_any_breach")
+                    interval = event.get(
+                        "probability_any_breach_interval_90") or {}
+                    lines.extend([
+                        (f"- Probability of any breach in horizon: "
+                         f"{probability:.1%}") if probability is not None else
+                        "- Probability of any breach in horizon: unavailable",
+                        f"- Horizon-event support: {event.get('support')}",
+                        f"- Joint calibration paths: "
+                        f"{event.get('joint_path_count', 0)}",
+                    ])
+                    if interval.get("lower") is not None:
+                        lines.append(
+                            f"- 90% probability interval: "
+                            f"{interval['lower']:.1%}–{interval['upper']:.1%}"
+                        )
+                    lines.extend(
+                        f"- Horizon-event limitation ({reason['code']}): "
+                        f"{reason['message']}"
+                        for reason in event.get("reasons") or []
+                    )
             if result.covariates:
                 lines.extend([
                     "", "### Covariates", "",

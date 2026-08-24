@@ -26,6 +26,7 @@ class AdapterCapabilities:
     past_covariates: bool = False
     future_covariates: bool = False
     panel: bool = False
+    sample_paths: bool = False
     min_history: int | None = None
     max_horizon: int | None = None
     frequencies: tuple[str, ...] = ()
@@ -164,6 +165,7 @@ class LegacyModelAdapter:
             past_covariates=bool(getattr(adapter, "supports_past_covariates", False)),
             future_covariates=bool(getattr(adapter, "supports_future_covariates", False)),
             panel=bool(getattr(adapter, "supports_panel", False)),
+            sample_paths=bool(getattr(adapter, "supports_sample_paths", False)),
             min_history=getattr(adapter, "min_history", None),
             max_horizon=getattr(adapter, "max_horizon", None),
             frequencies=tuple(getattr(adapter, "supported_frequencies", ()) or ()),
@@ -223,6 +225,47 @@ def predict_checked(adapter: ForecastAdapter, history: list[float],
                     horizon: int, season: int) -> list[float]:
     request = ForecastRequest.from_values(history, horizon, season)
     return adapter.forecast(request).validate(request).points()
+
+
+def predict_paths_checked(
+    adapter: Any, history: list[float], horizon: int, season: int,
+    *, samples: int, admitted: bool = False,
+) -> list[list[float]]:
+    """Validate optional native paths without granting them core authority.
+
+    A sampling method is a capability, not evidence of calibration. Callers
+    pass ``admitted=True`` only after an out-of-sample, job-specific admission
+    step; method presence alone can never bypass the residual executable.
+    """
+    if not admitted:
+        raise ForecastAdapterError(
+            "native sample paths require out-of-sample event admission")
+    if isinstance(samples, bool) or samples < 2:
+        raise ForecastAdapterError("samples must be an integer >= 2")
+    target = getattr(adapter, "adapter", adapter)
+    if not bool(getattr(target, "supports_sample_paths", False)):
+        raise ForecastAdapterError("adapter does not declare sample-path support")
+    method = getattr(target, "predict_samples", None)
+    if not callable(method):
+        raise ForecastAdapterError(
+            "adapter declares sample paths but has no predict_samples method")
+    revision = getattr(target, "revision", None)
+    if not revision or str(revision).lower() in {"unversioned", "latest"}:
+        raise ForecastAdapterError(
+            "native sample paths require a pinned adapter revision")
+    raw = method(list(history), horizon, season, samples)
+    if not isinstance(raw, (list, tuple)) or len(raw) != samples:
+        count = len(raw) if isinstance(raw, (list, tuple)) else 0
+        raise ForecastAdapterError(
+            f"adapter returned {count} sample paths; expected {samples}")
+    checked: list[list[float]] = []
+    for path in raw:
+        if (not isinstance(path, (list, tuple)) or len(path) != horizon
+                or any(not math.isfinite(float(value)) for value in path)):
+            raise ForecastAdapterError(
+                "every native sample path must be finite and horizon-aligned")
+        checked.append([float(value) for value in path])
+    return checked
 
 
 def conformance_report(adapter: ForecastAdapter, *,

@@ -17,7 +17,10 @@ from typing import Any
 from .adjudication import adjudicate_enrichments
 from .context import ContextEvent
 from .context_eval import CONTEXT_MODEL_NAME, ContextAssessment, assess_context
-from .contracts import GnomonError, DataSchema, Evidence, SupportReason
+from .contracts import (
+    GnomonError, DataSchema, Evidence, SupportReason,
+    interval_calibration_is_verifiable,
+)
 from .covariates import CovariateAssessment, CovariateDataset, assess_covariates
 from .data import Observation, load_observations
 from .evaluation import (
@@ -94,6 +97,8 @@ class SeriesState:
     # Residuals indexed by lead time, when the producing stage measured
     # them that way; empty means intervals fall back to the pooled spread.
     residuals_by_lead: dict[int, list[float]] = field(default_factory=dict)
+    event_residuals_by_lead: dict[int, list[float]] = field(default_factory=dict)
+    event_residual_source: str | None = None
     #: Which model the residual sets above describe. Points and intervals
     #: must come from the same model, and every stage that replaces
     #: `points` must replace the residuals with it — a stage that changed
@@ -365,6 +370,7 @@ def evaluate_stage(
     snapshot: Snapshot | None = None,
     variable: str | None = None,
     extra_candidates: dict[str, Any] | None = None,
+    threshold_job: bool = False,
 ) -> None:
     """Separated rolling evaluation: selection folds, calibration fold, test
     fold. With a snapshot, every fold trains on the series *as known at*
@@ -460,6 +466,7 @@ def evaluate_stage(
         train_at=train_at,
         extra_candidates=extra_candidates,
         evidence_registry=evidence_registry,
+        threshold_job=threshold_job,
     )
     state.assessment = assessment
     state.selected_model = assessment.selected_model
@@ -469,6 +476,11 @@ def evaluate_stage(
     state.residuals = assessment.residuals
     state.residuals_by_lead = dict(assessment.residuals_by_lead)
     state.residual_source = assessment.selected_model
+    state.event_residuals_by_lead = {
+        step: list(values)
+        for step, values in assessment.event_residuals_by_lead.items()
+    }
+    state.event_residual_source = assessment.selected_model
     if assessment.admission_decision is not None:
         state.evidence.append(Evidence(
             f"model_admission:{state.name}", "model_admission", state.name,
@@ -1060,6 +1072,10 @@ def threshold_analysis_stage(
     points: list[float],
     residuals: list[float],
     spreads: dict[int, tuple[float, float, float]],
+    *,
+    residuals_by_lead: dict[int, list[float]] | None = None,
+    measured_interval_coverage: float | None = None,
+    calibration_is_verifiable: bool = True,
 ) -> dict[str, object]:
     """Empirical threshold-crossing analysis from the backtest residuals,
     recentred and scaled exactly like the published intervals.
@@ -1100,7 +1116,7 @@ def threshold_analysis_stage(
                 return str(row["timestamp"])
         return None
 
-    return {
+    result: dict[str, object] = {
         "value": threshold,
         "probability_above": probabilities,
         "first_timestamp_point_above": first_timestamp(lambda row: row["point"] > threshold),
@@ -1109,6 +1125,18 @@ def threshold_analysis_stage(
         "first_timestamp_interval_below": first_timestamp(lambda row: row["q10"] < threshold),
         "basis": "empirical probabilities from backtest residuals scaled to the per-lead-time conformal spread",
     }
+    # Add the horizon event as a separate, dependence-preserving quantity.
+    # The legacy per-step marginals remain byte-for-byte in place; consumers
+    # that need an operational decision no longer have to multiply them as
+    # though adjacent forecast steps were independent.
+    if residuals_by_lead is not None:
+        from .breach import estimate_horizon_breach
+        result["horizon_event"] = estimate_horizon_breach(
+            rows, threshold, residuals_by_lead,
+            measured_interval_coverage=measured_interval_coverage,
+            calibration_is_verifiable=calibration_is_verifiable,
+        )
+    return result
 
 
 def _constraint_stage(
@@ -1560,5 +1588,14 @@ def interval_stage(
             threshold_analysis = threshold_analysis_stage(
                 threshold, rows, [float(row["point"]) for row in rows],
                 state.residuals, spreads,
+                residuals_by_lead=(
+                    state.event_residuals_by_lead
+                    if state.event_residual_source == state.residual_source
+                    else {}
+                ),
+                measured_interval_coverage=state.coverage,
+                calibration_is_verifiable=(
+                    interval_calibration_is_verifiable(state.coverage)
+                ),
             )
     return rows, support, threshold_analysis

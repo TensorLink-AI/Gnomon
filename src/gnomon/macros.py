@@ -530,10 +530,6 @@ def decide(
         scenario_probabilities: dict[str, float] | None = None
         exceedance: dict[str, Any] | None = None
     else:
-        # The per-step maximum, not the probability of at least one
-        # exceedance across the horizon — which is >= this and is usually
-        # what a horizon-level decision turns on. Labelled `exceed` with no
-        # definition, it understated the risk feeding expected utility.
         step_probabilities = result.threshold["probability_above"]
         peak = max(step_probabilities)
         # Any-step exceedance under an independence assumption, reported
@@ -543,30 +539,74 @@ def decide(
         for probability in step_probabilities:
             any_step *= (1.0 - probability)
         any_step = round(1.0 - any_step, 4)
-        # The two scenarios the expected-utility comparison sums over. Kept
-        # to exactly these keys because `evaluate_actions` weights payoffs
-        # by them; the definition and the alternative reading ride alongside
-        # in `exceedance` rather than inside the probability mass.
-        scenario_probabilities = {"exceed": peak, "no_exceed": round(1.0 - peak, 4)}
+        horizon_event = result.threshold.get("horizon_event") or {}
+        governed_probability = horizon_event.get("probability_any_breach")
+        event_supported = horizon_event.get("support") == "supported"
+        # A horizon-level choice must use a measured joint-horizon event,
+        # never a peak marginal and never independence composition.  When
+        # aligned residual paths cannot support that event, keep every risk
+        # number visible and withhold the governed choice below.
+        scenario_probabilities = (
+            {"exceed": float(governed_probability),
+             "no_exceed": round(1.0 - float(governed_probability), 6)}
+            if event_supported and governed_probability is not None else None
+        )
         exceedance = {
             "peak_step_exceedance": peak,
             "any_step_exceedance_if_independent": any_step,
             "per_step": step_probabilities,
+            "horizon_event": horizon_event or None,
             "event_definition": (
-                "`exceed` is the largest single-step probability of crossing "
-                "the threshold, and is what the expected-utility comparison "
-                "uses. `any_step_exceedance_if_independent` is the "
+                "`horizon_event.probability_any_breach` is estimated by "
+                "replaying aligned rolling-origin residual trajectories and "
+                "is the only probability permitted to drive a horizon-level "
+                "expected-utility comparison. `peak_step_exceedance` is a "
+                "marginal reference. `any_step_exceedance_if_independent` is the "
                 "probability of at least one crossing over the horizon under "
                 "an independence assumption the steps do not satisfy — an "
-                "upper reference, not a substitute. For a horizon-level "
-                "decision the true any-step probability lies between them."
+                "ungoverned reference, not a substitute."
             ),
         }
-        evaluation = evaluate_actions(
-            actions, scenario_probabilities,
-            utilities=utilities, max_acceptable_risk=max_acceptable_risk,
-        )
-        support = evaluation["support"]
+        if scenario_probabilities is None:
+            # Preserve the caller's feasible option set in the receipt even
+            # when probability support withholds selection.  Withholding an
+            # action must not erase what was considered.
+            option_rows = []
+            for action in actions:
+                feasible = bool(action.get("feasible", True))
+                constraints: dict[str, Any] = {}
+                if (max_acceptable_risk is not None
+                        and "residual_risk" in action):
+                    value = float(action["residual_risk"])
+                    satisfied = value <= max_acceptable_risk
+                    constraints["max_acceptable_risk"] = {
+                        "limit": max_acceptable_risk, "value": value,
+                        "satisfied": satisfied,
+                    }
+                    feasible = feasible and satisfied
+                option_rows.append({
+                    "name": str(action["name"]), "feasible": feasible,
+                    "constraint_results": constraints,
+                    "expected_utility": None, "downside": None,
+                })
+            evaluation = {"evaluations": option_rows, "selected": None,
+                          "decision_rule": "withheld_probability_support"}
+            support = inconclusive(
+                "horizon_event_probability_insufficient",
+                "A dependence-aware probability of any threshold breach "
+                "could not earn decision support; risk evidence is reported "
+                "but no governed action is selected.",
+                "Collect enough history for at least eight aligned residual "
+                "origins with a stable residual regime and measured test-fold "
+                "coverage, then re-run the decision.",
+            ).to_dict()
+            support["reasons"].extend(horizon_event.get("reasons") or [])
+        else:
+            evaluation = evaluate_actions(
+                actions, scenario_probabilities,
+                utilities=utilities, max_acceptable_risk=max_acceptable_risk,
+            )
+            support = evaluation["support"]
         # Uncertainty propagation: a decision grounded on a warned or
         # degraded forecast cannot claim more support than the forecast has.
         if result.warnings:
@@ -712,6 +752,8 @@ def monitor(
     threshold: float,
     alert_cost: float | None = None,
     miss_cost: float | None = None,
+    action_cost: float | None = None,
+    mitigation_effectiveness: float = 1.0,
     series_column: str | None = None,
     frequency: str | None = None,
     as_of: datetime | None = None,
@@ -742,6 +784,24 @@ def monitor(
     )
     created_at = clock.now().isoformat()
 
+    if action_cost is not None and miss_cost is None:
+        raise GnomonError(
+            "INVALID_COSTS", "action_cost requires miss_cost."
+        )
+    if action_cost is not None and alert_cost is not None:
+        raise GnomonError(
+            "INVALID_COSTS",
+            "Choose one policy: alert_cost prices a false alert; action_cost "
+            "prices an action taken regardless of outcome.",
+        )
+    if action_cost is not None:
+        try:
+            from .breach import BreachDecisionPolicy
+            BreachDecisionPolicy(
+                action_cost, float(miss_cost), mitigation_effectiveness
+            ).validate()
+        except ValueError as exc:
+            raise GnomonError("INVALID_COSTS", str(exc)) from exc
     costed = alert_cost is not None and miss_cost is not None
     if costed and (alert_cost < 0 or miss_cost <= 0):
         raise GnomonError("INVALID_COSTS", "alert_cost must be >= 0 and miss_cost > 0.")
@@ -787,6 +847,16 @@ def monitor(
             })
             continue
         probabilities = result.threshold["probability_above"]
+        horizon_event = result.threshold.get("horizon_event") or {}
+        governed_decision = None
+        if action_cost is not None:
+            from .breach import BreachDecisionPolicy, apply_breach_policy
+            governed_decision = apply_breach_policy(
+                horizon_event,
+                BreachDecisionPolicy(
+                    action_cost, float(miss_cost), mitigation_effectiveness
+                ),
+            )
         first_alert = next(
             (step for step, probability in enumerate(probabilities, 1)
              if probability >= alert_probability),
@@ -803,6 +873,8 @@ def monitor(
             "armed": True,
             "trigger": {"threshold": threshold, "direction": "above"},
             "probability_above_per_step": probabilities,
+            "horizon_event": horizon_event or None,
+            "governed_decision": governed_decision,
             "alert_probability_threshold": alert_probability,
             "alert_rule_basis": (
                 "alert when P(exceed) >= alert_cost / (alert_cost + miss_cost)"
@@ -827,6 +899,8 @@ def monitor(
         "forecast": artifact.forecast_id,
         "threshold": threshold,
         "alert_cost": alert_cost, "miss_cost": miss_cost,
+        "action_cost": action_cost,
+        "mitigation_effectiveness": mitigation_effectiveness,
         "horizon": horizon,
     })
     payload = {

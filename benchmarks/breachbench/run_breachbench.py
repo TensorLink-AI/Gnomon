@@ -325,6 +325,7 @@ def product_packet(case: Case) -> dict[str, Any]:
         }
         threshold = result.threshold or {}
         if threshold:
+            horizon_event = threshold.get("horizon_event") or {}
             stamp_to_step = {str(row.get("timestamp")): step
                              for step, row in enumerate(rows, 1)}
             packet["threshold_analysis"] = {
@@ -337,7 +338,19 @@ def product_packet(case: Case) -> dict[str, Any]:
                 "first_step_interval_above": stamp_to_step.get(
                     str(threshold.get("first_timestamp_interval_above"))),
                 "basis": threshold.get("basis"),
+                "horizon_event": horizon_event or None,
             }
+            if horizon_event:
+                # Costs come from this client task.  Gnomon projects them
+                # through its public policy executable without changing the
+                # immutable event probability.
+                from gnomon.breach import (
+                    BreachDecisionPolicy, apply_breach_policy,
+                )
+                packet["governed_decision"] = apply_breach_policy(
+                    horizon_event,
+                    BreachDecisionPolicy(COST_ACT, COST_MISS),
+                )
         else:
             packet["threshold_analysis"] = {
                 "threshold": case.threshold,
@@ -447,6 +460,27 @@ def product_rule(case: Case, packet: dict[str, Any],
         step = crossing[0] if crossing else None
     return {"breach_expected": breach, "first_breach_step": step,
             "action": "act" if act else "monitor"}
+
+
+def governed_product_rule(case: Case, packet: dict[str, Any]) -> dict[str, Any]:
+    """The production decision contract, pricing withholding explicitly."""
+    event = ((packet.get("threshold_analysis") or {}).get("horizon_event")
+             or {})
+    decision = packet.get("governed_decision") or {}
+    recommendation = decision.get("recommended_action")
+    probability = event.get("probability_any_breach")
+    breach = (float(probability) >= 0.5
+              if probability is not None else False)
+    step = event.get("first_breach_step_median_conditional") if breach else None
+    # Withholding is monitor-by-omission in this one-shot benchmark: the
+    # client received no authority to act. It remains separately counted so
+    # a product cannot improve apparent precision by withholding everything.
+    return {
+        "breach_expected": breach,
+        "first_breach_step": step,
+        "action": recommendation or "monitor",
+        "withheld": recommendation is None,
+    }
 
 
 def _score(answer: dict[str, Any], case: Case) -> dict[str, Any]:
@@ -569,10 +603,17 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
     verify_arm_symmetry(cases, packets, futures)
 
     references_rows: dict[str, list[dict[str, Any]]] = {
+        "gnomon_governed": [],
         "gnomon_rule_alone": [], "gnomon_rule_composed": [],
         "naive_persistence": [], "always_act": [], "never_act": [],
     }
     for case in cases:
+        references_rows["gnomon_governed"].append(
+            {**_score({"valid": True, **governed_product_rule(
+                case, packets[case.case_id])}, case),
+             "truth_breach": case.truth_breach,
+             "withheld": governed_product_rule(
+                 case, packets[case.case_id])["withheld"]})
         references_rows["gnomon_rule_alone"].append(
             {**_score({"valid": True, **product_rule(
                 case, packets[case.case_id])}, case),
@@ -598,6 +639,8 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
              "truth_breach": case.truth_breach})
     references = {name: _arm_metrics(rows)
                   for name, rows in references_rows.items()}
+    references["gnomon_governed"]["withholding_rate"] = statistics.mean(
+        row["withheld"] for row in references_rows["gnomon_governed"])
     references["hindsight_optimal"] = {
         "mean_cost": statistics.mean(
             COST_ACT if case.truth_breach else 0.0 for case in cases),
@@ -706,9 +749,23 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
             control["action_optimal"] and not gnomon["action_optimal"])
         optimal_pairs["gnomon_only"] += int(
             gnomon["action_optimal"] and not control["action_optimal"])
-    best_rule_regret = min(
-        references["gnomon_rule_alone"]["mean_regret"],
-        references["gnomon_rule_composed"]["mean_regret"])
+    governed_recommendations = {
+        case.case_id: (packets[case.case_id].get("governed_decision") or {})
+        .get("recommended_action")
+        for case in cases
+    }
+    supported_ids = [case_id for case_id, recommendation
+                     in governed_recommendations.items()
+                     if recommendation is not None]
+    preservation_rate = (statistics.mean(
+        completed[(case_id, "gnomon")]["action"]
+        == governed_recommendations[case_id]
+        for case_id in supported_ids) if supported_ids else None)
+    unsupported_action_rate = statistics.mean(
+        completed[(case.case_id, "gnomon")]["action"] == "act"
+        for case in cases
+        if governed_recommendations[case.case_id] is None
+    ) if len(supported_ids) < len(cases) else 0.0
     summary = {
         "schema_version": "0.2", "seed": args.seed, "cases": args.cases,
         "model": model_name, "temperature": 0,
@@ -734,15 +791,20 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
                 "exact_p": exact_sign_p(optimal_pairs["control_only"],
                                         optimal_pairs["gnomon_only"]),
             },
+            "agent_preservation": {
+                "governed_recommendations": len(supported_ids),
+                "preservation_rate": preservation_rate,
+                "unsupported_action_rate": unsupported_action_rate,
+            },
         },
         "verdicts": {
             "regret_reduction_vs_model_alone":
                 metrics["control"]["mean_regret"]
                 - metrics["gnomon"]["mean_regret"],
             "regret_reduction_vs_product_rule_alone":
-                best_rule_regret - metrics["gnomon"]["mean_regret"],
-            "product_rule_basis": (
-                "best_of_peak_marginal_and_independence_composed"),
+                references["gnomon_governed"]["mean_regret"]
+                - metrics["gnomon"]["mean_regret"],
+            "product_rule_basis": "governed_dependence_aware_policy",
             "regret_reduction_vs_best_constant_policy":
                 min(references["always_act"]["mean_regret"],
                     references["never_act"]["mean_regret"])
@@ -750,9 +812,8 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
             "reading": (
                 "useful means positive on all three: cheaper decisions "
                 "than the model alone, cheaper than the product's own "
-                "no-LLM rule (the stronger of its two mechanical "
-                "probability readings, so aggregating the packet's own "
-                "numbers cannot pass as model value), and cheaper than "
+                "governed no-LLM recommendation (with withholding priced as "
+                "monitor-by-omission), and cheaper than "
                 "the best constant policy. Positive on the first only "
                 "means Gnomon carried the model; positive on the second "
                 "only means the model carried Gnomon; failing the third "

@@ -398,6 +398,7 @@ def _series_result(
         strict_abstention=strict_abstention,
         snapshot=loaded.snapshot, variable=loaded.variable,
         extra_candidates=extra_candidates,
+        threshold_job=threshold is not None,
     )
     predict_stage(
         state, horizon=horizon, frequency=loaded.frequency,

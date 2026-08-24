@@ -188,7 +188,45 @@
         "first_timestamp_interval_above": "2026-02-05T00:00:00",
         "first_timestamp_point_below": null,
         "first_timestamp_interval_below": null,
-        "basis": "empirical probabilities from backtest residuals scaled to the per-lead-time conformal spread"
+        "basis": "empirical probabilities from backtest residuals scaled to the per-lead-time conformal spread",
+        "horizon_event": {
+          "method": "aligned_fold_residual_trajectory_replay_v1",
+          "probability_any_breach": 1.0,
+          "probability_any_breach_interval_90": {
+            "lower": 0.269866,
+            "upper": 1.0
+          },
+          "breach_more_likely_than_not": true,
+          "first_breach_step_probability": {
+            "1": 1.0
+          },
+          "first_breach_step_median_conditional": 1,
+          "expected_maximum": 223.0,
+          "maximum_interval_80": {
+            "lower": 223.0,
+            "upper": 223.0
+          },
+          "joint_path_count": 1,
+          "calibration_partition": "post_selection_disjoint_origins",
+          "dependence_preserved": true,
+          "residual_regime": {
+            "status": "unknown",
+            "passed": false,
+            "reason": "at least 8 aligned origins are required"
+          },
+          "measured_interval_coverage": 1.0,
+          "support": "insufficient",
+          "reasons": [
+            {
+              "code": "insufficient_joint_paths",
+              "message": "Only 1 aligned rolling-origin residual paths are available; at least 8 are required for a governed horizon-event probability."
+            }
+          ],
+          "assumptions": [
+            "Aligned rolling-origin residual trajectories are exchangeable with the forecast horizon after the fixed regime gate.",
+            "This is an empirical replay distribution, not independent composition of per-step probabilities."
+          ]
+        }
       },
       "support_assessment": {
         "status": "conditionally_supported",
