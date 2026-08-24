@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+- **The model-assisted lane and the evidence dossier.** Adopting the
+  two-lane decision from the cross-model evaluation
+  (docs/cross-model-evaluation-2026-08.md): when the governed rows are a
+  naive fallback or an underpowered-selection baseline, the best model
+  prior the history admits is now published beside them at
+  `results[*].model_assisted` — labelled `prior_assisted` or
+  `conditionally_supported` by its validation strength, admitted only by
+  an out-of-sample win over the published baseline plus deterministic
+  plausibility checks, points only, never automation-eligible, and never
+  replacing the primary forecast. A candidate with no out-of-sample win
+  earns no lane. The typed-question reasoning receipt gains the evidence
+  dossier (`reasoning.packet`): observations, temporal properties,
+  supporting and conflicting evidence per interpretation, the
+  interpretations still compatible with the data, evidence sufficiency,
+  and what would distinguish the alternatives — with a selection contract
+  under which a `supported` canonical stays binding and any weaker one
+  becomes the default the model may argue past, gated by
+  `verify_packet_selection` (a selection must be a compatible
+  interpretation and cite packet evidence that supports it). The tool
+  response budget was retuned 8192 → 9216 bytes so a horizon-split
+  response still carries every labelled row beside the lane summary.
+
 - **Useful short-history candidates without weakening the gate.** Wide files
   can offer a scale-free pooled-trend candidate that fits donor statistics at
   each historical origin, validates transfer leave-one-channel-out, and must

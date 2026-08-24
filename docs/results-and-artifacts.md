@@ -167,6 +167,27 @@ Policy `evidence-weighted-v2` additionally records registry-match relevance;
 wildcard transfer evidence is discounted and local/external directional
 conflict is preserved in the receipt.
 
+## The model-assisted lane
+
+When the governed rows are a naive `best_effort` fallback or an
+underpowered-selection baseline, `results[*].model_assisted` may carry the
+best model prior the history admits, published beside the primary forecast
+rather than discarded. The lane exists only when a non-baseline candidate
+beat the published baseline on real out-of-sample evidence — an
+underpowered selection fold, or a reduced-rigor trailing holdout — and
+passed deterministic plausibility checks; with no such win, nothing is
+published and the governed answer stands alone.
+
+The lane is labelled by its validation strength: `conditionally_supported`
+when the out-of-sample win covered the requested horizon, `prior_assisted`
+for anything weaker. It carries points only (on the primary rows' timestamp
+grid), no intervals, is never eligible for automatic action, and never
+replaces or blends into the primary forecast. Each lane records its
+validation (basis, out-of-sample steps, candidate and baseline scores —
+evidence, not a ranking) and plausibility diagnostics, and adds a
+`model_assisted_lane` disclosure to the support assessment plus a
+`model_assisted_lane` evidence record.
+
 ## Artifact files
 
 ### `artifact.json`
@@ -235,6 +256,19 @@ Weak answers also expose up to three `ranked_hypotheses`. Their weights count
 independent receipt evidence and are explicitly not probabilities. Agents may
 explain this ordering, but only a calibrated fitted distribution may publish
 probability language.
+
+The reasoning receipt also carries the evidence dossier, `reasoning.packet`:
+observations, the temporal property under question, the interpretations still
+compatible with the data (each with the evidence kinds for and against it),
+typed evidence sufficiency (`sufficient` / `mixed` / `insufficient`), and the
+discriminators that would distinguish the alternatives. Its
+`selection_contract` states who concludes: a `supported` canonical answer is
+binding; anything weaker is the default the model may argue past, and
+`gnomon.reasoning_packet.verify_packet_selection` is the deterministic gate a
+model conclusion must pass — the selected interpretation must be one the
+packet admits as compatible, and every cited evidence kind must exist in the
+packet and support the selection. The compact projection carries the live
+interpretations, the sufficiency level, the selector, and one discriminator.
 
 Every MCP response also carries a top-level compact `reasoning` boundary. Its
 `facts` entries point to the single response field an agent may quote,
