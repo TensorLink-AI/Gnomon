@@ -155,6 +155,11 @@ REGISTRY: dict[str, dict[str, Any]] = {
         "accepts": {"output_dir"},
         "limit_flag": "--cases",
     },
+    "discriminationbench": {
+        "module": "benchmarks.discriminationbench.run_discriminationbench",
+        "accepts": {"output_dir"},
+        "limit_flag": "--cases",
+    },
 }
 
 if set(REGISTRY) != set(CATALOG):
