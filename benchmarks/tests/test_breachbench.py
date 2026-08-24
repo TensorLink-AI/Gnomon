@@ -135,6 +135,44 @@ def test_answers_are_validated_not_guessed() -> None:
     assert parsed["valid"] and parsed["first_breach_step"] is None
 
 
+def test_a_valid_answer_survives_surrounding_prose_and_echoes() -> None:
+    # A greedy first-to-last-brace regex would score all of these as
+    # invalid answers the model never gave.
+    answer = ('{"breach_expected": true, "first_breach_step": 3, '
+              '"action": "act"}')
+    trailing = answer + "\nReasoning: the costs {act=2, miss=10} say act."
+    parsed = parse_answer(trailing, 24)
+    assert parsed["valid"] and parsed["action"] == "act"
+    assert parsed["first_breach_step"] == 3
+    echoed = ('Given the evidence {"support": "degraded", "forecast": '
+              '[{"step": 1, "q50": 4.0}]} I conclude:\n' + answer)
+    parsed = parse_answer(echoed, 24)
+    assert parsed["valid"] and parsed["breach_expected"] is True
+    assert parse_answer("no json here", 24) == {"valid": False}
+
+
+def test_resume_rejects_rows_from_a_different_dataset_or_model(
+        tmp_path) -> None:
+    """The same seed with a different --cases count yields sequential ids
+    over divergent content — truth labels included. Rows from that run
+    must never be pooled into this one."""
+    run(_args(tmp_path, cases=6), client=ScriptedClient())
+    rows_path = tmp_path / "out" / "rows.jsonl"
+    first_rows = rows_path.read_text().splitlines()
+    assert len(first_rows) == 6 * len(ARMS)
+    args = _args(tmp_path, cases=4, resume=True)
+    summary = run(args, client=ScriptedClient())
+    # Every old row was rejected (different dataset identity), so the
+    # 4-case run answered all its own pairs from scratch.
+    assert summary["paired"]["paired_cases"] == 4
+    assert len(rows_path.read_text().splitlines()) == \
+        len(first_rows) + 4 * len(ARMS)
+    for line in rows_path.read_text().splitlines()[len(first_rows):]:
+        row = json.loads(line)
+        assert row["dataset"] == summary["provenance"]["dataset_identity"]
+        assert row["model"] == "scripted-test-model"
+
+
 def test_malformed_steps_degrade_and_never_crash_a_paid_run() -> None:
     # json.loads accepts NaN/Infinity, and true is an int in Python:
     # each must degrade to a missing step, not raise mid-run.
@@ -196,9 +234,9 @@ def test_a_matched_offline_run_prices_decisions_in_client_units(
         assert entry["mean_regret"] >= 0.0
         assert 0.0 <= entry["action_optimal_rate"] <= 1.0
     references = summary["references"]
-    assert set(references) >= {"gnomon_rule_alone", "naive_persistence",
-                               "always_act", "never_act",
-                               "hindsight_optimal"}
+    assert set(references) >= {"gnomon_rule_alone", "gnomon_rule_composed",
+                               "naive_persistence", "always_act",
+                               "never_act", "hindsight_optimal"}
     assert references["hindsight_optimal"]["mean_regret"] == 0.0
     assert references["always_act"]["mean_cost"] == COST_ACT
     verdicts = summary["verdicts"]

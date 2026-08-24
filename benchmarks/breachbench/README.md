@@ -15,11 +15,13 @@ from the model and from Gnomon, verified absent from every prompt.
 Gnomon is fed each series' **true cadence** (5-minute, daily, monthly —
 read from the corpus filenames), because season detection and support
 tiers are frequency-aware. Realized futures **never overlap** within a
-series (cutoffs are horizon-spaced), so truth labels are not correlated
-across paired cases; histories may overlap and that is disclosed.
-Label invariance under anonymization is verified on the *rounded
-numbers the model actually sees* — a case whose rounding flips any
-breach step is discarded, never shipped.
+series (cutoffs are horizon-spaced), so no two cases share a breach
+event; labels from one regime can still co-move, which is why the
+per-series case counts are disclosed rather than an independence claim
+made. Histories may overlap and that is disclosed. Label invariance
+under anonymization is verified on the *rounded numbers the model
+actually sees* — a case whose rounding flips any breach step is
+discarded, never shipped.
 
 Two matched model arms (same model, temperature 0, prompts differing by
 the evidence block alone):
@@ -32,16 +34,25 @@ the evidence block alone):
 The primary metric is **decision cost and regret** under a stated cost
 model (acting costs 2 and mitigates; a missed breach costs 10), because
 that — not choice accuracy — is what useful means to an operator.
-Breach-call accuracy, recall, false-alarm rate, and first-breach timing
-error are reported beside it. The breach base rate is held near the cost
-break-even (~30% against a 0.2 break-even), where neither constant
-policy is close to optimal and only genuine discrimination reduces
-regret.
+Breach-call accuracy, recall, and false-alarm rate are reported beside
+it, scored over each arm's *valid* answers only (imputing "no breach"
+for garbage would flatter a failing arm with base-rate accuracy;
+`invalid_rate` and `call_metrics_scored` disclose the denominators).
+First-breach timing error is likewise over each arm's self-selected
+answered subset — `timing_answer_rate` is reported next to it because
+an arm can dodge the metric by never naming a step. The breach base
+rate is held near the cost break-even (~30% against a 0.2 break-even),
+where neither constant policy is close to optimal and only genuine
+discrimination reduces regret.
 
 Deterministic references bound everything at zero API cost: the
-product's own no-LLM decision rule, naive persistence, always-act,
-never-act, and the hindsight optimum. The `verdicts` block demands all
-three margins before "useful" is claimed:
+product's own no-LLM decision rule under *two* mechanical readings of
+its per-step probabilities (peak marginal, and independence-composed
+probability of any breach — the model-value verdict is taken against
+the stronger, so mechanically aggregating the packet's own numbers
+cannot pass as model skill), naive persistence, always-act, never-act,
+and the hindsight optimum. The `verdicts` block demands all three
+margins before "useful" is claimed:
 
 - cheaper decisions than the model alone (Gnomon added value),
 - cheaper than the product's own rule alone (the model added value), and
@@ -63,8 +74,10 @@ Operationally: a malformed model answer (NaN steps, wrong types)
 degrades to "monitor by omission" and is recorded as invalid — it never
 crashes a paid run; a failed API call is recorded and the run fails
 loudly at the end with every completed row saved (`--resume` finishes
-the remainder, ignoring stale rows from other seeds); API token usage
-and cost land in `summary.json`. BreachBench is one panel of the usefulness
+the remainder, and every row carries the full dataset identity —
+generator version, seed, case count, corpus hash — plus the answering
+model, so rows from a different configuration are rejected rather than
+silently pooled); API token usage and cost land in `summary.json`. BreachBench is one panel of the usefulness
 suite: DossierBench measures interpretation discrimination,
 DiscriminationBench the mechanism, temporalbench/reasoningbench/cik the
 broader agent behaviours, and LeakTrap the grounding floor.

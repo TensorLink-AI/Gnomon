@@ -55,7 +55,6 @@ import math
 import os
 from pathlib import Path
 import random
-import re
 import statistics
 import subprocess
 import sys
@@ -67,6 +66,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 
 from benchmarks.common.envfile import load_env_file  # noqa: E402
+from benchmarks.common.openrouter import extract_json_objects  # noqa: E402
 from benchmarks.discriminationbench.run_discriminationbench import _series  # noqa: E402
 from gnomon.discrimination import discriminate  # noqa: E402
 from gnomon.reasoning_packet import repair_selection  # noqa: E402
@@ -358,21 +358,22 @@ def prompt(case: Case, arm: str, computed: dict[str, Any]) -> str:
 
 
 def parse_answer(text: str) -> dict[str, Any]:
-    match = re.search(r"\{.*\}", text, re.DOTALL)
-    if not match:
-        return {}
-    try:
-        payload = json.loads(match.group(0))
-    except json.JSONDecodeError:
-        return {}
-    if not isinstance(payload, dict):
-        return {}
-    return {
-        "value": str(payload.get("value", "")).strip().lower(),
-        "cited_evidence": [str(item) for item in
-                           (payload.get("cited_evidence") or [])
-                           if isinstance(item, str)],
-    }
+    # Balanced-span candidates, not a greedy regex: a valid JSON answer
+    # followed by prose containing a brace — or preceded by an echoed
+    # dossier, which only the dossier arm's prompt even contains — must
+    # not be scored as no answer. The first candidate carrying the
+    # contract's "value" key wins; echoed packets do not have one at top
+    # level and are skipped.
+    for payload in extract_json_objects(text):
+        if "value" not in payload:
+            continue
+        return {
+            "value": str(payload.get("value", "")).strip().lower(),
+            "cited_evidence": [str(item) for item in
+                               (payload.get("cited_evidence") or [])
+                               if isinstance(item, str)],
+        }
+    return {}
 
 
 def answer_dossier_arm(case: Case, computed: dict[str, Any],
@@ -433,12 +434,16 @@ def verify_no_future_leakage(cases: list[Case],
         held_out = futures.get(case.case_id)
         if not held_out or len(held_out) < 3:
             continue
-        # Long enough that a real slow-moving history cannot contain it
-        # by coincidence (three rounded values can legitimately recur);
-        # any wholesale leak still starts with it.
         marker = json.dumps(held_out[:8], separators=(",", ":"))[1:-1]
+        # The history itself may legitimately render the marker — real
+        # series carry runs of repeated values, and a flat future then
+        # matches a flat stretch of history. Excise the history blob and
+        # scan the rest: the only way the future can actually leak is
+        # through the packet or question.
+        history_blob = json.dumps(list(case.values), separators=(",", ":"))
         for arm in ARMS:
-            if marker in prompt(case, arm, computed[case.case_id]):
+            text = prompt(case, arm, computed[case.case_id])
+            if marker in text.replace(history_blob, "", 1):
                 raise ValueError(
                     f"held-out future leaked into arm {arm} "
                     f"for {case.case_id}")
@@ -510,6 +515,22 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
             for c in cases),
     }
 
+    # A case_id alone does not identify a case: the same seed with a
+    # different --cases count or corpus yields sequential ids over
+    # divergent content. Rows carry the full dataset identity and the
+    # answering model, and resume rejects anything that does not match.
+    model_name = getattr(args, "model", None)
+    if source == "real":
+        corpus_dir = Path(getattr(args, "data_dir", None) or DATA_DIR)
+        corpus_tag = hashlib.sha256(b"".join(
+            path.read_bytes()
+            for path in sorted(corpus_dir.glob("*.csv")))).hexdigest()[:12]
+    else:
+        corpus_tag = "synthetic"
+    dataset_identity = (
+        f"dossierbench-generator-{GENERATOR_VERSION}:"
+        f"source={source}:seed={args.seed}:cases={args.cases}:"
+        f"corpus={corpus_tag}")
     output = Path(args.output_dir)
     output.mkdir(parents=True, exist_ok=True)
     rows_path = output / "rows.jsonl"
@@ -525,11 +546,11 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
                 # its (case, arm) simply reruns.
                 malformed += 1
                 continue
-            if row.get("case_id") in valid_ids and row.get("arm") in ARMS:
+            if (row.get("case_id") in valid_ids and row.get("arm") in ARMS
+                    and row.get("dataset") == dataset_identity
+                    and row.get("model") == model_name):
                 completed[(row["case_id"], row["arm"])] = row
             else:
-                # Rows from an older seed/case-count in the same output
-                # dir must not leak into this run's metrics.
                 stale += 1
         if stale or malformed:
             print(f"resume: ignored {stale} stale and {malformed} "
@@ -549,7 +570,9 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
                        "stage": "single_turn", "violations": [], "calls": 1}
         packet = aids["packet"]
         return {
-            "case_id": case.case_id, "arm": arm, "property": case.property,
+            "case_id": case.case_id, "arm": arm,
+            "dataset": dataset_identity, "model": model_name,
+            "property": case.property,
             "truth": case.truth, "value": outcome["value"],
             "correct": outcome["value"] == case.truth,
             "stage": outcome["stage"], "violations": outcome["violations"],
@@ -628,7 +651,7 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
         metrics[arm] = entry
 
     summary = {
-        "schema_version": "0.2", "seed": args.seed, "cases": args.cases,
+        "schema_version": "0.3", "seed": args.seed, "cases": args.cases,
         "source": source,
         "model": getattr(args, "model", None),
         "temperature": 0,
@@ -636,9 +659,7 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
             "evaluated_commit": _git_sha(),
             "harness_sha256": hashlib.sha256(
                 Path(__file__).read_bytes()).hexdigest(),
-            "dataset_identity": (
-                f"dossierbench-generator-{GENERATOR_VERSION}:"
-                f"source={source}:seed={args.seed}:cases={args.cases}"),
+            "dataset_identity": dataset_identity,
             "cases": corpus_provenance,
         },
         "references": references,

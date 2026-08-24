@@ -43,7 +43,6 @@ import math
 import os
 from pathlib import Path
 import random
-import re
 import statistics
 import subprocess
 import sys
@@ -56,6 +55,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 
 from benchmarks.common.envfile import load_env_file  # noqa: E402
+from benchmarks.common.openrouter import extract_json_objects  # noqa: E402
 
 GENERATOR_VERSION = "0.2"
 DATA_DIR = Path(__file__).resolve().parent / "data"
@@ -152,9 +152,11 @@ def generate_cases(
     cell_counts: dict[str, int] = {}
     seen: set[tuple[str, int, int, float]] = set()
     # Realized futures must not overlap across cases from the same
-    # series: overlapping futures share breach events, and correlated
-    # truth labels would quietly inflate the paired significance tests.
-    # Histories may still overlap; that is disclosed, not hidden.
+    # series: overlapping futures would share the same breach events.
+    # Non-overlap does not make labels independent — adjacent futures in
+    # one regime (the pedestrian series' COVID collapse) still co-move —
+    # so the per-series case counts are disclosed for exactly that
+    # reason. Histories may still overlap; that is disclosed, not hidden.
     used_cutoffs: dict[str, list[int]] = {name: [] for name in names}
     cell_caps = {cell: int(count * fraction) + 1
                  for cell, fraction in OUTCOME_TARGETS.items()}
@@ -230,6 +232,11 @@ def generate_cases(
     provenance = {
         "corpus_series": names,
         "corpus_points": sum(len(values) for values in corpus.values()),
+        # Identity of the exact corpus bytes: resume must be able to tell
+        # rows generated against a different data-dir apart.
+        "corpus_sha256": hashlib.sha256(b"".join(
+            path.read_bytes()
+            for path in sorted(data_dir.glob("*.csv")))).hexdigest(),
         "cases_per_series": {name: len(cutoffs) for name, cutoffs
                              in sorted(used_cutoffs.items()) if cutoffs},
         "attempts": attempts, "skipped": skipped,
@@ -240,7 +247,8 @@ def generate_cases(
             case.truth_breach for case in cases),
         "labeling": "realized_future_breach_and_first_step",
         "independence": ("realized_futures_non_overlapping_within_series;"
-                         "histories_may_overlap"),
+                         "histories_may_overlap;labels_can_still_comove_"
+                         "through_shared_regimes_see_cases_per_series"),
         "anonymization":
             "seeded_positive_affine_transform_threshold_included;"
             "label_invariance_verified_on_rounded_shown_numbers",
@@ -374,28 +382,29 @@ def prompt(case: Case, arm: str, packet: dict[str, Any]) -> str:
 
 
 def parse_answer(text: str, horizon: int) -> dict[str, Any]:
-    match = re.search(r"\{.*\}", text, re.DOTALL)
-    if not match:
-        return {"valid": False}
-    try:
-        payload = json.loads(match.group(0))
-    except json.JSONDecodeError:
-        return {"valid": False}
-    if not isinstance(payload, dict):
-        return {"valid": False}
-    breach = payload.get("breach_expected")
-    action = str(payload.get("action", "")).strip().lower()
-    raw_step = payload.get("first_breach_step")
-    # ``json.loads`` accepts NaN/Infinity, and ``True`` is an ``int``:
-    # a malformed step must degrade to None, never crash a paid run.
-    step = None
-    if (isinstance(raw_step, (int, float)) and not isinstance(raw_step, bool)
-            and math.isfinite(raw_step) and 1 <= int(raw_step) <= horizon):
-        step = int(raw_step)
-    if not isinstance(breach, bool) or action not in {"act", "monitor"}:
-        return {"valid": False}
-    return {"valid": True, "breach_expected": breach,
-            "first_breach_step": step, "action": action}
+    # Balanced-span candidates, not a greedy regex: a correct JSON answer
+    # followed by prose containing a brace — or preceded by an echoed
+    # evidence packet, which only the gnomon arm's prompt even contains —
+    # must not be scored as an invalid answer the model never gave. The
+    # first candidate with the contract's shape wins; echoed packets fail
+    # the shape check and are skipped.
+    for payload in extract_json_objects(text):
+        breach = payload.get("breach_expected")
+        action = str(payload.get("action", "")).strip().lower()
+        if not isinstance(breach, bool) or action not in {"act", "monitor"}:
+            continue
+        raw_step = payload.get("first_breach_step")
+        # ``json.loads`` accepts NaN/Infinity, and ``True`` is an ``int``:
+        # a malformed step must degrade to None, never crash a paid run.
+        step = None
+        if (isinstance(raw_step, (int, float))
+                and not isinstance(raw_step, bool)
+                and math.isfinite(raw_step)
+                and 1 <= int(raw_step) <= horizon):
+            step = int(raw_step)
+        return {"valid": True, "breach_expected": breach,
+                "first_breach_step": step, "action": action}
+    return {"valid": False}
 
 
 def decision_outcome(action: str, case: Case) -> dict[str, float]:
@@ -405,15 +414,30 @@ def decision_outcome(action: str, case: Case) -> dict[str, float]:
     return {"cost": cost, "regret": cost - optimal}
 
 
-def product_rule(case: Case, packet: dict[str, Any]) -> dict[str, Any]:
+def product_rule(case: Case, packet: dict[str, Any],
+                 composed: bool = False) -> dict[str, Any]:
     """The product's own decision rule, no LLM: act when the breach
-    probability clears the cost break-even; call breach at even odds."""
+    probability clears the cost break-even; call breach at even odds.
+
+    Two mechanical readings of the same per-step marginals: the peak
+    marginal (a lower bound on the probability of any breach) and, with
+    ``composed=True``, the independence composition ``1 - prod(1 - p)``.
+    Neither is the truth — the steps are dependent — but the model-value
+    verdict is only honest against the *stronger* mechanical reading,
+    otherwise "the model added value" can be earned by aggregating the
+    packet's own numbers."""
     analysis = packet.get("threshold_analysis") or {}
     probabilities = analysis.get("probability_above_per_step") or []
     if probabilities:
-        peak = max(probabilities)
-        act = peak >= COST_ACT / COST_MISS
-        breach = peak >= .5
+        if composed:
+            product = 1.0
+            for value in probabilities:
+                product *= 1.0 - min(1.0, max(0.0, float(value)))
+            estimate = 1.0 - product
+        else:
+            estimate = max(probabilities)
+        act = estimate >= COST_ACT / COST_MISS
+        breach = estimate >= .5
         step = analysis.get("first_step_point_above")
     else:
         points = [row["q50"] for row in packet.get("forecast") or []]
@@ -463,11 +487,17 @@ def verify_arm_symmetry(cases: list[Case],
                     f"{case.case_id}")
         held_out = futures.get(case.case_id) or []
         if len(held_out) >= 3:
-            # Long enough that a real slow-moving history cannot contain
-            # it by coincidence; any wholesale leak still starts with it.
             marker = json.dumps(held_out[:8], separators=(",", ":"))[1:-1]
+            # The history itself may legitimately render the marker — a
+            # real sensor series carries runs of identical values, and a
+            # constant future then matches a constant stretch of history.
+            # Excise the history blob and scan the rest: the only way the
+            # future can actually leak is through the packet or question.
+            history_blob = json.dumps(
+                list(case.values), separators=(",", ":"))
             for arm in ARMS:
-                if marker in prompt(case, arm, packets[case.case_id]):
+                text = prompt(case, arm, packets[case.case_id])
+                if marker in text.replace(history_blob, "", 1):
                     raise ValueError(
                         f"held-out future leaked into arm {arm} "
                         f"for {case.case_id}")
@@ -482,24 +512,39 @@ def exact_sign_p(left_only: int, right_only: int) -> float:
 
 
 def _arm_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    timing = [row["timing_error"] for row in rows
+    # Decision economics are scored over every row — an unparseable
+    # answer is priced as the monitor-by-omission the operator lived
+    # through. Call-quality metrics are scored over valid answers only:
+    # imputing "no breach" for garbage would flatter a failing arm with
+    # base-rate accuracy and a zero false-alarm rate.
+    valid = [row for row in rows if row["valid"]]
+    timing = [row["timing_error"] for row in valid
               if row["timing_error"] is not None]
+    breach_truth = [row for row in valid if row["truth_breach"]]
     return {
         "mean_cost": statistics.mean(row["cost"] for row in rows),
         "mean_regret": statistics.mean(row["regret"] for row in rows),
         "action_optimal_rate": statistics.mean(
             row["action_optimal"] for row in rows),
-        "breach_call_accuracy": statistics.mean(
-            row["breach_correct"] for row in rows),
+        "breach_call_accuracy": (statistics.mean(
+            row["breach_correct"] for row in valid) if valid else None),
         "breach_recall": (statistics.mean(
-            row["breach_expected"] for row in rows if row["truth_breach"])
-            if any(row["truth_breach"] for row in rows) else None),
+            row["breach_expected"] for row in breach_truth)
+            if breach_truth else None),
         "false_alarm_rate": (statistics.mean(
-            row["breach_expected"] for row in rows
+            row["breach_expected"] for row in valid
             if not row["truth_breach"])
-            if any(not row["truth_breach"] for row in rows) else None),
+            if any(not row["truth_breach"] for row in valid) else None),
+        "call_metrics_scored": len(valid),
+        # Timing is over each arm's self-selected answered subset — an
+        # arm can dodge it by never naming a step, which is why the
+        # answer rate is reported next to the error and cross-arm MAE
+        # comparisons must check both.
         "timing_mae": statistics.mean(timing) if timing else None,
         "timing_scored": len(timing),
+        "timing_answer_rate": (statistics.mean(
+            row["first_breach_step"] is not None for row in breach_truth)
+            if breach_truth else None),
         "invalid_rate": statistics.mean(not row["valid"] for row in rows),
     }
 
@@ -524,13 +569,17 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
     verify_arm_symmetry(cases, packets, futures)
 
     references_rows: dict[str, list[dict[str, Any]]] = {
-        "gnomon_rule_alone": [], "naive_persistence": [],
-        "always_act": [], "never_act": [],
+        "gnomon_rule_alone": [], "gnomon_rule_composed": [],
+        "naive_persistence": [], "always_act": [], "never_act": [],
     }
     for case in cases:
         references_rows["gnomon_rule_alone"].append(
             {**_score({"valid": True, **product_rule(
                 case, packets[case.case_id])}, case),
+             "truth_breach": case.truth_breach})
+        references_rows["gnomon_rule_composed"].append(
+            {**_score({"valid": True, **product_rule(
+                case, packets[case.case_id], composed=True)}, case),
              "truth_breach": case.truth_breach})
         last_above = case.values[-1] > case.threshold
         references_rows["naive_persistence"].append(
@@ -555,6 +604,18 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
         "mean_regret": 0.0,
     }
 
+    # A case_id alone does not identify a case: the same seed with a
+    # different --cases count (or corpus) yields sequential ids over
+    # divergent content, including flipped truth labels. Rows carry the
+    # full dataset identity and the answering model, and resume rejects
+    # anything that does not match — silently pooling rows scored
+    # against different cases or produced by a different model is the
+    # one thing a paired benchmark must never do.
+    model_name = getattr(args, "model", None)
+    dataset_identity = (
+        f"breachbench-generator-{GENERATOR_VERSION}:"
+        f"seed={args.seed}:cases={args.cases}:"
+        f"corpus={corpus_provenance['corpus_sha256'][:12]}")
     output = Path(args.output_dir)
     output.mkdir(parents=True, exist_ok=True)
     rows_path = output / "rows.jsonl"
@@ -570,11 +631,11 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
                 # its (case, arm) simply reruns.
                 malformed += 1
                 continue
-            if row.get("case_id") in valid_ids and row.get("arm") in ARMS:
+            if (row.get("case_id") in valid_ids and row.get("arm") in ARMS
+                    and row.get("dataset") == dataset_identity
+                    and row.get("model") == model_name):
                 completed[(row["case_id"], row["arm"])] = row
             else:
-                # Rows from an older seed/case-count in the same output
-                # dir must not leak into this run's metrics.
                 stale += 1
         if stale or malformed:
             print(f"resume: ignored {stale} stale and {malformed} "
@@ -589,6 +650,7 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
         ], n=1)[0]
         answer = parse_answer(text, case.horizon)
         return {"case_id": case.case_id, "arm": arm,
+                "dataset": dataset_identity, "model": model_name,
                 "origin": case.origin, "outcome_cell": case.outcome_cell,
                 "truth_breach": case.truth_breach,
                 "truth_first_step": case.truth_first_step,
@@ -644,18 +706,19 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
             control["action_optimal"] and not gnomon["action_optimal"])
         optimal_pairs["gnomon_only"] += int(
             gnomon["action_optimal"] and not control["action_optimal"])
+    best_rule_regret = min(
+        references["gnomon_rule_alone"]["mean_regret"],
+        references["gnomon_rule_composed"]["mean_regret"])
     summary = {
-        "schema_version": "0.1", "seed": args.seed, "cases": args.cases,
-        "model": getattr(args, "model", None), "temperature": 0,
+        "schema_version": "0.2", "seed": args.seed, "cases": args.cases,
+        "model": model_name, "temperature": 0,
         "horizon": HORIZON,
         "cost_model": {"act": COST_ACT, "missed_breach": COST_MISS},
         "provenance": {
             "evaluated_commit": _git_sha(),
             "harness_sha256": hashlib.sha256(
                 Path(__file__).read_bytes()).hexdigest(),
-            "dataset_identity": (
-                f"breachbench-generator-{GENERATOR_VERSION}:"
-                f"seed={args.seed}:cases={args.cases}"),
+            "dataset_identity": dataset_identity,
             "cases": corpus_provenance,
         },
         "references": references,
@@ -677,8 +740,9 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
                 metrics["control"]["mean_regret"]
                 - metrics["gnomon"]["mean_regret"],
             "regret_reduction_vs_product_rule_alone":
-                references["gnomon_rule_alone"]["mean_regret"]
-                - metrics["gnomon"]["mean_regret"],
+                best_rule_regret - metrics["gnomon"]["mean_regret"],
+            "product_rule_basis": (
+                "best_of_peak_marginal_and_independence_composed"),
             "regret_reduction_vs_best_constant_policy":
                 min(references["always_act"]["mean_regret"],
                     references["never_act"]["mean_regret"])
@@ -686,11 +750,13 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
             "reading": (
                 "useful means positive on all three: cheaper decisions "
                 "than the model alone, cheaper than the product's own "
-                "no-LLM rule, and cheaper than the best constant policy. "
-                "Positive on the first only means Gnomon carried the "
-                "model; positive on the second only means the model "
-                "carried Gnomon; failing the third means nobody beat a "
-                "policy that ignores the data."),
+                "no-LLM rule (the stronger of its two mechanical "
+                "probability readings, so aggregating the packet's own "
+                "numbers cannot pass as model value), and cheaper than "
+                "the best constant policy. Positive on the first only "
+                "means Gnomon carried the model; positive on the second "
+                "only means the model carried Gnomon; failing the third "
+                "means nobody beat a policy that ignores the data."),
         },
         "design": {
             "matched": True,

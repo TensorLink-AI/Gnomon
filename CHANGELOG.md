@@ -26,6 +26,29 @@
   cleaned up; the future-leakage sentinel uses an eight-value marker so
   a slow-moving real series cannot false-positive an abort; and API
   token usage and cost are recorded in `summary.json`.
+  A second, independent adversarial review pass then closed seven more
+  findings: rows now carry the full dataset identity (generator
+  version, seed, case count, corpus hash) and the answering model, and
+  `--resume` rejects mismatches — the same seed with a different case
+  count yields sequential ids over divergent content, truth labels
+  included, and pooling such rows is the one thing a paired benchmark
+  must never do. Answer parsing scans balanced JSON spans instead of a
+  greedy first-to-last-brace regex, so a correct answer followed by
+  prose containing a brace, or preceded by an echoed evidence packet,
+  is no longer scored as invalid. The product-rule reference gained a
+  second mechanical reading (independence-composed probability of any
+  breach; measured regret 0.80 versus the peak-marginal reading's
+  1.31) and the model-value verdict is taken against the stronger, so
+  aggregating the packet's own numbers cannot pass as model skill.
+  Call-quality metrics are scored over valid answers only (imputed
+  "no breach" flattered a garbage-emitting arm with base-rate accuracy
+  and a zero false-alarm rate) with denominators disclosed, timing
+  gained a disclosed answer rate because an arm can dodge the MAE by
+  never naming a step, the future-leakage sentinel excises the history
+  blob before scanning (a real 16-value constant run in the sensor
+  series falsely tripped it), and the independence claim was corrected
+  to what horizon-spacing actually buys: no shared breach events, with
+  regime-level label co-movement disclosed per series.
 
 - **BreachBench: the client job, priced in the client's units.** A
   matched benchmark for Gnomon's first product job — which metric may
