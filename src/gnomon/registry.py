@@ -265,9 +265,9 @@ MACROS: dict[str, MacroSpec] = {
                 "actions, and an expected-utility choice — or, without "
                 "utilities, the feasible-action comparison with probabilities "
                 "(conditionally_supported: missing utility inputs). "
-                "`scenario_probabilities.exceed` is the largest single-step "
-                "probability; `exceedance` carries the per-step series and the "
-                "any-step reading."
+                "A choice is offered only when aligned residual trajectories "
+                "support a dependence-aware probability of any breach; peak "
+                "marginals and independence composition are references only."
             ),
             ("forecast", "evaluate_threshold_risk", "evaluate_actions"),
             {
@@ -317,6 +317,14 @@ MACROS: dict[str, MacroSpec] = {
                     "threshold": {"type": "number", "description": "Trigger threshold on the target."},
                     "alert_cost": {"type": "number", "description": "Cost of an unnecessary alert."},
                     "miss_cost": {"type": "number", "description": "Cost of a missed exceedance."},
+                    "action_cost": {"type": "number", "description": (
+                        "Cost paid whenever a single-shot mitigating action is "
+                        "taken. Mutually exclusive with alert_cost; requires miss_cost."
+                    )},
+                    "mitigation_effectiveness": {"type": "number", "minimum": 0,
+                        "maximum": 1, "description": (
+                            "Fraction of miss loss removed by the action; default 1."
+                        )},
                     "project": {"type": "string", "description": "Optional tracking project to register the underlying forecast in."},
                     "questions": {"type": "array", "items": {"type": "object"},
                                   "description": "Optional typed temporal questions answered from the same immutable forecast."},

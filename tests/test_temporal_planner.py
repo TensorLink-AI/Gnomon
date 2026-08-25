@@ -76,9 +76,10 @@ def test_reasoning_pack_has_a_hard_small_shape() -> None:
         "direction": "increased", "support": "supported",
         "effective_series": 100, "agreement": .91}
     plan = build_evidence_plan(question, result)
-    # The full immutable receipt includes bounded adjudication provenance;
+    # The full immutable receipt includes bounded adjudication provenance
+    # and, since the two-lane decision, the evidence dossier (packet);
     # only its compact projection is paid on every agent turn.
-    assert len(json.dumps(plan, separators=(",", ":"))) < 2100
+    assert len(json.dumps(plan, separators=(",", ":"))) < 3000
     assert len(json.dumps(compact_evidence_plan(plan),
                           separators=(",", ":"))) < 850
     assert len(plan.get("evidence", [])) <= 3

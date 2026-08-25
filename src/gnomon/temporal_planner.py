@@ -13,7 +13,7 @@ from .temporal_question import TemporalQuestion
 from .temporal_adjudication import adjudicate_temporal_evidence
 
 
-PLANNER_VERSION = "0.3"
+PLANNER_VERSION = "0.4"
 
 _RECOVERY = {
     "rolling_origin_scale_fit": "collect more history or request a shorter horizon",
@@ -139,6 +139,7 @@ def build_evidence_plan(question: TemporalQuestion,
                         result: dict[str, Any], *,
                         observed_evidence: dict[str, Any] | None = None,
                         analogues: dict[str, Any] | None = None,
+                        discrimination: dict[str, Any] | None = None,
                         ) -> dict[str, Any]:
     """Return a bounded reasoning pack that cannot override the answer."""
     mode = inference_mode(question)
@@ -239,6 +240,25 @@ def build_evidence_plan(question: TemporalQuestion,
     plan["adjudication"] = adjudicate_temporal_evidence(
         result, evidence=evidence, analogues=analogues,
         conditional_effect=result.get("conditional_effect"), missing=missing)
+    # The evidence dossier: the same receipts reorganised so the model can
+    # reason toward a conclusion instead of paraphrasing one — observations,
+    # temporal properties, evidence for and against every interpretation
+    # still compatible with the data, sufficiency, and what would
+    # distinguish the alternatives. A supported canonical stays binding;
+    # anywhere weaker the model selects and verify_packet_selection is the
+    # gate its conclusion must pass.
+    if discrimination is not None:
+        # The measured held-out discrimination between competing surrogates
+        # (gnomon.discrimination) — evidence the model reasons from, kept in
+        # the receipt in full; the packet carries the merged weights.
+        plan["discrimination"] = discrimination
+    from .reasoning_packet import build_reasoning_packet
+    plan["packet"] = build_reasoning_packet(
+        result, mode=mode, property=question.property, missing=missing,
+        adjudication=plan["adjudication"],
+        vocabulary=question.answer_vocabulary,
+        discrimination=discrimination,
+    )
     return plan
 
 
@@ -262,6 +282,28 @@ def compact_evidence_plan(plan: dict[str, Any]) -> dict[str, Any]:
         "next": list(plan.get("suggested_next") or [])[:1],
         "details_in_answer_receipt": True,
     }
+    packet = plan.get("packet") or {}
+    if packet:
+        # The dossier's bounded wire form: which interpretations remain
+        # live, how far the evidence goes, and the single best
+        # discriminator. Values only — the full packet stays in the receipt.
+        projected["packet"] = {
+            "interpretations": [
+                {"value": row.get("value"), "support": row.get("support"),
+                 "compatible": bool(row.get("compatible"))}
+                for row in (packet.get("interpretations") or [])[:4]
+            ],
+            "sufficiency": (packet.get("evidence_sufficiency") or {}).get(
+                "level"),
+            **({"separation": (packet.get("evidence_sufficiency") or {}).get(
+                "separation")}
+               if "separation" in (packet.get("evidence_sufficiency") or {})
+               else {}),
+            "discriminator": next(
+                iter(packet.get("discriminators") or []), None),
+            "selector": (packet.get("selection_contract") or {}).get(
+                "selector"),
+        }
     adjudication = plan.get("adjudication") or {}
     eligibility = adjudication.get("synthesis_eligibility") or {}
     alternative = adjudication.get("alternative") or {}

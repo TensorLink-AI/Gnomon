@@ -385,6 +385,49 @@ class OpenRouterClient:
         }
 
 
+def extract_json_objects(text: str) -> list[dict[str, Any]]:
+    """Every top-level JSON object embedded in free-form LLM output, in
+    order.
+
+    A greedy ``\\{.*\\}`` regex mis-parses the common case of a valid
+    JSON answer followed by prose that happens to contain a brace (or
+    preceded by an echoed packet): the span from the first ``{`` to the
+    last ``}`` is not JSON, and a correct answer gets scored as invalid.
+    Scanning balanced top-level spans lets a caller validate each
+    candidate and keep the first that has the expected shape."""
+    found: list[dict[str, Any]] = []
+    depth = 0
+    start = None
+    in_string = False
+    escaped = False
+    for index, char in enumerate(text):
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char == "{":
+            if depth == 0:
+                start = index
+            depth += 1
+        elif char == "}" and depth > 0:
+            depth -= 1
+            if depth == 0 and start is not None:
+                try:
+                    parsed = json.loads(text[start:index + 1])
+                except json.JSONDecodeError:
+                    parsed = None
+                if isinstance(parsed, dict):
+                    found.append(parsed)
+                start = None
+    return found
+
+
 def extract_json_array(text: str) -> list[Any]:
     """Extract the first JSON array embedded in free-form LLM output.
 

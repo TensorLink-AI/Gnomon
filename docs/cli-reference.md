@@ -508,6 +508,22 @@ gnomon monitor data.csv --time timestamp --target value --horizon 14 \
   --threshold 340 --alert-cost 1 --miss-cost 20 --project ops
 ```
 
+`--alert-cost` prices a false alert. For the distinct single-shot question
+“pay to mitigate now, or risk the miss?”, use `--action-cost` with
+`--miss-cost` (and optionally `--mitigation-effectiveness`):
+
+```bash
+gnomon monitor data.csv --time timestamp --target value --horizon 14 \
+  --threshold 340 --action-cost 2 --miss-cost 10
+```
+
+That lane returns expected loss for each option, the break-even probability,
+and a governed `recommended_action` only when the dependence-aware
+`horizon_event` probability and its 90% interval lie wholly on one side of the
+policy boundary. Otherwise the probability is preserved and the action is
+explicitly withheld. The v1 policy is single-shot: it does not price the
+option to wait for another observation and act later.
+
 `gnomon monitor run` is an equivalent scheduler-friendly spelling. Armed
 results are recorded before delivery; `--webhook` posts one JSON event with a
 stable idempotency key, while `--state` overrides the per-user durable ledger.

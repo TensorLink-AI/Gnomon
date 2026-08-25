@@ -188,7 +188,61 @@
         "first_timestamp_interval_above": "2026-02-05T00:00:00",
         "first_timestamp_point_below": null,
         "first_timestamp_interval_below": null,
-        "basis": "empirical probabilities from backtest residuals scaled to the per-lead-time conformal spread"
+        "basis": "empirical probabilities from backtest residuals scaled to the per-lead-time conformal spread",
+        "horizon_event": {
+          "method": "independence_composed_marginals_v1",
+          "residual_source": "selection_folds_reused",
+          "probability_any_breach": 1.0,
+          "probability_any_breach_interval_90": {
+            "lower": null,
+            "upper": null
+          },
+          "breach_more_likely_than_not": true,
+          "first_breach_step_probability": {
+            "1": 1.0
+          },
+          "first_breach_step_median_conditional": 1,
+          "expected_maximum": 223.0,
+          "maximum_interval_80": {
+            "lower": 223.0,
+            "upper": 223.0
+          },
+          "joint_path_count": 1,
+          "bootstrap_path_count": 200,
+          "bootstrap_diagnostic_probability": 1.0,
+          "independence_composed_reference": 1.0,
+          "effective_origins": 2,
+          "calibration_partition": "post_selection_disjoint_origins",
+          "dependence_preserved": false,
+          "residual_regime": {
+            "status": "unknown",
+            "passed": false,
+            "reason": "at least 8 aligned origins are required"
+          },
+          "measured_interval_coverage": 1.0,
+          "support": "best_effort",
+          "reasons": [
+            {
+              "code": "insufficient_joint_paths",
+              "message": "Only 1 aligned rolling-origin residual paths are available; at least 8 are required for a governed horizon-event probability."
+            },
+            {
+              "code": "bootstrap_synthesized_paths",
+              "message": "Trajectories were synthesized by a blocked residual bootstrap; dependence across block boundaries is not preserved, so the estimate carries best-effort authority."
+            },
+            {
+              "code": "selection_folds_reused",
+              "message": "Residuals come from the folds that selected the winning model, not the disjoint event reserve; the estimate can inherit selection optimism."
+            },
+            {
+              "code": "independence_composition_used",
+              "message": "The probability composes published per-step marginals as though forecast leads were independent; the leads are dependent, so this is a best-effort estimate, not a governed joint-event measurement."
+            }
+          ],
+          "assumptions": [
+            "The probability composes conformally scaled per-step marginals under an independence assumption the leads do not satisfy; path-based timing and maximum figures are bootstrap diagnostics."
+          ]
+        }
       },
       "support_assessment": {
         "status": "conditionally_supported",

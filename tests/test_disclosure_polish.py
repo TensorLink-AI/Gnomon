@@ -46,12 +46,26 @@ def test_decide_defines_the_exceedance_event(tmp_path):
     )
     exceedance = payload["exceedance"]
     assert exceedance is not None
-    assert exceedance["peak_step_exceedance"] == payload["scenario_probabilities"]["exceed"]
+    event = exceedance["horizon_event"]
+    if payload["scenario_probabilities"] is not None:
+        assert event["probability_any_breach"] == \
+            payload["scenario_probabilities"]["exceed"]
+        assert event["support"] == "supported"
+    else:
+        # A short history demotes the estimate to the best-effort rung of
+        # the ladder; only governed selection is withheld, not the number.
+        assert event["support"] == "best_effort"
+        assert event["probability_any_breach"] is not None
+        assert payload["evaluation"]["selected"] is None
     assert exceedance["any_step_exceedance_if_independent"] >= exceedance["peak_step_exceedance"]
-    assert "largest single-step" in exceedance["event_definition"]
+    assert "aligned rolling-origin residual trajectories" in \
+        exceedance["event_definition"]
     assert len(exceedance["per_step"]) == 7
-    # The expected-utility mass stays exactly two scenarios.
-    assert set(payload["scenario_probabilities"]) == {"exceed", "no_exceed"}
+    # When admitted, expected-utility mass stays exactly two scenarios.
+    # Withholding deliberately supplies no mass to a decision executable.
+    if payload["scenario_probabilities"] is not None:
+        assert set(payload["scenario_probabilities"]) == {
+            "exceed", "no_exceed"}
 
 
 # -- M6: data in the future is remarked on ----------------------------------

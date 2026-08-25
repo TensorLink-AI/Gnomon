@@ -125,11 +125,15 @@ lower layer deliberately and must never be described as agent-reasoning lift.
 | [ContextCacheBench](contextcachebench/) (internal) | Persistent receipt and numeric-assessment replay: forecast parity, cache hits, and payload reduction | `benchmarks/contextcachebench` |
 | [AdapterBench](adapterbench/) (internal) | Model-neutral adapter conformance, installed-backend coverage, and adversarial contract rejection | `benchmarks/adapterbench` |
 | [TransitionBench](transitionbench/) (internal) | Observed level, trend, volatility, seasonality, regime, and extreme transitions across easy, moderate, and marginal signals; reports support precision separately from raw classification | `benchmarks/transitionbench` |
-| [ReasoningBench](reasoningbench/) (internal) | Matched LLM synthesis with and without Gnomon's compact production evidence packet | `benchmarks/reasoningbench` |
+| [ReasoningBench](reasoningbench/) (retired internal instrument) | Withdrawn answer-bearing treatment retained only to reproduce the invalidated transcription result; not product evidence | `benchmarks/reasoningbench` |
 | [AdmissionBench](admissionbench/) (internal) | Held-out regret and harmful-admission behavior for model admission | `benchmarks/admissionbench` |
 | [AdjudicationBench](adjudicationbench/) (internal) | Evidence authority, conflict, and synthesis invariants | `benchmarks/adjudicationbench` |
 | [EffectBench](effectbench/) (internal) | Effect-registry transfer, false influence, interval calibration, and decision regret | `benchmarks/effectbench` |
 | [BoundaryBench](boundarybench/) (internal) | Agent-boundary immutability, source traceability, sufficiency, actionable rejection, and redundant-call attribution | `benchmarks/boundarybench` |
+| [DiscriminationBench](discriminationbench/) (internal) | Known-truth accuracy, separation reliability, and truth-retention of held-out hypothesis discrimination | `benchmarks/discriminationbench` |
+| [DossierBench](dossierbench/) | Matched LLM uplift of the evidence dossier vs the conclusion packet vs the model alone, on real series with realized-future truth labels and the transcription margin against deterministic references | `benchmarks/dossierbench` |
+| [BreachBench](breachbench/) | The client job on real telemetry: breach call, timing, and intervention decision priced in cost and regret against realized outcomes, with the production forecast/threshold output as the treatment | `benchmarks/breachbench` |
+| [RecallBench](recallbench/) | Skill or recall: matched forecasts of identical real windows raw versus affine-anonymized, scored in affine-invariant MASE against the production engine — the gate for any LLM-forecast candidate lane | `benchmarks/recallbench` |
 | ModelBench (internal) | Immutable primary-forecast model comparison with agent/context behavior excluded; `run_short_history` tests nested classical selection and production LOCO panel admission on untouched horizons with raw records retained | `benchmarks/modelbench` |
 
 The machine-readable source of truth is `benchmarks/catalog.py`. Batch

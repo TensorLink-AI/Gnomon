@@ -185,8 +185,12 @@ FORECAST_PREVIEW_ROWS = 12
 #: single-series brief forecast (~5KB with its full support assessment)
 #: with headroom; anything past it is bulk, and bulk lives in the
 #: artifact. The trim never touches the epistemic contract — see
-#: _PROTECTED_KEYS.
-RESPONSE_BUDGET_BYTES = 8192
+#: _PROTECTED_KEYS. Retuned 8192 → 9216 when the two-lane decision
+#: (docs/cross-model-evaluation-2026-08.md) added the bounded
+#: model-assisted lane summary and its disclosure to sub-supported
+#: responses; a horizon-split response with the lane must still carry
+#: every labelled row inline.
+RESPONSE_BUDGET_BYTES = 9216
 DESCRIBE_RESPONSE_BUDGET_BYTES = 2400
 CAPABILITIES_RESPONSE_BUDGET_BYTES = 6000
 
@@ -743,12 +747,34 @@ def forecast_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
                 "execution_identity": _execution_identity(artifact, item),
                 **({"temporal_facts": response_facts(item)}
                    if item.temporal_facts else {}),
+                **_model_assisted_summary(item),
             }
             for item in artifact.results
         ],
     }
     _attach_tsfm_on_ramp(payload, artifact)
     return _attach_multiseries_triage(payload)
+
+
+def _model_assisted_summary(item: Any) -> dict[str, Any]:
+    """The lane's bounded response form: label, model, validation, and a
+    points preview — the full points array stays in the artifact. Absent
+    entirely when the series earned no lane, so untouched responses stay
+    byte-identical."""
+    lane = getattr(item, "model_assisted", None)
+    if not lane:
+        return {}
+    points = list(lane.get("points") or [])
+    return {"model_assisted": {
+        "support": lane.get("support"),
+        "selected_model": lane.get("selected_model"),
+        "points_preview": points[:FORECAST_PREVIEW_ROWS],
+        "points_total": len(points),
+        "timestamps_match_primary_forecast": True,
+        "validation": lane.get("validation"),
+        "automation_eligible": False,
+        "location": "artifact.results[].model_assisted",
+    }}
 
 
 def _attach_tsfm_on_ramp(payload: dict[str, Any],
@@ -858,6 +884,7 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
                 "location": "artifact.results[].sensitivity_scenarios",
             } for scenario in item.sensitivity_scenarios]}
                if item.sensitivity_scenarios else {}),
+            **_model_assisted_summary(item),
         })
     from .support import artifact_headline
     payload = {
@@ -1000,8 +1027,8 @@ def _brief_capabilities(full: dict[str, Any]) -> dict[str, Any]:
         "sections_available": sorted(full),
         "elided": sorted({path.split(".", 1)[0] for path in elided}),
         "note": (
-            "Every section and capability name is present; `elided` omits "
-            "detail. Request format 'full' or named sections for detail."
+            "All names are present; `elided` omits detail. Request `full` "
+            "or named sections."
         ),
     }
     return brief
@@ -2508,6 +2535,8 @@ def _run_monitor(arguments: dict[str, Any]) -> dict[str, Any]:
         threshold=float(arguments["threshold"]),
         alert_cost=float(arguments["alert_cost"]) if arguments.get("alert_cost") is not None else None,
         miss_cost=float(arguments["miss_cost"]) if arguments.get("miss_cost") is not None else None,
+        action_cost=float(arguments["action_cost"]) if arguments.get("action_cost") is not None else None,
+        mitigation_effectiveness=float(arguments.get("mitigation_effectiveness", 1.0)),
         series_column=arguments.get("series_column"),
         frequency=arguments.get("frequency"),
         as_of=_parse_as_of(arguments.get("as_of")),
@@ -2877,7 +2906,10 @@ TOOLS.extend([
             "forecast_id": {"type": "string"},
             "scenario_ids": {"type": "array", "items": {"type": "string"}},
             "alert_cost": {"type": "number"},
+            "action_cost": {"type": "number"},
             "miss_cost": {"type": "number"},
+            "mitigation_effectiveness": {"type": "number", "minimum": 0,
+                                           "maximum": 1},
             "output_dir": {"type": "string"},
             "project": {"type": "string"},
             "minimum_support": {"type": "string", "enum": [

@@ -605,6 +605,8 @@ def main() -> int:
         choices=["OPENROUTER_API_KEY", "ENGY_API_KEY", "CHUTES_API_KEY"],
         help="Credential variable for the selected OpenAI-compatible endpoint.")
     parser.add_argument("--temperature", type=float, default=0.2)
+    parser.add_argument("--reasoning-effort", default=None,
+                        choices=("none", "low", "medium", "high"))
     args = parser.parse_args()
     case = json.loads(sys.stdin.readline())
     started = time.time()
@@ -612,7 +614,8 @@ def main() -> int:
     load_env_file()
     client = OpenRouterClient(args.model, api_key=os.environ.get(args.api_key_env),
                               base_url=args.base_url,
-                              temperature=args.temperature, max_tokens=6000)
+                              temperature=args.temperature, max_tokens=6000,
+                              reasoning_effort=args.reasoning_effort)
     with tempfile.TemporaryDirectory(prefix="workflow-arm-") as directory:
         jail = Path(directory).resolve()
         csv_path = jail / "history.csv"

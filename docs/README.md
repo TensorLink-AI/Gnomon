@@ -121,6 +121,7 @@ their proposals as work outstanding.
 | [Shrinkage admission](shrinkage-admission-measurement-2026-08.md) | Measured; evidence significantly *against*, default off. |
 | [Analog pooling](analog-pooling-kill-2026-08.md) | Killed by its own criterion before being built. |
 | [MCP surface experiment](design/mcp-surface-experiment-results.md) | Matched Phase 3 decision: none of the four candidate profiles earned the default. |
+| [Cross-model evidence evaluation](cross-model-evaluation-2026-08.md) | DeepSeek/GLM‑5.2/Qwen‑3.8 synthesis: guardrail confirmed, no reasoning uplift; adopted the two-lane decision. |
 | [Persistent tracking design](persistent-tracking-design.md) | The design behind `gnomon track`; parts marked future are still future. |
 | [Rename impact inventory](rename-impact-inventory.md) | Why the name changed to Gnomon in v0.5.0, and what it cost. |
 

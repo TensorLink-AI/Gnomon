@@ -155,6 +155,26 @@ REGISTRY: dict[str, dict[str, Any]] = {
         "accepts": {"output_dir"},
         "limit_flag": "--cases",
     },
+    "discriminationbench": {
+        "module": "benchmarks.discriminationbench.run_discriminationbench",
+        "accepts": {"output_dir"},
+        "limit_flag": "--cases",
+    },
+    "dossierbench": {
+        "module": "benchmarks.dossierbench.run_dossierbench",
+        "accepts": {"model", "output_dir"},
+        "limit_flag": "--cases",
+    },
+    "breachbench": {
+        "module": "benchmarks.breachbench.run_breachbench",
+        "accepts": {"model", "output_dir"},
+        "limit_flag": "--cases",
+    },
+    "recallbench": {
+        "module": "benchmarks.recallbench.run_recallbench",
+        "accepts": {"model", "output_dir"},
+        "limit_flag": "--cases",
+    },
 }
 
 if set(REGISTRY) != set(CATALOG):

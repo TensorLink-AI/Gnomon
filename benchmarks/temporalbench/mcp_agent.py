@@ -892,10 +892,21 @@ class _RunBase:
                  question_receipts_dir: str | None = None):
         import time
 
-        self.row = row
+        # Evidence is the governed product arm: the model may explain and
+        # preserve Gnomon's result, but it may not replace the published
+        # trajectory with values of its own.  Historically the runner set a
+        # private row flag for some call paths while the profile itself did
+        # not enforce the promise.  That made ``informed-direct`` possible in
+        # live Evidence runs even though the prompt and result contract called
+        # the primary immutable.  Make the policy an affordance of the
+        # profile, not an optional orchestration detail.  Copy the benchmark
+        # row so this host-only marker never mutates the official corpus.
+        self.row = dict(row)
+        if profile == "evidence":
+            self.row["_require_gnomon_execution"] = True
         self.profile = profile
         self.client = client
-        self.channels = self._row_channels(row)
+        self.channels = self._row_channels(self.row)
         # The jail is also the trust boundary for host-compiled context, so it
         # must exist before compilation receipts are materialised below.
         self.jail = Path(tempfile.mkdtemp(prefix="tb-mcp-",

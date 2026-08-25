@@ -431,7 +431,10 @@ def build_parser() -> argparse.ArgumentParser:
     monitor_parser.add_argument("--horizon", required=True, type=int)
     monitor_parser.add_argument("--threshold", required=True, type=float)
     monitor_parser.add_argument("--alert-cost", type=float, dest="alert_cost")
+    monitor_parser.add_argument("--action-cost", type=float, dest="action_cost")
     monitor_parser.add_argument("--miss-cost", type=float, dest="miss_cost")
+    monitor_parser.add_argument("--mitigation-effectiveness", type=float,
+                                default=1.0, dest="mitigation_effectiveness")
     monitor_parser.add_argument("--project")
     monitor_parser.add_argument(
         "--auto-score", action=argparse.BooleanOptionalAction, default=True,
@@ -1215,7 +1218,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.input, time_column=args.time_column,
                 target_column=args.target_column, horizon=args.horizon,
                 threshold=args.threshold, alert_cost=args.alert_cost,
-                miss_cost=args.miss_cost, series_column=args.series_column,
+                action_cost=args.action_cost, miss_cost=args.miss_cost,
+                mitigation_effectiveness=args.mitigation_effectiveness,
+                series_column=args.series_column,
                 frequency=args.frequency, as_of=_parse_as_of(args.as_of),
                 project=args.project, output=args.output,
                 store_path=args.store_path,

@@ -800,16 +800,24 @@ def answer_scoped_question(
     )
     from .temporal_planner import build_evidence_plan
     observed = None
+    discrimination = None
     if question.scope == "series" and question.target in execution_inputs:
+        from .discrimination import discriminate
         values, season = execution_inputs[question.target]
         observed = window_evidence(
             values, property=question.property, season=season).to_dict()
         analogues = historical_analogues(
             values, property=question.property, season=season)
+        # Run the distinguishing computation, not just name it: each
+        # competing interpretation's surrogate is scored on the same
+        # held-out tail, and the packet reports the measured fit.
+        discrimination = discriminate(
+            values, property=question.property, season=season)
     else:
         analogues = None
     result["answer"]["reasoning"] = build_evidence_plan(
-        question, result, observed_evidence=observed, analogues=analogues)
+        question, result, observed_evidence=observed, analogues=analogues,
+        discrimination=discrimination)
     adjudication = result["answer"]["reasoning"].get("adjudication") or {}
     conditional = adjudication.get("conditional_candidate")
     if conditional:

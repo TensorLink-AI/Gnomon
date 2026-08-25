@@ -13,6 +13,7 @@ def merge_shards(target: Path, shards: list[Path]) -> dict[str, int]:
     details = target / "details"
     details.mkdir(exist_ok=True)
     records: dict[str, dict] = {}
+    record_sources: dict[str, Path] = {}
     detail_payloads: dict[str, str] = {}
     summary_path = target / "summary.json"
     target_state_path = (summary_path if summary_path.is_file() else
@@ -47,14 +48,33 @@ def merge_shards(target: Path, shards: list[Path]) -> dict[str, int]:
                 task_id = str(record.get("task_id"))
                 previous = records.get(task_id)
                 if previous is not None and previous != record:
+                    # A bounded retry is a replacement observation only when
+                    # it converts an infrastructure failure into a scored
+                    # record.  Prefer that successful completion regardless
+                    # of shard ordering; never choose between two substantive
+                    # answers, which would permit result shopping.
+                    previous_failed = bool(previous.get("error"))
+                    current_failed = bool(record.get("error"))
+                    if previous_failed != current_failed:
+                        if not current_failed:
+                            records[task_id] = record
+                            record_sources[task_id] = source
+                        continue
                     raise ValueError(f"conflicting record for {task_id}")
                 records[task_id] = record
+                record_sources[task_id] = source
         source_details = source / "details"
         if source_details.is_dir():
             for path in source_details.glob("*.json"):
                 content = path.read_text(encoding="utf-8")
                 previous = detail_payloads.get(path.name)
                 if previous is not None and previous != content:
+                    selected_source = record_sources.get(path.stem)
+                    if selected_source == source:
+                        detail_payloads[path.name] = content
+                        continue
+                    if selected_source is not None:
+                        continue
                     raise ValueError(f"conflicting detail for {path.stem}")
                 detail_payloads[path.name] = content
         if source == target:
@@ -107,8 +127,15 @@ def merge_shards(target: Path, shards: list[Path]) -> dict[str, int]:
         # they do not define an experimental arm. Their exact values remain
         # auditable in ``source_commands``. Everything that can change model
         # or harness behaviour remains a strict compatibility field.
+        # Recovery shards may raise operational caps after an observation
+        # failed without producing an answer.  The record merge above permits
+        # those shards to replace failures only; successful observations can
+        # never be selected between.  Keep the differing caps in the merged
+        # manifest instead of pretending the run used one uniform allowance.
+        recovery_fields = {"infrastructure_retries", "initial_max_tokens",
+                           "max_retries", "request_timeout"}
         ignored = {"command", "resume", "retry_voided", "limit", "offset",
-                   "row_offset", "run_status"}
+                   "row_offset", "run_status", *recovery_fields}
         reference = {key: value for key, value in manifests[0][1].items()
                      if key not in ignored}
         for source, manifest in manifests[1:]:
@@ -129,6 +156,12 @@ def merge_shards(target: Path, shards: list[Path]) -> dict[str, int]:
             "source_commands": [manifest.get("command")
                                 for _, manifest in manifests],
             "rows": len(records),
+            "recovery_controls": {
+                key: sorted({manifest.get(key) for _, manifest in manifests},
+                            key=lambda value: (value is None, value))
+                for key in sorted(recovery_fields)
+                if len({manifest.get(key) for _, manifest in manifests}) > 1
+            } or None,
         })
         (target / "manifest.json").write_text(
             json.dumps(merged_manifest, indent=2, sort_keys=True) + "\n",

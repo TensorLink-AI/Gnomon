@@ -73,6 +73,11 @@ class Evaluation:
     # list every existing caller reads; this is what conformal intervals are
     # built from.
     residuals_by_lead: dict[int, list[float]] = field(default_factory=dict)
+    # Aligned residual trajectories from origins reserved *after* model
+    # selection for horizon-event calibration.  Unlike the interval pool,
+    # these never include a fold that ranked candidates.
+    event_residuals_by_lead: dict[int, list[float]] = field(default_factory=dict)
+    event_residual_fold_count: int = 0
     # Residuals of the ensemble over the same selection + calibration folds,
     # populated only when the ensemble is enabled but did not win selection.
     # The `--ensemble` override needs its own honest calibration; without it
@@ -932,6 +937,7 @@ def evaluate(
     selection_loss: str = "wape",
     external_priors: dict[str, ExternalModelPrior] | None = None,
     evidence_registry: Any = None,
+    threshold_job: bool = False,
 ) -> Evaluation:
     """``train_at(origin)`` returns the training history for a fold whose
     forecast origin is index ``origin`` — by default a plain prefix slice,
@@ -1048,11 +1054,24 @@ def evaluate(
             f"{len(values)}); fold boundaries are unchanged and every "
             f"candidate and baseline saw the identical window."
         )
-    if len(origins) >= 3:
+    event_calibration_origins: list[int] = []
+    if threshold_job and len(origins) >= 12:
+        # A governed tail decision needs more than fold-safe timestamps: its
+        # residual trajectories must not be the same folds that selected the
+        # winning model.  Reserve eight disjoint origins plus the final
+        # report-only test origin.  This partition applies only to threshold
+        # jobs, leaving ordinary forecasts byte-identical.
+        selection_origins = origins[:-9]
+        event_calibration_origins = origins[-9:-1]
+        calibration_origin = event_calibration_origins[-1]
+        test_origin = origins[-1]
+    elif len(origins) >= 3:
         selection_origins, calibration_origin = origins[:-2], origins[-2]
         test_origin: int | None = origins[-1]
+        event_calibration_origins = [calibration_origin]
     else:
         selection_origins, calibration_origin, test_origin = origins[:-1], origins[-1], None
+        event_calibration_origins = [calibration_origin]
     # Residuals stay on the disjoint skeleton whatever selection does with
     # its stride: a conformal quantile over dependent residuals is not a
     # conformal quantile.
@@ -1962,6 +1981,22 @@ def evaluate(
         return pooled, by_lead
 
     residuals, residuals_by_lead = _pool_residuals(selected, calibration_prediction)
+    # Separate event-calibration trajectories.  These origins are excluded
+    # from candidate selection whenever enough history exists; on shorter
+    # histories the single calibration origin remains useful descriptively
+    # but cannot clear MIN_JOINT_PATHS in the decision executable.
+    event_residuals_by_lead: dict[int, list[float]] = {}
+    for origin in event_calibration_origins:
+        try:
+            prediction = _predict_selected(
+                selected, train_at(origin), origin)
+        except Exception:
+            continue
+        actual = values[origin : origin + horizon]
+        for step, (observed, predicted) in enumerate(
+                zip(actual, prediction), 1):
+            event_residuals_by_lead.setdefault(step, []).append(
+                observed - predicted)
     # Degraded runs publish intervals centred on the point path (see
     # `conformal_spreads`); measuring test-fold coverage on the same
     # spreads keeps the measurement about the interval a reader actually
@@ -2239,6 +2274,11 @@ def evaluate(
                       ensemble_candidate=ensemble_candidate,
                       tsfm_scores=tsfm_scores, notes=notes,
                       residuals_by_lead=residuals_by_lead,
+                      event_residuals_by_lead=event_residuals_by_lead,
+                      event_residual_fold_count=(
+                          min((len(items) for items in
+                               event_residuals_by_lead.values()), default=0)
+                      ),
                       ensemble_residuals=ensemble_residuals,
                       ensemble_residuals_by_lead=ensemble_residuals_by_lead,
                       fallback_residuals=fallback_residuals,

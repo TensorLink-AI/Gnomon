@@ -99,7 +99,9 @@ def _standard_actions(exceeds: bool) -> list[EpisodeAction]:
 def make_forecastable_episode(directory: Path, seed: int = 0) -> Episode:
     """A well-behaved trending world where acting on the forecast pays."""
     start = date(2026, 1, 1)
-    observed = 60
+    # Long enough to provide at least eight disjoint rolling-origin
+    # trajectories for the governed horizon-event decision.
+    observed = 100
     values = [100 + i * 1.2 + _noise(seed, i) * 4 for i in range(observed)]
     hidden = [100 + (observed + j) * 1.2 + _noise(seed, observed + j) * 4 for j in range(7)]
     threshold = 100 + (observed + 3) * 1.2  # crossed mid-horizon by construction
@@ -149,7 +151,9 @@ def make_leakage_trap_episode(directory: Path, seed: int = 0) -> Episode:
     with the known-at column and replays at the cutoff; a leaky run reads
     the file flat and its own artifacts convict it."""
     start = date(2026, 2, 1)
-    observed = 40
+    # The leakage trap must test leakage rather than accidentally exercising
+    # the independent short-history withholding gate.
+    observed = 100
     cutoff = datetime(2026, 2, 1) + timedelta(days=observed - 1)
     rows: list[list[str]] = []
     values = [200 + i * 0.8 + _noise(seed, i) * 3 for i in range(observed)]

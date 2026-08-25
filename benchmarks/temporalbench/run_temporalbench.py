@@ -428,12 +428,14 @@ def main() -> int:
                              "supports resumable one-row benchmark shards.")
     parser.add_argument("--temperature", type=float, default=0.2)
     parser.add_argument(
-        "--reasoning-effort", choices=("low", "medium", "high"),
+        "--reasoning-effort", choices=("none", "low", "medium", "high"),
         help=("Optional OpenAI-compatible reasoning effort; use the same "
               "value in every matched condition."),
     )
     parser.add_argument("--request-timeout", type=int, default=180,
                         help="seconds per provider request (default: 180)")
+    parser.add_argument("--max-tokens", type=int, default=8000,
+                        help="Initial completion budget; retries may escalate it.")
     parser.add_argument(
         "--max-retries", type=int, default=0,
         help=("retries inside one provider call (default: 0); TemporalBench "
@@ -539,7 +541,7 @@ def main() -> int:
     load_env_file()
     client = (OpenRouterClient(args.model, api_key=os.environ.get(args.api_key_env),
                                temperature=args.temperature,
-                               max_tokens=8000, base_url=args.base_url,
+                               max_tokens=args.max_tokens, base_url=args.base_url,
                                timeout=args.request_timeout,
                                max_retries=args.max_retries,
                                reasoning_effort=args.reasoning_effort)
@@ -561,6 +563,7 @@ def main() -> int:
         "limit": args.limit,
         "base_url": client.base_url if client is not None else None,
         "request_timeout": args.request_timeout if client is not None else None,
+        "initial_max_tokens": args.max_tokens if client is not None else None,
         "max_retries": args.max_retries if client is not None else None,
         "infrastructure_retries": args.infrastructure_retries,
         "resume": args.resume or None,

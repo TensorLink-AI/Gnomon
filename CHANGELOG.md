@@ -2,6 +2,196 @@
 
 ## Unreleased
 
+- **Governed Evidence can no longer fall through to an informed-direct
+  forecast, and the withdrawn ReasoningBench is retired in code as well as
+  prose.** Selecting the Evidence profile now installs the immutable-primary
+  policy at the execution boundary, so model-authored trajectories are
+  rejected even when an orchestrator omitted its private enforcement flag;
+  exploratory adapters may still label and measure informed-direct behavior,
+  but it cannot attest `primary_forecast_unchanged`. A boundary test exercises
+  the live profile rather than a synthetic flag. ReasoningBench remains in the
+  tree as a reproducibility instrument for the invalidated answer-bearing
+  treatment, is classified `retired` in the machine-readable catalog, and
+  refuses execution unless the operator explicitly acknowledges its retired
+  status. DossierBench and DiscriminationBench remain the supported
+  replacements for packet uplift and evidence quality respectively.
+
+- **RecallBench: is a hosted model's forecasting edge skill, or
+  recall?** A matched benchmark that gates the governed LLM-forecast
+  candidate lane. The same real windows are forecast twice by the same
+  model — once raw, once under a seeded positive affine transform that
+  defeats verbatim recall of public series while preserving the
+  structure genuine forecasting uses — and scored in MASE, which is
+  affine-invariant, so the transform cannot move the metric (the
+  harness verifies the seasonal-naive reference lands identically in
+  both arms before any API spend). Gnomon's production forecast runs as
+  a per-arm deterministic reference at the series' true cadence;
+  yearly/quarterly corpus series are excluded rather than mislabelled
+  daily. Verdicts: `memorization_delta` (raw-arm edge that vanishes
+  under anonymization was recall, not skill) and
+  `skill_vs_gnomon_anonymized` (the leakage-controlled claim an LLM
+  candidate lane would rest on), both with paired exact sign tests.
+  Carries the sibling harnesses' operational guarantees: identity-
+  stamped resumable rows, loud partial-failure handling, leak
+  sentinels, usage accounting.
+
+- **The governed breach estimate degrades down a ladder instead of
+  falling off a cliff.** The first governed-decision diagnostic showed
+  the horizon-event executable withholding on 180 of 180 real cases:
+  short histories reserve a single event-calibration origin, so the
+  eight complete replay trajectories the governed tier requires cannot
+  exist, and withholding priced as never-act (mean cost 3.00 — the
+  worst policy on the board, against 1.40 for the composed-marginal
+  rule). `estimate_horizon_breach` now climbs down explicitly:
+  full-authority replay when the disjoint reserve supports it;
+  otherwise a `best_effort` estimate from the independence-composed
+  published marginals (which carry the intervals' conformal recentring
+  and spread scaling, and measured 1.40 against 2.01 for raw
+  few-origin bootstrap paths on the diagnostic corpus), with a blocked
+  residual bootstrap contributing timing/maximum distributions and a
+  disclosed diagnostic probability; bootstrap-only when no marginals
+  exist, its interval's sample size pinned to real origins. Every rung
+  is disclosed in `method`, `residual_source`, and `reasons`.
+  `apply_breach_policy` matches: whenever a probability exists, the
+  expected-loss recommendation exists — `supported` only when a
+  supported estimate's interval clears break-even entirely,
+  `best_effort` with the demotion's reason otherwise — and `null` is
+  reserved for "no probability could be formed", because silence
+  defaulting to monitor inverts the very cost asymmetry the policy
+  exists to respect. On the diagnostic corpus the governed reference
+  moved from 3.00 (all withheld) to 1.40 with zero withholding. All
+  numbers are diagnostic evidence from the spent corpus; the frozen
+  fresh-corpus protocol remains the validation gate.
+
+- **BreachBench and DossierBench hardened to production grade.** An
+  adversarial review of the matched-uplift harnesses fixed every found
+  way a paid run could crash, mislead, or quietly bias its result.
+  Case generation (BreachBench generator 0.2): realized futures no
+  longer overlap within a series — cutoffs are horizon-spaced, so truth
+  labels are uncorrelated across paired cases and the sign tests are
+  honest — and label invariance under affine anonymization is now
+  verified on the rounded numbers the model actually sees, discarding
+  any case whose rounding flips a breach step. Gnomon is fed each
+  corpus series' true cadence (5-minute, daily, monthly) instead of a
+  blanket daily grid, so season detection and support tiers run as they
+  would for a real client; the product's own no-LLM rule improved from
+  losing to always-act to beating both constant policies (mean regret
+  1.31 versus 1.40/2.40 at a 30% breach base rate), leaving genuine
+  headroom to the hindsight optimum. Run mechanics in both benchmarks:
+  a malformed model answer (NaN or boolean steps, wrong types) degrades
+  and is recorded instead of crashing the run; one failed API call no
+  longer discards the paid work in flight — completed rows persist and
+  the run fails loudly with a `--resume` instruction; `--resume` now
+  ignores stale rows from other seeds and crash-truncated lines instead
+  of leaking them into metrics; per-case gnomon scratch directories are
+  cleaned up; the future-leakage sentinel uses an eight-value marker so
+  a slow-moving real series cannot false-positive an abort; and API
+  token usage and cost are recorded in `summary.json`.
+  A second, independent adversarial review pass then closed seven more
+  findings: rows now carry the full dataset identity (generator
+  version, seed, case count, corpus hash) and the answering model, and
+  `--resume` rejects mismatches — the same seed with a different case
+  count yields sequential ids over divergent content, truth labels
+  included, and pooling such rows is the one thing a paired benchmark
+  must never do. Answer parsing scans balanced JSON spans instead of a
+  greedy first-to-last-brace regex, so a correct answer followed by
+  prose containing a brace, or preceded by an echoed evidence packet,
+  is no longer scored as invalid. The product-rule reference gained a
+  second mechanical reading (independence-composed probability of any
+  breach; measured regret 0.80 versus the peak-marginal reading's
+  1.31) and the model-value verdict is taken against the stronger, so
+  aggregating the packet's own numbers cannot pass as model skill.
+  Call-quality metrics are scored over valid answers only (imputed
+  "no breach" flattered a garbage-emitting arm with base-rate accuracy
+  and a zero false-alarm rate) with denominators disclosed, timing
+  gained a disclosed answer rate because an arm can dodge the MAE by
+  never naming a step, the future-leakage sentinel excises the history
+  blob before scanning (a real 16-value constant run in the sensor
+  series falsely tripped it), and the independence claim was corrected
+  to what horizon-spacing actually buys: no shared breach events, with
+  regime-level label co-movement disclosed per series.
+
+- **BreachBench: the client job, priced in the client's units.** A
+  matched benchmark for Gnomon's first product job — which metric may
+  breach a meaningful limit, when, and whether intervening is justified.
+  Cases are windowed slices of four bundled real telemetry-flavoured
+  series (real Wikipedia traffic, a real 5-minute sensor, real Melbourne
+  pedestrian counts spanning the COVID collapse, real US retail sales;
+  MIT-sourced, provenance documented), with thresholds at the recent
+  maximum plus sampled robust-scale margins and ground truth from the
+  realized held-out future. The treatment arm receives Gnomon's real
+  production output for the exact call — forecast with threshold
+  analysis, support tiers, warnings, and the model-assisted lane. The
+  primary metric is decision cost and regret under a stated cost model,
+  with the breach base rate held near the cost break-even so no constant
+  policy can masquerade as skill; the verdicts demand margins over the
+  model alone, over the product's own no-LLM rule, and over the best
+  constant policy before "useful" is claimed. Deterministic references,
+  paired exact sign tests, affine anonymization with the threshold
+  transformed identically, and a verified no-future-leakage guarantee.
+
+- **DossierBench: the matched uplift experiment, on real data.** Three
+  arms answer the same interpretation questions with the same model at
+  temperature zero — the model alone, the model plus the computed
+  conclusion, and the model plus the full evidence dossier gated by
+  `repair_selection` with one repair round and the labelled canonical
+  fallback. Cases default to windowed slices of eight bundled real
+  observational series (Mauna Loa CO2, sunspots, the Nile, US macro
+  aggregates, El Niño SST), truth-labelled by what the realized held-out
+  future actually did under production window semantics — transitions
+  require supported outcomes, nulls are admitted at disclosed weak
+  confidence — and affine-anonymized per case against verbatim recall of
+  these well-known series. Deterministic references (chance, majority
+  class, copy-the-conclusion, copy-the-discriminator) are scored beside
+  the model arms at zero API cost — near chance on the real corpus — so
+  the summary's `verdicts` block separates genuine reasoning uplift from
+  transcription of the strongest number in the packet. Paired McNemar
+  for all three arm pairs; truth labels exist only in the scorer; the
+  harness verifies pre-flight that arms differ by the evidence block
+  alone and that the held-out future reaches no prompt. A synthetic
+  generator mode remains as a mechanism diagnostic.
+
+- **Measured discrimination and the selection repair loop.** The evidence
+  dossier now runs the distinguishing computation instead of only naming
+  it: `gnomon.discrimination` fits a minimal surrogate per competing
+  interpretation (trend, level, volatility, disturbance) strictly before a
+  held-out tail, scores every surrogate on the same held-out points, and
+  the packet reports the measured Akaike-style fit weights, the winning
+  interpretation, and a separation grade — fit evidence, never
+  probabilities, never a change to the canonical answer. Transition
+  surrogates are charged for their extra estimated parameter, so a
+  chance-level wobble cannot grade as a clear transition.
+  `repair_selection` turns a rejected model conclusion into exactly one
+  deterministic repair turn (allowed interpretations, citable evidence per
+  interpretation, the labelled canonical default to fall back to); a
+  second failure publishes the canonical default. DiscriminationBench
+  gates the mechanism on known-truth synthetic cases: accuracy well above
+  chance, "clear" separation right ≥ 90% of the time, the truth excluded
+  in ≤ 5% of cases, and quiet series confidently manufacturing a
+  transition in ≤ 10%.
+
+- **The model-assisted lane and the evidence dossier.** Adopting the
+  two-lane decision from the cross-model evaluation
+  (docs/cross-model-evaluation-2026-08.md): when the governed rows are a
+  naive fallback or an underpowered-selection baseline, the best model
+  prior the history admits is now published beside them at
+  `results[*].model_assisted` — labelled `prior_assisted` or
+  `conditionally_supported` by its validation strength, admitted only by
+  an out-of-sample win over the published baseline plus deterministic
+  plausibility checks, points only, never automation-eligible, and never
+  replacing the primary forecast. A candidate with no out-of-sample win
+  earns no lane. The typed-question reasoning receipt gains the evidence
+  dossier (`reasoning.packet`): observations, temporal properties,
+  supporting and conflicting evidence per interpretation, the
+  interpretations still compatible with the data, evidence sufficiency,
+  and what would distinguish the alternatives — with a selection contract
+  under which a `supported` canonical stays binding and any weaker one
+  becomes the default the model may argue past, gated by
+  `verify_packet_selection` (a selection must be a compatible
+  interpretation and cite packet evidence that supports it). The tool
+  response budget was retuned 8192 → 9216 bytes so a horizon-split
+  response still carries every labelled row beside the lane summary.
+
 - **Useful short-history candidates without weakening the gate.** Wide files
   can offer a scale-free pooled-trend candidate that fits donor statistics at
   each historical origin, validates transfer leave-one-channel-out, and must

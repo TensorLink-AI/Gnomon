@@ -16,6 +16,8 @@ class BenchmarkContract:
     gnomon_path: str
     claim_boundary: str
     harness_conditions: tuple[str, ...] = ()
+    retired: bool = False
+    retirement_reason: str | None = None
 
 
 CATALOG: dict[str, BenchmarkContract] = {
@@ -28,7 +30,18 @@ CATALOG: dict[str, BenchmarkContract] = {
     "leaktrap": BenchmarkContract("safety_contract", "bitemporal runtime and immutable snapshots", "Structural non-leakage; mean error alone is not a trust result."),
     "workflow": BenchmarkContract("reasoning_harness", "matched LLM drives real MCP profiles", "End-to-end correctness, preservation, calls, tokens, and trust.", ("core", "describe", "evidence", "mega", "full")),
     "contextbench": BenchmarkContract("mixed", "engine arms and real MCP surface arms", "Engine arms test admission; surface arms test agent use and preservation.", ("core", "describe", "evidence", "mega", "full")),
-    "reasoningbench": BenchmarkContract("reasoning_harness", "matched LLM receives the compact production evidence packet", "Evidence-assisted synthesis; field/property regressions remain first-class."),
+    "reasoningbench": BenchmarkContract(
+        "retired",
+        "historical instrument retained for reproducibility only",
+        "No product or reasoning-uplift claim: the original published harness "
+        "exposed answer-bearing fields and its headline was withdrawn.",
+        retired=True,
+        retirement_reason=(
+            "Answer-bearing treatment packets made the historical headline "
+            "a transcription result; use DossierBench and "
+            "DiscriminationBench for the replacement claim boundaries."
+        ),
+    ),
     "volatilitybench": BenchmarkContract("engine", "fitted volatility executable", "Volatility estimation and calibration only."),
     "propertybench": BenchmarkContract("engine", "fitted temporal-property executables", "Independent property classification and calibration only."),
     "transitionbench": BenchmarkContract("engine", "production TemporalEvidence computation", "Observed-transition evidence quality only."),
@@ -39,6 +52,10 @@ CATALOG: dict[str, BenchmarkContract] = {
     "adjudicationbench": BenchmarkContract("policy", "production temporal-evidence adjudicator", "Authority/conflict invariants, not answer quality."),
     "effectbench": BenchmarkContract("safety_contract", "production effect registry, tracking, and decision runtime", "Effect transfer, false influence, calibration, and decision regret."),
     "boundarybench": BenchmarkContract("safety_contract", "production MCP response boundary", "Canonical immutability, fact traceability, sufficiency, rejection repair, and redundant-call attribution; not reasoning accuracy."),
+    "discriminationbench": BenchmarkContract("policy", "production held-out hypothesis discrimination", "Known-truth accuracy, separation reliability, and truth-retention of the discriminating-evidence mechanism; not LLM uplift."),
+    "dossierbench": BenchmarkContract("reasoning_harness", "matched LLM receives the conclusion packet or the evidence dossier with the selection repair loop", "Packet-design uplift and the transcription margin against deterministic references; mechanism accuracy lives in discriminationbench."),
+    "breachbench": BenchmarkContract("reasoning_harness", "matched LLM receives the production forecast/threshold output on real telemetry", "The client job priced in decision cost and regret against realized breaches; not choice accuracy, not the packet mechanism."),
+    "recallbench": BenchmarkContract("reasoning_harness", "matched LLM forecasts identical real windows raw and affine-anonymized", "Separates memorized recall of public series from transferable forecasting skill (MASE, affine-invariant); the gate for any LLM-forecast candidate lane. Not choice accuracy."),
 }
 
 
@@ -49,4 +66,6 @@ def as_dict(name: str) -> dict[str, object]:
         "gnomon_path": contract.gnomon_path,
         "claim_boundary": contract.claim_boundary,
         "harness_conditions": list(contract.harness_conditions),
+        "retired": contract.retired,
+        "retirement_reason": contract.retirement_reason,
     }

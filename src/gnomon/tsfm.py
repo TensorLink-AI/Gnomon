@@ -247,6 +247,11 @@ class TSFMAdapter(Protocol):
     #: Whether the adapter provides native quantile forecasts.
     supports_quantiles: bool
 
+    #: Optional native joint trajectories. Capability alone never admits
+    #: these paths to a governed decision; the model-neutral boundary also
+    #: requires a job-specific out-of-sample admission.
+    supports_sample_paths: bool
+
     def predict(
         self,
         history: list[float],
@@ -284,6 +289,13 @@ class TSFMAdapter(Protocol):
         Returns:
             List of ``horizon`` dicts mapping quantile → value, or ``None``.
         """
+        ...
+
+    def predict_samples(
+        self, history: list[float], horizon: int, season: int,
+        samples: int,
+    ) -> list[list[float]] | None:
+        """Return optional native paths after adapter-specific inference."""
         ...
 
 

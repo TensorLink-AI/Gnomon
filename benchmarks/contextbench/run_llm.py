@@ -492,6 +492,8 @@ def main() -> int:
     parser.add_argument("--api-key-env", default="OPENROUTER_API_KEY",
                         choices=["OPENROUTER_API_KEY", "ENGY_API_KEY", "CHUTES_API_KEY"])
     parser.add_argument("--temperature", type=float, default=0.2)
+    parser.add_argument("--reasoning-effort", default=None,
+                        choices=("none", "low", "medium", "high"))
     parser.add_argument("--limit", type=int)
     parser.add_argument("--jobs", type=int, default=4)
     parser.add_argument("--request-timeout", type=int, default=180)
@@ -506,7 +508,8 @@ def main() -> int:
         args.model, api_key=os.environ.get(args.api_key_env),
         base_url=args.base_url, temperature=args.temperature,
         max_tokens=5000, timeout=args.request_timeout,
-        max_retries=args.max_retries)
+        max_retries=args.max_retries,
+        reasoning_effort=args.reasoning_effort)
     cases = load_cases(Path(args.corpus_dir) / "cases.jsonl")
     oracles = load_oracles(Path(args.corpus_dir) / "oracle.jsonl")
     corpus = Path(args.corpus_dir)
@@ -566,6 +569,7 @@ def main() -> int:
             checkpoint()
     rows = [rows_by_id[case.case_id] for case in cases]
     summary = summarize(rows, args.condition, client, manifest)
+    summary["reasoning_effort"] = args.reasoning_effort
     summary["resumed_answered_rows"] = sum(
         row.get("status") == "answered" for row in retained.values())
     summary["resumed_terminal_rows"] = len(retained)
