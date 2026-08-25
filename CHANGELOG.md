@@ -10,8 +10,22 @@
   observations were exposed. Unlike the legacy CiK treatment, composed Evidence
   stamps the dossier at the forecast cutoff instead of backdating it to the
   history start, preventing retrospective context from entering earlier folds.
+- **LLM context extraction now has a governed rich-dossier lane.** Alongside
+  narrow deterministic events, the compiler may emit verbatim-cited temporal
+  claims and a sealed q10/q50/q90 candidate. Deterministic code validates source
+  spans, timing, horizon alignment, quantile order, and gross plausibility. The
+  candidate is always `prior_assisted`, non-automatable, and additive; canonical
+  Gnomon output remains immutable. CiK retains the exact shadow candidate for
+  matched scoring and exposes an explicit diagnostic output role.
 
 ## Unreleased
+
+- **CiK execution is now bounded and crash-resumable.** Every task/seed runs in
+  a disposable spawned process with process-tree RSS monitoring, a wall-clock
+  timeout, and a system available-memory preflight. Atomic per-case checkpoints
+  make interrupted runs resumable, while killed or resource-exhausted cases
+  remain explicit capped/imputed failures. The runner rejects in-process
+  parallelism; intentional sharding belongs on separate machines.
 
 - **CiK's MCP Evidence arm now matches the production ownership boundary.**
   The agent chooses the Gnomon operation, while the host deterministically

@@ -48,8 +48,13 @@ import argparse
 import csv
 import json
 import math
+import multiprocessing as mp
+import os
 import sys
+import time
+import traceback
 from pathlib import Path
+from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
@@ -64,6 +69,188 @@ ABSTAIN_MARKER = "GNOMON_ABSTAINED"
 #: ``compile_roi_results.py``): per-run RCRPS above it is clipped to it,
 #: and runs with no score are imputed at it.
 RCRPS_CAP = 5.0
+
+
+def _available_memory_mb() -> int | None:
+    """Return Linux's immediately available memory without extra deps."""
+    try:
+        for line in Path("/proc/meminfo").read_text().splitlines():
+            if line.startswith("MemAvailable:"):
+                return int(line.split()[1]) // 1024
+    except (OSError, ValueError, IndexError):
+        return None
+    return None
+
+
+def _process_tree_rss_mb(root_pid: int) -> int:
+    """Return resident RAM for a process and its descendants on Linux."""
+    processes: dict[int, tuple[int, int]] = {}
+    for status in Path("/proc").glob("[0-9]*/status"):
+        try:
+            pid = int(status.parent.name)
+            ppid = 0
+            rss_kb = 0
+            for line in status.read_text(encoding="utf-8").splitlines():
+                if line.startswith("PPid:"):
+                    ppid = int(line.split()[1])
+                elif line.startswith("VmRSS:"):
+                    rss_kb = int(line.split()[1])
+            processes[pid] = (ppid, rss_kb)
+        except (OSError, ValueError, IndexError):
+            continue
+    family = {root_pid}
+    changed = True
+    while changed:
+        changed = False
+        for pid, (ppid, _) in processes.items():
+            if ppid in family and pid not in family:
+                family.add(pid)
+                changed = True
+    return sum(processes.get(pid, (0, 0))[1] for pid in family) // 1024
+
+
+def _isolated_case_worker(conn, task_name: str, seed: int, args_dict: dict,
+                          n_samples: int, runs_dir: str) -> None:
+    """Evaluate exactly one task/seed and return serializable state."""
+    try:
+        from cik_benchmark import ALL_TASKS
+        from cik_benchmark.evaluation import evaluate_task
+
+        classes = {task.__name__: task for task in ALL_TASKS}
+        method = build_method(SimpleNamespace(**args_dict))
+        name, row = evaluate_task(
+            classes[task_name], seed, method, n_samples,
+            output_folder=Path(runs_dir),
+        )
+        conn.send({"ok": True, "name": name, "row": row})
+    except BaseException as exc:  # child must report failures, then disappear
+        conn.send({
+            "ok": False,
+            "error": f"{type(exc).__name__}: {exc}",
+            "traceback": traceback.format_exc(limit=20),
+        })
+    finally:
+        conn.close()
+
+
+def _checkpoint_path(output_dir: Path) -> Path:
+    return output_dir / "case-checkpoint.json"
+
+
+def _load_checkpoint(output_dir: Path) -> dict[str, dict]:
+    path = _checkpoint_path(output_dir)
+    if not path.exists():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _write_checkpoint(output_dir: Path, completed: dict[str, dict]) -> None:
+    path = _checkpoint_path(output_dir)
+    temporary = path.with_suffix(".tmp")
+    temporary.write_text(json.dumps(completed, indent=2, default=str) + "\n",
+                         encoding="utf-8")
+    os.replace(temporary, path)
+
+
+def _run_isolated_cases(selected, args, n_samples: int,
+                        output_dir: Path) -> dict:
+    """Run sequential disposable cases with resume, timeout, and RAM caps."""
+    if args.max_parallel != 1:
+        raise SystemExit(
+            "resource-safe CiK execution requires --max-parallel 1; shard "
+            "independent output directories across separate machines")
+    available = _available_memory_mb()
+    if available is not None and available < args.min_free_memory_mb:
+        raise SystemExit(
+            f"CiK preflight refused to start: {available} MiB available, "
+            f"but --min-free-memory-mb={args.min_free_memory_mb}")
+
+    completed = {} if args.no_resume else _load_checkpoint(output_dir)
+    args_dict = vars(args).copy()
+    ctx = mp.get_context("spawn")
+    total = len(selected) * args.seeds
+    ordinal = 0
+    for task_cls in selected:
+        for seed in range(1, args.seeds + 1):
+            ordinal += 1
+            key = f"{task_cls.__name__}::seed={seed}"
+            if key in completed:
+                print(f"[{ordinal}/{total}] resume {key}", flush=True)
+                continue
+            available = _available_memory_mb()
+            if available is not None and available < args.min_free_memory_mb:
+                raise SystemExit(
+                    f"CiK stopped safely before {key}: only {available} MiB "
+                    "available; completed cases remain resumable")
+            print(f"[{ordinal}/{total}] start {key}", flush=True)
+            parent, child = ctx.Pipe(duplex=False)
+            process = ctx.Process(
+                target=_isolated_case_worker,
+                args=(child, task_cls.__name__, seed, args_dict, n_samples,
+                      str(output_dir / "runs")),
+            )
+            process.start()
+            child.close()
+            deadline = time.monotonic() + args.case_timeout_seconds
+            forced_error = None
+            peak_rss_mb = 0
+            while process.is_alive() and time.monotonic() < deadline:
+                process.join(0.25)
+                rss_mb = _process_tree_rss_mb(process.pid)
+                peak_rss_mb = max(peak_rss_mb, rss_mb)
+                if args.case_memory_mb > 0 and rss_mb > args.case_memory_mb:
+                    forced_error = (
+                        f"case_rss_limit_exceeded: {rss_mb} MiB > "
+                        f"{args.case_memory_mb} MiB")
+                    break
+                available = _available_memory_mb()
+                if (available is not None
+                        and available < args.min_free_memory_mb):
+                    forced_error = (
+                        f"system_memory_guard: only {available} MiB available")
+                    break
+            if process.is_alive():
+                process.terminate()
+                process.join(10)
+                if process.is_alive():
+                    process.kill()
+                    process.join()
+                payload = {"ok": False, "error": forced_error or (
+                    f"case_timeout_after_{args.case_timeout_seconds}s")}
+            elif parent.poll():
+                payload = parent.recv()
+            else:
+                payload = {"ok": False, "error": (
+                    f"case_process_exit_{process.exitcode}; possible memory "
+                    "limit or native-library failure")}
+            parent.close()
+            if payload.get("ok"):
+                name = payload["name"]
+                row = payload["row"]
+            else:
+                name = task_cls.__name__
+                row = {"seed": seed, "score": None,
+                       "error": payload.get("error", "isolated_case_failed")}
+                trace = payload.get("traceback")
+                if trace:
+                    error_dir = output_dir / "case-errors"
+                    error_dir.mkdir(parents=True, exist_ok=True)
+                    (error_dir / f"{task_cls.__name__}-seed{seed}.txt").write_text(
+                        trace, encoding="utf-8")
+            completed[key] = {"name": name, "row": row}
+            _write_checkpoint(output_dir, completed)
+            print(f"[{ordinal}/{total}] finish {key}: "
+                  f"{row.get('score', row.get('error'))}; "
+                  f"peak_rss={peak_rss_mb}MiB", flush=True)
+
+    results: dict[str, list[dict]] = {}
+    for item in completed.values():
+        results.setdefault(item["name"], []).append(item["row"])
+    return results
 
 
 def capped_imputed_mean(
@@ -134,6 +321,7 @@ def build_method(args):
             args.model, temperature=args.temperature,
             trace_dir=Path(args.output_dir) / "mcp-traces",
             profile=args.mcp_profile,
+            output_role=args.mcp_output_role,
         )
     conditional_arm = args.method == "gnomon-conditional"
     if conditional_arm:
@@ -161,7 +349,6 @@ def run(args) -> int:
     run_revision = code_revision()
     from cik_benchmark import ALL_TASKS
     from cik_benchmark.config import DEFAULT_N_SAMPLES
-    from cik_benchmark.evaluation import evaluate_all_tasks, evaluate_task
 
     n_samples = args.n_samples or DEFAULT_N_SAMPLES
     method = build_method(args)
@@ -176,24 +363,13 @@ def run(args) -> int:
         if not selected:
             raise SystemExit(f"No CiK task matches {args.task_filter!r}")
         print(f"Running {len(selected)} task(s) matching {args.task_filter!r}")
-        results = {}
-        for task_cls in selected:
-            for seed in range(1, args.seeds + 1):
-                name, row = evaluate_task(
-                    task_cls, seed, method, n_samples,
-                    output_folder=output_dir / "runs",
-                )
-                results.setdefault(name, []).append(row)
+        results = _run_isolated_cases(selected, args, n_samples, output_dir)
     else:
-        results = evaluate_all_tasks(
-            method,
-            seeds=args.seeds,
-            n_samples=n_samples,
-            output_folder=output_dir / "runs",
-            use_cache=not args.no_cache,
-            cache_name=method.cache_name,
-            max_parallel=args.max_parallel,
-        )
+        # The upstream all-task runner keeps a long-lived process pool and
+        # cannot enforce per-case memory ceilings. Every case therefore uses
+        # the same disposable-process safety contract.
+        print(f"Running all {len(ALL_TASKS)} CiK tasks safely", flush=True)
+        results = _run_isolated_cases(ALL_TASKS, args, n_samples, output_dir)
 
     write_outputs(results, method, args, output_dir)
     write_manifest(
@@ -358,10 +534,35 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--max-parallel", type=int, default=1)
     parser.add_argument(
+        "--case-memory-mb", type=int, default=4096,
+        help="Per-case process-tree resident-memory ceiling in MiB "
+             "(default: 4096; 0 disables)",
+    )
+    parser.add_argument(
+        "--case-timeout-seconds", type=int, default=900,
+        help="Hard wall-clock limit for one disposable task/seed process",
+    )
+    parser.add_argument(
+        "--min-free-memory-mb", type=int, default=2048,
+        help="Refuse or stop safely before a case below this available RAM",
+    )
+    parser.add_argument(
+        "--no-resume", action="store_true",
+        help="Ignore the atomic per-case checkpoint and evaluate every case",
+    )
+    parser.add_argument(
         "--mcp-profile", default=None,
         choices=["core", "describe", "evidence", "mega", "full"],
         help="MCP surface for gnomon-mcp; defaults to GNOMON_MCP_PROFILE "
              "or full. Evidence host-binds the first valid forecast artifact.",
+    )
+    parser.add_argument(
+        "--mcp-output-role", default="canonical",
+        choices=["canonical", "llm_candidate_shadow"],
+        help="gnomon-mcp Evidence only. canonical scores Gnomon's immutable "
+             "published artifact. llm_candidate_shadow scores the separately "
+             "sealed, prior_assisted LLM candidate for evaluation; it is "
+             "never an automation-eligible product publication.",
     )
     parser.add_argument("--no-cache", action="store_true",
                         help="Disable the official result cache")

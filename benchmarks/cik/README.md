@@ -126,10 +126,29 @@ python -m benchmarks.cik.run_cik --method gnomon-mcp \
     --mcp-profile evidence --model openai/gpt-4o \
     --output-dir results/cik-gpt4o-mcp-evidence
 
+# Diagnostic only: score the sealed LLM candidate rather than the canonical
+# artifact. It remains prior_assisted, non-automatable, and cannot replace the
+# product answer. Ordinary canonical runs also retain this exact candidate in
+# extra_info for matched post-hoc scoring without a second stochastic call.
+python -m benchmarks.cik.run_cik --method gnomon-mcp \
+    --mcp-profile evidence --mcp-output-role llm_candidate_shadow \
+    --model openai/gpt-4o \
+    --output-dir results/cik-gpt4o-mcp-candidate-shadow
+
 # Quick pass on a task family while iterating
 python -m benchmarks.cik.run_cik --method gnomon-pure \
     --task-filter sensor --seeds 1 --output-dir /tmp/cik-smoke
 ```
+
+CiK tasks always execute sequentially in disposable child processes. The
+runner measures resident memory across each entire process tree, terminates a
+case above `--case-memory-mb` (4 GiB by default), terminates it after
+`--case-timeout-seconds` (15 minutes), and refuses to start another case below
+`--min-free-memory-mb` (2 GiB). It writes `case-checkpoint.json` atomically
+after every task/seed and resumes it by default. A killed case is retained as
+an explicit error and receives the usual capped/imputed score; it cannot vanish
+from the aggregate. `--max-parallel` must remain `1`; shard across separate
+machines and output directories when parallel execution is required.
 
 Outputs per run: `summary.json`, `scores.csv` (official
 per-task-per-seed scores), `runs/` (the official per-run artifacts:
@@ -186,6 +205,15 @@ the official code.
   `gnomon-agent` arm retains its documented benchmark assumption that the task
   context was known from the history start, so old experiments remain
   comparable rather than silently changing meaning.
+
+  The compiler also emits a richer cited dossier—qualitative temporal claims,
+  timing, mechanism, direction, uncertainty, and an optional probabilistic
+  forecast candidate. Deterministic validation rejects uncited claims,
+  malformed or misaligned quantiles, and grossly implausible paths. A surviving
+  candidate is sealed as `prior_assisted`, never automation-eligible, and kept
+  beside the immutable canonical artifact. It can be shadow-scored now and
+  upgraded only by historical replay or realised outcomes; the LLM's confidence
+  cannot grant publication authority.
 - `--n-samples` defaults to the official `DEFAULT_N_SAMPLES`; change it
   only symmetrically across conditions.
 - `--fail-on-invalid` (control only) defaults to `True`, the official

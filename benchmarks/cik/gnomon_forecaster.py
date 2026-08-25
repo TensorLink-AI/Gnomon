@@ -174,7 +174,11 @@ def samples_from_quantile_rows(
         raise ValueError("n_samples must be at least 1")
     quantiles: list[tuple[float, float, float]] = []
     for row in rows:
-        q50 = float(row.get("q50", row["point"]))
+        # ``dict.get`` evaluates its default eagerly: ``row.get("q50",
+        # row["point"])`` crashes on a perfectly valid quantile-only row.
+        # Model-authored shadow candidates intentionally carry no redundant
+        # point field, so resolve the fallback explicitly.
+        q50 = float(row["q50"] if "q50" in row else row["point"])
         q10 = float(row.get("q10", q50))
         q90 = float(row.get("q90", q50))
         low, mid, high = sorted((q10, q50, q90))

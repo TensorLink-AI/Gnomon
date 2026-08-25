@@ -51,13 +51,24 @@ Per task-seed run:
 
 `--mcp-profile evidence` is the production-style, mandatory-governance
 variant rather than the free-choice experiment above. Its host compiles the
-task dossier once into typed events, validates quoted spans, and writes a
-receipt containing compiler identity, source hash, rejection notes, and an
-explicit `future_observations_exposed: false`. The events are stamped as known
-at the forecast cutoff—not retroactively at the history start—and injected
-into a host-bound `gnomon_forecast` call. Because the requested verb is already
-known, only that MCP operation is exposed. The first valid artifact is
-published automatically and model-authored quantiles are disabled.
+task dossier once through Gnomon's product `context_investigation` contract.
+The LLM emits narrow executable events, richer cited claims, and an optional
+sealed probabilistic candidate. Deterministic code grounds document identity,
+validates quoted spans, timing, vocabularies, quantile shape and plausibility,
+and writes a retained receipt containing compiler identity, source hash,
+rejection notes, and an explicit `future_observations_exposed: false`.
+
+Events are stamped as known at the forecast cutoff—not retroactively at the
+history start—and only forecast-window events may execute; historical prose
+remains evidence for claims and the candidate. The events are injected into a
+host-bound `gnomon_forecast` call. Because the requested verb is already known,
+only that MCP operation is exposed. The first valid artifact is published
+automatically and free model-authored quantiles remain disabled.
+
+The sealed candidate is a distinct `prior_assisted` lane: non-automatable,
+unable to replace the primary forecast, and retained for matched shadow
+scoring. Only replay or realised outcomes can upgrade its authority. The
+compiler's confidence cannot.
 
 This separation is intentional: the general MCP arm measures autonomous tool
 choice; Evidence measures whether an ordinary agent host can gather context

@@ -34,7 +34,10 @@ from benchmarks.cik.gnomon_forecaster import (  # noqa: E402
     build_context_text,
     samples_from_quantile_rows,
 )
-from benchmarks.common.openrouter import OpenRouterClient  # noqa: E402
+from benchmarks.common.openrouter import (  # noqa: E402
+    OpenRouterClient,
+    extract_json_objects,
+)
 
 MAX_ROUNDS = 10
 MAX_MCP_CALLS = 24
@@ -169,6 +172,52 @@ context receipt. Any gnomon_forecast call is automatically bound to that
 receipt, the history file, target, and horizon; do not copy or reconstruct
 events yourself. Call gnomon_forecast once when you want Gnomon's governed
 answer. The host publishes the first valid artifact automatically.
+"""
+
+DOSSIER_INSTRUCTIONS = """\
+You compile temporal context for a governed forecasting engine. Return ONLY
+one JSON object with this shape:
+{
+  "events": [
+    {"document_index": 0, "event_type": "short_label",
+     "entity_scope": ["*"], "effective_start": "timezone-aware ISO",
+     "effective_end": "timezone-aware ISO", "confidence": 0.0,
+     "status": "confirmed | tentative",
+     "evidence_quote": "verbatim context sentence",
+     "effect_family": "level_shift | trend_change | variance_change | temporary_pulse | saturation_bound | seasonal_regime_change | unknown",
+     "direction": "increase | decrease | unknown",
+     "duration": "temporary | persistent | unknown",
+     "entity_kind": "service | product | medication | procedure | calendar | capacity | price | environment | unknown"}
+  ],
+  "claims": [
+    {"source_span": "verbatim context sentence",
+     "relation": "supports_increase | supports_decrease | supports_stability | supports_higher_variance | supports_lower_variance | changes_seasonal_regime | constrains_range | unknown",
+     "effective_start": "timezone-aware ISO", "effective_end": "timezone-aware ISO",
+     "mechanism": "brief qualitative explanation", "confidence": 0.0}
+  ],
+  "forecast_candidate": {
+    "quantiles": [{"timestamp": "exact requested timestamp", "q10": 0.0,
+                   "q50": 0.0, "q90": 0.0}],
+    "rationale": "how the cited claims modify the numeric history"
+  }
+}
+
+Rules:
+- Cite only exact spans present in context; never invent an event or source.
+- Use the numeric history to author the candidate, but never claim its values
+  came from the text. Include exactly one ordered quantile row per future step.
+- Events are the narrow deterministic lane. Numeric bounds use
+  event_type constraint:<label>; deterministic stated values use
+  override:<label>. Other events carry qualitative classifications only;
+  Gnomon estimates any magnitude from data or keeps them scenario-only.
+- Put only events whose effective window overlaps one or more requested
+  forecast timestamps in `events`. Historical events and regimes belong in
+  cited `claims`; a dossier learned at the forecast cutoff cannot backdate
+  them into historical folds.
+- Claims are the richer interpretation lane. Put qualitative relationships
+  there even when no deterministic event can represent them.
+- Use no observations after the history cutoff. Return empty arrays and null
+  forecast_candidate when context contains no forecast-relevant information.
 """
 
 
@@ -654,6 +703,7 @@ class McpAgentForecaster:
         client: Any = None,
         session_factory: Any = None,
         profile: str | None = None,
+        output_role: str = "canonical",
     ) -> None:
         self.openrouter_model = openrouter_model
         self.temperature = temperature
@@ -663,6 +713,11 @@ class McpAgentForecaster:
         self.trace_dir = Path(trace_dir) if trace_dir else None
         self.profile = (profile or os.environ.get(
             "GNOMON_MCP_PROFILE", "full")).strip().lower()
+        if output_role not in {"canonical", "llm_candidate_shadow"}:
+            raise ValueError("output_role must be canonical or llm_candidate_shadow")
+        if output_role == "llm_candidate_shadow" and self.profile != "evidence":
+            raise ValueError("llm_candidate_shadow requires the evidence profile")
+        self.output_role = output_role
         # functools.partial remains pickleable when the official CiK runner
         # fans task-seeds out to worker processes; a closure does not.
         self.session_factory = session_factory or partial(
@@ -678,6 +733,7 @@ class McpAgentForecaster:
         return (f"McpAgentForecaster_model={model}"
                 f"_temperature={self.temperature:g}"
                 f"_profile={self.profile}"
+                f"_output={self.output_role}"
                 f"_contract={MCP_CONTRACT_VERSION}")
 
     def __str__(self) -> str:
@@ -689,6 +745,22 @@ class McpAgentForecaster:
             submission, extra_info = run.drive()
         finally:
             run.finish()
+        if self.output_role == "llm_candidate_shadow":
+            dossier = (run.context_compilation or {}).get("dossier") or {}
+            candidate = dossier.get("forecast_candidate") or {}
+            candidate_rows = candidate.get("quantiles")
+            if not candidate_rows:
+                raise GnomonAbstained([
+                    "no admissible LLM forecast candidate in the sealed dossier"])
+            submission = candidate_rows
+            extra_info = {
+                **extra_info,
+                "route": "llm_candidate_shadow",
+                "candidate_support": dossier.get("candidate_support"),
+                "candidate_seal_sha256": dossier.get("seal_sha256"),
+                "automation_eligible": False,
+                "primary_forecast_unchanged": True,
+            }
         paths = samples_from_quantile_rows(submission, n_samples)
         try:
             import numpy as np
@@ -734,20 +806,94 @@ class _Run:
         parser and admission machinery remain responsible for accepting and
         applying them.  No future target observations are exposed here.
         """
-        from gnomon.context import event_to_dict
+        from gnomon.context import event_from_dict, event_to_dict
+        from gnomon.llm_dossier import validate_temporal_dossier
+        from gnomon.workflows import DocumentRef, parse_context_response
 
-        compiler = object.__new__(GnomonForecaster)
-        compiler.client = self.forecaster.client
-        compiler.future_context = True
-        compiler.structural_context = True
-        events, rejections = compiler._propose_events(
-            self.task, self.timestamps, self.horizon,
-            # A production host learns its assembled dossier at run time.
-            # Do not backdate that knowledge to the start of history merely
-            # because CiK presents all context in one benchmark prompt.
-            known_at=self.timestamps[-1],
-        )
         context = build_context_text(self.task)
+        future_timestamps = _task_future_timestamps(self.task)
+        history = "\n".join(
+            f"{stamp},{value}" for stamp, value in
+            zip(self.timestamps, self.values))
+        prompt = (
+            f"{DOSSIER_INSTRUCTIONS}\n"
+            f"History cutoff: {self.timestamps[-1]}\n"
+            f"Forecast timestamps: {json.dumps(future_timestamps)}\n"
+            f"Numeric history (timestamp,value):\n{history}\n\n"
+            f"Context:\n{context or '(none)'}\n"
+        )
+        raw: dict[str, Any] = {}
+        compile_rejections: list[str] = []
+        try:
+            completion = self.forecaster.client.completions(
+                [{"role": "user", "content": prompt}], n=1)[0]
+            objects = extract_json_objects(completion)
+            if objects:
+                raw = objects[0]
+            else:
+                compile_rejections.append(
+                    "no JSON object in temporal-dossier output")
+        except Exception as error:
+            compile_rejections.append(f"dossier compilation failed: {error}")
+
+        # Reuse Gnomon's product compiler contract rather than maintaining a
+        # benchmark-only event dialect. The host, not the model, supplies the
+        # document identity and the time at which it assembled the dossier.
+        bound_raw = dict(raw)
+        bound_events = []
+        for proposal in list(raw.get("events") or []):
+            if not isinstance(proposal, dict):
+                bound_events.append(proposal)
+                continue
+            event = dict(proposal)
+            event["document_index"] = 0
+            event["known_at"] = self.timestamps[-1]
+            event.setdefault("entity_scope", ["*"])
+            if event.get("source_span") and not event.get("evidence_quote"):
+                event["evidence_quote"] = event["source_span"]
+            bound_events.append(event)
+        bound_raw["events"] = bound_events
+        compilation = parse_context_response(
+            bound_raw,
+            [DocumentRef(
+                name="task_context", content=context,
+                source_type="benchmark_task_context",
+                reference=(f"cik:{getattr(self.task, 'name', self.task.__class__.__name__)}"
+                           "#context"),
+            )],
+            proposer={"kind": "llm", "model": self.forecaster.openrouter_model},
+        )
+        events = [event_from_dict(event) for event in compilation["events"]]
+        event_rejections = [
+            "; ".join(str(problem) for problem in item.get("problems") or [])
+            for item in compilation["rejected"]
+        ]
+        # The dossier is known only at the forecast cutoff. Historical event
+        # descriptions may support interpretation, but cannot become
+        # fold-admissible executable events retroactively. Keep only events
+        # that can affect the requested future grid.
+        from datetime import datetime
+
+        forecast_start = datetime.fromisoformat(future_timestamps[0])
+        forecast_end = datetime.fromisoformat(future_timestamps[-1])
+        prospective_events = []
+        for event in events:
+            start = datetime.fromisoformat(event.effective_start)
+            end = datetime.fromisoformat(event.effective_end)
+            if end < forecast_start or start > forecast_end:
+                event_rejections.append(
+                    f"{event.event_id} rejected: event does not overlap the "
+                    "requested forecast window; retain it as a cited claim")
+            else:
+                prospective_events.append(event)
+        events = prospective_events
+        dossier, dossier_rejections = validate_temporal_dossier(
+            raw, context_text=context, cutoff=self.timestamps[-1],
+            future_timestamps=future_timestamps, history=self.values,
+            compiler_model=self.forecaster.openrouter_model,
+        )
+        rejections = [*compile_rejections, *event_rejections,
+                      *dossier_rejections]
         payload = {
             "schema_version": 1,
             "compiler": {
@@ -759,13 +905,28 @@ class _Run:
                 "sha256": hashlib.sha256(context.encode("utf-8")).hexdigest(),
             },
             "events": [event_to_dict(event) for event in events],
+            "context_receipt_id": compilation["receipt_id"],
+            "hypotheses": compilation["hypotheses"],
+            "dossier": dossier,
             "rejections": list(rejections),
             "future_observations_exposed": False,
         }
         path = self.jail / "context-receipt.json"
         path.write_text(json.dumps(payload, indent=2, default=str) + "\n",
                         encoding="utf-8")
-        payload["path"] = str(path)
+        retained_path = path
+        if self.forecaster.trace_dir is not None:
+            receipt_dir = self.forecaster.trace_dir / "context-receipts"
+            receipt_dir.mkdir(parents=True, exist_ok=True)
+            retained_path = receipt_dir / (
+                payload["dossier"]["seal_sha256"] + ".json")
+            rendered = path.read_text(encoding="utf-8")
+            if retained_path.exists() and retained_path.read_text(
+                    encoding="utf-8") != rendered:
+                raise ValueError(
+                    "sealed dossier path already contains different content")
+            retained_path.write_text(rendered, encoding="utf-8")
+        payload["path"] = str(retained_path)
         return payload
 
     # -- lifecycle ---------------------------------------------------------
@@ -790,6 +951,11 @@ class _Run:
                     "source_sha256": self.context_compilation[
                         "source"]["sha256"],
                     "event_count": len(self.context_compilation["events"]),
+                    "claim_count": len(
+                        self.context_compilation["dossier"]["claims"]),
+                    "candidate_available": bool(
+                        self.context_compilation["dossier"].get(
+                            "forecast_candidate")),
                     "rejection_count": len(self.context_compilation["rejections"]),
                     "future_observations_exposed": False,
                 }
@@ -1102,13 +1268,30 @@ class _Run:
             "total_time": time.time() - self.started,
         }
         if self.context_compilation is not None:
+            dossier = self.context_compilation["dossier"]
             extra_info["context_compilation"] = {
                 "receipt_path": self.context_compilation["path"],
                 "source_sha256": self.context_compilation["source"]["sha256"],
                 "event_count": len(self.context_compilation["events"]),
+                "claim_count": len(
+                    self.context_compilation["dossier"]["claims"]),
+                "candidate_available": bool(
+                    self.context_compilation["dossier"].get(
+                        "forecast_candidate")),
                 "rejection_count": len(self.context_compilation["rejections"]),
                 "future_observations_exposed": False,
             }
+            if dossier.get("forecast_candidate"):
+                # Retained for matched shadow scoring against this exact
+                # compiler generation. It is never sent back into the agent
+                # conversation and never replaces the canonical submission.
+                extra_info["llm_candidate_shadow"] = {
+                    "support": dossier["candidate_support"],
+                    "seal_sha256": dossier["seal_sha256"],
+                    "forecast_candidate": dossier["forecast_candidate"],
+                    "automation_eligible": False,
+                    "primary_forecast_unchanged": True,
+                }
         if self.submission["route"] == "gnomon":
             extra_info["artifact_path"] = self.submission["artifact_path"]
             extra_info["support"] = getattr(self, "_submitted_support", None)

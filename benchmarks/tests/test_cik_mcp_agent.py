@@ -64,9 +64,10 @@ class ScriptedClient:
     exactly as a model would).
     """
 
-    def __init__(self, steps, compiler_output="[]"):
+    def __init__(self, steps, compiler_output=None):
         self.steps = list(steps)
-        self.compiler_output = compiler_output
+        self.compiler_output = compiler_output or json.dumps({
+            "events": [], "claims": [], "forecast_candidate": None})
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
 
@@ -102,7 +103,7 @@ class ScriptedClient:
 
 
 def _forecaster(steps, tmp_path, sessions=None, profile=None,
-                compiler_output="[]"):
+                compiler_output=None):
     def factory(cwd):
         session = InProcessMcpSession(cwd)
         if sessions is not None:
@@ -239,14 +240,14 @@ def test_evidence_compiles_and_host_binds_context(tmp_path):
     task = _task()
     span = "Values will not exceed 120 during the forecast window."
     task.scenario = span
-    proposal = json.dumps([{
-        "event_type": "constraint:announced_cap",
-        "effective_start": task.future_time[0],
-        "effective_end": task.future_time[-1],
-        "confidence": 1.0,
-        "source_span": span,
-        "rationale": "The task states a future cap.",
-    }])
+    proposal = json.dumps({"events": [{
+            "event_type": "constraint:announced_cap",
+            "effective_start": task.future_time[0],
+            "effective_end": task.future_time[-1],
+            "confidence": 1.0,
+            "source_span": span,
+            "rationale": "The task states a future cap.",
+        }], "claims": [], "forecast_candidate": None})
     sessions = []
 
     def call_forecast(messages):
@@ -278,6 +279,86 @@ def test_evidence_compiles_and_host_binds_context(tmp_path):
         == extra["context_compilation"]["source_sha256"]
 
 
+def test_evidence_retains_a_cited_sealed_llm_candidate(tmp_path):
+    task = _task()
+    span = "A closure is expected throughout the forecast window."
+    task.scenario = span
+    rows = [
+        {"timestamp": stamp, "q10": 125 + index, "q50": 128 + index,
+         "q90": 131 + index}
+        for index, stamp in enumerate(task.future_time)
+    ]
+    compiler_output = json.dumps({
+        "events": [],
+        "claims": [{
+            "source_span": span,
+            "relation": "supports_decrease",
+            "effective_start": task.future_time[0],
+            "effective_end": task.future_time[-1],
+            "mechanism": "closure",
+            "confidence": 0.8,
+        }],
+        "forecast_candidate": {"quantiles": rows,
+                               "rationale": "lower activity"},
+    })
+    forecaster = _forecaster(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        tmp_path, profile="evidence", compiler_output=compiler_output)
+    _, extra = forecaster(task, 1)
+    summary = extra["context_compilation"]
+    assert summary["claim_count"] == 1
+    assert summary["candidate_available"] is True
+    assert extra["llm_candidate_shadow"]["support"] == "prior_assisted"
+    assert extra["llm_candidate_shadow"]["automation_eligible"] is False
+    receipt = json.loads(Path(summary["receipt_path"]).read_text())
+    dossier = receipt["dossier"]
+    assert dossier["candidate_support"] == "prior_assisted"
+    assert dossier["automation_eligible"] is False
+    assert dossier["primary_forecast_unchanged"] is True
+    assert len(dossier["seal_sha256"]) == 64
+
+
+def test_shadow_role_scores_candidate_without_replacing_canonical(tmp_path):
+    task = _task()
+    span = "A closure is expected throughout the forecast window."
+    task.scenario = span
+    rows = [
+        {"timestamp": stamp, "q10": 124 + index, "q50": 127 + index,
+         "q90": 130 + index}
+        for index, stamp in enumerate(task.future_time)
+    ]
+    compiler_output = json.dumps({
+        "events": [],
+        "claims": [{
+            "source_span": span, "relation": "supports_decrease",
+            "effective_start": task.future_time[0],
+            "effective_end": task.future_time[-1],
+            "mechanism": "closure", "confidence": 0.8,
+        }],
+        "forecast_candidate": {"quantiles": rows, "rationale": "lower"},
+    })
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        compiler_output)
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="llm_candidate_shadow")
+    samples, extra = forecaster(task, 1)
+    assert [row[0] for row in samples[0]] == [127, 128, 129, 130]
+    assert extra["route"] == "llm_candidate_shadow"
+    assert extra["candidate_support"] == "prior_assisted"
+    assert extra["automation_eligible"] is False
+    assert extra["primary_forecast_unchanged"] is True
+
+
+def test_shadow_role_requires_evidence_profile():
+    with pytest.raises(ValueError, match="requires the evidence profile"):
+        McpAgentForecaster("x/y", profile="full",
+                           output_role="llm_candidate_shadow")
+
+
 def test_evidence_exposes_only_the_task_required_forecast_tool(tmp_path):
     class InspectingClient(ScriptedClient):
         def chat(self, messages, *, n=1, tools=None, tool_choice=None):
@@ -295,6 +376,38 @@ def test_evidence_exposes_only_the_task_required_forecast_tool(tmp_path):
         work_dir=str(tmp_path), profile="evidence")
     _, extra = forecaster(_task(), 1)
     assert extra["mcp_calls"] == 1
+
+
+def test_dossier_keeps_historical_context_as_claim_not_executable_event(tmp_path):
+    task = _task()
+    span = "A closure occurred during the first week of January."
+    task.scenario = span
+    compiler_output = json.dumps({
+        "events": [{
+            "event_type": "historical_closure",
+            "effective_start": task.past_time[0][0],
+            "effective_end": task.past_time[6][0],
+            "source_span": span,
+            "confidence": 1.0,
+        }],
+        "claims": [{
+            "source_span": span, "relation": "supports_decrease",
+            "effective_start": task.past_time[0][0],
+            "effective_end": task.past_time[6][0],
+            "mechanism": "closure", "confidence": 1.0,
+        }],
+        "forecast_candidate": None,
+    })
+    sessions = []
+    forecaster = _forecaster(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        tmp_path, sessions=sessions, profile="evidence",
+        compiler_output=compiler_output)
+    _, extra = forecaster(task, 1)
+    assert sessions[0].calls[0][1]["context_events"] == []
+    assert extra["context_compilation"]["event_count"] == 0
+    assert extra["context_compilation"]["claim_count"] == 1
+    assert extra["context_compilation"]["rejection_count"] == 1
 
 
 def test_evidence_rejects_model_authored_quantiles(tmp_path):

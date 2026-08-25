@@ -26,6 +26,8 @@ from benchmarks.cik.gnomon_forecaster import (
 )
 from benchmarks.cik.run_cik import (
     RCRPS_CAP,
+    _load_checkpoint,
+    _write_checkpoint,
     build_parser,
     capped_imputed_mean,
     load_run_extra_info,
@@ -346,6 +348,23 @@ def test_capped_imputed_mean_never_rewards_abstention():
     assert abstained_on_worst >= all_scored
     # Contrast: the scored-only mean is flattered by dropping the run.
     assert (0.2 + 4.9) / 2 > 0.2
+
+
+def test_cik_case_checkpoint_is_atomic_and_resumable(tmp_path):
+    completed = {
+        "ExampleTask::seed=1": {
+            "name": "ExampleTask",
+            "row": {"seed": 1, "score": 0.25, "error": ""},
+        }
+    }
+    _write_checkpoint(tmp_path, completed)
+    assert _load_checkpoint(tmp_path) == completed
+    assert not (tmp_path / "case-checkpoint.tmp").exists()
+
+
+def test_cik_corrupt_checkpoint_fails_closed_to_empty(tmp_path):
+    (tmp_path / "case-checkpoint.json").write_text("{broken")
+    assert _load_checkpoint(tmp_path) == {}
 
 
 def test_load_run_extra_info_reads_pprint_dumps(tmp_path):
