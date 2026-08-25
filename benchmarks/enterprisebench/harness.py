@@ -682,6 +682,21 @@ def _number_markers(value: float) -> list[str]:
     return markers
 
 
+def _contains_number(scanned: str, marker: str) -> bool:
+    """Marker occurrences must stand alone as a number: a marker that is
+    merely a digit-substring of a longer legitimate value (adjacent
+    months of a smooth series share leading digits) is not a leak."""
+    start = scanned.find(marker)
+    while start != -1:
+        before = scanned[start - 1] if start > 0 else " "
+        after_index = start + len(marker)
+        after = scanned[after_index] if after_index < len(scanned) else " "
+        if before not in "0123456789." and after not in "0123456789.":
+            return True
+        start = scanned.find(marker, start + 1)
+    return False
+
+
 def leakage_lint(cases: list[Case], pack: DomainPack,
                  prompts: dict[tuple[str, str], str]) -> None:
     """Fail before any API spend if held-out information appears in any
@@ -722,7 +737,7 @@ def leakage_lint(cases: list[Case], pack: DomainPack,
                         f"text reference leaked into arm {arm} for "
                         f"{case.case_id}")
                 for marker in _number_markers(item.value):
-                    if marker in scanned:
+                    if _contains_number(scanned, marker):
                         raise ValueError(
                             f"{pack.name}: post-cutoff item "
                             f"{item.item_id} value leaked into arm {arm} "

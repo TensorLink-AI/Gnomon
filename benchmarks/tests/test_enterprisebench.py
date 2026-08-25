@@ -602,6 +602,58 @@ def test_energy_temp_forecast_vintages_resolve_by_known_at():
     assert chain["temp-fc-c"].known_at > case.cutoff
 
 
+def test_creditrisk_macro_releases_carry_the_publication_lag():
+    """March's value is known mid-April: every release's known_at sits
+    one month after its effective month, and the freshest month is not
+    yet released at the cutoff."""
+    pack = PACKS["creditrisk"]
+    cases, _ = pack.simulate(11, 6)
+    for case in cases:
+        releases = [item for item in case.items
+                    if item.kind == "macro_release"
+                    and not item.revises]
+        assert releases
+        for item in releases:
+            assert item.known_at == item.effective_from + 1
+        visible = [item for item in as_of(case.items, case.cutoff)
+                   if item.kind == "macro_release"]
+        assert max(item.effective_from for item in visible) \
+            < case.cutoff - 1 + 1
+        hidden = [item for item in
+                  hidden_versions(case.items, case.cutoff)
+                  if item.kind == "macro_release"]
+        assert hidden, "the freshest month's release must be post-cutoff"
+
+
+def test_workforce_send_time_trap_flows_through_the_engine_threshold():
+    """A moved campaign send changes the engine's effective capacity
+    only through the as-of window overlap — the stale and revised views
+    must imply different engine inputs when exactly one overlaps the
+    horizon."""
+    pack = PACKS["workforce"]
+    cases, _ = pack.simulate(11, 8)
+    trap_case = next(case for case in cases if case.trap)
+    resolved = as_of(trap_case.items, trap_case.cutoff)
+    revised = pack.engine_inputs(trap_case, resolved)
+    stale_view = as_of(tuple(
+        item for item in trap_case.items
+        if item.item_id != "campaign-0-moved"), trap_case.cutoff)
+    stale = pack.engine_inputs(trap_case, stale_view)
+    moved = next(item for item in resolved if item.trap)
+    prev = next(item for item in trap_case.items
+                if item.item_id == moved.revises)
+    horizon = range(trap_case.cutoff,
+                    trap_case.cutoff + trap_case.horizon)
+    overlaps = [item.effective_from in horizon
+                or item.effective_to in horizon
+                or (item.effective_from < trap_case.cutoff
+                    and item.effective_to >= trap_case.cutoff)
+                for item in (moved, prev)]
+    if overlaps[0] != overlaps[1]:
+        assert revised["effective_capacity"] != \
+            stale["effective_capacity"]
+
+
 # ---------------------------------------------------------------------------
 # Compiled arm: admission gate and extraction scoring
 # ---------------------------------------------------------------------------

@@ -130,7 +130,43 @@ verified invariant on the rounded shown numbers.
 | `cashflow` | daily cash balance driven by invoices at terms ± lateness, payroll, opex | cross the minimum-balance floor: draw the credit line or not | shortfall ≫ carry (break-even 0.2) | an invoice amount corrected after issue |
 | `demand` | intermittent SKU demand with promos (lift+decay), holidays, stockout-censored sales (demand ≠ sales, disclosed per SKU); SKU→category hierarchy with coherence scored | order-up-to quantities per SKU + category total | stockout ≫ holding (critical fractile 0.9) | a promo rescheduled after announcement |
 | `energy` | hourly net load with temperature response and solar feed-in; temperature forecast *vintages* (a forecast of a forecast — `known_at` doing real work), outage notices | delivery-day schedule position (MWh) | short ≫ long imbalance (critical fractile 0.8) | a weather forecast revised between gate closure and delivery |
+| `creditrisk` | monthly cohort roll-rates with a lagged macro driver; macro releases carry a real publication lag (March's value is `known_at` mid-April) | provision-threshold breach: tighten or hold | capital breach ≫ forgone revenue (break-even 0.2) | a restated macro series |
+| `workforce` | hourly contact volume with campaign send surges (decay) and outage bursts | staff up an extra shift or hold vs SLA breach | SLA penalty ≫ labor (break-even 0.25) | a campaign send-time moved after announcement |
 
 Adding a pack means adding one module under `domains/` that calls
 `harness.register(...)` — the harness is never edited, and a registry
 test enforces it.
+
+## Text-template families (the sales artifact)
+
+Each fact kind renders through a registered family in `textgen.py`
+(this is what "shaped like your P&L, including how your context
+actually arrives" means). Representative examples:
+
+- `commit_change` (cloudcost, revision): *"Correction REF-… to the
+  earlier commit amendment: the adjustment initially filed as 1,200 is
+  now -430, effective 2020-03-14."*
+- `invoice_due` (cashflow, revision): *"Billing correction REF-…: the
+  invoice initially issued at 40,000 was corrected to 25,150; payment
+  is still expected on 2020-04-02."*
+- `promo_uplift` (demand, reschedule): *"Promo reschedule REF-…: the
+  sku_a campaign originally announced for other dates now runs
+  2020-04-10 through 2020-04-24; the expected lift stays near 120
+  percent."*
+- `temp_forecast` (energy, vintage revision): *"Forecast update REF-…
+  issued 2020-01-14: the delivery-day mean, earlier put at 21 degrees,
+  is now expected at 33.4 degrees."*
+- `macro_release` (creditrisk, restatement): *"Restatement REF-…
+  (published 2004-09-01): the macro index for the month starting
+  2004-07-01, first released at 41.2, is restated to 43.87."*
+- `campaign_surge` (workforce, send moved): *"Send-time change REF-…:
+  the campaign previously scheduled for an earlier slot now goes out
+  at 2020-01-15 10:00:00; the projected peak stays near 310 extra
+  contacts an hour."*
+
+A disclosed share of renderings rounds the shown number to two
+significant figures and a disclosed share appends a buried irrelevancy
+clause with numbers that are not facts. Every rendering carries a
+deterministic `REF-…` code; the codes of post-cutoff versions double as
+leakage-lint markers. Simulator parameters and their real-world
+justification are documented in each pack's module docstring.
