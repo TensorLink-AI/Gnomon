@@ -133,6 +133,7 @@ lower layer deliberately and must never be described as agent-reasoning lift.
 | [DiscriminationBench](discriminationbench/) (internal) | Known-truth accuracy, separation reliability, and truth-retention of held-out hypothesis discrimination | `benchmarks/discriminationbench` |
 | [DossierBench](dossierbench/) | Matched LLM uplift of the evidence dossier vs the conclusion packet vs the model alone, on real series with realized-future truth labels and the transcription margin against deterministic references | `benchmarks/dossierbench` |
 | [BreachBench](breachbench/) | The client job on real telemetry: breach call, timing, and intervention decision priced in cost and regret against realized outcomes, with the production forecast/threshold output as the treatment | `benchmarks/breachbench` |
+| [RecallBench](recallbench/) | Skill or recall: matched forecasts of identical real windows raw versus affine-anonymized, scored in affine-invariant MASE against the production engine — the gate for any LLM-forecast candidate lane | `benchmarks/recallbench` |
 | ModelBench (internal) | Immutable primary-forecast model comparison with agent/context behavior excluded; `run_short_history` tests nested classical selection and production LOCO panel admission on untouched horizons with raw records retained | `benchmarks/modelbench` |
 
 The machine-readable source of truth is `benchmarks/catalog.py`. Batch

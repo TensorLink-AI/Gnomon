@@ -170,6 +170,11 @@ REGISTRY: dict[str, dict[str, Any]] = {
         "accepts": {"model", "output_dir"},
         "limit_flag": "--cases",
     },
+    "recallbench": {
+        "module": "benchmarks.recallbench.run_recallbench",
+        "accepts": {"model", "output_dir"},
+        "limit_flag": "--cases",
+    },
 }
 
 if set(REGISTRY) != set(CATALOG):

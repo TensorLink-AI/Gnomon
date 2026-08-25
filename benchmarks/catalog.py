@@ -42,6 +42,7 @@ CATALOG: dict[str, BenchmarkContract] = {
     "discriminationbench": BenchmarkContract("policy", "production held-out hypothesis discrimination", "Known-truth accuracy, separation reliability, and truth-retention of the discriminating-evidence mechanism; not LLM uplift."),
     "dossierbench": BenchmarkContract("reasoning_harness", "matched LLM receives the conclusion packet or the evidence dossier with the selection repair loop", "Packet-design uplift and the transcription margin against deterministic references; mechanism accuracy lives in discriminationbench."),
     "breachbench": BenchmarkContract("reasoning_harness", "matched LLM receives the production forecast/threshold output on real telemetry", "The client job priced in decision cost and regret against realized breaches; not choice accuracy, not the packet mechanism."),
+    "recallbench": BenchmarkContract("reasoning_harness", "matched LLM forecasts identical real windows raw and affine-anonymized", "Separates memorized recall of public series from transferable forecasting skill (MASE, affine-invariant); the gate for any LLM-forecast candidate lane. Not choice accuracy."),
 }
 
 

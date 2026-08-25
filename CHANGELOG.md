@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- **RecallBench: is a hosted model's forecasting edge skill, or
+  recall?** A matched benchmark that gates the governed LLM-forecast
+  candidate lane. The same real windows are forecast twice by the same
+  model — once raw, once under a seeded positive affine transform that
+  defeats verbatim recall of public series while preserving the
+  structure genuine forecasting uses — and scored in MASE, which is
+  affine-invariant, so the transform cannot move the metric (the
+  harness verifies the seasonal-naive reference lands identically in
+  both arms before any API spend). Gnomon's production forecast runs as
+  a per-arm deterministic reference at the series' true cadence;
+  yearly/quarterly corpus series are excluded rather than mislabelled
+  daily. Verdicts: `memorization_delta` (raw-arm edge that vanishes
+  under anonymization was recall, not skill) and
+  `skill_vs_gnomon_anonymized` (the leakage-controlled claim an LLM
+  candidate lane would rest on), both with paired exact sign tests.
+  Carries the sibling harnesses' operational guarantees: identity-
+  stamped resumable rows, loud partial-failure handling, leak
+  sentinels, usage accounting.
+
 - **The governed breach estimate degrades down a ladder instead of
   falling off a cliff.** The first governed-decision diagnostic showed
   the horizon-event executable withholding on 180 of 180 real cases:
