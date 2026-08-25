@@ -158,6 +158,7 @@ CATALOG: dict[str, BenchmarkContract] = {
         "mixed", "frozen aggregation of retained benchmark evidence",
         "Safety-gated product readiness across ten capabilities; preserves each "
         "source benchmark's native metric and claim boundary."),
+    "enterprisebench": BenchmarkContract("reasoning_harness", "matched LLM and the production governed engine decide real enterprise jobs (cloudcost, cashflow, and later packs) under one bitemporal harness", "Decision cost and regret per domain in the domain's own units, with trap accuracy as the measured information boundary — not reasoning accuracy, and never averaged across domains."),
 }
 
 

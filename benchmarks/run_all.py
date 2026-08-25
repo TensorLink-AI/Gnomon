@@ -193,6 +193,11 @@ REGISTRY: dict[str, dict[str, Any]] = {
         "accepts": {"model", "output_dir"},
         "limit_flag": "--cases",
     },
+    "enterprisebench": {
+        "module": "benchmarks.enterprisebench.run_enterprisebench",
+        "accepts": {"model", "output_dir"},
+        "limit_flag": "--cases",
+    },
 }
 
 if not set(REGISTRY).issubset(CATALOG):
