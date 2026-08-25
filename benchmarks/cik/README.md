@@ -57,7 +57,7 @@ the run ends with `submit_forecast` — either an `artifact_path` whose
 trajectory is used byte-for-byte, or the model's own per-step
 quantiles. The route is classified from the transcript afterwards
 (`gnomon` / `direct` / `informed-direct`), caps (10 rounds, 24 calls,
-250k tokens, 600 s) abstain rather than fall back, and a path jail
+250k tokens, 7,200 s) abstain rather than fall back, and a path jail
 keeps the model away from the cached benchmark datasets. Per-run
 transcripts land in `<output-dir>/mcp-traces/`.
 
@@ -118,9 +118,10 @@ python -m benchmarks.cik.run_cik --method gnomon-pure \
 python -m benchmarks.cik.run_cik --method gnomon-mcp \
     --model openai/gpt-4o --output-dir results/cik-gpt4o-mcp
 
-# Production-style governed agent: the model chooses the Gnomon call and the
-# host binds the first valid forecast artifact; model-authored numeric fallback
-# is disabled.
+# Production-style governed agent: the host compiles the supplied context into
+# a provenance receipt, injects validated typed events into the model's one
+# Gnomon call, and binds the first valid artifact. Model-authored numeric
+# fallback is disabled.
 python -m benchmarks.cik.run_cik --method gnomon-mcp \
     --mcp-profile evidence --model openai/gpt-4o \
     --output-dir results/cik-gpt4o-mcp-evidence
@@ -167,11 +168,24 @@ the official code.
   abstains on those, and the abstention shows up in `summary.json`
   rather than as a silent skip.
 - `gnomon-mcp --mcp-profile evidence` is the governed product arm. The agent
-  chooses whether and how to invoke Gnomon, but once `gnomon_forecast`
-  produces a valid artifact the host publishes it verbatim. This avoids
-  measuring a second path-copying decision and makes `informed-direct`
-  structurally unavailable in the governed arm. Other profiles retain the
-  direct/informed-direct exits as explicitly labelled autonomy experiments.
+  chooses whether to invoke Gnomon. Before that loop, the host compiles the
+  benchmark-supplied prose into typed events and an auditable receipt containing
+  the source hash, compiler identity, rejected proposals, and an explicit
+  declaration that future target observations were not exposed. The host binds
+  those events, the task data, and the horizon to `gnomon_forecast`; once it
+  produces a valid artifact the host publishes it verbatim. This avoids testing
+  event-schema recall or path copying. Because CiK's requested verb is known,
+  this arm exposes only `gnomon_forecast` rather than inviting a descriptive
+  detour. `informed-direct` is structurally unavailable in the governed arm.
+  Other profiles retain the direct/informed-direct exits as explicitly labelled
+  autonomy experiments.
+
+  This production-style arm stamps the assembled context as known at the
+  forecast cutoff, when the host actually received it. It therefore cannot use
+  a retrospective task description inside earlier backtest folds. The legacy
+  `gnomon-agent` arm retains its documented benchmark assumption that the task
+  context was known from the history start, so old experiments remain
+  comparable rather than silently changing meaning.
 - `--n-samples` defaults to the official `DEFAULT_N_SAMPLES`; change it
   only symmetrically across conditions.
 - `--fail-on-invalid` (control only) defaults to `True`, the official

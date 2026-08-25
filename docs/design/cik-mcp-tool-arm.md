@@ -47,6 +47,23 @@ Per task-seed run:
 5. The run ends when the model calls `submit_forecast`, or a cap ends it
    as an abstention.
 
+### Governed Evidence composition
+
+`--mcp-profile evidence` is the production-style, mandatory-governance
+variant rather than the free-choice experiment above. Its host compiles the
+task dossier once into typed events, validates quoted spans, and writes a
+receipt containing compiler identity, source hash, rejection notes, and an
+explicit `future_observations_exposed: false`. The events are stamped as known
+at the forecast cutoff—not retroactively at the history start—and injected
+into a host-bound `gnomon_forecast` call. Because the requested verb is already
+known, only that MCP operation is exposed. The first valid artifact is
+published automatically and model-authored quantiles are disabled.
+
+This separation is intentional: the general MCP arm measures autonomous tool
+choice; Evidence measures whether an ordinary agent host can gather context
+while Gnomon retains ownership of data binding, temporal provenance, numeric
+admission, and publication.
+
 ## The two honest exits
 
 `submit_forecast` accepts exactly one of:
@@ -90,7 +107,7 @@ such by the route taxonomy.
 | assistant rounds | 10 |
 | MCP tool calls | 24 |
 | total LLM tokens (prompt + completion, per run) | 250,000 |
-| wall clock per run | 600 s |
+| wall clock per run | 7,200 s |
 
 A breached cap raises `GnomonAbstained` with the cap named in the
 reason (`cap:rounds`, `cap:tool_calls`, `cap:tokens`, `cap:wall_clock`),

@@ -124,7 +124,10 @@ fields): set "event_type" to "structural:<label>", add "source_span":
 
 - "trend_ceases" — the observed drift stops continuing (e.g. a
   repaired sensor's spurious trend). The engine removes its own
-  forecast's fitted drift.
+  forecast's fitted drift. Use this only when the quoted sentence itself
+  names a trend, drift, slope, or continuing increase/decrease. A recurring
+  outage, maintenance window, spike, or glitch that will not recur is NOT a
+  trend cessation; if no effect in this closed menu matches, propose nothing.
 - "level_matches_seasonal_high" — the context states the series enters
   its high regime for a dated window (e.g. "the weather will become
   clear" for solar output, full production resumes). The engine moves
@@ -288,6 +291,19 @@ def events_from_proposals(
             # Passed through for the structural class; the engine's closed
             # menu is the validator, not this adapter.
             attributes["effect"] = effect.strip()
+            if effect.strip() == "trend_ceases":
+                semantic_span = _normalise(span or "")
+                trend_terms = (
+                    "trend", "drift", "slope", "increasing", "decreasing",
+                    "increase", "decrease", "growth", "decline",
+                )
+                if not any(term in semantic_span for term in trend_terms):
+                    notes.append(
+                        f"proposal {number} rejected: trend_ceases requires "
+                        "a source_span that explicitly names a trend, drift, "
+                        "slope, increase, decrease, growth, or decline"
+                    )
+                    continue
         event = ContextEvent(
             event_id=f"cik-{task_name}-evt{number}",
             event_type=str(raw.get("event_type", "")).strip() or "context_event",
@@ -483,7 +499,8 @@ class GnomonForecaster:
         return timestamps
 
     def _propose_events(
-        self, task_instance: Any, timestamps: list[str], horizon: int
+        self, task_instance: Any, timestamps: list[str], horizon: int,
+        *, known_at: str | None = None,
     ) -> tuple[list[Any], list[str]]:
         import pandas as pd
 
@@ -491,7 +508,8 @@ class GnomonForecaster:
         if not context.strip():
             return [], ["task has no textual context"]
 
-        future_index = task_instance.future_time.index
+        future = task_instance.future_time
+        future_index = future.index if hasattr(future, "columns") else future
         if isinstance(future_index, pd.PeriodIndex):
             future_index = future_index.to_timestamp()
         future_index = pd.DatetimeIndex(future_index)
@@ -529,7 +547,7 @@ class GnomonForecaster:
         return events_from_proposals(
             proposals,
             task_name=task_instance.name,
-            known_at=window_start,
+            known_at=known_at or window_start,
             window_start=window_start,
             window_end=window_end,
             context_text=context if self.future_context else None,

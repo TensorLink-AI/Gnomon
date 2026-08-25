@@ -216,6 +216,44 @@ def test_source_spans_must_quote_the_context_verbatim():
     assert any("not a verbatim quote" in note for note in notes)
 
 
+def test_trend_cessation_cannot_substitute_for_a_recurring_outage():
+    span = "Assume that the ATM will not be in maintenance in the future."
+    events, notes = events_from_proposals(
+        [{
+            "event_type": "structural:maintenance_ends",
+            "effective_start": "2024-02-01T00:00:00+00:00",
+            "effective_end": "2024-02-05T00:00:00+00:00",
+            "source_span": span,
+            "effect": "trend_ceases",
+        }],
+        task_name="DemoTask", known_at="2024-01-31T00:00:00+00:00",
+        window_start="2024-01-01T00:00:00+00:00",
+        window_end="2024-03-01T00:00:00+00:00",
+        context_text=span,
+    )
+    assert not events
+    assert any("trend_ceases requires" in note for note in notes)
+
+
+def test_trend_cessation_accepts_an_explicit_trend_claim():
+    span = "The sensor was repaired and this additive trend will disappear."
+    events, notes = events_from_proposals(
+        [{
+            "event_type": "structural:repair",
+            "effective_start": "2024-02-01T00:00:00+00:00",
+            "effective_end": "2024-02-05T00:00:00+00:00",
+            "source_span": span,
+            "effect": "trend_ceases",
+        }],
+        task_name="DemoTask", known_at="2024-01-31T00:00:00+00:00",
+        window_start="2024-01-01T00:00:00+00:00",
+        window_end="2024-03-01T00:00:00+00:00",
+        context_text=span,
+    )
+    assert len(events) == 1
+    assert not notes
+
+
 def test_overlong_spans_are_rejected_not_truncated():
     """Truncating after the verbatim check can cut a number mid-digits,
     handing the parser a figure the context states only as a substring."""

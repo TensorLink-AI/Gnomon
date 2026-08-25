@@ -1,5 +1,16 @@
 # Changelog
 
+- **CiK Evidence now exercises the composed context-intelligence path.** The
+  host compiles task prose once into validated typed events and an immutable
+  provenance receipt, then binds those events plus the history, target, and
+  horizon to the agent's governed forecast call. The LLM chooses whether to
+  invoke forecasting but no longer has to reproduce Gnomon's event schema or
+  can silently discard context already gathered by the host. Receipts record
+  compiler identity, source hash, rejected proposals, and that no future target
+  observations were exposed. Unlike the legacy CiK treatment, composed Evidence
+  stamps the dossier at the forecast cutoff instead of backdating it to the
+  history start, preventing retrospective context from entering earlier folds.
+
 ## Unreleased
 
 - **CiK's MCP Evidence arm now matches the production ownership boundary.**

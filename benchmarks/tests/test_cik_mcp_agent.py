@@ -64,8 +64,9 @@ class ScriptedClient:
     exactly as a model would).
     """
 
-    def __init__(self, steps):
+    def __init__(self, steps, compiler_output="[]"):
         self.steps = list(steps)
+        self.compiler_output = compiler_output
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
 
@@ -88,6 +89,11 @@ class ScriptedClient:
         return SimpleNamespace(
             choices=[SimpleNamespace(message=message, finish_reason="stop")])
 
+    def completions(self, messages, *, n=1):
+        self.total_prompt_tokens += 100
+        self.total_completion_tokens += 25
+        return [self.compiler_output for _ in range(n)]
+
     @property
     def usage_summary(self):
         return {"model": "scripted", "requests": 0,
@@ -95,7 +101,8 @@ class ScriptedClient:
                 "completion_tokens": self.total_completion_tokens}
 
 
-def _forecaster(steps, tmp_path, sessions=None, profile=None):
+def _forecaster(steps, tmp_path, sessions=None, profile=None,
+                compiler_output="[]"):
     def factory(cwd):
         session = InProcessMcpSession(cwd)
         if sessions is not None:
@@ -103,7 +110,7 @@ def _forecaster(steps, tmp_path, sessions=None, profile=None):
         return session
 
     return McpAgentForecaster(
-        "x/y", client=ScriptedClient(steps), session_factory=factory,
+        "x/y", client=ScriptedClient(steps, compiler_output), session_factory=factory,
         work_dir=str(tmp_path), trace_dir=tmp_path / "traces", profile=profile,
     )
 
@@ -226,6 +233,68 @@ def test_evidence_host_binds_first_valid_forecast_artifact(tmp_path):
     trace = json.loads(next((tmp_path / "traces").glob("*.json")).read_text())
     assert trace["trace"][0]["host_bound_submission"] == {
         "accepted": True, "route": "gnomon"}
+
+
+def test_evidence_compiles_and_host_binds_context(tmp_path):
+    task = _task()
+    span = "Values will not exceed 120 during the forecast window."
+    task.scenario = span
+    proposal = json.dumps([{
+        "event_type": "constraint:announced_cap",
+        "effective_start": task.future_time[0],
+        "effective_end": task.future_time[-1],
+        "confidence": 1.0,
+        "source_span": span,
+        "rationale": "The task states a future cap.",
+    }])
+    sessions = []
+
+    def call_forecast(messages):
+        assert "already compiled" in messages[0]["content"]
+        return {"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}
+
+    forecaster = _forecaster(
+        [call_forecast], tmp_path, sessions=sessions, profile="evidence",
+        compiler_output=proposal)
+    _, extra = forecaster(task, 1)
+
+    assert extra["route"] == "gnomon"
+    assert extra["context_compilation"]["event_count"] == 1
+    assert extra["context_compilation"]["future_observations_exposed"] is False
+    call_name, arguments = sessions[0].calls[0]
+    assert call_name == "gnomon_forecast"
+    assert arguments["input"].endswith("history.csv")
+    assert arguments["horizon"] == 4
+    assert arguments["future_events"] is True
+    assert arguments["structural_events"] is True
+    assert arguments["context_events"][0]["event_type"] \
+        == "constraint:announced_cap"
+    assert arguments["context_events"][0]["known_at"] \
+        == task.past_time[-1][0]
+    receipt = json.loads(Path(
+        extra["context_compilation"]["receipt_path"]).read_text())
+    assert receipt["future_observations_exposed"] is False
+    assert receipt["source"]["sha256"] \
+        == extra["context_compilation"]["source_sha256"]
+
+
+def test_evidence_exposes_only_the_task_required_forecast_tool(tmp_path):
+    class InspectingClient(ScriptedClient):
+        def chat(self, messages, *, n=1, tools=None, tool_choice=None):
+            assert [item["function"]["name"] for item in tools] == [
+                "gnomon_forecast", "submit_forecast"]
+            return super().chat(messages, n=n, tools=tools,
+                                tool_choice=tool_choice)
+
+    client = InspectingClient([{
+        "tool_calls": [("gnomon_forecast", {"frequency": "D"})],
+    }])
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence")
+    _, extra = forecaster(_task(), 1)
+    assert extra["mcp_calls"] == 1
 
 
 def test_evidence_rejects_model_authored_quantiles(tmp_path):

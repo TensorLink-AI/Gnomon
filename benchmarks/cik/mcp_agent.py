@@ -15,6 +15,7 @@ missing submission is a disclosed abstention, never a silent fallback.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
@@ -55,7 +56,11 @@ MAX_RUN_TOKENS = 250_000
 #: Gnomon forecast artifact and forbids model-authored quantiles.  The agent
 #: chooses the analysis; copying an artifact path is no longer a second,
 #: failure-prone decision.
-MCP_CONTRACT_VERSION = 5
+#: Version 6: Evidence compiles task context into a provenance receipt before
+#: the agent loop and host-injects its validated events into the one governed
+#: forecast call.  The agent still chooses whether to invoke forecasting, but
+#: cannot silently omit context already gathered by its host.
+MCP_CONTRACT_VERSION = 6
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -156,6 +161,14 @@ Numeric history ({n_obs} observations, oldest first, also on disk at
 
 Produce the best {horizon}-step probabilistic forecast, then call
 submit_forecast.
+"""
+
+GOVERNED_CONTEXT_NOTE = """\
+The host has already compiled the supplied task context into a governed
+context receipt. Any gnomon_forecast call is automatically bound to that
+receipt, the history file, target, and horizon; do not copy or reconstruct
+events yourself. Call gnomon_forecast once when you want Gnomon's governed
+answer. The host publishes the first valid artifact automatically.
 """
 
 
@@ -707,8 +720,53 @@ class _Run:
         self.artifact_paths: set[str] = set()
         self.submission: dict[str, Any] | None = None
         self.governed_evidence = forecaster.profile == "evidence"
+        # Context compilation is part of this treatment's cost, so snapshot
+        # usage before invoking it rather than hiding those tokens.
         self.tokens_at_start = (forecaster.client.total_prompt_tokens
                                 + forecaster.client.total_completion_tokens)
+        self.context_compilation = (
+            self._compile_context() if self.governed_evidence else None)
+
+    def _compile_context(self) -> dict[str, Any]:
+        """Compile host-gathered prose once and retain an auditable receipt.
+
+        The compiler proposes only typed events; Gnomon's normal context
+        parser and admission machinery remain responsible for accepting and
+        applying them.  No future target observations are exposed here.
+        """
+        from gnomon.context import event_to_dict
+
+        compiler = object.__new__(GnomonForecaster)
+        compiler.client = self.forecaster.client
+        compiler.future_context = True
+        compiler.structural_context = True
+        events, rejections = compiler._propose_events(
+            self.task, self.timestamps, self.horizon,
+            # A production host learns its assembled dossier at run time.
+            # Do not backdate that knowledge to the start of history merely
+            # because CiK presents all context in one benchmark prompt.
+            known_at=self.timestamps[-1],
+        )
+        context = build_context_text(self.task)
+        payload = {
+            "schema_version": 1,
+            "compiler": {
+                "kind": "llm_proposes_gnomon_validates",
+                "model": self.forecaster.openrouter_model,
+            },
+            "source": {
+                "kind": "benchmark_task_context",
+                "sha256": hashlib.sha256(context.encode("utf-8")).hexdigest(),
+            },
+            "events": [event_to_dict(event) for event in events],
+            "rejections": list(rejections),
+            "future_observations_exposed": False,
+        }
+        path = self.jail / "context-receipt.json"
+        path.write_text(json.dumps(payload, indent=2, default=str) + "\n",
+                        encoding="utf-8")
+        payload["path"] = str(path)
+        return payload
 
     # -- lifecycle ---------------------------------------------------------
     def finish(self) -> None:
@@ -726,6 +784,17 @@ class _Run:
             "task": str(name), "seed": seed,
             "mcp_calls": self.mcp_calls,
             "submitted": (self.submission or {}).get("route"),
+            "context_compilation": (
+                {
+                    "receipt_path": self.context_compilation["path"],
+                    "source_sha256": self.context_compilation[
+                        "source"]["sha256"],
+                    "event_count": len(self.context_compilation["events"]),
+                    "rejection_count": len(self.context_compilation["rejections"]),
+                    "future_observations_exposed": False,
+                }
+                if self.context_compilation is not None else None
+            ),
             "trace": self.trace,
             "total_time": time.time() - self.started,
         }
@@ -761,13 +830,22 @@ class _Run:
     # -- the loop ----------------------------------------------------------
     def drive(self) -> tuple[list[dict[str, float]], dict[str, Any]]:
         self.session.initialize()
-        tools = openai_tool_specs(self.session.list_tools())
+        mcp_tools = self.session.list_tools()
+        if self.governed_evidence:
+            # This benchmark asks one known verb: forecast. Presenting a
+            # descriptive detour measures tool distraction, not useful agent
+            # autonomy; discovery belongs to hosts where the intent is unknown.
+            mcp_tools = [tool for tool in mcp_tools
+                         if tool.get("name") == "gnomon_forecast"]
+        tools = openai_tool_specs(mcp_tools)
         future_index = _task_future_timestamps(self.task)
         system = SYSTEM.format(
             csv_path=str(self.csv_path), horizon=self.horizon,
             future_start=future_index[0], future_end=future_index[-1],
             max_rounds=MAX_ROUNDS, max_calls=MAX_MCP_CALLS,
         )
+        if self.governed_evidence:
+            system += "\n" + GOVERNED_CONTEXT_NOTE
         history = "\n".join(
             f"{ts},{value}" for ts, value in zip(self.timestamps, self.values))
         context = build_context_text(self.task)
@@ -839,6 +917,28 @@ class _Run:
             entry["result"] = payload
             return json.dumps(payload)
 
+        if self.governed_evidence and name == "gnomon_forecast":
+            receipt = self.context_compilation or {}
+            # These are host-owned bindings. A model can choose the verb but
+            # cannot swap the data, horizon, or omit admitted context.
+            arguments = {
+                **arguments,
+                "input": str(self.csv_path),
+                "time_column": "timestamp",
+                "target_column": "value",
+                "horizon": self.horizon,
+                "context_events": receipt.get("events", []),
+                "future_events": True,
+                "structural_events": True,
+                "output_dir": str(self.jail / "gnomon-output"),
+                "format": "brief",
+            }
+            entry["host_context_binding"] = {
+                "receipt_sha256": (receipt.get("source") or {}).get("sha256"),
+                "events": len(receipt.get("events") or []),
+                "rejections": len(receipt.get("rejections") or []),
+            }
+
         violations = jail_violations(arguments, self.jail)
         if violations:
             entry["jail_violations"] = violations
@@ -869,6 +969,11 @@ class _Run:
             if not result.get("isError") and structured.get("artifact_path"):
                 artifact_path = str(structured["artifact_path"])
                 self.artifact_paths.add(artifact_path)
+                entry["artifact_path"] = artifact_path
+                results = structured.get("results") or []
+                if results and isinstance(results[0], dict):
+                    entry["context_outcome"] = results[0].get("context_outcome")
+                    entry["support"] = results[0].get("support")
                 if (self.governed_evidence and name == "gnomon_forecast"
                         and self.submission is None):
                     # Evidence is a governed product arm. Once the agent has
@@ -996,6 +1101,14 @@ class _Run:
             "llm_usage": self.forecaster.client.usage_summary,
             "total_time": time.time() - self.started,
         }
+        if self.context_compilation is not None:
+            extra_info["context_compilation"] = {
+                "receipt_path": self.context_compilation["path"],
+                "source_sha256": self.context_compilation["source"]["sha256"],
+                "event_count": len(self.context_compilation["events"]),
+                "rejection_count": len(self.context_compilation["rejections"]),
+                "future_observations_exposed": False,
+            }
         if self.submission["route"] == "gnomon":
             extra_info["artifact_path"] = self.submission["artifact_path"]
             extra_info["support"] = getattr(self, "_submitted_support", None)
