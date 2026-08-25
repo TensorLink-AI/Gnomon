@@ -60,6 +60,7 @@ from benchmarks.enterprisebench.harness import (
     parse_binary_decision,
     register,
 )
+from benchmarks.enterprisebench.textgen import register_templates
 
 HISTORY = 112
 HORIZON = 14
@@ -213,9 +214,13 @@ def simulate(seed: int, count: int) -> tuple[list[Case], dict[str, Any]]:
             if invoice["pay"] <= HISTORY - 20 or invoice["pay"] >= length:
                 continue
             emitted += 1
+            # Roughly a third of ordinary invoices exist only as memos
+            # (disclosed): the engine's structured inflow adjustment
+            # cannot see them; only extraction recovers them.
             items.append(ContextItem(
                 f"inv-{emitted:03d}", "invoice_due", invoice["amount"],
                 invoice["issue"], invoice["pay"], invoice["pay"],
+                text_only=rng.random() < 0.3,
                 aux=(("terms_days", invoice["terms"]),)))
         if trap_invoice is not None:
             items.append(ContextItem(
@@ -375,3 +380,23 @@ PACK = DomainPack(
 )
 
 register(PACK)
+
+register_templates("cash_floor", base=(
+    "Treasury policy {ref}: the minimum operating balance is {value}; "
+    "cash must not fall below it.",
+    "Board covenant ({ref}) sets the cash floor at {value}.",
+    "Liquidity memo {ref}: keep the account above {value} at all times.",
+))
+register_templates("invoice_due", base=(
+    "Invoice {ref} issued {known_date}: {value} due on {from_date}.",
+    "AR note ({ref}): a customer payment of {value} is expected on "
+    "{from_date}.",
+    "Billing entry {ref}: {value} lands on {from_date} per the agreed "
+    "terms.",
+), revision=(
+    "Billing correction {ref}: the invoice initially issued at "
+    "{prev_value} was corrected to {value}; payment is still expected "
+    "on {from_date}.",
+    "AR update ({ref}): the amount first booked as {prev_value} has "
+    "been restated to {value}, due {from_date}.",
+))

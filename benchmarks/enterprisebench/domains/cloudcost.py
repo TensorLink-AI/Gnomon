@@ -47,6 +47,7 @@ from benchmarks.enterprisebench.harness import (
     parse_binary_decision,
     register,
 )
+from benchmarks.enterprisebench.textgen import register_templates
 
 HISTORY = 112
 HORIZON = 14
@@ -203,9 +204,13 @@ def simulate(seed: int, count: int) -> tuple[list[Case], dict[str, Any]]:
         for index, effect in enumerate(effects):
             known = max(0, effect["from"] - rng.randrange(2, 10))
             if effect["kind"] == "deploy":
+                # Half the deploy notices exist only as memos
+                # (disclosed): the structured record never sees them,
+                # and only extraction can recover them.
                 items.append(ContextItem(
                     f"deploy-{index}", "deploy_uplift", effect["uplift"],
-                    known, effect["from"], effect["to"]))
+                    known, effect["from"], effect["to"],
+                    text_only=rng.random() < 0.5))
             else:
                 items.append(ContextItem(
                     f"migration-{index}", "migration_reduction",
@@ -365,3 +370,45 @@ PACK = DomainPack(
 )
 
 register(PACK)
+
+register_templates("commit_base", base=(
+    "Finance memo {ref}: the committed spend budget for this account is "
+    "set at {value} per day, effective {from_date}.",
+    "Per the annual commit review ({ref}), the daily budget stands at "
+    "{value} from {from_date} onward.",
+    "Commitment letter {ref} pegs the account's spend ceiling at "
+    "{value} a day.",
+))
+register_templates("commit_change", base=(
+    "Budget change {ref}: the daily commit moves by {value}, effective "
+    "{from_date}.",
+    "Commit amendment ({ref}) approved on {known_date}: adjust the "
+    "ceiling by {value} starting {from_date}.",
+    "FinOps note {ref}: a commit delta of {value} takes effect "
+    "{from_date}.",
+), revision=(
+    "Correction {ref} to the earlier commit amendment: the adjustment "
+    "initially filed as {prev_value} is now {value}, effective "
+    "{from_date}.",
+    "Updated commit note {ref}: the change first estimated at "
+    "{prev_value} has been restated to {value}, still effective "
+    "{from_date}.",
+))
+register_templates("deploy_uplift", base=(
+    "Deploy notice {ref}: the rollout starting {from_date} is expected "
+    "to add {value} per day of spend through {to_date}.",
+    "Capacity note ({ref}): the feature launch adds roughly {value} a "
+    "day from {from_date} until {to_date}.",
+), revision=(
+    "Deploy revision {ref}: the added spend first sized at {prev_value} "
+    "per day is now put at {value}, {from_date} to {to_date}.",
+))
+register_templates("migration_reduction", base=(
+    "Migration bulletin {ref}: workloads move off this account from "
+    "{from_date}; spend should ramp down by about {value} percent.",
+    "Platform memo ({ref}): the announced migration beginning "
+    "{from_date} trims spend around {value} percent once complete.",
+), revision=(
+    "Migration update {ref}: the reduction first put at {prev_value} "
+    "percent is now expected at {value} percent from {from_date}.",
+))

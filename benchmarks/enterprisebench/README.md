@@ -30,17 +30,42 @@ decision, by construction. Trap accuracy is scored separately per arm,
 so an information-boundary violation is a measured quantity, not just a
 lint.
 
+## Context modality: text is the native form
+
+Every context item exists in two renderings of the same underlying
+fact: the typed `structured` form, and a natural-language `text`
+rendering generated *from* the structured fact by `textgen.py` — seeded
+template families varying phrasing, vagueness (a disclosed share of
+renderings round the shown number to two significant figures), and
+buried irrelevancies. Because the text is generated from the fact,
+extraction ground truth is exact and free: the suite scores the
+numerification step itself. Some items are rendered only as text
+(disclosed per run): the engine's structured record never sees them and
+only extraction can recover them. Text traps mention both the original
+and revised figure ("initially filed as X, now Y") — extraction must
+keep the version that was correct as of the cutoff.
+
 ## Arms (matched, temperature 0, treatment block is the only difference)
 
-1. `model` — series + context + costs + question.
-2. `engine` — Gnomon alone, no LLM: real production
+1. `model` — series + text context + costs + question. The CiK
+   condition: can the model use prose evidence directly?
+2. `engine` — Gnomon alone, no LLM, structured context: real production
    `forecast(threshold=…)` plus the governed breach-policy ladder
-   (`apply_breach_policy`) mapped to the domain's decision. A
-   deterministic reference at zero API cost.
-3. `model_facts_oracle` — the model plus the engine outputs computed
-   from structured context. Isolates governance value assuming perfect
-   extraction.
-4. `governed_candidate` — the model's forecast admitted as a candidate
+   (`apply_breach_policy`) mapped to the domain's decision. The
+   oracle-extraction upper bound for the governed path; a deterministic
+   reference at zero API cost.
+3. `model_facts_oracle` — the model receives text context plus the
+   engine outputs computed from structured context. Isolates governance
+   value assuming perfect extraction.
+4. `model_facts_compiled` — the full agent loop a client actually runs:
+   text context only, ONE call returning `{claims, decision}` — the
+   model's numerification of the text plus its decision. The harness
+   feeds the claims through the production context-admission gate
+   (schema, the `ContextEvent` contract, plausibility bounds, effect
+   priors), recomputes the governed pipeline on admitted claims only,
+   and scores both the model's own decision and the governed decision
+   built on its extraction. One model call per case.
+5. `governed_candidate` — the model's forecast admitted as a candidate
    inside the engine's contract: backtested on inner folds against
    seasonal-naive under the same as-of snapshots, published as primary
    only if it wins, engine fallback otherwise, admission labelled per
@@ -56,12 +81,22 @@ rates, invalid rate (call-quality metrics over valid answers only).
 References at zero API cost: engine, seasonal naive, last value, the
 pack's constant policies, hindsight optimum.
 
+Extraction is scored in the compiled arm against the exact generated
+ground truth: per-kind value error, effective-window error, missed
+items, hallucinated items (claims with no underlying fact, reported
+alongside the rate at which the admission gate happens to reject them),
+and revision-correctness on text traps.
+
 Per-domain verdicts carry paired exact sign tests with disclosed pair
 counts: `vs_model_alone`, `vs_engine_alone`, `vs_best_constant_policy`
-("useful" requires all three positive), `candidate_admission_value`, and
-`trap_integrity`. The cross-domain rollup is a per-domain verdict table
-that **refuses to publish a single aggregate number** — the units
-differ.
+("useful" requires all three positive), `compiled_vs_oracle_gap` (the
+cost of imperfect extraction), `admission_value` (gated vs raw
+extractions, in the domain's own units), `candidate_admission_value`,
+`trap_integrity`, and `text_pipeline_integrity` — the compiled arm may
+only be claimed viable when extraction fidelity, hallucination
+rejection, and the compiled-vs-oracle gap are published together. The
+cross-domain rollup is a per-domain verdict table that **refuses to
+publish a single aggregate number** — the units differ.
 
 ## Discipline
 

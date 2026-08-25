@@ -67,9 +67,15 @@ for entry in (str(ROOT), str(ROOT / "src")):
 
 from benchmarks.common.openrouter import extract_json_objects  # noqa: E402
 
-GENERATOR_VERSION = "0.1"
+GENERATOR_VERSION = "0.2"
 #: Arms that require a model call. ``engine`` is deterministic and free.
-MODEL_ARMS = ("model", "model_facts_oracle", "governed_candidate")
+#: ``model_facts_compiled`` is the loop a client actually runs: text
+#: context in, ONE call out returning ``{claims, decision}`` — the
+#: model's numerification of the text plus its decision; the harness
+#: feeds the claims through the production context-admission gate and
+#: recomputes the governed pipeline on admitted claims only.
+MODEL_ARMS = ("model", "model_facts_oracle", "model_facts_compiled",
+              "governed_candidate")
 ARMS = ("model", "engine") + MODEL_ARMS[1:]
 #: Inner backtest folds for the governed-candidate arm. Each fold asks
 #: the model to forecast from an earlier as-of snapshot of the same
@@ -547,20 +553,24 @@ def compute_engine_packet(case: Case, inputs: dict[str, Any],
 # Prompts
 # ---------------------------------------------------------------------------
 
-def render_context_structured(case: Case) -> str:
-    """The as-of view of the context record, typed and dated."""
+def prev_values_for(case: Case) -> dict[str, float]:
+    """For every as-of resolved revision item, the value of the version
+    it superseded — revision renderings mention both figures."""
+    by_id = {item.item_id: item for item in case.items}
+    return {item.item_id: by_id[item.revises].value
+            for item in as_of(case.items, case.cutoff)
+            if item.revises and item.revises in by_id}
+
+
+def text_context(case: Case) -> tuple[str, dict[str, float]]:
+    """The native context form: every as-of resolved item rendered as a
+    dated memo. Returns the block and the per-item shown values (exact
+    extraction ground truth)."""
+    from benchmarks.enterprisebench import textgen
+
     resolved = as_of(case.items, case.cutoff)
-    payload = [
-        {"item_id": item.item_id, "kind": item.kind,
-         "value": round(item.value, 4),
-         "known_at": grid_date(case, item.known_at),
-         "effective_from": grid_date(case, item.effective_from),
-         "effective_to": grid_date(case, item.effective_to),
-         **({"revises": item.revises} if item.revises else {}),
-         **({"detail": item.aux_dict()} if item.aux else {})}
-        for item in resolved
-    ]
-    return json.dumps(payload, separators=(",", ":"), sort_keys=True)
+    return textgen.render_context_block(case, resolved,
+                                        prev_values_for(case))
 
 
 def cost_block(pack: DomainPack) -> str:
@@ -571,19 +581,35 @@ def cost_block(pack: DomainPack) -> str:
             "no-action default.")
 
 
-def base_prompt(case: Case, pack: DomainPack) -> str:
-    """The shared question block: identical across every model arm."""
+def base_prompt(case: Case, pack: DomainPack, context_block: str) -> str:
+    """The shared question block: identical across every model arm.
+    Context arrives as text, the way it does in a real company."""
     return (
         f"Domain: {pack.name}. Series {case.series_id} at frequency "
         f"{case.frequency}, values oldest first (the next {case.horizon} "
         "observations are not shown):\n"
         f"{json.dumps(list(case.values), separators=(',', ':'))}\n"
-        f"Dated context record (as of {grid_date(case, case.cutoff)}, "
-        "each item in the version known at that date):\n"
-        f"{render_context_structured(case)}\n"
+        f"Context memos as of {grid_date(case, case.cutoff)}, each dated "
+        "when it became known. A memo may revise an earlier figure; use "
+        "the version in force as of the cutoff:\n"
+        f"{context_block}\n"
         f"{cost_block(pack)}\n"
         f"{pack.question(case)}"
     )
+
+
+def claims_instruction(pack: DomainPack, case: Case) -> str:
+    kinds = ", ".join(sorted(pack.context_kinds))
+    example_date = grid_date(case, case.cutoff)
+    return (
+        "First numerify the context memos into typed claims — one claim "
+        "per fact currently in force as of the cutoff (kinds: "
+        f"{kinds}); dates use the same format as {example_date}. Then "
+        "decide. Return one JSON object: "
+        '{"claims": [{"kind": "...", "value": <number>, '
+        '"effective_from": "<date>", "effective_to": "<date>"}, ...], '
+        '"decision": ' + pack.decision_schema["instruction"].removeprefix(
+            "Return ").rstrip(".") + "}.")
 
 
 def candidate_fold_cutoffs(case: Case) -> list[int]:
@@ -592,8 +618,11 @@ def candidate_fold_cutoffs(case: Case) -> list[int]:
 
 
 def prompt_for(case: Case, pack: DomainPack, arm: str,
-               packet: dict[str, Any] | None) -> str:
-    body = base_prompt(case, pack)
+               packet: dict[str, Any] | None,
+               context_block: str) -> str:
+    body = base_prompt(case, pack, context_block)
+    if arm == "model_facts_compiled":
+        return body + "\n" + claims_instruction(pack, case)
     if arm == "model_facts_oracle":
         body += ("\nComputed Gnomon evidence (deterministic, from the same "
                  "shown history and the structured context record):\n"
@@ -616,9 +645,10 @@ def prompt_for(case: Case, pack: DomainPack, arm: str,
 
 
 def verify_arm_symmetry(cases: list[Case], pack: DomainPack,
-                        prompts: dict[tuple[str, str], str]) -> None:
+                        prompts: dict[tuple[str, str], str],
+                        context_blocks: dict[str, str]) -> None:
     for case in cases:
-        shared = base_prompt(case, pack)
+        shared = base_prompt(case, pack, context_blocks[case.case_id])
         for arm in MODEL_ARMS:
             text = prompts[(case.case_id, arm)]
             if not text.startswith(shared):
@@ -646,9 +676,14 @@ def leakage_lint(cases: list[Case], pack: DomainPack,
                  prompts: dict[tuple[str, str], str]) -> None:
     """Fail before any API spend if held-out information appears in any
     arm's serialized prompt: future observations (numeric marker,
-    history-excised, >= 8 values) or the value of any item version known
+    history-excised, >= 8 values), the value of any item version known
     only after the cutoff (post-cutoff observations and post-cutoff
-    revisions alike)."""
+    revisions alike), or the distinctive generated text reference of a
+    hidden version. Also verifies the text layer rendered every as-of
+    resolved item — a fact silently dropped from the memos would turn
+    extraction scoring into fiction."""
+    from benchmarks.enterprisebench.textgen import ref_code
+
     for case in cases:
         future_marker = None
         if len(case.future) >= 8:
@@ -657,6 +692,7 @@ def leakage_lint(cases: list[Case], pack: DomainPack,
                 separators=(",", ":"))[1:-1]
         history_blob = json.dumps(list(case.values), separators=(",", ":"))
         hidden = hidden_versions(case.items, case.cutoff)
+        resolved = as_of(case.items, case.cutoff)
         for arm in MODEL_ARMS:
             text = prompts[(case.case_id, arm)]
             scanned = text.replace(history_blob, "", 1)
@@ -665,12 +701,23 @@ def leakage_lint(cases: list[Case], pack: DomainPack,
                     f"{pack.name}: held-out future leaked into arm {arm} "
                     f"for {case.case_id}")
             for item in hidden:
+                if ref_code(case.case_id, item.item_id) in scanned:
+                    raise ValueError(
+                        f"{pack.name}: post-cutoff item {item.item_id} "
+                        f"text reference leaked into arm {arm} for "
+                        f"{case.case_id}")
                 for marker in _number_markers(item.value):
                     if marker in scanned:
                         raise ValueError(
                             f"{pack.name}: post-cutoff item "
                             f"{item.item_id} value leaked into arm {arm} "
                             f"for {case.case_id}")
+            for item in resolved:
+                if ref_code(case.case_id, item.item_id) not in text:
+                    raise ValueError(
+                        f"{pack.name}: as-of item {item.item_id} missing "
+                        f"from the text context of arm {arm} for "
+                        f"{case.case_id}")
 
 
 # ---------------------------------------------------------------------------
@@ -724,6 +771,196 @@ def parse_candidate_answer(text: str, case: Case) -> dict[str, Any]:
         return {"valid": True, "forecast": forecast,
                 "inner_forecasts": inner}
     return {"valid": False, "forecast": None, "inner_forecasts": None}
+
+
+def parse_compiled_answer(text: str, pack: DomainPack,
+                          case: Case) -> dict[str, Any]:
+    """One call, two independently degradable parts: a decision with
+    valid claims but a malformed decision block (and vice versa) keeps
+    the valid part and records the malformed one separately — never
+    crashes, never silently patches."""
+    claims: list[Any] | None = None
+    decision: dict[str, Any] | None = None
+    for payload in extract_json_objects(text):
+        if claims is None and isinstance(payload.get("claims"), list):
+            claims = payload["claims"]
+        raw_decision = payload.get("decision")
+        if decision is None and isinstance(raw_decision, dict):
+            decision = pack.parse_decision(raw_decision, case)
+        if claims is not None and decision is not None:
+            break
+    return {
+        "claims": claims if claims is not None else [],
+        "claims_valid": claims is not None,
+        "decision": (decision if decision is not None
+                     else pack.cost_model.no_action(case)),
+        "decision_valid": decision is not None,
+    }
+
+
+# ---------------------------------------------------------------------------
+# The production context-admission gate (compiled arm)
+# ---------------------------------------------------------------------------
+
+def _step_from_date(case: Case, raw: Any) -> int | None:
+    """Map a claimed date back onto the case grid; unparseable dates are
+    a schema rejection, dates beyond the grid clamp to its edges."""
+    from datetime import datetime
+
+    grid = _grid_timestamps(case.frequency,
+                            case.cutoff + case.horizon)
+    text = str(raw).strip()
+    if text in grid:
+        return grid.index(text)
+    try:
+        moment = datetime.fromisoformat(text)
+    except (TypeError, ValueError):
+        return None
+    parsed_grid = [datetime.fromisoformat(stamp) for stamp in grid]
+    if moment <= parsed_grid[0]:
+        return 0
+    for index, stamp in enumerate(parsed_grid):
+        if stamp >= moment:
+            return index
+    return len(parsed_grid) - 1
+
+
+def admit_claims(raw_claims: list[Any], case: Case,
+                 pack: DomainPack) -> dict[str, Any]:
+    """Schema validation, the production ``ContextEvent`` contract,
+    plausibility bounds, and effect priors — the ContextBench compiled
+    route applied to the model's numerification of the text.
+
+    The gate never sees ground truth: it rejects on structure and
+    plausibility alone. How often it happens to reject hallucinated
+    claims is measured downstream against the simulator's exact record.
+    """
+    from gnomon.context import (
+        UNVERIFIED_EXTERNAL_CREATOR,
+        ContextEvent,
+        validate_context_event,
+    )
+
+    admitted: list[ContextItem] = []
+    rejected: list[dict[str, Any]] = []
+    parsed: list[dict[str, Any]] = []
+    for index, raw in enumerate(raw_claims):
+        if not isinstance(raw, dict):
+            rejected.append({"claim": raw, "reason": "schema_not_object"})
+            continue
+        kind = str(raw.get("kind", ""))
+        value = raw.get("value")
+        start = _step_from_date(case, raw.get("effective_from"))
+        end = _step_from_date(case, raw.get("effective_to"))
+        if end is None:
+            end = start
+        if (kind not in pack.context_kinds or isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(value) or start is None):
+            rejected.append({"claim": raw, "reason": "schema"})
+            continue
+        claim = {"kind": kind, "value": float(value),
+                 "effective_from": min(start, end),
+                 "effective_to": max(start, end)}
+        parsed.append(claim)
+        event = ContextEvent(
+            event_id=f"{case.case_id}-claim-{index}",
+            event_type=kind, entity_scope=(case.series_id,),
+            effective_start=grid_date(case, claim["effective_from"])[:10]
+            + "T00:00:00+00:00",
+            effective_end=grid_date(case, claim["effective_to"])[:10]
+            + "T23:59:59+00:00",
+            known_at=grid_date(case, case.cutoff)[:10] + "T00:00:00+00:00",
+            created_by=UNVERIFIED_EXTERNAL_CREATOR)
+        problems = validate_context_event(event)
+        if problems:
+            rejected.append({"claim": raw, "reason": "contract",
+                             "problems": problems[:3]})
+            continue
+        spec = pack.context_kinds[kind]
+        low, high = spec["bounds"]
+        if not low <= claim["value"] <= high:
+            rejected.append({"claim": raw, "reason": "implausible_value"})
+            continue
+        if claim["effective_to"] - claim["effective_from"] \
+                > spec["max_span"]:
+            rejected.append({"claim": raw, "reason": "effect_span_prior"})
+            continue
+        admitted.append(ContextItem(
+            f"claim-{index}", kind, claim["value"], case.cutoff,
+            claim["effective_from"], claim["effective_to"]))
+    return {"admitted": admitted, "rejected": rejected, "parsed": parsed}
+
+
+def score_extraction(raw_claims: list[Any], gate: dict[str, Any],
+                     case: Case, pack: DomainPack,
+                     shown_values: dict[str, float]) -> dict[str, Any]:
+    """Extraction fidelity against the simulator's exact record: the
+    ground truth for each rendered memo is the number the text actually
+    displayed (``shown_values``) and the item's true window. Matching is
+    greedy within kind by window proximity then value agreement."""
+    resolved = as_of(case.items, case.cutoff)
+    truth = [{"item": item, "shown": shown_values[item.item_id]}
+             for item in resolved if item.item_id in shown_values]
+    parsed = list(gate["parsed"])
+    matched: list[tuple[dict[str, Any], dict[str, Any]]] = []
+    unmatched_claims = list(parsed)
+    for entry in truth:
+        item = entry["item"]
+        candidates = [claim for claim in unmatched_claims
+                      if claim["kind"] == item.kind
+                      and abs(claim["effective_from"] - item.effective_from)
+                      <= max(5, case.horizon // 2)]
+        if not candidates:
+            entry["matched"] = None
+            continue
+        best = min(candidates, key=lambda claim: (
+            abs(claim["effective_from"] - item.effective_from),
+            abs(claim["value"] - entry["shown"])))
+        unmatched_claims.remove(best)
+        entry["matched"] = best
+        matched.append((entry, best))
+    value_errors = [abs(claim["value"] - entry["shown"])
+                    / max(abs(entry["shown"]), 1.0)
+                    for entry, claim in matched]
+    window_errors = [
+        (abs(claim["effective_from"] - entry["item"].effective_from)
+         + abs(claim["effective_to"] - entry["item"].effective_to)) / 2.0
+        for entry, claim in matched]
+    hallucinated = len(unmatched_claims)
+    admitted_values = {(item.kind, item.value, item.effective_from)
+                       for item in gate["admitted"]}
+    hallucinated_admitted = sum(
+        1 for claim in unmatched_claims
+        if (claim["kind"], claim["value"], claim["effective_from"])
+        in admitted_values)
+    revision_flags = []
+    for entry, claim in matched:
+        item = entry["item"]
+        if not item.trap or item.revises is None:
+            continue
+        prev = prev_values_for(case).get(item.item_id)
+        if prev is None:
+            continue
+        revision_flags.append(
+            abs(claim["value"] - entry["shown"])
+            < abs(claim["value"] - round(prev, 4)))
+    return {
+        "truth_items": len(truth),
+        "claims_parsed": len(parsed),
+        "claims_raw": len(raw_claims),
+        "matched": len(matched),
+        "missed_items": len(truth) - len(matched),
+        "value_relative_error": (statistics.mean(value_errors)
+                                 if value_errors else None),
+        "window_error_steps": (statistics.mean(window_errors)
+                               if window_errors else None),
+        "hallucinated_claims": hallucinated,
+        "hallucinated_admitted": hallucinated_admitted,
+        "gate_rejected": len(gate["rejected"]),
+        "revision_correct": (statistics.mean(revision_flags)
+                             if revision_flags else None),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -948,6 +1185,51 @@ def _candidate_row(case: Case, pack: DomainPack, answer: dict[str, Any],
     return row
 
 
+def _compiled_row(case: Case, pack: DomainPack, answer: dict[str, Any],
+                  cost_pair: tuple[float, float],
+                  engine_cache: dict[tuple[str, float], dict[str, Any]],
+                  shown_values: dict[str, float]) -> dict[str, Any]:
+    """The full agent loop a client actually runs, scored twice: the
+    model's own decision, and the governed decision recomputed on the
+    claims that survive the production admission gate. The same
+    extractions fed in raw (gate bypassed) are also priced, so the
+    gate's worth is a number in the domain's own units."""
+    gate = admit_claims(answer["claims"], case, pack)
+    admitted_inputs = pack.engine_inputs(case, gate["admitted"])
+    governed = pack.engine_decision(
+        case, compute_engine_packet(case, admitted_inputs, cost_pair,
+                                    engine_cache), admitted_inputs)
+    raw_items = [ContextItem(f"raw-{index}", claim["kind"], claim["value"],
+                             case.cutoff, claim["effective_from"],
+                             claim["effective_to"])
+                 for index, claim in enumerate(gate["parsed"])]
+    raw_inputs = pack.engine_inputs(case, raw_items)
+    raw_governed = pack.engine_decision(
+        case, compute_engine_packet(case, raw_inputs, cost_pair,
+                                    engine_cache), raw_inputs)
+    row = score_decision_row(governed, answer["claims_valid"], case, pack)
+    model_own = score_decision_row(answer["decision"],
+                                   answer["decision_valid"], case, pack)
+    raw_outcome = pack.cost_model.score(raw_governed, case)
+    row.update({
+        "claims_valid": answer["claims_valid"],
+        "decision_valid": answer["decision_valid"],
+        "model_own_cost": model_own["cost"],
+        "model_own_regret": model_own["regret"],
+        "model_own_action_optimal": model_own["action_optimal"],
+        "model_own_trap_correct": model_own["trap_correct"],
+        "raw_governed_cost": round(raw_outcome["cost"], 6),
+        "raw_governed_regret": round(raw_outcome["regret"], 6),
+        "admitted_claims": len(gate["admitted"]),
+        "rejected_claims": len(gate["rejected"]),
+        "rejection_reasons": sorted({entry["reason"]
+                                     for entry in gate["rejected"]}),
+        "extraction": score_extraction(answer["claims"], gate, case, pack,
+                                       shown_values),
+    })
+    return row
+
+
 def run_domain(pack: DomainPack, args: Any, client: Any) -> dict[str, Any]:
     """One domain, all arms, full operational bar: pre-spend lints,
     resume with identity checks, failure tolerance, references at zero
@@ -961,8 +1243,15 @@ def run_domain(pack: DomainPack, args: Any, client: Any) -> dict[str, Any]:
     packets: dict[str, dict[str, Any]] = {}
     engine_inputs_by_case: dict[str, dict[str, Any]] = {}
     engine_decisions: dict[str, dict[str, Any]] = {}
+    text_only_items = 0
     for index, case in enumerate(cases):
-        inputs = pack.engine_inputs(case, as_of(case.items, case.cutoff))
+        resolved = as_of(case.items, case.cutoff)
+        # The engine consumes structured context only; items marked
+        # text-only exist solely in the memos (disclosed) and can be
+        # recovered for the governed path only through extraction.
+        structured = [item for item in resolved if not item.text_only]
+        text_only_items += len(resolved) - len(structured)
+        inputs = pack.engine_inputs(case, structured)
         engine_inputs_by_case[case.case_id] = inputs
         packet = compute_engine_packet(case, inputs, cost_pair, engine_cache)
         packets[case.case_id] = packet
@@ -972,10 +1261,17 @@ def run_domain(pack: DomainPack, args: Any, client: Any) -> dict[str, Any]:
             print(f"{pack.name}: engine runs {index + 1}/{len(cases)}",
                   flush=True)
 
+    context_blocks: dict[str, str] = {}
+    shown_values_by_case: dict[str, dict[str, float]] = {}
+    for case in cases:
+        block, shown = text_context(case)
+        context_blocks[case.case_id] = block
+        shown_values_by_case[case.case_id] = shown
     prompts = {(case.case_id, arm): prompt_for(
-        case, pack, arm, packets[case.case_id])
+        case, pack, arm, packets[case.case_id],
+        context_blocks[case.case_id])
         for case in cases for arm in MODEL_ARMS}
-    verify_arm_symmetry(cases, pack, prompts)
+    verify_arm_symmetry(cases, pack, prompts, context_blocks)
     leakage_lint(cases, pack, prompts)
 
     references_rows = _reference_rows(cases, pack, engine_decisions,
@@ -1018,6 +1314,11 @@ def run_domain(pack: DomainPack, args: Any, client: Any) -> dict[str, Any]:
             return {**base, **_candidate_row(
                 case, pack, answer, engine_decisions[case.case_id],
                 engine_inputs_by_case[case.case_id])}
+        if arm == "model_facts_compiled":
+            answer = parse_compiled_answer(text, pack, case)
+            return {**base, **_compiled_row(
+                case, pack, answer, cost_pair, engine_cache,
+                shown_values_by_case[case.case_id])}
         parsed = parse_decision_answer(text, pack, case)
         return {**base, **score_decision_row(
             parsed["decision"], parsed["valid"], case, pack)}
@@ -1047,6 +1348,8 @@ def run_domain(pack: DomainPack, args: Any, client: Any) -> dict[str, Any]:
             f"failed; completed rows are saved in {rows_path} — rerun "
             f"with --resume to finish. First failure: {failures[0]}")
 
+    provenance = {**provenance,
+                  "text_only_items_across_cases": text_only_items}
     summary = _domain_summary(pack, args, cases, provenance, identity,
                               model_name, completed, references,
                               references_rows)
@@ -1158,6 +1461,11 @@ def _domain_summary(pack: DomainPack, args: Any, cases: list[Case],
                                   if promises else None),
         })
 
+    compiled_rows = arm_rows.get("model_facts_compiled") or []
+    if compiled_rows:
+        metrics["model_facts_compiled"].update(
+            _compiled_metrics(compiled_rows))
+
     engine_rows = references_rows["engine"]
     constant_names = [name for name in references_rows
                       if name not in ("engine", "seasonal_naive",
@@ -1177,6 +1485,18 @@ def _domain_summary(pack: DomainPack, args: Any, cases: list[Case],
             "policy": best_constant,
             **paired_cost_comparison(
                 treatment_rows, references_rows[best_constant])},
+        "compiled_vs_oracle_gap": (
+            {"gap_mean_cost":
+                metrics["model_facts_compiled"]["mean_cost"]
+                - metrics["model_facts_oracle"]["mean_cost"],
+             **paired_cost_comparison(compiled_rows,
+                                      arm_rows["model_facts_oracle"])}
+            if compiled_rows and arm_rows["model_facts_oracle"] else None),
+        "admission_value": (_admission_value(compiled_rows)
+                            if compiled_rows else None),
+        "text_pipeline_integrity": (
+            _text_pipeline_integrity(metrics, compiled_rows)
+            if compiled_rows else None),
         "candidate_admission_value": {
             "candidate_regret": metrics["governed_candidate"].get(
                 "mean_regret"),
@@ -1189,6 +1509,21 @@ def _domain_summary(pack: DomainPack, args: Any, cases: list[Case],
         },
         "trap_integrity": _trap_integrity(arm_rows, references),
         "reading": {
+            "compiled_vs_oracle_gap": (
+                "the cost of imperfect extraction: the governed decision "
+                "on the model's own extraction versus the model given "
+                "oracle engine facts — remaining headroom for better "
+                "extraction"),
+            "admission_value": (
+                "what the production admission gate is worth in this "
+                "domain's units: gated governed cost versus the same "
+                "extractions fed in raw"),
+            "text_pipeline_integrity": (
+                "the compiled arm may only be claimed viable when "
+                "extraction fidelity, hallucination rejection, and the "
+                "compiled-vs-oracle gap are published together; a good "
+                "cost number with unpublished extraction fidelity is "
+                "not a result"),
             "useful": ("useful requires the treatment arm cheaper than "
                        "the model alone AND the engine alone AND the "
                        "best constant policy; anything less means one "
@@ -1248,6 +1583,80 @@ def _treatment_arm(arm_rows: dict[str, list[dict[str, Any]]]) -> str:
     if arm_rows.get("model_facts_compiled"):
         return "model_facts_compiled"
     return "model_facts_oracle"
+
+
+def _mean_of(rows: list[dict[str, Any]], key: str,
+             nested: str | None = None) -> float | None:
+    values = []
+    for row in rows:
+        source = row.get(nested) or {} if nested else row
+        value = source.get(key)
+        if value is not None:
+            values.append(value)
+    return statistics.mean(values) if values else None
+
+
+def _compiled_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Extraction scored in its own right (exact ground truth from the
+    generated text) alongside the model's own decision — the compiled
+    arm's headline cost is the governed decision on admitted claims."""
+    hallucinated = sum(row["extraction"]["hallucinated_claims"]
+                       for row in rows)
+    hallucinated_admitted = sum(
+        row["extraction"]["hallucinated_admitted"] for row in rows)
+    return {
+        "model_own": {
+            "mean_cost": _mean_of(rows, "model_own_cost"),
+            "mean_regret": _mean_of(rows, "model_own_regret"),
+            "action_optimal_rate": statistics.mean(
+                row["model_own_action_optimal"] for row in rows),
+            "decision_invalid_rate": statistics.mean(
+                not row["decision_valid"] for row in rows),
+        },
+        "extraction": {
+            "value_relative_error": _mean_of(rows, "value_relative_error",
+                                             "extraction"),
+            "window_error_steps": _mean_of(rows, "window_error_steps",
+                                           "extraction"),
+            "missed_rate": (
+                sum(row["extraction"]["missed_items"] for row in rows)
+                / max(1, sum(row["extraction"]["truth_items"]
+                             for row in rows))),
+            "hallucinated_claims": hallucinated,
+            "hallucination_admission_rate": (
+                hallucinated_admitted / hallucinated
+                if hallucinated else None),
+            "revision_correct_rate": _mean_of(rows, "revision_correct",
+                                              "extraction"),
+            "claims_invalid_rate": statistics.mean(
+                not row["claims_valid"] for row in rows),
+        },
+    }
+
+
+def _admission_value(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    raw_reference = [{"case_id": row["case_id"],
+                      "cost": row["raw_governed_cost"]} for row in rows]
+    return {
+        "gated_mean_cost": _mean_of(rows, "cost"),
+        "raw_mean_cost": _mean_of(rows, "raw_governed_cost"),
+        **paired_cost_comparison(rows, raw_reference),
+    }
+
+
+def _text_pipeline_integrity(metrics: dict[str, Any],
+                             rows: list[dict[str, Any]]) -> dict[str, Any]:
+    extraction = metrics["model_facts_compiled"].get("extraction") or {}
+    required = ("value_relative_error", "missed_rate",
+                "hallucinated_claims", "hallucination_admission_rate",
+                "revision_correct_rate")
+    return {
+        "published_together": all(key in extraction for key in required),
+        "extraction_fidelity": {key: extraction.get(key)
+                                for key in required},
+        "note": ("a compiled-arm cost claim without these fields "
+                 "published alongside it is not a result"),
+    }
 
 
 def _trap_integrity(arm_rows: dict[str, list[dict[str, Any]]],
