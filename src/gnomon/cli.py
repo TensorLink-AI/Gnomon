@@ -129,6 +129,45 @@ def _resolve_schema(args) -> list[str]:
     return assumptions
 
 
+def _attach_publication(payload, artifact, path, args) -> None:
+    """Attach and persist the requested projection without editing artifact."""
+    mode = getattr(args, "publication_mode", "strict")
+    dossier_paths = getattr(args, "dossier", None) or []
+    selection_path = getattr(args, "scenario_selection", None)
+    policy_path = getattr(args, "automation_policy", None)
+    # Strict with no publication inputs is the compatibility path: no new
+    # stdout keys or sidecar for callers that did not request this feature.
+    if mode == "strict" and not (dossier_paths or selection_path or policy_path):
+        return
+    def read(path_value, label):
+        path_value = Path(path_value).expanduser()
+        try:
+            return json.loads(path_value.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise GnomonError("INVALID_ARGUMENTS",
+                              f"{label} is not readable JSON: {exc}") from exc
+    dossiers = [read(item, "--dossier") for item in dossier_paths]
+    selection = read(selection_path, "--scenario-selection") \
+        if selection_path else None
+    policy = read(policy_path, "--automation-policy") if policy_path else None
+    if len(artifact.results) != 1:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "Publication modes currently require one target series; invoke "
+            "forecast once per target so each recommendation has one owner.")
+    from .publication import publish_result, write_publication
+    try:
+        publication = publish_result(
+            artifact.to_dict()["results"][0], mode=mode, dossiers=dossiers,
+            scenario_selection=selection, automation_policy=policy,
+            artifact_id=artifact.forecast_id)
+    except ValueError as exc:
+        raise GnomonError("INVALID_ARGUMENTS", str(exc)) from exc
+    publication_path = write_publication(path, publication)
+    payload["publication"] = publication
+    payload["publication_path"] = str(publication_path)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = _StructuredArgumentParser(prog="gnomon", description="Evidence-backed local forecasting")
     parser.add_argument("--version", action="version", version="gnomon 0.5.0")
@@ -296,6 +335,28 @@ def build_parser() -> argparse.ArgumentParser:
         "--multivariate", action="store_true",
         help="Let a cross-series VAR candidate compete on the same folds "
              "as everything else; it is admitted only if it wins",
+    )
+    forecast_parser.add_argument(
+        "--publication-mode", choices=("strict", "best_effort", "scenario"),
+        default="strict",
+        help="Human-facing projection: strict keeps historically admitted "
+             "evidence authoritative; best_effort may recommend a sealed "
+             "prior-assisted path; scenario returns every bounded path.",
+    )
+    forecast_parser.add_argument(
+        "--dossier", action="append", default=None,
+        help="Sealed temporal-dossier JSON (repeatable). Invalid seals are "
+             "retained as typed rejections, never silently ignored.",
+    )
+    forecast_parser.add_argument(
+        "--scenario-selection",
+        help="Governed LLM scenario-selection JSON. It may rank sealed paths "
+             "but cannot supply or edit forecast numbers.",
+    )
+    forecast_parser.add_argument(
+        "--automation-policy",
+        help="Explicit JSON automation policy. Human recommendation never "
+             "implies automation eligibility.",
     )
 
     covariate_parser = subcommands.add_parser(
@@ -1940,6 +2001,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             from .toolspec import brief_summary
             payload = (brief_summary(artifact, path) if args.brief
                        else forecast_summary(artifact, path))
+            _attach_publication(payload, artifact, path, args)
         else:
             from .context import load_events_file
             from .runtime import forecast
@@ -2029,15 +2091,23 @@ def main(argv: Sequence[str] | None = None) -> int:
                 payload = brief_summary(artifact, path)
             else:
                 payload = forecast_summary(artifact, path)
+            _attach_publication(payload, artifact, path, args)
             if context_cache:
                 payload = {**payload, "context_ref": args.context_ref,
                            "context_cache": context_cache}
 
             # Auto-register in tracking store if --project is set
             if getattr(args, "project", None):
-                from .tracking import register_artifact
+                from .tracking import TrackingStore, register_artifact
                 register_artifact(artifact, args.project, str(path),
                                   context_events=events)
+                if payload.get("publication"):
+                    from .publication import record_publication
+                    payload["publication_synthesis_id"] = record_publication(
+                        TrackingStore(), project=args.project,
+                        forecast_id=artifact.forecast_id,
+                        series=artifact.results[0].series,
+                        payload=payload["publication"])
                 print(f"Registered forecast {artifact.forecast_id} in project '{args.project}'", file=sys.stderr)
 
         decorated = _disclose_assumptions(payload, schema_assumptions)

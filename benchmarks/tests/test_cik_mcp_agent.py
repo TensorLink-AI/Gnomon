@@ -397,6 +397,36 @@ def test_shadow_role_scores_candidate_without_replacing_canonical(tmp_path):
     assert extra["primary_forecast_unchanged"] is True
 
 
+def test_best_effort_role_uses_verified_product_publication(tmp_path):
+    task = _task()
+    span = "A closure is expected throughout the forecast window."
+    task.scenario = span
+    rows = [{"timestamp": stamp, "q10": 124 + index,
+             "q50": 127 + index, "q90": 130 + index}
+            for index, stamp in enumerate(task.future_time)]
+    compiler_output = json.dumps({
+        "events": [], "claims": [{
+            "source_span": span, "relation": "supports_decrease",
+            "effective_start": task.future_time[0],
+            "effective_end": task.future_time[-1],
+            "mechanism": "closure", "confidence": 0.8}],
+        "forecast_candidate": {"quantiles": rows, "rationale": "lower"},
+    })
+    forecaster = McpAgentForecaster(
+        "x/y", client=ScriptedClient(
+            [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+            compiler_output),
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+    samples, extra = forecaster(task, 1)
+    assert [row[0] for row in samples[0]] == [127, 128, 129, 130]
+    assert extra["route"] == "publication_best_effort"
+    assert extra["publication"]["recommended_support"] == "prior_assisted"
+    assert extra["publication"]["primary_forecast_unchanged"] is True
+    assert extra["publication"]["automation"]["eligible"] is False
+
+
 def test_shadow_role_requires_evidence_profile():
     with pytest.raises(ValueError, match="requires the evidence profile"):
         McpAgentForecaster("x/y", profile="full",
@@ -674,6 +704,14 @@ def test_cache_name_carries_temperature_and_contract_version():
     assert f"contract={MCP_CONTRACT_VERSION}" in forecaster.cache_name
     hotter = McpAgentForecaster("org/model", temperature=1.0, client=object())
     assert hotter.cache_name != forecaster.cache_name
+
+
+def test_cache_name_separates_provider_endpoints():
+    engy = McpAgentForecaster("x/y", client=ScriptedClient([]), profile="evidence")
+    other_client = ScriptedClient([])
+    other_client.base_url = "https://other.invalid/v1"
+    other = McpAgentForecaster("x/y", client=other_client, profile="evidence")
+    assert engy.cache_name != other.cache_name
 
 
 def test_stdio_session_kills_a_hung_server_instead_of_blocking_forever():

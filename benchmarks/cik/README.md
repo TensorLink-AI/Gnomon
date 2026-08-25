@@ -83,7 +83,7 @@ this flag is pre-registered in `results/future-context-ab/HYPOTHESIS.md`.
 python -m venv .venv-cik && source .venv-cik/bin/activate
 pip install -r benchmarks/cik/requirements.txt   # heavy: official deps
 pip install -e .                                 # gnomon
-export OPENROUTER_API_KEY=sk-or-...
+export ENGY_API_KEY=...
 
 # One-time: build the official metric scaling cache (downloads task data).
 python -c "import runpy; runpy.run_path('precompute_scaling_cache.py')" \
@@ -98,7 +98,7 @@ the scaling cache the official metric returns NaN — build it first.
 ## Run
 
 ```bash
-# Control: official LLM baseline, any OpenRouter model
+# Control: official LLM protocol through the default Engy endpoint
 python -m benchmarks.cik.run_cik --method control \
     --model openai/gpt-4o --output-dir results/cik-gpt4o-control
 
@@ -134,6 +134,13 @@ python -m benchmarks.cik.run_cik --method gnomon-mcp \
     --mcp-profile evidence --mcp-output-role llm_candidate_shadow \
     --model openai/gpt-4o \
     --output-dir results/cik-gpt4o-mcp-candidate-shadow
+
+# Product best-effort mode: score the candidate only after the publication
+# verifier preserves the primary, support label, and automation separation.
+python -m benchmarks.cik.run_cik --method gnomon-mcp \
+    --mcp-profile evidence --mcp-output-role publication_best_effort \
+    --model deepseek-v4-flash-0731 \
+    --output-dir results/cik-deepseek-best-effort
 
 # Quick pass on a task family while iterating
 python -m benchmarks.cik.run_cik --method gnomon-pure \

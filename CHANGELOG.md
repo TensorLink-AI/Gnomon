@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Added unified `strict`, `best_effort`, and `scenario` publication modes over
+  immutable forecast artifacts. Sealed prior-assisted paths may be recommended
+  to humans without changing their support or granting automation authority.
+- Added a governed scenario-selection contract, typed context dispositions,
+  integrity-sealed publication sidecars, and numeric outcome scoring through
+  the existing synthesis-receipt machinery.
+
 - **CiK Evidence now exercises the composed context-intelligence path.** The
   host compiles task prose once into validated typed events and an immutable
   provenance receipt, then binds those events plus the history, target, and

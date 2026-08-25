@@ -904,18 +904,43 @@ class TrackingStore:
         # Only typed categorical equality is scored here. Numeric claims need
         # a property-specific scoring rule and remain unresolved rather than
         # acquiring a convenient tolerance at this generic boundary.
-        comparable = isinstance(realised, (str, bool))
-        canonical_correct = (canonical_value == realised if comparable else None)
-        synthesis_correct = (synthesis_value == realised if comparable else None)
-        score = {
-            "rule": "typed_categorical_exact_v1",
-            "canonical_correct": canonical_correct,
-            "synthesis_correct": synthesis_correct,
-            "synthesis_delta": (
-                int(synthesis_correct) - int(canonical_correct)
-                if canonical_correct is not None and synthesis_correct is not None
-                else None),
-        }
+        actual_points = outcome.get("points")
+        canonical_points = canonical.get("forecast")
+        synthesis_points = synthesis.get("forecast")
+        if (isinstance(actual_points, list) and canonical_points
+                and synthesis_points):
+            from .evaluation import error_score
+            def values(rows):
+                return [float(row.get("q50", row.get("point"))) for row in rows]
+            n = min(len(actual_points), len(canonical_points), len(synthesis_points))
+            canonical_error = error_score(
+                [float(item) for item in actual_points[:n]], values(canonical_points)[:n])
+            synthesis_error = error_score(
+                [float(item) for item in actual_points[:n]], values(synthesis_points)[:n])
+            score = {
+                "rule": "numeric_path_wape_v1", "points": n,
+                "canonical_error": canonical_error,
+                "synthesis_error": synthesis_error,
+                "synthesis_delta": (canonical_error - synthesis_error
+                                    if canonical_error is not None
+                                    and synthesis_error is not None else None),
+                "synthesis_won": (synthesis_error < canonical_error
+                                  if canonical_error is not None
+                                  and synthesis_error is not None else None),
+            }
+        else:
+            comparable = isinstance(realised, (str, bool))
+            canonical_correct = (canonical_value == realised if comparable else None)
+            synthesis_correct = (synthesis_value == realised if comparable else None)
+            score = {
+                "rule": "typed_categorical_exact_v1",
+                "canonical_correct": canonical_correct,
+                "synthesis_correct": synthesis_correct,
+                "synthesis_delta": (
+                    int(synthesis_correct) - int(canonical_correct)
+                    if canonical_correct is not None and synthesis_correct is not None
+                    else None),
+            }
         with self._connect() as conn:
             changed = conn.execute("""
                 UPDATE temporal_synthesis_receipts
@@ -1248,6 +1273,21 @@ class TrackingStore:
             f"{cov:.1%}" if cov is not None else "N/A",
             drift or "none",
         )
+        # Publication recommendations share the existing synthesis receipt
+        # machinery. Score their numeric path independently of the immutable
+        # primary when actuals arrive; automation safety is not inferred from
+        # recommendation accuracy.
+        for receipt in self.temporal_synthesis_receipts(
+                record.project, resolved=False):
+            if (receipt["forecast_id"] == forecast_id
+                    and receipt["series"] == record.series
+                    and receipt["question_id"] == "publication"):
+                self.resolve_temporal_synthesis(
+                    project=record.project, forecast_id=forecast_id,
+                    series=record.series,
+                    question_id="publication",
+                    synthesis_id=receipt["synthesis_id"],
+                    outcome={"points": list(actuals)}, resolved_at=scored_at)
         return ScoreResult(forecast_id, mase, wape, mape, bias, cov, thresh_acc,
                            scored_at, drift)
 

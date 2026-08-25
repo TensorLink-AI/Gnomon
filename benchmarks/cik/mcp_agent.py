@@ -717,19 +717,23 @@ class McpAgentForecaster:
         session_factory: Any = None,
         profile: str | None = None,
         output_role: str = "canonical",
+        base_url: str | None = None,
+        api_key: str | None = None,
     ) -> None:
         self.openrouter_model = openrouter_model
         self.temperature = temperature
         self.client = client or OpenRouterClient(
-            openrouter_model, temperature=temperature)
+            openrouter_model, temperature=temperature,
+            base_url=base_url, api_key=api_key)
         self.work_dir = work_dir
         self.trace_dir = Path(trace_dir) if trace_dir else None
         self.profile = (profile or os.environ.get(
             "GNOMON_MCP_PROFILE", "full")).strip().lower()
-        if output_role not in {"canonical", "llm_candidate_shadow"}:
-            raise ValueError("output_role must be canonical or llm_candidate_shadow")
-        if output_role == "llm_candidate_shadow" and self.profile != "evidence":
-            raise ValueError("llm_candidate_shadow requires the evidence profile")
+        if output_role not in {"canonical", "llm_candidate_shadow",
+                               "publication_best_effort"}:
+            raise ValueError("unknown output_role")
+        if output_role != "canonical" and self.profile != "evidence":
+            raise ValueError("output role requires the evidence profile")
         self.output_role = output_role
         # functools.partial remains pickleable when the official CiK runner
         # fans task-seeds out to worker processes; a closure does not.
@@ -747,6 +751,7 @@ class McpAgentForecaster:
                 f"_temperature={self.temperature:g}"
                 f"_profile={self.profile}"
                 f"_output={self.output_role}"
+                f"_endpoint={hashlib.sha256(str(getattr(self.client, 'base_url', 'injected-client')).encode()).hexdigest()[:10]}"
                 f"_contract={MCP_CONTRACT_VERSION}")
 
     def __str__(self) -> str:
@@ -758,17 +763,35 @@ class McpAgentForecaster:
             submission, extra_info = run.drive()
         finally:
             run.finish()
-        if self.output_role == "llm_candidate_shadow":
+        if self.output_role in {"llm_candidate_shadow",
+                               "publication_best_effort"}:
             dossier = (run.context_compilation or {}).get("dossier") or {}
             candidate = dossier.get("forecast_candidate") or {}
             candidate_rows = candidate.get("quantiles")
             if not candidate_rows:
                 raise GnomonAbstained([
                     "no admissible LLM forecast candidate in the sealed dossier"])
-            submission = candidate_rows
+            if self.output_role == "publication_best_effort":
+                from gnomon.publication import publish_result, verify_publication
+                canonical_rows = submission
+                publication = publish_result({
+                    "support": extra_info.get("support") or "best_effort",
+                    "forecast": canonical_rows,
+                }, mode="best_effort", dossiers=[dossier])
+                if not verify_publication(publication):
+                    raise RuntimeError("best-effort publication failed verification")
+                submission = publication["recommended_forecast"]
+                extra_info = {
+                    **extra_info, "route": "publication_best_effort",
+                    "publication": publication,
+                }
+            else:
+                submission = candidate_rows
             extra_info = {
                 **extra_info,
-                "route": "llm_candidate_shadow",
+                "route": ("publication_best_effort"
+                          if self.output_role == "publication_best_effort"
+                          else "llm_candidate_shadow"),
                 "candidate_support": dossier.get("candidate_support"),
                 "candidate_seal_sha256": dossier.get("seal_sha256"),
                 "automation_eligible": False,

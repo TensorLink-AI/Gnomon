@@ -1,0 +1,384 @@
+"""Governed publication projections over immutable forecast artifacts.
+
+Publication chooses what a human sees first.  It never changes a forecast,
+support assessment, or candidate seal, and it never grants automation rights.
+Those invariants make best-effort interpretation useful without weakening the
+history-only artifact that it interprets.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import math
+from pathlib import Path
+from typing import Any, Literal
+
+from .llm_dossier import verify_temporal_dossier_seal
+
+PublicationMode = Literal["strict", "best_effort", "scenario"]
+PUBLICATION_VERSION = "0.1"
+MODES = frozenset({"strict", "best_effort", "scenario"})
+MAX_SCENARIOS = 8
+SELECTION_LABEL = "hypothesis_ranking"
+
+
+def _seal(payload: dict[str, Any]) -> str:
+    body = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(body.encode()).hexdigest()
+
+
+def _rows(value: Any) -> list[dict[str, Any]]:
+    return [dict(row) for row in value] if isinstance(value, list) else []
+
+
+def _scenario(identifier: str, role: str, rows: list[dict[str, Any]], *,
+              support: str, automation_eligible: bool,
+              claim_ids: list[str] | None = None,
+              assumptions: list[str] | None = None,
+              source_seal: str | None = None) -> dict[str, Any]:
+    item = {
+        "scenario_id": identifier, "role": role, "forecast": rows,
+        "support": support, "automation_eligible": automation_eligible,
+        "claim_ids": list(claim_ids or []),
+        "assumptions": list(assumptions or []),
+    }
+    if source_seal:
+        item["source_seal_sha256"] = source_seal
+    item["scenario_seal_sha256"] = _seal(item)
+    return item
+
+
+def _same_rows(left: list[dict[str, Any]], right: list[dict[str, Any]]) -> bool:
+    return json.dumps(left, sort_keys=True) == json.dumps(right, sort_keys=True)
+
+
+def _path_support(rows: list[dict[str, Any]], fallback: str) -> str:
+    tiers = [str(row.get("tier")) for row in rows if row.get("tier")]
+    if not tiers:
+        return fallback
+    order = {"best_effort": 0, "conditionally_supported": 1,
+             "supported": 2, "context_trusted": 2}
+    return min(tiers, key=lambda item: order.get(item, -1))
+
+
+def build_scenario_catalog(result: dict[str, Any], *,
+                           dossiers: list[dict[str, Any]] | None = None
+                           ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Build bounded immutable paths and typed dispositions for all context."""
+    published = _rows(result.get("forecast"))
+    primary = _rows(result.get("primary_forecast")) or published
+    support = str(result.get("support") or "unsupported")
+    scenarios = [_scenario(
+        "primary", "immutable_primary", primary,
+        support=_path_support(primary, support),
+        automation_eligible=_path_support(primary, support) in {
+            "supported", "context_trusted"},
+    )]
+    context_outcome = result.get("context_outcome") or {}
+    historically_admitted = (
+        context_outcome.get("admission_basis") == "historical_fold_ablation")
+    if published and not _same_rows(primary, published):
+        scenarios.append(_scenario(
+            ("historically_admitted" if historically_admitted
+             else "context_conditioned"),
+            ("historically_admitted" if historically_admitted
+             else "context_conditioned"), published,
+            support=support,
+            automation_eligible=(historically_admitted
+                                 and support in {"supported", "context_trusted"}),
+        ))
+    for index, raw in enumerate(result.get("sensitivity_scenarios") or [], 1):
+        rows = _rows(raw.get("forecast"))
+        if rows:
+            scenarios.append(_scenario(
+                f"sensitivity-{index}", "conditional_sensitivity", rows,
+                support=str(raw.get("support") or "hypothetical_sensitivity"),
+                automation_eligible=False,
+                assumptions=[str(item) for item in raw.get("assumptions") or []],
+            ))
+
+    dispositions: list[dict[str, Any]] = []
+    context_outcome = result.get("context_outcome")
+    if isinstance(context_outcome, dict):
+        status = str(context_outcome.get("status") or "rejected")
+        event_ids = context_outcome.get("events") or ["engine-context"]
+        dispositions.extend({
+            "context_id": str(event_id), "disposition": (
+                "used" if status == "applied" else
+                "scenario" if status == "scenario_only" else "rejected"),
+            "reason_code": status,
+            "reason": str(context_outcome.get("reason") or
+                          "See the immutable context outcome receipt."),
+        } for event_id in event_ids)
+    if len(dossiers or []) + len(scenarios) > MAX_SCENARIOS:
+        raise ValueError(
+            f"publication is bounded to {MAX_SCENARIOS} scenarios; split the request")
+    for index, dossier in enumerate(dossiers or [], 1):
+        if not verify_temporal_dossier_seal(dossier):
+            dispositions.append({
+                "context_id": f"dossier-{index}", "disposition": "rejected",
+                "reason_code": "invalid_candidate_seal",
+                "reason": "The dossier seal does not authenticate its body.",
+            })
+            continue
+        candidate = dossier.get("forecast_candidate")
+        claims = dossier.get("claims") or []
+        if not candidate:
+            dispositions.extend({
+                "context_id": f"dossier-{index}:{item.get('claim_id')}",
+                "disposition": "used", "reason_code": "claims_only",
+                "reason": "Verified claim informs interpretation but supplied no numeric path.",
+                "claim_id": item.get("claim_id"),
+            } for item in claims)
+            continue
+        identifier = f"prior-assisted-{index}"
+        scenarios.append(_scenario(
+            identifier, "prior_assisted", _rows(candidate.get("quantiles")),
+            support="prior_assisted", automation_eligible=False,
+            claim_ids=[str(item) for item in candidate.get("claim_ids") or []],
+            assumptions=[str(candidate.get("rationale") or "")],
+            source_seal=str(dossier["seal_sha256"]),
+        ))
+        dispositions.extend({
+            "context_id": f"dossier-{index}:{item.get('claim_id')}",
+            "disposition": "scenario",
+            "reason_code": "prior_assisted_not_historically_admitted",
+            "scenario_id": identifier, "claim_id": item.get("claim_id"),
+        } for item in claims)
+    return scenarios, dispositions
+
+
+def validate_scenario_selection(raw: Any, *, scenarios: list[dict[str, Any]],
+                                dossiers: list[dict[str, Any]] | None = None
+                                ) -> dict[str, Any] | None:
+    """Validate an LLM ranking without accepting any model-authored number."""
+    if raw in (None, {}):
+        return None
+    if not isinstance(raw, dict):
+        raise ValueError("scenario_selection must be an object")
+    ids = {item["scenario_id"] for item in scenarios}
+    selected = str(raw.get("selected_scenario_id") or "")
+    ranking = [str(item) for item in raw.get("ranking") or []]
+    if selected not in ids or not ranking or set(ranking) != ids \
+            or len(ranking) != len(set(ranking)) or ranking[0] != selected:
+        raise ValueError("scenario selection must rank every known scenario id once with the selected id first")
+    claim_ids = {str(claim.get("claim_id")) for dossier in dossiers or []
+                 for claim in dossier.get("claims") or []}
+    cited = [str(item) for item in raw.get("cited_claim_ids") or []]
+    counter = [str(item) for item in raw.get("counterevidence_claim_ids") or []]
+    if set(cited + counter) - claim_ids:
+        raise ValueError("scenario selection cites an unknown claim id")
+    if not cited and not counter:
+        raise ValueError("scenario selection requires cited evidence or counterevidence")
+    if set(cited) & set(counter):
+        raise ValueError("a claim cannot be both supporting evidence and counterevidence")
+    selected_claims = set(next(item for item in scenarios
+                               if item["scenario_id"] == selected)["claim_ids"])
+    if selected_claims and not selected_claims.intersection(cited):
+        raise ValueError("selected conditional scenario requires one of its claims to be cited")
+    try:
+        confidence = float(raw.get("confidence"))
+    except (TypeError, ValueError):
+        confidence = math.nan
+    if not math.isfinite(confidence) or not 0 <= confidence <= 1:
+        raise ValueError("scenario selection confidence must be between 0 and 1")
+    flip = str(raw.get("what_would_change_selection") or "").strip()
+    rationale = str(raw.get("rationale") or "").strip()
+    if not rationale or not flip:
+        raise ValueError("scenario selection requires rationale and what_would_change_selection")
+    return {
+        "label": SELECTION_LABEL, "selected_scenario_id": selected,
+        "channel": "governed_scenario_selection",
+        "ranking": ranking, "cited_claim_ids": cited,
+        "counterevidence_claim_ids": counter, "confidence": confidence,
+        "rationale": rationale[:1000],
+        "what_would_change_selection": flip[:1000],
+        "primary_forecast_unchanged": True,
+        "support_unchanged": True, "automation_authorized": False,
+    }
+
+
+def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
+                                dossiers: list[dict[str, Any]] | None = None
+                                ) -> dict[str, Any]:
+    """Compact prompt packet for the governed, number-free LLM channel."""
+    claims = [claim for dossier in dossiers or []
+              if verify_temporal_dossier_seal(dossier)
+              for claim in dossier.get("claims") or []]
+    return {
+        "instruction": (
+            "Rank only the supplied scenario_ids. Explain the ranking using "
+            "claim_ids, name counterevidence, give confidence, and state what "
+            "would change the selection. Do not output forecast numbers, "
+            "support labels, or automation advice."),
+        "scenarios": [{
+            "scenario_id": item["scenario_id"], "role": item["role"],
+            "support": item["support"], "claim_ids": item["claim_ids"],
+            "forecast_seal": item["scenario_seal_sha256"],
+            "summary": {
+                "first_q50": ((item["forecast"][0].get("q50",
+                                item["forecast"][0].get("point")))
+                               if item["forecast"] else None),
+                "last_q50": ((item["forecast"][-1].get("q50",
+                               item["forecast"][-1].get("point")))
+                              if item["forecast"] else None),
+                "steps": len(item["forecast"]),
+            },
+        } for item in scenarios],
+        "claims": claims,
+        "response_schema": {
+            "selected_scenario_id": "string", "ranking": ["scenario_id"],
+            "cited_claim_ids": ["claim_id"],
+            "counterevidence_claim_ids": ["claim_id"],
+            "confidence": "number 0..1", "rationale": "string",
+            "what_would_change_selection": "string",
+        },
+    }
+
+
+def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
+                   dossiers: list[dict[str, Any]] | None = None,
+                   scenario_selection: dict[str, Any] | None = None,
+                   automation_policy: dict[str, Any] | None = None,
+                   artifact_id: str | None = None) -> dict[str, Any]:
+    """Return a compact, sealed human-facing projection over frozen paths."""
+    if mode not in MODES:
+        raise ValueError(f"unknown publication mode {mode!r}")
+    scenarios, dispositions = build_scenario_catalog(result, dossiers=dossiers)
+    selection = validate_scenario_selection(
+        scenario_selection, scenarios=scenarios, dossiers=dossiers)
+    by_id = {item["scenario_id"]: item for item in scenarios}
+    if mode == "strict":
+        eligible = next((item for item in scenarios
+                         if item["role"] == "historically_admitted"), scenarios[0])
+        selected_id = eligible["scenario_id"]
+        selection = None  # model advice cannot govern strict publication
+    elif selection is not None:
+        selected_id = selection["selected_scenario_id"]
+    elif mode == "best_effort":
+        selected_id = next((item["scenario_id"] for item in scenarios
+                            if item["role"] == "prior_assisted"), "primary")
+    else:
+        selected_id = "primary"
+    selected = by_id[selected_id]
+    explicit_automation = bool((automation_policy or {}).get("authorize"))
+    policy_complete = bool(
+        isinstance(automation_policy, dict)
+        and str(automation_policy.get("policy_id") or "").strip()
+        and automation_policy.get("minimum_support") in {
+            "supported", "context_trusted"})
+    automation = bool(explicit_automation and policy_complete
+                      and selected["automation_eligible"])
+    payload = {
+        "schema_version": PUBLICATION_VERSION, "artifact_id": artifact_id,
+        "mode": mode, "recommended_scenario_id": selected_id,
+        "recommended_forecast": selected["forecast"],
+        "recommended_support": selected["support"],
+        "primary_scenario_id": "primary", "primary_forecast": by_id["primary"]["forecast"],
+        "primary_forecast_unchanged": True,
+        "scenario_count": len(scenarios),
+        "scenarios": scenarios if mode == "scenario" else [by_id["primary"], selected]
+                     if selected_id != "primary" else [by_id["primary"]],
+        "context_dispositions": dispositions,
+        "scenario_selection": selection,
+        "automation": {
+            "eligible": automation,
+            "explicit_policy_supplied": bool(automation_policy),
+            "policy_complete": policy_complete,
+            "requested": explicit_automation,
+            "reason": ("explicit policy and scenario evidence permit automation"
+                       if automation else "human recommendation is separate from automation eligibility"),
+        },
+    }
+    payload["publication_seal_sha256"] = _seal(payload)
+    return payload
+
+
+def verify_publication(payload: dict[str, Any]) -> bool:
+    """Verify seals, immutable primary visibility, and authority separation."""
+    if not isinstance(payload, dict) or not payload.get("publication_seal_sha256"):
+        return False
+    body = {key: value for key, value in payload.items()
+            if key != "publication_seal_sha256"}
+    if _seal(body) != payload["publication_seal_sha256"]:
+        return False
+    scenarios = payload.get("scenarios") or []
+    if not scenarios or len(scenarios) > MAX_SCENARIOS:
+        return False
+    ids = [item.get("scenario_id") for item in scenarios]
+    if len(ids) != len(set(ids)):
+        return False
+    primary = next((item for item in scenarios
+                    if item.get("scenario_id") == "primary"), None)
+    if not primary or primary.get("forecast") != payload.get("primary_forecast"):
+        return False
+    if payload.get("primary_forecast_unchanged") is not True:
+        return False
+    for item in scenarios:
+        seal = item.get("scenario_seal_sha256")
+        body = {key: value for key, value in item.items()
+                if key != "scenario_seal_sha256"}
+        if not seal or _seal(body) != seal:
+            return False
+    selected = next((item for item in scenarios if item.get("scenario_id") ==
+                     payload.get("recommended_scenario_id")), None)
+    if (not selected
+            or selected.get("forecast") != payload.get("recommended_forecast")
+            or selected.get("support") != payload.get("recommended_support")):
+        return False
+    automation = payload.get("automation") or {}
+    if automation.get("eligible") and not selected.get("automation_eligible"):
+        return False
+    if payload.get("mode") == "strict" and selected.get("role") not in {
+            "immutable_primary", "historically_admitted"}:
+        return False
+    if payload.get("scenario_selection") and \
+            payload["scenario_selection"].get("automation_authorized") is not False:
+        return False
+    return True
+
+
+def record_publication(store: Any, *, project: str, forecast_id: str,
+                       series: str, payload: dict[str, Any]) -> str:
+    """Reuse synthesis receipts to score recommendation uplift later."""
+    if not verify_publication(payload):
+        raise ValueError("refusing to record an invalid publication")
+    selected = next(item for item in payload["scenarios"]
+                    if item["scenario_id"] == payload["recommended_scenario_id"])
+    primary = next(item for item in payload["scenarios"]
+                   if item["scenario_id"] == "primary")
+    synthesis_id = f"publication:{payload['publication_seal_sha256'][:20]}"
+    store.record_temporal_synthesis(
+        project=project, forecast_id=forecast_id, series=series,
+        question_id="publication", synthesis_id=synthesis_id,
+        canonical={"value": "primary", "forecast": primary["forecast"]},
+        synthesis={
+            "label": "hypothesis_ranking",
+            "channel": "governed_scenario_selection",
+            "value": selected["scenario_id"], "forecast": selected["forecast"],
+            "support": selected["support"],
+            "primary_forecast_unchanged": True,
+            "automation_eligible": payload["automation"]["eligible"],
+        },
+        evidence_refs=[item["scenario_seal_sha256"]
+                       for item in payload["scenarios"]],
+    )
+    return synthesis_id
+
+
+def write_publication(path: str | Path, payload: dict[str, Any]) -> Path:
+    if not verify_publication(payload):
+        raise ValueError("refusing to persist an invalid publication")
+    artifact = Path(path)
+    # Forecast directories are already integrity sealed.  A sibling sidecar
+    # keeps that immutable identity intact while carrying its own body seal.
+    seal = payload["publication_seal_sha256"]
+    destination = artifact.parent / f"{artifact.name}.{seal[:16]}.publication.json"
+    encoded = json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    if destination.exists():
+        if destination.read_text(encoding="utf-8") != encoded:
+            raise ValueError("conflicting content-addressed publication sidecar")
+        return destination
+    destination.write_text(encoded, encoding="utf-8")
+    return destination

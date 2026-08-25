@@ -145,7 +145,23 @@ def _load_checkpoint(output_dir: Path) -> dict[str, dict]:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return {}
-    return payload if isinstance(payload, dict) else {}
+    if not isinstance(payload, dict):
+        return {}
+    # Provider/network failures are missing observations, not model scores.
+    # Keep valid work and retry only those cases on resume.
+    retryable = (
+        "HTTP 403", "HTTP 408", "HTTP 409", "HTTP 429", "HTTP 500",
+        "HTTP 502", "HTTP 503", "HTTP 504", "daily limit",
+        "timed out", "timeout", "connection reset", "temporary failure",
+        "case_timeout_after_", "case_process_exit_", "system_memory_guard",
+        "simplenamespace' object has no attribute",
+    )
+    return {
+        key: item for key, item in payload.items()
+        if not any(marker.casefold() in str(
+            (item.get("row") or {}).get("error") or "").casefold()
+                   for marker in retryable)
+    }
 
 
 def _write_checkpoint(output_dir: Path, completed: dict[str, dict]) -> None:
@@ -296,15 +312,28 @@ def load_run_extra_info(runs_dir: Path, task_name: str, seed) -> dict:
 
 
 def build_method(args):
+    def provider():
+        import os
+        key_env = getattr(args, "api_key_env", "ENGY_API_KEY")
+        api_key = os.environ.get(key_env)
+        if not api_key:
+            from benchmarks.common.envfile import load_env_file
+            load_env_file()
+            api_key = os.environ.get(key_env)
+        if not api_key:
+            raise SystemExit(f"{key_env} is not set")
+        return getattr(args, "base_url", "https://api.engy.ai/v1"), api_key
     if args.method == "control":
         if not args.model:
             raise SystemExit("--model is required for the control condition")
         from benchmarks.cik.openrouter_direct_prompt import OpenRouterDirectPrompt
 
+        base_url, api_key = provider()
         return OpenRouterDirectPrompt(
             openrouter_model=args.model,
             temperature=args.temperature,
             fail_on_invalid=args.fail_on_invalid,
+            base_url=base_url, api_key=api_key,
         )
     if args.method == "gnomon-mcp":
         if not args.model:
@@ -316,12 +345,14 @@ def build_method(args):
                 "per call"
             )
         from benchmarks.cik.mcp_agent import McpAgentForecaster
+        base_url, api_key = provider()
 
         return McpAgentForecaster(
             args.model, temperature=args.temperature,
             trace_dir=Path(args.output_dir) / "mcp-traces",
             profile=args.mcp_profile,
             output_role=args.mcp_output_role,
+            base_url=base_url, api_key=api_key,
         )
     conditional_arm = args.method == "gnomon-conditional"
     if conditional_arm:
@@ -384,6 +415,8 @@ def run(args) -> int:
         fail_on_invalid=args.fail_on_invalid if args.method == "control" else None,
         status="ok",
         code_revision=run_revision,
+        base_url=args.base_url,
+        api_key_env=args.api_key_env,
     )
     return 0
 
@@ -501,6 +534,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--model",
         help="OpenRouter model id (control and agent conditions), e.g. openai/gpt-4o",
     )
+    parser.add_argument("--base-url", default="https://api.engy.ai/v1",
+                        help="OpenAI-compatible endpoint (recorded in usage).")
+    parser.add_argument("--api-key-env", default="ENGY_API_KEY",
+                        choices=["ENGY_API_KEY", "OPENROUTER_API_KEY",
+                                 "CHUTES_API_KEY"])
     parser.add_argument("--seeds", type=int, default=5,
                         help="Seeds per task (official: 5)")
     parser.add_argument("--n-samples", type=int, default=None,
@@ -558,9 +596,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--mcp-output-role", default="canonical",
-        choices=["canonical", "llm_candidate_shadow"],
+        choices=["canonical", "llm_candidate_shadow", "publication_best_effort"],
         help="gnomon-mcp Evidence only. canonical scores Gnomon's immutable "
-             "published artifact. llm_candidate_shadow scores the separately "
+             "published artifact. publication_best_effort uses the product "
+             "publication contract; llm_candidate_shadow scores the separately "
              "sealed, prior_assisted LLM candidate for evaluation; it is "
              "never an automation-eligible product publication.",
     )

@@ -1783,6 +1783,7 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
     payload = (forecast_summary(artifact, path)
                if arguments.get("format") == "full"
                else brief_summary(artifact, path))
+    _attach_publication(payload, artifact, path, arguments)
     _attach_temporal_answers(payload, artifact, path, arguments)
     if arguments.get("project"):
         from .tracking import register_artifact
@@ -1791,7 +1792,41 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
             context_events=events,
         )
         payload["project"] = str(arguments["project"])
+        if payload.get("publication"):
+            from .publication import record_publication
+            from .tracking import TrackingStore
+            payload["publication_synthesis_id"] = record_publication(
+                TrackingStore(), project=str(arguments["project"]),
+                forecast_id=artifact.forecast_id,
+                series=artifact.results[0].series,
+                payload=payload["publication"])
     return payload
+
+
+def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
+                        path: Any, arguments: dict[str, Any]) -> None:
+    """MCP projection boundary; forecast artifacts remain byte-immutable."""
+    mode = str(arguments.get("publication_mode") or "strict")
+    dossiers = arguments.get("temporal_dossiers") or []
+    selection = arguments.get("scenario_selection")
+    policy = arguments.get("automation_policy")
+    if mode == "strict" and not (dossiers or selection or policy):
+        return
+    if len(artifact.results) != 1:
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "Publication modes currently require one target series; call "
+            "gnomon_forecast once per target.")
+    from .publication import publish_result, write_publication
+    try:
+        publication = publish_result(
+            artifact.to_dict()["results"][0], mode=mode,
+            dossiers=list(dossiers), scenario_selection=selection,
+            automation_policy=policy, artifact_id=artifact.forecast_id)
+    except ValueError as exc:
+        raise GnomonError("INVALID_ARGUMENTS", str(exc)) from exc
+    payload["publication"] = publication
+    payload["publication_path"] = str(write_publication(path, publication))
 
 
 def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str, Any]:
@@ -1799,6 +1834,14 @@ def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str
     in target_column batches several columns into one run and one
     combined artifact — same numbers per channel as separate calls."""
     from .contracts import GnomonError
+    if (arguments.get("publication_mode") not in (None, "strict")
+            or arguments.get("temporal_dossiers")
+            or arguments.get("scenario_selection")
+            or arguments.get("automation_policy")):
+        raise GnomonError(
+            "INVALID_ARGUMENTS",
+            "Publication modes require one target series; call "
+            "gnomon_forecast once per target.")
     from .data import resolve_target_spec
     from .runtime import forecast_multi
 
@@ -2155,10 +2198,7 @@ TOOLS: list[dict[str, Any]] = [
                 "model_admission": {"type": "string", "enum": ["strict", "evidence_weighted"], "description": "Default: strict."},
                 "model_evidence_registry": {"type": "string", "description": "Registry for evidence_weighted."},
                 "output_dir": {"type": "string", "description": (
-                    "Directory for the immutable artifact. Omit to use "
-                    "workspace.default_output_dir from gnomon_capabilities "
-                    "— do not guess a path; a jailed host refuses paths "
-                    "outside its workspace."
+                    "Artifact directory; omit for gnomon_capabilities workspace default."
                 )},
                 "minimum_baseline_improvement": {"type": "number", "minimum": 0, "description": "Minimum relative improvement over the strongest baseline to select a candidate (default 0.02; must be >= 0)."},
                 "context_events_file": {"type": "string", "description": "Optional validated context-events JSON file (the output of `gnomon context validate`)."},
@@ -2183,30 +2223,28 @@ TOOLS: list[dict[str, Any]] = [
                                              "conditionally_supported",
                                              "best_effort"],
                                     "description": (
-                    "Publication floor (default best_effort: always "
-                    "answers, a naive fallback is labeled and carries a "
-                    "NO RELIABLE FORECAST warning; `supported` restores "
-                    "the strict refusal with typed recovery). No tier "
-                    "gets easier to earn."
+                    "Publication floor (default best_effort); supported "
+                    "refuses weaker results. Tiers never get easier to earn."
                 )},
                 "best_effort": {"type": "boolean", "description": (
-                    "DEPRECATED: `true` maps to minimum_support "
-                    "'best_effort' (now the default); an explicit "
-                    "minimum_support wins."
+                    "Deprecated alias for minimum_support=best_effort."
                 )},
+                "publication_mode": {"type": "string",
+                    "enum": ["strict", "best_effort", "scenario"],
+                    "description": "Projection; default strict. Primary stays immutable."},
+                "temporal_dossiers": {"type": "array", "items": {"type": "object"},
+                    "description": "Sealed temporal dossiers."},
+                "scenario_selection": {"type": "object",
+                    "description": "Number-free governed ranking of scenario ids."},
+                "automation_policy": {"type": "object",
+                    "description": "Explicit policy; recommendation grants no authority."},
                 "future_events": {"type": "boolean", "description": (
-                    "Admit future-dated constraint:/override: context "
-                    "events by textual verifiability (default false); an "
-                    "influenced forecast reports support "
-                    "`context_trusted` with a history-only "
-                    "counterfactual. Dry-run with "
-                    "gnomon_preflight_context."
+                    "Admit verified future constraints (default false); "
+                    "retains a history-only counterfactual."
                 )},
                 "structural_events": {"type": "boolean", "description": (
-                    "Additionally admit LLM-classified structural: events "
-                    "from a closed effect menu (default false); every "
-                    "applied quantity derives from the forecast's own "
-                    "path, never model-supplied numbers. Experimental."
+                    "Admit closed-menu structural events (experimental); "
+                    "quantities remain engine-derived."
                 )},
             },
             "required": [],

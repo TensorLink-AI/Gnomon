@@ -130,6 +130,7 @@ def context_outcome(
                 "events": []}
     admitted = list((future_context or {}).get("admitted") or [])
     if bool(getattr(context_assessment, "admitted", False)) or admitted:
+        historical_admission = bool(getattr(context_assessment, "admitted", False))
         used = list(getattr(context_assessment, "events_used", []) or [])
         used.extend(str(item.get("event_id")) for item in admitted
                     if isinstance(item, dict) and item.get("event_id"))
@@ -139,6 +140,9 @@ def context_outcome(
             "selected_output_role": "context_conditioned_projection",
             "canonical_primary_location": "artifact.results[].primary_forecast",
             "events": sorted(set(used)),
+            "admission_basis": ("historical_fold_ablation"
+                                if historical_admission
+                                else "future_context_contract"),
             **({"context_receipt_ids": receipt_ids} if receipt_ids else {}),
             "basis": "a deterministic context candidate passed its numeric admission gate",
         }

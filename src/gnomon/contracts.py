@@ -734,6 +734,7 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "candidate": "intent", "revision": "intent", "outcome_id": "intent",
     "question_id": "intent", "synthesis_id": "intent",
     "resolved": "intent",
+    "automation_policy": "intent",
     "month": "intent", "state": "intent", "webhook": "intent",
     "auto_score": "intent",
     "webhook_secret_env": "intent", "prometheus_rule_output": "intent",
@@ -763,6 +764,8 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "domain": "data", "population": "data", "unit": "data", "target": "data",
     "candidate_error": "data", "baseline_error": "data",
     "canonical": "data", "synthesis": "data", "evidence_refs": "data",
+    "dossier": "data", "temporal_dossiers": "data",
+    "scenario_selection": "data",
     "outcome": "data", "resolved_at": "data",
     # -- epistemic ---------------------------------------------------------
     "minimum_baseline_improvement": "epistemic",
@@ -780,6 +783,7 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "min_outcomes": "epistemic", "min_improvement": "epistemic",
     "min_win_rate": "epistemic",
     "model_admission": "epistemic",
+    "publication_mode": "epistemic",
 }
 
 #: The trace each epistemic parameter leaves when moved off its default.
@@ -840,4 +844,8 @@ EPISTEMIC_TRACES: dict[str, str] = {
         "the selected admission state, evidence sources, candidate weight, "
         "and policy version are persisted in the immutable candidate identity "
         "and result admission block"),
+    "publication_mode": (
+        "the mode, immutable primary, selected sealed scenario, unchanged "
+        "support, context dispositions, and separate automation verdict are "
+        "persisted in a content-addressed publication sidecar"),
 }

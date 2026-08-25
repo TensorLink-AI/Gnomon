@@ -21,6 +21,7 @@ no equivalent of the official local-inference constrained decoder.
 
 from __future__ import annotations
 
+import hashlib
 import sys
 from pathlib import Path
 
@@ -52,9 +53,13 @@ class OpenRouterDirectPrompt(DirectPrompt):
 
     __version__ = DirectPrompt.__version__
 
-    def __init__(self, openrouter_model: str, temperature: float = 1.0, **kwargs):
+    def __init__(self, openrouter_model: str, temperature: float = 1.0,
+                 *, base_url: str | None = None,
+                 api_key: str | None = None, **kwargs):
         self.openrouter_model = openrouter_model
-        self._client = OpenRouterClient(openrouter_model, temperature=temperature)
+        self._client = OpenRouterClient(
+            openrouter_model, temperature=temperature,
+            base_url=base_url, api_key=api_key)
         # The "openrouter-" prefix keeps DirectPrompt's own OpenRouter
         # behaviour (batch-of-1 retry budget, per-call cost accounting).
         super().__init__(
@@ -97,5 +102,6 @@ class OpenRouterDirectPrompt(DirectPrompt):
             f"fail_on_invalid={self.fail_on_invalid}",
             f"n_retries={self.n_retries}",
             f"temperature={self.temperature}",
+            f"endpoint={hashlib.sha256(self._client.base_url.encode()).hexdigest()[:10]}",
         ]
         return f"{self.__class__.__name__}_" + "_".join(args)
