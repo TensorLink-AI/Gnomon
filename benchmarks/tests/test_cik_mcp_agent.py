@@ -95,7 +95,7 @@ class ScriptedClient:
                 "completion_tokens": self.total_completion_tokens}
 
 
-def _forecaster(steps, tmp_path, sessions=None):
+def _forecaster(steps, tmp_path, sessions=None, profile=None):
     def factory(cwd):
         session = InProcessMcpSession(cwd)
         if sessions is not None:
@@ -104,7 +104,7 @@ def _forecaster(steps, tmp_path, sessions=None):
 
     return McpAgentForecaster(
         "x/y", client=ScriptedClient(steps), session_factory=factory,
-        work_dir=str(tmp_path), trace_dir=tmp_path / "traces",
+        work_dir=str(tmp_path), trace_dir=tmp_path / "traces", profile=profile,
     )
 
 
@@ -197,6 +197,55 @@ def test_gnomon_exit_uses_the_artifact_verbatim(tmp_path):
     rows = read_artifact(extra["artifact_path"])["results"][0]["forecast"]
     assert [row[0] for row in samples[0]] \
         == [float(row["q50"]) for row in rows]
+
+
+def test_evidence_host_binds_first_valid_forecast_artifact(tmp_path):
+    """A governed agent chooses the verb; the host owns publication."""
+    def call_forecast(messages):
+        csv = _csv_path(messages)
+        return {"tool_calls": [("gnomon_forecast", {
+            "input": csv, "time_column": "timestamp",
+            "target_column": "value", "horizon": 4, "frequency": "D",
+            "output_dir": str(Path(csv).parent / "gnomon-output"),
+        })]}
+
+    client = ScriptedClient([call_forecast])
+
+    def factory(cwd):
+        return InProcessMcpSession(cwd)
+
+    forecaster = McpAgentForecaster(
+        "x/y", client=client, session_factory=factory,
+        work_dir=str(tmp_path), trace_dir=tmp_path / "traces",
+        profile="evidence",
+    )
+    samples, extra = forecaster(_task(), 1)
+    assert extra["route"] == "gnomon"
+    assert extra["mcp_calls"] == 1
+    assert len(samples[0]) == 4
+    trace = json.loads(next((tmp_path / "traces").glob("*.json")).read_text())
+    assert trace["trace"][0]["host_bound_submission"] == {
+        "accepted": True, "route": "gnomon"}
+
+
+def test_evidence_rejects_model_authored_quantiles(tmp_path):
+    def call_forecast(messages):
+        refusal = _last_tool_payload(messages)
+        assert refusal["accepted"] is False
+        assert "model-authored quantiles are disabled" in refusal["message"]
+        csv = _csv_path(messages)
+        return {"tool_calls": [("gnomon_forecast", {
+            "input": csv, "time_column": "timestamp",
+            "target_column": "value", "horizon": 4, "frequency": "D",
+            "output_dir": str(Path(csv).parent / "gnomon-output"),
+        })]}
+
+    forecaster = _forecaster([
+        {"tool_calls": [("submit_forecast", {"quantiles": QUANTILES})]},
+        call_forecast,
+    ], tmp_path, profile="evidence")
+    _, extra = forecaster(_task(), 1)
+    assert extra["route"] == "gnomon"
 
 
 def test_submitting_an_unknown_artifact_is_repairable(tmp_path):
@@ -353,6 +402,13 @@ def test_run_cik_accepts_the_method_and_rejects_lane_flags(tmp_path):
 
     assert method.cache_name.startswith("McpAgentForecaster_model=x-y")
     assert f"contract={MCP_CONTRACT_VERSION}" in method.cache_name
+
+    evidence_args = parser.parse_args([
+        "--method", "gnomon-mcp", "--model", "x/y",
+        "--mcp-profile", "evidence", "--output-dir", str(tmp_path)])
+    evidence = build_method(evidence_args)
+    assert evidence.profile == "evidence"
+    assert "profile=evidence" in evidence.cache_name
 
     flagged = parser.parse_args([
         "--method", "gnomon-mcp", "--model", "x/y", "--future-context",

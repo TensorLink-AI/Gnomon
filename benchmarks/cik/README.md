@@ -118,6 +118,13 @@ python -m benchmarks.cik.run_cik --method gnomon-pure \
 python -m benchmarks.cik.run_cik --method gnomon-mcp \
     --model openai/gpt-4o --output-dir results/cik-gpt4o-mcp
 
+# Production-style governed agent: the model chooses the Gnomon call and the
+# host binds the first valid forecast artifact; model-authored numeric fallback
+# is disabled.
+python -m benchmarks.cik.run_cik --method gnomon-mcp \
+    --mcp-profile evidence --model openai/gpt-4o \
+    --output-dir results/cik-gpt4o-mcp-evidence
+
 # Quick pass on a task family while iterating
 python -m benchmarks.cik.run_cik --method gnomon-pure \
     --task-filter sensor --seeds 1 --output-dir /tmp/cik-smoke
@@ -159,6 +166,12 @@ the official code.
 - Some CiK tasks use frequencies outside Gnomon's supported grid; Gnomon
   abstains on those, and the abstention shows up in `summary.json`
   rather than as a silent skip.
+- `gnomon-mcp --mcp-profile evidence` is the governed product arm. The agent
+  chooses whether and how to invoke Gnomon, but once `gnomon_forecast`
+  produces a valid artifact the host publishes it verbatim. This avoids
+  measuring a second path-copying decision and makes `informed-direct`
+  structurally unavailable in the governed arm. Other profiles retain the
+  direct/informed-direct exits as explicitly labelled autonomy experiments.
 - `--n-samples` defaults to the official `DEFAULT_N_SAMPLES`; change it
   only symmetrically across conditions.
 - `--fail-on-invalid` (control only) defaults to `True`, the official

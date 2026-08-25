@@ -16,10 +16,12 @@ missing submission is a disclosed abstention, never a silent fallback.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
 import time
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -49,7 +51,11 @@ MAX_RUN_TOKENS = 250_000
 #: message history (:class:`ToolMessageLog`), and the tool schemas the
 #: model holds slimmed — the conversation a cached row was measured
 #: under is not the conversation this version sends.
-MCP_CONTRACT_VERSION = 4
+#: Version 5: the governed Evidence profile host-binds the first valid
+#: Gnomon forecast artifact and forbids model-authored quantiles.  The agent
+#: chooses the analysis; copying an artifact path is no longer a second,
+#: failure-prone decision.
+MCP_CONTRACT_VERSION = 5
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -174,11 +180,16 @@ class StdioMcpSession:
     DEFAULT_CALL_TIMEOUT_SECONDS = 600.0
 
     def __init__(self, cwd: str | Path, command: list[str] | None = None,
-                 call_timeout: float | None = None):
+                 call_timeout: float | None = None,
+                 profile: str | None = None):
+        child_env = dict(os.environ)
+        if profile:
+            child_env["GNOMON_MCP_PROFILE"] = profile
         self._proc = subprocess.Popen(
             command or [sys.executable, "-m", "gnomon", "mcp", "serve"],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL, cwd=str(cwd), text=True,
+            env=child_env,
         )
         self._next_id = 0
         self.call_timeout = (self.DEFAULT_CALL_TIMEOUT_SECONDS
@@ -629,6 +640,7 @@ class McpAgentForecaster:
         trace_dir: str | Path | None = None,
         client: Any = None,
         session_factory: Any = None,
+        profile: str | None = None,
     ) -> None:
         self.openrouter_model = openrouter_model
         self.temperature = temperature
@@ -636,7 +648,12 @@ class McpAgentForecaster:
             openrouter_model, temperature=temperature)
         self.work_dir = work_dir
         self.trace_dir = Path(trace_dir) if trace_dir else None
-        self.session_factory = session_factory or StdioMcpSession
+        self.profile = (profile or os.environ.get(
+            "GNOMON_MCP_PROFILE", "full")).strip().lower()
+        # functools.partial remains pickleable when the official CiK runner
+        # fans task-seeds out to worker processes; a closure does not.
+        self.session_factory = session_factory or partial(
+            StdioMcpSession, profile=self.profile)
 
     @property
     def cache_name(self) -> str:
@@ -647,6 +664,7 @@ class McpAgentForecaster:
         model = self.openrouter_model.replace("/", "-")
         return (f"McpAgentForecaster_model={model}"
                 f"_temperature={self.temperature:g}"
+                f"_profile={self.profile}"
                 f"_contract={MCP_CONTRACT_VERSION}")
 
     def __str__(self) -> str:
@@ -688,6 +706,7 @@ class _Run:
         self.mcp_calls = 0
         self.artifact_paths: set[str] = set()
         self.submission: dict[str, Any] | None = None
+        self.governed_evidence = forecaster.profile == "evidence"
         self.tokens_at_start = (forecaster.client.total_prompt_tokens
                                 + forecaster.client.total_completion_tokens)
 
@@ -848,7 +867,17 @@ class _Run:
             if code:
                 entry["code"] = code
             if not result.get("isError") and structured.get("artifact_path"):
-                self.artifact_paths.add(str(structured["artifact_path"]))
+                artifact_path = str(structured["artifact_path"])
+                self.artifact_paths.add(artifact_path)
+                if (self.governed_evidence and name == "gnomon_forecast"
+                        and self.submission is None):
+                    # Evidence is a governed product arm. Once the agent has
+                    # chosen Gnomon's forecast verb and it produced a valid
+                    # artifact, publication is a deterministic host action.
+                    # Requiring another model turn merely tests whether the
+                    # model copies a path and caused measured 10-round loops.
+                    bound = self._handle_submit({"artifact_path": artifact_path})
+                    entry["host_bound_submission"] = bound
         # Verbatim: the server's own text block, unedited.
         content = result.get("content") or []
         text = content[0].get("text", "") if content else json.dumps(structured)
@@ -862,6 +891,13 @@ class _Run:
                                "accepted submission stands."}
         artifact_path = arguments.get("artifact_path")
         quantiles = arguments.get("quantiles")
+        if self.governed_evidence and quantiles is not None:
+            return {
+                "accepted": False,
+                "authored_by": "harness",
+                "message": "governed Evidence requires a Gnomon forecast "
+                           "artifact; model-authored quantiles are disabled.",
+            }
         if bool(artifact_path) == bool(quantiles):
             return {"accepted": False, "authored_by": "harness",
                     "message": "Provide exactly one of artifact_path or quantiles."}

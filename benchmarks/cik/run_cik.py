@@ -133,6 +133,7 @@ def build_method(args):
         return McpAgentForecaster(
             args.model, temperature=args.temperature,
             trace_dir=Path(args.output_dir) / "mcp-traces",
+            profile=args.mcp_profile,
         )
     conditional_arm = args.method == "gnomon-conditional"
     if conditional_arm:
@@ -356,6 +357,12 @@ def build_parser() -> argparse.ArgumentParser:
              "Experimental: results/structural-effects/HYPOTHESIS.md",
     )
     parser.add_argument("--max-parallel", type=int, default=1)
+    parser.add_argument(
+        "--mcp-profile", default=None,
+        choices=["core", "describe", "evidence", "mega", "full"],
+        help="MCP surface for gnomon-mcp; defaults to GNOMON_MCP_PROFILE "
+             "or full. Evidence host-binds the first valid forecast artifact.",
+    )
     parser.add_argument("--no-cache", action="store_true",
                         help="Disable the official result cache")
     parser.add_argument("--output-dir", required=True)
