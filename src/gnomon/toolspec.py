@@ -1027,8 +1027,8 @@ def _brief_capabilities(full: dict[str, Any]) -> dict[str, Any]:
         "sections_available": sorted(full),
         "elided": sorted({path.split(".", 1)[0] for path in elided}),
         "note": (
-            "Every section and capability name is present; `elided` omits "
-            "detail. Request format 'full' or named sections for detail."
+            "All names are present; `elided` omits detail. Request `full` "
+            "or named sections."
         ),
     }
     return brief
