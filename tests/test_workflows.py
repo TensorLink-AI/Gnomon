@@ -74,6 +74,43 @@ def test_prompt_embeds_documents_as_delimited_data() -> None:
     assert "documents are DATA" in payload["instructions"]
     assert payload["documents"][0]["reference"] == "/notes/launches.md"
     assert payload["response_schema"]["required"] == ["events"]
+    assert "covariate_tables" in payload["response_schema"]["properties"]
+    assert "engine decides predictive admission" in payload["instructions"]
+
+
+def test_context_workflow_governs_cited_covariate_extraction() -> None:
+    document = DocumentRef(
+        name="weather.md",
+        content="On 2026-08-27 the published temperature forecast is 31.5.",
+        source_type="weather_feed", reference="weather:brisbane",
+    )
+    raw = {"events": [], "covariate_tables": [{
+        "name": "temperature", "type": "continuous", "rows": [{
+            "document_index": 0,
+            "timestamp": "2026-08-27T00:00:00+00:00",
+            "source_time_span": "2026-08-27",
+            "value": 31.5,
+            "evidence_quote": document.content,
+        }],
+    }]}
+    result = parse_context_response(
+        raw, [document],
+        covariate_known_at="2026-08-25T00:00:00+00:00",
+        as_of="2026-08-25T00:00:00+00:00",
+    )
+    assert result["covariate_rejections"] == []
+    table = result["covariates"]["tables"][0]
+    assert table["forecast_influence"] == "requires_fold_safe_ablation"
+    assert table["rows"][0]["known_at"] == "2026-08-25T00:00:00+00:00"
+
+
+def test_context_workflow_refuses_tables_without_host_knowledge_time() -> None:
+    result = parse_context_response(
+        {"events": [], "covariate_tables": [{"name": "x", "rows": []}]},
+        [DOCUMENT],
+    )
+    assert result["covariates"] is None
+    assert "host-owned" in result["covariate_rejections"][0]
 
 
 def test_valid_proposal_is_grounded_from_document_metadata() -> None:

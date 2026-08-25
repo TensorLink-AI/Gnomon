@@ -199,7 +199,15 @@ one JSON object with this shape:
     "quantiles": [{"timestamp": "exact requested timestamp", "q10": 0.0,
                    "q50": 0.0, "q90": 0.0}],
     "rationale": "how the cited claims modify the numeric history"
-  }
+  },
+  "covariate_tables": [
+    {"name": "safe_snake_case", "type": "continuous | binary | cyclic_<period>",
+     "rows": [{"document_index": 0,
+                "timestamp": "normalised timezone-aware ISO",
+                "source_time_span": "verbatim date/time token",
+                "value": 0.0,
+                "evidence_quote": "verbatim context span containing both the time and numeric value"}]}
+  ]
 }
 
 Rules:
@@ -216,6 +224,11 @@ Rules:
   them into historical folds.
 - Claims are the richer interpretation lane. Put qualitative relationships
   there even when no deterministic event can represent them.
+- Covariate tables are extraction, never invention. Emit a row only when one
+  verbatim quote contains both its time token and numeric value. Do not infer
+  values from adjectives, interpolate missing rows, or supply known_at; the
+  host owns knowledge time. Gnomon will test surviving tables out of sample
+  before they may influence the canonical forecast.
 - Use no observations after the history cutoff. Return empty arrays and null
   forecast_candidate when context contains no forecast-relevant information.
 """
@@ -860,8 +873,11 @@ class _Run:
                 source_type="benchmark_task_context",
                 reference=(f"cik:{getattr(self.task, 'name', self.task.__class__.__name__)}"
                            "#context"),
+                known_at=self.timestamps[-1],
             )],
             proposer={"kind": "llm", "model": self.forecaster.openrouter_model},
+            covariate_known_at=self.timestamps[-1],
+            as_of=self.timestamps[-1],
         )
         events = [event_from_dict(event) for event in compilation["events"]]
         event_rejections = [
@@ -892,8 +908,10 @@ class _Run:
             future_timestamps=future_timestamps, history=self.values,
             compiler_model=self.forecaster.openrouter_model,
         )
+        covariate_receipt = compilation["covariates"]
+        covariate_rejections = compilation["covariate_rejections"]
         rejections = [*compile_rejections, *event_rejections,
-                      *dossier_rejections]
+                      *dossier_rejections, *covariate_rejections]
         payload = {
             "schema_version": 1,
             "compiler": {
@@ -908,9 +926,14 @@ class _Run:
             "context_receipt_id": compilation["receipt_id"],
             "hypotheses": compilation["hypotheses"],
             "dossier": dossier,
+            "covariates": covariate_receipt,
             "rejections": list(rejections),
             "future_observations_exposed": False,
         }
+        receipt_body = json.dumps(payload, sort_keys=True, separators=(",", ":"),
+                                  default=str)
+        payload["receipt_sha256"] = hashlib.sha256(
+            receipt_body.encode("utf-8")).hexdigest()
         path = self.jail / "context-receipt.json"
         path.write_text(json.dumps(payload, indent=2, default=str) + "\n",
                         encoding="utf-8")
@@ -918,8 +941,7 @@ class _Run:
         if self.forecaster.trace_dir is not None:
             receipt_dir = self.forecaster.trace_dir / "context-receipts"
             receipt_dir.mkdir(parents=True, exist_ok=True)
-            retained_path = receipt_dir / (
-                payload["dossier"]["seal_sha256"] + ".json")
+            retained_path = receipt_dir / (payload["receipt_sha256"] + ".json")
             rendered = path.read_text(encoding="utf-8")
             if retained_path.exists() and retained_path.read_text(
                     encoding="utf-8") != rendered:
@@ -956,6 +978,8 @@ class _Run:
                     "candidate_available": bool(
                         self.context_compilation["dossier"].get(
                             "forecast_candidate")),
+                    "covariate_tables": len(
+                        self.context_compilation["covariates"]["tables"]),
                     "rejection_count": len(self.context_compilation["rejections"]),
                     "future_observations_exposed": False,
                 }
@@ -1085,6 +1109,9 @@ class _Run:
 
         if self.governed_evidence and name == "gnomon_forecast":
             receipt = self.context_compilation or {}
+            from gnomon.llm_covariates import inline_covariate_arguments
+            covariate_arguments = inline_covariate_arguments(
+                receipt.get("covariates") or {})
             # These are host-owned bindings. A model can choose the verb but
             # cannot swap the data, horizon, or omit admitted context.
             arguments = {
@@ -1094,6 +1121,7 @@ class _Run:
                 "target_column": "value",
                 "horizon": self.horizon,
                 "context_events": receipt.get("events", []),
+                **covariate_arguments,
                 "future_events": True,
                 "structural_events": True,
                 "output_dir": str(self.jail / "gnomon-output"),
@@ -1102,6 +1130,9 @@ class _Run:
             entry["host_context_binding"] = {
                 "receipt_sha256": (receipt.get("source") or {}).get("sha256"),
                 "events": len(receipt.get("events") or []),
+                "covariate_tables_proposed": len(
+                    (receipt.get("covariates") or {}).get("tables") or []),
+                "covariate_table_bound": bool(covariate_arguments),
                 "rejections": len(receipt.get("rejections") or []),
             }
 
@@ -1278,6 +1309,8 @@ class _Run:
                 "candidate_available": bool(
                     self.context_compilation["dossier"].get(
                         "forecast_candidate")),
+                "covariate_tables": len(
+                    self.context_compilation["covariates"]["tables"]),
                 "rejection_count": len(self.context_compilation["rejections"]),
                 "future_observations_exposed": False,
             }

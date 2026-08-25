@@ -36,6 +36,10 @@ from .soft_context import (
     content_fingerprint,
     make_context_receipt,
 )
+from .llm_covariates import (
+    COVARIATE_TABLES_SCHEMA,
+    validate_llm_covariate_tables,
+)
 
 
 @dataclass(frozen=True)
@@ -44,6 +48,7 @@ class DocumentRef:
     content: str
     source_type: str = "planning_file"
     reference: str = ""
+    known_at: str | None = None
 
 
 _ISO_TIMESTAMP = (
@@ -169,6 +174,7 @@ CONTEXT_RESPONSE_SCHEMA: dict[str, Any] = {
                              "value", "evidence_quote"],
             },
         },
+        "covariate_tables": COVARIATE_TABLES_SCHEMA,
     },
     "required": ["events"],
 }
@@ -269,6 +275,12 @@ def build_context_investigation_prompt(
         "quoted text supports them. Use unknown or null otherwise. Normalize "
         "names, not meaning: do not infer aliases. Never supply or estimate a "
         "magnitude.\n"
+        "9. You may extract numeric covariate rows only when one verbatim "
+        "evidence_quote contains both the numeric value and its source time. "
+        "Put the exact source time token in source_time_span and its "
+        "timezone-aware normalization in timestamp. Never interpolate, infer "
+        "a value from qualitative language, or supply known_at; the host owns "
+        "knowledge time and the engine decides predictive admission.\n"
     )
     if future_events:
         instructions += (
@@ -312,6 +324,8 @@ def build_context_investigation_prompt(
 def parse_context_response(
     raw: dict[str, Any], documents: list[DocumentRef],
     proposer: dict[str, Any] | None = None,
+    *, covariate_known_at: str | None = None,
+    as_of: str | None = None,
 ) -> dict[str, Any]:
     """Ground, validate, and split proposed events into accepted/rejected.
 
@@ -479,12 +493,27 @@ def parse_context_response(
             "status": "proposed_for_numeric_verification",
             "may_affect_numbers": False,
         })
+    covariates = None
+    covariate_rejections: list[str] = []
+    if covariate_known_at is not None or (isinstance(raw, dict)
+                                          and raw.get("covariate_tables")):
+        if covariate_known_at is None or as_of is None:
+            covariate_rejections.append(
+                "covariate tables require host-owned covariate_known_at and as_of")
+        else:
+            covariates, covariate_rejections = validate_llm_covariate_tables(
+                raw.get("covariate_tables"),
+                documents=[document.content for document in documents],
+                known_at=covariate_known_at, as_of=as_of,
+                document_known_at=[document.known_at for document in documents],
+            )
     document_receipts = [
         {
             "index": index, "name": document.name,
             "source_type": document.source_type,
             "reference": document.reference or document.name,
             "content_fingerprint": content_fingerprint(document.content),
+            "known_at": document.known_at,
         }
         for index, document in enumerate(documents)
     ]
@@ -504,6 +533,8 @@ def parse_context_response(
     return {"schema_version": "0.2", "events": executable_events,
             "rejected": rejected, "hypotheses": hypotheses,
             "rejected_hypotheses": rejected_hypotheses,
+            "covariates": covariates,
+            "covariate_rejections": covariate_rejections,
             "context_receipt": receipt, "receipt_id": receipt["receipt_id"]}
 
 

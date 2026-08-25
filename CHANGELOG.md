@@ -20,6 +20,15 @@
 
 ## Unreleased
 
+- **LLMs may now contribute governed tabular evidence without becoming a data
+  authority.** The product context workflow accepts cited numeric covariate
+  tables, verifies every value and source-time token against caller-provided
+  documents, assigns host-owned `known_at`, seals provenance, and feeds a
+  single validated table through the existing inline loader and fold-safe
+  ablation. Invented values, timestamp substitutions, backdating, and silent
+  multi-table merges fail closed. CiK Evidence exercises this same public
+  boundary; the feature contains no benchmark-label logic.
+
 - **CiK execution is now bounded and crash-resumable.** Every task/seed runs in
   a disposable spawned process with process-tree RSS monitoring, a wall-clock
   timeout, and a system available-memory preflight. Atomic per-case checkpoints

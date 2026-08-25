@@ -279,6 +279,50 @@ def test_evidence_compiles_and_host_binds_context(tmp_path):
         == extra["context_compilation"]["source_sha256"]
 
 
+def test_evidence_binds_only_cited_host_timestamped_covariates(tmp_path):
+    task = _task()
+    date = task.future_time[0].split("T", 1)[0]
+    span = f"On {date} the published weather input is 2.0."
+    task.scenario = span
+    compiler_output = json.dumps({
+        "events": [], "claims": [], "forecast_candidate": None,
+        "covariate_tables": [{
+            "name": "weather", "type": "continuous",
+            "rows": [{
+                "document_index": 0,
+                "timestamp": task.future_time[0],
+                "source_time_span": date,
+                "value": 2.0,
+                "evidence_quote": span,
+                # Host ownership must override this attempted backdate.
+                "known_at": task.past_time[0][0],
+            }],
+        }],
+    })
+    sessions = []
+    forecaster = _forecaster(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        tmp_path, sessions=sessions, profile="evidence",
+        compiler_output=compiler_output)
+    _, extra = forecaster(task, 1)
+    arguments = sessions[0].calls[0][1]
+    assert arguments["covariate_mapping"] == [{
+        "name": "weather", "type": "continuous",
+        "availability": "future_known",
+    }]
+    assert arguments["covariates"] == [{
+        "timestamp": task.future_time[0],
+        "known_at": task.past_time[-1][0],
+        "weather": 2.0,
+    }]
+    assert extra["context_compilation"]["covariate_tables"] == 1
+    receipt = json.loads(Path(
+        extra["context_compilation"]["receipt_path"]).read_text())
+    row = receipt["covariates"]["tables"][0]["rows"][0]
+    assert row["provenance"]["evidence_quote"] == span
+    assert row["known_at"] == task.past_time[-1][0]
+
+
 def test_evidence_retains_a_cited_sealed_llm_candidate(tmp_path):
     task = _task()
     span = "A closure is expected throughout the forecast window."
