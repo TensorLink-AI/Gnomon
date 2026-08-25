@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **CiK's MCP Evidence arm now matches the production ownership boundary.**
+  The agent chooses the Gnomon operation, while the host deterministically
+  binds the first valid forecast artifact as the immutable numeric answer;
+  model-authored quantiles are rejected in this governed profile. The profile
+  is an explicit CLI argument, is forwarded to the MCP subprocess, and rides
+  in cache identity. This replaces a failure-prone second model decision that
+  made DeepSeek obtain four valid artifacts yet exhaust ten rounds without
+  submitting one. Non-governed MCP profiles retain labelled `direct` and
+  `informed-direct` routes for autonomy experiments.
+
 - **Governed Evidence can no longer fall through to an informed-direct
   forecast, and the withdrawn ReasoningBench is retired in code as well as
   prose.** Selecting the Evidence profile now installs the immutable-primary
