@@ -980,6 +980,12 @@ class _Run:
                             "forecast_candidate")),
                     "covariate_tables": len(
                         self.context_compilation["covariates"]["tables"]),
+                    "covariate_tables_proposed": self.context_compilation[
+                        "covariates"]["tables_proposed"],
+                    "covariate_rows_proposed": self.context_compilation[
+                        "covariates"]["rows_proposed"],
+                    "covariate_rows_validated": self.context_compilation[
+                        "covariates"]["rows_validated"],
                     "rejection_count": len(self.context_compilation["rejections"]),
                     "future_observations_exposed": False,
                 }
@@ -1311,6 +1317,12 @@ class _Run:
                         "forecast_candidate")),
                 "covariate_tables": len(
                     self.context_compilation["covariates"]["tables"]),
+                "covariate_tables_proposed": self.context_compilation[
+                    "covariates"]["tables_proposed"],
+                "covariate_rows_proposed": self.context_compilation[
+                    "covariates"]["rows_proposed"],
+                "covariate_rows_validated": self.context_compilation[
+                    "covariates"]["rows_validated"],
                 "rejection_count": len(self.context_compilation["rejections"]),
                 "future_observations_exposed": False,
             }

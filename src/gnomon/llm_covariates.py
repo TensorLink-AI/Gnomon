@@ -130,6 +130,12 @@ def validate_llm_covariate_tables(
     if raw not in (None, []) and not isinstance(raw, list):
         rejections.append("covariate_tables is not an array")
 
+    tables_proposed = len(proposals)
+    rows_proposed = sum(
+        len(item.get("rows") or [])
+        for item in proposals if isinstance(item, dict)
+        and isinstance(item.get("rows") or [], list)
+    )
     tables: list[dict[str, Any]] = []
     for table_index, proposal in enumerate(proposals[:MAX_TABLES]):
         label = f"covariate table {table_index + 1}"
@@ -226,6 +232,10 @@ def validate_llm_covariate_tables(
         ],
         "as_of": boundary.isoformat(),
         "tables": tables,
+        "tables_proposed": tables_proposed,
+        "rows_proposed": rows_proposed,
+        "tables_validated": len(tables),
+        "rows_validated": sum(len(table["rows"]) for table in tables),
         "llm_can_propose": True,
         "llm_can_admit": False,
         "future_observations_exposed": False,

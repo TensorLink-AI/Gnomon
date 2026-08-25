@@ -30,6 +30,10 @@ def test_cited_row_is_host_timestamped_and_loader_ready():
         as_of="2026-08-25T00:00:00+00:00",
     )
     assert rejected == []
+    assert receipt["tables_proposed"] == 1
+    assert receipt["rows_proposed"] == 1
+    assert receipt["tables_validated"] == 1
+    assert receipt["rows_validated"] == 1
     row = receipt["tables"][0]["rows"][0]
     assert row["known_at"] == "2026-08-25T00:00:00+00:00"
     assert row["provenance"]["class"] == "llm_extracted_host_verified"
