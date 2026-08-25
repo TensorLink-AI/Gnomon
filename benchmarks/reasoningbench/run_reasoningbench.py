@@ -379,7 +379,20 @@ def main() -> int:
     parser.add_argument("--concurrency", type=int, default=8)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--resume", action="store_true")
-    args = parser.parse_args(); run(args); return 0
+    parser.add_argument(
+        "--acknowledge-retired", action="store_true",
+        help="run the withdrawn historical instrument for reproduction only",
+    )
+    args = parser.parse_args()
+    if not args.acknowledge_retired:
+        parser.error(
+            "ReasoningBench is retired: its historical answer-bearing "
+            "treatment invalidated the published uplift claim. Use "
+            "DossierBench plus DiscriminationBench, or pass "
+            "--acknowledge-retired only to reproduce historical behavior."
+        )
+    run(args)
+    return 0
 
 
 if __name__ == "__main__":

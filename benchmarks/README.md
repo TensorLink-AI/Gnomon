@@ -125,7 +125,7 @@ lower layer deliberately and must never be described as agent-reasoning lift.
 | [ContextCacheBench](contextcachebench/) (internal) | Persistent receipt and numeric-assessment replay: forecast parity, cache hits, and payload reduction | `benchmarks/contextcachebench` |
 | [AdapterBench](adapterbench/) (internal) | Model-neutral adapter conformance, installed-backend coverage, and adversarial contract rejection | `benchmarks/adapterbench` |
 | [TransitionBench](transitionbench/) (internal) | Observed level, trend, volatility, seasonality, regime, and extreme transitions across easy, moderate, and marginal signals; reports support precision separately from raw classification | `benchmarks/transitionbench` |
-| [ReasoningBench](reasoningbench/) (internal) | Matched LLM synthesis with and without Gnomon's compact production evidence packet | `benchmarks/reasoningbench` |
+| [ReasoningBench](reasoningbench/) (retired internal instrument) | Withdrawn answer-bearing treatment retained only to reproduce the invalidated transcription result; not product evidence | `benchmarks/reasoningbench` |
 | [AdmissionBench](admissionbench/) (internal) | Held-out regret and harmful-admission behavior for model admission | `benchmarks/admissionbench` |
 | [AdjudicationBench](adjudicationbench/) (internal) | Evidence authority, conflict, and synthesis invariants | `benchmarks/adjudicationbench` |
 | [EffectBench](effectbench/) (internal) | Effect-registry transfer, false influence, interval calibration, and decision regret | `benchmarks/effectbench` |

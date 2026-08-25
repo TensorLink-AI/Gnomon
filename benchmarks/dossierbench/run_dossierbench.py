@@ -477,7 +477,8 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
         from benchmarks.common.openrouter import OpenRouterClient
         client = OpenRouterClient(
             args.model, api_key=os.environ.get(args.api_key_env),
-            base_url=args.base_url, temperature=0, max_tokens=500,
+            base_url=args.base_url, temperature=0,
+            max_tokens=getattr(args, "max_tokens", 500),
             max_retries=4,
             reasoning_effort=getattr(args, "reasoning_effort", None))
     source = getattr(args, "source", "real")
@@ -689,6 +690,7 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
         "design": {
             "matched": True,
             "reasoning_effort": getattr(args, "reasoning_effort", None),
+            "initial_max_tokens": getattr(args, "max_tokens", 500),
             "arms_differ_by_packet_block_only": True,
             "labels_absent_from_prompts_and_packets": True,
             "same_machinery_feeds_both_packet_arms": True,
@@ -723,6 +725,9 @@ def main() -> int:
                         default="real")
     parser.add_argument("--data-dir", default=None)
     parser.add_argument("--concurrency", type=int, default=8)
+    parser.add_argument(
+        "--max-tokens", type=int, default=500,
+        help="Initial completion budget; retries may escalate it.")
     parser.add_argument("--reasoning-effort", default=None,
                         choices=("none", "low", "medium", "high"))
     parser.add_argument("--output-dir", required=True)

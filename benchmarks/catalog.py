@@ -16,6 +16,8 @@ class BenchmarkContract:
     gnomon_path: str
     claim_boundary: str
     harness_conditions: tuple[str, ...] = ()
+    retired: bool = False
+    retirement_reason: str | None = None
 
 
 CATALOG: dict[str, BenchmarkContract] = {
@@ -28,7 +30,18 @@ CATALOG: dict[str, BenchmarkContract] = {
     "leaktrap": BenchmarkContract("safety_contract", "bitemporal runtime and immutable snapshots", "Structural non-leakage; mean error alone is not a trust result."),
     "workflow": BenchmarkContract("reasoning_harness", "matched LLM drives real MCP profiles", "End-to-end correctness, preservation, calls, tokens, and trust.", ("core", "describe", "evidence", "mega", "full")),
     "contextbench": BenchmarkContract("mixed", "engine arms and real MCP surface arms", "Engine arms test admission; surface arms test agent use and preservation.", ("core", "describe", "evidence", "mega", "full")),
-    "reasoningbench": BenchmarkContract("reasoning_harness", "matched LLM receives the compact production evidence packet", "Evidence-assisted synthesis; field/property regressions remain first-class."),
+    "reasoningbench": BenchmarkContract(
+        "retired",
+        "historical instrument retained for reproducibility only",
+        "No product or reasoning-uplift claim: the original published harness "
+        "exposed answer-bearing fields and its headline was withdrawn.",
+        retired=True,
+        retirement_reason=(
+            "Answer-bearing treatment packets made the historical headline "
+            "a transcription result; use DossierBench and "
+            "DiscriminationBench for the replacement claim boundaries."
+        ),
+    ),
     "volatilitybench": BenchmarkContract("engine", "fitted volatility executable", "Volatility estimation and calibration only."),
     "propertybench": BenchmarkContract("engine", "fitted temporal-property executables", "Independent property classification and calibration only."),
     "transitionbench": BenchmarkContract("engine", "production TemporalEvidence computation", "Observed-transition evidence quality only."),
@@ -52,4 +65,6 @@ def as_dict(name: str) -> dict[str, object]:
         "gnomon_path": contract.gnomon_path,
         "claim_boundary": contract.claim_boundary,
         "harness_conditions": list(contract.harness_conditions),
+        "retired": contract.retired,
+        "retirement_reason": contract.retirement_reason,
     }

@@ -142,6 +142,70 @@ def test_merge_shards_rejects_conflicts(tmp_path):
         merge_shards(target, [left, right])
 
 
+def test_merge_shards_replaces_infrastructure_failure_with_success(tmp_path):
+    failed = tmp_path / "failed"
+    recovered = tmp_path / "recovered"
+    target = tmp_path / "all"
+    _shard(failed, "a", 1)
+    _shard(recovered, "a", 2)
+    failed_record = json.loads(
+        (failed / "gnomonbench.jsonl").read_text(encoding="utf-8"))
+    failed_record["error"] = "request timeout"
+    (failed / "gnomonbench.jsonl").write_text(
+        json.dumps(failed_record) + "\n", encoding="utf-8")
+
+    result = merge_shards(target, [failed, recovered])
+
+    assert result["records"] == 1
+    record = json.loads((target / "gnomonbench.jsonl").read_text())
+    assert record["value"] == 2
+    assert not record.get("error")
+
+
+def test_merge_shards_keeps_success_when_failed_retry_is_later(tmp_path):
+    successful = tmp_path / "successful"
+    failed = tmp_path / "failed"
+    target = tmp_path / "all"
+    _shard(successful, "a", 2)
+    _shard(failed, "a", 1)
+    failed_record = json.loads(
+        (failed / "gnomonbench.jsonl").read_text(encoding="utf-8"))
+    failed_record["error"] = "request timeout"
+    (failed / "gnomonbench.jsonl").write_text(
+        json.dumps(failed_record) + "\n", encoding="utf-8")
+
+    merge_shards(target, [successful, failed])
+
+    record = json.loads((target / "gnomonbench.jsonl").read_text())
+    assert record["value"] == 2
+    assert not record.get("error")
+
+
+def test_merge_shards_records_higher_caps_used_only_for_recovery(tmp_path):
+    failed = tmp_path / "failed"
+    recovered = tmp_path / "recovered"
+    target = tmp_path / "all"
+    _shard(failed, "a", 1)
+    _shard(recovered, "a", 2)
+    failed_record = json.loads(
+        (failed / "gnomonbench.jsonl").read_text(encoding="utf-8"))
+    failed_record["error"] = "request timeout"
+    (failed / "gnomonbench.jsonl").write_text(
+        json.dumps(failed_record) + "\n", encoding="utf-8")
+    for path, timeout, tokens in ((failed, 300, 32000),
+                                  (recovered, 600, 64000)):
+        _manifest(path, request_timeout=timeout,
+                  initial_max_tokens=tokens)
+
+    merge_shards(target, [failed, recovered])
+
+    manifest = json.loads((target / "manifest.json").read_text())
+    assert manifest["recovery_controls"] == {
+        "initial_max_tokens": [32000, 64000],
+        "request_timeout": [300, 600],
+    }
+
+
 def test_merge_shards_recovers_complete_lines_from_interrupted_partial(tmp_path):
     shard, target = tmp_path / "shard", tmp_path / "all"
     _shard(shard, "a", 1)

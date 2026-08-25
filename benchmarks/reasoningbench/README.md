@@ -1,4 +1,12 @@
-# ReasoningBench
+# ReasoningBench — retired historical instrument
+
+> **Withdrawn and off by default.** The original treatment exposed
+> answer-bearing fields, so its published uplift measured transcription rather
+> than temporal reasoning. It must not support product claims. The code is
+> retained to reproduce and audit that negative finding; use DossierBench for
+> packet-design uplift and DiscriminationBench for engine-side evidence
+> quality. Running this historical instrument requires the explicit
+> `--acknowledge-retired` flag.
 
 ReasoningBench is a matched generated evaluation of whether Gnomon's computed
 temporal evidence improves an LLM's reasoning, rather than merely its tool use.
@@ -30,6 +38,7 @@ immutable `temporal_answers.json` receipt.
 ```bash
 uv run python -m benchmarks.reasoningbench.run_reasoningbench \
   --cases 72 --seed 99173 --concurrency 8 \
+  --acknowledge-retired \
   --output-dir results/reasoningbench-heldout
 ```
 

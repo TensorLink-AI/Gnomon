@@ -903,6 +903,27 @@ def test_natural_routing_still_requires_product_execution(tmp_path):
     assert "host_execution_required" in result["problems"][0]
 
 
+def test_evidence_profile_cannot_publish_informed_direct_values(tmp_path):
+    """The governed profile enforces immutability without a private flag."""
+    client = ScriptedClient([
+        {"tool_calls": [("submit_answer", {
+            "forecast": {"hr": {"values": VALUES},
+                         "spo2": {"values": VALUES}},
+        })]},
+        {"tool_calls": [("submit_answer", {
+            "forecast": {"hr": {"abstain": True},
+                         "spo2": {"abstain": True}},
+        })]},
+    ])
+    outcome = run_row(
+        _row(sparse_temp=False), client, session_factory=_factory(),
+        work_dir=str(tmp_path), profile="evidence")
+    first = outcome["mcp"]["tool_sequence"][0]
+    assert first["submit_rejected"]
+    assert "host_execution_required" in first["submit_rejected"][0]
+    assert set(outcome["channel_route"].values()) == {"abstain"}
+
+
 def test_complete_artifact_survives_final_submission_format_failure(tmp_path):
     def forecast(messages):
         return {"tool_calls": [_forecast_call(messages, "hr,spo2")]}

@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- **Governed Evidence can no longer fall through to an informed-direct
+  forecast, and the withdrawn ReasoningBench is retired in code as well as
+  prose.** Selecting the Evidence profile now installs the immutable-primary
+  policy at the execution boundary, so model-authored trajectories are
+  rejected even when an orchestrator omitted its private enforcement flag;
+  exploratory adapters may still label and measure informed-direct behavior,
+  but it cannot attest `primary_forecast_unchanged`. A boundary test exercises
+  the live profile rather than a synthetic flag. ReasoningBench remains in the
+  tree as a reproducibility instrument for the invalidated answer-bearing
+  treatment, is classified `retired` in the machine-readable catalog, and
+  refuses execution unless the operator explicitly acknowledges its retired
+  status. DossierBench and DiscriminationBench remain the supported
+  replacements for packet uplift and evidence quality respectively.
+
 - **The governed breach estimate degrades down a ladder instead of
   falling off a cliff.** The first governed-decision diagnostic showed
   the horizon-event executable withholding on 180 of 180 real cases:
