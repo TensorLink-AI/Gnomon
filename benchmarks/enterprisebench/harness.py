@@ -249,6 +249,10 @@ class DomainPack:
     #: Simulator parameters, hashed into the dataset identity.
     config: dict[str, Any] = field(default_factory=dict)
     season_length: int = 7
+    #: Optional per-decision secondary metrics (e.g. hierarchical
+    #: coherence error), averaged per arm under ``metrics.extras``.
+    extra_metrics: Callable[[dict[str, Any], "Case"],
+                            dict[str, float]] | None = None
 
 
 _REGISTRY: dict[str, DomainPack] = {}
@@ -473,8 +477,10 @@ def compute_engine_packet(case: Case, inputs: dict[str, Any],
     from gnomon.support import forecast_headline
 
     series = [float(v) for v in inputs.get("series") or case.values]
-    threshold = float(inputs["threshold"])
-    key = (case.case_id, round(threshold, 6))
+    threshold = (float(inputs["threshold"])
+                 if inputs.get("threshold") is not None else None)
+    key = (case.case_id,
+           round(threshold, 6) if threshold is not None else None)
     if key in cache:
         return cache[key]
     run_dir = Path(tempfile.mkdtemp(prefix="enterprisebench-"))
@@ -515,8 +521,12 @@ def compute_engine_packet(case: Case, inputs: dict[str, Any],
             "warnings": [str(item)[:200]
                          for item in (result.warnings or [])[:2]],
         }
-        analysis = result.threshold or {}
-        if analysis:
+        analysis = (result.threshold or {}) if threshold is not None else {}
+        if threshold is None:
+            # Quantity domains price a position, not a breach: the
+            # packet carries the quantile paths and no threshold block.
+            pass
+        elif analysis:
             horizon_event = analysis.get("horizon_event") or {}
             stamp_to_step = {str(row.get("timestamp")): step
                              for step, row in enumerate(rows, 1)}
@@ -685,18 +695,23 @@ def leakage_lint(cases: list[Case], pack: DomainPack,
     from benchmarks.enterprisebench.textgen import ref_code
 
     for case in cases:
-        future_marker = None
-        if len(case.future) >= 8:
-            future_marker = json.dumps(
-                [round(float(v), 4) for v in case.future[:8]],
-                separators=(",", ":"))[1:-1]
+        future_blobs = [list(case.future)]
+        # Packs with auxiliary held-out series (e.g. per-leaf futures in
+        # a hierarchical domain) disclose them under meta.extra_futures
+        # so the lint covers them identically.
+        for extra in (case.meta.get("extra_futures") or {}).values():
+            future_blobs.append(list(extra))
+        future_markers = [
+            json.dumps([round(float(v), 4) for v in blob[:8]],
+                       separators=(",", ":"))[1:-1]
+            for blob in future_blobs if len(blob) >= 8]
         history_blob = json.dumps(list(case.values), separators=(",", ":"))
         hidden = hidden_versions(case.items, case.cutoff)
         resolved = as_of(case.items, case.cutoff)
         for arm in MODEL_ARMS:
             text = prompts[(case.case_id, arm)]
             scanned = text.replace(history_blob, "", 1)
-            if future_marker and future_marker in scanned:
+            if any(marker in scanned for marker in future_markers):
                 raise ValueError(
                     f"{pack.name}: held-out future leaked into arm {arm} "
                     f"for {case.case_id}")
@@ -935,16 +950,26 @@ def score_extraction(raw_claims: list[Any], gate: dict[str, Any],
         if (claim["kind"], claim["value"], claim["effective_from"])
         in admitted_values)
     revision_flags = []
+    by_id = {item.item_id: item for item in case.items}
     for entry, claim in matched:
         item = entry["item"]
         if not item.trap or item.revises is None:
             continue
-        prev = prev_values_for(case).get(item.item_id)
+        prev = by_id.get(item.revises)
         if prev is None:
             continue
-        revision_flags.append(
-            abs(claim["value"] - entry["shown"])
-            < abs(claim["value"] - round(prev, 4)))
+        if abs(round(prev.value, 4) - entry["shown"]) > 1e-9:
+            # A value revision: the claim must carry the corrected
+            # figure, not the superseded one the text also mentions.
+            revision_flags.append(
+                abs(claim["value"] - entry["shown"])
+                < abs(claim["value"] - round(prev.value, 4)))
+        else:
+            # A schedule revision (same figure, moved window): the
+            # claim must carry the corrected effective window.
+            revision_flags.append(
+                abs(claim["effective_from"] - item.effective_from)
+                < abs(claim["effective_from"] - prev.effective_from))
     return {
         "truth_items": len(truth),
         "claims_parsed": len(parsed),
@@ -1041,6 +1066,8 @@ def score_decision_row(decision: dict[str, Any], valid: bool, case: Case,
     row["timing_error"] = (abs(answered_step - truth_step)
                            if truth_step is not None
                            and answered_step is not None else None)
+    if pack.extra_metrics is not None:
+        row["extras"] = pack.extra_metrics(decision, case)
     return row
 
 
@@ -1071,6 +1098,13 @@ def _arm_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "timing_mae": statistics.mean(timing) if timing else None,
         "timing_answer_rate": (len(timing) / len(valid)) if valid else None,
     }
+    extra_keys = sorted({key for row in rows
+                         for key in (row.get("extras") or {})})
+    if extra_keys:
+        metrics["extras"] = {
+            key: statistics.mean(row["extras"][key] for row in rows
+                                 if key in (row.get("extras") or {}))
+            for key in extra_keys}
     return metrics
 
 

@@ -128,6 +128,8 @@ verified invariant on the rounded shown numbers.
 | --- | --- | --- | --- | --- |
 | `cloudcost` | daily account spend with weekday cycle, deploy uplifts, migrations | budget breach: act (rightsize) or monitor | overage ≫ intervention (break-even 0.2) | a revised commit change moves the breach threshold |
 | `cashflow` | daily cash balance driven by invoices at terms ± lateness, payroll, opex | cross the minimum-balance floor: draw the credit line or not | shortfall ≫ carry (break-even 0.2) | an invoice amount corrected after issue |
+| `demand` | intermittent SKU demand with promos (lift+decay), holidays, stockout-censored sales (demand ≠ sales, disclosed per SKU); SKU→category hierarchy with coherence scored | order-up-to quantities per SKU + category total | stockout ≫ holding (critical fractile 0.9) | a promo rescheduled after announcement |
+| `energy` | hourly net load with temperature response and solar feed-in; temperature forecast *vintages* (a forecast of a forecast — `known_at` doing real work), outage notices | delivery-day schedule position (MWh) | short ≫ long imbalance (critical fractile 0.8) | a weather forecast revised between gate closure and delivery |
 
 Adding a pack means adding one module under `domains/` that calls
 `harness.register(...)` — the harness is never edited, and a registry

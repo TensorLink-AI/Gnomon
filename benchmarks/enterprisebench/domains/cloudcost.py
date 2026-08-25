@@ -209,7 +209,8 @@ def simulate(seed: int, count: int) -> tuple[list[Case], dict[str, Any]]:
                 # and only extraction can recover them.
                 items.append(ContextItem(
                     f"deploy-{index}", "deploy_uplift", effect["uplift"],
-                    known, effect["from"], effect["to"],
+                    known, effect["from"],
+                    min(effect["to"], length - 1),
                     text_only=rng.random() < 0.5))
             else:
                 items.append(ContextItem(

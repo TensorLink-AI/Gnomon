@@ -61,10 +61,33 @@ class ScriptedClient:
     exercised against exact expectations."""
 
     def __init__(self, pack=None, seed: int = 11, cases: int = 6):
+        self.pack = pack
         self.cases_by_series = {}
         if pack is not None:
             for case in pack.simulate(seed, cases)[0]:
                 self.cases_by_series[case.series_id] = case
+
+    def _case(self, text):
+        series = re.search(r"Series (\S+) at frequency", text).group(1)
+        return self.cases_by_series[series]
+
+    def _default_decision(self, case) -> dict:
+        return self.pack.cost_model.no_action(case)
+
+    def _hallucination_slot(self, case, resolved):
+        """A (kind, step) pair guaranteed to match no truth item: same
+        kind as a real fact but with a window beyond the matcher's
+        tolerance from every truth item of that kind."""
+        tolerance = max(5, case.horizon // 2) + 1
+        kinds = ([item.kind for item in resolved]
+                 or sorted(self.pack.context_kinds))
+        for kind in kinds:
+            used = [item.effective_from for item in resolved
+                    if item.kind == kind]
+            for step in range(case.cutoff + case.horizon - 1, -1, -1):
+                if all(abs(step - u) > tolerance for u in used):
+                    return kind, step
+        raise AssertionError("no hallucination slot free")
 
     def _compiled(self, case) -> str:
         resolved = as_of(case.items, case.cutoff)
@@ -74,22 +97,22 @@ class ScriptedClient:
                    "effective_from": grid_date(case, item.effective_from),
                    "effective_to": grid_date(case, item.effective_to)}
                   for item in kept]
-        edge = grid_date(case, case.cutoff - 1)
-        hallucination_kind = resolved[0].kind
-        claims.append({"kind": hallucination_kind, "value": 9e9,
-                       "effective_from": edge, "effective_to": edge})
-        claims.append({"kind": hallucination_kind, "value": 123.4567,
-                       "effective_from": edge, "effective_to": edge})
-        return json.dumps({"claims": claims, "decision": {
-            "event_expected": False, "first_event_step": None,
-            "action": "monitor"}})
+        kind, step = self._hallucination_slot(case, resolved)
+        slot_date = grid_date(case, step)
+        low, high = self.pack.context_kinds[kind]["bounds"]
+        claims.append({"kind": kind, "value": high * 2.0 + 10.0,
+                       "effective_from": slot_date,
+                       "effective_to": slot_date})
+        claims.append({"kind": kind, "value": (low + high) / 2.0,
+                       "effective_from": slot_date,
+                       "effective_to": slot_date})
+        return json.dumps({"claims": claims,
+                           "decision": self._default_decision(case)})
 
     def completions(self, messages, *, n=1):
         text = messages[-1]["content"]
         if '"claims"' in text:
-            series = re.search(r"Series (\S+) at frequency",
-                               text).group(1)
-            return [self._compiled(self.cases_by_series[series])]
+            return [self._compiled(self._case(text))]
         if '"inner_forecasts"' in text:
             values = json.loads(re.search(
                 r"values oldest first[^\n]*\n(\[.*?\])", text,
@@ -98,14 +121,17 @@ class ScriptedClient:
                 r"from cutoff (\d+)", text)]
             horizon = int(re.search(
                 r"the next (\d+) observations", text).group(1))
-            inner = [seasonal_naive_path(values[:cutoff], 7, horizon)
+            season = self.pack.season_length if self.pack else 7
+            inner = [seasonal_naive_path(values[:cutoff], season, horizon)
                      for cutoff in cutoffs]
             return [json.dumps({
                 "inner_forecasts": inner,
-                "forecast": seasonal_naive_path(values, 7, horizon)})]
+                "forecast": seasonal_naive_path(values, season,
+                                                horizon)})]
         packet = re.search(r"Computed Gnomon evidence[^\n]*\n(\{[^\n]*\})",
                            text)
-        if packet:
+        if packet and (self.pack is None
+                       or self.pack.decision_kind == "binary"):
             payload = json.loads(packet.group(1))
             recommendation = (payload.get("governed_decision") or {}).get(
                 "recommended_action") or "monitor"
@@ -113,6 +139,8 @@ class ScriptedClient:
                 "event_expected": recommendation == "act",
                 "first_event_step": 1 if recommendation == "act" else None,
                 "action": recommendation})]
+        if self.pack is not None:
+            return [json.dumps(self._default_decision(self._case(text)))]
         return [json.dumps({"event_expected": False,
                             "first_event_step": None,
                             "action": "monitor"})]
@@ -411,9 +439,10 @@ def test_a_matched_offline_run_prices_decisions_per_domain(name, tmp_path):
         assert entry["mean_regret"] >= 0.0
         assert 0.0 <= entry["action_optimal_rate"] <= 1.0
     references = summary["references"]
+    sample = pack.simulate(11, 1)[0][0]
+    constant_names = set(pack.constant_policies(sample))
     assert set(references) >= {"engine", "seasonal_naive", "last_value",
-                               "always_act", "never_act",
-                               "hindsight_optimal"}
+                               "hindsight_optimal"} | constant_names
     assert references["hindsight_optimal"]["mean_regret"] == 0.0
     assert "withholding_rate" in references["engine"]
     verdicts = summary["verdicts"]
@@ -517,6 +546,60 @@ def test_candidate_over_promise_is_detected_for_a_cheating_backtest(
     assert candidate["mean_over_promise"] > 0.5
     assert summary["verdicts"]["candidate_admission_value"][
         "mean_over_promise"] > 0.5
+
+
+# ---------------------------------------------------------------------------
+# Quantity domains: censoring, hierarchy, forecast vintages
+# ---------------------------------------------------------------------------
+
+def test_demand_distinguishes_sales_from_demand_under_stockouts():
+    pack = PACKS["demand"]
+    cases, _ = pack.simulate(11, 8)
+    censored = 0
+    for case in cases:
+        shown_future_sales = sum(case.future)
+        true_demand = sum(case.meta["demand_totals"].values())
+        assert true_demand >= shown_future_sales - 1e-9
+        if true_demand > shown_future_sales:
+            censored += 1
+        assert set(case.meta["sku_stockout_steps"]) == {"sku_a", "sku_b"}
+    assert censored > 0, "stockout censoring must actually occur"
+
+
+def test_demand_scores_hierarchical_coherence(tmp_path):
+    pack = PACKS["demand"]
+    incoherent = {"orders": {"sku_a": 10.0, "sku_b": 10.0},
+                  "category_total": 50.0}
+    case = pack.simulate(11, 1)[0][0]
+    assert pack.extra_metrics(incoherent, case) == {
+        "coherence_error": 30.0}
+    summary = run_domain(pack, _args(tmp_path, cases=4),
+                         ScriptedClient(pack, cases=4))
+    for arm in ("model", "model_facts_compiled"):
+        assert "coherence_error" in summary["metrics"][arm]["extras"]
+    assert summary["metrics"]["engine"]["extras"][
+        "coherence_error"] < 1e-6
+
+
+def test_energy_temp_forecast_vintages_resolve_by_known_at():
+    """A forecast of a forecast: known_at does real work. Earlier
+    cutoffs see earlier vintages; the post-cutoff vintage never
+    surfaces."""
+    pack = PACKS["energy"]
+    cases, _ = pack.simulate(11, 8)
+    case = next(c for c in cases
+                if any(i.item_id == "temp-fc-c" for i in c.items))
+    chain = {i.item_id: i for i in case.items
+             if i.kind == "temp_forecast"}
+    early, revised = chain["temp-fc-a"], chain["temp-fc-b"]
+    view_before = as_of(case.items, revised.known_at - 1)
+    assert any(i.item_id == "temp-fc-a" for i in view_before)
+    view_at_cutoff = as_of(case.items, case.cutoff)
+    forecast_ids = [i.item_id for i in view_at_cutoff
+                    if i.kind == "temp_forecast"]
+    assert forecast_ids == ["temp-fc-b"]
+    assert early.known_at < revised.known_at <= case.cutoff
+    assert chain["temp-fc-c"].known_at > case.cutoff
 
 
 # ---------------------------------------------------------------------------
