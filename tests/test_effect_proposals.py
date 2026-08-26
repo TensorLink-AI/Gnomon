@@ -38,6 +38,36 @@ def test_typed_effect_is_composed_by_engine_not_model():
     assert PRIMARY[0]["q50"] == 10.0
 
 
+def test_cited_level_multiplier_is_normalized_to_additive_fraction():
+    proposal, critique = validate_effect_proposal(
+        _proposal(shape="temporary_pulse", unit="fraction_of_level",
+                  location=4.0, lower=3.5, upper=4.5),
+        claim_ids={"claim-1"},
+        claim_spans={"claim-1": "demand will be 4 times the usual level"})
+    assert critique["status"] == "accepted"
+    assert (proposal["lower"], proposal["location"], proposal["upper"]) == \
+        (2.5, 3.0, 3.5)
+    assert proposal["semantic_normalizations"] == [{
+        "code": "MULTIPLIER_TO_ADDITIVE_FRACTION",
+        "stated_level_multiplier": 4.0,
+        "applied_additive_fraction": 3.0,
+        "parameterization_shift": -1.0,
+        "basis": "verified cited source span",
+    }]
+    assert compose_effect(PRIMARY, proposal)[0]["q50"] == 40.0
+
+
+def test_conflicting_cited_multipliers_fail_closed():
+    proposal, critique = validate_effect_proposal(
+        _proposal(unit="fraction_of_level", claim_ids=["claim-1", "claim-2"]),
+        claim_ids={"claim-1", "claim-2"},
+        claim_spans={"claim-1": "2 times the usual level",
+                     "claim-2": "3 times the usual level"})
+    assert proposal is None
+    assert critique["attempts"][0]["violations"][0]["code"] == \
+        "CONFLICTING_CITED_MULTIPLIERS"
+
+
 def test_repair_is_bounded_and_typed():
     accepted, critique = validate_effect_proposal(
         _proposal(shape="magic"), claim_ids={"claim-1"}, repair=_proposal())

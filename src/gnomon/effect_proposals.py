@@ -23,6 +23,7 @@ SCOPES = frozenset({"single_series", "shared", "per_series"})
 
 def validate_effect_proposal(
     raw: Any, *, claim_ids: set[str], repair: Any = None,
+    claim_spans: dict[str, str] | None = None,
 ) -> tuple[dict[str, Any] | None, dict[str, Any]]:
     """Validate at most two model attempts and return a typed critique.
 
@@ -33,7 +34,8 @@ def validate_effect_proposal(
     attempts = attempts[:2]
     critiques: list[dict[str, Any]] = []
     for number, candidate in enumerate(attempts, 1):
-        proposal, violations = _validate_one(candidate, claim_ids=claim_ids)
+        proposal, violations = _validate_one(
+            candidate, claim_ids=claim_ids, claim_spans=claim_spans or {})
         critiques.append({
             "attempt": number,
             "accepted": not violations,
@@ -52,7 +54,8 @@ def validate_effect_proposal(
     }
 
 
-def _validate_one(raw: Any, *, claim_ids: set[str]
+def _validate_one(raw: Any, *, claim_ids: set[str],
+                  claim_spans: dict[str, str]
                   ) -> tuple[dict[str, Any] | None, list[dict[str, str]]]:
     errors: list[dict[str, str]] = []
     if not isinstance(raw, dict):
@@ -118,6 +121,44 @@ def _validate_one(raw: Any, *, claim_ids: set[str]
                              "custom_scenario can only be scenario_only"))
     if errors:
         return None, errors
+    semantic_normalizations: list[dict[str, Any]] = []
+    if unit == "fraction_of_level" and shape != "variance_change":
+        # Relative effects are additive fractions in Gnomon's composition
+        # contract: +3.0 means a final level of 4x.  Models commonly copy the
+        # surface number from "4 times usual" as +4.0.  The cited text—not the
+        # model's arithmetic—is authoritative, so normalize an unambiguous
+        # stated multiple through the deterministic parser already used by
+        # future-context admission. Conflicting cited multiples remain
+        # untrusted rather than being averaged or guessed.
+        from .future_context import parse_override_scale
+        stated = []
+        for claim_id in cited:
+            scale, problem = parse_override_scale(claim_spans.get(claim_id, ""))
+            if problem is None and scale is not None:
+                stated.append(float(scale))
+        distinct = {round(value, 12) for value in stated}
+        if len(distinct) > 1:
+            return None, [_error(
+                "CONFLICTING_CITED_MULTIPLIERS",
+                "Cited claims state different multiples of the baseline.")]
+        if len(distinct) == 1:
+            scale = stated[0]
+            entailed_change = scale - 1.0
+            if abs(location - entailed_change) > 1e-12:
+                correction = entailed_change - location
+                semantic_normalizations.append({
+                    "code": "MULTIPLIER_TO_ADDITIVE_FRACTION",
+                    "stated_level_multiplier": scale,
+                    "applied_additive_fraction": entailed_change,
+                    "parameterization_shift": correction,
+                    "basis": "verified cited source span",
+                })
+                # Preserve the proposal's uncertainty width while correcting
+                # its parameterization. The citation entails the centre, not
+                # that the real-world response has zero uncertainty.
+                lower += correction
+                upper += correction
+                location = entailed_change
     return {
         "shape": shape, "unit": unit, "location": location,
         "lower": lower, "upper": upper, "confidence": confidence,
@@ -132,6 +173,8 @@ def _validate_one(raw: Any, *, claim_ids: set[str]
         "uncertainty_basis": str(raw.get("uncertainty_basis") or
                                  "model-authored prior; not calibrated")[:300],
         "composition": "scenario_only",
+        **({"semantic_normalizations": semantic_normalizations}
+           if semantic_normalizations else {}),
     }, []
 
 

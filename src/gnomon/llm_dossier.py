@@ -128,6 +128,8 @@ def validate_temporal_dossier(
     effect_proposal, proposal_critique = validate_effect_proposal(
         effect_raw,
         claim_ids={str(claim["claim_id"]) for claim in claims},
+        claim_spans={str(claim["claim_id"]): str(claim["source_span"])
+                     for claim in claims},
         repair=raw.get("effect_proposal_repair"),
     ) if raw.get("effect_proposal") not in (None, {}) else (None, {
         "status": "not_proposed", "attempts_used": 0, "attempts_remaining": 2,

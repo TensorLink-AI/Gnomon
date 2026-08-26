@@ -259,7 +259,9 @@ Rules:
   no typed effect can express the relationship. Never claim numeric values
   came from text unless the cited span states them.
 - Effect location/lower/upper are changes added to the primary path, not target
-  values. If the text states an exact future value (for example, withdrawals
+  values. A stated level of "4 times usual" is therefore an additive
+  fraction_of_level change of 3.0, not 4.0; Gnomon rechecks this arithmetic
+  against the cited span. If the text states an exact future value (for example, withdrawals
   become zero), encode it as an override:* event and omit effect_proposal;
   Gnomon parses and applies that value deterministically.
 - Events are the narrow deterministic lane. Numeric bounds use
