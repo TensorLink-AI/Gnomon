@@ -65,7 +65,9 @@ MAX_RUN_TOKENS = 250_000
 #: cannot silently omit context already gathered by its host.
 #: Version 9: the compiler may preserve several stable typed hypotheses;
 #: numerical influence is evaluated separately from semantic extraction.
-MCP_CONTRACT_VERSION = 9
+#: Version 10: verified literal range claims are deterministically re-routed
+#: through the ordinary constraint validator even when the model omits events.
+MCP_CONTRACT_VERSION = 10
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
