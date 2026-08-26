@@ -211,6 +211,7 @@ def test_compiler_contract_separates_history_from_future_covariates():
 def test_compiler_contract_preserves_historical_observation_semantics():
     from benchmarks.cik.mcp_agent import (
         DOSSIER_INSTRUCTIONS,
+        OBSERVATION_INSTRUCTIONS,
         _expects_historical_zero_interpretation,
     )
 
@@ -226,6 +227,9 @@ def test_compiler_contract_preserves_historical_observation_semantics():
         "be in maintenance in the future.")
     assert not _expects_historical_zero_interpretation(
         "The site was closed for maintenance and may close again.")
+    assert "do not guess a mask" in OBSERVATION_INSTRUCTIONS
+    assert "sealed forecast_candidate" in OBSERVATION_INSTRUCTIONS
+    assert "cannot edit the immutable primary" in OBSERVATION_INSTRUCTIONS
 
 
 def test_transformation_repair_hints_are_verbatim_and_constant_specific():
@@ -548,10 +552,17 @@ def test_best_effort_role_uses_verified_product_publication(tmp_path):
             "mechanism": "closure", "confidence": 0.8}],
         "forecast_candidate": {"quantiles": rows, "rationale": "lower"},
     })
+    selection_output = json.dumps({
+        "selected_scenario_id": "prior-assisted-1",
+        "ranking": ["prior-assisted-1", "primary"],
+        "cited_claim_ids": ["claim-1"], "counterevidence_claim_ids": [],
+        "confidence": .6, "rationale": "The cited closure supports the path.",
+        "what_would_change_selection": "Observed activity during the closure.",
+    })
     forecaster = McpAgentForecaster(
         "x/y", client=ScriptedClient(
             [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
-            compiler_output),
+            [compiler_output, selection_output]),
         session_factory=lambda cwd: InProcessMcpSession(cwd),
         work_dir=str(tmp_path), profile="evidence",
         output_role="publication_best_effort")

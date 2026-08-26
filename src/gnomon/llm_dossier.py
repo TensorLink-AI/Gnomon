@@ -280,11 +280,15 @@ def validate_temporal_dossier(
             raw_observation_interpretations, claims=claims,
             history=history, history_timestamps=history_timestamps,
             future_timestamps=future_timestamps)
-    candidate_was_derived_from_observation_interpretation = (
-        raw.get("forecast_candidate") in (None, {})
-        and derived_candidate is not None)
+    derived_replay = ((derived_candidate or {}).get("conditional_replay") or {})
+    derived_replay_admitted = derived_replay.get("selection_eligible") is True
+    use_derived_candidate = bool(
+        derived_candidate is not None and (
+            derived_replay_admitted or raw.get("forecast_candidate") in (None, {})))
+    candidate_was_derived_from_observation_interpretation = \
+        use_derived_candidate
     if candidate_was_derived_from_observation_interpretation:
-        replay = derived_candidate.get("conditional_replay") or {}
+        replay = derived_replay
         candidate_selection_eligible = replay.get(
             "selection_eligible") is True
         if not candidate_selection_eligible:
@@ -294,13 +298,23 @@ def validate_temporal_dossier(
                 "the preregistered replay margin; retain it as a visible "
                 "scenario only.")
     candidate_reason_start = len(reasons)
+    candidate_input = (derived_candidate if use_derived_candidate else
+                       raw.get("forecast_candidate") or derived_candidate)
     candidate = _validate_candidate(
-        raw.get("forecast_candidate") or derived_candidate, claims=claims,
+        candidate_input, claims=claims,
         future_timestamps=future_timestamps, history=history, reasons=reasons)
     if candidate is not None and \
             candidate_was_derived_from_observation_interpretation:
         candidate["conditional_replay"] = dict(
             derived_candidate.get("conditional_replay") or {})
+    if (candidate is not None and not use_derived_candidate
+            and observation_interpretations and derived_candidate is not None
+            and not derived_replay_admitted):
+        candidate_selection_eligible = False
+        candidate_selection_reason = (
+            "A governed observation counterfactual over the same verified "
+            "claims failed conditional replay; a model-authored path cannot "
+            "bypass that evidence gate.")
     candidate_reasons = reasons[candidate_reason_start:]
     effect_raw = raw.get("effect_proposal")
     if isinstance(effect_raw, dict) and not effect_raw.get("claim_ids") \
@@ -355,7 +369,8 @@ def validate_temporal_dossier(
                     "message": (
                         "Submit a horizon-aligned q10/q50/q90 path that obeys "
                         "every cited constraint, or use a typed effect or "
-                        "transformation."
+                        "transformation. A time-invariant path may use compact "
+                        "constant_quantiles instead of repeating every row."
                     ),
                     "required_evidence": [
                         "horizon-aligned q10/q50/q90 path",
@@ -794,6 +809,21 @@ def _validate_candidate(
         reasons.append("forecast_candidate requires a verified cited claim")
         return None
     rows = raw.get("quantiles")
+    path_normalization = None
+    compact = raw.get("constant_quantiles")
+    if isinstance(compact, dict):
+        rows = [dict(compact) for _ in future_timestamps]
+        path_normalization = {
+            "kind": "constant_quantiles_expanded_to_host_grid",
+            "steps": len(future_timestamps),
+        }
+    elif isinstance(rows, list) and len(rows) == 1 and \
+            raw.get("repeat_across_horizon") is True:
+        rows = [dict(rows[0]) for _ in future_timestamps]
+        path_normalization = {
+            "kind": "single_quantile_row_repeated_on_host_grid",
+            "steps": len(future_timestamps),
+        }
     if not isinstance(rows, list) or len(rows) != len(future_timestamps):
         reasons.append(
             "forecast_candidate quantiles must match the requested horizon")
@@ -908,4 +938,6 @@ def _validate_candidate(
             "warnings": plausibility_warnings,
             "uncertainty_normalization": uncertainty_normalization,
         },
+        **({"path_normalization": path_normalization}
+           if path_normalization else {}),
     }

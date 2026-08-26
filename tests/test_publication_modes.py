@@ -53,33 +53,37 @@ def test_strict_never_promotes_prior_assisted_candidate():
     assert verify_publication(payload)
 
 
-def test_best_effort_promotes_candidate_but_not_authority():
+def test_best_effort_keeps_unselected_model_candidate_visible_only():
     payload = publish_result(
         _result(), mode="best_effort", dossiers=[_dossier()],
         automation_policy={"authorize": True})
-    assert payload["recommended_scenario_id"] == "prior-assisted-1"
-    assert payload["recommended_support"] == "prior_assisted"
+    assert payload["recommended_scenario_id"] == "primary"
+    assert any(item["scenario_id"] == "prior-assisted-1"
+               for item in payload["candidate_portfolio"])
     assert payload["primary_forecast"] == _result()["forecast"]
     assert payload["automation"]["eligible"] is False
     authority = payload["recommendation_authority"]
-    assert authority["selection_method"] == "default_prior_assisted_lane"
+    assert authority["selection_method"] == "immutable_primary_default"
     assert authority["independent_selection_performed"] is False
     assert authority["historically_admitted"] is False
-    assert authority["prior_assisted"] is True
-    assert authority["human_review_required"] is True
+    assert authority["prior_assisted"] is False
+    assert authority["human_review_required"] is False
     assert verify_publication(payload)
 
 
 def test_replay_admitted_observation_counterfactual_has_truthful_authority():
+    import random
+    rng = random.Random(0)
     start = datetime(2025, 10, 5, tzinfo=timezone.utc)
     history_times = [(start + timedelta(days=index)).isoformat()
-                     for index in range(90)]
+                     for index in range(120)]
     history = []
-    for index in range(90):
-        disrupted = index % 6 in {0, 1, 2}
-        history.append(-8.0 if disrupted else 20.0 + (index % 3 - 1))
+    for index in range(120):
+        disrupted = index % 5 in {0, 1}
+        history.append((-100.0 + rng.gauss(0, 3)) if disrupted
+                       else (20.0 + rng.gauss(0, 1)))
     claim = (
-        "Maintenance lasted for 3 days every 6 days starting from "
+        "Maintenance lasted for 2 days every 5 days starting from "
         "2025-10-05 00:00:00, resulting in no requests recorded.")
     context = claim + " There will be no future maintenance."
     dossier, reasons = validate_temporal_dossier(
@@ -108,6 +112,9 @@ def test_replay_admitted_observation_counterfactual_has_truthful_authority():
     assert authority["human_review_required"] is True
     assert payload["automation"]["eligible"] is False
     assert verify_publication(payload)
+    assert payload["selection_contract"]["selection_required"] is False
+    assert payload["selection_contract"]["deterministic_scenario_id"] == (
+        payload["recommended_scenario_id"])
 
 
 def test_governed_selection_repoints_sealed_path_without_reforecasting():
@@ -116,21 +123,21 @@ def test_governed_selection_repoints_sealed_path_without_reforecasting():
     original_seals = [item["scenario_seal_sha256"]
                       for item in original["candidate_portfolio"]]
     selected = select_publication(original, {
-        "selected_scenario_id": "primary",
-        "ranking": ["primary", "prior-assisted-1"],
-        "cited_claim_ids": [],
-        "counterevidence_claim_ids": ["claim-1"],
+        "selected_scenario_id": "prior-assisted-1",
+        "ranking": ["prior-assisted-1", "primary"],
+        "cited_claim_ids": ["claim-1"],
+        "counterevidence_claim_ids": [],
         "confidence": .6,
         "rationale": "The conditional claim is not independently validated.",
         "what_would_change_selection": "A resolved outcome history.",
     })
-    assert original["recommended_scenario_id"] == "prior-assisted-1"
-    assert selected["recommended_scenario_id"] == "primary"
+    assert original["recommended_scenario_id"] == "primary"
+    assert selected["recommended_scenario_id"] == "prior-assisted-1"
     assert [item["scenario_seal_sha256"]
             for item in selected["candidate_portfolio"]] == original_seals
     assert selected["primary_forecast"] == original["primary_forecast"]
     assert selected["primary_forecast_unchanged"] is True
-    assert selected["recommended_support"] == "supported"
+    assert selected["recommended_support"] == "prior_assisted"
     assert selected["automation"]["eligible"] is False
     assert selected["recommendation_authority"][
         "independent_selection_performed"] is True
@@ -340,7 +347,16 @@ def test_candidate_constraint_failure_is_typed_and_actionable():
 
 def test_publication_reuses_synthesis_tracking_and_scores_numeric_uplift(tmp_path):
     store = TrackingStore(tmp_path / "tracking.db")
-    payload = publish_result(_result(), mode="best_effort", dossiers=[_dossier()])
+    payload = select_publication(
+        publish_result(_result(), mode="best_effort", dossiers=[_dossier()]),
+        {
+            "selected_scenario_id": "prior-assisted-1",
+            "ranking": ["prior-assisted-1", "primary"],
+            "cited_claim_ids": ["claim-1"],
+            "counterevidence_claim_ids": [], "confidence": .6,
+            "rationale": "The cited promotion supports this conditional path.",
+            "what_would_change_selection": "Resolved outcomes contradict it.",
+        })
     synthesis_id = record_publication(
         store, project="p", forecast_id="f", series="x", payload=payload)
     score = store.resolve_temporal_synthesis(
@@ -372,7 +388,9 @@ def test_mode_invariants_hold_across_varied_bounded_paths():
         best = publish_result(_result(), mode="best_effort", dossiers=[dossier])
         assert strict["recommended_forecast"] == strict["primary_forecast"]
         assert best["primary_forecast"] == strict["primary_forecast"]
-        assert best["recommended_support"] == "prior_assisted"
+        assert best["recommended_support"] == "supported"
+        assert any(item["support"] == "prior_assisted"
+                   for item in best["candidate_portfolio"])
         assert best["automation"]["eligible"] is False
         assert verify_publication(strict) and verify_publication(best)
 
@@ -400,7 +418,7 @@ def test_mcp_forecast_persists_verified_sidecar_without_mutating_artifact(tmp_pa
         "output_dir": str(tmp_path / "out"),
         "publication_mode": "best_effort", "temporal_dossiers": [dossier],
     })
-    assert payload["publication"]["recommended_scenario_id"] == "prior-assisted-1"
+    assert payload["publication"]["recommended_scenario_id"] == "primary"
     assert payload["publication"]["projection"] == "compact"
     assert "recommended_forecast" not in payload["publication"]
     assert "candidate_portfolio" not in payload["publication"]

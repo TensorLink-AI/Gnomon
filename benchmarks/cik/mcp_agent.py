@@ -186,7 +186,14 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: context item, matching the human- and agent-facing publication envelope.
 #: Version 73: traces distinguish an independently selected recommendation
 #: from the default prior-assisted lane and disclose mandatory human review.
-MCP_CONTRACT_VERSION = 73
+#: Version 74: historical observation semantics use a focused compiler lane;
+#: fitted counterfactual replay and truthful publication authority are visible.
+#: Version 75: plain model-authored paths require an explicit governed
+#: selection; replay-admitted paths remain evidence-dominant. This changes the
+#: returned forecast and therefore must invalidate benchmark prediction caches.
+#: Version 76: candidate distributions must beat the raw comparator under
+#: fold-safe probabilistic replay, not point MAE alone.
+MCP_CONTRACT_VERSION = 76
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -574,6 +581,37 @@ def _expects_historical_zero_interpretation(context: str) -> bool:
             r"\bwill not be (?:in|under|on) (?:maintenance|an? outage|closure)\b",
             text))
     return disruption and exact_absence and ended
+
+
+OBSERVATION_INSTRUCTIONS = """\
+Compile historical observation semantics into one governed JSON dossier.
+Return ONLY these eight keys:
+{"events":[],"claims":[],"hypotheses":[],"covariate_tables":[],
+"transformations":[],"observation_interpretations":[],
+"effect_proposal":null,"forecast_candidate":null}
+
+Copy the exact sentence saying a historical disruption caused zero or no
+recorded target activity into one claim. Historical claims use their stated
+dates; if no dates are stated use the supplied history bounds. Because the
+source says the disruption ended, emit no future event or effect.
+
+If the sentence states a recurrence, add:
+{"kind":"historical_contamination","claim_ids":["claim-1"],
+ "predicate":{"op":"recurring_window","start":"stated date",
+ "duration_steps":1,"period_steps":2},"window":"cited_window",
+ "rationale":"brief observation semantics"}
+using only verbatim numbers. If dates/schedule are absent, do not guess a mask.
+
+For best-effort human use, you may instead author a sealed forecast_candidate
+from the supplied numeric history and the fact that the disruption will not
+recur. Use either quantiles with one row per exact forecast timestamp, or
+{"constant_quantiles":{"q10":0,"q50":0,"q90":0}} when the same distribution
+applies to every step; Gnomon expands that compact form onto its host-owned
+grid. It must have non-zero uncertainty, cite no unseen outcomes, and explain
+its arithmetic.
+This path is prior_assisted, cannot edit the immutable primary, upgrade
+support, or authorize automation. Return null if you cannot compute it.
+"""
 
 RELATIONSHIP_INSTRUCTIONS = """\
 Extract one explicit lagged numeric relationship for Gnomon's safe recurrence
@@ -1290,9 +1328,10 @@ class McpAgentForecaster:
             live_publication = getattr(run, "_publication", None)
             selection = None
             selection_error = None
-            if self.output_role == "publication_best_effort" and not live_publication:
+            if self.output_role == "publication_best_effort":
                 from gnomon.publication import (build_scenario_catalog,
                                                 scenario_selection_contract,
+                                                select_publication,
                                                 validate_scenario_selection)
                 from gnomon.temporal_state import build_temporal_state
                 scenarios, _ = build_scenario_catalog(
@@ -1341,12 +1380,41 @@ class McpAgentForecaster:
                         selection_error = f"selector rejected after repair: {last_error}"
             if self.output_role == "publication_best_effort" and live_publication:
                 # This is the product result returned by the real MCP call,
-                # including typed transformation use/rejection. Do not rebuild
-                # a benchmark-only projection over the artifact.
-                publication = live_publication
-                selection_error = "live MCP publication used"
-                selection = publication.get("scenario_selection")
+                # including typed transformation use/rejection. Re-point its
+                # sealed recommendation only when the governed selector earns
+                # a valid choice; never rebuild or reforecast the artifact.
+                if selection is not None:
+                    publication = select_publication(
+                        live_publication, selection)
+                else:
+                    publication = live_publication
+                    if selection_error is None:
+                        selection_error = "live MCP publication used without selection"
             else:
+                if self.output_role == "llm_candidate_shadow":
+                    # Shadow is an explicit evaluation instrument: score the
+                    # sealed model candidate without making it the product
+                    # default. Express that choice through the same governed
+                    # selector contract so forecast values remain untouchable.
+                    from gnomon.publication import build_scenario_catalog
+                    shadow_scenarios, _ = build_scenario_catalog(
+                        artifact_result, dossiers=[dossier])
+                    shadow = next((item for item in shadow_scenarios
+                                   if item.get("role") == "model_authored"), None)
+                    if shadow is not None:
+                        remaining = [item["scenario_id"]
+                                     for item in shadow_scenarios
+                                     if item["scenario_id"] != shadow["scenario_id"]]
+                        claim_ids = list(shadow.get("claim_ids") or [])
+                        selection = {
+                            "selected_scenario_id": shadow["scenario_id"],
+                            "ranking": [shadow["scenario_id"], *remaining],
+                            "cited_claim_ids": claim_ids,
+                            "counterevidence_claim_ids": [],
+                            "confidence": .5,
+                            "rationale": "Explicit shadow evaluation of the sealed candidate.",
+                            "what_would_change_selection": "Resolved outcomes score this candidate.",
+                        }
                 try:
                     publication = publish_result(
                         artifact_result, mode="best_effort", dossiers=[dossier],
@@ -1442,11 +1510,16 @@ class _Run:
             narrative_context, self.companion_evidence) if part)
         future_timestamps = _task_future_timestamps(self.task)
         relationship_contract = _has_explicit_lag_relationship(context)
+        observation_contract = (
+            not relationship_contract
+            and _expects_historical_zero_interpretation(context))
         compiler_context = (narrative_context if relationship_contract else context)
         history = _compiler_target_evidence(
             self.timestamps, self.values,
-            limit=8 if relationship_contract else 64)
+            limit=8 if relationship_contract else
+            128 if observation_contract else 64)
         instructions = (RELATIONSHIP_INSTRUCTIONS if relationship_contract
+                        else OBSERVATION_INSTRUCTIONS if observation_contract
                         else DOSSIER_INSTRUCTIONS)
         prompt = (
             f"{instructions}\n"
@@ -2132,7 +2205,9 @@ class _Run:
                 "kind": "llm_proposes_gnomon_validates",
                 "model": self.forecaster.openrouter_model,
                 "contract": ("explicit_lag_relationship"
-                             if relationship_contract else "universal_dossier"),
+                             if relationship_contract else
+                             "historical_observation_semantics"
+                             if observation_contract else "universal_dossier"),
                 "prompt_bytes": len(prompt.encode("utf-8")),
                 "workflow_budget_seconds": MAX_CONTEXT_COMPILATION_SECONDS,
                 "elapsed_seconds": round(

@@ -1,4 +1,5 @@
 from gnomon.observation_counterfactual import fit_observation_counterfactual
+import random
 
 
 def _future():
@@ -7,12 +8,14 @@ def _future():
 
 
 def test_replay_admits_filter_when_disruptions_poison_raw_last_value():
+    rng = random.Random(0)
     history = []
     mask = []
-    for index in range(90):
-        disrupted = index % 6 in {0, 1, 2}
+    for index in range(120):
+        disrupted = index % 5 in {0, 1}
         mask.append(disrupted)
-        history.append(-8.0 if disrupted else 20.0 + (index % 3 - 1))
+        history.append((-100.0 + rng.gauss(0, 3)) if disrupted
+                       else (20.0 + rng.gauss(0, 1)))
 
     candidate, evidence = fit_observation_counterfactual(
         history, mask, _future())
@@ -22,10 +25,28 @@ def test_replay_admits_filter_when_disruptions_poison_raw_last_value():
     assert evidence["selection_eligible"] is True
     assert evidence["origins"] >= 12
     assert evidence["candidate_mae"] < evidence["strongest_raw_mae"]
+    assert (evidence["candidate_probabilistic_loss"]
+            < evidence["strongest_probabilistic_loss"])
     assert evidence["strongest_raw_comparator"] in {
         "last_value", "window_average", "drift", "linear_trend", "theta", "ets"}
     assert evidence["chronological_block_wins"] >= 2
     assert candidate["conditional_replay"] == evidence
+
+
+def test_point_uplift_cannot_admit_a_worse_predictive_distribution():
+    history = []
+    mask = []
+    for index in range(90):
+        disrupted = index % 6 in {0, 1, 2}
+        mask.append(disrupted)
+        history.append(-8.0 if disrupted else 20.0 + (index % 3 - 1))
+
+    _, evidence = fit_observation_counterfactual(history, mask, _future())
+
+    assert evidence["candidate_mae"] < evidence["strongest_raw_mae"]
+    assert (evidence["candidate_probabilistic_loss"]
+            > evidence["strongest_probabilistic_loss"])
+    assert evidence["status"] == "not_admitted"
 
 
 def test_replay_refuses_filter_that_does_not_improve_conditional_targets():

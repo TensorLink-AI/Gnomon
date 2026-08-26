@@ -10,12 +10,18 @@
   primary. A derived empirical counterfactual is visible and outcome-scoreable
   and enters a fixed robust-level/Croston family contest. Recommendation
   authority requires at least twelve expanding origins on unaffected targets,
-  a 10% win over the strongest fixed raw classical comparator, and wins in two
-  of three chronological blocks. The receipt distinguishes this retrospective
+  a 10% win over the strongest fixed raw classical comparator under both point
+  MAE and fold-safe q10/q50/q90 pinball loss, and probabilistic wins in two of
+  three chronological blocks. This prevents a better median with a worse
+  published distribution from earning recommendation authority. The receipt distinguishes this retrospective
   conditional replay from historical knowledge-time admission; automation
   remains forbidden. Qualitative and percentage compiler confidence is
   conservatively normalized with no authority effect, and one bounded repair
   now covers malformed claims and hypotheses as well as numeric candidates.
+  Replay-admitted observation counterfactuals are evidence-dominant and cannot
+  be displaced by an LLM ranking. Plain model-authored paths remain visible
+  but require an explicit governed scenario selection; they are no longer the
+  automatic best-effort fallback.
 - Added governed `linear_combination` and `recursive_linear` transformations.
   Gnomon derives omitted coefficient units for cited additive equations and
   executes ARX-style recurrences using target and driver history reloaded from

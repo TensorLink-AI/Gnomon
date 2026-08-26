@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 from gnomon.llm_dossier import (
     deterministic_historical_observation_claim,
     validate_temporal_dossier,
@@ -246,6 +248,40 @@ def test_cited_recurring_disruption_excludes_by_time_not_observed_value():
     assert dossier["primary_forecast_unchanged"] is True
 
 
+def test_model_candidate_cannot_bypass_failed_observation_replay():
+    start = datetime(2025, 10, 5, tzinfo=timezone.utc)
+    history_times = [(start + timedelta(days=index)).isoformat()
+                     for index in range(90)]
+    history = [float(index + 1) for index in range(90)]
+    future = [(start + timedelta(days=90 + index)).isoformat()
+              for index in range(2)]
+    claim = ("Maintenance lasted for 3 days every 6 days starting from "
+             "2025-10-05 00:00:00, resulting in no requests recorded.")
+    context = claim + " There will be no future maintenance."
+    raw = {
+        "claims": [{"source_span": claim, "relation": "unknown",
+                    "effective_start": history_times[0],
+                    "effective_end": history_times[-1], "confidence": 1}],
+        "forecast_candidate": {"quantiles": [
+            {"timestamp": timestamp, "q10": 89 + index,
+             "q50": 91 + index, "q90": 93 + index}
+            for index, timestamp in enumerate(future)],
+            "rationale": "model extrapolation under the supplied context"},
+    }
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=context, cutoff=history_times[-1],
+        future_timestamps=future, history=history,
+        history_timestamps=history_times, compiler_model="test")
+
+    assert not reasons
+    assert dossier["observation_interpretations"]
+    assert dossier["observation_interpretation_critique"][
+        "conditional_replay"]["selection_eligible"] is False
+    assert dossier["candidate_critique"]["candidate_origin"] == "model_authored"
+    assert dossier["candidate_critique"]["selection_eligible"] is False
+    assert "cannot bypass" in dossier["candidate_critique"]["selection_reason"]
+
+
 def test_uncited_claim_cannot_author_a_candidate():
     dossier, reasons = validate_temporal_dossier(
         _raw("invented"), context_text="The site remains open.",
@@ -361,6 +397,30 @@ def test_placeholder_is_rejected_and_degenerate_candidate_is_widened():
                for row in candidate["quantiles"])
     assert candidate["plausibility"]["uncertainty_normalization"]["code"] == \
         "ROBUST_HISTORY_UNCERTAINTY_FLOOR"
+
+
+def test_compact_constant_candidate_expands_only_onto_host_grid():
+    span = "The historical outage ended and demand should stabilize."
+    future = [f"2026-01-{day:02d}T00:00:00+00:00" for day in range(5, 15)]
+    raw = {
+        "claims": [{"source_span": span, "relation": "supports_stability",
+                    "effective_start": future[0], "effective_end": future[-1],
+                    "confidence": .7}],
+        "forecast_candidate": {
+            "constant_quantiles": {"q10": 8, "q50": 10, "q90": 12},
+            "rationale": "stable post-outage distribution"},
+    }
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=span, cutoff="2026-01-04T00:00:00+00:00",
+        future_timestamps=future, history=[8, 9, 10, 11],
+        compiler_model="test")
+
+    assert not reasons
+    candidate = dossier["forecast_candidate"]
+    assert [row["timestamp"] for row in candidate["quantiles"]] == future
+    assert all(row["q50"] == 10 for row in candidate["quantiles"])
+    assert candidate["path_normalization"] == {
+        "kind": "constant_quantiles_expanded_to_host_grid", "steps": 10}
 
 
 def test_candidate_must_obey_its_own_cited_numeric_bounds():

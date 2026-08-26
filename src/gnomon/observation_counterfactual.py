@@ -19,6 +19,32 @@ from .models import croston_sba
 
 MIN_REPLAY_ORIGINS = 12
 ADMISSION_MARGIN = 0.10
+MIN_CALIBRATION_ERRORS = 8
+
+
+def _pinball(actual: float, forecast: float, probability: float) -> float:
+    error = actual - forecast
+    return max(probability * error, (probability - 1.0) * error)
+
+
+def _replayed_distribution_losses(
+    actuals: list[float], points: list[float],
+) -> list[float]:
+    """Score fold-safe q10/q50/q90 paths using only earlier residuals."""
+    losses: list[float] = []
+    prior_errors: list[float] = []
+    for actual, point in zip(actuals, points):
+        if len(prior_errors) >= MIN_CALIBRATION_ERRORS:
+            forecasts = (
+                point + _quantile(prior_errors, .10),
+                point + _quantile(prior_errors, .50),
+                point + _quantile(prior_errors, .90),
+            )
+            losses.append(2.0 * sum(
+                _pinball(actual, forecast, probability)
+                for forecast, probability in zip(forecasts, (.10, .50, .90))) / 3.0)
+        prior_errors.append(actual - point)
+    return losses
 
 
 def _quantile(values: list[float], probability: float) -> float:
@@ -96,6 +122,10 @@ def fit_observation_counterfactual(
     baseline_losses: list[float] = []
     comparator_losses: dict[str, list[float]] = {
         name: [] for name in raw_comparators}
+    candidate_points: dict[str, list[float]] = {family: [] for family in families}
+    comparator_points: dict[str, list[float]] = {
+        name: [] for name in raw_comparators}
+    replay_actuals: list[float] = []
     origin_positions: list[int] = []
     for origin in range(1, len(history)):
         if exclusion_mask[origin]:
@@ -115,14 +145,17 @@ def fit_observation_counterfactual(
         if all(value is None for value in predictions.values()):
             continue
         origin_positions.append(origin)
+        replay_actuals.append(actual)
         baseline_losses.append(abs(actual - float(history[origin - 1])))
         for name, model in raw_comparators.items():
             try:
                 prediction = float(model(
                     [float(value) for value in history[:origin]], 1, 1)[0])
                 comparator_losses[name].append(abs(actual - prediction))
+                comparator_points[name].append(prediction)
             except (ValueError, ArithmeticError, OverflowError):
                 comparator_losses[name].append(math.nan)
+                comparator_points[name].append(math.nan)
         for family, prediction in predictions.items():
             if prediction is None:
                 losses[family].append(math.nan)
@@ -130,6 +163,9 @@ def fit_observation_counterfactual(
             else:
                 losses[family].append(abs(actual - prediction))
                 errors[family].append(actual - prediction)
+                candidate_points[family].append(prediction)
+            if prediction is None:
+                candidate_points[family].append(math.nan)
 
     complete = {
         family: [value for value in values if math.isfinite(value)]
@@ -144,7 +180,27 @@ def fit_observation_counterfactual(
             "minimum_origins": MIN_REPLAY_ORIGINS,
             "selection_eligible": False,
         })
-    family = min(eligible, key=lambda name: statistics.mean(complete[name]))
+    probabilistic_losses = {
+        family: _replayed_distribution_losses(
+            replay_actuals, candidate_points[family])
+        for family in eligible
+    }
+    eligible = [family for family in eligible
+                if len(probabilistic_losses[family]) >= MIN_REPLAY_ORIGINS
+                and all(math.isfinite(value)
+                        for value in probabilistic_losses[family])]
+    if not eligible:
+        return empirical_fallback({
+            "status": "insufficient_probabilistic_replay",
+            "origins": len(baseline_losses),
+            "probabilistic_origins": max(
+                (len(values) for values in probabilistic_losses.values()),
+                default=0),
+            "minimum_origins": MIN_REPLAY_ORIGINS,
+            "selection_eligible": False,
+        })
+    family = min(eligible, key=lambda name: statistics.mean(
+        probabilistic_losses[name]))
     candidate_mae = statistics.mean(complete[family])
     baseline_mae = statistics.mean(baseline_losses)
     complete_comparators = {
@@ -156,19 +212,42 @@ def fit_observation_counterfactual(
         key=lambda name: statistics.mean(complete_comparators[name]))
     strongest_losses = complete_comparators[strongest_name]
     strongest_mae = statistics.mean(strongest_losses)
+    probabilistic_comparators = {
+        name: _replayed_distribution_losses(replay_actuals, points)
+        for name, points in comparator_points.items()
+        if all(math.isfinite(value) for value in points)}
+    probabilistic_comparators = {
+        name: values for name, values in probabilistic_comparators.items()
+        if len(values) == len(probabilistic_losses[family])
+        and all(math.isfinite(value) for value in values)}
+    strongest_probabilistic_name = min(
+        probabilistic_comparators,
+        key=lambda name: statistics.mean(probabilistic_comparators[name]))
+    strongest_probabilistic_losses = probabilistic_comparators[
+        strongest_probabilistic_name]
+    candidate_probabilistic_loss = statistics.mean(
+        probabilistic_losses[family])
+    strongest_probabilistic_loss = statistics.mean(
+        strongest_probabilistic_losses)
     block_wins = 0
-    boundaries = [0, len(baseline_losses) // 3,
-                  2 * len(baseline_losses) // 3, len(baseline_losses)]
+    distribution_origins = len(probabilistic_losses[family])
+    boundaries = [0, distribution_origins // 3,
+                  2 * distribution_origins // 3, distribution_origins]
     for left, right in zip(boundaries, boundaries[1:]):
         if right <= left:
             continue
-        candidate_block = statistics.mean(losses[family][left:right])
-        comparator_block = statistics.mean(strongest_losses[left:right])
+        candidate_block = statistics.mean(
+            probabilistic_losses[family][left:right])
+        comparator_block = statistics.mean(
+            strongest_probabilistic_losses[left:right])
         if candidate_block < comparator_block:
             block_wins += 1
     admitted = (
         strongest_mae > 0
         and candidate_mae <= strongest_mae * (1 - ADMISSION_MARGIN)
+        and strongest_probabilistic_loss > 0
+        and candidate_probabilistic_loss <= (
+            strongest_probabilistic_loss * (1 - ADMISSION_MARGIN))
         and block_wins >= 2)
 
     retained = [float(value) for value, excluded in zip(history, exclusion_mask)
@@ -201,6 +280,15 @@ def fit_observation_counterfactual(
         "raw_last_value_mae": baseline_mae,
         "strongest_raw_comparator": strongest_name,
         "strongest_raw_mae": strongest_mae,
+        "probabilistic_metric": "mean_q10_q50_q90_pinball_v1",
+        "probabilistic_origins": distribution_origins,
+        "candidate_probabilistic_loss": candidate_probabilistic_loss,
+        "strongest_probabilistic_comparator": strongest_probabilistic_name,
+        "strongest_probabilistic_loss": strongest_probabilistic_loss,
+        "probabilistic_relative_improvement": (
+            (strongest_probabilistic_loss - candidate_probabilistic_loss)
+            / strongest_probabilistic_loss
+            if strongest_probabilistic_loss > 0 else None),
         "relative_improvement": (
             (strongest_mae - candidate_mae) / strongest_mae
             if strongest_mae > 0 else None),

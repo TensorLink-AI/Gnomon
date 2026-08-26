@@ -8,7 +8,10 @@ that it was historically validated.
 that passed Gnomon's fold-safe admission may be recommended. An LLM ranking is
 ignored in this mode.
 
-`best_effort` may put a sealed `prior_assisted` conditional path first. The
+`best_effort` may put a sealed `prior_assisted` conditional path first when a
+governed executable earned that role or an explicit governed scenario
+selection chose an eligible sealed path. A plain model-authored path is not
+promoted merely because it exists. The
 history-only primary remains present, the weaker support label remains attached,
 and the recommendation is never automation-eligible. Use this mode for a human
 who wants the best bounded answer available from new information.
@@ -112,7 +115,8 @@ transformed-floor normalization are sealed. The resulting empirical
 counterfactual begins as a visible `prior_assisted` scenario. It can lead a
 best-effort recommendation only after at least twelve expanding origins on
 unaffected targets, a 10% win over the strongest fixed raw classical
-comparator, and wins in two of three chronological blocks. The receipt labels
+comparator under both point MAE and fold-safe q10/q50/q90 pinball loss, and
+probabilistic wins in two of three chronological blocks. The receipt labels
 this as retrospective conditional replay—it does not pretend the source was
 known at earlier origins—and automation remains ineligible.
 

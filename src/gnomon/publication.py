@@ -34,6 +34,16 @@ def dominant_scenario_id(scenarios: list[dict[str, Any]]) -> str | None:
                and item.get("support") == "context_trusted"]
     if trusted:
         return str(trusted[0]["scenario_id"])
+    observation = [item for item in scenarios
+                   if item.get("role") == "observation_counterfactual"
+                   and ((item.get("effect") or {}).get(
+                       "conditional_replay") or {}).get(
+                           "selection_eligible") is True]
+    if observation:
+        # A fixed executable that cleared conditional replay outranks a
+        # number-free model ranking. The model may explain it, not silently
+        # replace it with an unsupported sealed path.
+        return str(observation[0]["scenario_id"])
     admitted = [item for item in scenarios
                 if item.get("role") == "fitted_context_candidate"
                 and ((item.get("effect") or {}).get("evidence") or {}).get("decisive")]
@@ -679,7 +689,7 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
                 key=lambda item: item["effect"]["evidence"]["score"]
             )["scenario_id"]
         selected_id = selected_id or next((item["scenario_id"] for item in scenarios
-                            if item["role"] in {"effect_composed", "model_authored",
+                            if item["role"] in {"effect_composed",
                                                 "observation_counterfactual",
                                                 "model_authored_transformation"}
                             and item.get("selection_eligible", True) is True),
@@ -942,7 +952,11 @@ def record_publication(store: Any, *, project: str, forecast_id: str,
             synthesis_id=f"{synthesis_id}:{candidate['scenario_id']}",
             canonical={"value": "primary", "forecast": primary["forecast"]},
             synthesis={
-                "label": "candidate_portfolio", "value": candidate["scenario_id"],
+                # Candidate paths are conditional answers awaiting outcomes;
+                # use the tracking store's existing typed synthesis channel
+                # instead of inventing a publication-only label.
+                "label": "conditional_answer", "value": candidate["scenario_id"],
+                "channel": "candidate_portfolio",
                 "forecast": candidate["forecast"], "support": candidate["support"],
                 "primary_forecast_unchanged": True, "automation_eligible": False,
             }, evidence_refs=[candidate["scenario_seal_sha256"]],
