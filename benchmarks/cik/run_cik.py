@@ -488,7 +488,7 @@ def write_outputs(results: dict, method, args, output_dir: Path) -> None:
         "condition": args.method,
         "model": args.model,
         "seeds": args.seeds,
-        "seed_start": args.seed_start,
+        "seed_start": getattr(args, "seed_start", 1),
         "runs_scored": len(scored),
         "runs_abstained": abstentions,
         "runs_errored": errors,
