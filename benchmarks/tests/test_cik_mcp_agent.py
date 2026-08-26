@@ -93,6 +93,22 @@ def _task(horizon: int = 4, n: int = 72):
     )
 
 
+def _irregular_hourly_task():
+    from datetime import datetime, timedelta, timezone
+
+    epoch = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    observed_hours = [index for index in range(73) if index != 20]
+    return SimpleNamespace(
+        past_time=[((epoch + timedelta(hours=index)).isoformat(),
+                    50.0 + index % 24) for index in observed_hours],
+        future_time=[(epoch + timedelta(hours=73 + index)).isoformat()
+                     for index in range(4)],
+        background="Hourly operations telemetry.", constraints=None,
+        scenario="Values will stay in their usual range.",
+        name="IrregularHourlyTask", seed=1,
+    )
+
+
 class ScriptedClient:
     """A chat client that plays a fixed script instead of a model.
 
@@ -374,6 +390,31 @@ def test_evidence_host_binds_first_valid_forecast_artifact(tmp_path):
     assert len(samples[0]) == 4
     trace = json.loads(next((tmp_path / "traces").glob("*.json")).read_text())
     assert trace["trace"][0]["host_bound_submission"] == {
+        "accepted": True, "route": "gnomon"}
+
+
+def test_evidence_executes_one_server_authored_grid_repair(tmp_path):
+    client = ScriptedClient([])
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), trace_dir=tmp_path / "traces",
+        profile="evidence",
+    )
+
+    samples, extra = forecaster(_irregular_hourly_task(), 1)
+
+    assert extra["route"] == "gnomon"
+    assert extra["mcp_calls"] == 2
+    assert len(samples[0]) == 4
+    trace = json.loads(next((tmp_path / "traces").glob("*.json")).read_text())
+    assert trace["trace"][0]["code"] == "IRREGULAR_TIME_GRID"
+    assert trace["trace"][1] == {
+        "governed_recovery": "server_authored_aggressive_repair",
+        "source_error_code": "IRREGULAR_TIME_GRID",
+        "model_turn_required": False,
+    }
+    assert trace["trace"][2]["host_bound_submission"] == {
         "accepted": True, "route": "gnomon"}
 
 

@@ -172,6 +172,19 @@ def _validate_one(raw: Any, *, claim_ids: set[str],
                     "basis": "citation states one exact multiplier; primary path retains forecast uncertainty",
                 })
                 lower = upper = location
+            if shape == "custom_scenario":
+                # The shape label is model-authored; the cited multiplier and
+                # bounded timing are not. Once those deterministic fields are
+                # available, retaining `custom_scenario` would discard an
+                # otherwise executable user instruction merely because the
+                # model chose a vague taxonomy label.
+                shape = "temporary_pulse" if duration is not None else "level_shift"
+                semantic_normalizations.append({
+                    "code": "EXACT_MULTIPLIER_TO_EXECUTABLE_SHAPE",
+                    "model_shape": "custom_scenario",
+                    "applied_shape": shape,
+                    "basis": "verified cited multiplier and bounded timing",
+                })
     return {
         "shape": shape, "unit": unit, "location": location,
         "lower": lower, "upper": upper, "confidence": confidence,

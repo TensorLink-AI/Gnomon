@@ -83,6 +83,23 @@ def test_temporary_multiplier_is_plateau_for_stated_duration():
     assert [row["q90"] for row in rows] == [33, 33, 33, 11]
 
 
+def test_exact_bounded_multiplier_repairs_vague_custom_shape():
+    raw = _proposal(
+        shape="custom_scenario", unit="fraction_of_level",
+        location=-0.7, lower=-0.8, upper=-0.6, duration_steps=2)
+    proposal, critique = validate_effect_proposal(
+        raw, claim_ids={"claim-1"},
+        claim_spans={"claim-1": "Traffic will be 30% of usual for 2 hours."})
+
+    assert critique["status"] == "accepted"
+    assert proposal["shape"] == "temporary_pulse"
+    assert proposal["location"] == proposal["lower"] == proposal["upper"] == -0.7
+    assert any(item["code"] == "EXACT_MULTIPLIER_TO_EXECUTABLE_SHAPE"
+               for item in proposal["semantic_normalizations"])
+    assert [row["q50"] for row in compose_effect(PRIMARY, proposal)] \
+        == pytest.approx([3.0, 3.0])
+
+
 def test_conflicting_cited_multipliers_fail_closed():
     proposal, critique = validate_effect_proposal(
         _proposal(unit="fraction_of_level", claim_ids=["claim-1", "claim-2"]),

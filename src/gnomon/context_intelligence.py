@@ -443,6 +443,17 @@ def _constant_is_entailed(value: float, *, role: str, text: str) -> bool:
     if any(math.isclose(value, item, rel_tol=1e-12, abs_tol=1e-12)
            for item in numbers):
         return True
+    # A dimensionless multiplier is commonly stated as a percentage in prose
+    # ("10% of usual" -> 0.1). Treat only the explicit percent-marked number
+    # as equivalent; an unrelated bare 10 elsewhere must not entail 0.1.
+    percentage_tokens = re.findall(
+        r"(?<![\w.])([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*(?:%|percent\b)",
+        clean.replace(",", ""), flags=re.IGNORECASE)
+    if role == "literal" and any(
+            math.isclose(value, float(token) / 100.0,
+                         rel_tol=1e-12, abs_tol=1e-12)
+            for token in percentage_tokens):
+        return True
     words = clean.casefold()
     word_values = {
         0.25: r"\b(?:a\s+quarter|one\s+quarter|quarter)\b",

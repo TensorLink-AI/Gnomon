@@ -209,7 +209,10 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: conditional quantile rather than shifting all bounds by the median effect.
 #: Version 94: fold-starved forecasts may admit seasonal-naive over last-value
 #: from six or more independent seasonal probes with chronological stability.
-MCP_CONTRACT_VERSION = 94
+#: Version 95: exact cited multipliers repair vague custom shape labels, and a
+#: governed host executes one server-authored capped grid repair without an LLM
+#: improvisation turn.
+MCP_CONTRACT_VERSION = 95
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -2370,6 +2373,8 @@ class _Run:
             # model compiles qualitative context; host invokes the typed verb.
             self._dispatch("gnomon_forecast", {})
             if not self.submission:
+                self._retry_governed_safe_repair()
+            if not self.submission:
                 self._abstain(
                     "governed forecast did not produce a publishable artifact")
             return self._resolve_submission()
@@ -2438,6 +2443,40 @@ class _Run:
         if not self.submission:
             self._abstain(f"cap:rounds {MAX_ROUNDS} rounds without a submission")
         return self._resolve_submission()
+
+    def _retry_governed_safe_repair(self) -> bool:
+        """Execute one server-authored, bounded repair without another LLM turn.
+
+        The server may identify an interior grid defect and return a literal
+        aggressive-repair call. That repair is already capped and disclosed by
+        Gnomon. A production host should not turn this deterministic recovery
+        into agent improvisation, nor silently abstain while an executable
+        recovery is present. Only the named repair action is honored; arbitrary
+        returned arguments are deliberately not replayed.
+        """
+        if not self.trace:
+            return False
+        error = self.trace[-1]
+        details = error.get("error_details") or {}
+        options = details.get("repair_options") or []
+        eligible = any(
+            isinstance(option, dict)
+            and option.get("action") == "retry_with_aggressive_repair"
+            and isinstance(option.get("tool_call"), dict)
+            and option["tool_call"].get("name") == "gnomon_forecast"
+            and (option["tool_call"].get("arguments") or {}).get("repair")
+                == "aggressive"
+            for option in options
+        )
+        if not eligible:
+            return False
+        self.trace.append({
+            "governed_recovery": "server_authored_aggressive_repair",
+            "source_error_code": error.get("code"),
+            "model_turn_required": False,
+        })
+        self._dispatch("gnomon_forecast", {"repair": "aggressive"})
+        return self.submission is not None
 
     # -- dispatch ----------------------------------------------------------
     def _dispatch(self, name: str, arguments: dict[str, Any] | None) -> str:

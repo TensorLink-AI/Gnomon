@@ -153,6 +153,9 @@ Typed `temporary_pulse` effects are constant over their stated active window;
 ramps require an explicit ramp shape. A `fraction_of_level` effect transforms
 each quantile multiplicatively, so the conditional distribution follows the
 cited multiplier rather than only shifting its median.
+If a compiler calls an otherwise exact, bounded cited multiplier a
+`custom_scenario`, validation canonicalizes the vague label to the executable
+bounded shape. It does not infer a magnitude or timing that the citation lacks.
 
 When a long requested horizon leaves only one full-horizon holdout, Gnomon
 still refuses to rank incremental candidates. It may preserve demonstrated

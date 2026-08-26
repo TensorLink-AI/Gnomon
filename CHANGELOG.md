@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Governed context now turns a vague `custom_scenario` label into an executable
+  temporary pulse or level shift when the cited source supplies an exact
+  multiplier and bounded timing. Percentage prose such as "10% of usual" also
+  entails the equivalent `0.1` declarative transformation constant. Separately,
+  the integrated Evidence host executes one server-authored, capped aggressive
+  grid repair before abstaining; the repair remains disclosed and consumes a
+  second tool call, but requires no model improvisation.
 - Fold-starved forecasts no longer discard repeatable seasonal shape merely
   because a long requested horizon prevents full-horizon folds. The lightweight
   path may admit the predeclared `seasonal_naive` baseline over `last_value`

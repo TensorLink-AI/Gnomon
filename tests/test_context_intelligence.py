@@ -459,6 +459,20 @@ def test_linear_combination_rejects_unknown_series_and_unentailed_coefficient():
     assert unentailed.value.code == "UNENTAILED_TRANSFORMATION_CONSTANT"
 
 
+def test_percent_prose_entails_dimensionless_multiplier():
+    compiled = validate_transformation({
+        "known_at": _stamp(5), "claim_ids": ["claim-1"],
+        "lane": "scenario_only", "output_unit": "percent",
+        "expression": {"op": "multiply", "args": [
+            {"op": "primary"}, {"op": "literal", "value": 0.1},
+        ]},
+    }, series=[], claim_ids=["claim-1"], cutoff=_stamp(5),
+        units={"primary": "percent"},
+        claim_spans={"claim-1": "Traffic will be 10.0% of usual."})
+
+    assert compiled["expression"]["args"][1]["value"] == 0.1
+
+
 def test_ordinary_additive_equation_derives_only_forced_coefficient_units():
     raw = {
         "known_at": _stamp(5), "claim_ids": ["claim-1"],
