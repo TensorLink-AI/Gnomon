@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 import statistics
 from datetime import datetime
 from typing import Any
@@ -40,6 +41,22 @@ def _robust_scale(values: list[float]) -> float:
     if positive:
         return max(statistics.median(positive), 1e-12)
     return max(abs(statistics.median(values)) * 0.01, 1e-12)
+
+
+def _states_quantitative_relationship(span: Any) -> bool:
+    """Whether a cited span states more than direction or a lone bound."""
+    text = _normalise(span)
+    semantic_laws = (
+        "square", "squared", "quadratic", "cube", "cubed", "cubic",
+        "double", "twice", "triple", "half", "proportional to",
+    )
+    if any(token in text for token in semantic_laws):
+        return True
+    has_number = bool(re.search(
+        r"(?<!\w)[+-]?(?:\d+(?:\.\d*)?|\.\d+)", text))
+    quantitative_operator = any(token in text for token in (
+        "%", "percent", "times", "ratio", " per ", "multipl"))
+    return has_number and quantitative_operator
 
 
 def _timestamp(value: Any) -> datetime | None:
@@ -393,11 +410,13 @@ def _validate_candidate(
     path_diffs = [abs(b - a) for a, b in zip(points, points[1:])]
     path_scale_ratio = ((statistics.median(path_diffs) / scale)
                         if path_diffs else 0.0)
-    directional_support = any(claim.get("relation") in {
-        "supports_increase", "supports_decrease",
-        "changes_seasonal_regime",
-    } for claim in claims)
-    bounded_regime_change = bool(bound_claim_ids) and directional_support
+    quantitative_support = any(
+        claim.get("relation") in {
+            "supports_increase", "supports_decrease",
+            "changes_seasonal_regime",
+        } and _states_quantitative_relationship(claim.get("source_span"))
+        for claim in claims)
+    bounded_regime_change = bool(bound_claim_ids) and quantitative_support
     plausibility_warnings: list[str] = []
     if boundary_jump > MAX_BOUNDARY_JUMP_SCALES and not bounded_regime_change:
         reasons.append("forecast_candidate failed boundary-jump plausibility")

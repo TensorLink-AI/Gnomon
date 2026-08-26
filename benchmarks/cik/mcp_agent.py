@@ -84,7 +84,9 @@ MAX_RUN_TOKENS = 250_000
 #: fallback alongside the safer executable transformation.
 #: Version 25: a directionally supported candidate inside a cited numeric
 #: bound may leave the history scale as a warned, non-automatable scenario.
-MCP_CONTRACT_VERSION = 25
+#: Version 26: that exception requires a cited quantitative relationship;
+#: direction plus a loose bound is not enough to license a large jump.
+MCP_CONTRACT_VERSION = 26
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
