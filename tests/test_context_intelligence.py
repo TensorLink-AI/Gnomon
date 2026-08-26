@@ -660,6 +660,35 @@ def test_recursive_future_alias_rebinds_to_governed_driver_identity():
     assert canonical["units"]["X_0"] == "x"
 
 
+def test_nested_lag_future_series_canonicalizes_to_feedback_and_driver():
+    wrapper = {
+        "transformation": {"output_unit": "y", "expression": {
+            "op": "add", "args": [
+                {"op": "multiply", "args": [
+                    {"op": "literal", "value": .5},
+                    {"op": "lag", "steps": 1, "args": [
+                        {"op": "series", "name": "future_x1"}]}]},
+                {"op": "multiply", "args": [
+                    {"op": "literal", "value": 2},
+                    {"op": "lag", "steps": 1, "args": [
+                        {"op": "series", "name": "future_x0"}]}]},
+            ]}},
+        "units": {"primary": "y", "future_x0": "x", "future_x1": "y"},
+        "series_values": {
+            "future_x0": {"values": [1, 2], "source_claim_ids": ["claim-1"]},
+            "future_x1": {"values": [999, 999], "source_claim_ids": ["claim-1"]},
+        },
+    }
+    canonical, status = canonicalize_recursive_wrapper(
+        wrapper, target_name="X_1", driver_names=["X_0"])
+    assert status["status"] == "canonicalized"
+    expression = canonical["transformation"]["expression"]
+    assert expression["autoregressive_terms"] == [{"lag": 1, "coefficient": .5}]
+    assert expression["driver_terms"] == [
+        {"series": "X_0", "lag": 1, "coefficient": 2}]
+    assert set(canonical["series_values"]) == {"X_0"}
+
+
 def test_model_computed_constant_cannot_launder_through_claim_id():
     raw = {
         "known_at": _stamp(5), "claim_ids": ["claim-1"],

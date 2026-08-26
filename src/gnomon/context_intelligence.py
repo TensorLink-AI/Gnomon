@@ -124,8 +124,14 @@ def canonicalize_recursive_wrapper(
             return output
         return [node]
 
-    driver_by_normal = {normalize(name): name for name in driver_names}
+    driver_by_normal: dict[str, str] = {}
+    for name in driver_names:
+        base = normalize(name)
+        for alias in (base, "future" + base, base + "future",
+                      "schedule" + base, base + "schedule"):
+            driver_by_normal[alias] = name
     target_key = normalize(target_name)
+    target_aliases = {target_key, "future" + target_key, target_key + "future"}
     ar_terms, driver_terms = [], []
     aliases: dict[str, list[str]] = {}
     for term in flatten(expression) or []:
@@ -136,17 +142,31 @@ def canonicalize_recursive_wrapper(
             return wrapper, {"status": "not_applicable"}
         literal = next((item for item in args if isinstance(item, dict)
                         and item.get("op") == "literal"), None)
-        series_node = next((item for item in args if isinstance(item, dict)
-                            and item.get("op") == "series"), None)
-        if literal is None or series_node is None:
+        value_node = next((item for item in args if isinstance(item, dict)
+                           and item is not literal), None)
+        if literal is None or value_node is None:
             return wrapper, {"status": "not_applicable"}
-        name = str(series_node.get("name") or "")
-        match = re.fullmatch(r"(.+?)[_-]?lag[_-]?(\d+)", name, re.I)
-        if not match:
+        if value_node.get("op") == "series":
+            name = str(value_node.get("name") or "")
+            match = re.fullmatch(r"(.+?)[_-]?lag[_-]?(\d+)", name, re.I)
+            if not match:
+                return wrapper, {"status": "not_applicable"}
+            base, lag = normalize(match.group(1)), int(match.group(2))
+        elif value_node.get("op") == "lag":
+            lag_args = value_node.get("args") or []
+            source = lag_args[0] if len(lag_args) == 1 else None
+            if not isinstance(source, dict) or source.get("op") != "series":
+                return wrapper, {"status": "not_applicable"}
+            name = str(source.get("name") or "")
+            base = normalize(name)
+            try:
+                lag = int(value_node.get("steps"))
+            except (TypeError, ValueError):
+                return wrapper, {"status": "not_applicable"}
+        else:
             return wrapper, {"status": "not_applicable"}
-        base, lag = normalize(match.group(1)), int(match.group(2))
         coefficient = _finite(literal.get("value"), "expression.coefficient")
-        if base == target_key:
+        if base in target_aliases:
             ar_terms.append({"lag": lag, "coefficient": coefficient})
         elif base in driver_by_normal:
             actual = driver_by_normal[base]
