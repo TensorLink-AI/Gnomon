@@ -36,6 +36,10 @@
   anchor and rebinds its cited IDs. This removes copy fidelity as a failure
   mode without granting authority: constants remain source-entailed and the
   recurrence must still beat baseline in historical replay.
+  A compact `recursive_linear` object returned beside its metadata is now
+  normalized deterministically into the public transformation envelope,
+  including timestamp-ordered driver schedules. This is syntax repair only;
+  ordinary validation, entailment, replay, and authority gates are unchanged.
 - Bounded every governed compiler, repair, and selector request to one
   no-retry transport attempt. A slow provider now returns the immutable primary
   instead of parking a worker. Model-authored candidates whose accompanying
