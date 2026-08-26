@@ -629,7 +629,7 @@ def _validate_observation_interpretations(
                 # with zero. This never earns historical admission because
                 # membership was inferred from the outcomes themselves.
                 ordered = sorted(window_values)
-                minimum_cluster = max(3, math.ceil(len(ordered) * .05))
+                minimum_cluster = max(6, math.ceil(len(ordered) * .10))
                 candidates = [
                     (ordered[index] - ordered[index - 1], index)
                     for index in range(minimum_cluster,

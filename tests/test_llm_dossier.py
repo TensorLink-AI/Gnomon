@@ -266,6 +266,26 @@ def test_absence_claim_does_not_split_one_broad_unimodal_history():
     assert dossier["forecast_candidate"] is None
 
 
+def test_absence_claim_does_not_turn_isolated_low_outliers_into_a_regime():
+    span = ("The store had reporting failures resulting in no sales recorded. "
+            "The reporting failure has ended.")
+    history = [25.0 + (index % 5) for index in range(60)]
+    history[3], history[41] = .1, -.2
+    history_times = [f"2026-01-01T00:{minute:02d}:00+00:00"
+                     for minute in range(60)]
+    dossier, _ = validate_temporal_dossier(
+        {"claims": [{"source_span": (
+            "The store had reporting failures resulting in no sales recorded."),
+            "relation": "unknown", "effective_start": history_times[0],
+            "effective_end": history_times[-1], "confidence": 1}]},
+        context_text=span, cutoff=history_times[-1],
+        future_timestamps=["2026-01-01T01:00:00+00:00"], history=history,
+        history_timestamps=history_times, compiler_model="test")
+
+    assert dossier["observation_interpretations"] == []
+    assert dossier["forecast_candidate"] is None
+
+
 def test_cited_recurring_disruption_excludes_by_time_not_observed_value():
     claim = ("The ATM was under maintenance for 2 days, periodically every 4 "
              "days, starting from 2026-01-02 00:00:00, resulting in no "
