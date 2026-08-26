@@ -30,6 +30,8 @@ from benchmarks.cik.mcp_agent import (
     McpAgentForecaster,
     _compiler_target_evidence,
     _task_companion_evidence,
+    _task_companion_histories,
+    _task_target_name,
     _transformation_repair_hints,
     jail_violations,
     openai_tool_specs,
@@ -136,6 +138,16 @@ def test_companion_evidence_is_bounded_and_pre_cutoff_only():
                 for row in evidence.splitlines()[2:]]
     assert observed == list(map(float, range(8, 40)))
     assert len(evidence.splitlines()) == 34
+
+
+def test_numeric_cik_columns_use_context_semantic_aliases():
+    pd = pytest.importorskip("pandas")
+    task = SimpleNamespace(past_time=pd.DataFrame(
+        {0: [1.0, 2.0], 1: [3.0, 4.0]},
+        index=pd.date_range("2026-01-01", periods=2, freq="D")))
+    assert _task_target_name(task) == "X_1"
+    assert set(_task_companion_histories(task)) == {"X_0"}
+    assert "timestamp,X_0" in _task_companion_evidence(task)
 
 
 def test_compiler_target_evidence_summarizes_all_and_bounds_raw_tail():

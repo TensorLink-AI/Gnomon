@@ -244,7 +244,7 @@ def _attach_publication(payload, artifact, path, args) -> None:
                         historical_validation=wrapper.get("historical_validation"),
                         history_values=target_history,
                         history_series=driver_history))
-            except ValueError as exc:
+            except (ValueError, GnomonError) as exc:
                 result["transformation_rejections"].append({
                     "transformation_id": compiled["transformation_id"],
                     "reason_code": getattr(exc, "code", "transformation_execution_failed"),

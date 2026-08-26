@@ -348,6 +348,48 @@ def test_mcp_recursive_transformation_binds_history_from_governed_input(tmp_path
     assert verify_publication(publication)
 
 
+def test_missing_recursive_driver_rejects_scenario_not_primary(tmp_path):
+    from datetime import date, timedelta
+    source = tmp_path / "series.csv"
+    start = date(2026, 1, 1)
+    source.write_text("timestamp,value\n" + "\n".join(
+        f"{start + timedelta(days=i)},{100 + i}" for i in range(40)) + "\n")
+    formula = "value[t] = 2 missing_driver[t-1]"
+    payload = runner_for("gnomon_forecast")({
+        "input": str(source), "target_column": "value", "horizon": 2,
+        "output_dir": str(tmp_path / "out"), "publication_mode": "scenario",
+        "context_submission": {
+            "text": formula, "known_at": "2026-02-09T00:00:00+00:00",
+            "compiler": "test", "proposal": {"claims": [{
+                "source_span": formula, "relation": "supports_increase",
+                "effective_start": "2026-02-10T00:00:00+00:00",
+                "effective_end": "2026-02-11T00:00:00+00:00"}]},
+            "transformations": [{
+                "transformation": {
+                    "known_at": "2026-02-09T00:00:00+00:00",
+                    "claim_ids": ["claim-1"], "lane": "prior_assisted",
+                    "output_unit": "value", "expression": {
+                        "op": "recursive_linear", "output_unit": "value",
+                        "autoregressive_terms": [],
+                        "driver_terms": [{"series": "missing_driver", "lag": 1,
+                                          "coefficient": 2}]},
+                },
+                "units": {"primary": "value", "missing_driver": "driver"},
+                "series_values": {"missing_driver": {
+                    "values": [1, 1],
+                    "known_at": "2026-02-09T00:00:00+00:00",
+                    "source_claim_ids": ["claim-1"]}},
+            }],
+        },
+    })
+    publication = payload["publication"]
+    assert publication["recommended_scenario_id"] == "primary"
+    assert publication["primary_forecast_unchanged"] is True
+    rejection = next(item for item in publication["context_dispositions"]
+                     if item["reason_code"] == "MISSING_COLUMNS")
+    assert "missing_driver" in rejection["reason"]
+
+
 def test_response_budget_never_breaks_a_publication_seal():
     result = _result()
     result["forecast"] = [

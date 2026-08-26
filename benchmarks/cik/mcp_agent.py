@@ -126,7 +126,10 @@ MAX_RUN_TOKENS = 250_000
 #: bounded sufficiency repair instead of being silently interpretation-only.
 #: Version 45: known-intent Evidence invokes its sole host-bound forecast
 #: directly; open-intent profiles retain bounded conversational tool routing.
-MCP_CONTRACT_VERSION = 45
+#: Version 46: numeric dataframe columns use the context's X_n aliases;
+#: structured tool errors retain details and invalid recurrence history cannot
+#: destroy the immutable primary forecast.
+MCP_CONTRACT_VERSION = 46
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -593,9 +596,15 @@ def _task_target_name(task_instance: Any) -> str:
     """Preserve the source column's semantic identity for context binding."""
     past = task_instance.past_time
     if hasattr(past, "columns") and len(past.columns):
-        name = str(past.columns[-1]).strip()
+        name = _semantic_column_name(past.columns[-1])
         return name or "value"
     return "value"
+
+
+def _semantic_column_name(value: Any) -> str:
+    """Match CiK's numeric dataframe columns to the names in its context."""
+    text = str(value).strip()
+    return f"X_{text}" if re.fullmatch(r"\d+", text) else text
 
 
 def _task_companion_evidence(task_instance: Any, *, limit: int = 32) -> str:
@@ -616,7 +625,8 @@ def _task_companion_evidence(task_instance: Any, *, limit: int = 32) -> str:
         return ""
     tail = past.loc[:, companions].tail(limit)
     rows = ["Observed companion-series history (known before the cutoff):"]
-    rows.append("timestamp," + ",".join(str(column) for column in companions))
+    rows.append("timestamp," + ",".join(
+        _semantic_column_name(column) for column in companions))
     for timestamp, values in tail.iterrows():
         stamp = timestamp.isoformat() if hasattr(timestamp, "isoformat") else str(timestamp)
         rows.append(stamp + "," + ",".join(
@@ -630,7 +640,7 @@ def _task_companion_histories(task_instance: Any) -> dict[str, list[float]]:
     if not hasattr(past, "columns") or len(past.columns) < 2:
         return {}
     target = past.columns[-1]
-    return {str(column): [float(value) for value in past[column].values]
+    return {_semantic_column_name(column): [float(value) for value in past[column].values]
             for column in past.columns if column != target}
 
 
@@ -1822,6 +1832,7 @@ class _Run:
             code = (structured.get("error") or {}).get("code") or structured.get("code")
             if code:
                 entry["code"] = code
+                entry["error_details"] = structured.get("error") or structured
             if not result.get("isError") and structured.get("artifact_path"):
                 artifact_path = str(structured["artifact_path"])
                 self.artifact_paths.add(artifact_path)
