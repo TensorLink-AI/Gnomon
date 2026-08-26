@@ -77,6 +77,7 @@ class ScriptedClient:
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
         self.completion_temperatures = []
+        self.completion_reasoning_efforts = []
         self.completion_prompts = []
 
     def chat(self, messages, *, n=1, tools=None, tool_choice=None):
@@ -98,8 +99,10 @@ class ScriptedClient:
         return SimpleNamespace(
             choices=[SimpleNamespace(message=message, finish_reason="stop")])
 
-    def completions(self, messages, *, n=1, temperature=None):
+    def completions(self, messages, *, n=1, temperature=None,
+                    reasoning_effort=None):
         self.completion_temperatures.append(temperature)
+        self.completion_reasoning_efforts.append(reasoning_effort)
         self.completion_prompts.append(messages[-1]["content"])
         self.total_prompt_tokens += 100
         self.total_completion_tokens += 25
@@ -567,6 +570,7 @@ def test_transformation_gets_one_bounded_provenance_repair(tmp_path):
                    extra["context_compilation"].get("rejections", []))
     assert client.total_prompt_tokens >= 200
     assert client.completion_temperatures == [0, 0]
+    assert client.completion_reasoning_efforts == ["none", "none"]
 
 
 def test_sealed_candidate_survives_rejected_relational_transform(tmp_path):
@@ -662,6 +666,7 @@ def test_single_repair_exposes_effect_and_candidate_failures(tmp_path):
     assert "declares itself incomplete" in repair_prompt
     assert "CROSS_SERIES_SCOPE_REQUIRED" in repair_prompt
     assert client.completion_temperatures == [0, 0]
+    assert client.completion_reasoning_efforts == ["none", "none"]
 
 
 def test_shadow_role_requires_evidence_profile():

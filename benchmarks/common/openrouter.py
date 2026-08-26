@@ -154,6 +154,7 @@ class OpenRouterClient:
         max_tokens: int | None = None,
         tools: list[dict[str, Any]] | None = None,
         tool_choice: str | None = None,
+        reasoning_effort: str | None = None,
     ) -> SimpleNamespace:
         """Send one chat-completion request and return the parsed response.
 
@@ -180,6 +181,7 @@ class OpenRouterClient:
             response = self._request(
                 messages, n=n, temperature=temperature, max_tokens=budget,
                 tools=tools, tool_choice=tool_choice,
+                reasoning_effort=reasoning_effort,
             )
             if not _truncated_empty(response) or budget >= MAX_TOKENS_CEILING:
                 break
@@ -209,6 +211,7 @@ class OpenRouterClient:
                     messages, n=1, temperature=temperature,
                     max_tokens=max_tokens, tools=tools,
                     tool_choice=tool_choice,
+                    reasoning_effort=reasoning_effort,
                 )
 
             # All singles at once: a wave of 24 multi-minute requests
@@ -233,6 +236,7 @@ class OpenRouterClient:
         max_tokens: int,
         tools: list[dict[str, Any]] | None,
         tool_choice: str | None,
+        reasoning_effort: str | None = None,
     ) -> SimpleNamespace:
         """Perform one request, retrying transient HTTP failures."""
         payload = {
@@ -244,8 +248,11 @@ class OpenRouterClient:
             # Ask OpenRouter to report token accounting and cost.
             "usage": {"include": True},
         }
-        if self.reasoning_effort is not None:
-            payload["reasoning_effort"] = self.reasoning_effort
+        effective_reasoning = (self.reasoning_effort
+                               if reasoning_effort is None
+                               else reasoning_effort)
+        if effective_reasoning is not None:
+            payload["reasoning_effort"] = effective_reasoning
         if tools:
             payload["tools"] = tools
         if tool_choice:
@@ -324,14 +331,16 @@ class OpenRouterClient:
         )
 
     def completions(self, messages: list[dict[str, Any]], *, n: int = 1,
-                    temperature: float | None = None) -> list[str]:
+                    temperature: float | None = None,
+                    reasoning_effort: str | None = None) -> list[str]:
         """Convenience wrapper returning just the completion texts.
 
         An empty completion is an error, not an answer: returning it
         would reach a scorer as a missing or unparseable response and be
         recorded as a wrong answer the model never gave.
         """
-        response = self.chat(messages, n=n, temperature=temperature)
+        response = self.chat(messages, n=n, temperature=temperature,
+                             reasoning_effort=reasoning_effort)
         texts = [choice.message.content for choice in response.choices]
         if any(not text for text in texts):
             reasons = [getattr(choice, "finish_reason", None)

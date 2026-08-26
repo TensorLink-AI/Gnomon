@@ -217,8 +217,10 @@ def test_reasoning_effort_is_sent_only_when_explicit(monkeypatch):
     default = OpenRouterClient("test/model", api_key="k", max_retries=0)
     default._request(MESSAGES, n=1, temperature=None, max_tokens=10,
                      tools=None, tool_choice=None)
+    explicit.completions(MESSAGES, reasoning_effort="none")
     assert payloads[0]["reasoning_effort"] == "low"
     assert "reasoning_effort" not in payloads[1]
+    assert payloads[2]["reasoning_effort"] == "none"
 
 
 def test_absolute_deadline_bounds_trickling_transport(monkeypatch):
