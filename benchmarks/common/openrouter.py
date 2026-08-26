@@ -155,6 +155,8 @@ class OpenRouterClient:
         tools: list[dict[str, Any]] | None = None,
         tool_choice: str | None = None,
         reasoning_effort: str | None = None,
+        request_timeout: float | None = None,
+        transport_retries: int | None = None,
     ) -> SimpleNamespace:
         """Send one chat-completion request and return the parsed response.
 
@@ -182,6 +184,8 @@ class OpenRouterClient:
                 messages, n=n, temperature=temperature, max_tokens=budget,
                 tools=tools, tool_choice=tool_choice,
                 reasoning_effort=reasoning_effort,
+                request_timeout=request_timeout,
+                transport_retries=transport_retries,
             )
             if not _truncated_empty(response) or budget >= MAX_TOKENS_CEILING:
                 break
@@ -212,6 +216,8 @@ class OpenRouterClient:
                     max_tokens=max_tokens, tools=tools,
                     tool_choice=tool_choice,
                     reasoning_effort=reasoning_effort,
+                    request_timeout=request_timeout,
+                    transport_retries=transport_retries,
                 )
 
             # All singles at once: a wave of 24 multi-minute requests
@@ -237,6 +243,8 @@ class OpenRouterClient:
         tools: list[dict[str, Any]] | None,
         tool_choice: str | None,
         reasoning_effort: str | None = None,
+        request_timeout: float | None = None,
+        transport_retries: int | None = None,
     ) -> SimpleNamespace:
         """Perform one request, retrying transient HTTP failures."""
         payload = {
@@ -259,7 +267,10 @@ class OpenRouterClient:
             payload["tool_choice"] = tool_choice
         body = json.dumps(payload).encode("utf-8")
         last_error: Exception | None = None
-        attempts = self.max_retries + 1
+        attempts = (self.max_retries if transport_retries is None
+                    else max(0, int(transport_retries))) + 1
+        effective_timeout = (self.timeout if request_timeout is None
+                             else max(.001, float(request_timeout)))
         for attempt in range(attempts):
             with self._usage_lock:
                 self.total_transport_attempts += 1
@@ -286,7 +297,7 @@ class OpenRouterClient:
                 def transport() -> None:
                     try:
                         with urllib.request.urlopen(
-                                request, timeout=self.timeout) as raw:
+                                request, timeout=effective_timeout) as raw:
                             result.append(json.loads(
                                 raw.read().decode("utf-8")))
                     except BaseException as error:  # handed back to caller
@@ -295,11 +306,11 @@ class OpenRouterClient:
                 worker = threading.Thread(
                     target=transport, name="gnomon-llm-transport", daemon=True)
                 worker.start()
-                worker.join(self.timeout)
+                worker.join(effective_timeout)
                 if worker.is_alive():
                     raise TimeoutError(
                         f"absolute request deadline exceeded after "
-                        f"{self.timeout}s")
+                        f"{effective_timeout}s")
                 if not result:
                     raise TimeoutError("transport ended without a result")
                 if isinstance(result[0], BaseException):
@@ -332,7 +343,9 @@ class OpenRouterClient:
 
     def completions(self, messages: list[dict[str, Any]], *, n: int = 1,
                     temperature: float | None = None,
-                    reasoning_effort: str | None = None) -> list[str]:
+                    reasoning_effort: str | None = None,
+                    request_timeout: float | None = None,
+                    transport_retries: int | None = None) -> list[str]:
         """Convenience wrapper returning just the completion texts.
 
         An empty completion is an error, not an answer: returning it
@@ -340,7 +353,9 @@ class OpenRouterClient:
         recorded as a wrong answer the model never gave.
         """
         response = self.chat(messages, n=n, temperature=temperature,
-                             reasoning_effort=reasoning_effort)
+                             reasoning_effort=reasoning_effort,
+                             request_timeout=request_timeout,
+                             transport_retries=transport_retries)
         texts = [choice.message.content for choice in response.choices]
         if any(not text for text in texts):
             reasons = [getattr(choice, "finish_reason", None)

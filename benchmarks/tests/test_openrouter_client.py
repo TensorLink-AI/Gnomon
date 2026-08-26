@@ -38,9 +38,11 @@ class _Transport:
     def __init__(self, replies):
         self.replies = list(replies)
         self.budgets = []
+        self.calls = []
 
     def __call__(self, client, messages, **kwargs):
         self.budgets.append(kwargs["max_tokens"])
+        self.calls.append(dict(kwargs))
         payload = self.replies.pop(0) if self.replies else _response("late")
         client._account(payload)
         from benchmarks.common.openrouter import _to_namespace
@@ -67,6 +69,17 @@ def test_complete_response_is_returned_without_escalation(monkeypatch):
     assert client.completions(MESSAGES) == ['{"answer": 1}']
     assert transport.budgets == [8000]
     assert client.truncation_escalations == 0
+
+
+def test_per_call_transport_policy_is_forwarded(monkeypatch):
+    client, transport = _client(monkeypatch, [_response("ok")])
+    assert client.completions(
+        MESSAGES, request_timeout=12.5, transport_retries=0) == ["ok"]
+    # The transport double receives the exact caller policy.  The lower-level
+    # tests exercise the real retry loop; this pins the public API seam.
+    assert transport.budgets == [client.max_tokens]
+    assert transport.calls[0]["request_timeout"] == 12.5
+    assert transport.calls[0]["transport_retries"] == 0
 
 
 def test_empty_truncated_reply_escalates_the_budget(monkeypatch):
