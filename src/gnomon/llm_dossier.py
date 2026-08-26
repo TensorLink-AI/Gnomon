@@ -182,8 +182,19 @@ def validate_temporal_dossier(
                        else "not_proposed"),
             "reasons": candidate_reasons,
             "recovery_action": (
-                "Submit a horizon-aligned q10/q50/q90 path that obeys every "
-                "cited constraint, or use a typed effect/transformation."
+                {
+                    "code": "repair_forecast_candidate",
+                    "message": (
+                        "Submit a horizon-aligned q10/q50/q90 path that obeys "
+                        "every cited constraint, or use a typed effect or "
+                        "transformation."
+                    ),
+                    "required_evidence": [
+                        "horizon-aligned q10/q50/q90 path",
+                        "cited source claims",
+                    ],
+                    "automation_eligible": False,
+                }
                 if candidate_reasons else None),
             "selection_eligible": bool(candidate and candidate_selection_eligible),
             "selection_reason": (candidate_selection_reason

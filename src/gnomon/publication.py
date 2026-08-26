@@ -495,7 +495,10 @@ def build_scenario_catalog(result: dict[str, Any], *,
         } for item in dropped)
     for disposition in dispositions:
         if (disposition.get("disposition") == "rejected"
-                and not disposition.get("recovery_action")):
+                and not isinstance(disposition.get("recovery_action"), dict)):
+            # Older/external dossiers may carry a prose recovery string. A
+            # malformed teaching signal must not crash an agent adapter or
+            # masquerade as a ready-to-issue action.
             disposition["recovery_action"] = _context_recovery(disposition)
     return scenarios, dispositions
 

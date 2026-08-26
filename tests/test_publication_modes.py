@@ -488,6 +488,27 @@ def test_every_rejected_context_disposition_has_bounded_recovery():
     assert verify_publication(payload)
 
 
+def test_rejected_candidate_normalizes_legacy_string_recovery():
+    dossier = _dossier()
+    dossier["forecast_candidate"] = None
+    dossier["candidate_critique"] = {
+        "status": "rejected", "reasons": ["candidate is incomplete"],
+        "recovery_action": "try again",
+    }
+    import hashlib
+    import json
+    body = {key: value for key, value in dossier.items()
+            if key != "seal_sha256"}
+    dossier["seal_sha256"] = hashlib.sha256(json.dumps(
+        body, sort_keys=True, separators=(",", ":"),
+        default=str).encode()).hexdigest()
+    payload = publish_result(_result(), mode="scenario", dossiers=[dossier])
+    rejected = next(item for item in payload["context_dispositions"]
+                    if item["reason_code"] == "forecast_candidate_rejected")
+    assert rejected["recovery_action"]["code"] == "correct_context_proposal"
+    assert rejected["recovery_action"]["automation_eligible"] is False
+
+
 def test_mcp_recursive_transformation_binds_history_but_requires_replay_skill(tmp_path):
     from datetime import date, timedelta
     source = tmp_path / "wide.csv"
