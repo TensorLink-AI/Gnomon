@@ -385,6 +385,25 @@ def test_forecast_defaults_to_brief(monkeypatch, tmp_path) -> None:
     assert "latest observation" in payload["staleness"]
 
 
+def test_brief_forecast_previews_both_ends_of_long_horizon(tmp_path) -> None:
+    from gnomon.toolspec import FORECAST_PREVIEW_ROWS, runner_for
+
+    payload = runner_for("gnomon_forecast")({
+        "input": "examples/daily_requests.csv", "horizon": 24,
+        "output_dir": str(tmp_path),
+    })
+    result = payload["results"][0]
+    assert result["forecast_rows"] == 24
+    assert len(result["forecast"]) == FORECAST_PREVIEW_ROWS
+    assert result["forecast_preview"] == {
+        "strategy": "first_and_last",
+        "returned_rows": FORECAST_PREVIEW_ROWS,
+        "omitted_middle_rows": 12,
+        "full_path": "artifact.results[].forecast",
+    }
+    assert result["forecast"][0]["timestamp"] < result["forecast"][-1]["timestamp"]
+
+
 def test_multi_series_forecast_respects_the_budget(tmp_path) -> None:
     import csv
     import json

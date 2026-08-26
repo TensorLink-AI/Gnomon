@@ -198,6 +198,12 @@ decision projection by default. Use its `selection_contract` to reason and its
 stays at that path. Set `format: "full"` only to inline the full repeated
 forecast arrays.
 
+For horizons longer than 12 steps, the default brief forecast returns the
+first six and last six rows and states the omitted-middle count. This keeps
+both the near-term decision and horizon-end behavior visible; the complete
+path remains in the immutable artifact. Use `format: "full"` when every step
+must be inline.
+
 When schema ambiguity blocks a forecast, each repair option contains a literal
 `tool_call` with the complete argument object—one per candidate plus the
 batched `target_column: "auto"` form. A host can issue it directly rather than

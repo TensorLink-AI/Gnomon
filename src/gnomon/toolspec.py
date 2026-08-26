@@ -180,6 +180,18 @@ _TEMPORAL_QUESTIONS_PROPERTY: dict[str, Any] = {
 }
 
 FORECAST_PREVIEW_ROWS = 12
+FORECAST_PREVIEW_SMALL_HORIZON = 16
+
+
+def _bounded_forecast_preview(rows: list[Any]) -> tuple[list[Any], int]:
+    """Keep both decision-near and horizon-end rows in a brief response."""
+    # Avoid hiding a support-tier transition to save only a handful of rows;
+    # short split-horizon answers are more useful intact.
+    if len(rows) <= FORECAST_PREVIEW_SMALL_HORIZON:
+        return list(rows), 0
+    head = FORECAST_PREVIEW_ROWS // 2
+    tail = FORECAST_PREVIEW_ROWS - head
+    return [*rows[:head], *rows[-tail:]], len(rows) - FORECAST_PREVIEW_ROWS
 
 #: Hard ceiling on a tool response's serialised size. Tuned to hold a
 #: single-series brief forecast (~5KB with its full support assessment)
@@ -867,6 +879,7 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
         return facts
     results = []
     for item in artifact.results:
+        preview, omitted_middle = _bounded_forecast_preview(item.forecast)
         results.append({
             "series": item.series,
             "support": item.support,
@@ -882,10 +895,16 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
                  # The unstrippable label rides on every row in every
                  # format; brief may drop quantile levels, never the tier.
                  **({"tier": row["tier"]} if "tier" in row else {})}
-                for row in item.forecast
+                for row in preview
             ],
             # The row count survives even when the budget trims the rows.
             "forecast_rows": len(item.forecast),
+            **({"forecast_preview": {
+                "strategy": "first_and_last",
+                "returned_rows": len(preview),
+                "omitted_middle_rows": omitted_middle,
+                "full_path": "artifact.results[].forecast",
+            }} if omitted_middle else {}),
             **({
                 "primary_forecast_preview": [
                     {"timestamp": row["timestamp"], "q50": row["q50"],
