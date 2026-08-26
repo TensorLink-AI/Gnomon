@@ -379,6 +379,61 @@ def test_reference_power_macro_expands_to_safe_canonical_ast():
     assert result["forecast"][0]["q50"] == 9.375
 
 
+def test_linear_combination_macro_derives_conversion_units_and_executes():
+    raw = {
+        "known_at": _stamp(5), "claim_ids": ["claim-1"],
+        "lane": "prior_assisted", "output_unit": "revenue",
+        "expression": {
+            "op": "linear_combination", "output_unit": "revenue",
+            "terms": [
+                {"coefficient": 3, "series": "units"},
+                {"coefficient": -2, "series": "returns"},
+            ],
+            "intercept": 10,
+        },
+    }
+    compiled = validate_transformation(
+        raw, series=["units", "returns"], claim_ids=["claim-1"],
+        cutoff=_stamp(5), units={"units": "items", "returns": "items"},
+        claim_spans={"claim-1":
+                     "revenue = 3 units - 2 returns + 10; future units 5, returns 1"})
+    assert compiled["expression"]["op"] == "add"
+    result = execute_transformation(
+        compiled,
+        primary=[{"timestamp": _stamp(6), "point": 0, "q50": 0}],
+        series_values={
+            "units": {"values": [5], "known_at": _stamp(5),
+                      "source_claim_id": "claim-1"},
+            "returns": {"values": [1], "known_at": _stamp(5),
+                        "source_claim_id": "claim-1"},
+        },
+            claim_spans={"claim-1":
+                         "revenue = 3 units - 2 returns + 10; future units 5, returns 1"})
+    assert result["forecast"][0]["q50"] == 23
+
+
+def test_linear_combination_rejects_unknown_series_and_unentailed_coefficient():
+    base = {
+        "known_at": _stamp(5), "claim_ids": ["claim-1"],
+        "lane": "prior_assisted", "output_unit": "revenue",
+    }
+    with pytest.raises(TransformationError) as unknown:
+        validate_transformation({**base, "expression": {
+            "op": "linear_combination", "output_unit": "revenue",
+            "terms": [{"coefficient": 3, "series": "missing"}]}},
+            series=["units"], claim_ids=["claim-1"], cutoff=_stamp(5),
+            units={"units": "items"})
+    assert unknown.value.code == "UNKNOWN_SERIES"
+    with pytest.raises(TransformationError) as unentailed:
+        validate_transformation({**base, "expression": {
+            "op": "linear_combination", "output_unit": "revenue",
+            "terms": [{"coefficient": 99, "series": "units"}]}},
+            series=["units"], claim_ids=["claim-1"], cutoff=_stamp(5),
+            units={"units": "items"},
+            claim_spans={"claim-1": "revenue is three times units"})
+    assert unentailed.value.code == "UNENTAILED_TRANSFORMATION_CONSTANT"
+
+
 def test_model_computed_constant_cannot_launder_through_claim_id():
     raw = {
         "known_at": _stamp(5), "claim_ids": ["claim-1"],

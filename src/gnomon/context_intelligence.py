@@ -86,6 +86,19 @@ def _model_authored_constants(node: Any, *, role: str = "literal") \
             found.append((float(node.get("exponent", 1)), "exponent"))
         except (TypeError, ValueError):
             pass
+    if op == "linear_combination":
+        for term in node.get("terms") or []:
+            if not isinstance(term, dict):
+                continue
+            try:
+                found.append((float(term.get("coefficient")), "coefficient"))
+            except (TypeError, ValueError):
+                pass
+        if "intercept" in node:
+            try:
+                found.append((float(node.get("intercept")), "intercept"))
+            except (TypeError, ValueError):
+                pass
     for key in ("steps", "window", "lower", "upper", "quantile"):
         value = node.get(key)
         if value is None:
@@ -108,6 +121,10 @@ def _constant_is_entailed(value: float, *, role: str, text: str) -> bool:
     clean = re.sub(r"\b\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2})?)?\b",
                    " ", text)
     clean = re.sub(r"\b\d{1,2}:\d{2}(?::\d{2})?\b", " ", clean)
+    # Equations commonly typeset a signed coefficient as ``- 2``. Preserve
+    # that sign when extracting entailed constants instead of treating it as
+    # an unrelated positive two.
+    clean = re.sub(r"([+-])\s+(?=\d)", r"\1", clean)
     numbers = []
     for token in re.findall(
             r"(?<![\w.])[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?",
@@ -267,6 +284,50 @@ def _validate_expression(node: Any, *, path: str, depth: int,
         raise TransformationError("EXPRESSION_TOO_LARGE", path,
                                   "Transformation exceeds the node limit.")
     raw_op = str(node.get("op") or "")
+    if raw_op == "linear_combination":
+        # Compact safe macro for equations whose coefficients convert several
+        # input units into one target unit.  The coefficient units are derived
+        # by the engine (target/input), never trusted from model text, and the
+        # macro expands to the ordinary sealed arithmetic AST.
+        output_unit = str(node.get("output_unit") or "")
+        terms = node.get("terms")
+        if not output_unit:
+            raise TransformationError(
+                "MISSING_OUTPUT_UNIT", f"{path}.output_unit",
+                "A linear combination requires its target unit.")
+        if not isinstance(terms, list) or not 1 <= len(terms) <= 32:
+            raise TransformationError(
+                "INVALID_LINEAR_TERMS", f"{path}.terms",
+                "A linear combination requires between 1 and 32 terms.")
+        expanded_terms: list[dict[str, Any]] = []
+        for index, term in enumerate(terms):
+            if not isinstance(term, dict):
+                raise TransformationError(
+                    "INVALID_LINEAR_TERM", f"{path}.terms[{index}]",
+                    "Each linear term must be an object.")
+            name = str(term.get("series") or "")
+            if name not in series:
+                raise TransformationError(
+                    "UNKNOWN_SERIES", f"{path}.terms[{index}].series",
+                    f"Series {name!r} is unavailable.")
+            input_unit = str(units.get(name) or "unknown")
+            coefficient_unit = ("dimensionless" if input_unit == output_unit
+                                else f"{output_unit}/{input_unit}")
+            expanded_terms.append({"op": "multiply", "args": [
+                {"op": "literal", "value": term.get("coefficient"),
+                 "unit": coefficient_unit},
+                {"op": "series", "name": name,
+                 "quantile": term.get("quantile", "q50")},
+            ]})
+        if "intercept" in node:
+            expanded_terms.append({
+                "op": "literal", "value": node.get("intercept"),
+                "unit": output_unit})
+        expanded = (expanded_terms[0] if len(expanded_terms) == 1 else
+                    {"op": "add", "args": expanded_terms})
+        return _validate_expression(
+            expanded, path=path, depth=depth + 1, state=state,
+            series=series, units=units)
     if raw_op == "reference_power":
         # Compact safe macro for common reference laws:
         # output_ref * (series / input_ref) ** exponent. It expands into the

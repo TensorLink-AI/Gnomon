@@ -361,6 +361,11 @@ Rules:
   It means `37.5 Pa * (driver / 3000 rpm)^2`; Gnomon expands and seals it as
   ordinary arithmetic. Do not add it to the primary forecast unless the cited
   source explicitly states a delta rather than an absolute relationship.
+- For a cited linear equation across differently-unitized series, use
+  `{"op":"linear_combination","output_unit":"target units","terms":[{"coefficient":1.2,"series":"driver_lag1"},{"coefficient":-0.4,"series":"target_lag1"}],"intercept":0.0}`.
+  Gnomon derives each coefficient's target/input conversion unit, validates
+  every coefficient against the cited claims, and expands the macro into
+  ordinary sealed arithmetic. Omit `intercept` when the equation has none.
 - Use no observations after the history cutoff. Return empty arrays and null
   effect_proposal and forecast_candidate when context contains no
   forecast-relevant information.
