@@ -139,23 +139,25 @@ def test_own_values_after_tools_route_informed_direct(tmp_path):
     assert result["prediction"] == VALUES
 
 
-def test_engine_abstention_can_be_answered_and_is_disclosed(tmp_path):
-    # 5 bars cannot carry a 4-step backtested forecast: the engine
-    # abstains. The model may still answer — labeled informed-direct,
-    # with the abstention it saw counted, never hidden.
-    def answer_past_refusal(messages):
+def test_short_history_returns_disclosed_product_best_effort(tmp_path):
+    # The current product floor returns a labeled naive path instead of making
+    # the agent manufacture numbers after a hidden stricter-floor refusal.
+    def accept_best_effort(messages):
         payload = _last_tool_payload(messages)
-        assert payload["abstained"] is True
-        return {"tool_calls": [("submit_forecast", {"values": VALUES})]}
+        assert payload["abstained"] is False
+        assert payload["support"] == "best_effort"
+        return {"tool_calls": [("submit_forecast", {
+            "forecast_ref": payload["forecast_ref"]})]}
 
     result = run_sample(
         _sample(n=5), ScriptedClient([
             {"tool_calls": [("gnomon_forecast", {})]},
-            answer_past_refusal,
+            accept_best_effort,
         ]), work_dir=str(tmp_path))
     assert result["abstained"] is False
-    assert result["route"] == "informed-direct"
-    assert result["engine_abstentions"] == 1
+    assert result["route"] == "gnomon"
+    assert result["support"] == "best_effort"
+    assert result["engine_abstentions"] == 0
 
 
 def test_none_still_abstains_honestly(tmp_path):

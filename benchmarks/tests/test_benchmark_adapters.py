@@ -320,6 +320,18 @@ def test_future_context_changes_the_cache_name():
     assert hot.cache_name != off.cache_name
     assert "temperature" not in GnomonForecaster(
         mode="pure").cache_name
+    assert "support=best_effort" in GnomonForecaster(mode="pure").cache_name
+    assert GnomonForecaster(mode="pure").cache_name != GnomonForecaster(
+        mode="pure", minimum_support="conditionally_supported").cache_name
+
+
+def test_cik_adapter_rejects_unknown_support_floor():
+    import pytest
+
+    from benchmarks.cik.gnomon_forecaster import GnomonForecaster
+
+    with pytest.raises(ValueError, match="support tier"):
+        GnomonForecaster(mode="pure", minimum_support="anything")
 
 
 def test_abstention_carries_reasons():

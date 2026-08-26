@@ -31,10 +31,11 @@ Adapter decisions, disclosed:
   the start of the history window. Gnomon's gate still decides admission.
 - CiK task indexes are timezone-naive; they are written as UTC because
   Gnomon's context path requires timezone-aware timestamps.
-- When Gnomon abstains, the adapter raises :class:`GnomonAbstained` rather
-  than fabricating samples; the run is recorded as an abstention, and
-  scores simply do not exist for it. The most dangerous forecast is the
-  confident one that shouldn't exist.
+- The adapter uses the product's current ``best_effort`` support floor by
+  default, matching CLI and MCP. A stricter support floor is an explicit
+  treatment condition and receives a distinct cache identity. When that
+  condition abstains, the adapter raises :class:`GnomonAbstained` rather than
+  fabricating samples.
 """
 
 from __future__ import annotations
@@ -357,6 +358,7 @@ class GnomonForecaster:
         work_dir: str | None = None,
         future_context: bool = False,
         structural_context: bool = False,
+        minimum_support: str = "best_effort",
     ) -> None:
         if mode not in ("pure", "agent"):
             raise ValueError("mode must be 'pure' or 'agent'")
@@ -372,11 +374,15 @@ class GnomonForecaster:
                 "structural_context rides on the future-context lane; enable "
                 "future_context with it"
             )
+        if minimum_support not in {
+                "best_effort", "conditionally_supported", "supported"}:
+            raise ValueError("minimum_support is not a public support tier")
         self.mode = mode
         self.openrouter_model = openrouter_model
         self.temperature = temperature
         self.future_context = future_context
         self.structural_context = structural_context
+        self.minimum_support = minimum_support
         self.client = (
             OpenRouterClient(openrouter_model, temperature=temperature)
             if mode == "agent"
@@ -388,7 +394,8 @@ class GnomonForecaster:
     @property
     def cache_name(self) -> str:
         model = (self.openrouter_model or "none").replace("/", "-")
-        suffix = "_future=on" if self.future_context else ""
+        suffix = f"_support={self.minimum_support}"
+        suffix += "_future=on" if self.future_context else ""
         if self.structural_context:
             suffix += "_structural=on"
         if self.mode == "agent":
@@ -444,10 +451,7 @@ class GnomonForecaster:
                 output=str(run_dir / "gnomon-output"),
                 context_events=events or None,
                 config=config,
-                # Pin the pre-graduated condition: the benchmark's
-                # abstention accounting must not drift with the engine's
-                # new best_effort default floor.
-                minimum_support="conditionally_supported",
+                minimum_support=self.minimum_support,
             )
         except GnomonError as error:
             raise GnomonAbstained([f"{error.code}: {error.message}"]) from error

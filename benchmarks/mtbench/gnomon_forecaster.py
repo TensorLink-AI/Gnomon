@@ -280,12 +280,11 @@ def forecast_sample(sample: dict[str, Any], *, mode: str,
             horizon=horizon, frequency="D",
             output=str(run_dir / "gnomon-output"),
             context_events=events or None,
-            # The benchmark's measured condition is the pre-graduated
-            # engine: degraded results published, abstention possible. The
-            # engine's default floor is now best_effort, so the condition
-            # is pinned explicitly rather than drifting with the default —
-            # otherwise "abstained" would silently change meaning.
-            minimum_support="conditionally_supported",
+            # Measure the current product contract. Historical strict-floor
+            # results remain reproducible by their curated code revision;
+            # silently pinning an older floor here made CLI, MCP, and direct
+            # adapter comparisons answer different questions.
+            minimum_support="best_effort",
         )
     except GnomonError as error:
         return {"abstained": True,
