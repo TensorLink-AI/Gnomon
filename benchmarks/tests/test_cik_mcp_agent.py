@@ -66,8 +66,11 @@ class ScriptedClient:
 
     def __init__(self, steps, compiler_output=None):
         self.steps = list(steps)
-        self.compiler_output = compiler_output or json.dumps({
+        default = json.dumps({
             "events": [], "claims": [], "forecast_candidate": None})
+        self.compiler_outputs = (list(compiler_output)
+                                 if isinstance(compiler_output, list)
+                                 else [compiler_output or default])
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
 
@@ -93,7 +96,9 @@ class ScriptedClient:
     def completions(self, messages, *, n=1):
         self.total_prompt_tokens += 100
         self.total_completion_tokens += 25
-        return [self.compiler_output for _ in range(n)]
+        value = (self.compiler_outputs.pop(0) if len(self.compiler_outputs) > 1
+                 else self.compiler_outputs[0])
+        return [value for _ in range(n)]
 
     @property
     def usage_summary(self):
@@ -468,6 +473,49 @@ def test_best_effort_role_exercises_live_safe_transformation_surface(tmp_path):
     assert publication["recommended_support"] == "prior_assisted"
     assert publication["automation"]["eligible"] is False
     assert publication["primary_forecast_unchanged"] is True
+
+
+def test_transformation_gets_one_bounded_provenance_repair(tmp_path):
+    task = _task()
+    span = "A new policy makes each future value exactly half the usual value."
+    task.scenario = span
+    claim = {
+        "source_span": span, "relation": "supports_decrease",
+        "effective_start": task.future_time[0],
+        "effective_end": task.future_time[-1],
+        "mechanism": "stated multiplicative rule", "confidence": .9,
+    }
+
+    def dossier(multiplier):
+        return json.dumps({
+            "events": [], "claims": [claim],
+            "transformations": [{"transformation": {
+                "known_at": task.past_time[-1][0],
+                "claim_ids": ["claim-1"], "lane": "prior_assisted",
+                "output_unit": "unknown",
+                "expression": {"op": "multiply", "args": [
+                    {"op": "primary", "quantile": "q50"},
+                    {"op": "literal", "value": multiplier,
+                     "unit": "dimensionless"},
+                ]},
+            }}],
+        })
+
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        [dossier(.7), dossier(.5)],
+    )
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+    _, extra = forecaster(task, 1)
+
+    assert extra["publication"]["recommended_scenario_id"] == "transformation-1"
+    assert not any("transformation_preflight_rejected" in reason for reason in
+                   extra["context_compilation"].get("rejections", []))
+    assert client.total_prompt_tokens >= 200
 
 
 def test_shadow_role_requires_evidence_profile():

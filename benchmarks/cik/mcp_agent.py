@@ -73,7 +73,9 @@ MAX_RUN_TOKENS = 250_000
 #: evidence already makes the recommendation non-discretionary.
 #: Version 20: future schedules may cite multiple verified spans; each value
 #: remains source-entailed and every source belongs to the transformation.
-MCP_CONTRACT_VERSION = 20
+#: Version 21: invalid transformations receive one bounded provenance repair
+#: before execution; the repair cannot remove already verified claims.
+MCP_CONTRACT_VERSION = 21
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -1030,6 +1032,7 @@ class _Run:
         )
         raw: dict[str, Any] = {}
         compile_rejections: list[str] = []
+        repair_used = False
         try:
             completion = self.forecaster.client.completions(
                 [{"role": "user", "content": prompt}], n=1)[0]
@@ -1054,6 +1057,7 @@ class _Run:
                 critique = probe.get("effect_proposal_critique") or {
                     "status": "rejected", "reasons": probe_rejections}
                 try:
+                    repair_used = True
                     repair_completion = self.forecaster.client.completions([{
                         "role": "user", "content": (
                             prompt + "\nYour proposal was rejected by Gnomon:\n"
@@ -1078,6 +1082,77 @@ class _Run:
             raw, context_text=context, cutoff=self.timestamps[-1],
             future_timestamps=future_timestamps, history=self.values,
             compiler_model=self.forecaster.openrouter_model)
+
+        # Transformations share the same single repair budget. Preflight the
+        # sealed AST before the forecast call so a near-correct proposal can
+        # add missing verbatim claims or repair only the transformation lane;
+        # accepted events/effects/covariates are never replaced by this pass.
+        def transformation_violations(
+                candidate_raw: dict[str, Any], dossier: dict[str, Any]) -> list[dict[str, Any]]:
+            from gnomon.context_intelligence import compile_transformation
+
+            claims = dossier.get("claims") or []
+            claim_ids = [str(claim.get("claim_id")) for claim in claims]
+            spans = {str(claim.get("claim_id")): str(
+                claim.get("source_span") or "") for claim in claims}
+            failures = []
+            for index, item in enumerate(candidate_raw.get("transformations") or [], 1):
+                wrapper = item if isinstance(item, dict) else {}
+                compiled, critique = compile_transformation(
+                    wrapper.get("transformation", wrapper),
+                    series=list((wrapper.get("series_values") or {}).keys()),
+                    claim_ids=claim_ids, cutoff=self.timestamps[-1],
+                    units=wrapper.get("units"), repair=wrapper.get("repair"),
+                    claim_spans=spans)
+                if compiled is None:
+                    failures.append({"index": index,
+                                     "violations": critique["violations"]})
+            return failures
+
+        transform_failures = transformation_violations(raw, final_probe)
+        if transform_failures and not repair_used:
+            try:
+                repair_used = True
+                repair_completion = self.forecaster.client.completions([{
+                    "role": "user", "content": (
+                        prompt + "\nGnomon rejected the transformation lane:\n"
+                        + json.dumps(transform_failures)
+                        + "\nReturn one complete corrected dossier JSON. "
+                          "You may add verbatim cited claims and replace "
+                          "transformations only; this is the sole repair round.")
+                }], n=1)[0]
+                repaired_objects = extract_json_objects(repair_completion)
+                if repaired_objects:
+                    repaired = repaired_objects[0]
+                    prior_spans = {str(item.get("source_span") or "")
+                                   for item in raw.get("claims") or []
+                                   if isinstance(item, dict)}
+                    repaired_spans = {str(item.get("source_span") or "")
+                                      for item in repaired.get("claims") or []
+                                      if isinstance(item, dict)}
+                    if not prior_spans.issubset(repaired_spans):
+                        compile_rejections.append(
+                            "transformation repair attempted to remove prior verified claims")
+                    else:
+                        raw = {**raw,
+                               "claims": repaired.get("claims") or [],
+                               "transformations": repaired.get("transformations") or []}
+                        final_probe, _ = validate_temporal_dossier(
+                            raw, context_text=context, cutoff=self.timestamps[-1],
+                            future_timestamps=future_timestamps,
+                            history=self.values,
+                            compiler_model=self.forecaster.openrouter_model)
+                else:
+                    compile_rejections.append(
+                        "transformation repair returned no JSON object")
+            except Exception as error:
+                compile_rejections.append(
+                    f"transformation repair failed: {error}")
+        remaining_transform_failures = transformation_violations(raw, final_probe)
+        if remaining_transform_failures:
+            compile_rejections.append(
+                "transformation_preflight_rejected: "
+                + json.dumps(remaining_transform_failures, sort_keys=True))
 
         # Reuse Gnomon's product compiler contract rather than maintaining a
         # benchmark-only event dialect. The host, not the model, supplies the
