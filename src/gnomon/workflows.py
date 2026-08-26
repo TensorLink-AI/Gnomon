@@ -326,6 +326,7 @@ def parse_context_response(
     proposer: dict[str, Any] | None = None,
     *, covariate_known_at: str | None = None,
     as_of: str | None = None,
+    active_target: str | None = None,
 ) -> dict[str, Any]:
     """Ground, validate, and split proposed events into accepted/rejected.
 
@@ -386,6 +387,27 @@ def parse_context_response(
             rejected.append({"proposal": proposal, "problems": ["evidence_quote is not verbatim from the cited document"]})
             continue
         event_type = str(proposal.get("event_type", ""))
+        scope = proposal.get("entity_scope")
+        if active_target is not None and event_type.startswith(
+                ("constraint:", "override:")):
+            names = [str(value) for value in scope or []]
+            if names == ["*"] or not names:
+                target = str(active_target or "").strip()
+                if not target or target.casefold() not in quote.casefold():
+                    rejected.append({
+                        "proposal": proposal,
+                        "problems": [
+                            "numeric context event must explicitly identify "
+                            "the active target; wildcard projection is unsafe"
+                        ],
+                    })
+                    continue
+                proposal = {**proposal, "entity_scope": [target]}
+                attributes.setdefault("compiler_normalizations", []).append({
+                    "field": "entity_scope", "supplied": names or None,
+                    "normalized": [target],
+                    "reason": "verified quote explicitly names the active target",
+                })
         soft_values = {
             "effect_family": str(proposal.get("effect_family", "unknown")),
             "direction": str(proposal.get("direction", "unknown")),
@@ -436,7 +458,10 @@ def parse_context_response(
             continue
         attributes["soft_context"] = soft_values
         if soft_normalizations:
-            attributes["compiler_normalizations"] = soft_normalizations
+            attributes["compiler_normalizations"] = [
+                *(attributes.get("compiler_normalizations") or []),
+                *soft_normalizations,
+            ]
         if quote and (event_type.startswith("constraint:")
                       or event_type.startswith("override:")):
             # The quote has just been verified verbatim against the caller's

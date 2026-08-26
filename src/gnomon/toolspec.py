@@ -1884,7 +1884,9 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                     compiled,
                     primary=(result.get("primary_forecast") or result.get("forecast") or []),
                     series_values=wrapper.get("series_values"),
-                    historical_validation=wrapper.get("historical_validation"))
+                    historical_validation=wrapper.get("historical_validation"),
+                    claim_spans={str(claim.get("claim_id")): str(
+                        claim.get("source_span") or "") for claim in claims})
             except ValueError as exc:
                 result["transformation_rejections"].append({
                     "transformation_id": compiled["transformation_id"],

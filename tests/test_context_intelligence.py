@@ -279,9 +279,16 @@ def test_future_series_requires_point_in_time_claim_provenance():
         execute_transformation(compiled, primary=primary,
                                series_values={"units": [4, 5]})
     assert caught.value.code == "UNVERSIONED_FUTURE_SERIES"
+    with pytest.raises(TransformationError) as unentailed:
+        execute_transformation(compiled, primary=primary, series_values={
+            "units": {"values": [4, 5], "known_at": _stamp(5),
+                      "source_claim_id": "claim-1"}},
+            claim_spans={"claim-1": "units are 4 then 900"})
+    assert unentailed.value.code == "UNENTAILED_FUTURE_SERIES_VALUES"
     result = execute_transformation(compiled, primary=primary, series_values={
         "units": {"values": [4, 5], "known_at": _stamp(5),
-                  "source_claim_id": "claim-1"}})
+                  "source_claim_id": "claim-1"}},
+        claim_spans={"claim-1": "units are 4 then 5"})
     assert [row["q50"] for row in result["forecast"]] == [12, 15]
 
 
@@ -304,7 +311,8 @@ def test_llm_common_ast_aliases_are_canonicalized_without_eval():
         compiled,
         primary=[{"timestamp": _stamp(6), "point": 0, "q50": 0}],
         series_values={"price": {"values": [3], "known_at": _stamp(5),
-                                 "source_claim_id": "claim-1"}})
+                                 "source_claim_id": "claim-1"}},
+        claim_spans={"claim-1": "price is 3"})
     assert result["forecast"][0]["q50"] == 12
 
 

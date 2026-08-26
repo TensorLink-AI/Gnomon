@@ -187,6 +187,27 @@ def test_unknown_optional_semantic_label_does_not_discard_grounded_event() -> No
     }]
 
 
+def test_active_target_rejects_wildcard_numeric_event_about_another_series() -> None:
+    result = parse_context_response({"events": [{
+        **CONSTRAINT_PROPOSAL,
+        "event_type": "override:speed",
+        "evidence_quote": "At full load the fan speed is 3000 rpm",
+    }]}, [DocumentRef(
+        name="fan.md", content="At full load the fan speed is 3000 rpm",
+        source_type="planning_file", reference="fan.md")],
+        active_target="pressure")
+    assert result["events"] == []
+    assert "wildcard projection is unsafe" in result["rejected"][0]["problems"][0]
+
+
+def test_active_target_can_bind_wildcard_when_quote_names_target() -> None:
+    result = parse_context_response(
+        {"events": [CONSTRAINT_PROPOSAL]}, [BOUND_DOCUMENT],
+        active_target="output")
+    assert result["rejected"] == []
+    assert result["events"][0]["entity_scope"] == ["output"]
+
+
 def test_non_verbatim_quote_is_rejected() -> None:
     tampered = {**PROPOSAL, "evidence_quote": "Enterprise A definitely doubles traffic"}
     result = parse_context_response({"events": [tampered]}, [DOCUMENT])

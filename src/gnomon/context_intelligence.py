@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 import statistics
 from dataclasses import dataclass
 from datetime import datetime
@@ -316,6 +317,7 @@ def execute_transformation(
     compiled: dict[str, Any], *, primary: list[dict[str, Any]],
     series_values: dict[str, Any] | None = None,
     historical_validation: dict[str, Any] | None = None,
+    claim_spans: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Execute only a previously validated canonical transformation."""
     seal = compiled.get("seal_sha256")
@@ -346,7 +348,26 @@ def execute_transformation(
             raise TransformationError(
                 "INVALID_FUTURE_SERIES", f"series_values.{name}.values",
                 "Future input values must be an array.")
-        environment[name] = [_finite(value, name) for value in values]
+        finite_values = [_finite(value, name) for value in values]
+        span = str((claim_spans or {}).get(source_claim) or "")
+        cited_numbers = []
+        for token in re.findall(
+                r"(?<![\w.])[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?",
+                span.replace(",", "")):
+            try:
+                cited_numbers.append(float(token))
+            except ValueError:
+                pass
+        missing = [value for value in set(finite_values)
+                   if not any(math.isclose(value, cited, rel_tol=1e-12,
+                                           abs_tol=1e-12)
+                              for cited in cited_numbers)]
+        if missing:
+            raise TransformationError(
+                "UNENTAILED_FUTURE_SERIES_VALUES",
+                f"series_values.{name}.values",
+                "Every supplied future value must occur in its cited source span.")
+        environment[name] = finite_values
     if any(len(values) != width for values in environment.values()):
         raise TransformationError("HORIZON_MISMATCH", "series_values",
                                   "Every future series must match the primary horizon.")

@@ -71,9 +71,9 @@ MAX_RUN_TOKENS = 250_000
 #: context_trusted path; selection remains autonomous among evidence peers.
 #: Version 12: the host skips the selector call when the product contract says
 #: evidence already makes the recommendation non-discretionary.
-#: Version 16: cited multipliers and event timing are resolved by Gnomon;
-#: split claims and harmless optional-label normalization are explicit.
-MCP_CONTRACT_VERSION = 16
+#: Version 17: numeric events bind to the semantic target and supplied
+#: transformation inputs must be entailed by their exact cited spans.
+MCP_CONTRACT_VERSION = 17
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -509,6 +509,15 @@ def _task_series(task_instance: Any) -> tuple[list[str], list[float]]:
     return ([str(ts) for ts, _ in past], [float(v) for _, v in past])
 
 
+def _task_target_name(task_instance: Any) -> str:
+    """Preserve the source column's semantic identity for context binding."""
+    past = task_instance.past_time
+    if hasattr(past, "columns") and len(past.columns):
+        name = str(past.columns[-1]).strip()
+        return name or "value"
+    return "value"
+
+
 def _task_future_timestamps(task_instance: Any) -> list[str]:
     future = task_instance.future_time
     if hasattr(future, "columns"):
@@ -525,12 +534,12 @@ def _task_future_timestamps(task_instance: Any) -> list[str]:
 
 
 def _write_history_csv(timestamps: list[str], values: list[float],
-                       csv_path: Path) -> None:
+                       csv_path: Path, target_name: str = "value") -> None:
     import csv
 
     with csv_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
-        writer.writerow(["timestamp", "value"])
+        writer.writerow(["timestamp", target_name])
         for timestamp, value in zip(timestamps, values):
             writer.writerow([timestamp, repr(float(value))])
 
@@ -969,8 +978,10 @@ class _Run:
         self.jail = Path(tempfile.mkdtemp(
             prefix="cik-mcp-", dir=forecaster.work_dir)).resolve()
         self.timestamps, self.values = _task_series(task_instance)
+        self.target_name = _task_target_name(task_instance)
         self.csv_path = self.jail / "history.csv"
-        _write_history_csv(self.timestamps, self.values, self.csv_path)
+        _write_history_csv(
+            self.timestamps, self.values, self.csv_path, self.target_name)
         self.horizon = len(task_instance.future_time)
         self.session = forecaster.session_factory(self.jail)
         self.trace: list[dict[str, Any]] = []
@@ -994,8 +1005,7 @@ class _Run:
         applying them.  No future target observations are exposed here.
         """
         from gnomon.context import event_from_dict, event_to_dict
-        from gnomon.llm_dossier import (deterministic_events_from_claims,
-                                        validate_temporal_dossier)
+        from gnomon.llm_dossier import validate_temporal_dossier
         from gnomon.workflows import DocumentRef, parse_context_response
 
         context = build_context_text(self.task)
@@ -1005,6 +1015,7 @@ class _Run:
             zip(self.timestamps, self.values))
         prompt = (
             f"{DOSSIER_INSTRUCTIONS}\n"
+            f"Forecast target series: {self.target_name}\n"
             f"History cutoff: {self.timestamps[-1]}\n"
             f"Forecast timestamps: {json.dumps(future_timestamps)}\n"
             f"Numeric history (timestamp,value):\n{history}\n\n"
@@ -1053,21 +1064,13 @@ class _Run:
                     compile_rejections.append(
                         f"dossier repair failed: {error}")
 
-        # Exact stated values are safer than model-estimated deltas. Once the
-        # span and window pass dossier validation, re-route them through the
-        # normal override event validator; this never promotes qualitative
-        # language or a model-authored number.
+        # Claims remain evidence for dossiers and transformations. Do not
+        # synthesize wildcard numeric events from them: only explicitly
+        # target-bound event proposals may change the numeric path.
         final_probe, _ = validate_temporal_dossier(
             raw, context_text=context, cutoff=self.timestamps[-1],
             future_timestamps=future_timestamps, history=self.values,
             compiler_model=self.forecaster.openrouter_model)
-        existing_spans = {str(item.get("evidence_quote") or item.get("source_span") or "")
-                          for item in raw.get("events") or []
-                          if isinstance(item, dict)}
-        derived_events = [item for item in deterministic_events_from_claims(final_probe)
-                          if item["evidence_quote"] not in existing_spans]
-        if derived_events:
-            raw = {**raw, "events": [*(raw.get("events") or []), *derived_events]}
 
         # Reuse Gnomon's product compiler contract rather than maintaining a
         # benchmark-only event dialect. The host, not the model, supplies the
@@ -1081,7 +1084,7 @@ class _Run:
             event = dict(proposal)
             event["document_index"] = 0
             event["known_at"] = self.timestamps[-1]
-            event.setdefault("entity_scope", ["*"])
+            event.setdefault("entity_scope", ["__unresolved_context_entity__"])
             if event.get("source_span") and not event.get("evidence_quote"):
                 event["evidence_quote"] = event["source_span"]
             bound_events.append(event)
@@ -1098,6 +1101,7 @@ class _Run:
             proposer={"kind": "llm", "model": self.forecaster.openrouter_model},
             covariate_known_at=self.timestamps[-1],
             as_of=self.timestamps[-1],
+            active_target=self.target_name,
         )
         events = [event_from_dict(event) for event in compilation["events"]]
         event_rejections = [
@@ -1351,7 +1355,7 @@ class _Run:
                 **arguments,
                 "input": str(self.csv_path),
                 "time_column": "timestamp",
-                "target_column": "value",
+                "target_column": self.target_name,
                 "horizon": self.horizon,
                 "context_events": receipt.get("events", []),
                 **covariate_arguments,
