@@ -71,9 +71,9 @@ MAX_RUN_TOKENS = 250_000
 #: context_trusted path; selection remains autonomous among evidence peers.
 #: Version 12: the host skips the selector call when the product contract says
 #: evidence already makes the recommendation non-discretionary.
-#: Version 18: reference-law formulas have a compact safe macro and unresolved
-#: rich context is disclosed instead of disappearing silently.
-MCP_CONTRACT_VERSION = 18
+#: Version 19: every AST constant is source-entailed; model-computed numbers
+#: in rationales cannot acquire authority through a valid claim ID.
+MCP_CONTRACT_VERSION = 19
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it

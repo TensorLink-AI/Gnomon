@@ -1851,6 +1851,8 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                   for claim in dossier.get("claims") or []]
         claim_ids = [str(claim.get("claim_id")) for claim in claims
                      if claim.get("claim_id")]
+        claim_spans = {str(claim.get("claim_id")): str(
+            claim.get("source_span") or "") for claim in claims}
         cutoff = str(submission.get("known_at") or "")
         if not cutoff:
             raise GnomonError(
@@ -1870,7 +1872,8 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                 wrapper.get("transformation", wrapper),
                 series=list((wrapper.get("series_values") or {}).keys()),
                 claim_ids=claim_ids, cutoff=cutoff,
-                units=wrapper.get("units"), repair=wrapper.get("repair"))
+                units=wrapper.get("units"), repair=wrapper.get("repair"),
+                claim_spans=claim_spans)
             if compiled is None:
                 result["transformation_rejections"].append({
                     "transformation_id": f"transformation-{index}",
@@ -1885,8 +1888,7 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                     primary=(result.get("primary_forecast") or result.get("forecast") or []),
                     series_values=wrapper.get("series_values"),
                     historical_validation=wrapper.get("historical_validation"),
-                    claim_spans={str(claim.get("claim_id")): str(
-                        claim.get("source_span") or "") for claim in claims})
+                    claim_spans=claim_spans)
             except ValueError as exc:
                 result["transformation_rejections"].append({
                     "transformation_id": compiled["transformation_id"],

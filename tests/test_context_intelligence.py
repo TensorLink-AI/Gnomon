@@ -358,6 +358,41 @@ def test_reference_power_macro_expands_to_safe_canonical_ast():
     assert result["forecast"][0]["q50"] == 9.375
 
 
+def test_model_computed_constant_cannot_launder_through_claim_id():
+    raw = {
+        "known_at": _stamp(5), "claim_ids": ["claim-1"],
+        "lane": "prior_assisted", "output_unit": "Pa",
+        "expression": {"op": "multiply", "args": [
+            {"op": "primary", "quantile": "q50"},
+            {"op": "literal", "value": 31.2},
+        ]},
+    }
+    with pytest.raises(TransformationError) as caught:
+        validate_transformation(
+            raw, series=[], claim_ids=["claim-1"], cutoff=_stamp(5),
+            units={"primary": "Pa"},
+            claim_spans={"claim-1": "pressure follows the square of speed"})
+    assert caught.value.code == "UNENTAILED_TRANSFORMATION_CONSTANT"
+
+
+def test_textual_square_entails_reference_law_exponent():
+    raw = {
+        "known_at": _stamp(5), "claim_ids": ["claim-1"],
+        "lane": "prior_assisted", "output_unit": "Pa",
+        "expression": {
+            "op": "reference_power", "series": "speed",
+            "input_reference": {"value": 3000, "unit": "rpm"},
+            "output_reference": {"value": 37.5, "unit": "Pa"},
+            "exponent": 2,
+        },
+    }
+    compiled = validate_transformation(
+        raw, series=["speed"], claim_ids=["claim-1"], cutoff=_stamp(5),
+        units={"speed": "rpm"}, claim_spans={
+            "claim-1": "Pressure is 37.5 Pa at 3000 rpm and follows the square of speed."})
+    assert compiled["validation"]["constants_entailed"] is True
+
+
 def test_root_literal_inherits_explicit_output_unit_only():
     compiled = validate_transformation({
         "known_at": _stamp(5), "claim_ids": ["claim-1"],

@@ -60,9 +60,84 @@ def _finite(value: Any, field: str) -> float:
     return number
 
 
+def _model_authored_constants(node: Any, *, role: str = "literal") \
+        -> list[tuple[float, str]]:
+    """Return every numeric choice embedded in an untrusted AST."""
+    if not isinstance(node, dict):
+        return []
+    op = str(node.get("op") or "")
+    found: list[tuple[float, str]] = []
+    if op == "literal":
+        try:
+            found.append((float(node.get("value")), role))
+        except (TypeError, ValueError):
+            pass
+    if op == "reference_power":
+        for key in ("input_reference", "input_ref", "output_reference", "output_ref"):
+            if key not in node:
+                continue
+            raw = node[key]
+            raw = raw.get("value") if isinstance(raw, dict) else raw
+            try:
+                found.append((float(raw), key))
+            except (TypeError, ValueError):
+                pass
+        try:
+            found.append((float(node.get("exponent", 1)), "exponent"))
+        except (TypeError, ValueError):
+            pass
+    for key in ("steps", "window", "lower", "upper", "quantile"):
+        value = node.get(key)
+        if value is None:
+            continue
+        try:
+            found.append((float(value), key))
+        except (TypeError, ValueError):
+            pass
+    for index, child in enumerate(node.get("args") or []):
+        child_role = "exponent" if op in {"power", "pow"} and index == 1 else "literal"
+        found.extend(_model_authored_constants(child, role=child_role))
+    for key in ("arg", "left", "right", "series"):
+        if isinstance(node.get(key), dict):
+            found.extend(_model_authored_constants(node[key]))
+    return found
+
+
+def _constant_is_entailed(value: float, *, role: str, text: str) -> bool:
+    # Dates and clock times are provenance, not formula constants.
+    clean = re.sub(r"\b\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2})?)?\b",
+                   " ", text)
+    clean = re.sub(r"\b\d{1,2}:\d{2}(?::\d{2})?\b", " ", clean)
+    numbers = []
+    for token in re.findall(
+            r"(?<![\w.])[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?",
+            clean.replace(",", "")):
+        try:
+            numbers.append(float(token))
+        except ValueError:
+            pass
+    if any(math.isclose(value, item, rel_tol=1e-12, abs_tol=1e-12)
+           for item in numbers):
+        return True
+    words = clean.casefold()
+    word_values = {
+        0.25: r"\b(?:a\s+quarter|one\s+quarter|quarter)\b",
+        0.5: r"\b(?:a\s+half|one\s+half|half)\b",
+        2.0: r"\b(?:twice|double)\b",
+        3.0: r"\btriple\b",
+    }
+    if any(math.isclose(value, expected) and re.search(pattern, words)
+           for expected, pattern in word_values.items()):
+        return True
+    return (role == "exponent"
+            and ((value == 2 and re.search(r"\b(?:square|squared|quadratic)\b", words))
+                 or (value == 3 and re.search(r"\b(?:cube|cubed|cubic)\b", words))))
+
+
 def validate_transformation(
     raw: Any, *, series: list[str], claim_ids: list[str], cutoff: str,
     units: dict[str, str] | None = None,
+    claim_spans: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Compile a small declarative expression without executing model code.
 
@@ -85,6 +160,14 @@ def validate_transformation(
             "UNVERIFIED_CLAIMS", "claim_ids",
             "Every transformation must cite verified context claims.")
     expression = raw.get("expression")
+    if claim_spans is not None:
+        cited_text = " ".join(str(claim_spans.get(item) or "") for item in cited)
+        for value, role in _model_authored_constants(expression):
+            if not _constant_is_entailed(value, role=role, text=cited_text):
+                raise TransformationError(
+                    "UNENTAILED_TRANSFORMATION_CONSTANT", "expression",
+                    f"Transformation constant {value:g} ({role}) is absent "
+                    "from every cited source span.")
     declared_raw = str(raw.get("output_unit") or "")
     state = {"nodes": 0}
     normalized, inferred_unit = _validate_expression(
@@ -116,7 +199,8 @@ def validate_transformation(
         "validation": {"approved_ast": True, "nodes": state["nodes"],
                        "maximum_nodes": MAX_TRANSFORM_NODES,
                        "maximum_depth": MAX_TRANSFORM_DEPTH,
-                       "known_at_cutoff": True, "units_checked": True},
+                       "known_at_cutoff": True, "units_checked": True,
+                       "constants_entailed": claim_spans is not None},
     }
     payload["transformation_id"] = "transform-" + hashlib.sha256(
         _canonical(payload).encode()).hexdigest()[:16]
@@ -128,6 +212,7 @@ def validate_transformation(
 def compile_transformation(
     raw: Any, *, series: list[str], claim_ids: list[str], cutoff: str,
     units: dict[str, str] | None = None, repair: Any = None,
+    claim_spans: dict[str, str] | None = None,
 ) -> tuple[dict[str, Any] | None, dict[str, Any]]:
     """Validate once and permit exactly one field-bounded repair.
 
@@ -137,7 +222,8 @@ def compile_transformation(
     """
     try:
         compiled = validate_transformation(
-            raw, series=series, claim_ids=claim_ids, cutoff=cutoff, units=units)
+            raw, series=series, claim_ids=claim_ids, cutoff=cutoff, units=units,
+            claim_spans=claim_spans)
         return compiled, {"status": "accepted", "attempts_used": 1,
                           "attempts_remaining": 1, "violations": []}
     except TransformationError as first:
@@ -156,7 +242,8 @@ def compile_transformation(
                       "violations": [violation, bounded]}
     try:
         compiled = validate_transformation(
-            repair, series=series, claim_ids=claim_ids, cutoff=cutoff, units=units)
+            repair, series=series, claim_ids=claim_ids, cutoff=cutoff, units=units,
+            claim_spans=claim_spans)
         return compiled, {"status": "repaired", "attempts_used": 2,
                           "attempts_remaining": 0,
                           "violations": [violation]}
