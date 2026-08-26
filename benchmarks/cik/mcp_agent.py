@@ -122,7 +122,9 @@ MAX_RUN_TOKENS = 250_000
 #: transformation driver schedules are not duplicated as covariate proposals.
 #: Version 43: verbose cited lag-array equations canonicalize deterministically
 #: to recursion; invented target arrays are discarded, not executed.
-MCP_CONTRACT_VERSION = 43
+#: Version 44: exact lag claims without a numeric lane receive one focused,
+#: bounded sufficiency repair instead of being silently interpretation-only.
+MCP_CONTRACT_VERSION = 44
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -1248,6 +1250,49 @@ class _Run:
                 except Exception as error:
                     compile_rejections.append(
                         f"dossier repair failed: {error}")
+
+        # A broad extraction prompt sometimes identifies every exact equation
+        # yet emits no executable lane. For humans this looks like “Gnomon read
+        # my context and ignored it.” Spend the one existing repair round on a
+        # focused compilation only when the model itself returned verbatim,
+        # numeric lag-relationship claims. This is a sufficiency repair, not a
+        # benchmark-family rule, and remains bounded by the same deadline.
+        claim_spans = [str(item.get("source_span") or "")
+                       for item in raw.get("claims") or []
+                       if isinstance(item, dict)]
+        exact_lag_claims = [span for span in claim_spans
+                            if re.search(r"\blag\s*\d+\b", span, re.I)
+                            and re.search(r"[+-]?\d+(?:\.\d+)?\s*\*", span)]
+        numeric_lane_missing = not (
+            raw.get("transformations") or raw.get("effect_proposal")
+            or raw.get("forecast_candidate"))
+        if exact_lag_claims and numeric_lane_missing and not repair_used:
+            try:
+                repair_used = True
+                focused = (
+                    prompt + "\nGnomon found exact cited lag equations but no "
+                    "executable numeric lane. Return one complete corrected "
+                    "dossier JSON. Preserve the verbatim claims and express "
+                    "their equation as one recursive_linear transformation. "
+                    "Use autoregressive_terms for target lags, driver_terms "
+                    "for companion lags, and only cited future driver values "
+                    "in series_values. Do not emit target-lag arrays or "
+                    "duplicate the schedule in covariate_tables. This is the "
+                    "only repair round.\nExact claims:\n"
+                    + json.dumps(exact_lag_claims))
+                repair_completion = self.forecaster.client.completions(
+                    [{"role": "user", "content": focused}], n=1,
+                    temperature=0, reasoning_effort="none",
+                    request_timeout=120, transport_retries=0)[0]
+                repaired = extract_json_objects(repair_completion)
+                if repaired:
+                    raw = repaired[0]
+                else:
+                    compile_rejections.append(
+                        "relationship sufficiency repair returned no JSON object")
+            except Exception as error:
+                compile_rejections.append(
+                    f"relationship sufficiency repair failed: {error}")
 
         # Claims remain evidence for dossiers and transformations. Do not
         # synthesize wildcard numeric events from them: only explicitly

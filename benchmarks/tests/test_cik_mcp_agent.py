@@ -580,6 +580,43 @@ def test_transformation_gets_one_bounded_provenance_repair(tmp_path):
     assert client.completion_transport_retries == [0, 0]
 
 
+def test_exact_lag_claims_get_one_focused_sufficiency_repair(tmp_path):
+    task = _task()
+    equation = "Parents for sales at lag 1 affect it as 0.5 * sales."
+    task.scenario = equation
+    claim = {
+        "source_span": equation, "relation": "supports_increase",
+        "effective_start": task.future_time[0],
+        "effective_end": task.future_time[-1], "confidence": .9,
+    }
+    first = json.dumps({"events": [], "claims": [claim],
+                        "covariate_tables": [], "transformations": []})
+    repaired = json.dumps({
+        "events": [], "claims": [claim], "covariate_tables": [],
+        "transformations": [{"transformation": {
+            "known_at": task.past_time[-1][0], "claim_ids": ["claim-1"],
+            "lane": "prior_assisted", "output_unit": "value",
+            "expression": {
+                "op": "recursive_linear", "output_unit": "value",
+                "intercept": 0,
+                "autoregressive_terms": [{"lag": 1, "coefficient": .5}],
+                "driver_terms": [],
+            }}}],
+    })
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        [first, repaired])
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+    _, extra = forecaster(task, 1)
+    assert extra["publication"]["recommended_scenario_id"] == "transformation-1"
+    assert client.completion_reasoning_efforts == ["none", "none"]
+    assert "exact cited lag equations" in client.completion_prompts[1]
+
+
 def test_single_verified_claim_rebinds_stale_transformation_id(tmp_path):
     task = _task()
     span = "A new policy makes each future value exactly half the usual value."
