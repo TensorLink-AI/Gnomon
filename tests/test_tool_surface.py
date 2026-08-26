@@ -156,7 +156,8 @@ def test_capabilities_report_the_active_profile(monkeypatch) -> None:
     monkeypatch.delenv("GNOMON_MCP_PROFILE", raising=False)
     payload = capabilities()["mcp_profile"]
     assert payload["active"] == "evidence"
-    assert payload["visible_tools"] == ["gnomon_describe", "gnomon_forecast"]
+    assert payload["visible_tools"] == [
+        "gnomon_describe", "gnomon_forecast", "gnomon_select_scenario"]
     assert payload["available"] == [
         "core", "data", "decision", "describe", "evidence", "mega", "full"]
 

@@ -128,4 +128,8 @@ only the displayed winner.
 
 The MCP `gnomon_forecast` tool exposes the same `publication_mode`,
 `temporal_dossiers`, a compact raw `context_submission` object,
-`scenario_selection`, and `automation_policy` fields.
+`scenario_selection`, and `automation_policy` fields. After inspecting a
+returned `selection_contract`, an agent may instead call
+`gnomon_select_scenario` with the publication path and a number-free ranking.
+That follow-up reuses every scenario seal, leaves the original sidecar intact,
+forces automation off, and records which publication seal it supersedes.

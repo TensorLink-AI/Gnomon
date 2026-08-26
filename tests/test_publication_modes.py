@@ -5,8 +5,8 @@ import pytest
 
 from gnomon.llm_dossier import validate_temporal_dossier
 from gnomon.publication import (build_scenario_catalog, publish_result,
-                                scenario_selection_contract,
-                                verify_publication)
+                                scenario_selection_contract, select_publication,
+                                verify_publication, write_publication)
 from gnomon.publication import record_publication
 from gnomon.tracking import TrackingStore
 from gnomon.artifacts import verify_artifact_integrity
@@ -67,6 +67,74 @@ def test_best_effort_promotes_candidate_but_not_authority():
     assert authority["prior_assisted"] is True
     assert authority["human_review_required"] is True
     assert verify_publication(payload)
+
+
+def test_governed_selection_repoints_sealed_path_without_reforecasting():
+    original = publish_result(
+        _result(), mode="best_effort", dossiers=[_dossier()])
+    original_seals = [item["scenario_seal_sha256"]
+                      for item in original["candidate_portfolio"]]
+    selected = select_publication(original, {
+        "selected_scenario_id": "primary",
+        "ranking": ["primary", "prior-assisted-1"],
+        "cited_claim_ids": [],
+        "counterevidence_claim_ids": ["claim-1"],
+        "confidence": .6,
+        "rationale": "The conditional claim is not independently validated.",
+        "what_would_change_selection": "A resolved outcome history.",
+    })
+    assert original["recommended_scenario_id"] == "prior-assisted-1"
+    assert selected["recommended_scenario_id"] == "primary"
+    assert [item["scenario_seal_sha256"]
+            for item in selected["candidate_portfolio"]] == original_seals
+    assert selected["primary_forecast"] == original["primary_forecast"]
+    assert selected["primary_forecast_unchanged"] is True
+    assert selected["recommended_support"] == "supported"
+    assert selected["automation"]["eligible"] is False
+    assert selected["recommendation_authority"][
+        "independent_selection_performed"] is True
+    assert selected["supersedes_publication_seal_sha256"] == original[
+        "publication_seal_sha256"]
+    assert verify_publication(original)
+    assert verify_publication(selected)
+
+
+def test_governed_selection_refuses_strict_or_tampered_publication():
+    strict = publish_result(_result(), mode="strict")
+    with pytest.raises(ValueError, match="strict"):
+        select_publication(strict, {})
+    broken = deepcopy(publish_result(
+        _result(), mode="scenario", dossiers=[_dossier()]))
+    broken["primary_forecast"][0]["point"] = -999
+    with pytest.raises(ValueError, match="invalid publication"):
+        select_publication(broken, {})
+
+
+def test_mcp_selector_persists_new_sidecar_without_reforecasting(tmp_path):
+    original = publish_result(
+        _result(), mode="best_effort", dossiers=[_dossier()], artifact_id="f1")
+    original_path = write_publication(tmp_path / "forecast_f1", original)
+    payload = runner_for("gnomon_select_scenario")({
+        "publication_path": str(original_path),
+        "scenario_selection": {
+            "selected_scenario_id": "primary",
+            "ranking": ["primary", "prior-assisted-1"],
+            "cited_claim_ids": [],
+            "counterevidence_claim_ids": ["claim-1"],
+            "confidence": .6,
+            "rationale": "Prefer the governed primary pending outcomes.",
+            "what_would_change_selection": "Resolved candidate outcomes.",
+        },
+    })
+    assert payload["recommended_scenario_id"] == "primary"
+    assert payload["artifact_id"] == "f1"
+    assert payload["primary_forecast_unchanged"] is True
+    assert payload["automation"]["eligible"] is False
+    selected_path = Path(payload["publication_path"])
+    assert selected_path.is_file()
+    assert selected_path != original_path
+    assert original_path.read_text(encoding="utf-8") == (
+        __import__("json").dumps(original, indent=2, sort_keys=True) + "\n")
 
 
 def test_model_authored_path_cannot_bypass_governed_transform_authority():

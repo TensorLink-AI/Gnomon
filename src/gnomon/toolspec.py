@@ -2308,12 +2308,10 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "gnomon_describe",
         "description": (
-            "Execute typed temporal questions without changing a primary "
-            "forecast: description, ADF/KPSS stationarity, explicit-period "
-            "additive decomposition, and exogenous regression with expanding-"
-            "window validation. Unsupported methods return one typed refusal; "
-            "Gnomon never substitutes anomaly detection for stationarity, "
-            "period discovery for decomposition, or forecasting for regression."
+            "Answer typed temporal questions without changing a primary: "
+            "description, stationarity, fixed-period decomposition, or "
+            "exogenous regression. Unsupported methods fail typed; semantic "
+            "substitution is forbidden."
         ),
         "inputSchema": {
             "type": "object",
@@ -2336,12 +2334,11 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "gnomon_forecast",
         "description": (
-            "Forecast columns (`target_column`: `\"cpu,mem,requests\"` or `\"auto\"`). "
-            "Call directly: it infers an unambiguous schema, "
-            "validates, backtests, and returns a quotable preview; do not call "
-            "capabilities, inspect, or get_artifact first. Each series gets a "
-            "selected model or disclosed abstention. Context and covariates "
-            "earn influence only through measured fold lift."
+            "Forecast one or more columns (`\"cpu,mem,requests\"` or `\"auto\"`) "
+            "directly; schema is inferred, "
+            "validated, and backtested without an inspect call first. Models, "
+            "context, and covariates must earn fold lift; weak answers disclose "
+            "their support."
         ),
         "inputSchema": {
             "type": "object",
@@ -3006,6 +3003,43 @@ def _run_explain_run(arguments: dict[str, Any]) -> dict[str, Any]:
     return explanation
 
 
+def _run_select_scenario(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Rerank sealed paths without rerunning or rewriting a forecast."""
+    import json as _json
+    from pathlib import Path
+
+    from .contracts import GnomonError
+    from .publication import (select_publication,
+                              write_selected_publication)
+
+    source = Path(str(arguments["publication_path"]))
+    if not source.is_file():
+        raise GnomonError(
+            "INVALID_ARGUMENTS", "publication_path must name an existing file")
+    try:
+        publication = _json.loads(source.read_text(encoding="utf-8"))
+        selected = select_publication(
+            publication, dict(arguments["scenario_selection"]))
+        selected_path = write_selected_publication(source, selected)
+    except (OSError, ValueError, TypeError, _json.JSONDecodeError) as exc:
+        raise GnomonError("INVALID_ARGUMENTS", str(exc)) from exc
+    return {
+        "schema_version": "0.1", "status": "ok",
+        "artifact_id": selected.get("artifact_id"),
+        "publication_path": str(selected_path),
+        "supersedes_publication_seal_sha256": selected[
+            "supersedes_publication_seal_sha256"],
+        "publication_seal_sha256": selected["publication_seal_sha256"],
+        "recommended_scenario_id": selected["recommended_scenario_id"],
+        "recommended_forecast": selected["recommended_forecast"],
+        "recommended_support": selected["recommended_support"],
+        "primary_forecast_unchanged": True,
+        "scenario_selection": selected["scenario_selection"],
+        "recommendation_authority": selected["recommendation_authority"],
+        "automation": selected["automation"],
+    }
+
+
 def _run_install_tsfm(arguments: dict[str, Any]) -> dict[str, Any]:
     from .contracts import GnomonError
     from .tsfm import TSFMUnavailable, available_tsfms
@@ -3076,6 +3110,32 @@ def _registry_tools() -> list[dict[str, Any]]:
 
 TOOLS.extend(_registry_tools())
 TOOLS.extend([
+    {
+        "name": "gnomon_select_scenario",
+        "description": (
+            "Rank sealed paths from selection_contract. Only "
+            "the displayed recommendation changes; numbers, support, primary, "
+            "and automation authority cannot."
+        ),
+        "inputSchema": {"type": "object", "properties": {
+            "publication_path": {"type": "string", "description": (
+                "publication_path returned by gnomon_forecast.")},
+            "scenario_selection": {"type": "object", "properties": {
+                "selected_scenario_id": {"type": "string"},
+                "ranking": {"type": "array", "items": {"type": "string"}},
+                "cited_claim_ids": {"type": "array", "items": {"type": "string"}},
+                "counterevidence_claim_ids": {"type": "array", "items": {"type": "string"}},
+                "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                "rationale": {"type": "string"},
+                "what_would_change_selection": {"type": "string"},
+            }, "required": [
+                "selected_scenario_id", "ranking", "cited_claim_ids",
+                "counterevidence_claim_ids", "confidence", "rationale",
+                "what_would_change_selection",
+            ]},
+        }, "required": ["publication_path", "scenario_selection"]},
+        "runner": _run_select_scenario,
+    },
     {
         "name": "gnomon_run",
         "description": (
@@ -3352,7 +3412,8 @@ _CORE_PROFILE = frozenset({
 PROFILES: dict[str, frozenset[str]] = {
     "core": _CORE_PROFILE,
     "describe": _CORE_PROFILE | {"gnomon_describe"},
-    "evidence": frozenset({"gnomon_describe", "gnomon_forecast"}),
+    "evidence": frozenset({
+        "gnomon_describe", "gnomon_forecast", "gnomon_select_scenario"}),
     "mega": frozenset({"gnomon_inspect", "gnomon_run", "gnomon_track"}),
     "decision": _CORE_PROFILE | {
         "gnomon_decide", "gnomon_monitor", "gnomon_route",

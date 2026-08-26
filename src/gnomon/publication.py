@@ -774,6 +774,84 @@ def verify_publication(payload: dict[str, Any]) -> bool:
     return True
 
 
+def select_publication(payload: dict[str, Any], raw_selection: dict[str, Any]
+                       ) -> dict[str, Any]:
+    """Apply a number-free governed ranking to an existing sealed portfolio.
+
+    Forecast paths and their seals are reused byte-for-byte. The operation may
+    only change which path is shown first; it cannot upgrade support or grant
+    automation authority.
+    """
+    if not verify_publication(payload):
+        raise ValueError("refusing to select from an invalid publication")
+    if payload.get("mode") == "strict":
+        raise ValueError("strict publications cannot be reranked")
+    portfolio = [dict(item) for item in payload.get("candidate_portfolio") or []]
+    selection = validate_scenario_selection(
+        raw_selection, scenarios=portfolio, dossiers=None)
+    if selection is None:
+        raise ValueError("scenario selection is required")
+    selected = next(item for item in portfolio
+                    if item["scenario_id"] == selection["selected_scenario_id"])
+    primary = next(item for item in portfolio
+                   if item["scenario_id"] == "primary")
+    result = {key: value for key, value in payload.items()
+              if key != "publication_seal_sha256"}
+    result.update({
+        "recommended_scenario_id": selected["scenario_id"],
+        "recommended_forecast": selected["forecast"],
+        "recommended_support": selected["support"],
+        "primary_forecast": primary["forecast"],
+        "primary_forecast_unchanged": True,
+        "scenario_selection": selection,
+        "scenarios": (portfolio if payload.get("mode") == "scenario" else
+                      [primary, selected] if selected is not primary else [primary]),
+        "recommendation_authority": {
+            "selected_role": str(selected.get("role") or "unknown"),
+            "selection_method": "governed_scenario_selection",
+            "independent_selection_performed": True,
+            "historically_admitted": (
+                selected.get("role") == "historically_admitted"),
+            "prior_assisted": selected.get("support") == "prior_assisted",
+            "human_review_required": not bool(
+                selected.get("automation_eligible")),
+            "reason": (
+                "A bounded number-free ranking selected one existing sealed "
+                "path; forecast values and support were unchanged."),
+        },
+        "automation": {
+            "eligible": False,
+            "explicit_policy_supplied": False,
+            "policy_complete": False,
+            "requested": False,
+            "reason": "scenario selection cannot authorize automation",
+        },
+        "supersedes_publication_seal_sha256": payload[
+            "publication_seal_sha256"],
+    })
+    result["publication_seal_sha256"] = _seal(result)
+    if not verify_publication(result):
+        raise ValueError("scenario selection produced an invalid publication")
+    return result
+
+
+def write_selected_publication(source: str | Path,
+                               payload: dict[str, Any]) -> Path:
+    """Persist a content-addressed selection beside its source publication."""
+    if not verify_publication(payload):
+        raise ValueError("refusing to persist an invalid selected publication")
+    source_path = Path(source)
+    seal = payload["publication_seal_sha256"]
+    destination = source_path.parent / f"selection_{seal[:16]}.publication.json"
+    encoded = json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    if destination.exists():
+        if destination.read_text(encoding="utf-8") != encoded:
+            raise ValueError("conflicting content-addressed selected publication")
+        return destination
+    destination.write_text(encoded, encoding="utf-8")
+    return destination
+
+
 def record_publication(store: Any, *, project: str, forecast_id: str,
                        series: str, payload: dict[str, Any]) -> str:
     """Reuse synthesis receipts to score recommendation uplift later."""

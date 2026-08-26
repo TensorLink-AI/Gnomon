@@ -51,8 +51,10 @@ def test_initialize_list_and_call() -> None:
         "gnomon_preflight_context",
         # Detached sandbox install with polling — TSFMs were disclosed by
         # capabilities but installable only from a shell.
-        "gnomon_install_tsfm",
-    }
+            "gnomon_install_tsfm",
+            # Number-free reranking over an existing sealed publication.
+            "gnomon_select_scenario",
+        }
     call = by_id[3]["result"]
     assert call["isError"] is False
     payload = json.loads(call["content"][0]["text"])

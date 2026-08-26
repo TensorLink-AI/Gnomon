@@ -773,6 +773,7 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "canonical": "data", "synthesis": "data", "evidence_refs": "data",
     "dossier": "data", "temporal_dossiers": "data",
     "scenario_selection": "data", "context_submission": "data",
+    "publication_path": "data",
     "context_text": "data", "context_known_at": "data",
     "context_proposal": "data", "context_compiler_model": "data",
     "context_transformation": "data", "transformations": "data",

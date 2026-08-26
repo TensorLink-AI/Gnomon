@@ -1,0 +1,37 @@
+{
+  "benchmark": "context-is-key selector diagnostic",
+  "status": "diagnostic_not_release_evidence",
+  "task": "MontrealFireFieldAndTrashConvincingToneImplicitCausalConfoundingTask",
+  "seeds": [66, 67, 68, 69, 70],
+  "selector_model": "deepseek-v4-flash-0731",
+  "endpoint": "https://api.engy.ai/v1",
+  "reasoning_effort": "none",
+  "temperature": 0,
+  "source_result": "results/cik-context-loop-confounded-seeds66-70-contract72-20260827",
+  "selection_contract_revision": "de9fdd9",
+  "calls": 5,
+  "prompt_tokens": 3820,
+  "completion_tokens": 1331,
+  "valid_selections": 4,
+  "invalid_selections": 1,
+  "invalid_reason": "seed 70 placed claim-1 in both cited_claim_ids and counterevidence_claim_ids",
+  "selected_scenario_ids": {
+    "66": "primary",
+    "67": "primary",
+    "68": "primary",
+    "69": "primary",
+    "70": null
+  },
+  "mean_rcrps": {
+    "automatic_best_effort": 0.41575818832330835,
+    "immutable_primary": 0.7341641813414227,
+    "selector_fail_closed": 0.7345597829142634
+  },
+  "fail_closed_rule": "An invalid selection leaves the existing best-effort recommendation unchanged.",
+  "interpretation": "The bounded selector was conservative and did not improve accuracy on this five-case diagnostic. Keep it explicit and optional; do not add an automatic selector call based on these data.",
+  "limitations": [
+    "The task family and seeds were already inspected while developing the surrounding context workflow.",
+    "Five cases are insufficient for a product-performance claim.",
+    "The selector chose between previously scored sealed paths; no forecasts were recomputed."
+  ]
+}

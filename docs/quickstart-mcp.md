@@ -144,6 +144,13 @@ computed source). Do not spend calls on `gnomon_capabilities`,
 asked for feature discovery, the schema is genuinely ambiguous, or deeper
 artifact evidence is required.
 
+When a publication contains multiple sealed scenarios, its
+`selection_contract` is the complete input to `gnomon_select_scenario`. The
+follow-up ranks existing scenario IDs with cited claims and counterevidence;
+it writes a new content-addressed publication sidecar without recomputing or
+editing any forecast. Skip this call when Gnomon's evidence already determines
+the path or the user did not ask to reconsider the displayed recommendation.
+
 ## Response sizes
 
 Tool responses are budgeted (`RESPONSE_BUDGET_BYTES`, reported by
