@@ -135,9 +135,10 @@ def _attach_publication(payload, artifact, path, args) -> None:
     dossier_paths = getattr(args, "dossier", None) or []
     selection_path = getattr(args, "scenario_selection", None)
     policy_path = getattr(args, "automation_policy", None)
+    proposal_path = getattr(args, "context_proposal", None)
     # Strict with no publication inputs is the compatibility path: no new
     # stdout keys or sidecar for callers that did not request this feature.
-    if mode == "strict" and not (dossier_paths or selection_path or policy_path):
+    if mode == "strict" and not (dossier_paths or proposal_path or selection_path or policy_path):
         return
     def read(path_value, label):
         path_value = Path(path_value).expanduser()
@@ -155,10 +156,24 @@ def _attach_publication(payload, artifact, path, args) -> None:
             "INVALID_ARGUMENTS",
             "Publication modes currently require one target series; invoke "
             "forecast once per target so each recommendation has one owner.")
-    from .publication import publish_result, write_publication
+    from .publication import (compile_dossier_for_result, publish_result,
+                              write_publication)
+    result = artifact.to_dict()["results"][0]
+    if proposal_path:
+        context_text = getattr(args, "context_text", None)
+        known_at = getattr(args, "context_known_at", None)
+        if not context_text or not known_at:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "--context-proposal requires --context-text and --context-known-at")
+        raw = read(proposal_path, "--context-proposal")
+        dossier, _ = compile_dossier_for_result(
+            raw, context_text=context_text, known_at=known_at, result=result,
+            compiler_model=getattr(args, "context_compiler_model", None) or "agent")
+        dossiers.append(dossier)
     try:
         publication = publish_result(
-            artifact.to_dict()["results"][0], mode=mode, dossiers=dossiers,
+            result, mode=mode, dossiers=dossiers,
             scenario_selection=selection, automation_policy=policy,
             artifact_id=artifact.forecast_id)
     except ValueError as exc:
@@ -348,6 +363,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="Sealed temporal-dossier JSON (repeatable). Invalid seals are "
              "retained as typed rejections, never silently ignored.",
     )
+    forecast_parser.add_argument(
+        "--context-proposal",
+        help="Unsealed JSON with cited claims and a typed effect_proposal; "
+             "Gnomon validates, composes, and seals it during this run.",
+    )
+    forecast_parser.add_argument(
+        "--context-text", help="Source text quoted by --context-proposal.")
+    forecast_parser.add_argument(
+        "--context-known-at", help="Timezone-aware knowledge time for context.")
+    forecast_parser.add_argument(
+        "--context-compiler-model", default="agent",
+        help="Identity of the model or human that extracted the proposal.")
     forecast_parser.add_argument(
         "--scenario-selection",
         help="Governed LLM scenario-selection JSON. It may rank sealed paths "

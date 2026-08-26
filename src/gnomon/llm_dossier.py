@@ -16,6 +16,8 @@ import statistics
 from datetime import datetime
 from typing import Any
 
+from .effect_proposals import validate_effect_proposal
+
 DOSSIER_VERSION = "0.1"
 MAX_CLAIMS = 16
 MAX_BOUNDARY_JUMP_SCALES = 20.0
@@ -111,14 +113,24 @@ def validate_temporal_dossier(
     candidate = _validate_candidate(
         raw.get("forecast_candidate"), claims=claims,
         future_timestamps=future_timestamps, history=history, reasons=reasons)
+    effect_proposal, proposal_critique = validate_effect_proposal(
+        raw.get("effect_proposal"),
+        claim_ids={str(claim["claim_id"]) for claim in claims},
+        repair=raw.get("effect_proposal_repair"),
+    ) if raw.get("effect_proposal") not in (None, {}) else (None, {
+        "status": "not_proposed", "attempts_used": 0, "attempts_remaining": 2,
+        "attempts": [],
+    })
     payload: dict[str, Any] = {
         "version": DOSSIER_VERSION,
         "compiler_model": compiler_model,
         "known_at": cutoff_dt.isoformat(),
         "future_observations_exposed": False,
         "claims": claims,
+        "effect_proposal": effect_proposal,
+        "effect_proposal_critique": proposal_critique,
         "forecast_candidate": candidate,
-        "candidate_support": "prior_assisted" if candidate else None,
+        "candidate_support": "prior_assisted" if (candidate or effect_proposal) else None,
         "automation_eligible": False,
         "primary_forecast_unchanged": True,
     }

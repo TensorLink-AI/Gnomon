@@ -15,12 +15,34 @@ from pathlib import Path
 from typing import Any, Literal
 
 from .llm_dossier import verify_temporal_dossier_seal
+from .llm_dossier import validate_temporal_dossier
+from .effect_proposals import compose_effect
+from .temporal_state import build_temporal_state
 
 PublicationMode = Literal["strict", "best_effort", "scenario"]
 PUBLICATION_VERSION = "0.1"
 MODES = frozenset({"strict", "best_effort", "scenario"})
 MAX_SCENARIOS = 8
 SELECTION_LABEL = "hypothesis_ranking"
+
+
+def compile_dossier_for_result(raw: Any, *, context_text: str, known_at: str,
+                               result: dict[str, Any], compiler_model: str
+                               ) -> tuple[dict[str, Any], list[str]]:
+    """Seal an agent proposal against the exact path it will accompany.
+
+    This is the one-call product seam: hosts may submit extracted context and
+    a typed proposal with the forecast request; they need not reproduce
+    Gnomon's sealing protocol or manufacture a forecast array.
+    """
+    primary = _rows(result.get("primary_forecast")) or _rows(result.get("forecast"))
+    timestamps = [str(row.get("timestamp")) for row in primary]
+    history_proxy = [float(row.get("q50", row.get("point"))) for row in primary
+                     if row.get("q50", row.get("point")) is not None]
+    return validate_temporal_dossier(
+        raw, context_text=context_text, cutoff=known_at,
+        future_timestamps=timestamps, history=history_proxy,
+        compiler_model=compiler_model)
 
 
 def _seal(payload: dict[str, Any]) -> str:
@@ -36,7 +58,8 @@ def _scenario(identifier: str, role: str, rows: list[dict[str, Any]], *,
               support: str, automation_eligible: bool,
               claim_ids: list[str] | None = None,
               assumptions: list[str] | None = None,
-              source_seal: str | None = None) -> dict[str, Any]:
+              source_seal: str | None = None,
+              effect: dict[str, Any] | None = None) -> dict[str, Any]:
     item = {
         "scenario_id": identifier, "role": role, "forecast": rows,
         "support": support, "automation_eligible": automation_eligible,
@@ -45,6 +68,8 @@ def _scenario(identifier: str, role: str, rows: list[dict[str, Any]], *,
     }
     if source_seal:
         item["source_seal_sha256"] = source_seal
+    if effect is not None:
+        item["effect"] = effect
     item["scenario_seal_sha256"] = _seal(item)
     return item
 
@@ -122,9 +147,21 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 "reason": "The dossier seal does not authenticate its body.",
             })
             continue
+        proposal = dossier.get("effect_proposal")
         candidate = dossier.get("forecast_candidate")
         claims = dossier.get("claims") or []
-        if not candidate:
+        if not candidate and not proposal:
+            critique = dossier.get("effect_proposal_critique") or {}
+            if critique.get("status") == "rejected":
+                violations = [violation for attempt in critique.get("attempts") or []
+                              for violation in attempt.get("violations") or []]
+                dispositions.append({
+                    "context_id": f"dossier-{index}:effect-proposal",
+                    "disposition": "rejected",
+                    "reason_code": "effect_proposal_rejected",
+                    "reason": "; ".join(str(item.get("message")) for item in violations)[:1000],
+                    "violations": violations,
+                })
             dispositions.extend({
                 "context_id": f"dossier-{index}:{item.get('claim_id')}",
                 "disposition": "used", "reason_code": "claims_only",
@@ -132,14 +169,38 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 "claim_id": item.get("claim_id"),
             } for item in claims)
             continue
-        identifier = f"prior-assisted-{index}"
-        scenarios.append(_scenario(
-            identifier, "prior_assisted", _rows(candidate.get("quantiles")),
-            support="prior_assisted", automation_eligible=False,
-            claim_ids=[str(item) for item in candidate.get("claim_ids") or []],
-            assumptions=[str(candidate.get("rationale") or "")],
-            source_seal=str(dossier["seal_sha256"]),
-        ))
+        if proposal:
+            identifier = f"effect-composed-{index}"
+            requested_series = set(proposal.get("scope", {}).get("series") or [])
+            actual_series = str(result.get("series") or "*")
+            if (proposal.get("scope", {}).get("kind") != "single_series"
+                    and actual_series != "*" and "*" not in requested_series
+                    and actual_series not in requested_series):
+                dispositions.append({
+                    "context_id": f"dossier-{index}", "disposition": "rejected",
+                    "reason_code": "effect_scope_mismatch",
+                    "reason": f"Effect scope does not include series {actual_series!r}.",
+                })
+                continue
+            scenarios.append(_scenario(
+                identifier, "effect_composed", compose_effect(primary, proposal),
+                support="prior_assisted", automation_eligible=False,
+                claim_ids=[str(item) for item in proposal.get("claim_ids") or []],
+                assumptions=[str(proposal.get("rationale") or ""),
+                             str(proposal.get("uncertainty_basis") or "")],
+                source_seal=str(dossier["seal_sha256"]), effect=proposal,
+            ))
+        else:
+            # Preserve the v0.1 public identifier while making the less
+            # authoritative origin explicit in the typed role.
+            identifier = f"prior-assisted-{index}"
+            scenarios.append(_scenario(
+                identifier, "model_authored", _rows(candidate.get("quantiles")),
+                support="prior_assisted", automation_eligible=False,
+                claim_ids=[str(item) for item in candidate.get("claim_ids") or []],
+                assumptions=[str(candidate.get("rationale") or "")],
+                source_seal=str(dossier["seal_sha256"]),
+            ))
         dispositions.extend({
             "context_id": f"dossier-{index}:{item.get('claim_id')}",
             "disposition": "scenario",
@@ -200,7 +261,8 @@ def validate_scenario_selection(raw: Any, *, scenarios: list[dict[str, Any]],
 
 
 def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
-                                dossiers: list[dict[str, Any]] | None = None
+                                dossiers: list[dict[str, Any]] | None = None,
+                                temporal_state: dict[str, Any] | None = None,
                                 ) -> dict[str, Any]:
     """Compact prompt packet for the governed, number-free LLM channel."""
     claims = [claim for dossier in dossiers or []
@@ -227,6 +289,7 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
             },
         } for item in scenarios],
         "claims": claims,
+        "temporal_state": temporal_state,
         "response_schema": {
             "selected_scenario_id": "string", "ranking": ["scenario_id"],
             "cited_claim_ids": ["claim_id"],
@@ -258,7 +321,8 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
         selected_id = selection["selected_scenario_id"]
     elif mode == "best_effort":
         selected_id = next((item["scenario_id"] for item in scenarios
-                            if item["role"] == "prior_assisted"), "primary")
+                            if item["role"] in {"effect_composed", "model_authored"}),
+                           "primary")
     else:
         selected_id = "primary"
     selected = by_id[selected_id]
@@ -278,9 +342,13 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
         "primary_scenario_id": "primary", "primary_forecast": by_id["primary"]["forecast"],
         "primary_forecast_unchanged": True,
         "scenario_count": len(scenarios),
+        # Full sealed portfolio is retained for outcome scoring. ``scenarios``
+        # is the compact human-facing projection.
+        "candidate_portfolio": scenarios,
         "scenarios": scenarios if mode == "scenario" else [by_id["primary"], selected]
                      if selected_id != "primary" else [by_id["primary"]],
         "context_dispositions": dispositions,
+        "temporal_state": build_temporal_state(result, dossiers=dossiers),
         "scenario_selection": selection,
         "automation": {
             "eligible": automation,
@@ -290,6 +358,15 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
             "reason": ("explicit policy and scenario evidence permit automation"
                        if automation else "human recommendation is separate from automation eligibility"),
         },
+    }
+    payload["selection_contract"] = scenario_selection_contract(
+        scenarios=scenarios, dossiers=dossiers,
+        temporal_state=payload["temporal_state"])
+    payload["candidate_admission"] = {
+        "status": "cold_start",
+        "rule": "candidate outcomes are scored separately; only fold-safe historical admission may upgrade authority",
+        "hierarchy": ["same_series", "related_series", "organization", "external_prior"],
+        "benchmark_or_model_confidence_cannot_upgrade_support": True,
     }
     payload["publication_seal_sha256"] = _seal(payload)
     return payload
@@ -304,24 +381,25 @@ def verify_publication(payload: dict[str, Any]) -> bool:
     if _seal(body) != payload["publication_seal_sha256"]:
         return False
     scenarios = payload.get("scenarios") or []
-    if not scenarios or len(scenarios) > MAX_SCENARIOS:
+    portfolio = payload.get("candidate_portfolio") or scenarios
+    if not scenarios or not portfolio or len(portfolio) > MAX_SCENARIOS:
         return False
-    ids = [item.get("scenario_id") for item in scenarios]
+    ids = [item.get("scenario_id") for item in portfolio]
     if len(ids) != len(set(ids)):
         return False
-    primary = next((item for item in scenarios
+    primary = next((item for item in portfolio
                     if item.get("scenario_id") == "primary"), None)
     if not primary or primary.get("forecast") != payload.get("primary_forecast"):
         return False
     if payload.get("primary_forecast_unchanged") is not True:
         return False
-    for item in scenarios:
+    for item in portfolio:
         seal = item.get("scenario_seal_sha256")
         body = {key: value for key, value in item.items()
                 if key != "scenario_seal_sha256"}
         if not seal or _seal(body) != seal:
             return False
-    selected = next((item for item in scenarios if item.get("scenario_id") ==
+    selected = next((item for item in portfolio if item.get("scenario_id") ==
                      payload.get("recommended_scenario_id")), None)
     if (not selected
             or selected.get("forecast") != payload.get("recommended_forecast")
@@ -344,9 +422,10 @@ def record_publication(store: Any, *, project: str, forecast_id: str,
     """Reuse synthesis receipts to score recommendation uplift later."""
     if not verify_publication(payload):
         raise ValueError("refusing to record an invalid publication")
-    selected = next(item for item in payload["scenarios"]
+    portfolio = payload.get("candidate_portfolio") or payload["scenarios"]
+    selected = next(item for item in portfolio
                     if item["scenario_id"] == payload["recommended_scenario_id"])
-    primary = next(item for item in payload["scenarios"]
+    primary = next(item for item in portfolio
                    if item["scenario_id"] == "primary")
     synthesis_id = f"publication:{payload['publication_seal_sha256'][:20]}"
     store.record_temporal_synthesis(
@@ -361,9 +440,24 @@ def record_publication(store: Any, *, project: str, forecast_id: str,
             "primary_forecast_unchanged": True,
             "automation_eligible": payload["automation"]["eligible"],
         },
-        evidence_refs=[item["scenario_seal_sha256"]
-                       for item in payload["scenarios"]],
+        evidence_refs=[item["scenario_seal_sha256"] for item in portfolio],
     )
+    # Record every alternative, not only the displayed winner. This yields
+    # honest candidate evidence as actuals arrive.
+    for candidate in portfolio:
+        if candidate["scenario_id"] in {"primary", selected["scenario_id"]}:
+            continue
+        store.record_temporal_synthesis(
+            project=project, forecast_id=forecast_id, series=series,
+            question_id="publication_candidate",
+            synthesis_id=f"{synthesis_id}:{candidate['scenario_id']}",
+            canonical={"value": "primary", "forecast": primary["forecast"]},
+            synthesis={
+                "label": "candidate_portfolio", "value": candidate["scenario_id"],
+                "forecast": candidate["forecast"], "support": candidate["support"],
+                "primary_forecast_unchanged": True, "automation_eligible": False,
+            }, evidence_refs=[candidate["scenario_seal_sha256"]],
+        )
     return synthesis_id
 
 

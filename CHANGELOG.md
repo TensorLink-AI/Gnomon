@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Prefer typed, cited context-effect proposals over model-authored forecast
+  arrays. Gnomon now composes bounded effect scenarios over the immutable
+  primary, exposes typed one-repair critiques and compact temporal state,
+  retains every sealed candidate for outcome scoring, and accepts raw context
+  proposals through the existing forecast CLI/MCP call.
+
 - Added unified `strict`, `best_effort`, and `scenario` publication modes over
   immutable forecast artifacts. Sealed prior-assisted paths may be recommended
   to humans without changing their support or granting automation authority.

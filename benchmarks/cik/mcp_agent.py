@@ -200,6 +200,16 @@ one JSON object with this shape:
                    "q50": 0.0, "q90": 0.0}],
     "rationale": "how the cited claims modify the numeric history"
   },
+  "effect_proposal": {
+    "shape": "temporary_pulse | level_shift | trend_change | variance_change | ramp_recovery | seasonal_amplitude | seasonal_phase | cross_series_relationship | saturation_bound | custom_scenario",
+    "unit": "target_units | fraction_of_level",
+    "location": 0.0, "lower": 0.0, "upper": 0.0,
+    "confidence": 0.0, "delay_steps": 0, "duration_steps": null,
+    "period_steps": null,
+    "scope": {"kind": "single_series", "series": ["*"]},
+    "claim_ids": ["claim-1"], "rationale": "brief mechanism",
+    "uncertainty_basis": "why this range is plausible"
+  },
   "covariate_tables": [
     {"name": "safe_snake_case", "type": "continuous | binary | cyclic_<period>",
      "rows": [{"document_index": 0,
@@ -212,8 +222,10 @@ one JSON object with this shape:
 
 Rules:
 - Cite only exact spans present in context; never invent an event or source.
-- Use the numeric history to author the candidate, but never claim its values
-  came from the text. Include exactly one ordered quantile row per future step.
+- Prefer effect_proposal over forecast_candidate: extract a cited temporal
+  effect and let Gnomon compose the numbers. Use forecast_candidate only when
+  no typed effect can express the relationship. Never claim numeric values
+  came from text unless the cited span states them.
 - Events are the narrow deterministic lane. Numeric bounds use
   event_type constraint:<label>; deterministic stated values use
   override:<label>. Other events carry qualitative classifications only;
@@ -230,7 +242,8 @@ Rules:
   host owns knowledge time. Gnomon will test surviving tables out of sample
   before they may influence the canonical forecast.
 - Use no observations after the history cutoff. Return empty arrays and null
-  forecast_candidate when context contains no forecast-relevant information.
+  effect_proposal and forecast_candidate when context contains no
+  forecast-relevant information.
 """
 
 
@@ -768,25 +781,22 @@ class McpAgentForecaster:
             dossier = (run.context_compilation or {}).get("dossier") or {}
             candidate = dossier.get("forecast_candidate") or {}
             candidate_rows = candidate.get("quantiles")
-            if not candidate_rows:
+            if not candidate_rows and not dossier.get("effect_proposal"):
                 raise GnomonAbstained([
-                    "no admissible LLM forecast candidate in the sealed dossier"])
+                    "no admissible context candidate in the sealed dossier"])
+            from gnomon.publication import publish_result, verify_publication
+            publication = publish_result({
+                "support": extra_info.get("support") or "best_effort",
+                "forecast": submission,
+            }, mode="best_effort", dossiers=[dossier])
+            if not verify_publication(publication):
+                raise RuntimeError("best-effort publication failed verification")
+            submission = publication["recommended_forecast"]
             if self.output_role == "publication_best_effort":
-                from gnomon.publication import publish_result, verify_publication
-                canonical_rows = submission
-                publication = publish_result({
-                    "support": extra_info.get("support") or "best_effort",
-                    "forecast": canonical_rows,
-                }, mode="best_effort", dossiers=[dossier])
-                if not verify_publication(publication):
-                    raise RuntimeError("best-effort publication failed verification")
-                submission = publication["recommended_forecast"]
                 extra_info = {
                     **extra_info, "route": "publication_best_effort",
                     "publication": publication,
                 }
-            else:
-                submission = candidate_rows
             extra_info = {
                 **extra_info,
                 "route": ("publication_best_effort"
@@ -1336,8 +1346,8 @@ class _Run:
                 "claim_count": len(
                     self.context_compilation["dossier"]["claims"]),
                 "candidate_available": bool(
-                    self.context_compilation["dossier"].get(
-                        "forecast_candidate")),
+                    self.context_compilation["dossier"].get("effect_proposal")
+                    or self.context_compilation["dossier"].get("forecast_candidate")),
                 "covariate_tables": len(
                     self.context_compilation["covariates"]["tables"]),
                 "covariate_tables_proposed": self.context_compilation[
@@ -1349,7 +1359,7 @@ class _Run:
                 "rejection_count": len(self.context_compilation["rejections"]),
                 "future_observations_exposed": False,
             }
-            if dossier.get("forecast_candidate"):
+            if dossier.get("forecast_candidate") or dossier.get("effect_proposal"):
                 # Retained for matched shadow scoring against this exact
                 # compiler generation. It is never sent back into the agent
                 # conversation and never replaces the canonical submission.
@@ -1357,6 +1367,7 @@ class _Run:
                     "support": dossier["candidate_support"],
                     "seal_sha256": dossier["seal_sha256"],
                     "forecast_candidate": dossier["forecast_candidate"],
+                    "effect_proposal": dossier.get("effect_proposal"),
                     "automation_eligible": False,
                     "primary_forecast_unchanged": True,
                 }

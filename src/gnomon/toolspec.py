@@ -1808,19 +1808,36 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
     """MCP projection boundary; forecast artifacts remain byte-immutable."""
     mode = str(arguments.get("publication_mode") or "strict")
     dossiers = arguments.get("temporal_dossiers") or []
+    submission = arguments.get("context_submission") or {}
+    if not isinstance(submission, dict):
+        raise GnomonError("INVALID_ARGUMENTS", "context_submission must be an object")
+    raw_proposal = submission.get("proposal")
     selection = arguments.get("scenario_selection")
     policy = arguments.get("automation_policy")
-    if mode == "strict" and not (dossiers or selection or policy):
+    if mode == "strict" and not (dossiers or raw_proposal or selection or policy):
         return
     if len(artifact.results) != 1:
         raise GnomonError(
             "INVALID_ARGUMENTS",
             "Publication modes currently require one target series; call "
             "gnomon_forecast once per target.")
-    from .publication import publish_result, write_publication
+    from .publication import (compile_dossier_for_result, publish_result,
+                              write_publication)
+    result = artifact.to_dict()["results"][0]
+    if raw_proposal is not None:
+        context_text = str(submission.get("text") or "")
+        known_at = str(submission.get("known_at") or "")
+        if not context_text or not known_at:
+            raise GnomonError("INVALID_ARGUMENTS",
+                              "context_proposal requires context_text and context_known_at")
+        dossier, _ = compile_dossier_for_result(
+            raw_proposal, context_text=context_text, known_at=known_at,
+            result=result,
+            compiler_model=str(submission.get("compiler") or "agent"))
+        dossiers = [*dossiers, dossier]
     try:
         publication = publish_result(
-            artifact.to_dict()["results"][0], mode=mode,
+            result, mode=mode,
             dossiers=list(dossiers), scenario_selection=selection,
             automation_policy=policy, artifact_id=artifact.forecast_id)
     except ValueError as exc:
@@ -1836,6 +1853,7 @@ def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str
     from .contracts import GnomonError
     if (arguments.get("publication_mode") not in (None, "strict")
             or arguments.get("temporal_dossiers")
+            or arguments.get("context_submission")
             or arguments.get("scenario_selection")
             or arguments.get("automation_policy")):
         raise GnomonError(
@@ -2175,13 +2193,8 @@ TOOLS: list[dict[str, Any]] = [
                 **_INPUT_PROPERTIES,
                 **_REPLAY_PROPERTIES,
                 "target_column": {"type": "string", "description": (
-                    "Column to forecast, a comma list "
-                    "(`\"cpu,mem,requests\"`), or `\"auto\"` (every "
-                    "numeric non-time column): one load pass, one "
-                    "combined artifact, one result per channel — an "
-                    "abstaining channel never blocks the others. Omit to "
-                    "infer when exactly one column qualifies (disclosed "
-                    "as an assumption)."
+                    "Column, comma list (`\"cpu,mem,requests\"`), or `\"auto\"` "
+                    "for every numeric channel. Omit only when one qualifies."
                 )},
                 "horizon": {"type": "integer", "description": (
                     "Future periods, in units of the data frequency. "
@@ -2198,7 +2211,7 @@ TOOLS: list[dict[str, Any]] = [
                 "model_admission": {"type": "string", "enum": ["strict", "evidence_weighted"], "description": "Default: strict."},
                 "model_evidence_registry": {"type": "string", "description": "Registry for evidence_weighted."},
                 "output_dir": {"type": "string", "description": (
-                    "Artifact directory; omit for gnomon_capabilities workspace default."
+                    "Artifact directory; default from gnomon_capabilities."
                 )},
                 "minimum_baseline_improvement": {"type": "number", "minimum": 0, "description": "Minimum relative improvement over the strongest baseline to select a candidate (default 0.02; must be >= 0)."},
                 "context_events_file": {"type": "string", "description": "Optional validated context-events JSON file (the output of `gnomon context validate`)."},
@@ -2234,6 +2247,7 @@ TOOLS: list[dict[str, Any]] = [
                     "description": "Projection; default strict. Primary stays immutable."},
                 "temporal_dossiers": {"type": "array", "items": {"type": "object"},
                     "description": "Sealed temporal dossiers."},
+                "context_submission": {"type": "object", "description": "Raw {text, known_at, compiler, proposal}."},
                 "scenario_selection": {"type": "object",
                     "description": "Number-free governed ranking of scenario ids."},
                 "automation_policy": {"type": "object",
