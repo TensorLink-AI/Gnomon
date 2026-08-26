@@ -141,7 +141,9 @@ MAX_RUN_TOKENS = 250_000
 #: before best-effort publication may recommend them.
 #: Version 52: traces retain compact publication authority and recurrence
 #: admission diagnostics, so recommendation behavior is auditable per case.
-MCP_CONTRACT_VERSION = 52
+#: Version 53: redundant driver names such as X_0_lag2 are safely rebound to
+#: X_0 only when their typed lag agrees and their future schedules match.
+MCP_CONTRACT_VERSION = 53
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it

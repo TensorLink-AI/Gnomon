@@ -727,6 +727,41 @@ def test_recursive_future_alias_rebinds_to_governed_driver_identity(alias):
     assert status["status"] == "canonicalized"
     assert canonical["transformation"]["expression"]["driver_terms"][0][
         "series"] == "X_0"
+
+
+def test_recursive_duplicate_lag_series_names_collapse_only_when_schedules_agree():
+    wrapper = {
+        "transformation": {"expression": {
+            "op": "recursive_linear", "output_unit": "y", "intercept": 0,
+            "autoregressive_terms": [{"lag": 1, "coefficient": .5}],
+            "driver_terms": [
+                {"series": "X_0_lag1", "lag": 1, "coefficient": 2},
+                {"series": "X_0_lag2", "lag": 2, "coefficient": 3},
+            ]}},
+        "units": {"primary": "y", "X_0_lag1": "x", "X_0_lag2": "x"},
+        "series_values": {
+            "X_0_lag1": {"values": [1, 2], "known_at": _stamp(5),
+                           "source_claim_ids": ["claim-1"]},
+            "X_0_lag2": {"values": [1, 2], "known_at": _stamp(5),
+                           "source_claim_ids": ["claim-1"]},
+        },
+    }
+    canonical, status = canonicalize_recursive_wrapper(
+        wrapper, target_name="X_1",
+        driver_names=["X_0_lag1", "X_0_lag2"])
+    assert status == {"status": "canonicalized", "target": "X_1",
+                      "drivers": ["X_0"]}
+    assert {term["series"] for term in canonical["transformation"][
+        "expression"]["driver_terms"]} == {"X_0"}
+    assert set(canonical["series_values"]) == {"X_0"}
+
+    wrapper["series_values"]["X_0_lag2"]["values"] = [9, 9]
+    unchanged, rejected = canonicalize_recursive_wrapper(
+        wrapper, target_name="X_1",
+        driver_names=["X_0_lag1", "X_0_lag2"])
+    assert unchanged is wrapper
+    assert rejected["status"] == "rejected"
+    assert "conflicting schedules" in rejected["reason"]
     assert set(canonical["series_values"]) == {"X_0"}
     assert canonical["units"]["X_0"] == "x"
 

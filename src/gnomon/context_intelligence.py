@@ -56,16 +56,31 @@ def canonicalize_recursive_wrapper(
         return re.sub(r"[^a-z0-9]", "", value.casefold())
 
     if expression.get("op") == "recursive_linear":
+        # Some compilers encode the lag twice (series="X_0_lag2", lag=2).
+        # Treat that as syntax only when the suffix and typed lag agree; the
+        # future schedules must still be identical below before they collapse
+        # onto the governed base-series history.
+        lag_aliases: dict[str, str] = {}
+        for term in expression.get("driver_terms") or []:
+            if not isinstance(term, dict):
+                continue
+            source = str(term.get("series") or "")
+            match = re.fullmatch(r"(.+?)[_-]?lag[_-]?(\d+)", source, re.I)
+            if match and int(match.group(2)) == int(term.get("lag") or 0):
+                lag_aliases[source] = match.group(1).rstrip("_-")
         actual_by_alias: dict[str, str] = {}
         for actual in driver_names:
-            base = normalize(actual)
-            for alias in (base, "future" + base, base + "future",
+            canonical_actual = lag_aliases.get(actual, actual)
+            base = normalize(canonical_actual)
+            source = normalize(actual)
+            for alias in (source, base, "future" + base, base + "future",
                           "schedule" + base, base + "schedule",
                           "forecast" + base, base + "forecast"):
-                if alias in actual_by_alias and actual_by_alias[alias] != actual:
+                if (alias in actual_by_alias
+                        and actual_by_alias[alias] != canonical_actual):
                     return wrapper, {"status": "rejected",
                                      "reason": f"ambiguous driver alias {alias!r}"}
-                actual_by_alias[alias] = actual
+                actual_by_alias[alias] = canonical_actual
         rebound_terms = []
         aliases: dict[str, list[str]] = {}
         changed = False

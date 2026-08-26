@@ -13,6 +13,9 @@
   recommendation. Replay uses the fixed cited equation, observed lags only,
   and timestamp-intersected target/driver histories. A plausible recurrence
   that lacks skill remains visible and scoreable as a non-automatable scenario.
+  Compiler spellings that redundantly encode the lag in both the driver name
+  and typed lag are normalized to the governed base series only when the lags
+  agree and every duplicate future schedule is identical.
 - Bounded every governed compiler, repair, and selector request to one
   no-retry transport attempt. A slow provider now returns the immutable primary
   instead of parking a worker. Model-authored candidates whose accompanying
