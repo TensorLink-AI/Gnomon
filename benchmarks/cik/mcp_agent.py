@@ -110,7 +110,9 @@ MAX_RUN_TOKENS = 250_000
 #: Version 37: every governed structured call has a bounded transport deadline
 #: with no hidden retry multiplier; repair is non-reasoning after the adaptive
 #: reasoning experiment exceeded a production-acceptable wall time.
-MCP_CONTRACT_VERSION = 37
+#: Version 38: mixed-unit linear equations use the governed
+#: ``linear_combination`` macro with engine-derived coefficient units.
+MCP_CONTRACT_VERSION = 38
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
