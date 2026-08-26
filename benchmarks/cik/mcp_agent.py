@@ -139,7 +139,9 @@ MAX_RUN_TOKENS = 250_000
 #: future-/schedule-/forecast alias forms as verbose equations.
 #: Version 51: recurrences must beat last-value in aligned pre-cutoff replay
 #: before best-effort publication may recommend them.
-MCP_CONTRACT_VERSION = 51
+#: Version 52: traces retain compact publication authority and recurrence
+#: admission diagnostics, so recommendation behavior is auditable per case.
+MCP_CONTRACT_VERSION = 52
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -1853,6 +1855,26 @@ class _Run:
                     entry["support"] = results[0].get("support")
                 if structured.get("publication"):
                     self._publication = structured["publication"]
+                    publication = structured["publication"]
+                    portfolio = publication.get("candidate_portfolio") or []
+                    entry["publication"] = {
+                        "mode": publication.get("mode"),
+                        "recommended_scenario_id": publication.get(
+                            "recommended_scenario_id"),
+                        "primary_forecast_unchanged": publication.get(
+                            "primary_forecast_unchanged"),
+                        "automation_eligible": (
+                            publication.get("automation") or {}).get("eligible"),
+                        "candidates": [{
+                            "scenario_id": item.get("scenario_id"),
+                            "role": item.get("role"),
+                            "support": item.get("support"),
+                            "selection_eligible": item.get("selection_eligible"),
+                            "recurrence_replay": (
+                                (item.get("effect") or {}).get("validation") or {}
+                            ).get("recurrence_replay_reason"),
+                        } for item in portfolio],
+                    }
                 if (self.governed_evidence and name == "gnomon_forecast"
                         and self.submission is None):
                     # Evidence is a governed product arm. Once the agent has
