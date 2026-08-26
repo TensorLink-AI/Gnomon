@@ -75,7 +75,9 @@ MAX_RUN_TOKENS = 250_000
 #: remains source-entailed and every source belongs to the transformation.
 #: Version 21: invalid transformations receive one bounded provenance repair
 #: before execution; the repair cannot remove already verified claims.
-MCP_CONTRACT_VERSION = 21
+#: Version 22: bounded pre-cutoff companion channels remain available as
+#: citable evidence instead of being discarded by target projection.
+MCP_CONTRACT_VERSION = 22
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -525,6 +527,32 @@ def _task_target_name(task_instance: Any) -> str:
         name = str(past.columns[-1]).strip()
         return name or "value"
     return "value"
+
+
+def _task_companion_evidence(task_instance: Any, *, limit: int = 32) -> str:
+    """Render bounded, pre-cutoff companion channels as citable evidence.
+
+    CiK's multivariate tasks put predictors beside the target in ``past_time``.
+    The forecast itself remains univariate, but dropping those observed
+    channels before context compilation makes legitimate relationships
+    impossible to ground.  Keep only a bounded tail and label it as observed
+    history; no future target or predictor values are introduced here.
+    """
+    past = task_instance.past_time
+    if not hasattr(past, "columns") or len(past.columns) < 2:
+        return ""
+    target = past.columns[-1]
+    companions = [column for column in past.columns if column != target]
+    if not companions:
+        return ""
+    tail = past.loc[:, companions].tail(limit)
+    rows = ["Observed companion-series history (known before the cutoff):"]
+    rows.append("timestamp," + ",".join(str(column) for column in companions))
+    for timestamp, values in tail.iterrows():
+        stamp = timestamp.isoformat() if hasattr(timestamp, "isoformat") else str(timestamp)
+        rows.append(stamp + "," + ",".join(
+            repr(float(value)) for value in values.values))
+    return "\n".join(rows)
 
 
 def _task_future_timestamps(task_instance: Any) -> list[str]:
@@ -988,6 +1016,7 @@ class _Run:
             prefix="cik-mcp-", dir=forecaster.work_dir)).resolve()
         self.timestamps, self.values = _task_series(task_instance)
         self.target_name = _task_target_name(task_instance)
+        self.companion_evidence = _task_companion_evidence(task_instance)
         self.csv_path = self.jail / "history.csv"
         _write_history_csv(
             self.timestamps, self.values, self.csv_path, self.target_name)
@@ -1017,7 +1046,9 @@ class _Run:
         from gnomon.llm_dossier import validate_temporal_dossier
         from gnomon.workflows import DocumentRef, parse_context_response
 
-        context = build_context_text(self.task)
+        narrative_context = build_context_text(self.task)
+        context = "\n\n".join(part for part in (
+            narrative_context, self.companion_evidence) if part)
         future_timestamps = _task_future_timestamps(self.task)
         history = "\n".join(
             f"{stamp},{value}" for stamp, value in

@@ -28,6 +28,7 @@ from benchmarks.cik.mcp_agent import (
     MAX_ROUNDS,
     InProcessMcpSession,
     McpAgentForecaster,
+    _task_companion_evidence,
     jail_violations,
     openai_tool_specs,
 )
@@ -105,6 +106,21 @@ class ScriptedClient:
         return {"model": "scripted", "requests": 0,
                 "prompt_tokens": self.total_prompt_tokens,
                 "completion_tokens": self.total_completion_tokens}
+
+
+def test_companion_evidence_is_bounded_and_pre_cutoff_only():
+    pd = pytest.importorskip("pandas")
+    frame = pd.DataFrame(
+        {"predictor": range(40), "target": range(100, 140)},
+        index=pd.date_range("2024-01-01", periods=40, freq="h"),
+    )
+    evidence = _task_companion_evidence(SimpleNamespace(past_time=frame))
+    assert "predictor" in evidence
+    assert "target" not in evidence
+    observed = [float(row.rsplit(",", 1)[-1])
+                for row in evidence.splitlines()[2:]]
+    assert observed == list(map(float, range(8, 40)))
+    assert len(evidence.splitlines()) == 34
 
 
 def _forecaster(steps, tmp_path, sessions=None, profile=None,
