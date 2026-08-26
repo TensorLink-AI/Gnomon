@@ -472,6 +472,10 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
         {"action": "supply_arguments", "description": "Name the column explicitly; the qualifying candidates are in details.candidates."},
         {"action": "inspect_dataset", "description": "Call gnomon_inspect to see every column and its inferred type."},
     ],
+    "AMBIGUOUS_RECURSIVE_HISTORY": [
+        {"action": "split_input", "description": "Run the recurrence for one target series/entity at a time so its initial state is unambiguous."},
+        {"action": "set_series_column", "description": "Name the entity column and filter the input to one entity before requesting a recursive scenario."},
+    ],
     "EMPTY_DATASET": [
         {"action": "check_input", "description": "The file parsed but contained no observations. Confirm it has a header row and at least one data row."},
         {"action": "check_delimiter", "description": "A mis-detected delimiter produces one column and no usable rows; re-export as comma-separated UTF-8."},

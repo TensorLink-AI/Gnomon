@@ -53,6 +53,14 @@ primary or named future series, arithmetic, lag, difference, percent change,
 rolling mean, clipping, and quantiles. Expressions are bounded to 48 nodes and
 eight levels, checked for finite values and compatible units, content sealed,
 and may be repaired once only in the field named by the first violation.
+Two safe macros cover common formulas without generated code:
+`linear_combination` derives coefficient conversion units for a cited
+multi-input equation, while `recursive_linear` executes a cited ARX-style
+recurrence. For the latter, Gnomon reloads the target and driver history through
+the forecast's governed `as_of` snapshot, supplies the initial state itself,
+feeds prior predicted outputs back recursively, and propagates the primary
+interval width through the feedback terms. The caller supplies only cited
+future driver values; model-authored future target lags are never trusted.
 
 Every transformation cites verified claim IDs and a timezone-aware knowledge
 time. A referenced future series must be supplied as `{values, known_at,
@@ -69,6 +77,10 @@ CLI callers pass repeatable `--context-transformation` JSON files with
 `--context-known-at`. MCP callers use
 `context_submission.transformations`. Invalid inputs remain in
 `context_dispositions` with typed violations; they are never silently ignored.
+A model-authored path offered as the fallback for a transformation whose
+derivation fails remains visible and outcome-trackable in the scenario
+portfolio, but is marked selection-ineligible. A seal proves identity, not the
+correctness of a failed derivation.
 
 A dossier may also contain up to six `hypotheses`. These are stable, sealed
 interpretations—not forecasts—with kinds such as `relationship`,

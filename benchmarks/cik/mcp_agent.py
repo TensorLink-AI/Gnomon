@@ -116,7 +116,9 @@ MAX_RUN_TOKENS = 250_000
 #: preflight remains visible but is ineligible for recommendation selection.
 #: Version 40: ordinary additive equations receive deterministic, disclosed
 #: coefficient-unit normalization without requiring a special macro spelling.
-MCP_CONTRACT_VERSION = 40
+#: Version 41: recursive linear equations bind trusted pre-cutoff state and
+#: feed prior outputs back inside the sealed executor, never through LLM data.
+MCP_CONTRACT_VERSION = 41
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -372,6 +374,12 @@ Rules:
   Gnomon derives each coefficient's target/input conversion unit, validates
   every coefficient against the cited claims, and expands the macro into
   ordinary sealed arithmetic. Omit `intercept` when the equation has none.
+- For a cited recurrence such as an ARX equation, never invent future target
+  lag values. Use `{"op":"recursive_linear","output_unit":"target units","intercept":0,"autoregressive_terms":[{"lag":1,"coefficient":0.5}],"driver_terms":[{"series":"driver","lag":1,"coefficient":2.0}]}`.
+  Gnomon binds pre-cutoff target/driver history from the governed snapshot,
+  recursively feeds prior outputs back itself, and propagates uncertainty.
+  `series_values` supplies only the cited future driver schedule; do not put
+  target lags or historical observations in `series_values`.
 - Use no observations after the history cutoff. Return empty arrays and null
   effect_proposal and forecast_candidate when context contains no
   forecast-relevant information.
@@ -607,6 +615,16 @@ def _task_companion_evidence(task_instance: Any, *, limit: int = 32) -> str:
     return "\n".join(rows)
 
 
+def _task_companion_histories(task_instance: Any) -> dict[str, list[float]]:
+    """Return full pre-cutoff companion histories for engine execution only."""
+    past = task_instance.past_time
+    if not hasattr(past, "columns") or len(past.columns) < 2:
+        return {}
+    target = past.columns[-1]
+    return {str(column): [float(value) for value in past[column].values]
+            for column in past.columns if column != target}
+
+
 def _compiler_target_evidence(timestamps: list[str], values: list[float],
                               *, limit: int = 64) -> str:
     """Compact target evidence for the LLM; the engine retains the full CSV."""
@@ -671,14 +689,18 @@ def _task_future_timestamps(task_instance: Any) -> list[str]:
 
 
 def _write_history_csv(timestamps: list[str], values: list[float],
-                       csv_path: Path, target_name: str = "value") -> None:
+                       csv_path: Path, target_name: str = "value",
+                       companions: dict[str, list[float]] | None = None) -> None:
     import csv
 
     with csv_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
-        writer.writerow(["timestamp", target_name])
-        for timestamp, value in zip(timestamps, values):
-            writer.writerow([timestamp, repr(float(value))])
+        names = list((companions or {}).keys())
+        writer.writerow(["timestamp", *names, target_name])
+        for index, (timestamp, value) in enumerate(zip(timestamps, values)):
+            writer.writerow([timestamp, *[repr(float(companions[name][index]))
+                                           for name in names],
+                             repr(float(value))])
 
 
 def _tool_calls_as_dicts(message: Any) -> list[dict[str, Any]]:
@@ -1120,9 +1142,11 @@ class _Run:
         self.timestamps, self.values = _task_series(task_instance)
         self.target_name = _task_target_name(task_instance)
         self.companion_evidence = _task_companion_evidence(task_instance)
+        self.companion_histories = _task_companion_histories(task_instance)
         self.csv_path = self.jail / "history.csv"
         _write_history_csv(
-            self.timestamps, self.values, self.csv_path, self.target_name)
+            self.timestamps, self.values, self.csv_path, self.target_name,
+            self.companion_histories)
         self.horizon = len(task_instance.future_time)
         self.session = forecaster.session_factory(self.jail)
         self.trace: list[dict[str, Any]] = []
@@ -1304,7 +1328,9 @@ class _Run:
                     execute_transformation(
                         compiled, primary=dummy_primary,
                         series_values=wrapper.get("series_values") or {},
-                        claim_spans=spans)
+                        claim_spans=spans,
+                        history_values=self.values,
+                        history_series=self.companion_histories)
                 except TransformationError as error:
                     failures.append({"index": index,
                                      "violations": [error.as_dict()]})

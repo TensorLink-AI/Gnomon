@@ -1832,6 +1832,34 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
     from .publication import (compile_dossier_for_result, publish_result,
                               write_publication)
     result = artifact.to_dict()["results"][0]
+
+    def trusted_recurrence_history(expression: Any) -> tuple[list[float], dict[str, list[float]]]:
+        """Reload recurrence state through the same governed snapshot seam."""
+        if not isinstance(expression, dict) or expression.get("op") != "recursive_linear":
+            return [], {}
+        from .pipeline import load_stage
+
+        def values_for(target: str) -> list[float]:
+            loaded = load_stage(
+                arguments["input"], time_column=arguments["time_column"],
+                target_column=target, series_column=arguments.get("series_column"),
+                frequency=arguments.get("frequency"),
+                as_of=_parse_as_of(arguments.get("as_of")),
+                store_path=arguments.get("store_path"),
+                regrid=arguments.get("regrid"),
+                repair=arguments.get("repair", "safe"))
+            if len(loaded.groups) != 1:
+                raise GnomonError(
+                    "AMBIGUOUS_RECURSIVE_HISTORY",
+                    "Recursive context execution requires exactly one series per target.")
+            observations = next(iter(loaded.groups.values()))
+            return [float(item.value) for item in observations]
+
+        target_history = values_for(str(arguments["target_column"]))
+        driver_names = sorted({str(term.get("series"))
+                               for term in expression.get("driver_terms") or []
+                               if term.get("series")})
+        return target_history, {name: values_for(name) for name in driver_names}
     if raw_proposal is not None:
         context_text = str(submission.get("text") or "")
         known_at = str(submission.get("known_at") or "")
@@ -1883,12 +1911,16 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                 })
                 continue
             try:
+                target_history, driver_history = trusted_recurrence_history(
+                    compiled.get("expression"))
                 candidate = execute_transformation(
                     compiled,
                     primary=(result.get("primary_forecast") or result.get("forecast") or []),
                     series_values=wrapper.get("series_values"),
                     historical_validation=wrapper.get("historical_validation"),
-                    claim_spans=claim_spans)
+                    claim_spans=claim_spans,
+                    history_values=target_history,
+                    history_series=driver_history)
             except ValueError as exc:
                 result["transformation_rejections"].append({
                     "transformation_id": compiled["transformation_id"],

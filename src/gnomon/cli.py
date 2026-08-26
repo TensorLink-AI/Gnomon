@@ -188,6 +188,35 @@ def _attach_publication(payload, artifact, path, args) -> None:
                      if claim.get("claim_id")]
         result["transformation_candidates"] = []
         result["transformation_rejections"] = []
+
+        def trusted_recurrence_history(expression):
+            if not isinstance(expression, dict) or expression.get("op") != "recursive_linear":
+                return [], {}
+            from .pipeline import load_stage
+
+            def values_for(target):
+                loaded = load_stage(
+                    args.input, time_column=args.time_column,
+                    target_column=target,
+                    series_column=getattr(args, "series_column", None),
+                    frequency=getattr(args, "frequency", None),
+                    as_of=getattr(args, "as_of", None),
+                    store_path=getattr(args, "store_path", None),
+                    regrid=getattr(args, "regrid", None),
+                    repair=getattr(args, "repair", "safe"))
+                if len(loaded.groups) != 1:
+                    raise GnomonError(
+                        "AMBIGUOUS_RECURSIVE_HISTORY",
+                        "Recursive context execution requires exactly one series per target.")
+                return [float(item.value) for item in
+                        next(iter(loaded.groups.values()))]
+
+            drivers = sorted({str(term.get("series"))
+                              for term in expression.get("driver_terms") or []
+                              if term.get("series")})
+            return (values_for(args.target_column),
+                    {name: values_for(name) for name in drivers})
+
         for index, transform_path in enumerate(transformation_paths[:6], 1):
             wrapper = read(transform_path, "--context-transformation")
             compiled, critique = compile_transformation(
@@ -204,13 +233,17 @@ def _attach_publication(payload, artifact, path, args) -> None:
                 })
                 continue
             try:
+                target_history, driver_history = trusted_recurrence_history(
+                    compiled.get("expression"))
                 result["transformation_candidates"].append(
                     execute_transformation(
                         compiled,
                         primary=(result.get("primary_forecast")
                                  or result.get("forecast") or []),
                         series_values=wrapper.get("series_values"),
-                        historical_validation=wrapper.get("historical_validation")))
+                        historical_validation=wrapper.get("historical_validation"),
+                        history_values=target_history,
+                        history_series=driver_history))
             except ValueError as exc:
                 result["transformation_rejections"].append({
                     "transformation_id": compiled["transformation_id"],

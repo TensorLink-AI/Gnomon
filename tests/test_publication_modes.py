@@ -294,6 +294,60 @@ def test_mcp_context_transformation_rejection_is_typed_and_primary_is_intact(tmp
     assert verify_publication(publication)
 
 
+def test_mcp_recursive_transformation_binds_history_from_governed_input(tmp_path):
+    from datetime import date, timedelta
+    source = tmp_path / "wide.csv"
+    start = date(2026, 1, 1)
+    source.write_text("timestamp,campaign,value\n" + "\n".join(
+        f"{start + timedelta(days=i)},{i + 1},{100 + i}" for i in range(40))
+        + "\n")
+    formula = "value[t] = 0.5 value[t-1] + 2 campaign[t-1]"
+    schedule = "future campaign values are 41 then 42"
+    payload = runner_for("gnomon_forecast")({
+        "input": str(source), "target_column": "value", "horizon": 2,
+        "output_dir": str(tmp_path / "out"),
+        "publication_mode": "best_effort",
+        "context_submission": {
+            "text": formula + ". " + schedule,
+            "known_at": "2026-02-09T00:00:00+00:00",
+            "compiler": "test-agent",
+            "proposal": {"claims": [
+                {"source_span": formula, "relation": "supports_increase",
+                 "effective_start": "2026-02-10T00:00:00+00:00",
+                 "effective_end": "2026-02-11T00:00:00+00:00"},
+                {"source_span": schedule, "relation": "supports_increase",
+                 "effective_start": "2026-02-10T00:00:00+00:00",
+                 "effective_end": "2026-02-11T00:00:00+00:00"},
+            ]},
+            "transformations": [{
+                "transformation": {
+                    "known_at": "2026-02-09T00:00:00+00:00",
+                    "claim_ids": ["claim-1", "claim-2"],
+                    "lane": "prior_assisted", "output_unit": "value",
+                    "expression": {
+                        "op": "recursive_linear", "output_unit": "value",
+                        "autoregressive_terms": [{"lag": 1, "coefficient": .5}],
+                        "driver_terms": [{"series": "campaign", "lag": 1,
+                                          "coefficient": 2}],
+                    },
+                },
+                "units": {"primary": "value", "campaign": "campaign"},
+                "series_values": {"campaign": {
+                    "values": [41, 42],
+                    "known_at": "2026-02-09T00:00:00+00:00",
+                    "source_claim_ids": ["claim-2"]}},
+            }],
+        },
+    })
+    publication = payload["publication"]
+    assert publication["recommended_scenario_id"] == "transformation-1"
+    assert [row["q50"] for row in publication["recommended_forecast"]] \
+        == [149.5, 156.75]
+    assert publication["primary_forecast_unchanged"] is True
+    assert publication["automation"]["eligible"] is False
+    assert verify_publication(publication)
+
+
 def test_response_budget_never_breaks_a_publication_seal():
     result = _result()
     result["forecast"] = [

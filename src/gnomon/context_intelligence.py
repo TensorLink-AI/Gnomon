@@ -94,6 +94,21 @@ def _model_authored_constants(node: Any, *, role: str = "literal") \
                 found.append((float(term.get("coefficient")), "coefficient"))
             except (TypeError, ValueError):
                 pass
+    if op == "recursive_linear":
+        for term in [*(node.get("autoregressive_terms") or []),
+                     *(node.get("driver_terms") or [])]:
+            if not isinstance(term, dict):
+                continue
+            for key in ("coefficient", "lag"):
+                try:
+                    found.append((float(term.get(key)), key))
+                except (TypeError, ValueError):
+                    pass
+        if "intercept" in node:
+            try:
+                found.append((float(node.get("intercept")), "intercept"))
+            except (TypeError, ValueError):
+                pass
         if "intercept" in node:
             try:
                 found.append((float(node.get("intercept")), "intercept"))
@@ -374,6 +389,68 @@ def _validate_expression(node: Any, *, path: str, depth: int,
         raise TransformationError("EXPRESSION_TOO_LARGE", path,
                                   "Transformation exceeds the node limit.")
     raw_op = str(node.get("op") or "")
+    if raw_op == "recursive_linear":
+        output_unit = str(node.get("output_unit") or "")
+        if not output_unit:
+            raise TransformationError(
+                "MISSING_OUTPUT_UNIT", f"{path}.output_unit",
+                "A recursive linear equation requires its target unit.")
+        autoregressive = node.get("autoregressive_terms") or []
+        drivers = node.get("driver_terms") or []
+        if not isinstance(autoregressive, list) or len(autoregressive) > 16 \
+                or not isinstance(drivers, list) or len(drivers) > 32 \
+                or not autoregressive and not drivers:
+            raise TransformationError(
+                "INVALID_RECURSIVE_TERMS", path,
+                "A recursive equation requires 1..48 bounded AR/driver terms.")
+
+        def term(raw: Any, *, driver: bool, index: int) -> dict[str, Any]:
+            field = "driver_terms" if driver else "autoregressive_terms"
+            if not isinstance(raw, dict):
+                raise TransformationError(
+                    "INVALID_RECURSIVE_TERM", f"{path}.{field}[{index}]",
+                    "Each recursive term must be an object.")
+            coefficient = _finite(
+                raw.get("coefficient"), f"{path}.{field}[{index}].coefficient")
+            try:
+                lag = int(raw.get("lag"))
+            except (TypeError, ValueError) as exc:
+                raise TransformationError(
+                    "INVALID_WINDOW", f"{path}.{field}[{index}].lag",
+                    "Recursive lags must be positive integers.") from exc
+            if lag < 1 or lag > 10_000:
+                raise TransformationError(
+                    "INVALID_WINDOW", f"{path}.{field}[{index}].lag",
+                    "Recursive lags must be between 1 and 10000.")
+            clean = {"coefficient": coefficient, "lag": lag}
+            if driver:
+                name = str(raw.get("series") or "")
+                if name not in series:
+                    raise TransformationError(
+                        "UNKNOWN_SERIES", f"{path}.{field}[{index}].series",
+                        f"Series {name!r} is unavailable.")
+                clean["series"] = name
+                clean["coefficient_unit"] = (
+                    "dimensionless" if units.get(name) == output_unit else
+                    f"{output_unit}/{units.get(name, 'unknown')}")
+            else:
+                clean["coefficient_unit"] = "dimensionless"
+            return clean
+
+        clean = {
+            "op": "recursive_linear", "output_unit": output_unit,
+            "intercept": _finite(node.get("intercept", 0.0),
+                                 f"{path}.intercept"),
+            "autoregressive_terms": [term(value, driver=False, index=index)
+                                     for index, value in enumerate(autoregressive)],
+            "driver_terms": [term(value, driver=True, index=index)
+                             for index, value in enumerate(drivers)],
+        }
+        state["nodes"] += len(autoregressive) + len(drivers)
+        if state["nodes"] > MAX_TRANSFORM_NODES:
+            raise TransformationError("EXPRESSION_TOO_LARGE", path,
+                                      "Transformation exceeds the node limit.")
+        return clean, output_unit
     if raw_op == "linear_combination":
         # Compact safe macro for equations whose coefficients convert several
         # input units into one target unit.  The coefficient units are derived
@@ -591,6 +668,8 @@ def execute_transformation(
     series_values: dict[str, Any] | None = None,
     historical_validation: dict[str, Any] | None = None,
     claim_spans: dict[str, str] | None = None,
+    history_values: list[float] | None = None,
+    history_series: dict[str, list[float]] | None = None,
 ) -> dict[str, Any]:
     """Execute only a previously validated canonical transformation."""
     seal = compiled.get("seal_sha256")
@@ -650,19 +729,30 @@ def execute_transformation(
     if any(len(values) != width for values in environment.values()):
         raise TransformationError("HORIZON_MISMATCH", "series_values",
                                   "Every future series must match the primary horizon.")
-    values = _execute_expression(compiled["expression"], primary=primary,
-                                 environment=environment, width=width,
-                                 primary_quantile="q50")
+    if compiled["expression"].get("op") == "recursive_linear":
+        values, lower_widths, upper_widths = _execute_recursive_linear(
+            compiled["expression"], primary=primary, environment=environment,
+            history_values=history_values or [],
+            history_series=history_series or {})
+        quantile_paths = {
+            "q10": [value - width for value, width in zip(values, lower_widths)],
+            "q50": values,
+            "q90": [value + width for value, width in zip(values, upper_widths)],
+        }
+    else:
+        values = _execute_expression(compiled["expression"], primary=primary,
+                                     environment=environment, width=width,
+                                     primary_quantile="q50")
+        quantile_paths = {
+            quantile: _execute_expression(
+                compiled["expression"], primary=primary,
+                environment=environment, width=width,
+                primary_quantile=quantile)
+            for quantile in ("q10", "q50", "q90")
+        }
     if len(values) != width or any(not math.isfinite(value) for value in values):
         raise TransformationError("INVALID_EXECUTION_RESULT", "expression",
                                   "Transformation did not yield one finite value per step.")
-    quantile_paths = {
-        quantile: _execute_expression(
-            compiled["expression"], primary=primary,
-            environment=environment, width=width,
-            primary_quantile=quantile)
-        for quantile in ("q10", "q50", "q90")
-    }
     rows = []
     for index, value in enumerate(values):
         source = primary[index]
@@ -695,6 +785,57 @@ def execute_transformation(
         "source_seal_sha256": seal, "automation_eligible": False,
         "primary_forecast_unchanged": True,
     }
+
+
+def _execute_recursive_linear(
+    node: dict[str, Any], *, primary: list[dict[str, Any]],
+    environment: dict[str, list[float]], history_values: list[float],
+    history_series: dict[str, list[float]],
+) -> tuple[list[float], list[float], list[float]]:
+    """Execute a sealed ARX recurrence with conservative width propagation."""
+    ar_terms = node["autoregressive_terms"]
+    driver_terms = node["driver_terms"]
+    max_target_lag = max((term["lag"] for term in ar_terms), default=0)
+    if len(history_values) < max_target_lag:
+        raise TransformationError(
+            "MISSING_RECURSIVE_HISTORY", "history_values",
+            f"Recursive target requires {max_target_lag} trusted historical values.")
+    for term in driver_terms:
+        name, lag = term["series"], term["lag"]
+        if name not in environment:
+            raise TransformationError(
+                "MISSING_FUTURE_SERIES", name,
+                "A recursive driver requires its cited future schedule.")
+        if len(history_series.get(name) or []) < lag:
+            raise TransformationError(
+                "MISSING_RECURSIVE_HISTORY", f"history_series.{name}",
+                f"Recursive driver {name!r} requires {lag} trusted historical values.")
+    output: list[float] = []
+    lower_widths: list[float] = []
+    upper_widths: list[float] = []
+    for index, row in enumerate(primary):
+        value = float(node["intercept"])
+        feedback_lower = feedback_upper = 0.0
+        for term in ar_terms:
+            position = index - term["lag"]
+            prior = (output[position] if position >= 0
+                     else float(history_values[position]))
+            value += term["coefficient"] * prior
+            if position >= 0:
+                feedback_lower += abs(term["coefficient"]) * lower_widths[position]
+                feedback_upper += abs(term["coefficient"]) * upper_widths[position]
+        for term in driver_terms:
+            position = index - term["lag"]
+            source = (environment[term["series"]][position] if position >= 0
+                      else history_series[term["series"]][position])
+            value += term["coefficient"] * float(source)
+        q50 = _finite(row.get("q50", row.get("point")), "primary.q50")
+        innovation_lower = max(0.0, q50 - _finite(row.get("q10", q50), "primary.q10"))
+        innovation_upper = max(0.0, _finite(row.get("q90", q50), "primary.q90") - q50)
+        output.append(value)
+        lower_widths.append(innovation_lower + feedback_lower)
+        upper_widths.append(innovation_upper + feedback_upper)
+    return output, lower_widths, upper_widths
 
 
 def _execute_expression(node: dict[str, Any], *, primary: list[dict[str, Any]],

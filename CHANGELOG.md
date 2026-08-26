@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Added governed `linear_combination` and `recursive_linear` transformations.
+  Gnomon derives omitted coefficient units for cited additive equations and
+  executes ARX-style recurrences using target and driver history reloaded from
+  the same point-in-time snapshot as the primary forecast. The LLM never
+  supplies future target lags; recursion and conservative interval-width
+  propagation are deterministic and sealed.
+- Bounded every governed compiler, repair, and selector request to one
+  no-retry transport attempt. A slow provider now returns the immutable primary
+  instead of parking a worker. Model-authored candidates whose accompanying
+  governed derivation fails remain visible but cannot become the recommendation.
+
 - Added a sealed, non-Turing-complete context transformation language for
   safe arithmetic, lag, change, rolling, bounds, and quantile operations over
   immutable forecasts and point-in-time future inputs. Validation enforces

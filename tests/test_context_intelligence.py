@@ -473,6 +473,65 @@ def test_standalone_product_does_not_guess_a_target_conversion_unit():
     assert caught.value.code == "OUTPUT_UNIT_MISMATCH"
 
 
+def test_recursive_linear_uses_trusted_history_and_propagates_uncertainty():
+    raw = {
+        "known_at": _stamp(5), "claim_ids": ["claim-1"],
+        "lane": "prior_assisted", "output_unit": "sales",
+        "expression": {
+            "op": "recursive_linear", "output_unit": "sales",
+            "intercept": 2,
+            "autoregressive_terms": [{"lag": 1, "coefficient": .5}],
+            "driver_terms": [{"series": "campaign", "lag": 1,
+                              "coefficient": 3}],
+        },
+    }
+    span = "sales[t] = 2 + 0.5 sales[t-1] + 3 campaign[t-1]"
+    compiled = validate_transformation(
+        raw, series=["campaign"], claim_ids=["claim-1"], cutoff=_stamp(5),
+        units={"campaign": "spend", "primary": "sales"},
+        claim_spans={"claim-1": span})
+    assert compiled["expression"]["driver_terms"][0]["coefficient_unit"] \
+        == "sales/spend"
+    primary = [
+        {"timestamp": _stamp(6), "point": 0, "q10": -1, "q50": 0, "q90": 1},
+        {"timestamp": _stamp(7), "point": 0, "q10": -1, "q50": 0, "q90": 1},
+    ]
+    result = execute_transformation(
+        compiled, primary=primary,
+        series_values={"campaign": {
+            "values": [5, 7], "known_at": _stamp(5),
+            "source_claim_id": "claim-1"}},
+        claim_spans={"claim-1": span + "; campaign schedule is 5 then 7"},
+        history_values=[10], history_series={"campaign": [4]})
+    # t0 = 2 + .5*10 + 3*4 = 19; t1 = 2 + .5*19 + 3*5 = 26.5.
+    assert [row["q50"] for row in result["forecast"]] == [19, 26.5]
+    assert result["forecast"][0]["q10"] == 18
+    assert result["forecast"][1]["q10"] == 25
+    assert result["primary_forecast_unchanged"] is True
+
+
+def test_recursive_linear_refuses_missing_trusted_initial_state():
+    raw = {
+        "known_at": _stamp(5), "claim_ids": ["claim-1"],
+        "lane": "prior_assisted", "output_unit": "sales",
+        "expression": {
+            "op": "recursive_linear", "output_unit": "sales",
+            "autoregressive_terms": [{"lag": 2, "coefficient": .5}],
+            "driver_terms": [],
+        },
+    }
+    compiled = validate_transformation(
+        raw, series=[], claim_ids=["claim-1"], cutoff=_stamp(5),
+        units={"primary": "sales"},
+        claim_spans={"claim-1": "sales[t] = 0.5 sales[t-2]"})
+    with pytest.raises(TransformationError) as caught:
+        execute_transformation(
+            compiled,
+            primary=[{"timestamp": _stamp(6), "q50": 0, "q10": -1, "q90": 1}],
+            history_values=[10])
+    assert caught.value.code == "MISSING_RECURSIVE_HISTORY"
+
+
 def test_model_computed_constant_cannot_launder_through_claim_id():
     raw = {
         "known_at": _stamp(5), "claim_ids": ["claim-1"],
