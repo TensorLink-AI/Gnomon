@@ -25,7 +25,7 @@ MAX_TRANSFORM_DEPTH = 8
 TRANSFORM_OPS = frozenset({
     "literal", "series", "primary", "add", "subtract", "multiply",
     "divide", "lag", "difference", "percent_change", "rolling_mean",
-    "clip", "quantile",
+    "clip", "quantile", "power",
 })
 HYPOTHESIS_KINDS = frozenset({
     "absolute_value", "bound", "additive_change", "multiplicative_change",
@@ -84,11 +84,21 @@ def validate_transformation(
             "UNVERIFIED_CLAIMS", "claim_ids",
             "Every transformation must cite verified context claims.")
     expression = raw.get("expression")
+    declared_raw = str(raw.get("output_unit") or "")
     state = {"nodes": 0}
     normalized, inferred_unit = _validate_expression(
         expression, path="expression", depth=0, state=state,
         series=set(series), units=units or {})
-    declared_unit = str(raw.get("output_unit") or inferred_unit or "unknown")
+    # A root literal with an explicitly declared output unit is an absolute
+    # stated value, not a dimensionless multiplier. Bind that one unambiguous
+    # omission deterministically; nested literals remain dimensionless unless
+    # their own unit is stated.
+    if (declared_raw and isinstance(expression, dict)
+            and expression.get("op") == "literal"
+            and "unit" not in expression):
+        normalized["unit"] = declared_raw
+        inferred_unit = declared_raw
+    declared_unit = str(declared_raw or inferred_unit or "unknown")
     if inferred_unit not in {None, "unknown", declared_unit}:
         raise TransformationError(
             "OUTPUT_UNIT_MISMATCH", "output_unit",
@@ -168,7 +178,8 @@ def _validate_expression(node: Any, *, path: str, depth: int,
     if state["nodes"] > MAX_TRANSFORM_NODES:
         raise TransformationError("EXPRESSION_TOO_LARGE", path,
                                   "Transformation exceeds the node limit.")
-    op = str(node.get("op") or "")
+    raw_op = str(node.get("op") or "")
+    op = "power" if raw_op == "pow" else raw_op
     if op not in TRANSFORM_OPS:
         raise TransformationError("UNSAFE_OR_UNKNOWN_OPERATOR", f"{path}.op",
                                   f"Operator {op!r} is not allowed.")
@@ -177,7 +188,15 @@ def _validate_expression(node: Any, *, path: str, depth: int,
                  "unit": str(node.get("unit") or "dimensionless")},
                 str(node.get("unit") or "dimensionless"))
     if op in {"series", "primary"}:
-        name = str(node.get("name") or ("primary" if op == "primary" else ""))
+        alias = node.get("name")
+        if op == "series" and alias is None:
+            alias = node.get("series")
+        if op == "series" and alias is None:
+            raw_args = node.get("args")
+            if isinstance(raw_args, list) and len(raw_args) == 1 \
+                    and isinstance(raw_args[0], str):
+                alias = raw_args[0]
+        name = str(alias or ("primary" if op == "primary" else ""))
         if op == "series" and name not in series:
             raise TransformationError("UNKNOWN_SERIES", f"{path}.name",
                                       f"Series {name!r} is unavailable.")
@@ -188,12 +207,32 @@ def _validate_expression(node: Any, *, path: str, depth: int,
         return ({"op": op, "name": name, "quantile": quantile},
                 units.get(name, "unknown"))
     children = node.get("args")
+    if not isinstance(children, list) and "left" in node and "right" in node:
+        children = [node.get("left"), node.get("right")]
+    if op == "lag" and not isinstance(children, list) and node.get("series"):
+        children = [{"op": "series", "name": node["series"]}]
     if not isinstance(children, list):
         children = [node.get("arg")] if "arg" in node else []
-    required = 2 if op in {"add", "subtract", "multiply", "divide"} else 1
-    if len(children) != required:
+    if op in {"add", "multiply"}:
+        valid_arity = len(children) >= 2
+        required_text = "at least 2"
+    else:
+        required = 2 if op in {"subtract", "divide", "power"} else 1
+        valid_arity = len(children) == required
+        required_text = str(required)
+    # Common model notation represents lag(x, 2) as two args. Canonicalize
+    # only when the second value is a positive integer; arbitrary extra args
+    # still fail loudly.
+    if op == "lag" and len(children) == 2:
+        step_node = children[1]
+        step_value = (step_node.get("value") if isinstance(step_node, dict)
+                      and step_node.get("op") == "literal" else step_node)
+        node = {**node, "steps": step_value}
+        children = children[:1]
+        valid_arity = True
+    if not valid_arity:
         raise TransformationError("INVALID_ARITY", f"{path}.args",
-                                  f"{op} requires {required} argument(s).")
+                                  f"{op} requires {required_text} argument(s).")
     parsed = [_validate_expression(child, path=f"{path}.args[{index}]",
                                    depth=depth + 1, state=state,
                                    series=series, units=units)
@@ -207,9 +246,24 @@ def _validate_expression(node: Any, *, path: str, depth: int,
                                       "Addition/subtraction requires matching units.")
         output_unit = next(iter(known), "unknown")
     elif op == "multiply":
-        output_unit = _combined_unit(child_units[0], child_units[1], "*")
+        output_unit = child_units[0]
+        for unit in child_units[1:]:
+            output_unit = _combined_unit(output_unit, unit, "*")
     elif op == "divide":
         output_unit = _combined_unit(child_units[0], child_units[1], "/")
+    elif op == "power":
+        exponent = args[1]
+        if exponent.get("op") != "literal":
+            raise TransformationError("NON_LITERAL_EXPONENT", path,
+                                      "Power requires a literal exponent.")
+        value = exponent["value"]
+        if value != int(value) or not 0 <= int(value) <= 4:
+            raise TransformationError("UNSAFE_EXPONENT", path,
+                                      "Power exponent must be an integer from 0 to 4.")
+        clean["exponent"] = int(value)
+        output_unit = ("dimensionless" if int(value) == 0 else
+                       child_units[0] if int(value) == 1 else
+                       f"{child_units[0]}^{int(value)}")
     else:
         output_unit = child_units[0]
     if op in {"lag", "difference", "percent_change", "rolling_mean"}:
@@ -367,13 +421,22 @@ def _execute_expression(node: dict[str, Any], *, primary: list[dict[str, Any]],
                                 environment=environment, width=width,
                                 primary_quantile=primary_quantile)
             for child in node["args"]]
-    if op in {"add", "subtract", "multiply", "divide"}:
+    if op in {"add", "multiply"}:
+        output = list(args[0])
+        for other in args[1:]:
+            output = [a + b if op == "add" else a * b
+                      for a, b in zip(output, other)]
+        return output
+    if op in {"subtract", "divide"}:
         functions = {
             "add": lambda a, b: a + b, "subtract": lambda a, b: a - b,
             "multiply": lambda a, b: a * b,
             "divide": lambda a, b: a / b if abs(b) > 1e-15 else math.nan,
         }
         return [functions[op](a, b) for a, b in zip(args[0], args[1])]
+    if op == "power":
+        exponent = int(node["exponent"])
+        return [value ** exponent for value in args[0]]
     values = args[0]
     if op == "lag":
         steps = node["steps"]

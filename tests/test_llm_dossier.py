@@ -75,3 +75,28 @@ def test_bad_quantile_order_and_implausible_jump_are_rejected():
         history=[8, 9, 10, 11], compiler_model="model-x")
     assert dossier["forecast_candidate"] is None
     assert any("boundary-jump" in reason for reason in reasons)
+
+
+def test_candidate_must_obey_its_own_cited_numeric_bounds():
+    future = ["2026-01-05T00:00:00+00:00",
+              "2026-01-06T00:00:00+00:00"]
+    raw = _raw("values are bounded below by 4.79", rows=[
+        {"timestamp": stamp, "q10": 0, "q50": 0, "q90": 0}
+        for stamp in future])
+    raw["claims"] = [
+        {"source_span": "values are bounded below by 4.79",
+         "relation": "constrains_range", "effective_start": future[0],
+         "effective_end": future[-1], "confidence": 1},
+        {"source_span": "values are bounded above by 9.13",
+         "relation": "constrains_range", "effective_start": future[0],
+         "effective_end": future[-1], "confidence": 1},
+    ]
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=("values are bounded below by 4.79 and values are "
+                           "bounded above by 9.13"),
+        cutoff="2026-01-04T00:00:00+00:00", future_timestamps=future,
+        history=[5, 6, 7, 6], compiler_model="test")
+    assert dossier["forecast_candidate"] is None
+    assert "forecast_candidate violates cited lower bound" in reasons
+    assert dossier["candidate_critique"]["status"] == "rejected"
+    assert dossier["candidate_critique"]["recovery_action"]

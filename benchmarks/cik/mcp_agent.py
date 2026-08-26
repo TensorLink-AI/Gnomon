@@ -73,7 +73,7 @@ MAX_RUN_TOKENS = 250_000
 #: evidence already makes the recommendation non-discretionary.
 #: Version 13: engine-composed effects must pass scale and sign plausibility;
 #: typing and citations alone no longer make a numeric path recommendable.
-MCP_CONTRACT_VERSION = 14
+MCP_CONTRACT_VERSION = 15
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -240,8 +240,11 @@ one JSON object with this shape:
        "known_at": "history cutoff ISO", "claim_ids": ["claim-1"],
        "lane": "historically_testable | prior_assisted | scenario_only",
        "output_unit": "declared target unit",
-       "expression": {"op": "approved declarative operator"}},
-     "units": {"primary": "declared target unit"},
+       "expression": {"op": "add", "args": [
+          {"op": "primary", "quantile": "q50"},
+          {"op": "series", "name": "future_input"}]}},
+     "units": {"primary": "declared target unit",
+               "future_input": "declared target unit"},
      "series_values": {
        "future_input": {"values": [0.0], "known_at": "history cutoff ISO",
                         "source_claim_id": "claim-1"}}
@@ -281,7 +284,7 @@ Rules:
   before they may influence the canonical forecast.
 - Transformations are a restricted declarative lane, never code. Approved
   operators are literal, primary, series, add, subtract, multiply, divide,
-  lag, difference, percent_change, rolling_mean, clip, and quantile. Use a
+  power, lag, difference, percent_change, rolling_mean, clip, and quantile. Use a
   transformation only when cited context states a precise prospective rule or
   supplies every future input value. Constants and future values must be
   verbatim-entailable from cited claims; do not extrapolate or fill them. Use
@@ -289,6 +292,16 @@ Rules:
   point-in-time history, `prior_assisted` for a precise stated future rule,
   and `scenario_only` when it is merely conditional. The engine validates and
   seals the AST; it never executes generated Python, SQL, or expressions.
+- AST grammar is exact: binary/variadic arithmetic uses
+  `{\"op\":\"add|subtract|multiply|divide\",\"args\":[NODE,...]}`;
+  series uses `{\"op\":\"series\",\"name\":\"future_input\"}`; lag uses
+  `{\"op\":\"lag\",\"args\":[NODE],\"steps\":2}`; bounded powers use
+  `{\"op\":\"power\",\"args\":[NODE,{\"op\":\"literal\",\"value\":2}]}`.
+  Unary change/rolling/clip/quantile nodes likewise put the child in a
+  one-element `args` array and their parameter beside it. Every referenced
+  series name must exactly match a `series_values` key, whose values array has
+  exactly one item per forecast timestamp. Use canonical claim IDs (`claim-1`,
+  `claim-2`, ...) in their verified claim order.
 - Use no observations after the history cutoff. Return empty arrays and null
   effect_proposal and forecast_candidate when context contains no
   forecast-relevant information.

@@ -276,6 +276,17 @@ def build_scenario_catalog(result: dict[str, Any], *,
                     "reason": "; ".join(str(item.get("message")) for item in violations)[:1000],
                     "violations": violations,
                 })
+            candidate_critique = dossier.get("candidate_critique") or {}
+            if candidate_critique.get("status") == "rejected":
+                dispositions.append({
+                    "context_id": f"dossier-{index}:forecast-candidate",
+                    "disposition": "rejected",
+                    "reason_code": "forecast_candidate_rejected",
+                    "reason": "; ".join(
+                        str(item) for item in
+                        candidate_critique.get("reasons") or [])[:1000],
+                    "recovery_action": candidate_critique.get("recovery_action"),
+                })
             dispositions.extend({
                 "context_id": f"dossier-{index}:{item.get('claim_id')}",
                 "disposition": "used", "reason_code": "claims_only",

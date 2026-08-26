@@ -19,7 +19,7 @@ from typing import Any
 from .effect_proposals import validate_effect_proposal
 from .context_intelligence import compile_context_hypotheses
 
-DOSSIER_VERSION = "0.2"
+DOSSIER_VERSION = "0.3"
 MAX_CLAIMS = 16
 MAX_BOUNDARY_JUMP_SCALES = 20.0
 MAX_PATH_SCALE_RATIO = 30.0
@@ -111,9 +111,11 @@ def validate_temporal_dossier(
             "known_at": cutoff_dt.isoformat(),
         })
 
+    candidate_reason_start = len(reasons)
     candidate = _validate_candidate(
         raw.get("forecast_candidate"), claims=claims,
         future_timestamps=future_timestamps, history=history, reasons=reasons)
+    candidate_reasons = reasons[candidate_reason_start:]
     effect_raw = raw.get("effect_proposal")
     if isinstance(effect_raw, dict) and not effect_raw.get("claim_ids") \
             and len(claims) == 1:
@@ -147,6 +149,16 @@ def validate_temporal_dossier(
         "hypotheses": hypotheses,
         "hypothesis_critique": hypothesis_critique,
         "forecast_candidate": candidate,
+        "candidate_critique": {
+            "status": ("accepted" if candidate else "rejected"
+                       if raw.get("forecast_candidate") not in (None, {})
+                       else "not_proposed"),
+            "reasons": candidate_reasons,
+            "recovery_action": (
+                "Submit a horizon-aligned q10/q50/q90 path that obeys every "
+                "cited constraint, or use a typed effect/transformation."
+                if candidate_reasons else None),
+        },
         "candidate_support": "prior_assisted" if (candidate or effect_proposal) else None,
         "automation_eligible": False,
         "primary_forecast_unchanged": True,
@@ -274,6 +286,38 @@ def _validate_candidate(
     if path_scale_ratio > MAX_PATH_SCALE_RATIO:
         reasons.append("forecast_candidate failed path-scale plausibility")
         return None
+    # A candidate must satisfy the literal constraints it cites. Gross scale
+    # plausibility cannot catch a path at zero when the same dossier says the
+    # value is bounded below by five. These are hard stated bounds, so all
+    # published quantiles—not just the median—must lie inside them.
+    from .future_context import parse_bound_span
+    lower_bounds: list[float] = []
+    upper_bounds: list[float] = []
+    bound_claim_ids: list[str] = []
+    for claim in claims:
+        if claim.get("relation") != "constrains_range":
+            continue
+        bound, problem = parse_bound_span(str(claim.get("source_span") or ""))
+        if problem is not None or bound is None:
+            continue
+        if bound.minimum is not None:
+            lower_bounds.append(float(bound.minimum))
+        if bound.maximum is not None:
+            upper_bounds.append(float(bound.maximum))
+        bound_claim_ids.append(str(claim["claim_id"]))
+    lower = max(lower_bounds) if lower_bounds else None
+    upper = min(upper_bounds) if upper_bounds else None
+    if lower is not None and upper is not None and lower > upper:
+        reasons.append("forecast_candidate cites contradictory numeric bounds")
+        return None
+    values = [float(row[key]) for row in clean
+              for key in ("q10", "q50", "q90")]
+    if lower is not None and any(value < lower for value in values):
+        reasons.append("forecast_candidate violates cited lower bound")
+        return None
+    if upper is not None and any(value > upper for value in values):
+        reasons.append("forecast_candidate violates cited upper bound")
+        return None
     return {
         "quantiles": clean,
         "rationale": str(raw.get("rationale") or "")[:1000],
@@ -281,5 +325,7 @@ def _validate_candidate(
         "plausibility": {
             "boundary_jump_scales": round(boundary_jump, 6),
             "path_scale_ratio": round(path_scale_ratio, 6),
+            "entailed_bounds": {"minimum": lower, "maximum": upper,
+                                "claim_ids": bound_claim_ids},
         },
     }

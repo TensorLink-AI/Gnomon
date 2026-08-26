@@ -283,3 +283,52 @@ def test_future_series_requires_point_in_time_claim_provenance():
         "units": {"values": [4, 5], "known_at": _stamp(5),
                   "source_claim_id": "claim-1"}})
     assert [row["q50"] for row in result["forecast"]] == [12, 15]
+
+
+def test_llm_common_ast_aliases_are_canonicalized_without_eval():
+    raw = {
+        "known_at": _stamp(5), "claim_ids": ["claim-1"],
+        "lane": "prior_assisted", "output_unit": "usd^2",
+        "expression": {"op": "add", "args": [
+            {"op": "pow", "left": {"op": "series", "series": "price"},
+             "right": {"op": "literal", "value": 2}},
+            {"op": "literal", "value": 1, "unit": "usd^2"},
+            {"op": "literal", "value": 2, "unit": "usd^2"},
+        ]},
+    }
+    compiled = validate_transformation(
+        raw, series=["price"], claim_ids=["claim-1"], cutoff=_stamp(5),
+        units={"price": "usd"})
+    assert compiled["expression"]["args"][0]["op"] == "power"
+    result = execute_transformation(
+        compiled,
+        primary=[{"timestamp": _stamp(6), "point": 0, "q50": 0}],
+        series_values={"price": {"values": [3], "known_at": _stamp(5),
+                                 "source_claim_id": "claim-1"}})
+    assert result["forecast"][0]["q50"] == 12
+
+
+def test_power_rejects_nonliteral_or_large_exponents():
+    base = {
+        "known_at": _stamp(5), "claim_ids": ["claim-1"],
+        "lane": "scenario_only", "output_unit": "unknown",
+    }
+    for exponent, code in [
+        ({"op": "primary"}, "NON_LITERAL_EXPONENT"),
+        ({"op": "literal", "value": 99}, "UNSAFE_EXPONENT"),
+    ]:
+        with pytest.raises(TransformationError) as caught:
+            validate_transformation(
+                {**base, "expression": {"op": "power", "args": [
+                    {"op": "primary"}, exponent]}},
+                series=[], claim_ids=["claim-1"], cutoff=_stamp(5))
+        assert caught.value.code == code
+
+
+def test_root_literal_inherits_explicit_output_unit_only():
+    compiled = validate_transformation({
+        "known_at": _stamp(5), "claim_ids": ["claim-1"],
+        "lane": "prior_assisted", "output_unit": "items",
+        "expression": {"op": "literal", "value": 12}},
+        series=[], claim_ids=["claim-1"], cutoff=_stamp(5))
+    assert compiled["expression"]["unit"] == "items"

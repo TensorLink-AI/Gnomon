@@ -159,6 +159,30 @@ def test_invalid_context_is_typed_rejection_not_silent_drop():
     }]
 
 
+def test_candidate_constraint_failure_is_typed_and_actionable():
+    raw = {
+        "claims": [{"source_span": "values stay between 4.79 and 9.13",
+                    "relation": "constrains_range",
+                    "effective_start": TIMES[0], "effective_end": TIMES[1],
+                    "confidence": .9}],
+        "forecast_candidate": {"quantiles": [
+            {"timestamp": timestamp, "q10": 0, "q50": 0, "q90": 0}
+            for timestamp in TIMES], "rationale": "bounded path"},
+    }
+    dossier, _ = validate_temporal_dossier(
+        raw, context_text="values stay between 4.79 and 9.13",
+        cutoff="2026-01-02T00:00:00+00:00", future_timestamps=TIMES,
+        history=[8, 9, 10], compiler_model="test-model")
+    payload = publish_result(_result(), mode="best_effort", dossiers=[dossier])
+    rejection = next(item for item in payload["context_dispositions"]
+                     if item["reason_code"] == "forecast_candidate_rejected")
+    assert rejection["disposition"] == "rejected"
+    assert "violates cited lower bound" in rejection["reason"]
+    assert rejection["recovery_action"]
+    assert payload["recommended_scenario_id"] == "primary"
+    assert verify_publication(payload)
+
+
 def test_publication_reuses_synthesis_tracking_and_scores_numeric_uplift(tmp_path):
     store = TrackingStore(tmp_path / "tracking.db")
     payload = publish_result(_result(), mode="best_effort", dossiers=[_dossier()])
