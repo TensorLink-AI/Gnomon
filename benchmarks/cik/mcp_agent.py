@@ -172,7 +172,9 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: traces retain typed execution-stage context dispositions.
 #: Version 66: the host, not the compiler, binds transformation and supplied
 #: series knowledge time to the sealed context receipt cutoff.
-MCP_CONTRACT_VERSION = 66
+#: Version 67: explicit named piecewise-constant schedules are extracted from
+#: source text when the compiler omits a recurrence driver's typed schedule.
+MCP_CONTRACT_VERSION = 67
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -465,6 +467,39 @@ def _has_explicit_lag_relationship(text: str) -> bool:
         or re.search(r"\b[A-Za-z_]\w*\s*[\[(]\s*t\s*-\s*\d+\s*[\])]", text))
     equation = "=" in text or bool(re.search(r"\b(coefficient|affects?)\b", text, re.I))
     return numeric and lag and equation
+
+
+def _extract_explicit_driver_schedule(
+    text: str, *, series: str, cutoff: str, future_timestamps: list[str],
+    claim_id: str = "claim-1",
+) -> tuple[list[dict[str, Any]], list[float]] | None:
+    """Extract verbatim piecewise-constant ranges for one named driver."""
+    ranges = []
+    pattern = re.compile(
+        r"([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s+from\s+"
+        r"(\d{4}-\d{2}-\d{2})(?:T[^\s,;]+)?\s+to\s+"
+        r"(\d{4}-\d{2}-\d{2})(?:T[^\s,;]+)?", re.I)
+    for line in text.splitlines():
+        if series.casefold() not in line.casefold():
+            continue
+        for match in pattern.finditer(line):
+            value, start, end = float(match.group(1)), match.group(2), match.group(3)
+            ranges.append({"start": start, "end": end, "value": value,
+                           "source_claim_ids": [claim_id]})
+    if not ranges:
+        return None
+    cutoff_date = cutoff[:10]
+    historical = [item for item in ranges if item["end"] <= cutoff_date]
+    future_ranges = [item for item in ranges if item["end"] > cutoff_date]
+    future = []
+    for timestamp in sorted(future_timestamps):
+        day = timestamp[:10]
+        matches = [item for item in future_ranges
+                   if item["start"] <= day <= item["end"]]
+        if len(matches) != 1:
+            return None
+        future.append(float(matches[0]["value"]))
+    return historical, future
 
 
 class StdioMcpSession:
@@ -1582,6 +1617,43 @@ class _Run:
                     driver_names=list(self.companion_histories))
                 if isinstance(canonical, dict) and status.get("status") != "not_applicable":
                     canonical = {**canonical, "syntax_canonicalization": status}
+                if isinstance(canonical, dict):
+                    transformation = canonical.get("transformation", canonical)
+                    expression = (transformation.get("expression")
+                                  if isinstance(transformation, dict) else None)
+                    if isinstance(expression, dict) and expression.get(
+                            "op") == "recursive_linear":
+                        values = dict(canonical.get("series_values") or {})
+                        histories = dict(canonical.get(
+                            "historical_series_segments") or {})
+                        units = dict(canonical.get("units") or {})
+                        claim_ids = list(transformation.get("claim_ids") or [
+                            "claim-1"])
+                        for name in sorted({str(term.get("series")) for term in
+                                            expression.get("driver_terms") or []
+                                            if term.get("series")}):
+                            if name in values and name in histories:
+                                continue
+                            extracted = _extract_explicit_driver_schedule(
+                                narrative_context, series=name,
+                                cutoff=self.timestamps[-1],
+                                future_timestamps=future_timestamps,
+                                claim_id=str(claim_ids[0]))
+                            if extracted is None:
+                                continue
+                            historical, future = extracted
+                            values.setdefault(name, {
+                                "values": future,
+                                "known_at": self.timestamps[-1],
+                                "source_claim_ids": [str(claim_ids[0])],
+                                "syntax_canonicalization": "cited_range_schedule",
+                            })
+                            histories.setdefault(name, historical)
+                            units.setdefault(name, str(
+                                transformation.get("output_unit") or "target_units"))
+                        canonical = {**canonical, "series_values": values,
+                                     "historical_series_segments": histories,
+                                     "units": units}
                 normalized.append(canonical)
             return {**candidate_raw, "transformations": normalized}
 

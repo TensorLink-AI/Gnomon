@@ -31,6 +31,7 @@ from benchmarks.cik.mcp_agent import (
     InProcessMcpSession,
     McpAgentForecaster,
     _has_explicit_lag_relationship,
+    _extract_explicit_driver_schedule,
     _compiler_target_evidence,
     _task_companion_evidence,
     _task_companion_histories,
@@ -49,6 +50,24 @@ def test_explicit_lag_relationship_router_is_syntax_based(text):
     assert _has_explicit_lag_relationship(text) is True
     assert _has_explicit_lag_relationship(
         "A campaign may improve sales next quarter.") is False
+
+
+def test_explicit_driver_schedule_requires_named_complete_ranges():
+    text = ("X_0 takes a value of 0.2 from 2026-01-01 to 2026-01-03, "
+            "0.4 from 2026-01-04 to 2026-01-05.\n"
+            "X_1 is 99 from 2026-01-01 to 2026-01-05.")
+    result = _extract_explicit_driver_schedule(
+        text, series="X_0", cutoff="2026-01-03T00:00:00+00:00",
+        future_timestamps=["2026-01-04T00:00:00+00:00",
+                           "2026-01-05T00:00:00+00:00"])
+    assert result is not None
+    historical, future = result
+    assert historical == [{"start": "2026-01-01", "end": "2026-01-03",
+                           "value": .2, "source_claim_ids": ["claim-1"]}]
+    assert future == [.4, .4]
+    assert _extract_explicit_driver_schedule(
+        text, series="X_0", cutoff="2026-01-03T00:00:00+00:00",
+        future_timestamps=["2026-01-06T00:00:00+00:00"]) is None
 
 
 # -- fixtures ---------------------------------------------------------------

@@ -66,6 +66,11 @@
   and supplied-series `known_at` values with the sealed receipt cutoff before
   every validation pass. Models extract content; they cannot backdate or
   future-date when that content became known.
+  The compact equation host can now extract an explicitly named
+  piecewise-constant driver schedule from the narrow grammar `VALUE from DATE
+  to DATE` when the compiler omits it. Extraction is scoped to a line naming
+  the recurrence driver; future ranges must cover the requested grid exactly,
+  and the original cited ranges feed the governed historical-history validator.
 - Bounded every governed compiler, repair, and selector request to one
   no-retry transport attempt. A slow provider now returns the immutable primary
   instead of parking a worker. Model-authored candidates whose accompanying
