@@ -1634,6 +1634,29 @@ class _Run:
                 normalized_transformations.append(wrapper)
             raw = {**raw, "transformations": normalized_transformations}
 
+        # Literal bounds and absolute future states do not need model-authored
+        # effect arithmetic. The model locates and dates the verbatim claim;
+        # Gnomon's parser independently recovers its number and sends the
+        # resulting event back through the ordinary future-context admission
+        # path. This is deterministic extraction, not a semantic guess.
+        from gnomon.llm_dossier import deterministic_events_from_claims
+        derived_events = deterministic_events_from_claims(final_probe)
+        existing_events = [item for item in raw.get("events") or []
+                           if isinstance(item, dict)]
+        existing_keys = {(str(item.get("event_type") or ""),
+                          str(item.get("evidence_quote") or
+                              item.get("source_span") or ""))
+                         for item in existing_events}
+        for event in derived_events:
+            event = {**event, "entity_scope": ["__default__"],
+                     "host_target_binding": "single_target_verified_claim"}
+            key = (str(event.get("event_type") or ""),
+                   str(event.get("evidence_quote") or ""))
+            if key not in existing_keys:
+                existing_events.append(event)
+                existing_keys.add(key)
+        raw = {**raw, "events": existing_events}
+
         # Transformations share the same single repair budget. Preflight the
         # sealed AST before the forecast call so a near-correct proposal can
         # add missing verbatim claims or repair only the transformation lane;
@@ -1910,12 +1933,7 @@ class _Run:
             event = dict(proposal)
             event["document_index"] = 0
             event["known_at"] = self.timestamps[-1]
-            if event.get("entity_scope") in (None, [], ["*"]):
-                # This host call is already bound to exactly one target. Scope
-                # resolution is therefore identity binding, not a model guess;
-                # numeric values and relationships still need source
-                # entailment and ordinary admission.
-                event["entity_scope"] = [self.target_name]
+            event.setdefault("entity_scope", ["*"])
             if event.get("source_span") and not event.get("evidence_quote"):
                 event["evidence_quote"] = event["source_span"]
             bound_events.append(event)
@@ -1934,7 +1952,16 @@ class _Run:
             as_of=self.timestamps[-1],
             active_target=self.target_name,
         )
-        events = [event_from_dict(event) for event in compilation["events"]]
+        runtime_events = []
+        for event in compilation["events"]:
+            normalized = dict(event)
+            if normalized.get("entity_scope") == [self.target_name]:
+                # The context validator reasons in semantic column names; an
+                # ungrouped runtime publishes that one column as __default__.
+                # Convert only after quote/target validation has succeeded.
+                normalized["entity_scope"] = ["__default__"]
+            runtime_events.append(event_from_dict(normalized))
+        events = runtime_events
         event_rejections = [
             "; ".join(str(problem) for problem in item.get("problems") or [])
             for item in compilation["rejected"]

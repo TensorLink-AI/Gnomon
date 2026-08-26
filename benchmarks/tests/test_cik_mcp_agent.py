@@ -794,6 +794,42 @@ def test_single_verified_claim_rebinds_effect_and_hypothesis_ids(tmp_path):
     assert extra["publication"]["recommended_scenario_id"] == "effect-composed-1"
 
 
+def test_literal_zero_claim_uses_deterministic_override_lane(tmp_path):
+    task = _task()
+    start, end = task.future_time[1], task.future_time[2]
+    span = f"Readings are zero from {start} to {end}."
+    task.scenario = span
+    compiler_output = json.dumps({
+        "events": [],
+        "claims": [{
+            "source_span": span, "relation": "supports_decrease",
+            "effective_start": start, "effective_end": end,
+            "mechanism": "stated outage", "confidence": 1,
+        }],
+        "hypotheses": [], "effect_proposal": None,
+        "forecast_candidate": None, "covariate_tables": [],
+        "transformations": [],
+    })
+    forecaster = McpAgentForecaster(
+        "x/y", client=ScriptedClient(
+            [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+            compiler_output),
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+    _, extra = forecaster(task, 1)
+    receipt = json.loads(Path(
+        extra["context_compilation"]["receipt_path"]).read_text())
+    assert receipt["events"][0]["event_type"] == \
+        "override:stated_absolute_value"
+    publication = extra["publication"]
+    assert publication["recommended_scenario_id"] == "context_conditioned"
+    rows = publication["recommended_forecast"]
+    assert [rows[index]["q50"] for index in (1, 2)] == [0.0, 0.0]
+    assert publication["primary_forecast_unchanged"] is True
+    assert publication["automation"]["eligible"] is False
+
+
 def test_transformation_preflight_repairs_malformed_future_series(tmp_path):
     task = _task()
     span = "The future input is 2.0 throughout the forecast window."
