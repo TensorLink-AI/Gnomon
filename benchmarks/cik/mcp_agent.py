@@ -105,7 +105,9 @@ MAX_RUN_TOKENS = 250_000
 #: verified claim; all ordinary entailment checks still run after rebinding.
 #: Version 35: extraction stays non-reasoning; the sole failed-numeric-lane
 #: repair may use low reasoning to resolve implicit relationships adaptively.
-MCP_CONTRACT_VERSION = 35
+#: Version 36: transformation preflight executes dummy-primary paths to catch
+#: malformed, unentailed, or horizon-mismatched inputs before the live call.
+MCP_CONTRACT_VERSION = 36
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -1251,7 +1253,10 @@ class _Run:
         # accepted events/effects/covariates are never replaced by this pass.
         def transformation_violations(
                 candidate_raw: dict[str, Any], dossier: dict[str, Any]) -> list[dict[str, Any]]:
-            from gnomon.context_intelligence import compile_transformation
+            from gnomon.context_intelligence import (
+                TransformationError, compile_transformation,
+                execute_transformation,
+            )
 
             claims = dossier.get("claims") or []
             claim_ids = [str(claim.get("claim_id")) for claim in claims]
@@ -1269,6 +1274,22 @@ class _Run:
                 if compiled is None:
                     failures.append({"index": index,
                                      "violations": critique["violations"]})
+                    continue
+                # Syntax-only validation missed malformed series payloads
+                # until live publication, too late for the bounded repair.
+                # A zero-valued dummy primary exercises every input/provenance
+                # contract without observing or fabricating future targets.
+                dummy_primary = [{"q10": 0.0, "q50": 0.0, "q90": 0.0,
+                                  "point": 0.0}
+                                 for _ in future_timestamps]
+                try:
+                    execute_transformation(
+                        compiled, primary=dummy_primary,
+                        series_values=wrapper.get("series_values") or {},
+                        claim_spans=spans)
+                except TransformationError as error:
+                    failures.append({"index": index,
+                                     "violations": [error.as_dict()]})
             return failures
 
         transform_failures = transformation_violations(raw, final_probe)

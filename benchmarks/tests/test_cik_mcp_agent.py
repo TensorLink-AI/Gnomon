@@ -613,6 +613,50 @@ def test_single_verified_claim_rebinds_stale_transformation_id(tmp_path):
     assert transformation["citation_binding"] == "single_verified_claim"
 
 
+def test_transformation_preflight_repairs_malformed_future_series(tmp_path):
+    task = _task()
+    span = "The future input is 2.0 throughout the forecast window."
+    task.scenario = span
+    claim = {
+        "source_span": span, "relation": "unknown",
+        "effective_start": task.future_time[0],
+        "effective_end": task.future_time[-1],
+        "mechanism": "stated future input", "confidence": 1,
+    }
+
+    def dossier(values):
+        return json.dumps({
+            "events": [], "claims": [claim],
+            "transformations": [{
+                "transformation": {
+                    "known_at": task.past_time[-1][0],
+                    "claim_ids": ["claim-1"], "lane": "prior_assisted",
+                    "output_unit": "unknown",
+                    "expression": {"op": "series", "name": "future_input"},
+                },
+                "units": {"future_input": "unknown"},
+                "series_values": {"future_input": {
+                    "values": values, "known_at": task.past_time[-1][0],
+                    "source_claim_ids": ["claim-1"],
+                }},
+            }],
+        })
+
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        [dossier(["not-numeric"] * 4), dossier([2.0] * 4)])
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+    _, extra = forecaster(task, 1)
+
+    assert extra["publication"]["recommended_scenario_id"] == "transformation-1"
+    assert client.completion_reasoning_efforts == ["none", "low"]
+    assert "NON_NUMERIC_VALUE" in client.completion_prompts[1]
+
+
 def test_sealed_candidate_survives_rejected_relational_transform(tmp_path):
     task = _task()
     span = "A new policy makes each future value exactly half the usual value."
