@@ -42,6 +42,9 @@
   ordinary validation, entailment, replay, and authority gates are unchanged.
   Host-verified plural claim IDs take precedence over stale singular compiler
   IDs when these two normalizers compose.
+  Compact future schedules expressed as `{timestamp, value}` rows are reduced
+  to numeric arrays only when their timestamps exactly equal the host-owned
+  forecast grid; mismatches remain typed validation failures.
 - Bounded every governed compiler, repair, and selector request to one
   no-retry transport attempt. A slow provider now returns the immutable primary
   instead of parking a worker. Model-authored candidates whose accompanying

@@ -160,7 +160,9 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: to the public transformation envelope instead of spending a repair call.
 #: Version 60: host-verified plural claim IDs take precedence over stale
 #: compiler-authored singular IDs during compact normalization.
-MCP_CONTRACT_VERSION = 60
+#: Version 61: timestamp/value schedule rows collapse to numeric arrays only
+#: when their timestamps exactly match the host-owned forecast grid.
+MCP_CONTRACT_VERSION = 61
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -1486,6 +1488,18 @@ class _Run:
                     for name, schedule in schedules.items():
                         if isinstance(schedule, dict):
                             values = [schedule[key] for key in sorted(schedule)]
+                        elif (isinstance(schedule, list) and schedule
+                              and all(isinstance(row, dict)
+                                      and "timestamp" in row and "value" in row
+                                      for row in schedule)):
+                            rows = sorted(schedule,
+                                          key=lambda row: str(row["timestamp"]))
+                            stamps = [str(row["timestamp"]) for row in rows]
+                            # Only erase timestamp structure after proving it
+                            # is exactly the host-owned requested grid.
+                            values = ([row["value"] for row in rows]
+                                      if stamps == sorted(future_timestamps)
+                                      else schedule)
                         else:
                             values = schedule
                         series_values[str(name)] = {
