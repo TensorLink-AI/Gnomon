@@ -177,6 +177,9 @@ def validate_transformation(
             "UNVERIFIED_CLAIMS", "claim_ids",
             "Every transformation must cite verified context claims.")
     expression = raw.get("expression")
+    declared_raw = str(raw.get("output_unit") or "")
+    expression, derived_coefficient_units = _bind_linear_units(
+        expression, output_unit=declared_raw, units=units or {})
     if claim_spans is not None:
         cited_text = " ".join(str(claim_spans.get(item) or "") for item in cited)
         for value, role in _model_authored_constants(expression):
@@ -185,7 +188,6 @@ def validate_transformation(
                     "UNENTAILED_TRANSFORMATION_CONSTANT", "expression",
                     f"Transformation constant {value:g} ({role}) is absent "
                     "from every cited source span.")
-    declared_raw = str(raw.get("output_unit") or "")
     state = {"nodes": 0}
     normalized, inferred_unit = _validate_expression(
         expression, path="expression", depth=0, state=state,
@@ -217,6 +219,7 @@ def validate_transformation(
                        "maximum_nodes": MAX_TRANSFORM_NODES,
                        "maximum_depth": MAX_TRANSFORM_DEPTH,
                        "known_at_cutoff": True, "units_checked": True,
+                       "coefficient_units_derived": derived_coefficient_units,
                        "constants_entailed": claim_spans is not None},
     }
     payload["transformation_id"] = "transform-" + hashlib.sha256(
@@ -224,6 +227,93 @@ def validate_transformation(
     payload["seal_sha256"] = hashlib.sha256(
         _canonical(payload).encode()).hexdigest()
     return payload
+
+
+def _bind_linear_units(node: Any, *, output_unit: str,
+                       units: dict[str, str]) -> tuple[Any, bool]:
+    """Canonicalize omitted coefficient units in an additive equation.
+
+    LLMs normally write ``a*x + b*y`` without spelling ``a`` as
+    ``target_unit/x_unit``.  When the transformation declares one output unit,
+    that conversion is mathematically forced.  We derive only that forced
+    metadata; values, operators, series and signs remain untouched.
+    """
+    if not output_unit or not isinstance(node, dict):
+        return node, False
+
+    def static_unit(value: Any) -> str:
+        if not isinstance(value, dict):
+            return "unknown"
+        op = str(value.get("op") or "")
+        if op == "literal":
+            return str(value.get("unit") or "dimensionless")
+        if op in {"series", "primary"}:
+            name = str(value.get("name") or value.get("series") or
+                       ("primary" if op == "primary" else ""))
+            return str(units.get(name) or "unknown")
+        args = value.get("args") or ([value.get("arg")]
+                                     if "arg" in value else [])
+        if op in {"lag", "difference", "rolling_mean", "quantile", "clip"} \
+                and args:
+            return static_unit(args[0])
+        if op == "percent_change":
+            return "dimensionless"
+        return "unknown"
+
+    def bind(value: Any, expected: str | None = None) -> tuple[Any, bool]:
+        if not isinstance(value, dict):
+            return value, False
+        clean = dict(value)
+        op = str(clean.get("op") or "")
+        changed = False
+        if op in {"add", "subtract"}:
+            children = clean.get("args")
+            if not isinstance(children, list) and "left" in clean and "right" in clean:
+                children = [clean.get("left"), clean.get("right")]
+                clean.pop("left", None)
+                clean.pop("right", None)
+            if isinstance(children, list):
+                rebound = [bind(child, expected or output_unit)
+                           for child in children]
+                clean["args"] = [item[0] for item in rebound]
+                changed = any(item[1] for item in rebound)
+            return clean, changed
+        if op == "literal" and expected and "unit" not in clean:
+            clean["unit"] = expected
+            return clean, True
+        if op == "multiply":
+            children = list(clean.get("args") or [])
+            if len(children) == 2 and expected:
+                for literal_index, other_index in ((0, 1), (1, 0)):
+                    literal = children[literal_index]
+                    if not isinstance(literal, dict) or literal.get("op") != "literal" \
+                            or "unit" in literal:
+                        continue
+                    input_unit = static_unit(children[other_index])
+                    if input_unit != "unknown":
+                        literal = dict(literal)
+                        literal["unit"] = ("dimensionless"
+                                           if input_unit == expected else
+                                           f"{expected}/{input_unit}")
+                        children[literal_index] = literal
+                        changed = True
+                        break
+            rebound = [bind(child) for child in children]
+            clean["args"] = [item[0] for item in rebound]
+            return clean, changed or any(item[1] for item in rebound)
+        children = clean.get("args")
+        if isinstance(children, list):
+            rebound = [bind(child) for child in children]
+            clean["args"] = [item[0] for item in rebound]
+            changed = any(item[1] for item in rebound)
+        return clean, changed
+
+    # Only additive roots define a forced common target unit. A standalone
+    # multiplication may intentionally produce a compound unit and is left
+    # untouched unless the explicit linear_combination macro is used.
+    if str(node.get("op") or "") not in {"add", "subtract"}:
+        return node, False
+    return bind(node, output_unit)
 
 
 def compile_transformation(

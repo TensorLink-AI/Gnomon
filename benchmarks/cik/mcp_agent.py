@@ -114,7 +114,9 @@ MAX_RUN_TOKENS = 250_000
 #: ``linear_combination`` macro with engine-derived coefficient units.
 #: Version 39: a sealed candidate whose claimed governed derivation fails
 #: preflight remains visible but is ineligible for recommendation selection.
-MCP_CONTRACT_VERSION = 39
+#: Version 40: ordinary additive equations receive deterministic, disclosed
+#: coefficient-unit normalization without requiring a special macro spelling.
+MCP_CONTRACT_VERSION = 40
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it

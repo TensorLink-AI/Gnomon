@@ -434,6 +434,45 @@ def test_linear_combination_rejects_unknown_series_and_unentailed_coefficient():
     assert unentailed.value.code == "UNENTAILED_TRANSFORMATION_CONSTANT"
 
 
+def test_ordinary_additive_equation_derives_only_forced_coefficient_units():
+    raw = {
+        "known_at": _stamp(5), "claim_ids": ["claim-1"],
+        "lane": "prior_assisted", "output_unit": "revenue",
+        "expression": {"op": "add", "args": [
+            {"op": "multiply", "args": [
+                {"op": "literal", "value": 3},
+                {"op": "lag", "args": [
+                    {"op": "series", "name": "units"}], "steps": 1}]},
+            {"op": "literal", "value": 10},
+        ]},
+    }
+    compiled = validate_transformation(
+        raw, series=["units"], claim_ids=["claim-1"], cutoff=_stamp(5),
+        units={"units": "items"},
+        claim_spans={"claim-1": "revenue = 3 units lagged 1 step + 10"})
+    coefficient = compiled["expression"]["args"][0]["args"][0]
+    assert coefficient["unit"] == "revenue/items"
+    assert compiled["expression"]["args"][1]["unit"] == "revenue"
+    assert compiled["validation"]["coefficient_units_derived"] is True
+
+
+def test_standalone_product_does_not_guess_a_target_conversion_unit():
+    raw = {
+        "known_at": _stamp(5), "claim_ids": ["claim-1"],
+        "lane": "prior_assisted", "output_unit": "revenue",
+        "expression": {"op": "multiply", "args": [
+            {"op": "literal", "value": 3},
+            {"op": "series", "name": "units"},
+        ]},
+    }
+    with pytest.raises(TransformationError) as caught:
+        validate_transformation(
+            raw, series=["units"], claim_ids=["claim-1"], cutoff=_stamp(5),
+            units={"units": "items"},
+            claim_spans={"claim-1": "revenue = 3 units"})
+    assert caught.value.code == "OUTPUT_UNIT_MISMATCH"
+
+
 def test_model_computed_constant_cannot_launder_through_claim_id():
     raw = {
         "known_at": _stamp(5), "claim_ids": ["claim-1"],
