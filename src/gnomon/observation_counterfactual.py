@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import math
 import statistics
+from datetime import datetime
 from typing import Any
 
 from .models import drift, ets, last_value, linear_trend, theta, window_average
@@ -75,11 +76,72 @@ def _family_point(
     raise ValueError(f"unknown counterfactual family {family!r}")
 
 
+def _daily_period(timestamps: list[str] | None) -> int | None:
+    if not timestamps or len(timestamps) < 3:
+        return None
+    try:
+        parsed = [datetime.fromisoformat(value) for value in timestamps]
+    except ValueError:
+        return None
+    deltas = [(right - left).total_seconds()
+              for left, right in zip(parsed, parsed[1:])]
+    if not deltas or any(delta <= 0 for delta in deltas):
+        return None
+    step = statistics.median(deltas)
+    if any(abs(delta - step) > max(1e-6, step * 1e-6) for delta in deltas):
+        return None
+    candidate = round(86400.0 / step)
+    if not 2 <= candidate <= 168 or abs(candidate * step - 86400.0) > 1.0:
+        return None
+    return candidate
+
+
+def _seasonal_phase_point(
+    history: list[float], exclusion_mask: list[bool], *, period: int,
+    next_index: int, estimator: str = "median",
+) -> float | None:
+    retained = [float(value) for value, excluded in
+                zip(history, exclusion_mask) if not excluded]
+    if len(retained) < 3:
+        return None
+    phase = next_index % period
+    phase_values = [float(value) for index, (value, excluded) in enumerate(
+        zip(history, exclusion_mask)) if not excluded and index % period == phase]
+    # Fold-safe cold start: the family is still one fixed executable, using
+    # the earlier retained level until this phase has been observed twice.
+    if len(phase_values) >= 2:
+        return (phase_values[-1] if estimator == "last"
+                else statistics.median(phase_values))
+    # A recurring outage can leave a future clock phase wholly unobserved.
+    # Interpolate the disclosed daily profile from the nearest observed phases;
+    # this is visible prior assistance, and replay on observed phases still
+    # determines whether the executable may lead.
+    phase_levels: dict[int, float] = {}
+    for candidate_phase in range(period):
+        values = [float(value) for index, (value, excluded) in enumerate(
+                  zip(history, exclusion_mask))
+                  if not excluded and index % period == candidate_phase]
+        if len(values) >= 2:
+            phase_levels[candidate_phase] = (
+                values[-1] if estimator == "last" else statistics.median(values))
+    if len(phase_levels) < 2:
+        return statistics.median(retained)
+    before = min(phase_levels, key=lambda item: (phase - item) % period)
+    after = min(phase_levels, key=lambda item: (item - phase) % period)
+    left_distance = (phase - before) % period
+    right_distance = (after - phase) % period
+    if left_distance + right_distance == 0:
+        return phase_levels[before]
+    weight = left_distance / (left_distance + right_distance)
+    return phase_levels[before] + weight * (
+        phase_levels[after] - phase_levels[before])
+
+
 def fit_observation_counterfactual(
     history: list[float], exclusion_mask: list[bool],
-    future_timestamps: list[str],
+    future_timestamps: list[str], history_timestamps: list[str] | None = None,
 ) -> tuple[dict[str, Any] | None, dict[str, Any]]:
-    """Fit and replay a fixed two-family conditional counterfactual.
+    """Fit and replay a small fixed-family conditional counterfactual.
 
     Replay targets are observations the validated mask considers unaffected.
     At every origin, candidates see only earlier unaffected observations and
@@ -108,7 +170,10 @@ def fit_observation_counterfactual(
             "conditional_replay": evidence,
         }, evidence
 
-    families = ("robust_level", "rebased_croston_sba")
+    daily_period = _daily_period(history_timestamps)
+    families = ("robust_level", "rebased_croston_sba", *(
+        ("seasonal_phase_median", "seasonal_phase_last")
+        if daily_period is not None else ()))
     raw_comparators = {
         "last_value": last_value,
         "window_average": window_average,
@@ -140,7 +205,14 @@ def fit_observation_counterfactual(
             continue
         actual = float(history[origin])
         predictions = {
-            family: _family_point(family, retained, excluded_values)
+            family: (_seasonal_phase_point(
+                [float(value) for value in history[:origin]],
+                list(exclusion_mask[:origin]), period=daily_period,
+                next_index=origin,
+                estimator="last" if family == "seasonal_phase_last" else "median")
+                if family in {"seasonal_phase_median", "seasonal_phase_last"}
+                and daily_period is not None
+                else _family_point(family, retained, excluded_values))
             for family in families}
         if all(value is None for value in predictions.values()):
             continue
@@ -249,13 +321,27 @@ def fit_observation_counterfactual(
         and candidate_probabilistic_loss <= (
             strongest_probabilistic_loss * (1 - ADMISSION_MARGIN))
         and block_wins >= 2)
+    human_recommendation_eligible = (
+        strongest_mae > 0 and candidate_mae < strongest_mae
+        and strongest_probabilistic_loss > 0
+        and candidate_probabilistic_loss < strongest_probabilistic_loss
+        and block_wins >= 2)
 
     retained = [float(value) for value, excluded in zip(history, exclusion_mask)
                 if not excluded]
     excluded_values = [float(value) for value, excluded in
                        zip(history, exclusion_mask) if excluded]
-    point = _family_point(family, retained, excluded_values)
-    if point is None:
+    points = ([
+        _seasonal_phase_point(
+            [float(value) for value in history], list(exclusion_mask),
+            period=daily_period, next_index=len(history) + step,
+            estimator="last" if family == "seasonal_phase_last" else "median")
+        for step in range(len(future_timestamps))
+    ] if family in {"seasonal_phase_median", "seasonal_phase_last"}
+    and daily_period is not None else [
+        _family_point(family, retained, excluded_values)
+        for _ in future_timestamps])
+    if any(point is None for point in points):
         return empirical_fallback({
             "status": "fit_failed", "origins": len(baseline_losses),
             "selection_eligible": False,
@@ -266,15 +352,16 @@ def fit_observation_counterfactual(
     q90_error = _quantile(finite_errors, .90)
     rows = [{
         "timestamp": timestamp,
-        "q10": point + q10_error,
-        "q50": point + q50_error,
-        "q90": point + q90_error,
-    } for timestamp in future_timestamps]
+        "q10": float(point) + q10_error,
+        "q50": float(point) + q50_error,
+        "q90": float(point) + q90_error,
+    } for timestamp, point in zip(future_timestamps, points)]
     evidence = {
         "status": "admitted" if admitted else "not_admitted",
         "scheme": "expanding_origin_unaffected_targets",
         "family": family,
         "families_compared": list(families),
+        "daily_period_steps": daily_period,
         "origins": len(baseline_losses),
         "candidate_mae": candidate_mae,
         "raw_last_value_mae": baseline_mae,
@@ -296,6 +383,11 @@ def fit_observation_counterfactual(
         "chronological_block_wins": block_wins,
         "required_block_wins": 2,
         "selection_eligible": admitted,
+        "human_recommendation_eligible": human_recommendation_eligible,
+        "authority_note": (
+            "The lower human-facing gate requires directional wins under both "
+            "metrics and two chronological blocks. It never upgrades support "
+            "or automation; strict admission still requires the 10% margin."),
         "uses_future_observations": False,
         "knowledge_note": (
             "Retrospective conditional replay validates a fixed interpretation "

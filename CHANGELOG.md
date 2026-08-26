@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+- Exact-value future overrides now distinguish precise source-cited endpoints
+  from model-located or vague windows. A literal scheduled zero applies to
+  every quantile at its inclusive endpoints; uncertain windows retain the
+  conservative one-step boundary union. The receipt discloses which boundary
+  policy was used.
+- Historical observation interpretation now supports source-cited recurring
+  daily clock windows such as `20:00`–`00:00`. The half-open window is applied
+  in the history timestamps' timezone, recorded verbatim, and must clear the
+  same point and probabilistic replay gates before it can lead. A replay-earned
+  correction may cross a contaminated final observation without failing the
+  generic model-authored boundary-jump guard.
+- Recurring daily observation counterfactuals now add fold-safe median and
+  recent-value daily-phase families when history has a regular sub-daily grid.
+  Each replay origin learns its phase only from earlier retained observations;
+  the family must beat the same raw point and probabilistic comparators before
+  it can lead. This lets scheduled outages preserve ordinary intraday shape
+  instead of replacing it with a flat level.
+- Publication authority now distinguishes strict counterfactual admission from
+  a human-facing best effort. A fixed executable that improves both point and
+  probabilistic replay and wins two chronological blocks may lead only in
+  `best_effort`; missing the 10% strict margin leaves it `prior_assisted`,
+  non-automatable, and unable to alter strict publication.
+- When both the deterministic observation executable and an LLM-authored path
+  cite the same historical corruption, proposal order no longer decides which
+  survives. Strictly admitted or human-best-effort replay evidence takes the
+  candidate lane; an unvalidated model path cannot crowd it out.
+- The governed scenario-selector packet now exposes compact point and
+  probabilistic replay improvements, chronological block wins, and separate
+  human-recommendation eligibility. Agents no longer see a misleading bare
+  `not_admitted` label when a candidate missed only the stricter automation-
+  style margin.
+- CiK shadow-candidate scoring now reports a retained lane with no numeric
+  candidate explicitly instead of crashing, preserving incomplete diagnostic
+  runs without treating absence as a forecast.
 - Added a governed historical-observation interpretation lane for cited
   outages, maintenance, stockouts, and reporting failures. Literal historical
   zero-recording claims may define an exact-value or cited recurring-window

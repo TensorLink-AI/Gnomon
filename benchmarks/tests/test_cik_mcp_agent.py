@@ -230,6 +230,7 @@ def test_compiler_contract_preserves_historical_observation_semantics():
     assert "do not guess a mask" in OBSERVATION_INSTRUCTIONS
     assert "sealed forecast_candidate" in OBSERVATION_INSTRUCTIONS
     assert "cannot edit the immutable primary" in OBSERVATION_INSTRUCTIONS
+    assert "recurring_clock_window" in OBSERVATION_INSTRUCTIONS
 
 
 def test_transformation_repair_hints_are_verbatim_and_constant_specific():

@@ -282,13 +282,16 @@ def validate_temporal_dossier(
             future_timestamps=future_timestamps)
     derived_replay = ((derived_candidate or {}).get("conditional_replay") or {})
     derived_replay_admitted = derived_replay.get("selection_eligible") is True
+    derived_replay_human_eligible = derived_replay.get(
+        "human_recommendation_eligible") is True
     derived_scenario_is_deterministic = bool(
         observation_interpretations and
         ((observation_interpretations[0].get("predicate_normalization") or {}).get(
             "kind") == "semantic_zero_to_separated_near_zero_cluster"))
     use_derived_candidate = bool(
         derived_candidate is not None and (
-            derived_replay_admitted or derived_scenario_is_deterministic
+            derived_replay_admitted or derived_replay_human_eligible
+            or derived_scenario_is_deterministic
             or raw.get("forecast_candidate") in (None, {})))
     candidate_was_derived_from_observation_interpretation = \
         use_derived_candidate
@@ -299,7 +302,13 @@ def validate_temporal_dossier(
         # selector even when it cannot auto-lead; publication separately reads
         # conditional_replay.selection_eligible for evidence dominance.
         candidate_selection_eligible = True
-        if replay.get("selection_eligible") is not True:
+        if replay.get("human_recommendation_eligible") is True \
+                and replay.get("selection_eligible") is not True:
+            candidate_selection_reason = (
+                "Conditional replay improved both governed metrics across two "
+                "chronological blocks but missed strict admission; it may lead "
+                "best_effort for human review and can never authorize automation.")
+        elif replay.get("selection_eligible") is not True:
             candidate_selection_reason = (
                 "Historical-contamination filtering is mechanically valid but "
                 "did not earn evidence dominance; retain it as a visible, "
@@ -309,7 +318,10 @@ def validate_temporal_dossier(
                        raw.get("forecast_candidate") or derived_candidate)
     candidate = _validate_candidate(
         candidate_input, claims=claims,
-        future_timestamps=future_timestamps, history=history, reasons=reasons)
+        future_timestamps=future_timestamps, history=history, reasons=reasons,
+        replay_justifies_boundary_jump=(
+            candidate_was_derived_from_observation_interpretation
+            and (derived_replay_admitted or derived_replay_human_eligible)))
     if candidate is not None and \
             candidate_was_derived_from_observation_interpretation:
         candidate["conditional_replay"] = dict(
@@ -480,7 +492,15 @@ def _derive_historical_zero_interpretation(
                     "start": recurrence.group(3),
                 }
             else:
-                predicate = {"op": "equals", "value": 0.0}
+                clock_window = re.search(
+                    r"every\s+day\s+between\s+([0-2]?\d:[0-5]\d)"
+                    r"(?:\s*(?::\d{2})?)?\s+and\s+([0-2]?\d:[0-5]\d)",
+                    source, re.I)
+                predicate = ({
+                    "op": "recurring_clock_window",
+                    "start_time": clock_window.group(1),
+                    "end_time": clock_window.group(2),
+                } if clock_window else {"op": "equals", "value": 0.0})
             return [{
                 "kind": "historical_contamination",
                 "claim_ids": [claim["claim_id"]],
@@ -531,7 +551,8 @@ def _validate_observation_interpretations(
             rejected.append({"index": index, "code": "UNVERIFIED_CLAIMS"})
             continue
         predicate_op = predicate.get("op")
-        if predicate_op not in {"equals", "recurring_window"}:
+        if predicate_op not in {"equals", "recurring_window",
+                                "recurring_clock_window"}:
             rejected.append({"index": index, "code": "UNSUPPORTED_PREDICATE"})
             continue
         spans = [_normalise(claim["source_span"]) for claim in cited]
@@ -588,6 +609,43 @@ def _validate_observation_interpretations(
             applied_predicate = {
                 "op": "recurring_window", "start": recurrence_start.isoformat(),
                 "duration_steps": duration, "period_steps": period,
+            }
+        elif predicate_op == "recurring_clock_window":
+            start_text = str(predicate.get("start_time") or "")
+            end_text = str(predicate.get("end_time") or "")
+            clock = re.compile(r"^(?:[01]?\d|2[0-3]):[0-5]\d$")
+            source = " ".join(spans)
+            if (not clock.fullmatch(start_text)
+                    or not clock.fullmatch(end_text)
+                    or start_text not in source or end_text not in source):
+                rejected.append({"index": index,
+                                 "code": "CLOCK_WINDOW_NOT_ENTAILED"})
+                continue
+            start_hour, start_minute = map(int, start_text.split(":"))
+            end_hour, end_minute = map(int, end_text.split(":"))
+            start_clock = 60 * start_hour + start_minute
+            end_clock = 60 * end_hour + end_minute
+            if start_clock == end_clock:
+                rejected.append({"index": index,
+                                 "code": "EMPTY_CLOCK_WINDOW"})
+                continue
+            mask = []
+            for inside, timestamp in zip(in_window, history_timestamps):
+                observed = _timestamp(timestamp)
+                if not inside or observed is None:
+                    mask.append(False)
+                    continue
+                minute = 60 * observed.hour + observed.minute
+                covered = (start_clock <= minute < end_clock
+                           if start_clock < end_clock
+                           else minute >= start_clock or minute < end_clock)
+                mask.append(covered)
+            applied_predicate = {
+                "op": "recurring_clock_window",
+                "start_time": f"{start_hour:02d}:{start_minute:02d}",
+                "end_time": f"{end_hour:02d}:{end_minute:02d}",
+                "interval": "half_open",
+                "timezone_basis": "history_timestamp_timezone",
             }
         else:
             if predicate_value != 0.0:
@@ -766,7 +824,8 @@ def _validate_observation_interpretations(
         return [], critique, None
     from .observation_counterfactual import fit_observation_counterfactual
     candidate, replay = fit_observation_counterfactual(
-        history, accepted_masks[0], future_timestamps)
+        history, accepted_masks[0], future_timestamps,
+        history_timestamps=history_timestamps)
     normalization = accepted[0].get("predicate_normalization") or {}
     if normalization.get("kind") == \
             "semantic_zero_to_separated_near_zero_cluster":
@@ -924,6 +983,7 @@ def _validate_candidate(
     future_timestamps: list[str],
     history: list[float],
     reasons: list[str],
+    replay_justifies_boundary_jump: bool = False,
 ) -> dict[str, Any] | None:
     if raw in (None, {}):
         return None
@@ -1049,10 +1109,17 @@ def _validate_candidate(
         for claim in claims)
     bounded_regime_change = bool(bound_claim_ids) and quantitative_support
     plausibility_warnings: list[str] = []
-    if boundary_jump > MAX_BOUNDARY_JUMP_SCALES and not bounded_regime_change:
+    if (boundary_jump > MAX_BOUNDARY_JUMP_SCALES
+            and not bounded_regime_change
+            and not replay_justifies_boundary_jump):
         reasons.append("forecast_candidate failed boundary-jump plausibility")
         return None
-    if boundary_jump > MAX_BOUNDARY_JUMP_SCALES:
+    if boundary_jump > MAX_BOUNDARY_JUMP_SCALES and replay_justifies_boundary_jump:
+        plausibility_warnings.append(
+            "candidate leaves the raw history boundary because a fitted "
+            "observation counterfactual cleared fold-safe replay; support and "
+            "automation authority remain unchanged")
+    elif boundary_jump > MAX_BOUNDARY_JUMP_SCALES:
         plausibility_warnings.append(
             "candidate leaves the empirical history scale but remains inside "
             "a cited numeric bound; treat it as prior-assisted only")

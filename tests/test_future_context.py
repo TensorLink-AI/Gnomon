@@ -537,6 +537,24 @@ def test_overrides_set_the_stated_value_and_widen_the_boundaries():
     assert [e["boundary_step"] for e in override_steps] == [True, False, True]
 
 
+def test_override_with_source_cited_exact_endpoints_sets_every_quantile():
+    start, end = FUTURE[2].isoformat(), FUTURE[4].isoformat()
+    admitted = [FutureEvent(
+        "o1", "override", start, end,
+        f"the plant is offline from {start} to {end} and output is zero",
+        value=0.0, boundary_exact=True,
+    )]
+
+    projected, applications = apply_future_events(_rows(), admitted)
+
+    for index in (2, 3, 4):
+        assert projected[index]["point"] == 0.0
+        assert projected[index]["q10"] == 0.0
+        assert projected[index]["q50"] == 0.0
+        assert projected[index]["q90"] == 0.0
+    assert all(entry["boundary_step"] is False for entry in applications)
+
+
 def test_no_admitted_events_is_a_strict_no_op():
     rows = _rows()
     projected, applications = apply_future_events(rows, [])

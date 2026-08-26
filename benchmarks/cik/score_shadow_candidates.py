@@ -57,8 +57,14 @@ def run(input_dir: Path, n_samples: int, *, publication_mode: str | None = None)
             (extra.get("context_compilation") or {}).get("receipt_path", ""))
         reason = ""
         score = None
+        forecast_candidate = (lane.get("forecast_candidate")
+                              if isinstance(lane, dict) else None)
+        quantile_rows = (forecast_candidate.get("quantiles")
+                         if isinstance(forecast_candidate, dict) else None)
         if not lane:
             reason = "no_admissible_candidate"
+        elif not isinstance(quantile_rows, list) or not quantile_rows:
+            reason = "no_numeric_candidate_in_retained_lane"
         elif not receipt_path.exists():
             reason = "missing_retained_receipt"
         else:
@@ -69,7 +75,7 @@ def run(input_dir: Path, n_samples: int, *, publication_mode: str | None = None)
             elif dossier.get("seal_sha256") != lane.get("seal_sha256"):
                 reason = "candidate_receipt_identity_mismatch"
             else:
-                quantiles = lane["forecast_candidate"]["quantiles"]
+                quantiles = quantile_rows
                 if publication_mode == "best_effort":
                     from gnomon.publication import publish_result, verify_publication
                     artifact_path = Path(extra.get("artifact_path") or "")

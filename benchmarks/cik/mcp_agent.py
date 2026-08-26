@@ -201,7 +201,11 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: two-component sensitivity, still categorically ineligible for self-admission.
 #: Version 80: the governed selector sees compact candidate derivation and
 #: admission facts rather than inferring authority from scenario IDs.
-MCP_CONTRACT_VERSION = 80
+#: Version 81: literal exact-value overrides with source-cited endpoints apply
+#: to every boundary quantile instead of inheriting timing uncertainty.
+#: Version 82: source-cited recurring daily clock windows compile into a
+#: fold-replayed historical observation counterfactual.
+MCP_CONTRACT_VERSION = 87
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -609,6 +613,9 @@ If the sentence states a recurrence, add:
  "duration_steps":1,"period_steps":2},"window":"cited_window",
  "rationale":"brief observation semantics"}
 using only verbatim numbers. If dates/schedule are absent, do not guess a mask.
+For a source-stated daily clock window, use
+{"op":"recurring_clock_window","start_time":"20:00","end_time":"00:00"}
+with the two times copied verbatim.
 
 For best-effort human use, you may instead author a sealed forecast_candidate
 from the supplied numeric history and the fact that the disruption will not

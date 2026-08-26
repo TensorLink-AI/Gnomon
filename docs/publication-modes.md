@@ -119,6 +119,16 @@ comparator under both point MAE and fold-safe q10/q50/q90 pinball loss, and
 probabilistic wins in two of three chronological blocks. The receipt labels
 this as retrospective conditional replay—it does not pretend the source was
 known at earlier origins—and automation remains ineligible.
+For regular sub-daily histories, the fixed contest also includes median and
+recent-value daily-phase candidates. Their phase values are re-fit from earlier
+retained observations at every origin, so a cited recurring outage can preserve
+independently validated intraday shape without using later observations.
+Never-observed phases are an explicitly prior-assisted interpolation between
+the nearest observed phases. Irregular grids do not enable these families.
+If the winning executable improves both point and probabilistic replay in two
+chronological blocks but misses the 10% strict margin, it may lead only in
+`best_effort`. It remains labelled `prior_assisted`, requires human review, and
+cannot authorize automation; `strict` continues to publish the primary.
 If literal zero is absent but the observed history contains a sharply
 separated, source-compatible near-zero component, Gnomon may expose filtering
 that component as a prior-assisted sensitivity. The cluster split is

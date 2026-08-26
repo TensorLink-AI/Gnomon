@@ -102,6 +102,38 @@ def test_unadmitted_observation_sensitivity_needs_explicit_selection():
     assert contract_scenario["derivation"]["historically_admitted"] is False
 
 
+def test_best_effort_may_use_positive_replay_below_strict_margin():
+    dossier = _dossier()
+    dossier["candidate_critique"]["candidate_origin"] = \
+        "observation_interpretation_counterfactual"
+    dossier["forecast_candidate"]["conditional_replay"] = {
+        "status": "not_admitted",
+        "selection_eligible": False,
+        "human_recommendation_eligible": True,
+    }
+    body = {key: value for key, value in dossier.items()
+            if key != "seal_sha256"}
+    import hashlib, json
+    dossier["seal_sha256"] = hashlib.sha256(json.dumps(
+        body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+    strict = publish_result(_result(), mode="strict", dossiers=[dossier])
+    best = publish_result(_result(), mode="best_effort", dossiers=[dossier])
+
+    assert strict["recommended_scenario_id"] == "primary"
+    assert best["recommended_scenario_id"] == "prior-assisted-1"
+    assert best["recommendation_authority"]["selection_method"] == \
+        "conditional_replay_best_effort"
+    assert best["recommended_support"] == "prior_assisted"
+    assert best["automation"]["eligible"] is False
+    assert best["primary_forecast"] == strict["primary_forecast"]
+    candidate_contract = next(
+        item for item in best["selection_contract"]["scenarios"]
+        if item["scenario_id"] == "prior-assisted-1")
+    assert candidate_contract["derivation"][
+        "human_recommendation_eligible"] is True
+
+
 def test_replay_admitted_observation_counterfactual_has_truthful_authority():
     import random
     rng = random.Random(0)

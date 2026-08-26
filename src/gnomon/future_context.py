@@ -558,6 +558,9 @@ class FutureEvent:
     #: trend_ceases only: the engine-measured, seasonally adjusted slope
     #: already present in the emitted base path. The text never supplies it.
     slope: float | None = None
+    #: Exact source-cited endpoints do not need the conservative one-step
+    #: boundary union used for vague or model-located windows.
+    boundary_exact: bool = False
 
     def to_public_dict(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -578,7 +581,24 @@ class FutureEvent:
                 payload["resolved_levels"] = list(self.levels)
         else:
             payload["value"] = self.value
+            payload["boundary_exact"] = self.boundary_exact
         return payload
+
+
+def _timestamp_is_explicit(timestamp: str, span: str) -> bool:
+    """Whether the source literally states this endpoint to grid precision."""
+    try:
+        value = datetime.fromisoformat(timestamp)
+    except ValueError:
+        return False
+    candidates = {
+        value.isoformat(), value.isoformat().replace("T", " "),
+        value.strftime("%Y-%m-%d %H:%M:%S"),
+        value.strftime("%Y-%m-%dT%H:%M:%S"),
+        value.strftime("%Y-%m-%d %H:%M"),
+        value.strftime("%Y-%m-%dT%H:%M"),
+    }
+    return any(candidate in span for candidate in candidates)
 
 
 @dataclass
@@ -1149,6 +1169,9 @@ def _admit_override(
     return FutureEvent(
         event.event_id, "override", event.effective_start,
         event.effective_end, span, value=value,
+        boundary_exact=(
+            _timestamp_is_explicit(event.effective_start, span)
+            and _timestamp_is_explicit(event.effective_end, span)),
     )
 
 
@@ -1476,12 +1499,12 @@ def apply_future_events(
         # its closing edge only when the window actually ends inside the
         # horizon — a window running past the horizon has no closing edge
         # here, and its final visible step is interior.
-        boundary = {steps[0]}
+        boundary = set() if event.boundary_exact else {steps[0]}
         window_end, horizon_end = _align(
             datetime.fromisoformat(event.effective_end),
             datetime.fromisoformat(str(projected[-1]["timestamp"])),
         )
-        if window_end <= horizon_end:
+        if not event.boundary_exact and window_end <= horizon_end:
             boundary.add(steps[-1])
         for index in steps:
             row = projected[index]

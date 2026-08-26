@@ -653,6 +653,26 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
                     ((item.get("effect") or {}).get(
                         "conditional_replay") or {}).get(
                             "selection_eligible") is True),
+                "human_recommendation_eligible": bool(
+                    ((item.get("effect") or {}).get(
+                        "conditional_replay") or {}).get(
+                            "human_recommendation_eligible") is True),
+                "point_relative_improvement": (
+                    ((item.get("effect") or {}).get(
+                        "conditional_replay") or {}).get(
+                            "relative_improvement")),
+                "probabilistic_relative_improvement": (
+                    ((item.get("effect") or {}).get(
+                        "conditional_replay") or {}).get(
+                            "probabilistic_relative_improvement")),
+                "chronological_block_wins": (
+                    ((item.get("effect") or {}).get(
+                        "conditional_replay") or {}).get(
+                            "chronological_block_wins")),
+                "required_block_wins": (
+                    ((item.get("effect") or {}).get(
+                        "conditional_replay") or {}).get(
+                            "required_block_wins")),
                 "admission_withheld_reason": (
                     ((item.get("effect") or {}).get(
                         "conditional_replay") or {}).get(
@@ -709,6 +729,13 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
             and ((item.get("effect") or {}).get(
                 "conditional_replay") or {}).get(
                     "selection_eligible") is True), None)
+        selected_id = selected_id or next((
+            item["scenario_id"] for item in scenarios
+            if item["role"] == "observation_counterfactual"
+            and item.get("selection_eligible", True) is True
+            and ((item.get("effect") or {}).get(
+                "conditional_replay") or {}).get(
+                    "human_recommendation_eligible") is True), None)
         selected_id = selected_id or next((item["scenario_id"] for item in scenarios
                             if item["role"] in {"effect_composed",
                                                 "model_authored_transformation"}
@@ -735,7 +762,12 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
     elif selected_role == "fitted_context_candidate":
         selection_method = "out_of_sample_evidence_dominance"
     elif selected_role == "observation_counterfactual":
-        selection_method = "conditional_replay_evidence"
+        replay = ((selected.get("effect") or {}).get(
+            "conditional_replay") or {})
+        selection_method = (
+            "conditional_replay_evidence" if replay.get(
+                "selection_eligible") is True
+            else "conditional_replay_best_effort")
     elif selected_role in {
             "model_authored", "model_authored_transformation",
             "effect_composed"}:
@@ -771,6 +803,11 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
             "comparator under expanding-origin conditional replay; it remains "
             "non-automatable and requires human review."
             if selection_method == "conditional_replay_evidence" else
+            "A fixed observation counterfactual improved both point and "
+            "probabilistic replay in two chronological blocks, but missed "
+            "the strict admission margin. It is a non-automatable, "
+            "human-facing best effort only."
+            if selection_method == "conditional_replay_best_effort" else
             "Recommendation authority follows the disclosed selection method."
         ),
     }

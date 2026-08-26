@@ -1,12 +1,48 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import math
 
 from gnomon.llm_dossier import (
     deterministic_historical_observation_claim,
     validate_temporal_dossier,
     verify_temporal_dossier_seal,
 )
+
+
+def test_replay_positive_observation_executable_outranks_model_proposal():
+    start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    timestamps = [(start + timedelta(hours=index)).isoformat()
+                  for index in range(24 * 21)]
+    history = []
+    for index in range(len(timestamps)):
+        phase = index % 24
+        history.append(0.0 if phase in {20, 21, 22, 23} else
+                       30.0 + 8.0 * math.sin(2 * math.pi * phase / 24))
+    future = [(start + timedelta(hours=len(history) + index)).isoformat()
+              for index in range(24)]
+    span = ("The sensor was offline for maintenance every day between 20:00 "
+            "and 00:00, which resulted in zero readings.")
+    raw = {
+        "claims": [{"source_span": span, "relation": "unknown",
+                    "effective_start": timestamps[0],
+                    "effective_end": timestamps[-1], "confidence": 1}],
+        "forecast_candidate": {
+            "constant_quantiles": {"q10": 5, "q50": 6, "q90": 7},
+            "rationale": "model proposal"},
+    }
+
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=span + " Assume maintenance will not recur.",
+        cutoff=timestamps[-1], future_timestamps=future, history=history,
+        history_timestamps=timestamps, compiler_model="test")
+
+    assert not reasons
+    assert dossier["candidate_critique"]["candidate_origin"] == \
+        "observation_interpretation_counterfactual"
+    replay = dossier["forecast_candidate"]["conditional_replay"]
+    assert replay["human_recommendation_eligible"] is True
+    assert dossier["forecast_candidate"]["rationale"] != "model proposal"
 
 
 def test_literal_historical_observation_fallback_is_narrow_and_verbatim():
@@ -318,6 +354,43 @@ def test_cited_recurring_disruption_excludes_by_time_not_observed_value():
     assert interpretation["retained_observations"] == 5
     assert dossier["observation_interpretation_critique"]["rejected"][0][
         "code"] == "UNVERIFIED_CLAIMS"
+    assert dossier["forecast_candidate"] is not None
+    assert dossier["primary_forecast_unchanged"] is True
+
+
+def test_cited_daily_clock_outage_excludes_exact_half_open_windows():
+    start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    history_times = [(start + timedelta(hours=index)).isoformat()
+                     for index in range(24 * 7)]
+    history = []
+    expected = []
+    for timestamp in history_times:
+        hour = datetime.fromisoformat(timestamp).hour
+        offline = hour >= 20
+        expected.append(offline)
+        history.append(0.0 if offline else 20.0 + hour / 10)
+    claim = ("The sensor was offline for maintenance every day between "
+             "20:00 and 00:00, which resulted in zero readings.")
+    context = claim + " The sensor will not be in maintenance in the future."
+
+    dossier, reasons = validate_temporal_dossier(
+        {"claims": [{"source_span": claim, "relation": "unknown",
+                     "effective_start": history_times[0],
+                     "effective_end": history_times[-1], "confidence": 1}]},
+        context_text=context, cutoff=history_times[-1],
+        future_timestamps=[(start + timedelta(hours=24 * 7)).isoformat()],
+        history=history, history_timestamps=history_times,
+        compiler_model="test")
+
+    assert not reasons
+    interpretation = dossier["observation_interpretations"][0]
+    assert interpretation["predicate"] == {
+        "op": "recurring_clock_window", "start_time": "20:00",
+        "end_time": "00:00", "interval": "half_open",
+        "timezone_basis": "history_timestamp_timezone",
+    }
+    assert interpretation["excluded_observations"] == sum(expected) == 28
+    assert interpretation["retained_observations"] == 140
     assert dossier["forecast_candidate"] is not None
     assert dossier["primary_forecast_unchanged"] is True
 
