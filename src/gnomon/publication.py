@@ -206,6 +206,8 @@ def build_scenario_catalog(result: dict[str, Any], *,
         candidate_id = str(raw.get("transformation_id") or identifier)
         lane = str(raw.get("lane") or "scenario_only")
         validation = raw.get("validation") or {}
+        selection_eligible = validation.get(
+            "recurrence_plausibility_passed", True) is True
         valid = bool(
             rows and len(rows) == len(primary) and source_seal
             and raw.get("primary_forecast_unchanged") is True
@@ -226,6 +228,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
             identifier, "historically_admitted" if admitted
             else "model_authored_transformation", rows,
             support=support, automation_eligible=False,
+            selection_eligible=selection_eligible,
             claim_ids=[str(item) for item in raw.get("claim_ids") or []],
             assumptions=[f"declarative transformation lane={lane}"],
             source_seal=source_seal,
@@ -237,6 +240,8 @@ def build_scenario_catalog(result: dict[str, Any], *,
             "disposition": "used" if admitted else "scenario",
             "reason_code": ("historically_tested_transformation_admitted"
                             if admitted else
+                            "transformation_retained_plausibility_failed"
+                            if not selection_eligible else
                             "prior_assisted_transformation"
                             if lane == "prior_assisted" else
                             "scenario_only_transformation"),

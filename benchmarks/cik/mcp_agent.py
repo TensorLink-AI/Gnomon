@@ -131,7 +131,9 @@ MAX_RUN_TOKENS = 250_000
 #: destroy the immutable primary forecast.
 #: Version 47: unambiguous future/schedule driver aliases bind to governed
 #: observed identities; collisions and inconsistent schedules still reject.
-MCP_CONTRACT_VERSION = 47
+#: Version 48: recursive uncertainty uses linear state covariance, and
+#: explosive dynamics remain visible but cannot lead a recommendation.
+MCP_CONTRACT_VERSION = 48
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it

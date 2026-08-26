@@ -931,6 +931,41 @@ def execute_transformation(
         rows.append({"timestamp": source.get("timestamp"), "point": value,
                      "q10": ordered[0], "q50": value, "q90": ordered[-1]})
     validation = dict(compiled["validation"])
+    if compiled["expression"].get("op") == "recursive_linear":
+        expression = compiled["expression"]
+        order = max((term["lag"] for term in
+                     expression["autoregressive_terms"]), default=0)
+        coefficients = [0.0] * order
+        for term in expression["autoregressive_terms"]:
+            coefficients[term["lag"] - 1] += float(term["coefficient"])
+        impulse_history = [0.0] * max(0, order - 1) + ([1.0] if order else [])
+        impulse = []
+        for _ in range(max(256, width * 4)):
+            value = sum(coefficient * impulse_history[-lag]
+                        for lag, coefficient in enumerate(coefficients, 1))
+            impulse_history.append(value)
+            impulse.append(value)
+        impulse_peak = max((abs(value) for value in impulse), default=0.0)
+        impulse_tail = max((abs(value) for value in impulse[-32:]), default=0.0)
+        primary_width = max((
+            _finite(row.get("q90", row.get("q50", row.get("point"))), "primary.q90")
+            - _finite(row.get("q10", row.get("q50", row.get("point"))), "primary.q10")
+            for row in primary), default=0.0)
+        candidate_width = max((row["q90"] - row["q10"] for row in rows),
+                              default=0.0)
+        interval_growth = (candidate_width / primary_width
+                           if primary_width > 1e-15 else
+                           1.0 if candidate_width <= 1e-15 else math.inf)
+        validation.update({
+            "recurrence_uncertainty": "linear_state_covariance",
+            "recurrence_impulse_peak": impulse_peak,
+            "recurrence_impulse_tail": impulse_tail,
+            "recurrence_stable": impulse_peak <= 100 and impulse_tail <= 10,
+            "interval_growth_ratio": interval_growth,
+            "recurrence_plausibility_passed": (
+                impulse_peak <= 100 and impulse_tail <= 10
+                and interval_growth <= 20),
+        })
     if historical_validation:
         points = int(historical_validation.get("validation_points") or 0)
         skill = _finite(historical_validation.get("skill"), "historical_validation.skill")
@@ -983,17 +1018,36 @@ def _execute_recursive_linear(
     output: list[float] = []
     lower_widths: list[float] = []
     upper_widths: list[float] = []
+    order = max_target_lag
+    coefficients = [0.0] * order
+    for term in ar_terms:
+        coefficients[term["lag"] - 1] += float(term["coefficient"])
+    lower_cov = [[0.0] * order for _ in range(order)]
+    upper_cov = [[0.0] * order for _ in range(order)]
+
+    def advance_covariance(covariance: list[list[float]],
+                           innovation_width: float
+                           ) -> tuple[list[list[float]], float]:
+        if order == 0:
+            return covariance, innovation_width
+        transition = [coefficients] + [
+            [1.0 if column == row - 1 else 0.0 for column in range(order)]
+            for row in range(1, order)]
+        projected = [[sum(
+            transition[i][left] * covariance[left][right]
+            * transition[j][right]
+            for left in range(order) for right in range(order))
+            for j in range(order)] for i in range(order)]
+        projected[0][0] += innovation_width ** 2
+        return projected, math.sqrt(max(0.0, projected[0][0]))
+
     for index, row in enumerate(primary):
         value = float(node["intercept"])
-        feedback_lower = feedback_upper = 0.0
         for term in ar_terms:
             position = index - term["lag"]
             prior = (output[position] if position >= 0
                      else float(history_values[position]))
             value += term["coefficient"] * prior
-            if position >= 0:
-                feedback_lower += abs(term["coefficient"]) * lower_widths[position]
-                feedback_upper += abs(term["coefficient"]) * upper_widths[position]
         for term in driver_terms:
             position = index - term["lag"]
             source = (environment[term["series"]][position] if position >= 0
@@ -1002,9 +1056,13 @@ def _execute_recursive_linear(
         q50 = _finite(row.get("q50", row.get("point")), "primary.q50")
         innovation_lower = max(0.0, q50 - _finite(row.get("q10", q50), "primary.q10"))
         innovation_upper = max(0.0, _finite(row.get("q90", q50), "primary.q90") - q50)
+        lower_cov, lower_width = advance_covariance(
+            lower_cov, innovation_lower)
+        upper_cov, upper_width = advance_covariance(
+            upper_cov, innovation_upper)
         output.append(value)
-        lower_widths.append(innovation_lower + feedback_lower)
-        upper_widths.append(innovation_upper + feedback_upper)
+        lower_widths.append(lower_width)
+        upper_widths.append(upper_width)
     return output, lower_widths, upper_widths
 
 

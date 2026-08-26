@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import math
 
 import pytest
 
@@ -507,8 +508,12 @@ def test_recursive_linear_uses_trusted_history_and_propagates_uncertainty():
     # t0 = 2 + .5*10 + 3*4 = 19; t1 = 2 + .5*19 + 3*5 = 26.5.
     assert [row["q50"] for row in result["forecast"]] == [19, 26.5]
     assert result["forecast"][0]["q10"] == 18
-    assert result["forecast"][1]["q10"] == 25
+    assert result["forecast"][1]["q10"] == pytest.approx(
+        26.5 - math.sqrt(1.25))
     assert result["primary_forecast_unchanged"] is True
+    assert result["validation"]["recurrence_uncertainty"] \
+        == "linear_state_covariance"
+    assert result["validation"]["recurrence_plausibility_passed"] is True
 
 
 def test_recursive_linear_refuses_missing_trusted_initial_state():
@@ -531,6 +536,33 @@ def test_recursive_linear_refuses_missing_trusted_initial_state():
             primary=[{"timestamp": _stamp(6), "q50": 0, "q10": -1, "q90": 1}],
             history_values=[10])
     assert caught.value.code == "MISSING_RECURSIVE_HISTORY"
+
+
+def test_explosive_recurrence_is_retained_but_not_recommendable():
+    raw = {
+        "known_at": _stamp(5), "claim_ids": ["claim-1"],
+        "lane": "prior_assisted", "output_unit": "sales",
+        "expression": {"op": "recursive_linear", "output_unit": "sales",
+                       "autoregressive_terms": [
+                           {"lag": 1, "coefficient": 2}],
+                       "driver_terms": []},
+    }
+    compiled = validate_transformation(
+        raw, series=[], claim_ids=["claim-1"], cutoff=_stamp(5),
+        units={"primary": "sales"},
+        claim_spans={"claim-1": "sales[t] = 2 sales[t-1]"})
+    primary = [{"timestamp": _stamp(6 + i), "q10": 9, "q50": 10,
+                "q90": 11, "point": 10} for i in range(8)]
+    candidate = execute_transformation(
+        compiled, primary=primary, history_values=[10])
+    assert candidate["validation"]["recurrence_stable"] is False
+    publication = publish_result(
+        {"support": "supported", "forecast": primary,
+         "transformation_candidates": [candidate]}, mode="best_effort")
+    assert publication["recommended_scenario_id"] == "primary"
+    retained = next(item for item in publication["candidate_portfolio"]
+                    if item["role"] == "model_authored_transformation")
+    assert retained["selection_eligible"] is False
 
 
 def test_zero_recursive_intercept_is_safe_identity_not_unsourced_effect():
