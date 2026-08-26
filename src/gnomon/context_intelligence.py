@@ -132,6 +132,11 @@ def _model_authored_constants(node: Any, *, role: str = "literal") \
 
 
 def _constant_is_entailed(value: float, *, role: str, text: str) -> bool:
+    # An omitted intercept is canonically represented as additive identity.
+    # It adds no information and cannot move the path; requiring prose to say
+    # “plus zero” would reject ordinary equations for formatting alone.
+    if role == "intercept" and value == 0:
+        return True
     # Dates and clock times are provenance, not formula constants.
     clean = re.sub(r"\b\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2})?)?\b",
                    " ", text)

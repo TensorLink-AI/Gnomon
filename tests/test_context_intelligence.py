@@ -532,6 +532,21 @@ def test_recursive_linear_refuses_missing_trusted_initial_state():
     assert caught.value.code == "MISSING_RECURSIVE_HISTORY"
 
 
+def test_zero_recursive_intercept_is_safe_identity_not_unsourced_effect():
+    compiled = validate_transformation({
+        "known_at": _stamp(5), "claim_ids": ["claim-1"],
+        "lane": "prior_assisted", "output_unit": "sales",
+        "expression": {
+            "op": "recursive_linear", "output_unit": "sales",
+            "intercept": 0,
+            "autoregressive_terms": [{"lag": 1, "coefficient": .5}],
+            "driver_terms": [],
+        }}, series=[], claim_ids=["claim-1"], cutoff=_stamp(5),
+        units={"primary": "sales"},
+        claim_spans={"claim-1": "sales[t] = 0.5 sales[t-1]"})
+    assert compiled["expression"]["intercept"] == 0
+
+
 def test_model_computed_constant_cannot_launder_through_claim_id():
     raw = {
         "known_at": _stamp(5), "claim_ids": ["claim-1"],

@@ -118,7 +118,9 @@ MAX_RUN_TOKENS = 250_000
 #: coefficient-unit normalization without requiring a special macro spelling.
 #: Version 41: recursive linear equations bind trusted pre-cutoff state and
 #: feed prior outputs back inside the sealed executor, never through LLM data.
-MCP_CONTRACT_VERSION = 41
+#: Version 42: an explicit zero intercept is treated as additive identity, and
+#: transformation driver schedules are not duplicated as covariate proposals.
+MCP_CONTRACT_VERSION = 42
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -379,7 +381,8 @@ Rules:
   Gnomon binds pre-cutoff target/driver history from the governed snapshot,
   recursively feeds prior outputs back itself, and propagates uncertainty.
   `series_values` supplies only the cited future driver schedule; do not put
-  target lags or historical observations in `series_values`.
+  target lags or historical observations in `series_values`. Do not duplicate
+  a schedule already consumed by a transformation in `covariate_tables`.
 - Use no observations after the history cutoff. Return empty arrays and null
   effect_proposal and forecast_candidate when context contains no
   forecast-relevant information.
