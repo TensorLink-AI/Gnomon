@@ -92,7 +92,9 @@ MAX_RUN_TOKENS = 250_000
 #: deterministic-temperature calls independently of the conversational agent.
 #: Version 29: genuine zero-width point candidates receive a disclosed robust
 #: history-based uncertainty floor; self-declared placeholders remain rejected.
-MCP_CONTRACT_VERSION = 29
+#: Version 30: the sole dossier repair receives every failed lane; an effect
+#: critique can no longer hide a malformed probabilistic candidate.
+MCP_CONTRACT_VERSION = 30
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -1127,8 +1129,15 @@ class _Run:
                 future_timestamps=future_timestamps, history=self.values,
                 compiler_model=self.forecaster.openrouter_model)
             if not probe.get("effect_proposal") and not probe.get("forecast_candidate"):
-                critique = probe.get("effect_proposal_critique") or {
-                    "status": "rejected", "reasons": probe_rejections}
+                # Do not let one failed lane hide another. In particular, an
+                # effect critique used to mask a malformed candidate, causing
+                # the sole repair round to return another placeholder path.
+                critique = {
+                    "effect_proposal": probe.get("effect_proposal_critique"),
+                    "forecast_candidate": probe.get("candidate_critique"),
+                    "hypotheses": probe.get("hypothesis_critique"),
+                    "all_rejections": probe_rejections,
+                }
                 try:
                     repair_used = True
                     repair_completion = self.forecaster.client.completions([{
@@ -1136,7 +1145,10 @@ class _Run:
                             prompt + "\nYour proposal was rejected by Gnomon:\n"
                             + json.dumps(critique)
                             + "\nReturn one complete corrected dossier JSON "
-                              "including cited claims. This is the only repair round.")
+                              "including cited claims. If you propose numeric "
+                              "quantiles, they must be a computed probabilistic "
+                              "path with non-zero uncertainty, never placeholders. "
+                              "This is the only repair round.")
                     }], n=1, temperature=0)[0]
                     repaired = extract_json_objects(repair_completion)
                     if repaired:

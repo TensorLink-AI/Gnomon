@@ -76,6 +76,7 @@ class ScriptedClient:
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
         self.completion_temperatures = []
+        self.completion_prompts = []
 
     def chat(self, messages, *, n=1, tools=None, tool_choice=None):
         assert self.steps, "model script exhausted before submission"
@@ -98,6 +99,7 @@ class ScriptedClient:
 
     def completions(self, messages, *, n=1, temperature=None):
         self.completion_temperatures.append(temperature)
+        self.completion_prompts.append(messages[-1]["content"])
         self.total_prompt_tokens += 100
         self.total_completion_tokens += 25
         value = (self.compiler_outputs.pop(0) if len(self.compiler_outputs) > 1
@@ -593,6 +595,53 @@ def test_sealed_candidate_survives_rejected_relational_transform(tmp_path):
         extra["context_compilation"]["receipt_path"]).read_text())
     assert any("transformation_preflight_rejected" in reason
                for reason in receipt["rejections"])
+
+
+def test_single_repair_exposes_effect_and_candidate_failures(tmp_path):
+    task = _task()
+    span = "Demand doubles during the forecast window."
+    task.scenario = span
+    claim = {
+        "source_span": span, "relation": "supports_increase",
+        "effective_start": task.future_time[0],
+        "effective_end": task.future_time[-1],
+        "mechanism": "stated multiplier", "confidence": .9,
+    }
+    invalid = json.dumps({
+        "events": [], "claims": [claim],
+        "forecast_candidate": {
+            "quantiles": [{"timestamp": stamp, "q10": 0,
+                           "q50": 0, "q90": 0}
+                          for stamp in task.future_time],
+            "rationale": "Placeholder; Gnomon must apply it.",
+        },
+        "effect_proposal": {
+            "shape": "cross_series_relationship", "unit": "target_units",
+            "location": 1, "lower": 1, "upper": 1, "confidence": .8,
+            "delay_steps": 0, "duration_steps": 4,
+            "scope": {"kind": "single_series", "series": ["*"]},
+            "claim_ids": ["claim-1"], "rationale": "doubling",
+            "uncertainty_basis": "stated rule",
+        },
+    })
+    repaired = json.dumps({"events": [], "claims": [claim],
+                           "forecast_candidate": None,
+                           "effect_proposal": None})
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        [invalid, repaired])
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence")
+    forecaster(task, 1)
+
+    repair_prompt = client.completion_prompts[1]
+    assert '"effect_proposal"' in repair_prompt
+    assert '"forecast_candidate"' in repair_prompt
+    assert "declares itself incomplete" in repair_prompt
+    assert "CROSS_SERIES_SCOPE_REQUIRED" in repair_prompt
+    assert client.completion_temperatures == [0, 0]
 
 
 def test_shadow_role_requires_evidence_profile():
