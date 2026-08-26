@@ -49,8 +49,67 @@ def canonicalize_recursive_wrapper(
     if not isinstance(transformation, dict):
         return wrapper, {"status": "not_applicable"}
     expression = transformation.get("expression")
-    if not isinstance(expression, dict) or expression.get("op") == "recursive_linear":
-        return wrapper, {"status": "already_canonical"}
+    if not isinstance(expression, dict):
+        return wrapper, {"status": "not_applicable"}
+
+    def normalize(value: str) -> str:
+        return re.sub(r"[^a-z0-9]", "", value.casefold())
+
+    if expression.get("op") == "recursive_linear":
+        actual_by_alias: dict[str, str] = {}
+        for actual in driver_names:
+            base = normalize(actual)
+            for alias in (base, base + "future", base + "schedule",
+                          base + "forecast"):
+                if alias in actual_by_alias and actual_by_alias[alias] != actual:
+                    return wrapper, {"status": "rejected",
+                                     "reason": f"ambiguous driver alias {alias!r}"}
+                actual_by_alias[alias] = actual
+        rebound_terms = []
+        aliases: dict[str, list[str]] = {}
+        changed = False
+        for term in expression.get("driver_terms") or []:
+            if not isinstance(term, dict):
+                return wrapper, {"status": "rejected",
+                                 "reason": "recursive driver term is not an object"}
+            source = str(term.get("series") or "")
+            actual = actual_by_alias.get(normalize(source))
+            if actual is None:
+                return wrapper, {"status": "already_canonical"}
+            rebound_terms.append({**term, "series": actual})
+            aliases.setdefault(actual, []).append(source)
+            changed = changed or actual != source
+        if not changed:
+            return wrapper, {"status": "already_canonical"}
+        supplied = wrapper.get("series_values") or {}
+        canonical_values: dict[str, Any] = {}
+        for actual, names in aliases.items():
+            payloads = [supplied.get(name) for name in names]
+            if any(not isinstance(item, dict) for item in payloads):
+                return wrapper, {"status": "rejected",
+                                 "reason": f"missing future schedule for {actual!r}"}
+            values = [item.get("values") for item in payloads]
+            if any(value != values[0] for value in values[1:]):
+                return wrapper, {"status": "rejected",
+                                 "reason": f"conflicting schedules for {actual!r}"}
+            claim_ids = sorted({str(claim_id) for item in payloads
+                                for claim_id in item.get("source_claim_ids") or []})
+            canonical_values[actual] = {
+                **payloads[0], "source_claim_ids": claim_ids,
+                "canonicalized_from": sorted(names)}
+        units = dict(wrapper.get("units") or {})
+        canonical_units = {"primary": units.get(
+            "primary", transformation.get("output_unit", "unknown"))}
+        for actual, names in aliases.items():
+            canonical_units[actual] = next(
+                (units[name] for name in names if name in units), "unknown")
+        return ({**wrapper,
+                 "transformation": {**transformation, "expression": {
+                     **expression, "driver_terms": rebound_terms},
+                     "syntax_canonicalization": "recursive_driver_alias"},
+                 "series_values": canonical_values, "units": canonical_units},
+                {"status": "canonicalized", "target": target_name,
+                 "drivers": sorted(canonical_values)})
 
     def flatten(node: Any) -> list[Any] | None:
         if not isinstance(node, dict):
@@ -64,9 +123,6 @@ def canonicalize_recursive_wrapper(
                 output.extend(terms)
             return output
         return [node]
-
-    def normalize(value: str) -> str:
-        return re.sub(r"[^a-z0-9]", "", value.casefold())
 
     driver_by_normal = {normalize(name): name for name in driver_names}
     target_key = normalize(target_name)

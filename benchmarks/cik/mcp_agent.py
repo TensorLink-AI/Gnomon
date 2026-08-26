@@ -129,7 +129,9 @@ MAX_RUN_TOKENS = 250_000
 #: Version 46: numeric dataframe columns use the context's X_n aliases;
 #: structured tool errors retain details and invalid recurrence history cannot
 #: destroy the immutable primary forecast.
-MCP_CONTRACT_VERSION = 46
+#: Version 47: unambiguous future/schedule driver aliases bind to governed
+#: observed identities; collisions and inconsistent schedules still reject.
+MCP_CONTRACT_VERSION = 47
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it

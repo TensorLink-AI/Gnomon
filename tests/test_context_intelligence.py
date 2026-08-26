@@ -607,6 +607,27 @@ def test_verbose_recurrence_refuses_conflicting_driver_schedules():
     assert status["status"] == "rejected"
 
 
+def test_recursive_future_alias_rebinds_to_governed_driver_identity():
+    wrapper = {
+        "transformation": {"output_unit": "y", "expression": {
+            "op": "recursive_linear", "output_unit": "y", "intercept": 0,
+            "autoregressive_terms": [{"lag": 1, "coefficient": .5}],
+            "driver_terms": [{"series": "x_0_future", "lag": 1,
+                              "coefficient": 2}]}},
+        "units": {"primary": "y", "x_0_future": "x"},
+        "series_values": {"x_0_future": {
+            "values": [1, 2], "known_at": _stamp(5),
+            "source_claim_ids": ["claim-1"]}},
+    }
+    canonical, status = canonicalize_recursive_wrapper(
+        wrapper, target_name="X_1", driver_names=["X_0"])
+    assert status["status"] == "canonicalized"
+    assert canonical["transformation"]["expression"]["driver_terms"][0][
+        "series"] == "X_0"
+    assert set(canonical["series_values"]) == {"X_0"}
+    assert canonical["units"]["X_0"] == "x"
+
+
 def test_model_computed_constant_cannot_launder_through_claim_id():
     raw = {
         "known_at": _stamp(5), "claim_ids": ["claim-1"],
