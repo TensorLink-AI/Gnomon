@@ -26,6 +26,11 @@
   an exhausted budget preserves the primary and records a typed rejection.
   Offline evaluations may override the bound with
   `GNOMON_CONTEXT_COMPILATION_SECONDS` (clamped to 1–300 seconds).
+- Explicit lag equations now route to a compact relationship-extraction
+  contract instead of paying for the universal event/candidate/covariate
+  schema. The LLM sees only a short target tail and supplies cited equation
+  structure; Gnomon retains the complete governed histories for replay and
+  execution. Routing is based on equation syntax, never benchmark labels.
 - Bounded every governed compiler, repair, and selector request to one
   no-retry transport attempt. A slow provider now returns the immutable primary
   instead of parking a worker. Model-authored candidates whose accompanying

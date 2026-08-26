@@ -30,6 +30,7 @@ from benchmarks.cik.mcp_agent import (
     MAX_ROUNDS,
     InProcessMcpSession,
     McpAgentForecaster,
+    _has_explicit_lag_relationship,
     _compiler_target_evidence,
     _task_companion_evidence,
     _task_companion_histories,
@@ -38,6 +39,16 @@ from benchmarks.cik.mcp_agent import (
     jail_violations,
     openai_tool_specs,
 )
+
+
+@pytest.mark.parametrize("text", [
+    "sales[t] = 1 + 0.5 sales[t-1] + 2 campaign[t-2]",
+    "The coefficient at lag 1 affects demand as 0.7 * demand.",
+])
+def test_explicit_lag_relationship_router_is_syntax_based(text):
+    assert _has_explicit_lag_relationship(text) is True
+    assert _has_explicit_lag_relationship(
+        "A campaign may improve sales next quarter.") is False
 
 
 # -- fixtures ---------------------------------------------------------------

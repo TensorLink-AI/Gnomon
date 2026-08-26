@@ -152,7 +152,9 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: traces disclose per-stage latency instead of hiding stacked waits.
 #: Version 56: the interactive default deadline is 60 seconds and is explicitly
 #: configurable for offline evaluation.
-MCP_CONTRACT_VERSION = 56
+#: Version 57: explicit lag equations use a compact typed extraction contract
+#: and an eight-row evidence tail instead of the universal dossier packet.
+MCP_CONTRACT_VERSION = 57
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -419,6 +421,29 @@ Rules:
   effect_proposal and forecast_candidate when context contains no
   forecast-relevant information.
 """
+
+RELATIONSHIP_INSTRUCTIONS = """\
+Extract one explicit lagged numeric relationship for Gnomon's safe recurrence
+executor. Return ONLY JSON with `claims` and `transformations`; set both to []
+if the text does not state an exact equation. Claims quote the equation and any
+future driver schedule verbatim. The transformation uses `recursive_linear`
+with numeric `intercept`, `autoregressive_terms` ({lag, coefficient}), and
+`driver_terms` ({series, lag, coefficient}). Put cited future driver values in
+`series_values`; never supply future target values or executable code. Use the
+history cutoff as `known_at`, `historically_testable` as the lane, and preserve
+source series names. Each transformation claim_id refers to the 1-based order
+of its claim (`claim-1`, ...).
+"""
+
+
+def _has_explicit_lag_relationship(text: str) -> bool:
+    """Recognize explicit equation syntax, not a benchmark task family."""
+    numeric = bool(re.search(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)", text))
+    lag = bool(
+        re.search(r"\blag\s*[-_ ]?\d+\b", text, re.I)
+        or re.search(r"\b[A-Za-z_]\w*\s*[\[(]\s*t\s*-\s*\d+\s*[\])]", text))
+    equation = "=" in text or bool(re.search(r"\b(coefficient|affects?)\b", text, re.I))
+    return numeric and lag and equation
 
 
 class StdioMcpSession:
@@ -1219,14 +1244,20 @@ class _Run:
         context = "\n\n".join(part for part in (
             narrative_context, self.companion_evidence) if part)
         future_timestamps = _task_future_timestamps(self.task)
-        history = _compiler_target_evidence(self.timestamps, self.values)
+        relationship_contract = _has_explicit_lag_relationship(context)
+        compiler_context = (narrative_context if relationship_contract else context)
+        history = _compiler_target_evidence(
+            self.timestamps, self.values,
+            limit=8 if relationship_contract else 64)
+        instructions = (RELATIONSHIP_INSTRUCTIONS if relationship_contract
+                        else DOSSIER_INSTRUCTIONS)
         prompt = (
-            f"{DOSSIER_INSTRUCTIONS}\n"
+            f"{instructions}\n"
             f"Forecast target series: {self.target_name}\n"
             f"History cutoff: {self.timestamps[-1]}\n"
             f"Forecast timestamps: {json.dumps(future_timestamps)}\n"
             f"{history}\n\n"
-            f"Context:\n{context or '(none)'}\n"
+            f"Context:\n{compiler_context or '(none)'}\n"
         )
         raw: dict[str, Any] = {}
         compile_rejections: list[str] = []
@@ -1593,6 +1624,9 @@ class _Run:
             "compiler": {
                 "kind": "llm_proposes_gnomon_validates",
                 "model": self.forecaster.openrouter_model,
+                "contract": ("explicit_lag_relationship"
+                             if relationship_contract else "universal_dossier"),
+                "prompt_bytes": len(prompt.encode("utf-8")),
                 "workflow_budget_seconds": MAX_CONTEXT_COMPILATION_SECONDS,
                 "elapsed_seconds": round(
                     time.monotonic() - compilation_started, 6),
