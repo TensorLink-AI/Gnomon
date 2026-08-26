@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import re
 import statistics
@@ -44,6 +45,7 @@ from benchmarks.common.openrouter import (  # noqa: E402
 MAX_ROUNDS = 10
 MAX_MCP_CALLS = 24
 MAX_RUN_TOKENS = 250_000
+MAX_CONTEXT_COMPILATION_SECONDS = 120
 #: Bump when the system prompt, the caps, or the submit contract change:
 #: the official cache reuses results by cache_name, and a cached run made
 #: under an older contract is a different measurement wearing the same
@@ -145,7 +147,9 @@ MAX_RUN_TOKENS = 250_000
 #: X_0 only when their typed lag agrees and their future schedules match.
 #: Version 54: a model-authored path cannot bypass the authority of a governed
 #: transformation over the same claims, including a failed replay gate.
-MCP_CONTRACT_VERSION = 54
+#: Version 55: compilation and its sole repair share one end-to-end deadline;
+#: traces disclose per-stage latency instead of hiding stacked waits.
+MCP_CONTRACT_VERSION = 55
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -1224,11 +1228,31 @@ class _Run:
         raw: dict[str, Any] = {}
         compile_rejections: list[str] = []
         repair_used = False
+        compilation_started = time.monotonic()
+        compilation_deadline = (compilation_started
+                                + MAX_CONTEXT_COMPILATION_SECONDS)
+        compiler_calls: list[dict[str, Any]] = []
+
+        def complete(content: str, stage: str) -> str:
+            remaining = compilation_deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError(
+                    "context workflow deadline exhausted before " + stage)
+            started = time.monotonic()
+            try:
+                return self.forecaster.client.completions(
+                    [{"role": "user", "content": content}], n=1,
+                    temperature=0, reasoning_effort="none",
+                    request_timeout=max(1, min(
+                        120, math.ceil(remaining))),
+                    transport_retries=0)[0]
+            finally:
+                compiler_calls.append({
+                    "stage": stage,
+                    "elapsed_seconds": round(time.monotonic() - started, 6),
+                })
         try:
-            completion = self.forecaster.client.completions(
-                [{"role": "user", "content": prompt}], n=1,
-                temperature=0, reasoning_effort="none",
-                request_timeout=120, transport_retries=0)[0]
+            completion = complete(prompt, "initial_compile")
             objects = extract_json_objects(completion)
             if objects:
                 raw = objects[0]
@@ -1258,17 +1282,16 @@ class _Run:
                 }
                 try:
                     repair_used = True
-                    repair_completion = self.forecaster.client.completions([{
-                        "role": "user", "content": (
+                    repair_completion = complete(
+                        (
                             prompt + "\nYour proposal was rejected by Gnomon:\n"
                             + json.dumps(critique)
                             + "\nReturn one complete corrected dossier JSON "
                               "including cited claims. If you propose numeric "
                               "quantiles, they must be a computed probabilistic "
                               "path with non-zero uncertainty, never placeholders. "
-                              "This is the only repair round.")
-                    }], n=1, temperature=0, reasoning_effort="none",
-                    request_timeout=120, transport_retries=0)[0]
+                              "This is the only repair round."),
+                        "dossier_repair")
                     repaired = extract_json_objects(repair_completion)
                     if repaired:
                         raw = repaired[0]
@@ -1308,10 +1331,8 @@ class _Run:
                     "duplicate the schedule in covariate_tables. This is the "
                     "only repair round.\nExact claims:\n"
                     + json.dumps(exact_lag_claims))
-                repair_completion = self.forecaster.client.completions(
-                    [{"role": "user", "content": focused}], n=1,
-                    temperature=0, reasoning_effort="none",
-                    request_timeout=120, transport_retries=0)[0]
+                repair_completion = complete(
+                    focused, "relationship_sufficiency_repair")
                 repaired = extract_json_objects(repair_completion)
                 if repaired:
                     raw = repaired[0]
@@ -1435,8 +1456,8 @@ class _Run:
                 repair_used = True
                 repair_hints = _transformation_repair_hints(
                     transform_failures, context)
-                repair_completion = self.forecaster.client.completions([{
-                    "role": "user", "content": (
+                repair_completion = complete(
+                    (
                         prompt + "\nGnomon rejected the transformation lane:\n"
                         + json.dumps(transform_failures)
                         + "\nVerbatim source lines that may support rejected "
@@ -1444,9 +1465,8 @@ class _Run:
                         + json.dumps(repair_hints)
                         + "\nReturn one complete corrected dossier JSON. "
                           "You may add verbatim cited claims and replace "
-                          "transformations only; this is the sole repair round.")
-                }], n=1, temperature=0, reasoning_effort="none",
-                request_timeout=120, transport_retries=0)[0]
+                          "transformations only; this is the sole repair round."),
+                    "transformation_repair")
                 repaired_objects = extract_json_objects(repair_completion)
                 if repaired_objects:
                     repaired = repaired_objects[0]
@@ -1570,6 +1590,10 @@ class _Run:
             "compiler": {
                 "kind": "llm_proposes_gnomon_validates",
                 "model": self.forecaster.openrouter_model,
+                "workflow_budget_seconds": MAX_CONTEXT_COMPILATION_SECONDS,
+                "elapsed_seconds": round(
+                    time.monotonic() - compilation_started, 6),
+                "calls": compiler_calls,
             },
             "source": {
                 "kind": "benchmark_task_context",
@@ -1647,6 +1671,7 @@ class _Run:
                         self.context_compilation.get("transformations") or []),
                     "rejection_count": len(self.context_compilation["rejections"]),
                     "future_observations_exposed": False,
+                    "compiler_timing": self.context_compilation["compiler"],
                 }
                 if self.context_compilation is not None else None
             ),

@@ -20,6 +20,10 @@
   candidate now exclusively owns numeric recommendation authority. A parallel
   model-authored path remains visible and outcome-scoreable but cannot bypass
   a failed replay or plausibility gate.
+- The governed CiK context workflow now applies one 120-second deadline across
+  initial compilation and its optional repair, rather than allowing multiple
+  per-call timeouts to stack. Receipts and traces disclose per-stage latency;
+  an exhausted budget preserves the primary and records a typed rejection.
 - Bounded every governed compiler, repair, and selector request to one
   no-retry transport attempt. A slow provider now returns the immutable primary
   instead of parking a worker. Model-authored candidates whose accompanying

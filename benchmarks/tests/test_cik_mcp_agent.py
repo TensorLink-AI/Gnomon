@@ -15,10 +15,12 @@ import json
 import math
 import re
 import sys
+import time
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+import benchmarks.cik.mcp_agent as mcp_agent_module
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -123,6 +125,12 @@ class ScriptedClient:
         return {"model": "scripted", "requests": 0,
                 "prompt_tokens": self.total_prompt_tokens,
                 "completion_tokens": self.total_completion_tokens}
+
+
+class DelayedCompilerClient(ScriptedClient):
+    def completions(self, *args, **kwargs):
+        time.sleep(.02)
+        return super().completions(*args, **kwargs)
 
 
 def test_companion_evidence_is_bounded_and_pre_cutoff_only():
@@ -819,6 +827,41 @@ def test_single_repair_exposes_effect_and_candidate_failures(tmp_path):
     assert "CROSS_SERIES_SCOPE_REQUIRED" in repair_prompt
     assert client.completion_temperatures == [0, 0]
     assert client.completion_reasoning_efforts == ["none", "none"]
+
+
+def test_context_workflow_deadline_prevents_stacked_repair_timeouts(
+        tmp_path, monkeypatch):
+    task = _task()
+    span = "Demand doubles during the forecast window."
+    task.scenario = span
+    invalid = json.dumps({
+        "events": [], "claims": [{
+            "source_span": span, "relation": "supports_increase",
+            "effective_start": task.future_time[0],
+            "effective_end": task.future_time[-1], "confidence": .9}],
+        "forecast_candidate": {"quantiles": [
+            {"timestamp": stamp, "q10": 0, "q50": 0, "q90": 0}
+            for stamp in task.future_time], "rationale": "placeholder"},
+    })
+    client = DelayedCompilerClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        [invalid, invalid])
+    monkeypatch.setattr(mcp_agent_module,
+                        "MAX_CONTEXT_COMPILATION_SECONDS", .01)
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), trace_dir=tmp_path / "traces",
+        profile="evidence")
+    forecaster(task, 1)
+    assert len(client.completion_prompts) == 1
+    receipt = json.loads(next(
+        (tmp_path / "traces" / "context-receipts").glob("*.json")
+    ).read_text())
+    assert receipt["compiler"]["workflow_budget_seconds"] == .01
+    assert receipt["compiler"]["calls"][0]["stage"] == "initial_compile"
+    assert any("deadline exhausted" in item
+               for item in receipt["rejections"])
 
 
 def test_shadow_role_requires_evidence_profile():
