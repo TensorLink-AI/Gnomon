@@ -18,6 +18,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -77,7 +78,9 @@ MAX_RUN_TOKENS = 250_000
 #: before execution; the repair cannot remove already verified claims.
 #: Version 22: bounded pre-cutoff companion channels remain available as
 #: citable evidence instead of being discarded by target projection.
-MCP_CONTRACT_VERSION = 22
+#: Version 23: transformation repair receives constant-specific verbatim
+#: source hints, while the model still has to cite and bind them explicitly.
+MCP_CONTRACT_VERSION = 23
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -553,6 +556,27 @@ def _task_companion_evidence(task_instance: Any, *, limit: int = 32) -> str:
         rows.append(stamp + "," + ",".join(
             repr(float(value)) for value in values.values))
     return "\n".join(rows)
+
+
+def _transformation_repair_hints(
+        failures: list[dict[str, Any]], context: str) -> list[str]:
+    """Return verbatim context lines that may entail rejected constants."""
+    constants: set[str] = set()
+    for failure in failures:
+        for violation in failure.get("violations") or []:
+            match = re.search(
+                r"Transformation constant ([+-]?(?:\d+(?:\.\d*)?|\.\d+))",
+                str(violation.get("message") or ""))
+            if match:
+                constants.add(match.group(1))
+    hints = []
+    for line in context.splitlines():
+        stripped = line.strip()
+        if stripped and any(re.search(
+                rf"(?<![\d.]){re.escape(value)}(?![\d.])", stripped)
+                            for value in constants):
+            hints.append(stripped)
+    return list(dict.fromkeys(hints))[:6]
 
 
 def _task_future_timestamps(task_instance: Any) -> list[str]:
@@ -1144,10 +1168,15 @@ class _Run:
         if transform_failures and not repair_used:
             try:
                 repair_used = True
+                repair_hints = _transformation_repair_hints(
+                    transform_failures, context)
                 repair_completion = self.forecaster.client.completions([{
                     "role": "user", "content": (
                         prompt + "\nGnomon rejected the transformation lane:\n"
                         + json.dumps(transform_failures)
+                        + "\nVerbatim source lines that may support rejected "
+                          "constants (cite them only if relevant):\n"
+                        + json.dumps(repair_hints)
                         + "\nReturn one complete corrected dossier JSON. "
                           "You may add verbatim cited claims and replace "
                           "transformations only; this is the sole repair round.")

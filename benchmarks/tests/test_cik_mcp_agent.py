@@ -29,6 +29,7 @@ from benchmarks.cik.mcp_agent import (
     InProcessMcpSession,
     McpAgentForecaster,
     _task_companion_evidence,
+    _transformation_repair_hints,
     jail_violations,
     openai_tool_specs,
 )
@@ -121,6 +122,15 @@ def test_companion_evidence_is_bounded_and_pre_cutoff_only():
                 for row in evidence.splitlines()[2:]]
     assert observed == list(map(float, range(8, 40)))
     assert len(evidence.splitlines()) == 34
+
+
+def test_transformation_repair_hints_are_verbatim_and_constant_specific():
+    failures = [{"violations": [{"message":
+        "Transformation constant 37.5 (literal) is absent from every cited source span."}]}]
+    context = ("Maximum speed is 3000 rpm and pressure is 37.5 Pa.\n"
+               "An unrelated threshold is 20 Pa.")
+    assert _transformation_repair_hints(failures, context) == [
+        "Maximum speed is 3000 rpm and pressure is 37.5 Pa."]
 
 
 def _forecaster(steps, tmp_path, sessions=None, profile=None,
