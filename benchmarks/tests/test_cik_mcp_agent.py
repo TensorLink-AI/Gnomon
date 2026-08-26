@@ -45,6 +45,7 @@ from benchmarks.cik.mcp_agent import (
 @pytest.mark.parametrize("text", [
     "sales[t] = 1 + 0.5 sales[t-1] + 2 campaign[t-2]",
     "The coefficient at lag 1 affects demand as 0.7 * demand.",
+    r"X_1^{t} = -0.567 * X_0^{t-1} + 0.505 * X_1^{t-2}",
 ])
 def test_explicit_lag_relationship_router_is_syntax_based(text):
     assert _has_explicit_lag_relationship(text) is True

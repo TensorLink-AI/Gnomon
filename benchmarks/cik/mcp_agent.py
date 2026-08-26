@@ -476,7 +476,12 @@ def _has_explicit_lag_relationship(text: str) -> bool:
     numeric = bool(re.search(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)", text))
     lag = bool(
         re.search(r"\blag\s*[-_ ]?\d+\b", text, re.I)
-        or re.search(r"\b[A-Za-z_]\w*\s*[\[(]\s*t\s*-\s*\d+\s*[\])]", text))
+        or re.search(r"\b[A-Za-z_]\w*\s*[\[(]\s*t\s*-\s*\d+\s*[\])]", text)
+        # Scientific and business documents commonly render equations in
+        # LaTeX-ish superscript notation: X_1^{t-2}. Treating that as generic
+        # prose sends an exact relationship through the much larger universal
+        # dossier contract and makes extraction slower and less reliable.
+        or re.search(r"\b[A-Za-z_]\w*\s*\^\s*\{\s*t\s*-\s*\d+\s*\}", text))
     equation = "=" in text or bool(re.search(r"\b(coefficient|affects?)\b", text, re.I))
     return numeric and lag and equation
 
