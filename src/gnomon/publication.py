@@ -659,6 +659,37 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
             "supported", "context_trusted"})
     automation = bool(explicit_automation and policy_complete
                       and selected["automation_eligible"])
+    selected_role = str(selected.get("role") or "unknown")
+    if selection is not None:
+        selection_method = "governed_scenario_selection"
+    elif selected_role == "historically_admitted":
+        selection_method = "historical_evidence_dominance"
+    elif selected_role == "context_conditioned":
+        selection_method = "verified_context_contract"
+    elif selected_role == "fitted_context_candidate":
+        selection_method = "out_of_sample_evidence_dominance"
+    elif selected_role in {
+            "model_authored", "model_authored_transformation",
+            "effect_composed"}:
+        selection_method = "default_prior_assisted_lane"
+    else:
+        selection_method = "immutable_primary_default"
+    prior_assisted_default = selection_method == "default_prior_assisted_lane"
+    recommendation_authority = {
+        "selected_role": selected_role,
+        "selection_method": selection_method,
+        "independent_selection_performed": selection is not None,
+        "historically_admitted": selected_role == "historically_admitted",
+        "prior_assisted": selected.get("support") == "prior_assisted",
+        "human_review_required": bool(
+            prior_assisted_default or not selected.get("automation_eligible")),
+        "reason": (
+            "A sealed prior-assisted path is the human-facing best estimate, "
+            "but it was not independently ranked or historically admitted."
+            if prior_assisted_default else
+            "Recommendation authority follows the disclosed selection method."
+        ),
+    }
     payload = {
         "schema_version": PUBLICATION_VERSION, "artifact_id": artifact_id,
         "mode": mode, "recommended_scenario_id": selected_id,
@@ -675,6 +706,7 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
         "context_dispositions": dispositions,
         "temporal_state": build_temporal_state(result, dossiers=dossiers),
         "scenario_selection": selection,
+        "recommendation_authority": recommendation_authority,
         "automation": {
             "eligible": automation,
             "explicit_policy_supplied": bool(automation_policy),

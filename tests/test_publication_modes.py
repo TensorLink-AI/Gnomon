@@ -60,6 +60,12 @@ def test_best_effort_promotes_candidate_but_not_authority():
     assert payload["recommended_support"] == "prior_assisted"
     assert payload["primary_forecast"] == _result()["forecast"]
     assert payload["automation"]["eligible"] is False
+    authority = payload["recommendation_authority"]
+    assert authority["selection_method"] == "default_prior_assisted_lane"
+    assert authority["independent_selection_performed"] is False
+    assert authority["historically_admitted"] is False
+    assert authority["prior_assisted"] is True
+    assert authority["human_review_required"] is True
     assert verify_publication(payload)
 
 
@@ -124,6 +130,9 @@ def test_validated_context_event_is_citable_without_a_dossier_claim():
     payload = publish_result(result, mode="best_effort",
                              scenario_selection=selection)
     assert payload["scenario_selection"]["cited_claim_ids"] == ["event-1"]
+    authority = payload["recommendation_authority"]
+    assert authority["selection_method"] == "governed_scenario_selection"
+    assert authority["independent_selection_performed"] is True
     assert verify_publication(payload)
 
 

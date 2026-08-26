@@ -184,7 +184,9 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: typed disposition instead of disappearing between receipt and publication.
 #: Version 72: traces retain the bounded recovery path for every rejected
 #: context item, matching the human- and agent-facing publication envelope.
-MCP_CONTRACT_VERSION = 72
+#: Version 73: traces distinguish an independently selected recommendation
+#: from the default prior-assisted lane and disclose mandatory human review.
+MCP_CONTRACT_VERSION = 73
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -2191,6 +2193,8 @@ class _Run:
                             "primary_forecast_unchanged"),
                         "automation_eligible": (
                             publication.get("automation") or {}).get("eligible"),
+                        "recommendation_authority": publication.get(
+                            "recommendation_authority"),
                         "context_dispositions": [{
                             "context_id": item.get("context_id"),
                             "disposition": item.get("disposition"),
