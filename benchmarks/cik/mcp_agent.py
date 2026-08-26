@@ -80,7 +80,9 @@ MAX_RUN_TOKENS = 250_000
 #: citable evidence instead of being discarded by target projection.
 #: Version 23: transformation repair receives constant-specific verbatim
 #: source hints, while the model still has to cite and bind them explicitly.
-MCP_CONTRACT_VERSION = 23
+#: Version 24: exact relational context asks for a sealed probabilistic
+#: fallback alongside the safer executable transformation.
+MCP_CONTRACT_VERSION = 24
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -261,10 +263,14 @@ one JSON object with this shape:
 
 Rules:
 - Cite only exact spans present in context; never invent an event or source.
-- Prefer effect_proposal over forecast_candidate: extract a cited temporal
-  effect and let Gnomon compose the numbers. Use forecast_candidate only when
-  no typed effect can express the relationship. Never claim numeric values
-  came from text unless the cited span states them.
+- Prefer effect_proposal for a simple cited shift or pulse and let Gnomon
+  compose those numbers. For a precise multi-input relationship, physical
+  law, or piecewise schedule, provide the safe transformation and ALSO a
+  forecast_candidate as a sealed fallback when you can compute a useful
+  probabilistic path. The fallback remains prior_assisted, cannot automate,
+  and never replaces the immutable primary. Never claim numeric values came
+  from text unless the cited span states them; derived candidate values must
+  explain their arithmetic in the rationale.
 - Effect location/lower/upper are changes added to the primary path, not target
   values. A stated level of "4 times usual" is therefore an additive
   fraction_of_level change of 3.0, not 4.0; Gnomon rechecks this arithmetic

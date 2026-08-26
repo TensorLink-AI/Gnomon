@@ -544,6 +544,54 @@ def test_transformation_gets_one_bounded_provenance_repair(tmp_path):
     assert client.total_prompt_tokens >= 200
 
 
+def test_sealed_candidate_survives_rejected_relational_transform(tmp_path):
+    task = _task()
+    span = "A new policy makes each future value exactly half the usual value."
+    task.scenario = span
+    rows = [{"timestamp": stamp, "q10": 124 + index,
+             "q50": 127 + index, "q90": 130 + index}
+            for index, stamp in enumerate(task.future_time)]
+    compiler_output = json.dumps({
+        "events": [],
+        "claims": [{
+            "source_span": span, "relation": "supports_decrease",
+            "effective_start": task.future_time[0],
+            "effective_end": task.future_time[-1],
+            "mechanism": "stated multiplicative rule", "confidence": .9,
+        }],
+        "forecast_candidate": {
+            "quantiles": rows,
+            "rationale": "A sealed probabilistic fallback to the relation.",
+        },
+        "transformations": [{"transformation": {
+            "known_at": task.past_time[-1][0], "claim_ids": ["claim-1"],
+            "lane": "prior_assisted", "output_unit": "unknown",
+            "expression": {"op": "multiply", "args": [
+                {"op": "primary", "quantile": "q50"},
+                {"op": "literal", "value": .7,
+                 "unit": "dimensionless"},
+            ]},
+        }}],
+    })
+    forecaster = McpAgentForecaster(
+        "x/y", client=ScriptedClient(
+            [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+            compiler_output),
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+    samples, extra = forecaster(task, 1)
+
+    assert [row[0] for row in samples[0]] == [127, 128, 129, 130]
+    assert extra["publication"]["recommended_scenario_id"] == "prior-assisted-1"
+    assert extra["publication"]["primary_forecast_unchanged"] is True
+    assert extra["publication"]["automation"]["eligible"] is False
+    receipt = json.loads(Path(
+        extra["context_compilation"]["receipt_path"]).read_text())
+    assert any("transformation_preflight_rejected" in reason
+               for reason in receipt["rejections"])
+
+
 def test_shadow_role_requires_evidence_profile():
     with pytest.raises(ValueError, match="requires the evidence profile"):
         McpAgentForecaster("x/y", profile="full",
