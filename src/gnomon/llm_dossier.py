@@ -175,11 +175,29 @@ def deterministic_events_from_claims(dossier: dict[str, Any]) -> list[dict[str, 
     scenarios. Returned objects intentionally re-enter the ordinary context
     validator rather than bypassing it.
     """
-    from .future_context import parse_override_span
+    from .future_context import parse_bound_span, parse_override_span
 
     events = []
     for index, claim in enumerate(dossier.get("claims") or [], 1):
         span = str(claim.get("source_span") or "")
+        if claim.get("relation") == "constrains_range":
+            bound, problem = parse_bound_span(span)
+            if problem is None and bound is not None:
+                events.append({
+                    "event_type": "constraint:stated_range",
+                    "entity_scope": ["*"],
+                    "effective_start": claim["effective_start"],
+                    "effective_end": claim["effective_end"],
+                    "confidence": claim.get("confidence", 1.0),
+                    "status": "confirmed", "evidence_quote": span,
+                    "source_span": span, "effect_family": "saturation_bound",
+                    "direction": "unknown", "duration": "temporary",
+                    "entity_kind": "unknown",
+                    "deterministic_bound_parsed": {
+                        "min": bound.minimum, "max": bound.maximum},
+                    "derived_from_claim_id": claim.get("claim_id") or f"claim-{index}",
+                })
+                continue
         value, problem = parse_override_span(span)
         if problem is not None or value is None:
             continue
