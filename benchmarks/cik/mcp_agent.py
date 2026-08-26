@@ -45,7 +45,8 @@ from benchmarks.common.openrouter import (  # noqa: E402
 MAX_ROUNDS = 10
 MAX_MCP_CALLS = 24
 MAX_RUN_TOKENS = 250_000
-MAX_CONTEXT_COMPILATION_SECONDS = 120
+MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
+    300.0, float(os.environ.get("GNOMON_CONTEXT_COMPILATION_SECONDS", "60"))))
 #: Bump when the system prompt, the caps, or the submit contract change:
 #: the official cache reuses results by cache_name, and a cached run made
 #: under an older contract is a different measurement wearing the same
@@ -149,7 +150,9 @@ MAX_CONTEXT_COMPILATION_SECONDS = 120
 #: transformation over the same claims, including a failed replay gate.
 #: Version 55: compilation and its sole repair share one end-to-end deadline;
 #: traces disclose per-stage latency instead of hiding stacked waits.
-MCP_CONTRACT_VERSION = 55
+#: Version 56: the interactive default deadline is 60 seconds and is explicitly
+#: configurable for offline evaluation.
+MCP_CONTRACT_VERSION = 56
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it

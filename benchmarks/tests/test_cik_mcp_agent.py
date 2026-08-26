@@ -598,7 +598,7 @@ def test_transformation_gets_one_bounded_provenance_repair(tmp_path):
     assert client.total_prompt_tokens >= 200
     assert client.completion_temperatures == [0, 0]
     assert client.completion_reasoning_efforts == ["none", "none"]
-    assert client.completion_request_timeouts == [120, 120]
+    assert client.completion_request_timeouts == [60, 60]
     assert client.completion_transport_retries == [0, 0]
 
 
