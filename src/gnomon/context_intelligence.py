@@ -453,25 +453,31 @@ def execute_transformation(
         if not isinstance(supplied, dict):
             raise TransformationError(
                 "UNVERSIONED_FUTURE_SERIES", f"series_values.{name}",
-                "Future series require values, known_at, and source_claim_id.")
+                "Future series require values, known_at, and source_claim_id(s).")
         known_at = _aware(supplied.get("known_at"))
         cutoff = _aware(compiled.get("cutoff"))
-        source_claim = str(supplied.get("source_claim_id") or "")
+        source_claims = [str(value) for value in
+                         supplied.get("source_claim_ids") or []]
+        singular_claim = str(supplied.get("source_claim_id") or "")
+        if singular_claim:
+            source_claims.append(singular_claim)
+        source_claims = sorted(set(source_claims))
         if known_at is None or cutoff is None or known_at > cutoff:
             raise TransformationError(
                 "FUTURE_SERIES_NOT_KNOWN_AT_CUTOFF", f"series_values.{name}.known_at",
                 "Future input was not knowable at the forecast cutoff.")
-        if source_claim not in compiled["claim_ids"]:
+        if not source_claims or set(source_claims) - set(compiled["claim_ids"]):
             raise TransformationError(
-                "UNVERIFIED_FUTURE_SERIES", f"series_values.{name}.source_claim_id",
-                "Future input must cite one of the transformation's verified claims.")
+                "UNVERIFIED_FUTURE_SERIES", f"series_values.{name}.source_claim_ids",
+                "Future input must cite one or more of the transformation's verified claims.")
         values = supplied.get("values")
         if not isinstance(values, list):
             raise TransformationError(
                 "INVALID_FUTURE_SERIES", f"series_values.{name}.values",
                 "Future input values must be an array.")
         finite_values = [_finite(value, name) for value in values]
-        span = str((claim_spans or {}).get(source_claim) or "")
+        span = " ".join(str((claim_spans or {}).get(claim_id) or "")
+                        for claim_id in source_claims)
         cited_numbers = []
         for token in re.findall(
                 r"(?<![\w.])[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?",

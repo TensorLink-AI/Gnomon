@@ -292,6 +292,27 @@ def test_future_series_requires_point_in_time_claim_provenance():
     assert [row["q50"] for row in result["forecast"]] == [12, 15]
 
 
+def test_future_series_may_union_multiple_verified_schedule_claims():
+    raw = {
+        "known_at": _stamp(5), "claim_ids": ["claim-1", "claim-2"],
+        "lane": "prior_assisted", "output_unit": "items",
+        "expression": {"op": "series", "name": "schedule"},
+    }
+    compiled = validate_transformation(
+        raw, series=["schedule"], claim_ids=["claim-1", "claim-2"],
+        cutoff=_stamp(5), units={"schedule": "items"})
+    result = execute_transformation(
+        compiled,
+        primary=[{"timestamp": _stamp(6), "point": 0, "q50": 0},
+                 {"timestamp": _stamp(7), "point": 0, "q50": 0}],
+        series_values={"schedule": {
+            "values": [4, 9], "known_at": _stamp(5),
+            "source_claim_ids": ["claim-1", "claim-2"]}},
+        claim_spans={"claim-1": "first period is 4",
+                     "claim-2": "second period is 9"})
+    assert [row["q50"] for row in result["forecast"]] == [4, 9]
+
+
 def test_llm_common_ast_aliases_are_canonicalized_without_eval():
     raw = {
         "known_at": _stamp(5), "claim_ids": ["claim-1"],

@@ -71,9 +71,9 @@ MAX_RUN_TOKENS = 250_000
 #: context_trusted path; selection remains autonomous among evidence peers.
 #: Version 12: the host skips the selector call when the product contract says
 #: evidence already makes the recommendation non-discretionary.
-#: Version 19: every AST constant is source-entailed; model-computed numbers
-#: in rationales cannot acquire authority through a valid claim ID.
-MCP_CONTRACT_VERSION = 19
+#: Version 20: future schedules may cite multiple verified spans; each value
+#: remains source-entailed and every source belongs to the transformation.
+MCP_CONTRACT_VERSION = 20
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -247,7 +247,7 @@ one JSON object with this shape:
                "future_input": "declared target unit"},
      "series_values": {
        "future_input": {"values": [0.0], "known_at": "history cutoff ISO",
-                        "source_claim_id": "claim-1"}}
+                        "source_claim_ids": ["claim-1"]}
     }
   ]
 }
@@ -307,8 +307,10 @@ Rules:
   Unary change/rolling/clip/quantile nodes likewise put the child in a
   one-element `args` array and their parameter beside it. Every referenced
   series name must exactly match a `series_values` key, whose values array has
-  exactly one item per forecast timestamp. Use canonical claim IDs (`claim-1`,
-  `claim-2`, ...) in their verified claim order.
+  exactly one item per forecast timestamp. When a schedule is split across
+  spans, `source_claim_ids` cites every claim needed to entail all distinct
+  values, and the transformation's own `claim_ids` includes them. Use
+  canonical claim IDs (`claim-1`, `claim-2`, ...) in verified claim order.
 - For a cited reference law use the compact safe macro
   `{"op":"reference_power","series":"driver","input_reference":{"value":3000,"unit":"rpm"},"output_reference":{"value":37.5,"unit":"Pa"},"exponent":2}`.
   It means `37.5 Pa * (driver / 3000 rpm)^2`; Gnomon expands and seals it as
