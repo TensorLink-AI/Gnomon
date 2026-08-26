@@ -4,7 +4,9 @@ import pytest
 
 from gnomon.context_intelligence import (
     align_vintage_rows, candidate_evidence_score, compile_context_hypotheses,
+    compile_transformation, execute_transformation, TransformationError,
     fit_historical_analogue, fit_lagged_relationship, fit_vintage_exogenous,
+    validate_transformation,
 )
 from gnomon.publication import publish_result, verify_publication
 
@@ -160,3 +162,124 @@ def test_llm_cannot_override_uniquely_decisive_candidate():
             "confidence": .9, "rationale": "I prefer the primary",
             "what_would_change_selection": "more evidence",
         })
+
+
+def _transform(lane="scenario_only"):
+    return {
+        "known_at": _stamp(5), "claim_ids": ["claim-1"], "lane": lane,
+        "output_unit": "usd",
+        "expression": {"op": "add", "args": [
+            {"op": "primary", "quantile": "q50"},
+            {"op": "literal", "value": 2, "unit": "usd"},
+        ]},
+    }
+
+
+def test_safe_transformation_executes_without_code_surface():
+    compiled = validate_transformation(
+        _transform(), series=[], claim_ids=["claim-1"], cutoff=_stamp(5),
+        units={"primary": "usd"})
+    primary = [{"timestamp": _stamp(6), "q10": 9, "q50": 10,
+                "q90": 11, "point": 10},
+               {"timestamp": _stamp(7), "q10": 10, "q50": 11,
+                "q90": 12, "point": 11}]
+    result = execute_transformation(compiled, primary=primary)
+    assert [row["q50"] for row in result["forecast"]] == [12, 13]
+    assert result["forecast"][0]["q10"] == 11
+    assert result["forecast"][0]["q90"] == 13
+    assert result["lane"] == "scenario_only"
+    assert result["automation_eligible"] is False
+    assert result["primary_forecast_unchanged"] is True
+
+
+def test_transformation_rejects_code_unknown_series_and_future_knowledge():
+    for raw, code in [
+        ({**_transform(), "expression": {"op": "python", "code": "open('/etc/passwd')"}},
+         "UNSAFE_OR_UNKNOWN_OPERATOR"),
+        ({**_transform(), "expression": {"op": "series", "name": "secret"}},
+         "UNKNOWN_SERIES"),
+        ({**_transform(), "known_at": _stamp(9)}, "NOT_KNOWN_AT_CUTOFF"),
+    ]:
+        with pytest.raises(TransformationError) as caught:
+            validate_transformation(raw, series=["sales"],
+                                    claim_ids=["claim-1"], cutoff=_stamp(5))
+        assert caught.value.code == code
+
+
+def test_transformation_repair_is_once_and_field_bounded():
+    broken = {**_transform(), "output_unit": "items"}
+    repaired = _transform()
+    compiled, critique = compile_transformation(
+        broken, series=[], claim_ids=["claim-1"], cutoff=_stamp(5),
+        units={"primary": "usd"}, repair=repaired)
+    assert compiled is not None
+    assert critique["status"] == "repaired"
+    assert critique["attempts_used"] == 2
+
+    future = {**broken, "known_at": _stamp(9)}
+    rewrite = {**_transform(), "known_at": _stamp(5), "lane": "prior_assisted"}
+    compiled, critique = compile_transformation(
+        future, series=[], claim_ids=["claim-1"], cutoff=_stamp(5),
+        units={"primary": "usd"}, repair=rewrite)
+    assert compiled is None
+    assert critique["violations"][-1]["code"] == "REPAIR_CHANGED_UNRELATED_FIELDS"
+
+
+def test_historical_transformation_requires_fold_safe_evidence():
+    compiled = validate_transformation(
+        _transform("historically_testable"), series=[],
+        claim_ids=["claim-1"], cutoff=_stamp(5), units={"primary": "usd"})
+    primary = [{"timestamp": _stamp(6), "q50": 10, "point": 10}]
+    with pytest.raises(TransformationError, match="per-origin"):
+        execute_transformation(
+            compiled, primary=primary,
+            historical_validation={"skill": .2, "validation_points": 20,
+                                   "beats_baseline": True})
+    result = execute_transformation(
+        compiled, primary=primary,
+        historical_validation={"skill": .2, "validation_points": 20,
+                               "beats_baseline": True,
+                               "per_origin_knowledge_checked": True})
+    assert candidate_evidence_score(result)["decisive"] is True
+
+
+def test_transformation_lanes_use_existing_publication_authority_ladder():
+    primary = [{"timestamp": _stamp(6), "q50": 10, "point": 10}]
+    compiled = validate_transformation(
+        _transform("prior_assisted"), series=[], claim_ids=["claim-1"],
+        cutoff=_stamp(5), units={"primary": "usd"})
+    candidate = execute_transformation(compiled, primary=primary)
+    result = {"support": "supported", "forecast": primary,
+              "transformation_candidates": [candidate]}
+    strict = publish_result(result, mode="strict")
+    best = publish_result(result, mode="best_effort")
+    assert strict["recommended_scenario_id"] == "primary"
+    assert best["recommended_scenario_id"] == "transformation-1"
+    assert best["recommended_support"] == "prior_assisted"
+    assert best["automation"]["eligible"] is False
+    assert best["primary_forecast"] == primary
+    assert verify_publication(strict) and verify_publication(best)
+
+
+def test_future_series_requires_point_in_time_claim_provenance():
+    raw = {
+        "known_at": _stamp(5), "claim_ids": ["claim-1"],
+        "lane": "prior_assisted", "output_unit": "usd",
+        "expression": {"op": "multiply", "args": [
+            {"op": "series", "name": "units"},
+            {"op": "literal", "value": 3, "unit": "usd/items"},
+        ]},
+    }
+    compiled = validate_transformation(
+        raw, series=["units"], claim_ids=["claim-1"], cutoff=_stamp(5),
+        units={"units": "items"})
+    primary = [{"timestamp": _stamp(6), "q50": 0, "point": 0},
+               {"timestamp": _stamp(7), "q50": 0, "point": 0}]
+    with pytest.raises(TransformationError) as caught:
+        execute_transformation(compiled, primary=primary,
+                               series_values={"units": [4, 5]})
+    assert caught.value.code == "UNVERSIONED_FUTURE_SERIES"
+    result = execute_transformation(compiled, primary=primary, series_values={
+        "units": {"values": [4, 5], "known_at": _stamp(5),
+                  "source_claim_id": "claim-1"}})
+    assert [row["q50"] for row in result["forecast"]] == [12, 15]

@@ -427,6 +427,49 @@ def test_best_effort_role_uses_verified_product_publication(tmp_path):
     assert extra["publication"]["automation"]["eligible"] is False
 
 
+def test_best_effort_role_exercises_live_safe_transformation_surface(tmp_path):
+    task = _task()
+    span = "A new policy makes each future value exactly half the usual value."
+    task.scenario = span
+    compiler_output = json.dumps({
+        "events": [],
+        "claims": [{
+            "source_span": span, "relation": "supports_decrease",
+            "effective_start": task.future_time[0],
+            "effective_end": task.future_time[-1],
+            "mechanism": "stated multiplicative rule", "confidence": .9,
+        }],
+        "transformations": [{"transformation": {
+            "known_at": task.past_time[-1][0], "claim_ids": ["claim-1"],
+            "lane": "prior_assisted", "output_unit": "unknown",
+            "expression": {"op": "multiply", "args": [
+                {"op": "primary", "quantile": "q50"},
+                {"op": "literal", "value": .5,
+                 "unit": "dimensionless"},
+            ]},
+        }}],
+    })
+    sessions = []
+    def factory(cwd):
+        session = InProcessMcpSession(cwd)
+        sessions.append(session)
+        return session
+    forecaster = McpAgentForecaster(
+        "x/y", client=ScriptedClient(
+            [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+            compiler_output),
+        session_factory=factory, work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+    _, extra = forecaster(task, 1)
+    publication = extra["publication"]
+    assert extra["context_compilation"]["transformations_proposed"] == 1
+    assert sessions[0].calls[0][1]["context_submission"]["transformations"]
+    assert publication["recommended_scenario_id"] == "transformation-1"
+    assert publication["recommended_support"] == "prior_assisted"
+    assert publication["automation"]["eligible"] is False
+    assert publication["primary_forecast_unchanged"] is True
+
+
 def test_shadow_role_requires_evidence_profile():
     with pytest.raises(ValueError, match="requires the evidence profile"):
         McpAgentForecaster("x/y", profile="full",

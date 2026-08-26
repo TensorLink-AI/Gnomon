@@ -130,6 +130,15 @@ def build_scenario_catalog(result: dict[str, Any], *,
             "supported", "context_trusted"},
     )]
     dispositions: list[dict[str, Any]] = []
+    dispositions.extend({
+        "context_id": str(item.get("transformation_id") or
+                          f"transformation-rejection-{index}"),
+        "disposition": "rejected",
+        "reason_code": str(item.get("reason_code") or "invalid_transformation"),
+        "reason": str(item.get("reason") or "Transformation validation failed."),
+        "violations": list(item.get("violations") or []),
+    } for index, item in enumerate(
+        result.get("transformation_rejections") or [], 1))
     context_outcome = result.get("context_outcome") or {}
     historically_admitted = (
         context_outcome.get("admission_basis") == "historical_fold_ablation")
@@ -181,6 +190,54 @@ def build_scenario_catalog(result: dict[str, Any], *,
             "disposition": "scenario", "reason_code": (
                 "out_of_sample_candidate_admitted" if evidence["decisive"]
                 else "candidate_retained_but_not_admitted"),
+            "scenario_ids": [identifier], "evidence": evidence,
+        })
+
+    # Safe declarative transformations are executed before this seam and
+    # arrive with a validator seal.  Publication never evaluates expressions;
+    # it only authenticates the sealed numeric candidate and assigns authority
+    # from its evidence lane.
+    for index, raw in enumerate(result.get("transformation_candidates") or [], 1):
+        identifier = f"transformation-{index}"
+        rows = _rows(raw.get("forecast"))
+        source_seal = str(raw.get("source_seal_sha256") or "")
+        candidate_id = str(raw.get("transformation_id") or identifier)
+        lane = str(raw.get("lane") or "scenario_only")
+        validation = raw.get("validation") or {}
+        valid = bool(
+            rows and len(rows) == len(primary) and source_seal
+            and raw.get("primary_forecast_unchanged") is True
+            and lane in {"historically_testable", "prior_assisted", "scenario_only"})
+        if not valid:
+            dispositions.append({
+                "context_id": candidate_id, "disposition": "rejected",
+                "reason_code": "invalid_transformation_candidate",
+                "reason": "A transformation requires a seal, a matching horizon, and a known lane.",
+            })
+            continue
+        evidence = candidate_evidence_score(raw)
+        admitted = lane == "historically_testable" and evidence["decisive"]
+        support = ("conditionally_supported" if admitted else
+                   "prior_assisted" if lane == "prior_assisted" else
+                   "hypothetical_sensitivity")
+        scenarios.append(_scenario(
+            identifier, "historically_admitted" if admitted
+            else "model_authored_transformation", rows,
+            support=support, automation_eligible=False,
+            claim_ids=[str(item) for item in raw.get("claim_ids") or []],
+            assumptions=[f"declarative transformation lane={lane}"],
+            source_seal=source_seal,
+            effect={"evidence": evidence, "validation": validation,
+                    "transformation_id": candidate_id, "lane": lane},
+        ))
+        dispositions.append({
+            "context_id": candidate_id,
+            "disposition": "used" if admitted else "scenario",
+            "reason_code": ("historically_tested_transformation_admitted"
+                            if admitted else
+                            "prior_assisted_transformation"
+                            if lane == "prior_assisted" else
+                            "scenario_only_transformation"),
             "scenario_ids": [identifier], "evidence": evidence,
         })
 
@@ -289,6 +346,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
             "fitted_context_candidate": 80,
             "effect_composed": 70,
             "model_authored": 60,
+            "model_authored_transformation": 60,
             "conditional_sensitivity": 50,
         }
         ranked = sorted(
@@ -454,7 +512,8 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
                 key=lambda item: item["effect"]["evidence"]["score"]
             )["scenario_id"]
         selected_id = selected_id or next((item["scenario_id"] for item in scenarios
-                            if item["role"] in {"effect_composed", "model_authored"}),
+                            if item["role"] in {"effect_composed", "model_authored",
+                                                "model_authored_transformation"}),
                            "primary")
     else:
         selected_id = "primary"

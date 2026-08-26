@@ -73,7 +73,7 @@ MAX_RUN_TOKENS = 250_000
 #: evidence already makes the recommendation non-discretionary.
 #: Version 13: engine-composed effects must pass scale and sign plausibility;
 #: typing and citations alone no longer make a numeric path recommendable.
-MCP_CONTRACT_VERSION = 13
+MCP_CONTRACT_VERSION = 14
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -235,6 +235,18 @@ one JSON object with this shape:
                 "value": 0.0,
                 "evidence_quote": "verbatim context span containing both the time and numeric value"}]}
   ]
+  ,"transformations": [
+    {"transformation": {
+       "known_at": "history cutoff ISO", "claim_ids": ["claim-1"],
+       "lane": "historically_testable | prior_assisted | scenario_only",
+       "output_unit": "declared target unit",
+       "expression": {"op": "approved declarative operator"}},
+     "units": {"primary": "declared target unit"},
+     "series_values": {
+       "future_input": {"values": [0.0], "known_at": "history cutoff ISO",
+                        "source_claim_id": "claim-1"}}
+    }
+  ]
 }
 
 Rules:
@@ -267,6 +279,16 @@ Rules:
   values from adjectives, interpolate missing rows, or supply known_at; the
   host owns knowledge time. Gnomon will test surviving tables out of sample
   before they may influence the canonical forecast.
+- Transformations are a restricted declarative lane, never code. Approved
+  operators are literal, primary, series, add, subtract, multiply, divide,
+  lag, difference, percent_change, rolling_mean, clip, and quantile. Use a
+  transformation only when cited context states a precise prospective rule or
+  supplies every future input value. Constants and future values must be
+  verbatim-entailable from cited claims; do not extrapolate or fill them. Use
+  `historically_testable` only when the relationship can be replayed from
+  point-in-time history, `prior_assisted` for a precise stated future rule,
+  and `scenario_only` when it is merely conditional. The engine validates and
+  seals the AST; it never executes generated Python, SQL, or expressions.
 - Use no observations after the history cutoff. Return empty arrays and null
   effect_proposal and forecast_candidate when context contains no
   forecast-relevant information.
@@ -816,9 +838,10 @@ class McpAgentForecaster:
                 "support": extra_info.get("support") or "best_effort",
                 "forecast": submission,
             }
+            live_publication = getattr(run, "_publication", None)
             selection = None
             selection_error = None
-            if self.output_role == "publication_best_effort":
+            if self.output_role == "publication_best_effort" and not live_publication:
                 from gnomon.publication import (build_scenario_catalog,
                                                 scenario_selection_contract,
                                                 validate_scenario_selection)
@@ -864,15 +887,23 @@ class McpAgentForecaster:
                             selection = None
                     if selection is None:
                         selection_error = f"selector rejected after repair: {last_error}"
-            try:
-                publication = publish_result(
-                    artifact_result, mode="best_effort", dossiers=[dossier],
-                    scenario_selection=selection)
-            except ValueError as error:
-                selection_error = f"selector rejected: {error}"
-                selection = None
-                publication = publish_result(
-                    artifact_result, mode="best_effort", dossiers=[dossier])
+            if self.output_role == "publication_best_effort" and live_publication:
+                # This is the product result returned by the real MCP call,
+                # including typed transformation use/rejection. Do not rebuild
+                # a benchmark-only projection over the artifact.
+                publication = live_publication
+                selection_error = "live MCP publication used"
+                selection = publication.get("scenario_selection")
+            else:
+                try:
+                    publication = publish_result(
+                        artifact_result, mode="best_effort", dossiers=[dossier],
+                        scenario_selection=selection)
+                except ValueError as error:
+                    selection_error = f"selector rejected: {error}"
+                    selection = None
+                    publication = publish_result(
+                        artifact_result, mode="best_effort", dossiers=[dossier])
             if not verify_publication(publication):
                 raise RuntimeError("best-effort publication failed verification")
             submission = publication["recommended_forecast"]
@@ -1096,6 +1127,7 @@ class _Run:
             "hypotheses": compilation["hypotheses"],
             "dossier": dossier,
             "covariates": covariate_receipt,
+            "transformations": list(raw.get("transformations") or [])[:6],
             "rejections": list(rejections),
             "future_observations_exposed": False,
         }
@@ -1158,6 +1190,8 @@ class _Run:
                         "covariates"]["rows_proposed"],
                     "covariate_rows_validated": self.context_compilation[
                         "covariates"]["rows_validated"],
+                    "transformations_proposed": len(
+                        self.context_compilation.get("transformations") or []),
                     "rejection_count": len(self.context_compilation["rejections"]),
                     "future_observations_exposed": False,
                 }
@@ -1305,6 +1339,15 @@ class _Run:
                 "output_dir": str(self.jail / "gnomon-output"),
                 "format": "brief",
             }
+            if self.forecaster.output_role == "publication_best_effort":
+                arguments.update({
+                    "publication_mode": "best_effort",
+                    "temporal_dossiers": [receipt.get("dossier") or {}],
+                    "context_submission": {
+                        "known_at": self.timestamps[-1],
+                        "transformations": receipt.get("transformations") or [],
+                    },
+                })
             entry["host_context_binding"] = {
                 "receipt_sha256": (receipt.get("source") or {}).get("sha256"),
                 "events": len(receipt.get("events") or []),
@@ -1349,6 +1392,8 @@ class _Run:
                 if results and isinstance(results[0], dict):
                     entry["context_outcome"] = results[0].get("context_outcome")
                     entry["support"] = results[0].get("support")
+                if structured.get("publication"):
+                    self._publication = structured["publication"]
                 if (self.governed_evidence and name == "gnomon_forecast"
                         and self.submission is None):
                     # Evidence is a governed product arm. Once the agent has
@@ -1499,6 +1544,8 @@ class _Run:
                     "covariates"]["rows_proposed"],
                 "covariate_rows_validated": self.context_compilation[
                     "covariates"]["rows_validated"],
+                "transformations_proposed": len(
+                    self.context_compilation.get("transformations") or []),
                 "rejection_count": len(self.context_compilation["rejections"]),
                 "future_observations_exposed": False,
             }

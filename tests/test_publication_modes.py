@@ -238,3 +238,32 @@ def test_scenario_overflow_is_bounded_with_typed_dispositions():
     assert any(item["reason_code"] == "bounded_portfolio_overflow"
                for item in payload["context_dispositions"])
     assert verify_publication(payload)
+
+
+def test_mcp_context_transformation_rejection_is_typed_and_primary_is_intact(tmp_path):
+    from datetime import date, timedelta
+    source = tmp_path / "series.csv"
+    start = date(2026, 1, 1)
+    source.write_text("timestamp,value\n" + "\n".join(
+        f"{start + timedelta(days=i)},{100 + i}" for i in range(40)) + "\n")
+    payload = runner_for("gnomon_forecast")({
+        "input": str(source), "horizon": 2,
+        "output_dir": str(tmp_path / "out"),
+        "publication_mode": "scenario",
+        "context_submission": {
+            "known_at": "2026-02-09T00:00:00+00:00",
+            "transformations": [{
+                "known_at": "2026-02-09T00:00:00+00:00",
+                "claim_ids": ["invented"], "lane": "prior_assisted",
+                "expression": {"op": "python", "code": "raise SystemExit"},
+            }],
+        },
+    })
+    publication = payload["publication"]
+    assert publication["recommended_scenario_id"] == "primary"
+    assert publication["primary_forecast"] == publication["recommended_forecast"]
+    rejection = next(item for item in publication["context_dispositions"]
+                     if item["reason_code"] == "transformation_validation_failed")
+    assert rejection["violations"][0]["code"] == "UNVERIFIED_CLAIMS"
+    assert publication["automation"]["eligible"] is False
+    assert verify_publication(publication)

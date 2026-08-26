@@ -768,6 +768,7 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "scenario_selection": "data", "context_submission": "data",
     "context_text": "data", "context_known_at": "data",
     "context_proposal": "data", "context_compiler_model": "data",
+    "context_transformation": "data", "transformations": "data",
     "outcome": "data", "resolved_at": "data",
     # -- epistemic ---------------------------------------------------------
     "minimum_baseline_improvement": "epistemic",

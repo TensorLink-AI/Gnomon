@@ -20,10 +20,387 @@ from .effect_proposals import validate_effect_proposal
 from .statistical_executables import fit_regression_executable
 
 MAX_HYPOTHESES = 6
+MAX_TRANSFORM_NODES = 48
+MAX_TRANSFORM_DEPTH = 8
+TRANSFORM_OPS = frozenset({
+    "literal", "series", "primary", "add", "subtract", "multiply",
+    "divide", "lag", "difference", "percent_change", "rolling_mean",
+    "clip", "quantile",
+})
 HYPOTHESIS_KINDS = frozenset({
     "absolute_value", "bound", "additive_change", "multiplicative_change",
     "regime_shift", "relationship", "historical_analogue", "unsupported",
 })
+
+
+class TransformationError(ValueError):
+    """A typed, user-repairable rejection of a declarative transformation."""
+
+    def __init__(self, code: str, field: str, message: str):
+        super().__init__(message)
+        self.code = code
+        self.field = field
+        self.message = message
+
+    def as_dict(self) -> dict[str, str]:
+        return {"field": self.field, "code": self.code,
+                "message": self.message}
+
+
+def _finite(value: Any, field: str) -> float:
+    try:
+        number = float(value)
+    except (TypeError, ValueError) as exc:
+        raise TransformationError(
+            "NON_NUMERIC_VALUE", field, "Expected a numeric value.") from exc
+    if not math.isfinite(number):
+        raise TransformationError(
+            "NON_FINITE_VALUE", field, "NaN and infinity are not executable.")
+    return number
+
+
+def validate_transformation(
+    raw: Any, *, series: list[str], claim_ids: list[str], cutoff: str,
+    units: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Compile a small declarative expression without executing model code.
+
+    The returned object is canonical and content-addressed.  It contains only
+    approved operations, resolved series names, traceable constants and a
+    knowledge timestamp no later than ``cutoff``.
+    """
+    if not isinstance(raw, dict):
+        raise TransformationError(
+            "TRANSFORMATION_NOT_OBJECT", "$", "Transformation must be an object.")
+    cutoff_dt = _aware(cutoff)
+    known_at = _aware(raw.get("known_at", cutoff))
+    if cutoff_dt is None or known_at is None or known_at > cutoff_dt:
+        raise TransformationError(
+            "NOT_KNOWN_AT_CUTOFF", "known_at",
+            "Transformation knowledge must be timestamped at or before cutoff.")
+    cited = sorted({str(value) for value in raw.get("claim_ids") or []})
+    if not cited or set(cited) - set(claim_ids):
+        raise TransformationError(
+            "UNVERIFIED_CLAIMS", "claim_ids",
+            "Every transformation must cite verified context claims.")
+    expression = raw.get("expression")
+    state = {"nodes": 0}
+    normalized, inferred_unit = _validate_expression(
+        expression, path="expression", depth=0, state=state,
+        series=set(series), units=units or {})
+    declared_unit = str(raw.get("output_unit") or inferred_unit or "unknown")
+    if inferred_unit not in {None, "unknown", declared_unit}:
+        raise TransformationError(
+            "OUTPUT_UNIT_MISMATCH", "output_unit",
+            f"Expression yields {inferred_unit!r}, not {declared_unit!r}.")
+    lane = str(raw.get("lane") or "scenario_only")
+    if lane not in {"historically_testable", "prior_assisted", "scenario_only"}:
+        raise TransformationError(
+            "UNKNOWN_CANDIDATE_LANE", "lane", "Unknown candidate lane.")
+    payload = {
+        "language": "gnomon_transform", "version": "0.1", "lane": lane,
+        "claim_ids": cited, "known_at": known_at.isoformat(),
+        "cutoff": cutoff_dt.isoformat(),
+        "output_unit": declared_unit, "expression": normalized,
+        "validation": {"approved_ast": True, "nodes": state["nodes"],
+                       "maximum_nodes": MAX_TRANSFORM_NODES,
+                       "maximum_depth": MAX_TRANSFORM_DEPTH,
+                       "known_at_cutoff": True, "units_checked": True},
+    }
+    payload["transformation_id"] = "transform-" + hashlib.sha256(
+        _canonical(payload).encode()).hexdigest()[:16]
+    payload["seal_sha256"] = hashlib.sha256(
+        _canonical(payload).encode()).hexdigest()
+    return payload
+
+
+def compile_transformation(
+    raw: Any, *, series: list[str], claim_ids: list[str], cutoff: str,
+    units: dict[str, str] | None = None, repair: Any = None,
+) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+    """Validate once and permit exactly one field-bounded repair.
+
+    The repair may alter only the top-level field implicated by the first
+    typed violation.  This keeps repair useful for schema mistakes without
+    allowing the model to replace the claim, lane, and expression together.
+    """
+    try:
+        compiled = validate_transformation(
+            raw, series=series, claim_ids=claim_ids, cutoff=cutoff, units=units)
+        return compiled, {"status": "accepted", "attempts_used": 1,
+                          "attempts_remaining": 1, "violations": []}
+    except TransformationError as first:
+        violation = first.as_dict()
+    if repair in (None, {}) or not isinstance(raw, dict) or not isinstance(repair, dict):
+        return None, {"status": "rejected", "attempts_used": 1,
+                      "attempts_remaining": 1, "violations": [violation]}
+    repairable = violation["field"].split(".", 1)[0].split("[", 1)[0]
+    changed = {key for key in set(raw) | set(repair)
+               if raw.get(key) != repair.get(key)}
+    if changed - {repairable}:
+        bounded = {"field": "$", "code": "REPAIR_CHANGED_UNRELATED_FIELDS",
+                   "message": "Repair may change only the field named by the first violation."}
+        return None, {"status": "rejected", "attempts_used": 2,
+                      "attempts_remaining": 0,
+                      "violations": [violation, bounded]}
+    try:
+        compiled = validate_transformation(
+            repair, series=series, claim_ids=claim_ids, cutoff=cutoff, units=units)
+        return compiled, {"status": "repaired", "attempts_used": 2,
+                          "attempts_remaining": 0,
+                          "violations": [violation]}
+    except TransformationError as second:
+        return None, {"status": "rejected", "attempts_used": 2,
+                      "attempts_remaining": 0,
+                      "violations": [violation, second.as_dict()]}
+
+
+def _validate_expression(node: Any, *, path: str, depth: int,
+                         state: dict[str, int], series: set[str],
+                         units: dict[str, str]) -> tuple[dict[str, Any], str | None]:
+    if depth > MAX_TRANSFORM_DEPTH:
+        raise TransformationError("EXPRESSION_TOO_DEEP", path,
+                                  "Transformation exceeds the depth limit.")
+    if not isinstance(node, dict):
+        raise TransformationError("EXPRESSION_NOT_OBJECT", path,
+                                  "Every expression node must be an object.")
+    state["nodes"] += 1
+    if state["nodes"] > MAX_TRANSFORM_NODES:
+        raise TransformationError("EXPRESSION_TOO_LARGE", path,
+                                  "Transformation exceeds the node limit.")
+    op = str(node.get("op") or "")
+    if op not in TRANSFORM_OPS:
+        raise TransformationError("UNSAFE_OR_UNKNOWN_OPERATOR", f"{path}.op",
+                                  f"Operator {op!r} is not allowed.")
+    if op == "literal":
+        return ({"op": op, "value": _finite(node.get("value"), f"{path}.value"),
+                 "unit": str(node.get("unit") or "dimensionless")},
+                str(node.get("unit") or "dimensionless"))
+    if op in {"series", "primary"}:
+        name = str(node.get("name") or ("primary" if op == "primary" else ""))
+        if op == "series" and name not in series:
+            raise TransformationError("UNKNOWN_SERIES", f"{path}.name",
+                                      f"Series {name!r} is unavailable.")
+        quantile = str(node.get("quantile") or "q50")
+        if quantile not in {"q10", "q50", "q90", "point"}:
+            raise TransformationError("UNKNOWN_QUANTILE", f"{path}.quantile",
+                                      "Quantile must be q10, q50, q90, or point.")
+        return ({"op": op, "name": name, "quantile": quantile},
+                units.get(name, "unknown"))
+    children = node.get("args")
+    if not isinstance(children, list):
+        children = [node.get("arg")] if "arg" in node else []
+    required = 2 if op in {"add", "subtract", "multiply", "divide"} else 1
+    if len(children) != required:
+        raise TransformationError("INVALID_ARITY", f"{path}.args",
+                                  f"{op} requires {required} argument(s).")
+    parsed = [_validate_expression(child, path=f"{path}.args[{index}]",
+                                   depth=depth + 1, state=state,
+                                   series=series, units=units)
+              for index, child in enumerate(children)]
+    args, child_units = [item[0] for item in parsed], [item[1] for item in parsed]
+    clean: dict[str, Any] = {"op": op, "args": args}
+    if op in {"add", "subtract"}:
+        known = {unit for unit in child_units if unit not in {None, "unknown"}}
+        if len(known) > 1:
+            raise TransformationError("INCOMPATIBLE_UNITS", path,
+                                      "Addition/subtraction requires matching units.")
+        output_unit = next(iter(known), "unknown")
+    elif op == "multiply":
+        output_unit = _combined_unit(child_units[0], child_units[1], "*")
+    elif op == "divide":
+        output_unit = _combined_unit(child_units[0], child_units[1], "/")
+    else:
+        output_unit = child_units[0]
+    if op in {"lag", "difference", "percent_change", "rolling_mean"}:
+        window = node.get("steps", node.get("window", 1))
+        try:
+            window = int(window)
+        except (TypeError, ValueError) as exc:
+            raise TransformationError("INVALID_WINDOW", path,
+                                      "Window must be a positive integer.") from exc
+        if window < 1 or window > 10_000:
+            raise TransformationError("INVALID_WINDOW", path,
+                                      "Window must be between 1 and 10000.")
+        clean["steps" if op != "rolling_mean" else "window"] = window
+        if op == "percent_change":
+            output_unit = "dimensionless"
+    elif op == "clip":
+        lower = _finite(node.get("lower"), f"{path}.lower")
+        upper = _finite(node.get("upper"), f"{path}.upper")
+        if lower > upper:
+            raise TransformationError("INVALID_BOUNDS", path,
+                                      "Clip lower bound exceeds upper bound.")
+        clean.update({"lower": lower, "upper": upper})
+    elif op == "quantile":
+        q = _finite(node.get("q"), f"{path}.q")
+        if not 0 <= q <= 1:
+            raise TransformationError("INVALID_QUANTILE", f"{path}.q",
+                                      "Quantile must be between zero and one.")
+        clean["q"] = q
+    return clean, output_unit
+
+
+def _combined_unit(left: str | None, right: str | None, operator: str) -> str:
+    left, right = left or "unknown", right or "unknown"
+    if operator == "*" and left == "dimensionless":
+        return right
+    if operator == "*" and right == "dimensionless":
+        return left
+    if operator == "*" and "/" in right and right.rsplit("/", 1)[1] == left:
+        return right.rsplit("/", 1)[0]
+    if operator == "*" and "/" in left and left.rsplit("/", 1)[1] == right:
+        return left.rsplit("/", 1)[0]
+    if operator == "/" and right == "dimensionless":
+        return left
+    if operator == "/" and left == right and left != "unknown":
+        return "dimensionless"
+    return "unknown" if "unknown" in {left, right} else f"{left}{operator}{right}"
+
+
+def execute_transformation(
+    compiled: dict[str, Any], *, primary: list[dict[str, Any]],
+    series_values: dict[str, Any] | None = None,
+    historical_validation: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Execute only a previously validated canonical transformation."""
+    seal = compiled.get("seal_sha256")
+    body = {key: value for key, value in compiled.items() if key != "seal_sha256"}
+    if not seal or hashlib.sha256(_canonical(body).encode()).hexdigest() != seal:
+        raise TransformationError("INVALID_TRANSFORMATION_SEAL", "$",
+                                  "Transformation changed after validation.")
+    width = len(primary)
+    environment: dict[str, list[float]] = {}
+    for name, supplied in (series_values or {}).items():
+        if not isinstance(supplied, dict):
+            raise TransformationError(
+                "UNVERSIONED_FUTURE_SERIES", f"series_values.{name}",
+                "Future series require values, known_at, and source_claim_id.")
+        known_at = _aware(supplied.get("known_at"))
+        cutoff = _aware(compiled.get("cutoff"))
+        source_claim = str(supplied.get("source_claim_id") or "")
+        if known_at is None or cutoff is None or known_at > cutoff:
+            raise TransformationError(
+                "FUTURE_SERIES_NOT_KNOWN_AT_CUTOFF", f"series_values.{name}.known_at",
+                "Future input was not knowable at the forecast cutoff.")
+        if source_claim not in compiled["claim_ids"]:
+            raise TransformationError(
+                "UNVERIFIED_FUTURE_SERIES", f"series_values.{name}.source_claim_id",
+                "Future input must cite one of the transformation's verified claims.")
+        values = supplied.get("values")
+        if not isinstance(values, list):
+            raise TransformationError(
+                "INVALID_FUTURE_SERIES", f"series_values.{name}.values",
+                "Future input values must be an array.")
+        environment[name] = [_finite(value, name) for value in values]
+    if any(len(values) != width for values in environment.values()):
+        raise TransformationError("HORIZON_MISMATCH", "series_values",
+                                  "Every future series must match the primary horizon.")
+    values = _execute_expression(compiled["expression"], primary=primary,
+                                 environment=environment, width=width,
+                                 primary_quantile="q50")
+    if len(values) != width or any(not math.isfinite(value) for value in values):
+        raise TransformationError("INVALID_EXECUTION_RESULT", "expression",
+                                  "Transformation did not yield one finite value per step.")
+    quantile_paths = {
+        quantile: _execute_expression(
+            compiled["expression"], primary=primary,
+            environment=environment, width=width,
+            primary_quantile=quantile)
+        for quantile in ("q10", "q50", "q90")
+    }
+    rows = []
+    for index, value in enumerate(values):
+        source = primary[index]
+        ordered = sorted(quantile_paths[key][index]
+                         for key in ("q10", "q50", "q90"))
+        rows.append({"timestamp": source.get("timestamp"), "point": value,
+                     "q10": ordered[0], "q50": value, "q90": ordered[-1]})
+    validation = dict(compiled["validation"])
+    if historical_validation:
+        points = int(historical_validation.get("validation_points") or 0)
+        skill = _finite(historical_validation.get("skill"), "historical_validation.skill")
+        validation.update({
+            "validation_points": points, "skill": skill,
+            "beats_baseline": bool(historical_validation.get("beats_baseline")),
+            "scheme": str(historical_validation.get("scheme") or "expanding_origin"),
+            "per_origin_knowledge_checked": bool(
+                historical_validation.get("per_origin_knowledge_checked")),
+        })
+        if compiled["lane"] == "historically_testable" and not validation[
+                "per_origin_knowledge_checked"]:
+            raise TransformationError(
+                "HISTORICAL_VALIDATION_NOT_FOLD_SAFE", "historical_validation",
+                "Historical admission requires per-origin knowledge checks.")
+    return {
+        "transformation_id": compiled["transformation_id"],
+        "forecast": rows, "lane": compiled["lane"],
+        "claim_ids": compiled["claim_ids"], "known_at": compiled["known_at"],
+        "output_unit": compiled["output_unit"],
+        "validation": validation,
+        "source_seal_sha256": seal, "automation_eligible": False,
+        "primary_forecast_unchanged": True,
+    }
+
+
+def _execute_expression(node: dict[str, Any], *, primary: list[dict[str, Any]],
+                        environment: dict[str, list[float]], width: int,
+                        primary_quantile: str = "q50",
+                        ) -> list[float]:
+    op = node["op"]
+    if op == "literal":
+        return [float(node["value"])] * width
+    if op == "primary":
+        # q50 denotes the canonical primary path and propagates the matching
+        # quantile when the executor builds an uncertainty envelope. An
+        # explicitly requested non-median quantile remains fixed.
+        quantile = (primary_quantile if node["quantile"] == "q50"
+                    else node["quantile"])
+        return [_finite(row.get(quantile, row.get("point")), quantile)
+                for row in primary]
+    if op == "series":
+        if node["name"] not in environment:
+            raise TransformationError("MISSING_FUTURE_SERIES", node["name"],
+                                      "A referenced future series was not supplied.")
+        return list(environment[node["name"]])
+    args = [_execute_expression(child, primary=primary,
+                                environment=environment, width=width,
+                                primary_quantile=primary_quantile)
+            for child in node["args"]]
+    if op in {"add", "subtract", "multiply", "divide"}:
+        functions = {
+            "add": lambda a, b: a + b, "subtract": lambda a, b: a - b,
+            "multiply": lambda a, b: a * b,
+            "divide": lambda a, b: a / b if abs(b) > 1e-15 else math.nan,
+        }
+        return [functions[op](a, b) for a, b in zip(args[0], args[1])]
+    values = args[0]
+    if op == "lag":
+        steps = node["steps"]
+        return [values[max(0, index - steps)] for index in range(width)]
+    if op in {"difference", "percent_change"}:
+        steps = node["steps"]
+        output = []
+        for index, value in enumerate(values):
+            previous = values[max(0, index - steps)]
+            output.append(value - previous if op == "difference"
+                          else ((value / previous - 1) if abs(previous) > 1e-15
+                                else math.nan))
+        return output
+    if op == "rolling_mean":
+        window = node["window"]
+        return [statistics.mean(values[max(0, i-window+1):i+1])
+                for i in range(width)]
+    if op == "clip":
+        return [min(node["upper"], max(node["lower"], value)) for value in values]
+    if op == "quantile":
+        ordered = sorted(values)
+        position = node["q"] * (len(ordered) - 1)
+        lo, hi = math.floor(position), math.ceil(position)
+        value = ordered[lo] if lo == hi else (
+            ordered[lo] + (ordered[hi] - ordered[lo]) * (position - lo))
+        return [value] * width
+    raise AssertionError(f"validated operator not implemented: {op}")
 
 
 def _canonical(value: Any) -> str:

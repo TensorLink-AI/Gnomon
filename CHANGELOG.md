@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Added a sealed, non-Turing-complete context transformation language for
+  safe arithmetic, lag, change, rolling, bounds, and quantile operations over
+  immutable forecasts and point-in-time future inputs. Validation enforces
+  units, finite values, verified claims, cutoff knowledge, bounded complexity,
+  and one field-scoped repair. Historically tested, prior-assisted, and
+  scenario-only lanes reuse publication admission, explicit automation policy,
+  typed rejection, and candidate outcome receipts; no transformation executes
+  model-generated code or mutates the primary forecast.
+
 - Added stable multi-hypothesis context compilation, field-scoped bounded
   repair, point-in-time vintage alignment, expanding-origin exogenous and
   lagged-relationship executables, and leave-one-episode-out historical

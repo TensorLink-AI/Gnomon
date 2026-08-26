@@ -136,9 +136,12 @@ def _attach_publication(payload, artifact, path, args) -> None:
     selection_path = getattr(args, "scenario_selection", None)
     policy_path = getattr(args, "automation_policy", None)
     proposal_path = getattr(args, "context_proposal", None)
+    transformation_paths = getattr(args, "context_transformation", None) or []
     # Strict with no publication inputs is the compatibility path: no new
     # stdout keys or sidecar for callers that did not request this feature.
-    if mode == "strict" and not (dossier_paths or proposal_path or selection_path or policy_path):
+    if mode == "strict" and not (dossier_paths or proposal_path
+                                  or transformation_paths
+                                  or selection_path or policy_path):
         return
     def read(path_value, label):
         path_value = Path(path_value).expanduser()
@@ -171,6 +174,50 @@ def _attach_publication(payload, artifact, path, args) -> None:
             raw, context_text=context_text, known_at=known_at, result=result,
             compiler_model=getattr(args, "context_compiler_model", None) or "agent")
         dossiers.append(dossier)
+    if transformation_paths:
+        known_at = getattr(args, "context_known_at", None)
+        if not known_at:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "--context-transformation requires --context-known-at")
+        from .context_intelligence import (compile_transformation,
+                                           execute_transformation)
+        claims = [claim for dossier in dossiers
+                  for claim in dossier.get("claims") or []]
+        claim_ids = [str(claim.get("claim_id")) for claim in claims
+                     if claim.get("claim_id")]
+        result["transformation_candidates"] = []
+        result["transformation_rejections"] = []
+        for index, transform_path in enumerate(transformation_paths[:6], 1):
+            wrapper = read(transform_path, "--context-transformation")
+            compiled, critique = compile_transformation(
+                wrapper.get("transformation", wrapper),
+                series=list((wrapper.get("series_values") or {}).keys()),
+                claim_ids=claim_ids, cutoff=known_at,
+                units=wrapper.get("units"), repair=wrapper.get("repair"))
+            if compiled is None:
+                result["transformation_rejections"].append({
+                    "transformation_id": f"transformation-{index}",
+                    "reason_code": "transformation_validation_failed",
+                    "reason": "Declarative transformation was rejected.",
+                    "violations": critique["violations"],
+                })
+                continue
+            try:
+                result["transformation_candidates"].append(
+                    execute_transformation(
+                        compiled,
+                        primary=(result.get("primary_forecast")
+                                 or result.get("forecast") or []),
+                        series_values=wrapper.get("series_values"),
+                        historical_validation=wrapper.get("historical_validation")))
+            except ValueError as exc:
+                result["transformation_rejections"].append({
+                    "transformation_id": compiled["transformation_id"],
+                    "reason_code": getattr(exc, "code", "transformation_execution_failed"),
+                    "reason": str(exc),
+                    "violations": [getattr(exc, "as_dict", lambda: {})()],
+                })
     try:
         publication = publish_result(
             result, mode=mode, dossiers=dossiers,
@@ -372,6 +419,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--context-text", help="Source text quoted by --context-proposal.")
     forecast_parser.add_argument(
         "--context-known-at", help="Timezone-aware knowledge time for context.")
+    forecast_parser.add_argument(
+        "--context-transformation", action="append", default=None,
+        help="JSON file containing a bounded declarative transformation "
+             "(repeatable, maximum six). Requires cited claims and "
+             "--context-known-at; generated code is never executed.")
     forecast_parser.add_argument(
         "--context-compiler-model", default="agent",
         help="Identity of the model or human that extracted the proposal.")

@@ -46,6 +46,30 @@ sealing format. Pass `--context-proposal proposal.json`, `--context-text`, and
 repair attempt (`effect_proposal_repair`). Context is therefore always used,
 represented as a labelled scenario, or rejected with a reason.
 
+For relationships that are precise enough to execute, the same boundary
+accepts a small declarative transformation language. It is intentionally not
+Python, SQL, or generated code. The allowed nodes are numeric literals,
+primary or named future series, arithmetic, lag, difference, percent change,
+rolling mean, clipping, and quantiles. Expressions are bounded to 48 nodes and
+eight levels, checked for finite values and compatible units, content sealed,
+and may be repaired once only in the field named by the first violation.
+
+Every transformation cites verified claim IDs and a timezone-aware knowledge
+time. A referenced future series must be supplied as `{values, known_at,
+source_claim_id}` and must have been knowable by the forecast cutoff. The three
+candidate lanes carry different authority:
+
+- `historically_testable` requires per-origin knowledge checks and decisive
+  out-of-sample evidence before strict publication can admit it;
+- `prior_assisted` may lead a human-facing best-effort answer but never
+  automation;
+- `scenario_only` is a bounded conditional path, not a probability claim.
+
+CLI callers pass repeatable `--context-transformation` JSON files with
+`--context-known-at`. MCP callers use
+`context_submission.transformations`. Invalid inputs remain in
+`context_dispositions` with typed violations; they are never silently ignored.
+
 A dossier may also contain up to six `hypotheses`. These are stable, sealed
 interpretations—not forecasts—with kinds such as `relationship`,
 `historical_analogue`, `regime_shift`, or `unsupported`. Each hypothesis must

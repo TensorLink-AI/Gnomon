@@ -1814,7 +1814,9 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
     raw_proposal = submission.get("proposal")
     selection = arguments.get("scenario_selection")
     policy = arguments.get("automation_policy")
-    if mode == "strict" and not (dossiers or raw_proposal or selection or policy):
+    if mode == "strict" and not (dossiers or raw_proposal
+                                  or submission.get("transformations")
+                                  or selection or policy):
         return
     if len(artifact.results) != 1:
         raise GnomonError(
@@ -1835,6 +1837,57 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
             result=result,
             compiler_model=str(submission.get("compiler") or "agent"))
         dossiers = [*dossiers, dossier]
+    transformations = submission.get("transformations") or []
+    if transformations:
+        from .context_intelligence import (compile_transformation,
+                                           execute_transformation)
+        claims = [claim for dossier in dossiers
+                  for claim in dossier.get("claims") or []]
+        claim_ids = [str(claim.get("claim_id")) for claim in claims
+                     if claim.get("claim_id")]
+        cutoff = str(submission.get("known_at") or "")
+        if not cutoff:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "context transformations require context_submission.known_at")
+        result["transformation_candidates"] = []
+        result["transformation_rejections"] = []
+        if len(transformations) > 6:
+            result["transformation_rejections"].append({
+                "transformation_id": "transformation-overflow",
+                "reason_code": "bounded_transformation_overflow",
+                "reason": "Only the first six transformations were evaluated.",
+            })
+        for index, item in enumerate(transformations[:6], 1):
+            wrapper = item if isinstance(item, dict) else {}
+            compiled, critique = compile_transformation(
+                wrapper.get("transformation", wrapper),
+                series=list((wrapper.get("series_values") or {}).keys()),
+                claim_ids=claim_ids, cutoff=cutoff,
+                units=wrapper.get("units"), repair=wrapper.get("repair"))
+            if compiled is None:
+                result["transformation_rejections"].append({
+                    "transformation_id": f"transformation-{index}",
+                    "reason_code": "transformation_validation_failed",
+                    "reason": "Declarative transformation was rejected.",
+                    "violations": critique["violations"],
+                })
+                continue
+            try:
+                candidate = execute_transformation(
+                    compiled,
+                    primary=(result.get("primary_forecast") or result.get("forecast") or []),
+                    series_values=wrapper.get("series_values"),
+                    historical_validation=wrapper.get("historical_validation"))
+            except ValueError as exc:
+                result["transformation_rejections"].append({
+                    "transformation_id": compiled["transformation_id"],
+                    "reason_code": getattr(exc, "code", "transformation_execution_failed"),
+                    "reason": str(exc),
+                    "violations": [getattr(exc, "as_dict", lambda: {})()],
+                })
+                continue
+            result["transformation_candidates"].append(candidate)
     try:
         publication = publish_result(
             result, mode=mode,
@@ -2247,7 +2300,7 @@ TOOLS: list[dict[str, Any]] = [
                     "description": "Projection; default strict. Primary stays immutable."},
                 "temporal_dossiers": {"type": "array", "items": {"type": "object"},
                     "description": "Sealed temporal dossiers."},
-                "context_submission": {"type": "object", "description": "Raw {text, known_at, compiler, proposal}."},
+                "context_submission": {"type": "object", "description": "Raw {text, known_at, compiler, proposal, transformations}; transformations use the bounded declarative language and return typed rejections."},
                 "scenario_selection": {"type": "object",
                     "description": "Number-free governed ranking of scenario ids."},
                 "automation_policy": {"type": "object",
