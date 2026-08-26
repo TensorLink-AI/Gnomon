@@ -77,6 +77,33 @@ def test_bad_quantile_order_and_implausible_jump_are_rejected():
     assert any("boundary-jump" in reason for reason in reasons)
 
 
+def test_cited_bounded_regime_jump_is_retained_as_warned_prior_only():
+    future = ["2026-01-05T00:00:00+00:00",
+              "2026-01-06T00:00:00+00:00"]
+    raw = _raw("A policy raises demand, which remains below 120.", rows=[
+        {"timestamp": stamp, "q10": 88, "q50": 100, "q90": 112}
+        for stamp in future])
+    raw["claims"] = [
+        {"source_span": "A policy raises demand",
+         "relation": "supports_increase", "effective_start": future[0],
+         "effective_end": future[-1], "confidence": .8},
+        {"source_span": "demand, which remains below 120",
+         "relation": "constrains_range", "effective_start": future[0],
+         "effective_end": future[-1], "confidence": 1},
+    ]
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text="A policy raises demand, which remains below 120.",
+        cutoff="2026-01-04T00:00:00+00:00", future_timestamps=future,
+        history=[5, 5.1, 5.0, 5.1], compiler_model="test")
+
+    assert not reasons
+    candidate = dossier["forecast_candidate"]
+    assert candidate is not None
+    assert candidate["plausibility"]["warnings"]
+    assert dossier["candidate_support"] == "prior_assisted"
+    assert dossier["automation_eligible"] is False
+
+
 def test_candidate_must_obey_its_own_cited_numeric_bounds():
     future = ["2026-01-05T00:00:00+00:00",
               "2026-01-06T00:00:00+00:00"]

@@ -82,7 +82,9 @@ MAX_RUN_TOKENS = 250_000
 #: source hints, while the model still has to cite and bind them explicitly.
 #: Version 24: exact relational context asks for a sealed probabilistic
 #: fallback alongside the safer executable transformation.
-MCP_CONTRACT_VERSION = 24
+#: Version 25: a directionally supported candidate inside a cited numeric
+#: bound may leave the history scale as a warned, non-automatable scenario.
+MCP_CONTRACT_VERSION = 25
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it

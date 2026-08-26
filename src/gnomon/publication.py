@@ -339,7 +339,9 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 identifier, "model_authored", _rows(candidate.get("quantiles")),
                 support="prior_assisted", automation_eligible=False,
                 claim_ids=[str(item) for item in candidate.get("claim_ids") or []],
-                assumptions=[str(candidate.get("rationale") or "")],
+                assumptions=[str(candidate.get("rationale") or ""), *[
+                    str(item) for item in
+                    (candidate.get("plausibility") or {}).get("warnings") or []]],
                 source_seal=str(dossier["seal_sha256"]),
             ))
             emitted.append(identifier)

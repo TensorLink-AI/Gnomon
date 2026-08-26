@@ -353,22 +353,11 @@ def _validate_candidate(
     if not history:
         reasons.append("forecast_candidate cannot be checked without history")
         return None
-    scale = _robust_scale(history)
-    points = [float(row["q50"]) for row in clean]
-    boundary_jump = abs(points[0] - history[-1]) / scale
-    path_diffs = [abs(b - a) for a, b in zip(points, points[1:])]
-    path_scale_ratio = ((statistics.median(path_diffs) / scale)
-                        if path_diffs else 0.0)
-    if boundary_jump > MAX_BOUNDARY_JUMP_SCALES:
-        reasons.append("forecast_candidate failed boundary-jump plausibility")
-        return None
-    if path_scale_ratio > MAX_PATH_SCALE_RATIO:
-        reasons.append("forecast_candidate failed path-scale plausibility")
-        return None
-    # A candidate must satisfy the literal constraints it cites. Gross scale
-    # plausibility cannot catch a path at zero when the same dossier says the
-    # value is bounded below by five. These are hard stated bounds, so all
-    # published quantiles—not just the median—must lie inside them.
+    # Parse literal constraints before applying empirical scale checks. A
+    # large regime change can be a legitimate prior-assisted scenario when
+    # context both explains its direction and bounds its numeric extent. It
+    # remains non-automatable and carries a warning; an unbounded large jump
+    # is still rejected.
     from .future_context import parse_bound_span
     lower_bounds: list[float] = []
     upper_bounds: list[float] = []
@@ -397,6 +386,29 @@ def _validate_candidate(
     if upper is not None and any(value > upper for value in values):
         reasons.append("forecast_candidate violates cited upper bound")
         return None
+
+    scale = _robust_scale(history)
+    points = [float(row["q50"]) for row in clean]
+    boundary_jump = abs(points[0] - history[-1]) / scale
+    path_diffs = [abs(b - a) for a, b in zip(points, points[1:])]
+    path_scale_ratio = ((statistics.median(path_diffs) / scale)
+                        if path_diffs else 0.0)
+    directional_support = any(claim.get("relation") in {
+        "supports_increase", "supports_decrease",
+        "changes_seasonal_regime",
+    } for claim in claims)
+    bounded_regime_change = bool(bound_claim_ids) and directional_support
+    plausibility_warnings: list[str] = []
+    if boundary_jump > MAX_BOUNDARY_JUMP_SCALES and not bounded_regime_change:
+        reasons.append("forecast_candidate failed boundary-jump plausibility")
+        return None
+    if boundary_jump > MAX_BOUNDARY_JUMP_SCALES:
+        plausibility_warnings.append(
+            "candidate leaves the empirical history scale but remains inside "
+            "a cited numeric bound; treat it as prior-assisted only")
+    if path_scale_ratio > MAX_PATH_SCALE_RATIO:
+        reasons.append("forecast_candidate failed path-scale plausibility")
+        return None
     return {
         "quantiles": clean,
         "rationale": str(raw.get("rationale") or "")[:1000],
@@ -406,5 +418,6 @@ def _validate_candidate(
             "path_scale_ratio": round(path_scale_ratio, 6),
             "entailed_bounds": {"minimum": lower, "maximum": upper,
                                 "claim_ids": bound_claim_ids},
+            "warnings": plausibility_warnings,
         },
     }
