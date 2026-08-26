@@ -318,6 +318,12 @@ one JSON object with this shape:
      "effective_start": "timezone-aware ISO", "effective_end": "timezone-aware ISO",
      "mechanism": "brief qualitative explanation", "confidence": 0.0}
   ],
+  "observation_interpretations": [
+    {"kind": "historical_contamination", "claim_ids": ["claim-1"],
+     "predicate": {"op": "equals", "value": 0.0},
+     "window": "cited_window | all_observed_history",
+     "rationale": "why these readings are not future-generating behavior"}
+  ],
   "forecast_candidate": {
     "quantiles": [{"timestamp": "exact requested timestamp", "q10": 0.0,
                    "q50": 0.0, "q90": 0.0}],
@@ -456,9 +462,10 @@ Rules:
 
 DOSSIER_INSTRUCTIONS = """\
 Compile supplied temporal context into one governed JSON dossier. Return ONLY
-JSON with these seven keys; use [] or null when absent:
+JSON with these eight keys; use [] or null when absent:
 {"events":[],"claims":[],"hypotheses":[],"covariate_tables":[],
-"transformations":[],"effect_proposal":null,"forecast_candidate":null}
+"transformations":[],"observation_interpretations":[],
+"effect_proposal":null,"forecast_candidate":null}
 
 Shapes:
 - event: {document_index:0,event_type,entity_scope:["*"],effective_start,
@@ -471,6 +478,11 @@ medication|procedure|calendar|capacity|price|environment|unknown"}.
 supports_stability|supports_higher_variance|supports_lower_variance|
 changes_seasonal_regime|constrains_range|unknown",effective_start,effective_end,
 mechanism,confidence}.
+- observation_interpretation: {kind:"historical_contamination",claim_ids:
+["claim-1"],predicate:{op:"equals",value:0}|{op:"recurring_window",start,
+duration_steps,period_steps},window:
+"cited_window|all_observed_history",rationale}; emit only for a literally
+stated historical zero/absence caused by a data-generating disruption.
 - hypothesis: {kind:"absolute_value|bound|additive_change|
 multiplicative_change|regime_shift|relationship|historical_analogue|
 unsupported",claim_ids:["claim-1"],target_series:["*"],predictor_series,
@@ -506,6 +518,20 @@ explicitly prior_assisted forecast_candidate only if you can derive one.
 4. Preserve ambiguity as competing hypotheses. Confidence never upgrades
 support or automation. A model-authored candidate is prior_assisted only,
 never automation-eligible, and its rationale explains derived arithmetic.
+Historical statements that readings were corrupted by an outage, closure,
+stockout, censoring, or reporting failure remain forecast-relevant even when
+the event will not recur. Emit a verbatim claim plus an `unsupported` or
+`regime_shift` hypothesis describing the observation semantics. You may emit a
+sealed forecast_candidate estimated from unaffected history; label its
+counterfactual arithmetic and uncertainty. Do not rewrite history or create a
+future event when the source says the disruption has ended.
+When the source literally says zero or no target events were recorded because
+of that historical disruption, add an observation_interpretation with the
+exact-zero predicate. Use cited_window when dates are stated; use
+all_observed_history only when the prose explicitly describes the corruption
+as historical but supplies no exact dates. Gnomon applies this predicate to a
+copy, discloses retained/excluded counts, and may derive a non-automatable
+counterfactual; it never cleans or mutates the immutable primary.
 5. Covariates are verbatim future extraction: each quote contains its time and
 value, and timestamp is an exact requested forecast timestamp. Never infer or
 interpolate. NEVER copy those historical rows into covariate_tables; observed
@@ -527,6 +553,27 @@ is rejected without changing the primary.
 9. Use nothing after the history cutoff. If context is irrelevant, return the
 seven empty/null fields.
 """
+
+
+def _expects_historical_zero_interpretation(context: str) -> bool:
+    """Whether prose explicitly supports asking for the typed zero lane.
+
+    This only schedules a bounded repair; it does not create a claim, choose a
+    window, or grant numeric authority. The repaired dossier still passes the
+    ordinary citation, entailment, filtering, and sealing boundary.
+    """
+    text = " ".join(context.casefold().split())
+    disruption = any(token in text for token in (
+        "maintenance", "outage", "closure", "stockout", "reporting failure"))
+    exact_absence = bool(
+        re.search(r"\b(?:zero|no)\b.{0,50}\b(?:recorded|withdrawal|sale|order|request|reading|transaction|event)s?\b", text)
+        or re.search(r"\b(?:recorded|withdrawal|sale|order|request|reading|transaction|event)s?\b.{0,50}\b(?:zero|none)\b", text))
+    ended = any(token in text for token in (
+        "no future", "has ended", "had ended", "will not recur",
+        "will no longer", "does not continue")) or bool(re.search(
+            r"\bwill not be (?:in|under|on) (?:maintenance|an? outage|closure)\b",
+            text))
+    return disruption and exact_absence and ended
 
 RELATIONSHIP_INSTRUCTIONS = """\
 Extract one explicit lagged numeric relationship for Gnomon's safe recurrence
@@ -1384,7 +1431,10 @@ class _Run:
         applying them.  No future target observations are exposed here.
         """
         from gnomon.context import event_from_dict, event_to_dict
-        from gnomon.llm_dossier import validate_temporal_dossier
+        from gnomon.llm_dossier import (
+            deterministic_historical_observation_claim,
+            validate_temporal_dossier,
+        )
         from gnomon.workflows import DocumentRef, parse_context_response
 
         narrative_context = build_context_text(self.task)
@@ -1492,12 +1542,31 @@ class _Run:
         # Exercise the product's bounded repair lane. The first response is
         # probed before event parsing so a corrected complete dossier (claims
         # plus effect) feeds every downstream validator consistently.
-        if raw.get("effect_proposal") or raw.get("forecast_candidate"):
+        proposed_any_lane = any(raw.get(key) not in (None, [], {}) for key in (
+            "events", "claims", "hypotheses", "covariate_tables",
+            "transformations", "observation_interpretations",
+            "effect_proposal", "forecast_candidate"))
+        observation_lane_missing = (
+            _expects_historical_zero_interpretation(context)
+            and not raw.get("observation_interpretations"))
+        if proposed_any_lane or observation_lane_missing:
             probe, probe_rejections = validate_temporal_dossier(
                 raw, context_text=context, cutoff=self.timestamps[-1],
                 future_timestamps=future_timestamps, history=self.values,
+                history_timestamps=self.timestamps,
                 compiler_model=self.forecaster.openrouter_model)
-            if not probe.get("effect_proposal") and not probe.get("forecast_candidate"):
+            effect_failed = (probe.get("effect_proposal_critique") or {}).get(
+                "status") == "rejected"
+            candidate_failed = (probe.get("candidate_critique") or {}).get(
+                "status") == "rejected"
+            hypothesis_failures = (probe.get("hypothesis_critique") or {}).get(
+                "rejected") or []
+            observation_failures = (
+                probe.get("observation_interpretation_critique") or {}).get(
+                    "rejected") or []
+            if (probe_rejections or effect_failed or candidate_failed
+                    or hypothesis_failures or observation_failures
+                    or observation_lane_missing):
                 # Do not let one failed lane hide another. In particular, an
                 # effect critique used to mask a malformed candidate, causing
                 # the sole repair round to return another placeholder path.
@@ -1505,6 +1574,17 @@ class _Run:
                     "effect_proposal": probe.get("effect_proposal_critique"),
                     "forecast_candidate": probe.get("candidate_critique"),
                     "hypotheses": probe.get("hypothesis_critique"),
+                    "observation_interpretations": probe.get(
+                        "observation_interpretation_critique"),
+                    "semantic_sufficiency": ({
+                        "code": "MISSING_HISTORICAL_ZERO_INTERPRETATION",
+                        "message": (
+                            "The cited prose explicitly describes historical "
+                            "zero-recording corruption that has ended. Include "
+                            "a verbatim claim and the typed exact-zero "
+                            "observation_interpretation; do not create a future "
+                            "event or mutate history."),
+                    } if observation_lane_missing else None),
                     "all_rejections": probe_rejections,
                 }
                 try:
@@ -1528,6 +1608,23 @@ class _Run:
                 except Exception as error:
                     compile_rejections.append(
                         f"dossier repair failed: {error}")
+
+        # Literal, high-precision observation semantics should not disappear
+        # merely because a stochastic compiler dropped the optional wrapper
+        # or malformed its claim. This fallback copies one exact source
+        # sentence and stated date only; all filtering and candidate creation
+        # still pass through Gnomon's normal validator below.
+        if _expects_historical_zero_interpretation(context):
+            literal_claim = deterministic_historical_observation_claim(
+                context, history_start=self.timestamps[0],
+                cutoff=self.timestamps[-1])
+            if literal_claim is not None:
+                remaining_claims = [
+                    item for item in raw.get("claims") or []
+                    if not isinstance(item, dict) or
+                    str(item.get("source_span") or "") !=
+                    literal_claim["source_span"]]
+                raw = {**raw, "claims": [literal_claim, *remaining_claims]}
 
         # A broad extraction prompt sometimes identifies every exact equation
         # yet emits no executable lane. For humans this looks like “Gnomon read
@@ -1576,6 +1673,7 @@ class _Run:
         final_probe, _ = validate_temporal_dossier(
             raw, context_text=context, cutoff=self.timestamps[-1],
             future_timestamps=future_timestamps, history=self.values,
+            history_timestamps=self.timestamps,
             compiler_model=self.forecaster.openrouter_model)
 
         # Claim IDs are host-assigned after validation. When exactly one claim
@@ -1605,6 +1703,19 @@ class _Run:
                     hypothesis["claim_ids"] = [sole_id]
                 normalized_hypotheses.append(hypothesis)
             raw = {**raw, "hypotheses": normalized_hypotheses}
+            normalized_observations = []
+            for item in raw.get("observation_interpretations") or []:
+                if not isinstance(item, dict):
+                    normalized_observations.append(item)
+                    continue
+                interpretation = dict(item)
+                cited = {str(value) for value in
+                         interpretation.get("claim_ids") or []}
+                if not cited or not cited.issubset(known_ids):
+                    interpretation["claim_ids"] = [sole_id]
+                normalized_observations.append(interpretation)
+            raw = {**raw,
+                   "observation_interpretations": normalized_observations}
             normalized_transformations = []
             for item in raw.get("transformations") or []:
                 if not isinstance(item, dict):
@@ -1988,6 +2099,7 @@ class _Run:
         dossier, dossier_rejections = validate_temporal_dossier(
             raw, context_text=context, cutoff=self.timestamps[-1],
             future_timestamps=future_timestamps, history=self.values,
+            history_timestamps=self.timestamps,
             compiler_model=self.forecaster.openrouter_model,
             validated_events=events,
             candidate_selection_eligible=not bool(

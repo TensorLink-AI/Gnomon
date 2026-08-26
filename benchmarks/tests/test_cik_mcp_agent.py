@@ -208,6 +208,26 @@ def test_compiler_contract_separates_history_from_future_covariates():
     assert "exact requested forecast timestamp" in DOSSIER_INSTRUCTIONS
 
 
+def test_compiler_contract_preserves_historical_observation_semantics():
+    from benchmarks.cik.mcp_agent import (
+        DOSSIER_INSTRUCTIONS,
+        _expects_historical_zero_interpretation,
+    )
+
+    assert "readings were corrupted" in DOSSIER_INSTRUCTIONS
+    assert "Do not rewrite history" in DOSSIER_INSTRUCTIONS
+    assert "sealed forecast_candidate estimated from unaffected history" in \
+        DOSSIER_INSTRUCTIONS
+    assert _expects_historical_zero_interpretation(
+        "Historical maintenance caused no withdrawals recorded. There is no "
+        "future maintenance.")
+    assert _expects_historical_zero_interpretation(
+        "Maintenance resulted in no withdrawals recorded. The ATM will not "
+        "be in maintenance in the future.")
+    assert not _expects_historical_zero_interpretation(
+        "The site was closed for maintenance and may close again.")
+
+
 def test_transformation_repair_hints_are_verbatim_and_constant_specific():
     failures = [{"violations": [{"message":
         "Transformation constant 37.5 (literal) is absent from every cited source span."}]}]
@@ -792,6 +812,47 @@ def test_single_verified_claim_rebinds_effect_and_hypothesis_ids(tmp_path):
     assert receipt["dossier"]["effect_proposal"]["claim_ids"] == ["claim-1"]
     assert receipt["dossier"]["hypotheses"][0]["claim_ids"] == ["claim-1"]
     assert extra["publication"]["recommended_scenario_id"] == "effect-composed-1"
+
+
+def test_invalid_claim_receives_the_one_bounded_dossier_repair(tmp_path):
+    task = _task()
+    span = "A historical outage corrupted readings, but it has ended."
+    task.scenario = span
+    bad = json.dumps({
+        "events": [], "claims": [{
+            "source_span": span, "relation": "unknown",
+            "effective_start": "not-a-date", "effective_end": "not-a-date",
+            "confidence": "high",
+        }], "hypotheses": [], "effect_proposal": None,
+        "forecast_candidate": None, "covariate_tables": [],
+        "transformations": [],
+    })
+    good = json.dumps({
+        "events": [], "claims": [{
+            "source_span": span, "relation": "unknown",
+            "effective_start": task.past_time[0][0],
+            "effective_end": task.past_time[-1][0], "confidence": .8,
+        }], "hypotheses": [{
+            "kind": "unsupported", "claim_ids": ["claim-1"],
+            "target_series": ["value"], "predictor_series": None,
+            "known_at": task.past_time[-1][0], "lag_steps": 0,
+            "direction": "unknown", "rationale": "measurement artifact",
+        }], "effect_proposal": None, "forecast_candidate": None,
+        "covariate_tables": [], "transformations": [],
+    })
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        [bad, good])
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+    _, extra = forecaster(task, 1)
+    assert len(client.completion_prompts) == 2
+    assert "one complete corrected dossier" in client.completion_prompts[1]
+    assert extra["context_compilation"]["claim_count"] == 1
+    assert extra["context_compilation"]["hypothesis_count"] == 1
 
 
 def test_literal_zero_claim_uses_deterministic_override_lane(tmp_path):

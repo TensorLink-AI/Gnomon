@@ -102,6 +102,17 @@ cite a verified claim, resolve its series and knowledge time, and survives
 reordering under a content-derived ID. A single bounded repair may replace
 rejected hypotheses; accepted hypotheses cannot be silently rewritten.
 
+Historical observation semantics use the same dossier rather than a separate
+cleaning path. When a verified source literally says that maintenance, an
+outage, a stockout, or a reporting failure produced absent recorded activity,
+an `observation_interpretation` may filter an exact value or a source-stated
+recurring window from a copy of the pre-cutoff history. The raw observations
+and immutable primary are never edited. Retained/excluded counts and any
+transformed-floor normalization are sealed. The resulting empirical
+counterfactual is a visible `prior_assisted` scenario only; it cannot lead the
+recommendation until fold-safe replay establishes skill, and it is never
+automation-eligible merely because the prose was verified.
+
 Numerical influence is earned separately. Vintage-aware exogenous regression,
 expanding-origin lag selection, and leave-one-episode-out analogue evaluation
 produce fitted conditional candidates. Only candidates that beat their stated

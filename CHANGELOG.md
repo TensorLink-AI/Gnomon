@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Added a governed historical-observation interpretation lane for cited
+  outages, maintenance, stockouts, and reporting failures. Literal historical
+  zero-recording claims may define an exact-value or cited recurring-window
+  filter over a copied pre-cutoff history; the receipt records retained and
+  excluded observations, semantic normalizations, provenance, and an immutable
+  primary. A derived empirical counterfactual is visible and outcome-scoreable
+  but cannot become the recommendation or authorize automation until fold-safe
+  replay establishes skill. Qualitative and percentage compiler confidence is
+  conservatively normalized with no authority effect, and one bounded repair
+  now covers malformed claims and hypotheses as well as numeric candidates.
 - Added governed `linear_combination` and `recursive_linear` transformations.
   Gnomon derives omitted coefficient units for cited additive equations and
   executes ARX-style recurrences using target and driver history reloaded from

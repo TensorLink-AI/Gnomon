@@ -20,7 +20,7 @@ from typing import Any
 from .effect_proposals import validate_effect_proposal
 from .context_intelligence import compile_context_hypotheses
 
-DOSSIER_VERSION = "0.4"
+DOSSIER_VERSION = "0.5"
 MAX_CLAIMS = 16
 MAX_BOUNDARY_JUMP_SCALES = 20.0
 MAX_PATH_SCALE_RATIO = 30.0
@@ -33,6 +33,58 @@ RELATIONS = frozenset({
 
 def _normalise(text: Any) -> str:
     return " ".join(str(text or "").split()).casefold()
+
+
+def deterministic_historical_observation_claim(
+    context_text: str, *, history_start: str, cutoff: str,
+) -> dict[str, Any] | None:
+    """Extract one high-precision historical data-quality claim verbatim.
+
+    This is intentionally narrower than the LLM compiler: a disruption, an
+    explicit absence of recorded target activity, and an explicit statement
+    that the disruption ended are all required. It grants no numeric effect;
+    the returned claim still passes the ordinary dossier boundary.
+    """
+    normalised = _normalise(context_text)
+    ended = any(token in normalised for token in (
+        "no future", "has ended", "had ended", "will not recur",
+        "will no longer", "does not continue")) or bool(re.search(
+            r"\bwill not be (?:in|under|on) (?:maintenance|an? outage|closure)\b",
+            normalised))
+    if not ended:
+        return None
+    fragments = [fragment.strip() for fragment in re.split(
+        r"(?<=[.!?])\s+", context_text) if fragment.strip()]
+    for fragment in fragments:
+        span = _normalise(fragment)
+        disruption = any(token in span for token in (
+            "maintenance", "outage", "closure", "stockout",
+            "reporting failure"))
+        exact_absence = bool(
+            re.search(r"\b(?:zero|no)\b.{0,50}\b(?:recorded|withdrawal|sale|order|request|reading|transaction|event)s?\b", span)
+            or re.search(r"\b(?:recorded|withdrawal|sale|order|request|reading|transaction|event)s?\b.{0,50}\b(?:zero|none)\b", span))
+        if not disruption or not exact_absence:
+            continue
+        date_match = re.search(r"\b\d{4}-\d{2}-\d{2}(?:[ T][0-9:]+)?", fragment)
+        effective_start = history_start
+        if date_match:
+            parsed = datetime.fromisoformat(date_match.group(0))
+            cutoff_dt = _timestamp(cutoff)
+            if parsed.tzinfo is None and cutoff_dt is not None:
+                parsed = parsed.replace(tzinfo=cutoff_dt.tzinfo)
+            effective_start = parsed.isoformat()
+        return {
+            "source_span": fragment,
+            "relation": "unknown",
+            "effective_start": effective_start,
+            "effective_end": cutoff,
+            "mechanism": (
+                "deterministic literal extraction of historical observation "
+                "corruption; no numeric effect inferred"),
+            "confidence": 1.0,
+            "compiler_binding": "deterministic_literal_fallback",
+        }
+    return None
 
 
 def _robust_scale(values: list[float]) -> float:
@@ -74,6 +126,7 @@ def validate_temporal_dossier(
     cutoff: str,
     future_timestamps: list[str],
     history: list[float],
+    history_timestamps: list[str] | None = None,
     compiler_model: str,
     validated_events: list[Any] | None = None,
     candidate_selection_eligible: bool = True,
@@ -94,6 +147,9 @@ def validate_temporal_dossier(
     if cutoff_dt is None:
         raise ValueError("cutoff must be timezone-aware ISO-8601")
 
+    history_timestamps = list(history_timestamps or [])
+    if history_timestamps and len(history_timestamps) != len(history):
+        raise ValueError("history_timestamps must align with history")
     claims: list[dict[str, Any]] = []
     for index, claim in enumerate((raw.get("claims") or [])[:MAX_CLAIMS]):
         if not isinstance(claim, dict):
@@ -110,13 +166,71 @@ def validate_temporal_dossier(
             continue
         start = _timestamp(claim.get("effective_start"))
         end = _timestamp(claim.get("effective_end"))
+        history_window_binding = None
+        if (start is None or end is None or end < start) and \
+                _claim_requests_whole_history_binding(
+                    claim, raw.get("observation_interpretations"),
+                    normalised_context) and history_timestamps:
+            start = _timestamp(history_timestamps[0])
+            end = _timestamp(history_timestamps[-1])
+            if start is not None and end is not None:
+                history_window_binding = {
+                    "kind": "observed_history_window",
+                    "basis": (
+                        "source identifies historical observation corruption "
+                        "without an exact calendar window"),
+                }
         if start is None or end is None or end < start:
             reasons.append(f"claim {index + 1} has an invalid effective window")
             continue
-        try:
-            confidence = float(claim.get("confidence", 1.0))
-        except (TypeError, ValueError):
-            confidence = math.nan
+        raw_confidence = claim.get("confidence", 1.0)
+        confidence_normalization = None
+        qualitative = {
+            "low": 0.25, "medium": 0.5, "moderate": 0.5, "high": 0.75,
+        }
+        confidence_text = (raw_confidence.strip().casefold()
+                           if isinstance(raw_confidence, str) else "")
+        qualitative_match = next(
+            (label for label in qualitative
+             if re.search(rf"\b{label}\b", confidence_text)), None)
+        numeric_matches = (re.findall(r"(?<!\w)(?:\d+(?:\.\d*)?|\.\d+)",
+                                      confidence_text)
+                           if confidence_text else [])
+        if raw_confidence in (None, ""):
+            confidence = 0.5
+            confidence_normalization = {
+                "kind": "missing_to_conservative_unit_interval",
+                "supplied": raw_confidence, "normalized": confidence,
+                "authority_effect": "none",
+            }
+        elif len(numeric_matches) == 1:
+            confidence = float(numeric_matches[0])
+            confidence_normalization = {
+                "kind": "numeric_text_to_unit_interval",
+                "supplied": raw_confidence,
+                "normalized": confidence,
+                "authority_effect": "none",
+            }
+        elif qualitative_match is not None:
+            confidence = qualitative[qualitative_match]
+            confidence_normalization = {
+                "kind": "qualitative_to_conservative_unit_interval",
+                "supplied": raw_confidence,
+                "normalized": confidence,
+                "authority_effect": "none",
+            }
+        else:
+            try:
+                confidence = float(raw_confidence)
+            except (TypeError, ValueError):
+                confidence = math.nan
+        if math.isfinite(confidence) and 1 < confidence <= 100:
+            confidence /= 100.0
+            confidence_normalization = {
+                "kind": "percent_to_unit_interval",
+                "supplied": raw_confidence,
+                "normalized": confidence,
+            }
         if not math.isfinite(confidence) or not 0 <= confidence <= 1:
             reasons.append(f"claim {index + 1} has invalid confidence")
             continue
@@ -129,11 +243,43 @@ def validate_temporal_dossier(
             "mechanism": str(claim.get("mechanism") or "")[:500],
             "confidence": confidence,
             "known_at": cutoff_dt.isoformat(),
+            **({"confidence_normalization": confidence_normalization}
+               if confidence_normalization else {}),
+            **({"effective_window_binding": history_window_binding}
+               if history_window_binding else {}),
         })
 
+    raw_observation_interpretations = list(
+        raw.get("observation_interpretations") or [])
+    derived_interpretations = _derive_historical_zero_interpretation(
+        claims, context_text=context_text)
+    # A malformed optional wrapper must not suppress the narrower executable
+    # that Gnomon can derive from the same verified claim. Keep both in the
+    # critique: the model proposal remains visibly rejected while the
+    # deterministic binding may proceed independently.
+    for interpretation in derived_interpretations:
+        signature = json.dumps(interpretation.get("predicate"), sort_keys=True)
+        if not any(json.dumps((item or {}).get("predicate"), sort_keys=True)
+                   == signature for item in raw_observation_interpretations
+                   if isinstance(item, dict)):
+            raw_observation_interpretations.append(interpretation)
+    observation_interpretations, observation_critique, derived_candidate = \
+        _validate_observation_interpretations(
+            raw_observation_interpretations, claims=claims,
+            history=history, history_timestamps=history_timestamps,
+            future_timestamps=future_timestamps)
+    candidate_was_derived_from_observation_interpretation = (
+        raw.get("forecast_candidate") in (None, {})
+        and derived_candidate is not None)
+    if candidate_was_derived_from_observation_interpretation:
+        candidate_selection_eligible = False
+        candidate_selection_reason = (
+            "Historical-contamination filtering is mechanically valid but "
+            "the derived empirical path has not beaten the immutable primary "
+            "in fold-safe replay; retain it as a visible scenario only.")
     candidate_reason_start = len(reasons)
     candidate = _validate_candidate(
-        raw.get("forecast_candidate"), claims=claims,
+        raw.get("forecast_candidate") or derived_candidate, claims=claims,
         future_timestamps=future_timestamps, history=history, reasons=reasons)
     candidate_reasons = reasons[candidate_reason_start:]
     effect_raw = raw.get("effect_proposal")
@@ -171,6 +317,8 @@ def validate_temporal_dossier(
         "known_at": cutoff_dt.isoformat(),
         "future_observations_exposed": False,
         "claims": claims,
+        "observation_interpretations": observation_interpretations,
+        "observation_interpretation_critique": observation_critique,
         "effect_proposal": effect_proposal,
         "effect_proposal_critique": proposal_critique,
         "hypotheses": hypotheses,
@@ -200,14 +348,295 @@ def validate_temporal_dossier(
             "selection_reason": (candidate_selection_reason
                                  if candidate and not candidate_selection_eligible
                                  else None),
+            "candidate_origin": (
+                "observation_interpretation_counterfactual"
+                if candidate_was_derived_from_observation_interpretation
+                else "model_authored" if candidate else None),
         },
-        "candidate_support": "prior_assisted" if (candidate or effect_proposal) else None,
+        "candidate_support": "prior_assisted" if (
+            candidate or effect_proposal or observation_interpretations) else None,
         "automation_eligible": False,
         "primary_forecast_unchanged": True,
     }
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     payload["seal_sha256"] = hashlib.sha256(canonical.encode()).hexdigest()
     return payload, reasons
+
+
+def _claim_requests_whole_history_binding(
+    claim: dict[str, Any], raw_interpretations: Any, normalised_context: str,
+) -> bool:
+    """Allow an explicitly historical, cited data-quality claim to bind history.
+
+    This does not infer when an event occurred. It only scopes an observation
+    predicate to the already-visible history when prose says the corruption is
+    historical but supplies no calendar bounds.
+    """
+    span = _normalise(claim.get("source_span"))
+    if not span or span not in normalised_context:
+        return False
+    historical = any(token in span for token in (
+        "historical", "in the past", "previously", "recorded", "readings",
+        "was under", "were under"))
+    corrupted = any(token in span for token in (
+        "maintenance", "outage", "closure", "closed", "stockout",
+        "censor", "reporting failure", "missing", "unavailable"))
+    ended = any(token in normalised_context for token in (
+        "no future", "has ended", "had ended", "will not recur",
+        "will no longer", "does not continue")) or bool(re.search(
+            r"\bwill not be (?:in|under|on) (?:maintenance|an? outage|closure)\b",
+            normalised_context))
+    if not historical or not corrupted or not ended:
+        return False
+    explicit_wrapper = isinstance(raw_interpretations, list) and any(
+        isinstance(item, dict) and
+        item.get("window") == "all_observed_history"
+        for item in raw_interpretations)
+    exact_absence = bool(
+        re.search(r"\b(?:zero|no)\b.{0,50}\b(?:recorded|withdrawal|sale|order|request|reading|transaction|event)s?\b", span))
+    return explicit_wrapper or exact_absence
+
+
+def _derive_historical_zero_interpretation(
+    claims: list[dict[str, Any]], *, context_text: str,
+) -> list[dict[str, Any]]:
+    """Bind verified prose to the narrow historical-zero interpretation.
+
+    The language model still locates and cites the fact. This deterministic
+    step prevents interface reliability from depending on whether it also
+    copied the optional typed wrapper. No candidate is derived unless the
+    ordinary validator independently proves the zero semantics and safe mask.
+    """
+    text = _normalise(context_text)
+    ended = any(token in text for token in (
+        "no future", "has ended", "had ended", "will not recur",
+        "will no longer", "does not continue")) or bool(re.search(
+            r"\bwill not be (?:in|under|on) (?:maintenance|an? outage|closure)\b",
+            text))
+    if not ended:
+        return []
+    for claim in claims:
+        span = _normalise(claim.get("source_span"))
+        disruption = any(token in span for token in (
+            "maintenance", "outage", "closure", "stockout",
+            "reporting failure"))
+        exact_absence = bool(
+            re.search(r"\b(?:zero|no)\b.{0,50}\b(?:recorded|withdrawal|sale|order|request|reading|transaction|event)s?\b", span)
+            or re.search(r"\b(?:recorded|withdrawal|sale|order|request|reading|transaction|event)s?\b.{0,50}\b(?:zero|none)\b", span))
+        if disruption and exact_absence:
+            source = str(claim["source_span"])
+            recurrence = re.search(
+                r"for\s+(\d+)\s+days?.{0,60}?every\s+(\d+)\s+days?.{0,80}?"
+                r"starting\s+(?:from\s+)?(\d{4}-\d{2}-\d{2}(?:[ T][0-9:]+)?)",
+                source, re.I)
+            predicate: dict[str, Any]
+            if recurrence:
+                predicate = {
+                    "op": "recurring_window",
+                    "duration_steps": int(recurrence.group(1)),
+                    "period_steps": int(recurrence.group(2)),
+                    "start": recurrence.group(3),
+                }
+            else:
+                predicate = {"op": "equals", "value": 0.0}
+            return [{
+                "kind": "historical_contamination",
+                "claim_ids": [claim["claim_id"]],
+                "predicate": predicate,
+                "window": ("cited_window" if re.search(
+                    r"\b\d{4}-\d{2}-\d{2}\b", str(claim["source_span"]))
+                           else "all_observed_history"),
+                "rationale": (
+                    "deterministically bound from a verified historical "
+                    "zero-recording claim whose disruption has ended"),
+                "proposal_origin": "verified_claim_semantics",
+            }]
+    return []
+
+
+def _validate_observation_interpretations(
+    raw: Any, *, claims: list[dict[str, Any]], history: list[float],
+    history_timestamps: list[str], future_timestamps: list[str],
+) -> tuple[list[dict[str, Any]], dict[str, Any], dict[str, Any] | None]:
+    """Validate historical contamination predicates and derive one safe path.
+
+    Only an exact zero predicate is supported initially, and only when the
+    cited prose literally states zero or an absence of recorded target events.
+    The operation is applied to a copy. The immutable primary and stored input
+    remain untouched; the resulting path is always prior-assisted.
+    """
+    if raw in (None, []):
+        return [], {"status": "not_proposed", "rejected": []}, None
+    if not isinstance(raw, list):
+        return [], {"status": "rejected", "rejected": [
+            {"index": 0, "code": "NOT_A_LIST"}]}, None
+    by_id = {str(claim["claim_id"]): claim for claim in claims}
+    accepted: list[dict[str, Any]] = []
+    accepted_masks: list[list[bool]] = []
+    rejected: list[dict[str, Any]] = []
+    for index, item in enumerate(raw[:4]):
+        if not isinstance(item, dict):
+            rejected.append({"index": index, "code": "NOT_AN_OBJECT"})
+            continue
+        claim_ids = [str(value) for value in item.get("claim_ids") or []]
+        cited = [by_id[value] for value in claim_ids if value in by_id]
+        predicate = item.get("predicate") or {}
+        try:
+            predicate_value = float(predicate.get("value"))
+        except (TypeError, ValueError):
+            predicate_value = math.nan
+        if not cited or len(cited) != len(claim_ids):
+            rejected.append({"index": index, "code": "UNVERIFIED_CLAIMS"})
+            continue
+        predicate_op = predicate.get("op")
+        if predicate_op not in {"equals", "recurring_window"}:
+            rejected.append({"index": index, "code": "UNSUPPORTED_PREDICATE"})
+            continue
+        spans = [_normalise(claim["source_span"]) for claim in cited]
+        zero_entailed = any(
+            re.search(r"\b(?:zero|no)\b.{0,40}\b(?:recorded|withdrawal|sale|order|request|reading|transaction|event)s?\b", span)
+            or re.search(r"\b(?:recorded|withdrawal|sale|order|request|reading|transaction|event)s?\b.{0,40}\b(?:zero|none)\b", span)
+            for span in spans)
+        if not zero_entailed:
+            rejected.append({"index": index, "code": "PREDICATE_NOT_ENTAILED"})
+            continue
+        if not history_timestamps:
+            rejected.append({"index": index, "code": "HISTORY_TIMESTAMPS_REQUIRED"})
+            continue
+        starts = [_timestamp(claim["effective_start"]) for claim in cited]
+        ends = [_timestamp(claim["effective_end"]) for claim in cited]
+        if any(value is None for value in [*starts, *ends]):
+            rejected.append({"index": index, "code": "INVALID_WINDOW"})
+            continue
+        start = min(value for value in starts if value is not None)
+        end = max(value for value in ends if value is not None)
+        in_window = [
+            start <= (_timestamp(timestamp) or start) <= end
+            for timestamp in history_timestamps]
+        applied_predicate: dict[str, Any]
+        predicate_normalization = None
+        if predicate_op == "recurring_window":
+            try:
+                duration = int(predicate["duration_steps"])
+                period = int(predicate["period_steps"])
+                recurrence_start = _timestamp(predicate["start"])
+                if recurrence_start is None:
+                    naive_start = datetime.fromisoformat(str(predicate["start"]))
+                    recurrence_start = naive_start.replace(tzinfo=start.tzinfo)
+            except (KeyError, TypeError, ValueError):
+                duration = period = 0
+                recurrence_start = None
+            source = " ".join(spans)
+            schedule_entailed = (
+                duration > 0 and period >= duration and recurrence_start is not None
+                and str(duration) in source and str(period) in source
+                and recurrence_start.strftime("%Y-%m-%d") in source)
+            if not schedule_entailed:
+                rejected.append({"index": index,
+                                 "code": "SCHEDULE_NOT_ENTAILED"})
+                continue
+            mask = []
+            for inside, timestamp in zip(in_window, history_timestamps):
+                observed = _timestamp(timestamp)
+                if not inside or observed is None or observed < recurrence_start:
+                    mask.append(False)
+                    continue
+                step = (observed.date() - recurrence_start.date()).days
+                mask.append(step % period < duration)
+            applied_predicate = {
+                "op": "recurring_window", "start": recurrence_start.isoformat(),
+                "duration_steps": duration, "period_steps": period,
+            }
+        else:
+            if predicate_value != 0.0:
+                rejected.append({"index": index,
+                                 "code": "UNSUPPORTED_PREDICATE"})
+                continue
+            applied_value = 0.0
+            mask = [inside and value == 0.0
+                    for inside, value in zip(in_window, history)]
+            applied_predicate = {"op": "equals", "value": applied_value}
+        if predicate_op == "equals" and not any(mask):
+            window_values = [float(value) for value, inside in
+                             zip(history, in_window) if inside]
+            if window_values:
+                observed_floor = min(window_values)
+                tolerance = max(1.0, abs(observed_floor)) * 1e-9
+                floor_mask = [
+                    inside and abs(float(value) - observed_floor) <= tolerance
+                    for inside, value in zip(in_window, history)]
+                if sum(floor_mask) >= 2:
+                    mask = floor_mask
+                    applied_value = observed_floor
+                    predicate_normalization = {
+                        "kind": "semantic_zero_to_repeated_observed_floor",
+                        "stated_value": 0.0,
+                        "observed_value": observed_floor,
+                        "basis": (
+                            "input units do not contain zero; a repeated "
+                            "empirical floor is retained as a disclosed "
+                            "candidate-only interpretation"),
+                    }
+                    applied_predicate = {"op": "equals",
+                                         "value": applied_value}
+        retained = [float(value) for value, excluded in zip(history, mask)
+                    if not excluded]
+        excluded_count = sum(mask)
+        if excluded_count == 0 or len(retained) < 3 or excluded_count > len(history) * .8:
+            rejected.append({"index": index, "code": "UNSAFE_OR_EMPTY_FILTER",
+                             "excluded": excluded_count,
+                             "retained": len(retained)})
+            continue
+        accepted.append({
+            "interpretation_id": f"observation-interpretation-{len(accepted)+1}",
+            "kind": "historical_contamination",
+            "claim_ids": claim_ids,
+            "predicate": applied_predicate,
+            **({"predicate_normalization": predicate_normalization}
+               if predicate_normalization else {}),
+            "window": item.get("window") or "cited_window",
+            "excluded_observations": excluded_count,
+            "retained_observations": len(retained),
+            "input_mutated": False,
+            "support": "prior_assisted",
+            "automation_eligible": False,
+            "rationale": str(item.get("rationale") or "")[:500],
+        })
+        accepted_masks.append(mask)
+    critique = {
+        "status": "accepted" if accepted else "rejected",
+        "accepted": len(accepted), "rejected": rejected,
+    }
+    if not accepted:
+        return [], critique, None
+    # A deliberately conservative distributional counterfactual: future
+    # location and uncertainty come only from retained pre-cutoff observations.
+    # It is not claimed as a fitted dynamic model and can never automate.
+    excluded = accepted[0]["excluded_observations"]
+    cited_ids = set(accepted[0]["claim_ids"])
+    cited = [claim for claim in claims if claim["claim_id"] in cited_ids]
+    start = min(_timestamp(claim["effective_start"]) for claim in cited)
+    end = max(_timestamp(claim["effective_end"]) for claim in cited)
+    retained = [float(value) for value, excluded in
+                zip(history, accepted_masks[0]) if not excluded]
+    ordered = sorted(retained)
+    def empirical(p: float) -> float:
+        position = p * (len(ordered) - 1)
+        lower = int(math.floor(position)); upper = int(math.ceil(position))
+        if lower == upper:
+            return ordered[lower]
+        return ordered[lower] + (ordered[upper] - ordered[lower]) * (position - lower)
+    q10, q50, q90 = empirical(.1), empirical(.5), empirical(.9)
+    candidate = {
+        "quantiles": [{"timestamp": timestamp, "q10": q10,
+                       "q50": q50, "q90": q90}
+                      for timestamp in future_timestamps],
+        "rationale": (
+            f"Counterfactual empirical distribution from {len(retained)} "
+            f"pre-cutoff observations after excluding {excluded} readings "
+            "matching the disclosed historical-contamination predicate."),
+    }
+    return accepted, critique, candidate
 
 
 def _align_effect_onset_to_cited_claim(

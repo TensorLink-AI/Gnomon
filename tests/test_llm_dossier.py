@@ -1,9 +1,28 @@
 from __future__ import annotations
 
 from gnomon.llm_dossier import (
+    deterministic_historical_observation_claim,
     validate_temporal_dossier,
     verify_temporal_dossier_seal,
 )
+
+
+def test_literal_historical_observation_fallback_is_narrow_and_verbatim():
+    context = ("Background sentence. Maintenance resulted in no sales recorded "
+               "starting 2026-01-02. There will be no future maintenance.")
+    claim = deterministic_historical_observation_claim(
+        context, history_start="2026-01-01T00:00:00+00:00",
+        cutoff="2026-01-10T00:00:00+00:00")
+    assert claim is not None
+    assert claim["source_span"] == \
+        "Maintenance resulted in no sales recorded starting 2026-01-02."
+    assert claim["effective_start"] == "2026-01-02T00:00:00+00:00"
+    assert claim["compiler_binding"] == "deterministic_literal_fallback"
+
+    assert deterministic_historical_observation_claim(
+        "The shop was closed and may close again.",
+        history_start="2026-01-01T00:00:00+00:00",
+        cutoff="2026-01-10T00:00:00+00:00") is None
 
 
 def _raw(span: str, rows=None):
@@ -40,6 +59,181 @@ def test_valid_dossier_is_cited_sealed_and_non_automatable():
     assert verify_temporal_dossier_seal(dossier)
     dossier["claims"][0]["confidence"] = 0.1
     assert not verify_temporal_dossier_seal(dossier)
+
+
+def test_percentage_scale_claim_confidence_is_normalized_and_disclosed():
+    span = "The site will be closed on Monday."
+    raw = _raw(span)
+    raw["claims"][0]["confidence"] = 95
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=span,
+        cutoff="2026-01-04T00:00:00+00:00",
+        future_timestamps=["2026-01-05T00:00:00+00:00",
+                           "2026-01-06T00:00:00+00:00"],
+        history=[8, 9, 10, 11], compiler_model="model-x")
+    assert not reasons
+    claim = dossier["claims"][0]
+    assert claim["confidence"] == 0.95
+    assert claim["confidence_normalization"] == {
+        "kind": "percent_to_unit_interval", "supplied": 95,
+        "normalized": 0.95,
+    }
+    assert verify_temporal_dossier_seal(dossier)
+
+
+def test_qualitative_claim_confidence_is_conservative_and_non_authoritative():
+    span = "The site will be closed on Monday."
+    raw = _raw(span)
+    raw["claims"][0]["confidence"] = "high"
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=span,
+        cutoff="2026-01-04T00:00:00+00:00",
+        future_timestamps=["2026-01-05T00:00:00+00:00",
+                           "2026-01-06T00:00:00+00:00"],
+        history=[8, 9, 10, 11], compiler_model="model-x")
+    assert not reasons
+    claim = dossier["claims"][0]
+    assert claim["confidence"] == 0.75
+    assert claim["confidence_normalization"] == {
+        "kind": "qualitative_to_conservative_unit_interval",
+        "supplied": "high", "normalized": 0.75,
+        "authority_effect": "none",
+    }
+    assert dossier["automation_eligible"] is False
+
+    raw = _raw(span)
+    raw["claims"][0]["confidence"] = "high confidence"
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=span,
+        cutoff="2026-01-04T00:00:00+00:00",
+        future_timestamps=["2026-01-05T00:00:00+00:00",
+                           "2026-01-06T00:00:00+00:00"],
+        history=[8, 9, 10, 11], compiler_model="model-x")
+    assert not reasons
+    assert dossier["claims"][0]["confidence"] == 0.75
+
+
+def test_historical_zero_contamination_derives_sealed_counterfactual():
+    span = ("Historical maintenance caused no withdrawals recorded, and the "
+            "maintenance has ended.")
+    raw = {
+        "claims": [{
+            "source_span": span, "relation": "unknown",
+            "effective_start": "2026-01-01T00:00:00+00:00",
+            "effective_end": "2026-01-05T00:00:00+00:00",
+            "confidence": .9,
+        }],
+        "observation_interpretations": [{
+            "kind": "historical_contamination", "claim_ids": ["claim-1"],
+            "predicate": {"op": "equals", "value": 0},
+            "window": "all_observed_history", "rationale": "availability zeros",
+        }],
+        "forecast_candidate": None,
+    }
+    history_times = [f"2026-01-0{day}T00:00:00+00:00" for day in range(1, 6)]
+    future = ["2026-01-06T00:00:00+00:00",
+              "2026-01-07T00:00:00+00:00"]
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=span, cutoff=history_times[-1],
+        future_timestamps=future, history=[10, 0, 12, 0, 14],
+        history_timestamps=history_times, compiler_model="test")
+
+    assert not reasons
+    interpretation = dossier["observation_interpretations"][0]
+    assert interpretation["excluded_observations"] == 2
+    assert interpretation["retained_observations"] == 3
+    assert interpretation["input_mutated"] is False
+    assert dossier["forecast_candidate"]["quantiles"][0]["q50"] == 12
+    assert dossier["candidate_critique"]["selection_eligible"] is False
+    assert dossier["candidate_critique"]["candidate_origin"] == \
+        "observation_interpretation_counterfactual"
+    assert dossier["candidate_support"] == "prior_assisted"
+    assert dossier["automation_eligible"] is False
+    assert dossier["primary_forecast_unchanged"] is True
+    assert verify_temporal_dossier_seal(dossier)
+
+
+def test_qualitative_closure_cannot_invent_zero_contamination():
+    span = "The site was historically closed for maintenance."
+    raw = {
+        "claims": [{
+            "source_span": span, "relation": "unknown",
+            "effective_start": "2026-01-01T00:00:00+00:00",
+            "effective_end": "2026-01-05T00:00:00+00:00",
+            "confidence": .8,
+        }],
+        "observation_interpretations": [{
+            "kind": "historical_contamination", "claim_ids": ["claim-1"],
+            "predicate": {"op": "equals", "value": 0},
+            "window": "all_observed_history", "rationale": "closure",
+        }],
+    }
+    history_times = [f"2026-01-0{day}T00:00:00+00:00" for day in range(1, 6)]
+    dossier, _ = validate_temporal_dossier(
+        raw, context_text=span, cutoff=history_times[-1],
+        future_timestamps=["2026-01-06T00:00:00+00:00"],
+        history=[10, 0, 12, 0, 14], history_timestamps=history_times,
+        compiler_model="test")
+
+    assert dossier["observation_interpretations"] == []
+    assert dossier["forecast_candidate"] is None
+    assert dossier["observation_interpretation_critique"]["rejected"][0][
+        "code"] == "PREDICATE_NOT_ENTAILED"
+
+
+def test_verified_absence_claim_auto_binds_repeated_transformed_floor():
+    span = ("The ATM was under maintenance, resulting in no withdrawals "
+            "recorded. Assume the ATM will not be in maintenance in the future.")
+    raw = {
+        "claims": [{
+            "source_span": ("The ATM was under maintenance, resulting in no "
+                            "withdrawals recorded."),
+            "relation": "unknown", "effective_start": "unknown",
+            "effective_end": "unknown", "confidence": "high confidence",
+        }],
+    }
+    history_times = [f"2026-01-0{day}T00:00:00+00:00" for day in range(1, 7)]
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=span, cutoff=history_times[-1],
+        future_timestamps=["2026-01-07T00:00:00+00:00"],
+        history=[8, -1.25, 12, -1.25, 14, 10],
+        history_timestamps=history_times, compiler_model="test")
+
+    assert not reasons
+    interpretation = dossier["observation_interpretations"][0]
+    assert interpretation["predicate"] == {"op": "equals", "value": -1.25}
+    assert interpretation["predicate_normalization"]["kind"] == \
+        "semantic_zero_to_repeated_observed_floor"
+    assert interpretation["excluded_observations"] == 2
+    assert dossier["forecast_candidate"] is not None
+    assert dossier["primary_forecast_unchanged"] is True
+    assert dossier["automation_eligible"] is False
+
+
+def test_cited_recurring_disruption_excludes_by_time_not_observed_value():
+    claim = ("The ATM was under maintenance for 2 days, periodically every 4 "
+             "days, starting from 2026-01-02 00:00:00, resulting in no "
+             "withdrawals recorded.")
+    context = claim + " Assume the ATM will not be in maintenance in the future."
+    raw = {"claims": [{
+        "source_span": claim, "relation": "unknown",
+        "effective_start": "2026-01-02T00:00:00+00:00",
+        "effective_end": "2026-01-09T00:00:00+00:00", "confidence": .9,
+    }]}
+    history_times = [f"2026-01-0{day}T00:00:00+00:00" for day in range(1, 10)]
+    history = [11, -1.2, -1.0, 12, 13, -.8, -1.1, 14, 15]
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=context, cutoff=history_times[-1],
+        future_timestamps=["2026-01-10T00:00:00+00:00"], history=history,
+        history_timestamps=history_times, compiler_model="test")
+
+    assert not reasons
+    interpretation = dossier["observation_interpretations"][0]
+    assert interpretation["predicate"]["op"] == "recurring_window"
+    assert interpretation["excluded_observations"] == 4
+    assert interpretation["retained_observations"] == 5
+    assert dossier["forecast_candidate"] is not None
+    assert dossier["primary_forecast_unchanged"] is True
 
 
 def test_uncited_claim_cannot_author_a_candidate():
