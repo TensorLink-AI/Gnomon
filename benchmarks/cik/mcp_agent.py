@@ -19,6 +19,7 @@ import hashlib
 import json
 import os
 import re
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -96,7 +97,9 @@ MAX_RUN_TOKENS = 250_000
 #: critique can no longer hide a malformed probabilistic candidate.
 #: Version 31: historical companion evidence is explicitly excluded from
 #: future-known covariate tables, eliminating a noisy invalid-output loop.
-MCP_CONTRACT_VERSION = 31
+#: Version 32: the LLM receives full-history deterministic summaries plus a
+#: bounded target tail; the forecasting engine still consumes the full CSV.
+MCP_CONTRACT_VERSION = 32
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -579,6 +582,33 @@ def _task_companion_evidence(task_instance: Any, *, limit: int = 32) -> str:
         stamp = timestamp.isoformat() if hasattr(timestamp, "isoformat") else str(timestamp)
         rows.append(stamp + "," + ",".join(
             repr(float(value)) for value in values.values))
+    return "\n".join(rows)
+
+
+def _compiler_target_evidence(timestamps: list[str], values: list[float],
+                              *, limit: int = 64) -> str:
+    """Compact target evidence for the LLM; the engine retains the full CSV."""
+    if not values:
+        return "Numeric target history: unavailable"
+    differences = [abs(right - left)
+                   for left, right in zip(values, values[1:])]
+    summary = {
+        "observations": len(values),
+        "first": values[0], "last": values[-1],
+        "minimum": min(values), "maximum": max(values),
+        "median": statistics.median(values),
+        "median_absolute_first_difference": (
+            statistics.median(differences) if differences else 0.0),
+    }
+    start = max(0, len(values) - limit)
+    rows = [
+        "Numeric target history summary (computed over the complete pre-cutoff series):",
+        json.dumps(summary, sort_keys=True),
+        f"Recent target tail (last {len(values) - start} observations):",
+        "timestamp,value",
+    ]
+    rows.extend(f"{timestamp},{value}" for timestamp, value in
+                zip(timestamps[start:], values[start:]))
     return "\n".join(rows)
 
 
@@ -1099,15 +1129,13 @@ class _Run:
         context = "\n\n".join(part for part in (
             narrative_context, self.companion_evidence) if part)
         future_timestamps = _task_future_timestamps(self.task)
-        history = "\n".join(
-            f"{stamp},{value}" for stamp, value in
-            zip(self.timestamps, self.values))
+        history = _compiler_target_evidence(self.timestamps, self.values)
         prompt = (
             f"{DOSSIER_INSTRUCTIONS}\n"
             f"Forecast target series: {self.target_name}\n"
             f"History cutoff: {self.timestamps[-1]}\n"
             f"Forecast timestamps: {json.dumps(future_timestamps)}\n"
-            f"Numeric history (timestamp,value):\n{history}\n\n"
+            f"{history}\n\n"
             f"Context:\n{context or '(none)'}\n"
         )
         raw: dict[str, Any] = {}

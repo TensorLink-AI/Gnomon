@@ -28,6 +28,7 @@ from benchmarks.cik.mcp_agent import (
     MAX_ROUNDS,
     InProcessMcpSession,
     McpAgentForecaster,
+    _compiler_target_evidence,
     _task_companion_evidence,
     _transformation_repair_hints,
     jail_violations,
@@ -126,6 +127,17 @@ def test_companion_evidence_is_bounded_and_pre_cutoff_only():
                 for row in evidence.splitlines()[2:]]
     assert observed == list(map(float, range(8, 40)))
     assert len(evidence.splitlines()) == 34
+
+
+def test_compiler_target_evidence_summarizes_all_and_bounds_raw_tail():
+    timestamps = [f"2024-01-{index + 1:02d}T00:00:00+00:00"
+                  for index in range(20)]
+    values = list(map(float, range(20)))
+    evidence = _compiler_target_evidence(timestamps, values, limit=4)
+    assert '"observations": 20' in evidence
+    assert '"minimum": 0.0' in evidence and '"maximum": 19.0' in evidence
+    rows = evidence.split("timestamp,value\n", 1)[1].splitlines()
+    assert [float(row.rsplit(",", 1)[-1]) for row in rows] == [16, 17, 18, 19]
 
 
 def test_compiler_contract_separates_history_from_future_covariates():
