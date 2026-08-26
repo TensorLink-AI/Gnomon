@@ -48,6 +48,12 @@
   CiK traces now retain recurrence replay points, skill, candidate MAE, and
   baseline MAE so a safe demotion can be distinguished from an alignment or
   representation defect.
+- Added governed `historical_series_segments` for recursive drivers. Callers
+  may provide source-cited `{start, end, value}` ranges when a document defines
+  semantic driver values that differ from an encoded tabular column. Gnomon
+  checks every endpoint/value against verified claims, rejects overlap or
+  incomplete grid coverage, labels the provenance, and uses the documented
+  history only for recurrence replay/execution. It never infers a scale.
 - Bounded every governed compiler, repair, and selector request to one
   no-retry transport attempt. A slow provider now returns the immutable primary
   instead of parking a worker. Model-authored candidates whose accompanying

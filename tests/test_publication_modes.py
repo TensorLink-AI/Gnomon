@@ -418,6 +418,65 @@ def test_missing_recursive_driver_rejects_scenario_not_primary(tmp_path):
     assert "missing_driver" in rejection["reason"]
 
 
+def test_documented_history_can_replay_encoded_driver_without_guessing_scale(
+        tmp_path):
+    from datetime import date, timedelta
+    source = tmp_path / "encoded.csv"
+    start = date(2026, 1, 1)
+    target = [10.0]
+    for _ in range(1, 40):
+        target.append(.5 * target[-1] + 2 * 2.0)
+    source.write_text("timestamp,campaign,value\n" + "\n".join(
+        f"{start + timedelta(days=i)},999,{target[i]}" for i in range(40))
+        + "\n")
+    formula = "value[t] = 0.5 value[t-1] + 2 campaign[t-1]"
+    history = "campaign is 2 from 2026-01-01 to 2026-02-09"
+    schedule = "future campaign values are 2 then 2"
+    claims = [
+        {"source_span": text, "relation": "unknown",
+         "effective_start": "2026-02-10T00:00:00+00:00",
+         "effective_end": "2026-02-11T00:00:00+00:00"}
+        for text in (formula, history, schedule)]
+    payload = runner_for("gnomon_forecast")({
+        "input": str(source), "target_column": "value", "horizon": 2,
+        "output_dir": str(tmp_path / "out"),
+        "publication_mode": "best_effort",
+        "context_submission": {
+            "text": ". ".join((formula, history, schedule)),
+            "known_at": "2026-02-09T00:00:00+00:00",
+            "compiler": "test", "proposal": {"claims": claims},
+            "transformations": [{
+                "transformation": {
+                    "known_at": "2026-02-09T00:00:00+00:00",
+                    "claim_ids": ["claim-1", "claim-2", "claim-3"],
+                    "lane": "historically_testable", "output_unit": "value",
+                    "expression": {"op": "recursive_linear",
+                        "output_unit": "value", "intercept": 0,
+                        "autoregressive_terms": [{"lag": 1, "coefficient": .5}],
+                        "driver_terms": [{"series": "campaign", "lag": 1,
+                                          "coefficient": 2}]},
+                },
+                "units": {"primary": "value", "campaign": "campaign"},
+                "series_values": {"campaign": {"values": [2, 2],
+                    "known_at": "2026-02-09T00:00:00+00:00",
+                    "source_claim_ids": ["claim-3"]}},
+                "historical_series_segments": {"campaign": [{
+                    "start": "2026-01-01", "end": "2026-02-09", "value": 2,
+                    "source_claim_ids": ["claim-2"]}]},
+            }],
+        },
+    })
+    publication = payload["publication"]
+    assert publication["recommended_scenario_id"] == "transformation-1"
+    scenario = next(item for item in publication["candidate_portfolio"]
+                    if item["scenario_id"] == "transformation-1")
+    validation = scenario["effect"]["validation"]
+    assert validation["recurrence_replay_admitted"] is True
+    assert validation["recurrence_replay_candidate_mae"] == pytest.approx(0)
+    assert validation["recurrence_history_source"] == "document_cited_segments"
+    assert publication["automation"]["eligible"] is False
+
+
 def test_response_budget_never_breaks_a_publication_seal():
     result = _result()
     result["forecast"] = [

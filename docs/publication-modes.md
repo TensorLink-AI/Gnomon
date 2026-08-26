@@ -61,6 +61,13 @@ the forecast's governed `as_of` snapshot, supplies the initial state itself,
 feeds prior predicted outputs back recursively, and propagates the primary
 interval width through the feedback terms. The caller supplies only cited
 future driver values; model-authored future target lags are never trusted.
+When a verified document explicitly defines historical driver ranges but the
+structured column is encoded differently, callers may add
+`historical_series_segments` with cited `{start, end, value}` rows. Gnomon
+requires complete, non-overlapping coverage of the governed pre-cutoff grid
+and exact source entailment for every endpoint and value. This is an explicit
+representation bridge—not inferred normalization—and remains disclosed in the
+candidate receipt.
 Before a recurrence can lead even a human-facing best-effort recommendation,
 Gnomon replays the fixed equation over timestamp-aligned pre-cutoff target and
 driver histories. It must beat last-value on at least eight identical origins.

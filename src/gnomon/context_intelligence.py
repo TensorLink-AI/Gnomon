@@ -249,6 +249,84 @@ class TransformationError(ValueError):
                 "message": self.message}
 
 
+def expand_cited_history_segments(
+    segments_by_series: Any, *, timestamps: list[datetime], cutoff: datetime,
+    claim_spans: dict[str, str], allowed_claim_ids: list[str],
+) -> dict[str, list[float]]:
+    """Expand source-entailed historical ranges onto a governed grid.
+
+    This is an explicit representation bridge, never an inferred scale or
+    repair of the structured data. Every range endpoint and value must occur
+    in a verified claim, ranges may not overlap, and the complete grid must be
+    covered before the document-supplied series can be used for replay.
+    """
+    if not segments_by_series:
+        return {}
+    if not isinstance(segments_by_series, dict):
+        raise TransformationError(
+            "INVALID_HISTORY_SEGMENTS", "historical_series_segments",
+            "Historical series segments must be an object keyed by series.")
+    allowed = set(allowed_claim_ids)
+    output: dict[str, list[float]] = {}
+    for name, raw_segments in segments_by_series.items():
+        if not isinstance(raw_segments, list) or not raw_segments:
+            raise TransformationError(
+                "INVALID_HISTORY_SEGMENTS", f"historical_series_segments.{name}",
+                "Each historical driver requires one or more cited ranges.")
+        expanded: list[float | None] = [None] * len(timestamps)
+        for index, segment in enumerate(raw_segments):
+            field = f"historical_series_segments.{name}[{index}]"
+            if not isinstance(segment, dict):
+                raise TransformationError("INVALID_HISTORY_SEGMENT", field,
+                                          "A history range must be an object.")
+            claim_ids = {str(value) for value in
+                         segment.get("source_claim_ids") or []}
+            if not claim_ids or not claim_ids.issubset(allowed):
+                raise TransformationError("UNVERIFIED_CLAIMS", field,
+                                          "A history range must cite verified claims.")
+            start_raw, end_raw = str(segment.get("start") or ""), str(
+                segment.get("end") or "")
+            try:
+                start, end = (datetime.fromisoformat(start_raw),
+                              datetime.fromisoformat(end_raw))
+                if start.tzinfo is None:
+                    start = start.replace(tzinfo=cutoff.tzinfo)
+                if end.tzinfo is None:
+                    end = end.replace(tzinfo=cutoff.tzinfo)
+            except (TypeError, ValueError):
+                start = end = None
+            if start is None or end is None or start > end or end > cutoff:
+                raise TransformationError("INVALID_HISTORY_RANGE", field,
+                                          "History ranges must end by the cutoff.")
+            value = _finite(segment.get("value"), field + ".value")
+            source = " ".join(claim_spans.get(claim_id, "")
+                              for claim_id in claim_ids)
+            value_tokens = {match.group(0) for match in re.finditer(
+                r"(?<![\w.])[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?",
+                source.replace(",", ""))}
+            if (start_raw not in source or end_raw not in source
+                    or not any(math.isclose(value, float(token), rel_tol=1e-12,
+                                            abs_tol=1e-12)
+                               for token in value_tokens)):
+                raise TransformationError(
+                    "UNENTAILED_HISTORY_RANGE", field,
+                    "Range endpoints and value must occur in the cited source.")
+            for position, timestamp in enumerate(timestamps):
+                if start <= timestamp <= end:
+                    if expanded[position] is not None:
+                        raise TransformationError(
+                            "OVERLAPPING_HISTORY_RANGES", field,
+                            "Historical ranges may not overlap on the governed grid.")
+                    expanded[position] = value
+        if any(value is None for value in expanded):
+            raise TransformationError(
+                "INCOMPLETE_HISTORY_COVERAGE",
+                f"historical_series_segments.{name}",
+                "Cited ranges must cover every governed pre-cutoff timestamp.")
+        output[str(name)] = [float(value) for value in expanded]
+    return output
+
+
 def _finite(value: Any, field: str) -> float:
     try:
         number = float(value)

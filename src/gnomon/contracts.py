@@ -333,6 +333,9 @@ REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
     "MISSING_COLUMNS": [
         {"action": "inspect_dataset", "description": "Call gnomon_inspect to see the available columns, then correct the mapping."},
     ],
+    "UNKNOWN_HISTORY_SERIES": [
+        {"action": "fix_history_series_name", "description": "Rename the documented historical series to an actual driver in the cited recurrence, or remove the unrelated range; Gnomon will not guess a mapping."},
+    ],
     "INVALID_TIMESTAMP": [
         {"action": "fix_timestamps", "description": "Convert the timestamp column to ISO-8601; the offending row is in details."},
         {"action": "enable_repair", "description": "Pass repair=aggressive to drop unparseable rows (capped and disclosed)."},

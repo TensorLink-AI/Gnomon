@@ -1833,7 +1833,11 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                               write_publication)
     result = artifact.to_dict()["results"][0]
 
-    def trusted_recurrence_history(expression: Any) -> tuple[list[float], dict[str, list[float]]]:
+    def trusted_recurrence_history(
+            expression: Any, historical_segments: Any = None,
+            verified_claim_ids: list[str] | None = None,
+            verified_claim_spans: dict[str, str] | None = None,
+    ) -> tuple[list[float], dict[str, list[float]]]:
         """Reload recurrence state through the same governed snapshot seam."""
         if not isinstance(expression, dict) or expression.get("op") != "recursive_linear":
             return [], {}
@@ -1864,9 +1868,22 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                 *({item.timestamp: float(item.value) for item in observations}
                   for observations in driver_observations.values())]
         common = sorted(set(maps[0]).intersection(*(set(mapping) for mapping in maps[1:])))
-        return ([maps[0][timestamp] for timestamp in common],
-                {name: [mapping[timestamp] for timestamp in common]
-                 for (name, mapping) in zip(driver_names, maps[1:])})
+        histories = {name: [mapping[timestamp] for timestamp in common]
+                     for (name, mapping) in zip(driver_names, maps[1:])}
+        if historical_segments:
+            from .context_intelligence import expand_cited_history_segments
+            documented = expand_cited_history_segments(
+                historical_segments, timestamps=common,
+                cutoff=max(common), claim_spans=verified_claim_spans or {},
+                allowed_claim_ids=verified_claim_ids or [])
+            unknown = set(documented) - set(driver_names)
+            if unknown:
+                raise GnomonError(
+                    "UNKNOWN_HISTORY_SERIES",
+                    "Document history names are not recurrence drivers: "
+                    + ", ".join(sorted(unknown)))
+            histories.update(documented)
+        return ([maps[0][timestamp] for timestamp in common], histories)
     if raw_proposal is not None:
         context_text = str(submission.get("text") or "")
         known_at = str(submission.get("known_at") or "")
@@ -1919,7 +1936,9 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                 continue
             try:
                 target_history, driver_history = trusted_recurrence_history(
-                    compiled.get("expression"))
+                    compiled.get("expression"),
+                    wrapper.get("historical_series_segments"),
+                    claim_ids, claim_spans)
                 candidate = execute_transformation(
                     compiled,
                     primary=(result.get("primary_forecast") or result.get("forecast") or []),
@@ -1928,6 +1947,11 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                     claim_spans=claim_spans,
                     history_values=target_history,
                     history_series=driver_history)
+                if wrapper.get("historical_series_segments"):
+                    candidate["validation"]["recurrence_history_source"] = (
+                        "document_cited_segments")
+                    candidate["validation"]["document_history_series"] = sorted(
+                        wrapper["historical_series_segments"])
             except (ValueError, GnomonError) as exc:
                 result["transformation_rejections"].append({
                     "transformation_id": compiled["transformation_id"],

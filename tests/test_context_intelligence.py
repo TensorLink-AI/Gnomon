@@ -7,6 +7,7 @@ from gnomon.context_intelligence import (
     align_vintage_rows, candidate_evidence_score, canonicalize_recursive_wrapper,
     compile_context_hypotheses,
     compile_transformation, execute_transformation, TransformationError,
+    expand_cited_history_segments,
     fit_historical_analogue, fit_lagged_relationship, fit_vintage_exogenous,
     validate_transformation,
 )
@@ -18,6 +19,27 @@ UTC = timezone.utc
 
 def _stamp(index):
     return (datetime(2026, 1, 1, tzinfo=UTC) + timedelta(days=index)).isoformat()
+
+
+def test_cited_history_segments_require_entailment_complete_nonoverlap():
+    timestamps = [datetime(2026, 1, day, tzinfo=UTC) for day in range(1, 5)]
+    span = "X is 2.5 from 2026-01-01 to 2026-01-02 and 3.5 from 2026-01-03 to 2026-01-04"
+    expanded = expand_cited_history_segments({"X": [
+        {"start": "2026-01-01", "end": "2026-01-02", "value": 2.5,
+         "source_claim_ids": ["claim-1"]},
+        {"start": "2026-01-03", "end": "2026-01-04", "value": 3.5,
+         "source_claim_ids": ["claim-1"]},
+    ]}, timestamps=timestamps, cutoff=timestamps[-1],
+        claim_spans={"claim-1": span}, allowed_claim_ids=["claim-1"])
+    assert expanded == {"X": [2.5, 2.5, 3.5, 3.5]}
+
+    with pytest.raises(TransformationError) as caught:
+        expand_cited_history_segments({"X": [{
+            "start": "2026-01-01", "end": "2026-01-02", "value": 9,
+            "source_claim_ids": ["claim-1"]}]}, timestamps=timestamps,
+            cutoff=timestamps[-1], claim_spans={"claim-1": span},
+            allowed_claim_ids=["claim-1"])
+    assert caught.value.code == "UNENTAILED_HISTORY_RANGE"
 
 
 CLAIMS = [{"claim_id": "claim-1"}, {"claim_id": "claim-2"}]

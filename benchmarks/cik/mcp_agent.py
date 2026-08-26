@@ -164,7 +164,9 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: when their timestamps exactly match the host-owned forecast grid.
 #: Version 62: traces retain replay sample size, skill, and both candidate and
 #: baseline errors so a demotion is statistically diagnosable.
-MCP_CONTRACT_VERSION = 62
+#: Version 63: cited historical driver ranges can bridge explicitly documented
+#: semantics to encoded structured columns without inferred rescaling.
+MCP_CONTRACT_VERSION = 63
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -439,7 +441,10 @@ if the text does not state an exact equation. Claims quote the equation and any
 future driver schedule verbatim. The transformation uses `recursive_linear`
 with numeric `intercept`, `autoregressive_terms` ({lag, coefficient}), and
 `driver_terms` ({series, lag, coefficient}). Put cited future driver values in
-`series_values`; never supply future target values or executable code. Use the
+`series_values`. If the text states historical driver ranges, put them in
+`historical_series_segments` keyed by series, with rows
+{start, end, value, source_claim_ids}; do not infer or rescale them. Never
+supply future target values or executable code. Use the
 history cutoff as `known_at`, `historically_testable` as the lane, and preserve
 source series names. Each transformation claim_id refers to the 1-based order
 of its claim (`claim-1`, ...).
@@ -1483,6 +1488,9 @@ class _Run:
                     metadata = embedded if isinstance(embedded, dict) else item
                     recurrence = dict(compact)
                     schedules = recurrence.pop("series_values", {}) or {}
+                    historical_segments = recurrence.pop(
+                        "historical_series_segments", None) or metadata.get(
+                            "historical_series_segments")
                     claim_ids = list(metadata.get("claim_ids") or [])
                     claim_id = str((claim_ids[0] if claim_ids else None)
                                    or metadata.get("claim_id") or "claim-1")
@@ -1522,6 +1530,8 @@ class _Run:
                         "units": {"primary": output_unit, **{
                             name: output_unit for name in series_values}},
                         "series_values": series_values,
+                        **({"historical_series_segments": historical_segments}
+                           if historical_segments else {}),
                     }
                 canonical, status = canonicalize_recursive_wrapper(
                     item, target_name=self.target_name,
