@@ -663,7 +663,8 @@ def test_explicit_equation_contract_host_grounds_document_without_copy_repair(
     compiler_output = json.dumps({
         "claims": [],
         "transformations": [{
-            "known_at": task.past_time[-1][0], "claim_id": "missing",
+            # Compiler attempts a future knowledge time; the host owns this.
+            "known_at": task.future_time[-1], "claim_id": "missing",
             "historically_testable": "sales",
             "recursive_linear": {"intercept": 0,
                                  "autoregressive_terms": [

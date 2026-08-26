@@ -62,6 +62,10 @@
   on the governed daily grid; non-midnight times and changed dates still fail.
   CiK traces also retain typed context dispositions from live publication so
   execution-stage transformation failures cannot look like silent omission.
+  The composed context host now overwrites compiler-authored transformation
+  and supplied-series `known_at` values with the sealed receipt cutoff before
+  every validation pass. Models extract content; they cannot backdate or
+  future-date when that content became known.
 - Bounded every governed compiler, repair, and selector request to one
   no-retry transport attempt. A slow provider now returns the immutable primary
   instead of parking a worker. Model-authored candidates whose accompanying

@@ -170,7 +170,9 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: normalized only under exact source/grid coverage.
 #: Version 65: source dates entail midnight ISO endpoints on daily grids, and
 #: traces retain typed execution-stage context dispositions.
-MCP_CONTRACT_VERSION = 65
+#: Version 66: the host, not the compiler, binds transformation and supplied
+#: series knowledge time to the sealed context receipt cutoff.
+MCP_CONTRACT_VERSION = 66
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -1344,6 +1346,19 @@ class _Run:
                         if isinstance(supplied, dict):
                             supplied["source_claim_ids"] = ["claim-1"]
 
+        # The host assembled this receipt at the cutoff. Compiler-authored
+        # knowledge times are neither trusted nor useful; bind all numeric
+        # lanes to the host-owned timestamp before any validation or repair.
+        for wrapper in raw.get("transformations") or []:
+            if not isinstance(wrapper, dict):
+                continue
+            transformation = wrapper.get("transformation", wrapper)
+            if isinstance(transformation, dict):
+                transformation["known_at"] = self.timestamps[-1]
+            for supplied in (wrapper.get("series_values") or {}).values():
+                if isinstance(supplied, dict):
+                    supplied["known_at"] = self.timestamps[-1]
+
         # Exercise the product's bounded repair lane. The first response is
         # probed before event parsing so a corrected complete dossier (claims
         # plus effect) feeds every downstream validator consistently.
@@ -1660,6 +1675,20 @@ class _Run:
             except Exception as error:
                 compile_rejections.append(
                     f"transformation repair failed: {error}")
+        for wrapper in raw.get("transformations") or []:
+            if not isinstance(wrapper, dict):
+                continue
+            transformation = wrapper.get("transformation", wrapper)
+            if isinstance(transformation, dict):
+                transformation["known_at"] = self.timestamps[-1]
+            for supplied in (wrapper.get("series_values") or {}).values():
+                if isinstance(supplied, dict):
+                    supplied["known_at"] = self.timestamps[-1]
+        raw = canonicalize_transformations(raw)
+        final_probe, _ = validate_temporal_dossier(
+            raw, context_text=context, cutoff=self.timestamps[-1],
+            future_timestamps=future_timestamps, history=self.values,
+            compiler_model=self.forecaster.openrouter_model)
         remaining_transform_failures = transformation_violations(raw, final_probe)
         if remaining_transform_failures:
             compile_rejections.append(
