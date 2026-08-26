@@ -69,7 +69,9 @@ MAX_RUN_TOKENS = 250_000
 #: through the ordinary constraint validator even when the model omits events.
 #: Version 11: a weaker LLM-selected scenario cannot displace a deterministic
 #: context_trusted path; selection remains autonomous among evidence peers.
-MCP_CONTRACT_VERSION = 11
+#: Version 12: the host skips the selector call when the product contract says
+#: evidence already makes the recommendation non-discretionary.
+MCP_CONTRACT_VERSION = 12
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -826,6 +828,14 @@ class McpAgentForecaster:
                         scenarios=scenarios, dossiers=[dossier],
                         temporal_state=build_temporal_state(
                             artifact_result, dossiers=[dossier]))
+                    if contract.get("selection_required") is False:
+                        # A host should not pay for a choice the verifier would
+                        # reject. Emptying this local list only skips the model
+                        # call; publish_result rebuilds the full portfolio.
+                        selection_error = (
+                            "selector skipped: governed evidence dominance")
+                        scenarios = []
+                if len(scenarios) > 1:
                     base_prompt = (
                         "Choose the most useful human-facing scenario under "
                         "this governed contract. Preserve every number and "

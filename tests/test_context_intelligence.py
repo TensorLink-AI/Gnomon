@@ -152,7 +152,7 @@ def test_llm_cannot_override_uniquely_decisive_candidate():
                   "forecast": [{**row, "q50": 12, "point": 12} for row in primary],
                   "validation": {"skill": .3, "validation_points": 30,
                                  "beats_baseline": True}}]}
-    with pytest.raises(ValueError, match="decisive out-of-sample evidence"):
+    with pytest.raises(ValueError, match="evidence-dominant path"):
         publish_result(result, mode="best_effort", scenario_selection={
             "selected_scenario_id": "primary",
             "ranking": ["primary", "fitted-context-1"],

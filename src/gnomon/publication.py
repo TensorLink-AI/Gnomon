@@ -27,6 +27,27 @@ MAX_SCENARIOS = 8
 SELECTION_LABEL = "hypothesis_ranking"
 
 
+def dominant_scenario_id(scenarios: list[dict[str, Any]]) -> str | None:
+    """Return the path that evidence makes non-discretionary, if any."""
+    trusted = [item for item in scenarios
+               if item.get("role") == "context_conditioned"
+               and item.get("support") == "context_trusted"]
+    if trusted:
+        return str(trusted[0]["scenario_id"])
+    admitted = [item for item in scenarios
+                if item.get("role") == "fitted_context_candidate"
+                and ((item.get("effect") or {}).get("evidence") or {}).get("decisive")]
+    if not admitted:
+        return None
+    admitted.sort(key=lambda item: item["effect"]["evidence"]["score"],
+                  reverse=True)
+    if len(admitted) == 1 or (
+            admitted[0]["effect"]["evidence"]["score"]
+            - admitted[1]["effect"]["evidence"]["score"] >= .05):
+        return str(admitted[0]["scenario_id"])
+    return None
+
+
 def compile_dossier_for_result(raw: Any, *, context_text: str, known_at: str,
                                result: dict[str, Any], compiler_model: str
                                ) -> tuple[dict[str, Any], list[str]]:
@@ -296,34 +317,10 @@ def validate_scenario_selection(raw: Any, *, scenarios: list[dict[str, Any]],
     if selected not in ids or not ranking or set(ranking) != ids \
             or len(ranking) != len(set(ranking)) or ranking[0] != selected:
         raise ValueError("scenario selection must rank every known scenario id once with the selected id first")
-    admitted = [item for item in scenarios
-                if item.get("role") == "fitted_context_candidate"
-                and ((item.get("effect") or {}).get("evidence") or {}).get("decisive")]
-    if admitted:
-        strongest = max(
-            admitted,
-            key=lambda item: item["effect"]["evidence"]["score"])
-        scores = sorted((item["effect"]["evidence"]["score"] for item in admitted),
-                        reverse=True)
-        uniquely_decisive = len(scores) == 1 or scores[0] - scores[1] >= .05
-        if uniquely_decisive and selected != strongest["scenario_id"]:
-            raise ValueError(
-                "scenario selection cannot override uniquely decisive out-of-sample evidence")
-    trusted_context = next((item for item in scenarios
-                            if item.get("role") == "context_conditioned"
-                            and item.get("support") == "context_trusted"), None)
-    selected_item = next(item for item in scenarios
-                         if item["scenario_id"] == selected)
-    support_rank = {"hypothetical_sensitivity": 0, "prior_assisted": 1,
-                    "weak": 1, "conditionally_supported": 2,
-                    "supported": 3, "context_trusted": 4}
-    if (trusted_context is not None
-            and selected != trusted_context["scenario_id"]
-            and support_rank.get(str(selected_item.get("support")), -1)
-            < support_rank["context_trusted"]):
+    dominant = dominant_scenario_id(scenarios)
+    if dominant is not None and selected != dominant:
         raise ValueError(
-            "scenario selection cannot displace a deterministically validated "
-            "context_trusted path with weaker support")
+            "scenario selection cannot override the evidence-dominant path")
     claim_ids = {str(claim.get("claim_id")) for dossier in dossiers or []
                  for claim in dossier.get("claims") or []}
     claim_ids.update(str(item) for scenario in scenarios
@@ -376,7 +373,12 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
         "mechanism": "A deterministic context event was validated and applied by Gnomon.",
     } for scenario in scenarios for item in scenario.get("claim_ids") or []
                   if str(item) not in known_claims)
+    dominant = dominant_scenario_id(scenarios)
     return {
+        "selection_required": dominant is None,
+        "deterministic_scenario_id": dominant,
+        "selection_basis": ("governed_evidence_dominance" if dominant
+                            else "ambiguous_evidence_requires_bounded_ranking"),
         "instruction": (
             "Rank only the supplied scenario_ids. Explain the ranking using "
             "claim_ids, name counterevidence, give confidence, and state what "

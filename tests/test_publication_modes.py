@@ -4,7 +4,9 @@ from pathlib import Path
 import pytest
 
 from gnomon.llm_dossier import validate_temporal_dossier
-from gnomon.publication import publish_result, verify_publication
+from gnomon.publication import (build_scenario_catalog, publish_result,
+                                scenario_selection_contract,
+                                verify_publication)
 from gnomon.publication import record_publication
 from gnomon.tracking import TrackingStore
 from gnomon.artifacts import verify_artifact_integrity
@@ -114,7 +116,7 @@ def test_selector_cannot_displace_context_trusted_path_with_weaker_primary():
     # context path, matching a best-effort primary plus a literal future rule.
     for row in result["primary_forecast"]:
         row["tier"] = "conditionally_supported"
-    with pytest.raises(ValueError, match="context_trusted path"):
+    with pytest.raises(ValueError, match="evidence-dominant path"):
         publish_result(result, mode="best_effort", scenario_selection={
             "selected_scenario_id": "primary",
             "ranking": ["primary", "context_conditioned"],
@@ -122,6 +124,10 @@ def test_selector_cannot_displace_context_trusted_path_with_weaker_primary():
             "confidence": .7, "rationale": "prefer history",
             "what_would_change_selection": "more context",
         })
+    scenarios, _ = build_scenario_catalog(result)
+    contract = scenario_selection_contract(scenarios=scenarios)
+    assert contract["selection_required"] is False
+    assert contract["deterministic_scenario_id"] == "context_conditioned"
 
 
 def test_unknown_citations_and_tampering_fail_loudly():
