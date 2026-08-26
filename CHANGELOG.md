@@ -8,8 +8,12 @@
   filter over a copied pre-cutoff history; the receipt records retained and
   excluded observations, semantic normalizations, provenance, and an immutable
   primary. A derived empirical counterfactual is visible and outcome-scoreable
-  but cannot become the recommendation or authorize automation until fold-safe
-  replay establishes skill. Qualitative and percentage compiler confidence is
+  and enters a fixed robust-level/Croston family contest. Recommendation
+  authority requires at least twelve expanding origins on unaffected targets,
+  a 10% win over the strongest fixed raw classical comparator, and wins in two
+  of three chronological blocks. The receipt distinguishes this retrospective
+  conditional replay from historical knowledge-time admission; automation
+  remains forbidden. Qualitative and percentage compiler confidence is
   conservatively normalized with no authority effect, and one bounded repair
   now covers malformed claims and hypotheses as well as numeric candidates.
 - Added governed `linear_combination` and `recursive_linear` transformations.

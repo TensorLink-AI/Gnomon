@@ -1,4 +1,5 @@
 from copy import deepcopy
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -66,6 +67,46 @@ def test_best_effort_promotes_candidate_but_not_authority():
     assert authority["historically_admitted"] is False
     assert authority["prior_assisted"] is True
     assert authority["human_review_required"] is True
+    assert verify_publication(payload)
+
+
+def test_replay_admitted_observation_counterfactual_has_truthful_authority():
+    start = datetime(2025, 10, 5, tzinfo=timezone.utc)
+    history_times = [(start + timedelta(days=index)).isoformat()
+                     for index in range(90)]
+    history = []
+    for index in range(90):
+        disrupted = index % 6 in {0, 1, 2}
+        history.append(-8.0 if disrupted else 20.0 + (index % 3 - 1))
+    claim = (
+        "Maintenance lasted for 3 days every 6 days starting from "
+        "2025-10-05 00:00:00, resulting in no requests recorded.")
+    context = claim + " There will be no future maintenance."
+    dossier, reasons = validate_temporal_dossier(
+        {"claims": [{"source_span": claim, "relation": "unknown",
+                     "effective_start": history_times[0],
+                     "effective_end": history_times[-1], "confidence": 1}]},
+        context_text=context, cutoff=history_times[-1],
+        future_timestamps=TIMES, history=history,
+        history_timestamps=history_times, compiler_model="test")
+    assert not reasons
+    assert dossier["candidate_critique"]["selection_eligible"] is True
+
+    payload = publish_result(_result(), mode="best_effort", dossiers=[dossier])
+
+    assert payload["recommended_scenario_id"] == "prior-assisted-1"
+    candidate = next(item for item in payload["candidate_portfolio"]
+                     if item["scenario_id"] == "prior-assisted-1")
+    assert candidate["role"] == "observation_counterfactual"
+    assert candidate["support"] == "conditionally_supported"
+    assert candidate["effect"]["conditional_replay"][
+        "selection_eligible"] is True
+    authority = payload["recommendation_authority"]
+    assert authority["selection_method"] == "conditional_replay_evidence"
+    assert authority["conditional_replay_admitted"] is True
+    assert authority["historically_admitted"] is False
+    assert authority["human_review_required"] is True
+    assert payload["automation"]["eligible"] is False
     assert verify_publication(payload)
 
 

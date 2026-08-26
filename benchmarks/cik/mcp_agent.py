@@ -2470,6 +2470,9 @@ class _Run:
                             "role": item.get("role"),
                             "support": item.get("support"),
                             "selection_eligible": item.get("selection_eligible"),
+                            "conditional_replay": (
+                                item.get("effect") or {}).get(
+                                    "conditional_replay"),
                             "recurrence_replay": (
                                 (item.get("effect") or {}).get("validation") or {}
                             ).get("recurrence_replay_reason"),

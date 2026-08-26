@@ -257,12 +257,24 @@ def validate_temporal_dossier(
     # that Gnomon can derive from the same verified claim. Keep both in the
     # critique: the model proposal remains visibly rejected while the
     # deterministic binding may proceed independently.
+    verified_bindings: list[dict[str, Any]] = []
     for interpretation in derived_interpretations:
-        signature = json.dumps(interpretation.get("predicate"), sort_keys=True)
-        if not any(json.dumps((item or {}).get("predicate"), sort_keys=True)
-                   == signature for item in raw_observation_interpretations
-                   if isinstance(item, dict)):
-            raw_observation_interpretations.append(interpretation)
+        signature = json.dumps({
+            "predicate": interpretation.get("predicate"),
+            "claim_ids": sorted(interpretation.get("claim_ids") or []),
+        }, sort_keys=True)
+        if not any(json.dumps({
+                "predicate": (item or {}).get("predicate"),
+                "claim_ids": sorted((item or {}).get("claim_ids") or []),
+            }, sort_keys=True) == signature
+            for item in raw_observation_interpretations
+            if isinstance(item, dict)):
+            verified_bindings.append(interpretation)
+    # Reserve bounded capacity for host-verified bindings. Otherwise a model
+    # can accidentally crowd them out with four malformed duplicates before
+    # validation even begins.
+    raw_observation_interpretations = [
+        *verified_bindings, *raw_observation_interpretations]
     observation_interpretations, observation_critique, derived_candidate = \
         _validate_observation_interpretations(
             raw_observation_interpretations, claims=claims,
@@ -272,15 +284,23 @@ def validate_temporal_dossier(
         raw.get("forecast_candidate") in (None, {})
         and derived_candidate is not None)
     if candidate_was_derived_from_observation_interpretation:
-        candidate_selection_eligible = False
-        candidate_selection_reason = (
-            "Historical-contamination filtering is mechanically valid but "
-            "the derived empirical path has not beaten the immutable primary "
-            "in fold-safe replay; retain it as a visible scenario only.")
+        replay = derived_candidate.get("conditional_replay") or {}
+        candidate_selection_eligible = replay.get(
+            "selection_eligible") is True
+        if not candidate_selection_eligible:
+            candidate_selection_reason = (
+                "Historical-contamination filtering is mechanically valid but "
+                "the fitted conditional path did not beat raw last-value by "
+                "the preregistered replay margin; retain it as a visible "
+                "scenario only.")
     candidate_reason_start = len(reasons)
     candidate = _validate_candidate(
         raw.get("forecast_candidate") or derived_candidate, claims=claims,
         future_timestamps=future_timestamps, history=history, reasons=reasons)
+    if candidate is not None and \
+            candidate_was_derived_from_observation_interpretation:
+        candidate["conditional_replay"] = dict(
+            derived_candidate.get("conditional_replay") or {})
     candidate_reasons = reasons[candidate_reason_start:]
     effect_raw = raw.get("effect_proposal")
     if isinstance(effect_raw, dict) and not effect_raw.get("claim_ids") \
@@ -609,33 +629,11 @@ def _validate_observation_interpretations(
     }
     if not accepted:
         return [], critique, None
-    # A deliberately conservative distributional counterfactual: future
-    # location and uncertainty come only from retained pre-cutoff observations.
-    # It is not claimed as a fitted dynamic model and can never automate.
-    excluded = accepted[0]["excluded_observations"]
-    cited_ids = set(accepted[0]["claim_ids"])
-    cited = [claim for claim in claims if claim["claim_id"] in cited_ids]
-    start = min(_timestamp(claim["effective_start"]) for claim in cited)
-    end = max(_timestamp(claim["effective_end"]) for claim in cited)
-    retained = [float(value) for value, excluded in
-                zip(history, accepted_masks[0]) if not excluded]
-    ordered = sorted(retained)
-    def empirical(p: float) -> float:
-        position = p * (len(ordered) - 1)
-        lower = int(math.floor(position)); upper = int(math.ceil(position))
-        if lower == upper:
-            return ordered[lower]
-        return ordered[lower] + (ordered[upper] - ordered[lower]) * (position - lower)
-    q10, q50, q90 = empirical(.1), empirical(.5), empirical(.9)
-    candidate = {
-        "quantiles": [{"timestamp": timestamp, "q10": q10,
-                       "q50": q50, "q90": q90}
-                      for timestamp in future_timestamps],
-        "rationale": (
-            f"Counterfactual empirical distribution from {len(retained)} "
-            f"pre-cutoff observations after excluding {excluded} readings "
-            "matching the disclosed historical-contamination predicate."),
-    }
+    from .observation_counterfactual import fit_observation_counterfactual
+    candidate, replay = fit_observation_counterfactual(
+        history, accepted_masks[0], future_timestamps)
+    accepted[0]["conditional_replay"] = replay
+    critique["conditional_replay"] = replay
     return accepted, critique, candidate
 
 

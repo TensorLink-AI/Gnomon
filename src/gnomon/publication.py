@@ -426,12 +426,19 @@ def build_scenario_catalog(result: dict[str, Any], *,
                         "claim_ids": [str(item) for item in
                                       proposal.get("claim_ids") or []],
                     })
+        replay_admitted = False
         if candidate:
             # Preserve the v0.1 public identifier while making the less
             # authoritative origin explicit in the typed role. A model may
             # supply this alongside a typed effect; the selector sees both.
             identifier = f"prior-assisted-{index}"
             candidate_critique = dossier.get("candidate_critique") or {}
+            candidate_origin = str(
+                candidate_critique.get("candidate_origin") or "model_authored")
+            conditional_replay = candidate.get("conditional_replay") or {}
+            replay_admitted = (
+                candidate_origin == "observation_interpretation_counterfactual"
+                and conditional_replay.get("selection_eligible") is True)
             selection_eligible = candidate_critique.get(
                 "selection_eligible", True) is True
             candidate_claims = {str(item) for item in
@@ -446,8 +453,13 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 # visible for explanation, comparison, and outcome scoring.
                 selection_eligible = False
             scenarios.append(_scenario(
-                identifier, "model_authored", _rows(candidate.get("quantiles")),
-                support="prior_assisted", automation_eligible=False,
+                identifier,
+                ("observation_counterfactual" if
+                 candidate_origin == "observation_interpretation_counterfactual"
+                 else "model_authored"),
+                _rows(candidate.get("quantiles")),
+                support=("conditionally_supported" if replay_admitted
+                         else "prior_assisted"), automation_eligible=False,
                 selection_eligible=selection_eligible,
                 claim_ids=[str(item) for item in candidate.get("claim_ids") or []],
                 assumptions=[str(candidate.get("rationale") or ""), *[
@@ -465,12 +477,18 @@ def build_scenario_catalog(result: dict[str, Any], *,
                         "owns recommendation authority."]
                       if governed_by_transformation else [])],
                 source_seal=str(dossier["seal_sha256"]),
+                effect={
+                    "candidate_origin": candidate_origin,
+                    "conditional_replay": conditional_replay,
+                },
             ))
             emitted.append(identifier)
         dispositions.extend({
             "context_id": f"dossier-{index}:{item.get('claim_id')}",
             "disposition": "scenario",
-            "reason_code": "prior_assisted_not_historically_admitted",
+            "reason_code": (
+                "conditional_replay_admitted" if replay_admitted else
+                "prior_assisted_not_historically_admitted"),
             "scenario_ids": emitted, "claim_id": item.get("claim_id"),
         } for item in claims)
     if len(scenarios) > MAX_SCENARIOS:
@@ -481,6 +499,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
             "fitted_context_candidate": 80,
             "effect_composed": 70,
             "model_authored": 60,
+            "observation_counterfactual": 75,
             "model_authored_transformation": 60,
             "conditional_sensitivity": 50,
         }
@@ -661,6 +680,7 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
             )["scenario_id"]
         selected_id = selected_id or next((item["scenario_id"] for item in scenarios
                             if item["role"] in {"effect_composed", "model_authored",
+                                                "observation_counterfactual",
                                                 "model_authored_transformation"}
                             and item.get("selection_eligible", True) is True),
                            "primary")
@@ -684,6 +704,8 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
         selection_method = "verified_context_contract"
     elif selected_role == "fitted_context_candidate":
         selection_method = "out_of_sample_evidence_dominance"
+    elif selected_role == "observation_counterfactual":
+        selection_method = "conditional_replay_evidence"
     elif selected_role in {
             "model_authored", "model_authored_transformation",
             "effect_composed"}:
@@ -704,6 +726,10 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
         "selection_method": selection_method,
         "independent_selection_performed": selection is not None,
         "historically_admitted": selected_role == "historically_admitted",
+        "conditional_replay_admitted": (
+            selected_role == "observation_counterfactual"
+            and ((selected.get("effect") or {}).get(
+                "conditional_replay") or {}).get("selection_eligible") is True),
         "prior_assisted": selected.get("support") == "prior_assisted",
         "human_review_required": bool(
             prior_assisted_default or not selected.get("automation_eligible")),
@@ -711,6 +737,10 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
             "A sealed prior-assisted path is the human-facing best estimate, "
             "but it was not independently ranked or historically admitted."
             if prior_assisted_default else
+            "A fixed observation counterfactual beat the strongest raw "
+            "comparator under expanding-origin conditional replay; it remains "
+            "non-automatable and requires human review."
+            if selection_method == "conditional_replay_evidence" else
             "Recommendation authority follows the disclosed selection method."
         ),
     }

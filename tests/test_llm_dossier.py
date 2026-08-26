@@ -215,11 +215,19 @@ def test_cited_recurring_disruption_excludes_by_time_not_observed_value():
              "days, starting from 2026-01-02 00:00:00, resulting in no "
              "withdrawals recorded.")
     context = claim + " Assume the ATM will not be in maintenance in the future."
+    stale_interpretation = {
+        "kind": "historical_contamination", "claim_ids": ["claim-99"],
+        "predicate": {"op": "recurring_window",
+                      "start": "2026-01-02 00:00:00",
+                      "duration_steps": 2, "period_steps": 4},
+        "window": "cited_window", "rationale": "stale model citation",
+    }
     raw = {"claims": [{
         "source_span": claim, "relation": "unknown",
         "effective_start": "2026-01-02T00:00:00+00:00",
         "effective_end": "2026-01-09T00:00:00+00:00", "confidence": .9,
-    }]}
+    }], "observation_interpretations": [dict(stale_interpretation)
+                                         for _ in range(4)]}
     history_times = [f"2026-01-0{day}T00:00:00+00:00" for day in range(1, 10)]
     history = [11, -1.2, -1.0, 12, 13, -.8, -1.1, 14, 15]
     dossier, reasons = validate_temporal_dossier(
@@ -232,6 +240,8 @@ def test_cited_recurring_disruption_excludes_by_time_not_observed_value():
     assert interpretation["predicate"]["op"] == "recurring_window"
     assert interpretation["excluded_observations"] == 4
     assert interpretation["retained_observations"] == 5
+    assert dossier["observation_interpretation_critique"]["rejected"][0][
+        "code"] == "UNVERIFIED_CLAIMS"
     assert dossier["forecast_candidate"] is not None
     assert dossier["primary_forecast_unchanged"] is True
 

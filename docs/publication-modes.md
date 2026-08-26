@@ -109,9 +109,12 @@ an `observation_interpretation` may filter an exact value or a source-stated
 recurring window from a copy of the pre-cutoff history. The raw observations
 and immutable primary are never edited. Retained/excluded counts and any
 transformed-floor normalization are sealed. The resulting empirical
-counterfactual is a visible `prior_assisted` scenario only; it cannot lead the
-recommendation until fold-safe replay establishes skill, and it is never
-automation-eligible merely because the prose was verified.
+counterfactual begins as a visible `prior_assisted` scenario. It can lead a
+best-effort recommendation only after at least twelve expanding origins on
+unaffected targets, a 10% win over the strongest fixed raw classical
+comparator, and wins in two of three chronological blocks. The receipt labels
+this as retrospective conditional replay—it does not pretend the source was
+known at earlier origins—and automation remains ineligible.
 
 Numerical influence is earned separately. Vintage-aware exogenous regression,
 expanding-origin lag selection, and leave-one-episode-out analogue evaluation
