@@ -9,12 +9,14 @@ primary artifact.
 from __future__ import annotations
 
 import math
+import statistics
 from typing import Any
 
 from .effects import EFFECT_SHAPES
 
 MAX_DELAY_STEPS = 10_000
 MAX_DURATION_STEPS = 10_000
+MAX_COMPOSED_EFFECT_SCALES = 20.0
 UNITS = frozenset({"target_units", "fraction_of_level"})
 SCOPES = frozenset({"single_series", "shared", "per_series"})
 
@@ -188,6 +190,42 @@ def compose_effect(primary: list[dict[str, Any]], proposal: dict[str, Any]
         row["point"] = _center(row)
         rows.append(row)
     return rows
+
+
+def assess_composed_effect(primary: list[dict[str, Any]], proposal: dict[str, Any]
+                           ) -> dict[str, Any]:
+    """Check numeric composition without confusing typing with plausibility."""
+    if not primary:
+        return {"accepted": False, "violations": [{
+            "code": "MISSING_PRIMARY_PATH",
+            "message": "An effect requires an immutable primary path."}]}
+    centers = [_center(row) for row in primary]
+    violations: list[dict[str, str]] = []
+    if (proposal.get("unit") == "fraction_of_level"
+            and proposal.get("shape") != "variance_change"
+            and any(value <= 0 for value in centers)):
+        violations.append({
+            "code": "NONPOSITIVE_FRACTIONAL_BASE",
+            "message": "A fractional level effect is ambiguous on a non-positive path."})
+    composed = compose_effect(primary, proposal)
+    displacements = [abs(_center(after) - before)
+                     for before, after in zip(centers, composed)]
+    changes = [abs(right - left) for left, right in zip(centers, centers[1:])]
+    widths = [max(0.0, _value(row, "q90", center)
+                  - _value(row, "q10", center)) / 2
+              for row, center in zip(primary, centers)]
+    positive = [value for value in [*changes, *widths] if value > 1e-12]
+    scale = (statistics.median(positive) if positive
+             else max(abs(statistics.median(centers)) * .01, 1e-12))
+    ratio = max(displacements, default=0.0) / scale
+    if ratio > MAX_COMPOSED_EFFECT_SCALES:
+        violations.append({
+            "code": "IMPLAUSIBLE_COMPOSED_DISPLACEMENT",
+            "message": (f"Composed displacement is {ratio:.3f} robust path "
+                        f"scales; maximum is {MAX_COMPOSED_EFFECT_SCALES:g}.")})
+    return {"accepted": not violations, "violations": violations,
+            "maximum_displacement_scales": ratio,
+            "scale_basis": "median primary change or interval half-width"}
 
 
 def _shape_weight(index: int, horizon: int, proposal: dict[str, Any]) -> float:

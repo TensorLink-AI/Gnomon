@@ -1,6 +1,7 @@
 import pytest
 
-from gnomon.effect_proposals import compose_effect, validate_effect_proposal
+from gnomon.effect_proposals import (assess_composed_effect, compose_effect,
+                                     validate_effect_proposal)
 from gnomon.llm_dossier import validate_temporal_dossier
 from gnomon.llm_dossier import deterministic_events_from_claims
 from gnomon.publication import publish_result, verify_publication
@@ -223,3 +224,19 @@ def test_all_composable_shapes_preserve_horizon_and_quantile_order(shape):
     rows = compose_effect(PRIMARY, proposal)
     assert len(rows) == len(PRIMARY)
     assert all(row["q10"] <= row["q50"] <= row["q90"] for row in rows)
+
+
+def test_composed_effect_rejects_scale_explosion_and_fractional_negative_base():
+    huge, _ = validate_effect_proposal(
+        _proposal(location=100, lower=90, upper=110), claim_ids={"claim-1"})
+    assessment = assess_composed_effect(PRIMARY, huge)
+    assert assessment["accepted"] is False
+    assert assessment["violations"][0]["code"] == "IMPLAUSIBLE_COMPOSED_DISPLACEMENT"
+    negative = [{**row, "point": -3, "q10": -4, "q50": -3, "q90": -2}
+                for row in PRIMARY]
+    fractional, _ = validate_effect_proposal(
+        _proposal(unit="fraction_of_level", location=.2, lower=.1, upper=.3),
+        claim_ids={"claim-1"})
+    assessment = assess_composed_effect(negative, fractional)
+    assert any(item["code"] == "NONPOSITIVE_FRACTIONAL_BASE"
+               for item in assessment["violations"])

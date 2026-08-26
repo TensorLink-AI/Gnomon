@@ -71,7 +71,9 @@ MAX_RUN_TOKENS = 250_000
 #: context_trusted path; selection remains autonomous among evidence peers.
 #: Version 12: the host skips the selector call when the product contract says
 #: evidence already makes the recommendation non-discretionary.
-MCP_CONTRACT_VERSION = 12
+#: Version 13: engine-composed effects must pass scale and sign plausibility;
+#: typing and citations alone no longer make a numeric path recommendable.
+MCP_CONTRACT_VERSION = 13
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it

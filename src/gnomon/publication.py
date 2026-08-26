@@ -16,7 +16,7 @@ from typing import Any, Literal
 
 from .llm_dossier import verify_temporal_dossier_seal
 from .llm_dossier import validate_temporal_dossier
-from .effect_proposals import compose_effect
+from .effect_proposals import assess_composed_effect, compose_effect
 from .temporal_state import build_temporal_state
 from .context_intelligence import candidate_evidence_score
 
@@ -240,15 +240,28 @@ def build_scenario_catalog(result: dict[str, Any], *,
                     "reason": f"Effect scope does not include series {actual_series!r}.",
                 })
             else:
-                scenarios.append(_scenario(
-                    identifier, "effect_composed", compose_effect(primary, proposal),
-                    support="prior_assisted", automation_eligible=False,
-                    claim_ids=[str(item) for item in proposal.get("claim_ids") or []],
-                    assumptions=[str(proposal.get("rationale") or ""),
-                                 str(proposal.get("uncertainty_basis") or "")],
-                    source_seal=str(dossier["seal_sha256"]), effect=proposal,
-                ))
-                emitted.append(identifier)
+                assessment = assess_composed_effect(primary, proposal)
+                if not assessment["accepted"]:
+                    dispositions.append({
+                        "context_id": f"dossier-{index}:effect-proposal",
+                        "disposition": "rejected",
+                        "reason_code": "effect_composition_implausible",
+                        "reason": "; ".join(item["message"] for item in
+                                             assessment["violations"]),
+                        "violations": assessment["violations"],
+                        "composition_assessment": assessment,
+                    })
+                else:
+                    scenarios.append(_scenario(
+                        identifier, "effect_composed", compose_effect(primary, proposal),
+                        support="prior_assisted", automation_eligible=False,
+                        claim_ids=[str(item) for item in proposal.get("claim_ids") or []],
+                        assumptions=[str(proposal.get("rationale") or ""),
+                                     str(proposal.get("uncertainty_basis") or "")],
+                        source_seal=str(dossier["seal_sha256"]),
+                        effect={**proposal, "composition_assessment": assessment},
+                    ))
+                    emitted.append(identifier)
         if candidate:
             # Preserve the v0.1 public identifier while making the less
             # authoritative origin explicit in the typed role. A model may
