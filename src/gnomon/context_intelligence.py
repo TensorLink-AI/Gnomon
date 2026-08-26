@@ -34,6 +34,115 @@ HYPOTHESIS_KINDS = frozenset({
 })
 
 
+def canonicalize_recursive_wrapper(
+    wrapper: Any, *, target_name: str, driver_names: list[str],
+) -> tuple[Any, dict[str, Any]]:
+    """Recognize a verbose linear lag equation and bind it to safe recursion.
+
+    This is syntax normalization, not equation inference: every term,
+    coefficient and lag must already be explicit. Target-lag arrays are
+    discarded rather than trusted; duplicate driver schedules must agree.
+    """
+    if not isinstance(wrapper, dict):
+        return wrapper, {"status": "not_applicable"}
+    transformation = wrapper.get("transformation", wrapper)
+    if not isinstance(transformation, dict):
+        return wrapper, {"status": "not_applicable"}
+    expression = transformation.get("expression")
+    if not isinstance(expression, dict) or expression.get("op") == "recursive_linear":
+        return wrapper, {"status": "already_canonical"}
+
+    def flatten(node: Any) -> list[Any] | None:
+        if not isinstance(node, dict):
+            return None
+        if node.get("op") == "add":
+            output = []
+            for child in node.get("args") or []:
+                terms = flatten(child)
+                if terms is None:
+                    return None
+                output.extend(terms)
+            return output
+        return [node]
+
+    def normalize(value: str) -> str:
+        return re.sub(r"[^a-z0-9]", "", value.casefold())
+
+    driver_by_normal = {normalize(name): name for name in driver_names}
+    target_key = normalize(target_name)
+    ar_terms, driver_terms = [], []
+    aliases: dict[str, list[str]] = {}
+    for term in flatten(expression) or []:
+        if not isinstance(term, dict) or term.get("op") != "multiply":
+            return wrapper, {"status": "not_applicable"}
+        args = term.get("args") or []
+        if len(args) != 2:
+            return wrapper, {"status": "not_applicable"}
+        literal = next((item for item in args if isinstance(item, dict)
+                        and item.get("op") == "literal"), None)
+        series_node = next((item for item in args if isinstance(item, dict)
+                            and item.get("op") == "series"), None)
+        if literal is None or series_node is None:
+            return wrapper, {"status": "not_applicable"}
+        name = str(series_node.get("name") or "")
+        match = re.fullmatch(r"(.+?)[_-]?lag[_-]?(\d+)", name, re.I)
+        if not match:
+            return wrapper, {"status": "not_applicable"}
+        base, lag = normalize(match.group(1)), int(match.group(2))
+        coefficient = _finite(literal.get("value"), "expression.coefficient")
+        if base == target_key:
+            ar_terms.append({"lag": lag, "coefficient": coefficient})
+        elif base in driver_by_normal:
+            actual = driver_by_normal[base]
+            driver_terms.append({"series": actual, "lag": lag,
+                                 "coefficient": coefficient})
+            aliases.setdefault(actual, []).append(name)
+        else:
+            return wrapper, {"status": "not_applicable",
+                             "reason": f"unresolved lagged series {name!r}"}
+    if not ar_terms:
+        return wrapper, {"status": "not_applicable"}
+
+    supplied = wrapper.get("series_values") or {}
+    canonical_values: dict[str, Any] = {}
+    for actual, names in aliases.items():
+        payloads = [supplied.get(name) for name in names]
+        if not payloads or any(not isinstance(item, dict) for item in payloads):
+            return wrapper, {"status": "rejected",
+                             "reason": f"missing future schedule for {actual!r}"}
+        values = [item.get("values") for item in payloads]
+        if any(value != values[0] for value in values[1:]):
+            return wrapper, {"status": "rejected",
+                             "reason": f"conflicting lag schedules for {actual!r}"}
+        claim_ids = sorted({str(claim_id) for item in payloads
+                            for claim_id in item.get("source_claim_ids") or []})
+        canonical_values[actual] = {
+            **payloads[0], "source_claim_ids": claim_ids,
+            "canonicalized_from": sorted(names),
+        }
+    output_unit = str(transformation.get("output_unit") or "unknown")
+    canonical = {
+        **transformation,
+        "expression": {
+            "op": "recursive_linear", "output_unit": output_unit,
+            "intercept": 0.0,
+            "autoregressive_terms": sorted(ar_terms, key=lambda item: item["lag"]),
+            "driver_terms": sorted(driver_terms,
+                                   key=lambda item: (item["series"], item["lag"])),
+        },
+        "syntax_canonicalization": "verbose_lag_arrays_to_recursive_linear",
+    }
+    units = dict(wrapper.get("units") or {})
+    canonical_units = {"primary": units.get("primary", output_unit)}
+    for actual, names in aliases.items():
+        canonical_units[actual] = next(
+            (units[name] for name in names if name in units), "unknown")
+    return ({**wrapper, "transformation": canonical,
+             "series_values": canonical_values, "units": canonical_units},
+            {"status": "canonicalized", "target": target_name,
+             "drivers": sorted(canonical_values)})
+
+
 class TransformationError(ValueError):
     """A typed, user-repairable rejection of a declarative transformation."""
 

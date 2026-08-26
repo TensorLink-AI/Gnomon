@@ -3,7 +3,8 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from gnomon.context_intelligence import (
-    align_vintage_rows, candidate_evidence_score, compile_context_hypotheses,
+    align_vintage_rows, candidate_evidence_score, canonicalize_recursive_wrapper,
+    compile_context_hypotheses,
     compile_transformation, execute_transformation, TransformationError,
     fit_historical_analogue, fit_lagged_relationship, fit_vintage_exogenous,
     validate_transformation,
@@ -545,6 +546,65 @@ def test_zero_recursive_intercept_is_safe_identity_not_unsourced_effect():
         units={"primary": "sales"},
         claim_spans={"claim-1": "sales[t] = 0.5 sales[t-1]"})
     assert compiled["expression"]["intercept"] == 0
+
+
+def test_verbose_lag_arrays_canonicalize_to_recursion_without_target_values():
+    wrapper = {
+        "transformation": {
+            "known_at": _stamp(5), "claim_ids": ["claim-1"],
+            "lane": "prior_assisted", "output_unit": "sales",
+            "expression": {"op": "add", "args": [
+                {"op": "multiply", "args": [
+                    {"op": "literal", "value": .5},
+                    {"op": "series", "name": "sales_lag1"}]},
+                {"op": "multiply", "args": [
+                    {"op": "literal", "value": 2},
+                    {"op": "series", "name": "campaign_lag1"}]},
+            ]},
+        },
+        "units": {"primary": "sales", "sales_lag1": "sales",
+                  "campaign_lag1": "spend"},
+        "series_values": {
+            "sales_lag1": {"values": [999, 999]},
+            "campaign_lag1": {"values": [4, 5], "known_at": _stamp(5),
+                              "source_claim_ids": ["claim-1"]},
+        },
+    }
+    canonical, status = canonicalize_recursive_wrapper(
+        wrapper, target_name="sales", driver_names=["campaign"])
+    assert status["status"] == "canonicalized"
+    expression = canonical["transformation"]["expression"]
+    assert expression["op"] == "recursive_linear"
+    assert expression["autoregressive_terms"] == [{"lag": 1, "coefficient": .5}]
+    assert expression["driver_terms"] == [
+        {"series": "campaign", "lag": 1, "coefficient": 2}]
+    assert set(canonical["series_values"]) == {"campaign"}
+    assert 999 not in canonical["series_values"]["campaign"]["values"]
+
+
+def test_verbose_recurrence_refuses_conflicting_driver_schedules():
+    wrapper = {
+        "transformation": {"output_unit": "y", "expression": {
+            "op": "add", "args": [
+                {"op": "multiply", "args": [
+                    {"op": "literal", "value": .5},
+                    {"op": "series", "name": "y_lag1"}]},
+                {"op": "multiply", "args": [
+                    {"op": "literal", "value": 2},
+                    {"op": "series", "name": "x_lag1"}]},
+                {"op": "multiply", "args": [
+                    {"op": "literal", "value": 3},
+                    {"op": "series", "name": "x_lag2"}]},
+            ]}},
+        "series_values": {
+            "x_lag1": {"values": [1, 2]},
+            "x_lag2": {"values": [9, 9]},
+        },
+    }
+    unchanged, status = canonicalize_recursive_wrapper(
+        wrapper, target_name="y", driver_names=["x"])
+    assert unchanged == wrapper
+    assert status["status"] == "rejected"
 
 
 def test_model_computed_constant_cannot_launder_through_claim_id():

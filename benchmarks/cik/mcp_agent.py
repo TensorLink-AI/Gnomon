@@ -120,7 +120,9 @@ MAX_RUN_TOKENS = 250_000
 #: feed prior outputs back inside the sealed executor, never through LLM data.
 #: Version 42: an explicit zero intercept is treated as additive identity, and
 #: transformation driver schedules are not duplicated as covariate proposals.
-MCP_CONTRACT_VERSION = 42
+#: Version 43: verbose cited lag-array equations canonicalize deterministically
+#: to recursion; invented target arrays are discarded, not executed.
+MCP_CONTRACT_VERSION = 43
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -1296,6 +1298,21 @@ class _Run:
         # sealed AST before the forecast call so a near-correct proposal can
         # add missing verbatim claims or repair only the transformation lane;
         # accepted events/effects/covariates are never replaced by this pass.
+        from gnomon.context_intelligence import canonicalize_recursive_wrapper
+
+        def canonicalize_transformations(candidate_raw: dict[str, Any]) -> dict[str, Any]:
+            normalized = []
+            for item in candidate_raw.get("transformations") or []:
+                canonical, status = canonicalize_recursive_wrapper(
+                    item, target_name=self.target_name,
+                    driver_names=list(self.companion_histories))
+                if isinstance(canonical, dict) and status.get("status") != "not_applicable":
+                    canonical = {**canonical, "syntax_canonicalization": status}
+                normalized.append(canonical)
+            return {**candidate_raw, "transformations": normalized}
+
+        raw = canonicalize_transformations(raw)
+
         def transformation_violations(
                 candidate_raw: dict[str, Any], dossier: dict[str, Any]) -> list[dict[str, Any]]:
             from gnomon.context_intelligence import (
@@ -1373,6 +1390,7 @@ class _Run:
                         raw = {**raw,
                                "claims": repaired.get("claims") or [],
                                "transformations": repaired.get("transformations") or []}
+                        raw = canonicalize_transformations(raw)
                         final_probe, _ = validate_temporal_dossier(
                             raw, context_text=context, cutoff=self.timestamps[-1],
                             future_timestamps=future_timestamps,
