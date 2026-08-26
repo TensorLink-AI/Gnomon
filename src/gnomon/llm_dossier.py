@@ -135,6 +135,10 @@ def validate_temporal_dossier(
         "status": "not_proposed", "attempts_used": 0, "attempts_remaining": 2,
         "attempts": [],
     })
+    if effect_proposal is not None:
+        effect_proposal = _align_effect_onset_to_cited_claim(
+            effect_proposal, claims=claims,
+            future_timestamps=future_timestamps)
     hypotheses, hypothesis_critique = compile_context_hypotheses(
         raw.get("hypotheses"), claims=claims,
         series=[str(value) for value in raw.get("series") or ["*"]],
@@ -168,6 +172,62 @@ def validate_temporal_dossier(
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     payload["seal_sha256"] = hashlib.sha256(canonical.encode()).hexdigest()
     return payload, reasons
+
+
+def _align_effect_onset_to_cited_claim(
+    proposal: dict[str, Any], *, claims: list[dict[str, Any]],
+    future_timestamps: list[str],
+) -> dict[str, Any]:
+    """Derive relative delay from one cited, horizon-aligned claim window.
+
+    ``delay_steps`` is an execution coordinate, while source context normally
+    states a calendar timestamp. The verified claim owns the onset; duration
+    remains explicit because interval endpoints may be inclusive or exclusive
+    depending on the source's observation semantics.
+    """
+    cited = set(proposal.get("claim_ids") or [])
+    matching = [claim for claim in claims if claim.get("claim_id") in cited]
+    if len(matching) != 1:
+        return proposal
+    start = _timestamp(matching[0].get("effective_start"))
+    if start is None or not _claim_start_is_cited(
+            start, str(matching[0].get("source_span") or "")):
+        return proposal
+    future = [_timestamp(value) for value in future_timestamps]
+    if not future or any(value is None for value in future):
+        return proposal
+    indices = [index for index, timestamp in enumerate(future)
+               if timestamp is not None and timestamp >= start]
+    if not indices:
+        return proposal
+    derived = indices[0]
+    if derived == proposal.get("delay_steps"):
+        return proposal
+    normalized = dict(proposal)
+    normalized["delay_steps"] = derived
+    notes = list(proposal.get("semantic_normalizations") or [])
+    notes.append({
+        "code": "CLAIM_ONSET_TO_HORIZON_DELAY",
+        "cited_effective_start": start.isoformat(),
+        "applied_delay_steps": derived,
+        "basis": "verified cited claim window and forecast grid",
+    })
+    normalized["semantic_normalizations"] = notes
+    return normalized
+
+
+def _claim_start_is_cited(start: datetime, span: str) -> bool:
+    """Conservatively recognize explicit ISO-like calendar evidence."""
+    candidates = {
+        start.isoformat(), start.isoformat().replace("T", " "),
+        start.strftime("%Y-%m-%dT%H:%M:%S"),
+        start.strftime("%Y-%m-%d %H:%M:%S"),
+        start.strftime("%Y-%m-%dT%H:%M"),
+        start.strftime("%Y-%m-%d %H:%M"),
+    }
+    if start.hour == start.minute == start.second == start.microsecond == 0:
+        candidates.add(start.strftime("%Y-%m-%d"))
+    return any(value in span for value in candidates)
 
 
 def verify_temporal_dossier_seal(dossier: dict[str, Any]) -> bool:

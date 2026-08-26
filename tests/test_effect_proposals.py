@@ -68,6 +68,45 @@ def test_conflicting_cited_multipliers_fail_closed():
         "CONFLICTING_CITED_MULTIPLIERS"
 
 
+def test_cited_calendar_onset_controls_relative_effect_delay():
+    future = [f"2026-01-03T{hour:02d}:00:00+00:00" for hour in range(1, 5)]
+    dossier, _ = validate_temporal_dossier({
+        "claims": [{"source_span": "demand becomes 2 times the usual level at 2026-01-03 03:00:00",
+                    "relation": "supports_increase",
+                    "effective_start": future[2], "effective_end": future[3]}],
+        "effect_proposal": _proposal(
+            shape="temporary_pulse", unit="fraction_of_level",
+            location=2.0, lower=2.0, upper=2.0, delay_steps=0,
+            duration_steps=1),
+    }, context_text="demand becomes 2 times the usual level at 2026-01-03 03:00:00",
+       cutoff="2026-01-03T00:00:00+00:00", future_timestamps=future,
+       history=[8, 9, 10], compiler_model="test")
+    proposal = dossier["effect_proposal"]
+    assert proposal["delay_steps"] == 2
+    assert proposal["location"] == 1.0
+    assert [item["code"] for item in proposal["semantic_normalizations"]] == [
+        "MULTIPLIER_TO_ADDITIVE_FRACTION", "CLAIM_ONSET_TO_HORIZON_DELAY"]
+
+
+def test_uncited_model_authored_onset_cannot_realign_effect():
+    future = [f"2026-01-03T{hour:02d}:00:00+00:00" for hour in range(1, 5)]
+    dossier, _ = validate_temporal_dossier({
+        "claims": [{"source_span": "demand becomes 2 times the usual level",
+                    "relation": "supports_increase",
+                    "effective_start": future[2], "effective_end": future[3]}],
+        "effect_proposal": _proposal(
+            shape="temporary_pulse", unit="fraction_of_level",
+            location=2.0, lower=2.0, upper=2.0, delay_steps=0,
+            duration_steps=1),
+    }, context_text="demand becomes 2 times the usual level",
+       cutoff="2026-01-03T00:00:00+00:00", future_timestamps=future,
+       history=[8, 9, 10], compiler_model="test")
+    assert dossier["effect_proposal"]["delay_steps"] == 0
+    assert [item["code"] for item in
+            dossier["effect_proposal"]["semantic_normalizations"]] == [
+                "MULTIPLIER_TO_ADDITIVE_FRACTION"]
+
+
 def test_repair_is_bounded_and_typed():
     accepted, critique = validate_effect_proposal(
         _proposal(shape="magic"), claim_ids={"claim-1"}, repair=_proposal())
