@@ -78,6 +78,28 @@ def test_scenario_selection_can_rank_but_not_authorize_or_edit():
     assert verify_publication(payload)
 
 
+def test_validated_context_event_is_citable_without_a_dossier_claim():
+    result = _result()
+    result["primary_forecast"] = [
+        {**row, "point": 9.0, "q10": 8, "q50": 9, "q90": 10}
+        for row in result["forecast"]]
+    result["context_outcome"] = {
+        "status": "applied", "admission_basis": "future_context_contract",
+        "events": ["event-1"],
+    }
+    selection = {
+        "selected_scenario_id": "context_conditioned",
+        "ranking": ["context_conditioned", "primary"],
+        "cited_claim_ids": ["event-1"], "counterevidence_claim_ids": [],
+        "confidence": .8, "rationale": "validated event applies",
+        "what_would_change_selection": "event cancellation",
+    }
+    payload = publish_result(result, mode="best_effort",
+                             scenario_selection=selection)
+    assert payload["scenario_selection"]["cited_claim_ids"] == ["event-1"]
+    assert verify_publication(payload)
+
+
 def test_unknown_citations_and_tampering_fail_loudly():
     selection = {
         "selected_scenario_id": "primary",

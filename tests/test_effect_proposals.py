@@ -2,6 +2,7 @@ import pytest
 
 from gnomon.effect_proposals import compose_effect, validate_effect_proposal
 from gnomon.llm_dossier import validate_temporal_dossier
+from gnomon.llm_dossier import deterministic_events_from_claims
 from gnomon.publication import publish_result, verify_publication
 from gnomon.toolspec import runner_for
 
@@ -75,6 +76,37 @@ def test_rejected_proposal_is_visible_in_publication_dispositions():
     assert rejected[0]["violations"][0]["code"] == "UNKNOWN_EFFECT_SHAPE"
 
 
+def test_single_claim_is_bound_after_gnomon_assigns_its_id():
+    raw = _proposal()
+    raw.pop("claim_ids")
+    dossier, _ = validate_temporal_dossier({
+        "claims": [{"source_span": "promotion begins tomorrow",
+                    "relation": "supports_increase",
+                    "effective_start": TIMES[0], "effective_end": TIMES[-1]}],
+        "effect_proposal": raw,
+    }, context_text="promotion begins tomorrow",
+       cutoff="2026-01-02T00:00:00+00:00", future_timestamps=TIMES,
+       history=[8, 9, 10], compiler_model="test")
+    assert dossier["effect_proposal"]["claim_ids"] == ["claim-1"]
+    assert dossier["effect_proposal"]["citation_binding"] == "single_verified_claim"
+
+
+def test_only_literal_absolute_claim_becomes_deterministic_override():
+    def dossier(span):
+        return validate_temporal_dossier({
+            "claims": [{"source_span": span, "relation": "supports_decrease",
+                        "effective_start": TIMES[0], "effective_end": TIMES[-1]}],
+        }, context_text=span, cutoff="2026-01-02T00:00:00+00:00",
+           future_timestamps=TIMES, history=[8, 9, 10],
+           compiler_model="test")[0]
+    exact = deterministic_events_from_claims(
+        dossier("output drops to zero during the shutdown"))
+    assert exact[0]["event_type"] == "override:stated_absolute_value"
+    assert exact[0]["deterministic_value_parsed"] == 0.0
+    assert deterministic_events_from_claims(
+        dossier("output will probably decline during the promotion")) == []
+
+
 def test_publication_prefers_effect_composition_and_retains_portfolio():
     dossier, reasons = validate_temporal_dossier({
         "claims": [{"source_span": "promotion begins tomorrow",
@@ -85,8 +117,8 @@ def test_publication_prefers_effect_composition_and_retains_portfolio():
         # A full path is accepted for compatibility but must not outrank the
         # safer engine-composed representation of the same context.
         "forecast_candidate": {"quantiles": [
-            {"timestamp": stamp, "q10": 99, "q50": 100, "q90": 101}
-            for stamp in TIMES]},
+            {"timestamp": stamp, "q10": 12 + i, "q50": 13 + i, "q90": 14 + i}
+            for i, stamp in enumerate(TIMES)]},
     }, context_text="promotion begins tomorrow",
        cutoff="2026-01-02T00:00:00+00:00", future_timestamps=TIMES,
        history=[8, 9, 10], compiler_model="test")
@@ -97,8 +129,37 @@ def test_publication_prefers_effect_composition_and_retains_portfolio():
     assert payload["recommended_forecast"][0]["q50"] == 12
     assert payload["primary_forecast"][0]["q50"] == 10
     assert payload["automation"]["eligible"] is False
+    assert {item["role"] for item in payload["candidate_portfolio"]} >= {
+        "effect_composed", "model_authored"}
     assert payload["temporal_state"]["trend"]["direction"] == "flat_or_unknown"
     assert verify_publication(payload)
+
+
+def test_validated_context_path_precedes_weaker_model_effect():
+    dossier, _ = validate_temporal_dossier({
+        "claims": [{"source_span": "promotion begins tomorrow",
+                    "relation": "supports_increase",
+                    "effective_start": TIMES[0], "effective_end": TIMES[-1]}],
+        "effect_proposal": _proposal(),
+    }, context_text="promotion begins tomorrow",
+       cutoff="2026-01-02T00:00:00+00:00", future_timestamps=TIMES,
+       history=[8, 9, 10], compiler_model="test")
+    conditioned = [{**row, "q10": 20, "q50": 21, "q90": 22, "point": 21}
+                   for row in PRIMARY]
+    result = {
+        "support": "context_trusted", "forecast": conditioned,
+        "primary_forecast": PRIMARY,
+        "context_outcome": {"status": "applied",
+                            "admission_basis": "future_context_contract"},
+    }
+    payload = publish_result(result, mode="best_effort", dossiers=[dossier])
+    assert payload["recommended_scenario_id"] == "context_conditioned"
+    assert payload["recommended_forecast"] == conditioned
+    selected = next(item for item in payload["candidate_portfolio"]
+                    if item["scenario_id"] == "context_conditioned")
+    assert selected["claim_ids"] == ["claim-1"]
+    assert any(item["role"] == "effect_composed"
+               for item in payload["candidate_portfolio"])
 
 
 def test_mcp_one_call_validates_and_composes_raw_context(tmp_path):

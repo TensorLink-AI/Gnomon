@@ -113,8 +113,17 @@ def validate_temporal_dossier(
     candidate = _validate_candidate(
         raw.get("forecast_candidate"), claims=claims,
         future_timestamps=future_timestamps, history=history, reasons=reasons)
+    effect_raw = raw.get("effect_proposal")
+    if isinstance(effect_raw, dict) and not effect_raw.get("claim_ids") \
+            and len(claims) == 1:
+        # The caller proposes claims and effects in one response, before
+        # Gnomon assigns canonical claim IDs. A single unambiguous claim may
+        # therefore be bound deterministically; multiple claims still require
+        # explicit citation so the model cannot smuggle in a broad rationale.
+        effect_raw = {**effect_raw, "claim_ids": [claims[0]["claim_id"]],
+                      "citation_binding": "single_verified_claim"}
     effect_proposal, proposal_critique = validate_effect_proposal(
-        raw.get("effect_proposal"),
+        effect_raw,
         claim_ids={str(claim["claim_id"]) for claim in claims},
         repair=raw.get("effect_proposal_repair"),
     ) if raw.get("effect_proposal") not in (None, {}) else (None, {
@@ -148,6 +157,38 @@ def verify_temporal_dossier_seal(dossier: dict[str, Any]) -> bool:
     canonical = json.dumps(body, sort_keys=True, separators=(",", ":"))
     expected = hashlib.sha256(canonical.encode()).hexdigest()
     return dossier["seal_sha256"] == expected
+
+
+def deterministic_events_from_claims(dossier: dict[str, Any]) -> list[dict[str, Any]]:
+    """Promote only literally stated absolute states into event proposals.
+
+    The LLM locates and dates the verbatim span; Gnomon's existing parser must
+    independently recover an absolute value. Qualitative effects remain
+    scenarios. Returned objects intentionally re-enter the ordinary context
+    validator rather than bypassing it.
+    """
+    from .future_context import parse_override_span
+
+    events = []
+    for index, claim in enumerate(dossier.get("claims") or [], 1):
+        span = str(claim.get("source_span") or "")
+        value, problem = parse_override_span(span)
+        if problem is not None or value is None:
+            continue
+        events.append({
+            "event_type": "override:stated_absolute_value",
+            "entity_scope": ["*"],
+            "effective_start": claim["effective_start"],
+            "effective_end": claim["effective_end"],
+            "confidence": claim.get("confidence", 1.0),
+            "status": "confirmed",
+            "evidence_quote": span, "source_span": span,
+            "effect_family": "level_shift", "direction": "unknown",
+            "duration": "temporary", "entity_kind": "unknown",
+            "deterministic_value_parsed": value,
+            "derived_from_claim_id": claim.get("claim_id") or f"claim-{index}",
+        })
+    return events
 
 
 def _validate_candidate(

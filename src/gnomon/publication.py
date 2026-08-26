@@ -94,6 +94,13 @@ def build_scenario_catalog(result: dict[str, Any], *,
     published = _rows(result.get("forecast"))
     primary = _rows(result.get("primary_forecast")) or published
     support = str(result.get("support") or "unsupported")
+    verified_context_claim_ids = [
+        str(claim.get("claim_id")) for dossier in dossiers or []
+        if verify_temporal_dossier_seal(dossier)
+        for claim in dossier.get("claims") or [] if claim.get("claim_id")]
+    verified_context_claim_ids.extend(
+        str(event_id) for event_id in
+        ((result.get("context_outcome") or {}).get("events") or []))
     scenarios = [_scenario(
         "primary", "immutable_primary", primary,
         support=_path_support(primary, support),
@@ -112,6 +119,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
             support=support,
             automation_eligible=(historically_admitted
                                  and support in {"supported", "context_trusted"}),
+            claim_ids=verified_context_claim_ids,
         ))
     for index, raw in enumerate(result.get("sensitivity_scenarios") or [], 1):
         rows = _rows(raw.get("forecast"))
@@ -169,6 +177,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 "claim_id": item.get("claim_id"),
             } for item in claims)
             continue
+        emitted: list[str] = []
         if proposal:
             identifier = f"effect-composed-{index}"
             requested_series = set(proposal.get("scope", {}).get("series") or [])
@@ -181,18 +190,20 @@ def build_scenario_catalog(result: dict[str, Any], *,
                     "reason_code": "effect_scope_mismatch",
                     "reason": f"Effect scope does not include series {actual_series!r}.",
                 })
-                continue
-            scenarios.append(_scenario(
-                identifier, "effect_composed", compose_effect(primary, proposal),
-                support="prior_assisted", automation_eligible=False,
-                claim_ids=[str(item) for item in proposal.get("claim_ids") or []],
-                assumptions=[str(proposal.get("rationale") or ""),
-                             str(proposal.get("uncertainty_basis") or "")],
-                source_seal=str(dossier["seal_sha256"]), effect=proposal,
-            ))
-        else:
+            else:
+                scenarios.append(_scenario(
+                    identifier, "effect_composed", compose_effect(primary, proposal),
+                    support="prior_assisted", automation_eligible=False,
+                    claim_ids=[str(item) for item in proposal.get("claim_ids") or []],
+                    assumptions=[str(proposal.get("rationale") or ""),
+                                 str(proposal.get("uncertainty_basis") or "")],
+                    source_seal=str(dossier["seal_sha256"]), effect=proposal,
+                ))
+                emitted.append(identifier)
+        if candidate:
             # Preserve the v0.1 public identifier while making the less
-            # authoritative origin explicit in the typed role.
+            # authoritative origin explicit in the typed role. A model may
+            # supply this alongside a typed effect; the selector sees both.
             identifier = f"prior-assisted-{index}"
             scenarios.append(_scenario(
                 identifier, "model_authored", _rows(candidate.get("quantiles")),
@@ -201,12 +212,16 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 assumptions=[str(candidate.get("rationale") or "")],
                 source_seal=str(dossier["seal_sha256"]),
             ))
+            emitted.append(identifier)
         dispositions.extend({
             "context_id": f"dossier-{index}:{item.get('claim_id')}",
             "disposition": "scenario",
             "reason_code": "prior_assisted_not_historically_admitted",
-            "scenario_id": identifier, "claim_id": item.get("claim_id"),
+            "scenario_ids": emitted, "claim_id": item.get("claim_id"),
         } for item in claims)
+    if len(scenarios) > MAX_SCENARIOS:
+        raise ValueError(
+            f"publication is bounded to {MAX_SCENARIOS} scenarios; split the request")
     return scenarios, dispositions
 
 
@@ -226,6 +241,8 @@ def validate_scenario_selection(raw: Any, *, scenarios: list[dict[str, Any]],
         raise ValueError("scenario selection must rank every known scenario id once with the selected id first")
     claim_ids = {str(claim.get("claim_id")) for dossier in dossiers or []
                  for claim in dossier.get("claims") or []}
+    claim_ids.update(str(item) for scenario in scenarios
+                     for item in scenario.get("claim_ids") or [])
     cited = [str(item) for item in raw.get("cited_claim_ids") or []]
     counter = [str(item) for item in raw.get("counterevidence_claim_ids") or []]
     if set(cited + counter) - claim_ids:
@@ -268,6 +285,12 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
     claims = [claim for dossier in dossiers or []
               if verify_temporal_dossier_seal(dossier)
               for claim in dossier.get("claims") or []]
+    known_claims = {str(claim.get("claim_id")) for claim in claims}
+    claims.extend({
+        "claim_id": str(item), "relation": "validated_context_event",
+        "mechanism": "A deterministic context event was validated and applied by Gnomon.",
+    } for scenario in scenarios for item in scenario.get("claim_ids") or []
+                  if str(item) not in known_claims)
     return {
         "instruction": (
             "Rank only the supplied scenario_ids. Explain the ranking using "
@@ -321,6 +344,8 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
         selected_id = selection["selected_scenario_id"]
     elif mode == "best_effort":
         selected_id = next((item["scenario_id"] for item in scenarios
+                            if item["role"] == "context_conditioned"), None)
+        selected_id = selected_id or next((item["scenario_id"] for item in scenarios
                             if item["role"] in {"effect_composed", "model_authored"}),
                            "primary")
     else:

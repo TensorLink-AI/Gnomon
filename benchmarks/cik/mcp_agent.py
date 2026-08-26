@@ -63,7 +63,7 @@ MAX_RUN_TOKENS = 250_000
 #: the agent loop and host-injects its validated events into the one governed
 #: forecast call.  The agent still chooses whether to invoke forecasting, but
 #: cannot silently omit context already gathered by its host.
-MCP_CONTRACT_VERSION = 6
+MCP_CONTRACT_VERSION = 8
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -226,6 +226,10 @@ Rules:
   effect and let Gnomon compose the numbers. Use forecast_candidate only when
   no typed effect can express the relationship. Never claim numeric values
   came from text unless the cited span states them.
+- Effect location/lower/upper are changes added to the primary path, not target
+  values. If the text states an exact future value (for example, withdrawals
+  become zero), encode it as an override:* event and omit effect_proposal;
+  Gnomon parses and applies that value deterministically.
 - Events are the narrow deterministic lane. Numeric bounds use
   event_type constraint:<label>; deterministic stated values use
   override:<label>. Other events carry qualitative classifications only;
@@ -781,14 +785,64 @@ class McpAgentForecaster:
             dossier = (run.context_compilation or {}).get("dossier") or {}
             candidate = dossier.get("forecast_candidate") or {}
             candidate_rows = candidate.get("quantiles")
-            if not candidate_rows and not dossier.get("effect_proposal"):
+            if (not candidate_rows and not dossier.get("effect_proposal")
+                    and self.output_role == "llm_candidate_shadow"):
                 raise GnomonAbstained([
                     "no admissible context candidate in the sealed dossier"])
             from gnomon.publication import publish_result, verify_publication
-            publication = publish_result({
+            artifact_result = getattr(run, "_submitted_result", None) or {
                 "support": extra_info.get("support") or "best_effort",
                 "forecast": submission,
-            }, mode="best_effort", dossiers=[dossier])
+            }
+            selection = None
+            selection_error = None
+            if self.output_role == "publication_best_effort":
+                from gnomon.publication import (build_scenario_catalog,
+                                                scenario_selection_contract,
+                                                validate_scenario_selection)
+                from gnomon.temporal_state import build_temporal_state
+                scenarios, _ = build_scenario_catalog(
+                    artifact_result, dossiers=[dossier])
+                if len(scenarios) > 1:
+                    contract = scenario_selection_contract(
+                        scenarios=scenarios, dossiers=[dossier],
+                        temporal_state=build_temporal_state(
+                            artifact_result, dossiers=[dossier]))
+                    base_prompt = (
+                        "Choose the most useful human-facing scenario under "
+                        "this governed contract. Preserve every number and "
+                        "support label. Return only the JSON response object.\n"
+                        + json.dumps(contract))
+                    last_error = None
+                    for attempt in range(2):
+                        prompt = base_prompt if attempt == 0 else (
+                            base_prompt + "\nYour previous response was rejected: "
+                            + str(last_error) + "\nRepair only that violation."
+                        )
+                        try:
+                            response = self.client.completions(
+                                [{"role": "user", "content": prompt}], n=1)[0]
+                            objects = extract_json_objects(response)
+                            if not objects:
+                                raise ValueError("selector returned no JSON object")
+                            selection = validate_scenario_selection(
+                                objects[0], scenarios=scenarios,
+                                dossiers=[dossier])
+                            break
+                        except Exception as error:
+                            last_error = error
+                            selection = None
+                    if selection is None:
+                        selection_error = f"selector rejected after repair: {last_error}"
+            try:
+                publication = publish_result(
+                    artifact_result, mode="best_effort", dossiers=[dossier],
+                    scenario_selection=selection)
+            except ValueError as error:
+                selection_error = f"selector rejected: {error}"
+                selection = None
+                publication = publish_result(
+                    artifact_result, mode="best_effort", dossiers=[dossier])
             if not verify_publication(publication):
                 raise RuntimeError("best-effort publication failed verification")
             submission = publication["recommended_forecast"]
@@ -796,6 +850,12 @@ class McpAgentForecaster:
                 extra_info = {
                     **extra_info, "route": "publication_best_effort",
                     "publication": publication,
+                    "scenario_selector": {
+                        "attempted": selection is not None or selection_error is not None,
+                        "accepted": publication.get("scenario_selection") is not None,
+                        "error": selection_error,
+                    },
+                    "llm_usage": self.client.usage_summary,
                 }
             extra_info = {
                 **extra_info,
@@ -853,7 +913,8 @@ class _Run:
         applying them.  No future target observations are exposed here.
         """
         from gnomon.context import event_from_dict, event_to_dict
-        from gnomon.llm_dossier import validate_temporal_dossier
+        from gnomon.llm_dossier import (deterministic_events_from_claims,
+                                        validate_temporal_dossier)
         from gnomon.workflows import DocumentRef, parse_context_response
 
         context = build_context_text(self.task)
@@ -881,6 +942,51 @@ class _Run:
                     "no JSON object in temporal-dossier output")
         except Exception as error:
             compile_rejections.append(f"dossier compilation failed: {error}")
+
+        # Exercise the product's bounded repair lane. The first response is
+        # probed before event parsing so a corrected complete dossier (claims
+        # plus effect) feeds every downstream validator consistently.
+        if raw.get("effect_proposal") or raw.get("forecast_candidate"):
+            probe, probe_rejections = validate_temporal_dossier(
+                raw, context_text=context, cutoff=self.timestamps[-1],
+                future_timestamps=future_timestamps, history=self.values,
+                compiler_model=self.forecaster.openrouter_model)
+            if not probe.get("effect_proposal") and not probe.get("forecast_candidate"):
+                critique = probe.get("effect_proposal_critique") or {
+                    "status": "rejected", "reasons": probe_rejections}
+                try:
+                    repair_completion = self.forecaster.client.completions([{
+                        "role": "user", "content": (
+                            prompt + "\nYour proposal was rejected by Gnomon:\n"
+                            + json.dumps(critique)
+                            + "\nReturn one complete corrected dossier JSON "
+                              "including cited claims. This is the only repair round.")
+                    }], n=1)[0]
+                    repaired = extract_json_objects(repair_completion)
+                    if repaired:
+                        raw = repaired[0]
+                    else:
+                        compile_rejections.append(
+                            "dossier repair returned no JSON object")
+                except Exception as error:
+                    compile_rejections.append(
+                        f"dossier repair failed: {error}")
+
+        # Exact stated values are safer than model-estimated deltas. Once the
+        # span and window pass dossier validation, re-route them through the
+        # normal override event validator; this never promotes qualitative
+        # language or a model-authored number.
+        final_probe, _ = validate_temporal_dossier(
+            raw, context_text=context, cutoff=self.timestamps[-1],
+            future_timestamps=future_timestamps, history=self.values,
+            compiler_model=self.forecaster.openrouter_model)
+        existing_spans = {str(item.get("evidence_quote") or item.get("source_span") or "")
+                          for item in raw.get("events") or []
+                          if isinstance(item, dict)}
+        derived_events = [item for item in deterministic_events_from_claims(final_probe)
+                          if item["evidence_quote"] not in existing_spans]
+        if derived_events:
+            raw = {**raw, "events": [*(raw.get("events") or []), *derived_events]}
 
         # Reuse Gnomon's product compiler contract rather than maintaining a
         # benchmark-only event dialect. The host, not the model, supplies the
@@ -1009,7 +1115,8 @@ class _Run:
                     "claim_count": len(
                         self.context_compilation["dossier"]["claims"]),
                     "candidate_available": bool(
-                        self.context_compilation["dossier"].get(
+                        self.context_compilation["dossier"].get("effect_proposal")
+                        or self.context_compilation["dossier"].get(
                             "forecast_candidate")),
                     "covariate_tables": len(
                         self.context_compilation["covariates"]["tables"]),
@@ -1287,6 +1394,7 @@ class _Run:
                     f"horizon={self.horizon}")
         self._submitted_support = results[0].get("support")
         self._submitted_model = results[0].get("selected_model")
+        self._submitted_result = results[0]
         return rows
 
     def _quantile_problems(self, quantiles: Any) -> str | None:

@@ -124,6 +124,8 @@ def _validate_one(raw: Any, *, claim_ids: set[str]
         "scope": {"kind": scope["kind"],
                   "series": [str(value) for value in scope["series"]]},
         "claim_ids": cited,
+        **({"citation_binding": str(raw["citation_binding"])}
+           if raw.get("citation_binding") else {}),
         "rationale": str(raw.get("rationale") or "")[:1000],
         "uncertainty_basis": str(raw.get("uncertainty_basis") or
                                  "model-authored prior; not calibrated")[:300],
