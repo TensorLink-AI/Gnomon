@@ -158,7 +158,9 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: omits a verbatim claim; entailment and replay still govern every number.
 #: Version 59: compact recursive_linear output is deterministically normalized
 #: to the public transformation envelope instead of spending a repair call.
-MCP_CONTRACT_VERSION = 59
+#: Version 60: host-verified plural claim IDs take precedence over stale
+#: compiler-authored singular IDs during compact normalization.
+MCP_CONTRACT_VERSION = 60
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -1467,12 +1469,19 @@ class _Run:
                 # Normalize a common compact spelling returned by small/fast
                 # compilers. It contains the same typed fields but nests the
                 # recurrence beside metadata instead of under expression.
-                if (isinstance(item, dict)
-                        and isinstance(item.get("recursive_linear"), dict)
-                        and "transformation" not in item):
-                    recurrence = dict(item["recursive_linear"])
+                embedded = (item.get("transformation")
+                            if isinstance(item, dict) else None)
+                compact = (item.get("recursive_linear")
+                           if isinstance(item, dict) else None)
+                if not isinstance(compact, dict) and isinstance(embedded, dict):
+                    compact = embedded.get("recursive_linear")
+                if isinstance(item, dict) and isinstance(compact, dict):
+                    metadata = embedded if isinstance(embedded, dict) else item
+                    recurrence = dict(compact)
                     schedules = recurrence.pop("series_values", {}) or {}
-                    claim_id = str(item.get("claim_id") or "claim-1")
+                    claim_ids = list(metadata.get("claim_ids") or [])
+                    claim_id = str((claim_ids[0] if claim_ids else None)
+                                   or metadata.get("claim_id") or "claim-1")
                     series_values = {}
                     for name, schedule in schedules.items():
                         if isinstance(schedule, dict):
@@ -1480,13 +1489,13 @@ class _Run:
                         else:
                             values = schedule
                         series_values[str(name)] = {
-                            "values": values, "known_at": item.get("known_at"),
+                            "values": values, "known_at": metadata.get("known_at"),
                             "source_claim_ids": [claim_id],
                         }
                     output_unit = "target_units"
                     item = {
                         "transformation": {
-                            "known_at": item.get("known_at"),
+                            "known_at": metadata.get("known_at"),
                             "claim_ids": [claim_id],
                             "lane": "historically_testable",
                             "output_unit": output_unit,

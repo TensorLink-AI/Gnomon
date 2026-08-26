@@ -40,6 +40,8 @@
   normalized deterministically into the public transformation envelope,
   including timestamp-ordered driver schedules. This is syntax repair only;
   ordinary validation, entailment, replay, and authority gates are unchanged.
+  Host-verified plural claim IDs take precedence over stale singular compiler
+  IDs when these two normalizers compose.
 - Bounded every governed compiler, repair, and selector request to one
   no-retry transport attempt. A slow provider now returns the immutable primary
   instead of parking a worker. Model-authored candidates whose accompanying

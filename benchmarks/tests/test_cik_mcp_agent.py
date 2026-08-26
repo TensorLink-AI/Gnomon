@@ -662,14 +662,14 @@ def test_explicit_equation_contract_host_grounds_document_without_copy_repair(
     task.scenario = equation
     compiler_output = json.dumps({
         "claims": [],
-        "transformations": [{"transformation": {
-            "known_at": task.past_time[-1][0], "claim_ids": ["missing"],
-            "lane": "historically_testable", "output_unit": "value",
-            "expression": {"op": "recursive_linear", "output_unit": "value",
-                           "intercept": 0,
-                           "autoregressive_terms": [
-                               {"lag": 1, "coefficient": .5}],
-                           "driver_terms": []}}}],
+        "transformations": [{
+            "known_at": task.past_time[-1][0], "claim_id": "missing",
+            "historically_testable": "sales",
+            "recursive_linear": {"intercept": 0,
+                                 "autoregressive_terms": [
+                                     {"lag": 1, "coefficient": .5}],
+                                 "driver_terms": [],
+                                 "series_values": {}}}],
     })
     client = ScriptedClient(
         [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
@@ -685,6 +685,8 @@ def test_explicit_equation_contract_host_grounds_document_without_copy_repair(
     assert not any("UNVERIFIED_CLAIMS" in item for item in
                    extra["context_compilation"].get("rejections", []))
     assert extra["publication"]["primary_forecast_unchanged"] is True
+    assert any(item["scenario_id"] == "transformation-1" for item in
+               extra["publication"]["candidate_portfolio"])
 
 
 def test_single_verified_claim_rebinds_stale_transformation_id(tmp_path):
