@@ -175,9 +175,6 @@ def build_scenario_catalog(result: dict[str, Any], *,
             "reason": str(context_outcome.get("reason") or
                           "See the immutable context outcome receipt."),
         } for event_id in event_ids)
-    if len(dossiers or []) + len(scenarios) > MAX_SCENARIOS:
-        raise ValueError(
-            f"publication is bounded to {MAX_SCENARIOS} scenarios; split the request")
     for index, dossier in enumerate(dossiers or [], 1):
         if not verify_temporal_dossier_seal(dossier):
             dispositions.append({
@@ -251,8 +248,37 @@ def build_scenario_catalog(result: dict[str, Any], *,
             "scenario_ids": emitted, "claim_id": item.get("claim_id"),
         } for item in claims)
     if len(scenarios) > MAX_SCENARIOS:
-        raise ValueError(
-            f"publication is bounded to {MAX_SCENARIOS} scenarios; split the request")
+        role_priority = {
+            "immutable_primary": 100,
+            "historically_admitted": 95,
+            "context_conditioned": 90,
+            "fitted_context_candidate": 80,
+            "effect_composed": 70,
+            "model_authored": 60,
+            "conditional_sensitivity": 50,
+        }
+        ranked = sorted(
+            scenarios,
+            key=lambda item: (
+                role_priority.get(str(item.get("role")), 0),
+                float((((item.get("effect") or {}).get("evidence") or {}).get(
+                    "score") or 0.0)),
+                str(item.get("scenario_id"))),
+            reverse=True,
+        )
+        kept_ids = {item["scenario_id"] for item in ranked[:MAX_SCENARIOS]}
+        dropped = [item for item in scenarios
+                   if item["scenario_id"] not in kept_ids]
+        scenarios = [item for item in scenarios
+                     if item["scenario_id"] in kept_ids]
+        dispositions.extend({
+            "context_id": str(item["scenario_id"]),
+            "disposition": "rejected",
+            "reason_code": "bounded_portfolio_overflow",
+            "reason": (
+                f"Retained the {MAX_SCENARIOS} higher-priority sealed paths; "
+                "this alternative remains recoverable from its source receipt."),
+        } for item in dropped)
     return scenarios, dispositions
 
 

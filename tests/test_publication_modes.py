@@ -193,3 +193,18 @@ def test_mcp_forecast_persists_verified_sidecar_without_mutating_artifact(tmp_pa
     assert payload["publication"]["recommended_scenario_id"] == "prior-assisted-1"
     assert Path(payload["publication_path"]).is_file()
     assert verify_artifact_integrity(payload["artifact_path"])
+
+
+def test_scenario_overflow_is_bounded_with_typed_dispositions():
+    result = _result()
+    result["sensitivity_scenarios"] = [{
+        "forecast": [{**row, "q50": 10 + index, "point": 10 + index}
+                     for row in result["forecast"]],
+        "support": "hypothetical_sensitivity", "assumptions": [f"case {index}"],
+    } for index in range(12)]
+    payload = publish_result(result, mode="scenario", dossiers=[_dossier()])
+    assert len(payload["candidate_portfolio"]) == 8
+    assert payload["candidate_portfolio"][0]["scenario_id"] == "primary"
+    assert any(item["reason_code"] == "bounded_portfolio_overflow"
+               for item in payload["context_dispositions"])
+    assert verify_publication(payload)
