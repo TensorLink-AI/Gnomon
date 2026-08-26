@@ -58,6 +58,10 @@
   the public AST, and cited future range schedules expand only when their
   endpoints occur verbatim in the source and cover every host-owned forecast
   timestamp exactly once.
+  A verbatim source date now entails the same date normalized to midnight ISO
+  on the governed daily grid; non-midnight times and changed dates still fail.
+  CiK traces also retain typed context dispositions from live publication so
+  execution-stage transformation failures cannot look like silent omission.
 - Bounded every governed compiler, repair, and selector request to one
   no-retry transport attempt. A slow provider now returns the immutable primary
   instead of parking a worker. Model-authored candidates whose accompanying

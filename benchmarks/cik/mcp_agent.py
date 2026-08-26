@@ -168,7 +168,9 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: semantics to encoded structured columns without inferred rescaling.
 #: Version 64: typed recurrence objects and cited future range schedules are
 #: normalized only under exact source/grid coverage.
-MCP_CONTRACT_VERSION = 64
+#: Version 65: source dates entail midnight ISO endpoints on daily grids, and
+#: traces retain typed execution-stage context dispositions.
+MCP_CONTRACT_VERSION = 65
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -2060,6 +2062,13 @@ class _Run:
                             "primary_forecast_unchanged"),
                         "automation_eligible": (
                             publication.get("automation") or {}).get("eligible"),
+                        "context_dispositions": [{
+                            "context_id": item.get("context_id"),
+                            "disposition": item.get("disposition"),
+                            "reason_code": item.get("reason_code"),
+                            "reason": item.get("reason"),
+                        } for item in publication.get(
+                            "context_dispositions") or []],
                         "candidates": [{
                             "scenario_id": item.get("scenario_id"),
                             "role": item.get("role"),

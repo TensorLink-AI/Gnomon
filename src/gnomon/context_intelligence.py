@@ -304,7 +304,15 @@ def expand_cited_history_segments(
             value_tokens = {match.group(0) for match in re.finditer(
                 r"(?<![\w.])[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?",
                 source.replace(",", ""))}
-            if (start_raw not in source or end_raw not in source
+            def endpoint_entailed(raw: str, parsed: datetime) -> bool:
+                if raw in source:
+                    return True
+                return (len(raw) > 10 and raw[:10] in source
+                        and parsed.hour == parsed.minute == parsed.second
+                        == parsed.microsecond == 0)
+
+            if (not endpoint_entailed(start_raw, start)
+                    or not endpoint_entailed(end_raw, end)
                     or not any(math.isclose(value, float(token), rel_tol=1e-12,
                                             abs_tol=1e-12)
                                for token in value_tokens)):

@@ -25,7 +25,8 @@ def test_cited_history_segments_require_entailment_complete_nonoverlap():
     timestamps = [datetime(2026, 1, day, tzinfo=UTC) for day in range(1, 5)]
     span = "X is 2.5 from 2026-01-01 to 2026-01-02 and 3.5 from 2026-01-03 to 2026-01-04"
     expanded = expand_cited_history_segments({"X": [
-        {"start": "2026-01-01", "end": "2026-01-02", "value": 2.5,
+        {"start": "2026-01-01T00:00:00+00:00",
+         "end": "2026-01-02T00:00:00+00:00", "value": 2.5,
          "source_claim_ids": ["claim-1"]},
         {"start": "2026-01-03", "end": "2026-01-04", "value": 3.5,
          "source_claim_ids": ["claim-1"]},
