@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import math
 from dataclasses import dataclass, field, replace
@@ -620,6 +621,7 @@ def select_model_lightweight(
     # ranked on it, and the strongest baseline is published with every
     # score reported as evidence (see the guardrail in `evaluate`).
     non_baselines = [name for name in valid if name not in BASELINES]
+    degraded_baseline_evidence = None
     if "last_value" in baselines:
         # One holdout cannot establish that a structured baseline generalises
         # any more reliably than it can rank an incremental model.  Publish
@@ -627,6 +629,71 @@ def select_model_lightweight(
         # still enter through repeatable folds or separately labelled transfer
         # evidence.  This rule is history-length based, never channel based.
         selected = "last_value"
+        # A long requested horizon can prevent separated full-horizon folds
+        # even when the history contains repeatable seasonal evidence. Admit
+        # only the single structured baseline against last-value on fixed,
+        # non-overlapping seasonal blocks. This is not a candidate tournament:
+        # two predeclared baselines, a 10% margin, and wins in two of three
+        # chronological blocks are required.
+        if (season > 1 and "seasonal_naive" in baselines
+                and len(values) >= 3 * season):
+            probe_horizon = min(season, horizon)
+            first = max(season, len(values) - 8 * probe_horizon)
+            probe_origins = list(range(
+                first, len(values) - probe_horizon + 1, probe_horizon))
+            seasonal_probe: list[float] = []
+            last_probe: list[float] = []
+            for probe_origin in probe_origins:
+                probe_train = train_at(probe_origin)
+                probe_actual = values[
+                    probe_origin:probe_origin + probe_horizon]
+                try:
+                    seasonal_path = _predict_statistical(
+                        "seasonal_naive", probe_train, probe_horizon, season)
+                    last_path = _predict_statistical(
+                        "last_value", probe_train, probe_horizon, season)
+                except ValueError:
+                    continue
+                seasonal_error = error_score(probe_actual, seasonal_path)
+                last_error = error_score(probe_actual, last_path)
+                if seasonal_error is None or last_error is None:
+                    continue
+                seasonal_probe.append(seasonal_error)
+                last_probe.append(last_error)
+            block_wins = 0
+            # Six independent seasonal blocks are the minimum evidence for
+            # the three chronological stability checks below. Short snippets
+            # must not turn an accidental phase match into publication.
+            if len(seasonal_probe) >= 6:
+                boundaries = [0, len(seasonal_probe) // 3,
+                              2 * len(seasonal_probe) // 3,
+                              len(seasonal_probe)]
+                for left, right in zip(boundaries, boundaries[1:]):
+                    if right > left and mean(
+                            seasonal_probe[left:right]) < mean(
+                                last_probe[left:right]):
+                        block_wins += 1
+                seasonal_loss = mean(seasonal_probe)
+                last_loss = mean(last_probe)
+                admitted = (last_loss > 0
+                            and seasonal_loss <= .9 * last_loss
+                            and block_wins >= 2)
+                degraded_baseline_evidence = {
+                    "scheme": "non_overlapping_seasonal_blocks",
+                    "probe_horizon": probe_horizon,
+                    "origins": len(seasonal_probe),
+                    "seasonal_naive_loss": seasonal_loss,
+                    "last_value_loss": last_loss,
+                    "relative_improvement": (
+                        (last_loss - seasonal_loss) / last_loss
+                        if last_loss > 0 else None),
+                    "required_margin": .1,
+                    "chronological_block_wins": block_wins,
+                    "required_block_wins": 2,
+                    "admitted": admitted,
+                }
+                if admitted:
+                    selected = "seasonal_naive"
     elif baselines:
         selected = min(baselines, key=baselines.get)  # type: ignore[arg-type]
     else:
@@ -639,14 +706,21 @@ def select_model_lightweight(
     if guardrail_applied:
         warnings.append(
             f"Selection under-powered: a single trailing holdout cannot rank "
-            f"candidates or structured baselines. The robust level baseline "
+            f"incremental candidates. The admitted robust baseline "
             f"({strongest}) is published; "
             f"candidate scores are reported as evidence, not a ranking."
         )
+    if degraded_baseline_evidence is not None:
+        warnings.append(
+            "Degraded baseline admission: "
+            + json.dumps(degraded_baseline_evidence, sort_keys=True))
     residuals = [a - p for a, p in zip(actual, forecasts[selected])]
     return Evaluation(selected, strongest, scores, {name: None for name in MODELS}, None,
                       residuals, None, warnings, True, True,
-                      selection_fold_count=1,
+                      selection_fold_count=(
+                          int(degraded_baseline_evidence["origins"])
+                          if degraded_baseline_evidence and
+                          degraded_baseline_evidence["admitted"] else 1),
                       selection_guardrail_applied=guardrail_applied)
 
 

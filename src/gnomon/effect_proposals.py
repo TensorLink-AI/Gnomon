@@ -239,6 +239,14 @@ def compose_effect(primary: list[dict[str, Any]], proposal: dict[str, Any]
             else:
                 _set_quantiles(row, max(_value(row, "q10", point), bound),
                                max(point, bound), max(_value(row, "q90", point), bound))
+        elif proposal["unit"] == "fraction_of_level":
+            qlo, qhi = _bounds(row, point)
+            _set_quantiles(
+                row,
+                qlo * (1.0 + proposal["lower"] * weight),
+                point * (1.0 + proposal["location"] * weight),
+                qhi * (1.0 + proposal["upper"] * weight),
+            )
         else:
             _set_quantiles(row, _value(row, "q10", point) + lo_effect,
                            point + mid_effect,
@@ -294,7 +302,10 @@ def _shape_weight(index: int, horizon: int, proposal: dict[str, Any]) -> float:
     active = duration or max(1, horizon - delay)
     progress = min(1.0, (relative + 1) / max(1, active))
     if shape == "temporary_pulse":
-        return max(0.0, 1.0 - relative / max(1, active))
+        # A pulse with a stated duration is a bounded plateau. Changing
+        # intensity belongs to ramp_recovery/trend_change; silently imposing
+        # linear decay answers a different scenario than the caller supplied.
+        return 1.0
     if shape in {"trend_change", "ramp_recovery"}:
         return progress if shape == "trend_change" else 1.0 - abs(2 * progress - 1)
     if shape in {"seasonal_amplitude", "seasonal_regime_change"}:

@@ -62,6 +62,25 @@ def test_cited_level_multiplier_is_normalized_to_additive_fraction():
         "basis": "citation states one exact multiplier; primary path retains forecast uncertainty",
     }]
     assert compose_effect(PRIMARY, proposal)[0]["q50"] == 40.0
+    assert compose_effect(PRIMARY, proposal)[0]["q10"] == 36.0
+    assert compose_effect(PRIMARY, proposal)[0]["q90"] == 44.0
+
+
+def test_temporary_multiplier_is_plateau_for_stated_duration():
+    primary = [
+        {"timestamp": f"2026-01-0{index + 1}T00:00:00+00:00",
+         "point": 10, "q10": 9, "q50": 10, "q90": 11}
+        for index in range(4)]
+    proposal, _ = validate_effect_proposal(
+        _proposal(shape="temporary_pulse", unit="fraction_of_level",
+                  location=2, lower=2, upper=2, duration_steps=3),
+        claim_ids={"claim-1"})
+
+    rows = compose_effect(primary, proposal)
+
+    assert [row["q50"] for row in rows] == [30, 30, 30, 10]
+    assert [row["q10"] for row in rows] == [27, 27, 27, 9]
+    assert [row["q90"] for row in rows] == [33, 33, 33, 11]
 
 
 def test_conflicting_cited_multipliers_fail_closed():

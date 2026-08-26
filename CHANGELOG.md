@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Fold-starved forecasts no longer discard repeatable seasonal shape merely
+  because a long requested horizon prevents full-horizon folds. The lightweight
+  path may admit the predeclared `seasonal_naive` baseline over `last_value`
+  after at least six non-overlapping seasonal probes, at least 10% mean error
+  improvement, and wins in two of three chronological blocks. The evidence is
+  disclosed, incremental candidates remain locked, and level series still
+  publish `last_value`.
+- Corrected temporary effect composition. A source-stated effect that holds
+  "during" a bounded window is now a plateau for that duration; changing
+  intensity remains the separate `ramp_recovery`/`trend_change` contract.
+  Fraction-of-level effects now transform each quantile multiplicatively
+  rather than adding a median-scaled displacement to both bounds. Thus an
+  exact 3x demand rule maps `(q10, q50, q90)` to three times each bound while
+  preserving the immutable primary beside the conditional path.
 - Exact, source-cited historical sensor glitches now compile to a bounded
   half-open timestamp-window interpretation when the source also says the
   glitch will not recur. Gnomon excludes only those observations from a copied

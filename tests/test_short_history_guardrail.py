@@ -100,6 +100,36 @@ class TestSelectionGuardrail:
         assert result.selected_model in BASELINES
         assert any("Selection under-powered" in w for w in result.warnings)
 
+    def test_repeatable_seasonal_baseline_can_earn_degraded_admission(self):
+        # Full 56-step evaluation cannot fit, but eight disjoint historical
+        # weeks independently establish that a predeclared weekly baseline
+        # beats copying the most recent day. This is evidence about a baseline,
+        # not permission to rank the wider candidate zoo.
+        week = [20.0, 18.0, 17.0, 19.0, 26.0, 40.0, 35.0]
+        result = select_model_lightweight(week * 16, 56, 7)
+
+        assert result.selected_model == "seasonal_naive"
+        assert result.strongest_baseline == "seasonal_naive"
+        assert result.selection_fold_count == 8
+        assert result.selection_guardrail_applied
+        disclosure = next(
+            warning for warning in result.warnings
+            if warning.startswith("Degraded baseline admission:"))
+        assert '"admitted": true' in disclosure
+        assert '"chronological_block_wins": 3' in disclosure
+
+    def test_degraded_seasonal_admission_rejects_level_series(self):
+        # When the structured baseline has no demonstrated improvement, the
+        # assumption-minimal level forecast remains the publication.
+        result = select_model_lightweight([100.0] * 112, 56, 7)
+
+        assert result.selected_model == "last_value"
+        assert result.selection_fold_count == 1
+        disclosure = next(
+            warning for warning in result.warnings
+            if warning.startswith("Degraded baseline admission:"))
+        assert '"admitted": false' in disclosure
+
     @pytest.mark.parametrize("season", [2, 3, 7])
     def test_lightweight_does_not_rank_structured_baselines_on_one_holdout(self, season):
         # The tail deliberately repeats an earlier seasonal value, tempting a
@@ -203,5 +233,6 @@ class TestCapabilities:
         caps = capabilities()
         assert "selection_guardrail" in caps["short_history"]
         assert "point_recentring" in caps["short_history"]
+        assert "degraded_baseline_admission" in caps["short_history"]
         assert caps["features"]["short_history_selection_guardrail"] is True
         assert caps["features"]["short_history_point_centred_intervals"] is True

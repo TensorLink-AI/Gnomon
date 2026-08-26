@@ -149,6 +149,18 @@ count is reflected in lag admission, full validation diagnostics are retained,
 and neither a model confidence value nor a benchmark score upgrades support.
 Even an admitted context candidate remains ineligible for automation until it
 has passed the stricter ordinary product admission path.
+Typed `temporary_pulse` effects are constant over their stated active window;
+ramps require an explicit ramp shape. A `fraction_of_level` effect transforms
+each quantile multiplicatively, so the conditional distribution follows the
+cited multiplier rather than only shifting its median.
+
+When a long requested horizon leaves only one full-horizon holdout, Gnomon
+still refuses to rank incremental candidates. It may preserve demonstrated
+seasonal shape by admitting the fixed `seasonal_naive` baseline over
+`last_value`, but only from at least six non-overlapping seasonal probes, a 10%
+mean-error margin, and wins in two of three chronological blocks. This remains
+a degraded publication and discloses the probe evidence; it does not upgrade
+support or authorize automation.
 
 An exact additive sensor-calibration rule has its own narrow counterfactual.
 If the source states the drift start, additive rate per hour, and exact repair

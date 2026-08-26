@@ -205,7 +205,11 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: to every boundary quantile instead of inheriting timing uncertainty.
 #: Version 82: source-cited recurring daily clock windows compile into a
 #: fold-replayed historical observation counterfactual.
-MCP_CONTRACT_VERSION = 92
+#: Version 93: bounded effects preserve a stated plateau and multiply every
+#: conditional quantile rather than shifting all bounds by the median effect.
+#: Version 94: fold-starved forecasts may admit seasonal-naive over last-value
+#: from six or more independent seasonal probes with chronological stability.
+MCP_CONTRACT_VERSION = 94
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it

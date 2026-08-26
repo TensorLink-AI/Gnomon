@@ -1633,6 +1633,13 @@ def capabilities() -> dict[str, object]:
                 "estimate measured as noise; disclosed as "
                 "'point_recentring_suppressed'"
             ),
+            "degraded_baseline_admission": (
+                "when the requested horizon prevents full-horizon folds, a "
+                "predeclared seasonal-naive baseline may replace last-value "
+                "only after at least six non-overlapping seasonal probes, "
+                "at least 10% mean improvement, and wins in two of three "
+                "chronological blocks; incremental candidates remain locked"
+            ),
         },
         # Where this process writes. Agents used to guess output_dir (and
         # burn a round-trip on a host's path-jail refusal) because nothing
