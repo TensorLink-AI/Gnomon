@@ -360,8 +360,32 @@ def test_mcp_forecast_persists_verified_sidecar_without_mutating_artifact(tmp_pa
         "publication_mode": "best_effort", "temporal_dossiers": [dossier],
     })
     assert payload["publication"]["recommended_scenario_id"] == "prior-assisted-1"
+    assert payload["publication"]["projection"] == "compact"
+    assert "recommended_forecast" not in payload["publication"]
+    assert "candidate_portfolio" not in payload["publication"]
+    assert payload["publication"]["selection_contract"]
+    assert payload["publication"]["receipt_is_complete_and_sealed"] is True
+    receipt = __import__("json").loads(
+        Path(payload["publication_path"]).read_text(encoding="utf-8"))
+    assert verify_publication(receipt)
     assert Path(payload["publication_path"]).is_file()
     assert verify_artifact_integrity(payload["artifact_path"])
+
+
+def test_full_format_explicitly_returns_complete_signed_publication(tmp_path):
+    from datetime import date, timedelta
+    source = tmp_path / "series.csv"
+    start = date(2026, 1, 1)
+    source.write_text("timestamp,value\n" + "\n".join(
+        f"{start + timedelta(days=i)},{100 + i}" for i in range(40)) + "\n")
+    payload = runner_for("gnomon_forecast")({
+        "input": str(source), "horizon": 12, "format": "full",
+        "output_dir": str(tmp_path / "out"), "publication_mode": "scenario",
+    })
+    assert payload["publication"]["candidate_portfolio"]
+    assert payload["publication"]["recommended_forecast"]
+    assert "projection" not in payload["publication"]
+    assert verify_publication(payload["publication"])
 
 
 def test_scenario_overflow_is_bounded_with_typed_dispositions():
@@ -388,6 +412,7 @@ def test_mcp_context_transformation_rejection_is_typed_and_primary_is_intact(tmp
     payload = runner_for("gnomon_forecast")({
         "input": str(source), "horizon": 2,
         "output_dir": str(tmp_path / "out"),
+        "format": "full",
         "publication_mode": "scenario",
         "context_submission": {
             "known_at": "2026-02-09T00:00:00+00:00",
@@ -417,6 +442,7 @@ def test_mcp_compiler_rejection_is_visible_in_publication(tmp_path):
     payload = runner_for("gnomon_forecast")({
         "input": str(source), "horizon": 2,
         "output_dir": str(tmp_path / "out"),
+        "format": "full",
         "publication_mode": "best_effort",
         "context_submission": {
             "known_at": "2026-02-09T00:00:00+00:00",
@@ -474,6 +500,7 @@ def test_mcp_recursive_transformation_binds_history_but_requires_replay_skill(tm
     payload = runner_for("gnomon_forecast")({
         "input": str(source), "target_column": "value", "horizon": 2,
         "output_dir": str(tmp_path / "out"),
+        "format": "full",
         "publication_mode": "best_effort",
         "context_submission": {
             "text": formula + ". " + schedule,
@@ -584,6 +611,7 @@ def test_documented_history_can_replay_encoded_driver_without_guessing_scale(
     payload = runner_for("gnomon_forecast")({
         "input": str(source), "target_column": "value", "horizon": 2,
         "output_dir": str(tmp_path / "out"),
+        "format": "full",
         "publication_mode": "best_effort",
         "context_submission": {
             "text": ". ".join((formula, history, schedule)),

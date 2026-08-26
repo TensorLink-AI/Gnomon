@@ -211,11 +211,10 @@ _PROTECTED_KEYS = frozenset({
     # survive any budget trim.
     "triage",
     "reasoning", "sufficiency", "facts", "rejection",
-    # Publications and their nested scenario seals are one authenticated
-    # object. Trimming any path while retaining the seal turns a valid result
-    # into a payload that correctly fails verification. Bulk stays in the
-    # artifact, but when a publication is requested its complete signed
-    # contract is epistemic data, not optional response bulk.
+    # The default wire publication is a bounded, seal-linked decision
+    # projection. Its complete authenticated receipt and forecast arrays live
+    # at publication_path; format=full explicitly requests that bulk inline.
+    # Either projection must retain every decision/authority disclosure.
     "publication", "publication_path",
 })
 
@@ -377,6 +376,35 @@ def apply_response_contract(payload: dict[str, Any]) -> dict[str, Any]:
         result["recovery_actions"] = recoveries
     from .reasoning_boundary import apply_reasoning_boundary
     return apply_reasoning_boundary(result)
+
+
+def compact_publication_for_wire(payload: dict[str, Any]) -> dict[str, Any]:
+    """Project a signed publication without repeating its forecast arrays.
+
+    The complete, verifiable receipt remains at ``publication_path``.  Agents
+    get the decision contract and authority fields needed to reason or invoke
+    ``gnomon_select_scenario``; requesting ``format=full`` bypasses this
+    projection at the runner boundary.
+    """
+    publication = payload.get("publication")
+    path = payload.get("publication_path")
+    if not isinstance(publication, dict) or not path:
+        return payload
+    keys = (
+        "schema_version", "artifact_id", "mode", "recommended_scenario_id",
+        "recommended_support", "primary_scenario_id",
+        "primary_forecast_unchanged", "scenario_count",
+        "context_dispositions", "temporal_state", "scenario_selection",
+        "recommendation_authority", "automation", "selection_contract",
+        "candidate_admission", "publication_seal_sha256",
+    )
+    projection = {key: publication[key] for key in keys if key in publication}
+    projection.update({
+        "projection": "compact",
+        "receipt_path": str(path),
+        "receipt_is_complete_and_sealed": True,
+    })
+    return {**payload, "publication": projection}
 
 
 def apply_temporal_grounding(payload: dict[str, Any]) -> dict[str, Any]:
@@ -3702,6 +3730,8 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
                 budget = (DESCRIBE_RESPONSE_BUDGET_BYTES
                           if _name == "gnomon_describe"
                           else RESPONSE_BUDGET_BYTES)
+                if arguments.get("format") != "full":
+                    payload = compact_publication_for_wire(payload)
                 payload = triage_wide_response(payload)
                 payload = compact_support_details(payload)
                 return apply_response_contract(

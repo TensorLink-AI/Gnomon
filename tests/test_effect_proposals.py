@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 import pytest
 
 from gnomon.effect_proposals import (assess_composed_effect, compose_effect,
@@ -329,7 +332,10 @@ def test_mcp_one_call_validates_and_composes_raw_context(tmp_path):
     assert publication["recommended_scenario_id"] == "effect-composed-1"
     assert publication["primary_forecast_unchanged"] is True
     assert publication["selection_contract"]["temporal_state"]
-    assert verify_publication(publication)
+    assert publication["projection"] == "compact"
+    receipt = json.loads(Path(payload["publication_path"]).read_text(
+        encoding="utf-8"))
+    assert verify_publication(receipt)
 
 
 @pytest.mark.parametrize("shape", [

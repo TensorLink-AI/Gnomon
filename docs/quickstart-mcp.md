@@ -192,6 +192,12 @@ warning remains attached to every series in the integrity-sealed artifact. These
 fields, the headline, support, assumptions, staleness, and artifact references
 are protected from trimming.
 
+Scenario and best-effort forecasts likewise return a compact `publication`
+decision projection by default. Use its `selection_contract` to reason and its
+`publication_path` with `gnomon_select_scenario`; the complete signed receipt
+stays at that path. Set `format: "full"` only to inline the full repeated
+forecast arrays.
+
 When schema ambiguity blocks a forecast, each repair option contains a literal
 `tool_call` with the complete argument object—one per candidate plus the
 batched `target_column: "auto"` form. A host can issue it directly rather than

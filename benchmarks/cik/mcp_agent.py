@@ -2182,8 +2182,19 @@ class _Run:
                     entry["context_outcome"] = results[0].get("context_outcome")
                     entry["support"] = results[0].get("support")
                 if structured.get("publication"):
-                    self._publication = structured["publication"]
                     publication = structured["publication"]
+                    if publication.get("projection") == "compact":
+                        receipt = structured.get("publication_path")
+                        if not receipt:
+                            self._abstain(
+                                "compact publication omitted its receipt path")
+                        try:
+                            publication = json.loads(
+                                Path(str(receipt)).read_text(encoding="utf-8"))
+                        except (OSError, ValueError, TypeError) as error:
+                            self._abstain(
+                                f"publication receipt could not be read: {error}")
+                    self._publication = publication
                     portfolio = publication.get("candidate_portfolio") or []
                     entry["publication"] = {
                         "mode": publication.get("mode"),

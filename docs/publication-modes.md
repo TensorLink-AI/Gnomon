@@ -126,6 +126,14 @@ Every sealed alternative is recorded as a shadow synthesis too, so realized
 outcomes measure selection regret and candidate uplift rather than recording
 only the displayed winner.
 
+The default MCP response carries a compact, seal-linked decision projection:
+the selection contract, recommendation and automation authority, context
+dispositions, temporal state, and the path and seal of the complete receipt.
+It does not repeat the same horizon arrays as the primary, recommendation,
+portfolio, and scenario list. The complete publication remains verifiable at
+`publication_path`; request `format: "full"` only when those arrays genuinely
+need to cross the agent boundary.
+
 The MCP `gnomon_forecast` tool exposes the same `publication_mode`,
 `temporal_dossiers`, a compact raw `context_submission` object,
 `scenario_selection`, and `automation_policy` fields. After inspecting a
