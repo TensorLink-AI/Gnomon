@@ -127,7 +127,7 @@ def test_direction_and_bound_do_not_justify_large_candidate_jump():
     assert "forecast_candidate failed boundary-jump plausibility" in reasons
 
 
-def test_placeholder_and_degenerate_candidates_are_rejected():
+def test_placeholder_is_rejected_and_degenerate_candidate_is_widened():
     span = "The site will be closed on Monday."
     future = ["2026-01-05T00:00:00+00:00",
               "2026-01-06T00:00:00+00:00"]
@@ -150,8 +150,13 @@ def test_placeholder_and_degenerate_candidates_are_rejected():
         degenerate, context_text=span,
         cutoff="2026-01-04T00:00:00+00:00", future_timestamps=future,
         history=[8, 9, 10, 11], compiler_model="test")
-    assert dossier["forecast_candidate"] is None
-    assert any("non-zero predictive uncertainty" in reason for reason in reasons)
+    assert not reasons
+    candidate = dossier["forecast_candidate"]
+    assert candidate is not None
+    assert all(row["q10"] < row["q50"] < row["q90"]
+               for row in candidate["quantiles"])
+    assert candidate["plausibility"]["uncertainty_normalization"]["code"] == \
+        "ROBUST_HISTORY_UNCERTAINTY_FLOOR"
 
 
 def test_candidate_must_obey_its_own_cited_numeric_bounds():

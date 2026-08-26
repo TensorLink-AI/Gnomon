@@ -341,7 +341,12 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 claim_ids=[str(item) for item in candidate.get("claim_ids") or []],
                 assumptions=[str(candidate.get("rationale") or ""), *[
                     str(item) for item in
-                    (candidate.get("plausibility") or {}).get("warnings") or []]],
+                    (candidate.get("plausibility") or {}).get("warnings") or []],
+                    *(["uncertainty normalization: " + json.dumps(
+                        (candidate.get("plausibility") or {}).get(
+                            "uncertainty_normalization"), sort_keys=True)]
+                      if (candidate.get("plausibility") or {}).get(
+                          "uncertainty_normalization") else [])],
                 source_seal=str(dossier["seal_sha256"]),
             ))
             emitted.append(identifier)

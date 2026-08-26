@@ -90,7 +90,9 @@ MAX_RUN_TOKENS = 250_000
 #: rejected rather than becoming human-facing prior-assisted answers.
 #: Version 28: dossier compilation, repair, and governed selection use
 #: deterministic-temperature calls independently of the conversational agent.
-MCP_CONTRACT_VERSION = 28
+#: Version 29: genuine zero-width point candidates receive a disclosed robust
+#: history-based uncertainty floor; self-declared placeholders remain rejected.
+MCP_CONTRACT_VERSION = 29
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it

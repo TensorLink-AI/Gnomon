@@ -378,6 +378,24 @@ def _validate_candidate(
     if not history:
         reasons.append("forecast_candidate cannot be checked without history")
         return None
+    scale = _robust_scale(history)
+    uncertainty_normalization = None
+    if not any(float(row["q90"]) > float(row["q10"]) for row in clean):
+        # A model may correctly compute a deterministic conditional mean while
+        # omitting observation/process noise. Preserve the useful mean but
+        # never publish fake certainty: apply a deterministic, disclosed floor
+        # from pre-cutoff first differences. This path remains prior-assisted
+        # and categorically ineligible for automation.
+        half_width = 1.281552 * scale
+        clean = [{**row,
+                  "q10": float(row["q50"]) - half_width,
+                  "q90": float(row["q50"]) + half_width}
+                 for row in clean]
+        uncertainty_normalization = {
+            "code": "ROBUST_HISTORY_UNCERTAINTY_FLOOR",
+            "half_width": round(half_width, 12),
+            "basis": "1.281552 times median absolute first difference",
+        }
     # Parse literal constraints before applying empirical scale checks. A
     # large regime change can be a legitimate prior-assisted scenario when
     # context both explains its direction and bounds its numeric extent. It
@@ -411,12 +429,6 @@ def _validate_candidate(
     if upper is not None and any(value > upper for value in values):
         reasons.append("forecast_candidate violates cited upper bound")
         return None
-    if not any(float(row["q90"]) > float(row["q10"]) for row in clean):
-        reasons.append(
-            "forecast_candidate must express non-zero predictive uncertainty")
-        return None
-
-    scale = _robust_scale(history)
     points = [float(row["q50"]) for row in clean]
     boundary_jump = abs(points[0] - history[-1]) / scale
     path_diffs = [abs(b - a) for a, b in zip(points, points[1:])]
@@ -450,5 +462,6 @@ def _validate_candidate(
             "entailed_bounds": {"minimum": lower, "maximum": upper,
                                 "claim_ids": bound_claim_ids},
             "warnings": plausibility_warnings,
+            "uncertainty_normalization": uncertainty_normalization,
         },
     }
