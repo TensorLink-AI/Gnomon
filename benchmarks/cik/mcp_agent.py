@@ -101,7 +101,9 @@ MAX_RUN_TOKENS = 250_000
 #: bounded target tail; the forecasting engine still consumes the full CSV.
 #: Version 33: structured compilation, repair, and selection explicitly disable
 #: hidden reasoning while the conversational agent retains its configured mode.
-MCP_CONTRACT_VERSION = 33
+#: Version 34: a transformation can bind stale model-side citations to the sole
+#: verified claim; all ordinary entailment checks still run after rebinding.
+MCP_CONTRACT_VERSION = 34
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -1203,6 +1205,43 @@ class _Run:
             raw, context_text=context, cutoff=self.timestamps[-1],
             future_timestamps=future_timestamps, history=self.values,
             compiler_model=self.forecaster.openrouter_model)
+
+        # Claim IDs are host-assigned after validation. When exactly one claim
+        # survives, a stale or omitted model-side ID is unambiguous and can be
+        # rebound before AST validation. Entailment checks still verify every
+        # constant and supplied value against that sole source span.
+        verified_claims = final_probe.get("claims") or []
+        if len(verified_claims) == 1:
+            sole_id = str(verified_claims[0]["claim_id"])
+            known_ids = {sole_id}
+            normalized_transformations = []
+            for item in raw.get("transformations") or []:
+                if not isinstance(item, dict):
+                    normalized_transformations.append(item)
+                    continue
+                wrapper = dict(item)
+                transformation = dict(wrapper.get("transformation", wrapper))
+                cited = {str(value) for value in
+                         transformation.get("claim_ids") or []}
+                if not cited or not cited.issubset(known_ids):
+                    transformation["claim_ids"] = [sole_id]
+                    transformation["citation_binding"] = (
+                        "single_verified_claim")
+                wrapper["transformation"] = transformation
+                series_values = {}
+                for name, payload in (wrapper.get("series_values") or {}).items():
+                    value_payload = dict(payload) if isinstance(payload, dict) else payload
+                    if isinstance(value_payload, dict):
+                        source_ids = {str(value) for value in
+                                      value_payload.get("source_claim_ids") or []}
+                        if not source_ids or not source_ids.issubset(known_ids):
+                            value_payload["source_claim_ids"] = [sole_id]
+                            value_payload["citation_binding"] = (
+                                "single_verified_claim")
+                    series_values[name] = value_payload
+                wrapper["series_values"] = series_values
+                normalized_transformations.append(wrapper)
+            raw = {**raw, "transformations": normalized_transformations}
 
         # Transformations share the same single repair budget. Preflight the
         # sealed AST before the forecast call so a near-correct proposal can
