@@ -76,6 +76,8 @@ def validate_temporal_dossier(
     history: list[float],
     compiler_model: str,
     validated_events: list[Any] | None = None,
+    candidate_selection_eligible: bool = True,
+    candidate_selection_reason: str | None = None,
 ) -> tuple[dict[str, Any], list[str]]:
     """Return a sealed dossier and every rejected-field reason.
 
@@ -183,6 +185,10 @@ def validate_temporal_dossier(
                 "Submit a horizon-aligned q10/q50/q90 path that obeys every "
                 "cited constraint, or use a typed effect/transformation."
                 if candidate_reasons else None),
+            "selection_eligible": bool(candidate and candidate_selection_eligible),
+            "selection_reason": (candidate_selection_reason
+                                 if candidate and not candidate_selection_eligible
+                                 else None),
         },
         "candidate_support": "prior_assisted" if (candidate or effect_proposal) else None,
         "automation_eligible": False,

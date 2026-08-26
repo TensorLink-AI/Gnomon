@@ -664,7 +664,7 @@ def test_transformation_preflight_repairs_malformed_future_series(tmp_path):
     assert "NON_NUMERIC_VALUE" in client.completion_prompts[1]
 
 
-def test_sealed_candidate_survives_rejected_relational_transform(tmp_path):
+def test_candidate_survives_but_cannot_replace_rejected_transform(tmp_path):
     task = _task()
     span = "A new policy makes each future value exactly half the usual value."
     task.scenario = span
@@ -702,10 +702,15 @@ def test_sealed_candidate_survives_rejected_relational_transform(tmp_path):
         output_role="publication_best_effort")
     samples, extra = forecaster(task, 1)
 
-    assert [row[0] for row in samples[0]] == [127, 128, 129, 130]
-    assert extra["publication"]["recommended_scenario_id"] == "prior-assisted-1"
-    assert extra["publication"]["primary_forecast_unchanged"] is True
-    assert extra["publication"]["automation"]["eligible"] is False
+    assert len(samples[0]) == 4
+    publication = extra["publication"]
+    assert publication["recommended_scenario_id"] == "primary"
+    assert publication["primary_forecast_unchanged"] is True
+    assert publication["automation"]["eligible"] is False
+    candidate = next(item for item in publication["candidate_portfolio"]
+                     if item["role"] == "model_authored")
+    assert candidate["selection_eligible"] is False
+    assert candidate["forecast"][0]["q50"] == 127
     receipt = json.loads(Path(
         extra["context_compilation"]["receipt_path"]).read_text())
     assert any("transformation_preflight_rejected" in reason

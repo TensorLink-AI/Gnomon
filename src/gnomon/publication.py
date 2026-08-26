@@ -78,6 +78,7 @@ def _rows(value: Any) -> list[dict[str, Any]]:
 
 def _scenario(identifier: str, role: str, rows: list[dict[str, Any]], *,
               support: str, automation_eligible: bool,
+              selection_eligible: bool = True,
               claim_ids: list[str] | None = None,
               assumptions: list[str] | None = None,
               source_seal: str | None = None,
@@ -85,6 +86,7 @@ def _scenario(identifier: str, role: str, rows: list[dict[str, Any]], *,
     item = {
         "scenario_id": identifier, "role": role, "forecast": rows,
         "support": support, "automation_eligible": automation_eligible,
+        "selection_eligible": selection_eligible,
         "claim_ids": list(claim_ids or []),
         "assumptions": list(assumptions or []),
     }
@@ -335,9 +337,13 @@ def build_scenario_catalog(result: dict[str, Any], *,
             # authoritative origin explicit in the typed role. A model may
             # supply this alongside a typed effect; the selector sees both.
             identifier = f"prior-assisted-{index}"
+            candidate_critique = dossier.get("candidate_critique") or {}
+            selection_eligible = candidate_critique.get(
+                "selection_eligible", True) is True
             scenarios.append(_scenario(
                 identifier, "model_authored", _rows(candidate.get("quantiles")),
                 support="prior_assisted", automation_eligible=False,
+                selection_eligible=selection_eligible,
                 claim_ids=[str(item) for item in candidate.get("claim_ids") or []],
                 assumptions=[str(candidate.get("rationale") or ""), *[
                     str(item) for item in
@@ -346,7 +352,9 @@ def build_scenario_catalog(result: dict[str, Any], *,
                         (candidate.get("plausibility") or {}).get(
                             "uncertainty_normalization"), sort_keys=True)]
                       if (candidate.get("plausibility") or {}).get(
-                          "uncertainty_normalization") else [])],
+                          "uncertainty_normalization") else []),
+                    *([str(candidate_critique.get("selection_reason"))]
+                      if not selection_eligible else [])],
                 source_seal=str(dossier["seal_sha256"]),
             ))
             emitted.append(identifier)
@@ -406,6 +414,10 @@ def validate_scenario_selection(raw: Any, *, scenarios: list[dict[str, Any]],
     if selected not in ids or not ranking or set(ranking) != ids \
             or len(ranking) != len(set(ranking)) or ranking[0] != selected:
         raise ValueError("scenario selection must rank every known scenario id once with the selected id first")
+    selected_scenario = next(item for item in scenarios
+                             if item["scenario_id"] == selected)
+    if selected_scenario.get("selection_eligible", True) is not True:
+        raise ValueError("scenario selection cannot promote a candidate with an invalid derivation")
     dominant = dominant_scenario_id(scenarios)
     if dominant is not None and selected != dominant:
         raise ValueError(
@@ -531,7 +543,8 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
             )["scenario_id"]
         selected_id = selected_id or next((item["scenario_id"] for item in scenarios
                             if item["role"] in {"effect_composed", "model_authored",
-                                                "model_authored_transformation"}),
+                                                "model_authored_transformation"}
+                            and item.get("selection_eligible", True) is True),
                            "primary")
     else:
         selected_id = "primary"

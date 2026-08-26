@@ -112,7 +112,9 @@ MAX_RUN_TOKENS = 250_000
 #: reasoning experiment exceeded a production-acceptable wall time.
 #: Version 38: mixed-unit linear equations use the governed
 #: ``linear_combination`` macro with engine-derived coefficient units.
-MCP_CONTRACT_VERSION = 38
+#: Version 39: a sealed candidate whose claimed governed derivation fails
+#: preflight remains visible but is ineligible for recommendation selection.
+MCP_CONTRACT_VERSION = 39
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -1417,6 +1419,15 @@ class _Run:
             future_timestamps=future_timestamps, history=self.values,
             compiler_model=self.forecaster.openrouter_model,
             validated_events=events,
+            candidate_selection_eligible=not bool(
+                remaining_transform_failures and raw.get("forecast_candidate")
+                and raw.get("transformations")),
+            candidate_selection_reason=(
+                "Accompanying governed transformation failed preflight; the "
+                "sealed model path remains visible as a scenario but cannot "
+                "become the default recommendation."
+                if remaining_transform_failures and raw.get("forecast_candidate")
+                and raw.get("transformations") else None),
         )
         covariate_receipt = compilation["covariates"]
         covariate_rejections = compilation["covariate_rejections"]
