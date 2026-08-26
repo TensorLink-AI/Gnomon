@@ -176,7 +176,9 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: source text when the compiler omits a recurrence driver's typed schedule.
 #: Version 68: replay diagnostics populate generic evidence authority, and
 #: best-effort publication prioritizes historically admitted transformations.
-MCP_CONTRACT_VERSION = 68
+#: Version 69: malformed model-authored range schedules no longer mask an
+#: exact, source-cited schedule that the host can extract deterministically.
+MCP_CONTRACT_VERSION = 69
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -1634,7 +1636,19 @@ class _Run:
                         for name in sorted({str(term.get("series")) for term in
                                             expression.get("driver_terms") or []
                                             if term.get("series")}):
-                            if name in values and name in histories:
+                            supplied = values.get(name)
+                            supplied_values = (supplied.get("values")
+                                               if isinstance(supplied, dict)
+                                               else None)
+                            schedule_is_executable = (
+                                isinstance(supplied_values, list)
+                                and len(supplied_values) == len(future_timestamps)
+                                and all(isinstance(value, (int, float))
+                                        and not isinstance(value, bool)
+                                        for value in supplied_values)
+                            )
+                            if (schedule_is_executable
+                                    and name in histories):
                                 continue
                             extracted = _extract_explicit_driver_schedule(
                                 narrative_context, series=name,
@@ -1644,12 +1658,17 @@ class _Run:
                             if extracted is None:
                                 continue
                             historical, future = extracted
-                            values.setdefault(name, {
+                            # The source-owned extractor is authoritative over
+                            # a malformed representation proposed by the model.
+                            # It only succeeds under exact named range and
+                            # host-grid coverage, so this is normalization, not
+                            # interpolation or model-authored repair.
+                            values[name] = {
                                 "values": future,
                                 "known_at": self.timestamps[-1],
                                 "source_claim_ids": [str(claim_ids[0])],
                                 "syntax_canonicalization": "cited_range_schedule",
-                            })
+                            }
                             histories.setdefault(name, historical)
                             units.setdefault(name, str(
                                 transformation.get("output_unit") or "target_units"))

@@ -793,6 +793,83 @@ def test_transformation_preflight_repairs_malformed_future_series(tmp_path):
     assert "NON_NUMERIC_VALUE" in client.completion_prompts[1]
 
 
+def test_source_schedule_normalizes_malformed_range_rows_without_repair(tmp_path):
+    pd = pytest.importorskip("pandas")
+    task = _task()
+    timestamps = [timestamp for timestamp, _ in task.past_time]
+    target = [value for _, value in task.past_time]
+    cutoff = timestamps[-1]
+    task.past_time = pd.DataFrame(
+        {0: [1.0] * len(target), 1: target},
+        index=pd.to_datetime(timestamps),
+    )
+    span = (
+        "X_1[t] = 0.5 X_1[t-1] + 2 X_0[t-1]. "
+        "X_0 is 1 from 2024-01-01 to 2024-03-12, "
+        "2 from 2024-03-13 to 2024-03-16."
+    )
+    task.scenario = span
+    compiler_output = json.dumps({
+        "events": [],
+        "claims": [{
+            "source_span": span, "relation": "supports_increase",
+            "effective_start": task.future_time[0],
+            "effective_end": task.future_time[-1],
+            "mechanism": "stated recurrence and driver schedule",
+            "confidence": 1,
+        }],
+        "transformations": [{
+            "transformation": {
+                "known_at": cutoff,
+                "claim_ids": ["claim-1"],
+                "lane": "historically_testable",
+                "output_unit": "target_units",
+                "expression": {
+                    "op": "recursive_linear", "output_unit": "target_units",
+                    "intercept": 0,
+                    "autoregressive_terms": [{"lag": 1, "coefficient": .5}],
+                    "driver_terms": [{
+                        "series": "X_0", "lag": 1, "coefficient": 2}],
+                },
+            },
+            "units": {"primary": "target_units", "X_0": "target_units"},
+            # This is a common LLM representation: semantically exact but not
+            # executable by the numeric AST until the cited ranges are
+            # expanded over the host-owned forecast grid.
+            "series_values": {"X_0": {
+                "values": [{
+                    "start": "2024-03-13T00:00:00+00:00",
+                    "end": "2024-03-16T00:00:00+00:00", "value": 2,
+                }],
+                "known_at": cutoff,
+                "source_claim_ids": ["claim-1"],
+            }},
+            "historical_series_segments": {"X_0": [{
+                "start": "2024-01-01", "end": "2024-03-12", "value": 1,
+                "source_claim_ids": ["claim-1"],
+            }]},
+        }],
+    })
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        compiler_output)
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 1)
+
+    receipt = json.loads(Path(
+        extra["context_compilation"]["receipt_path"]).read_text())
+    supplied = receipt["transformations"][0]["series_values"]["X_0"]
+    assert supplied["values"] == [2.0, 2.0, 2.0, 2.0]
+    assert supplied["syntax_canonicalization"] == "cited_range_schedule"
+    assert len(client.completion_prompts) == 1
+    assert receipt["rejections"] == []
+
+
 def test_candidate_survives_but_cannot_replace_rejected_transform(tmp_path):
     task = _task()
     span = "A new policy makes each future value exactly half the usual value."
