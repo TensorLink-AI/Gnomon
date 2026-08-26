@@ -128,6 +128,14 @@ def test_companion_evidence_is_bounded_and_pre_cutoff_only():
     assert len(evidence.splitlines()) == 34
 
 
+def test_compiler_contract_separates_history_from_future_covariates():
+    from benchmarks.cik.mcp_agent import DOSSIER_INSTRUCTIONS
+
+    assert "NEVER copy those historical rows into covariate_tables" in \
+        DOSSIER_INSTRUCTIONS
+    assert "exact requested forecast timestamp" in DOSSIER_INSTRUCTIONS
+
+
 def test_transformation_repair_hints_are_verbatim_and_constant_specific():
     failures = [{"violations": [{"message":
         "Transformation constant 37.5 (literal) is absent from every cited source span."}]}]

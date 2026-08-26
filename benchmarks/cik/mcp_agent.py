@@ -94,7 +94,9 @@ MAX_RUN_TOKENS = 250_000
 #: history-based uncertainty floor; self-declared placeholders remain rejected.
 #: Version 30: the sole dossier repair receives every failed lane; an effect
 #: critique can no longer hide a malformed probabilistic candidate.
-MCP_CONTRACT_VERSION = 30
+#: Version 31: historical companion evidence is explicitly excluded from
+#: future-known covariate tables, eliminating a noisy invalid-output loop.
+MCP_CONTRACT_VERSION = 31
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -313,7 +315,11 @@ Rules:
   verbatim quote contains both its time token and numeric value. Do not infer
   values from adjectives, interpolate missing rows, or supply known_at; the
   host owns knowledge time. Gnomon will test surviving tables out of sample
-  before they may influence the canonical forecast.
+  before they may influence the canonical forecast. `Observed companion-series
+  history` is historical evidence for hypotheses, transformations, and
+  candidate reasoning; NEVER copy those historical rows into covariate_tables.
+  A covariate row must fall on an exact requested forecast timestamp and its
+  future value must be explicitly stated in the source context.
 - Transformations are a restricted declarative lane, never code. Approved
   operators are literal, primary, series, add, subtract, multiply, divide,
   power, lag, difference, percent_change, rolling_mean, clip, and quantile. Use a
