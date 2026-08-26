@@ -11,6 +11,7 @@ from gnomon.publication import record_publication
 from gnomon.tracking import TrackingStore
 from gnomon.artifacts import verify_artifact_integrity
 from gnomon.toolspec import runner_for
+from gnomon.toolspec import enforce_response_budget
 
 
 TIMES = ["2026-01-03T00:00:00+00:00", "2026-01-04T00:00:00+00:00"]
@@ -267,3 +268,19 @@ def test_mcp_context_transformation_rejection_is_typed_and_primary_is_intact(tmp
     assert rejection["violations"][0]["code"] == "UNVERIFIED_CLAIMS"
     assert publication["automation"]["eligible"] is False
     assert verify_publication(publication)
+
+
+def test_response_budget_never_breaks_a_publication_seal():
+    result = _result()
+    result["forecast"] = [
+        {"timestamp": f"2026-01-{day:02d}T00:00:00+00:00",
+         "point": float(day), "q10": day - 1, "q50": day, "q90": day + 1}
+        for day in range(3, 28)]
+    publication = publish_result(result, mode="strict")
+    trimmed = enforce_response_budget({
+        "artifact_path": "/tmp/artifact", "publication": publication,
+        "bulk": list(range(1000)),
+    }, budget_bytes=1000)
+    assert trimmed["truncated"] is True
+    assert trimmed["publication"] == publication
+    assert verify_publication(trimmed["publication"])

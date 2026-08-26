@@ -211,6 +211,12 @@ _PROTECTED_KEYS = frozenset({
     # survive any budget trim.
     "triage",
     "reasoning", "sufficiency", "facts", "rejection",
+    # Publications and their nested scenario seals are one authenticated
+    # object. Trimming any path while retaining the seal turns a valid result
+    # into a payload that correctly fails verification. Bulk stays in the
+    # artifact, but when a publication is requested its complete signed
+    # contract is epistemic data, not optional response bulk.
+    "publication", "publication_path",
 })
 
 _TRIM_HEAD = 3
