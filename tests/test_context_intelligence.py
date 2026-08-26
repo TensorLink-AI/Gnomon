@@ -579,6 +579,10 @@ def test_recursive_linear_earns_selection_by_fold_safe_historical_replay():
         {"support": "supported", "forecast": primary,
          "transformation_candidates": [candidate]}, mode="best_effort")
     assert publication["recommended_scenario_id"] == "transformation-1"
+    admitted = next(item for item in publication["candidate_portfolio"]
+                    if item["scenario_id"] == "transformation-1")
+    assert admitted["role"] == "historically_admitted"
+    assert admitted["support"] == "conditionally_supported"
 
 
 def test_recursive_linear_that_loses_replay_remains_visible_not_recommended():

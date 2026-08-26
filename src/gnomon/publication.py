@@ -561,6 +561,8 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
         selected_id = selection["selected_scenario_id"]
     elif mode == "best_effort":
         selected_id = next((item["scenario_id"] for item in scenarios
+                            if item["role"] == "historically_admitted"), None)
+        selected_id = selected_id or next((item["scenario_id"] for item in scenarios
                             if item["role"] == "context_conditioned"), None)
         admitted = [item for item in scenarios
                     if item["role"] == "fitted_context_candidate"

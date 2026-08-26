@@ -1088,9 +1088,18 @@ def execute_transformation(
                 impulse_peak <= 100 and impulse_tail <= 10
                 and interval_growth <= 20),
         })
-        validation.update(_replay_recursive_linear(
+        replay = _replay_recursive_linear(
             expression, history_values=history_values or [],
-            history_series=history_series or {}))
+            history_series=history_series or {})
+        validation.update(replay)
+        validation.update({
+            "validation_points": replay["recurrence_replay_points"],
+            "skill": replay.get("recurrence_replay_skill", 0.0),
+            "beats_baseline": replay["recurrence_replay_beats_baseline"],
+            "scheme": replay["recurrence_replay_scheme"],
+            "per_origin_knowledge_checked": replay[
+                "per_origin_knowledge_checked"],
+        })
     if historical_validation:
         points = int(historical_validation.get("validation_points") or 0)
         skill = _finite(historical_validation.get("skill"), "historical_validation.skill")

@@ -71,6 +71,12 @@
   to DATE` when the compiler omits it. Extraction is scoped to a line naming
   the recurrence driver; future ranges must cover the requested grid exactly,
   and the original cited ranges feed the governed historical-history validator.
+  Recurrence replay now projects points, skill, baseline comparison, scheme,
+  and knowledge checks into the generic candidate-evidence contract.
+  Successfully replay-admitted transformations are labelled
+  `historically_admitted` / `conditionally_supported` and take precedence in
+  best-effort publication; hypothetical paths no longer carry earned evidence
+  under a weaker label.
 - Bounded every governed compiler, repair, and selector request to one
   no-retry transport attempt. A slow provider now returns the immutable primary
   instead of parking a worker. Model-authored candidates whose accompanying
