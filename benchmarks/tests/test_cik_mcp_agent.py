@@ -82,7 +82,8 @@ class ScriptedClient:
         self.completion_transport_retries = []
         self.completion_prompts = []
 
-    def chat(self, messages, *, n=1, tools=None, tool_choice=None):
+    def chat(self, messages, *, n=1, tools=None, tool_choice=None,
+             request_timeout=None, transport_retries=None):
         assert self.steps, "model script exhausted before submission"
         step = self.steps.pop(0)
         action = step(messages) if callable(step) else step
@@ -271,7 +272,7 @@ def test_gnomon_exit_uses_the_artifact_verbatim(tmp_path):
 
 
 def test_evidence_host_binds_first_valid_forecast_artifact(tmp_path):
-    """A governed agent chooses the verb; the host owns publication."""
+    """Known forecast intent does not pay a redundant tool-choice turn."""
     def call_forecast(messages):
         csv = _csv_path(messages)
         return {"tool_calls": [("gnomon_forecast", {
@@ -293,6 +294,7 @@ def test_evidence_host_binds_first_valid_forecast_artifact(tmp_path):
     samples, extra = forecaster(_task(), 1)
     assert extra["route"] == "gnomon"
     assert extra["mcp_calls"] == 1
+    assert len(client.steps) == 1  # conversational tool-choice script unused
     assert len(samples[0]) == 4
     trace = json.loads(next((tmp_path / "traces").glob("*.json")).read_text())
     assert trace["trace"][0]["host_bound_submission"] == {
@@ -810,7 +812,8 @@ def test_shadow_role_requires_evidence_profile():
 
 def test_evidence_exposes_only_the_task_required_forecast_tool(tmp_path):
     class InspectingClient(ScriptedClient):
-        def chat(self, messages, *, n=1, tools=None, tool_choice=None):
+        def chat(self, messages, *, n=1, tools=None, tool_choice=None,
+                 request_timeout=None, transport_retries=None):
             assert [item["function"]["name"] for item in tools] == [
                 "gnomon_forecast", "submit_forecast"]
             return super().chat(messages, n=n, tools=tools,

@@ -124,7 +124,9 @@ MAX_RUN_TOKENS = 250_000
 #: to recursion; invented target arrays are discarded, not executed.
 #: Version 44: exact lag claims without a numeric lane receive one focused,
 #: bounded sufficiency repair instead of being silently interpretation-only.
-MCP_CONTRACT_VERSION = 44
+#: Version 45: known-intent Evidence invokes its sole host-bound forecast
+#: directly; open-intent profiles retain bounded conversational tool routing.
+MCP_CONTRACT_VERSION = 45
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -1664,6 +1666,16 @@ class _Run:
             # autonomy; discovery belongs to hosts where the intent is unknown.
             mcp_tools = [tool for tool in mcp_tools
                          if tool.get("name") == "gnomon_forecast"]
+            # The host already knows this benchmark's intent, and every
+            # forecast argument is host-bound below. Asking the LLM to choose
+            # the only visible tool adds no reasoning signal and can cost a
+            # multi-minute provider round. This is the production composition:
+            # model compiles qualitative context; host invokes the typed verb.
+            self._dispatch("gnomon_forecast", {})
+            if not self.submission:
+                self._abstain(
+                    "governed forecast did not produce a publishable artifact")
+            return self._resolve_submission()
         tools = openai_tool_specs(mcp_tools)
         future_index = _task_future_timestamps(self.task)
         system = SYSTEM.format(
@@ -1689,7 +1701,8 @@ class _Run:
         for _round in range(MAX_ROUNDS):
             self._check_budget_caps()
             response = self.forecaster.client.chat(
-                messages, n=1, tools=tools, tool_choice="auto")
+                messages, n=1, tools=tools, tool_choice="auto",
+                request_timeout=120, transport_retries=0)
             message = response.choices[0].message
             tool_calls = _tool_calls_as_dicts(message)
             if not tool_calls:
