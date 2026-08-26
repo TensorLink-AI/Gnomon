@@ -182,7 +182,9 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: specification supplied only at the current cutoff.
 #: Version 71: compiler-level context rejection remains visible in the public
 #: typed disposition instead of disappearing between receipt and publication.
-MCP_CONTRACT_VERSION = 71
+#: Version 72: traces retain the bounded recovery path for every rejected
+#: context item, matching the human- and agent-facing publication envelope.
+MCP_CONTRACT_VERSION = 72
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -2194,6 +2196,12 @@ class _Run:
                             "disposition": item.get("disposition"),
                             "reason_code": item.get("reason_code"),
                             "reason": item.get("reason"),
+                            "recovery_action": ({
+                                key: (item.get("recovery_action") or {}).get(key)
+                                for key in ("code", "message",
+                                            "required_evidence",
+                                            "automation_eligible")
+                            } if item.get("recovery_action") else None),
                         } for item in publication.get(
                             "context_dispositions") or []],
                         "candidates": [{

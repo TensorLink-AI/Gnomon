@@ -176,11 +176,15 @@ def test_invalid_context_is_typed_rejection_not_silent_drop():
     broken = _dossier()
     broken["compiler_model"] = "tampered"
     payload = publish_result(_result(), mode="scenario", dossiers=[broken])
-    assert payload["context_dispositions"] == [{
-        "context_id": "dossier-1", "disposition": "rejected",
-        "reason_code": "invalid_candidate_seal",
-        "reason": "The dossier seal does not authenticate its body.",
-    }]
+    assert len(payload["context_dispositions"]) == 1
+    rejection = payload["context_dispositions"][0]
+    assert rejection["context_id"] == "dossier-1"
+    assert rejection["disposition"] == "rejected"
+    assert rejection["reason_code"] == "invalid_candidate_seal"
+    assert rejection["reason"] == \
+        "The dossier seal does not authenticate its body."
+    assert rejection["recovery_action"]["code"] == "recompile_from_source"
+    assert rejection["recovery_action"]["automation_eligible"] is False
 
 
 def test_candidate_constraint_failure_is_typed_and_actionable():
@@ -340,8 +344,36 @@ def test_mcp_compiler_rejection_is_visible_in_publication(tmp_path):
                      if item["reason_code"] == "context_unresolved")
     assert rejection["disposition"] == "rejected"
     assert rejection["reason"] == "no grounded numeric relationship was found"
+    assert rejection["recovery_action"]["code"] == "provide_grounded_context"
+    assert "effective dates" in rejection["recovery_action"]["required_evidence"]
     assert publication["primary_forecast_unchanged"] is True
     assert verify_publication(publication)
+
+
+def test_every_rejected_context_disposition_has_bounded_recovery():
+    result = _result()
+    result["transformation_rejections"] = [{
+        "transformation_id": "bad-transform",
+        "reason_code": "transformation_validation_failed",
+        "reason": "unknown series",
+    }]
+    result["context_rejections"] = [{
+        "context_id": "unresolved-document",
+        "reason_code": "context_unresolved",
+        "reason": "no executable facts",
+    }]
+    payload = publish_result(result, mode="scenario", dossiers=[{
+        **_dossier(), "compiler_model": "tampered"}])
+    rejected = [item for item in payload["context_dispositions"]
+                if item["disposition"] == "rejected"]
+    assert len(rejected) == 3
+    for item in rejected:
+        action = item["recovery_action"]
+        assert action["code"]
+        assert action["message"]
+        assert action["required_evidence"]
+        assert action["automation_eligible"] is False
+    assert verify_publication(payload)
 
 
 def test_mcp_recursive_transformation_binds_history_but_requires_replay_skill(tmp_path):

@@ -111,6 +111,65 @@ def _path_support(rows: list[dict[str, Any]], fallback: str) -> str:
     return min(tiers, key=lambda item: order.get(item, -1))
 
 
+def _context_recovery(disposition: dict[str, Any]) -> dict[str, Any]:
+    """Return the shortest honest path from rejection to admissibility."""
+    code = str(disposition.get("reason_code") or "context_unresolved")
+    if code == "context_unresolved":
+        return {
+            "code": "provide_grounded_context",
+            "message": (
+                "Keep the primary answer, or resubmit context containing an "
+                "explicit dated schedule, numeric relationship, or bounded "
+                "scenario assumption that can be cited verbatim."),
+            "required_evidence": [
+                "effective dates", "target or driver identity",
+                "verbatim numeric rule or explicitly labelled scenario assumption",
+            ],
+            "automation_eligible": False,
+        }
+    if code in {
+            "transformation_validation_failed", "effect_proposal_rejected",
+            "forecast_candidate_rejected"}:
+        return {
+            "code": "correct_context_proposal",
+            "message": (
+                "Keep the primary answer and correct only the rejected typed "
+                "proposal using values and series identities present in its "
+                "cited source."),
+            "required_evidence": [
+                "verbatim source span", "resolved series identity",
+                "unit-consistent finite values",
+            ],
+            "automation_eligible": False,
+        }
+    if code == "invalid_candidate_seal":
+        return {
+            "code": "recompile_from_source",
+            "message": (
+                "Discard the altered dossier and compile a new sealed proposal "
+                "from the original source document."),
+            "required_evidence": ["original source document"],
+            "automation_eligible": False,
+        }
+    if code == "bounded_portfolio_overflow":
+        return {
+            "code": "inspect_sealed_receipt",
+            "message": (
+                "Inspect the sealed source receipt for this lower-ranked path; "
+                "it was omitted only from the compact response."),
+            "required_evidence": ["source receipt"],
+            "automation_eligible": False,
+        }
+    return {
+        "code": "correct_rejected_context",
+        "message": (
+            "Keep the primary answer and correct the cited field identified by "
+            "the rejection before resubmitting context."),
+        "required_evidence": ["rejection reason", "cited source"],
+        "automation_eligible": False,
+    }
+
+
 def build_scenario_catalog(result: dict[str, Any], *,
                            dossiers: list[dict[str, Any]] | None = None
                            ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -434,6 +493,10 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 f"Retained the {MAX_SCENARIOS} higher-priority sealed paths; "
                 "this alternative remains recoverable from its source receipt."),
         } for item in dropped)
+    for disposition in dispositions:
+        if (disposition.get("disposition") == "rejected"
+                and not disposition.get("recovery_action")):
+            disposition["recovery_action"] = _context_recovery(disposition)
     return scenarios, dispositions
 
 
