@@ -19,7 +19,7 @@ from typing import Any
 from .effect_proposals import validate_effect_proposal
 from .context_intelligence import compile_context_hypotheses
 
-DOSSIER_VERSION = "0.3"
+DOSSIER_VERSION = "0.4"
 MAX_CLAIMS = 16
 MAX_BOUNDARY_JUMP_SCALES = 20.0
 MAX_PATH_SCALE_RATIO = 30.0
@@ -58,6 +58,7 @@ def validate_temporal_dossier(
     future_timestamps: list[str],
     history: list[float],
     compiler_model: str,
+    validated_events: list[Any] | None = None,
 ) -> tuple[dict[str, Any], list[str]]:
     """Return a sealed dossier and every rejected-field reason.
 
@@ -138,7 +139,8 @@ def validate_temporal_dossier(
     if effect_proposal is not None:
         effect_proposal = _align_effect_onset_to_cited_claim(
             effect_proposal, claims=claims,
-            future_timestamps=future_timestamps)
+            future_timestamps=future_timestamps,
+            validated_events=validated_events or [])
     hypotheses, hypothesis_critique = compile_context_hypotheses(
         raw.get("hypotheses"), claims=claims,
         series=[str(value) for value in raw.get("series") or ["*"]],
@@ -176,7 +178,7 @@ def validate_temporal_dossier(
 
 def _align_effect_onset_to_cited_claim(
     proposal: dict[str, Any], *, claims: list[dict[str, Any]],
-    future_timestamps: list[str],
+    future_timestamps: list[str], validated_events: list[Any],
 ) -> dict[str, Any]:
     """Derive relative delay from one cited, horizon-aligned claim window.
 
@@ -194,9 +196,20 @@ def _align_effect_onset_to_cited_claim(
                 start, str(claim.get("source_span") or "")):
             grounded_starts.append(start)
     distinct_starts = {value.isoformat() for value in grounded_starts}
-    if len(distinct_starts) != 1:
+    binding = "verified cited claim window and forecast grid"
+    if len(distinct_starts) == 1:
+        start = grounded_starts[0]
+    elif len(distinct_starts) == 0 and len(validated_events) == 1:
+        event = validated_events[0]
+        start = _timestamp(getattr(event, "effective_start", None))
+        attributes = getattr(event, "attributes", {}) or {}
+        quote = str(attributes.get("evidence_quote") or
+                    attributes.get("source_span") or "")
+        if start is None or not _claim_start_is_cited(start, quote):
+            return proposal
+        binding = "single validated context event and forecast grid"
+    else:
         return proposal
-    start = grounded_starts[0]
     future = [_timestamp(value) for value in future_timestamps]
     if not future or any(value is None for value in future):
         return proposal
@@ -214,7 +227,7 @@ def _align_effect_onset_to_cited_claim(
         "code": "CLAIM_ONSET_TO_HORIZON_DELAY",
         "cited_effective_start": start.isoformat(),
         "applied_delay_steps": derived,
-        "basis": "verified cited claim window and forecast grid",
+        "basis": binding,
     })
     normalized["semantic_normalizations"] = notes
     return normalized

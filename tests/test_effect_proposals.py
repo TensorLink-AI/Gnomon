@@ -46,13 +46,17 @@ def test_cited_level_multiplier_is_normalized_to_additive_fraction():
         claim_spans={"claim-1": "demand will be 4 times the usual level"})
     assert critique["status"] == "accepted"
     assert (proposal["lower"], proposal["location"], proposal["upper"]) == \
-        (2.5, 3.0, 3.5)
+        (3.0, 3.0, 3.0)
     assert proposal["semantic_normalizations"] == [{
         "code": "MULTIPLIER_TO_ADDITIVE_FRACTION",
         "stated_level_multiplier": 4.0,
         "applied_additive_fraction": 3.0,
         "parameterization_shift": -1.0,
         "basis": "verified cited source span",
+    }, {
+        "code": "UNSTATED_EFFECT_RANGE_REMOVED",
+        "applied_value": 3.0,
+        "basis": "citation states one exact multiplier; primary path retains forecast uncertainty",
     }]
     assert compose_effect(PRIMARY, proposal)[0]["q50"] == 40.0
 
@@ -129,6 +133,35 @@ def test_separate_cited_timing_and_magnitude_claims_can_align_effect():
     proposal = dossier["effect_proposal"]
     assert proposal["location"] == 1.0
     assert proposal["delay_steps"] == 2
+
+
+def test_single_validated_event_can_supply_missing_effect_timing():
+    from gnomon.context import ContextEvent
+
+    future = [f"2026-01-03T{hour:02d}:00:00+00:00" for hour in range(1, 5)]
+    context = ("Event starts at 2026-01-03 03:00:00. "
+               "Demand becomes approximately 2 times the usual level.")
+    event = ContextEvent(
+        event_id="event-1", event_type="promotion", entity_scope=("*",),
+        effective_start=future[2], effective_end=future[3],
+        known_at="2026-01-03T00:00:00+00:00",
+        attributes={"evidence_quote": "Event starts at 2026-01-03 03:00:00"})
+    dossier, _ = validate_temporal_dossier({
+        "claims": [{
+            "source_span": "Demand becomes approximately 2 times the usual level",
+            "relation": "supports_increase", "effective_start": future[2],
+            "effective_end": future[3]}],
+        "effect_proposal": _proposal(
+            shape="temporary_pulse", unit="fraction_of_level",
+            location=1.0, lower=.5, upper=1.5, delay_steps=0,
+            duration_steps=1),
+    }, context_text=context, cutoff="2026-01-03T00:00:00+00:00",
+       future_timestamps=future, history=[8, 9, 10], compiler_model="test",
+       validated_events=[event])
+    proposal = dossier["effect_proposal"]
+    assert proposal["delay_steps"] == 2
+    assert proposal["semantic_normalizations"][-1]["basis"] == \
+        "single validated context event and forecast grid"
 
 
 def test_repair_is_bounded_and_typed():

@@ -71,9 +71,9 @@ MAX_RUN_TOKENS = 250_000
 #: context_trusted path; selection remains autonomous among evidence peers.
 #: Version 12: the host skips the selector call when the product contract says
 #: evidence already makes the recommendation non-discretionary.
-#: Version 13: engine-composed effects must pass scale and sign plausibility;
-#: typing and citations alone no longer make a numeric path recommendable.
-MCP_CONTRACT_VERSION = 15
+#: Version 16: cited multipliers and event timing are resolved by Gnomon;
+#: split claims and harmless optional-label normalization are explicit.
+MCP_CONTRACT_VERSION = 16
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -1127,6 +1127,7 @@ class _Run:
             raw, context_text=context, cutoff=self.timestamps[-1],
             future_timestamps=future_timestamps, history=self.values,
             compiler_model=self.forecaster.openrouter_model,
+            validated_events=events,
         )
         covariate_receipt = compilation["covariates"]
         covariate_rejections = compilation["covariate_rejections"]

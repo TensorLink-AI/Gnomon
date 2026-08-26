@@ -9,6 +9,7 @@ primary artifact.
 from __future__ import annotations
 
 import math
+import re
 import statistics
 from typing import Any
 
@@ -144,6 +145,11 @@ def _validate_one(raw: Any, *, claim_ids: set[str],
         if len(distinct) == 1:
             scale = stated[0]
             entailed_change = scale - 1.0
+            cited_text = " ".join(claim_spans.get(claim_id, "")
+                                  for claim_id in cited)
+            approximate = bool(re.search(
+                r"\b(?:approximately|approx\.?|about|around|roughly|circa)\b",
+                cited_text, re.IGNORECASE))
             if abs(location - entailed_change) > 1e-12:
                 correction = entailed_change - location
                 semantic_normalizations.append({
@@ -159,6 +165,13 @@ def _validate_one(raw: Any, *, claim_ids: set[str],
                 lower += correction
                 upper += correction
                 location = entailed_change
+            if not approximate and (lower != location or upper != location):
+                semantic_normalizations.append({
+                    "code": "UNSTATED_EFFECT_RANGE_REMOVED",
+                    "applied_value": entailed_change,
+                    "basis": "citation states one exact multiplier; primary path retains forecast uncertainty",
+                })
+                lower = upper = location
     return {
         "shape": shape, "unit": unit, "location": location,
         "lower": lower, "upper": upper, "confidence": confidence,
