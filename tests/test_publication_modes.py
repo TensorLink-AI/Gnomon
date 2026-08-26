@@ -100,6 +100,30 @@ def test_validated_context_event_is_citable_without_a_dossier_claim():
     assert verify_publication(payload)
 
 
+def test_selector_cannot_displace_context_trusted_path_with_weaker_primary():
+    result = _result()
+    result["support"] = "context_trusted"
+    result["primary_forecast"] = [
+        {**row, "point": 9.0, "q10": 8, "q50": 9, "q90": 10}
+        for row in result["forecast"]]
+    result["context_outcome"] = {
+        "status": "applied", "admission_basis": "future_context_contract",
+        "events": ["event-1"],
+    }
+    # Force the primary's own path tier below the deterministically validated
+    # context path, matching a best-effort primary plus a literal future rule.
+    for row in result["primary_forecast"]:
+        row["tier"] = "conditionally_supported"
+    with pytest.raises(ValueError, match="context_trusted path"):
+        publish_result(result, mode="best_effort", scenario_selection={
+            "selected_scenario_id": "primary",
+            "ranking": ["primary", "context_conditioned"],
+            "cited_claim_ids": ["event-1"], "counterevidence_claim_ids": [],
+            "confidence": .7, "rationale": "prefer history",
+            "what_would_change_selection": "more context",
+        })
+
+
 def test_unknown_citations_and_tampering_fail_loudly():
     selection = {
         "selected_scenario_id": "primary",

@@ -309,6 +309,21 @@ def validate_scenario_selection(raw: Any, *, scenarios: list[dict[str, Any]],
         if uniquely_decisive and selected != strongest["scenario_id"]:
             raise ValueError(
                 "scenario selection cannot override uniquely decisive out-of-sample evidence")
+    trusted_context = next((item for item in scenarios
+                            if item.get("role") == "context_conditioned"
+                            and item.get("support") == "context_trusted"), None)
+    selected_item = next(item for item in scenarios
+                         if item["scenario_id"] == selected)
+    support_rank = {"hypothetical_sensitivity": 0, "prior_assisted": 1,
+                    "weak": 1, "conditionally_supported": 2,
+                    "supported": 3, "context_trusted": 4}
+    if (trusted_context is not None
+            and selected != trusted_context["scenario_id"]
+            and support_rank.get(str(selected_item.get("support")), -1)
+            < support_rank["context_trusted"]):
+        raise ValueError(
+            "scenario selection cannot displace a deterministically validated "
+            "context_trusted path with weaker support")
     claim_ids = {str(claim.get("claim_id")) for dossier in dossiers or []
                  for claim in dossier.get("claims") or []}
     claim_ids.update(str(item) for scenario in scenarios

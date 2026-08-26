@@ -67,7 +67,9 @@ MAX_RUN_TOKENS = 250_000
 #: numerical influence is evaluated separately from semantic extraction.
 #: Version 10: verified literal range claims are deterministically re-routed
 #: through the ordinary constraint validator even when the model omits events.
-MCP_CONTRACT_VERSION = 10
+#: Version 11: a weaker LLM-selected scenario cannot displace a deterministic
+#: context_trusted path; selection remains autonomous among evidence peers.
+MCP_CONTRACT_VERSION = 11
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
