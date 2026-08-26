@@ -318,6 +318,32 @@ def test_mcp_context_transformation_rejection_is_typed_and_primary_is_intact(tmp
     assert verify_publication(publication)
 
 
+def test_mcp_compiler_rejection_is_visible_in_publication(tmp_path):
+    from datetime import date, timedelta
+    source = tmp_path / "series.csv"
+    start = date(2026, 1, 1)
+    source.write_text("timestamp,value\n" + "\n".join(
+        f"{start + timedelta(days=i)},{100 + i}" for i in range(40)) + "\n")
+    payload = runner_for("gnomon_forecast")({
+        "input": str(source), "horizon": 2,
+        "output_dir": str(tmp_path / "out"),
+        "publication_mode": "best_effort",
+        "context_submission": {
+            "known_at": "2026-02-09T00:00:00+00:00",
+            "rejections": [
+                "context_unresolved: no grounded numeric relationship was found"],
+        },
+    })
+    publication = payload["publication"]
+    assert publication["recommended_scenario_id"] == "primary"
+    rejection = next(item for item in publication["context_dispositions"]
+                     if item["reason_code"] == "context_unresolved")
+    assert rejection["disposition"] == "rejected"
+    assert rejection["reason"] == "no grounded numeric relationship was found"
+    assert publication["primary_forecast_unchanged"] is True
+    assert verify_publication(publication)
+
+
 def test_mcp_recursive_transformation_binds_history_but_requires_replay_skill(tmp_path):
     from datetime import date, timedelta
     source = tmp_path / "wide.csv"

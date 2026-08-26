@@ -180,7 +180,9 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: exact, source-cited schedule that the host can extract deterministically.
 #: Version 70: recurrence traces distinguish origin-safe observations from a
 #: specification supplied only at the current cutoff.
-MCP_CONTRACT_VERSION = 70
+#: Version 71: compiler-level context rejection remains visible in the public
+#: typed disposition instead of disappearing between receipt and publication.
+MCP_CONTRACT_VERSION = 71
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -2127,6 +2129,7 @@ class _Run:
                     "context_submission": {
                         "known_at": self.timestamps[-1],
                         "transformations": receipt.get("transformations") or [],
+                        "rejections": receipt.get("rejections") or [],
                     },
                 })
             entry["host_context_binding"] = {

@@ -1822,6 +1822,7 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
     policy = arguments.get("automation_policy")
     if mode == "strict" and not (dossiers or raw_proposal
                                   or submission.get("transformations")
+                                  or submission.get("rejections")
                                   or selection or policy):
         return
     if len(artifact.results) != 1:
@@ -1832,6 +1833,35 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
     from .publication import (compile_dossier_for_result, publish_result,
                               write_publication)
     result = artifact.to_dict()["results"][0]
+    raw_context_rejections = submission.get("rejections") or []
+    if not isinstance(raw_context_rejections, list):
+        raise GnomonError(
+            "INVALID_ARGUMENTS", "context_submission.rejections must be a list")
+    if len(raw_context_rejections) > 16:
+        raise GnomonError(
+            "INVALID_ARGUMENTS", "context_submission.rejections is limited to 16 items")
+    result["context_rejections"] = []
+    for index, item in enumerate(raw_context_rejections, 1):
+        if isinstance(item, str):
+            code, separator, reason = item.partition(":")
+            result["context_rejections"].append({
+                "context_id": f"context-submission-{index}",
+                "reason_code": code.strip() if separator else "context_unresolved",
+                "reason": reason.strip() if separator else item.strip(),
+            })
+        elif isinstance(item, dict):
+            result["context_rejections"].append({
+                "context_id": str(item.get("context_id") or
+                                  f"context-submission-{index}"),
+                "reason_code": str(item.get("reason_code") or
+                                   "context_unresolved"),
+                "reason": str(item.get("reason") or
+                              "Supplied context could not be grounded or executed."),
+            })
+        else:
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "context_submission.rejections items must be strings or objects")
 
     def trusted_recurrence_history(
             expression: Any, historical_segments: Any = None,
@@ -2373,7 +2403,7 @@ TOOLS: list[dict[str, Any]] = [
                     "description": "Projection; default strict. Primary stays immutable."},
                 "temporal_dossiers": {"type": "array", "items": {"type": "object"},
                     "description": "Sealed temporal dossiers."},
-                "context_submission": {"type": "object", "description": "Raw {text, known_at, compiler, proposal, transformations}; transformations use the bounded declarative language and return typed rejections."},
+                "context_submission": {"type": "object", "description": "Raw {text, known_at, compiler, proposal, transformations, rejections}; bounded transformations and typed rejection dispositions."},
                 "scenario_selection": {"type": "object",
                     "description": "Number-free governed ranking of scenario ids."},
                 "automation_policy": {"type": "object",

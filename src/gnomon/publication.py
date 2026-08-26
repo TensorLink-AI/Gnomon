@@ -141,6 +141,14 @@ def build_scenario_catalog(result: dict[str, Any], *,
         "violations": list(item.get("violations") or []),
     } for index, item in enumerate(
         result.get("transformation_rejections") or [], 1))
+    dispositions.extend({
+        "context_id": str(item.get("context_id") or
+                          f"context-submission-{index}"),
+        "disposition": "rejected",
+        "reason_code": str(item.get("reason_code") or "context_unresolved"),
+        "reason": str(item.get("reason") or
+                      "Supplied context could not be grounded or executed."),
+    } for index, item in enumerate(result.get("context_rejections") or [], 1))
     context_outcome = result.get("context_outcome") or {}
     historically_admitted = (
         context_outcome.get("admission_basis") == "historical_fold_ablation")
