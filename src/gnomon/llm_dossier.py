@@ -280,6 +280,11 @@ def validate_temporal_dossier(
             raw_observation_interpretations, claims=claims,
             history=history, history_timestamps=history_timestamps,
             future_timestamps=future_timestamps)
+    from .calibration_counterfactual import compile_additive_drift_repair
+    calibration_candidate, calibration_replay = compile_additive_drift_repair(
+        context_text=context_text, claims=claims, history=history,
+        history_timestamps=history_timestamps,
+        future_timestamps=future_timestamps)
     derived_replay = ((derived_candidate or {}).get("conditional_replay") or {})
     derived_replay_admitted = derived_replay.get("selection_eligible") is True
     derived_replay_human_eligible = derived_replay.get(
@@ -288,13 +293,19 @@ def validate_temporal_dossier(
         observation_interpretations and
         ((observation_interpretations[0].get("predicate_normalization") or {}).get(
             "kind") == "semantic_zero_to_separated_near_zero_cluster"))
-    use_derived_candidate = bool(
+    use_calibration_candidate = calibration_candidate is not None
+    if use_calibration_candidate:
+        # Host-validated deterministic evidence owns this lane. A malformed
+        # model-authored transformation may be retained as a rejection, but it
+        # cannot veto an independently compiled counterfactual.
+        candidate_selection_eligible = True
+        candidate_selection_reason = None
+    use_derived_candidate = bool(not use_calibration_candidate and
         derived_candidate is not None and (
             derived_replay_admitted or derived_replay_human_eligible
             or derived_scenario_is_deterministic
             or raw.get("forecast_candidate") in (None, {})))
-    candidate_was_derived_from_observation_interpretation = \
-        use_derived_candidate
+    candidate_was_derived_from_observation_interpretation = use_derived_candidate
     if candidate_was_derived_from_observation_interpretation:
         replay = derived_replay
         # Mechanical validity and evidence dominance are distinct. A sealed
@@ -314,18 +325,22 @@ def validate_temporal_dossier(
                 "did not earn evidence dominance; retain it as a visible, "
                 "human-reviewed prior-assisted scenario only.")
     candidate_reason_start = len(reasons)
-    candidate_input = (derived_candidate if use_derived_candidate else
+    candidate_input = (calibration_candidate if use_calibration_candidate else
+                       derived_candidate if use_derived_candidate else
                        raw.get("forecast_candidate") or derived_candidate)
     candidate = _validate_candidate(
         candidate_input, claims=claims,
         future_timestamps=future_timestamps, history=history, reasons=reasons,
-        replay_justifies_boundary_jump=(
-            candidate_was_derived_from_observation_interpretation
-            and (derived_replay_admitted or derived_replay_human_eligible)))
+        governed_counterfactual_justifies_boundary_jump=(
+            use_calibration_candidate or (
+                candidate_was_derived_from_observation_interpretation
+                and (derived_replay_admitted or derived_replay_human_eligible))))
     if candidate is not None and \
             candidate_was_derived_from_observation_interpretation:
         candidate["conditional_replay"] = dict(
             derived_candidate.get("conditional_replay") or {})
+    if candidate is not None and use_calibration_candidate:
+        candidate["calibration_replay"] = dict(calibration_replay)
     if (candidate is not None and not use_derived_candidate
             and observation_interpretations and derived_candidate is not None
             and not derived_replay_admitted):
@@ -403,6 +418,7 @@ def validate_temporal_dossier(
                                  if candidate and not candidate_selection_eligible
                                  else None),
             "candidate_origin": (
+                "calibration_counterfactual" if use_calibration_candidate else
                 "observation_interpretation_counterfactual"
                 if candidate_was_derived_from_observation_interpretation
                 else "model_authored" if candidate else None),
@@ -983,7 +999,7 @@ def _validate_candidate(
     future_timestamps: list[str],
     history: list[float],
     reasons: list[str],
-    replay_justifies_boundary_jump: bool = False,
+    governed_counterfactual_justifies_boundary_jump: bool = False,
 ) -> dict[str, Any] | None:
     if raw in (None, {}):
         return None
@@ -1111,14 +1127,15 @@ def _validate_candidate(
     plausibility_warnings: list[str] = []
     if (boundary_jump > MAX_BOUNDARY_JUMP_SCALES
             and not bounded_regime_change
-            and not replay_justifies_boundary_jump):
+            and not governed_counterfactual_justifies_boundary_jump):
         reasons.append("forecast_candidate failed boundary-jump plausibility")
         return None
-    if boundary_jump > MAX_BOUNDARY_JUMP_SCALES and replay_justifies_boundary_jump:
+    if (boundary_jump > MAX_BOUNDARY_JUMP_SCALES
+            and governed_counterfactual_justifies_boundary_jump):
         plausibility_warnings.append(
-            "candidate leaves the raw history boundary because a fitted "
-            "observation counterfactual cleared fold-safe replay; support and "
-            "automation authority remain unchanged")
+            "candidate leaves the raw history boundary because a governed "
+            "counterfactual supplied its own validated correction evidence; "
+            "support and automation authority remain unchanged")
     elif boundary_jump > MAX_BOUNDARY_JUMP_SCALES:
         plausibility_warnings.append(
             "candidate leaves the empirical history scale but remains inside "

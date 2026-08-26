@@ -25,6 +25,7 @@ from .context import (
     ContextSource,
     backtest_admissible,
     event_to_dict,
+    normalize_context_confidence,
     validate_context_event,
 )
 from .temporal import normalise_frequency
@@ -469,6 +470,20 @@ def parse_context_response(
             # document, which is exactly the check `source_span` exists to
             # carry; the lane's deterministic parser takes it from here.
             attributes["source_span"] = quote
+        try:
+            confidence, confidence_normalization = normalize_context_confidence(
+                proposal.get("confidence", 0.5), default=0.5)
+        except ValueError as error:
+            rejected.append({
+                "proposal": proposal, "reason_code": "invalid_confidence",
+                "problems": [str(error)],
+            })
+            continue
+        if confidence_normalization:
+            attributes["compiler_normalizations"] = [
+                *(attributes.get("compiler_normalizations") or []),
+                {"field": "confidence", **confidence_normalization},
+            ]
         event = ContextEvent(
             event_id=f"event_llm_{index:02d}",
             event_type=event_type,
@@ -477,7 +492,7 @@ def parse_context_response(
             effective_end=str(proposal.get("effective_end", "")),
             known_at=str(proposal.get("known_at", "")),
             status=str(proposal.get("status", "tentative")),
-            confidence=float(proposal.get("confidence", 0.5)),
+            confidence=confidence,
             attributes=attributes,
             source=ContextSource(document.source_type, document.reference or document.name),
             created_by="llm",

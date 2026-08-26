@@ -25,6 +25,8 @@ record.
 from __future__ import annotations
 
 import json
+import math
+import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -40,6 +42,49 @@ VERIFIABLE_SOURCE_TYPES = frozenset(
 )
 CONTEXT_STATUSES = frozenset({"confirmed", "tentative", "cancelled"})
 UNVERIFIED_EXTERNAL_CREATOR = "unverified_external"
+
+
+def normalize_context_confidence(
+    raw: Any, *, default: float = 0.5,
+) -> tuple[float, dict[str, Any] | None]:
+    """Normalize non-authoritative confidence metadata without crashing.
+
+    Confidence never upgrades provenance or historical admission. Common LLM
+    labels are mapped conservatively for interoperability; ambiguous values
+    fail loudly at the event boundary instead of becoming silent defaults.
+    """
+    supplied = raw
+    if raw in (None, ""):
+        return default, {
+            "kind": "missing_to_conservative_unit_interval",
+            "supplied": supplied, "normalized": default,
+            "authority_effect": "none",
+        }
+    qualitative = {"low": 0.25, "medium": 0.5, "moderate": 0.5,
+                   "high": 0.75}
+    text = raw.strip().casefold() if isinstance(raw, str) else ""
+    if text in qualitative:
+        value = qualitative[text]
+        return value, {
+            "kind": "qualitative_to_conservative_unit_interval",
+            "supplied": supplied, "normalized": value,
+            "authority_effect": "none",
+        }
+    numeric_text = re.fullmatch(r"(?:\d+(?:\.\d*)?|\.\d+)\s*%?", text)
+    try:
+        value = (float(text.rstrip("%")) if numeric_text else float(raw))
+    except (TypeError, ValueError):
+        raise ValueError("confidence must be a unit interval, percentage, or low/medium/high")
+    normalization = None
+    if (isinstance(raw, str) and text.endswith("%")) or 1 < value <= 100:
+        value /= 100.0
+        normalization = {
+            "kind": "percent_to_unit_interval", "supplied": supplied,
+            "normalized": value, "authority_effect": "none",
+        }
+    if not math.isfinite(value) or not 0 <= value <= 1:
+        raise ValueError("confidence must resolve inside the unit interval")
+    return value, normalization
 
 
 @dataclass(frozen=True)
@@ -169,6 +214,8 @@ def event_to_dict(event: ContextEvent) -> dict[str, Any]:
 def event_from_dict(raw: dict[str, Any], *,
                     trust_declared_creator: bool = False) -> ContextEvent:
     source = raw.get("source")
+    confidence, _ = normalize_context_confidence(
+        raw.get("confidence", 1.0), default=1.0)
     return ContextEvent(
         event_id=str(raw.get("event_id", "")),
         event_type=str(raw.get("event_type", "")),
@@ -177,7 +224,7 @@ def event_from_dict(raw: dict[str, Any], *,
         effective_end=str(raw.get("effective_end", "")),
         known_at=str(raw.get("known_at", "")),
         status=str(raw.get("status", "confirmed")),
-        confidence=float(raw.get("confidence", 1.0)),
+        confidence=confidence,
         attributes=dict(raw.get("attributes") or {}),
         source=ContextSource(str(source.get("type", "")), str(source.get("reference", "")))
         if isinstance(source, dict) else None,
@@ -200,9 +247,18 @@ def events_from_list(raw_events: list, *,
     from it. Any invalid event fails the whole batch; silently dropping
     a proposed event would hide it from the admission record.
     """
-    events = [event_from_dict(
-        item, trust_declared_creator=trust_declared_creator)
-        for item in raw_events]
+    events = []
+    conversion_problems = {}
+    for index, item in enumerate(raw_events):
+        try:
+            events.append(event_from_dict(
+                item, trust_declared_creator=trust_declared_creator))
+        except (TypeError, ValueError) as error:
+            conversion_problems[f"index {index}"] = [str(error)]
+    if conversion_problems:
+        raise GnomonError(
+            "INVALID_CONTEXT_EVENT", "One or more context events violate the contract.",
+            {"problems": conversion_problems})
     problems = {
         event.event_id or f"index {index}": event_problems
         for index, event in enumerate(events)

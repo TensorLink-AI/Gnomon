@@ -10,6 +10,7 @@ from gnomon.context import (
     event_to_dict,
     validate_context_event,
 )
+from gnomon.contracts import GnomonError
 from gnomon.llm import LLMAdapter, LLMUnavailable, NullLLMAdapter
 
 
@@ -67,6 +68,18 @@ def test_inline_event_cannot_self_attest_historical_known_at() -> None:
     parsed = events_from_list([raw])[0]
     assert parsed.created_by == "unverified_external"
     assert backtest_admissible(parsed) is False
+
+
+def test_inline_qualitative_confidence_normalizes_and_invalid_value_is_typed():
+    raw = event_to_dict(_event())
+    raw["confidence"] = "high"
+    assert events_from_list([raw])[0].confidence == 0.75
+
+    raw["confidence"] = "probably"
+    with pytest.raises(GnomonError) as excinfo:
+        events_from_list([raw])
+    assert excinfo.value.code == "INVALID_CONTEXT_EVENT"
+    assert "confidence" in str(excinfo.value.details).casefold()
 
 
 def test_null_adapter_degrades_deterministically() -> None:

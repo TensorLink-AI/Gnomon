@@ -467,6 +467,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
             candidate_origin = str(
                 candidate_critique.get("candidate_origin") or "model_authored")
             conditional_replay = candidate.get("conditional_replay") or {}
+            calibration_replay = candidate.get("calibration_replay") or {}
             replay_admitted = (
                 candidate_origin == "observation_interpretation_counterfactual"
                 and conditional_replay.get("selection_eligible") is True)
@@ -485,9 +486,11 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 selection_eligible = False
             scenarios.append(_scenario(
                 identifier,
-                ("observation_counterfactual" if
-                 candidate_origin == "observation_interpretation_counterfactual"
-                 else "model_authored"),
+                ("calibration_counterfactual" if
+                 candidate_origin == "calibration_counterfactual" else
+                 "observation_counterfactual" if candidate_origin ==
+                 "observation_interpretation_counterfactual" else
+                 "model_authored"),
                 _rows(candidate.get("quantiles")),
                 support=("conditionally_supported" if replay_admitted
                          else "prior_assisted"), automation_eligible=False,
@@ -511,6 +514,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 effect={
                     "candidate_origin": candidate_origin,
                     "conditional_replay": conditional_replay,
+                    "calibration_replay": calibration_replay,
                 },
             ))
             emitted.append(identifier)
@@ -531,6 +535,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
             "effect_composed": 70,
             "model_authored": 60,
             "observation_counterfactual": 75,
+            "calibration_counterfactual": 76,
             "model_authored_transformation": 60,
             "conditional_sensitivity": 50,
         }
@@ -694,6 +699,17 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
                     ((item.get("effect") or {}).get(
                         "conditional_replay") or {}).get(
                             "required_block_wins")),
+                "calibration_replay": ({
+                    key: ((item.get("effect") or {}).get(
+                        "calibration_replay") or {}).get(key)
+                    for key in (
+                        "status", "correction", "stated_rate_per_hour",
+                        "drift_start", "repair_boundary", "family",
+                        "expanding_origins", "candidate_mae",
+                        "human_recommendation_eligible")
+                    if ((item.get("effect") or {}).get(
+                        "calibration_replay") or {}).get(key) is not None
+                } or None),
                 "admission_withheld_reason": (
                     ((item.get("effect") or {}).get(
                         "conditional_replay") or {}).get(
@@ -757,6 +773,13 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
             and ((item.get("effect") or {}).get(
                 "conditional_replay") or {}).get(
                     "human_recommendation_eligible") is True), None)
+        selected_id = selected_id or next((
+            item["scenario_id"] for item in scenarios
+            if item["role"] == "calibration_counterfactual"
+            and item.get("selection_eligible", True) is True
+            and ((item.get("effect") or {}).get(
+                "calibration_replay") or {}).get(
+                    "human_recommendation_eligible") is True), None)
         selected_id = selected_id or next((item["scenario_id"] for item in scenarios
                             if item["role"] in {"effect_composed",
                                                 "model_authored_transformation"}
@@ -782,6 +805,8 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
         selection_method = "verified_context_contract"
     elif selected_role == "fitted_context_candidate":
         selection_method = "out_of_sample_evidence_dominance"
+    elif selected_role == "calibration_counterfactual":
+        selection_method = "source_determined_calibration_best_effort"
     elif selected_role == "observation_counterfactual":
         replay = ((selected.get("effect") or {}).get(
             "conditional_replay") or {})
@@ -829,6 +854,10 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
             "the strict admission margin. It is a non-automatable, "
             "human-facing best effort only."
             if selection_method == "conditional_replay_best_effort" else
+            "A source-stated additive measurement drift was removed from a "
+            "copy of history before a fold-tested forecast was fit. This is "
+            "a prior-assisted human recommendation and cannot authorize automation."
+            if selection_method == "source_determined_calibration_best_effort" else
             "Recommendation authority follows the disclosed selection method."
         ),
     }

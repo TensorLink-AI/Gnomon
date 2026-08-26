@@ -210,6 +210,30 @@ def test_active_target_can_bind_wildcard_when_quote_names_target() -> None:
     assert result["events"][0]["entity_scope"] == ["output"]
 
 
+def test_qualitative_event_confidence_is_normalized_without_authority():
+    result = parse_context_response({"events": [{
+        **PROPOSAL, "confidence": "high",
+    }]}, [DOCUMENT])
+
+    assert result["rejected"] == []
+    event = result["events"][0]
+    assert event["confidence"] == 0.75
+    normalization = next(item for item in event["attributes"][
+        "compiler_normalizations"] if item["field"] == "confidence")
+    assert normalization["kind"] == \
+        "qualitative_to_conservative_unit_interval"
+    assert normalization["authority_effect"] == "none"
+
+
+def test_ambiguous_event_confidence_is_typed_rejection_not_exception():
+    result = parse_context_response({"events": [{
+        **PROPOSAL, "confidence": "probably",
+    }]}, [DOCUMENT])
+
+    assert result["events"] == []
+    assert result["rejected"][0]["reason_code"] == "invalid_confidence"
+
+
 def test_non_verbatim_quote_is_rejected() -> None:
     tampered = {**PROPOSAL, "evidence_quote": "Enterprise A definitely doubles traffic"}
     result = parse_context_response({"events": [tampered]}, [DOCUMENT])

@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+- Added a source-determined calibration counterfactual for repaired additive
+  sensor drift. When context verbatim supplies the drift start, per-hour rate,
+  and exact repair boundary, Gnomon subtracts the accumulated measurement bias
+  from a copy of history and chooses a fixed classical family on expanding
+  corrected-history origins. The path may lead only in `best_effort`, remains
+  `prior_assisted` and non-automatable, and never changes the raw observations
+  or immutable primary. Vague timing, incompatible grids, and incomplete rules
+  do not activate the executable.
+  An independently compiled calibration candidate also owns its selection
+  eligibility: a rejected LLM-authored transformation is retained in the
+  receipt but cannot veto the deterministic path.
+- LLM-authored context events no longer crash compilation when confidence is
+  expressed as `low`, `medium`, `moderate`, `high`, or a percentage. These
+  values normalize to conservative, non-authoritative metadata recorded in the
+  receipt; ambiguous confidence is a typed `invalid_confidence` rejection.
+  Inline MCP events use the same boundary and now raise `INVALID_CONTEXT_EVENT`
+  rather than leaking a raw conversion exception.
 - Context-event proposal failures now retain typed reason codes through the
   compiler, MCP submission, and publication projection. In particular, an
   unsafe wildcard numeric proposal is no longer mislabeled as generic

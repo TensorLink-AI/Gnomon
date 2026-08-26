@@ -145,6 +145,14 @@ and neither a model confidence value nor a benchmark score upgrades support.
 Even an admitted context candidate remains ineligible for automation until it
 has passed the stricter ordinary product admission path.
 
+An exact additive sensor-calibration rule has its own narrow counterfactual.
+If the source states the drift start, additive rate per hour, and exact repair
+boundary, Gnomon corrects a copy of pre-cutoff history and fold-selects a fixed
+classical family on that conditional series. This source-determined path is a
+human-facing `best_effort` only: it remains `prior_assisted`, preserves the raw
+history and primary forecast, and cannot authorize automation. Missing or
+ambiguous rule components leave the executable inactive.
+
 Every projection includes a compact `temporal_state` (level, trend, interval
 width, seasonality/regime receipts, path shape, analogues, cross-series state,
 conflicts and sufficiency). The governed selector ranks sealed candidates from
