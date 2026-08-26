@@ -135,6 +135,11 @@ that component as a prior-assisted sensitivity. The cluster split is
 deterministic and disclosed, but it cannot validate itself because membership
 was inferred from target outcomes. It therefore never auto-leads: a governed
 selector or human must choose it explicitly, and automation remains forbidden.
+An exact one-off sensor glitch uses the same governed observation lane. Its
+source-stated start and duration define a half-open timestamp mask over a copy
+of history; replay decides whether the resulting candidate has human-facing
+value. The source data and primary are never repaired in place, and the mere
+presence of a cited anomaly cannot authorize automation.
 
 Numerical influence is earned separately. Vintage-aware exogenous regression,
 expanding-origin lag selection, and leave-one-episode-out analogue evaluation

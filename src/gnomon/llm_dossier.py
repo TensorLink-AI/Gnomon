@@ -14,7 +14,7 @@ import json
 import math
 import re
 import statistics
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from .effect_proposals import validate_effect_proposal
@@ -482,11 +482,47 @@ def _derive_historical_zero_interpretation(
         "no future", "has ended", "had ended", "will not recur",
         "will no longer", "does not continue")) or bool(re.search(
             r"\bwill not be (?:in|under|on) (?:maintenance|an? outage|closure)\b",
-            text))
+            text)) or bool(re.search(
+                r"\bwill not (?:have|experience) (?:this |the )?glitch\b",
+                text))
     if not ended:
         return []
     for claim in claims:
         span = _normalise(claim.get("source_span"))
+        source = str(claim.get("source_span") or "")
+        spike = re.search(
+            r"(?:glitch|spike).*?starting from\s+"
+            r"(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2})\s+for\s+"
+            r"(\d+)\s+hours?", source, re.I)
+        if spike:
+            start = _timestamp(spike.group(1).replace(" ", "T"))
+            if start is not None and start.tzinfo is None:
+                effective = _timestamp(claim.get("effective_start"))
+                start = start.replace(tzinfo=(effective.tzinfo
+                                              if effective else None))
+            if start is None or start.tzinfo is None:
+                try:
+                    start = datetime.fromisoformat(
+                        spike.group(1)).replace(tzinfo=_timestamp(
+                            claim.get("effective_start")).tzinfo)
+                except (TypeError, ValueError, AttributeError):
+                    start = None
+            if start is not None:
+                return [{
+                    "kind": "historical_contamination",
+                    "claim_ids": [claim["claim_id"]],
+                    "predicate": {
+                        "op": "timestamp_window",
+                        "start": start.isoformat(),
+                        "duration_steps": int(spike.group(2)),
+                        "unit": "hour",
+                    },
+                    "window": "cited_window",
+                    "rationale": (
+                        "deterministically bound from a verified historical "
+                        "sensor-glitch window stated not to recur"),
+                    "proposal_origin": "verified_claim_semantics",
+                }]
         disruption = any(token in span for token in (
             "maintenance", "outage", "closure", "stockout",
             "reporting failure"))
@@ -568,11 +604,12 @@ def _validate_observation_interpretations(
             continue
         predicate_op = predicate.get("op")
         if predicate_op not in {"equals", "recurring_window",
+                                "timestamp_window",
                                 "recurring_clock_window"}:
             rejected.append({"index": index, "code": "UNSUPPORTED_PREDICATE"})
             continue
         spans = [_normalise(claim["source_span"]) for claim in cited]
-        zero_entailed = any(
+        zero_entailed = predicate_op == "timestamp_window" or any(
             re.search(r"\b(?:zero|no)\b.{0,40}\b(?:recorded|withdrawal|sale|order|request|reading|transaction|event)s?\b", span)
             or re.search(r"\b(?:recorded|withdrawal|sale|order|request|reading|transaction|event)s?\b.{0,40}\b(?:zero|none)\b", span)
             for span in spans)
@@ -594,7 +631,35 @@ def _validate_observation_interpretations(
             for timestamp in history_timestamps]
         applied_predicate: dict[str, Any]
         predicate_normalization = None
-        if predicate_op == "recurring_window":
+        if predicate_op == "timestamp_window":
+            try:
+                window_start = _timestamp(predicate["start"])
+                if window_start is None:
+                    naive = datetime.fromisoformat(str(predicate["start"]))
+                    window_start = naive.replace(tzinfo=start.tzinfo)
+                duration = int(predicate["duration_steps"])
+            except (KeyError, TypeError, ValueError):
+                window_start, duration = None, 0
+            source = " ".join(str(claim["source_span"]) for claim in cited)
+            entailed = (window_start is not None and duration > 0
+                        and window_start.strftime("%Y-%m-%d") in source
+                        and str(duration) in source
+                        and any(token in source.casefold()
+                                for token in ("glitch", "spike")))
+            if not entailed:
+                rejected.append({"index": index,
+                                 "code": "SPIKE_WINDOW_NOT_ENTAILED"})
+                continue
+            window_end = window_start + timedelta(hours=duration)
+            mask = [bool((observed := _timestamp(timestamp)) is not None
+                         and window_start <= observed < window_end)
+                    for timestamp in history_timestamps]
+            applied_predicate = {
+                "op": "timestamp_window", "start": window_start.isoformat(),
+                "end": window_end.isoformat(), "interval": "half_open",
+                "source_unit": "hour",
+            }
+        elif predicate_op == "recurring_window":
             try:
                 duration = int(predicate["duration_steps"])
                 period = int(predicate["period_steps"])

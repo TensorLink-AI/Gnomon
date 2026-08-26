@@ -45,6 +45,42 @@ def test_replay_positive_observation_executable_outranks_model_proposal():
     assert dossier["forecast_candidate"]["rationale"] != "model proposal"
 
 
+def test_exact_nonrecurring_sensor_spike_becomes_historical_interpretation():
+    start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    timestamps = [(start + timedelta(hours=index)).isoformat()
+                  for index in range(24 * 10)]
+    history = [20.0 + 3.0 * math.sin(2 * math.pi * (index % 24) / 24)
+               for index in range(len(timestamps))]
+    spike_start = 96
+    history[spike_start:spike_start + 2] = [200.0, 180.0]
+    future = [(start + timedelta(hours=len(history) + index)).isoformat()
+              for index in range(24)]
+    span = (
+        "The sensor experienced an unexpected glitch resulting in a spike "
+        f"starting from {start + timedelta(hours=spike_start):%Y-%m-%d %H:%M:%S} "
+        "for 2 hours.")
+    raw = {"claims": [{
+        "source_span": span, "relation": "supports_higher_variance",
+        "effective_start": timestamps[spike_start],
+        "effective_end": timestamps[spike_start + 2], "confidence": .9,
+    }]}
+    original = list(history)
+
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=span +
+        " Assume that the sensor will not have this glitch in the future.",
+        cutoff=timestamps[-1], future_timestamps=future, history=history,
+        history_timestamps=timestamps, compiler_model="test")
+
+    assert not reasons
+    interpretation = dossier["observation_interpretations"][0]
+    assert interpretation["predicate"]["op"] == "timestamp_window"
+    assert interpretation["excluded_observations"] == 2
+    assert interpretation["input_mutated"] is False
+    assert dossier["forecast_candidate"] is not None
+    assert history == original
+
+
 def test_literal_historical_observation_fallback_is_narrow_and_verbatim():
     context = ("Background sentence. Maintenance resulted in no sales recorded "
                "starting 2026-01-02. There will be no future maintenance.")

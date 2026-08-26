@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Exact, source-cited historical sensor glitches now compile to a bounded
+  half-open timestamp-window interpretation when the source also says the
+  glitch will not recur. Gnomon excludes only those observations from a copied
+  history, exposes the conditional replay and retained/excluded counts, and
+  leaves the primary and stored data untouched. This replaces `claims_only`
+  behavior without granting a one-off anomaly automatic authority.
 - Added a source-determined calibration counterfactual for repaired additive
   sensor drift. When context verbatim supplies the drift start, per-hour rate,
   and exact repair boundary, Gnomon subtracts the accumulated measurement bias
