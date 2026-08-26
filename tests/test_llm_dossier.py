@@ -127,6 +127,33 @@ def test_direction_and_bound_do_not_justify_large_candidate_jump():
     assert "forecast_candidate failed boundary-jump plausibility" in reasons
 
 
+def test_placeholder_and_degenerate_candidates_are_rejected():
+    span = "The site will be closed on Monday."
+    future = ["2026-01-05T00:00:00+00:00",
+              "2026-01-06T00:00:00+00:00"]
+    placeholder = _raw(span, [
+        {"timestamp": stamp, "q10": 0, "q50": 0, "q90": 0}
+        for stamp in future])
+    placeholder["forecast_candidate"]["rationale"] = (
+        "Placeholder values; Gnomon must apply the relationship.")
+    dossier, reasons = validate_temporal_dossier(
+        placeholder, context_text=span,
+        cutoff="2026-01-04T00:00:00+00:00", future_timestamps=future,
+        history=[8, 9, 10, 11], compiler_model="test")
+    assert dossier["forecast_candidate"] is None
+    assert "forecast_candidate declares itself incomplete" in reasons
+
+    degenerate = _raw(span, [
+        {"timestamp": stamp, "q10": 9, "q50": 9, "q90": 9}
+        for stamp in future])
+    dossier, reasons = validate_temporal_dossier(
+        degenerate, context_text=span,
+        cutoff="2026-01-04T00:00:00+00:00", future_timestamps=future,
+        history=[8, 9, 10, 11], compiler_model="test")
+    assert dossier["forecast_candidate"] is None
+    assert any("non-zero predictive uncertainty" in reason for reason in reasons)
+
+
 def test_candidate_must_obey_its_own_cited_numeric_bounds():
     future = ["2026-01-05T00:00:00+00:00",
               "2026-01-06T00:00:00+00:00"]

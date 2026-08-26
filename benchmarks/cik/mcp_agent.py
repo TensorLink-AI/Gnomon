@@ -86,7 +86,9 @@ MAX_RUN_TOKENS = 250_000
 #: bound may leave the history scale as a warned, non-automatable scenario.
 #: Version 26: that exception requires a cited quantitative relationship;
 #: direction plus a loose bound is not enough to license a large jump.
-MCP_CONTRACT_VERSION = 26
+#: Version 27: self-declared placeholders and zero-width model forecasts are
+#: rejected rather than becoming human-facing prior-assisted answers.
+MCP_CONTRACT_VERSION = 27
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it

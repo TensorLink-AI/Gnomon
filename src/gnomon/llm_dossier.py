@@ -338,6 +338,14 @@ def _validate_candidate(
     if not isinstance(raw, dict):
         reasons.append("forecast_candidate is not an object")
         return None
+    rationale = str(raw.get("rationale") or "")[:1000]
+    incomplete_markers = (
+        "placeholder", "not computed", "not calculated", "unable to compute",
+        "cannot compute", "gnomon must", "engine must", "todo", "fill in",
+    )
+    if any(marker in _normalise(rationale) for marker in incomplete_markers):
+        reasons.append("forecast_candidate declares itself incomplete")
+        return None
     if not claims:
         reasons.append("forecast_candidate requires a verified cited claim")
         return None
@@ -403,6 +411,10 @@ def _validate_candidate(
     if upper is not None and any(value > upper for value in values):
         reasons.append("forecast_candidate violates cited upper bound")
         return None
+    if not any(float(row["q90"]) > float(row["q10"]) for row in clean):
+        reasons.append(
+            "forecast_candidate must express non-zero predictive uncertainty")
+        return None
 
     scale = _robust_scale(history)
     points = [float(row["q50"]) for row in clean]
@@ -430,7 +442,7 @@ def _validate_candidate(
         return None
     return {
         "quantiles": clean,
-        "rationale": str(raw.get("rationale") or "")[:1000],
+        "rationale": rationale,
         "claim_ids": [claim["claim_id"] for claim in claims],
         "plausibility": {
             "boundary_jump_scales": round(boundary_jump, 6),
