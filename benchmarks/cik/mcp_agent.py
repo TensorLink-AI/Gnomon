@@ -274,6 +274,11 @@ Rules:
   them into historical folds.
 - Claims are the richer interpretation lane. Put qualitative relationships
   there even when no deterministic event can represent them.
+- A numeric effect must cite both its magnitude and its timing. Prefer one
+  verbatim claim span containing both. If the source separates them, emit one
+  claim for the dated window and one for the numeric relationship, then cite
+  both claim IDs from the effect/transform. Never attach an uncited timestamp
+  to a magnitude-only sentence.
 - When context permits more than one interpretation, emit up to six competing
   typed hypotheses rather than collapsing ambiguity into one numeric path.
   A relationship names its predictor and lag; an historical_analogue names

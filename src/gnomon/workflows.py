@@ -400,14 +400,26 @@ def parse_context_response(
             if proposal.get(range_name) is not None:
                 soft_values[range_name] = proposal[range_name]
         soft_problems = []
-        if soft_values["effect_family"] not in EFFECT_FAMILIES:
-            soft_problems.append("effect_family is not in the closed vocabulary")
-        if soft_values["direction"] not in EFFECT_DIRECTIONS:
-            soft_problems.append("direction is not in the closed vocabulary")
-        if soft_values["duration"] not in EFFECT_DURATIONS:
-            soft_problems.append("duration is not in the closed vocabulary")
-        if soft_values.get("entity_kind", "unknown") not in ENTITY_KINDS:
-            soft_problems.append("entity_kind is not in the closed vocabulary")
+        soft_normalizations = []
+        # These labels are optional descriptive metadata; they never size an
+        # effect or upgrade support. A reasonable out-of-vocabulary noun such
+        # as "sensor" should not discard an otherwise grounded event. Preserve
+        # the raw value in the receipt and demote only that field to unknown.
+        vocabularies = {
+            "effect_family": EFFECT_FAMILIES,
+            "direction": EFFECT_DIRECTIONS,
+            "duration": EFFECT_DURATIONS,
+            "entity_kind": ENTITY_KINDS,
+        }
+        for field_name, vocabulary in vocabularies.items():
+            value = soft_values.get(field_name, "unknown")
+            if value not in vocabulary:
+                soft_normalizations.append({
+                    "field": field_name, "supplied": value,
+                    "normalized": "unknown",
+                    "reason": "optional label is outside the closed vocabulary",
+                })
+                soft_values[field_name] = "unknown"
         for range_name in ("delay_steps", "duration_steps"):
             value = soft_values.get(range_name)
             if value is not None and (
@@ -423,6 +435,8 @@ def parse_context_response(
             rejected.append({"proposal": proposal, "problems": soft_problems})
             continue
         attributes["soft_context"] = soft_values
+        if soft_normalizations:
+            attributes["compiler_normalizations"] = soft_normalizations
         if quote and (event_type.startswith("constraint:")
                       or event_type.startswith("override:")):
             # The quote has just been verified verbatim against the caller's

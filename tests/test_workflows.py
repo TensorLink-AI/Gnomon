@@ -169,6 +169,24 @@ def test_compiler_may_classify_an_effect_but_cannot_supply_magnitude() -> None:
     assert "effect_size" not in attributes
 
 
+def test_unknown_optional_semantic_label_does_not_discard_grounded_event() -> None:
+    result = parse_context_response({"events": [{
+        **PROPOSAL,
+        "effect_family": "temporary_pulse",
+        "direction": "increase",
+        "duration": "temporary",
+        "entity_kind": "sensor",
+    }]}, [DOCUMENT])
+    assert result["rejected"] == []
+    attributes = result["events"][0]["attributes"]
+    assert attributes["soft_context"]["entity_kind"] == "unknown"
+    assert attributes["compiler_normalizations"] == [{
+        "field": "entity_kind", "supplied": "sensor",
+        "normalized": "unknown",
+        "reason": "optional label is outside the closed vocabulary",
+    }]
+
+
 def test_non_verbatim_quote_is_rejected() -> None:
     tampered = {**PROPOSAL, "evidence_quote": "Enterprise A definitely doubles traffic"}
     result = parse_context_response({"events": [tampered]}, [DOCUMENT])

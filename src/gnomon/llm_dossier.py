@@ -187,12 +187,16 @@ def _align_effect_onset_to_cited_claim(
     """
     cited = set(proposal.get("claim_ids") or [])
     matching = [claim for claim in claims if claim.get("claim_id") in cited]
-    if len(matching) != 1:
+    grounded_starts = []
+    for claim in matching:
+        start = _timestamp(claim.get("effective_start"))
+        if start is not None and _claim_start_is_cited(
+                start, str(claim.get("source_span") or "")):
+            grounded_starts.append(start)
+    distinct_starts = {value.isoformat() for value in grounded_starts}
+    if len(distinct_starts) != 1:
         return proposal
-    start = _timestamp(matching[0].get("effective_start"))
-    if start is None or not _claim_start_is_cited(
-            start, str(matching[0].get("source_span") or "")):
-        return proposal
+    start = grounded_starts[0]
     future = [_timestamp(value) for value in future_timestamps]
     if not future or any(value is None for value in future):
         return proposal

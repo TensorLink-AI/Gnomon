@@ -517,9 +517,16 @@ def parse_override_scale(span: str) -> tuple[float | None, str | None]:
     is applied.
     """
     text = " ".join(str(span).split())
-    match = re.search(_SCALED_BASELINE, text, re.IGNORECASE)
-    if match:
-        return _scale_from(match), None
+    matches = list(re.finditer(_SCALED_BASELINE, text, re.IGNORECASE))
+    if matches:
+        scales = [_scale_from(match) for match in matches]
+        distinct = {round(value, 12) for value in scales}
+        if len(distinct) == 1:
+            return scales[0], None
+        return None, (
+            "the source span states multiple different baseline multiples; "
+            "a deterministic parser cannot choose which scenario is operative"
+        )
     return None, (
         "the source span does not state a multiple or percentage of a "
         "usual/normal/typical level"
