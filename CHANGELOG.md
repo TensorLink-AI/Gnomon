@@ -54,6 +54,10 @@
   checks every endpoint/value against verified claims, rejects overlap or
   incomplete grid coverage, labels the provenance, and uses the documented
   history only for recurrence replay/execution. It never infers a scale.
+  Equivalent `{type: recursive_linear, ...}` compiler output is normalized to
+  the public AST, and cited future range schedules expand only when their
+  endpoints occur verbatim in the source and cover every host-owned forecast
+  timestamp exactly once.
 - Bounded every governed compiler, repair, and selector request to one
   no-retry transport attempt. A slow provider now returns the immutable primary
   instead of parking a worker. Model-authored candidates whose accompanying

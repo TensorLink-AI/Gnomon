@@ -166,7 +166,9 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: baseline errors so a demotion is statistically diagnosable.
 #: Version 63: cited historical driver ranges can bridge explicitly documented
 #: semantics to encoded structured columns without inferred rescaling.
-MCP_CONTRACT_VERSION = 63
+#: Version 64: typed recurrence objects and cited future range schedules are
+#: normalized only under exact source/grid coverage.
+MCP_CONTRACT_VERSION = 64
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -1484,6 +1486,13 @@ class _Run:
                            if isinstance(item, dict) else None)
                 if not isinstance(compact, dict) and isinstance(embedded, dict):
                     compact = embedded.get("recursive_linear")
+                if (not isinstance(compact, dict) and isinstance(embedded, dict)
+                        and embedded.get("type") == "recursive_linear"
+                        and "expression" not in embedded):
+                    compact = {key: embedded.get(key) for key in (
+                        "intercept", "autoregressive_terms", "driver_terms",
+                        "series_values", "historical_series_segments")
+                               if key in embedded}
                 if isinstance(item, dict) and isinstance(compact, dict):
                     metadata = embedded if isinstance(embedded, dict) else item
                     recurrence = dict(compact)
@@ -1510,6 +1519,24 @@ class _Run:
                             values = ([row["value"] for row in rows]
                                       if stamps == sorted(future_timestamps)
                                       else schedule)
+                        elif (isinstance(schedule, list) and schedule
+                              and all(isinstance(row, dict)
+                                      and {"start", "end", "value"}.issubset(row)
+                                      for row in schedule)):
+                            expanded = []
+                            valid = True
+                            for stamp in sorted(future_timestamps):
+                                matches = [row for row in schedule
+                                           if str(row["start"]) <= stamp
+                                           <= str(row["end"])]
+                                if len(matches) != 1:
+                                    valid = False
+                                    break
+                                expanded.append(matches[0]["value"])
+                            cited = all(str(row["start"]) in narrative_context
+                                        and str(row["end"]) in narrative_context
+                                        for row in schedule)
+                            values = expanded if valid and cited else schedule
                         else:
                             values = schedule
                         series_values[str(name)] = {
