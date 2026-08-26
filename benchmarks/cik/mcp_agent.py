@@ -143,7 +143,9 @@ MAX_RUN_TOKENS = 250_000
 #: admission diagnostics, so recommendation behavior is auditable per case.
 #: Version 53: redundant driver names such as X_0_lag2 are safely rebound to
 #: X_0 only when their typed lag agrees and their future schedules match.
-MCP_CONTRACT_VERSION = 53
+#: Version 54: a model-authored path cannot bypass the authority of a governed
+#: transformation over the same claims, including a failed replay gate.
+MCP_CONTRACT_VERSION = 54
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it

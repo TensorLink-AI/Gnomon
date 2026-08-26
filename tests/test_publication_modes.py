@@ -63,6 +63,30 @@ def test_best_effort_promotes_candidate_but_not_authority():
     assert verify_publication(payload)
 
 
+def test_model_authored_path_cannot_bypass_governed_transform_authority():
+    result = _result()
+    result["transformation_candidates"] = [{
+        "transformation_id": "equation-1",
+        "forecast": [{**row, "point": 20, "q10": 19, "q50": 20,
+                      "q90": 21} for row in result["forecast"]],
+        "lane": "historically_testable", "claim_ids": ["claim-1"],
+        "known_at": "2026-01-02T00:00:00+00:00",
+        "output_unit": "value", "source_seal_sha256": "sealed",
+        "primary_forecast_unchanged": True, "automation_eligible": False,
+        "validation": {"recurrence_plausibility_passed": True,
+                       "recurrence_replay_admitted": False,
+                       "recurrence_replay_reason": "did_not_beat_last_value"},
+    }]
+    payload = publish_result(result, mode="best_effort", dossiers=[_dossier()])
+    assert payload["recommended_scenario_id"] == "primary"
+    by_id = {item["scenario_id"]: item
+             for item in payload["candidate_portfolio"]}
+    assert by_id["transformation-1"]["selection_eligible"] is False
+    assert by_id["prior-assisted-1"]["selection_eligible"] is False
+    assert "owns recommendation authority" in " ".join(
+        by_id["prior-assisted-1"]["assumptions"])
+
+
 def test_scenario_selection_can_rank_but_not_authorize_or_edit():
     selection = {
         "selected_scenario_id": "prior-assisted-1",

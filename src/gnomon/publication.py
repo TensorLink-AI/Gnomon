@@ -251,6 +251,12 @@ def build_scenario_catalog(result: dict[str, Any], *,
             "scenario_ids": [identifier], "evidence": evidence,
         })
 
+    transformation_claim_sets = [
+        set(item.get("claim_ids") or []) for item in scenarios
+        if item.get("role") in {"historically_admitted",
+                                "model_authored_transformation"}
+    ]
+
     context_outcome = result.get("context_outcome")
     if isinstance(context_outcome, dict):
         status = str(context_outcome.get("status") or "rejected")
@@ -348,6 +354,17 @@ def build_scenario_catalog(result: dict[str, Any], *,
             candidate_critique = dossier.get("candidate_critique") or {}
             selection_eligible = candidate_critique.get(
                 "selection_eligible", True) is True
+            candidate_claims = {str(item) for item in
+                                candidate.get("claim_ids") or []}
+            governed_by_transformation = any(
+                candidate_claims and candidate_claims.intersection(claims)
+                for claims in transformation_claim_sets)
+            if governed_by_transformation:
+                # A model cannot bypass a failed replay/admission check by
+                # restating its own forecast under the same cited claims. The
+                # executable path owns numeric authority; the model path stays
+                # visible for explanation, comparison, and outcome scoring.
+                selection_eligible = False
             scenarios.append(_scenario(
                 identifier, "model_authored", _rows(candidate.get("quantiles")),
                 support="prior_assisted", automation_eligible=False,
@@ -362,7 +379,11 @@ def build_scenario_catalog(result: dict[str, Any], *,
                       if (candidate.get("plausibility") or {}).get(
                           "uncertainty_normalization") else []),
                     *([str(candidate_critique.get("selection_reason"))]
-                      if not selection_eligible else [])],
+                      if not candidate_critique.get(
+                          "selection_eligible", True) else []),
+                    *(["A governed transformation over the same cited claims "
+                        "owns recommendation authority."]
+                      if governed_by_transformation else [])],
                 source_seal=str(dossier["seal_sha256"]),
             ))
             emitted.append(identifier)

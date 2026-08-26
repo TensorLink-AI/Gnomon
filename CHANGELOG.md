@@ -16,6 +16,10 @@
   Compiler spellings that redundantly encode the lag in both the driver name
   and typed lag are normalized to the governed base series only when the lags
   agree and every duplicate future schedule is identical.
+  When a typed transformation exists for a set of cited claims, its governed
+  candidate now exclusively owns numeric recommendation authority. A parallel
+  model-authored path remains visible and outcome-scoreable but cannot bypass
+  a failed replay or plausibility gate.
 - Bounded every governed compiler, repair, and selector request to one
   no-retry transport attempt. A slow provider now returns the immutable primary
   instead of parking a worker. Model-authored candidates whose accompanying
