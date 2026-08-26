@@ -275,6 +275,10 @@ def test_publication_prefers_effect_composition_and_retains_portfolio():
         "effect_composed", "model_authored"}
     assert payload["temporal_state"]["trend"]["direction"] == "flat_or_unknown"
     assert verify_publication(payload)
+    disposition = next(item for item in payload["context_dispositions"]
+                       if item["reason_code"] == "effect_proposal_composed")
+    assert disposition["disposition"] == "used"
+    assert disposition["selection_role"] == "human_facing_recommendation"
 
 
 def test_validated_context_path_precedes_weaker_model_effect():

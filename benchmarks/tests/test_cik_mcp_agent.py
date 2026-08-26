@@ -750,6 +750,50 @@ def test_single_verified_claim_rebinds_stale_transformation_id(tmp_path):
     assert transformation["citation_binding"] == "single_verified_claim"
 
 
+def test_single_verified_claim_rebinds_effect_and_hypothesis_ids(tmp_path):
+    task = _task()
+    span = "Demand increases by 10 units throughout the forecast window."
+    task.scenario = span
+    compiler_output = json.dumps({
+        "events": [],
+        "claims": [{
+            "source_span": span, "relation": "supports_increase",
+            "effective_start": task.future_time[0],
+            "effective_end": task.future_time[-1],
+            "mechanism": "stated increment", "confidence": .9,
+        }],
+        "effect_proposal": {
+            "shape": "level_shift", "unit": "target_units",
+            "location": 10, "lower": 8, "upper": 12, "confidence": .8,
+            "delay_steps": 0, "duration_steps": None,
+            "scope": {"kind": "single_series", "series": ["value"]},
+            "claim_ids": ["claim-99"], "rationale": "stated increment",
+            "uncertainty_basis": "bounded around stated value",
+        },
+        "hypotheses": [{
+            "kind": "additive_change", "claim_ids": ["claim-99"],
+            "target_series": ["value"], "predictor_series": None,
+            "known_at": task.past_time[-1][0], "lag_steps": 0,
+            "direction": "increase", "rationale": "stated increment",
+        }],
+        "forecast_candidate": None, "covariate_tables": [],
+        "transformations": [],
+    })
+    forecaster = McpAgentForecaster(
+        "x/y", client=ScriptedClient(
+            [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+            compiler_output),
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+    _, extra = forecaster(task, 1)
+    receipt = json.loads(Path(
+        extra["context_compilation"]["receipt_path"]).read_text())
+    assert receipt["dossier"]["effect_proposal"]["claim_ids"] == ["claim-1"]
+    assert receipt["dossier"]["hypotheses"][0]["claim_ids"] == ["claim-1"]
+    assert extra["publication"]["recommended_scenario_id"] == "effect-composed-1"
+
+
 def test_transformation_preflight_repairs_malformed_future_series(tmp_path):
     task = _task()
     span = "The future input is 2.0 throughout the forecast window."

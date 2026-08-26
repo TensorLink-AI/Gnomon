@@ -297,7 +297,7 @@ events yourself. Call gnomon_forecast once when you want Gnomon's governed
 answer. The host publishes the first valid artifact automatically.
 """
 
-DOSSIER_INSTRUCTIONS = """\
+_VERBOSE_DOSSIER_CONTRACT_REFERENCE = """\
 You compile temporal context for a governed forecasting engine. Return ONLY
 one JSON object with this shape:
 {
@@ -452,6 +452,80 @@ Rules:
 - Use no observations after the history cutoff. Return empty arrays and null
   effect_proposal and forecast_candidate when context contains no
   forecast-relevant information.
+"""
+
+DOSSIER_INSTRUCTIONS = """\
+Compile supplied temporal context into one governed JSON dossier. Return ONLY
+JSON with these seven keys; use [] or null when absent:
+{"events":[],"claims":[],"hypotheses":[],"covariate_tables":[],
+"transformations":[],"effect_proposal":null,"forecast_candidate":null}
+
+Shapes:
+- event: {document_index:0,event_type,entity_scope:["*"],effective_start,
+effective_end,confidence,status:"confirmed|tentative",evidence_quote,
+effect_family:"level_shift|trend_change|variance_change|temporary_pulse|
+saturation_bound|seasonal_regime_change|unknown",direction:"increase|decrease|
+unknown",duration:"temporary|persistent|unknown",entity_kind:"service|product|
+medication|procedure|calendar|capacity|price|environment|unknown"}.
+- claim: {source_span,relation:"supports_increase|supports_decrease|
+supports_stability|supports_higher_variance|supports_lower_variance|
+changes_seasonal_regime|constrains_range|unknown",effective_start,effective_end,
+mechanism,confidence}.
+- hypothesis: {kind:"absolute_value|bound|additive_change|
+multiplicative_change|regime_shift|relationship|historical_analogue|
+unsupported",claim_ids:["claim-1"],target_series:["*"],predictor_series,
+known_at,lag_steps,direction,rationale}; emit at most six.
+- effect_proposal: {shape:"temporary_pulse|level_shift|trend_change|
+variance_change|ramp_recovery|seasonal_amplitude|seasonal_phase|
+cross_series_relationship|saturation_bound|custom_scenario",unit:
+"target_units|fraction_of_level",location,lower,upper,confidence,delay_steps,
+duration_steps,period_steps,scope:{kind:"single_series",series:["*"]},
+claim_ids,rationale,uncertainty_basis}.
+- forecast_candidate: {quantiles:[{timestamp,q10,q50,q90}],rationale}; include
+every exact requested forecast timestamp or omit it.
+- covariate table: {name,type:"continuous|binary|cyclic_<period>",rows:[
+{document_index:0,timestamp,source_time_span,value,evidence_quote}]}.
+- transformation wrapper: {transformation:{known_at,claim_ids,lane:
+"historically_testable|prior_assisted|scenario_only",output_unit,expression},
+units:{primary:"unit",series_name:"unit"},series_values:{series_name:
+{values:[],known_at,source_claim_ids:[]}}}.
+
+Rules:
+1. Every source_span/evidence_quote is verbatim context. Never invent a fact,
+timestamp, magnitude, unit, source, or future target observation. Numeric
+influence cites both timing and magnitude. Claim IDs follow verified order.
+2. Events overlap the requested future window. Use constraint:<label> for a
+stated bound and override:<label> for an exact future value. Other events are
+qualitative; historical events/regimes are claims, never backdated events.
+3. Prefer effect_proposal for a cited shift or pulse. location/lower/upper are
+changes to the primary, not target levels ("4 times usual" is an additive
+fraction_of_level change of 3). Exact target values use override events.
+Never infer an exact zero from words such as closed, outage, or unavailable;
+without a stated target value, use a qualitative event/hypothesis and an
+explicitly prior_assisted forecast_candidate only if you can derive one.
+4. Preserve ambiguity as competing hypotheses. Confidence never upgrades
+support or automation. A model-authored candidate is prior_assisted only,
+never automation-eligible, and its rationale explains derived arithmetic.
+5. Covariates are verbatim future extraction: each quote contains its time and
+value, and timestamp is an exact requested forecast timestamp. Never infer or
+interpolate. NEVER copy those historical rows into covariate_tables; observed
+companion history is evidence only.
+6. Transformations are cited declarative ASTs, never code. Operators: literal,
+primary,series,add,subtract,multiply,divide,power,lag,difference,
+percent_change,rolling_mean,clip,quantile,reference_power,
+linear_combination,recursive_linear. Arithmetic uses args:[NODE,...]; series
+uses {op:"series",name}; lag uses {op:"lag",args:[NODE],steps:N}. Every future
+series has exactly one cited series_values item per forecast timestamp. Never
+fill, extrapolate, or duplicate it as a covariate.
+7. historically_testable requires point-in-time replay; prior_assisted is a
+precise prospective rule; scenario_only is conditional. For recursive_linear,
+supply cited future drivers only—Gnomon binds history and prior outputs.
+8. For a precise cited law or schedule prefer a safe transformation; also add
+a sealed forecast_candidate only when you can calculate a useful probabilistic
+path. Gnomon validates citations, units, arithmetic and seals. Invalid content
+is rejected without changing the primary.
+9. Use nothing after the history cutoff. If context is irrelevant, return the
+seven empty/null fields.
 """
 
 RELATIONSHIP_INSTRUCTIONS = """\
@@ -1340,6 +1414,10 @@ class _Run:
                                 + MAX_CONTEXT_COMPILATION_SECONDS)
         compiler_calls: list[dict[str, Any]] = []
 
+        def bind_active_target(candidate: dict[str, Any]) -> dict[str, Any]:
+            """Attach host-owned series identity without granting semantics."""
+            return {**candidate, "series": [self.target_name]}
+
         def complete(content: str, stage: str) -> str:
             remaining = compilation_deadline - time.monotonic()
             if remaining <= 0:
@@ -1362,7 +1440,7 @@ class _Run:
             completion = complete(prompt, "initial_compile")
             objects = extract_json_objects(completion)
             if objects:
-                raw = objects[0]
+                raw = bind_active_target(objects[0])
             else:
                 compile_rejections.append(
                     "no JSON object in temporal-dossier output")
@@ -1443,7 +1521,7 @@ class _Run:
                         "dossier_repair")
                     repaired = extract_json_objects(repair_completion)
                     if repaired:
-                        raw = repaired[0]
+                        raw = bind_active_target(repaired[0])
                     else:
                         compile_rejections.append(
                             "dossier repair returned no JSON object")
@@ -1484,7 +1562,7 @@ class _Run:
                     focused, "relationship_sufficiency_repair")
                 repaired = extract_json_objects(repair_completion)
                 if repaired:
-                    raw = repaired[0]
+                    raw = bind_active_target(repaired[0])
                 else:
                     compile_rejections.append(
                         "relationship sufficiency repair returned no JSON object")
@@ -1508,6 +1586,25 @@ class _Run:
         if len(verified_claims) == 1:
             sole_id = str(verified_claims[0]["claim_id"])
             known_ids = {sole_id}
+            effect = raw.get("effect_proposal")
+            if isinstance(effect, dict):
+                effect = dict(effect)
+                cited = {str(value) for value in effect.get("claim_ids") or []}
+                if not cited or not cited.issubset(known_ids):
+                    effect["claim_ids"] = [sole_id]
+                raw = {**raw, "effect_proposal": effect}
+            normalized_hypotheses = []
+            for item in raw.get("hypotheses") or []:
+                if not isinstance(item, dict):
+                    normalized_hypotheses.append(item)
+                    continue
+                hypothesis = dict(item)
+                cited = {str(value) for value in
+                         hypothesis.get("claim_ids") or []}
+                if not cited or not cited.issubset(known_ids):
+                    hypothesis["claim_ids"] = [sole_id]
+                normalized_hypotheses.append(hypothesis)
+            raw = {**raw, "hypotheses": normalized_hypotheses}
             normalized_transformations = []
             for item in raw.get("transformations") or []:
                 if not isinstance(item, dict):
@@ -1813,7 +1910,12 @@ class _Run:
             event = dict(proposal)
             event["document_index"] = 0
             event["known_at"] = self.timestamps[-1]
-            event.setdefault("entity_scope", ["__unresolved_context_entity__"])
+            if event.get("entity_scope") in (None, [], ["*"]):
+                # This host call is already bound to exactly one target. Scope
+                # resolution is therefore identity binding, not a model guess;
+                # numeric values and relationships still need source
+                # entailment and ordinary admission.
+                event["entity_scope"] = [self.target_name]
             if event.get("source_span") and not event.get("evidence_quote"):
                 event["evidence_quote"] = event["source_span"]
             bound_events.append(event)

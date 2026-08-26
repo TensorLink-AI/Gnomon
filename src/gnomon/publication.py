@@ -413,6 +413,19 @@ def build_scenario_catalog(result: dict[str, Any], *,
                         effect={**proposal, "composition_assessment": assessment},
                     ))
                     emitted.append(identifier)
+                    dispositions.append({
+                        "context_id": f"dossier-{index}:effect-proposal",
+                        "disposition": "scenario",
+                        "reason_code": "effect_proposal_composed",
+                        "reason": (
+                            "The cited effect was composed into a sealed, "
+                            "prior-assisted scenario; it does not alter the "
+                            "immutable primary or authorize automation."
+                        ),
+                        "scenario_ids": [identifier],
+                        "claim_ids": [str(item) for item in
+                                      proposal.get("claim_ids") or []],
+                    })
         if candidate:
             # Preserve the v0.1 public identifier while making the less
             # authoritative origin explicit in the typed role. A model may
@@ -678,6 +691,14 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
     else:
         selection_method = "immutable_primary_default"
     prior_assisted_default = selection_method == "default_prior_assisted_lane"
+    dispositions = [{
+        **item,
+        "disposition": (
+            "used" if selected_id in (item.get("scenario_ids") or [])
+            else item.get("disposition")),
+        **({"selection_role": "human_facing_recommendation"}
+           if selected_id in (item.get("scenario_ids") or []) else {}),
+    } for item in dispositions]
     recommendation_authority = {
         "selected_role": selected_role,
         "selection_method": selection_method,
