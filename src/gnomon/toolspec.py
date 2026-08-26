@@ -3023,16 +3023,23 @@ def _run_select_scenario(arguments: dict[str, Any]) -> dict[str, Any]:
         selected_path = write_selected_publication(source, selected)
     except (OSError, ValueError, TypeError, _json.JSONDecodeError) as exc:
         raise GnomonError("INVALID_ARGUMENTS", str(exc)) from exc
+    scenario_id = selected["recommended_scenario_id"]
     return {
-        "schema_version": "0.1", "status": "ok",
+        "schema_version": "0.1", "status": "ok", "verb": "select_scenario",
+        "headline": (
+            f"Selected {scenario_id} as the human-facing recommendation. "
+            "The governed primary forecast is unchanged and this selection "
+            "does not authorize automation."
+        ),
         "artifact_id": selected.get("artifact_id"),
         "publication_path": str(selected_path),
         "supersedes_publication_seal_sha256": selected[
             "supersedes_publication_seal_sha256"],
         "publication_seal_sha256": selected["publication_seal_sha256"],
-        "recommended_scenario_id": selected["recommended_scenario_id"],
+        "recommended_scenario_id": scenario_id,
         "recommended_forecast": selected["recommended_forecast"],
         "recommended_support": selected["recommended_support"],
+        "support": selected["recommended_support"],
         "primary_forecast_unchanged": True,
         "scenario_selection": selected["scenario_selection"],
         "recommendation_authority": selected["recommendation_authority"],

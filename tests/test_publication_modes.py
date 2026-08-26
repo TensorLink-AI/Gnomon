@@ -130,6 +130,15 @@ def test_mcp_selector_persists_new_sidecar_without_reforecasting(tmp_path):
     assert payload["artifact_id"] == "f1"
     assert payload["primary_forecast_unchanged"] is True
     assert payload["automation"]["eligible"] is False
+    assert payload["reasoning"]["canonical_source"] == "/headline"
+    assert payload["reasoning"]["sufficiency"] == {
+        "sufficient_for": [
+            "select_scenario:canonical_answer", "explain_support"],
+        "further_calls_add_nothing_for": [
+            "select_scenario:canonical_answer", "explain_support"],
+        "requires_follow_up": False,
+    }
+    assert payload["reasoning"]["resolution"]["kind"] == "complete"
     selected_path = Path(payload["publication_path"])
     assert selected_path.is_file()
     assert selected_path != original_path
