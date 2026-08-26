@@ -396,6 +396,7 @@ def parse_context_response(
                 if not target or target.casefold() not in quote.casefold():
                     rejected.append({
                         "proposal": proposal,
+                        "reason_code": "unsafe_wildcard_numeric_event",
                         "problems": [
                             "numeric context event must explicitly identify "
                             "the active target; wildcard projection is unsafe"

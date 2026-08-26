@@ -137,6 +137,27 @@ def _context_recovery(disposition: dict[str, Any]) -> dict[str, Any]:
             ],
             "automation_eligible": False,
         }
+    if code == "unsafe_wildcard_numeric_event":
+        return {
+            "code": "bind_numeric_event_target",
+            "message": (
+                "Keep the verified result. If this additional numeric event "
+                "is intended to apply, resubmit it with the exact target "
+                "series named in the cited source."),
+            "required_evidence": [
+                "verbatim target identity", "verbatim numeric rule",
+            ],
+            "automation_eligible": False,
+        }
+    if code == "event_outside_forecast_window":
+        return {
+            "code": "retain_as_historical_claim",
+            "message": (
+                "Keep the event as historical evidence; provide a future "
+                "effective window only if the source explicitly states one."),
+            "required_evidence": ["source-stated future effective window"],
+            "automation_eligible": False,
+        }
     if code in {
             "transformation_validation_failed", "effect_proposal_rejected",
             "forecast_candidate_rejected"}:

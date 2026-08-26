@@ -205,7 +205,7 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: to every boundary quantile instead of inheriting timing uncertainty.
 #: Version 82: source-cited recurring daily clock windows compile into a
 #: fold-replayed historical observation counterfactual.
-MCP_CONTRACT_VERSION = 87
+MCP_CONTRACT_VERSION = 88
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -2161,10 +2161,14 @@ class _Run:
                 normalized["entity_scope"] = ["__default__"]
             runtime_events.append(event_from_dict(normalized))
         events = runtime_events
-        event_rejections = [
-            "; ".join(str(problem) for problem in item.get("problems") or [])
-            for item in compilation["rejected"]
-        ]
+        event_rejections = [{
+            "context_id": f"event-proposal-{index}",
+            "reason_code": str(item.get("reason_code") or
+                               "event_proposal_rejected"),
+            "reason": "; ".join(str(problem) for problem in
+                                item.get("problems") or []) or
+                      "Event proposal was rejected.",
+        } for index, item in enumerate(compilation["rejected"], 1)]
         # The dossier is known only at the forecast cutoff. Historical event
         # descriptions may support interpretation, but cannot become
         # fold-admissible executable events retroactively. Keep only events
@@ -2178,9 +2182,13 @@ class _Run:
             start = datetime.fromisoformat(event.effective_start)
             end = datetime.fromisoformat(event.effective_end)
             if end < forecast_start or start > forecast_end:
-                event_rejections.append(
-                    f"{event.event_id} rejected: event does not overlap the "
-                    "requested forecast window; retain it as a cited claim")
+                event_rejections.append({
+                    "context_id": str(event.event_id),
+                    "reason_code": "event_outside_forecast_window",
+                    "reason": (
+                        "Event does not overlap the requested forecast window; "
+                        "retain it as a cited claim."),
+                })
             else:
                 prospective_events.append(event)
         events = prospective_events

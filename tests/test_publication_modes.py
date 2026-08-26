@@ -610,6 +610,31 @@ def test_every_rejected_context_disposition_has_bounded_recovery():
     assert verify_publication(payload)
 
 
+def test_typed_wildcard_rejection_teaches_target_binding(tmp_path):
+    from datetime import date, timedelta
+    source = tmp_path / "series.csv"
+    start = date(2026, 1, 1)
+    source.write_text("timestamp,value\n" + "\n".join(
+        f"{start + timedelta(days=i)},{100 + i}" for i in range(40)) + "\n")
+    payload = runner_for("gnomon_forecast")({
+        "input": str(source), "horizon": 2,
+        "output_dir": str(tmp_path / "out-typed"), "format": "full",
+        "publication_mode": "best_effort",
+        "context_submission": {"rejections": [{
+            "context_id": "event-proposal-1",
+            "reason_code": "unsafe_wildcard_numeric_event",
+            "reason": "numeric event did not name the active target",
+        }]},
+    })
+
+    rejection = next(item for item in payload["publication"][
+        "context_dispositions"] if item["context_id"] == "event-proposal-1")
+    assert rejection["reason_code"] == "unsafe_wildcard_numeric_event"
+    assert rejection["recovery_action"]["code"] == \
+        "bind_numeric_event_target"
+    assert rejection["recovery_action"]["automation_eligible"] is False
+
+
 def test_rejected_candidate_normalizes_legacy_string_recovery():
     dossier = _dossier()
     dossier["forecast_candidate"] = None

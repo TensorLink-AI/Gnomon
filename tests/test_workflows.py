@@ -198,6 +198,8 @@ def test_active_target_rejects_wildcard_numeric_event_about_another_series() -> 
         active_target="pressure")
     assert result["events"] == []
     assert "wildcard projection is unsafe" in result["rejected"][0]["problems"][0]
+    assert result["rejected"][0]["reason_code"] == \
+        "unsafe_wildcard_numeric_event"
 
 
 def test_active_target_can_bind_wildcard_when_quote_names_target() -> None:

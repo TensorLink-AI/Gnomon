@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Context-event proposal failures now retain typed reason codes through the
+  compiler, MCP submission, and publication projection. In particular, an
+  unsafe wildcard numeric proposal is no longer mislabeled as generic
+  `context_unresolved`; it returns a bounded action asking for verbatim target
+  identity while leaving any independently verified event and primary result
+  intact. Historical events outside the forecast window likewise receive a
+  distinct retain-as-history action.
 - Exact-value future overrides now distinguish precise source-cited endpoints
   from model-located or vague windows. A literal scheduled zero applies to
   every quantile at its inclusive endpoints; uncertain windows retain the
