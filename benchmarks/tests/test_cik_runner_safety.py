@@ -1,6 +1,6 @@
 import json
 
-from benchmarks.cik.run_cik import _load_checkpoint
+from benchmarks.cik.run_cik import _load_checkpoint, build_parser
 
 
 def test_resume_retries_provider_and_process_failures_but_keeps_model_results(tmp_path):
@@ -16,3 +16,11 @@ def test_resume_retries_provider_and_process_failures_but_keeps_model_results(tm
     (tmp_path / "case-checkpoint.json").write_text(json.dumps(payload))
     loaded = _load_checkpoint(tmp_path)
     assert set(loaded) == {"valid", "model"}
+
+
+def test_held_out_seed_range_is_explicit_in_cli():
+    args = build_parser().parse_args([
+        "--method", "gnomon-pure", "--seed-start", "6", "--seeds", "2",
+        "--output-dir", "/tmp/out",
+    ])
+    assert list(range(args.seed_start, args.seed_start + args.seeds)) == [6, 7]

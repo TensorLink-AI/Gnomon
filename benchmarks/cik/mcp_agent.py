@@ -63,7 +63,9 @@ MAX_RUN_TOKENS = 250_000
 #: the agent loop and host-injects its validated events into the one governed
 #: forecast call.  The agent still chooses whether to invoke forecasting, but
 #: cannot silently omit context already gathered by its host.
-MCP_CONTRACT_VERSION = 8
+#: Version 9: the compiler may preserve several stable typed hypotheses;
+#: numerical influence is evaluated separately from semantic extraction.
+MCP_CONTRACT_VERSION = 9
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -210,6 +212,13 @@ one JSON object with this shape:
     "claim_ids": ["claim-1"], "rationale": "brief mechanism",
     "uncertainty_basis": "why this range is plausible"
   },
+  "hypotheses": [
+    {"kind": "absolute_value | bound | additive_change | multiplicative_change | regime_shift | relationship | historical_analogue | unsupported",
+     "claim_ids": ["claim-1"], "target_series": ["*"],
+     "predictor_series": null, "known_at": "history cutoff ISO",
+     "lag_steps": 0, "direction": "increase | decrease | unknown",
+     "rationale": "one bounded interpretation"}
+  ],
   "covariate_tables": [
     {"name": "safe_snake_case", "type": "continuous | binary | cyclic_<period>",
      "rows": [{"document_index": 0,
@@ -240,6 +249,11 @@ Rules:
   them into historical folds.
 - Claims are the richer interpretation lane. Put qualitative relationships
   there even when no deterministic event can represent them.
+- When context permits more than one interpretation, emit up to six competing
+  typed hypotheses rather than collapsing ambiguity into one numeric path.
+  A relationship names its predictor and lag; an historical_analogue names
+  only a cited analogue claim. Gnomon validates and evaluates these after the
+  model response. Parsing confidence never upgrades support or automation.
 - Covariate tables are extraction, never invention. Emit a row only when one
   verbatim quote contains both its time token and numeric value. Do not infer
   values from adjectives, interpolate missing rows, or supply known_at; the
@@ -1114,6 +1128,8 @@ class _Run:
                     "event_count": len(self.context_compilation["events"]),
                     "claim_count": len(
                         self.context_compilation["dossier"]["claims"]),
+                    "hypothesis_count": len(
+                        self.context_compilation["dossier"].get("hypotheses") or []),
                     "candidate_available": bool(
                         self.context_compilation["dossier"].get("effect_proposal")
                         or self.context_compilation["dossier"].get(
@@ -1453,6 +1469,9 @@ class _Run:
                 "event_count": len(self.context_compilation["events"]),
                 "claim_count": len(
                     self.context_compilation["dossier"]["claims"]),
+                "hypothesis_count": len(dossier.get("hypotheses") or []),
+                "hypothesis_status": (dossier.get("hypothesis_critique") or {}).get(
+                    "status"),
                 "candidate_available": bool(
                     self.context_compilation["dossier"].get("effect_proposal")
                     or self.context_compilation["dossier"].get("forecast_candidate")),

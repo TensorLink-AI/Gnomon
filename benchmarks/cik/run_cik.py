@@ -188,10 +188,11 @@ def _run_isolated_cases(selected, args, n_samples: int,
     completed = {} if args.no_resume else _load_checkpoint(output_dir)
     args_dict = vars(args).copy()
     ctx = mp.get_context("spawn")
-    total = len(selected) * args.seeds
+    seed_values = range(args.seed_start, args.seed_start + args.seeds)
+    total = len(selected) * len(seed_values)
     ordinal = 0
     for task_cls in selected:
-        for seed in range(1, args.seeds + 1):
+        for seed in seed_values:
             ordinal += 1
             key = f"{task_cls.__name__}::seed={seed}"
             if key in completed:
@@ -410,6 +411,7 @@ def run(args) -> int:
         model=args.model,
         command=" ".join(sys.argv),
         seeds=args.seeds,
+        seed_start=args.seed_start,
         n_samples=n_samples,
         task_filter=args.task_filter,
         fail_on_invalid=args.fail_on_invalid if args.method == "control" else None,
@@ -486,6 +488,7 @@ def write_outputs(results: dict, method, args, output_dir: Path) -> None:
         "condition": args.method,
         "model": args.model,
         "seeds": args.seeds,
+        "seed_start": args.seed_start,
         "runs_scored": len(scored),
         "runs_abstained": abstentions,
         "runs_errored": errors,
@@ -541,6 +544,11 @@ def build_parser() -> argparse.ArgumentParser:
                                  "CHUTES_API_KEY"])
     parser.add_argument("--seeds", type=int, default=5,
                         help="Seeds per task (official: 5)")
+    parser.add_argument(
+        "--seed-start", type=int, default=1,
+        help="First official task seed (default: 1). Use a preregistered "
+             "untouched seed range for held-out evaluation.",
+    )
     parser.add_argument("--n-samples", type=int, default=None,
                         help="Forecast samples per run (default: official)")
     parser.add_argument("--temperature", type=float, default=1.0)

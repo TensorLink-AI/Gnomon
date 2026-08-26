@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Added stable multi-hypothesis context compilation, field-scoped bounded
+  repair, point-in-time vintage alignment, expanding-origin exogenous and
+  lagged-relationship executables, and leave-one-episode-out historical
+  analogue evaluation. Fitted context candidates are ranked by disclosed
+  out-of-sample evidence, remain non-automatable, preserve the immutable
+  primary, and are retained for realized-outcome scoring.
+
 - Prefer typed, cited context-effect proposals over model-authored forecast
   arrays. Gnomon now composes bounded effect scenarios over the immutable
   primary, exposes typed one-repair critiques and compact temporal state,

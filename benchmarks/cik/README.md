@@ -145,6 +145,13 @@ python -m benchmarks.cik.run_cik --method gnomon-mcp \
 # Quick pass on a task family while iterating
 python -m benchmarks.cik.run_cik --method gnomon-pure \
     --task-filter sensor --seeds 1 --output-dir /tmp/cik-smoke
+
+# Preregistered held-out task instances: seed 6 only, never silently mixed
+# with the development seeds recorded in earlier output directories.
+python -m benchmarks.cik.run_cik --method gnomon-mcp \
+    --mcp-profile evidence --mcp-output-role publication_best_effort \
+    --model deepseek-v4-flash-0731 --seed-start 6 --seeds 1 \
+    --output-dir results/cik-heldout-seed6-gnomon
 ```
 
 CiK tasks always execute sequentially in disposable child processes. The

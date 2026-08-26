@@ -17,8 +17,9 @@ from datetime import datetime
 from typing import Any
 
 from .effect_proposals import validate_effect_proposal
+from .context_intelligence import compile_context_hypotheses
 
-DOSSIER_VERSION = "0.1"
+DOSSIER_VERSION = "0.2"
 MAX_CLAIMS = 16
 MAX_BOUNDARY_JUMP_SCALES = 20.0
 MAX_PATH_SCALE_RATIO = 30.0
@@ -130,6 +131,11 @@ def validate_temporal_dossier(
         "status": "not_proposed", "attempts_used": 0, "attempts_remaining": 2,
         "attempts": [],
     })
+    hypotheses, hypothesis_critique = compile_context_hypotheses(
+        raw.get("hypotheses"), claims=claims,
+        series=[str(value) for value in raw.get("series") or ["*"]],
+        cutoff=cutoff, repair=raw.get("hypothesis_repair"),
+    )
     payload: dict[str, Any] = {
         "version": DOSSIER_VERSION,
         "compiler_model": compiler_model,
@@ -138,6 +144,8 @@ def validate_temporal_dossier(
         "claims": claims,
         "effect_proposal": effect_proposal,
         "effect_proposal_critique": proposal_critique,
+        "hypotheses": hypotheses,
+        "hypothesis_critique": hypothesis_critique,
         "forecast_candidate": candidate,
         "candidate_support": "prior_assisted" if (candidate or effect_proposal) else None,
         "automation_eligible": False,

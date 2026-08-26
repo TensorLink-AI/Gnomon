@@ -18,6 +18,7 @@ from .llm_dossier import verify_temporal_dossier_seal
 from .llm_dossier import validate_temporal_dossier
 from .effect_proposals import compose_effect
 from .temporal_state import build_temporal_state
+from .context_intelligence import candidate_evidence_score
 
 PublicationMode = Literal["strict", "best_effort", "scenario"]
 PUBLICATION_VERSION = "0.1"
@@ -107,6 +108,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
         automation_eligible=_path_support(primary, support) in {
             "supported", "context_trusted"},
     )]
+    dispositions: list[dict[str, Any]] = []
     context_outcome = result.get("context_outcome") or {}
     historically_admitted = (
         context_outcome.get("admission_basis") == "historical_fold_ablation")
@@ -131,7 +133,36 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 assumptions=[str(item) for item in raw.get("assumptions") or []],
             ))
 
-    dispositions: list[dict[str, Any]] = []
+    # Fitted context executables may nominate a sealed conditional path.  They
+    # are ranked only by disclosed out-of-sample evidence and can never inherit
+    # automation authority from the immutable primary.
+    for index, raw in enumerate(result.get("context_candidates") or [], 1):
+        rows = _rows(raw.get("forecast"))
+        if not rows or len(rows) != len(primary):
+            dispositions.append({
+                "context_id": str(raw.get("hypothesis_id") or f"candidate-{index}"),
+                "disposition": "rejected", "reason_code": "invalid_candidate_horizon",
+                "reason": "A fitted context candidate must match the primary horizon.",
+            })
+            continue
+        evidence = candidate_evidence_score(raw)
+        identifier = f"fitted-context-{index}"
+        scenarios.append(_scenario(
+            identifier, "fitted_context_candidate", rows,
+            support="conditionally_supported" if evidence["decisive"] else "weak",
+            automation_eligible=False,
+            claim_ids=[str(raw.get("hypothesis_id"))],
+            assumptions=[str(raw.get("kind") or "fitted context executable")],
+            effect={"evidence": evidence, "validation": raw.get("validation") or {}},
+        ))
+        dispositions.append({
+            "context_id": str(raw.get("hypothesis_id") or identifier),
+            "disposition": "scenario", "reason_code": (
+                "out_of_sample_candidate_admitted" if evidence["decisive"]
+                else "candidate_retained_but_not_admitted"),
+            "scenario_ids": [identifier], "evidence": evidence,
+        })
+
     context_outcome = result.get("context_outcome")
     if isinstance(context_outcome, dict):
         status = str(context_outcome.get("status") or "rejected")
@@ -239,6 +270,19 @@ def validate_scenario_selection(raw: Any, *, scenarios: list[dict[str, Any]],
     if selected not in ids or not ranking or set(ranking) != ids \
             or len(ranking) != len(set(ranking)) or ranking[0] != selected:
         raise ValueError("scenario selection must rank every known scenario id once with the selected id first")
+    admitted = [item for item in scenarios
+                if item.get("role") == "fitted_context_candidate"
+                and ((item.get("effect") or {}).get("evidence") or {}).get("decisive")]
+    if admitted:
+        strongest = max(
+            admitted,
+            key=lambda item: item["effect"]["evidence"]["score"])
+        scores = sorted((item["effect"]["evidence"]["score"] for item in admitted),
+                        reverse=True)
+        uniquely_decisive = len(scores) == 1 or scores[0] - scores[1] >= .05
+        if uniquely_decisive and selected != strongest["scenario_id"]:
+            raise ValueError(
+                "scenario selection cannot override uniquely decisive out-of-sample evidence")
     claim_ids = {str(claim.get("claim_id")) for dossier in dossiers or []
                  for claim in dossier.get("claims") or []}
     claim_ids.update(str(item) for scenario in scenarios
@@ -345,6 +389,14 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
     elif mode == "best_effort":
         selected_id = next((item["scenario_id"] for item in scenarios
                             if item["role"] == "context_conditioned"), None)
+        admitted = [item for item in scenarios
+                    if item["role"] == "fitted_context_candidate"
+                    and ((item.get("effect") or {}).get("evidence") or {}).get("decisive")]
+        if selected_id is None and admitted:
+            selected_id = max(
+                admitted,
+                key=lambda item: item["effect"]["evidence"]["score"]
+            )["scenario_id"]
         selected_id = selected_id or next((item["scenario_id"] for item in scenarios
                             if item["role"] in {"effect_composed", "model_authored"}),
                            "primary")
