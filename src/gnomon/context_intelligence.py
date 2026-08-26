@@ -59,8 +59,9 @@ def canonicalize_recursive_wrapper(
         actual_by_alias: dict[str, str] = {}
         for actual in driver_names:
             base = normalize(actual)
-            for alias in (base, base + "future", base + "schedule",
-                          base + "forecast"):
+            for alias in (base, "future" + base, base + "future",
+                          "schedule" + base, base + "schedule",
+                          "forecast" + base, base + "forecast"):
                 if alias in actual_by_alias and actual_by_alias[alias] != actual:
                     return wrapper, {"status": "rejected",
                                      "reason": f"ambiguous driver alias {alias!r}"}

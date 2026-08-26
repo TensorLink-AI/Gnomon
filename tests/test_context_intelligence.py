@@ -639,15 +639,16 @@ def test_verbose_recurrence_refuses_conflicting_driver_schedules():
     assert status["status"] == "rejected"
 
 
-def test_recursive_future_alias_rebinds_to_governed_driver_identity():
+@pytest.mark.parametrize("alias", ["x_0_future", "future_x0"])
+def test_recursive_future_alias_rebinds_to_governed_driver_identity(alias):
     wrapper = {
         "transformation": {"output_unit": "y", "expression": {
             "op": "recursive_linear", "output_unit": "y", "intercept": 0,
             "autoregressive_terms": [{"lag": 1, "coefficient": .5}],
-            "driver_terms": [{"series": "x_0_future", "lag": 1,
+            "driver_terms": [{"series": alias, "lag": 1,
                               "coefficient": 2}]}},
-        "units": {"primary": "y", "x_0_future": "x"},
-        "series_values": {"x_0_future": {
+        "units": {"primary": "y", alias: "x"},
+        "series_values": {alias: {
             "values": [1, 2], "known_at": _stamp(5),
             "source_claim_ids": ["claim-1"]}},
     }

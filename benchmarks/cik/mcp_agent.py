@@ -135,7 +135,9 @@ MAX_RUN_TOKENS = 250_000
 #: explosive dynamics remain visible but cannot lead a recommendation.
 #: Version 49: nested lag(series) and pre-shifted lag-array spellings share one
 #: deterministic recurrence canonical form, including future-prefix aliases.
-MCP_CONTRACT_VERSION = 49
+#: Version 50: canonical recursive drivers accept the same unambiguous
+#: future-/schedule-/forecast alias forms as verbose equations.
+MCP_CONTRACT_VERSION = 50
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
