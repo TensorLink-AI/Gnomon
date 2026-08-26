@@ -103,7 +103,9 @@ MAX_RUN_TOKENS = 250_000
 #: hidden reasoning while the conversational agent retains its configured mode.
 #: Version 34: a transformation can bind stale model-side citations to the sole
 #: verified claim; all ordinary entailment checks still run after rebinding.
-MCP_CONTRACT_VERSION = 34
+#: Version 35: extraction stays non-reasoning; the sole failed-numeric-lane
+#: repair may use low reasoning to resolve implicit relationships adaptively.
+MCP_CONTRACT_VERSION = 35
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -1187,7 +1189,7 @@ class _Run:
                               "quantiles, they must be a computed probabilistic "
                               "path with non-zero uncertainty, never placeholders. "
                               "This is the only repair round.")
-                    }], n=1, temperature=0, reasoning_effort="none")[0]
+                    }], n=1, temperature=0, reasoning_effort="low")[0]
                     repaired = extract_json_objects(repair_completion)
                     if repaired:
                         raw = repaired[0]
@@ -1285,7 +1287,7 @@ class _Run:
                         + "\nReturn one complete corrected dossier JSON. "
                           "You may add verbatim cited claims and replace "
                           "transformations only; this is the sole repair round.")
-                }], n=1, temperature=0, reasoning_effort="none")[0]
+                }], n=1, temperature=0, reasoning_effort="low")[0]
                 repaired_objects = extract_json_objects(repair_completion)
                 if repaired_objects:
                     repaired = repaired_objects[0]

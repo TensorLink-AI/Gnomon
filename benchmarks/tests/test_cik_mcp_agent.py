@@ -570,7 +570,7 @@ def test_transformation_gets_one_bounded_provenance_repair(tmp_path):
                    extra["context_compilation"].get("rejections", []))
     assert client.total_prompt_tokens >= 200
     assert client.completion_temperatures == [0, 0]
-    assert client.completion_reasoning_efforts == ["none", "none"]
+    assert client.completion_reasoning_efforts == ["none", "low"]
 
 
 def test_single_verified_claim_rebinds_stale_transformation_id(tmp_path):
@@ -706,7 +706,7 @@ def test_single_repair_exposes_effect_and_candidate_failures(tmp_path):
     assert "declares itself incomplete" in repair_prompt
     assert "CROSS_SERIES_SCOPE_REQUIRED" in repair_prompt
     assert client.completion_temperatures == [0, 0]
-    assert client.completion_reasoning_efforts == ["none", "none"]
+    assert client.completion_reasoning_efforts == ["none", "low"]
 
 
 def test_shadow_role_requires_evidence_profile():
