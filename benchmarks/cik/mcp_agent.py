@@ -162,7 +162,9 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: compiler-authored singular IDs during compact normalization.
 #: Version 61: timestamp/value schedule rows collapse to numeric arrays only
 #: when their timestamps exactly match the host-owned forecast grid.
-MCP_CONTRACT_VERSION = 61
+#: Version 62: traces retain replay sample size, skill, and both candidate and
+#: baseline errors so a demotion is statistically diagnosable.
+MCP_CONTRACT_VERSION = 62
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -2029,6 +2031,18 @@ class _Run:
                             "recurrence_replay": (
                                 (item.get("effect") or {}).get("validation") or {}
                             ).get("recurrence_replay_reason"),
+                            "recurrence_replay_points": (
+                                (item.get("effect") or {}).get("validation") or {}
+                            ).get("recurrence_replay_points"),
+                            "recurrence_replay_skill": (
+                                (item.get("effect") or {}).get("validation") or {}
+                            ).get("recurrence_replay_skill"),
+                            "recurrence_candidate_mae": (
+                                (item.get("effect") or {}).get("validation") or {}
+                            ).get("recurrence_replay_candidate_mae"),
+                            "recurrence_baseline_mae": (
+                                (item.get("effect") or {}).get("validation") or {}
+                            ).get("recurrence_replay_baseline_mae"),
                         } for item in portfolio],
                     }
                 if (self.governed_evidence and name == "gnomon_forecast"

@@ -45,6 +45,9 @@
   Compact future schedules expressed as `{timestamp, value}` rows are reduced
   to numeric arrays only when their timestamps exactly equal the host-owned
   forecast grid; mismatches remain typed validation failures.
+  CiK traces now retain recurrence replay points, skill, candidate MAE, and
+  baseline MAE so a safe demotion can be distinguished from an alignment or
+  representation defect.
 - Bounded every governed compiler, repair, and selector request to one
   no-retry transport attempt. A slow provider now returns the immutable primary
   instead of parking a worker. Model-authored candidates whose accompanying
