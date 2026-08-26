@@ -31,6 +31,11 @@
   schema. The LLM sees only a short target tail and supplies cited equation
   structure; Gnomon retains the complete governed histories for replay and
   execution. Routing is based on equation syntax, never benchmark labels.
+  If the compact compiler emits a typed transformation but fails to repeat a
+  long equation verbatim, the host supplies one sealed document-level claim
+  anchor and rebinds its cited IDs. This removes copy fidelity as a failure
+  mode without granting authority: constants remain source-entailed and the
+  recurrence must still beat baseline in historical replay.
 - Bounded every governed compiler, repair, and selector request to one
   no-retry transport attempt. A slow provider now returns the immutable primary
   instead of parking a worker. Model-authored candidates whose accompanying

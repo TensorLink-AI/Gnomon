@@ -655,6 +655,38 @@ def test_exact_lag_claims_get_one_focused_sufficiency_repair(tmp_path):
     assert "exact cited lag equations" in client.completion_prompts[1]
 
 
+def test_explicit_equation_contract_host_grounds_document_without_copy_repair(
+        tmp_path):
+    task = _task()
+    equation = "sales[t] = 0.5 * sales[t-1]"
+    task.scenario = equation
+    compiler_output = json.dumps({
+        "claims": [],
+        "transformations": [{"transformation": {
+            "known_at": task.past_time[-1][0], "claim_ids": ["missing"],
+            "lane": "historically_testable", "output_unit": "value",
+            "expression": {"op": "recursive_linear", "output_unit": "value",
+                           "intercept": 0,
+                           "autoregressive_terms": [
+                               {"lag": 1, "coefficient": .5}],
+                           "driver_terms": []}}}],
+    })
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        compiler_output)
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+    _, extra = forecaster(task, 1)
+    assert len(client.completion_prompts) == 1
+    assert extra["context_compilation"]["claim_count"] == 1
+    assert not any("UNVERIFIED_CLAIMS" in item for item in
+                   extra["context_compilation"].get("rejections", []))
+    assert extra["publication"]["primary_forecast_unchanged"] is True
+
+
 def test_single_verified_claim_rebinds_stale_transformation_id(tmp_path):
     task = _task()
     span = "A new policy makes each future value exactly half the usual value."

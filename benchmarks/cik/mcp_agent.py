@@ -154,7 +154,9 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: configurable for offline evaluation.
 #: Version 57: explicit lag equations use a compact typed extraction contract
 #: and an eight-row evidence tail instead of the universal dossier packet.
-MCP_CONTRACT_VERSION = 57
+#: Version 58: the host grounds explicit-equation documents when the compiler
+#: omits a verbatim claim; entailment and replay still govern every number.
+MCP_CONTRACT_VERSION = 58
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -1295,6 +1297,35 @@ class _Run:
                     "no JSON object in temporal-dossier output")
         except Exception as error:
             compile_rejections.append(f"dossier compilation failed: {error}")
+
+        # In the compact equation contract the host can ground the document
+        # without asking the model to copy a long formula byte-for-byte. This
+        # grants no semantic or numeric authority: AST constants still need
+        # source entailment and the executable must still pass replay.
+        if relationship_contract and raw.get("transformations"):
+            claims = [item for item in raw.get("claims") or []
+                      if isinstance(item, dict)]
+            grounded = any(str(item.get("source_span") or "") in context
+                           and str(item.get("source_span") or "").strip()
+                           for item in claims)
+            if not grounded and narrative_context.strip():
+                raw["claims"] = [{
+                    "source_span": narrative_context,
+                    "relation": "unknown",
+                    "effective_start": future_timestamps[0],
+                    "effective_end": future_timestamps[-1],
+                    "mechanism": "host-grounded explicit equation document",
+                    "confidence": 1.0,
+                }]
+                for wrapper in raw.get("transformations") or []:
+                    transformation = (wrapper.get("transformation", wrapper)
+                                      if isinstance(wrapper, dict) else {})
+                    if isinstance(transformation, dict):
+                        transformation["claim_ids"] = ["claim-1"]
+                    for supplied in ((wrapper.get("series_values") or {}).values()
+                                     if isinstance(wrapper, dict) else []):
+                        if isinstance(supplied, dict):
+                            supplied["source_claim_ids"] = ["claim-1"]
 
         # Exercise the product's bounded repair lane. The first response is
         # probed before event parsing so a corrected complete dossier (claims
