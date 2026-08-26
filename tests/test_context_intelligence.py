@@ -575,6 +575,11 @@ def test_recursive_linear_earns_selection_by_fold_safe_historical_replay():
     assert validation["recurrence_replay_points"] == 19
     assert validation["recurrence_replay_candidate_mae"] == pytest.approx(0)
     assert validation["recurrence_replay_admitted"] is True
+    assert validation["per_origin_knowledge_checked"] is False
+    assert validation["per_origin_observation_availability_checked"] is True
+    assert validation["specification_known_at_each_origin"] is False
+    assert validation["validation_interpretation"] == \
+        "retrospective_fixed_specification_replay"
     publication = publish_result(
         {"support": "supported", "forecast": primary,
          "transformation_candidates": [candidate]}, mode="best_effort")

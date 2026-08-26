@@ -178,7 +178,9 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: best-effort publication prioritizes historically admitted transformations.
 #: Version 69: malformed model-authored range schedules no longer mask an
 #: exact, source-cited schedule that the host can extract deterministically.
-MCP_CONTRACT_VERSION = 69
+#: Version 70: recurrence traces distinguish origin-safe observations from a
+#: specification supplied only at the current cutoff.
+MCP_CONTRACT_VERSION = 70
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -2211,6 +2213,15 @@ class _Run:
                             "recurrence_baseline_mae": (
                                 (item.get("effect") or {}).get("validation") or {}
                             ).get("recurrence_replay_baseline_mae"),
+                            "per_origin_observation_availability_checked": (
+                                (item.get("effect") or {}).get("validation") or {}
+                            ).get("per_origin_observation_availability_checked"),
+                            "specification_known_at_each_origin": (
+                                (item.get("effect") or {}).get("validation") or {}
+                            ).get("specification_known_at_each_origin"),
+                            "validation_interpretation": (
+                                (item.get("effect") or {}).get("validation") or {}
+                            ).get("validation_interpretation"),
                         } for item in portfolio],
                     }
                 if (self.governed_evidence and name == "gnomon_forecast"

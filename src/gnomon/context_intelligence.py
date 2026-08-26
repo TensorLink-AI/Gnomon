@@ -1134,7 +1134,10 @@ def _replay_recursive_linear(
 
     Each origin uses observed lags only.  The recurrence is not refit, and the
     comparison is the robust last-value forecast on the identical origins.
-    This is deliberately a small admission test, not a claim of causality.
+    The specification itself is supplied at the current cutoff, so this is a
+    retrospective fixed-specification check rather than a claim that the rule
+    was known at every historical origin.  It is deliberately a small
+    admission test, not a claim of causality or prospective validation.
     """
     ar_terms = node.get("autoregressive_terms") or []
     driver_terms = node.get("driver_terms") or []
@@ -1154,7 +1157,10 @@ def _replay_recursive_linear(
             "recurrence_replay_beats_baseline": False,
             "recurrence_replay_admitted": False,
             "recurrence_replay_reason": "insufficient_aligned_history",
-            "per_origin_knowledge_checked": True,
+            "per_origin_knowledge_checked": False,
+            "per_origin_observation_availability_checked": True,
+            "specification_known_at_each_origin": False,
+            "validation_interpretation": "retrospective_fixed_specification_replay",
         }
     candidate_errors: list[float] = []
     baseline_errors: list[float] = []
@@ -1189,7 +1195,10 @@ def _replay_recursive_linear(
             "admitted" if enough and beats else
             "insufficient_validation_points" if not enough else
             "did_not_beat_last_value"),
-        "per_origin_knowledge_checked": True,
+        "per_origin_knowledge_checked": False,
+        "per_origin_observation_availability_checked": True,
+        "specification_known_at_each_origin": False,
+        "validation_interpretation": "retrospective_fixed_specification_replay",
     }
 
 
