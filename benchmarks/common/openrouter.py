@@ -323,14 +323,15 @@ class OpenRouterClient:
             f"OpenRouter request failed after {attempts} attempts: {last_error}"
         )
 
-    def completions(self, messages: list[dict[str, Any]], *, n: int = 1) -> list[str]:
+    def completions(self, messages: list[dict[str, Any]], *, n: int = 1,
+                    temperature: float | None = None) -> list[str]:
         """Convenience wrapper returning just the completion texts.
 
         An empty completion is an error, not an answer: returning it
         would reach a scorer as a missing or unparseable response and be
         recorded as a wrong answer the model never gave.
         """
-        response = self.chat(messages, n=n)
+        response = self.chat(messages, n=n, temperature=temperature)
         texts = [choice.message.content for choice in response.choices]
         if any(not text for text in texts):
             reasons = [getattr(choice, "finish_reason", None)

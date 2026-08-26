@@ -75,6 +75,7 @@ class ScriptedClient:
                                  else [compiler_output or default])
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
+        self.completion_temperatures = []
 
     def chat(self, messages, *, n=1, tools=None, tool_choice=None):
         assert self.steps, "model script exhausted before submission"
@@ -95,7 +96,8 @@ class ScriptedClient:
         return SimpleNamespace(
             choices=[SimpleNamespace(message=message, finish_reason="stop")])
 
-    def completions(self, messages, *, n=1):
+    def completions(self, messages, *, n=1, temperature=None):
+        self.completion_temperatures.append(temperature)
         self.total_prompt_tokens += 100
         self.total_completion_tokens += 25
         value = (self.compiler_outputs.pop(0) if len(self.compiler_outputs) > 1
@@ -542,6 +544,7 @@ def test_transformation_gets_one_bounded_provenance_repair(tmp_path):
     assert not any("transformation_preflight_rejected" in reason for reason in
                    extra["context_compilation"].get("rejections", []))
     assert client.total_prompt_tokens >= 200
+    assert client.completion_temperatures == [0, 0]
 
 
 def test_sealed_candidate_survives_rejected_relational_transform(tmp_path):

@@ -88,7 +88,9 @@ MAX_RUN_TOKENS = 250_000
 #: direction plus a loose bound is not enough to license a large jump.
 #: Version 27: self-declared placeholders and zero-width model forecasts are
 #: rejected rather than becoming human-facing prior-assisted answers.
-MCP_CONTRACT_VERSION = 27
+#: Version 28: dossier compilation, repair, and governed selection use
+#: deterministic-temperature calls independently of the conversational agent.
+MCP_CONTRACT_VERSION = 28
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -976,7 +978,8 @@ class McpAgentForecaster:
                         )
                         try:
                             response = self.client.completions(
-                                [{"role": "user", "content": prompt}], n=1)[0]
+                                [{"role": "user", "content": prompt}], n=1,
+                                temperature=0)[0]
                             objects = extract_json_objects(response)
                             if not objects:
                                 raise ValueError("selector returned no JSON object")
@@ -1102,7 +1105,8 @@ class _Run:
         repair_used = False
         try:
             completion = self.forecaster.client.completions(
-                [{"role": "user", "content": prompt}], n=1)[0]
+                [{"role": "user", "content": prompt}], n=1,
+                temperature=0)[0]
             objects = extract_json_objects(completion)
             if objects:
                 raw = objects[0]
@@ -1131,7 +1135,7 @@ class _Run:
                             + json.dumps(critique)
                             + "\nReturn one complete corrected dossier JSON "
                               "including cited claims. This is the only repair round.")
-                    }], n=1)[0]
+                    }], n=1, temperature=0)[0]
                     repaired = extract_json_objects(repair_completion)
                     if repaired:
                         raw = repaired[0]
@@ -1192,7 +1196,7 @@ class _Run:
                         + "\nReturn one complete corrected dossier JSON. "
                           "You may add verbatim cited claims and replace "
                           "transformations only; this is the sole repair round.")
-                }], n=1)[0]
+                }], n=1, temperature=0)[0]
                 repaired_objects = extract_json_objects(repair_completion)
                 if repaired_objects:
                     repaired = repaired_objects[0]
