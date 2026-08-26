@@ -22,6 +22,12 @@
   be displaced by an LLM ranking. Plain model-authored paths remain visible
   but require an explicit governed scenario selection; they are no longer the
   automatic best-effort fallback.
+  When a source literally states zero recorded activity but the input contains
+  no exact zero, Gnomon may expose a sharply separated noisy near-zero cluster
+  as a sealed sensitivity. The split has deterministic minimum-size,
+  separation, and zero-compatibility checks. Because membership is inferred
+  from target outcomes, it can never self-admit through replay; it requires an
+  explicit human-facing selection and remains non-automatable.
 - Added governed `linear_combination` and `recursive_linear` transformations.
   Gnomon derives omitted coefficient units for cited additive equations and
   executes ARX-style recurrences using target and driver history reloaded from

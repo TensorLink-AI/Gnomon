@@ -193,7 +193,15 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: returned forecast and therefore must invalidate benchmark prediction caches.
 #: Version 76: candidate distributions must beat the raw comparator under
 #: fold-safe probabilistic replay, not point MAE alone.
-MCP_CONTRACT_VERSION = 76
+#: Version 77: cited semantic zeros may expose a sharply separated noisy-zero
+#: sensitivity, while outcome-inferred membership remains non-admissible.
+#: Version 78: zero-cluster separation is keyed to the tight censored component
+#: while allowing ordinary activity to remain naturally broad.
+#: Version 79: overlapping noisy-zero regimes use a bounded deterministic
+#: two-component sensitivity, still categorically ineligible for self-admission.
+#: Version 80: the governed selector sees compact candidate derivation and
+#: admission facts rather than inferring authority from scenario IDs.
+MCP_CONTRACT_VERSION = 80
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it

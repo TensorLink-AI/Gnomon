@@ -146,7 +146,9 @@ def test_historical_zero_contamination_derives_sealed_counterfactual():
     assert interpretation["retained_observations"] == 3
     assert interpretation["input_mutated"] is False
     assert dossier["forecast_candidate"]["quantiles"][0]["q50"] == 12
-    assert dossier["candidate_critique"]["selection_eligible"] is False
+    assert dossier["candidate_critique"]["selection_eligible"] is True
+    assert dossier["forecast_candidate"]["conditional_replay"][
+        "selection_eligible"] is False
     assert dossier["candidate_critique"]["candidate_origin"] == \
         "observation_interpretation_counterfactual"
     assert dossier["candidate_support"] == "prior_assisted"
@@ -210,6 +212,58 @@ def test_verified_absence_claim_auto_binds_repeated_transformed_floor():
     assert dossier["forecast_candidate"] is not None
     assert dossier["primary_forecast_unchanged"] is True
     assert dossier["automation_eligible"] is False
+
+
+def test_verified_absence_claim_exposes_separated_noisy_zero_sensitivity():
+    span = ("The ATM was under maintenance for various periods, resulting in "
+            "no withdrawals recorded. Assume the ATM will not be in "
+            "maintenance in the future.")
+    history = [
+        24, 27, -.8, .3, 26, 31, -1.1, .7,
+        29, 25, -.4, .1, 33, 28, -.6, .9,
+        30, 26, -.2, .5,
+    ]
+    history_times = [f"2026-01-{day:02d}T00:00:00+00:00"
+                     for day in range(1, 21)]
+    dossier, reasons = validate_temporal_dossier(
+        {"claims": [{
+            "source_span": ("The ATM was under maintenance for various "
+                            "periods, resulting in no withdrawals recorded."),
+            "relation": "unknown", "effective_start": "unknown",
+            "effective_end": "unknown", "confidence": 1,
+        }]}, context_text=span, cutoff=history_times[-1],
+        future_timestamps=["2026-01-21T00:00:00+00:00"], history=history,
+        history_timestamps=history_times, compiler_model="test")
+
+    assert not reasons
+    interpretation = dossier["observation_interpretations"][0]
+    assert interpretation["predicate_normalization"]["kind"] == \
+        "semantic_zero_to_separated_near_zero_cluster"
+    assert interpretation["excluded_observations"] == 10
+    replay = dossier["forecast_candidate"]["conditional_replay"]
+    assert replay["status"] == "scenario_only_outcome_inferred_mask"
+    assert replay["selection_eligible"] is False
+    assert dossier["candidate_critique"]["selection_eligible"] is True
+    assert dossier["automation_eligible"] is False
+
+
+def test_absence_claim_does_not_split_one_broad_unimodal_history():
+    span = ("The store had reporting failures resulting in no sales recorded. "
+            "The reporting failure has ended.")
+    history = [float(10 + index) for index in range(24)]
+    history_times = [f"2026-01-{day:02d}T00:00:00+00:00"
+                     for day in range(1, 25)]
+    dossier, _ = validate_temporal_dossier(
+        {"claims": [{"source_span": (
+            "The store had reporting failures resulting in no sales recorded."),
+            "relation": "unknown", "effective_start": history_times[0],
+            "effective_end": history_times[-1], "confidence": 1}]},
+        context_text=span, cutoff=history_times[-1],
+        future_timestamps=["2026-01-25T00:00:00+00:00"], history=history,
+        history_timestamps=history_times, compiler_model="test")
+
+    assert dossier["observation_interpretations"] == []
+    assert dossier["forecast_candidate"] is None
 
 
 def test_cited_recurring_disruption_excludes_by_time_not_observed_value():

@@ -119,6 +119,12 @@ comparator under both point MAE and fold-safe q10/q50/q90 pinball loss, and
 probabilistic wins in two of three chronological blocks. The receipt labels
 this as retrospective conditional replay—it does not pretend the source was
 known at earlier origins—and automation remains ineligible.
+If literal zero is absent but the observed history contains a sharply
+separated, source-compatible near-zero component, Gnomon may expose filtering
+that component as a prior-assisted sensitivity. The cluster split is
+deterministic and disclosed, but it cannot validate itself because membership
+was inferred from target outcomes. It therefore never auto-leads: a governed
+selector or human must choose it explicitly, and automation remains forbidden.
 
 Numerical influence is earned separately. Vintage-aware exogenous regression,
 expanding-origin lag selection, and leave-one-episode-out analogue evaluation

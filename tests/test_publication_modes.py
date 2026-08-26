@@ -71,6 +71,37 @@ def test_best_effort_keeps_unselected_model_candidate_visible_only():
     assert verify_publication(payload)
 
 
+def test_unadmitted_observation_sensitivity_needs_explicit_selection():
+    dossier = _dossier()
+    dossier["candidate_critique"]["candidate_origin"] = \
+        "observation_interpretation_counterfactual"
+    dossier["forecast_candidate"]["conditional_replay"] = {
+        "status": "scenario_only_outcome_inferred_mask",
+        "selection_eligible": False,
+    }
+    body = {key: value for key, value in dossier.items()
+            if key != "seal_sha256"}
+    import hashlib, json
+    dossier["seal_sha256"] = hashlib.sha256(json.dumps(
+        body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+    payload = publish_result(_result(), mode="best_effort", dossiers=[dossier])
+
+    assert payload["recommended_scenario_id"] == "primary"
+    scenario = next(item for item in payload["candidate_portfolio"]
+                    if item["role"] == "observation_counterfactual")
+    assert scenario["selection_eligible"] is True
+    assert scenario["effect"]["conditional_replay"][
+        "selection_eligible"] is False
+    contract_scenario = next(
+        item for item in payload["selection_contract"]["scenarios"]
+        if item["scenario_id"] == scenario["scenario_id"])
+    assert contract_scenario["derivation"][
+        "conditional_replay_status"] == \
+        "scenario_only_outcome_inferred_mask"
+    assert contract_scenario["derivation"]["historically_admitted"] is False
+
+
 def test_replay_admitted_observation_counterfactual_has_truthful_authority():
     import random
     rng = random.Random(0)

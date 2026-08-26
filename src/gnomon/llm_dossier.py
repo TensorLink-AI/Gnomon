@@ -282,21 +282,28 @@ def validate_temporal_dossier(
             future_timestamps=future_timestamps)
     derived_replay = ((derived_candidate or {}).get("conditional_replay") or {})
     derived_replay_admitted = derived_replay.get("selection_eligible") is True
+    derived_scenario_is_deterministic = bool(
+        observation_interpretations and
+        ((observation_interpretations[0].get("predicate_normalization") or {}).get(
+            "kind") == "semantic_zero_to_separated_near_zero_cluster"))
     use_derived_candidate = bool(
         derived_candidate is not None and (
-            derived_replay_admitted or raw.get("forecast_candidate") in (None, {})))
+            derived_replay_admitted or derived_scenario_is_deterministic
+            or raw.get("forecast_candidate") in (None, {})))
     candidate_was_derived_from_observation_interpretation = \
         use_derived_candidate
     if candidate_was_derived_from_observation_interpretation:
         replay = derived_replay
-        candidate_selection_eligible = replay.get(
-            "selection_eligible") is True
-        if not candidate_selection_eligible:
+        # Mechanical validity and evidence dominance are distinct. A sealed
+        # prior-assisted sensitivity may be chosen by a human-facing governed
+        # selector even when it cannot auto-lead; publication separately reads
+        # conditional_replay.selection_eligible for evidence dominance.
+        candidate_selection_eligible = True
+        if replay.get("selection_eligible") is not True:
             candidate_selection_reason = (
                 "Historical-contamination filtering is mechanically valid but "
-                "the fitted conditional path did not beat raw last-value by "
-                "the preregistered replay margin; retain it as a visible "
-                "scenario only.")
+                "did not earn evidence dominance; retain it as a visible, "
+                "human-reviewed prior-assisted scenario only.")
     candidate_reason_start = len(reasons)
     candidate_input = (derived_candidate if use_derived_candidate else
                        raw.get("forecast_candidate") or derived_candidate)
@@ -614,6 +621,119 @@ def _validate_observation_interpretations(
                     }
                     applied_predicate = {"op": "equals",
                                          "value": applied_value}
+            if not any(mask) and len(window_values) >= 12:
+                # Some measurement pipelines encode semantic zero as a
+                # noisy near-zero component rather than literal zeros. Build
+                # a *scenario-only* mask only when the observed values have a
+                # sharply separated low cluster whose center is compatible
+                # with zero. This never earns historical admission because
+                # membership was inferred from the outcomes themselves.
+                ordered = sorted(window_values)
+                minimum_cluster = max(3, math.ceil(len(ordered) * .05))
+                candidates = [
+                    (ordered[index] - ordered[index - 1], index)
+                    for index in range(minimum_cluster,
+                                       len(ordered) - minimum_cluster + 1)
+                ]
+                gap, split = max(candidates, default=(0.0, 0))
+                low, high = ordered[:split], ordered[split:]
+                low_median = statistics.median(low) if low else math.nan
+                high_median = statistics.median(high) if high else math.nan
+                low_mad = (statistics.median(
+                    abs(value - low_median) for value in low) if low else math.inf)
+                high_mad = (statistics.median(
+                    abs(value - high_median) for value in high) if high else math.inf)
+                # The cited semantic concerns the near-zero component. Normal
+                # activity may be legitimately broad, so requiring six high-
+                # cluster MADs suppresses obvious censored mixtures. Demand a
+                # very tight low component and still require a meaningful gap
+                # relative to the normal component.
+                separation_floor = max(
+                    1e-9, 6.0 * low_mad, 1.5 * high_mad)
+                zero_compatible = abs(low_median) <= max(
+                    1.0, .15 * abs(high_median))
+                if gap >= separation_floor and zero_compatible:
+                    threshold = (ordered[split - 1] + ordered[split]) / 2.0
+                    mask = [inside and float(value) <= threshold
+                            for inside, value in zip(in_window, history)]
+                    predicate_normalization = {
+                        "kind": "semantic_zero_to_separated_near_zero_cluster",
+                        "stated_value": 0.0,
+                        "threshold": threshold,
+                        "low_cluster_observations": len(low),
+                        "high_cluster_observations": len(high),
+                        "gap": gap,
+                        "required_gap": separation_floor,
+                        "basis": (
+                            "source states zero activity; a sharply separated "
+                            "near-zero component is exposed as a prior-assisted "
+                            "sensitivity only, never historical admission"),
+                    }
+                    applied_predicate = {
+                        "op": "separated_near_zero_cluster",
+                        "maximum": threshold,
+                    }
+                elif not any(mask):
+                    # Overlapping measurement noise may erase an empty gap.
+                    # A bounded deterministic 1-D two-means fit can still
+                    # expose a sensitivity, but never evidence: membership is
+                    # derived from the target values and remains scenario-only.
+                    low_center = ordered[len(ordered) // 4]
+                    high_center = ordered[(3 * len(ordered)) // 4]
+                    low_cluster: list[float] = []
+                    high_cluster: list[float] = []
+                    for _ in range(32):
+                        midpoint = (low_center + high_center) / 2.0
+                        low_cluster = [value for value in window_values
+                                       if value <= midpoint]
+                        high_cluster = [value for value in window_values
+                                        if value > midpoint]
+                        if (len(low_cluster) < minimum_cluster
+                                or len(high_cluster) < minimum_cluster):
+                            break
+                        next_low = statistics.mean(low_cluster)
+                        next_high = statistics.mean(high_cluster)
+                        if (abs(next_low - low_center) <= 1e-12
+                                and abs(next_high - high_center) <= 1e-12):
+                            low_center, high_center = next_low, next_high
+                            break
+                        low_center, high_center = next_low, next_high
+                    if (len(low_cluster) >= minimum_cluster
+                            and len(high_cluster) >= minimum_cluster):
+                        low_median = statistics.median(low_cluster)
+                        high_median = statistics.median(high_cluster)
+                        low_mad = statistics.median(
+                            abs(value - low_median) for value in low_cluster)
+                        high_mad = statistics.median(
+                            abs(value - high_median) for value in high_cluster)
+                        center_separation = high_center - low_center
+                        required_separation = max(
+                            1e-9, 3.0 * low_mad, 3.0 * high_mad)
+                        zero_compatible = abs(low_median) <= max(
+                            1.0, .15 * abs(high_median))
+                        if (center_separation >= required_separation
+                                and zero_compatible):
+                            threshold = (low_center + high_center) / 2.0
+                            mask = [inside and float(value) <= threshold
+                                    for inside, value in zip(in_window, history)]
+                            predicate_normalization = {
+                                "kind": "semantic_zero_to_separated_near_zero_cluster",
+                                "method": "deterministic_two_means_v1",
+                                "stated_value": 0.0,
+                                "threshold": threshold,
+                                "low_cluster_observations": len(low_cluster),
+                                "high_cluster_observations": len(high_cluster),
+                                "center_separation": center_separation,
+                                "required_separation": required_separation,
+                                "basis": (
+                                    "source states zero activity; a separated "
+                                    "near-zero mixture component is exposed as "
+                                    "a prior-assisted sensitivity only"),
+                            }
+                            applied_predicate = {
+                                "op": "separated_near_zero_cluster",
+                                "maximum": threshold,
+                            }
         retained = [float(value) for value, excluded in zip(history, mask)
                     if not excluded]
         excluded_count = sum(mask)
@@ -647,6 +767,19 @@ def _validate_observation_interpretations(
     from .observation_counterfactual import fit_observation_counterfactual
     candidate, replay = fit_observation_counterfactual(
         history, accepted_masks[0], future_timestamps)
+    normalization = accepted[0].get("predicate_normalization") or {}
+    if normalization.get("kind") == \
+            "semantic_zero_to_separated_near_zero_cluster":
+        replay = {
+            **replay,
+            "status": "scenario_only_outcome_inferred_mask",
+            "selection_eligible": False,
+            "admission_withheld_reason": (
+                "Cluster membership was inferred from observed target values; "
+                "it cannot validate itself under historical replay."),
+        }
+        if candidate is not None:
+            candidate["conditional_replay"] = replay
     accepted[0]["conditional_replay"] = replay
     critique["conditional_replay"] = replay
     return accepted, critique, candidate

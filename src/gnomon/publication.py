@@ -643,6 +643,21 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
                               if item["forecast"] else None),
                 "steps": len(item["forecast"]),
             },
+            "derivation": {
+                "assumptions": list(item.get("assumptions") or [])[:2],
+                "conditional_replay_status": str(
+                    (((item.get("effect") or {}).get(
+                        "conditional_replay") or {}).get("status") or
+                     "not_applicable")),
+                "historically_admitted": bool(
+                    ((item.get("effect") or {}).get(
+                        "conditional_replay") or {}).get(
+                            "selection_eligible") is True),
+                "admission_withheld_reason": (
+                    ((item.get("effect") or {}).get(
+                        "conditional_replay") or {}).get(
+                            "admission_withheld_reason")),
+            },
         } for item in scenarios],
         "claims": claims,
         "temporal_state": temporal_state,
@@ -688,9 +703,14 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
                 admitted,
                 key=lambda item: item["effect"]["evidence"]["score"]
             )["scenario_id"]
+        selected_id = selected_id or next((
+            item["scenario_id"] for item in scenarios
+            if item["role"] == "observation_counterfactual"
+            and ((item.get("effect") or {}).get(
+                "conditional_replay") or {}).get(
+                    "selection_eligible") is True), None)
         selected_id = selected_id or next((item["scenario_id"] for item in scenarios
                             if item["role"] in {"effect_composed",
-                                                "observation_counterfactual",
                                                 "model_authored_transformation"}
                             and item.get("selection_eligible", True) is True),
                            "primary")
