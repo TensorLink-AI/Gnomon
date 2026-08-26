@@ -514,6 +514,76 @@ def test_recursive_linear_uses_trusted_history_and_propagates_uncertainty():
     assert result["validation"]["recurrence_uncertainty"] \
         == "linear_state_covariance"
     assert result["validation"]["recurrence_plausibility_passed"] is True
+    assert result["validation"]["recurrence_replay_admitted"] is False
+
+
+def test_recursive_linear_earns_selection_by_fold_safe_historical_replay():
+    raw = {
+        "known_at": _stamp(20), "claim_ids": ["claim-1"],
+        "lane": "historically_testable", "output_unit": "sales",
+        "expression": {
+            "op": "recursive_linear", "output_unit": "sales",
+            "intercept": 1,
+            "autoregressive_terms": [{"lag": 1, "coefficient": .5}],
+            "driver_terms": [{"series": "campaign", "lag": 1,
+                              "coefficient": 2}],
+        },
+    }
+    span = "sales[t] = 1 + 0.5 sales[t-1] + 2 campaign[t-1]"
+    compiled = validate_transformation(
+        raw, series=["campaign"], claim_ids=["claim-1"], cutoff=_stamp(20),
+        units={"campaign": "spend", "primary": "sales"},
+        claim_spans={"claim-1": span})
+    campaign = [float(index % 3) for index in range(20)]
+    sales = [10.0]
+    for index in range(1, 20):
+        sales.append(1 + .5 * sales[-1] + 2 * campaign[index - 1])
+    primary = [{"timestamp": _stamp(21 + index), "point": sales[-1],
+                "q10": sales[-1] - 1, "q50": sales[-1],
+                "q90": sales[-1] + 1} for index in range(2)]
+    candidate = execute_transformation(
+        compiled, primary=primary,
+        series_values={"campaign": {"values": [1, 2],
+                                     "known_at": _stamp(20),
+                                     "source_claim_id": "claim-1"}},
+        claim_spans={"claim-1": span + "; campaign schedule is 1 then 2"},
+        history_values=sales, history_series={"campaign": campaign})
+    validation = candidate["validation"]
+    assert validation["recurrence_replay_points"] == 19
+    assert validation["recurrence_replay_candidate_mae"] == pytest.approx(0)
+    assert validation["recurrence_replay_admitted"] is True
+    publication = publish_result(
+        {"support": "supported", "forecast": primary,
+         "transformation_candidates": [candidate]}, mode="best_effort")
+    assert publication["recommended_scenario_id"] == "transformation-1"
+
+
+def test_recursive_linear_that_loses_replay_remains_visible_not_recommended():
+    raw = {
+        "known_at": _stamp(20), "claim_ids": ["claim-1"],
+        "lane": "historically_testable", "output_unit": "sales",
+        "expression": {"op": "recursive_linear", "output_unit": "sales",
+                       "autoregressive_terms": [
+                           {"lag": 1, "coefficient": -.5}],
+                       "driver_terms": []},
+    }
+    compiled = validate_transformation(
+        raw, series=[], claim_ids=["claim-1"], cutoff=_stamp(20),
+        units={"primary": "sales"},
+        claim_spans={"claim-1": "sales[t] = -0.5 sales[t-1]"})
+    history = [10 + index for index in range(20)]
+    primary = [{"timestamp": _stamp(21), "point": 30, "q10": 29,
+                "q50": 30, "q90": 31}]
+    candidate = execute_transformation(
+        compiled, primary=primary, history_values=history)
+    assert candidate["validation"]["recurrence_replay_admitted"] is False
+    publication = publish_result(
+        {"support": "supported", "forecast": primary,
+         "transformation_candidates": [candidate]}, mode="best_effort")
+    assert publication["recommended_scenario_id"] == "primary"
+    retained = next(item for item in publication["candidate_portfolio"]
+                    if item["scenario_id"] == "transformation-1")
+    assert retained["selection_eligible"] is False
 
 
 def test_recursive_linear_refuses_missing_trusted_initial_state():

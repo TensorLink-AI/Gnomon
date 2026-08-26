@@ -987,6 +987,9 @@ def execute_transformation(
                 impulse_peak <= 100 and impulse_tail <= 10
                 and interval_growth <= 20),
         })
+        validation.update(_replay_recursive_linear(
+            expression, history_values=history_values or [],
+            history_series=history_series or {}))
     if historical_validation:
         points = int(historical_validation.get("validation_points") or 0)
         skill = _finite(historical_validation.get("skill"), "historical_validation.skill")
@@ -1010,6 +1013,73 @@ def execute_transformation(
         "validation": validation,
         "source_seal_sha256": seal, "automation_eligible": False,
         "primary_forecast_unchanged": True,
+    }
+
+
+def _replay_recursive_linear(
+    node: dict[str, Any], *, history_values: list[float],
+    history_series: dict[str, list[float]], minimum_points: int = 8,
+) -> dict[str, Any]:
+    """Test fixed recurrence claims on pre-cutoff observations.
+
+    Each origin uses observed lags only.  The recurrence is not refit, and the
+    comparison is the robust last-value forecast on the identical origins.
+    This is deliberately a small admission test, not a claim of causality.
+    """
+    ar_terms = node.get("autoregressive_terms") or []
+    driver_terms = node.get("driver_terms") or []
+    maximum_lag = max(
+        [int(term["lag"]) for term in [*ar_terms, *driver_terms]],
+        default=0)
+    target = [float(value) for value in history_values]
+    required_drivers = {str(term["series"]) for term in driver_terms}
+    drivers = {name: [float(value) for value in history_series.get(name) or []]
+               for name in required_drivers}
+    aligned = bool(target) and all(len(values) == len(target)
+                                   for values in drivers.values())
+    if not aligned or len(target) <= maximum_lag:
+        return {
+            "recurrence_replay_scheme": "fixed_equation_expanding_origin",
+            "recurrence_replay_points": 0,
+            "recurrence_replay_beats_baseline": False,
+            "recurrence_replay_admitted": False,
+            "recurrence_replay_reason": "insufficient_aligned_history",
+            "per_origin_knowledge_checked": True,
+        }
+    candidate_errors: list[float] = []
+    baseline_errors: list[float] = []
+    intercept = float(node.get("intercept") or 0.0)
+    for origin in range(max(1, maximum_lag), len(target)):
+        prediction = intercept
+        prediction += sum(float(term["coefficient"])
+                          * target[origin - int(term["lag"])]
+                          for term in ar_terms)
+        prediction += sum(float(term["coefficient"])
+                          * drivers[str(term["series"])][
+                              origin - int(term["lag"])]
+                          for term in driver_terms)
+        candidate_errors.append(abs(target[origin] - prediction))
+        baseline_errors.append(abs(target[origin] - target[origin - 1]))
+    candidate_mae = sum(candidate_errors) / len(candidate_errors)
+    baseline_mae = sum(baseline_errors) / len(baseline_errors)
+    skill = (1.0 - candidate_mae / baseline_mae
+             if baseline_mae > 1e-15 else
+             1.0 if candidate_mae <= 1e-15 else -math.inf)
+    enough = len(candidate_errors) >= minimum_points
+    beats = candidate_mae < baseline_mae
+    return {
+        "recurrence_replay_scheme": "fixed_equation_expanding_origin",
+        "recurrence_replay_points": len(candidate_errors),
+        "recurrence_replay_candidate_mae": candidate_mae,
+        "recurrence_replay_baseline_mae": baseline_mae,
+        "recurrence_replay_skill": skill,
+        "recurrence_replay_beats_baseline": beats,
+        "recurrence_replay_admitted": enough and beats,
+        "recurrence_replay_reason": (
+            "admitted" if enough and beats else
+            "insufficient_validation_points" if not enough else
+            "did_not_beat_last_value"),
+        "per_origin_knowledge_checked": True,
     }
 
 

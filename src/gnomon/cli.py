@@ -194,7 +194,7 @@ def _attach_publication(payload, artifact, path, args) -> None:
                 return [], {}
             from .pipeline import load_stage
 
-            def values_for(target):
+            def observations_for(target):
                 loaded = load_stage(
                     args.input, time_column=args.time_column,
                     target_column=target,
@@ -208,14 +208,23 @@ def _attach_publication(payload, artifact, path, args) -> None:
                     raise GnomonError(
                         "AMBIGUOUS_RECURSIVE_HISTORY",
                         "Recursive context execution requires exactly one series per target.")
-                return [float(item.value) for item in
-                        next(iter(loaded.groups.values()))]
+                return list(next(iter(loaded.groups.values())))
 
             drivers = sorted({str(term.get("series"))
                               for term in expression.get("driver_terms") or []
                               if term.get("series")})
-            return (values_for(args.target_column),
-                    {name: values_for(name) for name in drivers})
+            target_observations = observations_for(args.target_column)
+            driver_observations = {name: observations_for(name)
+                                   for name in drivers}
+            maps = [{item.timestamp: float(item.value)
+                     for item in target_observations},
+                    *({item.timestamp: float(item.value) for item in observations}
+                      for observations in driver_observations.values())]
+            common = sorted(set(maps[0]).intersection(
+                *(set(mapping) for mapping in maps[1:])))
+            return ([maps[0][timestamp] for timestamp in common],
+                    {name: [mapping[timestamp] for timestamp in common]
+                     for (name, mapping) in zip(drivers, maps[1:])})
 
         for index, transform_path in enumerate(transformation_paths[:6], 1):
             wrapper = read(transform_path, "--context-transformation")

@@ -626,7 +626,12 @@ def test_exact_lag_claims_get_one_focused_sufficiency_repair(tmp_path):
         work_dir=str(tmp_path), profile="evidence",
         output_role="publication_best_effort")
     _, extra = forecaster(task, 1)
-    assert extra["publication"]["recommended_scenario_id"] == "transformation-1"
+    # Repair recovers an executable scenario, but a cited recurrence is not
+    # recommendation authority until it beats last-value in governed replay.
+    assert extra["publication"]["recommended_scenario_id"] == "primary"
+    scenario = next(item for item in extra["publication"]["candidate_portfolio"]
+                    if item["scenario_id"] == "transformation-1")
+    assert scenario["selection_eligible"] is False
     assert client.completion_reasoning_efforts == ["none", "none"]
     assert "exact cited lag equations" in client.completion_prompts[1]
 

@@ -206,8 +206,11 @@ def build_scenario_catalog(result: dict[str, Any], *,
         candidate_id = str(raw.get("transformation_id") or identifier)
         lane = str(raw.get("lane") or "scenario_only")
         validation = raw.get("validation") or {}
-        selection_eligible = validation.get(
-            "recurrence_plausibility_passed", True) is True
+        is_recurrence = "recurrence_plausibility_passed" in validation
+        selection_eligible = (
+            validation.get("recurrence_plausibility_passed", True) is True
+            and (not is_recurrence
+                 or validation.get("recurrence_replay_admitted") is True))
         valid = bool(
             rows and len(rows) == len(primary) and source_seal
             and raw.get("primary_forecast_unchanged") is True

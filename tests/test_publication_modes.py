@@ -294,7 +294,7 @@ def test_mcp_context_transformation_rejection_is_typed_and_primary_is_intact(tmp
     assert verify_publication(publication)
 
 
-def test_mcp_recursive_transformation_binds_history_from_governed_input(tmp_path):
+def test_mcp_recursive_transformation_binds_history_but_requires_replay_skill(tmp_path):
     from datetime import date, timedelta
     source = tmp_path / "wide.csv"
     start = date(2026, 1, 1)
@@ -340,9 +340,13 @@ def test_mcp_recursive_transformation_binds_history_from_governed_input(tmp_path
         },
     })
     publication = payload["publication"]
-    assert publication["recommended_scenario_id"] == "transformation-1"
-    assert [row["q50"] for row in publication["recommended_forecast"]] \
-        == [149.5, 156.75]
+    assert publication["recommended_scenario_id"] == "primary"
+    scenario = next(item for item in publication["candidate_portfolio"]
+                    if item["scenario_id"] == "transformation-1")
+    assert [row["q50"] for row in scenario["forecast"]] == [149.5, 156.75]
+    assert scenario["selection_eligible"] is False
+    assert scenario["effect"]["validation"][
+        "recurrence_replay_reason"] == "did_not_beat_last_value"
     assert publication["primary_forecast_unchanged"] is True
     assert publication["automation"]["eligible"] is False
     assert verify_publication(publication)

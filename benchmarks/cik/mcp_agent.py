@@ -137,7 +137,9 @@ MAX_RUN_TOKENS = 250_000
 #: deterministic recurrence canonical form, including future-prefix aliases.
 #: Version 50: canonical recursive drivers accept the same unambiguous
 #: future-/schedule-/forecast alias forms as verbose equations.
-MCP_CONTRACT_VERSION = 50
+#: Version 51: recurrences must beat last-value in aligned pre-cutoff replay
+#: before best-effort publication may recommend them.
+MCP_CONTRACT_VERSION = 51
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it

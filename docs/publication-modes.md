@@ -61,6 +61,11 @@ the forecast's governed `as_of` snapshot, supplies the initial state itself,
 feeds prior predicted outputs back recursively, and propagates the primary
 interval width through the feedback terms. The caller supplies only cited
 future driver values; model-authored future target lags are never trusted.
+Before a recurrence can lead even a human-facing best-effort recommendation,
+Gnomon replays the fixed equation over timestamp-aligned pre-cutoff target and
+driver histories. It must beat last-value on at least eight identical origins.
+Failure or insufficient history keeps the path visible as a labelled scenario
+but makes it selection-ineligible; structural plausibility alone is not skill.
 
 Every transformation cites verified claim IDs and a timezone-aware knowledge
 time. A referenced future series must be supplied as `{values, known_at,
@@ -70,7 +75,8 @@ candidate lanes carry different authority:
 - `historically_testable` requires per-origin knowledge checks and decisive
   out-of-sample evidence before strict publication can admit it;
 - `prior_assisted` may lead a human-facing best-effort answer but never
-  automation;
+  automation; historically replayable recurrences must first pass the replay
+  gate above;
 - `scenario_only` is a bounded conditional path, not a probability claim.
 
 CLI callers pass repeatable `--context-transformation` JSON files with

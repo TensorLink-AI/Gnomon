@@ -1839,7 +1839,7 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
             return [], {}
         from .pipeline import load_stage
 
-        def values_for(target: str) -> list[float]:
+        def observations_for(target: str) -> list[Any]:
             loaded = load_stage(
                 arguments["input"], time_column=arguments["time_column"],
                 target_column=target, series_column=arguments.get("series_column"),
@@ -1852,14 +1852,21 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                 raise GnomonError(
                     "AMBIGUOUS_RECURSIVE_HISTORY",
                     "Recursive context execution requires exactly one series per target.")
-            observations = next(iter(loaded.groups.values()))
-            return [float(item.value) for item in observations]
+            return list(next(iter(loaded.groups.values())))
 
-        target_history = values_for(str(arguments["target_column"]))
+        target_observations = observations_for(str(arguments["target_column"]))
         driver_names = sorted({str(term.get("series"))
                                for term in expression.get("driver_terms") or []
                                if term.get("series")})
-        return target_history, {name: values_for(name) for name in driver_names}
+        driver_observations = {name: observations_for(name)
+                               for name in driver_names}
+        maps = [{item.timestamp: float(item.value) for item in target_observations},
+                *({item.timestamp: float(item.value) for item in observations}
+                  for observations in driver_observations.values())]
+        common = sorted(set(maps[0]).intersection(*(set(mapping) for mapping in maps[1:])))
+        return ([maps[0][timestamp] for timestamp in common],
+                {name: [mapping[timestamp] for timestamp in common]
+                 for (name, mapping) in zip(driver_names, maps[1:])})
     if raw_proposal is not None:
         context_text = str(submission.get("text") or "")
         known_at = str(submission.get("known_at") or "")

@@ -8,6 +8,11 @@
   the same point-in-time snapshot as the primary forecast. The LLM never
   supplies future target lags; recursion and conservative interval-width
   propagation are deterministic and sealed.
+- Recursive equations now have to beat last-value on at least eight aligned
+  pre-cutoff replay origins before they may lead a `best_effort`
+  recommendation. Replay uses the fixed cited equation, observed lags only,
+  and timestamp-intersected target/driver histories. A plausible recurrence
+  that lacks skill remains visible and scoreable as a non-automatable scenario.
 - Bounded every governed compiler, repair, and selector request to one
   no-retry transport attempt. A slow provider now returns the immutable primary
   instead of parking a worker. Model-authored candidates whose accompanying
