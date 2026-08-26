@@ -71,9 +71,9 @@ MAX_RUN_TOKENS = 250_000
 #: context_trusted path; selection remains autonomous among evidence peers.
 #: Version 12: the host skips the selector call when the product contract says
 #: evidence already makes the recommendation non-discretionary.
-#: Version 17: numeric events bind to the semantic target and supplied
-#: transformation inputs must be entailed by their exact cited spans.
-MCP_CONTRACT_VERSION = 17
+#: Version 18: reference-law formulas have a compact safe macro and unresolved
+#: rich context is disclosed instead of disappearing silently.
+MCP_CONTRACT_VERSION = 18
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -309,6 +309,11 @@ Rules:
   series name must exactly match a `series_values` key, whose values array has
   exactly one item per forecast timestamp. Use canonical claim IDs (`claim-1`,
   `claim-2`, ...) in their verified claim order.
+- For a cited reference law use the compact safe macro
+  `{"op":"reference_power","series":"driver","input_reference":{"value":3000,"unit":"rpm"},"output_reference":{"value":37.5,"unit":"Pa"},"exponent":2}`.
+  It means `37.5 Pa * (driver / 3000 rpm)^2`; Gnomon expands and seals it as
+  ordinary arithmetic. Do not add it to the primary forecast unless the cited
+  source explicitly states a delta rather than an absolute relationship.
 - Use no observations after the history cutoff. Return empty arrays and null
   effect_proposal and forecast_candidate when context contains no
   forecast-relevant information.
@@ -1137,6 +1142,16 @@ class _Run:
         covariate_rejections = compilation["covariate_rejections"]
         rejections = [*compile_rejections, *event_rejections,
                       *dossier_rejections, *covariate_rejections]
+        if (context.strip() and not events and not dossier.get("claims")
+                and not dossier.get("forecast_candidate")
+                and not dossier.get("effect_proposal")
+                and not compilation.get("hypotheses")
+                and not (covariate_receipt or {}).get("tables")
+                and not raw.get("transformations")):
+            rejections.append(
+                "context_unresolved: the compiler returned no grounded event, "
+                "claim, covariate, transformation, or candidate; the immutable "
+                "primary remains visible and the context did not influence it")
         payload = {
             "schema_version": 1,
             "compiler": {

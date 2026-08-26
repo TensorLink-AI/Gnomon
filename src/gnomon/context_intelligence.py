@@ -180,6 +180,40 @@ def _validate_expression(node: Any, *, path: str, depth: int,
         raise TransformationError("EXPRESSION_TOO_LARGE", path,
                                   "Transformation exceeds the node limit.")
     raw_op = str(node.get("op") or "")
+    if raw_op == "reference_power":
+        # Compact safe macro for common reference laws:
+        # output_ref * (series / input_ref) ** exponent. It expands into the
+        # ordinary canonical AST before sealing; execution learns no new
+        # operator and never evaluates model-authored code.
+        series_node = node.get("series")
+        if isinstance(series_node, str):
+            series_node = {"op": "series", "name": series_node}
+
+        def reference_literal(value: Any, unit_key: str) -> dict[str, Any]:
+            if isinstance(value, dict):
+                return {"op": "literal", **value}
+            return {"op": "literal", "value": value,
+                    "unit": node.get(unit_key)}
+
+        expanded = {
+            "op": "multiply", "args": [
+                reference_literal(
+                    node.get("output_reference", node.get("output_ref")),
+                    "output_unit"),
+                {"op": "power", "args": [
+                    {"op": "divide", "args": [
+                        series_node,
+                        reference_literal(
+                            node.get("input_reference", node.get("input_ref")),
+                            "input_unit"),
+                    ]},
+                    {"op": "literal", "value": node.get("exponent", 1)},
+                ]},
+            ],
+        }
+        return _validate_expression(
+            expanded, path=path, depth=depth + 1, state=state,
+            series=series, units=units)
     op = "power" if raw_op == "pow" else raw_op
     if op not in TRANSFORM_OPS:
         raise TransformationError("UNSAFE_OR_UNKNOWN_OPERATOR", f"{path}.op",
@@ -262,7 +296,8 @@ def _validate_expression(node: Any, *, path: str, depth: int,
             raise TransformationError("UNSAFE_EXPONENT", path,
                                       "Power exponent must be an integer from 0 to 4.")
         clean["exponent"] = int(value)
-        output_unit = ("dimensionless" if int(value) == 0 else
+        output_unit = ("dimensionless" if child_units[0] == "dimensionless"
+                       or int(value) == 0 else
                        child_units[0] if int(value) == 1 else
                        f"{child_units[0]}^{int(value)}")
     else:

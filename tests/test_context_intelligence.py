@@ -333,6 +333,31 @@ def test_power_rejects_nonliteral_or_large_exponents():
         assert caught.value.code == code
 
 
+def test_reference_power_macro_expands_to_safe_canonical_ast():
+    raw = {
+        "known_at": _stamp(5), "claim_ids": ["claim-1"],
+        "lane": "prior_assisted", "output_unit": "Pa",
+        "expression": {
+            "op": "reference_power", "series": "speed",
+            "input_reference": {"value": 3000, "unit": "rpm"},
+            "output_reference": {"value": 37.5, "unit": "Pa"},
+            "exponent": 2,
+        },
+    }
+    compiled = validate_transformation(
+        raw, series=["speed"], claim_ids=["claim-1"], cutoff=_stamp(5),
+        units={"speed": "rpm"})
+    assert compiled["expression"]["op"] == "multiply"
+    result = execute_transformation(
+        compiled,
+        primary=[{"timestamp": _stamp(6), "point": 1, "q50": 1}],
+        series_values={"speed": {
+            "values": [1500], "known_at": _stamp(5),
+            "source_claim_id": "claim-1"}},
+        claim_spans={"claim-1": "speed will be 1500 rpm"})
+    assert result["forecast"][0]["q50"] == 9.375
+
+
 def test_root_literal_inherits_explicit_output_unit_only():
     compiled = validate_transformation({
         "known_at": _stamp(5), "claim_ids": ["claim-1"],
