@@ -1143,6 +1143,19 @@ def threshold_analysis_stage(
             # best-effort tier's decision basis when replay paths are
             # scarce.
             step_marginals=probabilities,
+            # Residual cells across leads from one rolling origin are not
+            # independent observations.  Use the number of origin clusters,
+            # not the pooled cell count (which grows with the horizon), for
+            # finite-sample event regularisation.
+            step_marginal_trials=max([
+                # Older/external executables may expose only the pooled
+                # cloud.  One origin contributes at most ``horizon`` cells,
+                # so this quotient is the conservative cluster count rather
+                # than treating every lead cell as independent.
+                max(1, len(residuals) // max(1, len(rows))),
+                *(len(values) for values in
+                  (fallback_residuals_by_lead or residuals_by_lead).values()),
+            ]),
         )
     return result
 

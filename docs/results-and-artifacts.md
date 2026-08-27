@@ -157,10 +157,14 @@ dependence between adjacent leads is retained. It reports:
 - `support` plus typed reasons when sample size, residual-regime stability,
   or test-fold calibration cannot support a governed action.
 
-Gnomon never multiplies the per-step marginals and calls the result a product
-probability. On histories without eight post-selection joint origins,
-`horizon_event` remains useful descriptive evidence but its support is
-`insufficient`.
+Gnomon never multiplies per-step marginals and presents the result as a
+governed dependence-aware probability. On histories without eight
+post-selection joint origins, it may publish the independence composition as
+explicitly `best_effort`: the raw composition remains a diagnostic, while the
+communicated horizon-event estimate is regularised once using the real
+residual sample count and carries a finite-sample interval. When neither
+marginals nor residual paths exist, support is `insufficient` and the
+probability is withheld.
 
 These probabilities inherit every caveat of the intervals; treat them as
 calibrated only as far as `interval_coverage` supports.

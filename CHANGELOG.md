@@ -1,5 +1,14 @@
 # Changelog
 
+- **Weak breach evidence no longer communicates exact certainty.** Short-
+  history horizon-event estimates based on independence-composed per-step
+  marginals now retain the raw composition as a diagnostic but publish a
+  once-per-event Jeffreys-regularised probability and 90% finite-sample
+  interval using the real rolling-origin count. Neither synthetic bootstrap
+  paths nor additional horizon leads inflate that count, and regularisation
+  is not repeated per lead, avoiding prior-driven horizon inflation. The
+  estimate remains `best_effort` and automation-ineligible.
+
 ## Unreleased
 
 - Upgrade BreachBench's answer contract to separate binary prediction,

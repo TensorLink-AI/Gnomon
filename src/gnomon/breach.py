@@ -56,7 +56,7 @@ def _quantile(values: Sequence[float], probability: float) -> float | None:
     return ordered[index]
 
 
-def _wilson(successes: int, trials: int) -> tuple[float | None, float | None]:
+def _wilson(successes: float, trials: int) -> tuple[float | None, float | None]:
     if trials <= 0:
         return None, None
     p = successes / trials
@@ -67,6 +67,32 @@ def _wilson(successes: int, trials: int) -> tuple[float | None, float | None]:
         p * (1.0 - p) / trials + z2 / (4.0 * trials * trials)
     )
     return max(0.0, centre - radius), min(1.0, centre + radius)
+
+
+def _regularize_empirical_probability(
+    probability: float, trials: int,
+) -> tuple[float, float | None, float | None]:
+    """Keep a small empirical sample from communicating certainty.
+
+    A Jeffreys half-success/half-failure regularisation is applied once to
+    the *horizon event*, not independently at every lead.  Applying a prior
+    at every lead and then composing over a long horizon would make the
+    prior itself accumulate into an almost-certain breach.  ``trials`` is
+    the number of real rolling-origin clusters behind the marginals;
+    synthetic bootstrap paths and additional horizon leads never increase it.
+
+    The Wilson interval is centred on the unregularised empirical estimate
+    with that same effective sample size.  This is deliberately an
+    uncertainty signal rather than a claim that dependent lead events are
+    binomial trials; the surrounding support tier continues to disclose the
+    independence approximation.
+    """
+    bounded = min(1.0, max(0.0, float(probability)))
+    if trials <= 0:
+        return bounded, None, None
+    regularized = (bounded * trials + 0.5) / (trials + 1.0)
+    lower, upper = _wilson(bounded * trials, trials)
+    return regularized, lower, upper
 
 
 def aligned_residual_paths(
@@ -201,6 +227,7 @@ def estimate_horizon_breach(
     calibration_is_verifiable: bool,
     fallback_residuals_by_lead: Mapping[int, Sequence[float]] | None = None,
     step_marginals: Sequence[float] | None = None,
+    step_marginal_trials: int | None = None,
 ) -> dict[str, Any]:
     """Estimate any-breach and first-breach distributions from joint paths.
 
@@ -290,6 +317,7 @@ def estimate_horizon_breach(
             survive *= 1.0 - min(1.0, max(0.0, float(marginal)))
         composed = 1.0 - survive
     bootstrap_diagnostic_probability = None
+    composed_regularized = None
     if len(replay_paths) < MIN_JOINT_PATHS and composed is not None:
         # At best-effort tier the published marginals are the better
         # decision basis: they carry the same conformal recentring and
@@ -300,8 +328,16 @@ def estimate_horizon_breach(
         # The bootstrap's estimate stays visible as a diagnostic; its
         # timing and maximum distributions ride along unchanged.
         bootstrap_diagnostic_probability = probability
-        probability = composed
-        lower = upper = None
+        # The independence-composed estimate is already an approximation;
+        # publishing exact 0/1 from a handful of residual observations adds
+        # a second, avoidable fiction.  Regularise the horizon event once
+        # using the real marginal sample size and retain the raw composition
+        # below as a diagnostic for reproducibility.
+        marginal_trials = int(step_marginal_trials or effective_origins)
+        probability, lower, upper = _regularize_empirical_probability(
+            composed, marginal_trials)
+        composed_regularized = probability
+        effective_origins = marginal_trials
         basis = "independence_composed_marginals_v1"
     reasons: list[dict[str, str]] = []
     if len(replay_paths) < MIN_JOINT_PATHS:
@@ -339,6 +375,15 @@ def estimate_horizon_breach(
                 "though forecast leads were independent; the leads are "
                 "dependent, so this is a best-effort estimate, not a "
                 "governed joint-event measurement."
+            ),
+        })
+        reasons.append({
+            "code": "finite_sample_regularization_used",
+            "message": (
+                "The communicated horizon-event probability uses one "
+                "Jeffreys half-success/half-failure regularisation based on "
+                f"{effective_origins} real rolling-origin clusters; the raw "
+                "independence composition remains a diagnostic."
             ),
         })
     if not stability.get("passed") and len(replay_paths) >= MIN_JOINT_PATHS:
@@ -403,6 +448,9 @@ def estimate_horizon_breach(
             if bootstrap_diagnostic_probability is not None else None),
         "independence_composed_reference": (
             round(float(composed), 6) if composed is not None else None),
+        "finite_sample_regularized_probability": (
+            round(float(composed_regularized), 6)
+            if composed_regularized is not None else None),
         "effective_origins": effective_origins,
         "calibration_partition": "post_selection_disjoint_origins",
         "dependence_preserved": (

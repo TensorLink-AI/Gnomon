@@ -151,6 +151,56 @@ def test_starved_histories_climb_down_the_ladder_not_off_a_cliff() -> None:
     assert again == risk  # deterministic: same inputs, same paths
 
 
+@pytest.mark.parametrize(("raw", "expected"), [(0.0, 0.05), (1.0, 0.95)])
+def test_best_effort_composition_does_not_communicate_endpoint_certainty(
+    raw: float, expected: float,
+) -> None:
+    """A weak all-hit/all-miss sample is evidence, not certainty.
+
+    Regularisation is applied once to the horizon event.  This avoids both
+    exact endpoints and the horizon-length inflation that would result from
+    smoothing every lead independently before composing them.
+    """
+    event = _by_lead([[0.0, 0.0, 0.0]])
+    marginals = [raw, raw, raw]
+    risk = estimate_horizon_breach(
+        _rows(3), 12.0, event,
+        measured_interval_coverage=0.8,
+        calibration_is_verifiable=True,
+        step_marginals=marginals,
+        step_marginal_trials=9,
+    )
+    assert risk["independence_composed_reference"] == raw
+    assert risk["probability_any_breach"] == expected
+    assert risk["finite_sample_regularized_probability"] == expected
+    interval = risk["probability_any_breach_interval_90"]
+    assert interval["lower"] is not None
+    assert interval["upper"] is not None
+    assert interval["lower"] <= expected <= interval["upper"]
+    assert risk["support"] == "best_effort"
+    assert risk["effective_origins"] == 9
+    assert "finite_sample_regularization_used" in {
+        reason["code"] for reason in risk["reasons"]
+    }
+
+
+def test_regularisation_vanishes_as_real_evidence_grows() -> None:
+    event = _by_lead([[0.0, 0.0]])
+    small = estimate_horizon_breach(
+        _rows(2), 12.0, event,
+        measured_interval_coverage=0.8,
+        calibration_is_verifiable=True,
+        step_marginals=[0.25, 0.25], step_marginal_trials=4)
+    large = estimate_horizon_breach(
+        _rows(2), 12.0, event,
+        measured_interval_coverage=0.8,
+        calibration_is_verifiable=True,
+        step_marginals=[0.25, 0.25], step_marginal_trials=400)
+    raw = 1.0 - 0.75**2
+    assert abs(large["probability_any_breach"] - raw) \
+        < abs(small["probability_any_breach"] - raw)
+
+
 def test_no_residuals_at_all_still_withholds() -> None:
     risk = estimate_horizon_breach(
         _rows(3), 12.0, {},

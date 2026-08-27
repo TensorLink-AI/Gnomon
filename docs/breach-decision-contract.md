@@ -41,7 +41,13 @@ disclosed in `method`, `residual_source`, and `reasons`:
    assumption. They carry the same conformal recentring and per-lead
    spread scaling as the published intervals, which measured better on
    decision cost than raw few-origin residual paths (1.40 vs 2.01 per
-   case on the diagnostic corpus). A blocked residual bootstrap over the
+   case on the diagnostic corpus). The raw composition is retained as
+   `independence_composed_reference`; the communicated event probability
+   applies one Jeffreys half-success/half-failure regularisation using the
+   number of real rolling-origin clusters behind the marginals and carries a
+   90% finite-sample interval. Regularisation is applied once to the horizon
+   event—not once per lead—so a long horizon cannot accumulate prior mass
+   into an artificial breach. A blocked residual bootstrap over the
    richest available residual source still runs, contributing the timing
    and maximum distributions and a disclosed
    `bootstrap_diagnostic_probability`.
