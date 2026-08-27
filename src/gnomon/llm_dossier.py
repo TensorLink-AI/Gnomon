@@ -1714,7 +1714,8 @@ def deterministic_events_from_claims(
     from .future_context import parse_bound_span, parse_override_span
 
     events = []
-    for index, claim in enumerate(dossier.get("claims") or [], 1):
+    claims = list(dossier.get("claims") or [])
+    for index, claim in enumerate(claims, 1):
         window_binding = claim.get("effective_window_binding") or {}
         if (window_binding.get("numeric_authority") is False
                 and window_binding.get("kind") !=
@@ -1761,6 +1762,62 @@ def deterministic_events_from_claims(
             "deterministic_value_parsed": value,
             "deterministic_parse_span": parse_span,
             "derived_from_claim_id": claim.get("claim_id") or f"claim-{index}",
+        })
+
+    # A compiler may represent a precise prospective statement directly as
+    # an event and omit a duplicative claim. That representation must not
+    # make literal numeric authority disappear: the event already owns a
+    # validated window and a verbatim source quote. Re-run the same target
+    # ownership and deterministic numeric parser over those events. This is
+    # deliberately not semantic inference—words such as ``offline`` only
+    # become zero when the quoted source itself states a zero state under the
+    # conservative parser above.
+    claim_spans = {str(item.get("source_span") or "") for item in claims}
+    for index, source_event in enumerate(dossier.get("events") or [], 1):
+        if not isinstance(source_event, dict):
+            continue
+        source_type = str(source_event.get("event_type") or "")
+        if source_type.startswith(("override:", "constraint:")):
+            continue
+        span = str(source_event.get("evidence_quote") or
+                   source_event.get("source_span") or "")
+        if not span or span in claim_spans:
+            continue
+        start = source_event.get("effective_start")
+        end = source_event.get("effective_end")
+        if not start or not end:
+            continue
+        start_time = _timestamp(start)
+        end_time = _timestamp(end)
+        if (start_time is None or end_time is None or end_time < start_time
+                or not _claim_start_is_cited(start_time, span)
+                or not _claim_start_is_cited(end_time, span)):
+            # Unlike validated claims, raw compiler events do not carry an
+            # effective-window binding. Both boundaries must therefore be
+            # recoverable verbatim from the same quote before it can own a
+            # numeric override.
+            continue
+        parse_span = (" ".join(span.split())
+                      if span in (target_verified_spans or set())
+                      else _target_relevant_claim_span(span, target_name))
+        if parse_span is None:
+            continue
+        value, problem = parse_override_span(parse_span)
+        if problem is not None or value is None:
+            continue
+        events.append({
+            "event_type": "override:stated_absolute_value",
+            "entity_scope": list(source_event.get("entity_scope") or ["*"]),
+            "effective_start": start, "effective_end": end,
+            "confidence": source_event.get("confidence", 1.0),
+            "status": "confirmed", "evidence_quote": span,
+            "source_span": span, "effect_family": "level_shift",
+            "direction": "unknown", "duration": "temporary",
+            "entity_kind": str(source_event.get("entity_kind") or "unknown"),
+            "deterministic_value_parsed": value,
+            "deterministic_parse_span": parse_span,
+            "derived_from_event_id": source_event.get("event_id") or
+            f"event-{index}",
         })
     return events
 

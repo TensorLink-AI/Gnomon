@@ -362,6 +362,42 @@ def test_only_literal_absolute_claim_becomes_deterministic_override():
         dossier("output will probably decline during the promotion")) == []
 
 
+def test_literal_absolute_event_does_not_require_duplicate_claim():
+    span = (
+        "the meter will be offline for maintenance between 2026-01-03 "
+        "00:00:00 and 2026-01-04 00:00:00, which results in zero readings")
+    source_event = {
+            "event_type": "maintenance outage", "entity_scope": ["*"],
+            "effective_start": TIMES[0], "effective_end": TIMES[-1],
+            "confidence": 1, "status": "confirmed",
+            "evidence_quote": span,
+            "event_id": "event_llm_00",
+    }
+
+    events = deterministic_events_from_claims(
+        {"claims": [], "events": [source_event]},
+        target_name="occupancy_rate",
+        target_verified_spans={span})
+
+    assert events[0]["event_type"] == "override:stated_absolute_value"
+    assert events[0]["deterministic_value_parsed"] == 0.0
+    assert events[0]["derived_from_event_id"] == "event_llm_00"
+
+
+def test_literal_event_cannot_invent_its_effective_window():
+    span = "the meter will be offline tomorrow, which results in zero readings"
+    events = deterministic_events_from_claims({
+        "claims": [],
+        "events": [{
+            "event_id": "event_llm_00", "event_type": "maintenance outage",
+            "entity_scope": ["*"], "effective_start": TIMES[0],
+            "effective_end": TIMES[-1], "evidence_quote": span,
+        }],
+    }, target_name="occupancy_rate", target_verified_spans={span})
+
+    assert events == []
+
+
 def test_driver_absolute_value_cannot_override_a_different_target():
     span = (
         "The speed starts at 285.3. At 05:27:09, it rapidly and smoothly "

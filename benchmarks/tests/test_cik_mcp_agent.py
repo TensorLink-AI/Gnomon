@@ -2186,6 +2186,48 @@ def test_literal_zero_claim_uses_deterministic_override_lane(tmp_path):
     assert publication["automation"]["eligible"] is False
 
 
+def test_literal_zero_event_without_duplicate_claim_uses_override(tmp_path):
+    task = _task()
+    start, end = task.future_time[1], task.future_time[2]
+    span = (
+        f"the meter will be offline for maintenance between {start} and "
+        f"{end}, which results in zero readings")
+    task.scenario = span
+    compiler_output = json.dumps({
+        "events": [{
+            "event_type": "maintenance outage", "entity_scope": ["*"],
+            "effective_start": start, "effective_end": end,
+            "confidence": 1, "status": "confirmed",
+            "evidence_quote": span, "effect_family": "temporary_pulse",
+            "direction": "decrease", "duration": "temporary",
+            "entity_kind": "service",
+        }],
+        "claims": [], "hypotheses": [], "effect_proposal": None,
+        "forecast_candidate": None, "covariate_tables": [],
+        "transformations": [], "observation_interpretations": [],
+    })
+    forecaster = McpAgentForecaster(
+        "x/y", client=ScriptedClient(
+            [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+            compiler_output),
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 1)
+
+    receipt = json.loads(Path(
+        extra["context_compilation"]["receipt_path"]).read_text())
+    assert receipt["events"][0]["event_type"] == \
+        "override:stated_absolute_value"
+    publication = extra["publication"]
+    assert publication["recommended_scenario_id"] == "context_conditioned"
+    assert [publication["recommended_forecast"][index]["q50"]
+            for index in (1, 2)] == [0.0, 0.0]
+    assert publication["primary_forecast_unchanged"] is True
+    assert publication["automation"]["eligible"] is False
+
+
 def test_deterministic_override_supersedes_same_quote_qualitative_event(tmp_path):
     task = _task()
     start, end = task.future_time[1], task.future_time[2]

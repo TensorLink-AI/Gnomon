@@ -4007,7 +4007,8 @@ class _Run:
                     item.get("source_span") or "").strip()
         }
         derived_events = deterministic_events_from_claims(
-            final_probe, target_name=self.target_name,
+            {**final_probe, "events": list(raw.get("events") or [])},
+            target_name=self.target_name,
             target_verified_spans=single_target_event_spans)
         existing_events = [item for item in raw.get("events") or []
                            if isinstance(item, dict)]
