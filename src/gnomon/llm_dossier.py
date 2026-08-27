@@ -1571,7 +1571,9 @@ def _target_relevant_claim_span(span: str, target_name: str | None) -> str | Non
 
 def deterministic_events_from_claims(
         dossier: dict[str, Any], *,
-        target_name: str | None = None) -> list[dict[str, Any]]:
+        target_name: str | None = None,
+        target_verified_spans: set[str] | None = None,
+        ) -> list[dict[str, Any]]:
     """Promote only literally stated absolute states into event proposals.
 
     The LLM locates and dates the verbatim span; Gnomon's existing parser must
@@ -1583,11 +1585,15 @@ def deterministic_events_from_claims(
 
     events = []
     for index, claim in enumerate(dossier.get("claims") or [], 1):
-        if (claim.get("effective_window_binding") or {}).get(
-                "numeric_authority") is False:
+        window_binding = claim.get("effective_window_binding") or {}
+        if (window_binding.get("numeric_authority") is False
+                and window_binding.get("kind") !=
+                "explicit_source_timing_reconciled"):
             continue
         span = str(claim.get("source_span") or "")
-        parse_span = _target_relevant_claim_span(span, target_name)
+        parse_span = (" ".join(span.split())
+                      if span in (target_verified_spans or set())
+                      else _target_relevant_claim_span(span, target_name))
         if parse_span is None:
             continue
         if claim.get("relation") == "constrains_range":

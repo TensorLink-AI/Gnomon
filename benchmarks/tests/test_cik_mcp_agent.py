@@ -1630,6 +1630,47 @@ def test_literal_zero_claim_uses_deterministic_override_lane(tmp_path):
     assert publication["automation"]["eligible"] is False
 
 
+def test_deterministic_override_supersedes_same_quote_qualitative_event(tmp_path):
+    task = _task()
+    start, end = task.future_time[1], task.future_time[2]
+    span = f"Readings are zero from {start} to {end}."
+    task.scenario = span
+    compiler_output = json.dumps({
+        "events": [{
+            "event_type": "closure", "effective_start": start,
+            "effective_end": end, "entity_scope": ["value"],
+            "evidence_quote": span, "confidence": 1,
+        }],
+        "claims": [{
+            "source_span": span, "relation": "supports_decrease",
+            "effective_start": start, "effective_end": end,
+            "mechanism": "stated outage", "confidence": 1,
+        }],
+        "hypotheses": [], "effect_proposal": None,
+        "forecast_candidate": None, "covariate_tables": [],
+        "transformations": [],
+    })
+    forecaster = McpAgentForecaster(
+        "x/y", client=ScriptedClient(
+            [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+            compiler_output),
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 1)
+
+    receipt = json.loads(Path(
+        extra["context_compilation"]["receipt_path"]).read_text())
+    assert len(receipt["events"]) == 1
+    assert receipt["events"][0]["event_type"] == \
+        "override:stated_absolute_value"
+    assert receipt["events"][0]["attributes"]["host_normalization"][
+        "supersedes_model_event_types"] == ["closure"]
+    assert extra["publication"]["recommended_scenario_id"] == \
+        "context_conditioned"
+
+
 def test_top_level_fitted_relationship_is_canonicalized_without_llm_repair(
         tmp_path):
     task = _task()

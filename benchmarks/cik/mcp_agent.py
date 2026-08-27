@@ -2977,8 +2977,15 @@ class _Run:
         # resulting event back through the ordinary future-context admission
         # path. This is deterministic extraction, not a semantic guess.
         from gnomon.llm_dossier import deterministic_events_from_claims
+        single_target_event_spans = {
+            str(item.get("evidence_quote") or item.get("source_span") or "")
+            for item in raw.get("events") or [] if isinstance(item, dict)
+            and str(item.get("evidence_quote") or
+                    item.get("source_span") or "").strip()
+        }
         derived_events = deterministic_events_from_claims(
-            final_probe, target_name=self.target_name)
+            final_probe, target_name=self.target_name,
+            target_verified_spans=single_target_event_spans)
         existing_events = [item for item in raw.get("events") or []
                            if isinstance(item, dict)]
         existing_keys = {(str(item.get("event_type") or ""),
@@ -2988,8 +2995,38 @@ class _Run:
         for event in derived_events:
             event = {**event, "entity_scope": ["__default__"],
                      "host_target_binding": "single_target_verified_claim"}
+            quote = str(event.get("evidence_quote") or
+                        event.get("source_span") or "")
+            shadowed_types = [str(item.get("event_type") or "")
+                              for item in existing_events
+                              if str(item.get("evidence_quote") or
+                                     item.get("source_span") or "") == quote
+                              and str(item.get("event_type") or "") != str(
+                                  event.get("event_type") or "")]
+            if shadowed_types:
+                # One source quote gets one numeric authority. A broad
+                # model-authored label such as ``closure`` must not shadow a
+                # stricter host-parsed absolute/range contract merely because
+                # it was emitted first.
+                existing_events = [item for item in existing_events
+                                   if str(item.get("evidence_quote") or
+                                          item.get("source_span") or "") != quote]
+                existing_keys = {
+                    (str(item.get("event_type") or ""),
+                     str(item.get("evidence_quote") or
+                         item.get("source_span") or ""))
+                    for item in existing_events
+                }
+                event["attributes"] = {
+                    **(event.get("attributes") or {}),
+                    "host_normalization": {
+                        "supersedes_model_event_types": sorted(set(
+                            shadowed_types)),
+                        "basis": "same_verified_source_quote",
+                    },
+                }
             key = (str(event.get("event_type") or ""),
-                   str(event.get("evidence_quote") or ""))
+                   quote)
             if key not in existing_keys:
                 existing_events.append(event)
                 existing_keys.add(key)

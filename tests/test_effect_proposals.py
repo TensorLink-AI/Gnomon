@@ -546,6 +546,43 @@ def test_clock_onset_at_cutoff_governs_first_future_step():
     assert dossier["claims"][0]["timing_status"] == "resolved"
 
 
+def test_reconciled_source_timing_does_not_block_separate_literal_override():
+    span = "Readings drop to zero starting 2026-01-03."
+    dossier, reasons = validate_temporal_dossier(
+        {"claims": [{
+            "source_span": span, "relation": "supports_decrease",
+            "effective_start": "2026-01-03T00:00:00+00:00",
+            "effective_end": "2026-01-04T00:00:00+00:00",
+            "timing_status": "unresolved_trigger", "confidence": 1.0,
+        }]},
+        context_text=span, cutoff="2026-01-02T00:00:00+00:00",
+        future_timestamps=TIMES, history=[8, 9, 10], compiler_model="test")
+
+    assert not reasons
+    assert dossier["claims"][0]["effective_window_binding"]["kind"] == \
+        "explicit_source_timing_reconciled"
+    events = deterministic_events_from_claims(dossier)
+    assert len(events) == 1
+    assert events[0]["deterministic_value_parsed"] == 0
+
+
+def test_single_target_event_binding_can_resolve_elliptical_claim_subject():
+    span = "The building containing the machine is closed tomorrow."
+    dossier, _ = validate_temporal_dossier(
+        {"claims": [{
+            "source_span": span, "relation": "supports_decrease",
+            "effective_start": TIMES[0], "effective_end": TIMES[-1],
+            "timing_status": "resolved", "confidence": 1.0,
+        }]}, context_text=span, cutoff="2026-01-02T00:00:00+00:00",
+        future_timestamps=TIMES, history=[8, 9, 10], compiler_model="test")
+
+    assert deterministic_events_from_claims(
+        dossier, target_name="withdrawals") == []
+    events = deterministic_events_from_claims(
+        dossier, target_name="withdrawals", target_verified_spans={span})
+    assert events[0]["deterministic_value_parsed"] == 0
+
+
 def test_unresolved_trigger_is_not_reconciled_from_unrelated_iso_date():
     span = ("The report was issued on 2026-01-03. Demand typically falls "
             "during public holidays.")

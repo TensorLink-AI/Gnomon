@@ -1076,6 +1076,43 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
         },
     } for dossier in dossiers or [] if verify_temporal_dossier_seal(dossier)
       for item in dossier.get("observation_interpretations") or []]
+    primary_rows = next((item.get("forecast") or [] for item in scenarios
+                         if item.get("role") == "immutable_primary"), [])
+
+    def shape_summary(item: dict[str, Any]) -> dict[str, Any]:
+        rows = list(item.get("forecast") or [])
+        centres = [float(row.get("q50", row.get("point"))) for row in rows]
+        if not centres:
+            return {"first_q50": None, "last_q50": None, "steps": 0}
+        minimum = min(range(len(centres)), key=centres.__getitem__)
+        maximum = max(range(len(centres)), key=centres.__getitem__)
+        directions = [0 if math.isclose(centres[index], centres[index - 1])
+                      else 1 if centres[index] > centres[index - 1] else -1
+                      for index in range(1, len(centres))]
+        nonzero = [value for value in directions if value]
+        turning_points = sum(left != right for left, right in
+                             zip(nonzero, nonzero[1:]))
+        summary = {
+            "first_q50": centres[0], "last_q50": centres[-1],
+            "minimum_q50": centres[minimum],
+            "minimum_timestamp": rows[minimum].get("timestamp"),
+            "maximum_q50": centres[maximum],
+            "maximum_timestamp": rows[maximum].get("timestamp"),
+            "turning_points": turning_points, "steps": len(rows),
+        }
+        if len(primary_rows) == len(rows) and rows:
+            deviations = [centre - float(primary_rows[index].get(
+                "q50", primary_rows[index].get("point")))
+                          for index, centre in enumerate(centres)]
+            extreme = max(range(len(deviations)),
+                          key=lambda index: abs(deviations[index]))
+            summary.update({
+                "largest_primary_deviation": deviations[extreme],
+                "largest_primary_deviation_timestamp": rows[extreme].get(
+                    "timestamp"),
+            })
+        return summary
+
     dominant = dominant_scenario_id(scenarios)
     return {
         "selection_required": dominant is None,
@@ -1097,15 +1134,7 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
                 "human_selection_eligible",
                 item.get("selection_eligible", True)),
             "forecast_seal": item["scenario_seal_sha256"],
-            "summary": {
-                "first_q50": ((item["forecast"][0].get("q50",
-                                item["forecast"][0].get("point")))
-                               if item["forecast"] else None),
-                "last_q50": ((item["forecast"][-1].get("q50",
-                               item["forecast"][-1].get("point")))
-                              if item["forecast"] else None),
-                "steps": len(item["forecast"]),
-            },
+            "summary": shape_summary(item),
             "derivation": {
                 "assumptions": list(item.get("assumptions") or [])[:2],
                 "conditional_replay_status": str(

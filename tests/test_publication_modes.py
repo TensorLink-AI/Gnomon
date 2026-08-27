@@ -652,6 +652,36 @@ def test_unapplied_numeric_bound_does_not_own_the_full_recommendation():
     assert candidate_scenario["automation_eligible"] is False
 
 
+def test_selector_contract_exposes_interior_scenario_shape_compactly():
+    primary = [{"timestamp": f"2026-01-0{index + 3}T00:00:00+00:00",
+                "point": 10, "q10": 9, "q50": 10, "q90": 11}
+               for index in range(4)]
+    temporary = [{**row, "point": (0 if 1 <= index <= 2 else 10),
+                  "q10": (0 if 1 <= index <= 2 else 9),
+                  "q50": (0 if 1 <= index <= 2 else 10),
+                  "q90": (0 if 1 <= index <= 2 else 11)}
+                 for index, row in enumerate(primary)]
+    scenarios = [
+        {"scenario_id": "primary", "role": "immutable_primary",
+         "support": "supported", "claim_ids": [], "forecast": primary,
+         "scenario_seal_sha256": "p", "selection_eligible": True},
+        {"scenario_id": "closure", "role": "model_authored",
+         "support": "prior_assisted", "claim_ids": ["claim-1"],
+         "forecast": temporary, "scenario_seal_sha256": "c",
+         "selection_eligible": True},
+    ]
+
+    contract = scenario_selection_contract(scenarios=scenarios)
+    summary = next(item["summary"] for item in contract["scenarios"]
+                   if item["scenario_id"] == "closure")
+
+    assert summary["first_q50"] == summary["last_q50"]
+    assert summary["minimum_q50"] == 0
+    assert summary["turning_points"] == 1
+    assert summary["largest_primary_deviation"] < 0
+    assert "forecast" not in contract["scenarios"][1]
+
+
 def test_relationship_history_rejection_teaches_collection_not_recompilation():
     result = _result()
     result["transformation_rejections"] = [{

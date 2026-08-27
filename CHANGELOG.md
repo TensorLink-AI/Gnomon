@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- Give the governed scenario selector compact interior-shape evidence: extrema
+  and timestamps, turning points, and the largest deviation from the immutable
+  primary. Temporary closures, campaigns, outages, and interventions can no
+  longer look flat merely because their first and last values match.
+- Let a host-parsed deterministic absolute/range event supersede a broader
+  model-authored event over the identical source quote. Compiler ordering can
+  no longer make a qualitative `closure` shadow an exact zero or bounded
+  contract; the superseded type remains disclosed in event attributes.
+- Allow literal value parsing after an explicit source date reconciles a
+  model-authored unresolved-timing label. The reconciliation itself still
+  grants no magnitude authority; the independent parser must recover the
+  stated zero or bound, so identical text no longer changes lane with compiler
+  metadata.
+- Let an already target-bound event quote establish the omitted grammatical
+  subject of a claim in a single-series request. Elliptical operational prose
+  such as “the building containing the machine is closed” can reach the
+  deterministic parser without globally treating every building or device
+  number as the forecast target.
 - Reserve a bounded share of the context-workflow deadline for its single
   repair turn. A slow empty initial completion can no longer leave the repair
   with a one-second timeout and turn recoverable model formatting into a
