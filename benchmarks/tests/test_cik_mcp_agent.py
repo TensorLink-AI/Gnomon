@@ -44,6 +44,7 @@ from benchmarks.cik.mcp_agent import (
     _demote_covariate_duplicate_events,
     _bind_covariate_row_claims,
     _fit_governed_companion_from_receipt,
+    _looks_like_structured_companion_context,
 )
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -73,6 +74,19 @@ def test_future_numeric_path_gets_one_repair_without_granting_authority():
     })
     assert not _future_numeric_path_needs_executable(
         "Reference was stable in 2023.", future, {})
+
+
+def test_structured_companion_routing_requires_label_and_overlap_volume():
+    future = ["2024-05-01T00:00:00+00:00",
+              "2024-06-01T00:00:00+00:00"]
+    rows = "\n".join(
+        f"(2024-{month:02d}-01 00:00:00, {month}.0)"
+        for month in range(1, 7))
+    assert _looks_like_structured_companion_context(
+        "For reference, peer sales:\n" + rows, future)
+    assert not _looks_like_structured_companion_context(rows, future)
+    assert not _looks_like_structured_companion_context(
+        "For reference:\n" + "\n".join(rows.splitlines()[:3]), future)
 
 
 @pytest.mark.parametrize("wrapper", [
@@ -211,6 +225,39 @@ def test_companion_identity_may_be_split_across_heading_and_description():
         history_timestamps=history, history_values=[6, 7, 8, 9],
         future_timestamps=future, claims=claims)
     assert candidate is not None
+
+
+def test_multiple_companions_select_by_replay_not_table_order():
+    history = [f"2024-0{month}-01T00:00:00+00:00" for month in range(1, 7)]
+    future = ["2024-07-01T00:00:00+00:00"]
+    target = [12, 14, 13, 16, 15, 18]
+    def table(name, values):
+        rows = []
+        for timestamp, value in zip([*history, *future], values):
+            rows.append({
+                "timestamp": timestamp, name: value,
+                "provenance": {"evidence_quote":
+                    f"({timestamp[:10]} 00:00:00, {value})"},
+            })
+        return {"name": name, "rows": rows}
+    weak = table("peer_west_sales", [3, 7, 2, 8, 1, 9, 5])
+    strong = table("peer_east_sales", [10, 12, 11, 14, 13, 16, 17])
+    receipt = {"tables": [weak, strong]}
+    context = "Peer west sales\nPeer east sales\n" + "\n".join(
+        row["provenance"]["evidence_quote"]
+        for item in receipt["tables"] for row in item["rows"])
+    provisional = _fit_governed_companion_from_receipt(
+        receipt, context=context, history_timestamps=history,
+        history_values=target, future_timestamps=future, claims=[])
+    assert provisional["source_table_name"] == "peer_east_sales"
+    assert provisional["validation"]["candidate_tables"] == 2
+    assert provisional["validation"]["multiplicity_adjusted_threshold"] > .02
+    bound = _bind_covariate_row_claims(
+        {}, receipt, future, table_name=provisional["source_table_name"])
+    assert len(bound["claims"]) == 7
+    assert all("17" not in claim["source_span"] or
+               claim["effective_start"] == future[0]
+               for claim in bound["claims"])
 
 
 def test_regular_long_forecast_grid_is_compact_but_exact():
@@ -755,12 +802,15 @@ def test_compiler_target_evidence_summarizes_all_and_bounds_raw_tail():
 
 
 def test_compiler_contract_allows_companion_overlap_but_never_target_outcomes():
-    from benchmarks.cik.mcp_agent import DOSSIER_INSTRUCTIONS
+    from benchmarks.cik.mcp_agent import (COMPANION_INSTRUCTIONS,
+                                          DOSSIER_INSTRUCTIONS)
 
     assert "include both portions in one table" in DOSSIER_INSTRUCTIONS
     assert "never copy or reconstruct target outcomes" in DOSSIER_INSTRUCTIONS
     assert "exact target-history or requested forecast timestamp" in \
         DOSSIER_INSTRUCTIONS
+    assert "Never copy target observations" in COMPANION_INSTRUCTIONS
+    assert "Gnomon, not the model, fits" in COMPANION_INSTRUCTIONS
 
 
 def test_compiler_contract_preserves_historical_observation_semantics():
@@ -1451,6 +1501,7 @@ def test_accepted_effect_does_not_recompile_for_malformed_optional_lane(
         "required_observation_lane_missing": False,
         "numeric_context_unresolved": False,
         "future_numeric_path_needs_executable": False,
+        "governed_companion_mapping_pending": False,
         "top_level_rejections": 1,
     }]
     assert client.completion_reasoning_efforts == ["none"]

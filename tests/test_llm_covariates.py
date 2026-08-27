@@ -57,6 +57,26 @@ def test_normalized_time_span_recovers_exact_token_from_verbatim_quote():
     assert provenance["source_time_span"] == "2026-08-27 00:00:00"
 
 
+def test_invalid_quote_recovers_only_from_unique_exact_source_row():
+    document = "Header\n(2026-08-27 00:00:00, 31.5)\nFooter"
+    proposal = _table(quote="2026-08-27 = 31.5")
+    receipt, rejected = validate_llm_covariate_tables(
+        proposal, documents=[document],
+        known_at="2026-08-25T00:00:00+00:00",
+        as_of="2026-08-25T00:00:00+00:00")
+    assert rejected == []
+    assert receipt["tables"][0]["rows"][0]["provenance"][
+        "evidence_quote"] == "(2026-08-27 00:00:00, 31.5)"
+
+    ambiguous = document + "\n2026-08-27: 31.5"
+    receipt, rejected = validate_llm_covariate_tables(
+        proposal, documents=[ambiguous],
+        known_at="2026-08-25T00:00:00+00:00",
+        as_of="2026-08-25T00:00:00+00:00")
+    assert receipt["tables"] == []
+    assert any("verbatim evidence_quote" in reason for reason in rejected)
+
+
 def test_model_cannot_invent_value_or_backdate_known_at():
     receipt, rejected = validate_llm_covariate_tables(
         _table(99), documents=[DOC],

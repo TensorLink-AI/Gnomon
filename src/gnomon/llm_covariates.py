@@ -111,6 +111,21 @@ def _value_is_cited(value: float, quote: str, source_time: str) -> bool:
     return False
 
 
+def _resolve_evidence_quote(
+        document: str, timestamp: datetime, value: float,
+) -> tuple[str, str] | None:
+    """Recover one unique source line containing both exact row components."""
+    matches: list[tuple[str, str]] = []
+    for raw_line in document.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        source_time = _resolve_cited_time_span(timestamp, line, "")
+        if source_time is not None and _value_is_cited(value, line, source_time):
+            matches.append((line, source_time))
+    return matches[0] if len(matches) == 1 else None
+
+
 def validate_llm_covariate_tables(
     raw: Any,
     *,
@@ -188,21 +203,26 @@ def validate_llm_covariate_tables(
             quote = str(row.get("evidence_quote") or "").strip()
             source_time = str(row.get("source_time_span") or "").strip()
             document = documents[document_index]
-            if not quote or quote not in document:
-                rejections.append(f"{row_label} lacks a verbatim evidence_quote")
-                continue
             timestamp = _aware_timestamp(row.get("timestamp"))
             if timestamp is None:
-                rejections.append(f"{row_label} timestamp is not supported by its quote")
-                continue
-            source_time = _resolve_cited_time_span(timestamp, quote, source_time)
-            if source_time is None:
                 rejections.append(f"{row_label} timestamp is not supported by its quote")
                 continue
             try:
                 value = float(row["value"])
             except (KeyError, TypeError, ValueError):
                 value = math.nan
+            if not quote or quote not in document:
+                recovered = (_resolve_evidence_quote(document, timestamp, value)
+                             if math.isfinite(value) else None)
+                if recovered is None:
+                    rejections.append(
+                        f"{row_label} lacks a verbatim evidence_quote")
+                    continue
+                quote, source_time = recovered
+            source_time = _resolve_cited_time_span(timestamp, quote, source_time)
+            if source_time is None:
+                rejections.append(f"{row_label} timestamp is not supported by its quote")
+                continue
             if not math.isfinite(value) or not _value_is_cited(
                     value, quote, source_time):
                 rejections.append(f"{row_label} value is not numeric and verbatim-cited")

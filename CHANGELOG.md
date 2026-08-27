@@ -17,6 +17,18 @@
 - Ground companion identity by complete source-token coverage rather than one
   contiguous label. Split document headings such as a geography plus a metric
   description now work, while an invented meaningful token still blocks fit.
+- Evaluate multiple aligned companion paths and apply a candidate-count-aware
+  replay threshold before human recommendation eligibility. Only the selected
+  table's source rows become dossier claims, keeping receipts bounded and
+  preventing first-table order from deciding the answer.
+- Route structured companion data through a compact extraction-only compiler
+  contract. The model no longer receives the full event/effect/transformation
+  grammar or authors forecast numbers for this lane, and a successfully
+  extracted table proceeds directly to the governed mapper without a redundant
+  second LLM repair call.
+- Detect structured reference/peer/driver tables from their source text rather
+  than benchmark-only metadata, and preserve the pre-claim candidate count and
+  adjusted threshold in the selected candidate's final validation receipt.
 - Add an independent 100-seed admission check for the companion executable:
   stable offset signals must be admitted while unrelated random walks remain
   below a five-percent false-admission ceiling.
@@ -46,6 +58,10 @@
   `received_not_evaluable`, while evaluated-but-rejected and admitted inputs
   have distinct states; users no longer see “nothing passed” after their table
   was successfully validated.
+- Recover a malformed covariate evidence quote only when one unique source line
+  contains both its exact normalized timestamp and numeric value. This makes
+  punctuation variance repairable without permitting ambiguous or invented
+  observations.
 - Give the governed scenario selector compact interior-shape evidence: extrema
   and timestamps, turning points, and the largest deviation from the immutable
   primary. Temporary closures, campaigns, outages, and interventions can no

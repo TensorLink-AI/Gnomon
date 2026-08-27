@@ -732,6 +732,28 @@ is rejected without changing the primary.
 seven empty/null fields.
 """
 
+COMPANION_INSTRUCTIONS = """\
+Extract source-grounded companion time series for a governed forecast. Return
+ONLY JSON with these eight keys:
+{"events":[],"claims":[],"hypotheses":[],"covariate_tables":[],
+"transformations":[],"observation_interpretations":[],
+"effect_proposal":null,"forecast_candidate":null}
+
+For every named companion series that spans target history and the requested
+forecast grid, emit one covariate table:
+{"name":"source_grounded_snake_case","type":"continuous","rows":[
+{"document_index":0,"timestamp":"timezone-aware ISO","source_time_span":
+"exact source time token","value":0.0,"evidence_quote":"exact source row"}]}
+
+Include both historical overlap and future-grid rows. Each timestamp and value
+must occur together in the quoted source row. Never copy target observations,
+infer a missing value, interpolate, author target events, or calculate a
+forecast candidate. Preserve series identity in the table name using only
+words present in its source heading/description. Gnomon, not the model, fits
+and replays mappings against last value. If no companion has at least four
+overlap rows plus complete future coverage, return empty arrays/nulls.
+"""
+
 
 def _has_material_numeric_context(text: str) -> bool:
     """Whether prose contains a quantity beyond calendar/clock notation.
@@ -770,6 +792,21 @@ def _future_numeric_path_needs_executable(
                 text):
             matched += 1
     return matched >= min(2, len(future_timestamps))
+
+
+def _looks_like_structured_companion_context(
+        text: str, future_timestamps: list[str],
+) -> bool:
+    """Route source-labelled reference tables without benchmark metadata."""
+    if not _future_numeric_path_needs_executable(text, future_timestamps, {}):
+        return False
+    marker = re.search(
+        r"\b(for reference|companion|predictor|driver|peer|related series|"
+        r"external series)\b", text, re.IGNORECASE)
+    rows = re.findall(
+        r"\d{4}-\d{2}-\d{2}[^\n]{0,40}[+-]?(?:\d+(?:\.\d*)?|\.\d+)",
+        text)
+    return bool(marker and len(rows) >= len(future_timestamps) + 4)
 
 
 def _validated_item_count(value: Any) -> int:
@@ -881,7 +918,8 @@ def _demote_covariate_duplicate_events(
 
 def _bind_covariate_row_claims(
         candidate: dict[str, Any], receipt: dict[str, Any],
-        future_timestamps: list[str], *, maximum_claims: int = 16,
+        future_timestamps: list[str], *, table_name: str | None = None,
+        maximum_claims: int = 16,
 ) -> dict[str, Any]:
     """Bind validator-proven companion rows as narrow numeric claims."""
     claims = [dict(item) for item in candidate.get("claims") or []
@@ -889,6 +927,8 @@ def _bind_covariate_row_claims(
     existing = {str(item.get("source_span") or "").strip() for item in claims}
     future = set(future_timestamps)
     for table in receipt.get("tables") or []:
+        if table_name is not None and table.get("name") != table_name:
+            continue
         for row in table.get("rows") or []:
             if len(claims) >= maximum_claims:
                 break
@@ -915,51 +955,71 @@ def _fit_governed_companion_from_receipt(
         history_timestamps: list[str], history_values: list[float],
         future_timestamps: list[str], claims: list[dict[str, Any]],
 ) -> dict[str, Any] | None:
-    """Fit one host-verified companion path; return None when unidentifiable."""
+    """Fit and multiplicity-guard host-verified companion paths."""
     tables = list(receipt.get("tables") or [])
-    if len(tables) != 1:
+    if not tables:
         return None
-    table = tables[0]
-    name = str(table.get("name") or "")
-    # Table identity is model-authored metadata. Require the corresponding
-    # human-readable label to occur in source before it may support a mapping.
-    tokens = [token for token in name.casefold().split("_") if token]
     source = " ".join(context.casefold().split())
     generic = {"rate", "value", "values", "forecast", "grid", "data",
                "series", "metric", "measure"}
-    meaningful = [token for token in tokens if token not in generic]
-    if (not meaningful or not all(re.search(rf"\b{re.escape(token)}\b", source)
-                                  for token in tokens)):
-        return None
-    by_time = {}
-    quote_by_time = {}
-    for row in table.get("rows") or []:
-        timestamp = str(row.get("timestamp") or "")
-        if name not in row:
-            continue
-        by_time[timestamp] = float(row[name])
-        quote_by_time[timestamp] = str(
-            (row.get("provenance") or {}).get("evidence_quote") or "")
-    overlap = [timestamp for timestamp in history_timestamps if timestamp in by_time]
-    if len(overlap) < 4 or any(timestamp not in by_time
-                               for timestamp in future_timestamps):
-        return None
     claim_by_span = {str(item.get("source_span") or ""): str(item["claim_id"])
                      for item in claims if item.get("claim_id")}
-    claim_ids = [claim_by_span[quote_by_time[timestamp]]
-                 for timestamp in [*overlap, *future_timestamps]
-                 if quote_by_time.get(timestamp) in claim_by_span]
-    if not claim_ids:
-        return None
     history_by_time = dict(zip(history_timestamps, history_values))
     from gnomon.context_intelligence import fit_companion_level_candidate
     primary = [{"timestamp": timestamp} for timestamp in future_timestamps]
-    return fit_companion_level_candidate(
-        [float(history_by_time[timestamp]) for timestamp in overlap],
-        [by_time[timestamp] for timestamp in overlap],
-        [by_time[timestamp] for timestamp in future_timestamps],
-        primary=primary, claim_ids=claim_ids,
-        hypothesis_id="host-verified-companion-path")
+    fitted = []
+    for table in tables:
+        name = str(table.get("name") or "")
+        tokens = [token for token in name.casefold().split("_") if token]
+        meaningful = [token for token in tokens if token not in generic]
+        if (not meaningful or not all(
+                re.search(rf"\b{re.escape(token)}\b", source)
+                for token in tokens)):
+            continue
+        by_time, quote_by_time = {}, {}
+        for row in table.get("rows") or []:
+            timestamp = str(row.get("timestamp") or "")
+            if name not in row:
+                continue
+            by_time[timestamp] = float(row[name])
+            quote_by_time[timestamp] = str(
+                (row.get("provenance") or {}).get("evidence_quote") or "")
+        overlap = [timestamp for timestamp in history_timestamps
+                   if timestamp in by_time]
+        required = [*overlap, *future_timestamps]
+        if len(overlap) < 4 or any(timestamp not in by_time
+                                   for timestamp in future_timestamps):
+            continue
+        claim_ids = [claim_by_span[quote_by_time[timestamp]]
+                     for timestamp in required
+                     if quote_by_time.get(timestamp) in claim_by_span]
+        if claims and len(claim_ids) != len(required):
+            continue
+        candidate = fit_companion_level_candidate(
+            [float(history_by_time[timestamp]) for timestamp in overlap],
+            [by_time[timestamp] for timestamp in overlap],
+            [by_time[timestamp] for timestamp in future_timestamps],
+            primary=primary, claim_ids=claim_ids,
+            hypothesis_id=f"host-verified-companion:{name}")
+        candidate["source_table_name"] = name
+        fitted.append(candidate)
+    if not fitted:
+        return None
+    selected = max(fitted, key=lambda item: (
+        float((item.get("validation") or {}).get("skill") or -math.inf),
+        str(item.get("source_table_name"))))
+    threshold = min(.25, .02 + .02 * math.log2(max(1, len(fitted))))
+    validation = dict(selected["validation"])
+    eligible = bool(validation["validation_points"] >= 3
+                    and validation["skill"] >= threshold)
+    validation.update({
+        "candidate_tables": len(fitted),
+        "multiplicity_adjusted_threshold": threshold,
+        "beats_baseline": eligible,
+    })
+    selected["validation"] = validation
+    selected["selection_eligible"] = eligible
+    return selected
 
 
 def _expects_historical_zero_interpretation(context: str) -> bool:
@@ -2648,6 +2708,10 @@ class _Run:
         observation_contract = (
             not relationship_contract
             and _expects_historical_zero_interpretation(context))
+        companion_contract = bool(
+            not relationship_contract and not observation_contract
+            and _looks_like_structured_companion_context(
+                context, future_timestamps))
         compiler_context = (narrative_context if relationship_contract else context)
         history = _compiler_target_evidence(
             self.timestamps, self.values,
@@ -2655,6 +2719,7 @@ class _Run:
             128 if observation_contract else 64)
         instructions = (RELATIONSHIP_INSTRUCTIONS if relationship_contract
                         else OBSERVATION_INSTRUCTIONS if observation_contract
+                        else COMPANION_INSTRUCTIONS if companion_contract
                         else DOSSIER_INSTRUCTIONS)
         material_numeric_context = _has_material_numeric_context(
             compiler_context)
@@ -2666,7 +2731,8 @@ class _Run:
             "bounded useful conditional forecast, include that sealed "
             "prior_assisted candidate in this first response; otherwise "
             "classify it unsupported and name the missing evidence.\n"
-            if material_numeric_context and not relationship_contract else "")
+            if material_numeric_context and not relationship_contract
+            and not companion_contract else "")
         prompt = (
             f"{instructions}{numeric_routing_note}\n"
             f"Forecast target series: {self.target_name}\n"
@@ -2815,6 +2881,9 @@ class _Run:
             and _has_material_numeric_context(context))
         future_path_needs_executable = _future_numeric_path_needs_executable(
             context, future_timestamps, raw)
+        companion_mapping_pending = bool(
+            companion_contract and raw.get("covariate_tables")
+            and future_path_needs_executable)
         transformation_proposed = bool(raw.get("transformations"))
         if ((proposed_any_lane or observation_lane_missing
                 or unresolved_numeric_context) and not transformation_proposed):
@@ -2867,7 +2936,8 @@ class _Run:
             # categorically ineligible numeric lane.
             repair_required = (
                 observation_lane_missing or unresolved_numeric_context
-                or future_path_needs_executable
+                or (future_path_needs_executable
+                    and not companion_mapping_pending)
                 or (not accepted_executable
                     and not retained_unresolved_interpretation
                     and not retained_atemporal_interpretation and (
@@ -2913,7 +2983,9 @@ class _Run:
                 "numeric_context_unresolved": bool(
                     unresolved_numeric_context),
                 "future_numeric_path_needs_executable": bool(
-                    future_path_needs_executable),
+                    future_path_needs_executable
+                    and not companion_mapping_pending),
+                "governed_companion_mapping_pending": companion_mapping_pending,
                 "top_level_rejections": len(probe_rejections),
                 **({
                     "retained_unresolved_interpretation": True,
@@ -3740,8 +3812,13 @@ class _Run:
             and raw.get("transformations") and not prior_only_semantic_gap)
         covariate_receipt = compilation["covariates"]
         covariate_rejections = compilation["covariate_rejections"]
+        provisional_companion = _fit_governed_companion_from_receipt(
+            covariate_receipt, context=context,
+            history_timestamps=self.timestamps, history_values=self.values,
+            future_timestamps=future_timestamps, claims=[])
         raw = _bind_covariate_row_claims(
-            raw, covariate_receipt, future_timestamps)
+            raw, covariate_receipt, future_timestamps,
+            table_name=(provisional_companion or {}).get("source_table_name"))
         preliminary_dossier, _ = validate_temporal_dossier(
             raw, context_text=context, cutoff=self.timestamps[-1],
             future_timestamps=future_timestamps, history=self.values,
@@ -3753,6 +3830,17 @@ class _Run:
             history_timestamps=self.timestamps, history_values=self.values,
             future_timestamps=future_timestamps,
             claims=preliminary_dossier.get("claims") or [])
+        if governed_companion and provisional_companion:
+            provisional_validation = provisional_companion.get("validation") or {}
+            governed_validation = dict(governed_companion.get("validation") or {})
+            for key in ("candidate_tables", "multiplicity_adjusted_threshold"):
+                if key in provisional_validation:
+                    governed_validation[key] = provisional_validation[key]
+            governed_validation["beats_baseline"] = bool(
+                provisional_companion.get("selection_eligible"))
+            governed_companion["validation"] = governed_validation
+            governed_companion["selection_eligible"] = bool(
+                provisional_companion.get("selection_eligible"))
         dossier, dossier_rejections = validate_temporal_dossier(
             raw, context_text=context, cutoff=self.timestamps[-1],
             future_timestamps=future_timestamps, history=self.values,
@@ -3791,7 +3879,9 @@ class _Run:
                 "contract": ("explicit_lag_relationship"
                              if relationship_contract else
                              "historical_observation_semantics"
-                             if observation_contract else "universal_dossier"),
+                             if observation_contract else
+                             "structured_companion_paths"
+                             if companion_contract else "universal_dossier"),
                 "prompt_bytes": len(prompt.encode("utf-8")),
                 "workflow_budget_seconds": MAX_CONTEXT_COMPILATION_SECONDS,
                 "elapsed_seconds": round(
