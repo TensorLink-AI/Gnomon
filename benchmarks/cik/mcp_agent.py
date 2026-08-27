@@ -321,7 +321,16 @@ MIN_CONTEXT_REPAIR_SECONDS = 10.0
 #: by the primary, so the adapter does not spend an LLM call re-ranking it.
 #: Version 160: categorical transition citations bind to the exact host grid
 #: timestamp, preserving timezone provenance without model normalization.
-MCP_CONTRACT_VERSION = 160
+#: Version 161: when the fold-replayed categorical executable is rejected, a
+#: best-effort surface may request one sealed model-authored shadow candidate;
+#: the failed replay remains counterevidence and automation stays disabled.
+#: Version 162: the selector contract explicitly ranks every ineligible path
+#: below every eligible path while retaining it as counterevidence.
+#: Version 163: an out-of-sample-winning structured seasonal baseline may
+#: enter best-effort selection through the non-automatable model-assisted lane.
+#: Version 164: complete-cycle prequential evidence makes a strongly winning
+#: seasonal assisted path deterministic instead of leaving it to LLM ranking.
+MCP_CONTRACT_VERSION = 164
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -816,6 +825,23 @@ primary, upgrade support, or authorize automation. Because this is the
 explicitly requested best-effort lane, produce the best bounded estimate when
 the supplied paths cover the complete grid; represent ambiguity with wider
 quantiles and state the competing interpretation rather than withholding.
+"""
+
+STATE_CANDIDATE_INSTRUCTIONS = """\
+Author one bounded probabilistic forecast candidate from the supplied target
+history and source-grounded categorical state schedule. Return ONLY:
+{"forecast_candidate":{"quantile_anchors":[{"timestamp":"exact requested ISO",
+"q10":0.0,"q50":0.0,"q90":0.0}],"rationale":"brief temporal argument,
+state effect, competing interpretation, and uncertainty"}}
+
+Use exact requested timestamps. Include the first and last timestamp plus every
+meaningful temporal or state turning point; full quantile rows are also valid.
+Infer no state that the source did not state. Separate the ordinary temporal
+shape from the possible state effect, use history only through the cutoff, and
+widen uncertainty where state and time-of-cycle are confounded. This is a
+sealed prior-assisted human-review alternative. It cannot edit the immutable
+primary, upgrade support, or authorize automation, and the failed governed
+state replay remains explicit counterevidence.
 """
 
 
@@ -4225,6 +4251,42 @@ class _Run:
             governed_companion["selection_eligible"] = bool(
                 provisional_companion.get("selection_eligible"))
         governed_candidate = governed_categorical or governed_companion
+        if (categorical_schedule is not None
+                and governed_categorical is not None
+                and not governed_categorical.get("selection_eligible")
+                and self.forecaster.output_role in {
+                    "publication_best_effort", "llm_candidate_shadow"}):
+            model_candidate_status = "requested_after_governed_rejection"
+            state_prompt = (
+                f"{STATE_CANDIDATE_INSTRUCTIONS}\n"
+                f"Forecast target series: {self.target_name}\n"
+                f"History cutoff: {self.timestamps[-1]}\n"
+                f"Forecast grid: {_forecast_grid_prompt(future_timestamps)}\n"
+                f"{history}\n\nContext:\n{context}\n"
+                "Governed replay counterevidence:\n"
+                + json.dumps(governed_categorical.get("validation") or {},
+                             sort_keys=True))
+            model_candidate_prompt_bytes = len(state_prompt.encode("utf-8"))
+            try:
+                response = complete(state_prompt, "model_state_candidate")
+                objects = extract_json_objects(response)
+                first = objects[0] if objects else {}
+                proposed = first.get("forecast_candidate")
+                if not isinstance(proposed, dict) and isinstance(
+                        first.get("quantiles") or first.get(
+                            "quantile_anchors"), list):
+                    proposed = first
+                if isinstance(proposed, dict):
+                    model_candidate_proposal = proposed
+                    model_candidate_status = "proposed_after_governed_rejection"
+                else:
+                    model_candidate_status = "withheld_after_governed_rejection"
+                    compile_rejections.append(
+                        "model state candidate returned no candidate object")
+            except Exception as error:
+                model_candidate_status = "request_failed_after_governed_rejection"
+                compile_rejections.append(
+                    f"model state candidate failed: {error}")
         dossier, dossier_rejections = validate_temporal_dossier(
             raw, context_text=context, cutoff=self.timestamps[-1],
             future_timestamps=future_timestamps, history=self.values,

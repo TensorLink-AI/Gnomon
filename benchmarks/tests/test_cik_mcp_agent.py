@@ -1937,19 +1937,19 @@ def test_categorical_state_front_door_skips_llm_and_fits_governed_candidate(
 
     epoch = datetime(2024, 1, 1, tzinfo=timezone.utc)
     stamps = [(epoch + timedelta(days=index)).isoformat()
-              for index in range(20)]
-    states = (["open"] * 4 + ["closed"] * 4) * 2
+              for index in range(16)]
+    states = ["open" if index % 2 == 0 else "closed" for index in range(12)]
     values = [20.0 if state == "open" else 5.0 for state in states]
-    scenario = "\n".join([
-        "At the beginning of the series, the service was open.",
-        f"At {stamps[4]}, the service became closed.",
-        f"At {stamps[8]}, the service became open.",
-        f"At {stamps[12]}, the service became closed.",
-        f"At {stamps[16]}, we expect that the service will become open.",
-        f"At {stamps[18]}, we expect that the service will become closed.",
-    ])
+    scenario_lines = [
+        "At the beginning of the series, the service was open."]
+    for index in range(1, 16):
+        state = "open" if index % 2 == 0 else "closed"
+        future_wording = "we expect that the service will become" \
+            if index >= 12 else "the service became"
+        scenario_lines.append(f"At {stamps[index]}, {future_wording} {state}.")
+    scenario = "\n".join(scenario_lines)
     task = SimpleNamespace(
-        past_time=list(zip(stamps[:16], values)), future_time=stamps[16:20],
+        past_time=list(zip(stamps[:12], values)), future_time=stamps[12:16],
         background="Daily service volume.", scenario=scenario,
         constraints=None, name="StateScheduleTask", seed=1)
     client = ScriptedClient(
@@ -1972,6 +1972,51 @@ def test_categorical_state_front_door_skips_llm_and_fits_governed_candidate(
         "governed_categorical_state_mapping")
     assert extra["publication"]["primary_forecast_unchanged"] is True
     assert extra["publication"]["automation"]["eligible"] is False
+
+
+def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
+    from datetime import datetime, timedelta, timezone
+
+    epoch = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    stamps = [(epoch + timedelta(days=index)).isoformat()
+              for index in range(20)]
+    scenario = "\n".join([
+        "At the beginning of the series, the service was open.",
+        f"At {stamps[4]}, the service became closed.",
+        f"At {stamps[8]}, the service became open.",
+        f"At {stamps[12]}, the service became closed.",
+        f"At {stamps[16]}, we expect that the service will become open.",
+    ])
+    task = SimpleNamespace(
+        past_time=list(zip(stamps[:16], [float(index) for index in range(16)])),
+        future_time=stamps[16:20], background="Daily service volume.",
+        scenario=scenario, constraints=None, name="StateShadowTask", seed=1)
+    candidate = {"forecast_candidate": {"quantiles": [
+        {"timestamp": timestamp, "q10": 14 + index,
+         "q50": 16 + index, "q90": 18 + index}
+        for index, timestamp in enumerate(stamps[16:20])],
+        "rationale": "Trend continuation with state uncertainty."}}
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        json.dumps(candidate))
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="llm_candidate_shadow")
+
+    _, extra = forecaster(task, 1)
+
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    origins = [(item.get("candidate_critique") or {}).get("candidate_origin")
+               for item in receipt["dossiers"]]
+    assert origins == ["governed_categorical_state_mapping", "model_authored"]
+    assert receipt["compiler"]["model_candidate_status"] == (
+        "accepted")
+    assert len(client.completion_prompts) == 1
+    assert "failed governed state replay remains explicit counterevidence" in (
+        " ".join(client.completion_prompts[0].split()))
 
 
 def test_literal_zero_claim_uses_deterministic_override_lane(tmp_path):

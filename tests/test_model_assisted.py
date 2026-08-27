@@ -66,6 +66,55 @@ def test_a_candidate_that_never_beat_the_baseline_earns_no_lane() -> None:
     assert lane is None and disclosure is None and evidence is None
 
 
+def test_short_seasonal_baseline_can_earn_only_the_assisted_lane() -> None:
+    cycle = [0.0, 2.0, 8.0, 2.0]
+    values = cycle * 3
+    assessment = _assessment(selection_scores={
+        "last_value": 4.0, "seasonal_naive": 0.0, "theta": 5.0})
+    lane, _, _ = build_model_assisted_lane(
+        "load", values, horizon=4, season=4,
+        future_timestamps=_stamps(4), assessment=assessment,
+        published_support="best_effort", selected_model="last_value")
+    assert lane is not None
+    assert lane["selected_model"] == "seasonal_naive"
+    assert lane["points"] == cycle
+    assert lane["automation_eligible"] is False
+    assert lane["primary_forecast_unchanged"] is True
+
+
+def test_complete_cycle_prequential_evidence_admits_stable_seasonality() -> None:
+    cycle = [100.0, 101.0, 108.0, 102.0, 96.0, 94.0, 97.0, 99.0]
+    values = cycle + [value + .1 for value in cycle]
+    lane, _, _ = build_model_assisted_lane(
+        "load", values, horizon=16, season=8,
+        future_timestamps=_stamps(16), assessment=_assessment(),
+        published_support="best_effort", selected_model="last_value")
+    assert lane is not None
+    assert lane["selected_model"] == "seasonal_naive"
+    assert lane["validation"]["basis"] == "full_cycle_prequential"
+    assert lane["validation"]["complete_phase_coverage"] is True
+    assert lane["validation"]["phase_block_wins"] >= 3
+
+
+def test_complete_cycle_gate_rarely_admits_unrelated_random_walks() -> None:
+    import random
+
+    admitted = 0
+    for seed in range(200):
+        rng = random.Random(seed)
+        values = [100.0]
+        for _ in range(47):
+            values.append(values[-1] + rng.gauss(0, 1))
+        lane, _, _ = build_model_assisted_lane(
+            "noise", values, horizon=48, season=24,
+            future_timestamps=_stamps(48), assessment=_assessment(),
+            published_support="best_effort", selected_model="last_value")
+        if lane is not None and lane["selected_model"] == "seasonal_naive" \
+                and lane["validation"]["basis"] == "full_cycle_prequential":
+            admitted += 1
+    assert admitted <= 10
+
+
 def test_lane_stays_absent_when_a_candidate_was_published_as_primary() -> None:
     values = [float(v) for v in range(1, 17)]
     lane, _, _ = build_model_assisted_lane(

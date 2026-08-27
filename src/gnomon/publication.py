@@ -173,6 +173,20 @@ def dominant_scenario_id(scenarios: list[dict[str, Any]]) -> str | None:
         # number-free model ranking. The model may explain it, not silently
         # replace it with an unsupported sealed path.
         return str(observation[0]["scenario_id"])
+    seasonal_assisted = [
+        item for item in scenarios
+        if item.get("role") == "model_assisted"
+        and item.get("human_selection_eligible") is True
+        and ((item.get("effect") or {}).get("validation") or {}).get(
+            "basis") == "full_cycle_prequential"
+        and ((item.get("effect") or {}).get("validation") or {}).get(
+            "complete_phase_coverage") is True]
+    if len(seasonal_assisted) == 1:
+        # This is a predeclared structured baseline, not a winner selected
+        # from an expanding model tournament. A complete, fold-safe phase
+        # sweep already made the numeric choice; an LLM may explain it but
+        # cannot inconsistently demote it in best-effort publication.
+        return str(seasonal_assisted[0]["scenario_id"])
     source_determined_scenarios = [item for item in scenarios
                        if item.get("role") == "effect_composed"
                        and item.get("support") == "hypothetical_sensitivity"
@@ -519,6 +533,43 @@ def build_scenario_catalog(result: dict[str, Any], *,
         automation_eligible=_path_support(primary, support) in {
             "supported", "context_trusted"},
     )]
+    model_assisted = result.get("model_assisted") or {}
+    assisted_points = model_assisted.get("points") or []
+    if (isinstance(model_assisted, dict)
+            and len(assisted_points) == len(primary) and primary):
+        assisted_rows: list[dict[str, Any]] = []
+        for row, raw_point in zip(primary, assisted_points):
+            point = float(raw_point)
+            centre = float(row.get("q50", row.get("point", point)))
+            assisted_rows.append({
+                "timestamp": row["timestamp"], "point": point,
+                # The point lane deliberately owns no calibrated intervals.
+                # For a bounded human comparison, preserve the immutable
+                # primary's uncertainty offsets rather than inventing a new
+                # spread or presenting a zero-width distribution.
+                "q10": point + float(row.get("q10", centre)) - centre,
+                "q50": point,
+                "q90": point + float(row.get("q90", centre)) - centre,
+            })
+        scenarios.append(_scenario(
+            "model-assisted", "model_assisted", assisted_rows,
+            support=str(model_assisted.get("support") or "prior_assisted"),
+            automation_eligible=False, selection_eligible=True,
+            human_selection_eligible=True,
+            assumptions=[
+                "The point path won only the disclosed reduced-rigor "
+                "out-of-sample comparison.",
+                "Scenario interval offsets are inherited from the immutable "
+                "primary and are not independently calibrated for this path.",
+            ],
+            effect={
+                "candidate_origin": "model_assisted",
+                "validation": model_assisted.get("validation") or {},
+                "plausibility": model_assisted.get("plausibility") or {},
+                "selected_model": model_assisted.get("selected_model"),
+                "interval_basis": "immutable_primary_offsets",
+            },
+        ))
     dispositions: list[dict[str, Any]] = []
     transformation_dispositions = [{
         "context_id": str(item.get("transformation_id") or
@@ -1022,6 +1073,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
             "fitted_context_candidate": 80,
             "governed_companion_mapping": 80,
             "governed_categorical_state_mapping": 80,
+            "model_assisted": 78,
             "effect_composed": 70,
             "model_authored": 60,
             "observation_counterfactual": 75,
@@ -1262,7 +1314,10 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
             "name is provenance, not proof: compare candidate_validation, "
             "evidence volume, shrinkage, assumptions and path shape. Treat "
             "preliminary_short_replay as useful but insufficient evidence, "
-            "not automatic dominance over another bounded human-only path. Give "
+            "not automatic dominance over another bounded human-only path. "
+            "Only a scenario whose human_selection_eligible field is true may "
+            "be selected; every ineligible scenario must rank below every "
+            "eligible scenario, while remaining visible as counterevidence. Give "
             "confidence and state what "
             "would change the selection. Do not output forecast numbers, "
             "support labels, or automation advice."),

@@ -661,6 +661,8 @@ def test_model_authored_path_cannot_bypass_governed_transform_authority():
     assert all(item["scenario_id"] != "prior-assisted-1"
                or item["human_selection_eligible"] is False
                for item in contract["scenarios"])
+    assert "every ineligible scenario must rank below every eligible" in (
+        contract["instruction"])
 
 
 def test_single_validated_declarative_transform_is_evidence_dominant():
@@ -687,6 +689,45 @@ def test_single_validated_declarative_transform_is_evidence_dominant():
         scenarios=payload["candidate_portfolio"], dossiers=[_dossier()])
     assert contract["selection_required"] is False
     assert contract["deterministic_scenario_id"] == "transformation-1"
+
+
+def test_model_assisted_point_lane_is_a_bounded_human_scenario():
+    result = _result()
+    result["model_assisted"] = {
+        "support": "prior_assisted", "selected_model": "seasonal_naive",
+        "points": [12.0 for _ in result["forecast"]],
+        "validation": {"basis": "single_trailing_holdout",
+                       "out_of_sample_steps": 2},
+        "plausibility": {"valid": True},
+        "automation_eligible": False, "primary_forecast_unchanged": True,
+    }
+    scenarios, _ = build_scenario_catalog(result)
+    assisted = next(item for item in scenarios
+                    if item["scenario_id"] == "model-assisted")
+    assert assisted["human_selection_eligible"] is True
+    assert assisted["automation_eligible"] is False
+    assert assisted["effect"]["selected_model"] == "seasonal_naive"
+    assert assisted["effect"]["interval_basis"] == (
+        "immutable_primary_offsets")
+    assert all(row["q50"] == 12.0 for row in assisted["forecast"])
+    assert all(row["q90"] - row["q10"] == 2.0
+               for row in assisted["forecast"])
+
+
+def test_full_cycle_seasonal_evidence_is_deterministic_in_best_effort():
+    result = _result()
+    result["model_assisted"] = {
+        "support": "prior_assisted", "selected_model": "seasonal_naive",
+        "points": [12.0 for _ in result["forecast"]],
+        "validation": {"basis": "full_cycle_prequential",
+                       "complete_phase_coverage": True,
+                       "relative_improvement": .7,
+                       "phase_block_wins": 4},
+        "plausibility": {"valid": True},
+        "automation_eligible": False, "primary_forecast_unchanged": True,
+    }
+    scenarios, _ = build_scenario_catalog(result)
+    assert dominant_scenario_id(scenarios) == "model-assisted"
 
 
 def test_unapplied_numeric_bound_does_not_own_the_full_recommendation():

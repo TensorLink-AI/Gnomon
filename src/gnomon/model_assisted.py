@@ -42,6 +42,9 @@ MODEL_ASSISTED_LANE_VERSION = "0.1"
 #: than the history), not to second-guess a candidate the evidence admitted.
 MAX_BOUNDARY_JUMP = 10.0
 MAX_SCALE_RATIO = 20.0
+SEASONAL_PREQUENTIAL_MARGIN = .25
+SEASONAL_PHASE_BLOCKS = 4
+SEASONAL_REQUIRED_BLOCK_WINS = 3
 
 
 def _plausible(values: list[float], candidate: list[float],
@@ -79,9 +82,17 @@ def _scored_candidate(assessment: Any) -> tuple[str, float, float] | None:
     baseline_score = scores.get(baseline)
     if baseline_score is None:
         return None
+    # ``seasonal_naive`` is a structured baseline, but when the governed
+    # short-history floor is ``last_value`` it is also the cheapest useful
+    # temporal prior available.  It may enter this explicitly non-automatable
+    # lane on the same out-of-sample evidence as an incremental model; it does
+    # not replace the stricter primary-selection rule.
     valid = {
         name: float(score) for name, score in scores.items()
-        if score is not None and name not in BASELINES and name in MODELS
+        if score is not None and name in MODELS
+        and name != baseline
+        and (name not in BASELINES
+             or (baseline == "last_value" and name == "seasonal_naive"))
     }
     if not valid:
         return None
@@ -118,7 +129,8 @@ def _holdout_candidate(values: list[float], horizon: int,
         return None
     best: tuple[str, float] | None = None
     for name in sorted(MODELS):
-        if name in BASELINES:
+        if name == "last_value" or (
+                name in BASELINES and name != "seasonal_naive"):
             continue
         try:
             score = error_score(actual, predict(name, train, holdout, season))
@@ -131,6 +143,62 @@ def _holdout_candidate(values: list[float], horizon: int,
     if best is None:
         return None
     return best[0], best[1], float(baseline_score), holdout
+
+
+def _seasonal_prequential_candidate(
+        values: list[float], season: int) -> dict[str, Any] | None:
+    """Admit one predeclared seasonal baseline over a complete past cycle.
+
+    Every one-step prediction is made from observations strictly before its
+    origin.  Requiring a complete phase sweep and wins in three of four phase
+    blocks prevents a single favourable segment from standing in for a cycle.
+    This is still only one held-out cycle, so the result remains prior-assisted
+    and never becomes automation evidence.
+    """
+    if season < 4 or len(values) < 2 * season:
+        return None
+    start = len(values) - season
+    actual = values[start:]
+    seasonal = [values[index - season]
+                for index in range(start, len(values))]
+    last = [values[index - 1] for index in range(start, len(values))]
+    seasonal_errors = [abs(float(a) - float(p))
+                       for a, p in zip(actual, seasonal)]
+    last_errors = [abs(float(a) - float(p))
+                   for a, p in zip(actual, last)]
+    seasonal_mae = sum(seasonal_errors) / season
+    last_mae = sum(last_errors) / season
+    if last_mae <= 1e-12:
+        return None
+    block_wins = 0
+    for block in range(SEASONAL_PHASE_BLOCKS):
+        left = block * season // SEASONAL_PHASE_BLOCKS
+        right = (block + 1) * season // SEASONAL_PHASE_BLOCKS
+        if right > left and (
+                sum(seasonal_errors[left:right]) / (right - left)
+                < sum(last_errors[left:right]) / (right - left)):
+            block_wins += 1
+    relative_improvement = (last_mae - seasonal_mae) / last_mae
+    admitted = (
+        relative_improvement >= SEASONAL_PREQUENTIAL_MARGIN
+        and block_wins >= SEASONAL_REQUIRED_BLOCK_WINS)
+    if not admitted:
+        return None
+    return {
+        "basis": "full_cycle_prequential",
+        "out_of_sample_steps": season,
+        "comparisons": season,
+        "candidate_score": seasonal_mae,
+        "baseline_score": last_mae,
+        "baseline": "last_value",
+        "relative_improvement": relative_improvement,
+        "phase_blocks": SEASONAL_PHASE_BLOCKS,
+        "phase_block_wins": block_wins,
+        "required_phase_block_wins": SEASONAL_REQUIRED_BLOCK_WINS,
+        "required_margin": SEASONAL_PREQUENTIAL_MARGIN,
+        "complete_phase_coverage": True,
+        "scores_are_evidence_not_a_ranking": True,
+    }
 
 
 def build_model_assisted_lane(
@@ -156,9 +224,16 @@ def build_model_assisted_lane(
     candidate: str | None = None
     validation: dict[str, Any] | None = None
     evidence_steps = 0
+    if selected_model == "last_value":
+        seasonal_validation = _seasonal_prequential_candidate(values, season)
+        if seasonal_validation is not None:
+            candidate = "seasonal_naive"
+            validation = seasonal_validation
+            evidence_steps = season
     if (assessment is not None
             and getattr(assessment, "selection_guardrail_applied", False)
-            and selected_model == assessment.strongest_baseline):
+            and selected_model == assessment.strongest_baseline
+            and candidate is None):
         scored = _scored_candidate(assessment)
         if scored is not None:
             candidate, candidate_score, baseline_score = scored
@@ -176,7 +251,7 @@ def build_model_assisted_lane(
                 "baseline": assessment.strongest_baseline,
                 "scores_are_evidence_not_a_ranking": True,
             }
-    elif published_support == "best_effort":
+    elif published_support == "best_effort" and candidate is None:
         held = _holdout_candidate(values, horizon, season)
         if held is not None:
             candidate, candidate_score, baseline_score, evidence_steps = held

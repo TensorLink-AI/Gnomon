@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- Expose an out-of-sample-winning short-history seasonal-naive path through
+  the existing model-assisted lane instead of forcing the strict primary to
+  abandon its last-value guardrail. Best-effort publication may rank this
+  human-review-only path; its display intervals retain the primary's offsets,
+  are explicitly not candidate-calibrated, and can never authorize automation.
+- Make that seasonal best-effort choice deterministic only after a fold-safe
+  prequential sweep covers every phase of a complete held-out cycle, clears a
+  25% margin over last value, and wins at least three of four phase blocks.
+  Independent random-walk seeds guard its false-admission rate.
+- Let best-effort context publication request one sealed model-authored state
+  forecast after the governed categorical executable fails replay. The model
+  sees the failed validation as counterevidence; its path remains a distinct,
+  human-review-only candidate and cannot mutate the primary, upgrade support,
+  or authorize automation.
+- Make the scenario-ranking contract explicit that historically rejected or
+  otherwise ineligible paths remain visible counterevidence but cannot outrank
+  a human-eligible path. The verifier remains fail-closed if a selector ignores
+  that rule.
 - Add a governed short-history companion-path executable. It fits only a
   robust contemporaneous level difference, evaluates that mapping on
   expanding origins against last value, emits explicit uncertainty and a
