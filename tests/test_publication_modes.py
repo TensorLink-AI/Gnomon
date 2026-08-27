@@ -65,6 +65,24 @@ def test_strict_never_promotes_prior_assisted_candidate():
     assert verify_publication(payload)
 
 
+def test_candidate_distance_from_primary_is_sealed_and_non_authoritative():
+    scenarios, _ = build_scenario_catalog(_result(), dossiers=[_dossier()])
+    candidate = next(item for item in scenarios
+                     if item["role"] == "model_authored")
+    disagreement = candidate["effect"]["primary_disagreement"]
+    assert disagreement == {
+        "available": True,
+        "interpretation": "difference_not_skill",
+        "scale_basis": "median_primary_q80_width",
+        "median_absolute_difference_scaled": .75,
+        "max_absolute_difference_scaled": 1.0,
+        "direction_disagreement_fraction": 1.0,
+    }
+    assert candidate["support"] == "prior_assisted"
+    assert candidate["automation_eligible"] is False
+    assert candidate["scenario_seal_sha256"]
+
+
 def test_claims_only_context_is_retained_without_claiming_numeric_use():
     span = "A comparable site reached 120 last summer."
     dossier, reasons = validate_temporal_dossier({
@@ -737,8 +755,11 @@ def test_full_cycle_seasonal_evidence_is_deterministic_in_best_effort():
 
 def test_best_effort_sampled_prior_policy_is_human_only_and_mode_specific():
     dossier = _dossier()
+    for row in dossier["forecast_candidate"]["quantiles"]:
+        row["q10"] = row["q50"]
+        row["q90"] = row["q50"]
     dossier["forecast_candidate"]["elicitation"] = {
-        "kind": "independent_point_path_sampling", "requested_paths": 5,
+        "kind": "sampled_point_paths", "requested_paths": 5,
         "accepted_paths": 4,
         "aggregation": "linear_empirical_marginal_q10_q50_q90",
         "temperature": 1.0, "host_observed": True,
@@ -750,6 +771,15 @@ def test_best_effort_sampled_prior_policy_is_human_only_and_mode_specific():
     dossier["seal_sha256"] = hashlib.sha256(json.dumps(
         body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     scenarios, _ = build_scenario_catalog(_result(), dossiers=[dossier])
+    sampled = next(item for item in scenarios
+                   if item["scenario_id"] == "prior-assisted-1")
+    assert [row["q50"] for row in sampled["forecast"]] == [11.0, 12.0]
+    assert all(row["q90"] - row["q10"] == 2.0
+               for row in sampled["forecast"])
+    normalization = sampled["effect"]["uncertainty_normalization"]
+    assert normalization["rows_widened"] == 2
+    assert normalization["candidate_centre_unchanged"] is True
+    assert normalization["primary_forecast_unchanged"] is True
     selection = best_effort_prior_selection(
         scenarios=scenarios, dossiers=[dossier])
     assert selection is not None

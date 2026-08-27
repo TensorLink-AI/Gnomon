@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Seal host-computed, scale-free sampled-prior stability diagnostics: marginal
+  dispersion, pairwise path disagreement and temporal-direction agreement.
+  These facts are visible to agents and humans as uncertainty evidence but are
+  explicitly barred from masquerading as historical skill, support upgrades,
+  or automation authority.
+- Prevent a small set of model path samples from presenting zero-width or
+  spuriously narrow tails as calibrated uncertainty. The sampled median stays
+  unchanged, while the published conditional scenario retains the wider of
+  its empirical tail offsets and the immutable primary's per-timestamp
+  offsets; the derivation is explicit and resealed, and neither source path is
+  mutated.
 - Elicit categorical best-effort model priors as five independent point paths
   in one bounded request, validate each draw against the host-owned grid, and
   derive marginal q10/q50/q90 deterministically. This replaces unreliable
@@ -20,7 +31,7 @@
   candidate dossier and expose them to bounded selection as stability context,
   explicitly not as historical skill or automation evidence.
 - Make an explicit `best_effort` request choose one valid host-sampled prior
-  when at least three independent paths survived validation and no governed
+  when at least three sampled paths survived validation and no governed
   path dominates. Strict mode still publishes primary, scenario mode retains
   choice, support remains `prior_assisted`, and automation remains forbidden.
 - Label that choice as an explicit best-effort policy action rather than an

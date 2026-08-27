@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import statistics
 from pathlib import Path
 from typing import Any, Literal
 
@@ -296,6 +297,99 @@ def _candidate_rows(candidate: dict[str, Any], primary: list[dict[str, Any]]) \
         rows[index].update({key: float(anchor[key])
                             for key in ("q10", "q50", "q90")})
     return rows
+
+
+def _primary_disagreement(
+    candidate: list[dict[str, Any]], primary: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Describe candidate distance from primary without implying either wins."""
+    if not candidate or len(candidate) != len(primary):
+        return {"available": False, "reason": "unaligned_paths"}
+    candidate_points = [float(row.get("q50", row.get("point")))
+                        for row in candidate]
+    primary_points = [float(row.get("q50", row.get("point")))
+                      for row in primary]
+    widths = [abs(float(row.get("q90", point)) -
+                  float(row.get("q10", point)))
+              for row, point in zip(primary, primary_points)]
+    positive_widths = [value for value in widths if value > 0]
+    if positive_widths:
+        scale = statistics.median(positive_widths)
+        scale_basis = "median_primary_q80_width"
+    else:
+        increments = [abs(right - left) for left, right in
+                      zip(primary_points, primary_points[1:])
+                      if right != left]
+        if increments:
+            scale = statistics.median(increments)
+            scale_basis = "median_nonzero_primary_increment"
+        else:
+            scale = max(1.0, abs(statistics.median(primary_points)) * .01)
+            scale_basis = "primary_level_floor"
+    scaled = [abs(candidate_point - primary_point) / max(scale, 1e-12)
+              for candidate_point, primary_point in
+              zip(candidate_points, primary_points)]
+    direction_disagreements = []
+    tolerance = max(scale, 1e-12) * 1e-6
+    for cp0, cp1, pp0, pp1 in zip(
+            candidate_points, candidate_points[1:],
+            primary_points, primary_points[1:]):
+        candidate_sign = 1 if cp1 - cp0 > tolerance else \
+            -1 if cp1 - cp0 < -tolerance else 0
+        primary_sign = 1 if pp1 - pp0 > tolerance else \
+            -1 if pp1 - pp0 < -tolerance else 0
+        direction_disagreements.append(candidate_sign != primary_sign)
+    return {
+        "available": True,
+        "interpretation": "difference_not_skill",
+        "scale_basis": scale_basis,
+        "median_absolute_difference_scaled": statistics.median(scaled),
+        "max_absolute_difference_scaled": max(scaled),
+        "direction_disagreement_fraction": (
+            sum(direction_disagreements) / len(direction_disagreements)
+            if direction_disagreements else 0.0),
+    }
+
+
+def _normalize_sampled_prior_uncertainty(
+    candidate: list[dict[str, Any]], primary: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Prevent a handful of LLM draws from masquerading as calibrated tails.
+
+    The candidate median remains untouched.  Each tail retains the wider of
+    the empirical sampled offset and the immutable primary's offset at that
+    timestamp.  The derived scenario is resealed and carries this rule in its
+    effect metadata; neither source path is mutated.
+    """
+    if not candidate or len(candidate) != len(primary):
+        return candidate, {"applied": False, "reason": "unaligned_paths"}
+    rows = []
+    widened = 0
+    for candidate_row, primary_row in zip(candidate, primary):
+        if str(candidate_row.get("timestamp")) != str(primary_row.get("timestamp")):
+            return candidate, {"applied": False, "reason": "unaligned_timestamps"}
+        centre = float(candidate_row.get("q50", candidate_row.get("point")))
+        lower = float(candidate_row.get("q10", centre))
+        upper = float(candidate_row.get("q90", centre))
+        primary_centre = float(primary_row.get(
+            "q50", primary_row.get("point")))
+        primary_lower = float(primary_row.get("q10", primary_centre))
+        primary_upper = float(primary_row.get("q90", primary_centre))
+        resolved_lower = centre - max(centre - lower,
+                                      primary_centre - primary_lower)
+        resolved_upper = centre + max(upper - centre,
+                                      primary_upper - primary_centre)
+        widened += int(resolved_lower < lower or resolved_upper > upper)
+        rows.append({**candidate_row, "q10": resolved_lower,
+                     "q50": centre, "q90": resolved_upper})
+    return rows, {
+        "applied": True,
+        "basis": "max_sampled_and_immutable_primary_offsets_per_timestamp",
+        "candidate_centre_unchanged": True,
+        "primary_forecast_unchanged": True,
+        "rows_widened": widened,
+        "interpretation": "uncertainty_floor_not_skill_evidence",
+    }
 
 
 def _scenario(identifier: str, role: str, rows: list[dict[str, Any]], *,
@@ -1020,6 +1114,14 @@ def build_scenario_catalog(result: dict[str, Any], *,
                     and replay_insufficient_only
                     and not governed_by_transformation
                     and not governed_by_deterministic_claim))
+            candidate_rows = _candidate_rows(candidate, primary)
+            uncertainty_normalization = None
+            if (candidate_origin == "model_authored"
+                    and (candidate.get("elicitation") or {}).get(
+                        "kind") == "sampled_point_paths"):
+                candidate_rows, uncertainty_normalization = (
+                    _normalize_sampled_prior_uncertainty(
+                        candidate_rows, primary))
             scenarios.append(_scenario(
                 identifier,
                 ("calibration_counterfactual" if
@@ -1030,7 +1132,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
                      "governed_companion_mapping",
                      "governed_categorical_state_mapping"} else
                  "model_authored"),
-                _candidate_rows(candidate, primary),
+                candidate_rows,
                 support=("conditionally_supported" if replay_admitted
                          else "prior_assisted"), automation_eligible=False,
                 selection_eligible=selection_eligible,
@@ -1058,6 +1160,9 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 effect={
                     "candidate_origin": candidate_origin,
                     "elicitation": candidate.get("elicitation") or {},
+                    "primary_disagreement": _primary_disagreement(
+                        candidate_rows, primary),
+                    "uncertainty_normalization": uncertainty_normalization,
                     "governed_companion_evidence": governed_companion_evidence,
                     "conditional_replay": conditional_replay,
                     "calibration_replay": calibration_replay,

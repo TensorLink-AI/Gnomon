@@ -48,6 +48,7 @@ from benchmarks.cik.mcp_agent import (
     _extract_structured_companion_tables,
     _extract_categorical_state_schedule,
     _candidate_from_sampled_paths,
+    _sample_path_stability,
     _sampled_state_prior_prompt,
 )
 
@@ -70,14 +71,23 @@ def test_sampled_paths_are_host_bound_and_aggregated_without_dependencies():
     outputs = [json.dumps({"forecast_path": {
         "values": [base, base + 10], "rationale": f"draw {base}"}})
         for base in (1, 2, 3, 4, 100)]
-    candidate, diagnostics = _candidate_from_sampled_paths(outputs, future)
+    candidate, diagnostics = _candidate_from_sampled_paths(
+        outputs, future, history_values=[0, 10, 20, 30])
     assert candidate is not None
-    assert diagnostics == {
+    assert {key: diagnostics[key] for key in (
+        "requested", "accepted", "rejected", "rejection_reasons",
+        "aggregation", "timestamp_binding")} == {
         "requested": 5, "accepted": 5, "rejected": 0,
         "rejection_reasons": [],
         "aggregation": "linear_empirical_marginal_q10_q50_q90",
         "timestamp_binding": "host_grid_order",
     }
+    stability = diagnostics["stability"]
+    assert stability["interpretation"] == "stability_not_historical_skill"
+    assert stability["path_count"] == 5
+    assert stability["horizon"] == 2
+    assert stability["median_pairwise_mae_scaled"] > 0
+    assert stability["mean_direction_agreement"] == 1
     assert [row["timestamp"] for row in candidate["quantiles"]] == future
     assert [row["q50"] for row in candidate["quantiles"]] == [3.0, 13.0]
     assert candidate["quantiles"][0]["q10"] == pytest.approx(1.4)
@@ -98,6 +108,28 @@ def test_sampled_path_aggregation_rejects_bad_draws_independently():
     assert diagnostics["rejected"] == 3
     assert candidate["quantiles"][0] == {
         "timestamp": "t1", "q10": 1.0, "q50": 1.0, "q90": 1.0}
+    assert diagnostics["stability"]["path_count"] == 1
+    assert diagnostics["stability"]["median_pairwise_mae_scaled"] == 0
+
+
+def test_sample_stability_is_affine_scale_invariant_and_shape_sensitive():
+    paths = [[1, 2, 4, 7], [1, 3, 5, 8], [1, 2.5, 4.5, 7.5]]
+    history = [0, 1, 2, 3, 4]
+    original = _sample_path_stability(paths, history)
+    transformed = _sample_path_stability(
+        [[100 + 20 * value for value in path] for path in paths],
+        [100 + 20 * value for value in history])
+    for key in (
+        "median_pointwise_q80_width_scaled",
+        "p90_pointwise_q80_width_scaled",
+        "median_pairwise_mae_scaled", "max_pairwise_mae_scaled",
+        "mean_direction_agreement", "unanimous_direction_fraction",
+    ):
+        assert transformed[key] == pytest.approx(original[key])
+    conflicting = _sample_path_stability(
+        [[1, 2, 3], [1, 2, 3], [3, 2, 1]], history)
+    assert conflicting["mean_direction_agreement"] < 1
+    assert conflicting["unanimous_direction_fraction"] == 0
 
 
 def test_sampled_prior_prompt_separates_numeric_task_from_raw_replay_dump():

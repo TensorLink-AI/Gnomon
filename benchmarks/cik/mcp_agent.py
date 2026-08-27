@@ -853,10 +853,76 @@ def _empirical_quantile(values: list[float], probability: float) -> float:
     return ordered[left] + (ordered[right] - ordered[left]) * weight
 
 
+def _sample_path_stability(
+    paths: list[list[float]], history_values: list[float] | None,
+) -> dict[str, Any]:
+    """Summarize elicitation dispersion without treating it as forecast skill.
+
+    All quantities are host-computed and scale-free.  They intentionally make
+    no admission decision: agreement among repeated model draws is useful
+    uncertainty evidence, but it is not historical validation.
+    """
+    history = [float(value) for value in history_values or []
+               if math.isfinite(float(value))]
+    increments = [abs(right - left) for left, right in zip(history, history[1:])
+                  if abs(right - left) > 0]
+    if increments:
+        scale = statistics.median(increments)
+        scale_basis = "median_nonzero_history_increment"
+    elif len(history) >= 2 and max(history) > min(history):
+        scale = max(history) - min(history)
+        scale_basis = "history_range"
+    else:
+        scale = max(1.0, abs(statistics.median(history)) * .01) if history else 1.0
+        scale_basis = "level_floor"
+    scale = max(float(scale), 1e-12)
+
+    widths = []
+    for index in range(len(paths[0])):
+        values = [path[index] for path in paths]
+        widths.append((_empirical_quantile(values, .9) -
+                       _empirical_quantile(values, .1)) / scale)
+    pairwise = []
+    for left_index, left in enumerate(paths):
+        for right in paths[left_index + 1:]:
+            pairwise.append(statistics.mean(
+                abs(a - b) for a, b in zip(left, right)) / scale)
+
+    direction_agreement = []
+    tolerance = scale * 1e-6
+    for index in range(1, len(paths[0])):
+        signs = []
+        for path in paths:
+            change = path[index] - path[index - 1]
+            signs.append(1 if change > tolerance else
+                         -1 if change < -tolerance else 0)
+        direction_agreement.append(max(signs.count(-1), signs.count(0),
+                                       signs.count(1)) / len(signs))
+    return {
+        "version": "0.1",
+        "interpretation": "stability_not_historical_skill",
+        "scale_basis": scale_basis,
+        "path_count": len(paths),
+        "horizon": len(paths[0]),
+        "median_pointwise_q80_width_scaled": statistics.median(widths),
+        "p90_pointwise_q80_width_scaled": _empirical_quantile(widths, .9),
+        "median_pairwise_mae_scaled": (
+            statistics.median(pairwise) if pairwise else 0.0),
+        "max_pairwise_mae_scaled": max(pairwise) if pairwise else 0.0,
+        "mean_direction_agreement": (
+            statistics.mean(direction_agreement)
+            if direction_agreement else 1.0),
+        "unanimous_direction_fraction": (
+            sum(value == 1.0 for value in direction_agreement) /
+            len(direction_agreement) if direction_agreement else 1.0),
+    }
+
+
 def _candidate_from_sampled_paths(
     outputs: list[str], future_timestamps: list[str],
+    *, history_values: list[float] | None = None,
 ) -> tuple[dict[str, Any] | None, dict[str, Any]]:
-    """Validate independent point paths and aggregate their marginal quantiles.
+    """Validate sampled point paths and aggregate their marginal quantiles.
 
     Timestamps remain host-owned: completions return only values in the exact
     requested order. Invalid draws are rejected independently so one malformed
@@ -899,6 +965,8 @@ def _candidate_from_sampled_paths(
     }
     if not accepted:
         return None, diagnostics
+    diagnostics["stability"] = _sample_path_stability(
+        accepted, history_values)
     rows = []
     for index, timestamp in enumerate(future_timestamps):
         values = [path[index] for path in accepted]
@@ -911,7 +979,7 @@ def _candidate_from_sampled_paths(
     candidate = {
         "quantiles": rows,
         "rationale": (
-            f"Host-aggregated {len(accepted)} independent model-authored "
+            f"Host-aggregated {len(accepted)} sampled model-authored "
             "point paths into empirical marginal quantiles. "
             + ("Sample rationales: " + " | ".join(rationales[:2])
                if rationales else "")),
@@ -4408,7 +4476,8 @@ class _Run:
                     n=MODEL_PRIOR_PATH_SAMPLES)
                 proposed, model_candidate_sampling = (
                     _candidate_from_sampled_paths(
-                        responses, future_timestamps))
+                        responses, future_timestamps,
+                        history_values=self.values))
                 if isinstance(proposed, dict):
                     model_candidate_proposal = proposed
                     model_candidate_status = (
@@ -4463,7 +4532,8 @@ class _Run:
                         accepted_paths=int(model_candidate_sampling[
                             "accepted"]),
                         aggregation=str(model_candidate_sampling[
-                            "aggregation"]), temperature=1.0)
+                            "aggregation"]), temperature=1.0,
+                        stability=model_candidate_sampling.get("stability"))
                 dossiers.append(model_dossier)
                 model_candidate_status = "accepted"
             else:

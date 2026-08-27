@@ -1542,6 +1542,7 @@ def verify_temporal_dossier_seal(dossier: dict[str, Any]) -> bool:
 def attach_host_candidate_elicitation(
     dossier: dict[str, Any], *, requested_paths: int, accepted_paths: int,
     aggregation: str, temperature: float,
+    stability: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Seal narrow host-observed elicitation metadata onto a model candidate.
 
@@ -1568,9 +1569,39 @@ def attach_host_candidate_elicitation(
     if not isinstance(temperature, (int, float)) or isinstance(temperature, bool) \
             or not math.isfinite(float(temperature)) or temperature < 0:
         raise ValueError("candidate elicitation temperature is invalid")
+    if stability is not None:
+        required = {
+            "version", "interpretation", "scale_basis", "path_count",
+            "horizon", "median_pointwise_q80_width_scaled",
+            "p90_pointwise_q80_width_scaled", "median_pairwise_mae_scaled",
+            "max_pairwise_mae_scaled", "mean_direction_agreement",
+            "unanimous_direction_fraction",
+        }
+        if set(stability) != required:
+            raise ValueError("candidate elicitation stability schema is invalid")
+        if (stability.get("version") != "0.1"
+                or stability.get("interpretation") !=
+                "stability_not_historical_skill"
+                or isinstance(stability.get("path_count"), bool)
+                or stability.get("path_count") != accepted_paths
+                or not isinstance(stability.get("horizon"), int)
+                or isinstance(stability.get("horizon"), bool)
+                or stability.get("horizon", 0) < 1):
+            raise ValueError("candidate elicitation stability identity is invalid")
+        numeric = [key for key in required if key.endswith("_scaled")]
+        numeric.extend(["mean_direction_agreement",
+                        "unanimous_direction_fraction"])
+        if any(isinstance(stability.get(key), bool)
+               or not isinstance(stability.get(key), (int, float))
+               or not math.isfinite(float(stability[key]))
+               or float(stability[key]) < 0 for key in numeric):
+            raise ValueError("candidate elicitation stability values are invalid")
+        if any(float(stability[key]) > 1 for key in
+               ("mean_direction_agreement", "unanimous_direction_fraction")):
+            raise ValueError("candidate elicitation agreement is invalid")
     updated = json.loads(json.dumps(dossier))
     updated["forecast_candidate"]["elicitation"] = {
-        "kind": "independent_point_path_sampling",
+        "kind": "sampled_point_paths",
         "requested_paths": requested_paths,
         "accepted_paths": accepted_paths,
         "aggregation": aggregation,
@@ -1578,6 +1609,8 @@ def attach_host_candidate_elicitation(
         "host_observed": True,
         "historical_skill_evidence": False,
         "automation_eligible": False,
+        **({"stability": json.loads(json.dumps(stability))}
+           if stability is not None else {}),
     }
     body = {key: value for key, value in updated.items()
             if key != "seal_sha256"}

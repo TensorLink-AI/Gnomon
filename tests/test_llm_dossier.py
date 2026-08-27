@@ -36,7 +36,7 @@ def test_only_host_can_attach_bounded_sampling_provenance():
         temperature=1)
     assert verify_temporal_dossier_seal(updated)
     assert updated["forecast_candidate"]["elicitation"] == {
-        "kind": "independent_point_path_sampling", "requested_paths": 5,
+        "kind": "sampled_point_paths", "requested_paths": 5,
         "accepted_paths": 4,
         "aggregation": "linear_empirical_marginal_q10_q50_q90",
         "temperature": 1.0, "host_observed": True,
@@ -48,6 +48,47 @@ def test_only_host_can_attach_bounded_sampling_provenance():
             dossier, requested_paths=3, accepted_paths=4,
             aggregation="linear_empirical_marginal_q10_q50_q90",
             temperature=1)
+
+
+def test_host_sampling_stability_is_sealed_but_cannot_upgrade_support():
+    span = "The promotion may increase demand."
+    raw = {
+        "claims": [{"source_span": span, "relation": "supports_increase",
+                    "effective_start": "2026-01-02T00:00:00+00:00",
+                    "effective_end": "2026-01-02T00:00:00+00:00",
+                    "confidence": 1}],
+        "forecast_candidate": {"quantiles": [
+            {"timestamp": "2026-01-02T00:00:00+00:00",
+             "q10": 9, "q50": 10, "q90": 11}],
+             "rationale": "bounded prior"},
+    }
+    dossier, _ = validate_temporal_dossier(
+        raw, context_text=span, cutoff="2026-01-01T00:00:00+00:00",
+        future_timestamps=["2026-01-02T00:00:00+00:00"],
+        history=[9.0, 10.0], compiler_model="test")
+    stability = {
+        "version": "0.1", "interpretation": "stability_not_historical_skill",
+        "scale_basis": "median_nonzero_history_increment", "path_count": 5,
+        "horizon": 1, "median_pointwise_q80_width_scaled": .2,
+        "p90_pointwise_q80_width_scaled": .2,
+        "median_pairwise_mae_scaled": .1, "max_pairwise_mae_scaled": .3,
+        "mean_direction_agreement": 1.0,
+        "unanimous_direction_fraction": 1.0,
+    }
+    updated = attach_host_candidate_elicitation(
+        dossier, requested_paths=5, accepted_paths=5,
+        aggregation="linear_empirical_marginal_q10_q50_q90",
+        temperature=1, stability=stability)
+    assert verify_temporal_dossier_seal(updated)
+    assert updated["forecast_candidate"]["elicitation"]["stability"] == stability
+    assert updated["candidate_support"] == "prior_assisted"
+    assert updated["automation_eligible"] is False
+    malformed = {**stability, "mean_direction_agreement": 1.1}
+    with pytest.raises(ValueError, match="agreement"):
+        attach_host_candidate_elicitation(
+            dossier, requested_paths=5, accepted_paths=5,
+            aggregation="linear_empirical_marginal_q10_q50_q90",
+            temperature=1, stability=malformed)
 
 
 def test_replay_positive_observation_executable_outranks_model_proposal():
