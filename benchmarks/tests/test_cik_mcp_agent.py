@@ -74,6 +74,7 @@ def test_sampled_paths_are_host_bound_and_aggregated_without_dependencies():
     candidate, diagnostics = _candidate_from_sampled_paths(
         outputs, future, history_values=[0, 10, 20, 30])
     assert candidate is not None
+    assert len(candidate["_validated_sample_paths"]) == 5
     assert {key: diagnostics[key] for key in (
         "requested", "accepted", "rejected", "rejection_reasons",
         "aggregation", "timestamp_binding", "request_mode")} == {
@@ -127,6 +128,7 @@ def test_sampled_paths_accept_conventional_forecast_tags_only_on_host_grid():
     assert diagnostics["accepted"] == 1
     assert diagnostics["rejected"] == 1
     assert [row["q50"] for row in candidate["quantiles"]] == [3.5, 4.5]
+    assert candidate["_validated_sample_paths"] == [[3.5, 4.5]]
 
 
 def test_sample_stability_is_affine_scale_invariant_and_shape_sensitive():
@@ -1169,7 +1171,7 @@ def test_structured_context_keeps_governed_and_model_candidates_separate(
         work_dir=str(tmp_path), trace_dir=tmp_path / "traces",
         profile="evidence", output_role="publication_best_effort")
 
-    _, extra = forecaster(task, 1)
+    samples, extra = forecaster(task, 3)
 
     roles = {item["role"] for item in extra["publication"][
         "candidate_portfolio"]}
@@ -1241,7 +1243,7 @@ def test_evidence_compiles_and_host_binds_context(tmp_path):
     forecaster = _forecaster(
         [call_forecast], tmp_path, sessions=sessions, profile="evidence",
         compiler_output=proposal)
-    _, extra = forecaster(task, 1)
+    samples, extra = forecaster(task, 3)
 
     assert extra["route"] == "gnomon"
     assert extra["context_compilation"]["event_count"] == 1
@@ -2109,7 +2111,7 @@ def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
         work_dir=str(tmp_path), profile="evidence",
         output_role="llm_candidate_shadow")
 
-    _, extra = forecaster(task, 1)
+    samples, extra = forecaster(task, 3)
 
     receipt = json.loads(Path(extra["context_compilation"][
         "receipt_path"]).read_text())
@@ -2122,6 +2124,23 @@ def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
     assert receipt["compiler"]["model_candidate_status"] == (
         "accepted")
     assert receipt["compiler"]["model_candidate_sampling"]["accepted"] == 5
+    model_candidate = receipt["dossiers"][1]["forecast_candidate"]
+    assert model_candidate["sample_paths"] == [
+        [16.0, 17.0, 18.0, 19.0]] * 5
+    assert extra["governed_distribution"] == {
+        "kind": "sealed_empirical_model_paths", "sample_count": 5,
+        "horizon": 4,
+        "source_seal_sha256": receipt["dossiers"][1]["seal_sha256"],
+        "compact_summary": "recommended_forecast",
+    }
+    # The lightweight unit-test environment need not install numpy; the
+    # official CiK environment returns the equivalent ndarray shape.
+    if hasattr(samples, "shape"):
+        assert samples.shape == (3, 4, 1)
+        resolved_samples = samples[:, :, 0].tolist()
+    else:
+        resolved_samples = [[row[0] for row in path] for path in samples]
+    assert resolved_samples == [[16.0, 17.0, 18.0, 19.0]] * 3
     assert client.completion_ns == [1] * 5
     assert client.completion_temperatures == [1] * 5
     assert client.completion_reasoning_efforts == [None] * 5

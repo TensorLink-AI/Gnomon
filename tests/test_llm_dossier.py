@@ -33,7 +33,7 @@ def test_only_host_can_attach_bounded_sampling_provenance():
     updated = attach_host_candidate_elicitation(
         dossier, requested_paths=5, accepted_paths=4,
         aggregation="linear_empirical_marginal_q10_q50_q90",
-        temperature=1)
+        temperature=1, sample_paths=[[10.0] for _ in range(4)])
     assert verify_temporal_dossier_seal(updated)
     assert updated["forecast_candidate"]["elicitation"] == {
         "kind": "sampled_point_paths", "requested_paths": 5,
@@ -44,11 +44,17 @@ def test_only_host_can_attach_bounded_sampling_provenance():
         "historical_skill_evidence": False, "automation_eligible": False,
     }
     assert dossier["forecast_candidate"].get("elicitation") is None
+    assert updated["forecast_candidate"]["sample_paths"] == [[10.0]] * 4
     with pytest.raises(ValueError, match="path counts"):
         attach_host_candidate_elicitation(
             dossier, requested_paths=3, accepted_paths=4,
             aggregation="linear_empirical_marginal_q10_q50_q90",
             temperature=1)
+    with pytest.raises(ValueError, match="horizon"):
+        attach_host_candidate_elicitation(
+            dossier, requested_paths=2, accepted_paths=2,
+            aggregation="linear_empirical_marginal_q10_q50_q90",
+            temperature=1, sample_paths=[[1.0], [1.0, 2.0]])
 
 
 def test_host_sampling_stability_is_sealed_but_cannot_upgrade_support():

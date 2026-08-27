@@ -1544,6 +1544,7 @@ def attach_host_candidate_elicitation(
     aggregation: str, temperature: float,
     stability: dict[str, Any] | None = None,
     request_mode: str = "batch_request",
+    sample_paths: list[list[float]] | None = None,
 ) -> dict[str, Any]:
     """Seal narrow host-observed elicitation metadata onto a model candidate.
 
@@ -1603,6 +1604,25 @@ def attach_host_candidate_elicitation(
         if any(float(stability[key]) > 1 for key in
                ("mean_direction_agreement", "unanimous_direction_fraction")):
             raise ValueError("candidate elicitation agreement is invalid")
+    clean_paths = None
+    if sample_paths is not None:
+        horizon = len(dossier["forecast_candidate"].get("quantiles") or [])
+        if (not isinstance(sample_paths, list)
+                or len(sample_paths) != accepted_paths or horizon < 1):
+            raise ValueError("candidate elicitation sample paths are invalid")
+        clean_paths = []
+        for path in sample_paths:
+            if not isinstance(path, list) or len(path) != horizon:
+                raise ValueError("candidate elicitation sample path horizon is invalid")
+            try:
+                clean = [float(value) for value in path]
+            except (TypeError, ValueError) as error:
+                raise ValueError(
+                    "candidate elicitation sample path contains a non-number") from error
+            if not all(math.isfinite(value) for value in clean):
+                raise ValueError(
+                    "candidate elicitation sample path contains a non-finite value")
+            clean_paths.append(clean)
     updated = json.loads(json.dumps(dossier))
     updated["forecast_candidate"]["elicitation"] = {
         "kind": "sampled_point_paths",
@@ -1617,6 +1637,8 @@ def attach_host_candidate_elicitation(
         **({"stability": json.loads(json.dumps(stability))}
            if stability is not None else {}),
     }
+    if clean_paths is not None:
+        updated["forecast_candidate"]["sample_paths"] = clean_paths
     body = {key: value for key, value in updated.items()
             if key != "seal_sha256"}
     canonical = json.dumps(body, sort_keys=True, separators=(",", ":"))

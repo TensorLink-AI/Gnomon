@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Preserve every host-validated sampled forecast path inside the sealed context
+  receipt instead of discarding temporal dependence after computing compact
+  q10/q50/q90 rows. Publication exposes a bounded distribution descriptor;
+  humans still receive the compact forecast, while probabilistic consumers can
+  use the authenticated empirical paths without synthetic reconstruction.
 - Elicit each sampled forecast path through a separate concurrent model
   request under one shared deadline. This avoids treating potentially
   correlated choices from one provider batch as independent evidence, records

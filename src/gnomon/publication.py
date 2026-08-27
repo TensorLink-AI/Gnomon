@@ -1159,6 +1159,16 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 effect={
                     "candidate_origin": candidate_origin,
                     "elicitation": candidate.get("elicitation") or {},
+                    "distribution": ({
+                        "kind": "sealed_empirical_model_paths",
+                        "sample_count": len(candidate.get("sample_paths") or []),
+                        "horizon": len(candidate_rows),
+                        "source": "sealed_context_receipt",
+                        "probabilistic_consumers_should_use": "sample_paths",
+                        "compact_human_summary": "recommended_forecast",
+                        "automation_eligible": False,
+                    } if candidate_origin == "model_authored"
+                         and candidate.get("sample_paths") else None),
                     "primary_disagreement": _primary_disagreement(
                         candidate_rows, primary),
                     "uncertainty_normalization": uncertainty_normalization,
@@ -1749,11 +1759,17 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
         ),
     }
     input_evaluation = _covariate_input_evaluation(result)
+    selected_distribution = ((selected.get("effect") or {}).get(
+        "distribution"))
     payload = {
         "schema_version": PUBLICATION_VERSION, "artifact_id": artifact_id,
         "mode": mode, "recommended_scenario_id": selected_id,
         "recommended_forecast": selected["forecast"],
         "recommended_support": selected["support"],
+        **({
+            "recommended_distribution": selected_distribution,
+            "recommended_forecast_semantics": "compact_distribution_summary",
+        } if selected_distribution else {}),
         "primary_scenario_id": "primary", "primary_forecast": by_id["primary"]["forecast"],
         "primary_forecast_unchanged": True,
         "scenario_count": len(scenarios),

@@ -1020,6 +1020,10 @@ def _candidate_from_sampled_paths(
         })
     candidate = {
         "quantiles": rows,
+        # Private hand-off into the host sealing boundary. It is removed before
+        # the model-authored candidate is validated and never appears in the
+        # compact compiler diagnostics.
+        "_validated_sample_paths": accepted,
         "rationale": (
             f"Host-aggregated {len(accepted)} sampled model-authored "
             "point paths into empirical marginal quantiles. "
@@ -2930,6 +2934,7 @@ class McpAgentForecaster:
 
     def __call__(self, task_instance: Any, n_samples: int):
         run = _Run(self, task_instance)
+        governed_distribution_paths: list[list[float]] | None = None
         try:
             submission, extra_info = run.drive()
         finally:
@@ -3100,6 +3105,38 @@ class McpAgentForecaster:
             if not verify_publication(publication):
                 raise RuntimeError("best-effort publication failed verification")
             submission = publication["recommended_forecast"]
+            selected_item = next((
+                item for item in publication.get("candidate_portfolio") or []
+                if item.get("scenario_id") == publication.get(
+                    "recommended_scenario_id")), None)
+            model_distribution_dossiers = [
+                item for item in dossiers
+                if (item.get("candidate_critique") or {}).get(
+                    "candidate_origin") == "model_authored"
+                and isinstance((item.get("forecast_candidate") or {}).get(
+                    "sample_paths"), list)
+                and (item.get("forecast_candidate") or {}).get("sample_paths")
+            ]
+            selected_dossier = None
+            if (isinstance(selected_item, dict)
+                    and selected_item.get("role") == "model_authored"):
+                source_seal = selected_item.get("source_seal_sha256")
+                selected_dossier = next((
+                    item for item in model_distribution_dossiers
+                    if item.get("seal_sha256") == source_seal), None)
+            elif (self.output_role == "llm_candidate_shadow"
+                    and len(model_distribution_dossiers) == 1):
+                # The shadow route is an explicit evaluation instrument. Its
+                # distribution is the uniquely sealed model candidate even
+                # when product publication correctly refuses to promote it.
+                selected_dossier = model_distribution_dossiers[0]
+                source_seal = selected_dossier.get("seal_sha256")
+            if selected_dossier is not None:
+                raw_paths = ((selected_dossier or {}).get(
+                    "forecast_candidate") or {}).get("sample_paths")
+                if isinstance(raw_paths, list) and raw_paths:
+                    governed_distribution_paths = [
+                        [float(value) for value in path] for path in raw_paths]
             if self.output_role == "publication_best_effort":
                 extra_info = {
                     **extra_info, "route": "publication_best_effort",
@@ -3120,6 +3157,13 @@ class McpAgentForecaster:
                            if selection_policy_applied else {}),
                     },
                     "llm_usage": self.client.usage_summary,
+                    **({"governed_distribution": {
+                        "kind": "sealed_empirical_model_paths",
+                        "sample_count": len(governed_distribution_paths),
+                        "horizon": len(governed_distribution_paths[0]),
+                        "source_seal_sha256": source_seal,
+                        "compact_summary": "recommended_forecast",
+                    }} if governed_distribution_paths else {}),
                 }
             extra_info = {
                 **extra_info,
@@ -3130,6 +3174,13 @@ class McpAgentForecaster:
                 "candidate_seal_sha256": dossier.get("seal_sha256"),
                 "automation_eligible": False,
                 "primary_forecast_unchanged": True,
+                **({"governed_distribution": {
+                    "kind": "sealed_empirical_model_paths",
+                    "sample_count": len(governed_distribution_paths),
+                    "horizon": len(governed_distribution_paths[0]),
+                    "source_seal_sha256": source_seal,
+                    "compact_summary": "recommended_forecast",
+                }} if governed_distribution_paths else {}),
             }
             run.final_submission = {
                 "route": extra_info.get("route"),
@@ -3152,13 +3203,22 @@ class McpAgentForecaster:
                         "human_selection_eligible"),
                     "effect": item.get("effect"),
                 } for item in publication.get("candidate_portfolio") or []],
+                **({"governed_distribution": {
+                    "kind": "sealed_empirical_model_paths",
+                    "sample_count": len(governed_distribution_paths),
+                    "horizon": len(governed_distribution_paths[0]),
+                }} if governed_distribution_paths else {}),
             }
             # ``drive`` closes the MCP process before governed selection to
             # avoid holding an idle server during the second model call. Rewrite
             # the same trace after selection so the diagnostic names the output
             # that was actually scored rather than only the initial MCP result.
             run._write_trace()
-        paths = samples_from_quantile_rows(submission, n_samples)
+        if governed_distribution_paths:
+            paths = [list(governed_distribution_paths[index % len(
+                governed_distribution_paths)]) for index in range(n_samples)]
+        else:
+            paths = samples_from_quantile_rows(submission, n_samples)
         try:
             import numpy as np
         except ModuleNotFoundError:
@@ -3277,6 +3337,7 @@ class _Run:
         model_candidate_prompt_bytes = 0
         model_candidate_status = "not_requested"
         model_candidate_sampling: dict[str, Any] | None = None
+        model_candidate_sample_paths: list[list[float]] | None = None
         deterministic_companion_tables = (
             _extract_structured_companion_tables(
                 context, self.timestamps, future_timestamps)
@@ -4538,6 +4599,8 @@ class _Run:
                         responses, future_timestamps,
                         history_values=self.values))
                 if isinstance(proposed, dict):
+                    model_candidate_sample_paths = proposed.pop(
+                        "_validated_sample_paths", None)
                     model_candidate_proposal = proposed
                     model_candidate_status = (
                         "sampled_paths_proposed_after_governed_rejection")
@@ -4594,7 +4657,8 @@ class _Run:
                             "aggregation"]), temperature=1.0,
                         stability=model_candidate_sampling.get("stability"),
                         request_mode=str(model_candidate_sampling[
-                            "request_mode"]))
+                            "request_mode"]),
+                        sample_paths=model_candidate_sample_paths)
                 dossiers.append(model_dossier)
                 model_candidate_status = "accepted"
             else:
