@@ -52,9 +52,14 @@ class ScriptedClient:
                 bounded.get("decision"), bounded.get("decision"))
                 if bounded else ("breach" if peak >= .5 else "no_breach"))
             act = peak >= COST_ACT / COST_MISS
+            decision = packet.get("governed_decision") or {}
             return [json.dumps({"breach_expected": peak >= .5,
                                 "first_breach_step": 1 if act else None,
                                 "action": "act" if act else "monitor",
+                                "automation_action": (
+                                    decision.get("recommended_action")
+                                    if decision.get("automation_eligible")
+                                    else "withhold"),
                                 "evidence_assessment": assessment,
                                 "breach_probability": (
                                     peak if probabilities else None)})]
@@ -62,6 +67,7 @@ class ScriptedClient:
         return [json.dumps({"breach_expected": bool(near),
                             "first_breach_step": 3 if near else None,
                             "action": "act" if near else "monitor",
+                            "automation_action": "withhold",
                             "evidence_assessment": (
                                 "breach" if near else "no_breach"),
                             "breach_probability": 0.7 if near else 0.1})]
@@ -159,10 +165,12 @@ def test_assessment_and_probability_are_validated_separately() -> None:
     parsed = parse_answer(
         '{"breach_expected": false, "first_breach_step": null, '
         '"action": "act", "evidence_assessment": "indeterminate", '
+        '"automation_action": "withhold", '
         '"breach_probability": 0.37}', 24)
     assert parsed["valid"] is True
     assert parsed["breach_expected"] is False
     assert parsed["action"] == "act"
+    assert parsed["automation_action"] == "withhold"
     assert parsed["evidence_assessment"] == "indeterminate"
     assert parsed["breach_probability"] == 0.37
     hostile = parse_answer(
@@ -274,6 +282,11 @@ def test_a_matched_offline_run_prices_decisions_in_client_units(
         assert 0.0 <= entry["action_optimal_rate"] <= 1.0
         assert 0.0 <= entry["assessment_coverage"] <= 1.0
         assert 0.0 <= entry["probability_coverage"] <= 1.0
+        assert 0.0 <= entry["automation_action_coverage"] <= 1.0
+        assert entry["log_loss"] is not None
+        assert sum(bin_["count"] for bin_ in
+                   entry["calibration_by_probability_bin"].values()) == \
+            entry["call_metrics_scored"]
     references = summary["references"]
     assert set(references) >= {"gnomon_governed", "gnomon_rule_alone",
                                "gnomon_rule_composed",
@@ -288,6 +301,10 @@ def test_a_matched_offline_run_prices_decisions_in_client_units(
     assert design["gnomon_packet_is_production_output"] is True
     assert design["held_out_future_absent_from_prompts_verified"] is True
     assert summary["paired"]["primary_endpoint"] == "per_case_decision_cost"
+    interval = summary["paired"][
+        "mean_regret_reduction_cluster_bootstrap_95"]
+    assert interval["cluster"] == "origin_series"
+    assert interval["lower"] <= interval["upper"]
     assert "agent_preservation" in summary["paired"]
     rows = [json.loads(line) for line in
             (tmp_path / "out" / "rows.jsonl").read_text().splitlines()]

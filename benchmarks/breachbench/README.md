@@ -55,7 +55,9 @@ acting is worthwhile under the supplied costs. An optional breach probability
 is scored with Brier loss and explicit coverage, so omission cannot improve the
 probability metric invisibly. For bounded short-history Gnomon answers, the
 report also measures whether the agent preserves the typed assessment while
-keeping unsupported automation separately visible.
+keeping unsupported automation separately visible. Human `action` advice is
+scored for economic usefulness; `automation_action` is a separate channel and
+may copy a policy action only when Gnomon marks it automation-eligible.
 
 Deterministic references bound everything at zero API cost: the product's
 governed dependence-aware policy (with withholding priced as monitor by

@@ -72,6 +72,8 @@ OUTCOME_CELLS = ("no_breach", "breach_early", "breach_late")
 #: reduces regret. A 50/50 mix would let "always act" masquerade as
 #: skill.
 OUTCOME_TARGETS = {"no_breach": .7, "breach_early": .15, "breach_late": .15}
+PROBABILITY_BINS = ((0.0, 0.1), (0.1, 0.25), (0.25, 0.5),
+                    (0.5, 0.75), (0.75, 0.9), (0.9, 1.0000001))
 SYSTEM = """You operate a production metric with an alert threshold. Infer
 only from the supplied data and evidence. Answer with one JSON object and
 nothing else."""
@@ -407,9 +409,18 @@ def prompt(case: Case, arm: str, packet: dict[str, Any]) -> str:
     if arm == "gnomon":
         body += ("\nComputed Gnomon evidence (deterministic, from the same "
                  "history):\n" + json.dumps(packet, separators=(",", ":")))
-    return body + (
+    automation_rule = (
+        " For automation_action, copy the Gnomon governed_decision's "
+        "recommended_action only when automation_eligible is true; otherwise "
+        "return withhold. Human advice may still use act or monitor."
+        if arm == "gnomon" else
+        " No governed automation authority is supplied in this control arm, "
+        "so automation_action must be withhold."
+    )
+    return body + automation_rule + (
         '\nReturn {"breach_expected": true|false, "first_breach_step": '
         '<1-' + str(case.horizon) + ' or null>, "action": "act"|"monitor", '
+        '"automation_action": "act"|"monitor"|"withhold", '
         '"evidence_assessment": "breach"|"no_breach"|"indeterminate", '
         '"breach_probability": <number from 0 to 1 or null>}. '
         'The binary breach_expected is your best point prediction; '
@@ -449,8 +460,13 @@ def parse_answer(text: str, horizon: int) -> dict[str, Any]:
                 and math.isfinite(raw_probability)
                 and 0.0 <= float(raw_probability) <= 1.0):
             probability = float(raw_probability)
+        automation_action = str(payload.get(
+            "automation_action", "")).strip().lower()
+        if automation_action not in {"act", "monitor", "withhold"}:
+            automation_action = None
         return {"valid": True, "breach_expected": breach,
                 "first_breach_step": step, "action": action,
+                "automation_action": automation_action,
                 "evidence_assessment": assessment,
                 "breach_probability": probability}
     return {"valid": False}
@@ -525,6 +541,7 @@ def _score(answer: dict[str, Any], case: Case) -> dict[str, Any]:
         # nothing actionable. Recorded as invalid, never silently patched.
         answer = {"valid": False, "breach_expected": False,
                   "first_breach_step": None, "action": "monitor",
+                  "automation_action": None,
                   "evidence_assessment": None, "breach_probability": None}
     outcome = decision_outcome(answer["action"], case)
     breach_correct = answer["breach_expected"] == case.truth_breach
@@ -538,6 +555,7 @@ def _score(answer: dict[str, Any], case: Case) -> dict[str, Any]:
         "breach_expected": answer["breach_expected"],
         "first_breach_step": answer["first_breach_step"],
         "action": answer["action"],
+        "automation_action": answer.get("automation_action"),
         "cost": outcome["cost"], "regret": outcome["regret"],
         "action_optimal": outcome["regret"] == 0.0,
         "breach_correct": breach_correct,
@@ -602,6 +620,20 @@ def _arm_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "evidence_assessment") in {"breach", "no_breach"}]
     probabilistic = [row for row in valid
                      if row.get("probability_brier") is not None]
+    calibration: dict[str, dict[str, Any]] = {}
+    for lower, upper in PROBABILITY_BINS:
+        members = [row for row in probabilistic
+                   if lower <= float(row["breach_probability"]) < upper]
+        label = f"[{lower:.2f},{min(upper, 1.0):.2f}{']' if upper > 1 else ')'}"
+        calibration[label] = {
+            "count": len(members),
+            "mean_probability": (statistics.mean(
+                row["breach_probability"] for row in members)
+                if members else None),
+            "observed_rate": (statistics.mean(
+                row["truth_breach"] for row in members)
+                if members else None),
+        }
     return {
         "mean_cost": statistics.mean(row["cost"] for row in rows),
         "mean_regret": statistics.mean(row["regret"] for row in rows),
@@ -641,6 +673,17 @@ def _arm_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "brier_score": (statistics.mean(
             row["probability_brier"] for row in probabilistic)
             if probabilistic else None),
+        "log_loss": (statistics.mean(
+            -(float(row["truth_breach"]) * math.log(min(
+                1 - 1e-12, max(1e-12, row["breach_probability"])))
+              + (1.0 - float(row["truth_breach"])) * math.log(min(
+                  1 - 1e-12, max(1e-12,
+                                 1.0 - row["breach_probability"]))))
+            for row in probabilistic) if probabilistic else None),
+        "calibration_by_probability_bin": calibration,
+        "automation_action_coverage": statistics.mean(
+            row.get("automation_action") is not None
+            for row in valid) if valid else None,
     }
 
 
@@ -832,11 +875,25 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
         completed[(case_id, "gnomon")]["action"]
         == governed_recommendations[case_id]
         for case_id in supported_ids) if supported_ids else None)
-    unsupported_action_rate = statistics.mean(
-        completed[(case.case_id, "gnomon")]["action"] == "act"
+    automation_eligible = {
+        case.case_id: (
+            (packets[case.case_id].get("governed_decision") or {}).get(
+                "recommended_action")
+            if (packets[case.case_id].get("governed_decision") or {}).get(
+                "automation_eligible") is True else None)
         for case in cases
-        if governed_recommendations[case.case_id] is None
-    ) if len(supported_ids) < len(cases) else 0.0
+    }
+    automation_ids = [case_id for case_id, action in
+                      automation_eligible.items() if action is not None]
+    automation_preservation = (statistics.mean(
+        completed[(case_id, "gnomon")].get("automation_action")
+        == automation_eligible[case_id]
+        for case_id in automation_ids) if automation_ids else None)
+    unsupported_action_rate = statistics.mean(
+        completed[(case.case_id, "gnomon")].get("automation_action") == "act"
+        for case in cases
+        if automation_eligible[case.case_id] is None
+    ) if len(automation_ids) < len(cases) else 0.0
     bounded_decisions = {
         case.case_id: (((packets[case.case_id].get("threshold_analysis") or {})
                         .get("bounded_assessment") or {}).get("decision"))
@@ -849,8 +906,28 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
         == ({"yes": "breach", "no": "no_breach"}.get(
             bounded_decisions[case_id], bounded_decisions[case_id]))
         for case_id in bounded_ids) if bounded_ids else None)
+    # Cluster resampling respects the benchmark's explicit dependence unit:
+    # windows from one source can co-move even though realized futures do not
+    # overlap. This interval is diagnostic on the development corpus and is
+    # the preregistered uncertainty method for an untouched graduation run.
+    by_origin: dict[str, list[Case]] = {}
+    for case in cases:
+        by_origin.setdefault(case.origin, []).append(case)
+    origins = sorted(by_origin)
+    bootstrap_rng = random.Random(args.seed + 991)
+    bootstrap_deltas: list[float] = []
+    for _ in range(2000):
+        sampled = [origins[bootstrap_rng.randrange(len(origins))]
+                   for _ in origins]
+        deltas = [
+            completed[(case.case_id, "control")]["regret"]
+            - completed[(case.case_id, "gnomon")]["regret"]
+            for origin in sampled for case in by_origin[origin]
+        ]
+        bootstrap_deltas.append(statistics.mean(deltas))
+    bootstrap_deltas.sort()
     summary = {
-        "schema_version": "0.2", "seed": args.seed, "cases": args.cases,
+        "schema_version": "0.3", "seed": args.seed, "cases": args.cases,
         "model": model_name, "temperature": 0,
         "horizon": HORIZON,
         "cost_model": {"act": COST_ACT, "missed_breach": COST_MISS},
@@ -869,6 +946,12 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
             "control_cheaper": control_better,
             "gnomon_cheaper": gnomon_better,
             "exact_sign_p": exact_sign_p(control_better, gnomon_better),
+            "mean_regret_reduction_cluster_bootstrap_95": {
+                "lower": bootstrap_deltas[int(.025 * len(bootstrap_deltas))],
+                "upper": bootstrap_deltas[int(.975 * len(bootstrap_deltas))],
+                "replicates": len(bootstrap_deltas),
+                "cluster": "origin_series",
+            },
             "action_optimal_mcnemar": {
                 **optimal_pairs,
                 "exact_p": exact_sign_p(optimal_pairs["control_only"],
@@ -878,6 +961,8 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
                 "governed_recommendations": len(supported_ids),
                 "preservation_rate": preservation_rate,
                 "unsupported_action_rate": unsupported_action_rate,
+                "automation_eligible_cases": len(automation_ids),
+                "automation_preservation_rate": automation_preservation,
                 "bounded_assessments": len(bounded_ids),
                 "bounded_assessment_preservation_rate": bounded_preservation,
             },
@@ -916,6 +1001,7 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
             "history_length_strata_preregistered": list(HISTORY_WINDOWS),
             "binary_prediction_separate_from_evidence_assessment": True,
             "probability_scored_with_coverage": True,
+            "probability_bins": [list(item) for item in PROBABILITY_BINS],
             "memorization_defense":
                 "per_case_seeded_positive_affine_transform;"
                 "threshold_transformed_identically;values_only_prompts",

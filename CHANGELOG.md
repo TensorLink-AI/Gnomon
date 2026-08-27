@@ -7,6 +7,10 @@
   action. It now carries bounded product assessments, reports assessment and
   probability coverage, scores supplied probabilities with Brier loss, and
   measures preservation of bounded conclusions independently of automation.
+- Separate breach advice from automation authority. The production breach
+  policy now exposes `automation_eligible` only for supported decisions;
+  BreachBench prices human advice independently while requiring unsupported
+  automation to remain withheld.
 
 - Return a bounded threshold assessment when short histories cannot support a
   calibrated breach probability. The response separates the primary point

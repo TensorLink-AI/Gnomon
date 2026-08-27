@@ -511,6 +511,7 @@ def apply_breach_policy(
             round(expected_monitor, 6) if expected_monitor is not None else None),
         "recommended_action": recommendation,
         "decision_support": decision_support,
+        "automation_eligible": decision_support == "supported",
         "reason_code": reason_code,
         "event_support": event_risk.get("support"),
         "event_reasons": list(event_risk.get("reasons") or []),

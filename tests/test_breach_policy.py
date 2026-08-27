@@ -172,6 +172,8 @@ def test_policy_separates_likelihood_from_action() -> None:
     assert decision["breach_more_likely_than_not"] is False
     assert decision["break_even_probability"] == 0.2
     assert decision["recommended_action"] == "act"
+    assert decision["decision_support"] == "supported"
+    assert decision["automation_eligible"] is True
     assert decision["expected_loss_if_act"] == 2
     assert decision["expected_loss_if_monitor"] == 4
 
@@ -190,6 +192,7 @@ def test_unresolved_boundary_demotes_but_still_recommends() -> None:
     decision = apply_breach_policy(risk, BreachDecisionPolicy(2, 10))
     assert decision["recommended_action"] == "act"
     assert decision["decision_support"] == "best_effort"
+    assert decision["automation_eligible"] is False
     assert decision["reason_code"] == \
         "policy_boundary_unresolved_point_estimate_used"
 
