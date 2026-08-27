@@ -537,6 +537,12 @@ def build_scenario_catalog(result: dict[str, Any], *,
     assisted_points = model_assisted.get("points") or []
     if (isinstance(model_assisted, dict)
             and len(assisted_points) == len(primary) and primary):
+        assisted_validation = model_assisted.get("validation") or {}
+        assisted_human_eligible = bool(
+            model_assisted.get("support") == "conditionally_supported"
+            or (assisted_validation.get("basis") == "full_cycle_prequential"
+                and assisted_validation.get(
+                    "complete_phase_coverage") is True))
         assisted_rows: list[dict[str, Any]] = []
         for row, raw_point in zip(primary, assisted_points):
             point = float(raw_point)
@@ -554,8 +560,9 @@ def build_scenario_catalog(result: dict[str, Any], *,
         scenarios.append(_scenario(
             "model-assisted", "model_assisted", assisted_rows,
             support=str(model_assisted.get("support") or "prior_assisted"),
-            automation_eligible=False, selection_eligible=True,
-            human_selection_eligible=True,
+            automation_eligible=False,
+            selection_eligible=assisted_human_eligible,
+            human_selection_eligible=assisted_human_eligible,
             assumptions=[
                 "The point path won only the disclosed reduced-rigor "
                 "out-of-sample comparison.",
@@ -564,7 +571,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
             ],
             effect={
                 "candidate_origin": "model_assisted",
-                "validation": model_assisted.get("validation") or {},
+                "validation": assisted_validation,
                 "plausibility": model_assisted.get("plausibility") or {},
                 "selected_model": model_assisted.get("selected_model"),
                 "interval_basis": "immutable_primary_offsets",
@@ -1050,6 +1057,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 source_seal=str(dossier["seal_sha256"]),
                 effect={
                     "candidate_origin": candidate_origin,
+                    "elicitation": candidate.get("elicitation") or {},
                     "governed_companion_evidence": governed_companion_evidence,
                     "conditional_replay": conditional_replay,
                     "calibration_replay": calibration_replay,
@@ -1196,6 +1204,72 @@ def validate_scenario_selection(raw: Any, *, scenarios: list[dict[str, Any]],
     }
 
 
+def best_effort_prior_selection(
+    *, scenarios: list[dict[str, Any]],
+    dossiers: list[dict[str, Any]] | None = None,
+) -> dict[str, Any] | None:
+    """Apply the explicit best-effort policy to one sampled model prior.
+
+    This is a publication policy, not an evidence upgrade. It applies only
+    when no historically/evidence-dominant path exists and exactly one
+    human-eligible model candidate carries host-observed consensus from at
+    least three independently elicited paths. Strict and scenario publication
+    remain unchanged, and automation remains categorically unavailable.
+    """
+    if dominant_scenario_id(scenarios) is not None:
+        return None
+    sampled = []
+    for item in scenarios:
+        elicitation = ((item.get("effect") or {}).get("elicitation") or {})
+        if (item.get("role") == "model_authored"
+                and item.get("human_selection_eligible") is True
+                and elicitation.get("host_observed") is True
+                and elicitation.get("historical_skill_evidence") is False
+                and elicitation.get("automation_eligible") is False
+                and isinstance(elicitation.get("accepted_paths"), int)
+                and int(elicitation["accepted_paths"]) >= 3):
+            sampled.append(item)
+    if len(sampled) != 1:
+        return None
+    selected = sampled[0]
+    eligible = [item for item in scenarios
+                if item.get("human_selection_eligible") is True
+                and item is not selected]
+    ineligible = [item for item in scenarios
+                  if item.get("human_selection_eligible") is not True]
+    ranking = [selected["scenario_id"], *[
+        item["scenario_id"] for item in eligible], *[
+        item["scenario_id"] for item in ineligible]]
+    cited = list(dict.fromkeys(str(item) for item in
+                              selected.get("claim_ids") or []))
+    counter = list(dict.fromkeys(
+        str(hypothesis.get("hypothesis_id"))
+        for dossier in dossiers or []
+        for hypothesis in dossier.get("hypotheses") or []
+        if hypothesis.get("kind") == "unsupported"
+        and hypothesis.get("hypothesis_id")))
+    raw = {
+        "selected_scenario_id": selected["scenario_id"],
+        "ranking": ranking,
+        "cited_claim_ids": cited,
+        "counterevidence_claim_ids": counter,
+        "confidence": .5,
+        "rationale": (
+            "The caller selected best_effort publication, and one bounded "
+            "host-sampled model prior directly conditions on the supplied "
+            "claims. Sampling agreement is stability context, not historical "
+            "skill; the immutable primary and counterevidence remain visible."),
+        "what_would_change_selection": (
+            "Historical replay, resolved outcomes, or a supported executable "
+            "that contradicts this prior would change the recommendation."),
+    }
+    selection = validate_scenario_selection(
+        raw, scenarios=scenarios, dossiers=dossiers)
+    if selection is not None:
+        selection["channel"] = "best_effort_sampled_prior_policy"
+    return selection
+
+
 def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
                                 dossiers: list[dict[str, Any]] | None = None,
                                 temporal_state: dict[str, Any] | None = None,
@@ -1333,6 +1407,8 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
                 "assumptions": list(item.get("assumptions") or [])[:2],
                 "candidate_origin": ((item.get("effect") or {}).get(
                     "candidate_origin")),
+                "elicitation": ((item.get("effect") or {}).get(
+                    "elicitation") or None),
                 "candidate_validation": candidate_validation_summary(item),
                 "conditional_replay_status": str(
                     (((item.get("effect") or {}).get(
@@ -1414,6 +1490,9 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
     scenarios, dispositions = build_scenario_catalog(result, dossiers=dossiers)
     selection = validate_scenario_selection(
         scenario_selection, scenarios=scenarios, dossiers=dossiers)
+    if selection is None and mode == "best_effort":
+        selection = best_effort_prior_selection(
+            scenarios=scenarios, dossiers=dossiers)
     by_id = {item["scenario_id"]: item for item in scenarios}
     if mode == "strict":
         eligible = next((item for item in scenarios
@@ -1475,7 +1554,12 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
     automation = bool(explicit_automation and policy_complete
                       and selected["automation_eligible"])
     selected_role = str(selected.get("role") or "unknown")
-    if selection is not None:
+    policy_selected = bool(
+        selection is not None
+        and selection.get("channel") == "best_effort_sampled_prior_policy")
+    if policy_selected:
+        selection_method = "best_effort_sampled_prior_policy"
+    elif selection is not None:
         selection_method = "governed_scenario_selection"
     elif selected_role == "historically_admitted":
         selection_method = "historical_evidence_dominance"
@@ -1515,7 +1599,8 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
     recommendation_authority = {
         "selected_role": selected_role,
         "selection_method": selection_method,
-        "independent_selection_performed": selection is not None,
+        "independent_selection_performed": (
+            selection is not None and not policy_selected),
         "historically_admitted": selected_role == "historically_admitted",
         "conditional_replay_admitted": (
             selected_role == "observation_counterfactual"
@@ -1525,6 +1610,11 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
         "human_review_required": bool(
             prior_assisted_default or not selected.get("automation_eligible")),
         "reason": (
+            "The caller explicitly requested best_effort publication. One "
+            "host-sampled prior consensus became the human-facing estimate "
+            "under that policy; sampling stability is not historical skill, "
+            "the immutable primary remains visible, and automation is forbidden."
+            if policy_selected else
             "A sealed prior-assisted path is the human-facing best estimate, "
             "but it was not independently ranked or historically admitted."
             if prior_assisted_default else

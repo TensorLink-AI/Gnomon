@@ -1539,6 +1539,53 @@ def verify_temporal_dossier_seal(dossier: dict[str, Any]) -> bool:
     return dossier["seal_sha256"] == expected
 
 
+def attach_host_candidate_elicitation(
+    dossier: dict[str, Any], *, requested_paths: int, accepted_paths: int,
+    aggregation: str, temperature: float,
+) -> dict[str, Any]:
+    """Seal narrow host-observed elicitation metadata onto a model candidate.
+
+    The model cannot self-assert this evidence: callers must first present a
+    valid sealed dossier whose candidate origin is model-authored.  The
+    metadata describes sampling stability, not historical skill, and therefore
+    cannot alter support or automation eligibility.
+    """
+    if not verify_temporal_dossier_seal(dossier):
+        raise ValueError("candidate elicitation requires a valid dossier seal")
+    critique = dossier.get("candidate_critique") or {}
+    if (critique.get("candidate_origin") != "model_authored"
+            or not isinstance(dossier.get("forecast_candidate"), dict)):
+        raise ValueError(
+            "candidate elicitation applies only to model-authored candidates")
+    if (isinstance(requested_paths, bool) or isinstance(accepted_paths, bool)
+            or not isinstance(requested_paths, int)
+            or not isinstance(accepted_paths, int)
+            or not 1 <= requested_paths <= 32
+            or not 1 <= accepted_paths <= requested_paths):
+        raise ValueError("candidate elicitation path counts are invalid")
+    if aggregation not in {"linear_empirical_marginal_q10_q50_q90"}:
+        raise ValueError("candidate elicitation aggregation is unsupported")
+    if not isinstance(temperature, (int, float)) or isinstance(temperature, bool) \
+            or not math.isfinite(float(temperature)) or temperature < 0:
+        raise ValueError("candidate elicitation temperature is invalid")
+    updated = json.loads(json.dumps(dossier))
+    updated["forecast_candidate"]["elicitation"] = {
+        "kind": "independent_point_path_sampling",
+        "requested_paths": requested_paths,
+        "accepted_paths": accepted_paths,
+        "aggregation": aggregation,
+        "temperature": float(temperature),
+        "host_observed": True,
+        "historical_skill_evidence": False,
+        "automation_eligible": False,
+    }
+    body = {key: value for key, value in updated.items()
+            if key != "seal_sha256"}
+    canonical = json.dumps(body, sort_keys=True, separators=(",", ":"))
+    updated["seal_sha256"] = hashlib.sha256(canonical.encode()).hexdigest()
+    return updated
+
+
 def _target_relevant_claim_span(span: str, target_name: str | None) -> str | None:
     """Return only clauses that can denote the forecast target.
 

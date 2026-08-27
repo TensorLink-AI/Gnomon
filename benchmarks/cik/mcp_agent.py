@@ -49,6 +49,7 @@ MAX_RUN_TOKENS = 250_000
 MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
     300.0, float(os.environ.get("GNOMON_CONTEXT_COMPILATION_SECONDS", "60"))))
 MIN_CONTEXT_REPAIR_SECONDS = 10.0
+MODEL_PRIOR_PATH_SAMPLES = 5
 #: Bump when the system prompt, the caps, or the submit contract change:
 #: the official cache reuses results by cache_name, and a cached run made
 #: under an older contract is a different measurement wearing the same
@@ -330,7 +331,18 @@ MIN_CONTEXT_REPAIR_SECONDS = 10.0
 #: enter best-effort selection through the non-automatable model-assisted lane.
 #: Version 164: complete-cycle prequential evidence makes a strongly winning
 #: seasonal assisted path deterministic instead of leaving it to LLM ranking.
-MCP_CONTRACT_VERSION = 164
+#: Version 165: categorical best-effort priors aggregate five independently
+#: sampled, host-grid-bound point paths instead of asking one model turn to
+#: self-report calibrated quantiles.
+#: Version 166: host-observed sampled-path provenance is sealed into the model
+#: dossier and exposed to selection; shadow scoring follows that dossier seal.
+#: Version 167: partial-holdout model assistance stays visible but cannot own
+#: the recommendation without full-horizon or complete-cycle evidence.
+#: Version 168: explicit best-effort publication deterministically recommends
+#: one host-sampled prior consensus when no governed path dominates.
+#: Version 169: recommendation receipts distinguish explicit best-effort policy
+#: selection from an independent LLM selector call.
+MCP_CONTRACT_VERSION = 169
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -828,21 +840,99 @@ quantiles and state the competing interpretation rather than withholding.
 """
 
 STATE_CANDIDATE_INSTRUCTIONS = """\
-Author one bounded probabilistic forecast candidate from the supplied target
-history and source-grounded categorical state schedule. Return ONLY:
-{"forecast_candidate":{"quantile_anchors":[{"timestamp":"exact requested ISO",
-"q10":0.0,"q50":0.0,"q90":0.0}],"rationale":"brief temporal argument,
+Author one plausible point-forecast path from the supplied target history and
+source-grounded categorical state schedule. Return ONLY:
+{"forecast_path":{"values":[0.0],"rationale":"brief temporal argument,
 state effect, competing interpretation, and uncertainty"}}
 
-Use exact requested timestamps. Include the first and last timestamp plus every
-meaningful temporal or state turning point; full quantile rows are also valid.
-Infer no state that the source did not state. Separate the ordinary temporal
-shape from the possible state effect, use history only through the cutoff, and
-widen uncertainty where state and time-of-cycle are confounded. This is a
-sealed prior-assisted human-review alternative. It cannot edit the immutable
+Provide exactly one finite value per requested timestamp, in the given order;
+the host owns the timestamp grid. Infer no state that the source did not state.
+Separate the ordinary temporal shape from the possible state effect and use
+history only through the cutoff. This completion is one draw in a bounded
+ensemble: do not estimate quantiles and do not coordinate with other draws.
+The host validates each path and derives empirical quantiles. The aggregate is
+a sealed prior-assisted human-review alternative. It cannot edit the immutable
 primary, upgrade support, or authorize automation, and the failed governed
 state replay remains explicit counterevidence.
 """
+
+
+def _empirical_quantile(values: list[float], probability: float) -> float:
+    """Dependency-free linear empirical quantile for bounded LLM path draws."""
+    ordered = sorted(float(value) for value in values)
+    if not ordered:
+        raise ValueError("cannot calculate a quantile from no values")
+    position = min(1.0, max(0.0, probability)) * (len(ordered) - 1)
+    left = math.floor(position)
+    right = math.ceil(position)
+    weight = position - left
+    return ordered[left] + (ordered[right] - ordered[left]) * weight
+
+
+def _candidate_from_sampled_paths(
+    outputs: list[str], future_timestamps: list[str],
+) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+    """Validate independent point paths and aggregate their marginal quantiles.
+
+    Timestamps remain host-owned: completions return only values in the exact
+    requested order. Invalid draws are rejected independently so one malformed
+    completion cannot erase otherwise useful bounded prior evidence.
+    """
+    accepted: list[list[float]] = []
+    rejection_reasons: list[str] = []
+    rationales: list[str] = []
+    expected = len(future_timestamps)
+    for output in outputs:
+        objects = extract_json_objects(output)
+        first = objects[0] if objects else {}
+        raw = first.get("forecast_path") if isinstance(first, dict) else None
+        if not isinstance(raw, dict):
+            rejection_reasons.append("missing forecast_path object")
+            continue
+        values = raw.get("values")
+        if not isinstance(values, list) or len(values) != expected:
+            rejection_reasons.append(
+                f"forecast_path requires {expected} ordered values")
+            continue
+        try:
+            path = [float(value) for value in values]
+        except (TypeError, ValueError):
+            rejection_reasons.append("forecast_path contains a non-number")
+            continue
+        if not all(math.isfinite(value) for value in path):
+            rejection_reasons.append("forecast_path contains a non-finite value")
+            continue
+        accepted.append(path)
+        rationale = " ".join(str(raw.get("rationale") or "").split())
+        if rationale:
+            rationales.append(rationale[:300])
+    diagnostics = {
+        "requested": len(outputs), "accepted": len(accepted),
+        "rejected": len(outputs) - len(accepted),
+        "rejection_reasons": rejection_reasons[:8],
+        "aggregation": "linear_empirical_marginal_q10_q50_q90",
+        "timestamp_binding": "host_grid_order",
+    }
+    if not accepted:
+        return None, diagnostics
+    rows = []
+    for index, timestamp in enumerate(future_timestamps):
+        values = [path[index] for path in accepted]
+        rows.append({
+            "timestamp": timestamp,
+            "q10": _empirical_quantile(values, .1),
+            "q50": _empirical_quantile(values, .5),
+            "q90": _empirical_quantile(values, .9),
+        })
+    candidate = {
+        "quantiles": rows,
+        "rationale": (
+            f"Host-aggregated {len(accepted)} independent model-authored "
+            "point paths into empirical marginal quantiles. "
+            + ("Sample rationales: " + " | ".join(rationales[:2])
+               if rationales else "")),
+    }
+    return candidate, diagnostics
 
 
 def _has_material_numeric_context(text: str) -> bool:
@@ -2760,13 +2850,21 @@ class McpAgentForecaster:
             selection = None
             selection_error = None
             selection_attempted = False
+            selection_policy_applied = False
             if self.output_role == "publication_best_effort":
                 from gnomon.publication import (build_scenario_catalog,
+                                                best_effort_prior_selection,
                                                 scenario_selection_contract,
                                                 validate_scenario_selection)
                 from gnomon.temporal_state import build_temporal_state
                 scenarios, _ = build_scenario_catalog(
                     artifact_result, dossiers=dossiers)
+                policy_selection = best_effort_prior_selection(
+                    scenarios=scenarios, dossiers=dossiers)
+                if policy_selection is not None:
+                    selection = policy_selection
+                    selection_policy_applied = True
+                    scenarios = []
                 if len(scenarios) > 1:
                     contract = scenario_selection_contract(
                         scenarios=scenarios, dossiers=dossiers,
@@ -2875,6 +2973,7 @@ class McpAgentForecaster:
                         "attempted": selection_attempted,
                         "accepted": publication.get("scenario_selection") is not None,
                         "disposition": (
+                            "policy_applied" if selection_policy_applied else
                             "accepted" if publication.get(
                                 "scenario_selection") is not None else
                             "rejected" if selection_attempted else
@@ -2882,6 +2981,8 @@ class McpAgentForecaster:
                             if selection_error and selection_error.startswith(
                                 "selector skipped:") else "not_required"),
                         "error": selection_error,
+                        **({"policy": "best_effort_sampled_prior_policy"}
+                           if selection_policy_applied else {}),
                     },
                     "llm_usage": self.client.usage_summary,
                 }
@@ -3040,6 +3141,7 @@ class _Run:
         model_candidate_proposal: dict[str, Any] | None = None
         model_candidate_prompt_bytes = 0
         model_candidate_status = "not_requested"
+        model_candidate_sampling: dict[str, Any] | None = None
         deterministic_companion_tables = (
             _extract_structured_companion_tables(
                 context, self.timestamps, future_timestamps)
@@ -3081,6 +3183,27 @@ class _Run:
             finally:
                 compiler_calls.append({
                     "stage": stage,
+                    "elapsed_seconds": round(time.monotonic() - started, 6),
+                })
+
+        def complete_many(content: str, stage: str, *, n: int) -> list[str]:
+            """One bounded stochastic elicitation wave under the same deadline."""
+            remaining = compilation_deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError(
+                    "context workflow deadline exhausted before " + stage)
+            started = time.monotonic()
+            try:
+                return self.forecaster.client.completions(
+                    [{"role": "user", "content": content}], n=n,
+                    temperature=1, max_tokens=2_500,
+                    reasoning_effort="none",
+                    request_timeout=max(1, min(120, math.floor(remaining))),
+                    transport_retries=0)
+            finally:
+                compiler_calls.append({
+                    "stage": stage,
+                    "requested_completions": n,
                     "elapsed_seconds": round(time.monotonic() - started, 6),
                 })
 
@@ -4268,21 +4391,20 @@ class _Run:
                              sort_keys=True))
             model_candidate_prompt_bytes = len(state_prompt.encode("utf-8"))
             try:
-                response = complete(state_prompt, "model_state_candidate")
-                objects = extract_json_objects(response)
-                first = objects[0] if objects else {}
-                proposed = first.get("forecast_candidate")
-                if not isinstance(proposed, dict) and isinstance(
-                        first.get("quantiles") or first.get(
-                            "quantile_anchors"), list):
-                    proposed = first
+                responses = complete_many(
+                    state_prompt, "model_state_candidate_samples",
+                    n=MODEL_PRIOR_PATH_SAMPLES)
+                proposed, model_candidate_sampling = (
+                    _candidate_from_sampled_paths(
+                        responses, future_timestamps))
                 if isinstance(proposed, dict):
                     model_candidate_proposal = proposed
-                    model_candidate_status = "proposed_after_governed_rejection"
+                    model_candidate_status = (
+                        "sampled_paths_proposed_after_governed_rejection")
                 else:
                     model_candidate_status = "withheld_after_governed_rejection"
                     compile_rejections.append(
-                        "model state candidate returned no candidate object")
+                        "model state candidate returned no valid sampled path")
             except Exception as error:
                 model_candidate_status = "request_failed_after_governed_rejection"
                 compile_rejections.append(
@@ -4319,6 +4441,17 @@ class _Run:
                     compiler_model=self.forecaster.openrouter_model,
                     validated_events=events))
             if model_dossier.get("forecast_candidate") is not None:
+                if model_candidate_sampling is not None:
+                    from gnomon.llm_dossier import (
+                        attach_host_candidate_elicitation)
+                    model_dossier = attach_host_candidate_elicitation(
+                        model_dossier,
+                        requested_paths=int(model_candidate_sampling[
+                            "requested"]),
+                        accepted_paths=int(model_candidate_sampling[
+                            "accepted"]),
+                        aggregation=str(model_candidate_sampling[
+                            "aggregation"]), temperature=1.0)
                 dossiers.append(model_dossier)
                 model_candidate_status = "accepted"
             else:
@@ -4375,6 +4508,7 @@ class _Run:
                     "rule": "companion_covariate_precedes_target_override",
                 } if duplicate_events_demoted else {}),
                 "model_candidate_status": model_candidate_status,
+                "model_candidate_sampling": model_candidate_sampling,
             },
             "source": {
                 "kind": "benchmark_task_context",
@@ -4924,6 +5058,14 @@ class _Run:
         }
         if self.context_compilation is not None:
             dossier = self.context_compilation["dossier"]
+            dossiers = [item for item in (
+                self.context_compilation.get("dossiers") or [dossier])
+                if isinstance(item, dict)]
+            model_dossier = next((
+                item for item in reversed(dossiers)
+                if (item.get("candidate_critique") or {}).get(
+                    "candidate_origin") == "model_authored"
+                and item.get("forecast_candidate")), None)
             extra_info["context_compilation"] = {
                 "receipt_path": self.context_compilation["path"],
                 "source_sha256": self.context_compilation["source"]["sha256"],
@@ -4933,9 +5075,14 @@ class _Run:
                 "hypothesis_count": len(dossier.get("hypotheses") or []),
                 "hypothesis_status": (dossier.get("hypothesis_critique") or {}).get(
                     "status"),
-                "candidate_available": bool(
-                    self.context_compilation["dossier"].get("effect_proposal")
-                    or self.context_compilation["dossier"].get("forecast_candidate")),
+                "candidate_available": any(
+                    item.get("effect_proposal") or item.get(
+                        "forecast_candidate") for item in dossiers),
+                "dossier_count": len(dossiers),
+                "candidate_origins": [
+                    (item.get("candidate_critique") or {}).get(
+                        "candidate_origin") for item in dossiers
+                    if item.get("forecast_candidate")],
                 "covariate_tables": len(
                     self.context_compilation["covariates"]["tables"]),
                 "covariate_tables_proposed": self.context_compilation[
@@ -4949,15 +5096,20 @@ class _Run:
                 "rejection_count": len(self.context_compilation["rejections"]),
                 "future_observations_exposed": False,
             }
-            if dossier.get("forecast_candidate") or dossier.get("effect_proposal"):
+            shadow_dossier = model_dossier or dossier
+            if (shadow_dossier.get("forecast_candidate")
+                    or shadow_dossier.get("effect_proposal")):
                 # Retained for matched shadow scoring against this exact
                 # compiler generation. It is never sent back into the agent
                 # conversation and never replaces the canonical submission.
                 extra_info["llm_candidate_shadow"] = {
-                    "support": dossier["candidate_support"],
-                    "seal_sha256": dossier["seal_sha256"],
-                    "forecast_candidate": dossier["forecast_candidate"],
-                    "effect_proposal": dossier.get("effect_proposal"),
+                    "support": shadow_dossier["candidate_support"],
+                    "seal_sha256": shadow_dossier["seal_sha256"],
+                    "forecast_candidate": shadow_dossier["forecast_candidate"],
+                    "effect_proposal": shadow_dossier.get("effect_proposal"),
+                    "candidate_origin": (
+                        shadow_dossier.get("candidate_critique") or {}).get(
+                            "candidate_origin"),
                     "automation_eligible": False,
                     "primary_forecast_unchanged": True,
                 }

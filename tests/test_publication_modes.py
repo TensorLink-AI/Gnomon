@@ -6,6 +6,7 @@ import pytest
 
 from gnomon.llm_dossier import validate_temporal_dossier
 from gnomon.publication import (build_scenario_catalog, publish_result,
+                                best_effort_prior_selection,
                                 dominant_scenario_id,
                                 scenario_selection_contract, select_publication,
                                 verify_publication, write_publication)
@@ -691,7 +692,7 @@ def test_single_validated_declarative_transform_is_evidence_dominant():
     assert contract["deterministic_scenario_id"] == "transformation-1"
 
 
-def test_model_assisted_point_lane_is_a_bounded_human_scenario():
+def test_partial_holdout_model_assistance_stays_visible_but_not_selectable():
     result = _result()
     result["model_assisted"] = {
         "support": "prior_assisted", "selected_model": "seasonal_naive",
@@ -704,7 +705,8 @@ def test_model_assisted_point_lane_is_a_bounded_human_scenario():
     scenarios, _ = build_scenario_catalog(result)
     assisted = next(item for item in scenarios
                     if item["scenario_id"] == "model-assisted")
-    assert assisted["human_selection_eligible"] is True
+    assert assisted["human_selection_eligible"] is False
+    assert assisted["selection_eligible"] is False
     assert assisted["automation_eligible"] is False
     assert assisted["effect"]["selected_model"] == "seasonal_naive"
     assert assisted["effect"]["interval_basis"] == (
@@ -727,7 +729,42 @@ def test_full_cycle_seasonal_evidence_is_deterministic_in_best_effort():
         "automation_eligible": False, "primary_forecast_unchanged": True,
     }
     scenarios, _ = build_scenario_catalog(result)
+    assisted = next(item for item in scenarios
+                    if item["scenario_id"] == "model-assisted")
+    assert assisted["human_selection_eligible"] is True
     assert dominant_scenario_id(scenarios) == "model-assisted"
+
+
+def test_best_effort_sampled_prior_policy_is_human_only_and_mode_specific():
+    dossier = _dossier()
+    dossier["forecast_candidate"]["elicitation"] = {
+        "kind": "independent_point_path_sampling", "requested_paths": 5,
+        "accepted_paths": 4,
+        "aggregation": "linear_empirical_marginal_q10_q50_q90",
+        "temperature": 1.0, "host_observed": True,
+        "historical_skill_evidence": False, "automation_eligible": False,
+    }
+    import hashlib, json
+    body = {key: value for key, value in dossier.items()
+            if key != "seal_sha256"}
+    dossier["seal_sha256"] = hashlib.sha256(json.dumps(
+        body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    scenarios, _ = build_scenario_catalog(_result(), dossiers=[dossier])
+    selection = best_effort_prior_selection(
+        scenarios=scenarios, dossiers=[dossier])
+    assert selection is not None
+    assert selection["selected_scenario_id"] == "prior-assisted-1"
+    assert selection["channel"] == "best_effort_sampled_prior_policy"
+    best = publish_result(_result(), mode="best_effort", dossiers=[dossier])
+    strict = publish_result(_result(), mode="strict", dossiers=[dossier])
+    assert best["recommended_scenario_id"] == "prior-assisted-1"
+    assert best["automation"]["eligible"] is False
+    assert best["primary_forecast_unchanged"] is True
+    assert best["recommendation_authority"]["selection_method"] == (
+        "best_effort_sampled_prior_policy")
+    assert best["recommendation_authority"][
+        "independent_selection_performed"] is False
+    assert strict["recommended_scenario_id"] == "primary"
 
 
 def test_unapplied_numeric_bound_does_not_own_the_full_recommendation():

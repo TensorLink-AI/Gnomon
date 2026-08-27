@@ -3,11 +3,51 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 import math
 
+import pytest
+
 from gnomon.llm_dossier import (
+    attach_host_candidate_elicitation,
     deterministic_historical_observation_claim,
     validate_temporal_dossier,
     verify_temporal_dossier_seal,
 )
+
+
+def test_only_host_can_attach_bounded_sampling_provenance():
+    span = "The promotion may increase demand."
+    raw = {
+        "claims": [{"source_span": span, "relation": "supports_increase",
+                    "effective_start": "2026-01-02T00:00:00+00:00",
+                    "effective_end": "2026-01-02T00:00:00+00:00",
+                    "confidence": 1}],
+        "forecast_candidate": {"quantiles": [
+            {"timestamp": "2026-01-02T00:00:00+00:00",
+             "q10": 9, "q50": 10, "q90": 11}],
+             "rationale": "bounded prior"},
+    }
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=span, cutoff="2026-01-01T00:00:00+00:00",
+        future_timestamps=["2026-01-02T00:00:00+00:00"],
+        history=[9.0, 10.0], compiler_model="test")
+    assert not reasons
+    updated = attach_host_candidate_elicitation(
+        dossier, requested_paths=5, accepted_paths=4,
+        aggregation="linear_empirical_marginal_q10_q50_q90",
+        temperature=1)
+    assert verify_temporal_dossier_seal(updated)
+    assert updated["forecast_candidate"]["elicitation"] == {
+        "kind": "independent_point_path_sampling", "requested_paths": 5,
+        "accepted_paths": 4,
+        "aggregation": "linear_empirical_marginal_q10_q50_q90",
+        "temperature": 1.0, "host_observed": True,
+        "historical_skill_evidence": False, "automation_eligible": False,
+    }
+    assert dossier["forecast_candidate"].get("elicitation") is None
+    with pytest.raises(ValueError, match="path counts"):
+        attach_host_candidate_elicitation(
+            dossier, requested_paths=3, accepted_paths=4,
+            aggregation="linear_empirical_marginal_q10_q50_q90",
+            temperature=1)
 
 
 def test_replay_positive_observation_executable_outranks_model_proposal():

@@ -69,7 +69,12 @@ def run(input_dir: Path, n_samples: int, *, publication_mode: str | None = None)
             reason = "missing_retained_receipt"
         else:
             receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-            dossier = receipt.get("dossier") or {}
+            dossiers = [item for item in (
+                receipt.get("dossiers") or [receipt.get("dossier") or {}])
+                if isinstance(item, dict)]
+            dossier = next((item for item in dossiers
+                            if item.get("seal_sha256") == lane.get(
+                                "seal_sha256")), {})
             if not verify_temporal_dossier_seal(dossier):
                 reason = "invalid_dossier_seal"
             elif dossier.get("seal_sha256") != lane.get("seal_sha256"):

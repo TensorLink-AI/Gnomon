@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- Elicit categorical best-effort model priors as five independent point paths
+  in one bounded request, validate each draw against the host-owned grid, and
+  derive marginal q10/q50/q90 deterministically. This replaces unreliable
+  one-shot self-reported quantiles while retaining sealed prior-assisted
+  provenance, immutable primary output, and a categorical automation ban.
+- Fix CiK shadow attribution when a context receipt contains both a governed
+  rejected executable and a later model-authored candidate. Shadow scoring now
+  follows the retained candidate's dossier seal instead of silently scoring
+  the first dossier under the model candidate's label.
+- Seal host-observed path-sampling counts and aggregation method into the model
+  candidate dossier and expose them to bounded selection as stability context,
+  explicitly not as historical skill or automation evidence.
+- Make an explicit `best_effort` request choose one valid host-sampled prior
+  when at least three independent paths survived validation and no governed
+  path dominates. Strict mode still publishes primary, scenario mode retains
+  choice, support remains `prior_assisted`, and automation remains forbidden.
+- Label that choice as an explicit best-effort policy action rather than an
+  independent LLM ranking or an error. Recommendation receipts now distinguish
+  policy selection, historical admission, and governed scenario selection.
 - Expose an out-of-sample-winning short-history seasonal-naive path through
   the existing model-assisted lane instead of forcing the strict primary to
   abandon its last-value guardrail. Best-effort publication may rank this
@@ -11,6 +30,10 @@
   prequential sweep covers every phase of a complete held-out cycle, clears a
   25% margin over last value, and wins at least three of four phase blocks.
   Independent random-walk seeds guard its false-admission rate.
+- Keep a model-assisted path based only on a partial trailing holdout visible
+  for comparison but ineligible for the human-facing recommendation. It earns
+  recommendation authority only from a full-horizon win or the complete-cycle
+  prequential gate; neither path can authorize automation.
 - Let best-effort context publication request one sealed model-authored state
   forecast after the governed categorical executable fails replay. The model
   sees the failed validation as counterevidence; its path remains a distinct,

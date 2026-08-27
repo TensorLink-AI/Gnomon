@@ -47,6 +47,7 @@ from benchmarks.cik.mcp_agent import (
     _looks_like_structured_companion_context,
     _extract_structured_companion_tables,
     _extract_categorical_state_schedule,
+    _candidate_from_sampled_paths,
 )
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -60,6 +61,42 @@ def test_material_numeric_context_ignores_calendar_not_business_quantities():
     assert _has_material_numeric_context(
         "The comparable site's maximum was 25.83 at 21:10:00.")
     assert _has_material_numeric_context("Demand is bounded below by -2.5.")
+
+
+def test_sampled_paths_are_host_bound_and_aggregated_without_dependencies():
+    future = ["2026-01-03T00:00:00+00:00",
+              "2026-01-04T00:00:00+00:00"]
+    outputs = [json.dumps({"forecast_path": {
+        "values": [base, base + 10], "rationale": f"draw {base}"}})
+        for base in (1, 2, 3, 4, 100)]
+    candidate, diagnostics = _candidate_from_sampled_paths(outputs, future)
+    assert candidate is not None
+    assert diagnostics == {
+        "requested": 5, "accepted": 5, "rejected": 0,
+        "rejection_reasons": [],
+        "aggregation": "linear_empirical_marginal_q10_q50_q90",
+        "timestamp_binding": "host_grid_order",
+    }
+    assert [row["timestamp"] for row in candidate["quantiles"]] == future
+    assert [row["q50"] for row in candidate["quantiles"]] == [3.0, 13.0]
+    assert candidate["quantiles"][0]["q10"] == pytest.approx(1.4)
+    assert candidate["quantiles"][0]["q90"] == pytest.approx(61.6)
+
+
+def test_sampled_path_aggregation_rejects_bad_draws_independently():
+    future = ["t1", "t2"]
+    valid = json.dumps({"forecast_path": {"values": [1, 2]}})
+    candidate, diagnostics = _candidate_from_sampled_paths([
+        valid,
+        json.dumps({"forecast_path": {"values": [1]}}),
+        json.dumps({"forecast_path": {"values": [1, "nan"]}}),
+        "not json",
+    ], future)
+    assert candidate is not None
+    assert diagnostics["accepted"] == 1
+    assert diagnostics["rejected"] == 3
+    assert candidate["quantiles"][0] == {
+        "timestamp": "t1", "q10": 1.0, "q50": 1.0, "q90": 1.0}
 
 
 def test_future_numeric_path_gets_one_repair_without_granting_authority():
@@ -756,6 +793,7 @@ class ScriptedClient:
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
         self.completion_temperatures = []
+        self.completion_ns = []
         self.completion_reasoning_efforts = []
         self.completion_request_timeouts = []
         self.completion_transport_retries = []
@@ -785,6 +823,7 @@ class ScriptedClient:
                     max_tokens=None, reasoning_effort=None, request_timeout=None,
                     transport_retries=None):
         self.completion_temperatures.append(temperature)
+        self.completion_ns.append(n)
         self.completion_reasoning_efforts.append(reasoning_effort)
         self.completion_request_timeouts.append(request_timeout)
         self.completion_transport_retries.append(transport_retries)
@@ -1991,10 +2030,8 @@ def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
         past_time=list(zip(stamps[:16], [float(index) for index in range(16)])),
         future_time=stamps[16:20], background="Daily service volume.",
         scenario=scenario, constraints=None, name="StateShadowTask", seed=1)
-    candidate = {"forecast_candidate": {"quantiles": [
-        {"timestamp": timestamp, "q10": 14 + index,
-         "q50": 16 + index, "q90": 18 + index}
-        for index, timestamp in enumerate(stamps[16:20])],
+    candidate = {"forecast_path": {
+        "values": [16 + index for index in range(4)],
         "rationale": "Trend continuation with state uncertainty."}}
     client = ScriptedClient(
         [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
@@ -2012,8 +2049,14 @@ def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
     origins = [(item.get("candidate_critique") or {}).get("candidate_origin")
                for item in receipt["dossiers"]]
     assert origins == ["governed_categorical_state_mapping", "model_authored"]
+    assert extra["llm_candidate_shadow"]["candidate_origin"] == "model_authored"
+    assert extra["llm_candidate_shadow"]["seal_sha256"] == (
+        receipt["dossiers"][1]["seal_sha256"])
     assert receipt["compiler"]["model_candidate_status"] == (
         "accepted")
+    assert receipt["compiler"]["model_candidate_sampling"]["accepted"] == 5
+    assert client.completion_ns == [5]
+    assert client.completion_temperatures == [1]
     assert len(client.completion_prompts) == 1
     assert "failed governed state replay remains explicit counterevidence" in (
         " ".join(client.completion_prompts[0].split()))
