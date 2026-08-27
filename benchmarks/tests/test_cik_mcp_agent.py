@@ -2171,8 +2171,9 @@ def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
     assert "mapping failed" not in compact_prompt
 
 
+@pytest.mark.parametrize("hypothesis_kind", ["historical_analogue", "bound"])
 def test_typed_interpretation_without_executable_gets_sealed_sampled_prior(
-        tmp_path):
+        tmp_path, hypothesis_kind):
     task = _task()
     span = (
         "A comparable waterfront district recorded between 9 and 25 annual "
@@ -2188,7 +2189,7 @@ def test_typed_interpretation_without_executable_gets_sealed_sampled_prior(
             "mechanism": "historical analogue", "confidence": .8,
         }],
         "hypotheses": [{
-            "kind": "historical_analogue", "claim_ids": ["claim-1"],
+            "kind": hypothesis_kind, "claim_ids": ["claim-1"],
             "target_series": ["*"], "predictor_series": None,
             "known_at": task.past_time[-1][0], "lag_steps": 0,
             "direction": "increase", "rationale": "Comparable setting.",

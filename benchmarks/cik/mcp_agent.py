@@ -4659,9 +4659,12 @@ class _Run:
             categorical_schedule is not None
             and governed_categorical is not None
             and not governed_categorical.get("selection_eligible"))
-        analogue_hypotheses = [
+        numeric_interpretation_hypotheses = [
             item for item in preliminary_dossier.get("hypotheses") or []
-            if item.get("kind") == "historical_analogue"]
+            if item.get("kind") in {
+                "absolute_value", "bound", "additive_change",
+                "multiplicative_change", "regime_shift", "relationship",
+                "historical_analogue"}]
         qualitative_future_event_prior_needed = bool(
             categorical_schedule is None
             and model_candidate_proposal is None
@@ -4685,7 +4688,7 @@ class _Run:
             and not raw.get("effect_proposal")
             and not raw.get("transformations")
             and preliminary_dossier.get("forecast_candidate") is None
-            and analogue_hypotheses
+            and numeric_interpretation_hypotheses
             and _has_material_numeric_context(context))
         if ((categorical_prior_needed or interpretation_prior_needed
              or qualitative_future_event_prior_needed)
