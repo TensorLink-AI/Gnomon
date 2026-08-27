@@ -604,7 +604,7 @@ def test_recursive_linear_uses_trusted_history_and_propagates_uncertainty():
     assert result["validation"]["recurrence_replay_admitted"] is False
 
 
-def test_recursive_linear_earns_selection_by_fold_safe_historical_replay():
+def test_recursive_linear_replay_is_selected_without_false_knowledge_claim():
     raw = {
         "known_at": _stamp(20), "claim_ids": ["claim-1"],
         "lane": "historically_testable", "output_unit": "sales",
@@ -650,8 +650,13 @@ def test_recursive_linear_earns_selection_by_fold_safe_historical_replay():
     assert publication["recommended_scenario_id"] == "transformation-1"
     admitted = next(item for item in publication["candidate_portfolio"]
                     if item["scenario_id"] == "transformation-1")
-    assert admitted["role"] == "historically_admitted"
+    assert admitted["role"] == "retrospectively_validated"
     assert admitted["support"] == "conditionally_supported"
+    authority = publication["recommendation_authority"]
+    assert authority["selection_method"] == \
+        "retrospective_fixed_specification_evidence"
+    assert authority["historically_admitted"] is False
+    assert authority["human_review_required"] is True
 
 
 def test_recursive_linear_that_loses_replay_remains_visible_not_recommended():

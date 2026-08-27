@@ -105,6 +105,14 @@ def dominant_scenario_id(scenarios: list[dict[str, Any]]) -> str | None:
         # LLM may explain that result but cannot demote it in favour of an
         # untested interpretation.
         return str(historically_admitted[0]["scenario_id"])
+    retrospective = [item for item in scenarios
+                     if item.get("role") == "retrospectively_validated"]
+    if retrospective:
+        # A fixed source-supplied specification beat the baseline on
+        # per-origin observations, but the specification itself was not
+        # known at those historical origins. It may govern today's human
+        # recommendation, never claim bitemporal historical admission.
+        return str(retrospective[0]["scenario_id"])
     trusted = [item for item in scenarios
                if item.get("role") == "context_conditioned"
                and item.get("support") == "context_trusted"]
@@ -556,11 +564,16 @@ def build_scenario_catalog(result: dict[str, Any], *,
             continue
         evidence = candidate_evidence_score(raw)
         admitted = lane == "historically_testable" and evidence["decisive"]
+        retrospective = bool(
+            admitted
+            and validation.get("specification_known_at_each_origin") is False)
+        admitted_role = ("retrospectively_validated" if retrospective
+                         else "historically_admitted")
         support = ("conditionally_supported" if admitted else
                    "prior_assisted" if lane == "prior_assisted" else
                    "hypothetical_sensitivity")
         scenarios.append(_scenario(
-            identifier, "historically_admitted" if admitted
+            identifier, admitted_role if admitted
             else "model_authored_transformation", rows,
             support=support, automation_eligible=False,
             selection_eligible=selection_eligible,
@@ -573,7 +586,10 @@ def build_scenario_catalog(result: dict[str, Any], *,
         dispositions.append({
             "context_id": candidate_id,
             "disposition": "used" if admitted else "scenario",
-            "reason_code": ("historically_tested_transformation_admitted"
+            "reason_code": (
+                            "retrospectively_tested_transformation_selected"
+                            if retrospective else
+                            "historically_tested_transformation_admitted"
                             if admitted else
                             "transformation_retained_plausibility_failed"
                             if not selection_eligible else
@@ -586,6 +602,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
     transformation_claim_sets = [
         set(item.get("claim_ids") or []) for item in scenarios
         if item.get("role") in {"historically_admitted",
+                                "retrospectively_validated",
                                 "model_authored_transformation"}
     ]
 
@@ -828,6 +845,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
         role_priority = {
             "immutable_primary": 100,
             "historically_admitted": 95,
+            "retrospectively_validated": 92,
             "context_conditioned": 90,
             "fitted_context_candidate": 80,
             "effect_composed": 70,
@@ -1115,6 +1133,9 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
     elif mode == "best_effort":
         selected_id = next((item["scenario_id"] for item in scenarios
                             if item["role"] == "historically_admitted"), None)
+        selected_id = selected_id or next((
+            item["scenario_id"] for item in scenarios
+            if item["role"] == "retrospectively_validated"), None)
         selected_id = selected_id or next((item["scenario_id"] for item in scenarios
                             if item["role"] == "context_conditioned"), None)
         admitted = [item for item in scenarios
@@ -1166,6 +1187,8 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
         selection_method = "governed_scenario_selection"
     elif selected_role == "historically_admitted":
         selection_method = "historical_evidence_dominance"
+    elif selected_role == "retrospectively_validated":
+        selection_method = "retrospective_fixed_specification_evidence"
     elif selected_role == "context_conditioned":
         selection_method = "verified_context_contract"
     elif selected_role == "fitted_context_candidate":
@@ -1230,6 +1253,12 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
             "copy of history before a fold-tested forecast was fit. This is "
             "a prior-assisted human recommendation and cannot authorize automation."
             if selection_method == "source_determined_calibration_best_effort" else
+            "A fixed source-supplied specification beat the baseline on "
+            "per-origin historical observations. The specification itself "
+            "was not known at those origins, so this is retrospective "
+            "validation for human use, not bitemporal historical admission."
+            if selection_method ==
+            "retrospective_fixed_specification_evidence" else
             "Recommendation authority follows the disclosed selection method."
         ),
     }

@@ -47,6 +47,10 @@
   invalid model-authored effect distribution before validation. The cited
   number supplies the conditional point effect; invented or reversed bounds
   cannot veto it, and the resulting path remains non-automatable.
+- Distinguish `retrospectively_validated` transformation paths from truly
+  `historically_admitted` paths when the source specification was not known at
+  each replay origin. Retrospective winners may remain the human-facing best
+  estimate, but cannot imply bitemporal admission or automation authority.
 
 - Add an explicit CiK `immutable_primary` diagnostic role. The previous
   `canonical` label referred to the public artifact trajectory, which may be
