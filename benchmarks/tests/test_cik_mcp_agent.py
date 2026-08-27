@@ -49,7 +49,7 @@ from benchmarks.cik.mcp_agent import (
     _extract_categorical_state_schedule,
     _candidate_from_sampled_paths,
     _sample_path_stability,
-    _sampled_state_prior_prompt,
+    _sampled_context_prior_prompt,
 )
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -152,7 +152,7 @@ def test_sample_stability_is_affine_scale_invariant_and_shape_sensitive():
 
 
 def test_sampled_prior_prompt_separates_numeric_task_from_raw_replay_dump():
-    prompt = _sampled_state_prior_prompt(
+    prompt = _sampled_context_prior_prompt(
         timestamps=["2026-01-01T00:00:00+00:00"], values=[3.5],
         future_timestamps=["2026-01-02T00:00:00+00:00"],
         context="The service will be open tomorrow.")
@@ -2150,6 +2150,70 @@ def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
     assert "mapping failed" not in compact_prompt
 
 
+def test_typed_interpretation_without_executable_gets_sealed_sampled_prior(
+        tmp_path):
+    task = _task()
+    span = (
+        "A comparable waterfront district recorded between 9 and 25 annual "
+        "rescues; the target district is also waterfront.")
+    task.background = span
+    task.scenario = None
+    compiler_output = json.dumps({
+        "events": [],
+        "claims": [{
+            "source_span": span, "relation": "unknown",
+            "effective_start": None, "effective_end": None,
+            "timing_status": "atemporal_context",
+            "mechanism": "historical analogue", "confidence": .8,
+        }],
+        "hypotheses": [{
+            "kind": "historical_analogue", "claim_ids": ["claim-1"],
+            "target_series": ["*"], "predictor_series": None,
+            "known_at": task.past_time[-1][0], "lag_steps": 0,
+            "direction": "increase", "rationale": "Comparable setting.",
+        }],
+        "effect_proposal": None, "forecast_candidate": None,
+        "covariate_tables": [], "transformations": [],
+        "observation_interpretations": [],
+    })
+    sampled = ["<forecast>\n" + "\n".join(
+        f"({stamp.replace('T', ' ').replace('+00:00', '')}, "
+        f"{124 + draw + index})"
+        for index, stamp in enumerate(task.future_time)) + "\n</forecast>"
+        for draw in range(5)]
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        [compiler_output, *sampled])
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+
+    samples, extra = forecaster(task, 3)
+
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    assert receipt["compiler"]["model_candidate_sampling"]["accepted"] == 5
+    assert receipt["compiler"]["model_candidate_status"] == "accepted"
+    assert [(item.get("candidate_critique") or {}).get("candidate_origin")
+            for item in receipt["dossiers"]] == [None, "model_authored"]
+    publication = extra["publication"]
+    assert publication["recommended_scenario_id"] == "prior-assisted-2"
+    assert publication["recommended_support"] == "prior_assisted"
+    assert publication["primary_forecast_unchanged"] is True
+    assert publication["automation"]["eligible"] is False
+    assert extra["governed_distribution"]["sample_count"] == 5
+    if hasattr(samples, "shape"):
+        resolved = samples[:, :, 0].tolist()
+    else:
+        resolved = [[row[0] for row in path] for path in samples]
+    assert len(resolved) == 3
+    assert all(len(path) == 4 for path in resolved)
+    assert all(path in [[float(124 + draw + index) for index in range(4)]
+                        for draw in range(5)] for path in resolved)
+
+
 def test_literal_zero_claim_uses_deterministic_override_lane(tmp_path):
     task = _task()
     start, end = task.future_time[1], task.future_time[2]
@@ -2573,7 +2637,7 @@ def test_atemporal_background_survives_mcp_with_applicability_recovery(tmp_path)
         "x/y", client=client,
         session_factory=lambda cwd: InProcessMcpSession(cwd),
         work_dir=str(tmp_path), profile="evidence",
-        output_role="publication_best_effort")
+        output_role="immutable_primary")
 
     _, extra = forecaster(task, 1)
 
@@ -2582,13 +2646,19 @@ def test_atemporal_background_survives_mcp_with_applicability_recovery(tmp_path)
         "receipt_path"]).read_text())
     claim = receipt["dossier"]["claims"][0]
     assert claim["timing_status"] == "atemporal_context"
-    disposition = next(item for item in extra["publication"][
+    from gnomon.publication import publish_result
+    publication = publish_result({
+        "support": "supported",
+        "forecast": [{"timestamp": stamp, "q10": 9, "q50": 10,
+                      "q90": 11} for stamp in task.future_time],
+    }, mode="strict", dossiers=receipt["dossiers"])
+    disposition = next(item for item in publication[
         "context_dispositions"] if item.get("claim_id") == "claim-1")
     assert disposition["reason_code"] == "background_context_not_conditioned"
     assert disposition["recovery_action"]["code"] \
         == "provide_applicability_evidence"
-    assert extra["publication"]["recommended_scenario_id"] == "primary"
-    assert extra["publication"]["automation"]["eligible"] is False
+    assert publication["recommended_scenario_id"] == "primary"
+    assert publication["automation"]["eligible"] is False
 
 
 def test_atemporal_claim_fallback_avoids_hypothesis_repair_call(tmp_path):
