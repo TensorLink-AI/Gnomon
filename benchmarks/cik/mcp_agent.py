@@ -350,7 +350,10 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: Version 172: use a conventional timestamp-value forecast response and a
 #: forecasting system role, then host-validate and convert it into the sealed
 #: candidate schema. JSON value paths remain accepted for compatibility.
-MCP_CONTRACT_VERSION = 172
+#: Version 173: numeric forecasting inherits the model/provider reasoning mode
+#: and normal forecast budget instead of inheriting the deterministic semantic
+#: compiler's non-reasoning, low-token policy.
+MCP_CONTRACT_VERSION = 173
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -3327,8 +3330,8 @@ class _Run:
                     [{"role": "system", "content":
                       "You are a useful forecasting assistant."},
                      {"role": "user", "content": content}], n=n,
-                    temperature=1, max_tokens=2_500,
-                    reasoning_effort="none",
+                    temperature=1, max_tokens=10_000,
+                    reasoning_effort=None,
                     request_timeout=max(1, min(120, math.floor(remaining))),
                     transport_retries=0)
             finally:

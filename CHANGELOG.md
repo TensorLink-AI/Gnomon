@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Stop applying the deterministic compiler's non-reasoning, 2,500-token policy
+  to numeric forecasting. Sampled forecast candidates now inherit the selected
+  model/provider reasoning mode and the same 10,000-token ceiling as the
+  matched direct forecasting interface; semantic compilation remains bounded
+  and non-reasoning.
 - Let the numeric candidate lane use the conventional timestamp-value forecast
   response that forecasting models handle well. Gnomon validates every returned
   timestamp against its host-owned grid before converting the path to sealed

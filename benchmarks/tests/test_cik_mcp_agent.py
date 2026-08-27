@@ -2123,6 +2123,7 @@ def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
     assert receipt["compiler"]["model_candidate_sampling"]["accepted"] == 5
     assert client.completion_ns == [5]
     assert client.completion_temperatures == [1]
+    assert client.completion_reasoning_efforts == [None]
     assert len(client.completion_prompts) == 1
     compact_prompt = " ".join(client.completion_prompts[0].split())
     assert "Factor in relevant background" in compact_prompt
