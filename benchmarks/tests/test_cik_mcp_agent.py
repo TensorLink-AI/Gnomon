@@ -2235,6 +2235,66 @@ def test_typed_interpretation_without_executable_gets_sealed_sampled_prior(
                         for draw in range(5)] for path in resolved)
 
 
+def test_dated_qualitative_event_gets_sealed_best_effort_prior(tmp_path):
+    task = _task()
+    start, end = task.future_time[1], task.future_time[2]
+    quote = f"A planned campaign runs from {start} to {end}."
+    direction = "Campaigns typically increase demand."
+    task.background = direction
+    task.scenario = quote
+    compiler_output = json.dumps({
+        "events": [{
+            "document_index": 0, "event_type": "campaign",
+            "entity_scope": ["*"], "effective_start": start,
+            "effective_end": end, "confidence": .8,
+            "status": "confirmed", "evidence_quote": quote,
+            "effect_family": "temporary_pulse", "direction": "increase",
+            "duration": "temporary", "entity_kind": "product",
+        }],
+        "claims": [{
+            "source_span": direction, "relation": "supports_increase",
+            "effective_start": None, "effective_end": None,
+            "timing_status": "atemporal_context",
+            "mechanism": "campaign demand", "confidence": .5,
+        }],
+        "hypotheses": [{
+            "kind": "regime_shift", "claim_ids": ["claim-1"],
+            "target_series": ["*"], "predictor_series": None,
+            "known_at": task.past_time[-1][0], "lag_steps": 0,
+            "direction": "increase", "rationale": "Temporary increase.",
+        }],
+        "effect_proposal": None, "forecast_candidate": None,
+        "covariate_tables": [], "transformations": [],
+        "observation_interpretations": [],
+    })
+    sampled = ["<forecast>\n" + "\n".join(
+        f"({stamp.replace('T', ' ').replace('+00:00', '')}, "
+        f"{124 + draw + index})"
+        for index, stamp in enumerate(task.future_time)) + "\n</forecast>"
+        for draw in range(5)]
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        [compiler_output, *sampled])
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 3)
+
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    assert receipt["compiler"]["model_candidate_status"] == "accepted"
+    assert receipt["compiler"]["model_candidate_sampling"]["accepted"] == 5
+    assert extra["publication"]["recommended_scenario_id"].startswith(
+        "prior-assisted-")
+    assert extra["publication"]["recommended_distribution"]["kind"] == \
+        "sealed_empirical_model_paths"
+    assert extra["publication"]["primary_forecast_unchanged"] is True
+    assert extra["publication"]["automation"]["eligible"] is False
+
+
 def test_one_sample_transport_failure_preserves_other_governed_paths(tmp_path):
     import threading
 

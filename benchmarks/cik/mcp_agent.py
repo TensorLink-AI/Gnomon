@@ -4662,6 +4662,21 @@ class _Run:
         analogue_hypotheses = [
             item for item in preliminary_dossier.get("hypotheses") or []
             if item.get("kind") == "historical_analogue"]
+        qualitative_future_event_prior_needed = bool(
+            categorical_schedule is None
+            and model_candidate_proposal is None
+            and governed_candidate is None
+            and events
+            and not raw.get("effect_proposal")
+            and not raw.get("transformations")
+            and preliminary_dossier.get("forecast_candidate") is None
+            and any(
+                str((event.attributes or {}).get(
+                    "soft_context", {}).get("direction") or "unknown")
+                in {"increase", "decrease"}
+                and not str(event.event_type or "").startswith(
+                    ("constraint:", "override:"))
+                for event in events))
         interpretation_prior_needed = bool(
             categorical_schedule is None
             and model_candidate_proposal is None
@@ -4672,12 +4687,15 @@ class _Run:
             and preliminary_dossier.get("forecast_candidate") is None
             and analogue_hypotheses
             and _has_material_numeric_context(context))
-        if ((categorical_prior_needed or interpretation_prior_needed)
+        if ((categorical_prior_needed or interpretation_prior_needed
+             or qualitative_future_event_prior_needed)
                 and self.forecaster.output_role in {
                     "publication_best_effort", "llm_candidate_shadow"}):
             model_candidate_status = (
                 "requested_after_governed_rejection"
                 if categorical_prior_needed
+                else "requested_for_typed_future_event"
+                if qualitative_future_event_prior_needed
                 else "requested_for_typed_interpretation")
             context_prompt = _sampled_context_prior_prompt(
                 timestamps=self.timestamps, values=self.values,
@@ -4698,11 +4716,15 @@ class _Run:
                     model_candidate_status = (
                         "sampled_paths_proposed_after_governed_rejection"
                         if categorical_prior_needed
+                        else "sampled_paths_proposed_for_typed_future_event"
+                        if qualitative_future_event_prior_needed
                         else "sampled_paths_proposed_for_typed_interpretation")
                 else:
                     model_candidate_status = (
                         "withheld_after_governed_rejection"
                         if categorical_prior_needed
+                        else "withheld_for_typed_future_event"
+                        if qualitative_future_event_prior_needed
                         else "withheld_for_typed_interpretation")
                     compile_rejections.append(
                         "model context candidate returned no valid sampled path")
@@ -4710,6 +4732,8 @@ class _Run:
                 model_candidate_status = (
                     "request_failed_after_governed_rejection"
                     if categorical_prior_needed
+                    else "request_failed_for_typed_future_event"
+                    if qualitative_future_event_prior_needed
                     else "request_failed_for_typed_interpretation")
                 compile_rejections.append(
                     f"model context candidate failed: {error}")
