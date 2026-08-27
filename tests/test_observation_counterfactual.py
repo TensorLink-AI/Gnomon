@@ -109,6 +109,10 @@ def test_daily_phase_family_is_fold_safe_and_beats_raw_comparators():
     assert candidate is not None
     assert evidence["family"] == "seasonal_phase_median"
     assert evidence["daily_period_steps"] == 24
+    assert evidence["scheme"] == \
+        "expanding_origin_phase_holdout_reconstruction"
+    assert evidence["targeted_reconstruction_replay"] is True
+    assert evidence["simulated_contamination_phase_count"] == 4
     assert evidence["status"] == "admitted"
     assert evidence["candidate_mae"] < evidence["strongest_raw_mae"]
     assert (evidence["candidate_probabilistic_loss"]

@@ -144,10 +144,11 @@ def fit_observation_counterfactual(
     """Fit and replay a small fixed-family conditional counterfactual.
 
     Replay targets are observations the validated mask considers unaffected.
-    At every origin, candidates see only earlier unaffected observations and
-    the baseline sees only the immediately preceding raw observation.  This
-    tests the actual product question: once the disruption ends, is filtering
-    the contaminated history better than carrying the raw last value forward?
+    For recurring clock masks, each seasonal candidate also hides the target
+    origin's clock phase from its earlier history. This directly tests the
+    reconstruction operation needed at a phase whose entire history was
+    contaminated, rather than diluting that question over easy observed
+    phases. All masking is origin-local and uses no future observations.
     """
     if len(history) != len(exclusion_mask):
         raise ValueError("exclusion_mask must align with history")
@@ -171,6 +172,10 @@ def fit_observation_counterfactual(
         }, evidence
 
     daily_period = _daily_period(history_timestamps)
+    excluded_phase_offsets = (sorted({
+        index % daily_period for index, excluded in enumerate(exclusion_mask)
+        if excluded
+    }) if daily_period is not None else [])
     families = ("robust_level", "rebased_croston_sba", *(
         ("seasonal_phase_median", "seasonal_phase_last")
         if daily_period is not None else ()))
@@ -195,11 +200,38 @@ def fit_observation_counterfactual(
     for origin in range(1, len(history)):
         if exclusion_mask[origin]:
             continue
+        replay_mask = list(exclusion_mask[:origin])
+        raw_replay_history = [float(value) for value in history[:origin]]
+        if daily_period is not None and excluded_phase_offsets:
+            # Rotate the observed recurring corruption geometry onto clean
+            # historical phases. Each fold compares reconstruction with raw
+            # models exposed to the same synthetic corruption, using only the
+            # corruption values observed before that origin. Cycling the
+            # aligned offset balances positions within multi-step outages.
+            prior_corruption = [float(value) for value, excluded in
+                                zip(history[:origin], exclusion_mask[:origin])
+                                if excluded]
+            if not prior_corruption:
+                continue
+            aligned_offset = excluded_phase_offsets[
+                (origin // daily_period) % len(excluded_phase_offsets)]
+            shift = (origin % daily_period - aligned_offset) % daily_period
+            simulated_phases = {
+                (phase + shift) % daily_period
+                for phase in excluded_phase_offsets}
+            corruption_value = statistics.median(prior_corruption)
+            replay_mask = [
+                bool(excluded or index % daily_period in simulated_phases)
+                for index, excluded in enumerate(replay_mask)]
+            raw_replay_history = [
+                (value if exclusion_mask[index] else corruption_value)
+                if index % daily_period in simulated_phases else value
+                for index, value in enumerate(raw_replay_history)]
         retained = [float(value) for value, excluded in
-                    zip(history[:origin], exclusion_mask[:origin])
+                    zip(history[:origin], replay_mask)
                     if not excluded]
         excluded_values = [float(value) for value, excluded in
-                           zip(history[:origin], exclusion_mask[:origin])
+                           zip(raw_replay_history, replay_mask)
                            if excluded]
         if len(retained) < 8:
             continue
@@ -207,7 +239,8 @@ def fit_observation_counterfactual(
         predictions = {
             family: (_seasonal_phase_point(
                 [float(value) for value in history[:origin]],
-                list(exclusion_mask[:origin]), period=daily_period,
+                replay_mask,
+                period=daily_period,
                 next_index=origin,
                 estimator="last" if family == "seasonal_phase_last" else "median")
                 if family in {"seasonal_phase_median", "seasonal_phase_last"}
@@ -218,11 +251,11 @@ def fit_observation_counterfactual(
             continue
         origin_positions.append(origin)
         replay_actuals.append(actual)
-        baseline_losses.append(abs(actual - float(history[origin - 1])))
+        baseline_losses.append(abs(actual - raw_replay_history[-1]))
         for name, model in raw_comparators.items():
             try:
                 prediction = float(model(
-                    [float(value) for value in history[:origin]], 1, 1)[0])
+                    raw_replay_history, 1, 1)[0])
                 comparator_losses[name].append(abs(actual - prediction))
                 comparator_points[name].append(prediction)
             except (ValueError, ArithmeticError, OverflowError):
@@ -358,7 +391,12 @@ def fit_observation_counterfactual(
     } for timestamp, point in zip(future_timestamps, points)]
     evidence = {
         "status": "admitted" if admitted else "not_admitted",
-        "scheme": "expanding_origin_unaffected_targets",
+        "scheme": (
+            "expanding_origin_phase_holdout_reconstruction"
+            if daily_period is not None else
+            "expanding_origin_unaffected_targets"),
+        "targeted_reconstruction_replay": daily_period is not None,
+        "simulated_contamination_phase_count": len(excluded_phase_offsets),
         "family": family,
         "families_compared": list(families),
         "daily_period_steps": daily_period,

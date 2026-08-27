@@ -76,6 +76,20 @@
   a second additive `+0` or otherwise contradictory effect scenario.
   A model-authored full forecast over the same claim may remain in the sealed
   receipt for outcome scoring, but is explicitly selection-ineligible.
+- Recurring observation-contamination candidates are now evaluated on rotated
+  placebo blocks matching the observed corruption geometry. Raw comparators
+  receive the same fold-local simulated corruption, so admission measures the
+  reconstruction job rather than diluting it over unaffected timestamps.
+- Ambiguous recurring schedule endpoints may be resolved only from repeated
+  pre-cutoff observations matching a source-stated corruption value. Mixed
+  boundary evidence fails closed; receipts disclose the counts and confirm
+  that no future observations were used.
+- The deterministic-claim shadow rule applies only to model-authored paths;
+  Gnomon's own fold-admitted observation counterfactual remains selection-
+  eligible and non-automatable.
+- CiK's isolated runner now injects its authoritative case seed into MCP trace
+  identity. Multi-seed runs retain one behavioral trace per case instead of
+  overwriting them under the upstream task object's missing `seed` attribute.
 
 - Safe declarative transformations may now bind additional verbatim source
   lines containing their exact AST literals. The host neither interprets nor

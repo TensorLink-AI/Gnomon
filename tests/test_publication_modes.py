@@ -163,6 +163,31 @@ def test_unadmitted_observation_sensitivity_needs_explicit_selection():
     assert contract_scenario["derivation"]["historically_admitted"] is False
 
 
+def test_admitted_observation_counterfactual_is_not_shadowed_by_its_claim():
+    dossier = _dossier()
+    dossier["claims"][0]["source_span"] = (
+        "The sensor was offline, which resulted in zero readings.")
+    dossier["candidate_critique"]["candidate_origin"] = \
+        "observation_interpretation_counterfactual"
+    dossier["forecast_candidate"]["conditional_replay"] = {
+        "status": "admitted", "selection_eligible": True,
+        "human_recommendation_eligible": True,
+    }
+    body = {key: value for key, value in dossier.items()
+            if key != "seal_sha256"}
+    import hashlib, json
+    dossier["seal_sha256"] = hashlib.sha256(json.dumps(
+        body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+    payload = publish_result(_result(), mode="best_effort", dossiers=[dossier])
+    scenario = next(item for item in payload["candidate_portfolio"]
+                    if item["role"] == "observation_counterfactual")
+    assert scenario["selection_eligible"] is True
+    assert payload["recommended_scenario_id"] == scenario["scenario_id"]
+    assert payload["recommendation_authority"][
+        "conditional_replay_admitted"] is True
+
+
 def test_best_effort_may_use_positive_replay_below_strict_margin():
     dossier = _dossier()
     dossier["candidate_critique"]["candidate_origin"] = \

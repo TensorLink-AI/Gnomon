@@ -118,6 +118,10 @@ def _isolated_case_worker(conn, task_name: str, seed: int, args_dict: dict,
 
         classes = {task.__name__: task for task in ALL_TASKS}
         method = build_method(SimpleNamespace(**args_dict))
+        # Upstream task instances do not retain the seed. Each disposable
+        # worker owns exactly one case, so bind the runner's authoritative
+        # identity to the method for trace/receipt naming.
+        setattr(method, "benchmark_seed", seed)
         name, row = evaluate_task(
             classes[task_name], seed, method, n_samples,
             output_folder=Path(runs_dir),

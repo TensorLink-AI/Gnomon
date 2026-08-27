@@ -629,7 +629,8 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 candidate_claims and candidate_claims.intersection(claims)
                 for claims in transformation_claim_sets)
             governed_by_deterministic_claim = bool(
-                candidate_claims.intersection(deterministic_claim_ids))
+                candidate_origin == "model_authored"
+                and candidate_claims.intersection(deterministic_claim_ids))
             if governed_by_transformation or governed_by_deterministic_claim:
                 # A model cannot bypass a failed replay/admission check by
                 # restating its own forecast under the same cited claims. The

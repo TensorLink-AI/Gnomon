@@ -981,6 +981,7 @@ def test_best_effort_role_uses_verified_product_publication(tmp_path):
         session_factory=lambda cwd: InProcessMcpSession(cwd),
         work_dir=str(tmp_path), trace_dir=tmp_path / "traces", profile="evidence",
         output_role="publication_best_effort")
+    forecaster.benchmark_seed = 41
     samples, extra = forecaster(task, 1)
     assert [row[0] for row in samples[0]] == [127, 128, 129, 130]
     assert extra["route"] == "publication_best_effort"
@@ -989,6 +990,7 @@ def test_best_effort_role_uses_verified_product_publication(tmp_path):
     assert extra["publication"]["automation"]["eligible"] is False
     assert extra["publication"]["context_summary"]["status"] == "used"
     trace = json.loads(next((tmp_path / "traces").glob("*.json")).read_text())
+    assert trace["seed"] == 41
     assert trace["final_submission"]["recommended_scenario_id"] \
         == "prior-assisted-1"
     assert trace["final_submission"]["primary_forecast_unchanged"] is True

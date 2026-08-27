@@ -528,6 +528,38 @@ def test_cited_daily_clock_outage_excludes_exact_half_open_windows():
     assert dossier["primary_forecast_unchanged"] is True
 
 
+def test_clock_window_end_is_included_only_when_history_resolves_it():
+    start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    history_times = [(start + timedelta(hours=index)).isoformat()
+                     for index in range(24 * 7)]
+    history = [
+        0.0 if datetime.fromisoformat(timestamp).hour in {16, 17, 18}
+        else 20.0
+        for timestamp in history_times]
+    claim = ("The sensor was offline for maintenance every day between "
+             "16:00 and 18:00, "
+             "which resulted in zero readings.")
+    dossier, reasons = validate_temporal_dossier(
+        {"claims": [{"source_span": claim, "relation": "unknown",
+                     "effective_start": history_times[0],
+                     "effective_end": history_times[-1], "confidence": 1}]},
+        context_text=claim + " Assume that the sensor will not be in "
+        "maintenance in the future.",
+        cutoff=history_times[-1],
+        future_timestamps=[(start + timedelta(hours=24 * 7)).isoformat()],
+        history=history, history_timestamps=history_times,
+        compiler_model="test")
+    assert not reasons
+    interpretation = dossier["observation_interpretations"][0]
+    assert interpretation["excluded_observations"] == 21
+    assert interpretation["predicate"]["interval"] == \
+        "closed_end_empirically_resolved"
+    resolution = interpretation["predicate"]["boundary_resolution"]
+    assert resolution["matching_observations"] == \
+        resolution["observations"] == 7
+    assert resolution["uses_future_observations"] is False
+
+
 def test_model_candidate_cannot_bypass_failed_observation_replay():
     start = datetime(2025, 10, 5, tzinfo=timezone.utc)
     history_times = [(start + timedelta(days=index)).isoformat()

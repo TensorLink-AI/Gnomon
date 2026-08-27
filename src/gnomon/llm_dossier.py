@@ -788,6 +788,48 @@ def _validate_observation_interpretations(
                 rejected.append({"index": index,
                                  "code": "EMPTY_CLOCK_WINDOW"})
                 continue
+            # Schedule endpoints are often underspecified. When the claim also
+            # states an observable corruption value, repeated pre-cutoff
+            # boundary observations may resolve inclusion; never guess from
+            # prose or inspect future targets.
+            from .future_context import parse_override_span
+            stated_corruption, _ = parse_override_span(source)
+            include_end = False
+            boundary_resolution = None
+            if stated_corruption is not None:
+                boundary_values = []
+                for inside, timestamp, value in zip(
+                        in_window, history_timestamps, history):
+                    observed = _timestamp(timestamp)
+                    if not inside or observed is None:
+                        continue
+                    minute = 60 * observed.hour + observed.minute
+                    if minute == end_clock:
+                        boundary_values.append(float(value))
+                if len(boundary_values) >= 2:
+                    tolerance = max(1.0, abs(stated_corruption)) * 1e-9
+                    matches = sum(abs(value - stated_corruption) <= tolerance
+                                  for value in boundary_values)
+                    ratio = matches / len(boundary_values)
+                    if ratio >= .8:
+                        include_end = True
+                        boundary_resolution = {
+                            "kind": "end_inclusion_from_repeated_observations",
+                            "stated_corruption_value": stated_corruption,
+                            "observations": len(boundary_values),
+                            "matching_observations": matches,
+                            "match_fraction": ratio,
+                            "uses_future_observations": False,
+                        }
+                    elif .2 < ratio < .8:
+                        rejected.append({
+                            "index": index,
+                            "code": "AMBIGUOUS_CLOCK_WINDOW_BOUNDARY",
+                            "boundary": "end",
+                            "observations": len(boundary_values),
+                            "matching_observations": matches,
+                        })
+                        continue
             mask = []
             for inside, timestamp in zip(in_window, history_timestamps):
                 observed = _timestamp(timestamp)
@@ -795,16 +837,23 @@ def _validate_observation_interpretations(
                     mask.append(False)
                     continue
                 minute = 60 * observed.hour + observed.minute
-                covered = (start_clock <= minute < end_clock
-                           if start_clock < end_clock
-                           else minute >= start_clock or minute < end_clock)
+                covered = (start_clock <= minute <= end_clock
+                           if include_end and start_clock < end_clock else
+                           minute >= start_clock or minute <= end_clock
+                           if include_end else
+                           start_clock <= minute < end_clock
+                           if start_clock < end_clock else
+                           minute >= start_clock or minute < end_clock)
                 mask.append(covered)
             applied_predicate = {
                 "op": "recurring_clock_window",
                 "start_time": f"{start_hour:02d}:{start_minute:02d}",
                 "end_time": f"{end_hour:02d}:{end_minute:02d}",
-                "interval": "half_open",
+                "interval": ("closed_end_empirically_resolved"
+                             if include_end else "half_open"),
                 "timezone_basis": "history_timestamp_timezone",
+                **({"boundary_resolution": boundary_resolution}
+                   if boundary_resolution else {}),
             }
         else:
             if predicate_value != 0.0:

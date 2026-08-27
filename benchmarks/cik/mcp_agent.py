@@ -305,7 +305,11 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: and deterministic absolute claims own their numeric scenario representation.
 #: Version 140: model-authored full paths over deterministic absolute/range
 #: claims remain outcome-scored shadows but cannot compete for recommendation.
-MCP_CONTRACT_VERSION = 140
+#: Version 141: recurring-contamination replay uses origin-safe rotated placebo
+#: blocks and resolves ambiguous schedule endpoints from pre-cutoff evidence.
+#: Version 142: isolated multi-seed runs bind the runner's authoritative seed
+#: into trace identity instead of overwriting every case as `seedx`.
+MCP_CONTRACT_VERSION = 142
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -3202,7 +3206,8 @@ class _Run:
             return
         trace_dir.mkdir(parents=True, exist_ok=True)
         name = getattr(self.task, "name", self.task.__class__.__name__)
-        seed = getattr(self.task, "seed", "x")
+        seed = getattr(
+            self.forecaster, "benchmark_seed", getattr(self.task, "seed", "x"))
         payload = {
             "task": str(name), "seed": seed,
             "mcp_calls": self.mcp_calls,
