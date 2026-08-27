@@ -414,10 +414,10 @@ def prompt(case: Case, arm: str, packet: dict[str, Any]) -> str:
         "recommended_action only when automation_eligible is true; otherwise "
         "return withhold. For breach_probability, copy horizon_event."
         "probability_any_breach when available; decision_probability is only "
-        "an input to the policy calculation. A human recommendation with "
-        "human_action_authority=advisory is non-binding: use the history and "
-        "all supplied evidence to choose act or monitor, while citing no "
-        "greater support than the packet earned."
+        "an input to the policy calculation. governed_decision.advisory_action "
+        "is a non-binding cost calculation, not a recommendation: use the "
+        "history and all supplied evidence to choose the human action, while "
+        "citing no greater support than the packet earned."
         if arm == "gnomon" else
         " No governed automation authority is supplied in this control arm, "
         "so automation_action must be withhold."
@@ -549,7 +549,8 @@ def governed_product_rule(case: Case, packet: dict[str, Any]) -> dict[str, Any]:
     event = ((packet.get("threshold_analysis") or {}).get("horizon_event")
              or {})
     decision = packet.get("governed_decision") or {}
-    recommendation = decision.get("recommended_action")
+    recommendation = (decision.get("recommended_action")
+                      or decision.get("advisory_action"))
     probability = event.get("probability_any_breach")
     breach = (float(probability) >= 0.5
               if probability is not None else False)
@@ -903,8 +904,11 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
         optimal_pairs["gnomon_only"] += int(
             gnomon["action_optimal"] and not control["action_optimal"])
     governed_recommendations = {
-        case.case_id: (packets[case.case_id].get("governed_decision") or {})
-        .get("recommended_action")
+        case.case_id: (
+            (packets[case.case_id].get("governed_decision") or {}).get(
+                "recommended_action")
+            or (packets[case.case_id].get("governed_decision") or {}).get(
+                "advisory_action"))
         for case in cases
     }
     supported_ids = [case_id for case_id, recommendation

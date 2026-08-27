@@ -210,7 +210,8 @@ def test_regularisation_pseudocount_cannot_manufacture_an_action() -> None:
         step_marginals=[0.0, 0.0, 0.0], step_marginal_trials=1)
     assert risk["probability_any_breach"] == 0.25
     decision = apply_breach_policy(risk, BreachDecisionPolicy(2, 10))
-    assert decision["recommended_action"] == "monitor"
+    assert decision["recommended_action"] is None
+    assert decision["advisory_action"] == "monitor"
     assert decision["probability_any_breach"] == 0.25
     assert decision["decision_probability"] == 0.0
     assert decision["decision_probability_basis"] == \
@@ -246,11 +247,10 @@ def test_policy_separates_likelihood_from_action() -> None:
     assert decision["expected_loss_if_monitor"] == 4
 
 
-def test_unresolved_boundary_demotes_but_still_recommends() -> None:
+def test_unresolved_boundary_demotes_to_concrete_advice() -> None:
     # An interval straddling the break-even loses governed authority, but
-    # the operator still receives the expected-loss recommendation at the
-    # point estimate: withholding-as-monitor was measured to invert the
-    # 10:2 cost asymmetry and price as the worst constant policy.
+    # the operator still receives the expected-loss calculation at the point
+    # estimate, but it must not occupy the governed recommendation field.
     risk = {
         "probability_any_breach": 0.3,
         "probability_any_breach_interval_90": {"lower": 0.12, "upper": 0.55},
@@ -258,7 +258,8 @@ def test_unresolved_boundary_demotes_but_still_recommends() -> None:
         "support": "supported",
     }
     decision = apply_breach_policy(risk, BreachDecisionPolicy(2, 10))
-    assert decision["recommended_action"] == "act"
+    assert decision["recommended_action"] is None
+    assert decision["advisory_action"] == "act"
     assert decision["decision_support"] == "best_effort"
     assert decision["automation_eligible"] is False
     assert decision["reason_code"] == \
@@ -274,7 +275,8 @@ def test_best_effort_estimates_yield_best_effort_recommendations() -> None:
         "reasons": [{"code": "bootstrap_synthesized_paths", "message": "x"}],
     }
     decision = apply_breach_policy(risk, BreachDecisionPolicy(2, 10))
-    assert decision["recommended_action"] == "monitor"
+    assert decision["recommended_action"] is None
+    assert decision["advisory_action"] == "monitor"
     assert decision["decision_support"] == "best_effort"
     assert decision["human_action_authority"] == "advisory"
     assert decision["probability_roles"] == {

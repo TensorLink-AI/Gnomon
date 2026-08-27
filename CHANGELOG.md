@@ -19,6 +19,11 @@
   calculation input, and labels supported human advice `binding` versus
   best-effort advice `advisory`. Agents may exercise outcome-scored human
   judgment over advisory advice without gaining automation authority.
+- **Weak policy calculations no longer occupy a recommendation field.** A
+  supported action is returned as `recommended_action`; the same concrete
+  calculation at best-effort authority is returned as `advisory_action` with
+  `recommended_action: null`. This preserves usefulness without making an
+  agent fight an instruction-shaped field to exercise permitted judgment.
 - **BreachBench distinguishes useful model judgment from safety failures.**
   Divergence from a best-effort human recommendation is now reported as an
   outcome-scored beneficial/harmful/neutral override with regret delta, while

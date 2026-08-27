@@ -572,7 +572,10 @@ def apply_breach_policy(
             round(expected_act, 6) if expected_act is not None else None),
         "expected_loss_if_monitor": (
             round(expected_monitor, 6) if expected_monitor is not None else None),
-        "recommended_action": recommendation,
+        "recommended_action": (
+            recommendation if decision_support == "supported" else None),
+        "advisory_action": (
+            recommendation if decision_support == "best_effort" else None),
         "decision_support": decision_support,
         "human_action_authority": (
             "binding" if decision_support == "supported" else
