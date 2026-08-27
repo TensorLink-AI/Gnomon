@@ -309,7 +309,7 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: blocks and resolves ambiguous schedule endpoints from pre-cutoff evidence.
 #: Version 142: isolated multi-seed runs bind the runner's authoritative seed
 #: into trace identity instead of overwriting every case as `seedx`.
-MCP_CONTRACT_VERSION = 147
+MCP_CONTRACT_VERSION = 150
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -713,6 +713,17 @@ def _has_material_numeric_context(text: str) -> bool:
         r"\b\d{1,2}:\d{2}(?::\d{2})?(?:\s*[ap]m)?\b",
         " ", stripped, flags=re.IGNORECASE)
     return bool(re.search(r"(?<!\w)[+-]?(?:\d+(?:\.\d*)?|\.\d+)", stripped))
+
+
+def _validated_item_count(value: Any) -> int:
+    """Normalize validator count/list shapes for diagnostic receipts."""
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return max(0, value)
+    if isinstance(value, (list, tuple, set, dict)):
+        return len(value)
+    return 0
 
 
 def _expects_historical_zero_interpretation(context: str) -> bool:
@@ -2510,9 +2521,9 @@ class _Run:
                 "candidate_reasons": [str(reason) for reason in
                                       candidate_critique.get("reasons") or []][
                                           :6],
-                "accepted_observation_interpretations": len((
+                "accepted_observation_interpretations": _validated_item_count((
                     probe.get("observation_interpretation_critique") or {}).get(
-                        "accepted") or []),
+                        "accepted")),
                 "rejected_hypotheses": len(hypothesis_failures),
                 "hypothesis_violation_codes": hypothesis_violation_codes,
                 "rejected_observation_interpretations": len(
@@ -3007,9 +3018,7 @@ class _Run:
         accepted_observations = (
             final_probe.get("observation_interpretation_critique") or {}).get(
                 "accepted") or []
-        observation_count = (
-            accepted_observations if isinstance(accepted_observations, int)
-            else len(accepted_observations))
+        observation_count = _validated_item_count(accepted_observations)
         non_transform_executable = (
             effect_status in {"accepted", "accepted_after_repair"}
             or observation_count > 0)

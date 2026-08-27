@@ -193,6 +193,106 @@ def test_unadmitted_observation_sensitivity_needs_explicit_selection():
     assert contract_scenario["derivation"]["historically_admitted"] is False
 
 
+def test_selection_contract_compares_contaminated_primary_with_conditional_path():
+    dossier = _dossier()
+    dossier["observation_interpretations"] = [{
+        "interpretation_id": "observation-interpretation-1",
+        "kind": "historical_contamination",
+        "claim_ids": ["claim-1"],
+        "excluded_observations": 2,
+        "retained_observations": 166,
+        "input_mutated": False,
+        "conditional_replay": {
+            "status": "insufficient_replay_origins",
+            "origins": 4,
+            "minimum_origins": 12,
+            "selection_eligible": False,
+        },
+    }]
+    body = {key: value for key, value in dossier.items()
+            if key != "seal_sha256"}
+    import hashlib, json
+    dossier["seal_sha256"] = hashlib.sha256(json.dumps(
+        body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+    payload = publish_result(_result(), mode="best_effort", dossiers=[dossier])
+    contract = payload["selection_contract"]
+
+    assert contract["observation_evidence"] == [{
+        "interpretation_id": "observation-interpretation-1",
+        "claim_ids": ["claim-1"],
+        "kind": "historical_contamination",
+        "excluded_observations": 2,
+        "retained_observations": 166,
+        "input_mutated": False,
+        "conditional_replay": {
+            "status": "insufficient_replay_origins",
+            "origins": 4,
+            "minimum_origins": 12,
+            "selection_eligible": False,
+        },
+    }]
+    primary = next(item for item in contract["scenarios"]
+                   if item["role"] == "immutable_primary")
+    candidate = next(item for item in contract["scenarios"]
+                     if item["role"] == "model_authored")
+    assert primary["derivation"][
+        "primary_retains_claimed_contamination"] is True
+    assert primary["derivation"][
+        "conditional_path_addresses_claimed_contamination"] is False
+    assert candidate["derivation"][
+        "primary_retains_claimed_contamination"] is False
+    assert candidate["derivation"][
+        "conditional_path_addresses_claimed_contamination"] is True
+
+
+def test_insufficient_observation_replay_allows_only_human_prior_selection():
+    dossier = _dossier()
+    dossier["candidate_critique"] = {
+        "status": "accepted", "reasons": [],
+        "selection_eligible": False,
+        "selection_reason": (
+            "Observation replay is insufficient; the model path cannot "
+            "upgrade evidential support."),
+        "candidate_origin": "model_authored",
+    }
+    dossier["observation_interpretations"] = [{
+        "interpretation_id": "observation-interpretation-1",
+        "kind": "historical_contamination", "claim_ids": ["claim-1"],
+        "excluded_observations": 2, "retained_observations": 20,
+        "input_mutated": False,
+        "conditional_replay": {
+            "status": "insufficient_replay", "origins": 4,
+            "minimum_origins": 12, "selection_eligible": False,
+        },
+    }]
+    body = {key: value for key, value in dossier.items()
+            if key != "seal_sha256"}
+    import hashlib, json
+    dossier["seal_sha256"] = hashlib.sha256(json.dumps(
+        body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    scenarios = build_scenario_catalog(_result(), dossiers=[dossier])[0]
+    candidate = next(item for item in scenarios
+                     if item["role"] == "model_authored")
+    assert candidate["selection_eligible"] is False
+    assert candidate["human_selection_eligible"] is True
+    assert candidate["automation_eligible"] is False
+
+    payload = publish_result(_result(), mode="best_effort", dossiers=[dossier],
+                             scenario_selection={
+        "selected_scenario_id": candidate["scenario_id"],
+        "ranking": [candidate["scenario_id"], "primary"],
+        "cited_claim_ids": ["claim-1"],
+        "counterevidence_claim_ids": [], "confidence": .55,
+        "rationale": "The primary retains the cited contaminated readings.",
+        "what_would_change_selection": "Sufficient replay evidence.",
+    })
+    assert payload["recommended_scenario_id"] == candidate["scenario_id"]
+    assert payload["recommended_support"] == "prior_assisted"
+    assert payload["automation"]["eligible"] is False
+    assert payload["primary_forecast"] == _result()["forecast"]
+
+
 def test_admitted_observation_counterfactual_is_not_shadowed_by_its_claim():
     dossier = _dossier()
     dossier["claims"][0]["source_span"] = (

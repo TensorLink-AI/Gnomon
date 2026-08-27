@@ -36,6 +36,7 @@ from benchmarks.cik.mcp_agent import (
     _bind_transformation_provenance,
     _select_publication_fail_closed,
     _has_material_numeric_context,
+    _validated_item_count,
 )
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -49,6 +50,13 @@ def test_material_numeric_context_ignores_calendar_not_business_quantities():
     assert _has_material_numeric_context(
         "The comparable site's maximum was 25.83 at 21:10:00.")
     assert _has_material_numeric_context("Demand is bounded below by -2.5.")
+
+
+def test_validator_diagnostic_counts_accept_count_or_collection_shapes():
+    assert _validated_item_count(2) == 2
+    assert _validated_item_count([{"id": 1}]) == 1
+    assert _validated_item_count(None) == 0
+    assert _validated_item_count(-1) == 0
 
 
 def test_regular_long_forecast_grid_is_compact_but_exact():
@@ -883,6 +891,44 @@ def test_hypothesis_knowledge_time_is_bound_by_host_without_llm_repair(
         task.past_time[-1][0]
     assert receipt["compiler"]["repair_decisions"][0][
         "hypothesis_violation_codes"] == []
+
+
+def test_accepted_historical_observation_count_does_not_crash_receipt(
+        tmp_path):
+    task = _task()
+    task.past_time[9] = (task.past_time[9][0], 0.0)
+    task.past_time[10] = (task.past_time[10][0], 0.0)
+    start, end = task.past_time[9][0], task.past_time[10][0]
+    span = (f"Maintenance from {start} to {end} resulted in no requests "
+            "recorded. There is no future maintenance.")
+    task.scenario = span
+    compiler_output = json.dumps({
+        "events": [],
+        "claims": [{
+            "source_span": span, "relation": "unknown",
+            "effective_start": start, "effective_end": end,
+            "mechanism": "Historical readings were maintenance artifacts.",
+            "confidence": 1.0,
+        }],
+        "observation_interpretations": [{
+            "kind": "historical_contamination", "claim_ids": ["claim-1"],
+            "predicate": {"op": "equals", "value": 0.0},
+            "window": "cited_window",
+            "rationale": "Exclude only the cited maintenance zeros.",
+        }],
+        "hypotheses": [], "covariate_tables": [], "transformations": [],
+        "effect_proposal": None, "forecast_candidate": None,
+    })
+    forecaster = _forecaster(
+        [], tmp_path, profile="evidence", compiler_output=compiler_output)
+
+    _, extra = forecaster(task, 1)
+
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    decision = receipt["compiler"]["repair_decisions"][0]
+    assert decision["accepted_observation_interpretations"] == 1
+    assert decision["triggered"] is False
 
 
 def test_evidence_binds_only_cited_host_timestamped_covariates(tmp_path):

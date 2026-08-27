@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Normalize validator count/list shapes before writing context diagnostics;
+  historical-observation cases can no longer crash by calling `len()` on an
+  accepted-count integer.
+- Give governed scenario selection symmetric observation-quality evidence:
+  accepted historical-contamination counts and replay sufficiency now appear
+  beside both the immutable primary and alternatives, so a nominally
+  supported primary cannot hide that it retains observations the verified
+  context identifies as non-recurring artifacts.
+- Separate human best-effort selection from historical admission: a sealed
+  model-authored conditional path may be recommended when the only replay
+  defect is insufficient origins, while support remains `prior_assisted`, the
+  immutable primary remains visible, and automation remains forbidden.
+
 - Label claims-only context as interpretation-only scenario evidence rather
   than numerically used, so an unchanged primary forecast never tells humans
   or agents that context affected the recommendation.

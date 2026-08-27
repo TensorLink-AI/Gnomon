@@ -217,6 +217,7 @@ def _candidate_rows(candidate: dict[str, Any], primary: list[dict[str, Any]]) \
 def _scenario(identifier: str, role: str, rows: list[dict[str, Any]], *,
               support: str, automation_eligible: bool,
               selection_eligible: bool = True,
+              human_selection_eligible: bool | None = None,
               claim_ids: list[str] | None = None,
               assumptions: list[str] | None = None,
               source_seal: str | None = None,
@@ -225,6 +226,9 @@ def _scenario(identifier: str, role: str, rows: list[dict[str, Any]], *,
         "scenario_id": identifier, "role": role, "forecast": rows,
         "support": support, "automation_eligible": automation_eligible,
         "selection_eligible": selection_eligible,
+        "human_selection_eligible": (
+            selection_eligible if human_selection_eligible is None
+            else human_selection_eligible),
         "claim_ids": list(claim_ids or []),
         "assumptions": list(assumptions or []),
     }
@@ -685,6 +689,23 @@ def build_scenario_catalog(result: dict[str, Any], *,
             governed_by_deterministic_claim = bool(
                 candidate_origin == "model_authored"
                 and candidate_claims.intersection(deterministic_claim_ids))
+            relevant_observation_replays = [
+                item.get("conditional_replay") or {}
+                for item in dossier.get("observation_interpretations") or []
+                if candidate_claims.intersection({
+                    str(claim_id) for claim_id in item.get("claim_ids") or []
+                })
+            ]
+            replay_insufficient_only = bool(relevant_observation_replays) and all(
+                str(replay.get("status") or "").startswith("insufficient")
+                for replay in relevant_observation_replays)
+            human_selection_eligible = bool(
+                selection_eligible
+                or (candidate_origin == "model_authored"
+                    and candidate_critique.get("status") == "accepted"
+                    and replay_insufficient_only
+                    and not governed_by_transformation
+                    and not governed_by_deterministic_claim))
             if governed_by_transformation or governed_by_deterministic_claim:
                 # A model cannot bypass a failed replay/admission check by
                 # restating its own forecast under the same cited claims. The
@@ -702,6 +723,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 support=("conditionally_supported" if replay_admitted
                          else "prior_assisted"), automation_eligible=False,
                 selection_eligible=selection_eligible,
+                human_selection_eligible=human_selection_eligible,
                 claim_ids=[str(item) for item in candidate.get("claim_ids") or []],
                 assumptions=[str(candidate.get("rationale") or ""), *[
                     str(item) for item in
@@ -800,7 +822,9 @@ def validate_scenario_selection(raw: Any, *, scenarios: list[dict[str, Any]],
         raise ValueError("scenario selection must rank every known scenario id once with the selected id first")
     selected_scenario = next(item for item in scenarios
                              if item["scenario_id"] == selected)
-    if selected_scenario.get("selection_eligible", True) is not True:
+    if selected_scenario.get("human_selection_eligible",
+                             selected_scenario.get(
+                                 "selection_eligible", True)) is not True:
         raise ValueError("scenario selection cannot promote a candidate with an invalid derivation")
     dominant = dominant_scenario_id(scenarios)
     if dominant is not None and selected != dominant:
@@ -888,6 +912,21 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
     } for dossier in dossiers or [] if verify_temporal_dossier_seal(dossier)
       for hypothesis in dossier.get("hypotheses") or []
       if hypothesis.get("hypothesis_id"))
+    observation_evidence = [{
+        "interpretation_id": item.get("interpretation_id"),
+        "claim_ids": list(item.get("claim_ids") or []),
+        "kind": item.get("kind"),
+        "excluded_observations": item.get("excluded_observations"),
+        "retained_observations": item.get("retained_observations"),
+        "input_mutated": item.get("input_mutated"),
+        "conditional_replay": {
+            key: (item.get("conditional_replay") or {}).get(key)
+            for key in ("status", "origins", "minimum_origins",
+                        "selection_eligible")
+            if (item.get("conditional_replay") or {}).get(key) is not None
+        },
+    } for dossier in dossiers or [] if verify_temporal_dossier_seal(dossier)
+      for item in dossier.get("observation_interpretations") or []]
     dominant = dominant_scenario_id(scenarios)
     return {
         "selection_required": dominant is None,
@@ -897,12 +936,17 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
         "instruction": (
             "Rank only the supplied scenario_ids. Explain the ranking using "
             "claim_ids (including compiled hypothesis ids), name all material "
-            "counterevidence, give confidence, and state what "
+            "counterevidence, and weigh any accepted historical-contamination "
+            "evidence against the replay strength of alternatives. Give "
+            "confidence and state what "
             "would change the selection. Do not output forecast numbers, "
             "support labels, or automation advice."),
         "scenarios": [{
             "scenario_id": item["scenario_id"], "role": item["role"],
             "support": item["support"], "claim_ids": item["claim_ids"],
+            "human_selection_eligible": item.get(
+                "human_selection_eligible",
+                item.get("selection_eligible", True)),
             "forecast_seal": item["scenario_seal_sha256"],
             "summary": {
                 "first_q50": ((item["forecast"][0].get("q50",
@@ -958,9 +1002,21 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
                     ((item.get("effect") or {}).get(
                         "conditional_replay") or {}).get(
                             "admission_withheld_reason")),
+                "history_contamination_claimed": bool(observation_evidence),
+                "primary_retains_claimed_contamination": bool(
+                    observation_evidence
+                    and item.get("role") == "immutable_primary"),
+                "conditional_path_addresses_claimed_contamination": bool(
+                    item.get("role") != "immutable_primary"
+                    and set(item.get("claim_ids") or []).intersection({
+                        str(claim_id)
+                        for evidence in observation_evidence
+                        for claim_id in evidence.get("claim_ids") or []
+                    })),
             },
         } for item in scenarios],
         "claims": claims,
+        "observation_evidence": observation_evidence,
         "temporal_state": temporal_state,
         "response_schema": {
             "selected_scenario_id": "string", "ranking": ["scenario_id"],
