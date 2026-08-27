@@ -805,6 +805,33 @@ def test_best_effort_sampled_prior_policy_is_human_only_and_mode_specific():
     assert normalization["primary_forecast_unchanged"] is True
 
 
+def test_under_sampled_prior_remains_visible_but_not_human_selectable():
+    dossier = _dossier()
+    dossier["forecast_candidate"]["elicitation"] = {
+        "kind": "sampled_point_paths", "requested_paths": 3,
+        "accepted_paths": 2,
+        "aggregation": "linear_empirical_marginal_q10_q50_q90",
+        "temperature": 1.0, "host_observed": True,
+        "historical_skill_evidence": False, "automation_eligible": False,
+    }
+    import hashlib, json
+    body = {key: value for key, value in dossier.items()
+            if key != "seal_sha256"}
+    dossier["seal_sha256"] = hashlib.sha256(json.dumps(
+        body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+    scenarios, _ = build_scenario_catalog(_result(), dossiers=[dossier])
+
+    sampled = next(item for item in scenarios
+                   if item["scenario_id"] == "prior-assisted-1")
+    assert sampled["human_selection_eligible"] is False
+    assert sampled["automation_eligible"] is False
+    assert any("Fewer than three independent" in assumption
+               for assumption in sampled["assumptions"])
+    assert best_effort_prior_selection(
+        scenarios=scenarios, dossiers=[dossier]) is None
+
+
 def test_sampled_outliers_remain_diagnostics_not_published_tail_width():
     dossier = _dossier()
     for row in dossier["forecast_candidate"]["quantiles"]:

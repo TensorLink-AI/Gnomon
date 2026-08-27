@@ -1105,14 +1105,23 @@ def build_scenario_catalog(result: dict[str, Any], *,
             # stale ``True`` here even after the governed executable over the
             # same claims made it outcome-scoring-only. That let a selector
             # choose model-authored intervals over the engine's executable.
+            elicitation = candidate.get("elicitation") or {}
+            sampled_prior = bool(
+                candidate_origin == "model_authored"
+                and elicitation.get("kind") == "sampled_point_paths")
+            sampled_prior_sufficient = bool(
+                not sampled_prior
+                or (isinstance(elicitation.get("accepted_paths"), int)
+                    and int(elicitation["accepted_paths"]) >= 3))
             human_selection_eligible = bool(
-                selection_eligible
-                or governed_companion_evidence
-                or (candidate_origin == "model_authored"
-                    and candidate_critique.get("status") == "accepted"
-                    and replay_insufficient_only
-                    and not governed_by_transformation
-                    and not governed_by_deterministic_claim))
+                sampled_prior_sufficient
+                and (selection_eligible
+                     or governed_companion_evidence
+                     or (candidate_origin == "model_authored"
+                         and candidate_critique.get("status") == "accepted"
+                         and replay_insufficient_only
+                         and not governed_by_transformation
+                         and not governed_by_deterministic_claim)))
             candidate_rows = _candidate_rows(candidate, primary)
             uncertainty_normalization = None
             if (candidate_origin == "model_authored"
@@ -1148,6 +1157,10 @@ def build_scenario_catalog(result: dict[str, Any], *,
                     *([str(candidate_critique.get("selection_reason"))]
                       if not candidate_critique.get(
                           "selection_eligible", True) else []),
+                    *(["Fewer than three independent sampled paths survived; "
+                       "the candidate remains visible but is insufficient "
+                       "for human-facing recommendation selection."]
+                      if sampled_prior and not sampled_prior_sufficient else []),
                     *(["A governed transformation over the same cited claims "
                         "owns recommendation authority."]
                       if governed_by_transformation else []),
