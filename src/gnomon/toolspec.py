@@ -414,6 +414,65 @@ def apply_response_contract(payload: dict[str, Any]) -> dict[str, Any]:
             }
             for message in sorted(warning_series)
         ]
+    bounded_threshold_brief = any(
+        isinstance(entry.get("threshold"), dict)
+        and bool(entry["threshold"].get("bounded_assessment"))
+        for entry in entries)
+    if (result.get("format") == "brief" and result.get("limitation_groups")
+            and bounded_threshold_brief):
+        # The grouped form above retains every distinct warning verbatim plus
+        # affected-series counts/examples. Repeating those same strings under
+        # every result makes wide and fold-starved answers expensive without
+        # adding evidence. The sealed artifact remains the per-series source.
+        for entry in entries:
+            warnings = {str(value) for value in entry.get("warnings") or []}
+            assessment = entry.get("support_assessment") or {}
+            if isinstance(assessment, dict):
+                compact = dict(assessment)
+                reasons = [dict(value) for value in
+                           compact.get("reasons") or []]
+                grouped_reason_codes = {
+                    "warning", "degraded_evaluation",
+                    "selection_underpowered",
+                } if warnings else set()
+                filtered_reasons = [
+                    value for value in reasons
+                    if value.get("code") not in grouped_reason_codes
+                ]
+                if len(filtered_reasons) != len(reasons):
+                    compact["reasons"] = filtered_reasons
+                    compact["grouped_reason_codes"] = sorted({
+                        str(value.get("code")) for value in reasons
+                        if value.get("code") in grouped_reason_codes})
+                disclosures = [dict(value) for value in
+                               compact.get("disclosures") or []]
+                if entry.get("model_assisted"):
+                    filtered_disclosures = [
+                        value for value in disclosures
+                        if value.get("code") != "model_assisted_lane"]
+                    if len(filtered_disclosures) != len(disclosures):
+                        compact["disclosures"] = filtered_disclosures
+                entry["support_assessment"] = compact
+            threshold = entry.get("threshold") or {}
+            if isinstance(threshold, dict) and threshold.get(
+                    "bounded_assessment"):
+                # The structured threshold block carries probability status,
+                # range relation, conflict, and automation eligibility. Drop
+                # only the note that restates those same fields in prose.
+                notes = [
+                    note for note in entry.get("notes") or []
+                    if not (str(note).startswith("threshold ")
+                            and "no crossing probability" in str(note))
+                ]
+                if notes:
+                    entry["notes"] = notes
+                else:
+                    entry.pop("notes", None)
+            if entry.get("warnings"):
+                entry.pop("warnings", None)
+        # artifact_path already names the complete result; this prose merely
+        # restated the same pointer and consumed every subsequent agent turn.
+        result.pop("note", None)
     if recoveries and "recovery_actions" not in result:
         result["recovery_actions"] = recoveries
     from .reasoning_boundary import apply_reasoning_boundary
@@ -881,6 +940,7 @@ def _model_assisted_summary(item: Any) -> dict[str, Any]:
         "timestamps_match_primary_forecast": True,
         "validation": lane.get("validation"),
         "automation_eligible": False,
+        "primary_forecast_unchanged": True,
         "location": "artifact.results[].model_assisted",
     }}
 

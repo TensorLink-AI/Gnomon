@@ -1129,6 +1129,51 @@ def test_inspect_batches_channels_like_forecast(tmp_path) -> None:
     assert single["schema"]["target_column"] == "mem"
 
 
+def test_short_history_threshold_brief_deduplicates_without_losing_evidence(
+        tmp_path) -> None:
+    import json
+
+    from gnomon.artifacts import read_artifact
+    from gnomon.toolspec import RESPONSE_BUDGET_BYTES, runner_for
+
+    source = tmp_path / "short-threshold.csv"
+    source.write_text(
+        "timestamp,value\n" + "\n".join(
+            f"2026-06-{day:02d},{value}" for day, value in enumerate(
+                [101, 104, 109, 111, 114, 118, 121, 123], 23)) + "\n",
+        encoding="utf-8")
+    payload = runner_for("gnomon_forecast")({
+        "input": str(source), "time_column": "timestamp",
+        "target_column": "value", "horizon": 7, "threshold": 125,
+        "format": "brief", "output_dir": str(tmp_path / "out"),
+    })
+    result = payload["results"][0]
+    artifact_result = read_artifact(payload["artifact_path"])["results"][0]
+    assert len(json.dumps(payload).encode()) \
+        <= RESPONSE_BUDGET_BYTES
+    assert "warnings" not in result
+    assert {group["message"] for group in payload["limitation_groups"]} == \
+        set(artifact_result["warnings"])
+    artifact_reason_codes = {
+        item["code"] for item in artifact_result["support_assessment"]["reasons"]}
+    wire_reason_codes = {
+        item["code"] for item in result["support_assessment"]["reasons"]} | \
+        set(result["support_assessment"]["grouped_reason_codes"])
+    assert wire_reason_codes == artifact_reason_codes
+    assert result["threshold"]["bounded_assessment"][
+        "automation_eligible"] is False
+    assert result["model_assisted"]["primary_forecast_unchanged"] is True
+    artifact_disclosures = {
+        item["code"] for item in
+        artifact_result["support_assessment"]["disclosures"]}
+    wire_disclosures = {
+        item["code"] for item in
+        result["support_assessment"]["disclosures"]}
+    assert artifact_disclosures - wire_disclosures == {"model_assisted_lane"}
+    assert result["model_assisted"]["location"] == \
+        "artifact.results[].model_assisted"
+
+
 def test_inspect_defaults_to_every_candidate_instead_of_refusing(
         tmp_path) -> None:
     from gnomon.toolspec import runner_for

@@ -7,6 +7,11 @@
   answer, displayed-range relation, model-assisted disagreement, and an
   `indeterminate` conclusion; it never manufactures probability or automation
   authority, and decide/monitor remain unarmed without calibrated risk.
+- Deduplicate MCP brief responses losslessly: repeated per-series warnings
+  become exact counted limitation groups, warning reasons point to those
+  groups, and model-assisted prose points to its typed lane. Full CLI output
+  and sealed artifacts remain unchanged; the difficult short-history
+  threshold response now fits the response-byte budget.
 
 - Bind benchmark choice slots to declared canonical engine facts so agents may
   explain temporal categories without rewriting their machine-readable value;
