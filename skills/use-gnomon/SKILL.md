@@ -19,32 +19,22 @@ Prefer one sufficient call. Fetch an artifact only when the user requests deeper
 
 ## Use supplied context explicitly
 
-When the user supplies dated events, operating constraints, reference-series
-facts, or other forecast-relevant text, never silently drop it and never mix a
-model-authored adjustment into the primary forecast. Put literal bounded dated
-events in `gnomon_forecast.context_events` using `claim_kind: min|max|exact`,
-exact ISO timestamps, `known_at`, a verbatim top-level `source_span`, and a
-source reference. Omit `entity_scope` for one target; for multi-series calls,
-name it unless the quote itself names exactly one requested target. Always use
-this compact form for literal numeric claims; do
-not construct `event_type` or `attributes` yourself. Gnomon re-parses the
-number from the quote and enables the governed future-context lane
-automatically. When direction and shape are stated but magnitude is
-unknown, use `qualitative_context_events`; it intentionally has no magnitude
-field and can produce only a labelled sensitivity. Put non-event claims,
-hypotheses, transformations, or a model-authored conditional path in
-`context_submission` with the original text, cutoff-time `known_at`, compiler
-identity, and typed proposal. Every submitted item must finish as used,
-rejected with a typed reason, or retained as a labelled scenario.
+Never drop supplied context or mix it into the primary forecast. Put literal,
+dated numeric claims in `context_events` with `claim_kind: min|max|exact`, ISO
+times, `known_at`, verbatim `source_span`, and source reference. Omit scope for
+one target; for multiple targets name it unless the quote uniquely names one.
+Do not invent `event_type` or `attributes`; Gnomon re-parses quoted numbers.
+Use `qualitative_context_events` for dated direction/shape with unknown
+magnitude; it has no magnitude field and produces only a labelled sensitivity.
+Use `context_submission` for other claims, hypotheses, transformations, or
+model-authored conditional paths. Every item must be used, rejected with a
+typed reason, or retained as a labelled scenario.
 
-If a supplied fact cannot be grounded, send `context_rejections` with its
-verbatim `source_span` and a specific reason. Use this for missing/ambiguous
-event timing, information first known after the cutoff, irrelevant facts with
-no temporal mechanism, and model/vendor predictions that merely *forecast* a
-numeric value. Never invent an exact event window from relative prose, and do
-not encode somebody else's forecast as a `constraint:` or `override:`. A
-`qualitative_context_events.effective_start` calendar date must be stated in
-its `source_span`; otherwise reject the fact instead of resolving the date.
+Send ungroundable facts to `context_rejections` with verbatim `source_span` and
+a specific reason: ambiguous timing, post-cutoff knowledge, no temporal
+mechanism, or somebody else's numeric forecast. Never invent dates or encode a
+prediction as a constraint. A qualitative event's start date must appear in
+its quote.
 
 Choose publication mode from the user's intent:
 
@@ -55,13 +45,11 @@ Choose publication mode from the user's intent:
 - `scenario` when the user wants the immutable primary beside several explicit
   what-if paths.
 
-If the host can independently sample its model, use Gnomon's provider-neutral
-sampled-prior prompt/parser integration and submit the sealed dossier rather
-than averaging values in prose. Fewer than three valid sampled paths are
-scenario-only. Sampling agreement is not historical skill, and no
-model-authored path may authorize automation. Use `gnomon_select_scenario` only
-to rank already sealed scenario IDs with cited claim IDs; it cannot edit their
-numbers, support, primary, or automation status.
+If the host independently samples its model, submit Gnomon's sealed sampled
+prior rather than averaging in prose. Fewer than three valid paths are
+scenario-only; agreement is not historical skill. `gnomon_select_scenario`
+may rank sealed IDs with cited claims, never edit numbers/support or authorize
+automation.
 
 ## Preserve the answer contract
 
@@ -72,15 +60,18 @@ numbers, support, primary, or automation status.
 - Distinguish the immutable primary forecast from conditional context scenarios. Never present a context-conditioned scenario as though it replaced the primary answer.
 - Explain deterministic choice projections; do not override them with model intuition.
 
-Do not turn `best_effort` into confidence. It is an answer with an explicit weak-support warning. If Gnomon abstains, say why and offer its literal recovery action. Issue a repaired call only when the user requested the answer and the recovery does not change their intent.
+`best_effort` is not confidence. Preserve its warning. On abstention, explain
+why and copy the recovery action; retry only when it preserves user intent.
 
 ## Handle feedback with consent
 
-Record feedback only after the user explicitly asks or agrees. If local command execution is available:
+Record feedback only after explicit agreement. With local execution:
 
 1. Create a structured local receipt with `gnomon-feedback create`. Include only the minimum task metadata needed to reproduce the behavior.
 2. Put sensitive detail in `--private-note`; it never enters a shareable payload. Put text in `--public-summary` only when the user approves sharing that exact text.
 3. Run `gnomon-feedback preview <receipt-id>` and show the preview before any export or submission.
 4. Export or submit only after separate explicit consent. Never add `--consent` on the user's behalf.
 
-Never record raw series, prompts, messages, credentials, local paths, or full tool arguments. Do not reward or optimize for call volume. A report can become reward-eligible only after independent verification and duplicate checking; the local claim secret lets a contributor redeem without attaching an identity to the report.
+Never record raw series, prompts, messages, credentials, paths, or full tool
+arguments. Never reward call volume. Shared reports require independent
+verification and duplicate checking.

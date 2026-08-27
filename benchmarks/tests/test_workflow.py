@@ -92,6 +92,18 @@ def test_context_interface_corpus_scores_the_engine_contract_separately():
     assert all(row["context_contract"]["pass"] for row in result["rows"])
 
 
+def test_installed_agent_skill_is_compact_without_hiding_safety_contracts():
+    path = Path(__file__).parents[2] / "skills" / "use-gnomon" / "SKILL.md"
+    text = path.read_text(encoding="utf-8")
+    assert len(text.encode("utf-8")) <= 5_000
+    for required in (
+        "immutable primary", "context_events", "qualitative_context_events",
+        "context_rejections", "strict", "best_effort", "scenario",
+        "automation", "artifact_id", "data_ref",
+    ):
+        assert required in text
+
+
 def test_adversarial_context_corpus_has_explicit_safe_dispositions():
     path = Path(__file__).parents[1] / "workflow" / "cases" / \
         "context-adversarial.jsonl"

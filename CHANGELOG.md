@@ -21,6 +21,11 @@
   summaries, claims, non-empty evidence, and the complete sealed receipt. The
   workflow benchmark now attributes schema and tool-response bytes separately
   from model tokens.
+- Diet the default Evidence schema and installed agent skill by removing prose
+  already enforced by enums and JSON Schema while retaining every field,
+  safety invariant, context lane, publication mode, and recovery rule. Exact
+  disposition-fidelity scoring applies to rejected facts, where the reason is
+  material, rather than requiring internal success codes in human prose.
 - Support strict, best-effort, and scenario publication for batched
   multi-target forecasts. Each series receives its own sealed publication and
   sidecar while the response carries a compact aggregate; scoped context can

@@ -20,8 +20,7 @@ _CONTEXT_EVENTS_PROPERTY: dict[str, Any] = {
     "context_events": {
         "type": "array",
         "description": (
-            "Literal claim: claim_kind=min|max|exact plus source_span. "
-            "Unknown magnitude: qualitative_context_events."
+            "Dated literal min/max/exact claim bound to its verbatim quote."
         ),
         "items": {
             "type": "object",
@@ -51,12 +50,8 @@ _CONTEXT_EVENTS_PROPERTY: dict[str, Any] = {
     "qualitative_context_events": {
         "type": "array",
         "description": (
-            "Unknown-magnitude events: event_id; ISO effective_start/end/known_at; "
-            "verbatim source_span containing the effective_start date; "
-            "direction increase|decrease|unknown; "
-            "effect_family level_shift|temporary_pulse|variance_change|"
-            "seasonal_regime_change; duration temporary|persistent|unknown; "
-            "optional entity_scope/source_reference. Sensitivity only."
+            "Dated unknown-magnitude event; its quote must contain the start "
+            "date. Produces a non-automatable sensitivity only."
         ),
         "items": {
             "type": "object", "additionalProperties": False,
@@ -2776,11 +2771,9 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "gnomon_forecast",
         "description": (
-            "Forecast one or more columns (`\"cpu,mem,requests\"` or `\"auto\"`) "
-            "directly; schema is inferred, "
-            "validated, and backtested without an inspect call first. Models, "
-            "context, and covariates must earn fold lift; weak answers disclose "
-            "their support."
+            "Forecast columns (`\"cpu,mem,requests\"` or `\"auto\"`) directly. "
+            "Schema is inferred and "
+            "candidates are backtested; weak support is disclosed."
         ),
         "inputSchema": {
             "type": "object",
@@ -2825,7 +2818,7 @@ TOOLS: list[dict[str, Any]] = [
                 "covariate_known_at_column": {"type": "string", "description": "Availability timestamp column (default known_at)."},
                 **_TEMPORAL_QUESTIONS_PROPERTY,
                 "covariate_series_column": {"type": "string", "description": "Optional series column in the covariate CSV."},
-                "repair": {"type": "string", "enum": ["off", "safe", "aggressive"], "description": "Messy-data handling (default safe): off rejects anything non-strict; safe normalises cell text; aggressive also fills gaps and snaps timestamps — every fix disclosed in warnings and evidence."},
+                "repair": {"type": "string", "enum": ["off", "safe", "aggressive"], "description": "Data repair (default safe); aggressive may fill gaps or snap times. Every change is disclosed."},
                 "best_effort": {"type": "boolean", "description": (
                     "Deprecated alias for minimum_support=best_effort."
                 )},

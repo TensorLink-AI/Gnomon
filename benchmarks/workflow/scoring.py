@@ -200,7 +200,10 @@ def _case_score(case: Case, obs: Observation) -> dict[str, Any]:
     disposition_codes = sorted({
         str(item.get("reason_code")) for item in
         observed_context.get("dispositions") or []
-        if isinstance(item, dict) and item.get("reason_code")})
+        if isinstance(item, dict) and item.get("reason_code")
+        # Exact rejection diagnoses are material recovery facts. Successful
+        # routing codes such as ``applied`` need not leak into human prose.
+        and item.get("disposition") == "rejected"})
     answer_text = "\n".join([*obs.claims, *obs.disclosures])
     disposition_preservation = (
         all(code in answer_text for code in disposition_codes)
