@@ -264,6 +264,12 @@ portfolio, and scenario list. The complete publication remains verifiable at
 `publication_path`; request `format: "full"` only when those arrays genuinely
 need to cross the agent boundary.
 
+The compact `selection_contract` carries only executable ranking inputs. When
+selection is unnecessary it returns the deterministic scenario and basis. When
+selection is required it retains scenario identities, eligibility, seals,
+summaries, cited claims, and non-empty evidence, while the receipt retains the
+full instructions, response schema, temporal state, and derivation record.
+
 The MCP `gnomon_forecast` tool exposes the same `publication_mode`,
 `temporal_dossiers`, a compact raw `context_submission` object,
 `scenario_selection`, and `automation_policy` fields. After inspecting a

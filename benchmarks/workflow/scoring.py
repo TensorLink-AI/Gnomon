@@ -272,6 +272,17 @@ def _case_score(case: Case, obs: Observation) -> dict[str, Any]:
         "stage_economics": {name: value.get("economics")
                             for name, value in obs.stage_results.items()
                             if isinstance(value, dict) and value.get("economics")},
+        "interface_bytes": {
+            "tool_schema": obs.metadata.get("tool_schema_bytes"),
+            "tool_response_raw": sum(
+                int(value) for value in
+                obs.metadata.get("tool_response_bytes_raw", [])
+                if isinstance(value, (int, float))),
+            "tool_response_sent": sum(
+                int(value) for value in
+                obs.metadata.get("tool_response_bytes_sent", [])
+                if isinstance(value, (int, float))),
+        },
     }
 
 
@@ -409,6 +420,15 @@ def score_run(cases: list[Case], observations: list[Observation], arm: str = "un
             "redundant_calls_mean": _mean([row["redundant_calls"] for row in rows]),
             "mean_response_tokens": _mean([row["response_tokens"] for row in rows]),
             "mean_latency_seconds": _mean([row["latency_seconds"] for row in rows]),
+            "mean_tool_schema_bytes": _mean([
+                float(row["interface_bytes"]["tool_schema"]) for row in rows
+                if row["interface_bytes"]["tool_schema"] is not None]),
+            "mean_tool_response_bytes_raw": _mean([
+                float(row["interface_bytes"]["tool_response_raw"])
+                for row in rows]),
+            "mean_tool_response_bytes_sent": _mean([
+                float(row["interface_bytes"]["tool_response_sent"])
+                for row in rows]),
             "by_stage": {},
         },
         "by_kind": {}, "by_domain": {}, "rows": rows,

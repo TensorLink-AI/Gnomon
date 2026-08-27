@@ -307,6 +307,7 @@ def test_batched_forecast_emits_scoped_sealed_publications(tmp_path) -> None:
 
 def test_qualitative_context_lane_produces_non_automatable_sensitivity(
         tmp_path) -> None:
+    import json
     from datetime import date, timedelta
     from gnomon.toolspec import runner_for
 
@@ -348,6 +349,9 @@ def test_qualitative_context_lane_produces_non_automatable_sensitivity(
     assert publication["scenario_count"] == 2
     assert any(item["role"] == "conditional_sensitivity"
                for item in publication["selection_contract"]["scenarios"])
+    assert "response_schema" not in publication["selection_contract"]
+    assert "temporal_state" not in publication["selection_contract"]
+    assert len(json.dumps(publication["selection_contract"])) < 3_500
 
     strict = runner_for("gnomon_forecast")({
             "input": str(path), "time_column": "timestamp",

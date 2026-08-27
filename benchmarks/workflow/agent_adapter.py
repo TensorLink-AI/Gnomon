@@ -350,6 +350,13 @@ def _normalize(case: dict[str, Any], value: dict[str, Any], *, calls: int,
                          "surface_required_calls", 0),
                      "recovery_calls": engine_evidence.get("recovery_calls", 0),
                      "redundant_calls": engine_evidence.get("redundant_calls", 0),
+                     "tool_schema_bytes": engine_evidence.get("tool_schema_bytes"),
+                     "tool_response_bytes_raw": engine_evidence.get(
+                         "tool_response_bytes_raw", []),
+                     "tool_response_bytes_sent": engine_evidence.get(
+                         "tool_response_bytes_sent", []),
+                     "tool_response_top_level_bytes": engine_evidence.get(
+                         "tool_response_top_level_bytes", []),
                      "context_arguments": engine_evidence.get(
                          "context_arguments", []),
                      "context_behavior": engine_evidence.get(
@@ -474,6 +481,8 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
     try:
         session.initialize()
         tools = openai_tool_specs(session.list_tools(), SUBMIT)
+        engine_evidence["tool_schema_bytes"] = len(json.dumps(
+            tools, sort_keys=True, separators=(",", ":")).encode("utf-8"))
         preferred_name = _preferred_tool(case, profile)
         skill_path = repository / "skills" / "use-gnomon" / "SKILL.md"
         skill = skill_path.read_text(encoding="utf-8")
@@ -580,6 +589,13 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                 else:
                     result = session.call_tool(name, arguments)
                     structured = result.get("structuredContent") or {}
+                    if isinstance(structured, dict):
+                        engine_evidence.setdefault(
+                            "tool_response_top_level_bytes", []).append({
+                                str(key): len(json.dumps(
+                                    value, sort_keys=True, separators=(",", ":"),
+                                    default=str).encode("utf-8"))
+                                for key, value in structured.items()})
                     if isinstance(structured, dict) and structured.get(
                             "status") in {"error", "invalid"}:
                         error = structured.get("error") or structured
@@ -797,8 +813,12 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                             engine_evidence["recommendation_numbers"])
                     blocks = result.get("content") or []
                     content = blocks[0].get("text", "") if blocks else json.dumps(result.get("structuredContent") or {})
+                    engine_evidence.setdefault("tool_response_bytes_raw", []).append(
+                        len(content.encode("utf-8")))
                     if len(content) > 16000:
                         content = content[:8000] + "\n...[tool result bounded]...\n" + content[-8000:]
+                    engine_evidence.setdefault("tool_response_bytes_sent", []).append(
+                        len(content.encode("utf-8")))
                 messages.append({"role": "tool", "tool_call_id": call["id"], "content": content})
                 engine_evidence["recovery_calls"] = recovery_calls
                 engine_evidence["redundant_calls"] = 0

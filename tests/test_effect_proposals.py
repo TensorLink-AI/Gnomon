@@ -1195,7 +1195,9 @@ def test_mcp_one_call_validates_and_composes_raw_context(tmp_path):
     publication = payload["publication"]
     assert publication["recommended_scenario_id"] == "effect-composed-1"
     assert publication["primary_forecast_unchanged"] is True
-    assert publication["selection_contract"]["temporal_state"]
+    # The compact wire projection carries temporal state once at publication
+    # level; the complete receipt retains the selection-contract copy.
+    assert publication["temporal_state"]
     assert publication["context_summary"]["status"] == "used"
     assert publication["projection"] == "compact"
     receipt = json.loads(Path(payload["publication_path"]).read_text(

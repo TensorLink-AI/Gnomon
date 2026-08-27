@@ -441,6 +441,37 @@ def compact_publication_for_wire(payload: dict[str, Any]) -> dict[str, Any]:
         "candidate_admission", "publication_seal_sha256",
     )
     projection = {key: publication[key] for key in keys if key in publication}
+    contract = projection.get("selection_contract")
+    if isinstance(contract, dict):
+        compact_contract = {key: contract.get(key) for key in (
+            "selection_required", "deterministic_scenario_id",
+            "selection_basis")}
+        if contract.get("selection_required") is True:
+            compact_contract.update({
+                "instruction": (
+                    "Rank eligible scenario_ids using cited claims and "
+                    "counterevidence; give confidence, rationale, and what "
+                    "would change the selection. Do not alter numbers, "
+                    "support, or automation."),
+                "scenarios": [{
+                    key: scenario.get(key) for key in (
+                        "scenario_id", "role", "support", "claim_ids",
+                        "human_selection_eligible", "forecast_seal", "summary")
+                    if scenario.get(key) is not None
+                } | ({"evidence": {
+                    key: value for key, value in
+                    (scenario.get("derivation") or {}).items()
+                    if value not in (None, False, [], {}, "not_applicable")
+                }} if any(value not in (None, False, [], {}, "not_applicable")
+                          for value in (scenario.get("derivation") or {}).values())
+                     else {})
+                    for scenario in contract.get("scenarios") or []
+                    if isinstance(scenario, dict)],
+                "claims": contract.get("claims") or [],
+                "observation_evidence": contract.get(
+                    "observation_evidence") or [],
+            })
+        projection["selection_contract"] = compact_contract
     projection.update({
         "projection": "compact",
         "receipt_path": str(path),

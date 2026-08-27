@@ -15,6 +15,12 @@
 - Measure whether the agent preserves canonical context disposition codes in
   its final answer, separately from engine correctness, and instruct the
   reference integration to copy those codes rather than reinterpret them.
+- Compact scenario-selection contracts on the default MCP wire projection:
+  omit duplicated schemas, repeated temporal state, null derivation fields,
+  and long workflow prose while retaining identities, seals, eligibility,
+  summaries, claims, non-empty evidence, and the complete sealed receipt. The
+  workflow benchmark now attributes schema and tool-response bytes separately
+  from model tokens.
 - Support strict, best-effort, and scenario publication for batched
   multi-target forecasts. Each series receives its own sealed publication and
   sidecar while the response carries a compact aggregate; scoped context can
