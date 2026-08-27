@@ -80,6 +80,17 @@ def test_candidate_distance_from_primary_is_sealed_and_non_authoritative():
     }
     assert candidate["support"] == "prior_assisted"
     assert candidate["automation_eligible"] is False
+    assert candidate["effect"]["distribution"] == {
+        "kind": "sealed_model_quantiles",
+        "horizon": 2,
+        "quantile_levels": [0.1, 0.5, 0.9],
+        "source": "sealed_context_receipt",
+        "probabilistic_consumers_should_use": "quantiles",
+        "stability_evidence": "not_measured",
+        "historical_skill_evidence": False,
+        "compact_human_summary": "recommended_forecast",
+        "automation_eligible": False,
+    }
     assert candidate["scenario_seal_sha256"]
 
 

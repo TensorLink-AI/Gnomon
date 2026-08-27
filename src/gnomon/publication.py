@@ -1159,16 +1159,35 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 effect={
                     "candidate_origin": candidate_origin,
                     "elicitation": candidate.get("elicitation") or {},
+                    # Every model-authored path exposes one typed uncertainty
+                    # contract. Empirical paths are the richer representation;
+                    # a compiler-authored quantile path remains a real sealed
+                    # distribution, but must say plainly that repeated-sample
+                    # stability was not measured. This keeps downstream agents
+                    # from treating a missing metadata object as either a point
+                    # forecast or implicit confidence evidence.
                     "distribution": ({
                         "kind": "sealed_empirical_model_paths",
                         "sample_count": len(candidate.get("sample_paths") or []),
                         "horizon": len(candidate_rows),
+                        "quantile_levels": [0.1, 0.5, 0.9],
                         "source": "sealed_context_receipt",
                         "probabilistic_consumers_should_use": "sample_paths",
+                        "stability_evidence": "host_observed",
                         "compact_human_summary": "recommended_forecast",
                         "automation_eligible": False,
                     } if candidate_origin == "model_authored"
-                         and candidate.get("sample_paths") else None),
+                         and candidate.get("sample_paths") else {
+                        "kind": "sealed_model_quantiles",
+                        "horizon": len(candidate_rows),
+                        "quantile_levels": [0.1, 0.5, 0.9],
+                        "source": "sealed_context_receipt",
+                        "probabilistic_consumers_should_use": "quantiles",
+                        "stability_evidence": "not_measured",
+                        "historical_skill_evidence": False,
+                        "compact_human_summary": "recommended_forecast",
+                        "automation_eligible": False,
+                    } if candidate_origin == "model_authored" else None),
                     "primary_disagreement": _primary_disagreement(
                         candidate_rows, primary),
                     "uncertainty_normalization": uncertainty_normalization,
