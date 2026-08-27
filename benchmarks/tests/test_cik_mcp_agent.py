@@ -758,7 +758,7 @@ class ScriptedClient:
             choices=[SimpleNamespace(message=message, finish_reason="stop")])
 
     def completions(self, messages, *, n=1, temperature=None,
-                    reasoning_effort=None, request_timeout=None,
+                    max_tokens=None, reasoning_effort=None, request_timeout=None,
                     transport_retries=None):
         self.completion_temperatures.append(temperature)
         self.completion_reasoning_efforts.append(reasoning_effort)
@@ -1582,6 +1582,7 @@ def test_accepted_effect_does_not_recompile_for_malformed_optional_lane(
         "rejected_observation_interpretations": 0,
         "required_observation_lane_missing": False,
         "numeric_context_unresolved": False,
+        "context_unresolved": False,
         "future_numeric_path_needs_executable": False,
         "governed_companion_mapping_pending": False,
         "top_level_rejections": 1,
@@ -1861,6 +1862,49 @@ def test_invalid_claim_receives_the_one_bounded_dossier_repair(tmp_path):
     assert "one complete corrected dossier" in client.completion_prompts[1]
     assert extra["context_compilation"]["claim_count"] == 1
     assert extra["context_compilation"]["hypothesis_count"] == 1
+
+
+def test_empty_compile_of_qualitative_context_gets_one_bounded_repair(tmp_path):
+    task = _task()
+    span = "Cloud cover is expected, which may reduce solar production."
+    task.scenario = span
+    repaired = json.dumps({
+        "events": [],
+        "claims": [{
+            "source_span": span, "relation": "supports_decrease",
+            "effective_start": None, "effective_end": None,
+            "timing_status": "atemporal_context", "confidence": .6,
+        }],
+        "hypotheses": [{
+            "kind": "unsupported", "claim_ids": ["claim-1"],
+            "target_series": ["value"], "predictor_series": None,
+            "known_at": task.past_time[-1][0], "lag_steps": 0,
+            "direction": "decrease",
+            "rationale": "Direction is plausible but magnitude is absent.",
+        }],
+        "effect_proposal": None, "forecast_candidate": None,
+        "covariate_tables": [], "transformations": [],
+    })
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        [json.dumps({}), repaired])
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 1)
+
+    assert len(client.completion_prompts) == 2
+    assert "CONTEXT_UNRESOLVED" in client.completion_prompts[1]
+    assert extra["context_compilation"]["claim_count"] == 1
+    assert extra["context_compilation"]["hypothesis_count"] == 1
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    decision = receipt["compiler"]["repair_decisions"][0]
+    assert decision["context_unresolved"] is True
+    assert decision["numeric_context_unresolved"] is False
 
 
 def test_literal_zero_claim_uses_deterministic_override_lane(tmp_path):

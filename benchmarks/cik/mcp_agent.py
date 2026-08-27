@@ -313,7 +313,9 @@ MIN_CONTEXT_REPAIR_SECONDS = 10.0
 #: Version 156: structured companion context preserves a governed executable
 #: and a separately sealed model-authored path; selection receives compact
 #: replay evidence, one bounded repair, and auditable portfolio telemetry.
-MCP_CONTRACT_VERSION = 156
+#: Version 157: qualitative context uses a compact claim/event contract and an
+#: empty compile receives one bounded repair instead of being silently erased.
+MCP_CONTRACT_VERSION = 157
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -733,6 +735,42 @@ path. Gnomon validates citations, units, arithmetic and seals. Invalid content
 is rejected without changing the primary.
 9. Use nothing after the history cutoff. If context is irrelevant, return the
 seven empty/null fields.
+"""
+
+QUALITATIVE_INSTRUCTIONS = """\
+Compile qualitative temporal context into a governed JSON dossier. Return ONLY
+JSON with exactly these keys:
+{"events":[],"claims":[],"hypotheses":[],"covariate_tables":[],
+"transformations":[],"observation_interpretations":[],
+"effect_proposal":null,"forecast_candidate":null}
+
+Use this compact lane when the source supplies states, direction, timing, or a
+relationship but no numeric magnitude. Preserve every forecast-relevant fact:
+- Future event: {document_index:0,event_type:"short source label",
+  entity_scope:["*"],effective_start:"exact ISO",effective_end:"exact ISO",
+  confidence:0.0,status:"confirmed|tentative",evidence_quote:"verbatim span",
+  effect_family:"level_shift|trend_change|variance_change|temporary_pulse|
+  saturation_bound|seasonal_regime_change|unknown",
+  direction:"increase|decrease|unknown",duration:"temporary|persistent|unknown",
+  entity_kind:"service|product|medication|procedure|calendar|capacity|price|
+  environment|unknown"}.
+- Claim: {source_span:"verbatim span",relation:"supports_increase|
+  supports_decrease|supports_stability|supports_higher_variance|
+  supports_lower_variance|changes_seasonal_regime|constrains_range|unknown",
+  effective_start:null,effective_end:null,mechanism:"brief interpretation",
+  confidence:0.0,timing_status:"resolved|unresolved_trigger|atemporal_context"}.
+- Hypothesis: {kind:"regime_shift|relationship|historical_analogue|unsupported",
+  claim_ids:["claim-1"],target_series:["*"],predictor_series:null,known_at:
+  "history cutoff ISO",lag_steps:0,direction:"increase|decrease|unknown",
+  rationale:"bounded competing interpretation"}.
+
+Rules: quote only the source. Put only future-overlapping states in events;
+historical states and general relationships are claims. Preserve ambiguous
+interpretations as up to six hypotheses. Do not invent numeric encodings,
+effect sizes, target paths, dates, or causal authority. Leave numeric lanes
+empty: this contract describes what is known and what evidence is missing; it
+cannot edit the immutable primary, upgrade support, or authorize automation.
+If the context is irrelevant, return the empty object shown above.
 """
 
 COMPANION_INSTRUCTIONS = """\
@@ -2808,12 +2846,15 @@ class _Run:
             self.timestamps, self.values,
             limit=8 if relationship_contract else
             128 if observation_contract else 64)
+        material_numeric_context = _has_material_numeric_context(
+            compiler_context)
         instructions = (RELATIONSHIP_INSTRUCTIONS if relationship_contract
                         else OBSERVATION_INSTRUCTIONS if observation_contract
                         else COMPANION_INSTRUCTIONS if companion_contract
-                        else DOSSIER_INSTRUCTIONS)
-        material_numeric_context = _has_material_numeric_context(
-            compiler_context)
+                        else DOSSIER_INSTRUCTIONS if material_numeric_context
+                        else QUALITATIVE_INSTRUCTIONS)
+        compiler_max_tokens = (2_000 if instructions is QUALITATIVE_INSTRUCTIONS
+                               else None)
         numeric_routing_note = (
             "\nHost routing note: the context contains at least one material "
             "numeric quantity beyond dates or clock times. Do not return an "
@@ -2876,7 +2917,8 @@ class _Run:
             try:
                 return self.forecaster.client.completions(
                     [{"role": "user", "content": content}], n=1,
-                    temperature=0, reasoning_effort="none",
+                    temperature=0, max_tokens=compiler_max_tokens,
+                    reasoning_effort="none",
                     request_timeout=max(1, min(
                         120, math.floor(request_budget))),
                     transport_retries=0)[0]
@@ -3049,9 +3091,9 @@ class _Run:
         # as a cited hypothesis or sealed prior-assisted scenario. The model
         # may still explicitly classify it unsupported; it may not silently
         # erase supplied information.
+        unresolved_context = bool(context.strip() and not proposed_any_lane)
         unresolved_numeric_context = bool(
-            context.strip() and not proposed_any_lane
-            and _has_material_numeric_context(context))
+            unresolved_context and _has_material_numeric_context(context))
         future_path_needs_executable = _future_numeric_path_needs_executable(
             context, future_timestamps, raw)
         companion_mapping_pending = bool(
@@ -3059,7 +3101,7 @@ class _Run:
             and future_path_needs_executable)
         transformation_proposed = bool(raw.get("transformations"))
         if ((proposed_any_lane or observation_lane_missing
-                or unresolved_numeric_context) and not transformation_proposed):
+                or unresolved_context) and not transformation_proposed):
             probe, probe_rejections = validate_temporal_dossier(
                 raw, context_text=context, cutoff=self.timestamps[-1],
                 future_timestamps=future_timestamps, history=self.values,
@@ -3108,7 +3150,7 @@ class _Run:
             # hypotheses and return the typed recovery instead of retrying a
             # categorically ineligible numeric lane.
             repair_required = (
-                observation_lane_missing or unresolved_numeric_context
+                observation_lane_missing or unresolved_context
                 or (future_path_needs_executable
                     and not companion_mapping_pending)
                 or (not accepted_executable
@@ -3155,6 +3197,7 @@ class _Run:
                     observation_lane_missing),
                 "numeric_context_unresolved": bool(
                     unresolved_numeric_context),
+                "context_unresolved": bool(unresolved_context),
                 "future_numeric_path_needs_executable": bool(
                     future_path_needs_executable
                     and not companion_mapping_pending),
@@ -3223,7 +3266,20 @@ class _Run:
                             "conditional path can be formed, and name the missing "
                             "evidence."
                         ),
-                    } if unresolved_numeric_context else None),
+                    } if unresolved_numeric_context else {
+                        "code": "CONTEXT_UNRESOLVED",
+                        "message": (
+                            "The supplied context was silently represented by "
+                            "no claim, hypothesis, executable, or rejection. "
+                            "Return at least one verbatim cited claim and a "
+                            "typed hypothesis describing what it could imply. "
+                            "If it cannot safely influence a forecast, preserve "
+                            "it as scenario-only or reject it with the specific "
+                            "missing evidence. Propose a sealed candidate only "
+                            "when a bounded path is defensible. Never invent an "
+                            "effect size or alter the immutable primary."
+                        ),
+                    } if unresolved_context else None),
                     "all_rejections": probe_rejections,
                 }
                 try:

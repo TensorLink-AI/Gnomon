@@ -343,6 +343,7 @@ class OpenRouterClient:
 
     def completions(self, messages: list[dict[str, Any]], *, n: int = 1,
                     temperature: float | None = None,
+                    max_tokens: int | None = None,
                     reasoning_effort: str | None = None,
                     request_timeout: float | None = None,
                     transport_retries: int | None = None) -> list[str]:
@@ -353,6 +354,7 @@ class OpenRouterClient:
         recorded as a wrong answer the model never gave.
         """
         response = self.chat(messages, n=n, temperature=temperature,
+                             max_tokens=max_tokens,
                              reasoning_effort=reasoning_effort,
                              request_timeout=request_timeout,
                              transport_retries=transport_retries)
