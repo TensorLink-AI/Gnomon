@@ -18,9 +18,14 @@ import os
 from pathlib import Path
 import random
 import statistics
+import sys
 import threading
 from types import SimpleNamespace
 from typing import Any
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "src"))
 
 from benchmarks.breachbench.run_breachbench import (
     ARMS, SYSTEM, _arm_metrics, _git_sha, _score, base_prompt, exact_sign_p,
