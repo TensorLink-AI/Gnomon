@@ -8,6 +8,12 @@
   paths nor additional horizon leads inflate that count, and regularisation
   is not repeated per lead, avoiding prior-driven horizon inflation. The
   estimate remains `best_effort` and automation-ineligible.
+- **Probability regularisation cannot manufacture an intervention.** The
+  regularised horizon probability remains the reader-facing uncertainty
+  estimate, while best-effort policy projection uses the disclosed raw
+  empirical composition as `decision_probability`. Both roles and bases are
+  returned; a Jeffreys pseudo-count can no longer push an otherwise zero-event
+  sample across a client's action boundary.
 - **BreachBench distinguishes useful model judgment from safety failures.**
   Divergence from a best-effort human recommendation is now reported as an
   outcome-scored beneficial/harmful/neutral override with regret delta, while

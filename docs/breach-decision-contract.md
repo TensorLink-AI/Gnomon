@@ -59,6 +59,15 @@ disclosed in `method`, `residual_source`, and `reasons`:
 Only when nothing can be estimated at all is the probability withheld
 (`support: insufficient`).
 
+For this best-effort rung, regularisation and policy have deliberately
+different roles. `probability_any_breach` is the finite-sample-regularised
+value communicated to a reader; `independence_composed_reference` is the raw
+empirical diagnostic. The single-shot policy uses that raw reference as
+`decision_probability`, because a half-success pseudo-count represents
+uncertainty and is not allowed to manufacture an intervention. Both values
+and `decision_probability_basis` are returned. This distinction never upgrades
+the event or decision beyond `best_effort`.
+
 ## Single-shot policy
 
 The caller supplies `action_cost`, `miss_cost`, and optionally mitigation

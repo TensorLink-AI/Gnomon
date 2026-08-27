@@ -515,6 +515,21 @@ def apply_breach_policy(
     """
     policy.validate()
     probability = event_risk.get("probability_any_breach")
+    decision_probability = probability
+    decision_probability_basis = "communicated_event_probability"
+    # Finite-sample regularisation prevents a tiny sample from communicating
+    # exact certainty. Its pseudo-counts are uncertainty, not observed breach
+    # evidence, and therefore must not be allowed to manufacture a policy
+    # crossing. The disclosed raw empirical composition remains the
+    # best-effort action basis; neither value can authorize automation.
+    if (event_risk.get("method") == "independence_composed_marginals_v1"
+            and event_risk.get("finite_sample_regularized_probability")
+            is not None
+            and event_risk.get("independence_composed_reference") is not None):
+        decision_probability = event_risk.get(
+            "independence_composed_reference")
+        decision_probability_basis = \
+            "raw_independence_composition_no_prior_driven_action"
     interval = event_risk.get("probability_any_breach_interval_90") or {}
     lower, upper = interval.get("lower"), interval.get("upper")
     break_even = policy.action_cost / (
@@ -524,12 +539,12 @@ def apply_breach_policy(
     recommendation: str | None = None
     decision_support = "insufficient"
     reason_code: str
-    if probability is None:
+    if decision_probability is None:
         reason_code = "event_probability_unavailable"
     else:
-        probability = float(probability)
-        expected_monitor = probability * policy.miss_cost
-        expected_act = policy.action_cost + probability * policy.miss_cost * (
+        decision_probability = float(decision_probability)
+        expected_monitor = decision_probability * policy.miss_cost
+        expected_act = policy.action_cost + decision_probability * policy.miss_cost * (
             1.0 - policy.mitigation_effectiveness)
         recommendation = ("act" if expected_monitor > expected_act
                           else "monitor")
@@ -566,6 +581,8 @@ def apply_breach_policy(
         "breach_more_likely_than_not": event_risk.get(
             "breach_more_likely_than_not"),
         "probability_any_breach": probability,
+        "decision_probability": decision_probability,
+        "decision_probability_basis": decision_probability_basis,
         "policy_assumption": (
             "One irreversible decision is made now; the option value of "
             "waiting for future observations and acting later is not modelled."

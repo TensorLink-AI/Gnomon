@@ -201,6 +201,23 @@ def test_regularisation_vanishes_as_real_evidence_grows() -> None:
         < abs(small["probability_any_breach"] - raw)
 
 
+def test_regularisation_pseudocount_cannot_manufacture_an_action() -> None:
+    event = _by_lead([[0.0, 0.0, 0.0]])
+    risk = estimate_horizon_breach(
+        _rows(3), 12.0, event,
+        measured_interval_coverage=0.8,
+        calibration_is_verifiable=True,
+        step_marginals=[0.0, 0.0, 0.0], step_marginal_trials=1)
+    assert risk["probability_any_breach"] == 0.25
+    decision = apply_breach_policy(risk, BreachDecisionPolicy(2, 10))
+    assert decision["recommended_action"] == "monitor"
+    assert decision["probability_any_breach"] == 0.25
+    assert decision["decision_probability"] == 0.0
+    assert decision["decision_probability_basis"] == \
+        "raw_independence_composition_no_prior_driven_action"
+    assert decision["automation_eligible"] is False
+
+
 def test_no_residuals_at_all_still_withholds() -> None:
     risk = estimate_horizon_breach(
         _rows(3), 12.0, {},
