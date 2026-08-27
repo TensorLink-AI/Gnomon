@@ -29,6 +29,7 @@ from benchmarks.enterprisebench.harness import (  # noqa: E402
     parse_binary_decision,
     parse_candidate_answer,
     parse_compiled_answer,
+    parse_decision_answer,
     prompt_for,
     registry,
     run_domain,
@@ -854,6 +855,69 @@ def test_runner_survives_a_failed_domain_and_reports_usage_deltas(
         (tmp_path / "suite" / "cloudcost" / "summary.json").read_text())
     assert per_domain["usage"]["this_domain"]["requests"] == \
         6 * len(MODEL_ARMS)
+
+
+def test_a_valid_answer_survives_an_unmatched_brace_in_prose():
+    """The failure the balanced-span scanner cannot recover from: prose
+    opens a brace it never closes, then the real answer follows. Pricing
+    that as a non-answer would bias every model arm's cost upward."""
+    from benchmarks.common.openrouter import extract_json_objects
+
+    text = ('Given the context { as discussed above:\n'
+            '{"event_expected": true, "first_event_step": 3, '
+            '"action": "act"} done')
+    parsed = extract_json_objects(text)
+    assert parsed and parsed[0]["action"] == "act"
+    pack = PACKS["cloudcost"]
+    case = pack.simulate(11, 1)[0][0]
+    answer = parse_decision_answer(text, pack, case)
+    assert answer["valid"] and answer["decision"]["action"] == "act"
+
+
+def test_admission_accepts_timezone_suffixed_claim_dates():
+    """Models routinely append timezones the grid does not carry; that
+    must clamp onto the grid, never crash a paid worker."""
+    pack = PACKS["cloudcost"]
+    case = pack.simulate(11, 1)[0][0]
+    date = grid_date(case, case.cutoff - 1) + "T00:00:00+00:00"
+    gate = admit_claims([{"kind": "commit_base", "value": 1234.5,
+                          "effective_from": date,
+                          "effective_to": date}], case, pack)
+    assert len(gate["admitted"]) == 1
+    assert gate["admitted"][0].effective_from == case.cutoff - 1
+
+
+def test_short_horizon_domains_keep_the_future_leak_check():
+    """creditrisk's horizon is 6: the future marker must still exist and
+    still catch a planted leak — no domain may publish
+    held_out_future_absent_from_prompts_verified without the check."""
+    pack = PACKS["creditrisk"]
+    cases, _ = pack.simulate(11, 3)
+    prompts, _ = _prompts(cases, pack)
+    leakage_lint(cases, pack, prompts)
+    case = cases[0]
+    assert len(case.future) < 8
+    marker = json.dumps([round(float(v), 4) for v in case.future],
+                        separators=(",", ":"))[1:-1]
+    tampered = dict(prompts)
+    tampered[(case.case_id, "model")] += f"\nnote: {marker}"
+    with pytest.raises(ValueError, match="held-out future"):
+        leakage_lint(cases, pack, tampered)
+
+
+def test_binary_pack_without_governed_pair_is_a_loud_config_error():
+    from dataclasses import replace
+
+    from benchmarks.enterprisebench.harness import _binary_cost_pair
+
+    pack = PACKS["cloudcost"]
+    assert _binary_cost_pair(pack) == (3.0, 15.0)
+    stripped = replace(pack, cost_model=replace(
+        pack.cost_model, governed_pair=None))
+    with pytest.raises(ValueError, match="governed_pair"):
+        _binary_cost_pair(stripped)
+    quantity = PACKS["energy"]
+    assert _binary_cost_pair(quantity) == (1.0, 2.0)
 
 
 def test_identical_runs_are_bit_identical_end_to_end(tmp_path):

@@ -861,45 +861,34 @@ class OpenRouterClient:
 
 
 def extract_json_objects(text: str) -> list[dict[str, Any]]:
-    """Every top-level JSON object embedded in free-form LLM output, in
-    order.
+    """Every JSON object embedded in free-form LLM output, in order.
 
     A greedy ``\\{.*\\}`` regex mis-parses the common case of a valid
     JSON answer followed by prose that happens to contain a brace (or
     preceded by an echoed packet): the span from the first ``{`` to the
     last ``}`` is not JSON, and a correct answer gets scored as invalid.
-    Scanning balanced top-level spans lets a caller validate each
-    candidate and keep the first that has the expected shape."""
+    Attempting a real decode at each opening brace — and, on failure,
+    resuming at the next brace — also survives an *unmatched* ``{`` in
+    the prose before the answer, which a balanced-span scan never
+    recovers from (depth stays positive and the valid answer that
+    follows is dropped). Each successful parse skips its own span, so
+    nested objects are not extracted twice; callers validate each
+    candidate and keep the first with the expected shape."""
+    decoder = json.JSONDecoder()
     found: list[dict[str, Any]] = []
-    depth = 0
-    start = None
-    in_string = False
-    escaped = False
-    for index, char in enumerate(text):
-        if in_string:
-            if escaped:
-                escaped = False
-            elif char == "\\":
-                escaped = True
-            elif char == '"':
-                in_string = False
+    index = 0
+    while index < len(text):
+        start = text.find("{", index)
+        if start == -1:
+            break
+        try:
+            parsed, end = decoder.raw_decode(text, start)
+        except json.JSONDecodeError:
+            index = start + 1
             continue
-        if char == '"':
-            in_string = True
-        elif char == "{":
-            if depth == 0:
-                start = index
-            depth += 1
-        elif char == "}" and depth > 0:
-            depth -= 1
-            if depth == 0 and start is not None:
-                try:
-                    parsed = json.loads(text[start:index + 1])
-                except json.JSONDecodeError:
-                    parsed = None
-                if isinstance(parsed, dict):
-                    found.append(parsed)
-                start = None
+        if isinstance(parsed, dict):
+            found.append(parsed)
+        index = end
     return found
 
 

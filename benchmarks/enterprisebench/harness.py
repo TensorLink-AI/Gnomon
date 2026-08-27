@@ -171,6 +171,11 @@ class CostModel:
     no_action: Callable[["Case"], dict[str, Any]]
     #: The hindsight-optimal decision for the realized future.
     optimal: Callable[["Case"], dict[str, Any]]
+    #: Explicit (act_cost, miss_cost) for the governed breach-policy
+    #: projection. Binary packs must set it (``binary_cost_model``
+    #: does); quantity packs leave None — their engine mapping is
+    #: quantile-based and never reaches the ladder.
+    governed_pair: tuple[float, float] | None = None
 
 
 @dataclass(frozen=True)
@@ -300,7 +305,8 @@ def binary_cost_model(act_cost: float, miss_cost: float,
     return CostModel(
         names={act_name: act_cost, miss_name: miss_cost},
         break_even=act_cost / miss_cost,
-        score=score, no_action=no_action, optimal=optimal)
+        score=score, no_action=no_action, optimal=optimal,
+        governed_pair=(act_cost, miss_cost))
 
 
 def binary_decision_schema(horizon: int) -> dict[str, Any]:
@@ -445,8 +451,8 @@ def _grid_timestamps(frequency: str, count: int) -> list[str]:
     if frequency == "MS":
         return [f"{2000 + index // 12}-{1 + index % 12:02d}-01"
                 for index in range(count)]
-    steps = {"h": timedelta(hours=1), "W": timedelta(weeks=1),
-             "D": timedelta(days=1)}
+    steps = {"5min": timedelta(minutes=5), "h": timedelta(hours=1),
+             "W": timedelta(weeks=1), "D": timedelta(days=1)}
     step = steps.get(frequency, timedelta(days=1))
     start = datetime(2020, 1, 1)
     if step >= timedelta(days=1):
@@ -718,10 +724,13 @@ def leakage_lint(cases: list[Case], pack: DomainPack,
         # so the lint covers them identically.
         for extra in (case.meta.get("extra_futures") or {}).values():
             future_blobs.append(list(extra))
+        # min(8, horizon) values: a short-horizon domain (monthly packs)
+        # must not silently lose its future-leak check — three or four
+        # rounded floats joined are still a distinctive marker.
         future_markers = [
             json.dumps([round(float(v), 4) for v in blob[:8]],
                        separators=(",", ":"))[1:-1]
-            for blob in future_blobs if len(blob) >= 8]
+            for blob in future_blobs if len(blob) >= 3]
         history_blob = json.dumps(list(case.values), separators=(",", ":"))
         hidden = hidden_versions(case.items, case.cutoff)
         resolved = as_of(case.items, case.cutoff)
@@ -848,6 +857,10 @@ def _step_from_date(case: Case, raw: Any) -> int | None:
         moment = datetime.fromisoformat(text)
     except (TypeError, ValueError):
         return None
+    # Models often append a timezone the naive grid does not carry;
+    # comparing aware to naive raises, so normalize to naive wall time.
+    if moment.tzinfo is not None:
+        moment = moment.replace(tzinfo=None)
     parsed_grid = [datetime.fromisoformat(stamp) for stamp in grid]
     if moment <= parsed_grid[0]:
         return 0
@@ -1217,7 +1230,10 @@ def paired_cost_comparison(treatment: list[dict[str, Any]],
     by_case = {row["case_id"]: row for row in reference}
     treatment_cheaper = reference_cheaper = 0
     deltas: list[float] = []
-    for row in treatment:
+    # Sorted by case id: rows arrive in thread-completion order, and the
+    # bootstrap seed is derived from the delta sequence — an unsorted
+    # sequence would make identical runs publish different intervals.
+    for row in sorted(treatment, key=lambda entry: entry["case_id"]):
         other = by_case.get(row["case_id"])
         if other is None:
             continue
@@ -1490,14 +1506,20 @@ def run_domain(pack: DomainPack, args: Any, client: Any) -> dict[str, Any]:
 def _binary_cost_pair(pack: DomainPack) -> tuple[float, float]:
     """(act_cost, miss_cost) for the governed breach-policy projection.
 
-    Quantity domains price per unit; the ladder still needs a pairwise
-    policy, so packs expose the pair through the cost-model names with
-    the convention that the first sorted name is the act-side cost."""
-    names = pack.cost_model.names
-    if "act_cost" in names and "miss_cost" in names:
-        return names["act_cost"], names["miss_cost"]
-    values = [names[key] for key in sorted(names)]
-    return min(values), max(values)
+    Explicit roles only — inferring which cost is the act side from
+    magnitudes would silently invert the ladder's break-even the day a
+    domain prices mitigation above the miss. A binary pack without the
+    declaration is a configuration error; quantity packs never reach the
+    ladder (their engine runs without a threshold), so the placeholder
+    is inert by construction."""
+    pair = pack.cost_model.governed_pair
+    if pair is not None:
+        return pair
+    if pack.decision_kind == "binary":
+        raise ValueError(
+            f"{pack.name}: a binary pack must declare "
+            "cost_model.governed_pair (use binary_cost_model)")
+    return (1.0, 2.0)
 
 
 def _reference_rows(cases: list[Case], pack: DomainPack,
