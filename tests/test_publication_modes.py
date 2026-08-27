@@ -1146,6 +1146,62 @@ def test_mcp_recursive_transformation_binds_history_but_requires_replay_skill(tm
     assert verify_publication(publication)
 
 
+def test_mcp_fits_source_stated_lag_structure_without_model_coefficients(tmp_path):
+    from datetime import date, timedelta
+    source = tmp_path / "fitted-relationship.csv"
+    start = date(2026, 1, 1)
+    driver = [float((index * 5) % 13) for index in range(90)]
+    target = [4.0, 5.0]
+    for index in range(2, 90):
+        target.append(2 + .25 * target[index - 1] + 1.5 * driver[index - 1])
+    source.write_text("timestamp,driver,value\n" + "\n".join(
+        f"{start + timedelta(days=i)},{driver[i]},{target[i]}"
+        for i in range(90)) + "\n")
+    relationship = "driver and value are parents of value at lag 1"
+    schedule = "future driver values are 3 then 8"
+    payload = runner_for("gnomon_forecast")({
+        "input": str(source), "target_column": "value", "horizon": 2,
+        "output_dir": str(tmp_path / "out"), "format": "full",
+        "publication_mode": "best_effort",
+        "context_submission": {
+            "text": relationship + ". " + schedule,
+            "known_at": "2026-03-31T00:00:00+00:00", "compiler": "test",
+            "proposal": {"claims": [
+                {"source_span": relationship, "relation": "unknown",
+                 "effective_start": "2026-04-01T00:00:00+00:00",
+                 "effective_end": "2026-04-02T00:00:00+00:00"},
+                {"source_span": schedule, "relation": "unknown",
+                 "effective_start": "2026-04-01T00:00:00+00:00",
+                 "effective_end": "2026-04-02T00:00:00+00:00"}]},
+            "transformations": [{
+                "transformation": {
+                    "known_at": "2026-03-31T00:00:00+00:00",
+                    "claim_ids": ["claim-1", "claim-2"],
+                    "lane": "historically_testable", "output_unit": "value",
+                    "expression": {"op": "fit_recursive_linear",
+                        "output_unit": "value", "autoregressive_lags": [1],
+                        "driver_lags": [{"series": "driver", "lags": [1]}]}},
+                "units": {"primary": "value", "driver": "driver"},
+                "series_values": {"driver": {"values": [3, 8],
+                    "known_at": "2026-03-31T00:00:00+00:00",
+                    "source_claim_ids": ["claim-2"]}},
+            }],
+        },
+    })
+    publication = payload["publication"]
+    assert publication["recommended_scenario_id"] == "transformation-1"
+    scenario = next(item for item in publication["candidate_portfolio"]
+                    if item["scenario_id"] == "transformation-1")
+    validation = scenario["effect"]["validation"]
+    assert validation["beats_baseline"] is True
+    assert validation["specification_known_at_each_origin"] is False
+    assert publication["recommendation_authority"]["selected_role"] == \
+        "retrospectively_validated"
+    assert publication["primary_forecast_unchanged"] is True
+    assert publication["automation"]["eligible"] is False
+    assert verify_publication(publication)
+
+
 def test_missing_recursive_driver_rejects_scenario_not_primary(tmp_path):
     from datetime import date, timedelta
     source = tmp_path / "series.csv"

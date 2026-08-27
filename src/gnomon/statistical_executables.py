@@ -297,6 +297,9 @@ def fit_regression_executable(
         baseline.append(statistics.mean(target_series[:origin]))
     mse = statistics.mean((a - p) ** 2 for a, p in zip(actual, predicted))
     baseline_mse = statistics.mean((a - p) ** 2 for a, p in zip(actual, baseline))
+    last_value_mse = statistics.mean(
+        (actual_value - target_series[minimum + index - 1]) ** 2
+        for index, actual_value in enumerate(actual))
     full_rows = [[1.0, *(predictor_series[name][index] for name in names)]
                  for index in range(n)]
     coefficients, inverse, fitted = _ols(full_rows, target_series, ridge=ridge)
@@ -312,6 +315,8 @@ def fit_regression_executable(
         "minimum_train": minimum, "validation_points": len(actual),
         "mse": mse, "mean_baseline_mse": baseline_mse,
         "skill_vs_mean_baseline": 1 - mse / max(baseline_mse, 1e-12),
+        "last_value_baseline_mse": last_value_mse,
+        "skill_vs_last_value_baseline": 1 - mse / max(last_value_mse, 1e-12),
     }
     return FittedRegressionExecutable(
         target, names, tuple(coefficients), intervals, validation,

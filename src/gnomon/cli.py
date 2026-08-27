@@ -193,7 +193,8 @@ def _attach_publication(payload, artifact, path, args) -> None:
         result["transformation_rejections"] = []
 
         def trusted_recurrence_history(expression, historical_segments=None):
-            if not isinstance(expression, dict) or expression.get("op") != "recursive_linear":
+            if not isinstance(expression, dict) or expression.get("op") not in {
+                    "recursive_linear", "fit_recursive_linear"}:
                 return [], {}
             from .pipeline import load_stage
 
@@ -213,20 +214,17 @@ def _attach_publication(payload, artifact, path, args) -> None:
                         "Recursive context execution requires exactly one series per target.")
                 return list(next(iter(loaded.groups.values())))
 
+            driver_terms = (expression.get("driver_terms") or []
+                            if expression.get("op") == "recursive_linear"
+                            else expression.get("driver_lags") or [])
             drivers = sorted({str(term.get("series"))
-                              for term in expression.get("driver_terms") or []
+                              for term in driver_terms
                               if term.get("series")})
             target_observations = observations_for(args.target_column)
-            driver_observations = {name: observations_for(name)
-                                   for name in drivers}
-            maps = [{item.timestamp: float(item.value)
-                     for item in target_observations},
-                    *({item.timestamp: float(item.value) for item in observations}
-                      for observations in driver_observations.values())]
-            common = sorted(set(maps[0]).intersection(
-                *(set(mapping) for mapping in maps[1:])))
-            histories = {name: [mapping[timestamp] for timestamp in common]
-                         for (name, mapping) in zip(drivers, maps[1:])}
+            target_map = {item.timestamp: float(item.value)
+                          for item in target_observations}
+            common = sorted(target_map)
+            histories = {}
             if historical_segments:
                 from .context_intelligence import expand_cited_history_segments
                 documented = expand_cited_history_segments(
@@ -239,7 +237,22 @@ def _attach_publication(payload, artifact, path, args) -> None:
                         "Document history names are not recurrence drivers: "
                         + ", ".join(sorted(unknown)))
                 histories.update(documented)
-            return ([maps[0][timestamp] for timestamp in common], histories)
+            for name in drivers:
+                if name in histories:
+                    continue
+                observations = observations_for(name)
+                mapping = {item.timestamp: float(item.value)
+                           for item in observations}
+                common = [timestamp for timestamp in common
+                          if timestamp in mapping]
+                histories[name] = [mapping[timestamp] for timestamp in common]
+            if historical_segments:
+                documented = expand_cited_history_segments(
+                    historical_segments, timestamps=common,
+                    cutoff=max(common), claim_spans=claim_spans,
+                    allowed_claim_ids=claim_ids)
+                histories.update(documented)
+            return ([target_map[timestamp] for timestamp in common], histories)
 
         for index, transform_path in enumerate(transformation_paths[:6], 1):
             wrapper = read(transform_path, "--context-transformation")
@@ -261,14 +274,14 @@ def _attach_publication(payload, artifact, path, args) -> None:
                     compiled.get("expression"),
                     wrapper.get("historical_series_segments"))
                 candidate = execute_transformation(
-                        compiled,
-                        primary=(result.get("primary_forecast")
-                                 or result.get("forecast") or []),
-                        series_values=wrapper.get("series_values"),
-                        historical_validation=wrapper.get("historical_validation"),
-                        claim_spans=claim_spans,
-                        history_values=target_history,
-                        history_series=driver_history)
+                    compiled,
+                    primary=(result.get("primary_forecast")
+                             or result.get("forecast") or []),
+                    series_values=wrapper.get("series_values"),
+                    historical_validation=wrapper.get("historical_validation"),
+                    claim_spans=claim_spans,
+                    history_values=target_history,
+                    history_series=driver_history)
                 if wrapper.get("historical_series_segments"):
                     candidate["validation"]["recurrence_history_source"] = (
                         "document_cited_segments")

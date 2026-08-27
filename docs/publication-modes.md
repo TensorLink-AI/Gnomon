@@ -104,6 +104,15 @@ the forecast's governed `as_of` snapshot, supplies the initial state itself,
 feeds prior predicted outputs back recursively, and propagates the primary
 interval width through the feedback terms. The caller supplies only cited
 future driver values; model-authored future target lags are never trusted.
+When a source names the variables and lags but does not provide coefficients,
+`fit_recursive_linear` accepts only that bounded structure. Gnomon fits all
+coefficients from the governed pre-cutoff history, evaluates them on an
+expanding-origin replay against last-value, and admits the candidate only when
+it clears the baseline with at least eight validation origins. Model-authored
+coefficients are a typed error in this lane. Because the source specification
+was not itself available at past origins, a winning fitted path is labelled
+`retrospectively_validated`, remains visible beside the immutable primary, and
+cannot authorize automation.
 When a verified document explicitly defines historical driver ranges but the
 structured column is encoded differently, callers may add
 `historical_series_segments` with cited `{start, end, value}` rows. Gnomon

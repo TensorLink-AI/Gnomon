@@ -8,7 +8,8 @@ from gnomon.context_intelligence import (
     compile_context_hypotheses,
     compile_transformation, execute_transformation, TransformationError,
     expand_cited_history_segments,
-    fit_historical_analogue, fit_lagged_relationship, fit_vintage_exogenous,
+    fit_historical_analogue, fit_lagged_relationship,
+    fit_structured_arx_candidate, fit_vintage_exogenous,
     validate_transformation,
 )
 from gnomon.publication import publish_result, verify_publication
@@ -116,6 +117,101 @@ def test_lagged_relationship_selects_real_lag_on_expanding_origins():
     assert result["estimate"]["selected_lag_steps"] == 2
     assert result["support"] == "supported"
     assert result["automation_eligible"] is False
+
+
+def test_structured_arx_fits_coefficients_and_beats_last_value():
+    driver = [float((index * 7) % 17) for index in range(100)]
+    target = [2.0, 3.0, 4.0]
+    for index in range(3, 100):
+        target.append(
+            1.5 + .4 * target[index - 1] - .2 * target[index - 2]
+            + 1.2 * driver[index - 1])
+    future_driver = [3.0, 7.0, 2.0, 9.0]
+    primary = [{"timestamp": _stamp(100 + index), "point": target[-1],
+                "q10": target[-1] - 2, "q50": target[-1],
+                "q90": target[-1] + 2} for index in range(4)]
+
+    candidate = fit_structured_arx_candidate(
+        target, {"campaign": driver},
+        future_drivers={"campaign": future_driver}, primary=primary,
+        autoregressive_lags=[1, 2], driver_lags={"campaign": [1]},
+        hypothesis_id="relationship-1")
+
+    validation = candidate["validation"]
+    assert validation["beats_baseline"] is True
+    assert validation["skill_vs_last_value_baseline"] > .5
+    assert validation["specification_known_at_each_origin"] is False
+    assert candidate["primary_forecast_unchanged"] is True
+    assert candidate["automation_eligible"] is False
+    assert len(candidate["forecast"]) == len(primary)
+    assert candidate["forecast"][0]["q10"] < candidate["forecast"][0]["q50"] \
+        < candidate["forecast"][0]["q90"]
+
+
+def test_structured_arx_rejects_missing_or_misaligned_drivers():
+    primary = [{"timestamp": _stamp(30), "point": 1, "q10": 0,
+                "q50": 1, "q90": 2}]
+    with pytest.raises(ValueError, match="matching historical and future"):
+        fit_structured_arx_candidate(
+            [float(index) for index in range(30)], {"x": [1.0] * 30},
+            future_drivers={}, primary=primary, autoregressive_lags=[1],
+            driver_lags={"x": [1]}, hypothesis_id="h")
+
+
+def test_fitted_recursive_structure_accepts_lags_but_not_coefficients():
+    raw = {
+        "known_at": _stamp(20), "claim_ids": ["relationship"],
+        "lane": "historically_testable", "output_unit": "requests",
+        "expression": {
+            "op": "fit_recursive_linear", "output_unit": "requests",
+            "autoregressive_lags": [2, 1, 2],
+            "driver_lags": [{"series": "campaign", "lags": [2, 1]}],
+        },
+    }
+    compiled = validate_transformation(
+        raw, series=["campaign"], claim_ids=["relationship"],
+        cutoff=_stamp(20), units={"campaign": "spend"},
+        claim_spans={"relationship": "campaign affects requests at lags 1 and 2"})
+    assert compiled["expression"]["autoregressive_lags"] == [1, 2]
+    assert compiled["expression"]["driver_lags"] == [
+        {"series": "campaign", "lags": [1, 2]}]
+
+    raw["expression"]["coefficients"] = [1.0]
+    with pytest.raises(TransformationError) as error:
+        validate_transformation(
+            raw, series=["campaign"], claim_ids=["relationship"],
+            cutoff=_stamp(20), units={"campaign": "spend"},
+            claim_spans={"relationship": "campaign affects requests at lags 1 and 2"})
+    assert error.value.code == "MODEL_AUTHORED_FIT_PARAMETERS"
+
+
+def test_fitted_recursive_structure_executes_only_with_versioned_future_path():
+    driver = [float((index * 5) % 13) for index in range(90)]
+    target = [4.0, 5.0]
+    for index in range(2, 90):
+        target.append(2 + .25 * target[index - 1] + 1.5 * driver[index - 1])
+    claim = "driver values will be 3 then 8; driver affects target at lag 1"
+    compiled = validate_transformation({
+        "known_at": _stamp(89), "claim_ids": ["c1"],
+        "lane": "historically_testable", "output_unit": "units",
+        "expression": {"op": "fit_recursive_linear",
+                       "output_unit": "units", "autoregressive_lags": [1],
+                       "driver_lags": [{"series": "driver", "lags": [1]}]},
+    }, series=["driver"], claim_ids=["c1"], cutoff=_stamp(89),
+       units={"driver": "index"}, claim_spans={"c1": claim})
+    primary = [{"timestamp": _stamp(90 + index), "point": target[-1],
+                "q10": target[-1] - 2, "q50": target[-1],
+                "q90": target[-1] + 2} for index in range(2)]
+    candidate = execute_transformation(
+        compiled, primary=primary,
+        series_values={"driver": {"values": [3, 8], "known_at": _stamp(89),
+                                   "source_claim_ids": ["c1"]}},
+        claim_spans={"c1": claim}, history_values=target,
+        history_series={"driver": driver})
+    assert candidate["kind"] == "fitted_structured_arx"
+    assert candidate["validation"]["beats_baseline"] is True
+    assert candidate["automation_eligible"] is False
+    assert candidate["source_seal_sha256"] == compiled["seal_sha256"]
 
 
 def test_historical_analogue_excludes_outcomes_unknown_at_cutoff():

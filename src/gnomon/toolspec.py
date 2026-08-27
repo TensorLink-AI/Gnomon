@@ -1917,7 +1917,8 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
             verified_claim_spans: dict[str, str] | None = None,
     ) -> tuple[list[float], dict[str, list[float]]]:
         """Reload recurrence state through the same governed snapshot seam."""
-        if not isinstance(expression, dict) or expression.get("op") != "recursive_linear":
+        if not isinstance(expression, dict) or expression.get("op") not in {
+                "recursive_linear", "fit_recursive_linear"}:
             return [], {}
         from .pipeline import load_stage
 
@@ -1937,17 +1938,15 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
             return list(next(iter(loaded.groups.values())))
 
         target_observations = observations_for(str(arguments["target_column"]))
-        driver_names = sorted({str(term.get("series"))
-                               for term in expression.get("driver_terms") or []
+        target_map = {item.timestamp: float(item.value)
+                      for item in target_observations}
+        common = sorted(target_map)
+        driver_terms = (expression.get("driver_terms") or []
+                        if expression.get("op") == "recursive_linear"
+                        else expression.get("driver_lags") or [])
+        driver_names = sorted({str(term.get("series")) for term in driver_terms
                                if term.get("series")})
-        driver_observations = {name: observations_for(name)
-                               for name in driver_names}
-        maps = [{item.timestamp: float(item.value) for item in target_observations},
-                *({item.timestamp: float(item.value) for item in observations}
-                  for observations in driver_observations.values())]
-        common = sorted(set(maps[0]).intersection(*(set(mapping) for mapping in maps[1:])))
-        histories = {name: [mapping[timestamp] for timestamp in common]
-                     for (name, mapping) in zip(driver_names, maps[1:])}
+        histories: dict[str, list[float]] = {}
         if historical_segments:
             from .context_intelligence import expand_cited_history_segments
             documented = expand_cited_history_segments(
@@ -1961,7 +1960,24 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                     "Document history names are not recurrence drivers: "
                     + ", ".join(sorted(unknown)))
             histories.update(documented)
-        return ([maps[0][timestamp] for timestamp in common], histories)
+        # A cited document may be the governed source for a driver that is
+        # absent from the input table. Only unresolved drivers are loaded as
+        # columns, avoiding a false UNKNOWN_TARGET before cited history can be
+        # reconstructed.
+        for name in driver_names:
+            if name in histories:
+                continue
+            observations = observations_for(name)
+            mapping = {item.timestamp: float(item.value) for item in observations}
+            common = [timestamp for timestamp in common if timestamp in mapping]
+            histories[name] = [mapping[timestamp] for timestamp in common]
+        if historical_segments:
+            documented = expand_cited_history_segments(
+                historical_segments, timestamps=common,
+                cutoff=max(common), claim_spans=verified_claim_spans or {},
+                allowed_claim_ids=verified_claim_ids or [])
+            histories.update(documented)
+        return ([target_map[timestamp] for timestamp in common], histories)
     if raw_proposal is not None:
         context_text = str(submission.get("text") or "")
         known_at = str(submission.get("known_at") or "")
@@ -2019,7 +2035,8 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                     claim_ids, claim_spans)
                 candidate = execute_transformation(
                     compiled,
-                    primary=(result.get("primary_forecast") or result.get("forecast") or []),
+                    primary=(result.get("primary_forecast") or
+                             result.get("forecast") or []),
                     series_values=wrapper.get("series_values"),
                     historical_validation=wrapper.get("historical_validation"),
                     claim_spans=claim_spans,

@@ -694,6 +694,90 @@ def _validate_expression(node: Any, *, path: str, depth: int,
         raise TransformationError("EXPRESSION_TOO_LARGE", path,
                                   "Transformation exceeds the node limit.")
     raw_op = str(node.get("op") or "")
+    if raw_op == "fit_recursive_linear":
+        # The caller may identify a source-stated dependency structure, but
+        # never supplies executable coefficients.  Those are fitted and
+        # validated by Gnomon at the publication boundary.
+        forbidden = {"intercept", "coefficient", "coefficients",
+                     "autoregressive_terms", "driver_terms"} & set(node)
+        if forbidden:
+            raise TransformationError(
+                "MODEL_AUTHORED_FIT_PARAMETERS", path,
+                "A fitted recursive structure may contain lags only; Gnomon "
+                "fits every coefficient.")
+        output_unit = str(node.get("output_unit") or "")
+        if not output_unit:
+            raise TransformationError(
+                "MISSING_OUTPUT_UNIT", f"{path}.output_unit",
+                "A fitted recursive structure requires its target unit.")
+
+        def lags(raw: Any, field: str) -> list[int]:
+            if raw is None:
+                return []
+            if not isinstance(raw, list) or len(raw) > 16:
+                raise TransformationError(
+                    "INVALID_RECURSIVE_TERMS", f"{path}.{field}",
+                    "Lag lists must contain at most 16 positive integers.")
+            clean: list[int] = []
+            for index, value in enumerate(raw):
+                try:
+                    lag = int(value)
+                except (TypeError, ValueError) as exc:
+                    raise TransformationError(
+                        "INVALID_WINDOW", f"{path}.{field}[{index}]",
+                        "Recursive lags must be positive integers.") from exc
+                if isinstance(value, bool) or lag < 1 or lag > 10_000:
+                    raise TransformationError(
+                        "INVALID_WINDOW", f"{path}.{field}[{index}]",
+                        "Recursive lags must be between 1 and 10000.")
+                clean.append(lag)
+            return sorted(set(clean))
+
+        autoregressive_lags = lags(node.get("autoregressive_lags"),
+                                   "autoregressive_lags")
+        raw_drivers = node.get("driver_lags") or []
+        if not isinstance(raw_drivers, list) or len(raw_drivers) > 32:
+            raise TransformationError(
+                "INVALID_RECURSIVE_TERMS", f"{path}.driver_lags",
+                "Driver lag declarations must be a bounded list.")
+        driver_lags: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for index, raw_driver in enumerate(raw_drivers):
+            if not isinstance(raw_driver, dict):
+                raise TransformationError(
+                    "INVALID_RECURSIVE_TERM", f"{path}.driver_lags[{index}]",
+                    "Each driver declaration must be an object.")
+            name = str(raw_driver.get("series") or "")
+            if name not in series:
+                raise TransformationError(
+                    "UNKNOWN_SERIES", f"{path}.driver_lags[{index}].series",
+                    f"Series {name!r} is unavailable.")
+            if name in seen:
+                raise TransformationError(
+                    "DUPLICATE_SERIES", f"{path}.driver_lags[{index}].series",
+                    f"Series {name!r} may be declared only once.")
+            seen.add(name)
+            clean_lags = lags(raw_driver.get("lags"),
+                              f"driver_lags[{index}].lags")
+            if not clean_lags:
+                raise TransformationError(
+                    "INVALID_RECURSIVE_TERMS", f"{path}.driver_lags[{index}].lags",
+                    "Each driver requires at least one source-stated lag.")
+            driver_lags.append({"series": name, "lags": clean_lags})
+        if not autoregressive_lags and not driver_lags:
+            raise TransformationError(
+                "INVALID_RECURSIVE_TERMS", path,
+                "A fitted recursive structure requires an AR or driver lag.")
+        state["nodes"] += len(autoregressive_lags) + sum(
+            len(item["lags"]) for item in driver_lags)
+        if state["nodes"] > MAX_TRANSFORM_NODES:
+            raise TransformationError("EXPRESSION_TOO_LARGE", path,
+                                      "Transformation exceeds the node limit.")
+        return {
+            "op": "fit_recursive_linear", "output_unit": output_unit,
+            "autoregressive_lags": autoregressive_lags,
+            "driver_lags": sorted(driver_lags, key=lambda item: item["series"]),
+        }, output_unit
     if raw_op == "recursive_linear":
         output_unit = str(node.get("output_unit") or "")
         if not output_unit:
@@ -1048,6 +1132,30 @@ def execute_transformation(
     if any(len(values) != width for values in environment.values()):
         raise TransformationError("HORIZON_MISMATCH", "series_values",
                                   "Every future series must match the primary horizon.")
+    if compiled["expression"].get("op") == "fit_recursive_linear":
+        expression = compiled["expression"]
+        driver_lags = {str(item["series"]): list(item["lags"])
+                       for item in expression.get("driver_lags") or []}
+        try:
+            candidate = fit_structured_arx_candidate(
+                history_values or [], history_series or {},
+                future_drivers={name: environment[name] for name in driver_lags},
+                primary=primary,
+                autoregressive_lags=list(
+                    expression.get("autoregressive_lags") or []),
+                driver_lags=driver_lags,
+                hypothesis_id=compiled["transformation_id"])
+        except (KeyError, ValueError) as exc:
+            raise TransformationError(
+                "FITTED_STRUCTURE_NOT_ADMISSIBLE", "expression", str(exc)) from exc
+        candidate.update({
+            "transformation_id": compiled["transformation_id"],
+            "lane": compiled["lane"], "claim_ids": compiled["claim_ids"],
+            "known_at": compiled["known_at"],
+            "output_unit": compiled["output_unit"],
+            "source_seal_sha256": seal,
+        })
+        return candidate
     if compiled["expression"].get("op") == "recursive_linear":
         values, lower_widths, upper_widths = _execute_recursive_linear(
             compiled["expression"], primary=primary, environment=environment,
@@ -1616,6 +1724,109 @@ def fit_lagged_relationship(
          "admission_threshold": threshold, "beats_baseline": supported,
          "vintage_cutoff": cutoff},
         "supported" if supported else "weak")
+
+
+def fit_structured_arx_candidate(
+    target_history: list[float], driver_histories: dict[str, list[float]], *,
+    future_drivers: dict[str, list[float]], primary: list[dict[str, Any]],
+    autoregressive_lags: list[int], driver_lags: dict[str, list[int]],
+    hypothesis_id: str, minimum_train: int = 20,
+) -> dict[str, Any]:
+    """Fit coefficients for a source-stated lag structure, then forecast.
+
+    The structure and future driver paths are caller evidence; every numeric
+    coefficient is fit by Gnomon. Expanding-window validation must beat a
+    last-value baseline before the path can become a human recommendation.
+    """
+    ar_lags = sorted({int(value) for value in autoregressive_lags})
+    normalized_driver_lags = {
+        str(name): sorted({int(value) for value in lags})
+        for name, lags in driver_lags.items()
+    }
+    if (not ar_lags and not any(normalized_driver_lags.values())) \
+            or any(value < 1 or value > 10_000 for value in ar_lags) \
+            or any(value < 1 or value > 10_000
+                   for lags in normalized_driver_lags.values() for value in lags):
+        raise ValueError("structured ARX requires positive bounded source-stated lags")
+    required = set(normalized_driver_lags)
+    if required != set(driver_histories) or required != set(future_drivers):
+        raise ValueError("structured ARX requires matching historical and future drivers")
+    horizon = len(primary)
+    if not horizon or any(len(future_drivers[name]) != horizon for name in required):
+        raise ValueError("future driver paths must match the primary horizon")
+    n = min([len(target_history),
+             *(len(driver_histories[name]) for name in required)])
+    maximum_lag = max([*ar_lags, *(value for lags in
+                      normalized_driver_lags.values() for value in lags)])
+    if n <= maximum_lag:
+        raise ValueError("insufficient aligned history for the stated lags")
+    target = [float(value) for value in target_history[-n:]]
+    drivers = {name: [float(value) for value in driver_histories[name][-n:]]
+               for name in sorted(required)}
+    outcomes = target[maximum_lag:]
+    predictors: dict[str, list[float]] = {}
+    for lag in ar_lags:
+        predictors[f"target_lag_{lag}"] = [
+            target[index - lag] for index in range(maximum_lag, n)]
+    for name in sorted(required):
+        for lag in normalized_driver_lags[name]:
+            predictors[f"driver_{name}_lag_{lag}"] = [
+                drivers[name][index - lag]
+                for index in range(maximum_lag, n)]
+    fitted = fit_regression_executable(
+        outcomes, predictors, target="target", minimum_train=minimum_train)
+    fit_result = fitted.execute()
+    estimate = fit_result["estimate"]
+    coefficients = estimate["coefficients"]
+    validation = dict(estimate["validation"])
+    skill = float(validation["skill_vs_last_value_baseline"])
+    supported = skill >= .02 and int(validation["validation_points"]) >= 8
+
+    predicted: list[float] = []
+    for step in range(horizon):
+        value = float(coefficients["intercept"])
+        for lag in ar_lags:
+            source = (predicted[step - lag] if step >= lag
+                      else target[step - lag])
+            value += float(coefficients[f"target_lag_{lag}"]) * source
+        for name in sorted(required):
+            for lag in normalized_driver_lags[name]:
+                source = (future_drivers[name][step - lag] if step >= lag
+                          else drivers[name][step - lag])
+                value += float(coefficients[
+                    f"driver_{name}_lag_{lag}"]) * float(source)
+        if not math.isfinite(value):
+            raise ValueError("structured ARX produced a non-finite forecast")
+        predicted.append(value)
+    residual_scale = float(estimate["residual_scale"])
+    rows = []
+    for step, (source, point) in enumerate(zip(primary, predicted)):
+        primary_center = float(source.get("q50", source.get("point", point)))
+        primary_half_width = max(
+            primary_center - float(source.get("q10", primary_center)),
+            float(source.get("q90", primary_center)) - primary_center, 0.0)
+        half_width = max(primary_half_width,
+                         1.2815515655446004 * residual_scale * math.sqrt(step + 1))
+        rows.append({"timestamp": source.get("timestamp"), "point": point,
+                     "q10": point - half_width, "q50": point,
+                     "q90": point + half_width})
+    validation.update({
+        "skill": skill, "beats_baseline": supported,
+        "baseline": "last_value", "scheme": "expanding_window_one_step",
+        "per_origin_observation_availability_checked": True,
+        "specification_known_at_each_origin": False,
+        "validation_interpretation": "retrospective_fitted_structure_replay",
+        "fitted_coefficients": coefficients,
+    })
+    return {
+        "hypothesis_id": hypothesis_id, "kind": "fitted_structured_arx",
+        "forecast": rows, "validation": validation,
+        "support": "supported" if supported else "weak",
+        "automation_eligible": False, "primary_forecast_unchanged": True,
+        "executable": {"kind": "fitted_structured_arx", "version": "0.1",
+                       "autoregressive_lags": ar_lags,
+                       "driver_lags": normalized_driver_lags},
+    }
 
 
 def fit_historical_analogue(

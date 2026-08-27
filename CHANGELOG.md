@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Add a governed fitted-relationship lane for documents that state temporal
+  parents and lags but not numeric coefficients. `fit_recursive_linear` lets
+  the model cite structure and driver schedules while Gnomon alone fits the
+  coefficients, requires expanding-origin skill over last-value, preserves the
+  immutable primary, labels the result retrospectively validated, and forbids
+  automation. Cited driver history may now supply a column absent from the
+  input table instead of failing before the governed representation bridge.
 - Preserve relevant qualitative rules with undated triggers as typed
   `unresolved_trigger` claims. They remain scenario-only, cannot produce
   deterministic effects or automation, and return a concrete request for the

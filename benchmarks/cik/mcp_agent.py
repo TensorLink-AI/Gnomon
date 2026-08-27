@@ -812,13 +812,17 @@ support, or authorize automation. Return null if you cannot compute it.
 """
 
 RELATIONSHIP_INSTRUCTIONS = """\
-Extract one explicit lagged numeric relationship for Gnomon's safe recurrence
+Extract one explicit lagged relationship for Gnomon's safe recurrence
 executor. Return ONLY JSON with `claims` and `transformations`; set both to []
-if the text does not state an exact equation. Claims quote the equation and any
-future driver schedule verbatim. The transformation uses `recursive_linear`
-with numeric `intercept`, `autoregressive_terms` ({lag, coefficient}), and
-`driver_terms` ({series, lag, coefficient}). Put cited future driver values in
-`series_values`. If the text states historical driver ranges, put them in
+if the text states neither an exact equation nor explicit parent/lag structure.
+Claims quote the relationship and any driver schedule verbatim. If every
+coefficient is stated, use `recursive_linear` with numeric `intercept`,
+`autoregressive_terms` ({lag, coefficient}), and `driver_terms`
+({series, lag, coefficient}). If the source states only variables and lags,
+use `fit_recursive_linear` with `autoregressive_lags` and `driver_lags`
+({series,lags}); NEVER invent coefficients. Gnomon fits them from history and
+admits the result only when expanding-origin replay beats last value. Put cited
+future driver values in `series_values`. If the text states historical ranges, put them in
 `historical_series_segments` keyed by series, with rows
 {start, end, value, source_claim_ids}; do not infer or rescale them. Never
 supply future target values or executable code. Use the
@@ -839,8 +843,9 @@ def _has_explicit_lag_relationship(text: str) -> bool:
         # prose sends an exact relationship through the much larger universal
         # dossier contract and makes extraction slower and less reliable.
         or re.search(r"\b[A-Za-z_]\w*\s*\^\s*\{\s*t\s*-\s*\d+\s*\}", text))
-    equation = "=" in text or bool(re.search(r"\b(coefficient|affects?)\b", text, re.I))
-    return numeric and lag and equation
+    relationship = ("=" in text or bool(re.search(
+        r"\b(coefficient|affects?|parents?|depends?\s+on)\b", text, re.I)))
+    return numeric and lag and relationship
 
 
 def _extract_explicit_driver_schedule(
@@ -2909,11 +2914,15 @@ class _Run:
                            if isinstance(item, dict) else None)
                 if not isinstance(compact, dict) and isinstance(embedded, dict):
                     compact = embedded.get("recursive_linear")
+                embedded_type = (str(embedded.get("type") or "")
+                                 if isinstance(embedded, dict) else "")
                 if (not isinstance(compact, dict) and isinstance(embedded, dict)
-                        and embedded.get("type") == "recursive_linear"
+                        and embedded_type in {
+                            "recursive_linear", "fit_recursive_linear"}
                         and "expression" not in embedded):
                     compact = {key: embedded.get(key) for key in (
                         "intercept", "autoregressive_terms", "driver_terms",
+                        "autoregressive_lags", "driver_lags",
                         "series_values", "historical_series_segments")
                                if key in embedded}
                 if isinstance(item, dict) and isinstance(compact, dict):
@@ -2973,7 +2982,8 @@ class _Run:
                             "claim_ids": [claim_id],
                             "lane": "historically_testable",
                             "output_unit": output_unit,
-                            "expression": {"op": "recursive_linear",
+                            "expression": {"op": (embedded_type or
+                                                   "recursive_linear"),
                                            "output_unit": output_unit,
                                            **recurrence},
                         },
@@ -2993,15 +3003,19 @@ class _Run:
                     expression = (transformation.get("expression")
                                   if isinstance(transformation, dict) else None)
                     if isinstance(expression, dict) and expression.get(
-                            "op") == "recursive_linear":
+                            "op") in {"recursive_linear", "fit_recursive_linear"}:
                         values = dict(canonical.get("series_values") or {})
                         histories = dict(canonical.get(
                             "historical_series_segments") or {})
                         units = dict(canonical.get("units") or {})
                         claim_ids = list(transformation.get("claim_ids") or [
                             "claim-1"])
+                        relationship_terms = (
+                            expression.get("driver_terms") or []
+                            if expression.get("op") == "recursive_linear"
+                            else expression.get("driver_lags") or [])
                         for name in sorted({str(term.get("series")) for term in
-                                            expression.get("driver_terms") or []
+                                            relationship_terms
                                             if term.get("series")}):
                             supplied = values.get(name)
                             supplied_values = (supplied.get("values")
@@ -3104,6 +3118,15 @@ class _Run:
                 dummy_primary = [{"q10": 0.0, "q50": 0.0, "q90": 0.0,
                                   "point": 0.0}
                                  for _ in future_timestamps]
+                expression = compiled.get("expression") or {}
+                if expression.get("op") == "fit_recursive_linear":
+                    # Fit admission needs real aligned history and may use
+                    # cited historical segments that are reconstructed only
+                    # inside the governed forecast boundary. Syntax, claims,
+                    # future provenance and the eventual fit are still
+                    # fail-closed there; a dummy fit here would falsely reject
+                    # a valid document-supplied driver.
+                    continue
                 try:
                     execute_transformation(
                         compiled, primary=dummy_primary,
