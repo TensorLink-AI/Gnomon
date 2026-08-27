@@ -2214,6 +2214,76 @@ def test_typed_interpretation_without_executable_gets_sealed_sampled_prior(
                         for draw in range(5)] for path in resolved)
 
 
+def test_one_sample_transport_failure_preserves_other_governed_paths(tmp_path):
+    import threading
+
+    task = _task()
+    span = "Comparable stores recorded monthly orders [9, 30]."
+    task.background = span
+    task.scenario = None
+    compiler_output = json.dumps({
+        "events": [],
+        "claims": [{
+            "source_span": span, "relation": "supports_increase",
+            "effective_start": None, "effective_end": None,
+            "timing_status": "atemporal_context",
+            "mechanism": "historical analogue", "confidence": .8,
+        }],
+        "hypotheses": [{
+            "kind": "historical_analogue", "claim_ids": ["claim-1"],
+            "target_series": ["*"], "predictor_series": None,
+            "known_at": task.past_time[-1][0], "lag_steps": 0,
+            "direction": "increase", "rationale": "Comparable setting.",
+        }],
+        "effect_proposal": None, "forecast_candidate": None,
+        "covariate_tables": [], "transformations": [],
+        "observation_interpretations": [],
+    })
+    sampled = ["<forecast>\n" + "\n".join(
+        f"({stamp.replace('T', ' ').replace('+00:00', '')}, "
+        f"{124 + draw + index})"
+        for index, stamp in enumerate(task.future_time)) + "\n</forecast>"
+        for draw in range(5)]
+
+    class OneFailedSampleClient(ScriptedClient):
+        def __init__(self):
+            super().__init__(
+                [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+                [compiler_output, *sampled])
+            self._failure_lock = threading.Lock()
+            self._failed = False
+
+        def completions(self, *args, **kwargs):
+            with self._failure_lock:
+                if kwargs.get("temperature") == 1 and not self._failed:
+                    self._failed = True
+                    raise TimeoutError("isolated provider timeout")
+            return super().completions(*args, **kwargs)
+
+    forecaster = McpAgentForecaster(
+        "x/y", client=OneFailedSampleClient(),
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 3)
+
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    sampling = receipt["compiler"]["model_candidate_sampling"]
+    assert sampling["requested"] == 5
+    assert sampling["accepted"] == 4
+    assert sampling["rejected"] == 1
+    assert receipt["compiler"]["model_candidate_status"] == "accepted"
+    failures = [item for item in receipt["compiler"]["calls"]
+                if item["stage"].endswith("_partial_failures")]
+    assert failures[0]["failed_completions"] == 1
+    assert extra["publication"]["recommended_scenario_id"].startswith(
+        "prior-assisted-")
+    assert extra["publication"]["primary_forecast_unchanged"] is True
+    assert extra["publication"]["automation"]["eligible"] is False
+
+
 def test_literal_zero_claim_uses_deterministic_override_lane(tmp_path):
     task = _task()
     start, end = task.future_time[1], task.future_time[2]

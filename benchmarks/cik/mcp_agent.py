@@ -3308,8 +3308,11 @@ class _Run:
                         else COMPANION_INSTRUCTIONS if companion_contract
                         else DOSSIER_INSTRUCTIONS if material_numeric_context
                         else QUALITATIVE_INSTRUCTIONS)
+        # A governed dossier has a deliberately bounded schema. Leaving the
+        # completion uncapped lets verbose providers consume the entire shared
+        # workflow deadline and starve the separately sealed candidate lane.
         compiler_max_tokens = (2_000 if instructions is QUALITATIVE_INSTRUCTIONS
-                               else None)
+                               else 5_000)
         numeric_routing_note = (
             "\nHost routing note: the context contains at least one material "
             "numeric quantity beyond dates or clock times. Do not return an "
@@ -3401,14 +3404,30 @@ class _Run:
                 ]
                 timeout = max(1, min(120, math.floor(remaining)))
 
-                def one_sample(_: int) -> str:
-                    return self.forecaster.client.completions(
-                        messages, n=1, temperature=1, max_tokens=10_000,
-                        reasoning_effort=None, request_timeout=timeout,
-                        transport_retries=0)[0]
+                def one_sample(_: int) -> tuple[str, str | None]:
+                    try:
+                        response = self.forecaster.client.completions(
+                            messages, n=1, temperature=1, max_tokens=10_000,
+                            reasoning_effort=None, request_timeout=timeout,
+                            transport_retries=0)[0]
+                        return response, None
+                    except Exception as error:  # independent sampled draws
+                        # One slow or failed provider request must not erase
+                        # the other sealed paths. The empty response remains
+                        # in the parser input so requested/accepted/rejected
+                        # accounting stays exact and auditable.
+                        return "", str(error)[:300]
 
                 with ThreadPoolExecutor(max_workers=min(n, 8)) as pool:
-                    return list(pool.map(one_sample, range(n)))
+                    outcomes = list(pool.map(one_sample, range(n)))
+                failures = [error for _, error in outcomes if error]
+                if failures:
+                    compiler_calls.append({
+                        "stage": stage + "_partial_failures",
+                        "failed_completions": len(failures),
+                        "failure_reasons": failures[:3],
+                    })
+                return [response for response, _ in outcomes]
             finally:
                 compiler_calls.append({
                     "stage": stage,
