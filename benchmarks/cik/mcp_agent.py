@@ -2985,7 +2985,9 @@ class McpAgentForecaster:
             primary = artifact_result.get("primary_forecast")
             context_changed = any(
                 bool((entry.get("context_outcome") or {}).get(
-                    "primary_forecast_changed"))
+                    "selected_projection_differs_from_primary",
+                    (entry.get("context_outcome") or {}).get(
+                        "primary_forecast_changed")))
                 for entry in run.trace)
             if (not primary and not context_changed
                     and isinstance(artifact_result.get("forecast"), list)):

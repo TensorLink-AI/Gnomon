@@ -261,7 +261,9 @@ def test_batched_forecast_accepts_scoped_validated_context(tmp_path) -> None:
     by_series = {row["series"]: row for row in payload["results"]}
     assert by_series["cpu"]["context_outcome"]["status"] == "scenario_only"
     assert by_series["cpu"]["context_outcome"][
-        "primary_forecast_changed"] is False
+        "selected_projection_differs_from_primary"] is False
+    assert by_series["cpu"]["context_outcome"][
+        "canonical_primary_preserved"] is True
     assert by_series["mem"]["context_outcome"]["status"] == "not_considered"
 
 
@@ -292,11 +294,16 @@ def test_batched_forecast_emits_scoped_sealed_publications(tmp_path) -> None:
     })
 
     publications = {item["series"]: item for item in payload["publications"]}
+    results = {item["series"]: item for item in payload["results"]}
     assert set(publications) == {"cpu", "mem"}
     assert publications["cpu"]["recommended_scenario_id"] == \
         "context_conditioned"
     assert publications["mem"]["recommended_scenario_id"] == "primary"
     assert publications["mem"]["context_dispositions"] == []
+    assert results["cpu"]["context_outcome"][
+        "selected_projection_differs_from_primary"] is True
+    assert results["cpu"]["context_outcome"][
+        "canonical_primary_preserved"] is True
     assert payload["publication_summary"] == {
         "mode": "best_effort", "series_count": 2,
         "primary_forecast_unchanged": True,
@@ -341,7 +348,10 @@ def test_qualitative_context_lane_produces_non_automatable_sensitivity(
 
     result = payload["results"][0]
     assert result["context_outcome"]["status"] == "scenario_only"
-    assert result["context_outcome"]["primary_forecast_changed"] is False
+    assert result["context_outcome"][
+        "selected_projection_differs_from_primary"] is False
+    assert result["context_outcome"]["canonical_primary_preserved"] is True
+    assert "primary_forecast_changed" not in result["context_outcome"]
     assert result["context_outcome"]["sensitivity_scenarios_produced"] == 1
     assert result["context_outcome"]["hypotheses"][0]["direction"] == "increase"
     publication = payload["publication"]

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Remove an ambiguous legacy field from the default brief projection. The
+  frozen artifact still records `primary_forecast_changed`, but the agent wire
+  response now says `selected_projection_differs_from_primary` alongside
+  `canonical_primary_preserved`, so a conditional path cannot be mistaken for
+  mutation of the immutable primary. External benchmark adapters accept both
+  spellings during the compatibility transition.
 - Bind compact literal claims to their source document and classify the
   sentence containing the quoted span. External forecasts can no longer be
   relabelled as binding constraints, while unrelated task wording cannot

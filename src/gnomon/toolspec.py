@@ -928,6 +928,21 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
     from .support import forecast_notability
     from .temporal_profile import compact_temporal_profile
 
+    def context_outcome_projection(item: Any) -> dict[str, Any] | None:
+        if not item.context_outcome:
+            return None
+        projected = dict(item.context_outcome)
+        changed = projected.pop("primary_forecast_changed", None)
+        if changed is not None:
+            # The persisted v0.2 field means that the selected conditional
+            # projection differs from the history-only primary. Its old name
+            # is easily misread as mutation, so the public brief names the
+            # distinction while the frozen artifact remains byte-compatible.
+            projected["selected_projection_differs_from_primary"] = bool(changed)
+            projected["canonical_primary_preserved"] = bool(
+                projected.get("canonical_primary_preserved", True))
+        return projected
+
     def response_facts(item: Any) -> dict[str, Any] | None:
         if not item.temporal_facts:
             return None
@@ -986,7 +1001,7 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
             **({"temporal_facts": response_facts(item)}
                if item.temporal_facts else {}),
             **({"threshold": item.threshold} if item.threshold else {}),
-            **({"context_outcome": item.context_outcome}
+            **({"context_outcome": context_outcome_projection(item)}
                if item.context_outcome else {}),
             **({"sensitivity_scenarios": [{
                 "events": scenario.get("events", []),
