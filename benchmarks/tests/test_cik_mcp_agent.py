@@ -2194,7 +2194,7 @@ def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
     ("hypothesis_kind", "horizon", "expected_paths"), [
         ("historical_analogue", 4, 5),
         ("bound", 4, 5),
-        ("historical_analogue", 97, 3),
+        ("historical_analogue", 97, 4),
     ])
 def test_typed_interpretation_without_executable_gets_sealed_sampled_prior(
         tmp_path, hypothesis_kind, horizon, expected_paths):

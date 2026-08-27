@@ -63,8 +63,8 @@ shipped `gnomon.agent_context` module provides the integration primitives:
 
 - `build_sampled_context_prior_prompt(...)` encodes host-owned regular grids
   compactly and asks for indexed values without re-echoing timestamps;
-- `recommended_sample_count(horizon)` bounds provider work while retaining at
-  least three independent draws for long horizons; and
+- `recommended_sample_count(horizon)` bounds provider work while allowing one
+  rejected long-horizon draw and still retaining three independent paths; and
 - `candidate_from_sampled_paths(...)` rejects malformed, non-finite, partial,
   or wrong-grid paths independently, aggregates valid paths into q10/q50/q90,
   and reports draw stability separately from historical skill.

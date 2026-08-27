@@ -249,7 +249,7 @@ Use no observations after the cutoff.
 
 
 def recommended_sample_count(horizon: int) -> int:
-    """Bound host inference while retaining an empirical distribution."""
+    """Bound host inference while tolerating one rejected long path."""
     if horizon < 1:
         raise ValueError("horizon must be positive")
-    return 3 if horizon >= 96 else 5
+    return 4 if horizon >= 96 else 5
