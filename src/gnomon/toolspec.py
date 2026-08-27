@@ -3200,9 +3200,8 @@ TOOLS.extend([
     {
         "name": "gnomon_select_scenario",
         "description": (
-            "Rank sealed paths from selection_contract. Only "
-            "the displayed recommendation changes; numbers, support, primary, "
-            "and automation authority cannot."
+            "Choose sealed path. Cannot change numbers, support, primary, "
+            "automation."
         ),
         "inputSchema": {"type": "object", "properties": {
             "publication_path": {"type": "string", "description": (
@@ -3212,6 +3211,7 @@ TOOLS.extend([
                 "ranking": {"type": "array", "items": {"type": "string"}},
                 "cited_claim_ids": {"type": "array", "items": {"type": "string"}},
                 "counterevidence_claim_ids": {"type": "array", "items": {"type": "string"}},
+                "counterevidence_hypothesis_ids": {"type": "array", "items": {"type": "string"}},
                 "confidence": {"type": "number", "minimum": 0, "maximum": 1},
                 "rationale": {"type": "string"},
                 "what_would_change_selection": {"type": "string"},

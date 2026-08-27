@@ -1287,15 +1287,35 @@ def validate_scenario_selection(raw: Any, *, scenarios: list[dict[str, Any]],
         for hypothesis in dossier.get("hypotheses") or []
         if hypothesis.get("hypothesis_id")
     }
-    claim_ids.update(hypothesis_ids)
-    claim_ids.update(known_evidence_ids or set())
+    required_known = {str(item) for item in
+                      required_counterevidence_ids or set()}
+    # A sealed publication carries hypotheses in its compact evidence table.
+    # Preserve their type when re-ranking without the original dossier.
+    hypothesis_ids.update(required_known)
+    claim_ids.update(str(item) for item in known_evidence_ids or set()
+                     if str(item) not in required_known)
     claim_ids.update(str(item) for scenario in scenarios
                      for item in scenario.get("claim_ids") or [])
     cited = [str(item) for item in raw.get("cited_claim_ids") or []]
-    counter = [str(item) for item in raw.get("counterevidence_claim_ids") or []]
+    legacy_counter = [str(item) for item in
+                      raw.get("counterevidence_claim_ids") or []]
+    counter_hypotheses = [str(item) for item in
+                          raw.get("counterevidence_hypothesis_ids") or []]
+    # Backward-compatible migration for callers using the original, overly
+    # broad field. Public output is canonical: claim IDs and hypothesis IDs
+    # never share one misleading slot.
+    counter_hypotheses = list(dict.fromkeys([
+        *counter_hypotheses,
+        *[item for item in legacy_counter if item in hypothesis_ids],
+    ]))
+    counter = list(dict.fromkeys(
+        item for item in legacy_counter if item not in hypothesis_ids))
     if set(cited + counter) - claim_ids:
         raise ValueError("scenario selection cites an unknown claim id")
-    if not cited and not counter:
+    if set(counter_hypotheses) - hypothesis_ids:
+        raise ValueError(
+            "scenario selection cites an unknown counterevidence hypothesis id")
+    if not cited and not counter and not counter_hypotheses:
         raise ValueError("scenario selection requires cited evidence or counterevidence")
     if set(cited) & set(counter):
         raise ValueError("a claim cannot be both supporting evidence and counterevidence")
@@ -1303,16 +1323,17 @@ def validate_scenario_selection(raw: Any, *, scenarios: list[dict[str, Any]],
                                if item["scenario_id"] == selected)["claim_ids"])
     if selected_claims and not selected_claims.intersection(cited):
         raise ValueError("selected conditional scenario requires one of its claims to be cited")
-    counter_hypotheses = {
+    required_counter_hypotheses = {
         str(hypothesis.get("hypothesis_id")) for dossier in dossiers or []
         for hypothesis in dossier.get("hypotheses") or []
         if hypothesis.get("kind") == "unsupported"
         and hypothesis.get("hypothesis_id")
     }
-    counter_hypotheses.update(required_counterevidence_ids or set())
+    required_counter_hypotheses.update(required_known)
     if (selected_scenario.get("role") == "model_authored"
-            and counter_hypotheses
-            and not counter_hypotheses.intersection(counter)):
+            and required_counter_hypotheses
+            and not required_counter_hypotheses.intersection(
+                counter_hypotheses)):
         raise ValueError(
             "prior-assisted selection must cite compiled counterevidence")
     try:
@@ -1329,7 +1350,9 @@ def validate_scenario_selection(raw: Any, *, scenarios: list[dict[str, Any]],
         "label": SELECTION_LABEL, "selected_scenario_id": selected,
         "channel": "governed_scenario_selection",
         "ranking": ranking, "cited_claim_ids": cited,
-        "counterevidence_claim_ids": counter, "confidence": confidence,
+        "counterevidence_claim_ids": counter,
+        "counterevidence_hypothesis_ids": counter_hypotheses,
+        "confidence": confidence,
         "rationale": rationale[:1000],
         "what_would_change_selection": flip[:1000],
         "primary_forecast_unchanged": True,
@@ -1385,7 +1408,8 @@ def best_effort_prior_selection(
         "selected_scenario_id": selected["scenario_id"],
         "ranking": ranking,
         "cited_claim_ids": cited,
-        "counterevidence_claim_ids": counter,
+        "counterevidence_claim_ids": [],
+        "counterevidence_hypothesis_ids": counter,
         "confidence": .5,
         "rationale": (
             "The caller selected best_effort publication, and one bounded "
@@ -1606,6 +1630,7 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
             "selected_scenario_id": "string", "ranking": ["scenario_id"],
             "cited_claim_ids": ["claim_id"],
             "counterevidence_claim_ids": ["claim_id"],
+            "counterevidence_hypothesis_ids": ["hypothesis_id"],
             "confidence": "number 0..1", "rationale": "string",
             "what_would_change_selection": "string",
         },

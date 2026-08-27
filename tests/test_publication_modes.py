@@ -1102,8 +1102,9 @@ def test_prior_assisted_selection_must_receive_and_cite_counter_hypothesis():
     payload = publish_result(_result(), mode="best_effort", dossiers=[dossier],
                              scenario_selection=selection)
     assert payload["recommended_scenario_id"] == "prior-assisted-1"
-    assert payload["scenario_selection"]["counterevidence_claim_ids"] == [
-        "hyp-counter-1"]
+    assert payload["scenario_selection"]["counterevidence_claim_ids"] == []
+    assert payload["scenario_selection"][
+        "counterevidence_hypothesis_ids"] == ["hyp-counter-1"]
     sealed = publish_result(_result(), mode="best_effort", dossiers=[dossier])
     reranked = select_publication(sealed, selection)
     assert reranked["recommended_scenario_id"] == "prior-assisted-1"
