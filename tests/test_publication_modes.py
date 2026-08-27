@@ -816,6 +816,34 @@ def test_every_rejected_context_disposition_has_bounded_recovery():
     assert verify_publication(payload)
 
 
+def test_duplicate_transformation_preflight_summary_is_not_second_rejection():
+    result = _result()
+    result["transformation_rejections"] = [{
+        "transformation_id": "bad-transform",
+        "reason_code": "HORIZON_MISMATCH",
+        "reason": "Every future series must match the primary horizon.",
+        "violations": [{"code": "HORIZON_MISMATCH",
+                        "field": "series_values"}],
+    }]
+    result["context_rejections"] = [{
+        "context_id": "context-submission-1",
+        "reason_code": "transformation_preflight_rejected",
+        "reason": ('[{"index":1,"violations":[{"code":'
+                   '"HORIZON_MISMATCH","field":"series_values"}]}]'),
+    }]
+
+    payload = publish_result(result, mode="scenario")
+
+    assert payload["context_summary"]["counts"]["rejected"] == 1
+    duplicate = next(item for item in payload["context_dispositions"]
+                     if item["context_id"] == "context-submission-1")
+    assert duplicate["disposition"] == "superseded"
+    assert duplicate["reason_code"] == \
+        "duplicate_transformation_preflight_summary"
+    assert duplicate["represented_violation_codes"] == ["HORIZON_MISMATCH"]
+    assert verify_publication(payload)
+
+
 def test_typed_wildcard_rejection_teaches_target_binding(tmp_path):
     from datetime import date, timedelta
     source = tmp_path / "series.csv"

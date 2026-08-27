@@ -1277,8 +1277,14 @@ def test_valid_effect_skips_repair_of_malformed_optional_transformation(
     }
     assert extra["publication"]["recommended_scenario_id"] == \
         "effect-composed-1"
-    assert any(item.get("reason_code") == "transformation_preflight_rejected"
-               for item in extra["publication"]["context_dispositions"])
+    dispositions = extra["publication"]["context_dispositions"]
+    assert any(item.get("reason_code") == "HORIZON_MISMATCH"
+               and item.get("disposition") == "rejected"
+               for item in dispositions)
+    assert any(item.get("reason_code") ==
+               "duplicate_transformation_preflight_summary"
+               and item.get("disposition") == "superseded"
+               for item in dispositions)
 
 
 def test_exact_lag_claims_get_one_focused_sufficiency_repair(tmp_path):

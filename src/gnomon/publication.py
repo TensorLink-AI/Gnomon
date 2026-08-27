@@ -350,7 +350,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
             "supported", "context_trusted"},
     )]
     dispositions: list[dict[str, Any]] = []
-    dispositions.extend({
+    transformation_dispositions = [{
         "context_id": str(item.get("transformation_id") or
                           f"transformation-rejection-{index}"),
         "disposition": "rejected",
@@ -358,15 +358,49 @@ def build_scenario_catalog(result: dict[str, Any], *,
         "reason": str(item.get("reason") or "Transformation validation failed."),
         "violations": list(item.get("violations") or []),
     } for index, item in enumerate(
-        result.get("transformation_rejections") or [], 1))
-    dispositions.extend({
-        "context_id": str(item.get("context_id") or
-                          f"context-submission-{index}"),
-        "disposition": "rejected",
-        "reason_code": str(item.get("reason_code") or "context_unresolved"),
-        "reason": str(item.get("reason") or
-                      "Supplied context could not be grounded or executed."),
-    } for index, item in enumerate(result.get("context_rejections") or [], 1))
+        result.get("transformation_rejections") or [], 1)]
+    dispositions.extend(transformation_dispositions)
+    represented_transform_codes = {
+        str(code) for item in transformation_dispositions
+        for code in [item.get("reason_code"), *[
+            violation.get("code") for violation in item.get("violations") or []
+            if isinstance(violation, dict)]] if code
+    }
+    for index, item in enumerate(result.get("context_rejections") or [], 1):
+        context_id = str(item.get("context_id") or
+                         f"context-submission-{index}")
+        reason_code = str(item.get("reason_code") or "context_unresolved")
+        reason = str(item.get("reason") or
+                     "Supplied context could not be grounded or executed.")
+        repeated_codes: set[str] = set()
+        if reason_code == "transformation_preflight_rejected":
+            try:
+                parsed = json.loads(reason)
+            except (TypeError, ValueError):
+                parsed = []
+            repeated_codes = {
+                str(violation.get("code")) for failure in parsed
+                if isinstance(failure, dict)
+                for violation in failure.get("violations") or []
+                if isinstance(violation, dict) and violation.get("code")
+            }
+        duplicate_summary = bool(
+            repeated_codes
+            and repeated_codes <= represented_transform_codes)
+        dispositions.append({
+            "context_id": context_id,
+            "disposition": "superseded" if duplicate_summary else "rejected",
+            "reason_code": (
+                "duplicate_transformation_preflight_summary"
+                if duplicate_summary else reason_code),
+            "reason": (
+                "Submission-level preflight repeats the typed transformation "
+                "rejection already listed above."
+                if duplicate_summary else reason),
+            **({"supersedes_reason_code": reason_code,
+                "represented_violation_codes": sorted(repeated_codes)}
+               if duplicate_summary else {}),
+        })
     context_outcome = result.get("context_outcome") or {}
     historically_admitted = (
         context_outcome.get("admission_basis") == "historical_fold_ablation")

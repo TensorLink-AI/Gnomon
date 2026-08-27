@@ -9,6 +9,10 @@
   transformation after a valid effect or observation executable already
   exists; retain the rejected lane and reason in provenance while publishing
   the complete governed answer without an avoidable second call.
+- Collapse a submission-level transformation preflight summary into
+  superseded provenance when its violation codes are already represented by
+  typed transformation rejections, preventing one defect from inflating the
+  public rejection count while retaining both source identities.
 
 - Treat model-authored effect proposals that duplicate an exact deterministic
   context contract as superseded provenance rather than rejected context, so
