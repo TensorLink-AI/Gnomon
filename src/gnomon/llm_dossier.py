@@ -119,7 +119,9 @@ def _timestamp(value: Any) -> datetime | None:
     return parsed if parsed.tzinfo is not None else None
 
 
-def _cited_span_resolves_start(span: str, start: datetime | None) -> bool:
+def _cited_span_resolves_start(
+        span: str, start: datetime | None, *, cutoff: datetime | None = None,
+) -> bool:
     """Return whether a cited clause explicitly dates its own onset.
 
     ``timing_status`` is model-authored metadata, so it cannot overrule an
@@ -128,15 +130,40 @@ def _cited_span_resolves_start(span: str, start: datetime | None) -> bool:
     supplied start's YYYY-MM or YYYY-MM-DD, and never invents a date from a
     weekday, holiday name, or relative phrase.
     """
-    if start is None or not re.search(
-            r"\b(?:start(?:s|ing|ed)?|begin(?:s|ning)?|effective|from)\b",
-            span, re.IGNORECASE):
+    if start is None:
         return False
-    for matched in re.finditer(r"(?<!\d)(\d{4})-(\d{2})(?:-(\d{2}))?", span):
-        year, month = int(matched.group(1)), int(matched.group(2))
-        day = int(matched.group(3)) if matched.group(3) else None
-        if year == start.year and month == start.month and (
-                day is None or day == start.day):
+    has_onset_cue = re.search(
+        r"\b(?:start(?:s|ing|ed)?|begin(?:s|ning)?|effective|from)\b",
+        span, re.IGNORECASE)
+    if has_onset_cue:
+        for matched in re.finditer(
+                r"(?<!\d)(\d{4})-(\d{2})(?:-(\d{2}))?", span):
+            year, month = int(matched.group(1)), int(matched.group(2))
+            day = int(matched.group(3)) if matched.group(3) else None
+            if year == start.year and month == start.month and (
+                    day is None or day == start.day):
+                return True
+    # Some operational sources (runbooks, experiment logs, incident notes)
+    # state an onset as a clock time because the surrounding series supplies
+    # the calendar date. Reconcile only an exact clock match attached to
+    # explicit transition language; a bare time in a report remains
+    # insufficient. ``start`` is host-resolved on the forecast grid, so this
+    # does not let the model invent the missing date.
+    for matched in re.finditer(
+            r"\b(?:at|from)\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\b"
+            r"[^.]{0,100}\b(?:changes?|shifts?|starts?|begins?|becomes?|"
+            r"increases?|decreases?)\b",
+            span, re.IGNORECASE):
+        hour, minute = int(matched.group(1)), int(matched.group(2))
+        second = int(matched.group(3) or 0)
+        cited_clock = (hour, minute, second)
+        # A setting changed exactly at the observation cutoff governs the
+        # first forecast step even though the response grid begins one step
+        # later. Both dates are host-owned; accepting either avoids turning a
+        # known boundary transition into an unresolved future trigger.
+        if cited_clock == (start.hour, start.minute, start.second) or (
+                cutoff is not None and cited_clock == (
+                    cutoff.hour, cutoff.minute, cutoff.second)):
             return True
     return False
 
@@ -415,7 +442,7 @@ def validate_temporal_dossier(
                 "automation_eligible": False,
             }
         elif timing_status == "unresolved_trigger" and \
-                _cited_span_resolves_start(span, start):
+                _cited_span_resolves_start(span, start, cutoff=cutoff_dt):
             timing_status = "resolved"
             history_window_binding = {
                 "kind": "explicit_source_timing_reconciled",

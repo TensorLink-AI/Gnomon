@@ -590,8 +590,41 @@ def test_model_authored_path_cannot_bypass_governed_transform_authority():
              for item in payload["candidate_portfolio"]}
     assert by_id["transformation-1"]["selection_eligible"] is False
     assert by_id["prior-assisted-1"]["selection_eligible"] is False
+    assert by_id["prior-assisted-1"]["human_selection_eligible"] is False
     assert "owns recommendation authority" in " ".join(
         by_id["prior-assisted-1"]["assumptions"])
+
+    contract = scenario_selection_contract(
+        scenarios=payload["candidate_portfolio"], dossiers=[_dossier()])
+    assert all(item["scenario_id"] != "prior-assisted-1"
+               or item["human_selection_eligible"] is False
+               for item in contract["scenarios"])
+
+
+def test_single_validated_declarative_transform_is_evidence_dominant():
+    result = _result()
+    result["transformation_candidates"] = [{
+        "transformation_id": "equation-1",
+        "forecast": [{**row, "point": 20, "q10": 19, "q50": 20,
+                      "q90": 21} for row in result["forecast"]],
+        "lane": "prior_assisted", "claim_ids": ["claim-1"],
+        "known_at": "2026-01-02T00:00:00+00:00",
+        "output_unit": "value", "source_seal_sha256": "sealed",
+        "primary_forecast_unchanged": True, "automation_eligible": False,
+        "validation": {
+            "approved_ast": True, "constants_entailed": True,
+            "known_at_cutoff": True, "units_checked": True,
+        },
+    }]
+    payload = publish_result(result, mode="best_effort", dossiers=[_dossier()])
+
+    assert payload["recommended_scenario_id"] == "transformation-1"
+    assert payload["recommended_support"] == "prior_assisted"
+    assert payload["automation"]["eligible"] is False
+    contract = scenario_selection_contract(
+        scenarios=payload["candidate_portfolio"], dossiers=[_dossier()])
+    assert contract["selection_required"] is False
+    assert contract["deterministic_scenario_id"] == "transformation-1"
 
 
 def test_relationship_history_rejection_teaches_collection_not_recompilation():

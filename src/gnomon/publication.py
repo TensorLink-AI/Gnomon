@@ -145,6 +145,21 @@ def dominant_scenario_id(scenarios: list[dict[str, Any]]) -> str | None:
         # question. A model may explain this path but cannot silently demote
         # it. Support stays hypothetical and automation stays disabled.
         return str(source_determined_scenarios[0]["scenario_id"])
+    declarative = [item for item in scenarios
+                   if item.get("role") == "model_authored_transformation"
+                   and item.get("selection_eligible", True) is True
+                   and item.get("support") == "prior_assisted"
+                   and all(((item.get("effect") or {}).get("validation") or {}).get(
+                               key) is True
+                           for key in ("approved_ast", "constants_entailed",
+                                       "known_at_cutoff", "units_checked"))]
+    if len(declarative) == 1:
+        # In best-effort mode a single source-grounded executable answers the
+        # caller's stated conditional question. Asking a model to choose
+        # between that path and a context-free primary adds no evidence and
+        # has allowed the model to ignore its own cited equation. Support
+        # remains prior-assisted and automation remains forbidden.
+        return str(declarative[0]["scenario_id"])
     admitted = [item for item in scenarios
                 if item.get("role") == "fitted_context_candidate"
                 and ((item.get("effect") or {}).get("evidence") or {}).get("decisive")]
@@ -818,6 +833,17 @@ def build_scenario_catalog(result: dict[str, Any], *,
             replay_insufficient_only = bool(relevant_observation_replays) and all(
                 str(replay.get("status") or "").startswith("insufficient")
                 for replay in relevant_observation_replays)
+            if governed_by_transformation or governed_by_deterministic_claim:
+                # A model cannot bypass a failed replay/admission check by
+                # restating its own forecast under the same cited claims. The
+                # executable path owns numeric authority; the model path stays
+                # visible for explanation, comparison, and outcome scoring.
+                selection_eligible = False
+            # Compute human eligibility only after applying numeric-authority
+            # exclusions. Previously an initially eligible model path kept a
+            # stale ``True`` here even after the governed executable over the
+            # same claims made it outcome-scoring-only. That let a selector
+            # choose model-authored intervals over the engine's executable.
             human_selection_eligible = bool(
                 selection_eligible
                 or (candidate_origin == "model_authored"
@@ -825,12 +851,6 @@ def build_scenario_catalog(result: dict[str, Any], *,
                     and replay_insufficient_only
                     and not governed_by_transformation
                     and not governed_by_deterministic_claim))
-            if governed_by_transformation or governed_by_deterministic_claim:
-                # A model cannot bypass a failed replay/admission check by
-                # restating its own forecast under the same cited claims. The
-                # executable path owns numeric authority; the model path stays
-                # visible for explanation, comparison, and outcome scoring.
-                selection_eligible = False
             scenarios.append(_scenario(
                 identifier,
                 ("calibration_counterfactual" if

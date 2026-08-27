@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Reconcile exact clock-time transition statements against the host-owned
+  forecast grid. Operational context may now apply a cited intraday change
+  at the first forecast step or observation cutoff without inventing a
+  calendar date, while bare report times remain categorically insufficient to
+  authorize a numeric effect.
+- Prevent a model-authored forecast from retaining stale human-selection
+  eligibility after a governed executable or deterministic context contract
+  over the same claims takes numeric authority. The model path remains in the
+  receipt for comparison and outcome scoring, but cannot override the engine.
+- Make one fully validated, source-grounded declarative transformation the
+  non-discretionary human recommendation in best-effort mode. Its
+  prior-assisted support and automation prohibition remain unchanged; the LLM
+  no longer spends a call deciding whether to ignore the caller's executable
+  conditional question.
 - Make every CiK pre-validation normalizer total over arbitrary model output
   shapes and reapply idempotent host-owned relationship bindings after the one
   bounded repair. Scalars and malformed collections now become typed

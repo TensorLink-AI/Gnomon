@@ -488,6 +488,64 @@ def test_explicit_cited_onset_corrects_model_unresolved_timing_label():
     }
 
 
+def test_exact_clock_onset_is_reconciled_against_host_forecast_grid():
+    span = (
+        "The speed starts at 308.0. At 05:14:23, it rapidly and smoothly "
+        "changes to 1592.4.")
+    raw = {"claims": [{
+        "source_span": span, "relation": "supports_increase",
+        "effective_start": "1970-01-01T05:14:23+00:00",
+        "effective_end": "1970-01-01T05:14:48+00:00",
+        "timing_status": "unresolved_trigger", "confidence": 1.0,
+    }]}
+
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=span, cutoff="1970-01-01T05:14:22+00:00",
+        future_timestamps=["1970-01-01T05:14:23+00:00"],
+        history=[1, 2, 3], compiler_model="test")
+
+    assert not reasons
+    claim = dossier["claims"][0]
+    assert claim["timing_status"] == "resolved"
+    assert claim["effective_window_binding"]["kind"] == (
+        "explicit_source_timing_reconciled")
+
+
+def test_bare_clock_time_does_not_resolve_trigger_timing():
+    span = "The report was issued at 05:14:23. Demand may fall on holidays."
+    raw = {"claims": [{
+        "source_span": span, "relation": "supports_decrease",
+        "effective_start": "1970-01-01T05:14:23+00:00",
+        "effective_end": "1970-01-01T05:14:48+00:00",
+        "timing_status": "unresolved_trigger", "confidence": .7,
+    }]}
+
+    dossier, _ = validate_temporal_dossier(
+        raw, context_text=span, cutoff="1970-01-01T05:14:22+00:00",
+        future_timestamps=["1970-01-01T05:14:23+00:00"],
+        history=[1, 2, 3], compiler_model="test")
+
+    assert dossier["claims"][0]["timing_status"] == "unresolved_trigger"
+
+
+def test_clock_onset_at_cutoff_governs_first_future_step():
+    span = "At 05:14:56, the fan speed changes to 661.1."
+    raw = {"claims": [{
+        "source_span": span, "relation": "supports_decrease",
+        "effective_start": "1970-01-01T05:14:57+00:00",
+        "effective_end": "1970-01-01T05:15:11+00:00",
+        "timing_status": "unresolved_trigger", "confidence": 1.0,
+    }]}
+
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=span, cutoff="1970-01-01T05:14:56+00:00",
+        future_timestamps=["1970-01-01T05:14:57+00:00"],
+        history=[1, 2, 3], compiler_model="test")
+
+    assert not reasons
+    assert dossier["claims"][0]["timing_status"] == "resolved"
+
+
 def test_unresolved_trigger_is_not_reconciled_from_unrelated_iso_date():
     span = ("The report was issued on 2026-01-03. Demand typically falls "
             "during public holidays.")
