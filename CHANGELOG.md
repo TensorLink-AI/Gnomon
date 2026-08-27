@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- Reserve a bounded share of the context-workflow deadline for its single
+  repair turn. A slow empty initial completion can no longer leave the repair
+  with a one-second timeout and turn recoverable model formatting into a
+  context-free answer.
+- Distinguish an unstated domain constant from an unsafe or source-
+  contradictory transformation failure. In best-effort mode only, a sealed
+  model prior may remain human-selection eligible when the deterministic lane
+  failed solely because the cited document omitted that constant; timing,
+  provenance, safety, and explicit-quantity failures remain hard blocks.
+- Treat a verified numeric bound as recommendation authority only when the
+  deterministic context contract actually applied it. A loose or inoperative
+  bound still constrains plausibility, but no longer suppresses an otherwise
+  valid prior-assisted human scenario merely because both cite the same text.
+- Canonicalize the common selector formatting error where one claim is listed
+  as both support and counterevidence. Claim ownership by the already selected
+  sealed scenario resolves only that duplicate classification; ranking,
+  confidence, rationale, numbers, and support remain model-authored and
+  verifier checked.
 - Reconcile exact clock-time transition statements against the host-owned
   forecast grid. Operational context may now apply a cited intraday change
   at the first forecast step or observation cutoff without inventing a

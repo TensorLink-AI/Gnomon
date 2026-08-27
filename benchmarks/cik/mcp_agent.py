@@ -48,6 +48,7 @@ MAX_MCP_CALLS = 24
 MAX_RUN_TOKENS = 250_000
 MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
     300.0, float(os.environ.get("GNOMON_CONTEXT_COMPILATION_SECONDS", "60"))))
+MIN_CONTEXT_REPAIR_SECONDS = 10.0
 #: Bump when the system prompt, the caps, or the submit contract change:
 #: the official cache reuses results by cache_name, and a cached run made
 #: under an older contract is a different measurement wearing the same
@@ -1772,6 +1773,31 @@ def _select_publication_fail_closed(
         return publication, f"selector incompatible with live portfolio: {error}"
 
 
+def _canonicalize_scenario_selection_evidence(
+        raw: Any, scenarios: list[dict[str, Any]]) -> Any:
+    """Resolve only a mechanically duplicated evidence classification."""
+    if not isinstance(raw, dict):
+        return raw
+    output = json.loads(json.dumps(raw))
+    cited = [str(item) for item in output.get("cited_claim_ids") or []]
+    counter = [str(item) for item in
+               output.get("counterevidence_claim_ids") or []]
+    overlap = set(cited).intersection(counter)
+    if not overlap:
+        return output
+    selected_id = str(output.get("selected_scenario_id") or "")
+    selected_claims = set(next((item.get("claim_ids") or []
+                                for item in scenarios
+                                if str(item.get("scenario_id")) == selected_id), []))
+    output["cited_claim_ids"] = list(dict.fromkeys(
+        item for item in cited
+        if item not in overlap or item in selected_claims))
+    output["counterevidence_claim_ids"] = list(dict.fromkeys(
+        item for item in counter
+        if item not in overlap or item not in selected_claims))
+    return output
+
+
 def _merge_transformation_repair(raw: dict[str, Any],
                                  repaired: dict[str, Any]) -> dict[str, Any]:
     """Preserve prior claims; allow the bounded repair to replace only ASTs."""
@@ -2245,8 +2271,11 @@ class McpAgentForecaster:
                             objects = extract_json_objects(response)
                             if not objects:
                                 raise ValueError("selector returned no JSON object")
+                            normalized_selection = (
+                                _canonicalize_scenario_selection_evidence(
+                                    objects[0], scenarios))
                             selection = validate_scenario_selection(
-                                objects[0], scenarios=scenarios,
+                                normalized_selection, scenarios=scenarios,
                                 dossiers=[dossier])
                             break
                         except Exception as error:
@@ -2468,12 +2497,20 @@ class _Run:
                 raise TimeoutError(
                     "context workflow deadline exhausted before " + stage)
             started = time.monotonic()
+            # The one bounded repair is part of the public behavior, not a
+            # theoretical fallback. Do not let an empty or malformed initial
+            # completion consume the entire workflow budget and leave the
+            # repair a one-second request that cannot possibly complete.
+            request_budget = remaining
+            if stage == "initial_compile" and remaining > 2:
+                reserve = min(MIN_CONTEXT_REPAIR_SECONDS, remaining * .25)
+                request_budget = max(1.0, remaining - reserve)
             try:
                 return self.forecaster.client.completions(
                     [{"role": "user", "content": content}], n=1,
                     temperature=0, reasoning_effort="none",
                     request_timeout=max(1, min(
-                        120, math.ceil(remaining))),
+                        120, math.floor(request_budget))),
                     transport_retries=0)[0]
             finally:
                 compiler_calls.append({
@@ -3412,21 +3449,46 @@ class _Run:
             else:
                 prospective_events.append(event)
         events = prospective_events
+        transform_failure_codes = {
+            str(violation.get("code") or "")
+            for failure in remaining_transform_failures
+            for violation in failure.get("violations") or []
+            if isinstance(violation, dict)
+        }
+        cited_semantic_constant_available = bool(re.search(
+            r"\b(?:a\s+quarter|one\s+quarter|quarter|a\s+half|one\s+half|"
+            r"half|twice|double|square|squared|quadratic|triple|cube|cubed|"
+            r"cubic)\b", context, re.IGNORECASE))
+        # Best-effort may expose a sealed model prior when deterministic
+        # execution failed solely because the source omitted a needed
+        # constant (for example, a named domain law without its exponent).
+        # This is categorically different from contradicting an explicit
+        # source quantity or failing timing/provenance/safety validation.
+        prior_only_semantic_gap = bool(
+            remaining_transform_failures
+            and transform_failure_codes == {
+                "UNENTAILED_TRANSFORMATION_CONSTANT"}
+            and not cited_semantic_constant_available
+        )
+        candidate_blocked_by_transform = bool(
+            remaining_transform_failures and raw.get("forecast_candidate")
+            and raw.get("transformations") and not prior_only_semantic_gap)
         dossier, dossier_rejections = validate_temporal_dossier(
             raw, context_text=context, cutoff=self.timestamps[-1],
             future_timestamps=future_timestamps, history=self.values,
             history_timestamps=self.timestamps,
             compiler_model=self.forecaster.openrouter_model,
             validated_events=events,
-            candidate_selection_eligible=not bool(
-                remaining_transform_failures and raw.get("forecast_candidate")
-                and raw.get("transformations")),
+            candidate_selection_eligible=not candidate_blocked_by_transform,
             candidate_selection_reason=(
                 "Accompanying governed transformation failed preflight; the "
                 "sealed model path remains visible as a scenario but cannot "
                 "become the default recommendation."
-                if remaining_transform_failures and raw.get("forecast_candidate")
-                and raw.get("transformations") else None),
+                if candidate_blocked_by_transform else
+                "The cited source omitted a constant required for deterministic "
+                "execution. Best-effort may rank the separately sealed model "
+                "prior for human review; it remains unsupported for automation."
+                if prior_only_semantic_gap else None),
         )
         covariate_receipt = compilation["covariates"]
         covariate_rejections = compilation["covariate_rejections"]

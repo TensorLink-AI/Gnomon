@@ -672,10 +672,17 @@ def build_scenario_catalog(result: dict[str, Any], *,
         proposal = dossier.get("effect_proposal")
         candidate = dossier.get("forecast_candidate")
         claims = dossier.get("claims") or []
+        deterministic_events = deterministic_events_from_claims(dossier)
         deterministic_claim_ids = {
             str(event.get("derived_from_claim_id"))
-            for event in deterministic_events_from_claims(dossier)
+            for event in deterministic_events
             if event.get("derived_from_claim_id")}
+        absolute_override_claim_ids = {
+            str(event.get("derived_from_claim_id"))
+            for event in deterministic_events
+            if str(event.get("event_type") or "").startswith("override:")
+            and event.get("derived_from_claim_id")
+        }
         if proposal and deterministic_claim_ids.intersection(
                 str(item) for item in proposal.get("claim_ids") or []):
             # An exact absolute/range claim belongs to the deterministic
@@ -822,7 +829,11 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 for claims in transformation_claim_sets)
             governed_by_deterministic_claim = bool(
                 candidate_origin == "model_authored"
-                and candidate_claims.intersection(deterministic_claim_ids))
+                and candidate_claims.intersection(
+                    absolute_override_claim_ids
+                    if not (isinstance(context_outcome, dict)
+                            and context_outcome.get("status") == "applied")
+                    else deterministic_claim_ids))
             relevant_observation_replays = [
                 item.get("conditional_replay") or {}
                 for item in dossier.get("observation_interpretations") or []

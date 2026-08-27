@@ -627,6 +627,31 @@ def test_single_validated_declarative_transform_is_evidence_dominant():
     assert contract["deterministic_scenario_id"] == "transformation-1"
 
 
+def test_unapplied_numeric_bound_does_not_own_the_full_recommendation():
+    dossier = _dossier()
+    dossier["claims"][0].update({
+        "relation": "constrains_range",
+        "source_span": "Demand will remain below 100 units.",
+        "mechanism": "upper bound only",
+    })
+    candidate = dossier["forecast_candidate"]
+    candidate["claim_ids"] = ["claim-1"]
+    candidate["quantiles"] = [
+        {"timestamp": row["timestamp"], "q10": 10, "q50": 20, "q90": 30}
+        for row in _result()["forecast"]]
+    dossier.pop("seal_sha256", None)
+    import hashlib, json
+    dossier["seal_sha256"] = hashlib.sha256(json.dumps(
+        dossier, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+    payload = publish_result(_result(), mode="best_effort", dossiers=[dossier])
+
+    candidate_scenario = next(item for item in payload["candidate_portfolio"]
+                              if item["role"] == "model_authored")
+    assert candidate_scenario["human_selection_eligible"] is True
+    assert candidate_scenario["automation_eligible"] is False
+
+
 def test_relationship_history_rejection_teaches_collection_not_recompilation():
     result = _result()
     result["transformation_rejections"] = [{

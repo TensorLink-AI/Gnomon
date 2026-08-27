@@ -35,6 +35,7 @@ from benchmarks.cik.mcp_agent import (
     _restore_cited_power_literals,
     _bind_transformation_provenance,
     _select_publication_fail_closed,
+    _canonicalize_scenario_selection_evidence,
     _has_material_numeric_context,
     _validated_item_count,
 )
@@ -250,6 +251,24 @@ def test_single_live_scenario_needs_no_selector_and_reports_no_error():
 
     assert retained is publication
     assert error is None
+
+
+def test_scenario_selector_overlap_is_repaired_from_selected_claim_ownership():
+    scenarios = [
+        {"scenario_id": "primary", "claim_ids": []},
+        {"scenario_id": "candidate", "claim_ids": ["claim-1"]},
+    ]
+    raw = {
+        "selected_scenario_id": "candidate",
+        "cited_claim_ids": ["claim-1", "claim-2"],
+        "counterevidence_claim_ids": ["claim-1", "claim-2"],
+    }
+
+    repaired = _canonicalize_scenario_selection_evidence(raw, scenarios)
+
+    assert repaired["cited_claim_ids"] == ["claim-1"]
+    assert repaired["counterevidence_claim_ids"] == ["claim-2"]
+    assert raw["cited_claim_ids"] == ["claim-1", "claim-2"]
 
 
 def test_pre_call_ranking_is_completed_for_extra_live_scenarios(monkeypatch):
@@ -1240,7 +1259,8 @@ def test_transformation_gets_one_bounded_provenance_repair(tmp_path):
     assert client.total_prompt_tokens >= 200
     assert client.completion_temperatures == [0, 0]
     assert client.completion_reasoning_efforts == ["none", "none"]
-    assert client.completion_request_timeouts == [60, 60]
+    assert 49 <= client.completion_request_timeouts[0] <= 50
+    assert client.completion_request_timeouts[1] >= 10
     assert client.completion_transport_retries == [0, 0]
 
 
@@ -2075,6 +2095,49 @@ def test_candidate_survives_but_cannot_replace_rejected_transform(tmp_path):
                for reason in receipt["rejections"])
 
 
+def test_unstated_domain_constant_can_remain_a_best_effort_model_prior(tmp_path):
+    task = _task()
+    span = ("A named domain policy changes future values, but its multiplier "
+            "is not stated in this document.")
+    task.scenario = span
+    rows = [{"timestamp": stamp, "q10": 124 + index,
+             "q50": 127 + index, "q90": 130 + index}
+            for index, stamp in enumerate(task.future_time)]
+    compiler_output = json.dumps({
+        "claims": [{
+            "source_span": span, "relation": "supports_increase",
+            "effective_start": task.future_time[0],
+            "effective_end": task.future_time[-1], "confidence": .7,
+        }],
+        "forecast_candidate": {"quantiles": rows,
+                               "rationale": "External domain prior."},
+        "transformations": [{"transformation": {
+            "known_at": task.past_time[-1][0],
+            "claim_ids": ["claim-1"], "lane": "prior_assisted",
+            "output_unit": "unknown", "expression": {
+                "op": "multiply", "args": [
+                    {"op": "primary", "quantile": "q50"},
+                    {"op": "literal", "value": .7,
+                     "unit": "dimensionless"}],
+            }}}],
+    })
+    forecaster = McpAgentForecaster(
+        "x/y", client=ScriptedClient(
+            [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+            [compiler_output, compiler_output]),
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 1)
+
+    candidate = next(item for item in extra["publication"][
+        "candidate_portfolio"] if item["role"] == "model_authored")
+    assert candidate["human_selection_eligible"] is True
+    assert candidate["support"] == "prior_assisted"
+    assert candidate["automation_eligible"] is False
+
+
 def test_single_repair_exposes_effect_and_candidate_failures(tmp_path):
     task = _task()
     span = "Demand doubles during the forecast window."
@@ -2156,6 +2219,27 @@ def test_context_workflow_deadline_prevents_stacked_repair_timeouts(
     assert receipt["compiler"]["calls"][0]["stage"] == "initial_compile"
     assert any("deadline exhausted" in item
                for item in receipt["rejections"])
+
+
+def test_context_workflow_reserves_time_for_the_bounded_repair(
+        tmp_path, monkeypatch):
+    task = _task()
+    task.scenario = "Demand becomes 20 during the forecast window."
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        ["not json", "not json"])
+    monkeypatch.setattr(mcp_agent_module,
+                        "MAX_CONTEXT_COMPILATION_SECONDS", 60.0)
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence")
+
+    forecaster(task, 1)
+
+    assert 49 <= client.completion_request_timeouts[0] <= 50
+    assert len(client.completion_request_timeouts) == 2
+    assert client.completion_request_timeouts[1] >= 10
 
 
 def test_shadow_role_requires_evidence_profile():
