@@ -229,6 +229,13 @@ def _compile_execution_arguments(
     ):
         if key in arguments:
             compiled[key] = arguments[key]
+    if any(key in compiled for key in (
+            "context_events", "qualitative_context_events",
+            "context_submission", "context_rejections")):
+        # The benchmark host, not the model, owns the source-document
+        # boundary. This mirrors a real agent host forwarding the untouched
+        # user message beside model-selected spans.
+        compiled["_trusted_context_source_text"] = str(case.get("question") or "")
     columns = [key for key in _columns(case["available_at_cutoff"])
                if key != "timestamp"]
     revealed_target = (case.get("revealed") or {}).get("target_column")
@@ -368,6 +375,8 @@ def _normalize(case: dict[str, Any], value: dict[str, Any], *, calls: int,
                          "qualitative_context_input", []),
                      "literal_context_input": engine_evidence.get(
                          "literal_context_input", []),
+                     "context_rejection_input_shape": engine_evidence.get(
+                         "context_rejection_input_shape", []),
                      "tool_errors": engine_evidence.get("tool_errors", []),
                      **({"error": "model_submission_error"} if status == "error" else {}),
                      "artifact_id": engine_evidence.get("artifact_id"),
@@ -566,6 +575,11 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                         if item.get(key) is not None
                     } | {"source_span_present": bool(item.get("source_span"))}
                        for item in literal_inputs if isinstance(item, dict)]
+                rejection_inputs = arguments.get("context_rejections") or []
+                if isinstance(rejection_inputs, list):
+                    engine_evidence["context_rejection_input_shape"] = [
+                        sorted(str(key) for key in item)
+                        for item in rejection_inputs if isinstance(item, dict)]
                 context_keys = [key for key in (
                     "context_submission", "temporal_dossiers",
                     "context_events", "qualitative_context_events", "context_rejections",
@@ -610,6 +624,12 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                                 "message": str(error.get("message") or "")[:300],
                                 "detail_keys": sorted((error.get("details") or {}).keys())
                                 if isinstance(error.get("details"), dict) else [],
+                                **({"missing_fields": details.get("missing_fields")}
+                                   if isinstance(details, dict) and
+                                   details.get("missing_fields") else {}),
+                                **({"unknown_fields": details.get("unknown_fields")}
+                                   if isinstance(details, dict) and
+                                   details.get("unknown_fields") else {}),
                                 **({"problems": problems} if problems else {}),
                             })
                     publication = (structured.get("publication")

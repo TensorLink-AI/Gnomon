@@ -24,6 +24,8 @@ dated numeric claims in `context_events` with `claim_kind: min|max|exact`, ISO
 times, `known_at`, verbatim `source_span`, and source reference. Omit scope for
 one target; for multiple targets name it unless the quote uniquely names one.
 Do not invent `event_type` or `attributes`; Gnomon re-parses quoted numbers.
+Pass the source message as `context_source_text` to verify its quotes and
+semantics.
 Use `qualitative_context_events` for dated direction/shape with unknown
 magnitude; it has no magnitude field and produces only a labelled sensitivity.
 Use `context_submission` for other claims, hypotheses, transformations, or

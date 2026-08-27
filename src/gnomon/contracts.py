@@ -320,6 +320,9 @@ class ForecastArtifact:
 # next without human help. This layer is what lets hosts self-correct — it
 # appreciates as models improve, because better models act on it better.
 REPAIR_OPTIONS: dict[str, list[dict[str, str]]] = {
+    "CONTEXT_DISPOSITION_CONFLICT": [
+        {"action": "choose_context_disposition", "description": "For each context id named in details, keep either its executable event or its typed rejection, never both."},
+    ],
     "ARTIFACT_INTEGRITY_ERROR": [
         {"action": "restore_artifact", "description": "Restore the artifact from its original sealed copy or rerun the source computation; do not trust files whose integrity manifest disagrees."},
     ],
@@ -776,7 +779,8 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "dossier": "data", "temporal_dossiers": "data",
     "scenario_selection": "data", "context_submission": "data",
     "publication_path": "data",
-    "context_text": "data", "context_known_at": "data",
+    "context_text": "data", "context_source_text": "data",
+    "context_known_at": "data",
     "context_proposal": "data", "context_compiler_model": "data",
     "context_transformation": "data", "transformations": "data",
     "outcome": "data", "resolved_at": "data",

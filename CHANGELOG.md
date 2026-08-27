@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Bind compact literal claims to their source document and classify the
+  sentence containing the quoted span. External forecasts can no longer be
+  relabelled as binding constraints, while unrelated task wording cannot
+  poison a genuine rule in a later sentence. Rejections return a typed path
+  into the governed forecast-candidate lane.
+- Convert ambiguous qualitative timing into a one-call typed rejection instead
+  of a schema-error loop. Host-bound benchmark calls may complete incomplete
+  rejection objects deterministically; the common `event_id` spelling is
+  normalized to `context_id`, while conflicting aliases and unknown fields
+  still fail loudly.
+- Treat context scoped to another series as absent for that series, not as an
+  invented `engine-context` rejection requiring repair.
+- Reject cross-lane disposition conflicts before numeric execution: the same
+  context id can no longer be both an executable event and a rejection in one
+  request. The typed error names the conflicting ids and the single required
+  repair, preventing contradictory human-facing publications.
 - Make automation authorization explicit and actionable. The MCP schema now
   names the complete caller-owned policy contract; publications distinguish
   not-requested, incomplete-policy, evidence-ineligible, and authorized

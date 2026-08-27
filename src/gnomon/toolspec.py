@@ -17,6 +17,12 @@ from .runtime import capabilities, forecast, inspect_dataset
 #: events. Complete enough that a model holding only this schema can
 #: construct a valid event — that is the point of it existing.
 _CONTEXT_EVENTS_PROPERTY: dict[str, Any] = {
+    "context_source_text": {
+        "type": "string",
+        "description": (
+            "Original context document containing every source_span; used "
+            "for quote and semantic validation, never as numeric data."),
+    },
     "context_events": {
         "type": "array",
         "description": (
@@ -80,8 +86,8 @@ _CONTEXT_EVENTS_PROPERTY: dict[str, Any] = {
     "context_rejections": {
         "type": "array", "items": {"type": "object"},
         "description": (
-            "Ungroundable facts: context_id, reason_code, reason, source_span. "
-            "Receipted; no numeric effect."
+            "Ungroundable facts: context_id (event_id alias accepted), "
+            "reason_code, reason, source_span. Receipted; no numeric effect."
         ),
     },
 }
@@ -1652,6 +1658,57 @@ def _context_events_from(arguments: dict[str, Any]):
                         "compact literal context requires verbatim source_span",
                         {"item_index": index})
                 reference = str(item.pop("source_reference", "inline") or "inline")
+                source_document = str(arguments.get(
+                    "_trusted_context_source_text") or arguments.get(
+                        "context_source_text") or "").strip()
+                document_folded = source_document.casefold()
+                span_offset = document_folded.find(span.casefold()) \
+                    if source_document else -1
+                if source_document and span_offset < 0:
+                    arguments.setdefault("context_rejections", []).append({
+                        "context_id": str(item.get("event_id") or
+                                          f"context-event-{index}"),
+                        "reason_code": "source_span_not_in_context_document",
+                        "reason": (
+                            "The claimed verbatim span is not present in the "
+                            "host-bound source document."),
+                        "source_span": span,
+                    })
+                    continue
+                if span_offset >= 0:
+                    # Classify the sentence that owns the quote, not an
+                    # unrelated task instruction elsewhere in the message.
+                    left = max(source_document.rfind(mark, 0, span_offset)
+                               for mark in ".!?\n") + 1
+                    span_end = span_offset + len(span)
+                    endings = [source_document.find(mark, span_end)
+                               for mark in ".!?\n"]
+                    right = min((end for end in endings if end >= 0),
+                                default=len(source_document))
+                    semantic_text = source_document[left:right]
+                else:
+                    semantic_text = span
+                predictive_source = bool(re.search(
+                    r"\b(?:forecasts?|forecasting|predicts?|predicted|"
+                    r"projects?|projected|expects?|expected|estimates?|"
+                    r"estimated|anticipates?|outlook)\b",
+                    semantic_text, re.IGNORECASE))
+                binding_source = bool(re.search(
+                    r"\b(?:must|shall|required?|policy|rule|contract|"
+                    r"schedule|guaranteed?|binding|limit|capped?|ceiling|"
+                    r"floor|not\s+exceed)\b",
+                    semantic_text, re.IGNORECASE))
+                if predictive_source and not binding_source:
+                    arguments.setdefault("context_rejections", []).append({
+                        "context_id": str(item.get("event_id") or
+                                          f"context-event-{index}"),
+                        "reason_code": "external_prediction_not_constraint",
+                        "reason": (
+                            "The quoted source predicts a value; it does not "
+                            "state a binding constraint or observed outcome."),
+                        "source_span": span,
+                    })
+                    continue
                 if not item.get("entity_scope"):
                     target = str(arguments.get("target_column") or "").strip()
                     candidates = [name.strip() for name in target.split(",")
@@ -1759,14 +1816,15 @@ def _context_events_from(arguments: dict[str, Any]):
                 )
             effective_day = str(item.get("effective_start") or "")[:10]
             if len(effective_day) != 10 or effective_day not in source_span:
-                raise GnomonError(
-                    "INVALID_ARGUMENTS",
-                    "qualitative_context_events cannot infer an exact event "
-                    "window from undated or relative prose",
-                    {"event_id": str(item.get("event_id")),
-                     "required_date_in_source_span": effective_day,
-                     "repair": "submit context_rejections with the ambiguous timing"},
-                )
+                arguments.setdefault("context_rejections", []).append({
+                    "context_id": str(item.get("event_id")),
+                    "reason_code": "ambiguous_timing",
+                    "reason": (
+                        "The source does not state the exact effective date "
+                        "proposed by the qualitative event."),
+                    "source_span": source_span,
+                })
+                continue
             normalized.append({
                 "event_id": item.get("event_id"),
                 # A non-reserved namespace makes numeric future-context
@@ -1903,6 +1961,26 @@ def _materialise_context(
         })
 
     parsed = _context_events_from(arguments) or []
+    event_ids = {str(event.event_id) for event in parsed}
+    rejection_ids = {
+        str(item.get("context_id") or item.get("event_id") or "").strip()
+        for item in arguments.get("context_rejections") or []
+        if isinstance(item, dict)
+    }
+    disposition_conflicts = sorted(event_ids & (rejection_ids - {""}))
+    if disposition_conflicts:
+        raise GnomonError(
+            "CONTEXT_DISPOSITION_CONFLICT",
+            "A context claim cannot be both executable and rejected in the "
+            "same request.",
+            {"context_ids": disposition_conflicts},
+            repair_options=[{
+                "action": "choose_context_disposition",
+                "description": (
+                    "For each listed context_id, keep either its executable "
+                    "event or its typed rejection, never both."),
+            }],
+        )
     raw_events = [event_to_dict(event) for event in parsed]
     receipt = make_context_receipt(
         documents=[], events=raw_events, hypotheses=[], rejected=[],
@@ -2171,7 +2249,12 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
             raise GnomonError(
                 "INVALID_ARGUMENTS", "context_rejections must be an array")
         allowed_rejection_fields = {
+            "context_id", "event_id", "reason_code", "reason", "source_span"}
+        required_rejection_fields = {
             "context_id", "reason_code", "reason", "source_span"}
+        normalized_rejections = []
+        trusted_source = str(arguments.get(
+            "_trusted_context_source_text") or "").strip()
         for index, item in enumerate(direct_rejections, 1):
             if not isinstance(item, dict):
                 raise GnomonError(
@@ -2179,8 +2262,25 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                     "context_rejections items must be objects",
                     {"item_index": index})
             unknown = sorted(set(item) - allowed_rejection_fields)
-            missing = sorted(key for key in allowed_rejection_fields
-                             if not str(item.get(key) or "").strip())
+            normalized = dict(item)
+            event_alias = str(normalized.pop("event_id", "") or "").strip()
+            context_id = str(normalized.get("context_id") or "").strip()
+            if event_alias and context_id and event_alias != context_id:
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "context_rejections event_id alias conflicts with context_id",
+                    {"item_index": index})
+            if event_alias:
+                normalized["context_id"] = event_alias
+            if trusted_source:
+                normalized.setdefault("context_id", f"context-rejection-{index}")
+                normalized.setdefault("reason_code", "context_unresolved")
+                normalized.setdefault(
+                    "reason", "Context was rejected by the agent compiler; "
+                    "see the typed reason code and host-bound source.")
+                normalized.setdefault("source_span", trusted_source)
+            missing = sorted(key for key in required_rejection_fields
+                             if not str(normalized.get(key) or "").strip())
             if unknown or missing:
                 raise GnomonError(
                     "INVALID_ARGUMENTS",
@@ -2188,8 +2288,9 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                     "reason, and verbatim source_span",
                     {"item_index": index, "unknown_fields": unknown,
                      "missing_fields": missing})
+            normalized_rejections.append(normalized)
         submission["rejections"] = [
-            *(submission.get("rejections") or []), *direct_rejections]
+            *(submission.get("rejections") or []), *normalized_rejections]
     raw_proposal = submission.get("proposal")
     selection = arguments.get("scenario_selection")
     policy = arguments.get("automation_policy")

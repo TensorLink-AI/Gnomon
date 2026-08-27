@@ -373,6 +373,19 @@ def test_advisory_channel_cannot_authorize_supported_primary():
         "untrusted_authorization_channel"
 
 
+def test_external_prediction_rejection_teaches_candidate_lane():
+    result = {**_result(), "context_rejections": [{
+        "context_id": "vendor", "disposition": "rejected",
+        "reason_code": "external_prediction_not_constraint",
+        "reason": "A prediction is not a binding constraint.",
+    }]}
+    payload = publish_result(result, mode="best_effort")
+    disposition = payload["context_dispositions"][0]
+    assert disposition["recovery_action"]["code"] == \
+        "submit_governed_forecast_candidate"
+    assert disposition["recovery_action"]["automation_eligible"] is False
+
+
 def test_partial_model_anchors_use_primary_outside_supplied_window():
     timestamps = [f"2026-01-0{day}T00:00:00+00:00" for day in range(3, 8)]
     result = {"support": "supported", "forecast": [

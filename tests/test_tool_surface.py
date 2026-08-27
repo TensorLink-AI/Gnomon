@@ -296,6 +296,7 @@ def test_batched_forecast_emits_scoped_sealed_publications(tmp_path) -> None:
     assert publications["cpu"]["recommended_scenario_id"] == \
         "context_conditioned"
     assert publications["mem"]["recommended_scenario_id"] == "primary"
+    assert publications["mem"]["context_dispositions"] == []
     assert payload["publication_summary"] == {
         "mode": "best_effort", "series_count": 2,
         "primary_forecast_unchanged": True,
@@ -401,6 +402,110 @@ def test_compact_literal_context_is_compiled_and_source_bound() -> None:
     assert events[0].event_type == "override:literal_exact"
     assert events[0].attributes["source_span"].endswith("exactly 0.")
     assert events[0].source.reference == "signed-notice"
+
+
+def test_external_prediction_cannot_masquerade_as_literal_constraint() -> None:
+    from gnomon.toolspec import _context_events_from
+
+    arguments = {"target_column": "throughput", "context_events": [{
+        "event_id": "vendor-forecast", "claim_kind": "min",
+        "effective_start": "2026-02-10T00:00:00+00:00",
+        "effective_end": "2026-02-10T23:59:59+00:00",
+        "known_at": "2026-02-09T00:00:00+00:00",
+        "source_span": (
+            "The vendor forecasts throughput will be at least 500 units on "
+            "2026-02-10."),
+    }]}
+    assert _context_events_from(arguments) == []
+    assert arguments["context_rejections"] == [{
+        "context_id": "vendor-forecast",
+        "reason_code": "external_prediction_not_constraint",
+        "reason": ("The quoted source predicts a value; it does not state a "
+                   "binding constraint or observed outcome."),
+        "source_span": (
+            "The vendor forecasts throughput will be at least 500 units on "
+            "2026-02-10."),
+    }]
+
+    shortened = {
+        "target_column": "throughput",
+        "_trusted_context_source_text": (
+            "A vendor forecast predicts throughput will be at least 500 "
+            "units on 2026-02-10."),
+        "context_events": [{
+            "event_id": "shortened", "claim_kind": "min",
+            "effective_start": "2026-02-10T00:00:00+00:00",
+            "effective_end": "2026-02-10T23:59:59+00:00",
+            "known_at": "2026-02-09T00:00:00+00:00",
+            "source_span": (
+                "throughput will be at least 500 units on 2026-02-10"),
+        }]}
+    assert _context_events_from(shortened) == []
+    assert shortened["context_rejections"][0]["reason_code"] == \
+        "external_prediction_not_constraint"
+
+
+def test_context_span_must_exist_in_host_bound_document() -> None:
+    from gnomon.toolspec import _context_events_from
+
+    arguments = {
+        "target_column": "demand",
+        "_trusted_context_source_text": "The warehouse remains open.",
+        "context_events": [{
+            "event_id": "invented", "claim_kind": "exact",
+            "effective_start": "2026-02-10T00:00:00+00:00",
+            "effective_end": "2026-02-10T23:59:59+00:00",
+            "known_at": "2026-02-09T00:00:00+00:00",
+            "source_span": "The warehouse is closed; demand is exactly 0.",
+        }]}
+    assert _context_events_from(arguments) == []
+    assert arguments["context_rejections"][0]["reason_code"] == \
+        "source_span_not_in_context_document"
+
+
+def test_binding_rule_with_predictive_language_remains_literal_context() -> None:
+    from gnomon.toolspec import _context_events_from
+
+    events = _context_events_from({"target_column": "throughput",
+        "context_events": [{
+            "event_id": "binding-cap", "claim_kind": "max",
+            "effective_start": "2026-02-10T00:00:00+00:00",
+            "effective_end": "2026-02-10T23:59:59+00:00",
+            "known_at": "2026-02-09T00:00:00+00:00",
+            "source_span": (
+                "The forecast policy requires throughput not exceed 80 on "
+                "2026-02-10."),
+        }]})
+    assert len(events) == 1
+    assert events[0].event_type == "constraint:literal_max"
+
+
+def test_task_forecast_instruction_does_not_poison_later_binding_context() -> None:
+    from gnomon.toolspec import _context_events_from
+
+    source = (
+        "Forecast staffing for next week. A contingency plan requires at "
+        "least 18 staff on 2026-02-10."
+    )
+    events = _context_events_from({
+        "target_column": "staffing",
+        "_trusted_context_source_text": source,
+        "context_events": [{
+            "event_id": "contingency-floor",
+            "claim_kind": "min",
+            "effective_start": "2026-02-10T00:00:00+00:00",
+            "effective_end": "2026-02-10T23:59:59+00:00",
+            "known_at": "2026-02-09T00:00:00+00:00",
+            "source_span": (
+                "A contingency plan requires at least 18 staff on "
+                "2026-02-10"
+            ),
+        }],
+    })
+
+    assert len(events) == 1
+    assert events[0].event_type == "constraint:literal_min"
+    assert events[0].entity_scope == ("staffing",)
 
 
 def test_compact_literal_context_rejects_ambiguous_or_unsourced_forms() -> None:
@@ -517,14 +622,12 @@ def test_qualitative_context_lane_rejects_numeric_claims_and_missing_sources():
         })
     assert unsourced.value.details["missing_fields"] == ["source_span"]
 
-    with pytest.raises(GnomonError) as inferred_time:
-        _context_events_from({
-            "qualitative_context_events": [{
-                **base, "source_span": "The campaign starts sometime next month."
-            }],
-        })
-    assert inferred_time.value.details["required_date_in_source_span"] == \
-        "2026-02-10"
+    ambiguous = {"qualitative_context_events": [{
+        **base, "source_span": "The campaign starts sometime next month."
+    }]}
+    assert _context_events_from(ambiguous) == []
+    assert ambiguous["context_rejections"][0]["reason_code"] == \
+        "ambiguous_timing"
 
     daily = _context_events_from({
         "frequency": "D", "qualitative_context_events": [{
@@ -589,6 +692,27 @@ def test_direct_context_rejection_is_receipted_without_changing_numbers(
     assert rejection["reason_code"] == "known_after_cutoff"
     assert rejection["source_span"] == \
         "The notice was published on 2026-02-11."
+
+    alias_arguments = {**arguments, "context_rejections": [{
+        "event_id": "late-notice-alias",
+        "reason_code": "known_after_cutoff",
+        "reason": "The notice was first knowable after the forecast cutoff.",
+        "source_span": "The notice was published on 2026-02-11.",
+    }], "output_dir": str(tmp_path / "out-rejected-context-alias")}
+    alias_payload = runner_for("gnomon_forecast")(alias_arguments)
+    assert alias_payload["publication"]["context_dispositions"][0][
+        "context_id"] == "late-notice-alias"
+
+    conflicting = {**arguments, "context_events": [{
+        "event_id": "late-notice", "claim_kind": "max",
+        "effective_start": "2026-02-10", "effective_end": "2026-02-10",
+        "known_at": "2026-02-09",
+        "source_span": "Demand is capped at 120 on 2026-02-10.",
+    }], "output_dir": str(tmp_path / "out-conflicting-disposition")}
+    with pytest.raises(GnomonError) as conflict:
+        runner_for("gnomon_forecast")(conflicting)
+    assert conflict.value.code == "CONTEXT_DISPOSITION_CONFLICT"
+    assert conflict.value.details["context_ids"] == ["late-notice"]
 
     invalid = {**arguments, "context_rejections": [{
         "context_id": "late-notice", "reason_code": "known_after_cutoff",

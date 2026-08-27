@@ -467,6 +467,20 @@ def _context_recovery(disposition: dict[str, Any]) -> dict[str, Any]:
             "required_evidence": ["source-stated future effective window"],
             "automation_eligible": False,
         }
+    if code == "external_prediction_not_constraint":
+        return {
+            "code": "submit_governed_forecast_candidate",
+            "message": (
+                "Keep the immutable primary. If the external prediction "
+                "should be considered, submit it as a labelled model-authored "
+                "candidate with source provenance; it must compete under the "
+                "candidate admission policy and cannot become a constraint."),
+            "required_evidence": [
+                "external forecast source", "forecast issue time",
+                "forecast target and horizon",
+            ],
+            "automation_eligible": False,
+        }
     if code == "INSUFFICIENT_RELATIONSHIP_HISTORY":
         return {
             "code": "collect_relationship_history",
@@ -876,7 +890,10 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 "reason": str(item.get("reason") or
                               "See the immutable context outcome receipt."),
             } for item in projected if isinstance(item, dict))
-        else:
+        elif status != "not_considered":
+            # A context claim scoped to another series is absence, not a
+            # rejection. Inventing an ``engine-context`` rejection here asks
+            # agents and humans to repair a correctly scoped request.
             event_ids = context_outcome.get("events") or ["engine-context"]
             dispositions.extend({
                 "context_id": str(event_id), "disposition": (
