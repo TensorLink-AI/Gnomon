@@ -1677,6 +1677,10 @@ def record_publication(store: Any, *, project: str, forecast_id: str,
             "channel": "governed_scenario_selection",
             "value": selected["scenario_id"], "forecast": selected["forecast"],
             "support": selected["support"],
+            "scenario_role": selected.get("role"),
+            "candidate_origin": ((selected.get("effect") or {}).get(
+                "candidate_origin")),
+            "scenario_seal_sha256": selected.get("scenario_seal_sha256"),
             "primary_forecast_unchanged": True,
             "automation_eligible": payload["automation"]["eligible"],
         },
@@ -1699,6 +1703,11 @@ def record_publication(store: Any, *, project: str, forecast_id: str,
                 "label": "conditional_answer", "value": candidate["scenario_id"],
                 "channel": "candidate_portfolio",
                 "forecast": candidate["forecast"], "support": candidate["support"],
+                "scenario_role": candidate.get("role"),
+                "candidate_origin": ((candidate.get("effect") or {}).get(
+                    "candidate_origin")),
+                "scenario_seal_sha256": candidate.get(
+                    "scenario_seal_sha256"),
                 "primary_forecast_unchanged": True, "automation_eligible": False,
             }, evidence_refs=[candidate["scenario_seal_sha256"]],
         )

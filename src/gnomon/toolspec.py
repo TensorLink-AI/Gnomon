@@ -3016,11 +3016,26 @@ def _run_track(arguments: dict[str, Any]) -> dict[str, Any]:
             str(arguments["project"]), resolved=arguments.get("resolved"))
         return {"status": "ok", "project": arguments["project"],
                 "syntheses": rows}
+    if action == "candidate_outcomes":
+        from .tracking import TrackingStore
+        rows = TrackingStore().candidate_outcome_summary(
+            str(arguments["project"]),
+            minimum_resolved=int(arguments.get("min_outcomes", 8)))
+        return {
+            "status": "ok", "project": arguments["project"],
+            "candidate_outcomes": rows,
+            "authority": {
+                "human_prior_only": True,
+                "support_upgrade_allowed": False,
+                "automation_upgrade_allowed": False,
+            },
+        }
     raise GnomonError("INVALID_ARGUMENTS", "action is required.",
                       {"allowed": ["status", "submit_actuals", "resolve_outcome",
                                    "record_adapter_shadow",
                                    "assess_adapter_shadow", "record_synthesis",
-                                   "resolve_synthesis", "synthesis_status"]})
+                                   "resolve_synthesis", "synthesis_status",
+                                   "candidate_outcomes"]})
 
 
 def _run_explain_run(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -3263,13 +3278,16 @@ TOOLS.extend([
         "description": (
             "Experimental tracking verb. action selects status, "
             "outcome submission/resolution, adapter shadow evidence, or "
-            "separately labelled synthesis receipts."
+            "separately labelled synthesis receipts and resolved candidate "
+            "uplift. Candidate evidence can inform a human prior but never "
+            "upgrades support or automation authority."
         ),
         "inputSchema": {"type": "object", "properties": {
             "action": {"type": "string", "enum": [
                 "status", "submit_actuals", "resolve_outcome",
                 "record_adapter_shadow", "assess_adapter_shadow",
-                "record_synthesis", "resolve_synthesis", "synthesis_status"]},
+                "record_synthesis", "resolve_synthesis", "synthesis_status",
+                "candidate_outcomes"]},
             "project": {"type": "string"},
             "section": {"type": "string", "enum": [
                 "open_forecasts", "performance", "decisions", "all"]},

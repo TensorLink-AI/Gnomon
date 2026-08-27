@@ -974,6 +974,43 @@ def test_publication_reuses_synthesis_tracking_and_scores_numeric_uplift(tmp_pat
     assert score["rule"] == "numeric_path_wape_v1"
     assert score["synthesis_won"] is True
     assert score["synthesis_delta"] > 0
+    summary = store.candidate_outcome_summary("p")
+    assert summary[0]["scenario_role"] == "model_authored"
+    assert summary[0]["resolved"] == 1
+    assert summary[0]["graduated_for_human_prior"] is False
+    assert summary[0]["support_upgrade_allowed"] is False
+
+
+def test_candidate_outcomes_require_repeated_lower_bound_uplift(tmp_path):
+    store = TrackingStore(tmp_path / "tracking.db")
+    payload = select_publication(
+        publish_result(_result(), mode="best_effort", dossiers=[_dossier()]),
+        {
+            "selected_scenario_id": "prior-assisted-1",
+            "ranking": ["prior-assisted-1", "primary"],
+            "cited_claim_ids": ["claim-1"],
+            "counterevidence_claim_ids": [], "confidence": .6,
+            "rationale": "The cited promotion supports this path.",
+            "what_would_change_selection": "Resolved outcomes contradict it.",
+        })
+    for index in range(8):
+        forecast_id = f"f-{index}"
+        synthesis_id = record_publication(
+            store, project="p", forecast_id=forecast_id,
+            series="x", payload=payload)
+        store.resolve_temporal_synthesis(
+            project="p", forecast_id=forecast_id, series="x",
+            question_id="publication", synthesis_id=synthesis_id,
+            outcome={"points": [11.0, 12.0]})
+
+    summary, = store.candidate_outcome_summary("p")
+    assert summary["resolved"] == 8
+    assert summary["wins"] == 8
+    assert summary["win_rate_wilson_95_lower"] > .5
+    assert summary["mean_uplift_vs_primary"] > 0
+    assert summary["graduated_for_human_prior"] is True
+    assert summary["support_upgrade_allowed"] is False
+    assert summary["automation_upgrade_allowed"] is False
 
 
 def test_mode_invariants_hold_across_varied_bounded_paths():

@@ -99,3 +99,11 @@ def test_tracking_tool_records_and_resolves_synthesis(monkeypatch, tmp_path: Pat
     status = _run_track({"action": "synthesis_status", "project": "p",
                          "resolved": True})
     assert len(status["syntheses"]) == 1
+    candidates = _run_track({"action": "candidate_outcomes", "project": "p",
+                             "min_outcomes": 8})
+    assert candidates["candidate_outcomes"] == []
+    assert candidates["authority"] == {
+        "human_prior_only": True,
+        "support_upgrade_allowed": False,
+        "automation_upgrade_allowed": False,
+    }

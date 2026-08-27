@@ -973,6 +973,58 @@ class TrackingStore:
             decoded.append(item)
         return decoded
 
+    def candidate_outcome_summary(
+        self, project: str, *, minimum_resolved: int = 8,
+    ) -> list[dict[str, Any]]:
+        """Aggregate resolved candidate uplift without granting authority.
+
+        Candidate types are keyed by their sealed publication role and
+        provenance origin.  Graduation is deliberately conservative: at least
+        ``minimum_resolved`` numeric comparisons, positive mean uplift, and a
+        95% Wilson lower bound above chance.  The result is an evidence report;
+        callers must not translate it into automation or support upgrades.
+        """
+        if minimum_resolved < 1:
+            raise ValueError("minimum_resolved must be positive")
+        groups: dict[tuple[str, str], list[tuple[bool, float]]] = {}
+        for receipt in self.temporal_synthesis_receipts(project, resolved=True):
+            score = receipt.get("score_payload") or {}
+            synthesis = receipt.get("synthesis_payload") or {}
+            won = score.get("synthesis_won")
+            delta = score.get("synthesis_delta")
+            if not isinstance(won, bool) or not isinstance(delta, (int, float)) \
+                    or not math.isfinite(float(delta)):
+                continue
+            role = str(synthesis.get("scenario_role") or "unknown")
+            origin = str(synthesis.get("candidate_origin") or role)
+            groups.setdefault((role, origin), []).append((won, float(delta)))
+        summaries = []
+        z = 1.959963984540054
+        for (role, origin), outcomes in sorted(groups.items()):
+            n = len(outcomes)
+            wins = sum(int(won) for won, _ in outcomes)
+            rate = wins / n
+            denominator = 1 + z * z / n
+            centre = rate + z * z / (2 * n)
+            margin = z * math.sqrt(
+                rate * (1 - rate) / n + z * z / (4 * n * n))
+            lower = max(0.0, (centre - margin) / denominator)
+            mean_delta = statistics.mean(delta for _, delta in outcomes)
+            graduated = bool(
+                n >= minimum_resolved and mean_delta > 0 and lower > .5)
+            summaries.append({
+                "scenario_role": role, "candidate_origin": origin,
+                "resolved": n, "wins": wins, "win_rate": rate,
+                "win_rate_wilson_95_lower": lower,
+                "mean_uplift_vs_primary": mean_delta,
+                "minimum_resolved": minimum_resolved,
+                "graduated_for_human_prior": graduated,
+                "support_upgrade_allowed": False,
+                "automation_upgrade_allowed": False,
+                "rule": "resolved_numeric_paths_wilson95_and_positive_mean",
+            })
+        return summaries
+
     def _resolve_temporal_answers(
         self, record: ForecastRecord, actuals: list[float], resolved_at: str,
     ) -> None:

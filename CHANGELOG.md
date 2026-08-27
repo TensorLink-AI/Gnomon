@@ -48,6 +48,11 @@
   record candidate origin/status and the final ranking in traces, and repair
   the shadow evaluator so it scores the intended sealed model path rather than
   silently falling back to the primary.
+- Retain candidate role, provenance origin and scenario seal in resolved
+  synthesis receipts, and expose a `candidate_outcomes` tracking summary.
+  Human-prior graduation requires at least eight resolved numeric paths,
+  positive mean uplift and a 95% Wilson lower win-rate bound above chance;
+  it can never upgrade support or automation authority.
 - Bound compiler rejection diagnostics only at the MCP wire projection. A
   context receipt with more than 16 rejection reasons now sends 15 plus a
   typed overflow pointer while retaining the complete lossless receipt, so
