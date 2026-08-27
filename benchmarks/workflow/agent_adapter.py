@@ -362,6 +362,16 @@ def _normalize(case: dict[str, Any], value: dict[str, Any], *, calls: int,
               [str(raw_claims)] if raw_claims else [])
     engine_evidence = engine_evidence or {}
     artifact_numbers = engine_evidence.get("artifact_numbers") or {}
+    evaluated_fingerprint = engine_evidence.get("evaluated_fingerprint")
+    published_fingerprint = engine_evidence.get("published_fingerprint")
+    host_publish_parity = (
+        evaluated_fingerprint == published_fingerprint
+        if evaluated_fingerprint is not None
+        and published_fingerprint is not None else None)
+    host_quote_match = (
+        all(key in numbers and numbers[key] == item
+            for key, item in artifact_numbers.items())
+        if artifact_numbers else None)
     return {
         "case_id": case["id"], "status": status, "support": support,
         "numbers": numbers, "choices": choices,
@@ -371,12 +381,14 @@ def _normalize(case: dict[str, Any], value: dict[str, Any], *, calls: int,
         # This is a harness access-control measurement, not an agent's claim.
         # The digest lets audits bind the verdict to the exact cutoff projection.
         "temporal_leakage": False,
-        "publish_matches_evaluated": value.get("publish_matches_evaluated"),
+        # These are attestations over host-held evidence. Never accept the
+        # model's self-assessment: absence remains unknown rather than false.
+        "publish_matches_evaluated": host_publish_parity,
         "repair_completed": value.get("repair_completed"),
         "tracking_completed": value.get("tracking_completed"),
-        "quote_matches": value.get("quote_matches"),
-        "evaluated_fingerprint": engine_evidence.get("evaluated_fingerprint"),
-        "published_fingerprint": engine_evidence.get("published_fingerprint"),
+        "quote_matches": host_quote_match,
+        "evaluated_fingerprint": evaluated_fingerprint,
+        "published_fingerprint": published_fingerprint,
         "artifact_numbers": artifact_numbers,
         "headline_numbers": {key: numbers[key] for key in artifact_numbers if key in numbers},
         "tool_calls": calls,

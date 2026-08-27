@@ -7,6 +7,9 @@
   retain attempted overrides as diagnostics rather than silently accepting
   them. Workflow observations now also retain resolved horizon and threshold
   routing telemetry.
+- Derive publication parity and quote fidelity only from host-held execution
+  identities and artifact numbers. Model-authored trust booleans are ignored;
+  missing evidence stays unknown instead of becoming a false attestation.
 
 - Derive response sufficiency from the actual invoked verb at the shared tool
   boundary. Completed forecasts now declare exactly what they answer and that

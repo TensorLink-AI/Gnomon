@@ -776,6 +776,34 @@ def test_adapter_projects_declared_canonical_choice_without_answer_label():
     assert row["metadata"]["threshold_supplied"] is True
 
 
+def test_adapter_ignores_model_authored_trust_attestations():
+    from benchmarks.workflow.agent_adapter import _normalize
+
+    class Client:
+        total_prompt_tokens = 1
+        total_completion_tokens = 1
+
+    case = {"id": "trust", "kind": "synthetic", "answer_schema": {}}
+    submitted = {
+        "status": "answered", "support": "supported", "numbers": {"next": 4},
+        "choices": {}, "facts": {}, "disclosures": [], "claims": [],
+        "publish_matches_evaluated": False, "quote_matches": False,
+    }
+    row = _normalize(case, submitted, calls=1, client=Client(), started=0,
+                     tool_names=["gnomon_forecast"], engine_evidence={
+                         "evaluated_fingerprint": "same",
+                         "published_fingerprint": "same",
+                         "artifact_numbers": {"next": 4.0},
+                     })
+    assert row["publish_matches_evaluated"] is True
+    assert row["quote_matches"] is True
+
+    unknown = _normalize(case, submitted, calls=0, client=Client(), started=0,
+                         tool_names=[], engine_evidence={})
+    assert unknown["publish_matches_evaluated"] is None
+    assert unknown["quote_matches"] is None
+
+
 def test_adapter_host_binds_routing_facts_over_model_paraphrases():
     from benchmarks.workflow.agent_adapter import _normalize
 
