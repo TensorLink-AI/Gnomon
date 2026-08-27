@@ -901,6 +901,8 @@ def build_scenario_catalog(result: dict[str, Any], *,
                  candidate_origin == "calibration_counterfactual" else
                  "observation_counterfactual" if candidate_origin ==
                  "observation_interpretation_counterfactual" else
+                 "governed_companion_mapping" if candidate_origin ==
+                 "governed_companion_mapping" else
                  "model_authored"),
                 _candidate_rows(candidate, primary),
                 support=("conditionally_supported" if replay_admitted
@@ -931,6 +933,8 @@ def build_scenario_catalog(result: dict[str, Any], *,
                     "candidate_origin": candidate_origin,
                     "conditional_replay": conditional_replay,
                     "calibration_replay": calibration_replay,
+                    "validation": candidate.get("validation") or {},
+                    "executable": candidate.get("executable") or {},
                 },
             ))
             emitted.append(identifier)
@@ -947,6 +951,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
             "retrospectively_validated": 92,
             "context_conditioned": 90,
             "fitted_context_candidate": 80,
+            "governed_companion_mapping": 80,
             "effect_composed": 70,
             "model_authored": 60,
             "observation_counterfactual": 75,

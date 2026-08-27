@@ -385,6 +385,7 @@ def validate_temporal_dossier(
     validated_events: list[Any] | None = None,
     candidate_selection_eligible: bool = True,
     candidate_selection_reason: str | None = None,
+    governed_candidate: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], list[str]]:
     """Return a sealed dossier and every rejected-field reason.
 
@@ -674,7 +675,8 @@ def validate_temporal_dossier(
                 "did not earn evidence dominance; retain it as a visible, "
                 "human-reviewed prior-assisted scenario only.")
     candidate_reason_start = len(reasons)
-    candidate_input = (calibration_candidate if use_calibration_candidate else
+    candidate_input = (governed_candidate if governed_candidate is not None else
+                       calibration_candidate if use_calibration_candidate else
                        derived_candidate if use_derived_candidate else
                        raw.get("forecast_candidate") or derived_candidate)
     unresolved_claim_ids = {
@@ -698,10 +700,27 @@ def validate_temporal_dossier(
         governed_counterfactual_justifies_boundary_jump=(
             use_calibration_candidate or (
                 candidate_was_derived_from_observation_interpretation
-                and (derived_replay_admitted or derived_replay_human_eligible))))
+            and (derived_replay_admitted or derived_replay_human_eligible))))
+    governed_candidate_accepted = bool(
+        candidate is not None and governed_candidate is not None)
+    if governed_candidate_accepted:
+        candidate.update({
+            "provenance_class": "governed_companion_mapping",
+            "rationale": str(governed_candidate.get("rationale") or "")[:1000],
+            "validation": dict(governed_candidate.get("validation") or {}),
+            "executable": dict(governed_candidate.get("executable") or {}),
+            "claim_ids": list(governed_candidate.get("claim_ids") or []),
+        })
+        candidate_selection_eligible = bool(
+            governed_candidate.get("selection_eligible"))
+        candidate_selection_reason = (
+            None if candidate_selection_eligible else
+            "The governed companion mapping did not beat last value in "
+            "expanding-origin replay; retain it as a visible scenario only.")
     if candidate is not None and not (
             use_calibration_candidate
-            or candidate_was_derived_from_observation_interpretation):
+            or candidate_was_derived_from_observation_interpretation
+            or governed_candidate_accepted):
         cited_ids = {str(value) for value in candidate.get("claim_ids") or []}
         associational_ids = {
             str(claim["claim_id"]) for claim in claims
@@ -720,6 +739,7 @@ def validate_temporal_dossier(
     if candidate is not None and use_calibration_candidate:
         candidate["calibration_replay"] = dict(calibration_replay)
     if (candidate is not None and not use_derived_candidate
+            and not governed_candidate_accepted
             and observation_interpretations and derived_candidate is not None
             and not derived_replay_admitted):
         candidate_selection_eligible = False
@@ -846,6 +866,7 @@ def validate_temporal_dossier(
                                  if candidate and not candidate_selection_eligible
                                  else None),
             "candidate_origin": (
+                "governed_companion_mapping" if governed_candidate_accepted else
                 "calibration_counterfactual" if use_calibration_candidate else
                 "observation_interpretation_counterfactual"
                 if candidate_was_derived_from_observation_interpretation

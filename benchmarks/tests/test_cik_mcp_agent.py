@@ -42,6 +42,8 @@ from benchmarks.cik.mcp_agent import (
     _bounded_context_rejections,
     _canonicalize_unreferenced_covariate_names,
     _demote_covariate_duplicate_events,
+    _bind_covariate_row_claims,
+    _fit_governed_companion_from_receipt,
 )
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -156,6 +158,59 @@ def test_covariate_duplicate_cannot_become_target_override():
     assert count == 1
     assert normalized["events"] == [raw["events"][1]]
     assert raw["events"][0]["event_type"] == "override:value"
+
+
+def test_governed_companion_fit_requires_cited_identity_and_full_grid():
+    history = ["2024-01-01T00:00:00+00:00",
+               "2024-02-01T00:00:00+00:00",
+               "2024-03-01T00:00:00+00:00",
+               "2024-04-01T00:00:00+00:00"]
+    future = ["2024-05-01T00:00:00+00:00"]
+    rows = []
+    for index, timestamp in enumerate([*history, *future]):
+        quote = f"({timestamp[:10]} 00:00:00, {10 + index}.0)"
+        rows.append({
+            "timestamp": timestamp, "state_rate": 10.0 + index,
+            "provenance": {"evidence_quote": quote},
+        })
+    receipt = {"tables": [{"name": "state_rate", "rows": rows}]}
+    bound = _bind_covariate_row_claims({}, receipt, future)
+    claims = [{**item, "claim_id": f"claim-{index}"}
+              for index, item in enumerate(bound["claims"], 1)]
+    candidate = _fit_governed_companion_from_receipt(
+        receipt, context="State rate\n" + "\n".join(
+            row["provenance"]["evidence_quote"] for row in rows),
+        history_timestamps=history, history_values=[12, 13, 14, 15],
+        future_timestamps=future, claims=claims)
+    assert candidate is not None
+    assert candidate["forecast"][0]["q50"] == 16
+    assert candidate["automation_eligible"] is False
+    assert _fit_governed_companion_from_receipt(
+        receipt, context="Unlabelled numbers only",
+        history_timestamps=history, history_values=[12, 13, 14, 15],
+        future_timestamps=future, claims=claims) is None
+
+
+def test_companion_identity_may_be_split_across_heading_and_description():
+    history = [f"2024-0{month}-01T00:00:00+00:00" for month in range(1, 5)]
+    future = ["2024-05-01T00:00:00+00:00"]
+    rows = [{
+        "timestamp": timestamp, "new_jersey_unemployment_rate": 4 + index,
+        "provenance": {"evidence_quote":
+                       f"({timestamp[:10]} 00:00:00, {4 + index})"},
+    } for index, timestamp in enumerate([*history, *future])]
+    receipt = {"tables": [{
+        "name": "new_jersey_unemployment_rate", "rows": rows}]}
+    bound = _bind_covariate_row_claims({}, receipt, future)
+    claims = [{**item, "claim_id": f"claim-{index}"}
+              for index, item in enumerate(bound["claims"], 1)]
+    candidate = _fit_governed_companion_from_receipt(
+        receipt,
+        context="Unemployment Rate for reference\nNew Jersey\n" + "\n".join(
+            row["provenance"]["evidence_quote"] for row in rows),
+        history_timestamps=history, history_values=[6, 7, 8, 9],
+        future_timestamps=future, claims=claims)
+    assert candidate is not None
 
 
 def test_regular_long_forecast_grid_is_compact_but_exact():
@@ -699,12 +754,13 @@ def test_compiler_target_evidence_summarizes_all_and_bounds_raw_tail():
     assert [float(row.rsplit(",", 1)[-1]) for row in rows] == [16, 17, 18, 19]
 
 
-def test_compiler_contract_separates_history_from_future_covariates():
+def test_compiler_contract_allows_companion_overlap_but_never_target_outcomes():
     from benchmarks.cik.mcp_agent import DOSSIER_INSTRUCTIONS
 
-    assert "NEVER copy those historical rows into covariate_tables" in \
+    assert "include both portions in one table" in DOSSIER_INSTRUCTIONS
+    assert "never copy or reconstruct target outcomes" in DOSSIER_INSTRUCTIONS
+    assert "exact target-history or requested forecast timestamp" in \
         DOSSIER_INSTRUCTIONS
-    assert "exact requested forecast timestamp" in DOSSIER_INSTRUCTIONS
 
 
 def test_compiler_contract_preserves_historical_observation_semantics():

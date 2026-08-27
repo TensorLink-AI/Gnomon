@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 import math
+import random
 
 import pytest
 
@@ -9,6 +10,7 @@ from gnomon.context_intelligence import (
     compile_transformation, execute_transformation, TransformationError,
     expand_cited_history_segments,
     fit_historical_analogue, fit_lagged_relationship,
+    fit_companion_level_candidate,
     fit_structured_arx_candidate, fit_vintage_exogenous,
     validate_transformation,
 )
@@ -117,6 +119,93 @@ def test_lagged_relationship_selects_real_lag_on_expanding_origins():
     assert result["estimate"]["selected_lag_steps"] == 2
     assert result["support"] == "supported"
     assert result["automation_eligible"] is False
+
+
+def test_companion_level_mapping_replays_against_last_value_and_stays_manual():
+    companion = [10, 12, 11, 14, 13, 16, 15, 18]
+    target = [value + 2 for value in companion]
+    primary = [{"timestamp": _stamp(8 + index), "q10": 14, "q50": 15,
+                "q90": 16} for index in range(3)]
+    candidate = fit_companion_level_candidate(
+        target, companion, [17, 20, 19], primary=primary,
+        claim_ids=["claim-1"], hypothesis_id="companion-1")
+    assert [row["q50"] for row in candidate["forecast"]] == [19, 22, 21]
+    assert candidate["validation"]["beats_baseline"] is True
+    assert candidate["selection_eligible"] is True
+    assert candidate["automation_eligible"] is False
+    assert all(row["q10"] < row["q50"] < row["q90"]
+               for row in candidate["forecast"])
+
+
+def test_companion_level_mapping_rejects_unaligned_or_short_inputs():
+    primary = [{"timestamp": _stamp(5), "q50": 1}]
+    with pytest.raises(ValueError, match="align"):
+        fit_companion_level_candidate(
+            [1, 2, 3, 4], [1, 2, 3], [4], primary=primary,
+            claim_ids=[], hypothesis_id="h")
+    with pytest.raises(ValueError, match="overlapping"):
+        fit_companion_level_candidate(
+            [1, 2, 3], [1, 2, 3], [4], primary=primary,
+            claim_ids=[], hypothesis_id="h")
+
+
+def test_governed_companion_candidate_keeps_validation_and_origin():
+    span = "On 2026-01-03 the companion value is 12."
+    raw = {"claims": [{
+        "source_span": span, "relation": "unknown",
+        "effective_start": _stamp(2), "effective_end": _stamp(2),
+        "confidence": 1.0,
+    }]}
+    primary = [{"timestamp": _stamp(2), "q10": 9, "q50": 10, "q90": 11}]
+    governed = fit_companion_level_candidate(
+        [8, 10, 9, 12], [6, 8, 7, 10], [12], primary=primary,
+        claim_ids=["claim-1"], hypothesis_id="companion")
+    dossier, reasons = __import__(
+        "gnomon.llm_dossier", fromlist=["validate_temporal_dossier"]
+    ).validate_temporal_dossier(
+        raw, context_text=span, cutoff=_stamp(1),
+        future_timestamps=[_stamp(2)], history=[8, 10, 9, 12],
+        compiler_model="test", governed_candidate=governed)
+    assert not reasons
+    assert dossier["candidate_critique"]["candidate_origin"] == (
+        "governed_companion_mapping")
+    assert dossier["forecast_candidate"]["validation"]["mapping"] == (
+        "companion_plus_robust_level_difference")
+    assert dossier["automation_eligible"] is False
+    publication = publish_result({
+        "support": "best_effort",
+        "forecast": [{**primary[0], "point": primary[0]["q50"]}],
+    }, mode="best_effort", dossiers=[dossier])
+    candidate = next(item for item in publication["candidate_portfolio"]
+                     if item["scenario_id"] != "primary")
+    assert candidate["role"] == "governed_companion_mapping"
+    assert candidate["effect"]["validation"]["mapping"] == (
+        "companion_plus_robust_level_difference")
+
+
+def test_companion_mapping_admits_signal_and_rejects_independent_walks():
+    outcomes = {"signal": 0, "null": 0}
+    for seed in range(100):
+        generator = random.Random(seed)
+        companion, value = [], 0.0
+        for _ in range(16):
+            value += generator.gauss(0, 1)
+            companion.append(value)
+        signal = [item + 2 + generator.gauss(0, .15)
+                  for item in companion]
+        independent, value = [], 0.0
+        for _ in range(16):
+            value += generator.gauss(0, 1)
+            independent.append(value)
+        primary = [{"timestamp": f"future-{index}"} for index in range(4)]
+        future = [companion[-1] + generator.gauss(0, 1) for _ in range(4)]
+        for label, target in (("signal", signal), ("null", independent)):
+            candidate = fit_companion_level_candidate(
+                target, companion, future, primary=primary,
+                claim_ids=["claim-1"], hypothesis_id=label)
+            outcomes[label] += int(candidate["selection_eligible"])
+    assert outcomes["signal"] >= 95
+    assert outcomes["null"] <= 5
 
 
 def test_structured_arx_fits_coefficients_and_beats_last_value():

@@ -1659,6 +1659,106 @@ class FittedContextCandidate:
         }
 
 
+def fit_companion_level_candidate(
+    target_history: list[float], companion_history: list[float],
+    future_companion: list[float], *, primary: list[dict[str, Any]],
+    claim_ids: list[str], hypothesis_id: str,
+    minimum_overlap: int = 4,
+) -> dict[str, Any]:
+    """Fit a robust, bounded mapping from a supplied companion path.
+
+    The mapping is deliberately modest: a contemporaneous companion value
+    plus the median historical level difference. Expanding-origin replay
+    compares it with last value. This avoids fitting an unstable slope to the
+    short histories for which companion information is most useful.
+    """
+    if len(target_history) != len(companion_history):
+        raise ValueError("target and companion histories must align")
+    if len(target_history) < minimum_overlap:
+        raise ValueError(
+            f"companion mapping requires {minimum_overlap} overlapping rows")
+    if len(future_companion) != len(primary) or not primary:
+        raise ValueError("future companion path must match the forecast horizon")
+    target = [float(value) for value in target_history]
+    companion = [float(value) for value in companion_history]
+    future = [float(value) for value in future_companion]
+    if not all(math.isfinite(value) for value in [*target, *companion, *future]):
+        raise ValueError("companion mapping values must be finite")
+
+    predictions: list[float] = []
+    actuals: list[float] = []
+    baselines: list[float] = []
+    replay_start = max(2, minimum_overlap - 1)
+    for origin in range(replay_start, len(target)):
+        offset = statistics.median(
+            target[index] - companion[index] for index in range(origin))
+        predictions.append(companion[origin] + offset)
+        actuals.append(target[origin])
+        baselines.append(target[origin - 1])
+    candidate_mae = (statistics.mean(abs(a - b) for a, b in
+                                     zip(actuals, predictions))
+                     if actuals else math.inf)
+    baseline_mae = (statistics.mean(abs(a - b) for a, b in
+                                    zip(actuals, baselines))
+                    if actuals else math.inf)
+    skill = (1 - candidate_mae / max(baseline_mae, 1e-12)
+             if math.isfinite(candidate_mae) and math.isfinite(baseline_mae)
+             else -math.inf)
+    offset = statistics.median(
+        left - right for left, right in zip(target, companion))
+    fitted = [value + offset for value in companion]
+    residuals = [left - right for left, right in zip(target, fitted)]
+    residual_center = statistics.median(residuals)
+    mad = statistics.median(abs(value - residual_center) for value in residuals)
+    level_scale = max(statistics.median(abs(value) for value in target), 1.0)
+    half_width = max(1.2815515655446004 * 1.4826 * mad,
+                     max(abs(value) for value in residuals),
+                     level_scale * 1e-6)
+    rows = []
+    for source, value in zip(primary, future):
+        point = value + offset
+        rows.append({
+            "timestamp": source.get("timestamp"), "point": point,
+            "q10": point - half_width, "q50": point,
+            "q90": point + half_width,
+        })
+    replay_points = len(actuals)
+    beats_baseline = bool(replay_points >= 3 and skill >= .02)
+    return {
+        "hypothesis_id": hypothesis_id,
+        "kind": "fitted_companion_level_mapping",
+        "forecast": rows,
+        "quantiles": [{key: row[key] for key in
+                       ("timestamp", "q10", "q50", "q90")} for row in rows],
+        "claim_ids": list(dict.fromkeys(str(item) for item in claim_ids)),
+        "rationale": (
+            "Governed companion-series level mapping: future companion path "
+            "plus the median overlapping target-minus-companion difference."),
+        "provenance_class": "governed_companion_mapping",
+        "validation": {
+            "scheme": "expanding_origin_same_time_mapping",
+            "mapping": "companion_plus_robust_level_difference",
+            "overlap_points": len(target),
+            "validation_points": replay_points,
+            "candidate_mae": candidate_mae,
+            "baseline_mae": baseline_mae,
+            "skill": skill,
+            "beats_baseline": beats_baseline,
+            "baseline": "last_value",
+            "relationship_known_at_each_origin": False,
+            "input_observations_known_at_each_origin": True,
+        },
+        "support": "prior_assisted",
+        "selection_eligible": beats_baseline,
+        "automation_eligible": False,
+        "primary_forecast_unchanged": True,
+        "executable": {
+            "kind": "fitted_companion_level_mapping", "version": "0.1",
+            "offset": offset, "interval_half_width": half_width,
+        },
+    }
+
+
 def fit_vintage_exogenous(
     rows: list[dict[str, Any]], *, target_key: str, predictor_keys: list[str],
     cutoff: str, hypothesis_id: str, minimum_train: int = 20,

@@ -562,9 +562,11 @@ Rules:
   host owns knowledge time. Gnomon will test surviving tables out of sample
   before they may influence the canonical forecast. `Observed companion-series
   history` is historical evidence for hypotheses, transformations, and
-  candidate reasoning; NEVER copy those historical rows into covariate_tables.
-  A covariate row must fall on an exact requested forecast timestamp and its
-  future value must be explicitly stated in the source context.
+  candidate reasoning. When one companion series spans both target history
+  and the requested future grid, include its verbatim historical rows in the
+  same covariate table so Gnomon can fit and replay a relationship; never copy
+  target outcomes. Every row must fall on an exact target-history or requested
+  forecast timestamp and its value must be explicitly stated in context.
 - Transformations are a restricted declarative lane, never code. Approved
   operators are literal, primary, series, add, subtract, multiply, divide,
   power, lag, difference, percent_change, rolling_mean, clip, and quantile. Use a
@@ -701,10 +703,11 @@ all_observed_history only when the prose explicitly describes the corruption
 as historical but supplies no exact dates. Gnomon applies this predicate to a
 copy, discloses retained/excluded counts, and may derive a non-automatable
 counterfactual; it never cleans or mutates the immutable primary.
-5. Covariates are verbatim future extraction: each quote contains its time and
-value, and timestamp is an exact requested forecast timestamp. Never infer or
-interpolate. NEVER copy those historical rows into covariate_tables; observed
-companion history is evidence only.
+5. Covariates are verbatim extraction: each quote contains its time and value,
+and timestamp is an exact target-history or requested forecast timestamp.
+Never infer or interpolate. For a companion series spanning history and the
+future grid, include both portions in one table so Gnomon can fit the mapping;
+never copy or reconstruct target outcomes.
 6. Transformations are cited declarative ASTs, never code. Operators: literal,
 primary,series,add,subtract,multiply,divide,power,lag,difference,
 percent_change,rolling_mean,clip,quantile,reference_power,
@@ -874,6 +877,89 @@ def _demote_covariate_duplicate_events(
         else:
             retained.append(item)
     return {**candidate, "events": retained}, demoted
+
+
+def _bind_covariate_row_claims(
+        candidate: dict[str, Any], receipt: dict[str, Any],
+        future_timestamps: list[str], *, maximum_claims: int = 16,
+) -> dict[str, Any]:
+    """Bind validator-proven companion rows as narrow numeric claims."""
+    claims = [dict(item) for item in candidate.get("claims") or []
+              if isinstance(item, dict)]
+    existing = {str(item.get("source_span") or "").strip() for item in claims}
+    future = set(future_timestamps)
+    for table in receipt.get("tables") or []:
+        for row in table.get("rows") or []:
+            if len(claims) >= maximum_claims:
+                break
+            provenance = row.get("provenance") or {}
+            quote = str(provenance.get("evidence_quote") or "").strip()
+            timestamp = str(row.get("timestamp") or "")
+            if not quote or quote in existing:
+                continue
+            is_future = timestamp in future
+            claims.append({
+                "source_span": quote, "relation": "unknown",
+                "effective_start": timestamp if is_future else None,
+                "effective_end": timestamp if is_future else None,
+                "timing_status": "resolved" if is_future else "atemporal_context",
+                "mechanism": "host-verified companion-series observation",
+                "confidence": 1.0,
+            })
+            existing.add(quote)
+    return {**candidate, "claims": claims}
+
+
+def _fit_governed_companion_from_receipt(
+        receipt: dict[str, Any], *, context: str,
+        history_timestamps: list[str], history_values: list[float],
+        future_timestamps: list[str], claims: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    """Fit one host-verified companion path; return None when unidentifiable."""
+    tables = list(receipt.get("tables") or [])
+    if len(tables) != 1:
+        return None
+    table = tables[0]
+    name = str(table.get("name") or "")
+    # Table identity is model-authored metadata. Require the corresponding
+    # human-readable label to occur in source before it may support a mapping.
+    tokens = [token for token in name.casefold().split("_") if token]
+    source = " ".join(context.casefold().split())
+    generic = {"rate", "value", "values", "forecast", "grid", "data",
+               "series", "metric", "measure"}
+    meaningful = [token for token in tokens if token not in generic]
+    if (not meaningful or not all(re.search(rf"\b{re.escape(token)}\b", source)
+                                  for token in tokens)):
+        return None
+    by_time = {}
+    quote_by_time = {}
+    for row in table.get("rows") or []:
+        timestamp = str(row.get("timestamp") or "")
+        if name not in row:
+            continue
+        by_time[timestamp] = float(row[name])
+        quote_by_time[timestamp] = str(
+            (row.get("provenance") or {}).get("evidence_quote") or "")
+    overlap = [timestamp for timestamp in history_timestamps if timestamp in by_time]
+    if len(overlap) < 4 or any(timestamp not in by_time
+                               for timestamp in future_timestamps):
+        return None
+    claim_by_span = {str(item.get("source_span") or ""): str(item["claim_id"])
+                     for item in claims if item.get("claim_id")}
+    claim_ids = [claim_by_span[quote_by_time[timestamp]]
+                 for timestamp in [*overlap, *future_timestamps]
+                 if quote_by_time.get(timestamp) in claim_by_span]
+    if not claim_ids:
+        return None
+    history_by_time = dict(zip(history_timestamps, history_values))
+    from gnomon.context_intelligence import fit_companion_level_candidate
+    primary = [{"timestamp": timestamp} for timestamp in future_timestamps]
+    return fit_companion_level_candidate(
+        [float(history_by_time[timestamp]) for timestamp in overlap],
+        [by_time[timestamp] for timestamp in overlap],
+        [by_time[timestamp] for timestamp in future_timestamps],
+        primary=primary, claim_ids=claim_ids,
+        hypothesis_id="host-verified-companion-path")
 
 
 def _expects_historical_zero_interpretation(context: str) -> bool:
@@ -3652,12 +3738,28 @@ class _Run:
         candidate_blocked_by_transform = bool(
             remaining_transform_failures and raw.get("forecast_candidate")
             and raw.get("transformations") and not prior_only_semantic_gap)
+        covariate_receipt = compilation["covariates"]
+        covariate_rejections = compilation["covariate_rejections"]
+        raw = _bind_covariate_row_claims(
+            raw, covariate_receipt, future_timestamps)
+        preliminary_dossier, _ = validate_temporal_dossier(
+            raw, context_text=context, cutoff=self.timestamps[-1],
+            future_timestamps=future_timestamps, history=self.values,
+            history_timestamps=self.timestamps,
+            compiler_model=self.forecaster.openrouter_model,
+            validated_events=events)
+        governed_companion = _fit_governed_companion_from_receipt(
+            covariate_receipt, context=context,
+            history_timestamps=self.timestamps, history_values=self.values,
+            future_timestamps=future_timestamps,
+            claims=preliminary_dossier.get("claims") or [])
         dossier, dossier_rejections = validate_temporal_dossier(
             raw, context_text=context, cutoff=self.timestamps[-1],
             future_timestamps=future_timestamps, history=self.values,
             history_timestamps=self.timestamps,
             compiler_model=self.forecaster.openrouter_model,
             validated_events=events,
+            governed_candidate=governed_companion,
             candidate_selection_eligible=not candidate_blocked_by_transform,
             candidate_selection_reason=(
                 "Accompanying governed transformation failed preflight; the "
@@ -3669,8 +3771,6 @@ class _Run:
                 "prior for human review; it remains unsupported for automation."
                 if prior_only_semantic_gap else None),
         )
-        covariate_receipt = compilation["covariates"]
-        covariate_rejections = compilation["covariate_rejections"]
         rejections = [*compile_rejections, *event_rejections,
                       *dossier_rejections, *covariate_rejections]
         if (context.strip() and not events and not dossier.get("claims")

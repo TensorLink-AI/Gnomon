@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- Add a governed short-history companion-path executable. It fits only a
+  robust contemporaneous level difference, evaluates that mapping on
+  expanding origins against last value, emits explicit uncertainty and a
+  sealed lineage record, and remains prior-assisted and non-automatable even
+  when it earns human recommendation eligibility.
+- Preserve governed companion-candidate validation and executable lineage
+  through the sealed dossier boundary. Model-authored provenance cannot claim
+  this origin; only a host-supplied validated candidate may use it.
+- Bind exact validated companion rows into narrow cited claims and require the
+  table identity itself to appear in source before fitting. Unlabelled numeric
+  arrays, partial future grids, and fewer than four overlapping observations
+  remain non-executable.
+- Ground companion identity by complete source-token coverage rather than one
+  contiguous label. Split document headings such as a geography plus a metric
+  description now work, while an invented meaningful token still blocks fit.
+- Add an independent 100-seed admission check for the companion executable:
+  stable offset signals must be admitted while unrelated random walks remain
+  below a five-percent false-admission ceiling.
 - Bound compiler rejection diagnostics only at the MCP wire projection. A
   context receipt with more than 16 rejection reasons now sends 15 plus a
   typed overflow pointer while retaining the complete lossless receipt, so
