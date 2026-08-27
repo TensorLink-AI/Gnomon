@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Derive response sufficiency from the actual invoked verb at the shared tool
+  boundary. Completed forecasts now declare exactly what they answer and that
+  further forecast/explanation calls add nothing; previously the missing verb
+  made valid answers advertise `requires_follow_up: true` and encouraged
+  redundant agent calls.
+- Repair the workflow reference adapter's context-free path and make failed-
+  stage resume honest. Ordinary forecasts no longer read uninitialized
+  context recommendation state, context sensitivity telemetry is emitted only
+  when context exists, and `--resume` reruns observations whose required
+  repair/outcome stage failed. Stage failures retain one bounded diagnostic
+  line for debugging without copying full subprocess transcripts.
 - Remove an ambiguous legacy field from the default brief projection. The
   frozen artifact still records `primary_forecast_changed`, but the agent wire
   response now says `selected_projection_differs_from_primary` alongside

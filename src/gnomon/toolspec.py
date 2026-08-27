@@ -4293,6 +4293,9 @@ def runner_for(name: str) -> Callable[[dict[str, Any]], dict[str, Any]] | None:
                     payload = compact_publication_for_wire(payload)
                 payload = triage_wide_response(payload)
                 payload = compact_support_details(payload)
+                if isinstance(payload, dict) and "verb" not in payload:
+                    payload = {**payload,
+                               "verb": _name.removeprefix("gnomon_")}
                 return apply_response_contract(
                     enforce_response_budget(payload, budget))
 

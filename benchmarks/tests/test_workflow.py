@@ -685,6 +685,16 @@ def test_runner_retries_infrastructure_and_resume_keeps_success(tmp_path):
                            retries=1, prior=[retained])
     assert resumed.metadata["sentinel"] is True
 
+    stage_failed = _observation(case, metadata={
+        "sentinel": True,
+        "stage_infrastructure_failures": [{
+            "stage": "repair", "error": "subprocess_failure"}],
+    })
+    rerun, = run_command([case], f"{sys.executable} {script}", 2,
+                         retries=1, prior=[stage_failed])
+    assert rerun.status == "answered"
+    assert "sentinel" not in rerun.metadata
+
 
 def test_adapter_finds_triage_through_router_envelope():
     from benchmarks.workflow.agent_adapter import _extract_engine_facts, _find_triage

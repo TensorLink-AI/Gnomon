@@ -157,8 +157,16 @@ def _run_one(case: Case, argv: list[str], timeout: float, retries: int = 0) -> O
             "timeout", "subprocess_failure", "empty_stdout", "provider_timeout",
             "provider_error", "model_error", "model_submission_error",
         }:
-            stage_infrastructure_failures.append({
-                "stage": name, "error": followup.metadata.get("error")})
+            failure = {
+                "stage": name, "error": followup.metadata.get("error")}
+            if followup.metadata.get("returncode") is not None:
+                failure["returncode"] = followup.metadata["returncode"]
+            stderr = str(followup.metadata.get("stderr") or "").strip()
+            if stderr:
+                # Keep the actionable final traceback/provider line without
+                # copying a whole subprocess transcript into every score row.
+                failure["diagnostic"] = stderr.splitlines()[-1][:300]
+            stage_infrastructure_failures.append(failure)
         if name == "repair":
             stage_results[name] = {
                 "completed": initial.status == "abstained" and followup.status == "answered",
@@ -214,7 +222,11 @@ def run_command(cases: list[Case], command: str, timeout: float,
         raise ValueError("jobs must be at least 1")
     if retries < 0:
         raise ValueError("retries must be non-negative")
-    retained = {row.case_id: row for row in (prior or []) if row.status != "error"}
+    retained = {
+        row.case_id: row for row in (prior or [])
+        if row.status != "error"
+        and not row.metadata.get("stage_infrastructure_failures")
+    }
     pending = [case for case in cases if case.id not in retained]
     fresh: dict[str, Observation] = {}
 
@@ -287,8 +299,11 @@ def main() -> int:
                            "corpus_sha256": corpus_sha256(cases)},
                    arm_command=args.arm_command, jobs=args.jobs, timeout=args.timeout,
                    infrastructure_retries=args.infrastructure_retries,
-                   resumed_successful_cases=len([row for row in (prior or [])
-                                                 if row.status != "error"]))
+                   resumed_successful_cases=len([
+                       row for row in (prior or [])
+                       if row.status != "error"
+                       and not row.metadata.get(
+                           "stage_infrastructure_failures")]))
     print(json.dumps({key: value for key, value in result.items() if key != "rows"}, indent=2))
     return 0 if result["release_gate_pass"] else 2
 

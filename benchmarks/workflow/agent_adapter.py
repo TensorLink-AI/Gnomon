@@ -486,6 +486,7 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
     calls = 0
     sequence: list[str] = []
     engine_evidence: dict[str, Any] = {"surface_required_calls": 1}
+    recommendation: dict[str, float] = {}
     computation_complete = False
     recovery_calls = 0
     try:
@@ -729,7 +730,8 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                         result_rows = structured.get("results") or []
                         if result_rows and isinstance(result_rows[0], dict):
                             outcome = result_rows[0].get("context_outcome") or {}
-                            if isinstance(outcome, dict):
+                            if (isinstance(outcome, dict) and outcome
+                                    and "context_behavior" in engine_evidence):
                                 engine_evidence["context_behavior"][
                                     "numeric_sensitivity_count"] = int(
                                         outcome.get(

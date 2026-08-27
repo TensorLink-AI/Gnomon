@@ -848,6 +848,14 @@ def test_forecast_defaults_to_brief(monkeypatch, tmp_path) -> None:
     assert "warnings" in result
     assert payload["series_end"] == "2026-02-04T00:00:00"
     assert payload["frequency"] == "D"
+    assert payload["verb"] == "forecast"
+    assert payload["reasoning"]["sufficiency"] == {
+        "sufficient_for": ["forecast:canonical_answer", "explain_support"],
+        "further_calls_add_nothing_for": [
+            "forecast:canonical_answer", "explain_support"],
+        "requires_follow_up": False,
+    }
+    assert payload["reasoning"]["resolution"]["kind"] == "complete"
     from datetime import datetime
     assert datetime.fromisoformat(payload["wall_clock_now"]).tzinfo is not None
     assert "latest observation" in payload["staleness"]
