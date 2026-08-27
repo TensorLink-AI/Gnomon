@@ -1699,6 +1699,55 @@ def test_undated_general_rule_is_retained_with_actionable_recovery(tmp_path):
     }
 
 
+def test_unresolved_rule_with_bad_numeric_lane_does_not_waste_repair(tmp_path):
+    task = _task()
+    span = "Demand typically falls during public holidays."
+    task.scenario = span
+    unresolved = {
+        "events": [], "claims": [{
+            "source_span": span, "relation": "supports_decrease",
+            "effective_start": None, "effective_end": None,
+            "timing_status": "unresolved_trigger", "confidence": .7,
+        }],
+        "hypotheses": [{
+            "kind": "unsupported", "claim_ids": ["claim-1"],
+            "target_series": ["*"], "predictor_series": None,
+            "known_at": task.past_time[-1][0], "lag_steps": 0,
+            "direction": "decrease", "rationale": "Holiday is not dated.",
+        }],
+        "effect_proposal": {
+            "shape": "level_shift", "unit": "fraction_of_level",
+            "location": -.5, "lower": -.7, "upper": -.3,
+            "confidence": .7, "claim_ids": ["claim-1"],
+        },
+        "forecast_candidate": {
+            "claim_ids": ["claim-1"],
+            "constant_quantiles": {"q10": 1, "q50": 2, "q90": 3},
+        },
+    }
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        [json.dumps(unresolved), json.dumps({})])
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 1)
+
+    assert len(client.completion_prompts) == 1
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    decision = receipt["compiler"]["repair_decisions"][0]
+    assert decision["triggered"] is False
+    assert decision["retained_unresolved_interpretation"] is True
+    assert decision["skip_reason"] == \
+        "missing_trigger_evidence_not_repairable"
+    assert extra["publication"]["recommended_scenario_id"] == "primary"
+    assert extra["publication"]["automation"]["eligible"] is False
+
+
 def test_transformation_preflight_repairs_malformed_future_series(tmp_path):
     task = _task()
     span = "The future input is 2.0 throughout the forecast window."

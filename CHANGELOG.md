@@ -7,6 +7,14 @@
   deterministic effects or automation, and return a concrete request for the
   missing trigger identity and effective window. A one-path publication now
   also reports selector work as unnecessary rather than as an error.
+- Reconcile a compiler's erroneous unresolved-timing label when its verbatim
+  cited clause explicitly dates the supplied onset. This correction grants no
+  numeric or automation authority; genuinely undated and merely reported-at
+  context remains scenario-only.
+- Skip the bounded LLM repair when all retained claims lack trigger timing. A
+  retry cannot create missing source evidence and can mis-bind a replacement
+  hypothesis; the response now preserves the cited claims and returns the
+  dated-trigger recovery directly instead of guessing in a second call.
 
 - Add an explicit CiK `immutable_primary` diagnostic role. The previous
   `canonical` label referred to the public artifact trajectory, which may be

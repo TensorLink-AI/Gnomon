@@ -119,6 +119,28 @@ def _timestamp(value: Any) -> datetime | None:
     return parsed if parsed.tzinfo is not None else None
 
 
+def _cited_span_resolves_start(span: str, start: datetime | None) -> bool:
+    """Return whether a cited clause explicitly dates its own onset.
+
+    ``timing_status`` is model-authored metadata, so it cannot overrule an
+    ISO calendar token present in the verbatim evidence. Keep this parser
+    deliberately narrow: it reconciles only an onset cue paired with the
+    supplied start's YYYY-MM or YYYY-MM-DD, and never invents a date from a
+    weekday, holiday name, or relative phrase.
+    """
+    if start is None or not re.search(
+            r"\b(?:start(?:s|ing|ed)?|begin(?:s|ning)?|effective|from)\b",
+            span, re.IGNORECASE):
+        return False
+    for matched in re.finditer(r"(?<!\d)(\d{4})-(\d{2})(?:-(\d{2}))?", span):
+        year, month = int(matched.group(1)), int(matched.group(2))
+        day = int(matched.group(3)) if matched.group(3) else None
+        if year == start.year and month == start.month and (
+                day is None or day == start.day):
+            return True
+    return False
+
+
 _MONTHS = {
     name: number for number, names in enumerate((
         ("january", "jan"), ("february", "feb"), ("march", "mar"),
@@ -217,6 +239,18 @@ def validate_temporal_dossier(
         if timing_status not in {"resolved", "unresolved_trigger"}:
             reasons.append(f"claim {index + 1} has unknown timing_status")
             continue
+        if timing_status == "unresolved_trigger" and \
+                _cited_span_resolves_start(span, start):
+            timing_status = "resolved"
+            history_window_binding = {
+                "kind": "explicit_source_timing_reconciled",
+                "basis": (
+                    "verbatim cited onset matches the supplied effective "
+                    "start; model-authored unresolved label was corrected"),
+                "supplied_timing_status": "unresolved_trigger",
+                "numeric_authority": False,
+                "automation_eligible": False,
+            }
         if timing_status == "unresolved_trigger":
             # This is question scope, not asserted event timing. It keeps a
             # useful qualitative rule visible while categorically preventing

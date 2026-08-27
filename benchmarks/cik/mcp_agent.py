@@ -2528,14 +2528,24 @@ class _Run:
                     "accepted"))
             accepted_executable = (
                 effect_accepted or candidate_accepted or observation_accepted)
+            verified_claims = probe.get("claims") or []
+            retained_unresolved_interpretation = bool(
+                verified_claims
+                and all(claim.get("timing_status") == "unresolved_trigger"
+                        for claim in verified_claims))
             # Once one numeric lane is valid, malformed optional lanes remain
             # visible in the dossier critique but must not replace a useful
             # result or consume another LLM call. Required observation
             # semantics are the exception because answering a different data
-            # interpretation would be materially wrong.
+            # interpretation would be materially wrong. Likewise, when every
+            # retained claim has unresolved trigger timing, another model call
+            # cannot create the missing source evidence: preserve the useful
+            # hypotheses and return the typed recovery instead of retrying a
+            # categorically ineligible numeric lane.
             repair_required = (
                 observation_lane_missing or unresolved_numeric_context
-                or (not accepted_executable and (
+                or (not accepted_executable
+                    and not retained_unresolved_interpretation and (
                     probe_rejections or effect_failed or candidate_failed
                     or hypothesis_failures or observation_failures)))
             rejected_effect_fields = {}
@@ -2578,6 +2588,10 @@ class _Run:
                 "numeric_context_unresolved": bool(
                     unresolved_numeric_context),
                 "top_level_rejections": len(probe_rejections),
+                **({
+                    "retained_unresolved_interpretation": True,
+                    "skip_reason": "missing_trigger_evidence_not_repairable",
+                } if retained_unresolved_interpretation else {}),
             })
             if repair_required:
                 # Do not let one failed lane hide another. In particular, an

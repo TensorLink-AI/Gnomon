@@ -431,6 +431,49 @@ def test_unresolved_trigger_rule_is_retained_but_cannot_change_numbers():
     assert deterministic_events_from_claims(dossier) == []
 
 
+def test_explicit_cited_onset_corrects_model_unresolved_timing_label():
+    span = "The new operating policy starts on 2026-01-03."
+    raw = {"claims": [{
+        "source_span": span, "relation": "supports_decrease",
+        "effective_start": "2026-01-03T00:00:00+00:00",
+        "effective_end": "2026-01-04T00:00:00+00:00",
+        "timing_status": "unresolved_trigger", "confidence": .7,
+    }]}
+
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=span, cutoff="2026-01-02T00:00:00+00:00",
+        future_timestamps=TIMES, history=[8, 9, 10], compiler_model="test")
+
+    assert not reasons
+    claim = dossier["claims"][0]
+    assert claim["timing_status"] == "resolved"
+    assert claim["effective_window_binding"] == {
+        "kind": "explicit_source_timing_reconciled",
+        "basis": (
+            "verbatim cited onset matches the supplied effective start; "
+            "model-authored unresolved label was corrected"),
+        "supplied_timing_status": "unresolved_trigger",
+        "numeric_authority": False,
+        "automation_eligible": False,
+    }
+
+
+def test_unresolved_trigger_is_not_reconciled_from_unrelated_iso_date():
+    span = ("The report was issued on 2026-01-03. Demand typically falls "
+            "during public holidays.")
+    dossier, _ = validate_temporal_dossier(
+        {"claims": [{
+            "source_span": span, "relation": "supports_decrease",
+            "effective_start": "2026-01-03T00:00:00+00:00",
+            "effective_end": "2026-01-04T00:00:00+00:00",
+            "timing_status": "unresolved_trigger", "confidence": .7,
+        }]},
+        context_text=span, cutoff="2026-01-02T00:00:00+00:00",
+        future_timestamps=TIMES, history=[8, 9, 10], compiler_model="test")
+
+    assert dossier["claims"][0]["timing_status"] == "unresolved_trigger"
+
+
 def test_literal_range_claim_becomes_deterministic_constraint():
     span = "values are bounded above by 10.00 and bounded below by 5.82"
     dossier = validate_temporal_dossier({
