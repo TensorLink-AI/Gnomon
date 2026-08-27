@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Let the numeric candidate lane use the conventional timestamp-value forecast
+  response that forecasting models handle well. Gnomon validates every returned
+  timestamp against its host-owned grid before converting the path to sealed
+  internal JSON; the earlier JSON value-path format remains accepted. The call
+  also carries an explicit forecasting system role.
 - Align the bounded numeric-candidate prompt with ordinary forecasting intent:
   explicitly use relevant background, satisfy constraints and respect
   scenarios. Host-owned timestamps, finite-value validation, receipts,

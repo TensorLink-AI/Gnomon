@@ -112,6 +112,22 @@ def test_sampled_path_aggregation_rejects_bad_draws_independently():
     assert diagnostics["stability"]["median_pairwise_mae_scaled"] == 0
 
 
+def test_sampled_paths_accept_conventional_forecast_tags_only_on_host_grid():
+    future = ["2026-01-03T00:00:00+00:00",
+              "2026-01-04T00:00:00+00:00"]
+    valid = """<forecast>
+(2026-01-03 00:00:00, 3.5)
+(2026-01-04 00:00:00, 4.5)
+</forecast>"""
+    wrong_grid = valid.replace("2026-01-04", "2026-01-05")
+    candidate, diagnostics = _candidate_from_sampled_paths(
+        [valid, wrong_grid], future, history_values=[1, 2, 3])
+    assert candidate is not None
+    assert diagnostics["accepted"] == 1
+    assert diagnostics["rejected"] == 1
+    assert [row["q50"] for row in candidate["quantiles"]] == [3.5, 4.5]
+
+
 def test_sample_stability_is_affine_scale_invariant_and_shape_sensitive():
     paths = [[1, 2, 4, 7], [1, 3, 5, 8], [1, 2.5, 4.5, 7.5]]
     history = [0, 1, 2, 3, 4]
@@ -138,11 +154,12 @@ def test_sampled_prior_prompt_separates_numeric_task_from_raw_replay_dump():
         future_timestamps=["2026-01-02T00:00:00+00:00"],
         context="The service will be open tomorrow.")
     assert "(2026-01-01T00:00:00+00:00, 3.5)" in prompt
-    assert '"2026-01-02T00:00:00+00:00"' in prompt
+    assert "2026-01-02 00:00:00" in prompt
     assert "The service will be open tomorrow." in prompt
     assert "Factor in relevant background" in prompt
     assert "satisfy any stated constraints" in prompt
     assert "respect any stated scenarios" in prompt
+    assert "<forecast>" in prompt
     assert "mapping failed" not in prompt
     assert "candidate_mae" not in prompt
     assert "baseline_mae" not in prompt

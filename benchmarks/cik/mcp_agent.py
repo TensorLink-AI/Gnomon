@@ -347,7 +347,10 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: Version 171: numeric elicitation explicitly applies background, constraints
 #: and scenarios, matching ordinary forecast intent without weakening host
 #: validation, provenance, or publication authority.
-MCP_CONTRACT_VERSION = 171
+#: Version 172: use a conventional timestamp-value forecast response and a
+#: forecasting system role, then host-validate and convert it into the sealed
+#: candidate schema. JSON value paths remain accepted for compatibility.
+MCP_CONTRACT_VERSION = 172
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -935,17 +938,45 @@ def _candidate_from_sampled_paths(
     rejection_reasons: list[str] = []
     rationales: list[str] = []
     expected = len(future_timestamps)
+    display_timestamps = []
+    for timestamp in future_timestamps:
+        try:
+            display_timestamps.append(datetime.fromisoformat(
+                timestamp.replace("Z", "+00:00")).strftime(
+                    "%Y-%m-%d %H:%M:%S"))
+        except ValueError:
+            display_timestamps.append(timestamp)
     for output in outputs:
         objects = extract_json_objects(output)
         first = objects[0] if objects else {}
         raw = first.get("forecast_path") if isinstance(first, dict) else None
-        if not isinstance(raw, dict):
-            rejection_reasons.append("missing forecast_path object")
-            continue
-        values = raw.get("values")
+        values = raw.get("values") if isinstance(raw, dict) else None
+        if not isinstance(values, list):
+            match = re.search(
+                r"<forecast>\s*(.*?)\s*</forecast>", output,
+                flags=re.IGNORECASE | re.DOTALL)
+            parsed_values: list[float] = []
+            parsed_timestamps: list[str] = []
+            if match:
+                for line in match.group(1).splitlines():
+                    line = line.strip().strip("(), ")
+                    if not line:
+                        continue
+                    parts = line.rsplit(",", 1)
+                    if len(parts) != 2:
+                        parsed_values = []
+                        break
+                    parsed_timestamps.append(parts[0].strip(" '\""))
+                    try:
+                        parsed_values.append(float(parts[1].strip()))
+                    except ValueError:
+                        parsed_values = []
+                        break
+            if parsed_values and parsed_timestamps == display_timestamps:
+                values = parsed_values
         if not isinstance(values, list) or len(values) != expected:
             rejection_reasons.append(
-                f"forecast_path requires {expected} ordered values")
+                f"forecast response requires {expected} host-grid-bound values")
             continue
         try:
             path = [float(value) for value in values]
@@ -956,7 +987,9 @@ def _candidate_from_sampled_paths(
             rejection_reasons.append("forecast_path contains a non-finite value")
             continue
         accepted.append(path)
-        rationale = " ".join(str(raw.get("rationale") or "").split())
+        rationale = " ".join(str(
+            raw.get("rationale") or "" if isinstance(raw, dict) else ""
+        ).split())
         if rationale:
             rationales.append(rationale[:300])
     diagnostics = {
@@ -998,7 +1031,10 @@ def _sampled_state_prior_prompt(
     history = "\n".join(
         f"({timestamp}, {float(value):.12g})"
         for timestamp, value in zip(timestamps, values))
-    future = json.dumps(future_timestamps, separators=(",", ":"))
+    future = [
+        datetime.fromisoformat(timestamp.replace("Z", "+00:00")).strftime(
+            "%Y-%m-%d %H:%M:%S") for timestamp in future_timestamps]
+    future_display = "[" + " ".join(future) + "]"
     return f"""\
 I have a time series forecasting task for you.
 
@@ -1013,11 +1049,16 @@ Here is the historical target series in (timestamp, value) format:
 {history}
 </history>
 
-Predict the value at each timestamp in this ordered grid:
-{future}
+Now predict the value at the following timestamps: {future_display}.
 
-Return ONLY {{"forecast_path":{{"values":[0.0]}}}} with exactly one finite
-number per grid timestamp. Do not output quantiles or commentary.
+Return the forecast in (timestamp, value) format between <forecast> and
+</forecast> tags. Return exactly one finite value for every requested timestamp
+in the same order, and include no commentary inside the tags.
+
+Example:
+<forecast>
+(2026-01-01 00:00:00, 1.0)
+</forecast>
 
 Use no observations after the cutoff.
 """
@@ -3283,7 +3324,9 @@ class _Run:
             started = time.monotonic()
             try:
                 return self.forecaster.client.completions(
-                    [{"role": "user", "content": content}], n=n,
+                    [{"role": "system", "content":
+                      "You are a useful forecasting assistant."},
+                     {"role": "user", "content": content}], n=n,
                     temperature=1, max_tokens=2_500,
                     reasoning_effort="none",
                     request_timeout=max(1, min(120, math.floor(remaining))),
