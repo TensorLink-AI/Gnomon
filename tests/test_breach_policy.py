@@ -240,6 +240,7 @@ def test_policy_separates_likelihood_from_action() -> None:
     assert decision["break_even_probability"] == 0.2
     assert decision["recommended_action"] == "act"
     assert decision["decision_support"] == "supported"
+    assert decision["human_action_authority"] == "binding"
     assert decision["automation_eligible"] is True
     assert decision["expected_loss_if_act"] == 2
     assert decision["expected_loss_if_monitor"] == 4
@@ -275,6 +276,11 @@ def test_best_effort_estimates_yield_best_effort_recommendations() -> None:
     decision = apply_breach_policy(risk, BreachDecisionPolicy(2, 10))
     assert decision["recommended_action"] == "monitor"
     assert decision["decision_support"] == "best_effort"
+    assert decision["human_action_authority"] == "advisory"
+    assert decision["probability_roles"] == {
+        "quote_as_event_probability": "probability_any_breach",
+        "policy_calculation_only": "decision_probability",
+    }
     assert decision["reason_code"] == \
         "event_estimate_not_governed_point_estimate_used"
     assert decision["event_reasons"]

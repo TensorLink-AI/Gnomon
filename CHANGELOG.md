@@ -14,6 +14,11 @@
   empirical composition as `decision_probability`. Both roles and bases are
   returned; a Jeffreys pseudo-count can no longer push an otherwise zero-event
   sample across a client's action boundary.
+- **Breach probability and advice roles are machine-readable.** Policy output
+  now identifies the sole quotable event probability separately from its raw
+  calculation input, and labels supported human advice `binding` versus
+  best-effort advice `advisory`. Agents may exercise outcome-scored human
+  judgment over advisory advice without gaining automation authority.
 - **BreachBench distinguishes useful model judgment from safety failures.**
   Divergence from a best-effort human recommendation is now reported as an
   outcome-scored beneficial/harmful/neutral override with regret delta, while

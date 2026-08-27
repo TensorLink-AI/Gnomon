@@ -90,6 +90,14 @@ probability could be formed (`event_probability_unavailable`): silence
 defaulting to monitor was measured to invert the cost asymmetry it
 exists to respect.
 
+`human_action_authority` makes that distinction executable: `binding` means
+the supported governed policy should be followed, while `advisory` means an
+LLM or human may choose differently using the visible history and evidence.
+Such a choice is separately receipted and outcome-scored; it never upgrades
+support or automation eligibility. `probability_roles` identifies the single
+quotable event probability and keeps the raw policy-calculation input from
+being accidentally repeated as the forecast probability.
+
 This policy assumes one irreversible choice now. It does not price the option
 to observe another period and act later. `alert_cost` remains a separate
 sequential false-alert policy and must not be supplied together with

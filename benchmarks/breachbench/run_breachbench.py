@@ -412,7 +412,12 @@ def prompt(case: Case, arm: str, packet: dict[str, Any]) -> str:
     automation_rule = (
         " For automation_action, copy the Gnomon governed_decision's "
         "recommended_action only when automation_eligible is true; otherwise "
-        "return withhold. Human advice may still use act or monitor."
+        "return withhold. For breach_probability, copy horizon_event."
+        "probability_any_breach when available; decision_probability is only "
+        "an input to the policy calculation. A human recommendation with "
+        "human_action_authority=advisory is non-binding: use the history and "
+        "all supplied evidence to choose act or monitor, while citing no "
+        "greater support than the packet earned."
         if arm == "gnomon" else
         " No governed automation authority is supplied in this control arm, "
         "so automation_action must be withhold."

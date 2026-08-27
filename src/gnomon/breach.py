@@ -574,6 +574,9 @@ def apply_breach_policy(
             round(expected_monitor, 6) if expected_monitor is not None else None),
         "recommended_action": recommendation,
         "decision_support": decision_support,
+        "human_action_authority": (
+            "binding" if decision_support == "supported" else
+            "advisory" if recommendation is not None else "unavailable"),
         "automation_eligible": decision_support == "supported",
         "reason_code": reason_code,
         "event_support": event_risk.get("support"),
@@ -583,6 +586,10 @@ def apply_breach_policy(
         "probability_any_breach": probability,
         "decision_probability": decision_probability,
         "decision_probability_basis": decision_probability_basis,
+        "probability_roles": {
+            "quote_as_event_probability": "probability_any_breach",
+            "policy_calculation_only": "decision_probability",
+        },
         "policy_assumption": (
             "One irreversible decision is made now; the option value of "
             "waiting for future observations and acting later is not modelled."
