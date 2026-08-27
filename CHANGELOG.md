@@ -65,6 +65,10 @@
 - When the live publication already contains an evidence-dominant path, MCP
   telemetry now records the omitted ranking call as
   `skipped_evidence_dominance`, not as a generic no-selection condition.
+- When one governed representation has already supplied the recommendation,
+  repair actions attached to rejected side representations are explicitly
+  optional and scoped to that lane. The aggregate summary states that further
+  calls add nothing to the current recommendation, preventing repair loops.
 
 - Safe declarative transformations may now bind additional verbatim source
   lines containing their exact AST literals. The host neither interprets nor

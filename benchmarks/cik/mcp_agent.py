@@ -299,7 +299,9 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: disposition instead of leaving it only in the full publication receipt.
 #: Version 137: a live evidence-dominant publication records an intentional
 #: selector skip rather than a generic no-selection diagnostic.
-MCP_CONTRACT_VERSION = 137
+#: Version 138: recovery actions disclose when they concern only a rejected
+#: side representation and no further call is needed for the recommendation.
+MCP_CONTRACT_VERSION = 138
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -3513,7 +3515,8 @@ class _Run:
                                 key: (item.get("recovery_action") or {}).get(key)
                                 for key in ("code", "message",
                                             "required_evidence",
-                                            "automation_eligible")
+                                            "automation_eligible", "scope",
+                                            "required_for_current_recommendation")
                             } if item.get("recovery_action") else None),
                         } for item in publication.get(
                             "context_dispositions") or []],

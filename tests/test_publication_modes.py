@@ -411,12 +411,20 @@ def test_publication_summarizes_mixed_context_lanes_without_contradiction():
         "status": "partially_used",
         "authoritative_for_publication": True,
         "counts": {"used": 1, "scenario": 0, "rejected": 1},
+        "follow_up_required_for_current_recommendation": False,
+        "further_calls_add_nothing_for_current_recommendation": True,
         "message": (
             "At least one governed context lane affected the human-facing "
             "recommendation; other representations were rejected. See typed "
             "per-lane dispositions."),
     }
     assert verify_publication(payload)
+    rejected = next(item for item in payload["context_dispositions"]
+                    if item["disposition"] == "rejected")
+    assert rejected["recovery_action"][
+        "required_for_current_recommendation"] is False
+    assert rejected["recovery_action"]["scope"] == \
+        "optional_rejected_lane_only"
     contract = scenario_selection_contract(
         scenarios=payload["candidate_portfolio"])
     assert contract["selection_required"] is False

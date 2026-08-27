@@ -69,7 +69,30 @@ def _context_summary(dispositions: list[dict[str, Any]]) -> dict[str, Any]:
         "authoritative_for_publication": True,
         "counts": counts,
         "message": message,
+        "follow_up_required_for_current_recommendation": status == "rejected",
+        "further_calls_add_nothing_for_current_recommendation": bool(
+            counts["used"]),
     }
+
+
+def _scope_recovery_actions(
+        dispositions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Mark rejected side-lane repairs optional once context was used."""
+    context_used = any(item.get("disposition") == "used"
+                       for item in dispositions)
+    if not context_used:
+        return dispositions
+    scoped = []
+    for item in dispositions:
+        action = item.get("recovery_action")
+        if item.get("disposition") == "rejected" and isinstance(action, dict):
+            item = {**item, "recovery_action": {
+                **action,
+                "required_for_current_recommendation": False,
+                "scope": "optional_rejected_lane_only",
+            }}
+        scoped.append(item)
+    return scoped
 
 
 def dominant_scenario_id(scenarios: list[dict[str, Any]]) -> str | None:
@@ -929,14 +952,14 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
     else:
         selection_method = "immutable_primary_default"
     prior_assisted_default = selection_method == "default_prior_assisted_lane"
-    dispositions = [{
+    dispositions = _scope_recovery_actions([{
         **item,
         "disposition": (
             "used" if selected_id in (item.get("scenario_ids") or [])
             else item.get("disposition")),
         **({"selection_role": "human_facing_recommendation"}
            if selected_id in (item.get("scenario_ids") or []) else {}),
-    } for item in dispositions]
+    } for item in dispositions])
     recommendation_authority = {
         "selected_role": selected_role,
         "selection_method": selection_method,
@@ -1081,7 +1104,7 @@ def select_publication(payload: dict[str, Any], raw_selection: dict[str, Any]
                    if item["scenario_id"] == "primary")
     result = {key: value for key, value in payload.items()
               if key != "publication_seal_sha256"}
-    dispositions = [{
+    dispositions = _scope_recovery_actions([{
         **item,
         "disposition": (
             "used" if selected["scenario_id"] in
@@ -1089,7 +1112,7 @@ def select_publication(payload: dict[str, Any], raw_selection: dict[str, Any]
         **({"selection_role": "human_facing_recommendation"}
            if selected["scenario_id"] in (item.get("scenario_ids") or [])
            else {}),
-    } for item in payload.get("context_dispositions") or []]
+    } for item in payload.get("context_dispositions") or []])
     result.update({
         "recommended_scenario_id": selected["scenario_id"],
         "recommended_forecast": selected["forecast"],
