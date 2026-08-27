@@ -39,6 +39,36 @@ def test_typed_effect_is_composed_by_engine_not_model():
     assert [row["q50"] for row in rows] == [12.0, 12.0]
     assert [row["q10"] for row in rows] == [10.0, 10.0]
     assert PRIMARY[0]["q50"] == 10.0
+    assert proposal["provenance_class"] == "model_authored_prior"
+    assert proposal["uncertainty_basis"] == (
+        "model-authored prior; not calibrated against supplied historical "
+        "outcomes")
+    assert "operator estimate" not in proposal["uncertainty_basis"]
+
+
+def test_qualitative_citation_cannot_claim_invented_historical_provenance():
+    proposal, critique = validate_effect_proposal(
+        _proposal(
+            location=-2, lower=-4, upper=-.5,
+            rationale="estimated from historical holiday patterns",
+            uncertainty_basis="similar historical holidays"),
+        claim_ids={"claim-1"},
+        claim_spans={"claim-1": "traffic typically reduces on holidays"})
+    assert critique["status"] == "accepted"
+    assert proposal["provenance_class"] == "model_authored_prior"
+    assert "historical holiday" not in proposal["rationale"]
+    assert "historical holiday" not in proposal["uncertainty_basis"]
+
+
+def test_cited_numeric_distribution_has_source_stated_provenance():
+    proposal, critique = validate_effect_proposal(
+        _proposal(location=2, lower=1, upper=3),
+        claim_ids={"claim-1"},
+        claim_spans={"claim-1": "Use 2 units, with a range from 1 to 3."})
+    assert critique["status"] == "accepted"
+    assert proposal["provenance_class"] == "source_stated_distribution"
+    assert proposal["uncertainty_basis"] == (
+        "source-stated values; not calibrated against observed outcomes")
 
 
 def test_effect_confidence_metadata_cannot_poison_valid_distribution():
@@ -367,12 +397,45 @@ def test_publication_prefers_effect_composition_and_retains_portfolio():
     assert payload["automation"]["eligible"] is False
     assert {item["role"] for item in payload["candidate_portfolio"]} >= {
         "effect_composed", "model_authored"}
+    effect = next(item for item in payload["candidate_portfolio"]
+                  if item["role"] == "effect_composed")
+    assert effect["effect"]["provenance_class"] == "model_authored_prior"
+    assert effect["assumptions"] == [
+        "Model-authored conditional effect estimate composed over verified "
+        "qualitative context.",
+        "model-authored prior; not calibrated against supplied historical "
+        "outcomes",
+    ]
     assert payload["temporal_state"]["trend"]["direction"] == "flat_or_unknown"
     assert verify_publication(payload)
     disposition = next(item for item in payload["context_dispositions"]
                        if item["reason_code"] == "effect_proposal_composed")
     assert disposition["disposition"] == "used"
     assert disposition["selection_role"] == "human_facing_recommendation"
+
+
+def test_model_candidate_empirical_story_is_retained_only_as_unverified():
+    context = "traffic typically reduces on holidays"
+    dossier, reasons = validate_temporal_dossier({
+        "claims": [{"source_span": context, "relation": "supports_decrease",
+                    "effective_start": TIMES[0], "effective_end": TIMES[-1]}],
+        "forecast_candidate": {
+            "constant_quantiles": {"q10": 7, "q50": 8, "q90": 9},
+            "rationale": "calibrated from many similar historical holidays",
+        },
+    }, context_text=context, cutoff="2026-01-02T00:00:00+00:00",
+       future_timestamps=TIMES, history=[8, 9, 10], compiler_model="test")
+    assert reasons == []
+    candidate = dossier["forecast_candidate"]
+    assert candidate["provenance_class"] == "model_authored_prior"
+    assert "historical holidays" not in candidate["rationale"]
+    assert candidate["model_rationale_unverified"] == (
+        "calibrated from many similar historical holidays")
+    payload = publish_result({"support": "supported", "forecast": PRIMARY},
+                             mode="best_effort", dossiers=[dossier])
+    scenario = next(item for item in payload["candidate_portfolio"]
+                    if item["role"] == "model_authored")
+    assert "historical holidays" not in " ".join(scenario["assumptions"])
 
 
 def test_validated_context_path_precedes_weaker_model_effect():

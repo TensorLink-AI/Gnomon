@@ -133,6 +133,8 @@ def _validate_one(raw: Any, *, claim_ids: set[str],
     if errors:
         return None, errors
     semantic_normalizations: list[dict[str, Any]] = []
+    cited_text = " ".join(claim_spans.get(claim_id, "")
+                          for claim_id in cited)
     if unit == "fraction_of_level" and shape != "variance_change":
         # Relative effects are additive fractions in Gnomon's composition
         # contract: +3.0 means a final level of 4x.  Models commonly copy the
@@ -168,8 +170,6 @@ def _validate_one(raw: Any, *, claim_ids: set[str],
         if len(distinct) == 1:
             scale = stated[0][0]
             entailed_change = scale - 1.0
-            cited_text = " ".join(claim_spans.get(claim_id, "")
-                                  for claim_id in cited)
             approximate = bool(re.search(
                 r"\b(?:approximately|approx\.?|about|around|roughly|circa)\b",
                 cited_text, re.IGNORECASE))
@@ -218,6 +218,44 @@ def _validate_one(raw: Any, *, claim_ids: set[str],
                     "applied_shape": shape,
                     "basis": "verified cited multiplier and bounded timing",
                 })
+    # Citing a qualitative claim establishes direction and timing, but it does
+    # not turn model-supplied magnitudes into historical measurements.  Keep
+    # that distinction in the executable itself so every downstream envelope
+    # and receipt can describe the origin without trusting free-form model
+    # prose such as "based on comparable historical events".
+    cited_numbers = [float(value) for value in re.findall(
+        r"(?<![\w.])[-+]?\d+(?:\.\d+)?", cited_text)]
+    distribution_values = {round(value, 12)
+                           for value in (location, lower, upper)}
+    # A bare matching number can be a date, duration, or entity identifier.
+    # Treat a general distribution as source-stated only when the citation
+    # explicitly describes a range; exact multipliers use the stricter parser
+    # above. Conservative under-attribution is safer than false provenance.
+    cited_range_language = bool(re.search(
+        r"\b(?:range(?:s|d)?\s+(?:from|of)|between|from)\b",
+        cited_text, re.IGNORECASE))
+    numeric_distribution_cited = cited_range_language and bool(cited_numbers) and all(
+        any(math.isclose(value, cited_value, rel_tol=1e-9, abs_tol=1e-12)
+            for cited_value in cited_numbers)
+        for value in distribution_values)
+    exact_multiplier_cited = any(
+        item.get("code") == "EXACT_CITED_LEVEL_MULTIPLIER"
+        for item in semantic_normalizations)
+    if numeric_distribution_cited or exact_multiplier_cited:
+        provenance_class = "source_stated_distribution"
+        safe_rationale = (
+            "Conditional effect distribution is bound to numeric values in "
+            "verified cited source text.")
+        safe_uncertainty_basis = (
+            "source-stated values; not calibrated against observed outcomes")
+    else:
+        provenance_class = "model_authored_prior"
+        safe_rationale = (
+            "Model-authored conditional effect estimate composed over "
+            "verified qualitative context.")
+        safe_uncertainty_basis = (
+            "model-authored prior; not calibrated against supplied historical "
+            "outcomes")
     return {
         "shape": shape, "unit": unit, "location": location,
         "lower": lower, "upper": upper, "confidence": confidence,
@@ -228,9 +266,9 @@ def _validate_one(raw: Any, *, claim_ids: set[str],
         "claim_ids": cited,
         **({"citation_binding": str(raw["citation_binding"])}
            if raw.get("citation_binding") else {}),
-        "rationale": str(raw.get("rationale") or "")[:1000],
-        "uncertainty_basis": str(raw.get("uncertainty_basis") or
-                                 "model-authored prior; not calibrated")[:300],
+        "provenance_class": provenance_class,
+        "rationale": safe_rationale,
+        "uncertainty_basis": safe_uncertainty_basis,
         "composition": "scenario_only",
         **({"confidence_normalization": confidence_normalization}
            if confidence_normalization else {}),

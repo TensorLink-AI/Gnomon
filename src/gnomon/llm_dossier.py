@@ -1361,7 +1361,15 @@ def _validate_candidate(
         return None
     return {
         "quantiles": clean,
-        "rationale": rationale,
+        # Forecast points are accepted as a sealed prior-assisted candidate,
+        # not as proof for whatever empirical story the model attached to
+        # them. Keep the prose for audit under an explicitly unverified key;
+        # public assumptions use the bounded provenance statement instead.
+        "provenance_class": "model_authored_prior",
+        "rationale": (
+            "Model-authored prior-assisted forecast conditioned on verified "
+            "claims; not calibrated against supplied historical outcomes."),
+        **({"model_rationale_unverified": rationale} if rationale else {}),
         "claim_ids": [claim["claim_id"] for claim in claims],
         "plausibility": {
             "boundary_jump_scales": round(boundary_jump, 6),

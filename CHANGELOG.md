@@ -46,6 +46,16 @@
   rejected from one intentionally skipped because an exact cited scenario was
   already evidence-dominant. This makes latency, autonomy, and failure-rate
   measurements reflect the calls the agent actually made.
+- Conditional effect distributions now carry a typed provenance class.
+  Numeric values are `source_stated_distribution` only when verified source
+  text actually states the distribution (or an exact multiplier passes its
+  stricter parser); otherwise they are explicitly `model_authored_prior`.
+  Free-form model claims of historical calibration are no longer repeated in
+  public assumptions without corresponding observations.
+- Sealed model-authored forecast candidates apply the same rule: public
+  assumptions identify them as uncalibrated prior-assisted paths, while the
+  model's original rationale is retained only in the immutable receipt under
+  an explicitly `model_rationale_unverified` field.
 
 - Safe declarative transformations may now bind additional verbatim source
   lines containing their exact AST literals. The host neither interprets nor

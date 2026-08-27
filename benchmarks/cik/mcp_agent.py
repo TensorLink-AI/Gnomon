@@ -289,7 +289,11 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: evidence-dominant; its hypothetical support and automation ban remain.
 #: Version 132: selector telemetry distinguishes an intentional evidence-
 #: dominance skip from an attempted selector rejection or a needless call.
-MCP_CONTRACT_VERSION = 132
+#: Version 133: conditional effect distributions expose source-stated versus
+#: model-authored provenance and never repeat unsupported empirical claims.
+#: Version 134: sealed model-authored forecast paths likewise separate their
+#: unverified rationale from the bounded public provenance statement.
+MCP_CONTRACT_VERSION = 134
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
