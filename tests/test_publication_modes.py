@@ -777,9 +777,37 @@ def test_best_effort_sampled_prior_policy_is_human_only_and_mode_specific():
     assert all(row["q90"] - row["q10"] == 2.0
                for row in sampled["forecast"])
     normalization = sampled["effect"]["uncertainty_normalization"]
-    assert normalization["rows_widened"] == 2
+    assert normalization["rows_adjusted"] == 2
     assert normalization["candidate_centre_unchanged"] is True
     assert normalization["primary_forecast_unchanged"] is True
+
+
+def test_sampled_outliers_remain_diagnostics_not_published_tail_width():
+    dossier = _dossier()
+    for row in dossier["forecast_candidate"]["quantiles"]:
+        row["q10"] = row["q50"] - 1000
+        row["q90"] = row["q50"] + 1000
+    dossier["forecast_candidate"]["elicitation"] = {
+        "kind": "sampled_point_paths", "requested_paths": 5,
+        "accepted_paths": 5,
+        "aggregation": "linear_empirical_marginal_q10_q50_q90",
+        "temperature": 1.0, "request_mode":
+        "concurrent_single_sample_requests", "host_observed": True,
+        "historical_skill_evidence": False, "automation_eligible": False,
+    }
+    import hashlib, json
+    body = {key: value for key, value in dossier.items()
+            if key != "seal_sha256"}
+    dossier["seal_sha256"] = hashlib.sha256(json.dumps(
+        body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    scenarios, _ = build_scenario_catalog(_result(), dossiers=[dossier])
+    sampled = next(item for item in scenarios
+                   if item["scenario_id"] == "prior-assisted-1")
+    assert [row["q50"] for row in sampled["forecast"]] == [11.0, 12.0]
+    assert all(row["q90"] - row["q10"] == 2.0
+               for row in sampled["forecast"])
+    assert sampled["effect"]["uncertainty_normalization"]["basis"] == (
+        "immutable_primary_offsets_around_sampled_median")
     selection = best_effort_prior_selection(
         scenarios=scenarios, dossiers=[dossier])
     assert selection is not None

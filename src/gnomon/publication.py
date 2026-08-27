@@ -356,15 +356,16 @@ def _normalize_sampled_prior_uncertainty(
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Prevent a handful of LLM draws from masquerading as calibrated tails.
 
-    The candidate median remains untouched.  Each tail retains the wider of
-    the empirical sampled offset and the immutable primary's offset at that
-    timestamp.  The derived scenario is resealed and carries this rule in its
-    effect metadata; neither source path is mutated.
+    The candidate median remains untouched.  Five stochastic paths cannot
+    estimate calibrated 10th/90th percentiles, so their dispersion remains a
+    diagnostic while the conditional path inherits the immutable primary's
+    calibrated offsets. The derived scenario is resealed and carries this rule
+    in its effect metadata; neither source path is mutated.
     """
     if not candidate or len(candidate) != len(primary):
         return candidate, {"applied": False, "reason": "unaligned_paths"}
     rows = []
-    widened = 0
+    adjusted = 0
     for candidate_row, primary_row in zip(candidate, primary):
         if str(candidate_row.get("timestamp")) != str(primary_row.get("timestamp")):
             return candidate, {"applied": False, "reason": "unaligned_timestamps"}
@@ -375,20 +376,18 @@ def _normalize_sampled_prior_uncertainty(
             "q50", primary_row.get("point")))
         primary_lower = float(primary_row.get("q10", primary_centre))
         primary_upper = float(primary_row.get("q90", primary_centre))
-        resolved_lower = centre - max(centre - lower,
-                                      primary_centre - primary_lower)
-        resolved_upper = centre + max(upper - centre,
-                                      primary_upper - primary_centre)
-        widened += int(resolved_lower < lower or resolved_upper > upper)
+        resolved_lower = centre - (primary_centre - primary_lower)
+        resolved_upper = centre + (primary_upper - primary_centre)
+        adjusted += int(resolved_lower != lower or resolved_upper != upper)
         rows.append({**candidate_row, "q10": resolved_lower,
                      "q50": centre, "q90": resolved_upper})
     return rows, {
         "applied": True,
-        "basis": "max_sampled_and_immutable_primary_offsets_per_timestamp",
+        "basis": "immutable_primary_offsets_around_sampled_median",
         "candidate_centre_unchanged": True,
         "primary_forecast_unchanged": True,
-        "rows_widened": widened,
-        "interpretation": "uncertainty_floor_not_skill_evidence",
+        "rows_adjusted": adjusted,
+        "interpretation": "calibrated_offsets_not_sampling_dispersion",
     }
 
 
