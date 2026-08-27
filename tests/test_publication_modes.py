@@ -53,6 +53,36 @@ def test_strict_never_promotes_prior_assisted_candidate():
     assert verify_publication(payload)
 
 
+def test_claims_only_context_is_retained_without_claiming_numeric_use():
+    span = "A comparable site reached 120 last summer."
+    dossier, reasons = validate_temporal_dossier({
+        "claims": [{
+            "source_span": span, "relation": "unknown",
+            "effective_start": TIMES[0], "effective_end": TIMES[1],
+            "mechanism": "Weak external analogue", "confidence": .3,
+        }],
+        "hypotheses": [{
+            "kind": "historical_analogue", "claim_ids": ["claim-1"],
+            "target_series": ["*"], "known_at":
+                "2026-01-02T00:00:00+00:00", "lag_steps": 0,
+            "direction": "unknown", "rationale": "Different site and season.",
+        }],
+    }, context_text=span, cutoff="2026-01-02T00:00:00+00:00",
+       future_timestamps=TIMES, history=[8, 9, 10], compiler_model="test")
+    assert not reasons
+
+    payload = publish_result(_result(), mode="best_effort", dossiers=[dossier])
+
+    assert payload["recommended_scenario_id"] == "primary"
+    assert payload["context_summary"]["status"] == "scenario_only"
+    assert payload["context_summary"]["counts"] == {
+        "used": 0, "scenario": 1, "rejected": 0}
+    disposition = payload["context_dispositions"][0]
+    assert disposition["reason_code"] == \
+        "interpretation_only_no_numeric_path"
+    assert "did not alter" in disposition["reason"]
+
+
 def test_exact_cited_scenario_is_human_facing_but_never_automatable():
     span = "In this case demand will be only 5 times the usual level."
     dossier, reasons = validate_temporal_dossier({

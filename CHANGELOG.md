@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Label claims-only context as interpretation-only scenario evidence rather
+  than numerically used, so an unchanged primary forecast never tells humans
+  or agents that context affected the recommendation.
+
 - Treat model-authored effect proposals that duplicate an exact deterministic
   context contract as superseded provenance rather than rejected context, so
   a fully resolved instruction is not mislabeled as partially used; pin CiK's

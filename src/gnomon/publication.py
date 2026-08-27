@@ -555,10 +555,25 @@ def build_scenario_catalog(result: dict[str, Any], *,
                         candidate_critique.get("reasons") or [])[:1000],
                     "recovery_action": candidate_critique.get("recovery_action"),
                 })
+            deterministic_used = bool(
+                isinstance(context_outcome, dict)
+                and context_outcome.get("status") == "applied")
             dispositions.extend({
                 "context_id": f"dossier-{index}:{item.get('claim_id')}",
-                "disposition": "used", "reason_code": "claims_only",
-                "reason": "Verified claim informs interpretation but supplied no numeric path.",
+                "disposition": (
+                    "used" if deterministic_used
+                    and str(item.get("claim_id")) in deterministic_claim_ids
+                    else "scenario"),
+                "reason_code": (
+                    "deterministic_claim_applied" if deterministic_used
+                    and str(item.get("claim_id")) in deterministic_claim_ids
+                    else "interpretation_only_no_numeric_path"),
+                "reason": (
+                    "Verified claim was applied through the deterministic "
+                    "context contract." if deterministic_used
+                    and str(item.get("claim_id")) in deterministic_claim_ids
+                    else "Verified claim is retained for interpretation but "
+                    "did not alter the selected numeric forecast."),
                 "claim_id": item.get("claim_id"),
             } for item in claims)
             continue
