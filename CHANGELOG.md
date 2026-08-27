@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Bind benchmark choice slots to declared canonical engine facts so agents may
+  explain temporal categories without rewriting their machine-readable value;
+  retain attempted overrides as diagnostics rather than silently accepting
+  them. Workflow observations now also retain resolved horizon and threshold
+  routing telemetry.
+
 - Derive response sufficiency from the actual invoked verb at the shared tool
   boundary. Completed forecasts now declare exactly what they answer and that
   further forecast/explanation calls add nothing; previously the missing verb
@@ -13,6 +19,13 @@
   when context exists, and `--resume` reruns observations whose required
   repair/outcome stage failed. Stage failures retain one bounded diagnostic
   line for debugging without copying full subprocess transcripts.
+- Preserve the agent-compiled forecast horizon through the benchmark host
+  boundary instead of forcing every question to one step. If omitted, the
+  product's disclosed one-season default applies. The installed skill now
+  states the grid conversion explicitly (`next week` = 7 daily or 168 hourly
+  periods), preserves finite decision thresholds, and instructs agents to ask
+  Gnomon for breach evidence rather than eyeballing interval rows. Benchmark
+  telemetry records the resolved horizon and threshold presence.
 - Remove an ambiguous legacy field from the default brief projection. The
   frozen artifact still records `primary_forecast_changed`, but the agent wire
   response now says `selected_projection_differs_from_primary` alongside

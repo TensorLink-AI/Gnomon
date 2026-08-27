@@ -115,7 +115,7 @@ class Case:
     domain: str
     question: str
     available_at_cutoff: dict[str, Any]
-    answer_schema: dict[str, tuple[str, ...]]
+    answer_schema: dict[str, Any]
     oracle: Oracle
     tags: tuple[str, ...] = ()
     stages: tuple[dict[str, Any], ...] = ()
@@ -138,17 +138,26 @@ class Case:
         raw_answer_schema = value.get("answer_schema") or {}
         _require(isinstance(raw_answer_schema, dict),
                  f"case {case_id}: answer_schema must be an object")
-        _reject_unknown(raw_answer_schema, {"numbers", "choices", "facts"},
+        _reject_unknown(raw_answer_schema,
+                        {"numbers", "choices", "facts", "choice_sources"},
                         f"case {case_id} answer_schema")
         answer_schema = {
             kind: tuple(str(item) for item in raw_answer_schema.get(kind, ()))
             for kind in ("numbers", "choices", "facts")
         }
+        raw_choice_sources = raw_answer_schema.get("choice_sources") or {}
+        _require(isinstance(raw_choice_sources, dict),
+                 f"case {case_id}: choice_sources must be an object")
+        answer_schema["choice_sources"] = {
+            str(key): str(source) for key, source in raw_choice_sources.items()}
         oracle = Oracle.from_dict(value.get("oracle") or {})
         _require(set(oracle.numbers) <= set(answer_schema["numbers"]),
                  f"case {case_id}: numeric oracle keys missing from answer_schema")
         _require(set(oracle.choices) <= set(answer_schema["choices"]),
                  f"case {case_id}: choice oracle keys missing from answer_schema")
+        _require(set(answer_schema["choice_sources"]) <=
+                 set(answer_schema["choices"]),
+                 f"case {case_id}: canonical choice source keys missing from answer_schema")
         _require(set(oracle.required_facts) <= set(answer_schema["facts"]),
                  f"case {case_id}: required fact keys missing from answer_schema")
         _require(set(oracle.engine_required_facts) <= set(answer_schema["facts"]),

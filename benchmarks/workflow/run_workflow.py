@@ -32,7 +32,9 @@ def case_payload(case: Case) -> dict[str, Any]:
         "schema_version": case.schema_version, "id": case.id,
         "kind": case.kind, "domain": case.domain, "question": case.question,
         "available_at_cutoff": case.available_at_cutoff,
-        "answer_schema": {key: list(value) for key, value in case.answer_schema.items()},
+        "answer_schema": {
+            key: (dict(value) if key == "choice_sources" else list(value))
+            for key, value in case.answer_schema.items()},
         "tags": list(case.tags),
     }
 

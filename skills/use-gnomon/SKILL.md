@@ -1,21 +1,25 @@
 ---
 name: use-gnomon
-description: Use Gnomon to answer temporal questions from time-series data with deterministic evidence, calibrated support, and minimal tool calls. Trigger for forecasting, trend or seasonality analysis, change investigation, anomaly detection, temporal decisions, monitoring, or follow-up questions about a Gnomon result. Also use when a user explicitly wants to record or share feedback about a Gnomon answer.
+description: Answer forecasting, description, detection, decision, monitoring, and Gnomon follow-up questions with deterministic temporal evidence and minimal calls. Also handle explicit Gnomon feedback requests.
 ---
 
 # Use Gnomon
 
-Treat Gnomon as the authority for computed temporal facts. Use the host model to understand intent and explain results, never to replace, recompute, or silently strengthen Gnomon's numbers.
+Gnomon owns computed facts; the host understands intent and explains them. Never replace, recompute, or strengthen its numbers.
 
 ## Choose the shortest route
 
-1. Use `gnomon_describe` for what-happened questions about level, trend, seasonality, changepoints, anomalies, or extremes.
+1. Use `gnomon_describe` for level, trend, seasonality, changepoint, anomaly, or extreme questions.
 2. Use `gnomon_forecast` directly for what-happens-next questions. Let it infer an unambiguous schema; do not call capabilities, inspect, or get-artifact first.
-3. Use `gnomon_inspect` first only when the schema is genuinely ambiguous or the user asks about data quality.
+3. Use `gnomon_inspect` only for genuine schema ambiguity or requested data quality.
 4. Use investigate, detect, decide, monitor, or tracking tools only when the corresponding tool is exposed and the user asks for that job.
-5. Reuse a returned `data_ref` for follow-ups instead of resending data.
+5. Reuse returned `data_ref` instead of resending data.
 
 Prefer one sufficient call. Fetch an artifact only when the user requests deeper evidence or the brief response says required content was truncated.
+Map windows to grid periods (`next week`: daily 7, hourly 168). Use 1 only for
+an explicit next-value question; otherwise omit it and keep the disclosed
+seasonal default. For breach questions pass `threshold` and `horizon`; never
+infer the decision by eyeballing forecast rows.
 
 ## Use supplied context explicitly
 

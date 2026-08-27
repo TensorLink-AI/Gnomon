@@ -108,6 +108,21 @@ def _extract_engine_facts(value: Any, requested: set[str]) -> dict[str, Any]:
                 found.setdefault(key, item)
     return found
 
+
+def _canonical_choice_sources(case: dict[str, Any]) -> dict[str, str]:
+    """Return declared engine provenance for machine-readable choices."""
+    value = (case.get("answer_schema") or {}).get("choice_sources") or {}
+    return ({str(key): str(source) for key, source in value.items()}
+            if isinstance(value, dict) else {})
+
+
+def _canonical_engine_choices(case: dict[str, Any],
+                              evidence: dict[str, Any]) -> dict[str, str]:
+    facts = evidence.get("engine_facts") or {}
+    return {choice: str(facts[source])
+            for choice, source in _canonical_choice_sources(case).items()
+            if source in facts and facts[source] is not None}
+
 SUBMIT = {
     "type": "function", "function": {
         "name": "submit_answer",
@@ -265,7 +280,18 @@ def _compile_execution_arguments(
     elif intentionally_ambiguous:
         compiled.pop("target_column", None)
     if name in {"gnomon_forecast", "gnomon_run"}:
-        compiled["horizon"] = 1
+        # Horizon is user intent, not host transport. Preserve a valid model-
+        # compiled value; when omitted, let Gnomon's disclosed one-season
+        # default apply. Hard-coding one step here silently changed questions
+        # such as "next week's peak" into tomorrow's value.
+        horizon = arguments.get("horizon")
+        if isinstance(horizon, int) and not isinstance(horizon, bool) \
+                and horizon >= 1:
+            compiled["horizon"] = horizon
+        threshold = arguments.get("threshold")
+        if isinstance(threshold, (int, float)) \
+                and not isinstance(threshold, bool) and math.isfinite(threshold):
+            compiled["threshold"] = float(threshold)
         compiled["output_dir"] = str(jail / "gnomon-output")
     if name == "gnomon_forecast":
         compiled["format"] = "brief"
@@ -318,6 +344,13 @@ def _normalize(case: dict[str, Any], value: dict[str, Any], *, calls: int,
     choices = {str(key): str(item) for key, item in (
         raw_choices if isinstance(raw_choices, dict) else {}).items()
                if item is not None}
+    canonical_choices = _canonical_engine_choices(case, engine_evidence or {})
+    attempted_choice_overrides = {
+        key: {"submitted": choices.get(key), "canonical": canonical}
+        for key, canonical in canonical_choices.items()
+        if choices.get(key) != canonical
+    }
+    choices.update(canonical_choices)
     raw_facts = value.get("facts")
     facts = dict(raw_facts) if isinstance(raw_facts, dict) else {}
     facts.update(_host_facts(case))
@@ -377,6 +410,12 @@ def _normalize(case: dict[str, Any], value: dict[str, Any], *, calls: int,
                          "literal_context_input", []),
                      "context_rejection_input_shape": engine_evidence.get(
                          "context_rejection_input_shape", []),
+                     "resolved_horizon": engine_evidence.get(
+                         "resolved_horizon"),
+                     "threshold_supplied": engine_evidence.get(
+                         "threshold_supplied"),
+                     "canonical_choice_sources": _canonical_choice_sources(case),
+                     "attempted_choice_overrides": attempted_choice_overrides,
                      "tool_errors": engine_evidence.get("tool_errors", []),
                      **({"error": "model_submission_error"} if status == "error" else {}),
                      "artifact_id": engine_evidence.get("artifact_id"),
@@ -431,6 +470,10 @@ def _submission_problems(case: dict[str, Any], value: dict[str, Any],
     for key in (case.get("answer_schema") or {}).get("choices") or []:
         if key not in choices:
             problems.append(f"choices.{key} is missing")
+    for key, canonical in _canonical_engine_choices(case, evidence).items():
+        if choices.get(key) != canonical:
+            problems.append(
+                f"choices.{key} must equal canonical engine fact {canonical!r}")
     if value.get("artifact_id") != evidence["artifact_id"]:
         problems.append("artifact_id must copy the immutable artifact identity")
     return problems
@@ -554,6 +597,10 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                 sequence.append(name)
                 arguments = _compile_execution_arguments(
                     case, name, arguments, csv_path, jail)
+                if arguments.get("horizon") is not None:
+                    engine_evidence["resolved_horizon"] = arguments["horizon"]
+                engine_evidence["threshold_supplied"] = (
+                    arguments.get("threshold") is not None)
                 qualitative_inputs = arguments.get(
                     "qualitative_context_events") or []
                 if isinstance(qualitative_inputs, list):
@@ -752,6 +799,7 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                             engine_evidence["artifact_id"] = artifact_identity
                         requested = set((case.get("answer_schema") or {}).get(
                             "facts") or [])
+                        requested.update(_canonical_choice_sources(case).values())
                         harvested = _extract_engine_facts(structured, requested)
                         if harvested:
                             engine_evidence.setdefault("engine_facts", {}).update(

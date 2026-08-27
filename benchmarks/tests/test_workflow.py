@@ -205,8 +205,14 @@ def test_execution_compiler_binds_known_fields_but_preserves_ambiguity(tmp_path)
     )
     assert result["input"] == str(tmp_path / "history.csv")
     assert result["target_column"] == "value"
-    assert result["horizon"] == 1
+    assert "horizon" not in result
     assert result["minimum_support"] == "best_effort"
+    weekly = _compile_execution_arguments(
+        base, "gnomon_forecast", {"horizon": 7, "threshold": 125},
+        tmp_path / "history.csv", tmp_path,
+    )
+    assert weekly["horizon"] == 7
+    assert weekly["threshold"] == 125.0
     assert "data_ref" not in _compile_execution_arguments(
         base, "gnomon_forecast", {"data_ref": "stale", "series_column": "x"},
         tmp_path / "history.csv", tmp_path,
@@ -728,6 +734,46 @@ def test_adapter_repairs_malformed_optional_containers():
     assert row["claims"] == ["claim"]
     assert row["metadata"]["envelope_repairs"]["facts"] == \
         "coerced_to_empty_object"
+
+
+def test_adapter_projects_declared_canonical_choice_without_answer_label():
+    from benchmarks.workflow.agent_adapter import _normalize, _submission_problems
+
+    class Client:
+        total_prompt_tokens = 1
+        total_completion_tokens = 1
+
+    case = {
+        "id": "canonical-choice", "kind": "synthetic",
+        "answer_schema": {"numbers": [], "choices": ["pattern"], "facts": [],
+                          "choice_sources": {
+                              "pattern": "seasonal_period_label"}},
+    }
+    evidence = {
+        "artifact_id": "artifact-1",
+        "engine_facts": {"seasonal_period_label": "period-4"},
+        "resolved_horizon": 7,
+        "threshold_supplied": True,
+    }
+    submitted = {
+        "status": "answered", "support": "supported", "numbers": {},
+        "choices": {"pattern": "seasonal_naive (period-4)"},
+        "facts": {}, "disclosures": [], "claims": [],
+        "artifact_id": "artifact-1",
+    }
+    assert _submission_problems(case, submitted, evidence) == [
+        "choices.pattern must equal canonical engine fact 'period-4'"]
+    row = _normalize(case, submitted, calls=1, client=Client(), started=0,
+                     tool_names=["gnomon_forecast"],
+                     engine_evidence=evidence)
+    assert row["choices"] == {"pattern": "period-4"}
+    assert row["metadata"]["attempted_choice_overrides"] == {
+        "pattern": {
+            "submitted": "seasonal_naive (period-4)",
+            "canonical": "period-4",
+        }}
+    assert row["metadata"]["resolved_horizon"] == 7
+    assert row["metadata"]["threshold_supplied"] is True
 
 
 def test_adapter_host_binds_routing_facts_over_model_paraphrases():
