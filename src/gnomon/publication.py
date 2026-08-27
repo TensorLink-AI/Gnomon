@@ -734,7 +734,9 @@ def build_scenario_catalog(result: dict[str, Any], *,
 
 
 def validate_scenario_selection(raw: Any, *, scenarios: list[dict[str, Any]],
-                                dossiers: list[dict[str, Any]] | None = None
+                                dossiers: list[dict[str, Any]] | None = None,
+                                known_evidence_ids: set[str] | None = None,
+                                required_counterevidence_ids: set[str] | None = None,
                                 ) -> dict[str, Any] | None:
     """Validate an LLM ranking without accepting any model-authored number."""
     if raw in (None, {}):
@@ -757,6 +759,13 @@ def validate_scenario_selection(raw: Any, *, scenarios: list[dict[str, Any]],
             "scenario selection cannot override the evidence-dominant path")
     claim_ids = {str(claim.get("claim_id")) for dossier in dossiers or []
                  for claim in dossier.get("claims") or []}
+    hypothesis_ids = {
+        str(hypothesis.get("hypothesis_id")) for dossier in dossiers or []
+        for hypothesis in dossier.get("hypotheses") or []
+        if hypothesis.get("hypothesis_id")
+    }
+    claim_ids.update(hypothesis_ids)
+    claim_ids.update(known_evidence_ids or set())
     claim_ids.update(str(item) for scenario in scenarios
                      for item in scenario.get("claim_ids") or [])
     cited = [str(item) for item in raw.get("cited_claim_ids") or []]
@@ -771,6 +780,18 @@ def validate_scenario_selection(raw: Any, *, scenarios: list[dict[str, Any]],
                                if item["scenario_id"] == selected)["claim_ids"])
     if selected_claims and not selected_claims.intersection(cited):
         raise ValueError("selected conditional scenario requires one of its claims to be cited")
+    counter_hypotheses = {
+        str(hypothesis.get("hypothesis_id")) for dossier in dossiers or []
+        for hypothesis in dossier.get("hypotheses") or []
+        if hypothesis.get("kind") == "unsupported"
+        and hypothesis.get("hypothesis_id")
+    }
+    counter_hypotheses.update(required_counterevidence_ids or set())
+    if (selected_scenario.get("role") == "model_authored"
+            and counter_hypotheses
+            and not counter_hypotheses.intersection(counter)):
+        raise ValueError(
+            "prior-assisted selection must cite compiled counterevidence")
     try:
         confidence = float(raw.get("confidence"))
     except (TypeError, ValueError):
@@ -807,6 +828,17 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
         "mechanism": "A deterministic context event was validated and applied by Gnomon.",
     } for scenario in scenarios for item in scenario.get("claim_ids") or []
                   if str(item) not in known_claims)
+    claims.extend({
+        "claim_id": str(hypothesis.get("hypothesis_id")),
+        "relation": ("counterevidence"
+                     if hypothesis.get("kind") == "unsupported"
+                     else f"hypothesis:{hypothesis.get('kind', 'unknown')}"),
+        "mechanism": str(hypothesis.get("rationale") or "")[:1000],
+        "direction": hypothesis.get("direction"),
+        "validation": hypothesis.get("validation"),
+    } for dossier in dossiers or [] if verify_temporal_dossier_seal(dossier)
+      for hypothesis in dossier.get("hypotheses") or []
+      if hypothesis.get("hypothesis_id"))
     dominant = dominant_scenario_id(scenarios)
     return {
         "selection_required": dominant is None,
@@ -815,7 +847,8 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
                             else "ambiguous_evidence_requires_bounded_ranking"),
         "instruction": (
             "Rank only the supplied scenario_ids. Explain the ranking using "
-            "claim_ids, name counterevidence, give confidence, and state what "
+            "claim_ids (including compiled hypothesis ids), name all material "
+            "counterevidence, give confidence, and state what "
             "would change the selection. Do not output forecast numbers, "
             "support labels, or automation advice."),
         "scenarios": [{
@@ -1128,8 +1161,20 @@ def select_publication(payload: dict[str, Any], raw_selection: dict[str, Any]
     if payload.get("mode") == "strict":
         raise ValueError("strict publications cannot be reranked")
     portfolio = [dict(item) for item in payload.get("candidate_portfolio") or []]
+    evidence = (payload.get("selection_contract") or {}).get("claims") or []
+    known_evidence_ids = {
+        str(item.get("claim_id")) for item in evidence
+        if isinstance(item, dict) and item.get("claim_id")
+    }
+    required_counterevidence_ids = {
+        str(item.get("claim_id")) for item in evidence
+        if isinstance(item, dict) and item.get("claim_id")
+        and item.get("relation") == "counterevidence"
+    }
     selection = validate_scenario_selection(
-        raw_selection, scenarios=portfolio, dossiers=None)
+        raw_selection, scenarios=portfolio, dossiers=None,
+        known_evidence_ids=known_evidence_ids,
+        required_counterevidence_ids=required_counterevidence_ids)
     if selection is None:
         raise ValueError("scenario selection is required")
     selected = next(item for item in portfolio

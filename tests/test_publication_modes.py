@@ -501,6 +501,50 @@ def test_unknown_citations_and_tampering_fail_loudly():
     assert not verify_publication(damaged)
 
 
+def test_prior_assisted_selection_must_receive_and_cite_counter_hypothesis():
+    dossier = _dossier()
+    dossier["hypotheses"] = [{
+        "hypothesis_id": "hyp-counter-1", "kind": "unsupported",
+        "claim_ids": ["claim-1"], "direction": "unknown",
+        "rationale": "The analogue is from a different season and location.",
+        "validation": {"grounded": True, "known_at_cutoff": True,
+                       "series_resolved": True},
+    }]
+    body = {key: value for key, value in dossier.items()
+            if key != "seal_sha256"}
+    import hashlib, json
+    dossier["seal_sha256"] = hashlib.sha256(json.dumps(
+        body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    scenarios, _ = build_scenario_catalog(_result(), dossiers=[dossier])
+    contract = scenario_selection_contract(
+        scenarios=scenarios, dossiers=[dossier])
+    exported = next(item for item in contract["claims"]
+                    if item["claim_id"] == "hyp-counter-1")
+    assert exported["relation"] == "counterevidence"
+    assert "different season" in exported["mechanism"]
+
+    selection = {
+        "selected_scenario_id": "prior-assisted-1",
+        "ranking": ["prior-assisted-1", "primary"],
+        "cited_claim_ids": ["claim-1"],
+        "counterevidence_claim_ids": [],
+        "confidence": .5, "rationale": "the analogue may help",
+        "what_would_change_selection": "matched local evidence",
+    }
+    with pytest.raises(ValueError, match="must cite compiled counterevidence"):
+        publish_result(_result(), mode="best_effort", dossiers=[dossier],
+                       scenario_selection=selection)
+    selection["counterevidence_claim_ids"] = ["hyp-counter-1"]
+    payload = publish_result(_result(), mode="best_effort", dossiers=[dossier],
+                             scenario_selection=selection)
+    assert payload["recommended_scenario_id"] == "prior-assisted-1"
+    assert payload["scenario_selection"]["counterevidence_claim_ids"] == [
+        "hyp-counter-1"]
+    sealed = publish_result(_result(), mode="best_effort", dossiers=[dossier])
+    reranked = select_publication(sealed, selection)
+    assert reranked["recommended_scenario_id"] == "prior-assisted-1"
+
+
 def test_invalid_context_is_typed_rejection_not_silent_drop():
     broken = _dossier()
     broken["compiler_model"] = "tampered"

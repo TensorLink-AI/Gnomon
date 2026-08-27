@@ -6,6 +6,10 @@
   context contract as superseded provenance rather than rejected context, so
   a fully resolved instruction is not mislabeled as partially used; pin CiK's
   legacy Lightning environment to a compatible Setuptools release.
+- Expose validated dossier hypotheses to the governed scenario selector as
+  citable evidence, and require prior-assisted recommendations to acknowledge
+  compiled unsupported-context counterevidence instead of ranking from the
+  attractive claim alone.
 
 - Governed transformation units now treat universal normalized quantities
   (`fraction`, `proportion`, `probability`, `ratio`, `share`, and `unitless`)
