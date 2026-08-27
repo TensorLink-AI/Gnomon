@@ -2190,10 +2190,15 @@ def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
     assert "mapping failed" not in compact_prompt
 
 
-@pytest.mark.parametrize("hypothesis_kind", ["historical_analogue", "bound"])
+@pytest.mark.parametrize(
+    ("hypothesis_kind", "horizon", "expected_paths"), [
+        ("historical_analogue", 4, 5),
+        ("bound", 4, 5),
+        ("historical_analogue", 97, 3),
+    ])
 def test_typed_interpretation_without_executable_gets_sealed_sampled_prior(
-        tmp_path, hypothesis_kind):
-    task = _task()
+        tmp_path, hypothesis_kind, horizon, expected_paths):
+    task = _task(horizon=horizon)
     span = (
         "A comparable waterfront district recorded between 9 and 25 annual "
         "rescues; the target district is also waterfront.")
@@ -2235,7 +2240,8 @@ def test_typed_interpretation_without_executable_gets_sealed_sampled_prior(
 
     receipt = json.loads(Path(extra["context_compilation"][
         "receipt_path"]).read_text())
-    assert receipt["compiler"]["model_candidate_sampling"]["accepted"] == 5
+    assert receipt["compiler"]["model_candidate_sampling"]["accepted"] == \
+        expected_paths
     assert receipt["compiler"]["model_candidate_status"] == "accepted"
     assert [(item.get("candidate_critique") or {}).get("candidate_origin")
             for item in receipt["dossiers"]] == [None, "model_authored"]
@@ -2244,15 +2250,19 @@ def test_typed_interpretation_without_executable_gets_sealed_sampled_prior(
     assert publication["recommended_support"] == "prior_assisted"
     assert publication["primary_forecast_unchanged"] is True
     assert publication["automation"]["eligible"] is False
-    assert extra["governed_distribution"]["sample_count"] == 5
+    assert extra["governed_distribution"]["sample_count"] == expected_paths
+    # One semantic compiler call plus the independently sampled paths.
+    assert client.completion_ns == [1] * (expected_paths + 1)
     if hasattr(samples, "shape"):
         resolved = samples[:, :, 0].tolist()
     else:
         resolved = [[row[0] for row in path] for path in samples]
     assert len(resolved) == 3
-    assert all(len(path) == 4 for path in resolved)
-    assert all(path in [[float(124 + draw + index) for index in range(4)]
-                        for draw in range(5)] for path in resolved)
+    assert all(len(path) == horizon for path in resolved)
+    assert all(path in [[float(124 + draw + index)
+                         for index in range(horizon)]
+                        for draw in range(expected_paths)]
+               for path in resolved)
 
 
 def test_dated_qualitative_event_gets_sealed_best_effort_prior(tmp_path):
