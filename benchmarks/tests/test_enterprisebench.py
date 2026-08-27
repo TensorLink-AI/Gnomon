@@ -37,7 +37,16 @@ from benchmarks.enterprisebench.harness import (  # noqa: E402
     verify_arm_symmetry,
     verify_mase_affine_invariance,
 )
-from benchmarks.enterprisebench.run_enterprisebench import rollup  # noqa: E402
+from benchmarks.enterprisebench.harness import (  # noqa: E402
+    _paired_bootstrap_ci,
+    paired_cost_comparison,
+    trap_hidden_reversal,
+)
+from benchmarks.enterprisebench import run_enterprisebench  # noqa: E402
+from benchmarks.enterprisebench.run_enterprisebench import (  # noqa: E402
+    rollup,
+    run,
+)
 
 PACKS = registry()
 
@@ -742,6 +751,109 @@ def test_compiled_extraction_is_scored_against_exact_expectations(
     assert gap is not None and "gap_mean_cost" in gap
     model_own = summary["metrics"]["model_facts_compiled"]["model_own"]
     assert model_own["decision_invalid_rate"] == 0.0
+
+
+# ---------------------------------------------------------------------------
+# Statistics: intervals, the computed useful verdict, leakage signature
+# ---------------------------------------------------------------------------
+
+def test_paired_bootstrap_ci_is_deterministic_and_brackets_the_mean():
+    deltas = [-2.0, -1.0, 0.0, 0.5, -3.0, 1.0, -0.5, -1.5]
+    first = _paired_bootstrap_ci(deltas)
+    again = _paired_bootstrap_ci(deltas)
+    assert first == again
+    mean = sum(deltas) / len(deltas)
+    assert first["low_95"] <= mean <= first["high_95"]
+    assert first["method"] == "seeded_paired_percentile_bootstrap"
+    assert _paired_bootstrap_ci([]) is None
+    comparison = paired_cost_comparison(
+        [{"case_id": "a", "cost": 1.0}, {"case_id": "b", "cost": 4.0}],
+        [{"case_id": "a", "cost": 2.0}, {"case_id": "b", "cost": 4.0}])
+    assert comparison["ties"] == 1
+    assert comparison["mean_cost_delta"] == -0.5
+    assert comparison["mean_cost_delta_ci"] is not None
+
+
+def test_useful_verdict_is_computed_and_statistics_disclosed(tmp_path):
+    pack = PACKS["cloudcost"]
+    summary = run_domain(pack, _args(tmp_path), ScriptedClient(pack))
+    useful = summary["verdicts"]["useful"]
+    assert isinstance(useful["all_three_cheaper"], bool)
+    assert set(useful["components"]) == {
+        "vs_model_alone", "vs_engine_alone", "vs_best_constant_policy"}
+    for component in useful["components"].values():
+        assert isinstance(component["treatment_cheaper_on_average"], bool)
+        assert "exact_sign_p" in component
+    stats = summary["statistics"]
+    assert stats["primary_endpoint"] == "per_case_decision_cost"
+    assert "no family-wise correction" in stats["multiple_comparisons"]
+    assert "forecast_quality" in summary["references"]["engine"]
+
+
+def test_hidden_reversals_are_flagged_and_split_in_trap_integrity(
+        tmp_path):
+    """The measured leakage signature: some cloudcost traps carry a
+    post-cutoff correction reverting toward the stale figure; energy's
+    post-cutoff vintage agrees with the revision and must NOT flag."""
+    cloud_cases, _ = PACKS["cloudcost"].simulate(11, 20)
+    flagged = [case for case in cloud_cases
+               if trap_hidden_reversal(case)]
+    assert flagged, "cloudcost must produce hidden-reversal traps"
+    for case in flagged:
+        assert case.trap
+    energy_cases, _ = PACKS["energy"].simulate(11, 8)
+    for case in energy_cases:
+        hidden = [item for item in
+                  hidden_versions(case.items, case.cutoff)
+                  if item.kind == "temp_forecast"]
+        if hidden and case.trap:
+            assert trap_hidden_reversal(case) is False
+    summary = run_domain(PACKS["cloudcost"], _args(tmp_path),
+                         ScriptedClient(PACKS["cloudcost"]))
+    entry = summary["verdicts"]["trap_integrity"]["engine"]
+    assert {"hidden_reversal_cases", "trap_accuracy_hidden_reversal",
+            "trap_accuracy_no_hidden_reversal"} <= set(entry)
+
+
+def test_runner_survives_a_failed_domain_and_reports_usage_deltas(
+        tmp_path, monkeypatch):
+    from dataclasses import replace
+
+    good = PACKS["cloudcost"]
+
+    def explode(seed, count):
+        raise RuntimeError("simulator fell over")
+
+    bad = replace(good, name="boom", simulate=explode)
+    monkeypatch.setattr(run_enterprisebench, "registry",
+                        lambda: {"cloudcost": good, "boom": bad})
+
+    class CountingClient(ScriptedClient):
+        def __init__(self, pack):
+            super().__init__(pack)
+            self.usage_summary = {"requests": 0, "cost_usd": 0.0}
+
+        def completions(self, messages, *, n=1):
+            self.usage_summary["requests"] += 1
+            self.usage_summary["cost_usd"] = round(
+                self.usage_summary["cost_usd"] + 0.001, 6)
+            return super().completions(messages, n=n)
+
+    args = SimpleNamespace(
+        domain="all", model="scripted-test-model", seed=11, cases=6,
+        concurrency=2, resume=False,
+        output_dir=str(tmp_path / "suite"))
+    with pytest.raises(RuntimeError, match="boom"):
+        run(args, client=CountingClient(good))
+    combined = json.loads(
+        (tmp_path / "suite" / "summary.json").read_text())
+    assert "cloudcost" in combined["domains"]
+    assert combined["failed_domains"][0]["domain"] == "boom"
+    assert combined["usage_totals"]["requests"] == 6 * len(MODEL_ARMS)
+    per_domain = json.loads(
+        (tmp_path / "suite" / "cloudcost" / "summary.json").read_text())
+    assert per_domain["usage"]["this_domain"]["requests"] == \
+        6 * len(MODEL_ARMS)
 
 
 def test_rollup_refuses_a_single_aggregate_number(tmp_path):

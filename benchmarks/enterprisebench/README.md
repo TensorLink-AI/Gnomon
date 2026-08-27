@@ -98,6 +98,31 @@ rejection, and the compiled-vs-oracle gap are published together. The
 cross-domain rollup is a per-domain verdict table that **refuses to
 publish a single aggregate number** — the units differ.
 
+## Limitations and scale (read before citing)
+
+- **Synthetic, mechanistic corpora.** Ground truth is exact because the
+  simulator is the world — that is the point, and it is also the limit:
+  results claim structural realism (parameter ranges justified per
+  pack), never calibration to a specific client's data. BreachBench
+  covers real public series for the breach job.
+- **One cutoff per simulated series.** Futures cannot overlap by
+  construction; the residual caveat (labels co-moving through shared
+  parameter ranges) is stated in provenance rather than an independence
+  claim.
+- **Engine context mappings are documented approximations** (threshold
+  adjustments, trailing-share splits, interpolated critical-fractile
+  quantiles). Their cost is measured by the arms, not hidden in them.
+- **Sign tests are tie-heavy in binary domains** — most pairs cost the
+  same. Ties are dropped and disclosed; every comparison also carries a
+  seeded paired-bootstrap 95% interval on the mean cost delta. P-values
+  are per-comparison with no family-wise correction, and the `useful`
+  verdict is a conjunction of point estimates, disclosed as such.
+- **Budget shape.** Four model calls per case (`model`, oracle,
+  compiled, candidate); the engine and every reference are free. At
+  `--cases 120` that is 480 calls per domain, 2,880 for the suite, all
+  resumable; generation is fully deterministic so datasets regenerate
+  identically from the seed and config hash.
+
 ## Discipline
 
 - Corpora are spent the moment the product iterates against them. Seeds

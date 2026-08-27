@@ -20,10 +20,12 @@ amount imply opposite optimal decisions, verified by construction
 against the counterfactual future simulated with the stale amount.
 
 A separate, disclosed share of non-trap cases carries a post-cutoff
-correction that does drive the realized future: irreducible uncertainty
-nobody at the cutoff could know. The leakage lint proves its value is
-absent from every prompt; an arm beating the as-of information bound on
-those cases would be exhibiting leakage.
+correction to the invoice record. It never changes the realized path —
+the payment cleared as originally booked; the correction is bookkeeping
+noise — so its only role is as a leakage target: its value and its text
+reference must be absent from every prompt (the lint proves it), and an
+arm whose behavior tracks it is following information nobody at the
+cutoff had.
 
 Engine mapping (documented approximation): Gnomon forecasts the shown
 balance series; a below-floor breach is a threshold breach on the

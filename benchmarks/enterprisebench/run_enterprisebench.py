@@ -33,8 +33,15 @@ import benchmarks.enterprisebench.domains  # noqa: E402,F401  (registers packs)
 from benchmarks.enterprisebench.harness import registry, run_domain  # noqa: E402
 
 
-def rollup(domain_summaries: dict[str, dict[str, Any]],
-           output: Path) -> dict[str, Any]:
+def _usage_snapshot(client: Any) -> dict[str, float]:
+    return {key: value
+            for key, value in (getattr(client, "usage_summary", None)
+                               or {}).items()
+            if isinstance(value, (int, float))}
+
+
+def rollup(domain_summaries: dict[str, dict[str, Any]], output: Path,
+           failed: list[dict[str, str]] | None = None) -> dict[str, Any]:
     usage_totals: dict[str, float] = {}
     table = {}
     for name, summary in sorted(domain_summaries.items()):
@@ -43,12 +50,19 @@ def rollup(domain_summaries: dict[str, dict[str, Any]],
             "cost_units": summary["cost_model"]["units"],
             "dataset_identity": summary["provenance"]["dataset_identity"],
         }
-        for key, value in (summary.get("usage") or {}).items():
+        usage = summary.get("usage") or {}
+        # A client shared across domains reports cumulative totals; the
+        # runner stores the per-domain delta under this_domain so the
+        # rollup sums real spend instead of overlapping snapshots.
+        counted = usage.get("this_domain", usage)
+        for key, value in counted.items():
             if isinstance(value, (int, float)):
-                usage_totals[key] = usage_totals.get(key, 0) + value
+                usage_totals[key] = round(
+                    usage_totals.get(key, 0) + value, 6)
     combined = {
         "suite": "enterprisebench",
         "domains": table,
+        "failed_domains": failed or [],
         "aggregation": {
             "no_single_aggregate_number": True,
             "reason": ("domains price decisions in different units; "
@@ -82,16 +96,44 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
             reasoning_effort=args.reasoning_effort)
     output = Path(args.output_dir)
     summaries: dict[str, dict[str, Any]] = {}
+    failed: list[dict[str, str]] = []
     for name in wanted:
         domain_args = SimpleNamespace(
             seed=args.seed, cases=args.cases, model=args.model,
             output_dir=str(output / name), resume=args.resume,
             concurrency=args.concurrency)
-        summaries[name] = run_domain(packs[name], domain_args, client)
+        before = _usage_snapshot(client)
+        try:
+            summary = run_domain(packs[name], domain_args, client)
+        except Exception as error:
+            # One failed domain must not discard the others: its rows
+            # are already on disk for --resume, the remaining domains
+            # still run, and the run fails loudly at the end.
+            failed.append({"domain": name, "error": repr(error)[:300]})
+            print(f"[{name}] FAILED: {error}", flush=True)
+            continue
+        after = _usage_snapshot(client)
+        if after:
+            summary["usage"] = {
+                "this_domain": {key: round(value - before.get(key, 0), 6)
+                                for key, value in after.items()},
+                "cumulative_at_completion": after,
+            }
+            (output / name / "summary.json").write_text(
+                json.dumps(summary, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8")
+        summaries[name] = summary
         print(f"[{name}] summary -> {output / name / 'summary.json'}",
               flush=True)
-    combined = rollup(summaries, output)
+    combined = rollup(summaries, output, failed)
     print(json.dumps(combined["aggregation"], indent=2))
+    if failed:
+        raise RuntimeError(
+            f"{len(failed)}/{len(wanted)} domain(s) failed "
+            f"({', '.join(entry['domain'] for entry in failed)}); "
+            f"completed domains are rolled up in {output / 'summary.json'}"
+            " — rerun with --resume to finish. First failure: "
+            f"{failed[0]}")
     return combined
 
 

@@ -228,10 +228,20 @@ def simulate(seed: int, count: int) -> tuple[list[Case], dict[str, Any]]:
                        if item.kind == "commit_change"]
             target = changes[-1] if changes else None
             if target is not None:
+                by_id = {item.item_id: item for item in items}
+                stale = by_id.get(target.revises or "")
+                if stale is not None:
+                    # On trap chains the late correction reverts toward
+                    # the superseded figure — a hidden reversal, the
+                    # marker the trap-integrity split measures leakage
+                    # against.
+                    post_value = stale.value + rng.uniform(0.1, 0.4) \
+                        * (target.value - stale.value)
+                else:
+                    post_value = target.value * rng.uniform(0.4, 0.9)
                 items.append(ContextItem(
                     target.item_id + "-post", "commit_change",
-                    target.value * rng.uniform(0.4, 0.9),
-                    HISTORY + rng.randrange(1, HORIZON),
+                    post_value, HISTORY + rng.randrange(1, HORIZON),
                     target.effective_from, length - 1,
                     revises=target.item_id))
 

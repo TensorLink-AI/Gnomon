@@ -53,6 +53,7 @@ import hashlib
 import json
 import math
 from pathlib import Path
+import random
 import statistics
 import subprocess
 import sys
@@ -1050,6 +1051,39 @@ def candidate_admission(case: Case, pack: DomainPack,
 # Scoring
 # ---------------------------------------------------------------------------
 
+def trap_hidden_reversal(case: Case) -> bool:
+    """True when a trap case carries a post-cutoff revision of the trap
+    chain whose value sits closer to the superseded (stale) version than
+    to the as-of-correct one — a hidden reversal. No legal arm can see
+    it, so an arm whose trap accuracy drops specifically on this subset
+    is exhibiting the signature of an information-boundary violation:
+    leakage becomes a measured quantity, not just a lint."""
+    if not case.trap:
+        return False
+    by_id = {item.item_id: item for item in case.items}
+    trap_heads = [item for item in case.items
+                  if item.trap and item.known_at <= case.cutoff]
+    for hidden in hidden_versions(case.items, case.cutoff):
+        if hidden.revises is None:
+            continue
+        for head in trap_heads:
+            if hidden.revises != head.item_id or head.revises is None:
+                continue
+            stale = by_id.get(head.revises)
+            if stale is None:
+                continue
+            value_to_stale = abs(hidden.value - stale.value)
+            value_to_head = abs(hidden.value - head.value)
+            if value_to_stale < value_to_head:
+                return True
+            if value_to_stale == value_to_head and \
+                    abs(hidden.effective_from - stale.effective_from) \
+                    < abs(hidden.effective_from - head.effective_from):
+                # Schedule traps revise the window, not the figure.
+                return True
+    return False
+
+
 def trap_agreement(decision: dict[str, Any], case: Case,
                    pack: DomainPack) -> bool | None:
     """Did the arm act on the as-of-correct (revised) fact rather than
@@ -1075,12 +1109,16 @@ def score_decision_row(decision: dict[str, Any], valid: bool, case: Case,
         "action_optimal": outcome["regret"] == 0.0,
         "trap": case.trap,
         "trap_correct": trap_agreement(decision, case, pack),
+        "trap_hidden_reversal": trap_hidden_reversal(case),
+        "truth_event": bool(case.meta.get("truth_event")),
     }
     truth_step = case.meta.get("truth_first_step")
     answered_step = decision.get("first_event_step")
     row["timing_error"] = (abs(answered_step - truth_step)
                            if truth_step is not None
                            and answered_step is not None else None)
+    row["timing_answerable"] = ("first_event_step" in decision
+                                and truth_step is not None)
     if pack.extra_metrics is not None:
         row["extras"] = pack.extra_metrics(decision, case)
     return row
@@ -1109,9 +1147,15 @@ def _arm_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
             row["trap_correct"] for row in trap_rows)
             if trap_rows else None),
         # Timing is over each arm's self-selected answered subset; the
-        # answer rate is reported next to the error for that reason.
+        # answer rate (over valid answers to cases where a first-step
+        # answer was possible) is reported next to the error because an
+        # arm can dodge the MAE by never naming a step.
         "timing_mae": statistics.mean(timing) if timing else None,
-        "timing_answer_rate": (len(timing) / len(valid)) if valid else None,
+        "timing_answer_rate": (
+            len(timing) / len([row for row in valid
+                               if row.get("timing_answerable")])
+            if any(row.get("timing_answerable") for row in valid)
+            else None),
     }
     extra_keys = sorted({key for row in rows
                          for key in (row.get("extras") or {})})
@@ -1132,31 +1176,55 @@ def exact_sign_p(left_only: int, right_only: int) -> float:
     return min(1.0, 2.0 * tail / (2 ** n))
 
 
+def _paired_bootstrap_ci(deltas: list[float],
+                         replicates: int = 2000) -> dict[str, Any] | None:
+    """Seeded percentile bootstrap of the mean per-case cost delta — the
+    effect size interval the sign test alone does not provide. Seeded
+    from the deltas themselves, so identical rows always reproduce the
+    identical interval (no wall clock, no global random state)."""
+    if not deltas:
+        return None
+    seed = hashlib.sha256(json.dumps(
+        [round(value, 9) for value in deltas]).encode()).hexdigest()[:16]
+    rng = random.Random(f"eb-paired-bootstrap:{seed}")
+    n = len(deltas)
+    means = sorted(
+        sum(deltas[rng.randrange(n)] for _ in range(n)) / n
+        for _ in range(replicates))
+    return {
+        "low_95": round(means[int(0.025 * replicates)], 6),
+        "high_95": round(means[int(0.975 * replicates) - 1], 6),
+        "replicates": replicates,
+        "method": "seeded_paired_percentile_bootstrap",
+    }
+
+
 def paired_cost_comparison(treatment: list[dict[str, Any]],
                            reference: list[dict[str, Any]],
                            ) -> dict[str, Any]:
-    """Exact sign test on per-case decision cost, pair counts disclosed."""
+    """Exact sign test on per-case decision cost (ties dropped, pair
+    counts disclosed) plus a seeded bootstrap interval on the mean
+    delta. Negative delta means the treatment is cheaper."""
     by_case = {row["case_id"]: row for row in reference}
-    treatment_cheaper = reference_cheaper = pairs = 0
+    treatment_cheaper = reference_cheaper = 0
+    deltas: list[float] = []
     for row in treatment:
         other = by_case.get(row["case_id"])
         if other is None:
             continue
-        pairs += 1
+        deltas.append(row["cost"] - other["cost"])
         if row["cost"] < other["cost"]:
             treatment_cheaper += 1
         elif other["cost"] < row["cost"]:
             reference_cheaper += 1
     return {
-        "paired_cases": pairs,
+        "paired_cases": len(deltas),
         "treatment_cheaper": treatment_cheaper,
         "reference_cheaper": reference_cheaper,
+        "ties": len(deltas) - treatment_cheaper - reference_cheaper,
         "exact_sign_p": exact_sign_p(treatment_cheaper, reference_cheaper),
-        "mean_cost_delta": (
-            statistics.mean(row["cost"] - by_case[row["case_id"]]["cost"]
-                            for row in treatment
-                            if row["case_id"] in by_case)
-            if pairs else None),
+        "mean_cost_delta": (statistics.mean(deltas) if deltas else None),
+        "mean_cost_delta_ci": _paired_bootstrap_ci(deltas),
     }
 
 
@@ -1337,7 +1405,7 @@ def run_domain(pack: DomainPack, args: Any, client: Any) -> dict[str, Any]:
     references["engine"]["withholding_rate"] = statistics.mean(
         bool(row["decision"].get("withheld")) for row in engine_rows)
     references["engine"]["forecast_quality"] = _engine_forecast_quality(
-        cases, packets)
+        cases, packets, pack.season_length)
 
     identity = dataset_identity(pack, args.seed, args.cases)
     model_name = getattr(args, "model", None)
@@ -1458,7 +1526,7 @@ def _reference_rows(cases: list[Case], pack: DomainPack,
 
 def _engine_forecast_quality(cases: list[Case],
                              packets: dict[str, dict[str, Any]],
-                             ) -> dict[str, Any]:
+                             season: int) -> dict[str, Any]:
     mases, pinballs = [], {"q10": [], "q50": [], "q90": []}
     for case in cases:
         packet = packets[case.case_id]
@@ -1467,7 +1535,7 @@ def _engine_forecast_quality(cases: list[Case],
             continue
         actual = list(case.future)
         score = mase([row["q50"] for row in rows], actual,
-                     list(case.values), 7)
+                     list(case.values), season)
         if score is not None:
             mases.append(score)
         for quantile, tau in (("q10", .1), ("q50", .5), ("q90", .9)):
@@ -1556,7 +1624,7 @@ def _domain_summary(pack: DomainPack, args: Any, cases: list[Case],
                 "mean_over_promise"),
             **paired_cost_comparison(candidate_rows, engine_rows),
         },
-        "trap_integrity": _trap_integrity(arm_rows, references),
+        "trap_integrity": _trap_integrity(arm_rows, engine_rows),
         "reading": {
             "compiled_vs_oracle_gap": (
                 "the cost of imperfect extraction: the governed decision "
@@ -1585,11 +1653,13 @@ def _domain_summary(pack: DomainPack, args: Any, cases: list[Case],
                 "materially worse out-of-sample than their backtest)"),
             "trap_integrity": (
                 "trap accuracy is the measured information boundary: an "
-                "arm resolving revisions as of the cutoff scores high; "
-                "suspiciously high accuracy on the hidden-reversal "
-                "subset would indicate leakage of post-cutoff versions"),
+                "arm resolving revisions as of the cutoff scores high, "
+                "and a drop concentrated on the hidden-reversal subset "
+                "(which no legal arm can see) is the signature of "
+                "post-cutoff leakage"),
         },
     }
+    verdicts["useful"] = _useful_verdict(verdicts)
     return {
         "schema_version": GENERATOR_VERSION,
         "domain": pack.name,
@@ -1598,6 +1668,21 @@ def _domain_summary(pack: DomainPack, args: Any, cases: list[Case],
         "cost_model": {"names": pack.cost_model.names,
                        "break_even": pack.cost_model.break_even,
                        "units": pack.config.get("units", "domain_units")},
+        "statistics": {
+            "primary_endpoint": "per_case_decision_cost",
+            "paired_test": ("exact two-sided sign test; ties dropped "
+                            "and disclosed next to the pair counts"),
+            "effect_interval": ("seeded paired percentile bootstrap, "
+                                "95%, on the mean per-case cost delta"),
+            "multiple_comparisons": (
+                "p-values are per-comparison; no family-wise "
+                "correction is applied. The useful verdict is a "
+                "conjunction of three point estimates, not a pooled "
+                "test — read it with the per-comparison intervals."),
+            "caveat": ("cases are independent simulated series, but "
+                       "labels can co-move through shared parameter "
+                       "ranges; see provenance.independence"),
+        },
         "provenance": {
             "evaluated_commit": _git_sha(),
             "harness_sha256": hashlib.sha256(
@@ -1616,12 +1701,46 @@ def _domain_summary(pack: DomainPack, args: Any, cases: list[Case],
             "as_of_resolution": "harness_owned_single_resolver",
             "engine_packet_is_production_output": True,
             "costs_stated_in_prompt": True,
+            "extraction_ground_truth": (
+                "the number the rendered text actually shows (vague "
+                "renderings round to two significant figures, so their "
+                "shown number is the target); decision truth always "
+                "uses the precise structured value"),
             "independence": (
                 "each case simulates an independent series (per-series "
                 "case counts in provenance); labels can still co-move "
                 "through shared regime parameters within a domain — a "
                 "caveat, not an independence claim"),
         },
+    }
+
+
+def _useful_verdict(verdicts: dict[str, Any]) -> dict[str, Any]:
+    """The suite's headline question, computed rather than narrated:
+    is the treatment arm cheaper than the model alone AND the engine
+    alone AND the best constant policy? Point-estimate conjunction, with
+    each component's sign test and bootstrap interval carried along so
+    a reader can judge the evidence, not just the direction."""
+    components = {}
+    for key in ("vs_model_alone", "vs_engine_alone",
+                "vs_best_constant_policy"):
+        comparison = verdicts[key]
+        delta = comparison.get("mean_cost_delta")
+        components[key] = {
+            "mean_cost_delta": delta,
+            "treatment_cheaper_on_average": (delta is not None
+                                             and delta < 0),
+            "exact_sign_p": comparison.get("exact_sign_p"),
+            "mean_cost_delta_ci": comparison.get("mean_cost_delta_ci"),
+        }
+    return {
+        "all_three_cheaper": all(
+            entry["treatment_cheaper_on_average"]
+            for entry in components.values()),
+        "components": components,
+        "note": ("a conjunction of paired point estimates in this "
+                 "domain's own units; diagnostic until run on a frozen "
+                 "validation seed"),
     }
 
 
@@ -1708,22 +1827,37 @@ def _text_pipeline_integrity(metrics: dict[str, Any],
     }
 
 
-def _trap_integrity(arm_rows: dict[str, list[dict[str, Any]]],
-                    references: dict[str, Any]) -> dict[str, Any]:
-    per_arm = {}
-    for arm, rows in arm_rows.items():
-        trap_rows = [row for row in rows
-                     if row.get("trap_correct") is not None]
-        if not trap_rows:
-            per_arm[arm] = None
-            continue
-        per_arm[arm] = {
-            "trap_cases": len(trap_rows),
-            "trap_accuracy": statistics.mean(
-                row["trap_correct"] for row in trap_rows),
-        }
-    per_arm["engine"] = {
-        "trap_cases": references["engine"].get("trap_cases"),
-        "trap_accuracy": references["engine"].get("trap_accuracy"),
+def _trap_split(rows: list[dict[str, Any]]) -> dict[str, Any] | None:
+    trap_rows = [row for row in rows
+                 if row.get("trap_correct") is not None]
+    if not trap_rows:
+        return None
+    with_hidden = [row for row in trap_rows
+                   if row.get("trap_hidden_reversal")]
+    without = [row for row in trap_rows
+               if not row.get("trap_hidden_reversal")]
+    entry: dict[str, Any] = {
+        "trap_cases": len(trap_rows),
+        "trap_accuracy": statistics.mean(
+            row["trap_correct"] for row in trap_rows),
+        # The measured leakage signature: no legal arm can see the
+        # hidden reversal, so its accuracy on this subset should match
+        # the rest. A drop concentrated here means the arm is following
+        # post-cutoff versions.
+        "hidden_reversal_cases": len(with_hidden),
+        "trap_accuracy_hidden_reversal": (
+            statistics.mean(row["trap_correct"] for row in with_hidden)
+            if with_hidden else None),
+        "trap_accuracy_no_hidden_reversal": (
+            statistics.mean(row["trap_correct"] for row in without)
+            if without else None),
     }
+    return entry
+
+
+def _trap_integrity(arm_rows: dict[str, list[dict[str, Any]]],
+                    engine_rows: list[dict[str, Any]]) -> dict[str, Any]:
+    per_arm: dict[str, Any] = {
+        arm: _trap_split(rows) for arm, rows in arm_rows.items()}
+    per_arm["engine"] = _trap_split(engine_rows)
     return per_arm
