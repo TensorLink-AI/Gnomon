@@ -1394,8 +1394,8 @@ def best_effort_prior_selection(
 
     This is a publication policy, not an evidence upgrade. It applies only
     when no historically/evidence-dominant path exists and exactly one
-    human-eligible model candidate carries host-observed consensus from at
-    least three independently elicited paths. Strict and scenario publication
+    human-eligible model candidate carries a host-aggregated distribution from
+    at least three independently elicited paths. Strict and scenario publication
     remain unchanged, and automation remains categorically unavailable.
     """
     if dominant_scenario_id(scenarios) is not None:
@@ -1795,7 +1795,7 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
             prior_assisted_default or not selected.get("automation_eligible")),
         "reason": (
             "The caller explicitly requested best_effort publication. One "
-            "host-sampled prior consensus became the human-facing estimate "
+            "host-aggregated prior distribution became the human-facing estimate "
             "under that policy; sampling stability is not historical skill, "
             "the immutable primary remains visible, and automation is forbidden."
             if policy_selected else

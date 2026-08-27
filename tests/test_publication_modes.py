@@ -870,6 +870,9 @@ def test_sampled_outliers_remain_diagnostics_not_published_tail_width():
     assert best["primary_forecast_unchanged"] is True
     assert best["recommendation_authority"]["selection_method"] == (
         "best_effort_sampled_prior_policy")
+    assert "host-aggregated prior distribution" in best[
+        "recommendation_authority"]["reason"]
+    assert "consensus" not in best["recommendation_authority"]["reason"]
     assert best["recommendation_authority"][
         "independent_selection_performed"] is False
     assert strict["recommended_scenario_id"] == "primary"
