@@ -43,6 +43,10 @@
   the same source paragraph instead of trusting a model-authored step index.
   Optional effect bounds emitted as JSON `null` now mean an unbounded point
   proposal rather than forcing a repair; primary forecast uncertainty remains.
+- Let a unique, verified multiple or percentage of a stated baseline repair an
+  invalid model-authored effect distribution before validation. The cited
+  number supplies the conditional point effect; invented or reversed bounds
+  cannot veto it, and the resulting path remains non-automatable.
 
 - Add an explicit CiK `immutable_primary` diagnostic role. The previous
   `canonical` label referred to the public artifact trajectory, which may be

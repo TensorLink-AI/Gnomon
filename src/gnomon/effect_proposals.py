@@ -73,6 +73,8 @@ def _validate_one(raw: Any, *, claim_ids: set[str],
     if not cited or set(cited) - claim_ids:
         errors.append(_error("UNVERIFIED_EFFECT_CLAIMS",
                              "cite at least one verified claim_id and no unknown ids"))
+    cited_text = " ".join(claim_spans.get(claim_id, "")
+                          for claim_id in cited)
     def numeric(value: Any) -> float:
         try:
             return float(value)
@@ -88,6 +90,24 @@ def _validate_one(raw: Any, *, claim_ids: set[str],
     upper_raw = raw.get("upper")
     lower = location if lower_raw is None else numeric(lower_raw)
     upper = location if upper_raw is None else numeric(upper_raw)
+    source_scale_replaced_distribution = False
+    if unit == "fraction_of_level" and shape != "variance_change" and cited:
+        from .future_context import parse_override_scale
+        source_scales = []
+        for claim_id in cited:
+            scale, problem = parse_override_scale(
+                claim_spans.get(claim_id, ""))
+            if problem is None and scale is not None:
+                source_scales.append(float(scale))
+        distinct_scales = {round(value, 12) for value in source_scales}
+        distribution_invalid = (
+            not all(math.isfinite(value) for value in
+                    (location, lower, upper))
+            or not lower <= location <= upper)
+        if len(distinct_scales) == 1 and distribution_invalid:
+            entailed = source_scales[0] - 1.0
+            source_scale_replaced_distribution = True
+            location = lower = upper = entailed
     confidence_normalization = None
     try:
         from .context import normalize_context_confidence
@@ -139,8 +159,14 @@ def _validate_one(raw: Any, *, claim_ids: set[str],
     if errors:
         return None, errors
     semantic_normalizations: list[dict[str, Any]] = []
-    cited_text = " ".join(claim_spans.get(claim_id, "")
-                          for claim_id in cited)
+    if source_scale_replaced_distribution:
+        semantic_normalizations.append({
+            "code": "SOURCE_SCALE_REPLACED_MODEL_DISTRIBUTION",
+            "applied_value": location,
+            "basis": (
+                "one verified citation states the operative baseline scale; "
+                "model-authored bounds have no numeric authority"),
+        })
     if unit == "fraction_of_level" and shape != "variance_change":
         # Relative effects are additive fractions in Gnomon's composition
         # contract: +3.0 means a final level of 4x.  Models commonly copy the

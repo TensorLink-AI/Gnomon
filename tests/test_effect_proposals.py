@@ -754,6 +754,23 @@ def test_null_optional_bounds_mean_a_point_effect():
     assert proposal["lower"] == proposal["location"] == proposal["upper"] == 3
 
 
+def test_cited_percentage_repairs_invalid_model_distribution():
+    proposal, critique = validate_effect_proposal({
+        "shape": "temporary_pulse", "unit": "fraction_of_level",
+        "location": -.6, "lower": -.4, "upper": -.8, "confidence": .8,
+        "delay_steps": 0, "duration_steps": 2,
+        "scope": {"kind": "single_series", "series": ["*"]},
+        "claim_ids": ["claim-1"],
+    }, claim_ids={"claim-1"}, claim_spans={
+        "claim-1": "Traffic will be 40% of the usual level for two hours."})
+
+    assert critique["status"] == "accepted"
+    assert proposal["lower"] == proposal["location"] == proposal["upper"] == -.6
+    codes = {item["code"] for item in proposal["semantic_normalizations"]}
+    assert "SOURCE_SCALE_REPLACED_MODEL_DISTRIBUTION" in codes
+    assert "EXACT_CITED_LEVEL_MULTIPLIER" in codes
+
+
 def test_effect_onset_uses_locally_cited_date_not_model_delay():
     future = [f"2026-01-03T0{hour}:00:00+00:00" for hour in range(5)]
     timing = "The scheduled event begins on 2026-01-03 03:00:00."
