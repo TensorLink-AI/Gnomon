@@ -398,6 +398,36 @@ def test_literal_event_cannot_invent_its_effective_window():
     assert events == []
 
 
+def test_literal_event_can_own_value_while_duplicate_claim_awaits_binding():
+    span = (
+        "the meter will be offline for maintenance between 2026-01-03 "
+        "00:00:00 and 2026-01-04 00:00:00, which results in zero readings")
+    dossier = {
+        "claims": [{
+            "claim_id": "claim-1", "source_span": span,
+            "relation": "supports_decrease", "effective_start": TIMES[0],
+            "effective_end": TIMES[-1],
+            "effective_window_binding": {
+                "kind": "model_supplied_unverified",
+                "numeric_authority": False,
+            },
+        }],
+        "events": [{
+            "event_id": "event_llm_00", "event_type": "maintenance outage",
+            "entity_scope": ["*"], "effective_start": TIMES[0],
+            "effective_end": TIMES[-1], "evidence_quote": span,
+        }],
+    }
+
+    events = deterministic_events_from_claims(
+        dossier, target_name="occupancy_rate",
+        target_verified_spans={span})
+
+    assert len(events) == 1
+    assert events[0]["deterministic_value_parsed"] == 0.0
+    assert events[0]["derived_from_event_id"] == "event_llm_00"
+
+
 def test_driver_absolute_value_cannot_override_a_different_target():
     span = (
         "The speed starts at 285.3. At 05:27:09, it rapidly and smoothly "

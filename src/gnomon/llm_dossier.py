@@ -1772,7 +1772,7 @@ def deterministic_events_from_claims(
     # deliberately not semantic inference—words such as ``offline`` only
     # become zero when the quoted source itself states a zero state under the
     # conservative parser above.
-    claim_spans = {str(item.get("source_span") or "") for item in claims}
+    derived_spans = {str(item.get("source_span") or "") for item in events}
     for index, source_event in enumerate(dossier.get("events") or [], 1):
         if not isinstance(source_event, dict):
             continue
@@ -1781,7 +1781,7 @@ def deterministic_events_from_claims(
             continue
         span = str(source_event.get("evidence_quote") or
                    source_event.get("source_span") or "")
-        if not span or span in claim_spans:
+        if not span or span in derived_spans:
             continue
         start = source_event.get("effective_start")
         end = source_event.get("effective_end")
