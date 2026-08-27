@@ -28,7 +28,36 @@ MAX_SCENARIOS = 8
 SELECTION_LABEL = "hypothesis_ranking"
 
 
-def _context_summary(dispositions: list[dict[str, Any]]) -> dict[str, Any]:
+def _covariate_input_evaluation(result: dict[str, Any]) -> dict[str, Any] | None:
+    evidence = result.get("covariates")
+    if not isinstance(evidence, dict):
+        return None
+    considered = bool(evidence.get("considered"))
+    admitted = bool(evidence.get("admitted"))
+    status = ("admitted" if admitted else "evaluated_not_admitted"
+              if considered else "received_not_evaluable")
+    return {
+        "status": status,
+        "received": True,
+        "evaluated": considered,
+        "admitted": admitted,
+        "retained": list(evidence.get("retained") or []),
+        "rejected": list(evidence.get("rejected") or []),
+        "reason": (
+            "Covariate input was admitted by fold-safe evaluation."
+            if admitted else
+            "Covariate input was evaluated but did not beat the governed baseline."
+            if considered else
+            "Covariate input passed ingestion but the base evaluation could not "
+            "support an admission test."
+        ),
+    }
+
+
+def _context_summary(
+        dispositions: list[dict[str, Any]],
+        input_evaluation: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Return one authoritative publication-level context disposition.
 
     Individual parsers may reject one representation while another governed
@@ -40,7 +69,10 @@ def _context_summary(dispositions: list[dict[str, Any]]) -> dict[str, Any]:
     counts = {kind: sum(item.get("disposition") == kind
                         for item in dispositions)
               for kind in ("used", "scenario", "rejected")}
-    if not dispositions:
+    if not dispositions and input_evaluation:
+        status = str(input_evaluation["status"])
+        message = str(input_evaluation["reason"])
+    elif not dispositions:
         status = "not_supplied"
         message = "No context was supplied to the publication contract."
     elif counts["used"] and counts["rejected"]:
@@ -70,7 +102,8 @@ def _context_summary(dispositions: list[dict[str, Any]]) -> dict[str, Any]:
         "authoritative_for_publication": True,
         "counts": counts,
         "message": message,
-        "follow_up_required_for_current_recommendation": status == "rejected",
+        "follow_up_required_for_current_recommendation": status in {
+            "rejected", "received_not_evaluable"},
         "further_calls_add_nothing_for_current_recommendation": bool(
             counts["used"]),
     }
@@ -1357,6 +1390,7 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
             "Recommendation authority follows the disclosed selection method."
         ),
     }
+    input_evaluation = _covariate_input_evaluation(result)
     payload = {
         "schema_version": PUBLICATION_VERSION, "artifact_id": artifact_id,
         "mode": mode, "recommended_scenario_id": selected_id,
@@ -1371,7 +1405,9 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
         "scenarios": scenarios if mode == "scenario" else [by_id["primary"], selected]
                      if selected_id != "primary" else [by_id["primary"]],
         "context_dispositions": dispositions,
-        "context_summary": _context_summary(dispositions),
+        **({"context_input_evaluation": input_evaluation}
+           if input_evaluation else {}),
+        "context_summary": _context_summary(dispositions, input_evaluation),
         "temporal_state": build_temporal_state(result, dossiers=dossiers),
         "scenario_selection": selection,
         "recommendation_authority": recommendation_authority,
@@ -1494,7 +1530,8 @@ def select_publication(payload: dict[str, Any], raw_selection: dict[str, Any]
         "primary_forecast_unchanged": True,
         "scenario_selection": selection,
         "context_dispositions": dispositions,
-        "context_summary": _context_summary(dispositions),
+        "context_summary": _context_summary(
+            dispositions, payload.get("context_input_evaluation")),
         "scenarios": (portfolio if payload.get("mode") == "scenario" else
                       [primary, selected] if selected is not primary else [primary]),
         "recommendation_authority": {

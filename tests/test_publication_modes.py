@@ -83,6 +83,21 @@ def test_claims_only_context_is_retained_without_claiming_numeric_use():
     assert "did not alter" in disposition["reason"]
 
 
+def test_valid_covariate_input_is_distinct_from_forecast_admission():
+    result = _result()
+    result["covariates"] = {
+        "considered": False, "admitted": False, "retained": [],
+        "rejected": [{"reason": "base evaluation is unsupported"}],
+    }
+    payload = publish_result(result, mode="best_effort")
+    assert payload["context_input_evaluation"]["status"] == (
+        "received_not_evaluable")
+    assert payload["context_summary"]["status"] == "received_not_evaluable"
+    assert "passed ingestion" in payload["context_summary"]["message"]
+    assert payload["context_summary"]["follow_up_required_for_current_recommendation"]
+    assert verify_publication(payload)
+
+
 def test_unresolved_trigger_claim_returns_dated_recovery_not_generic_rejection():
     span = "Demand typically falls during public holidays."
     dossier, reasons = validate_temporal_dossier({

@@ -23,6 +23,11 @@
   the same cited companion-series row as both a covariate and a target override,
   the override is demoted and the receipt records the normalization. A driver
   observation can no longer masquerade as an exact target intervention.
+- Separate context ingestion from forecast influence in publication responses.
+  A valid covariate that cannot be evaluated on a short history now reports
+  `received_not_evaluable`, while evaluated-but-rejected and admitted inputs
+  have distinct states; users no longer see “nothing passed” after their table
+  was successfully validated.
 - Give the governed scenario selector compact interior-shape evidence: extrema
   and timestamps, turning points, and the largest deviation from the immutable
   primary. Temporary closures, campaigns, outages, and interventions can no
