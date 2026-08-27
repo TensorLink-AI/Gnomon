@@ -178,12 +178,28 @@ def write_artifact(
             for disclosure in (result.support_assessment or {}).get("disclosures", []):
                 lines.append(f"- Disclosure ({disclosure['code']}): {disclosure['message']}")
             if result.threshold:
-                lines.extend([
-                    "", f"### Threshold {result.threshold['value']}", "",
-                    f"- First timestamp with point above: {result.threshold['first_timestamp_point_above'] or 'never in horizon'}",
-                    f"- First timestamp with q90 above: {result.threshold['first_timestamp_interval_above'] or 'never in horizon'}",
-                    f"- Peak probability above: {max(result.threshold['probability_above']):.1%}",
-                ])
+                lines.extend(["", f"### Threshold {result.threshold['value']}", ""])
+                bounded = result.threshold.get("bounded_assessment") or {}
+                probabilities = result.threshold.get("probability_above") or []
+                if bounded:
+                    primary = bounded.get("primary") or {}
+                    lines.extend([
+                        f"- Bounded decision: {bounded.get('decision')}",
+                        f"- Primary point-path answer: "
+                        f"{bounded.get('best_estimate')}",
+                        f"- Published range relation: "
+                        f"{primary.get('published_range_relation')}",
+                        f"- Model-path conflict: "
+                        f"{bool(bounded.get('model_conflict'))}",
+                        "- Breach probability: unavailable (uncalibrated)",
+                        "- Automation eligible: false",
+                    ])
+                else:
+                    lines.extend([
+                        f"- First timestamp with point above: {result.threshold['first_timestamp_point_above'] or 'never in horizon'}",
+                        f"- First timestamp with q90 above: {result.threshold['first_timestamp_interval_above'] or 'never in horizon'}",
+                        f"- Peak probability above: {max(probabilities):.1%}",
+                    ])
                 event = result.threshold.get("horizon_event") or {}
                 if event:
                     probability = event.get("probability_any_breach")

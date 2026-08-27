@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Return a bounded threshold assessment when short histories cannot support a
+  calibrated breach probability. The response separates the primary point
+  answer, displayed-range relation, model-assisted disagreement, and an
+  `indeterminate` conclusion; it never manufactures probability or automation
+  authority, and decide/monitor remain unarmed without calibrated risk.
+
 - Bind benchmark choice slots to declared canonical engine facts so agents may
   explain temporal categories without rewriting their machine-readable value;
   retain attempted overrides as diagnostics rather than silently accepting

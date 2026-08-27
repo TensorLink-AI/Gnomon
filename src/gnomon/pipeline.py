@@ -9,6 +9,7 @@ byte-for-byte.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -1144,6 +1145,90 @@ def threshold_analysis_stage(
             step_marginals=probabilities,
         )
     return result
+
+
+def bounded_threshold_assessment(
+    threshold: float,
+    rows: list[dict[str, object]],
+    *,
+    alternate_paths: list[dict[str, object]] | None = None,
+) -> dict[str, object]:
+    """Describe threshold behavior when probabilities are not supportable.
+
+    This is deliberately not a probability estimator. It projects the
+    immutable published point path and its labelled range into explicit facts
+    so callers do not turn ``no calibrated probability`` into either silence
+    or false certainty. Alternate paths remain named scenarios and can reveal
+    disagreement; they never replace the primary or authorize action.
+    """
+    if not rows:
+        raise ValueError("bounded threshold assessment requires forecast rows")
+
+    def path_summary(name: str, points: list[float], *, support: str,
+                     q10: list[float] | None = None,
+                     q90: list[float] | None = None) -> dict[str, object]:
+        point_crosses = any(value > threshold for value in points)
+        relation = "range_unavailable"
+        if q10 is not None and q90 is not None:
+            if any(value > threshold for value in q10):
+                relation = "range_above_at_least_one_step"
+            elif all(value <= threshold for value in q90):
+                relation = "range_below_all_steps"
+            else:
+                relation = "range_overlaps_threshold"
+        return {
+            "path": name,
+            "support": support,
+            "best_estimate": "yes" if point_crosses else "no",
+            "point_path_crosses": point_crosses,
+            "published_range_relation": relation,
+            "maximum_point": max(points),
+        }
+
+    points = [float(row.get("q50", row["point"])) for row in rows]
+    lower = [float(row["q10"]) for row in rows]
+    upper = [float(row["q90"]) for row in rows]
+    primary = path_summary(
+        "primary", points, support="best_effort", q10=lower, q90=upper)
+    alternatives: list[dict[str, object]] = []
+    for item in alternate_paths or []:
+        raw_points = item.get("points")
+        if not isinstance(raw_points, list) or not raw_points:
+            continue
+        finite = [float(value) for value in raw_points
+                  if isinstance(value, (int, float))
+                  and not isinstance(value, bool) and math.isfinite(value)]
+        if len(finite) != len(raw_points):
+            continue
+        alternatives.append(path_summary(
+            str(item.get("path") or "alternate"), finite,
+            support=str(item.get("support") or "prior_assisted")))
+    conflict = any(item["best_estimate"] != primary["best_estimate"]
+                   for item in alternatives)
+    range_relation = str(primary["published_range_relation"])
+    decision = ("indeterminate" if conflict or range_relation in {
+                    "range_overlaps_threshold", "range_unavailable"}
+                else str(primary["best_estimate"]))
+    return {
+        "value": float(threshold),
+        "probability_status": "unavailable_uncalibrated",
+        "probability_above": [],
+        "bounded_assessment": {
+            "decision": decision,
+            "best_estimate": primary["best_estimate"],
+            "primary": primary,
+            "alternatives": alternatives,
+            "model_conflict": conflict,
+            "automation_eligible": False,
+            "primary_forecast_unchanged": True,
+            "interpretation": (
+                "A point-path answer and published-range relation, not a "
+                "breach probability. Indeterminate means the displayed "
+                "range overlaps the threshold or a labelled candidate "
+                "disagrees with the immutable primary."
+            ),
+        },
+    }
 
 
 def _constraint_stage(

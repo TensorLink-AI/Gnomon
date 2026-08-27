@@ -8,6 +8,53 @@ from gnomon.breach import (
     apply_breach_policy,
     estimate_horizon_breach,
 )
+from gnomon.pipeline import bounded_threshold_assessment
+
+
+def _bounded_rows(points, lows, highs):
+    return [
+        {"timestamp": f"2026-01-{index + 1:02d}", "point": point,
+         "q10": low, "q50": point, "q90": high}
+        for index, (point, low, high) in enumerate(zip(points, lows, highs))
+    ]
+
+
+def test_bounded_threshold_assessment_separates_point_answer_from_uncertainty():
+    result = bounded_threshold_assessment(
+        10, _bounded_rows([8, 9], [6, 7], [11, 12]))
+    bounded = result["bounded_assessment"]
+    assert result["probability_status"] == "unavailable_uncalibrated"
+    assert result["probability_above"] == []
+    assert bounded["best_estimate"] == "no"
+    assert bounded["decision"] == "indeterminate"
+    assert bounded["primary"]["published_range_relation"] == \
+        "range_overlaps_threshold"
+    assert bounded["automation_eligible"] is False
+
+
+def test_bounded_threshold_assessment_can_make_a_nonprobabilistic_clear_call():
+    below = bounded_threshold_assessment(
+        10, _bounded_rows([7, 8], [5, 6], [8, 9]))
+    above = bounded_threshold_assessment(
+        10, _bounded_rows([11, 12], [10.5, 11], [13, 14]))
+    assert below["bounded_assessment"]["decision"] == "no"
+    assert above["bounded_assessment"]["decision"] == "yes"
+    assert below["bounded_assessment"]["automation_eligible"] is False
+    assert above["bounded_assessment"]["automation_eligible"] is False
+
+
+def test_bounded_threshold_assessment_surfaces_candidate_conflict():
+    result = bounded_threshold_assessment(
+        10, _bounded_rows([7, 8], [5, 6], [8, 9]),
+        alternate_paths=[{
+            "path": "model_assisted", "points": [11, 12],
+            "support": "prior_assisted"}])
+    bounded = result["bounded_assessment"]
+    assert bounded["best_estimate"] == "no"
+    assert bounded["model_conflict"] is True
+    assert bounded["decision"] == "indeterminate"
+    assert bounded["alternatives"][0]["best_estimate"] == "yes"
+    assert bounded["primary_forecast_unchanged"] is True
 from gnomon.evaluation import evaluate
 
 
