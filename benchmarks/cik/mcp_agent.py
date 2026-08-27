@@ -353,7 +353,9 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: Version 173: numeric forecasting inherits the model/provider reasoning mode
 #: and normal forecast budget instead of inheriting the deterministic semantic
 #: compiler's non-reasoning, low-token policy.
-MCP_CONTRACT_VERSION = 173
+#: Version 174: sampled priors use concurrent single-sample requests instead
+#: of potentially correlated choices from one provider batch.
+MCP_CONTRACT_VERSION = 174
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -1001,6 +1003,7 @@ def _candidate_from_sampled_paths(
         "rejection_reasons": rejection_reasons[:8],
         "aggregation": "linear_empirical_marginal_q10_q50_q90",
         "timestamp_binding": "host_grid_order",
+        "request_mode": "concurrent_single_sample_requests",
     }
     if not accepted:
         return None, diagnostics
@@ -3319,21 +3322,29 @@ class _Run:
                 })
 
         def complete_many(content: str, stage: str, *, n: int) -> list[str]:
-            """One bounded stochastic elicitation wave under the same deadline."""
+            """Bounded concurrent single-sample elicitation under one deadline."""
             remaining = compilation_deadline - time.monotonic()
             if remaining <= 0:
                 raise TimeoutError(
                     "context workflow deadline exhausted before " + stage)
             started = time.monotonic()
             try:
-                return self.forecaster.client.completions(
-                    [{"role": "system", "content":
-                      "You are a useful forecasting assistant."},
-                     {"role": "user", "content": content}], n=n,
-                    temperature=1, max_tokens=10_000,
-                    reasoning_effort=None,
-                    request_timeout=max(1, min(120, math.floor(remaining))),
-                    transport_retries=0)
+                from concurrent.futures import ThreadPoolExecutor
+                messages = [
+                    {"role": "system", "content":
+                     "You are a useful forecasting assistant."},
+                    {"role": "user", "content": content},
+                ]
+                timeout = max(1, min(120, math.floor(remaining)))
+
+                def one_sample(_: int) -> str:
+                    return self.forecaster.client.completions(
+                        messages, n=1, temperature=1, max_tokens=10_000,
+                        reasoning_effort=None, request_timeout=timeout,
+                        transport_retries=0)[0]
+
+                with ThreadPoolExecutor(max_workers=min(n, 8)) as pool:
+                    return list(pool.map(one_sample, range(n)))
             finally:
                 compiler_calls.append({
                     "stage": stage,
@@ -4581,7 +4592,9 @@ class _Run:
                             "accepted"]),
                         aggregation=str(model_candidate_sampling[
                             "aggregation"]), temperature=1.0,
-                        stability=model_candidate_sampling.get("stability"))
+                        stability=model_candidate_sampling.get("stability"),
+                        request_mode=str(model_candidate_sampling[
+                            "request_mode"]))
                 dossiers.append(model_dossier)
                 model_candidate_status = "accepted"
             else:

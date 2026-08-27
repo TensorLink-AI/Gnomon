@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Elicit each sampled forecast path through a separate concurrent model
+  request under one shared deadline. This avoids treating potentially
+  correlated choices from one provider batch as independent evidence, records
+  the request protocol in the sealed dossier, and preserves bounded latency.
 - Stop applying the deterministic compiler's non-reasoning, 2,500-token policy
   to numeric forecasting. Sampled forecast candidates now inherit the selected
   model/provider reasoning mode and the same 10,000-token ceiling as the

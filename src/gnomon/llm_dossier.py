@@ -1543,6 +1543,7 @@ def attach_host_candidate_elicitation(
     dossier: dict[str, Any], *, requested_paths: int, accepted_paths: int,
     aggregation: str, temperature: float,
     stability: dict[str, Any] | None = None,
+    request_mode: str = "batch_request",
 ) -> dict[str, Any]:
     """Seal narrow host-observed elicitation metadata onto a model candidate.
 
@@ -1566,6 +1567,9 @@ def attach_host_candidate_elicitation(
         raise ValueError("candidate elicitation path counts are invalid")
     if aggregation not in {"linear_empirical_marginal_q10_q50_q90"}:
         raise ValueError("candidate elicitation aggregation is unsupported")
+    if request_mode not in {"batch_request",
+                            "concurrent_single_sample_requests"}:
+        raise ValueError("candidate elicitation request mode is unsupported")
     if not isinstance(temperature, (int, float)) or isinstance(temperature, bool) \
             or not math.isfinite(float(temperature)) or temperature < 0:
         raise ValueError("candidate elicitation temperature is invalid")
@@ -1606,6 +1610,7 @@ def attach_host_candidate_elicitation(
         "accepted_paths": accepted_paths,
         "aggregation": aggregation,
         "temperature": float(temperature),
+        "request_mode": request_mode,
         "host_observed": True,
         "historical_skill_evidence": False,
         "automation_eligible": False,

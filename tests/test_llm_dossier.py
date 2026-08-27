@@ -39,7 +39,8 @@ def test_only_host_can_attach_bounded_sampling_provenance():
         "kind": "sampled_point_paths", "requested_paths": 5,
         "accepted_paths": 4,
         "aggregation": "linear_empirical_marginal_q10_q50_q90",
-        "temperature": 1.0, "host_observed": True,
+        "temperature": 1.0, "request_mode": "batch_request",
+        "host_observed": True,
         "historical_skill_evidence": False, "automation_eligible": False,
     }
     assert dossier["forecast_candidate"].get("elicitation") is None

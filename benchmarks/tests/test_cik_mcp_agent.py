@@ -76,11 +76,12 @@ def test_sampled_paths_are_host_bound_and_aggregated_without_dependencies():
     assert candidate is not None
     assert {key: diagnostics[key] for key in (
         "requested", "accepted", "rejected", "rejection_reasons",
-        "aggregation", "timestamp_binding")} == {
+        "aggregation", "timestamp_binding", "request_mode")} == {
         "requested": 5, "accepted": 5, "rejected": 0,
         "rejection_reasons": [],
         "aggregation": "linear_empirical_marginal_q10_q50_q90",
         "timestamp_binding": "host_grid_order",
+        "request_mode": "concurrent_single_sample_requests",
     }
     stability = diagnostics["stability"]
     assert stability["interpretation"] == "stability_not_historical_skill"
@@ -2121,10 +2122,10 @@ def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
     assert receipt["compiler"]["model_candidate_status"] == (
         "accepted")
     assert receipt["compiler"]["model_candidate_sampling"]["accepted"] == 5
-    assert client.completion_ns == [5]
-    assert client.completion_temperatures == [1]
-    assert client.completion_reasoning_efforts == [None]
-    assert len(client.completion_prompts) == 1
+    assert client.completion_ns == [1] * 5
+    assert client.completion_temperatures == [1] * 5
+    assert client.completion_reasoning_efforts == [None] * 5
+    assert len(client.completion_prompts) == 5
     compact_prompt = " ".join(client.completion_prompts[0].split())
     assert "Factor in relevant background" in compact_prompt
     assert "mapping failed" not in compact_prompt
