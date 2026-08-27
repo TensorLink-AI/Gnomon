@@ -608,9 +608,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--mcp-output-role", default="canonical",
-        choices=["canonical", "llm_candidate_shadow", "publication_best_effort"],
-        help="gnomon-mcp Evidence only. canonical scores Gnomon's immutable "
-             "published artifact. publication_best_effort uses the product "
+        choices=["canonical", "immutable_primary", "llm_candidate_shadow",
+                 "publication_best_effort"],
+        help="gnomon-mcp Evidence only. canonical scores Gnomon's public "
+             "artifact trajectory, which may be context-conditioned. "
+             "immutable_primary is a diagnostic that ignores the public "
+             "context recommendation and scores the preserved primary. "
+             "publication_best_effort uses the product "
              "publication contract; llm_candidate_shadow scores the separately "
              "sealed, prior_assisted LLM candidate for evaluation; it is "
              "never an automation-eligible product publication.",

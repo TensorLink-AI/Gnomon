@@ -65,6 +65,12 @@ On any arm, an optional-tool win is evidence about the *pipeline*,
 never about Gnomon's own forecasting quality — it can come entirely
 from knowing when not to call.
 
+For diagnostics, `--mcp-output-role canonical` scores the public artifact
+trajectory, which may already be context-conditioned.
+`--mcp-output-role immutable_primary` explicitly ignores that recommendation
+and scores the preserved primary. Only the latter is a valid within-run
+context-uplift comparator; it is not a product output.
+
 `gnomon-conditional` is the stable, manifest-visible form of the conditional
 arm. It enables Gnomon's `context.future_events` lane while retaining the
 unmodified primary path in the same artifact. `gnomon-agent --future-context`

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add an explicit CiK `immutable_primary` diagnostic role. The previous
+  `canonical` label referred to the public artifact trajectory, which may be
+  context-conditioned and therefore could not serve as a context-free matched
+  comparator.
+
 - Bind deterministic absolute-value and range extraction to the forecast
   target before applying it. Numeric driver schedules can no longer be
   silently reinterpreted as target overrides; mixed driver/target constraint

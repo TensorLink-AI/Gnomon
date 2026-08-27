@@ -1571,6 +1571,56 @@ def test_literal_zero_claim_uses_deterministic_override_lane(tmp_path):
     assert publication["automation"]["eligible"] is False
 
 
+def test_immutable_primary_role_scores_preserved_path_not_context_projection(
+        tmp_path):
+    task = _task()
+    start, end = task.future_time[1], task.future_time[2]
+    span = f"Readings are zero from {start} to {end}."
+    task.scenario = span
+    compiler_output = json.dumps({
+        "events": [],
+        "claims": [{
+            "source_span": span, "relation": "supports_decrease",
+            "effective_start": start, "effective_end": end,
+            "mechanism": "stated outage", "confidence": 1,
+        }],
+        "hypotheses": [], "effect_proposal": None,
+        "forecast_candidate": None, "covariate_tables": [],
+        "transformations": [],
+    })
+    forecaster = McpAgentForecaster(
+        "x/y", client=ScriptedClient(
+            [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+            compiler_output),
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="immutable_primary")
+
+    samples, extra = forecaster(task, 1)
+
+    assert extra["route"] == "immutable_primary_diagnostic"
+    assert extra["diagnostic_only"] is True
+    assert extra["context_recommendation_ignored"] is True
+    assert samples[0][1][0] != 0.0
+    assert samples[0][2][0] != 0.0
+
+
+def test_immutable_primary_role_uses_public_path_when_context_did_not_apply(
+        tmp_path):
+    forecaster = _forecaster(
+        [], tmp_path, profile="evidence", compiler_output=json.dumps({
+            "events": [], "claims": [], "hypotheses": [],
+            "effect_proposal": None, "forecast_candidate": None,
+            "covariate_tables": [], "transformations": [],
+        }), output_role="immutable_primary")
+
+    samples, extra = forecaster(_task(), 1)
+
+    assert len(samples[0]) == len(_task().future_time)
+    assert extra["route"] == "immutable_primary_diagnostic"
+    assert extra["context_recommendation_ignored"] is True
+
+
 def test_transformation_preflight_repairs_malformed_future_series(tmp_path):
     task = _task()
     span = "The future input is 2.0 throughout the forecast window."
