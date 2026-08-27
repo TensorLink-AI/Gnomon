@@ -178,6 +178,12 @@ def test_repaired_transformation_rebinds_host_claim_ids_transactionally():
     assert raw["transformations"][0]["series_values"]["rpm_in"][
         "source_claim_ids"] == ["compiler-claim"]
 
+    malformed = {"transformations": [
+        {"transformation": "fit this relationship"},
+        {"transformation": {"claim_ids": []}, "series_values": [1, 2]},
+    ]}
+    assert _bind_transformation_provenance(malformed, claims) == malformed
+
     context = ("Pressure follows the square of speed.\n"
                "The maximal fan speed is 3000 rpm and pressure is 37.5 Pa.")
     ratio_wrapper = {"transformation": {"output_unit": "Pa", "expression": {
@@ -1583,6 +1589,43 @@ def test_literal_zero_claim_uses_deterministic_override_lane(tmp_path):
     assert [rows[index]["q50"] for index in (1, 2)] == [0.0, 0.0]
     assert publication["primary_forecast_unchanged"] is True
     assert publication["automation"]["eligible"] is False
+
+
+def test_top_level_fitted_relationship_is_canonicalized_without_llm_repair(
+        tmp_path):
+    task = _task()
+    span = (
+        "Driver affects value at lag 1. Driver is 2 from 2024-03-13 to "
+        "2024-03-16.")
+    task.scenario = span
+    compiler_output = json.dumps({
+        "claims": [{"source_span": span, "relation": "unknown",
+                    "effective_start": task.future_time[0],
+                    "effective_end": task.future_time[-1]}],
+        "transformations": [{
+            "type": "fit_recursive_linear",
+            "known_at": task.past_time[-1][0], "claim_ids": ["claim-1"],
+            "autoregressive_lags": [1],
+            "driver_lags": [{"series": "Driver", "lags": [1]}],
+            "series_values": {"Driver": [2, 2, 2, 2]},
+        }],
+    })
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        compiler_output)
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+    _, extra = forecaster(task, 1)
+    receipt = json.loads(Path(
+        extra["context_compilation"]["receipt_path"]).read_text())
+    expression = receipt["transformations"][0]["transformation"]["expression"]
+    assert expression["op"] == "fit_recursive_linear"
+    assert expression["driver_lags"] == [{"series": "Driver", "lags": [1]}]
+    assert len(client.completion_prompts) == 1
+    assert receipt["compiler"]["calls"][0]["stage"] == "initial_compile"
 
 
 def test_immutable_primary_role_scores_preserved_path_not_context_projection(

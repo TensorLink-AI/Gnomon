@@ -1271,7 +1271,10 @@ def _future_series_values(wrapper: Any) -> dict[str, list[float]]:
     output: dict[str, list[float]] = {}
     if not isinstance(wrapper, dict):
         return output
-    for name, payload in (wrapper.get("series_values") or {}).items():
+    supplied = wrapper.get("series_values") or {}
+    if not isinstance(supplied, dict):
+        return output
+    for name, payload in supplied.items():
         rows = payload.get("values") if isinstance(payload, dict) else None
         values = []
         for row in rows if isinstance(rows, list) else []:
@@ -1677,7 +1680,18 @@ def _bind_transformation_provenance(
             rebound.append(item)
             continue
         wrapper = dict(item)
-        transformation = dict(wrapper.get("transformation", wrapper))
+        transformation_raw = wrapper.get("transformation", wrapper)
+        if not isinstance(transformation_raw, dict):
+            # Leave malformed model output intact for the typed compiler
+            # rejection. Provenance binding must never make an untrusted shape
+            # executable—or crash before validation can explain the problem.
+            rebound.append(wrapper)
+            continue
+        transformation = dict(transformation_raw)
+        raw_series_values = wrapper.get("series_values") or {}
+        if not isinstance(raw_series_values, dict):
+            rebound.append(wrapper)
+            continue
         literal_ids = _verbatim_literal_claim_ids(wrapper, verified_claims)
         series_ids = _verbatim_series_claim_ids(wrapper, verified_claims)
         transformation["claim_ids"] = list(dict.fromkeys([
@@ -1688,7 +1702,7 @@ def _bind_transformation_provenance(
         if literal_ids:
             transformation["citation_binding"] = (
                 "model_semantics_plus_verbatim_constant_lines")
-        series_values = dict(wrapper.get("series_values") or {})
+        series_values = dict(raw_series_values)
         for name, claim_ids in series_ids.items():
             payload = series_values.get(name)
             if isinstance(payload, dict) and claim_ids:
@@ -2869,7 +2883,11 @@ class _Run:
                     normalized_transformations.append(item)
                     continue
                 wrapper = dict(item)
-                transformation = dict(wrapper.get("transformation", wrapper))
+                transformation_raw = wrapper.get("transformation", wrapper)
+                if not isinstance(transformation_raw, dict):
+                    normalized_transformations.append(wrapper)
+                    continue
+                transformation = dict(transformation_raw)
                 cited = {str(value) for value in
                          transformation.get("claim_ids") or []}
                 if not cited or not cited.issubset(known_ids):
@@ -2877,8 +2895,12 @@ class _Run:
                     transformation["citation_binding"] = (
                         "single_verified_claim")
                 wrapper["transformation"] = transformation
+                raw_series_values = wrapper.get("series_values") or {}
+                if not isinstance(raw_series_values, dict):
+                    normalized_transformations.append(wrapper)
+                    continue
                 series_values = {}
-                for name, payload in (wrapper.get("series_values") or {}).items():
+                for name, payload in raw_series_values.items():
                     value_payload = dict(payload) if isinstance(payload, dict) else payload
                     if isinstance(value_payload, dict):
                         source_ids = {str(value) for value in
@@ -2930,6 +2952,10 @@ class _Run:
                 # recurrence beside metadata instead of under expression.
                 embedded = (item.get("transformation")
                             if isinstance(item, dict) else None)
+                if (not isinstance(embedded, dict) and isinstance(item, dict)
+                        and item.get("type") in {
+                            "recursive_linear", "fit_recursive_linear"}):
+                    embedded = item
                 compact = (item.get("recursive_linear")
                            if isinstance(item, dict) else None)
                 if not isinstance(compact, dict) and isinstance(embedded, dict):

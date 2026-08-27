@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Canonicalize top-level fitted-relationship proposals without a second LLM
+  call and make every provenance-binding pass tolerate malformed nested
+  transformation or series shapes. Invalid model output now reaches typed
+  validation instead of crashing; valid compact output remains one-call.
 - Make cited driver-range reconstruction authoritative over malformed
   model-authored history, bind relationship-claim applicability to the
   host-owned forecast grid, and ignore impossible empty ranges that cover no
