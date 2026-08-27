@@ -168,6 +168,22 @@ def _cited_span_resolves_start(
     return False
 
 
+def _cited_span_is_observed_background(span: str) -> bool:
+    """Return whether a relative-time clause explicitly describes the past.
+
+    A compiler can mistake an already-observed fact (``three months ago``)
+    for an undated future trigger. The exact historical date is unnecessary
+    when the claim is used only as background evidence. Keep this host-side
+    correction deliberately narrow: an explicit ``ago`` construction proves
+    only that the fact predates the cutoff. It grants neither an effective
+    event window nor numeric or automation authority.
+    """
+    return bool(re.search(
+        r"\b(?:a|an|one|two|three|four|five|six|seven|eight|nine|ten|"
+        r"\d+)\s+(?:minute|hour|day|week|month|quarter|year)s?\s+ago\b",
+        span, re.IGNORECASE))
+
+
 def _association_only_claim(span: str) -> bool:
     """Identify explicitly associational language without causal authority."""
     text = _normalise(span)
@@ -454,6 +470,19 @@ def validate_temporal_dossier(
                 "numeric_authority": False,
                 "automation_eligible": False,
             }
+        elif timing_status == "unresolved_trigger" and \
+                _cited_span_is_observed_background(span):
+            timing_status = "atemporal_context"
+            history_window_binding = {
+                "kind": "explicit_past_background_reconciled",
+                "basis": (
+                    "verbatim relative-past language establishes that the "
+                    "fact was observed before the cutoff; no event onset or "
+                    "numeric authority was inferred"),
+                "supplied_timing_status": "unresolved_trigger",
+                "numeric_authority": False,
+                "automation_eligible": False,
+            }
         if timing_status == "unresolved_trigger":
             # This is question scope, not asserted event timing. It keeps a
             # useful qualitative rule visible while categorically preventing
@@ -475,14 +504,15 @@ def validate_temporal_dossier(
             # grant deterministic numeric/automation authority.
             start = _timestamp(future_timestamps[0]) if future_timestamps else None
             end = _timestamp(future_timestamps[-1]) if future_timestamps else None
-            history_window_binding = {
-                "kind": "forecast_question_scope_atemporal_context",
-                "basis": (
-                    "source states background evidence or a relationship, "
-                    "not an event with an effective onset"),
-                "numeric_authority": False,
-                "automation_eligible": False,
-            }
+            if history_window_binding is None:
+                history_window_binding = {
+                    "kind": "forecast_question_scope_atemporal_context",
+                    "basis": (
+                        "source states background evidence or a relationship, "
+                        "not an event with an effective onset"),
+                    "numeric_authority": False,
+                    "automation_eligible": False,
+                }
         if (start is None or end is None or end < start) and \
                 _claim_requests_whole_history_binding(
                     claim, raw.get("observation_interpretations"),

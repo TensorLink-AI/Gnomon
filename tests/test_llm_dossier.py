@@ -923,3 +923,39 @@ def test_candidate_must_obey_its_own_cited_numeric_bounds():
     assert "forecast_candidate violates cited lower bound" in reasons
     assert dossier["candidate_critique"]["status"] == "rejected"
     assert dossier["candidate_critique"]["recovery_action"]
+
+
+def test_explicit_relative_past_fact_is_background_not_future_trigger():
+    span = (
+        "Three months ago, the city inaugurated a new borough. "
+        "This borough is adjacent to the river.")
+    future = ["2026-04-01T00:00:00+00:00"]
+    raw = {
+        "claims": [{
+            "source_span": span,
+            "relation": "supports_increase",
+            "effective_start": None,
+            "effective_end": None,
+            "mechanism": "A previously inaugurated riverfront borough.",
+            "confidence": .5,
+            "timing_status": "unresolved_trigger",
+        }],
+        "hypotheses": [{
+            "kind": "historical_analogue", "claim_ids": ["claim-1"],
+            "target_series": ["*"], "predictor_series": None,
+            "known_at": "2026-03-01T00:00:00+00:00", "lag_steps": 0,
+            "direction": "increase", "rationale": "A bounded analogue.",
+        }],
+    }
+
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=span, cutoff="2026-03-01T00:00:00+00:00",
+        future_timestamps=future, history=[0, 0, 0], compiler_model="test")
+
+    assert not reasons
+    claim = dossier["claims"][0]
+    assert claim["timing_status"] == "atemporal_context"
+    assert claim["effective_window_binding"]["kind"] \
+        == "explicit_past_background_reconciled"
+    assert claim["effective_window_binding"]["numeric_authority"] is False
+    assert claim["effective_window_binding"]["automation_eligible"] is False
