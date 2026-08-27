@@ -461,10 +461,37 @@ def test_absolute_zero_claim_cannot_create_additive_zero_scenario():
     assert shadow["selection_eligible"] is False
     assert any("deterministic absolute/range" in assumption
                for assumption in shadow["assumptions"])
-    rejection = next(item for item in payload["context_dispositions"]
-                     if item.get("reason_code") ==
-                     "superseded_by_deterministic_context_contract")
-    assert rejection["disposition"] == "rejected"
+    superseded = next(item for item in payload["context_dispositions"]
+                      if item.get("reason_code") ==
+                      "superseded_by_deterministic_context_contract")
+    assert superseded["disposition"] == "superseded"
+    assert payload["context_summary"]["status"] == "scenario_only"
+
+
+def test_exact_context_use_is_not_downgraded_by_superseded_effect_lane():
+    span = "The ATM has no cash tomorrow, resulting in zero withdrawals."
+    dossier, _ = validate_temporal_dossier({
+        "claims": [{"source_span": span, "relation": "supports_decrease",
+                    "effective_start": TIMES[0], "effective_end": TIMES[-1]}],
+        "effect_proposal": _proposal(
+            location=0, lower=0, upper=0, duration_steps=2),
+    }, context_text=span, cutoff="2026-01-02T00:00:00+00:00",
+       future_timestamps=TIMES, history=[8, 9, 10], compiler_model="test")
+    result = {
+        "support": "context_trusted", "forecast": PRIMARY,
+        "primary_forecast": PRIMARY,
+        "context_outcome": {
+            "status": "applied", "events": ["exact-zero"],
+            "admission_basis": "future_context_contract",
+        },
+    }
+    payload = publish_result(result, mode="best_effort", dossiers=[dossier])
+
+    assert payload["context_summary"]["status"] == "used"
+    assert payload["context_summary"]["counts"] == {
+        "used": 2, "scenario": 0, "rejected": 0}
+    assert any(item["disposition"] == "superseded"
+               for item in payload["context_dispositions"])
 
 
 def test_validated_context_path_precedes_weaker_model_effect():

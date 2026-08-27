@@ -11,3 +11,8 @@ cik-benchmark @ git+https://github.com/ServiceNow/context-is-key-forecasting.git
 # Pin the last 4.x release tested with that stack so a fresh environment can
 # import the official control reproducibly.
 transformers==4.44.2
+# The benchmark's pinned Lightning stack still imports ``pkg_resources``.
+# Setuptools 81 removed it, making a fresh benchmark environment fail before
+# any task runs. Keep the last compatible major until upstream drops that
+# dependency.
+setuptools<81

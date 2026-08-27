@@ -518,7 +518,12 @@ def build_scenario_catalog(result: dict[str, Any], *,
             # zero") and must not become a competing scenario.
             dispositions.append({
                 "context_id": f"dossier-{index}:effect-proposal",
-                "disposition": "rejected",
+                # This is not rejected caller context.  It is a redundant,
+                # weaker internal representation of context that the exact
+                # deterministic lane already used.  Keeping it visible is
+                # useful provenance; counting it as rejected makes a fully
+                # resolved instruction look only partially handled.
+                "disposition": "superseded",
                 "reason_code": "superseded_by_deterministic_context_contract",
                 "reason": (
                     "The cited claim states an absolute value or range; its "

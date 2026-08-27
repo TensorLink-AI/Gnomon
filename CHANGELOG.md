@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Treat model-authored effect proposals that duplicate an exact deterministic
+  context contract as superseded provenance rather than rejected context, so
+  a fully resolved instruction is not mislabeled as partially used; pin CiK's
+  legacy Lightning environment to a compatible Setuptools release.
+
 - Governed transformation units now treat universal normalized quantities
   (`fraction`, `proportion`, `probability`, `ratio`, `share`, and `unitless`)
   as dimensionless. This allows relationships such as duty-cycle times rated
