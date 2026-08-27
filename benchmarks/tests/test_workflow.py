@@ -13,7 +13,8 @@ from benchmarks.workflow.compare import compare
 from benchmarks.workflow.audit import audit
 from benchmarks.workflow.provenance import corpus_sha256
 from benchmarks.workflow.generate import generate_publication_cases
-from benchmarks.workflow.agent_adapter import _compile_execution_arguments
+from benchmarks.workflow.agent_adapter import (
+    _compile_execution_arguments, _publication_recommendation_numbers)
 
 
 def _observation(case, **overrides):
@@ -101,6 +102,20 @@ def test_adversarial_context_corpus_has_explicit_safe_dispositions():
     assert all(case.oracle.context_behavior["automation_eligible"] is False
                for case in cases)
     assert all("context-interface" in case.tags for case in cases)
+
+
+def test_publication_recommendation_overrides_active_artifact_lane_for_answer():
+    publication = {
+        "recommended_scenario_id": "primary",
+        "selection_contract": {"scenarios": [
+            {"scenario_id": "primary", "summary": {"first_q50": 70.72}},
+            {"scenario_id": "context_conditioned",
+             "summary": {"first_q50": 40.0}},
+        ]},
+    }
+    assert _publication_recommendation_numbers(publication, {"next"}) == {
+        "next": 70.72}
+    assert _publication_recommendation_numbers(publication, set()) == {}
 
 
 def test_execution_compiler_binds_known_fields_but_preserves_ambiguity(tmp_path):

@@ -404,6 +404,23 @@ def _submission_problems(case: dict[str, Any], value: dict[str, Any],
     return problems
 
 
+def _publication_recommendation_numbers(
+        publication: dict[str, Any], answer_keys: set[str]) -> dict[str, float]:
+    """Project the sealed recommendation, not the artifact's active lane."""
+    if "next" not in answer_keys:
+        return {}
+    selected_id = publication.get("recommended_scenario_id")
+    scenarios = (publication.get("selection_contract") or {}).get(
+        "scenarios") or []
+    selected = next((item for item in scenarios
+                     if item.get("scenario_id") == selected_id), None)
+    value = ((selected or {}).get("summary") or {}).get("first_q50")
+    if isinstance(value, (int, float)) and not isinstance(value, bool) \
+            and math.isfinite(value):
+        return {"next": float(value)}
+    return {}
+
+
 def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
         jail: Path, profile: str) -> tuple[dict[str, Any], int, list[str], dict[str, Any]]:
     # The server deliberately runs with the case jail as cwd. Ensure that
@@ -541,6 +558,11 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                                 "scenario_count", len(
                                     publication.get("scenarios") or [])),
                         }
+                        recommendation = _publication_recommendation_numbers(
+                            publication, set((case.get("answer_schema") or {}).get(
+                                "numbers") or []))
+                        if recommendation:
+                            engine_evidence["recommendation_numbers"] = recommendation
                         result_rows = structured.get("results") or []
                         if result_rows and isinstance(result_rows[0], dict):
                             outcome = result_rows[0].get("context_outcome") or {}
@@ -609,6 +631,11 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                                     }
                         except Exception:
                             pass
+                    if engine_evidence.get("recommendation_numbers"):
+                        engine_evidence["raw_artifact_numbers"] = dict(
+                            engine_evidence.get("artifact_numbers") or {})
+                        engine_evidence["artifact_numbers"] = dict(
+                            engine_evidence["recommendation_numbers"])
                     blocks = result.get("content") or []
                     content = blocks[0].get("text", "") if blocks else json.dumps(result.get("structuredContent") or {})
                     if len(content) > 16000:

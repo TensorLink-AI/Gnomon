@@ -200,6 +200,10 @@ therefore only means that the answer envelope resolved; it is **not forecast
 accuracy or product uplift**. Read `context_contract.pass_rate`, calls, typed
 tool errors, and the trust components. Use multiple model replicates when
 making an affordance decision because argument construction is stochastic.
+When a publication exists, the adapter binds the submitted headline number to
+the sealed `recommended_scenario_id` summary rather than the artifact's active
+context lane. This prevents a scenario-mode answer from calling a conditional
+path “the recommendation” while the publication contract recommends primary.
 
 `cases/context-adversarial.jsonl` complements it with irrelevant, ambiguous-
 timing, late-known, and third-party forecast claims. Safe equivalences are

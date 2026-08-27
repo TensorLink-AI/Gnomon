@@ -85,7 +85,7 @@ _CONTEXT_EVENTS_PROPERTY: dict[str, Any] = {
         "type": "array", "items": {"type": "object"},
         "description": (
             "Ungroundable facts: context_id, reason_code, reason, source_span. "
-            "Receipted; never changes numbers."
+            "Receipted; no numeric effect."
         ),
     },
 }
@@ -2609,7 +2609,9 @@ TOOLS: list[dict[str, Any]] = [
                 )},
                 "publication_mode": {"type": "string",
                     "enum": ["strict", "best_effort", "scenario"],
-                    "description": "Projection; default strict. Primary stays immutable."},
+                    "description": (
+                        "strict=evidence-only; best_effort=context recommendation; "
+                        "scenario=primary plus alternatives. Primary immutable.")},
                 "temporal_dossiers": {"type": "array", "items": {"type": "object"},
                     "description": "Sealed temporal dossiers."},
                 "context_submission": {"type": "object", "description": "Raw {text, known_at, compiler, proposal, transformations, rejections}; bounded transformations and typed rejection dispositions."},
