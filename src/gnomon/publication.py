@@ -1187,7 +1187,20 @@ def build_scenario_catalog(result: dict[str, Any], *,
                         "historical_skill_evidence": False,
                         "compact_human_summary": "recommended_forecast",
                         "automation_eligible": False,
-                    } if candidate_origin == "model_authored" else None),
+                    } if candidate_origin == "model_authored" else {
+                        "kind": "sealed_governed_quantiles",
+                        "candidate_origin": candidate_origin,
+                        "horizon": len(candidate_rows),
+                        "quantile_levels": [0.1, 0.5, 0.9],
+                        "source": "sealed_context_receipt",
+                        "probabilistic_consumers_should_use": "quantiles",
+                        "historical_skill_evidence": bool(replay_admitted),
+                        "validation_status": (
+                            str(conditional_replay.get("status"))
+                            if conditional_replay else "not_available"),
+                        "compact_human_summary": "recommended_forecast",
+                        "automation_eligible": False,
+                    }),
                     "primary_disagreement": _primary_disagreement(
                         candidate_rows, primary),
                     "uncertainty_normalization": uncertainty_normalization,

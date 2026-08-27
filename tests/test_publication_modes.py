@@ -502,6 +502,18 @@ def test_admitted_observation_counterfactual_is_not_shadowed_by_its_claim():
     scenario = next(item for item in payload["candidate_portfolio"]
                     if item["role"] == "observation_counterfactual")
     assert scenario["selection_eligible"] is True
+    assert scenario["effect"]["distribution"] == {
+        "kind": "sealed_governed_quantiles",
+        "candidate_origin": "observation_interpretation_counterfactual",
+        "horizon": 2,
+        "quantile_levels": [0.1, 0.5, 0.9],
+        "source": "sealed_context_receipt",
+        "probabilistic_consumers_should_use": "quantiles",
+        "historical_skill_evidence": True,
+        "validation_status": "admitted",
+        "compact_human_summary": "recommended_forecast",
+        "automation_eligible": False,
+    }
     assert payload["recommended_scenario_id"] == scenario["scenario_id"]
     assert payload["recommendation_authority"][
         "conditional_replay_admitted"] is True
