@@ -52,6 +52,25 @@ def test_material_numeric_context_ignores_calendar_not_business_quantities():
     assert _has_material_numeric_context("Demand is bounded below by -2.5.")
 
 
+@pytest.mark.parametrize("wrapper", [
+    {"transformation": "fit this"},
+    {"transformation": 7},
+    {"series_values": [1, 2]},
+    {"transformation": {"expression": "not-an-ast"}},
+])
+def test_all_prevalidation_normalizers_are_total_on_model_shapes(wrapper):
+    claims = [{"claim_id": "claim-1", "source_span": "value is 2"}]
+    assert _simplify_identity_literals(wrapper)[0] is not None
+    assert _restore_cited_power_literals(wrapper, claims)[0] is not None
+    assert _bind_verbatim_literal_units(wrapper, claims)[0] is not None
+    assert _canonicalize_timestamped_series_values(
+        wrapper, ["2026-01-01T00:00:00+00:00"])[0] is not None
+    assert _expand_change_point_series_values(
+        wrapper, ["2026-01-01T00:00:00+00:00"])[0] is not None
+    assert _bind_transformation_provenance(
+        {"transformations": [wrapper]}, claims)["transformations"]
+
+
 def test_validator_diagnostic_counts_accept_count_or_collection_shapes():
     assert _validated_item_count(2) == 2
     assert _validated_item_count([{"id": 1}]) == 1

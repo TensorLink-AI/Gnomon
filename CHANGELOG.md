@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Make every CiK pre-validation normalizer total over arbitrary model output
+  shapes and reapply idempotent host-owned relationship bindings after the one
+  bounded repair. Scalars and malformed collections now become typed
+  rejections instead of adapter crashes, while repaired exact relationships
+  retain their verified claim windows and provenance.
 - Distinguish relationship data insufficiency from malformed context: short
   histories now return the aligned-observation requirement and a collect-then-
   rerun action. A historically tested relationship that fails to beat

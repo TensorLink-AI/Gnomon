@@ -1327,9 +1327,13 @@ def _bind_verbatim_literal_units(wrapper: Any,
         return wrapper, 0
     output = json.loads(json.dumps(wrapper))
     transformation = output.get("transformation", output)
+    if not isinstance(transformation, dict):
+        return output, 0
     expression = (transformation.get("expression")
                   if isinstance(transformation, dict) else None)
-    declared = {str(value) for value in (output.get("units") or {}).values()
+    raw_units = output.get("units") or {}
+    declared = {str(value) for value in (
+                    raw_units.values() if isinstance(raw_units, dict) else [])
                 if str(value) and str(value) != "unknown"}
     if isinstance(transformation, dict):
         unit = str(transformation.get("output_unit") or "")
@@ -1395,7 +1399,10 @@ def _canonicalize_timestamped_series_values(
         return wrapper, 0
     output = json.loads(json.dumps(wrapper))
     changes = 0
-    for payload in (output.get("series_values") or {}).values():
+    supplied = output.get("series_values") or {}
+    if not isinstance(supplied, dict):
+        return output, 0
+    for payload in supplied.values():
         if not isinstance(payload, dict):
             continue
         rows = payload.get("values")
@@ -1447,7 +1454,10 @@ def _expand_change_point_series_values(
             return matches[0], exact.timestamp()
         return None
 
-    for payload in (output.get("series_values") or {}).values():
+    supplied = output.get("series_values") or {}
+    if not isinstance(supplied, dict):
+        return output, 0
+    for payload in supplied.values():
         if not isinstance(payload, dict) or "change_points" not in payload:
             continue
         points = payload.get("change_points")
@@ -1532,6 +1542,8 @@ def _simplify_identity_literals(wrapper: Any) -> tuple[Any, int]:
         return wrapper, 0
     output = json.loads(json.dumps(wrapper))
     transformation = output.get("transformation", output)
+    if not isinstance(transformation, dict):
+        return output, 0
     expression = (transformation.get("expression")
                   if isinstance(transformation, dict) else None)
     changes = 0
@@ -1592,6 +1604,8 @@ def _restore_cited_power_literals(
         return wrapper, 0
     output = json.loads(json.dumps(wrapper))
     transformation = output.get("transformation", output)
+    if not isinstance(transformation, dict):
+        return output, 0
     expression = (transformation.get("expression")
                   if isinstance(transformation, dict) else None)
     cited_ids = {str(value) for value in
@@ -2466,6 +2480,45 @@ class _Run:
                     "stage": stage,
                     "elapsed_seconds": round(time.monotonic() - started, 6),
                 })
+
+        def normalize_relationship(candidate: dict[str, Any]) -> dict[str, Any]:
+            """Reapply host-owned relationship bindings after any LLM turn."""
+            if not relationship_contract or not candidate.get("transformations"):
+                return candidate
+            claims = [item for item in candidate.get("claims") or []
+                      if isinstance(item, dict)]
+            grounded = any(str(item.get("source_span") or "") in context
+                           and str(item.get("source_span") or "").strip()
+                           for item in claims)
+            host_fallback = not grounded and bool(narrative_context.strip())
+            if host_fallback:
+                claims = [{
+                    "source_span": narrative_context, "relation": "unknown",
+                    "effective_start": future_timestamps[0],
+                    "effective_end": future_timestamps[-1],
+                    "mechanism": "host-grounded explicit equation document",
+                    "confidence": 1.0,
+                }]
+            for claim in claims:
+                if str(claim.get("source_span") or "").strip() in context:
+                    claim["effective_start"] = future_timestamps[0]
+                    claim["effective_end"] = future_timestamps[-1]
+                    claim.pop("timing_status", None)
+                    claim["effective_window_binding"] = (
+                        "host_forecast_grid_for_relationship_specification")
+            candidate = {**candidate, "claims": claims}
+            for wrapper in candidate.get("transformations") or []:
+                if not isinstance(wrapper, dict):
+                    continue
+                transformation = wrapper.get("transformation", wrapper)
+                if host_fallback and isinstance(transformation, dict):
+                    transformation["claim_ids"] = ["claim-1"]
+                supplied = wrapper.get("series_values") or {}
+                for payload in (supplied.values()
+                                if isinstance(supplied, dict) else []):
+                    if host_fallback and isinstance(payload, dict):
+                        payload["source_claim_ids"] = ["claim-1"]
+            return candidate
         try:
             completion = complete(prompt, "initial_compile")
             objects = extract_json_objects(completion)
@@ -2477,48 +2530,9 @@ class _Run:
         except Exception as error:
             compile_rejections.append(f"dossier compilation failed: {error}")
 
-        # In the compact equation contract the host can ground the document
-        # without asking the model to copy a long formula byte-for-byte. This
-        # grants no semantic or numeric authority: AST constants still need
-        # source entailment and the executable must still pass replay.
-        if relationship_contract and raw.get("transformations"):
-            claims = [item for item in raw.get("claims") or []
-                      if isinstance(item, dict)]
-            grounded = any(str(item.get("source_span") or "") in context
-                           and str(item.get("source_span") or "").strip()
-                           for item in claims)
-            if not grounded and narrative_context.strip():
-                raw["claims"] = [{
-                    "source_span": narrative_context,
-                    "relation": "unknown",
-                    "effective_start": future_timestamps[0],
-                    "effective_end": future_timestamps[-1],
-                    "mechanism": "host-grounded explicit equation document",
-                    "confidence": 1.0,
-                }]
-                for wrapper in raw.get("transformations") or []:
-                    transformation = (wrapper.get("transformation", wrapper)
-                                      if isinstance(wrapper, dict) else {})
-                    if isinstance(transformation, dict):
-                        transformation["claim_ids"] = ["claim-1"]
-                    for supplied in ((wrapper.get("series_values") or {}).values()
-                                     if isinstance(wrapper, dict) else []):
-                        if isinstance(supplied, dict):
-                            supplied["source_claim_ids"] = ["claim-1"]
-            # Relationship claims describe a specification whose numeric path
-            # is evaluated over the host-owned forecast grid. Models
-            # frequently reverse, omit, or copy a driver sub-window into the
-            # generic claim window. Bind only this applicability metadata to
-            # the requested grid; source text, schedules, lags, and values are
-            # unchanged and remain independently validated.
-            for claim in raw.get("claims") or []:
-                if isinstance(claim, dict) and str(
-                        claim.get("source_span") or "").strip() in context:
-                    claim["effective_start"] = future_timestamps[0]
-                    claim["effective_end"] = future_timestamps[-1]
-                    claim.pop("timing_status", None)
-                    claim["effective_window_binding"] = (
-                        "host_forecast_grid_for_relationship_specification")
+        # Host bindings are idempotent and must be applied after every model
+        # turn, not only the initial completion.
+        raw = normalize_relationship(raw)
 
         # The host assembled this receipt at the cutoff. Compiler-authored
         # knowledge times are neither trusted nor useful; bind all numeric
@@ -2529,7 +2543,9 @@ class _Run:
             transformation = wrapper.get("transformation", wrapper)
             if isinstance(transformation, dict):
                 transformation["known_at"] = self.timestamps[-1]
-            for supplied in (wrapper.get("series_values") or {}).values():
+            raw_series = wrapper.get("series_values") or {}
+            for supplied in (raw_series.values()
+                             if isinstance(raw_series, dict) else []):
                 if isinstance(supplied, dict):
                     supplied["known_at"] = self.timestamps[-1]
         raw, _ = _bind_missing_transformation_claim_windows(
@@ -2717,6 +2733,7 @@ class _Run:
                     if repaired:
                         raw = bind_host_knowledge_time(
                             bind_active_target(repaired[0]))
+                        raw = normalize_relationship(raw)
                     else:
                         compile_rejections.append(
                             "dossier repair returned no JSON object")
@@ -2781,6 +2798,7 @@ class _Run:
                 repaired = extract_json_objects(repair_completion)
                 if repaired:
                     raw = bind_active_target(repaired[0])
+                    raw = normalize_relationship(raw)
                 else:
                     compile_rejections.append(
                         "relationship sufficiency repair returned no JSON object")
@@ -2800,7 +2818,9 @@ class _Run:
                 transformation = expanded.get("transformation", expanded)
                 if isinstance(transformation, dict):
                     transformation["known_at"] = self.timestamps[-1]
-                for payload in (expanded.get("series_values") or {}).values():
+                raw_series = expanded.get("series_values") or {}
+                for payload in (raw_series.values()
+                                if isinstance(raw_series, dict) else []):
                     if isinstance(payload, dict):
                         payload["known_at"] = self.timestamps[-1]
             normalized_schedules.append(expanded)
@@ -3143,7 +3163,8 @@ class _Run:
                 wrapper = item if isinstance(item, dict) else {}
                 transformation = wrapper.get("transformation", wrapper)
                 cited = {str(value) for value in
-                         transformation.get("claim_ids") or []}
+                         (transformation.get("claim_ids") or []
+                          if isinstance(transformation, dict) else [])}
                 if cited.intersection(unresolved_ids):
                     failures.append({"index": index, "violations": [{
                         "code": "UNRESOLVED_TRIGGER_TIMING",
@@ -3152,9 +3173,11 @@ class _Run:
                             "cited trigger has a dated effective window."),
                     }]})
                     continue
+                raw_series = wrapper.get("series_values") or {}
                 compiled, critique = compile_transformation(
                     transformation,
-                    series=list((wrapper.get("series_values") or {}).keys()),
+                    series=list(raw_series.keys())
+                    if isinstance(raw_series, dict) else [],
                     claim_ids=claim_ids, cutoff=self.timestamps[-1],
                     units=wrapper.get("units"), repair=wrapper.get("repair"),
                     claim_spans=spans)
@@ -3301,7 +3324,9 @@ class _Run:
             transformation = wrapper.get("transformation", wrapper)
             if isinstance(transformation, dict):
                 transformation["known_at"] = self.timestamps[-1]
-            for supplied in (wrapper.get("series_values") or {}).values():
+            raw_series = wrapper.get("series_values") or {}
+            for supplied in (raw_series.values()
+                             if isinstance(raw_series, dict) else []):
                 if isinstance(supplied, dict):
                     supplied["known_at"] = self.timestamps[-1]
         raw = canonicalize_transformations(raw)
