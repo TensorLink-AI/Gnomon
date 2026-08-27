@@ -153,6 +153,66 @@ def build_temporal_decision_reconciliation(
     return {**body, "seal_sha256": _seal(body)}
 
 
+def verify_temporal_decision_reconciliation(payload: dict[str, Any]) -> bool:
+    if not isinstance(payload, dict) or not payload.get("seal_sha256"):
+        return False
+    body = {key: value for key, value in payload.items()
+            if key != "seal_sha256"}
+    return (
+        payload.get("kind") == "temporal_decision_reconciliation"
+        and payload.get("primary_forecast_unchanged") is True
+        and (payload.get("selection_policy") or {}).get(
+            "automation_eligible") is False
+        and payload["seal_sha256"] == _seal(body)
+    )
+
+
+def seal_temporal_decision_selection(
+    reconciliation: dict[str, Any], selection: dict[str, Any],
+) -> dict[str, Any]:
+    """Validate and seal the human-facing choice over two visible sources."""
+    if not verify_temporal_decision_reconciliation(reconciliation):
+        raise ValueError("temporal decision reconciliation seal is invalid")
+    source = str(selection.get("selected_source") or "").strip().lower()
+    counter = str(selection.get("counterevidence_source") or "").strip().lower()
+    allowed = {"independent_prior", "immutable_primary", "synthesis"}
+    if source not in allowed:
+        raise ValueError("selected_source is invalid")
+    conflict = reconciliation.get("conflict") or {}
+    has_conflict = bool(conflict.get("prediction") or conflict.get("action"))
+    if has_conflict and (counter not in allowed or counter == source):
+        raise ValueError(
+            "a conflicting selection requires a distinct counterevidence_source")
+    action = str(selection.get("action") or "").strip().lower()
+    if action not in {"act", "monitor"}:
+        raise ValueError("selection action must be act or monitor")
+    confidence = str(selection.get("confidence") or "").strip().lower()
+    if confidence not in {"low", "medium", "high"}:
+        raise ValueError("selection confidence must be low, medium, or high")
+    what_changes = " ".join(str(
+        selection.get("what_would_change") or "").split())
+    if not what_changes or len(what_changes) > 300:
+        raise ValueError("what_would_change must contain 1-300 characters")
+    automation = str(selection.get("automation_action") or "").strip().lower()
+    if automation != "withhold":
+        raise ValueError("reconciled decisions cannot authorize automation")
+    body = {
+        "schema_version": "0.1",
+        "kind": "temporal_decision_selection",
+        "reconciliation_seal_sha256": reconciliation["seal_sha256"],
+        "selected_source": source,
+        "counterevidence_source": counter if has_conflict else counter or None,
+        "action": action,
+        "confidence": confidence,
+        "what_would_change": what_changes,
+        "automation_action": "withhold",
+        "support": "prior_assisted",
+        "automation_eligible": False,
+        "primary_forecast_unchanged": True,
+    }
+    return {**body, "seal_sha256": _seal(body)}
+
+
 def _json_objects(text: str) -> list[dict[str, Any]]:
     """Extract JSON objects without trusting markdown or surrounding prose."""
     decoder = json.JSONDecoder()

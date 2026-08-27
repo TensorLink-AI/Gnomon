@@ -32,9 +32,10 @@ from benchmarks.breachbench.run_breachbench import (
     generate_cases, parse_answer, product_packet, request_identity,
 )
 from benchmarks.common.envfile import load_env_file
-from benchmarks.common.openrouter import OpenRouterClient
+from benchmarks.common.openrouter import OpenRouterClient, extract_json_objects
 from gnomon.agent_context import (
     build_temporal_decision_reconciliation,
+    seal_temporal_decision_selection,
     seal_temporal_decision_prior,
 )
 
@@ -82,12 +83,36 @@ def reconciliation_prompt(case: Any, packet: dict[str, Any],
           "\"action\":\"act\"|\"monitor\","
           "\"automation_action\":\"act\"|\"monitor\"|\"withhold\","
           "\"evidence_assessment\":\"breach\"|\"no_breach\"|"
-          "\"indeterminate\",\"breach_probability\":<0..1 or null>}. "
+          "\"indeterminate\",\"breach_probability\":<0..1 or null>,"
+          "\"selected_source\":\"independent_prior\"|\"immutable_primary\"|"
+          "\"synthesis\",\"counterevidence_source\":\"independent_prior\"|"
+          "\"immutable_primary\"|\"synthesis\","
+          "\"confidence\":\"low\"|\"medium\"|\"high\","
+          "\"what_would_change\":\"brief falsifiable condition\"}. "
           "Quote Gnomon's probability_any_breach when available. Reconcile "
           "the independent prior and evidence for the human action; state no "
           "greater support than Gnomon earned. automation_action must be "
           "withhold unless Gnomon explicitly marks automation_eligible true."
     )
+
+
+def parse_reconciled_answer(
+    text: str, case: Any, reconciliation: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any] | None, str | None]:
+    answer = parse_answer(text, case.horizon)
+    if not answer.get("valid"):
+        return answer, None, "base_answer_invalid"
+    for payload in extract_json_objects(text):
+        if (payload.get("breach_expected") is answer.get("breach_expected")
+                and str(payload.get("action") or "").lower()
+                == answer.get("action")):
+            try:
+                selection = seal_temporal_decision_selection(
+                    reconciliation, payload)
+            except ValueError as error:
+                return {"valid": False}, None, str(error)
+            return answer, selection, None
+    return {"valid": False}, None, "selection_payload_missing"
 
 
 def _request_sha(case: Any, packet: dict[str, Any], prior: dict[str, Any],
@@ -173,11 +198,15 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
     def one(case: Any) -> dict[str, Any]:
         prior = _prior_from_control(
             source_rows[(case.case_id, "control")], case)
+        reconciliation = build_temporal_decision_reconciliation(
+            packets[case.case_id], prior, question_sha256=_question_sha(case))
         text = client.completions([
             {"role": "system", "content": SYSTEM},
             {"role": "user", "content": reconciliation_prompt(
                 case, packets[case.case_id], prior)},
         ], n=1)[0]
+        answer, selection, selection_error = parse_reconciled_answer(
+            text, case, reconciliation)
         return {
             "case_id": case.case_id, "arm": ARM, "model": args.model,
             "origin": case.origin, "history_length": case.history_length,
@@ -186,7 +215,17 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
             "truth_first_step": case.truth_first_step,
             "request_sha256": _request_sha(
                 case, packets[case.case_id], prior, args),
-            **_score(parse_answer(text, case.horizon), case),
+            "selection_valid": selection is not None,
+            "selection_error": selection_error,
+            "selected_source": (
+                selection.get("selected_source") if selection else None),
+            "counterevidence_source": (
+                selection.get("counterevidence_source") if selection else None),
+            "selection_confidence": (
+                selection.get("confidence") if selection else None),
+            "selection_seal_sha256": (
+                selection.get("seal_sha256") if selection else None),
+            **_score(answer, case),
         }
 
     failures = []
@@ -244,6 +283,19 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
                 "lower": bootstrap[int(.025 * len(bootstrap))],
                 "upper": bootstrap[int(.975 * len(bootstrap))],
                 "cluster": "origin_series", "replicates": len(bootstrap)},
+        },
+        "selection": {
+            "valid_rate": statistics.mean(
+                row.get("selection_valid") is True for row in reconciled),
+            "selected_source_counts": {
+                source: sum(row.get("selected_source") == source
+                            for row in reconciled)
+                for source in ("independent_prior", "immutable_primary",
+                               "synthesis")},
+            "confidence_counts": {
+                level: sum(row.get("selection_confidence") == level
+                           for row in reconciled)
+                for level in ("low", "medium", "high")},
         },
         "invariants": {
             "primary_forecast_unchanged": True,

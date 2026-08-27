@@ -106,6 +106,12 @@ may preserve that view without granting it authority:
 4. call `build_temporal_decision_reconciliation(...)` to expose agreements and
    conflicts under a sealed selection policy.
 
+The reconciliation response is accepted through
+`seal_temporal_decision_selection(...)`. It must name the selected source, a
+distinct counterevidence source when the inputs conflict, confidence, and a
+falsifiable `what_would_change` condition. Missing reasoning slots are a typed
+contract failure rather than silently successful “reconciliation.”
+
 The receipt is always `prior_assisted`, host-attested as captured before
 evidence, and automation-ineligible. Reconciliation may choose a human-facing
 action, but it cannot edit either input, upgrade support, mutate the primary,

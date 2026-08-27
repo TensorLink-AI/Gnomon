@@ -19,6 +19,10 @@ class FixedClient:
             "automation_action": "withhold",
             "evidence_assessment": "indeterminate",
             "breach_probability": .25,
+            "selected_source": "synthesis",
+            "counterevidence_source": "immutable_primary",
+            "confidence": "low",
+            "what_would_change": "More independent replay origins.",
         })]
 
 
@@ -56,6 +60,7 @@ def test_reconciliation_consumes_verified_pre_evidence_rows(tmp_path):
             (tmp_path / "reconciled" / "rows.jsonl").read_text().splitlines()]
     assert len(rows) == 4
     assert all(row["automation_action"] == "withhold" for row in rows)
+    assert all(row["selection_valid"] is True for row in rows)
     assert all(row.get("request_sha256") for row in rows)
 
 

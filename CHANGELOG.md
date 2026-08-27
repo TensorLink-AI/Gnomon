@@ -7,6 +7,11 @@
   primary stays immutable, and reconciliation is never automation-eligible.
   A request-bound BreachBench reconciliation runner measures whether this
   two-stage lane recovers useful model judgment instead of assuming it does.
+- **Reconciliation must expose its reasoning choice.** A validated selection
+  receipt now requires the chosen source, distinct counterevidence under
+  conflict, confidence, and a bounded falsifiable condition. The benchmark
+  counts a structurally valid forecast answer with missing reconciliation
+  fields as a failed reconciliation rather than crediting opaque copying.
 
 - **Weak breach evidence no longer communicates exact certainty.** Short-
   history horizon-event estimates based on independence-composed per-step

@@ -6,7 +6,9 @@ from gnomon.agent_context import (
     candidate_from_sampled_paths,
     recommended_sample_count,
     sample_path_stability,
+    seal_temporal_decision_selection,
     seal_temporal_decision_prior,
+    verify_temporal_decision_reconciliation,
     verify_temporal_decision_prior,
 )
 
@@ -108,6 +110,17 @@ def test_reconciliation_surfaces_conflict_without_mutating_primary():
     assert result["primary_forecast_unchanged"] is True
     assert result["selection_policy"]["human_may_select"] is True
     assert result["selection_policy"]["automation_eligible"] is False
+    assert verify_temporal_decision_reconciliation(result)
+    selection = seal_temporal_decision_selection(result, {
+        "selected_source": "synthesis",
+        "counterevidence_source": "immutable_primary",
+        "action": "act", "confidence": "low",
+        "what_would_change": "Two additional non-breach origins.",
+        "automation_action": "withhold",
+    })
+    assert selection["support"] == "prior_assisted"
+    assert selection["primary_forecast_unchanged"] is True
+    assert selection["automation_eligible"] is False
 
 
 def test_reconciliation_rejects_cross_question_and_model_claimed_order():
@@ -119,3 +132,25 @@ def test_reconciliation_rejects_cross_question_and_model_claimed_order():
         seal_temporal_decision_prior(
             {"capture": {"host_attested": True}, "action": "act"},
             question_sha256="a" * 64, proposer_id="host", model="x")
+
+
+def test_selection_requires_counterevidence_and_withholds_automation():
+    packet = {
+        "threshold_analysis": {"horizon_event": {
+            "probability_any_breach": .25}},
+        "governed_decision": {"advisory_action": "monitor",
+                              "automation_eligible": False},
+    }
+    reconciliation = build_temporal_decision_reconciliation(
+        packet, _prior(), question_sha256="a" * 64)
+    base = {
+        "selected_source": "independent_prior", "action": "act",
+        "confidence": "medium", "what_would_change": "More replay origins.",
+        "automation_action": "withhold",
+    }
+    with pytest.raises(ValueError, match="counterevidence"):
+        seal_temporal_decision_selection(reconciliation, base)
+    with pytest.raises(ValueError, match="authorize automation"):
+        seal_temporal_decision_selection(reconciliation, {
+            **base, "counterevidence_source": "immutable_primary",
+            "automation_action": "act"})
