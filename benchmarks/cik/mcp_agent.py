@@ -273,7 +273,11 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: governed unit algebra; percent remains a distinct unit requiring scaling.
 #: Version 124: an exact cited multiplier may form a large scenario-only path;
 #: approximate or model-authored extremes still hit the scale guard.
-MCP_CONTRACT_VERSION = 124
+#: Version 125: one accepted executable lane prevents malformed optional lanes
+#: from consuming the sole repair call or replacing a useful dossier.
+#: Version 126: sealed receipts record why each bounded repair stage did or did
+#: not trigger, including accepted and rejected lane statuses.
+MCP_CONTRACT_VERSION = 126
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -2255,6 +2259,7 @@ class _Run:
         compilation_deadline = (compilation_started
                                 + MAX_CONTEXT_COMPILATION_SECONDS)
         compiler_calls: list[dict[str, Any]] = []
+        repair_decisions: list[dict[str, Any]] = []
 
         def bind_active_target(candidate: dict[str, Any]) -> dict[str, Any]:
             """Attach host-owned series identity without granting semantics."""
@@ -2361,18 +2366,61 @@ class _Run:
                 future_timestamps=future_timestamps, history=self.values,
                 history_timestamps=self.timestamps,
                 compiler_model=self.forecaster.openrouter_model)
-            effect_failed = (probe.get("effect_proposal_critique") or {}).get(
-                "status") == "rejected"
-            candidate_failed = (probe.get("candidate_critique") or {}).get(
-                "status") == "rejected"
+            effect_critique = probe.get("effect_proposal_critique") or {}
+            candidate_critique = probe.get("candidate_critique") or {}
+            effect_failed = effect_critique.get("status") == "rejected"
+            effect_accepted = effect_critique.get("status") in {
+                "accepted", "accepted_after_repair"}
+            candidate_failed = candidate_critique.get("status") == "rejected"
+            candidate_accepted = candidate_critique.get("status") in {
+                "accepted", "accepted_after_repair"}
             hypothesis_failures = (probe.get("hypothesis_critique") or {}).get(
                 "rejected") or []
             observation_failures = (
                 probe.get("observation_interpretation_critique") or {}).get(
                     "rejected") or []
-            if (probe_rejections or effect_failed or candidate_failed
-                    or hypothesis_failures or observation_failures
-                    or observation_lane_missing or unresolved_numeric_context):
+            observation_accepted = bool((
+                probe.get("observation_interpretation_critique") or {}).get(
+                    "accepted"))
+            accepted_executable = (
+                effect_accepted or candidate_accepted or observation_accepted)
+            # Once one numeric lane is valid, malformed optional lanes remain
+            # visible in the dossier critique but must not replace a useful
+            # result or consume another LLM call. Required observation
+            # semantics are the exception because answering a different data
+            # interpretation would be materially wrong.
+            repair_required = (
+                observation_lane_missing or unresolved_numeric_context
+                or (not accepted_executable and (
+                    probe_rejections or effect_failed or candidate_failed
+                    or hypothesis_failures or observation_failures)))
+            repair_decisions.append({
+                "stage": "dossier_probe",
+                "triggered": bool(repair_required),
+                "accepted_executable": bool(accepted_executable),
+                "effect_status": effect_critique.get("status"),
+                "effect_violation_codes": list(dict.fromkeys(
+                    str(violation.get("code"))
+                    for attempt in effect_critique.get("attempts") or []
+                    for violation in attempt.get("violations") or []
+                    if violation.get("code"))),
+                "candidate_status": candidate_critique.get("status"),
+                "candidate_reasons": [str(reason) for reason in
+                                      candidate_critique.get("reasons") or []][
+                                          :6],
+                "accepted_observation_interpretations": len((
+                    probe.get("observation_interpretation_critique") or {}).get(
+                        "accepted") or []),
+                "rejected_hypotheses": len(hypothesis_failures),
+                "rejected_observation_interpretations": len(
+                    observation_failures),
+                "required_observation_lane_missing": bool(
+                    observation_lane_missing),
+                "numeric_context_unresolved": bool(
+                    unresolved_numeric_context),
+                "top_level_rejections": len(probe_rejections),
+            })
+            if repair_required:
                 # Do not let one failed lane hide another. In particular, an
                 # effect critique used to mask a malformed candidate, causing
                 # the sole repair round to return another placeholder path.
@@ -2467,6 +2515,12 @@ class _Run:
             raw.get("transformations") or raw.get("effect_proposal")
             or raw.get("forecast_candidate"))
         if exact_lag_claims and numeric_lane_missing and not repair_used:
+            repair_decisions.append({
+                "stage": "relationship_sufficiency_probe",
+                "triggered": True,
+                "exact_lag_claims": len(exact_lag_claims),
+                "numeric_lane_missing": True,
+            })
             try:
                 repair_used = True
                 focused = (
@@ -2844,6 +2898,13 @@ class _Run:
             return failures
 
         transform_failures = transformation_violations(raw, final_probe)
+        if raw.get("transformations"):
+            repair_decisions.append({
+                "stage": "transformation_preflight",
+                "triggered": bool(transform_failures and not repair_used),
+                "failure_count": len(transform_failures),
+                "repair_already_used": bool(repair_used),
+            })
         if transform_failures and not repair_used:
             try:
                 repair_used = True
@@ -3036,6 +3097,7 @@ class _Run:
                 "elapsed_seconds": round(
                     time.monotonic() - compilation_started, 6),
                 "calls": compiler_calls,
+                "repair_decisions": repair_decisions,
             },
             "source": {
                 "kind": "benchmark_task_context",

@@ -1084,6 +1084,60 @@ def test_transformation_gets_one_bounded_provenance_repair(tmp_path):
     assert client.completion_transport_retries == [0, 0]
 
 
+def test_accepted_effect_does_not_recompile_for_malformed_optional_lane(
+        tmp_path):
+    task = _task()
+    span = "Demand will be 2 times the usual level tomorrow."
+    task.scenario = span
+    dossier = json.dumps({
+        "claims": [{
+            "source_span": span, "relation": "supports_increase",
+            "effective_start": task.future_time[0],
+            "effective_end": task.future_time[-1], "confidence": .9,
+        }],
+        "effect_proposal": {
+            "shape": "temporary_pulse", "unit": "fraction_of_level",
+            "location": 1, "lower": 1, "upper": 1, "confidence": .9,
+            "delay_steps": 0, "duration_steps": 1,
+            "scope": {"kind": "single_series", "series": ["*"]},
+            "claim_ids": ["claim-1"], "composition": "scenario_only",
+        },
+        # This side lane is deliberately malformed. Its critique remains in
+        # the receipt, but it must not replace the valid executable effect.
+        "forecast_candidate": {"quantiles": "not-an-array"},
+    })
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        dossier)
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence", output_role="canonical")
+    _, extra = forecaster(task, 1)
+
+    assert len(client.completion_prompts) == 1
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text(encoding="utf-8"))
+    assert receipt["dossier"]["effect_proposal_critique"]["status"] \
+        == "accepted"
+    assert receipt["dossier"]["candidate_critique"]["status"] == "rejected"
+    assert receipt["compiler"]["repair_decisions"] == [{
+        "stage": "dossier_probe", "triggered": False,
+        "accepted_executable": True, "effect_status": "accepted",
+        "effect_violation_codes": [], "candidate_status": "rejected",
+        "candidate_reasons": [
+            "forecast_candidate quantiles must match the requested horizon"],
+        "accepted_observation_interpretations": 0,
+        "rejected_hypotheses": 0,
+        "rejected_observation_interpretations": 0,
+        "required_observation_lane_missing": False,
+        "numeric_context_unresolved": False,
+        "top_level_rejections": 1,
+    }]
+    assert client.completion_reasoning_efforts == ["none"]
+    assert client.completion_transport_retries == [0]
+
+
 def test_exact_lag_claims_get_one_focused_sufficiency_repair(tmp_path):
     task = _task()
     equation = "Parents for sales at lag 1 affect it as 0.5 * sales."

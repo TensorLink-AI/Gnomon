@@ -17,6 +17,15 @@
   correction such as “typically 9×, but in this case 5×.” Alternative values
   without that correction grammar remain ambiguous, including cases where a
   permissive baseline regex could previously swallow the second multiplier.
+- Context compilation is now lane-prioritized: once an effect, forecast
+  candidate, or required observation interpretation validates, malformed
+  optional side lanes remain visible as typed critiques but cannot consume the
+  sole repair call or replace the useful executable. Required data semantics
+  and wholly unresolved numeric context still receive one bounded repair.
+- Context receipts now retain deterministic repair-decision telemetry: lane
+  status, failure counts, whether a required semantic lane was missing, and
+  why each bounded repair stage fired or was skipped. This separates endpoint
+  latency from necessary semantic repair without exposing hidden reasoning.
 
 - Safe declarative transformations may now bind additional verbatim source
   lines containing their exact AST literals. The host neither interprets nor
