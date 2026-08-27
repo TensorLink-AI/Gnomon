@@ -93,6 +93,26 @@ the result is `prior_assisted`, requires human review, and is never automation
 eligible unless separate historical admission exists. These helpers make no
 network calls and accept no provider credentials.
 
+### Preserve an independent decision prior
+
+For consequential threshold decisions, a one-call evidence prompt can anchor a
+model and erase useful temporal judgment it held before seeing Gnomon. A host
+may preserve that view without granting it authority:
+
+1. ask the model the user's unchanged question without Gnomon evidence;
+2. validate the structured answer and call
+   `seal_temporal_decision_prior(...)` with a hash of that exact question;
+3. compute the normal immutable Gnomon packet; and
+4. call `build_temporal_decision_reconciliation(...)` to expose agreements and
+   conflicts under a sealed selection policy.
+
+The receipt is always `prior_assisted`, host-attested as captured before
+evidence, and automation-ineligible. Reconciliation may choose a human-facing
+action, but it cannot edit either input, upgrade support, mutate the primary,
+or authorize automation. Hosts should outcome-score those choices before
+making this a default; the helper preserves a prior, it does not prove that the
+prior is skilled.
+
 ## Is OpenRouter a planned option?
 
 Not in the runtime, and there is no committed date. OpenRouter is a

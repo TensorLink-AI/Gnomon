@@ -1,5 +1,13 @@
 # Changelog
 
+- **Host-sealed pre-evidence temporal priors.** Provider-neutral helpers now
+  validate and seal an LLM's threshold decision before it sees Gnomon, then
+  build a deterministic reconciliation packet with explicit prediction,
+  action, and probability conflicts. The prior remains `prior_assisted`, the
+  primary stays immutable, and reconciliation is never automation-eligible.
+  A request-bound BreachBench reconciliation runner measures whether this
+  two-stage lane recovers useful model judgment instead of assuming it does.
+
 - **Weak breach evidence no longer communicates exact certainty.** Short-
   history horizon-event estimates based on independence-composed per-step
   marginals now retain the raw composition as a diagnostic but publish a

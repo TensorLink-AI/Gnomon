@@ -1,10 +1,13 @@
 import pytest
 
 from gnomon.agent_context import (
+    build_temporal_decision_reconciliation,
     build_sampled_context_prior_prompt,
     candidate_from_sampled_paths,
     recommended_sample_count,
     sample_path_stability,
+    seal_temporal_decision_prior,
+    verify_temporal_decision_prior,
 )
 
 
@@ -63,3 +66,56 @@ def test_sample_count_policy_is_bounded_and_requires_a_distribution():
 def test_stability_rejects_empty_paths():
     with pytest.raises(ValueError, match="non-empty"):
         sample_path_stability([], [1, 2])
+
+
+def _prior(**updates):
+    answer = {
+        "breach_expected": True, "breach_probability": .7,
+        "first_breach_step": 3, "action": "act",
+    }
+    answer.update(updates)
+    return seal_temporal_decision_prior(
+        answer, question_sha256="a" * 64,
+        proposer_id="host:test", model="test-model")
+
+
+def test_decision_prior_is_host_sealed_non_authoritative_and_tamper_evident():
+    receipt = _prior()
+    assert verify_temporal_decision_prior(receipt)
+    assert receipt["support"] == "prior_assisted"
+    assert receipt["automation_eligible"] is False
+    changed = {**receipt, "action": "monitor"}
+    assert not verify_temporal_decision_prior(changed)
+
+
+def test_reconciliation_surfaces_conflict_without_mutating_primary():
+    packet = {
+        "support": "best_effort",
+        "threshold_analysis": {"horizon_event": {
+            "probability_any_breach": .25}},
+        "governed_decision": {
+            "advisory_action": "monitor",
+            "human_action_authority": "advisory",
+            "automation_eligible": False,
+        },
+    }
+    before = repr(packet)
+    result = build_temporal_decision_reconciliation(
+        packet, _prior(), question_sha256="a" * 64)
+    assert repr(packet) == before
+    assert result["conflict"] == {
+        "prediction": True, "action": True, "probability_delta": .45}
+    assert result["primary_forecast_unchanged"] is True
+    assert result["selection_policy"]["human_may_select"] is True
+    assert result["selection_policy"]["automation_eligible"] is False
+
+
+def test_reconciliation_rejects_cross_question_and_model_claimed_order():
+    packet = {"threshold_analysis": {}, "governed_decision": {}}
+    with pytest.raises(ValueError, match="another question"):
+        build_temporal_decision_reconciliation(
+            packet, _prior(), question_sha256="b" * 64)
+    with pytest.raises(ValueError, match="breach_expected"):
+        seal_temporal_decision_prior(
+            {"capture": {"host_attested": True}, "action": "act"},
+            question_sha256="a" * 64, proposer_id="host", model="x")

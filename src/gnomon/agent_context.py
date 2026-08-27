@@ -7,12 +7,150 @@ aggregate, and seal those paths through :mod:`gnomon.llm_dossier`.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import re
 import statistics
 from datetime import datetime
 from typing import Any
+
+
+def _seal(payload: dict[str, Any]) -> str:
+    return hashlib.sha256(json.dumps(
+        payload, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")).hexdigest()
+
+
+def seal_temporal_decision_prior(
+    answer: dict[str, Any], *, question_sha256: str,
+    proposer_id: str, model: str,
+) -> dict[str, Any]:
+    """Validate and host-seal a decision captured before Gnomon evidence.
+
+    This receipt preserves an LLM's independent temporal prior so a later
+    evidence call can reconcile rather than anchor on the first authoritative-
+    looking number it sees. It is never historical evidence, never modifies
+    the primary forecast, and never grants automation authority. The host owns
+    the capture-order assertion; a model cannot self-assert it inside
+    ``answer``.
+    """
+    if (not isinstance(question_sha256, str) or len(question_sha256) != 64
+            or any(ch not in "0123456789abcdef" for ch in question_sha256)):
+        raise ValueError("question_sha256 must be a lowercase SHA-256 digest")
+    if not isinstance(proposer_id, str) or not proposer_id.strip():
+        raise ValueError("proposer_id is required")
+    if not isinstance(model, str) or not model.strip():
+        raise ValueError("model is required")
+    prediction = answer.get("breach_expected")
+    action = str(answer.get("action") or "").strip().lower()
+    if not isinstance(prediction, bool):
+        raise ValueError("breach_expected must be boolean")
+    if action not in {"act", "monitor"}:
+        raise ValueError("action must be act or monitor")
+    probability = answer.get("breach_probability")
+    if probability is not None:
+        if (isinstance(probability, bool)
+                or not isinstance(probability, (int, float))
+                or not math.isfinite(float(probability))
+                or not 0 <= float(probability) <= 1):
+            raise ValueError("breach_probability must be in [0, 1] or null")
+        probability = float(probability)
+    step = answer.get("first_breach_step")
+    if step is not None and (isinstance(step, bool)
+                             or not isinstance(step, int) or step < 1):
+        raise ValueError("first_breach_step must be a positive integer or null")
+    body = {
+        "schema_version": "0.1",
+        "kind": "temporal_decision_prior",
+        "question_sha256": question_sha256,
+        "proposer": {"proposer_id": proposer_id, "model": model},
+        "prediction": "breach" if prediction else "no_breach",
+        "breach_probability": probability,
+        "first_breach_step": step,
+        "action": action,
+        "capture": {
+            "phase": "before_gnomon_evidence",
+            "host_attested": True,
+        },
+        "support": "prior_assisted",
+        "automation_eligible": False,
+    }
+    return {**body, "seal_sha256": _seal(body)}
+
+
+def verify_temporal_decision_prior(receipt: dict[str, Any]) -> bool:
+    if not isinstance(receipt, dict) or not receipt.get("seal_sha256"):
+        return False
+    body = {key: value for key, value in receipt.items()
+            if key != "seal_sha256"}
+    return (
+        receipt.get("kind") == "temporal_decision_prior"
+        and receipt.get("support") == "prior_assisted"
+        and receipt.get("automation_eligible") is False
+        and (receipt.get("capture") or {}).get("phase") ==
+        "before_gnomon_evidence"
+        and (receipt.get("capture") or {}).get("host_attested") is True
+        and receipt["seal_sha256"] == _seal(body)
+    )
+
+
+def build_temporal_decision_reconciliation(
+    primary_packet: dict[str, Any], prior_receipt: dict[str, Any],
+    *, question_sha256: str,
+) -> dict[str, Any]:
+    """Build a deterministic contrast between immutable evidence and prior."""
+    if not verify_temporal_decision_prior(prior_receipt):
+        raise ValueError("temporal decision prior seal is invalid")
+    if prior_receipt.get("question_sha256") != question_sha256:
+        raise ValueError("temporal decision prior belongs to another question")
+    analysis = primary_packet.get("threshold_analysis") or {}
+    event = analysis.get("horizon_event") or {}
+    decision = primary_packet.get("governed_decision") or {}
+    probability = event.get("probability_any_breach")
+    engine_prediction = (
+        "breach" if probability is not None and float(probability) >= .5
+        else "no_breach" if probability is not None else "indeterminate")
+    engine_action = (decision.get("recommended_action")
+                     or decision.get("advisory_action"))
+    body = {
+        "schema_version": "0.1",
+        "kind": "temporal_decision_reconciliation",
+        "question_sha256": question_sha256,
+        "primary_packet_sha256": _seal(primary_packet),
+        "immutable_primary": {
+            "support": primary_packet.get("support"),
+            "event_probability": probability,
+            "prediction": engine_prediction,
+            "action_reference": engine_action,
+            "human_action_authority": decision.get(
+                "human_action_authority", "unavailable"),
+            "automation_eligible": decision.get(
+                "automation_eligible") is True,
+        },
+        "independent_prior": prior_receipt,
+        "conflict": {
+            "prediction": prior_receipt.get("prediction") != engine_prediction,
+            "action": (engine_action is not None
+                       and prior_receipt.get("action") != engine_action),
+            "probability_delta": (
+                round(float(prior_receipt["breach_probability"])
+                      - float(probability), 6)
+                if prior_receipt.get("breach_probability") is not None
+                and probability is not None else None),
+        },
+        "selection_policy": {
+            "human_may_select": True,
+            "must_cite_selected_source": True,
+            "must_state_counterevidence": True,
+            "must_state_what_would_change": True,
+            "may_edit_numeric_inputs": False,
+            "may_upgrade_support": False,
+            "automation_eligible": False,
+        },
+        "primary_forecast_unchanged": True,
+    }
+    return {**body, "seal_sha256": _seal(body)}
 
 
 def _json_objects(text: str) -> list[dict[str, Any]]:
