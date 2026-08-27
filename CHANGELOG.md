@@ -15,6 +15,23 @@
   retry cannot create missing source evidence and can mis-bind a replacement
   hypothesis; the response now preserves the cited claims and returns the
   dated-trigger recovery directly instead of guessing in a second call.
+- Distinguish atemporal background evidence from undated future triggers.
+  Historical summaries and timeless relationships now receive applicability
+  recovery rather than a nonsensical request for an event date, remain
+  scenario-only by default, and cannot authorize deterministic effects or
+  automation.
+- Mark explicitly correlational/co-occurring claims as associational rather
+  than causal. A model-authored path that cites them remains inspectable but
+  cannot become the recommendation without a fold-validated relationship
+  executable, preventing lucky causal leaps from gaining product authority.
+- Derive stable non-numeric hypotheses from verified atemporal claims when an
+  LLM formats that optional lane incorrectly. This preserves historical
+  background and associational caveats in one call instead of asking a second
+  model response to recreate evidence the validator already understands.
+- Join a magnitude-only claim to a uniquely containing, validated event quote
+  when the source separates arithmetic from timing. Exact baseline multipliers
+  now compile deterministically into a non-automatable conditional effect, and
+  the adapter avoids an LLM repair while the validated join is pending.
 
 - Add an explicit CiK `immutable_primary` diagnostic role. The previous
   `canonical` label referred to the public artifact trajectory, which may be

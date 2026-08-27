@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -472,6 +473,193 @@ def test_unresolved_trigger_is_not_reconciled_from_unrelated_iso_date():
         future_timestamps=TIMES, history=[8, 9, 10], compiler_model="test")
 
     assert dossier["claims"][0]["timing_status"] == "unresolved_trigger"
+
+
+def test_atemporal_background_is_visible_but_not_a_deterministic_effect():
+    span = "On average, the service receives 12 incidents per year."
+    raw = {
+        "claims": [{
+            "source_span": span, "relation": "supports_stability",
+            "effective_start": None, "effective_end": None,
+            "timing_status": "atemporal_context", "confidence": .7,
+        }],
+        "hypotheses": [{
+            "kind": "historical_analogue", "claim_ids": ["claim-1"],
+            "target_series": ["*"], "predictor_series": None,
+            "known_at": "2026-01-02T00:00:00+00:00", "lag_steps": 0,
+            "direction": "unknown", "rationale": "Historical background.",
+        }],
+        "effect_proposal": _proposal(claim_ids=["claim-1"]),
+    }
+
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=span, cutoff="2026-01-02T00:00:00+00:00",
+        future_timestamps=TIMES, history=[8, 9, 10], compiler_model="test")
+
+    assert not reasons
+    claim = dossier["claims"][0]
+    assert claim["timing_status"] == "atemporal_context"
+    assert claim["effective_window_binding"]["kind"] \
+        == "forecast_question_scope_atemporal_context"
+    assert claim["effective_window_binding"]["numeric_authority"] is False
+    assert dossier["hypotheses"][0]["kind"] == "historical_analogue"
+    assert dossier["effect_proposal"] is None
+    assert dossier["effect_proposal_critique"]["attempts"][0][
+        "violations"][0]["code"] \
+        == "ATEMPORAL_CONTEXT_NO_NUMERIC_AUTHORITY"
+    assert deterministic_events_from_claims(dossier) == []
+
+
+def test_association_only_claim_cannot_select_model_authored_path():
+    span = "Demand and support tickets tend to co-occur and are correlated."
+    raw = {
+        "claims": [{
+            "source_span": span, "relation": "supports_increase",
+            "effective_start": None, "effective_end": None,
+            "timing_status": "atemporal_context", "confidence": .7,
+        }],
+        "hypotheses": [{
+            "kind": "relationship", "claim_ids": ["claim-1"],
+            "target_series": ["*"], "predictor_series": "tickets",
+            "known_at": "2026-01-02T00:00:00+00:00", "lag_steps": 0,
+            "direction": "increase", "rationale": "Association only.",
+        }],
+        "series": ["tickets"],
+        "forecast_candidate": {
+            "claim_ids": ["claim-1"],
+            "constant_quantiles": {"q10": 8, "q50": 9, "q90": 10},
+            "rationale": "Assume ticket demand changes the target.",
+        },
+    }
+
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=span, cutoff="2026-01-02T00:00:00+00:00",
+        future_timestamps=TIMES, history=[8, 9, 10], compiler_model="test")
+
+    assert not reasons
+    assert dossier["claims"][0]["relationship_authority"] \
+        == "associational_only"
+    assert dossier["claims"][0]["causal_authority"] is False
+    assert dossier["forecast_candidate"] is not None
+    critique = dossier["candidate_critique"]
+    assert critique["selection_eligible"] is False
+    assert "Correlation" in critique["selection_reason"]
+
+
+def test_explicit_causal_claim_is_not_demoted_as_association_only():
+    span = "The shutdown causes demand to fall during the stated window."
+    dossier, reasons = validate_temporal_dossier({
+        "claims": [{
+            "source_span": span, "relation": "supports_decrease",
+            "effective_start": TIMES[0], "effective_end": TIMES[-1],
+            "timing_status": "resolved", "confidence": .7,
+        }],
+        "forecast_candidate": {
+            "claim_ids": ["claim-1"],
+            "constant_quantiles": {"q10": 6, "q50": 7, "q90": 8},
+        },
+    }, context_text=span, cutoff="2026-01-02T00:00:00+00:00",
+       future_timestamps=TIMES, history=[8, 9, 10], compiler_model="test")
+
+    assert not reasons
+    assert "relationship_authority" not in dossier["claims"][0]
+    assert dossier["candidate_critique"]["selection_eligible"] is True
+
+
+def test_atemporal_claim_derives_stable_non_numeric_hypothesis():
+    span = "On average, the service receives 12 incidents per year."
+    dossier, reasons = validate_temporal_dossier({
+        "claims": [{
+            "source_span": span, "relation": "supports_stability",
+            "effective_start": None, "effective_end": None,
+            "timing_status": "atemporal_context", "confidence": .7,
+        }],
+        "hypotheses": [{"kind": "relationship", "claim_ids": ["missing"]}],
+    }, context_text=span, cutoff="2026-01-02T00:00:00+00:00",
+       future_timestamps=TIMES, history=[8, 9, 10], compiler_model="test")
+
+    assert not reasons
+    assert len(dossier["hypotheses"]) == 1
+    assert dossier["hypotheses"][0]["kind"] == "historical_analogue"
+    critique = dossier["hypothesis_critique"]
+    assert critique["status"] == "accepted_after_deterministic_fallback"
+    assert critique["deterministic_fallback"] is True
+    assert critique["fallback_basis"] == "verified_atemporal_claims"
+    assert critique["rejected"]
+
+
+def test_association_derives_unsupported_not_causal_hypothesis():
+    span = "Demand and bicycle incidents tend to co-occur."
+    dossier, _ = validate_temporal_dossier({
+        "claims": [{
+            "source_span": span, "relation": "supports_increase",
+            "effective_start": None, "effective_end": None,
+            "timing_status": "atemporal_context", "confidence": .7,
+        }],
+    }, context_text=span, cutoff="2026-01-02T00:00:00+00:00",
+       future_timestamps=TIMES, history=[8, 9, 10], compiler_model="test")
+
+    hypothesis = dossier["hypotheses"][0]
+    assert hypothesis["kind"] == "unsupported"
+    assert "without causal or numeric authority" in hypothesis["rationale"]
+
+
+def test_verbatim_scale_joins_unique_validated_event_timing():
+    times = [
+        "2026-01-03T00:00:00+00:00", "2026-01-03T01:00:00+00:00",
+        "2026-01-03T02:00:00+00:00", "2026-01-03T03:00:00+00:00",
+    ]
+    magnitude = "Demand will be 4 times the usual level"
+    quote = (magnitude + " from 2026-01-03 01:00:00 for 2 hours.")
+    event = SimpleNamespace(
+        effective_start="2026-01-03T01:00:00+00:00",
+        effective_end="2026-01-03T03:00:00+00:00",
+        attributes={"evidence_quote": quote})
+    dossier, reasons = validate_temporal_dossier({
+        "claims": [{
+            "source_span": magnitude, "relation": "supports_increase",
+            "effective_start": None, "effective_end": None,
+            "timing_status": "unresolved_trigger", "confidence": .9,
+        }],
+    }, context_text=quote, cutoff="2026-01-02T00:00:00+00:00",
+       future_timestamps=times, history=[8, 9, 10], compiler_model="test",
+       validated_events=[event])
+
+    assert not reasons
+    claim = dossier["claims"][0]
+    assert claim["timing_status"] == "resolved"
+    assert claim["effective_start"] == "2026-01-03T01:00:00+00:00"
+    assert claim["effective_window_binding"]["kind"] \
+        == "validated_event_context_join"
+    effect = dossier["effect_proposal"]
+    assert effect["unit"] == "fraction_of_level"
+    assert effect["location"] == 3.0
+    assert effect["delay_steps"] == 1
+    assert effect["duration_steps"] == 2
+    assert effect["compiler_binding"] \
+        == "validated_event_plus_verbatim_scale"
+
+
+def test_event_timing_join_requires_one_unambiguous_containing_event():
+    magnitude = "Demand will be 4 times the usual level"
+    events = [SimpleNamespace(
+        effective_start="2026-01-03T00:00:00+00:00",
+        effective_end="2026-01-04T00:00:00+00:00",
+        attributes={"evidence_quote": (
+            magnitude + " from 2026-01-03 00:00:00.")}) for _ in range(2)]
+    dossier, reasons = validate_temporal_dossier({
+        "claims": [{
+            "source_span": magnitude, "relation": "supports_increase",
+            "effective_start": None, "effective_end": None,
+            "timing_status": "unresolved_trigger", "confidence": .9,
+        }],
+    }, context_text=events[0].attributes["evidence_quote"],
+       cutoff="2026-01-02T00:00:00+00:00", future_timestamps=TIMES,
+       history=[8, 9, 10], compiler_model="test", validated_events=events)
+
+    assert not reasons
+    assert dossier["claims"][0]["timing_status"] == "unresolved_trigger"
+    assert dossier["effect_proposal"] is None
 
 
 def test_literal_range_claim_becomes_deterministic_constraint():

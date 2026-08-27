@@ -114,6 +114,36 @@ def test_unresolved_trigger_claim_returns_dated_recovery_not_generic_rejection()
     assert payload["automation"]["eligible"] is False
 
 
+def test_atemporal_claim_requests_applicability_not_a_trigger_date():
+    span = "On average, the service receives 12 incidents per year."
+    dossier, reasons = validate_temporal_dossier({
+        "claims": [{
+            "source_span": span, "relation": "supports_stability",
+            "effective_start": None, "effective_end": None,
+            "timing_status": "atemporal_context", "confidence": .7,
+        }],
+        "hypotheses": [{
+            "kind": "historical_analogue", "claim_ids": ["claim-1"],
+            "target_series": ["*"], "predictor_series": None,
+            "known_at": "2026-01-02T00:00:00+00:00", "lag_steps": 0,
+            "direction": "unknown", "rationale": "Historical background.",
+        }],
+    }, context_text=span, cutoff="2026-01-02T00:00:00+00:00",
+       future_timestamps=TIMES, history=[8, 9, 10], compiler_model="test")
+    assert not reasons
+
+    payload = publish_result(_result(), mode="best_effort", dossiers=[dossier])
+
+    disposition = next(item for item in payload["context_dispositions"]
+                       if item.get("claim_id") == "claim-1")
+    assert disposition["reason_code"] == "background_context_not_conditioned"
+    assert disposition["recovery_action"]["code"] \
+        == "provide_applicability_evidence"
+    assert "date" not in disposition["recovery_action"]["message"]
+    assert payload["recommended_scenario_id"] == "primary"
+    assert payload["automation"]["eligible"] is False
+
+
 def test_exact_cited_scenario_is_human_facing_but_never_automatable():
     span = "In this case demand will be only 5 times the usual level."
     dossier, reasons = validate_temporal_dossier({

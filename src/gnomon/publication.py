@@ -363,6 +363,33 @@ def _claim_disposition(
                 "required_for_current_recommendation": False,
             },
         }
+    if claim.get("timing_status") == "atemporal_context":
+        return {
+            "context_id": f"dossier-{dossier_index}:{claim.get('claim_id')}",
+            "disposition": "scenario",
+            "reason_code": "background_context_not_conditioned",
+            "reason": (
+                "The source states background evidence or a relationship, "
+                "not a dated event. It remains available to interpretation "
+                "but was not treated as a deterministic forecast adjustment."),
+            "claim_id": claim.get("claim_id"),
+            "scenario_ids": list(scenario_ids or []),
+            "recovery_action": {
+                "code": "provide_applicability_evidence",
+                "message": (
+                    "Provide the current driver observations, comparison "
+                    "period, or an explicit bounded scenario assumption "
+                    "needed to apply this background evidence."),
+                "required_evidence": [
+                    "applicable driver observations or comparison period",
+                    "target and entity scope",
+                    "bounded scenario assumption when historical validation "
+                    "is unavailable",
+                ],
+                "automation_eligible": False,
+                "required_for_current_recommendation": False,
+            },
+        }
     return {
         "context_id": f"dossier-{dossier_index}:{claim.get('claim_id')}",
         "disposition": disposition, "reason_code": reason_code,

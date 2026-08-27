@@ -141,6 +141,126 @@ def _cited_span_resolves_start(span: str, start: datetime | None) -> bool:
     return False
 
 
+def _association_only_claim(span: str) -> bool:
+    """Identify explicitly associational language without causal authority."""
+    text = _normalise(span)
+    association = bool(re.search(
+        r"\b(?:correlat\w*|co[- ]?occur\w*|associated with|move together|"
+        r"tend(?:s|ed)? to (?:rise|fall|increase|decrease) together)\b", text))
+    explicit_cause = bool(re.search(
+        r"\b(?:causes?|caused by|leads? to|results? in|drives?|because of|"
+        r"as a result of)\b", text))
+    return association and not explicit_cause
+
+
+def _atemporal_hypothesis_rows(
+        claims: list[dict[str, Any]], *, cutoff: datetime,
+) -> list[dict[str, Any]]:
+    """Project verified background claims into non-numeric hypotheses."""
+    directions = {
+        "supports_increase": "increase",
+        "supports_decrease": "decrease",
+        "supports_stability": "unknown",
+        "supports_higher_variance": "increase",
+        "supports_lower_variance": "decrease",
+    }
+    rows = []
+    for claim in claims:
+        if claim.get("timing_status") != "atemporal_context":
+            continue
+        association = claim.get("relationship_authority") \
+            == "associational_only"
+        stability = claim.get("relation") == "supports_stability"
+        rows.append({
+            "kind": "historical_analogue" if stability else "unsupported",
+            "claim_ids": [claim["claim_id"]],
+            "target_series": ["*"],
+            "predictor_series": None,
+            "known_at": cutoff.isoformat(),
+            "lag_steps": 0,
+            "direction": directions.get(str(claim.get("relation")), "unknown"),
+            "rationale": (
+                "Verified associational background retained without causal "
+                "or numeric authority. Supply an observed predictor and a "
+                "fold-validated relationship executable to apply it."
+                if association else
+                "Verified historical background retained as a comparison, "
+                "not a deterministic forecast adjustment."),
+        })
+    return rows
+
+
+def _validated_event_window_for_claim(
+        span: str, validated_events: list[Any],
+) -> tuple[datetime, datetime] | None:
+    """Join a magnitude-only claim to one validated containing event quote."""
+    normalized_span = _normalise(span)
+    matches = []
+    for event in validated_events:
+        attributes = getattr(event, "attributes", {}) or {}
+        quote = str(attributes.get("evidence_quote") or
+                    attributes.get("source_span") or "")
+        start = _timestamp(getattr(event, "effective_start", None))
+        end = _timestamp(getattr(event, "effective_end", None))
+        if (normalized_span and normalized_span in _normalise(quote)
+                and start is not None and end is not None and end >= start
+                and _claim_start_is_cited(start, quote)):
+            matches.append((start, end))
+    return matches[0] if len(matches) == 1 else None
+
+
+def _derived_scale_effect(
+        claims: list[dict[str, Any]], *, future_timestamps: list[str],
+) -> dict[str, Any] | None:
+    """Compile one verbatim baseline multiplier joined to validated timing."""
+    from .future_context import parse_override_scale
+
+    future = [_timestamp(value) for value in future_timestamps]
+    if not future or any(value is None for value in future):
+        return None
+    candidates = []
+    for claim in claims:
+        binding = claim.get("effective_window_binding") or {}
+        if binding.get("kind") != "validated_event_context_join":
+            continue
+        multiplier, problem = parse_override_scale(
+            str(claim.get("source_span") or ""))
+        if problem is not None or multiplier is None:
+            continue
+        start = _timestamp(claim.get("effective_start"))
+        end = _timestamp(claim.get("effective_end"))
+        if start is None or end is None:
+            continue
+        active = [index for index, stamp in enumerate(future)
+                  if stamp is not None and start <= stamp < end]
+        if not active:
+            # A point-like window still owns the first grid point at/after it.
+            active = [index for index, stamp in enumerate(future)
+                      if stamp is not None and stamp >= start][:1]
+        if not active:
+            continue
+        candidates.append((claim, float(multiplier), active))
+    if len(candidates) != 1:
+        return None
+    claim, multiplier, active = candidates[0]
+    delta = multiplier - 1.0
+    return {
+        "shape": ("temporary_pulse" if len(active) < len(future)
+                  else "level_shift"),
+        "unit": "fraction_of_level",
+        "location": delta, "lower": delta, "upper": delta,
+        "confidence": float(claim.get("confidence", 1.0)),
+        "delay_steps": active[0], "duration_steps": len(active),
+        "scope": {"kind": "single_series", "series": ["*"]},
+        "claim_ids": [claim["claim_id"]],
+        "rationale": (
+            "Deterministic compilation of a verbatim baseline multiplier "
+            "and its uniquely containing validated event window."),
+        "uncertainty_basis": "verbatim multiplier and validated event window",
+        "compiler_binding": "validated_event_plus_verbatim_scale",
+    }
+
+
 _MONTHS = {
     name: number for number, names in enumerate((
         ("january", "jan"), ("february", "feb"), ("march", "mar"),
@@ -236,10 +356,26 @@ def validate_temporal_dossier(
         end = _timestamp(claim.get("effective_end"))
         history_window_binding = None
         timing_status = str(claim.get("timing_status") or "resolved")
-        if timing_status not in {"resolved", "unresolved_trigger"}:
+        if timing_status not in {
+                "resolved", "unresolved_trigger", "atemporal_context"}:
             reasons.append(f"claim {index + 1} has unknown timing_status")
             continue
-        if timing_status == "unresolved_trigger" and \
+        event_window = (_validated_event_window_for_claim(
+            span, validated_events or [])
+                        if timing_status == "unresolved_trigger" else None)
+        if event_window is not None:
+            start, end = event_window
+            timing_status = "resolved"
+            history_window_binding = {
+                "kind": "validated_event_context_join",
+                "basis": (
+                    "the claim span is contained by exactly one validated "
+                    "event quote whose cited onset owns the effective window"),
+                "supplied_timing_status": "unresolved_trigger",
+                "numeric_authority": True,
+                "automation_eligible": False,
+            }
+        elif timing_status == "unresolved_trigger" and \
                 _cited_span_resolves_start(span, start):
             timing_status = "resolved"
             history_window_binding = {
@@ -262,6 +398,21 @@ def validate_temporal_dossier(
                 "basis": (
                     "source states a temporal rule but does not establish "
                     "whether or when its trigger occurs in the horizon"),
+                "numeric_authority": False,
+                "automation_eligible": False,
+            }
+        elif timing_status == "atemporal_context":
+            # Background rates and cross-variable relationships have no event
+            # onset to recover. Bind them to question scope for presentation,
+            # but do not pretend that scope is an effective event window or
+            # grant deterministic numeric/automation authority.
+            start = _timestamp(future_timestamps[0]) if future_timestamps else None
+            end = _timestamp(future_timestamps[-1]) if future_timestamps else None
+            history_window_binding = {
+                "kind": "forecast_question_scope_atemporal_context",
+                "basis": (
+                    "source states background evidence or a relationship, "
+                    "not an event with an effective onset"),
                 "numeric_authority": False,
                 "automation_eligible": False,
             }
@@ -360,6 +511,7 @@ def validate_temporal_dossier(
         if not math.isfinite(confidence) or not 0 <= confidence <= 1:
             reasons.append(f"claim {index + 1} has invalid confidence")
             continue
+        association_only = _association_only_claim(span)
         claims.append({
             "claim_id": f"claim-{len(claims) + 1}",
             "source_span": span,
@@ -370,6 +522,10 @@ def validate_temporal_dossier(
             "confidence": confidence,
             "known_at": cutoff_dt.isoformat(),
             "timing_status": timing_status,
+            **({
+                "relationship_authority": "associational_only",
+                "causal_authority": False,
+            } if association_only else {}),
             **({"confidence_normalization": confidence_normalization}
                if confidence_normalization else {}),
             **({"effective_window_binding": history_window_binding}
@@ -459,6 +615,10 @@ def validate_temporal_dossier(
         str(claim["claim_id"]) for claim in claims
         if claim.get("timing_status") == "unresolved_trigger"
     }
+    atemporal_claim_ids = {
+        str(claim["claim_id"]) for claim in claims
+        if claim.get("timing_status") == "atemporal_context"
+    }
     if isinstance(candidate_input, dict) and unresolved_claim_ids:
         cited = {str(item) for item in candidate_input.get("claim_ids") or
                  [claim["claim_id"] for claim in claims]}
@@ -473,6 +633,20 @@ def validate_temporal_dossier(
             use_calibration_candidate or (
                 candidate_was_derived_from_observation_interpretation
                 and (derived_replay_admitted or derived_replay_human_eligible))))
+    if candidate is not None and not (
+            use_calibration_candidate
+            or candidate_was_derived_from_observation_interpretation):
+        cited_ids = {str(value) for value in candidate.get("claim_ids") or []}
+        associational_ids = {
+            str(claim["claim_id"]) for claim in claims
+            if claim.get("relationship_authority") == "associational_only"
+        }
+        if cited_ids.intersection(associational_ids):
+            candidate_selection_eligible = False
+            candidate_selection_reason = (
+                "A model-authored path cites associational evidence without "
+                "a fold-validated relationship executable. Correlation may "
+                "remain visible as a scenario but cannot authorize selection.")
     if candidate is not None and \
             candidate_was_derived_from_observation_interpretation:
         candidate["conditional_replay"] = dict(
@@ -489,6 +663,11 @@ def validate_temporal_dossier(
             "bypass that evidence gate.")
     candidate_reasons = reasons[candidate_reason_start:]
     effect_raw = raw.get("effect_proposal")
+    effect_was_derived_from_validated_event = False
+    if effect_raw in (None, {}):
+        effect_raw = _derived_scale_effect(
+            claims, future_timestamps=future_timestamps)
+        effect_was_derived_from_validated_event = effect_raw is not None
     if isinstance(effect_raw, dict) and not effect_raw.get("claim_ids") \
             and len(claims) == 1:
         # The caller proposes claims and effects in one response, before
@@ -501,6 +680,10 @@ def validate_temporal_dossier(
         isinstance(effect_raw, dict) and unresolved_claim_ids.intersection(
             str(item) for item in effect_raw.get("claim_ids") or
             ([claims[0]["claim_id"]] if len(claims) == 1 else [])))
+    atemporal_effect = bool(
+        isinstance(effect_raw, dict) and atemporal_claim_ids.intersection(
+            str(item) for item in effect_raw.get("claim_ids") or
+            ([claims[0]["claim_id"]] if len(claims) == 1 else [])))
     effect_proposal, proposal_critique = ((None, {
         "status": "rejected", "attempts_used": 1, "attempts_remaining": 1,
         "attempts": [{"attempt": 1, "accepted": False, "violations": [{
@@ -509,17 +692,28 @@ def validate_temporal_dossier(
                 "A qualitative rule cannot produce a numeric effect until "
                 "its trigger date or window is established."),
         }]}],
-    }) if unresolved_effect else validate_effect_proposal(
+    }) if unresolved_effect else (None, {
+        "status": "rejected", "attempts_used": 1, "attempts_remaining": 1,
+        "attempts": [{"attempt": 1, "accepted": False, "violations": [{
+            "code": "ATEMPORAL_CONTEXT_NO_NUMERIC_AUTHORITY",
+            "message": (
+                "Background context may support a labelled prior-assisted "
+                "candidate, but cannot directly authorize a numeric effect."),
+        }]}],
+    }) if atemporal_effect else validate_effect_proposal(
         effect_raw,
         claim_ids={str(claim["claim_id"]) for claim in claims},
         claim_spans={str(claim["claim_id"]): str(claim["source_span"])
                      for claim in claims},
         repair=raw.get("effect_proposal_repair"),
-    )) if raw.get("effect_proposal") not in (None, {}) else (None, {
+    )) if effect_raw not in (None, {}) else (None, {
         "status": "not_proposed", "attempts_used": 0, "attempts_remaining": 2,
         "attempts": [],
     })
     if effect_proposal is not None:
+        if effect_was_derived_from_validated_event:
+            effect_proposal["compiler_binding"] = (
+                "validated_event_plus_verbatim_scale")
         effect_proposal = _align_effect_onset_to_cited_claim(
             effect_proposal, claims=claims,
             future_timestamps=future_timestamps,
@@ -529,6 +723,20 @@ def validate_temporal_dossier(
         series=[str(value) for value in raw.get("series") or ["*"]],
         cutoff=cutoff, repair=raw.get("hypothesis_repair"),
     )
+    if not hypotheses:
+        fallback_rows = _atemporal_hypothesis_rows(claims, cutoff=cutoff_dt)
+        fallback_hypotheses, fallback_critique = compile_context_hypotheses(
+            fallback_rows, claims=claims, series=["*"], cutoff=cutoff)
+        if fallback_hypotheses:
+            original_rejected = list(hypothesis_critique.get("rejected") or [])
+            hypothesis_critique = {
+                **fallback_critique,
+                "status": "accepted_after_deterministic_fallback",
+                "rejected": original_rejected,
+                "deterministic_fallback": True,
+                "fallback_basis": "verified_atemporal_claims",
+            }
+            hypotheses = fallback_hypotheses
     payload: dict[str, Any] = {
         "version": DOSSIER_VERSION,
         "compiler_model": compiler_model,
@@ -1258,7 +1466,8 @@ def deterministic_events_from_claims(
 
     events = []
     for index, claim in enumerate(dossier.get("claims") or [], 1):
-        if claim.get("timing_status") == "unresolved_trigger":
+        if (claim.get("effective_window_binding") or {}).get(
+                "numeric_authority") is False:
             continue
         span = str(claim.get("source_span") or "")
         parse_span = _target_relevant_claim_span(span, target_name)

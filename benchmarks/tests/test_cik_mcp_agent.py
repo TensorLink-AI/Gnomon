@@ -1748,6 +1748,86 @@ def test_unresolved_rule_with_bad_numeric_lane_does_not_waste_repair(tmp_path):
     assert extra["publication"]["automation"]["eligible"] is False
 
 
+def test_atemporal_background_survives_mcp_with_applicability_recovery(tmp_path):
+    task = _task()
+    span = "On average, the service receives 12 incidents per year."
+    task.background = span
+    dossier = {
+        "events": [], "claims": [{
+            "source_span": span, "relation": "supports_stability",
+            "effective_start": None, "effective_end": None,
+            "timing_status": "atemporal_context", "confidence": .7,
+        }],
+        "hypotheses": [{
+            "kind": "historical_analogue", "claim_ids": ["claim-1"],
+            "target_series": ["*"], "predictor_series": None,
+            "known_at": task.past_time[-1][0], "lag_steps": 0,
+            "direction": "unknown", "rationale": "Historical background.",
+        }],
+    }
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        json.dumps(dossier))
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 1)
+
+    assert len(client.completion_prompts) == 1
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    claim = receipt["dossier"]["claims"][0]
+    assert claim["timing_status"] == "atemporal_context"
+    disposition = next(item for item in extra["publication"][
+        "context_dispositions"] if item.get("claim_id") == "claim-1")
+    assert disposition["reason_code"] == "background_context_not_conditioned"
+    assert disposition["recovery_action"]["code"] \
+        == "provide_applicability_evidence"
+    assert extra["publication"]["recommended_scenario_id"] == "primary"
+    assert extra["publication"]["automation"]["eligible"] is False
+
+
+def test_atemporal_claim_fallback_avoids_hypothesis_repair_call(tmp_path):
+    task = _task()
+    span = "Demand and bicycle incidents tend to co-occur."
+    task.background = span
+    malformed = {
+        "events": [], "claims": [{
+            "source_span": span, "relation": "supports_increase",
+            "effective_start": None, "effective_end": None,
+            "timing_status": "atemporal_context", "confidence": .7,
+        }],
+        "hypotheses": [{
+            "kind": "relationship", "claim_ids": ["claim-1"],
+            "target_series": ["*"], "predictor_series": "not_supplied",
+            "known_at": task.past_time[-1][0], "lag_steps": 0,
+            "direction": "increase", "rationale": "Association only.",
+        }],
+    }
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        [json.dumps(malformed), json.dumps({})])
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 1)
+
+    assert len(client.completion_prompts) == 1
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    assert receipt["dossier"]["hypotheses"][0]["kind"] == "unsupported"
+    decision = receipt["compiler"]["repair_decisions"][0]
+    assert decision["triggered"] is False
+    assert decision["retained_atemporal_interpretation"] is True
+    assert decision["skip_reason"] == "typed_background_already_preserved"
+
+
 def test_transformation_preflight_repairs_malformed_future_series(tmp_path):
     task = _task()
     span = "The future input is 2.0 throughout the forecast window."

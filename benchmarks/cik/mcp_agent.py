@@ -309,7 +309,7 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: blocks and resolves ambiguous schedule endpoints from pre-cutoff evidence.
 #: Version 142: isolated multi-seed runs bind the runner's authoritative seed
 #: into trace identity instead of overwriting every case as `seedx`.
-MCP_CONTRACT_VERSION = 154
+MCP_CONTRACT_VERSION = 155
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -440,7 +440,7 @@ one JSON object with this shape:
      "relation": "supports_increase | supports_decrease | supports_stability | supports_higher_variance | supports_lower_variance | changes_seasonal_regime | constrains_range | unknown",
      "effective_start": "timezone-aware ISO", "effective_end": "timezone-aware ISO",
      "mechanism": "brief qualitative explanation", "confidence": 0.0,
-     "timing_status": "resolved | unresolved_trigger"}
+     "timing_status": "resolved | unresolved_trigger | atemporal_context"}
   ],
   "observation_interpretations": [
     {"kind": "historical_contamination", "claim_ids": ["claim-1"],
@@ -534,6 +534,17 @@ Rules:
   plus an `unsupported` hypothesis. Do not turn it into an event, effect,
   transformation, or automated recommendation. It exists to explain what is
   missing and what dated evidence would make the rule executable.
+- Use `timing_status:"atemporal_context"` for historical summaries and
+  timeless relationships that have no event onset (for example, a historical
+  annual average or a correlation). Use null effective dates. Preserve them as
+  hypotheses; do not invent a trigger date or apply them as a deterministic
+  effect. They may support a labelled prior-assisted candidate only when its
+  assumptions and uncertainty are explicit.
+- Correlation, co-occurrence, and "move together" statements are
+  associational, not intervention evidence. Preserve them as relationship
+  hypotheses. Do not cite them to justify a model-authored numeric path; only
+  a fold-validated relationship executable may turn them into selection
+  authority.
 - A numeric effect must cite both its magnitude and its timing. Prefer one
   verbatim claim span containing both. If the source separates them, emit one
   claim for the dated window and one for the numeric relationship, then cite
@@ -614,8 +625,9 @@ medication|procedure|calendar|capacity|price|environment|unknown"}.
 - claim: {source_span,relation:"supports_increase|supports_decrease|
 supports_stability|supports_higher_variance|supports_lower_variance|
 changes_seasonal_regime|constrains_range|unknown",effective_start,effective_end,
-mechanism,confidence,timing_status:"resolved|unresolved_trigger"}. Use null
-effective dates only with unresolved_trigger.
+mechanism,confidence,timing_status:"resolved|unresolved_trigger|
+atemporal_context"}. Use null effective dates with unresolved_trigger or
+atemporal_context.
 - observation_interpretation: {kind:"historical_contamination",claim_ids:
 ["claim-1"],predicate:{op:"equals",value:0}|{op:"recurring_window",start,
 duration_steps,period_steps},window:
@@ -664,6 +676,13 @@ General temporal rules with an unidentified or undated trigger are still
 useful context: preserve the verbatim claim with timing_status
 `unresolved_trigger` and an unsupported hypothesis, but never apply it
 numerically or authorize automation.
+Historical summaries and timeless relationships are not missing triggers. Mark
+them `atemporal_context`; preserve their interpretation and ask for applicable
+driver observations, a comparison period, or an explicit bounded scenario—not
+an invented event date.
+Correlation and co-occurrence do not imply that intervening on one series
+changes another. Keep such claims as hypotheses; do not use them as causal
+authority for forecast-candidate selection.
 4. Preserve ambiguity as competing hypotheses. Confidence never upgrades
 support or automation. A model-authored candidate is prior_assisted only,
 never automation-eligible, and its rationale explains derived arithmetic.
@@ -2533,6 +2552,11 @@ class _Run:
                 verified_claims
                 and all(claim.get("timing_status") == "unresolved_trigger"
                         for claim in verified_claims))
+            retained_atemporal_interpretation = bool(
+                verified_claims
+                and all(claim.get("timing_status") == "atemporal_context"
+                        for claim in verified_claims)
+                and probe.get("hypotheses"))
             # Once one numeric lane is valid, malformed optional lanes remain
             # visible in the dossier critique but must not replace a useful
             # result or consume another LLM call. Required observation
@@ -2545,7 +2569,8 @@ class _Run:
             repair_required = (
                 observation_lane_missing or unresolved_numeric_context
                 or (not accepted_executable
-                    and not retained_unresolved_interpretation and (
+                    and not retained_unresolved_interpretation
+                    and not retained_atemporal_interpretation and (
                     probe_rejections or effect_failed or candidate_failed
                     or hypothesis_failures or observation_failures)))
             rejected_effect_fields = {}
@@ -2592,6 +2617,10 @@ class _Run:
                     "retained_unresolved_interpretation": True,
                     "skip_reason": "missing_trigger_evidence_not_repairable",
                 } if retained_unresolved_interpretation else {}),
+                **({
+                    "retained_atemporal_interpretation": True,
+                    "skip_reason": "typed_background_already_preserved",
+                } if retained_atemporal_interpretation else {}),
             })
             if repair_required:
                 # Do not let one failed lane hide another. In particular, an
@@ -3097,9 +3126,23 @@ class _Run:
         non_transform_executable = (
             effect_status in {"accepted", "accepted_after_repair"}
             or observation_count > 0)
+        unresolved_spans = [
+            " ".join(str(claim.get("source_span") or "").split()).casefold()
+            for claim in final_probe.get("claims") or []
+            if claim.get("timing_status") == "unresolved_trigger"
+            and claim.get("source_span")]
+        event_timing_join_possible = any(
+            span and span in " ".join(str(
+                event.get("evidence_quote") or event.get("source_span") or
+                "").split()).casefold()
+            for span in unresolved_spans
+            for event in raw.get("events") or []
+            if isinstance(event, dict)
+            and event.get("effective_start") and event.get("effective_end"))
         transform_repair_eligible = bool(
             transform_failures and not repair_used
-            and not non_transform_executable)
+            and not non_transform_executable
+            and not event_timing_join_possible)
         if raw.get("transformations"):
             transform_violation_codes = sorted({
                 str(violation.get("code"))
@@ -3118,6 +3161,8 @@ class _Run:
                 "skip_reason": (
                     "valid_non_transform_executable"
                     if transform_failures and non_transform_executable
+                    else "validated_event_join_pending"
+                    if transform_failures and event_timing_join_possible
                     else None),
             })
         if transform_repair_eligible:
