@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Make cited driver-range reconstruction authoritative over malformed
+  model-authored history, bind relationship-claim applicability to the
+  host-owned forecast grid, and ignore impossible empty ranges that cover no
+  timestamp. This removes compiler-shape variance without changing source
+  values, lags, schedules, or estimator admission.
 - Bind deterministic literal extraction to exact symbolic target identifiers
   such as `X_1` and remove identifier digits before numeric parsing. Mixed
   target/driver paragraphs can no longer turn a driver's schedule—or the

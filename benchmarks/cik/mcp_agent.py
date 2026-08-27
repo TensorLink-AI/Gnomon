@@ -863,6 +863,12 @@ def _extract_explicit_driver_schedule(
             continue
         for match in pattern.finditer(line):
             value, start, end = float(match.group(1)), match.group(2), match.group(3)
+            # An empty generated range can be rendered with start after end
+            # when a piecewise segment receives zero observations. It covers
+            # no timestamp and therefore carries no values to reconstruct;
+            # ignore it rather than poisoning otherwise complete cited ranges.
+            if start > end:
+                continue
             ranges.append({"start": start, "end": end, "value": value,
                            "source_claim_ids": [claim_id]})
     if not ranges:
@@ -2485,6 +2491,20 @@ class _Run:
                                      if isinstance(wrapper, dict) else []):
                         if isinstance(supplied, dict):
                             supplied["source_claim_ids"] = ["claim-1"]
+            # Relationship claims describe a specification whose numeric path
+            # is evaluated over the host-owned forecast grid. Models
+            # frequently reverse, omit, or copy a driver sub-window into the
+            # generic claim window. Bind only this applicability metadata to
+            # the requested grid; source text, schedules, lags, and values are
+            # unchanged and remain independently validated.
+            for claim in raw.get("claims") or []:
+                if isinstance(claim, dict) and str(
+                        claim.get("source_span") or "").strip() in context:
+                    claim["effective_start"] = future_timestamps[0]
+                    claim["effective_end"] = future_timestamps[-1]
+                    claim.pop("timing_status", None)
+                    claim["effective_window_binding"] = (
+                        "host_forecast_grid_for_relationship_specification")
 
         # The host assembled this receipt at the cutoff. Compiler-authored
         # knowledge times are neither trusted nor useful; bind all numeric
@@ -3050,7 +3070,12 @@ class _Run:
                                 "source_claim_ids": [str(claim_ids[0])],
                                 "syntax_canonicalization": "cited_range_schedule",
                             }
-                            histories.setdefault(name, historical)
+                            # Exact cited range extraction owns this
+                            # representation. A model-authored history may
+                            # carry stale claim IDs, overlaps, or impossible
+                            # endpoints; retaining it with ``setdefault`` made
+                            # deterministic recovery depend on compiler shape.
+                            histories[name] = historical
                             units.setdefault(name, str(
                                 transformation.get("output_unit") or "target_units"))
                         canonical = {**canonical, "series_values": values,

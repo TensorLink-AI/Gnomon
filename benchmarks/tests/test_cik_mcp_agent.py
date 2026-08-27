@@ -413,7 +413,8 @@ def test_explicit_lag_relationship_router_is_syntax_based(text):
 
 
 def test_explicit_driver_schedule_requires_named_complete_ranges():
-    text = ("X_0 takes a value of 0.2 from 2026-01-01 to 2026-01-03, "
+    text = ("X_0 takes a value of 9.9 from 2026-01-02 to 2026-01-01, "
+            "0.2 from 2026-01-01 to 2026-01-03, "
             "0.4 from 2026-01-04 to 2026-01-05.\n"
             "X_1 is 99 from 2026-01-01 to 2026-01-05.")
     result = _extract_explicit_driver_schedule(
@@ -1892,8 +1893,10 @@ def test_source_schedule_normalizes_malformed_range_rows_without_repair(tmp_path
         "events": [],
         "claims": [{
             "source_span": span, "relation": "supports_increase",
-            "effective_start": task.future_time[0],
-            "effective_end": task.future_time[-1],
+            # Deliberately reversed compiler applicability metadata. The host
+            # grid owns this window for relationship specifications.
+            "effective_start": task.future_time[-1],
+            "effective_end": task.future_time[0],
             "mechanism": "stated recurrence and driver schedule",
             "confidence": 1,
         }],
@@ -1923,9 +1926,11 @@ def test_source_schedule_normalizes_malformed_range_rows_without_repair(tmp_path
                 "known_at": cutoff,
                 "source_claim_ids": ["claim-1"],
             }},
+            # Deliberately malformed model representation. The exact cited
+            # range extractor must replace rather than preserve it.
             "historical_series_segments": {"X_0": [{
-                "start": "2024-01-01", "end": "2024-03-12", "value": 1,
-                "source_claim_ids": ["claim-1"],
+                "start": "2024-03-13", "end": "2024-03-12", "value": 999,
+                "source_claim_ids": ["claim-2"],
             }]},
         }],
     })
@@ -1945,6 +1950,12 @@ def test_source_schedule_normalizes_malformed_range_rows_without_repair(tmp_path
     supplied = receipt["transformations"][0]["series_values"]["X_0"]
     assert supplied["values"] == [2.0, 2.0, 2.0, 2.0]
     assert supplied["syntax_canonicalization"] == "cited_range_schedule"
+    claim = receipt["dossier"]["claims"][0]
+    assert claim["effective_start"] == task.future_time[0]
+    assert claim["effective_end"] == task.future_time[-1]
+    assert receipt["transformations"][0]["historical_series_segments"] == {
+        "X_0": [{"start": "2024-01-01", "end": "2024-03-12",
+                 "value": 1.0, "source_claim_ids": ["claim-1"]}]}
     assert len(client.completion_prompts) == 1
     assert receipt["rejections"] == []
 
