@@ -605,6 +605,8 @@ def build_scenario_catalog(result: dict[str, Any], *,
                                 "retrospectively_validated",
                                 "model_authored_transformation"}
     ]
+    transformation_claim_ids = set().union(*transformation_claim_sets) \
+        if transformation_claim_sets else set()
 
     context_outcome = result.get("context_outcome")
     if isinstance(context_outcome, dict):
@@ -681,6 +683,13 @@ def build_scenario_catalog(result: dict[str, Any], *,
             deterministic_used = bool(
                 isinstance(context_outcome, dict)
                 and context_outcome.get("status") == "applied")
+            # A transformation scenario already owns the complete typed
+            # disposition and cites its source claims. Emitting those claims
+            # again as "interpretation only" contradicts the numeric path and
+            # makes a fully handled instruction look partially unresolved.
+            standalone_claims = [
+                item for item in claims
+                if str(item.get("claim_id")) not in transformation_claim_ids]
             dispositions.extend(_claim_disposition(
                 item, dossier_index=index,
                 disposition=(
@@ -697,7 +706,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
                     and str(item.get("claim_id")) in deterministic_claim_ids
                     else "Verified claim is retained for interpretation but "
                     "did not alter the selected numeric forecast."),
-            ) for item in claims)
+            ) for item in standalone_claims)
             continue
         emitted: list[str] = []
         if proposal:

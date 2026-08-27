@@ -1499,21 +1499,40 @@ def _target_relevant_claim_span(span: str, target_name: str | None) -> str | Non
     for ordinary prose such as ``output drops to zero``.
     """
     text = " ".join(str(span).split())
-    normalized = re.sub(r"[^a-z0-9]+", " ", str(target_name or "").lower())
+    raw_target = str(target_name or "").strip()
+    normalized = re.sub(r"[^a-z0-9]+", " ", raw_target.lower())
     target_tokens = {
         token for token in normalized.split()
         if len(token) > 1 and token not in {
             "value", "values", "target", "series", "column", "default",
         }
     }
-    if not target_tokens:
+    generic_target = normalized.strip() in {
+        "", "value", "values", "target", "series", "column", "default",
+    }
+    if generic_target:
         return text
     clauses = re.split(r"(?<=[.!?;])\s+|\s+and\s+", text,
                        flags=re.IGNORECASE)
+    # Symbolic series names (X_1, y, A) are common in scientific and API
+    # inputs. Token-length filtering deliberately excludes their one-character
+    # pieces, so preserve the exact identifier as an ownership signal before
+    # falling back to descriptive tokens such as ``pressure``.
+    exact_identifier = re.compile(
+        rf"(?<![A-Za-z0-9_]){re.escape(raw_target)}(?![A-Za-z0-9_])",
+        re.IGNORECASE) if raw_target else None
     matching = [clause for clause in clauses
-                if target_tokens.intersection(
-                    re.findall(r"[a-z0-9]+", clause.lower()))]
+                if ((exact_identifier is not None
+                     and exact_identifier.search(clause))
+                    or target_tokens.intersection(
+                        re.findall(r"[a-z0-9]+", clause.lower())))]
     if matching:
+        # Numeric suffixes in identifiers (X_1, store_12_sales) are labels,
+        # not candidate values. Remove the exact identifier from the numeric
+        # parser's input after it has established clause ownership.
+        if exact_identifier is not None:
+            matching = [exact_identifier.sub("target", clause)
+                        for clause in matching]
         return " ".join(matching)
     if re.search(
             r"\b(?:output|readings?|observations?|forecast(?:ed)?\s+value|"

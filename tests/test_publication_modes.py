@@ -1199,6 +1199,9 @@ def test_mcp_fits_source_stated_lag_structure_without_model_coefficients(tmp_pat
         "retrospectively_validated"
     assert publication["primary_forecast_unchanged"] is True
     assert publication["automation"]["eligible"] is False
+    assert not any(item["context_id"] in {
+        "dossier-1:claim-1", "dossier-1:claim-2"}
+        for item in publication["context_dispositions"])
     assert verify_publication(publication)
 
 

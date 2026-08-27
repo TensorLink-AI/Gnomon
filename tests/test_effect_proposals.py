@@ -377,6 +377,35 @@ def test_driver_absolute_value_cannot_override_a_different_target():
         dossier, target_name="pressure_gap") == []
 
 
+def test_symbolic_target_does_not_make_driver_schedule_a_target_override():
+    span = (
+        "X_0 is a covariate and X_1 is the variable to forecast. "
+        "The value of X_0 is 0.2 from 2026-01-03 to 2026-01-04. "
+        "Parents for X_1 at lag 1 are X_0 and X_1.")
+    dossier = validate_temporal_dossier({
+        "claims": [{"source_span": span, "relation": "unknown",
+                    "effective_start": TIMES[0],
+                    "effective_end": TIMES[-1]}],
+    }, context_text=span, cutoff="2026-01-02T00:00:00+00:00",
+       future_timestamps=TIMES, history=[8, 9, 10], compiler_model="test")[0]
+
+    assert deterministic_events_from_claims(dossier, target_name="X_1") == []
+
+
+def test_symbolic_target_literal_is_still_extracted():
+    span = "X_0 is a covariate. X_1 takes a value of 7 in the forecast window."
+    dossier = validate_temporal_dossier({
+        "claims": [{"source_span": span, "relation": "supports_decrease",
+                    "effective_start": TIMES[0],
+                    "effective_end": TIMES[-1]}],
+    }, context_text=span, cutoff="2026-01-02T00:00:00+00:00",
+       future_timestamps=TIMES, history=[8, 9, 10], compiler_model="test")[0]
+
+    events = deterministic_events_from_claims(dossier, target_name="X_1")
+    assert events[0]["deterministic_value_parsed"] == 7.0
+    assert "X_0" not in events[0]["deterministic_parse_span"]
+
+
 def test_target_clause_isolated_before_deterministic_bound_parsing():
     span = "The maximal fan speed is 3000 rpm and maximal pressure is 37.5 Pa."
     dossier = validate_temporal_dossier({

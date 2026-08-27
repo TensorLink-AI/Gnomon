@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Bind deterministic literal extraction to exact symbolic target identifiers
+  such as `X_1` and remove identifier digits before numeric parsing. Mixed
+  target/driver paragraphs can no longer turn a driver's schedule—or the
+  target's numeric suffix—into a target override. Claims already represented
+  by a sealed transformation are no longer duplicated as contradictory
+  "interpretation only" dispositions.
 - Add a governed fitted-relationship lane for documents that state temporal
   parents and lags but not numeric coefficients. `fit_recursive_linear` lets
   the model cite structure and driver schedules while Gnomon alone fits the
