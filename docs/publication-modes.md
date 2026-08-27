@@ -271,3 +271,11 @@ returned `selection_contract`, an agent may instead call
 `gnomon_select_scenario` with the publication path and a number-free ranking.
 That follow-up reuses every scenario seal, leaves the original sidecar intact,
 forces automation off, and records which publication seal it supersedes.
+
+`automation_policy` is a caller-owned authorization contract with exactly
+three fields: `authorize` (boolean), a non-empty `policy_id`, and
+`minimum_support` (`supported` or `context_trusted`). A complete policy is
+necessary but not sufficient: the selected scenario must independently be
+automation-eligible. Conditional, prior-assisted, and model-authored paths
+therefore remain advisory even when the caller requests automation. Denials
+carry a stable `reason_code`, missing fields, and the required field list.

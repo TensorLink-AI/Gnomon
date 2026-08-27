@@ -414,6 +414,8 @@ def test_evidence_selection_prefers_validated_candidate_but_never_automates():
     assert payload["recommended_forecast"] == strong
     assert payload["primary_forecast"] == primary
     assert payload["automation"]["eligible"] is False
+    assert payload["automation"]["reason_code"] == \
+        "recommendation_not_automation_eligible"
     assert verify_publication(payload)
 
 

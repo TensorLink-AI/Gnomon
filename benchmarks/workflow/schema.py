@@ -27,6 +27,8 @@ CONTEXT_BEHAVIOR_FIELDS = {
     "recommended_scenario_id", "allowed_statuses", "allowed_arguments",
     "required_arguments", "allowed_publication_modes",
     "recommended_scenario_by_mode",
+    "automation_requested", "automation_policy_complete",
+    "automation_reason_code",
 }
 OBSERVATION_FIELDS = {"case_id", "status", "support", "numbers", "choices",
                       "disclosures", "claims", "temporal_leakage",

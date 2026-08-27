@@ -1741,7 +1741,25 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
     else:
         selected_id = "primary"
     selected = by_id[selected_id]
-    explicit_automation = bool((automation_policy or {}).get("authorize"))
+    if automation_policy is not None and not isinstance(automation_policy, dict):
+        raise ValueError("automation_policy must be an object")
+    unknown_policy_fields = sorted(
+        set(automation_policy or {}) - {
+            "authorize", "policy_id", "minimum_support", "allow"})
+    if unknown_policy_fields:
+        raise ValueError(
+            f"automation_policy has unknown fields: {unknown_policy_fields}")
+    if (automation_policy is not None
+            and "authorize" in automation_policy
+            and not isinstance(automation_policy["authorize"], bool)):
+        raise ValueError("automation_policy.authorize must be boolean")
+    if (automation_policy is not None
+            and "allow" in automation_policy
+            and not isinstance(automation_policy["allow"], bool)):
+        raise ValueError("automation_policy.allow must be boolean")
+    explicit_automation = bool(
+        (automation_policy or {}).get(
+            "authorize", (automation_policy or {}).get("allow", False)))
     policy_complete = bool(
         isinstance(automation_policy, dict)
         and str(automation_policy.get("policy_id") or "").strip()
@@ -1749,6 +1767,26 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
             "supported", "context_trusted"})
     automation = bool(explicit_automation and policy_complete
                       and selected["automation_eligible"])
+    missing_policy_fields = [
+        field for field in ("policy_id", "minimum_support")
+        if not (automation_policy or {}).get(field)]
+    if not explicit_automation:
+        automation_reason_code = "not_requested"
+        automation_reason = "Automation was not explicitly requested."
+    elif not policy_complete:
+        automation_reason_code = "incomplete_policy"
+        automation_reason = (
+            "Automation requires policy_id and minimum_support set to "
+            "supported or context_trusted.")
+    elif not selected["automation_eligible"]:
+        automation_reason_code = "recommendation_not_automation_eligible"
+        automation_reason = (
+            "The human-facing recommendation is conditional, prior-assisted, "
+            "or lacks historical admission; review it manually.")
+    else:
+        automation_reason_code = "authorized"
+        automation_reason = (
+            "The explicit policy and selected scenario evidence permit automation.")
     selected_role = str(selected.get("role") or "unknown")
     policy_selected = bool(
         selection is not None
@@ -1872,8 +1910,13 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
             "explicit_policy_supplied": bool(automation_policy),
             "policy_complete": policy_complete,
             "requested": explicit_automation,
-            "reason": ("explicit policy and scenario evidence permit automation"
-                       if automation else "human recommendation is separate from automation eligibility"),
+            "reason_code": automation_reason_code,
+            "reason": automation_reason,
+            "required_fields": ["authorize", "policy_id", "minimum_support"],
+            "missing_fields": missing_policy_fields if explicit_automation else [],
+            **({"normalization": "allow->authorize"}
+               if automation_policy and "allow" in automation_policy
+               and "authorize" not in automation_policy else {}),
         },
     }
     payload["selection_contract"] = scenario_selection_contract(

@@ -320,6 +320,45 @@ def test_best_effort_keeps_unselected_model_candidate_visible_only():
     assert verify_publication(payload)
 
 
+def test_automation_policy_is_actionable_and_can_authorize_supported_primary():
+    incomplete = publish_result(
+        _result(), mode="strict",
+        automation_policy={"authorize": True})
+    assert incomplete["automation"] == {
+        "eligible": False,
+        "explicit_policy_supplied": True,
+        "policy_complete": False,
+        "requested": True,
+        "reason_code": "incomplete_policy",
+        "reason": ("Automation requires policy_id and minimum_support set to "
+                   "supported or context_trusted."),
+        "required_fields": ["authorize", "policy_id", "minimum_support"],
+        "missing_fields": ["policy_id", "minimum_support"],
+    }
+
+    candidate = publish_result(
+        _result(), mode="strict",
+        automation_policy={"authorize": True, "policy_id": "ops-v1",
+                           "minimum_support": "supported"})
+    assert candidate["automation"]["eligible"] is True
+    assert candidate["automation"]["reason_code"] == "authorized"
+    assert candidate["automation"]["missing_fields"] == []
+
+
+def test_automation_policy_rejects_unknown_fields_and_wrong_types():
+    with pytest.raises(ValueError, match="unknown fields"):
+        publish_result(_result(), automation_policy={"authorize": True,
+                       "policy_id": "ops", "minimum_support": "supported",
+                       "force": True})
+    with pytest.raises(ValueError, match="authorize must be boolean"):
+        publish_result(_result(), automation_policy={"authorize": "yes"})
+    legacy = publish_result(
+        _result(), automation_policy={"allow": True, "policy_id": "ops",
+                                      "minimum_support": "supported"})
+    assert legacy["automation"]["eligible"] is True
+    assert legacy["automation"]["normalization"] == "allow->authorize"
+
+
 def test_partial_model_anchors_use_primary_outside_supplied_window():
     timestamps = [f"2026-01-0{day}T00:00:00+00:00" for day in range(3, 8)]
     result = {"support": "supported", "forecast": [

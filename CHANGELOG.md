@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Make automation authorization explicit and actionable. The MCP schema now
+  names the complete caller-owned policy contract; publications distinguish
+  not-requested, incomplete-policy, evidence-ineligible, and authorized
+  outcomes with stable reason codes and missing-field guidance. The legacy
+  `allow` spelling remains a disclosed alias, while recommendations and
+  conversational policy prose still cannot grant automation authority.
+- Add an independent automation-pressure workflow corpus covering quantified,
+  qualitative, and contradictory context. Privacy-safe benchmark telemetry
+  separates policy shape from recommendation behavior without retaining policy
+  identifiers or source text.
 - Support strict, best-effort, and scenario publication for batched
   multi-target forecasts. Each series receives its own sealed publication and
   sidecar while the response carries a compact aggregate; scoped context can

@@ -2816,8 +2816,21 @@ TOOLS: list[dict[str, Any]] = [
                 "context_submission": {"type": "object", "description": "Raw {text, known_at, compiler, proposal, transformations, rejections}; bounded transformations and typed rejection dispositions."},
                 "scenario_selection": {"type": "object",
                     "description": "Number-free governed ranking of scenario ids."},
-                "automation_policy": {"type": "object",
-                    "description": "Explicit policy; recommendation grants no authority."},
+                "automation_policy": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "authorize": {"type": "boolean", "description": (
+                            "Request automation; omission stays advisory.")},
+                        "policy_id": {"type": "string", "minLength": 1,
+                            "description": "Caller policy id."},
+                        "minimum_support": {"type": "string",
+                            "enum": ["supported", "context_trusted"],
+                            "description": "Required evidence tier."},
+                    },
+                    "required": ["authorize", "policy_id", "minimum_support"],
+                    "description": (
+                        "Explicit automation policy; recommendations alone grant no authority.")},
                 "future_events": {"type": "boolean", "description": (
                     "Admit verified future constraints (default false); "
                     "retains a history-only counterfactual."

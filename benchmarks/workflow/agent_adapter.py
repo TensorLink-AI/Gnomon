@@ -563,6 +563,17 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                 ) if key in arguments]
                 if context_keys:
                     engine_evidence["context_arguments"] = context_keys
+                policy_input = arguments.get("automation_policy")
+                if isinstance(policy_input, dict):
+                    engine_evidence["automation_policy_input"] = {
+                        "authorize": policy_input.get(
+                            "authorize", policy_input.get("allow")),
+                        "policy_id_present": bool(policy_input.get("policy_id")),
+                        "minimum_support": policy_input.get("minimum_support"),
+                        "used_legacy_allow_alias": (
+                            "allow" in policy_input and
+                            "authorize" not in policy_input),
+                    }
                 if calls > MAX_TOOL_CALLS:
                     content = json.dumps({"code": "TOOL_BUDGET_SPENT"})
                 else:
@@ -632,6 +643,11 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                             "primary_forecast_unchanged": publication.get(
                                 "primary_forecast_unchanged"),
                             "automation_eligible": automation.get("eligible"),
+                            "automation_requested": automation.get("requested"),
+                            "automation_policy_complete": automation.get(
+                                "policy_complete"),
+                            "automation_reason_code": automation.get(
+                                "reason_code"),
                             "scenario_count": publication.get(
                                 "scenario_count", len(
                                     publication.get("scenarios") or [])),

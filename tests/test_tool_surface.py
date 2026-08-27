@@ -883,6 +883,17 @@ def test_forecast_schema_is_a_description_diet_not_a_capability_cut() -> None:
     # The measured pre-diet size was 10,635 characters (~26% of the
     # whole per-round schema payload). Hold the line below 9,000.
     assert len(json.dumps(spec)) < 9_000
+
+
+def test_forecast_schema_makes_automation_contract_explicit() -> None:
+    from gnomon.toolspec import TOOLS
+
+    tool = next(t for t in TOOLS if t["name"] == "gnomon_forecast")
+    policy = tool["inputSchema"]["properties"]["automation_policy"]
+    assert policy["additionalProperties"] is False
+    assert policy["required"] == ["authorize", "policy_id", "minimum_support"]
+    assert policy["properties"]["minimum_support"]["enum"] == [
+        "supported", "context_trusted"]
     # Every parameter and every enum survives: batching, format,
     # minimum_support, and best_effort stay discoverable from the tool
     # surface alone.
