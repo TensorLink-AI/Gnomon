@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Bound compiler rejection diagnostics only at the MCP wire projection. A
+  context receipt with more than 16 rejection reasons now sends 15 plus a
+  typed overflow pointer while retaining the complete lossless receipt, so
+  diagnostic detail cannot invalidate the forecast call it is meant to
+  explain.
+- Give dated companion-series paths one bounded semantic repair when an LLM
+  flattens their exact future observations into prose. The repair must extract
+  verbatim rows and either seal a human-review-only mapped candidate or name
+  why the mapping is unidentifiable; it never grants automation or changes the
+  immutable primary by itself.
 - Give the governed scenario selector compact interior-shape evidence: extrema
   and timestamps, turning points, and the largest deviation from the immutable
   primary. Temporary closures, campaigns, outages, and interventions can no

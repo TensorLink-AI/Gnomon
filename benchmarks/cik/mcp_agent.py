@@ -747,6 +747,28 @@ def _has_material_numeric_context(text: str) -> bool:
     return bool(re.search(r"(?<!\w)[+-]?(?:\d+(?:\.\d*)?|\.\d+)", stripped))
 
 
+def _has_unrepresented_future_numeric_path(
+        text: str, future_timestamps: list[str], raw: dict[str, Any],
+) -> bool:
+    """Detect supplied dated driver paths that the first compile flattened.
+
+    This schedules the existing bounded repair only. It neither chooses the
+    relevant series nor grants numeric authority. The model must still quote
+    exact rows and the ordinary validators must seal or reject its proposal.
+    """
+    if any(raw.get(key) for key in (
+            "covariate_tables", "transformations", "forecast_candidate")):
+        return False
+    matched = 0
+    for timestamp in future_timestamps:
+        date = str(timestamp).split("T", 1)[0]
+        if re.search(
+                rf"{re.escape(date)}[^\n]{{0,40}}[+-]?(?:\d+(?:\.\d*)?|\.\d+)",
+                text):
+            matched += 1
+    return matched >= min(2, len(future_timestamps))
+
+
 def _validated_item_count(value: Any) -> int:
     """Normalize validator count/list shapes for diagnostic receipts."""
     if isinstance(value, bool):
@@ -756,6 +778,33 @@ def _validated_item_count(value: Any) -> int:
     if isinstance(value, (list, tuple, set, dict)):
         return len(value)
     return 0
+
+
+def _bounded_context_rejections(
+        rejections: Any, *, limit: int = 16,
+) -> tuple[list[Any], int]:
+    """Project full receipt diagnostics into the bounded MCP wire contract.
+
+    The context receipt is the authoritative, lossless record. This helper
+    only bounds the host-authored request so diagnostic volume cannot make an
+    otherwise valid forecast call fail schema validation.
+    """
+    if not isinstance(rejections, list):
+        return [], 0
+    if len(rejections) <= limit:
+        return list(rejections), 0
+    retained = list(rejections[:max(0, limit - 1)])
+    omitted = len(rejections) - len(retained)
+    retained.append({
+        "context_id": "context-submission-overflow",
+        "reason_code": "ADDITIONAL_CONTEXT_REJECTIONS_RETAINED",
+        "reason": (
+            f"{omitted} additional rejection(s) are retained in the sealed "
+            "context receipt; this wire summary changes no claim, support "
+            "state, or forecast number."
+        ),
+    })
+    return retained, omitted
 
 
 def _expects_historical_zero_interpretation(context: str) -> bool:
@@ -2608,6 +2657,8 @@ class _Run:
         unresolved_numeric_context = bool(
             context.strip() and not proposed_any_lane
             and _has_material_numeric_context(context))
+        unrepresented_future_path = _has_unrepresented_future_numeric_path(
+            context, future_timestamps, raw)
         transformation_proposed = bool(raw.get("transformations"))
         if ((proposed_any_lane or observation_lane_missing
                 or unresolved_numeric_context) and not transformation_proposed):
@@ -2660,6 +2711,7 @@ class _Run:
             # categorically ineligible numeric lane.
             repair_required = (
                 observation_lane_missing or unresolved_numeric_context
+                or unrepresented_future_path
                 or (not accepted_executable
                     and not retained_unresolved_interpretation
                     and not retained_atemporal_interpretation and (
@@ -2704,6 +2756,8 @@ class _Run:
                     observation_lane_missing),
                 "numeric_context_unresolved": bool(
                     unresolved_numeric_context),
+                "future_numeric_path_unrepresented": bool(
+                    unrepresented_future_path),
                 "top_level_rejections": len(probe_rejections),
                 **({
                     "retained_unresolved_interpretation": True,
@@ -2733,6 +2787,23 @@ class _Run:
                             "observation_interpretation; do not create a future "
                             "event or mutate history."),
                     } if observation_lane_missing else {
+                        "code": "FUTURE_NUMERIC_PATH_UNREPRESENTED",
+                        "message": (
+                            "The source supplies dated numeric companion-series "
+                            "values on the requested forecast grid, but the "
+                            "dossier flattened them into prose. Extract the "
+                            "single most target-relevant path as verbatim "
+                            "covariate rows. If the short target overlap can "
+                            "support a bounded level/scale mapping, also return "
+                            "a sealed probabilistic forecast_candidate whose "
+                            "rationale states the mapping and uncertainty. It "
+                            "is prior_assisted, human-review-only, and cannot "
+                            "authorize automation. Otherwise preserve a typed "
+                            "rejection naming why the supplied path is not "
+                            "identifiable. Do not copy a target outcome or "
+                            "invent missing rows."
+                        ),
+                    } if unrepresented_future_path else {
                         "code": "NUMERIC_CONTEXT_UNRESOLVED",
                         "message": (
                             "The supplied context contains numeric information "
@@ -3812,6 +3883,8 @@ class _Run:
 
         if self.governed_evidence and name == "gnomon_forecast":
             receipt = self.context_compilation or {}
+            wire_rejections, omitted_rejections = _bounded_context_rejections(
+                receipt.get("rejections") or [])
             from gnomon.llm_covariates import inline_covariate_arguments
             covariate_arguments = inline_covariate_arguments(
                 receipt.get("covariates") or {})
@@ -3837,7 +3910,7 @@ class _Run:
                     "context_submission": {
                         "known_at": self.timestamps[-1],
                         "transformations": receipt.get("transformations") or [],
-                        "rejections": receipt.get("rejections") or [],
+                        "rejections": wire_rejections,
                     },
                 })
             entry["host_context_binding"] = {
@@ -3847,6 +3920,8 @@ class _Run:
                     (receipt.get("covariates") or {}).get("tables") or []),
                 "covariate_table_bound": bool(covariate_arguments),
                 "rejections": len(receipt.get("rejections") or []),
+                "wire_rejections": len(wire_rejections),
+                "wire_rejections_omitted": omitted_rejections,
             }
 
         violations = jail_violations(arguments, self.jail)

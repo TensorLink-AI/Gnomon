@@ -37,7 +37,9 @@ from benchmarks.cik.mcp_agent import (
     _select_publication_fail_closed,
     _canonicalize_scenario_selection_evidence,
     _has_material_numeric_context,
+    _has_unrepresented_future_numeric_path,
     _validated_item_count,
+    _bounded_context_rejections,
 )
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -51,6 +53,18 @@ def test_material_numeric_context_ignores_calendar_not_business_quantities():
     assert _has_material_numeric_context(
         "The comparable site's maximum was 25.83 at 21:10:00.")
     assert _has_material_numeric_context("Demand is bounded below by -2.5.")
+
+
+def test_future_numeric_path_gets_one_repair_without_granting_authority():
+    future = ["2024-02-01T00:00:00+00:00",
+              "2024-03-01T00:00:00+00:00"]
+    context = "Reference:\n(2024-02-01 00:00:00, 2.7)\n(2024-03-01 00:00:00, 2.0)"
+    assert _has_unrepresented_future_numeric_path(context, future, {
+        "claims": [{"source_span": context}], "covariate_tables": []})
+    assert not _has_unrepresented_future_numeric_path(context, future, {
+        "covariate_tables": [{"name": "reference", "rows": []}]})
+    assert not _has_unrepresented_future_numeric_path(
+        "Reference was stable in 2023.", future, {})
 
 
 @pytest.mark.parametrize("wrapper", [
@@ -77,6 +91,26 @@ def test_validator_diagnostic_counts_accept_count_or_collection_shapes():
     assert _validated_item_count([{"id": 1}]) == 1
     assert _validated_item_count(None) == 0
     assert _validated_item_count(-1) == 0
+
+
+def test_context_rejection_wire_projection_is_lossless_at_or_below_limit():
+    original = [f"CODE_{index}: reason {index}" for index in range(16)]
+    projected, omitted = _bounded_context_rejections(original)
+    assert projected == original
+    assert projected is not original
+    assert omitted == 0
+
+
+def test_context_rejection_wire_projection_retains_overflow_in_receipt():
+    original = [f"CODE_{index}: reason {index}" for index in range(18)]
+    projected, omitted = _bounded_context_rejections(original)
+    assert len(projected) == 16
+    assert projected[:15] == original[:15]
+    assert projected[-1]["reason_code"] == (
+        "ADDITIONAL_CONTEXT_REJECTIONS_RETAINED")
+    assert "3 additional" in projected[-1]["reason"]
+    assert omitted == 3
+    assert len(original) == 18
 
 
 def test_regular_long_forecast_grid_is_compact_but_exact():
@@ -1315,6 +1349,7 @@ def test_accepted_effect_does_not_recompile_for_malformed_optional_lane(
         "rejected_observation_interpretations": 0,
         "required_observation_lane_missing": False,
         "numeric_context_unresolved": False,
+        "future_numeric_path_unrepresented": False,
         "top_level_rejections": 1,
     }]
     assert client.completion_reasoning_efforts == ["none"]
