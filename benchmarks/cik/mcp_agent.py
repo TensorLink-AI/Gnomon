@@ -277,7 +277,19 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: from consuming the sole repair call or replacing a useful dossier.
 #: Version 126: sealed receipts record why each bounded repair stage did or did
 #: not trigger, including accepted and rejected lane statuses.
-MCP_CONTRACT_VERSION = 126
+#: Version 127: repair telemetry includes typed effect violation codes and
+#: bounded candidate rejection reasons for diagnosis without hidden reasoning.
+#: Version 128: rejected effect telemetry retains only typed scalar field
+#: values/types, never free-form model reasoning or unbounded payloads.
+#: Version 129: effect distributions parse independently from confidence, and
+#: tentative/confirmed confidence labels normalize without authority effects.
+#: Version 130: a unique operative correction marker may resolve conflicting
+#: baseline multipliers split across separately verified claims.
+#: Version 131: one exact cited operative scenario is human-facing
+#: evidence-dominant; its hypothetical support and automation ban remain.
+#: Version 132: selector telemetry distinguishes an intentional evidence-
+#: dominance skip from an attempted selector rejection or a needless call.
+MCP_CONTRACT_VERSION = 132
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -2035,6 +2047,7 @@ class McpAgentForecaster:
             live_publication = getattr(run, "_publication", None)
             selection = None
             selection_error = None
+            selection_attempted = False
             if self.output_role == "publication_best_effort":
                 from gnomon.publication import (build_scenario_catalog,
                                                 scenario_selection_contract,
@@ -2067,6 +2080,7 @@ class McpAgentForecaster:
                             + str(last_error) + "\nRepair only that violation."
                         )
                         try:
+                            selection_attempted = True
                             response = self.client.completions(
                                 [{"role": "user", "content": prompt}], n=1,
                                 temperature=0, reasoning_effort="none",
@@ -2092,7 +2106,8 @@ class McpAgentForecaster:
                 publication, live_selection_error = (
                     _select_publication_fail_closed(
                         live_publication, selection))
-                if live_selection_error is not None:
+                if (live_selection_error is not None
+                        and selection_error is None):
                     selection_error = live_selection_error
             else:
                 if self.output_role == "llm_candidate_shadow":
@@ -2136,8 +2151,15 @@ class McpAgentForecaster:
                     **extra_info, "route": "publication_best_effort",
                     "publication": publication,
                     "scenario_selector": {
-                        "attempted": selection is not None or selection_error is not None,
+                        "attempted": selection_attempted,
                         "accepted": publication.get("scenario_selection") is not None,
+                        "disposition": (
+                            "accepted" if publication.get(
+                                "scenario_selection") is not None else
+                            "rejected" if selection_attempted else
+                            "skipped_evidence_dominance"
+                            if selection_error and selection_error.startswith(
+                                "selector skipped:") else "not_required"),
                         "error": selection_error,
                     },
                     "llm_usage": self.client.usage_summary,
@@ -2394,6 +2416,19 @@ class _Run:
                 or (not accepted_executable and (
                     probe_rejections or effect_failed or candidate_failed
                     or hypothesis_failures or observation_failures)))
+            rejected_effect_fields = {}
+            if effect_failed and isinstance(raw.get("effect_proposal"), dict):
+                for key in ("shape", "unit", "location", "lower", "upper",
+                            "confidence", "delay_steps", "duration_steps",
+                            "period_steps"):
+                    if key not in raw["effect_proposal"]:
+                        continue
+                    value = raw["effect_proposal"][key]
+                    rejected_effect_fields[key] = (
+                        {"type": type(value).__name__, "value": value}
+                        if isinstance(value, (str, int, float, bool))
+                        or value is None else
+                        {"type": type(value).__name__})
             repair_decisions.append({
                 "stage": "dossier_probe",
                 "triggered": bool(repair_required),
@@ -2404,6 +2439,7 @@ class _Run:
                     for attempt in effect_critique.get("attempts") or []
                     for violation in attempt.get("violations") or []
                     if violation.get("code"))),
+                "rejected_effect_fields": rejected_effect_fields,
                 "candidate_status": candidate_critique.get("status"),
                 "candidate_reasons": [str(reason) for reason in
                                       candidate_critique.get("reasons") or []][

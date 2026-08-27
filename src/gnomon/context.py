@@ -60,8 +60,9 @@ def normalize_context_confidence(
             "supplied": supplied, "normalized": default,
             "authority_effect": "none",
         }
-    qualitative = {"low": 0.25, "medium": 0.5, "moderate": 0.5,
-                   "high": 0.75}
+    qualitative = {"low": 0.25, "tentative": 0.25,
+                   "medium": 0.5, "moderate": 0.5,
+                   "high": 0.75, "confirmed": 0.75}
     text = raw.strip().casefold() if isinstance(raw, str) else ""
     if text in qualitative:
         value = qualitative[text]

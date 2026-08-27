@@ -26,6 +26,26 @@
   status, failure counts, whether a required semantic lane was missing, and
   why each bounded repair stage fired or was skipped. This separates endpoint
   latency from necessary semantic repair without exposing hidden reasoning.
+  Rejected effect diagnostics retain only bounded typed scalar fields and
+  violation codes—never free-form model reasoning or unbounded payloads.
+- Effect-distribution fields now parse independently from confidence metadata,
+  so malformed confidence cannot turn valid bounds into NaNs. The common
+  `tentative` and `confirmed` labels normalize conservatively through the same
+  non-authoritative confidence contract used by context events; unknown labels
+  remain typed rejections.
+- When a compiler splits contrasting multipliers into separate verified
+  claims, one uniquely marked operative correction (`only`, `in this case`,
+  `instead`, or equivalent narrow wording) may resolve the scenario. Multiple
+  corrected values or unmarked alternatives remain conflicting and rejected.
+- A single exact cited operative scenario is now evidence-dominant for the
+  human-facing recommendation: a scenario-ranking LLM may explain it but may
+  not silently substitute the context-free primary and answer a different
+  question. The primary remains visible and immutable, support remains
+  `hypothetical_sensitivity`, and automation remains prohibited.
+- Scenario-selector receipts now distinguish a selector that was called and
+  rejected from one intentionally skipped because an exact cited scenario was
+  already evidence-dominant. This makes latency, autonomy, and failure-rate
+  measurements reflect the calls the agent actually made.
 
 - Safe declarative transformations may now bind additional verbatim source
   lines containing their exact AST literals. The host neither interprets nor

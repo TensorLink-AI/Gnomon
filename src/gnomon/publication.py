@@ -44,6 +44,21 @@ def dominant_scenario_id(scenarios: list[dict[str, Any]]) -> str | None:
         # number-free model ranking. The model may explain it, not silently
         # replace it with an unsupported sealed path.
         return str(observation[0]["scenario_id"])
+    exact_scenarios = [item for item in scenarios
+                       if item.get("role") == "effect_composed"
+                       and item.get("support") == "hypothetical_sensitivity"
+                       and any(normalization.get("code") ==
+                               "EXACT_CITED_LEVEL_MULTIPLIER"
+                               for normalization in
+                               (item.get("effect") or {}).get(
+                                   "semantic_normalizations") or [])]
+    if exact_scenarios:
+        # The caller supplied one exact operative scenario. A model may
+        # explain the conditional answer, but choosing the context-free path
+        # would silently answer a different question. This dominance changes
+        # presentation only: support stays hypothetical and automation stays
+        # disabled.
+        return str(exact_scenarios[0]["scenario_id"])
     admitted = [item for item in scenarios
                 if item.get("role") == "fitted_context_candidate"
                 and ((item.get("effect") or {}).get("evidence") or {}).get("decisive")]

@@ -59,6 +59,7 @@ def _validate_one(raw: Any, *, claim_ids: set[str],
                   claim_spans: dict[str, str]
                   ) -> tuple[dict[str, Any] | None, list[dict[str, str]]]:
     errors: list[dict[str, str]] = []
+    operative_multiplier_resolution: dict[str, Any] | None = None
     if not isinstance(raw, dict):
         return None, [_error("PROPOSAL_NOT_OBJECT", "Return one JSON object.")]
     shape = str(raw.get("shape") or "")
@@ -72,13 +73,22 @@ def _validate_one(raw: Any, *, claim_ids: set[str],
     if not cited or set(cited) - claim_ids:
         errors.append(_error("UNVERIFIED_EFFECT_CLAIMS",
                              "cite at least one verified claim_id and no unknown ids"))
+    def numeric(value: Any) -> float:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return math.nan
+
+    location = numeric(raw.get("location"))
+    lower = numeric(raw.get("lower", location))
+    upper = numeric(raw.get("upper", location))
+    confidence_normalization = None
     try:
-        location = float(raw.get("location"))
-        lower = float(raw.get("lower", location))
-        upper = float(raw.get("upper", location))
-        confidence = float(raw.get("confidence"))
-    except (TypeError, ValueError):
-        location = lower = upper = confidence = math.nan
+        from .context import normalize_context_confidence
+        confidence, confidence_normalization = normalize_context_confidence(
+            raw.get("confidence"))
+    except ValueError:
+        confidence = math.nan
     if not all(math.isfinite(value) for value in (location, lower, upper)) \
             or not lower <= location <= upper:
         errors.append(_error("INVALID_EFFECT_DISTRIBUTION",
@@ -132,18 +142,31 @@ def _validate_one(raw: Any, *, claim_ids: set[str],
         # future-context admission. Conflicting cited multiples remain
         # untrusted rather than being averaged or guessed.
         from .future_context import parse_override_scale
-        stated = []
+        stated: list[tuple[float, str]] = []
         for claim_id in cited:
-            scale, problem = parse_override_scale(claim_spans.get(claim_id, ""))
+            span = claim_spans.get(claim_id, "")
+            scale, problem = parse_override_scale(span)
             if problem is None and scale is not None:
-                stated.append(float(scale))
-        distinct = {round(value, 12) for value in stated}
+                stated.append((float(scale), span))
+        distinct = {round(value, 12) for value, _ in stated}
         if len(distinct) > 1:
-            return None, [_error(
-                "CONFLICTING_CITED_MULTIPLIERS",
-                "Cited claims state different multiples of the baseline.")]
+            operative = [(value, span) for value, span in stated if re.search(
+                r"\b(?:only|but\s+in\s+this\s+case|in\s+this\s+case|instead|"
+                r"actually|in\s+practice)\b", span, re.IGNORECASE)]
+            operative_values = {round(value, 12) for value, _ in operative}
+            if len(operative_values) != 1:
+                return None, [_error(
+                    "CONFLICTING_CITED_MULTIPLIERS",
+                    "Cited claims state different multiples of the baseline.")]
+            stated = [operative[0]]
+            distinct = operative_values
+            operative_multiplier_resolution = {
+                "code": "OPERATIVE_MULTIPLIER_SELECTED_ACROSS_CLAIMS",
+                "stated_level_multiplier": operative[0][0],
+                "basis": "unique cited correction marker",
+            }
         if len(distinct) == 1:
-            scale = stated[0]
+            scale = stated[0][0]
             entailed_change = scale - 1.0
             cited_text = " ".join(claim_spans.get(claim_id, "")
                                   for claim_id in cited)
@@ -179,6 +202,9 @@ def _validate_one(raw: Any, *, claim_ids: set[str],
                     "applied_additive_fraction": entailed_change,
                     "basis": "verified cited source span",
                 })
+            if operative_multiplier_resolution is not None:
+                semantic_normalizations.append(
+                    operative_multiplier_resolution)
             if shape == "custom_scenario":
                 # The shape label is model-authored; the cited multiplier and
                 # bounded timing are not. Once those deterministic fields are
@@ -206,6 +232,8 @@ def _validate_one(raw: Any, *, claim_ids: set[str],
         "uncertainty_basis": str(raw.get("uncertainty_basis") or
                                  "model-authored prior; not calibrated")[:300],
         "composition": "scenario_only",
+        **({"confidence_normalization": confidence_normalization}
+           if confidence_normalization else {}),
         **({"semantic_normalizations": semantic_normalizations}
            if semantic_normalizations else {}),
     }, []

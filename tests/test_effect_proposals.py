@@ -41,6 +41,57 @@ def test_typed_effect_is_composed_by_engine_not_model():
     assert PRIMARY[0]["q50"] == 10.0
 
 
+def test_effect_confidence_metadata_cannot_poison_valid_distribution():
+    proposal, critique = validate_effect_proposal(
+        _proposal(location=4, lower=4, upper=8, confidence="tentative"),
+        claim_ids={"claim-1"})
+    assert critique["status"] == "accepted"
+    assert (proposal["lower"], proposal["location"], proposal["upper"]) == \
+        (4, 4, 8)
+    assert proposal["confidence"] == 0.25
+    assert proposal["confidence_normalization"] == {
+        "kind": "qualitative_to_conservative_unit_interval",
+        "supplied": "tentative", "normalized": 0.25,
+        "authority_effect": "none",
+    }
+
+    rejected, critique = validate_effect_proposal(
+        _proposal(location=4, lower=4, upper=8, confidence="probably"),
+        claim_ids={"claim-1"})
+    assert rejected is None
+    codes = [item["code"] for item in critique["attempts"][0]["violations"]]
+    assert codes == ["INVALID_EFFECT_CONFIDENCE"]
+
+
+def test_unique_operative_multiplier_resolves_across_separate_claims():
+    proposal, critique = validate_effect_proposal(
+        _proposal(shape="temporary_pulse", unit="fraction_of_level",
+                  location=4, lower=4, upper=8, confidence="tentative",
+                  claim_ids=["claim-1", "claim-2"]),
+        claim_ids={"claim-1", "claim-2"},
+        claim_spans={
+            "claim-1": "typically 9 times the usual electricity",
+            "claim-2": "only 5 times the usual electricity",
+        })
+    assert critique["status"] == "accepted"
+    assert proposal["lower"] == proposal["location"] == proposal["upper"] == 4
+    assert any(item["code"] ==
+               "OPERATIVE_MULTIPLIER_SELECTED_ACROSS_CLAIMS"
+               for item in proposal["semantic_normalizations"])
+    assert proposal["confidence"] == 0.25
+
+    rejected, critique = validate_effect_proposal(
+        _proposal(unit="fraction_of_level", location=4, lower=4, upper=4,
+                  claim_ids=["claim-1", "claim-2"]),
+        claim_ids={"claim-1", "claim-2"}, claim_spans={
+            "claim-1": "9 times the usual electricity",
+            "claim-2": "5 times the usual electricity",
+        })
+    assert rejected is None
+    assert critique["attempts"][0]["violations"][0]["code"] == \
+        "CONFLICTING_CITED_MULTIPLIERS"
+
+
 def test_cited_level_multiplier_is_normalized_to_additive_fraction():
     proposal, critique = validate_effect_proposal(
         _proposal(shape="temporary_pulse", unit="fraction_of_level",

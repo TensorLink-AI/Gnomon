@@ -53,6 +53,36 @@ def test_strict_never_promotes_prior_assisted_candidate():
     assert verify_publication(payload)
 
 
+def test_exact_cited_scenario_is_human_facing_but_never_automatable():
+    span = "In this case demand will be only 5 times the usual level."
+    dossier, reasons = validate_temporal_dossier({
+        "claims": [{
+            "source_span": span, "relation": "supports_increase",
+            "effective_start": TIMES[0], "effective_end": TIMES[0],
+            "confidence": .8,
+        }],
+        "effect_proposal": {
+            "shape": "temporary_pulse", "unit": "fraction_of_level",
+            "location": 4, "lower": 4, "upper": 4, "confidence": .8,
+            "delay_steps": 0, "duration_steps": 1,
+            "scope": {"kind": "single_series", "series": ["*"]},
+            "claim_ids": ["claim-1"], "composition": "scenario_only",
+        },
+    }, context_text=span, cutoff="2026-01-02T00:00:00+00:00",
+        future_timestamps=TIMES, history=[8, 9, 10], compiler_model="test")
+    assert not reasons
+
+    payload = publish_result(_result(), mode="best_effort", dossiers=[dossier])
+    assert payload["recommended_scenario_id"] == "effect-composed-1"
+    assert payload["recommended_support"] == "hypothetical_sensitivity"
+    assert payload["selection_contract"]["selection_required"] is False
+    assert payload["selection_contract"]["deterministic_scenario_id"] == \
+        "effect-composed-1"
+    assert payload["automation"]["eligible"] is False
+    assert payload["primary_forecast"] == _result()["forecast"]
+    assert verify_publication(payload)
+
+
 def test_best_effort_keeps_unselected_model_candidate_visible_only():
     payload = publish_result(
         _result(), mode="best_effort", dossiers=[_dossier()],

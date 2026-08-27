@@ -1112,7 +1112,8 @@ def test_accepted_effect_does_not_recompile_for_malformed_optional_lane(
     forecaster = McpAgentForecaster(
         "x/y", client=client,
         session_factory=lambda cwd: InProcessMcpSession(cwd),
-        work_dir=str(tmp_path), profile="evidence", output_role="canonical")
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
     _, extra = forecaster(task, 1)
 
     assert len(client.completion_prompts) == 1
@@ -1124,7 +1125,8 @@ def test_accepted_effect_does_not_recompile_for_malformed_optional_lane(
     assert receipt["compiler"]["repair_decisions"] == [{
         "stage": "dossier_probe", "triggered": False,
         "accepted_executable": True, "effect_status": "accepted",
-        "effect_violation_codes": [], "candidate_status": "rejected",
+        "effect_violation_codes": [], "rejected_effect_fields": {},
+        "candidate_status": "rejected",
         "candidate_reasons": [
             "forecast_candidate quantiles must match the requested horizon"],
         "accepted_observation_interpretations": 0,
@@ -1136,6 +1138,11 @@ def test_accepted_effect_does_not_recompile_for_malformed_optional_lane(
     }]
     assert client.completion_reasoning_efforts == ["none"]
     assert client.completion_transport_retries == [0]
+    assert extra["scenario_selector"] == {
+        "attempted": False, "accepted": False,
+        "disposition": "skipped_evidence_dominance",
+        "error": "selector skipped: governed evidence dominance",
+    }
 
 
 def test_exact_lag_claims_get_one_focused_sufficiency_repair(tmp_path):
