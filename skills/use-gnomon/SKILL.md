@@ -38,7 +38,8 @@ Choose publication mode from the user's intent:
 
 - `strict` for automation or when only historically admitted effects may lead;
 - `best_effort` when a human wants the best bounded recommendation despite
-  weak evidence; and
+  weak evidence; the immutable primary remains visible in this mode, so a
+  request to retain or disclose it does not by itself imply `scenario`; and
 - `scenario` when the user wants the immutable primary beside several explicit
   what-if paths.
 

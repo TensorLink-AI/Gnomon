@@ -517,6 +517,7 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                         summary = publication.get("context_summary") or {}
                         automation = publication.get("automation") or {}
                         engine_evidence["context_behavior"] = {
+                            "publication_mode": publication.get("mode"),
                             "status": summary.get("status"),
                             "recommended_scenario_id": publication.get(
                                 "recommended_scenario_id"),
