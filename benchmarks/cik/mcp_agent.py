@@ -4000,61 +4000,69 @@ class _Run:
         # resulting event back through the ordinary future-context admission
         # path. This is deterministic extraction, not a semantic guess.
         from gnomon.llm_dossier import deterministic_events_from_claims
-        single_target_event_spans = {
-            str(item.get("evidence_quote") or item.get("source_span") or "")
-            for item in raw.get("events") or [] if isinstance(item, dict)
-            and str(item.get("evidence_quote") or
-                    item.get("source_span") or "").strip()
-        }
-        derived_events = deterministic_events_from_claims(
-            {**final_probe, "events": list(raw.get("events") or [])},
-            target_name=self.target_name,
-            target_verified_spans=single_target_event_spans)
-        existing_events = [item for item in raw.get("events") or []
-                           if isinstance(item, dict)]
-        existing_keys = {(str(item.get("event_type") or ""),
-                          str(item.get("evidence_quote") or
-                              item.get("source_span") or ""))
-                         for item in existing_events}
-        for event in derived_events:
-            event = {**event, "entity_scope": ["__default__"],
-                     "host_target_binding": "single_target_verified_claim"}
-            quote = str(event.get("evidence_quote") or
-                        event.get("source_span") or "")
-            shadowed_types = [str(item.get("event_type") or "")
-                              for item in existing_events
-                              if str(item.get("evidence_quote") or
-                                     item.get("source_span") or "") == quote
-                              and str(item.get("event_type") or "") != str(
-                                  event.get("event_type") or "")]
-            if shadowed_types:
-                # One source quote gets one numeric authority. A broad
-                # model-authored label such as ``closure`` must not shadow a
-                # stricter host-parsed absolute/range contract merely because
-                # it was emitted first.
-                existing_events = [item for item in existing_events
-                                   if str(item.get("evidence_quote") or
-                                          item.get("source_span") or "") != quote]
-                existing_keys = {
-                    (str(item.get("event_type") or ""),
-                     str(item.get("evidence_quote") or
-                         item.get("source_span") or ""))
-                    for item in existing_events
+        def normalize_deterministic_events(
+                candidate_raw: dict[str, Any],
+                probe: dict[str, Any]) -> dict[str, Any]:
+            """Apply host numeric parsing after every compiler/repair pass."""
+            existing_events = [item for item in
+                               candidate_raw.get("events") or []
+                               if isinstance(item, dict)]
+            single_target_event_spans = {
+                str(item.get("evidence_quote") or
+                    item.get("source_span") or "")
+                for item in existing_events
+                if str(item.get("evidence_quote") or
+                       item.get("source_span") or "").strip()
+            }
+            derived_events = deterministic_events_from_claims(
+                {**probe, "events": existing_events},
+                target_name=self.target_name,
+                target_verified_spans=single_target_event_spans)
+            existing_keys = {(str(item.get("event_type") or ""),
+                              str(item.get("evidence_quote") or
+                                  item.get("source_span") or ""))
+                             for item in existing_events}
+            for derived in derived_events:
+                event = {
+                    **derived, "entity_scope": ["__default__"],
+                    "host_target_binding": "single_target_verified_claim",
                 }
-                event["attributes"] = {
-                    **(event.get("attributes") or {}),
-                    "host_normalization": {
-                        "supersedes_model_event_types": sorted(set(
-                            shadowed_types)),
-                        "basis": "same_verified_source_quote",
-                    },
-                }
-            key = (str(event.get("event_type") or ""),
-                   quote)
-            if key not in existing_keys:
-                existing_events.append(event)
-                existing_keys.add(key)
-        raw = {**raw, "events": existing_events}
+                quote = str(event.get("evidence_quote") or
+                            event.get("source_span") or "")
+                shadowed_types = [str(item.get("event_type") or "")
+                                  for item in existing_events
+                                  if str(item.get("evidence_quote") or
+                                         item.get("source_span") or "") == quote
+                                  and str(item.get("event_type") or "") != str(
+                                      event.get("event_type") or "")]
+                if shadowed_types:
+                    # One source quote gets one numeric authority. A broad
+                    # model label must not shadow the stricter host parser.
+                    existing_events = [
+                        item for item in existing_events
+                        if str(item.get("evidence_quote") or
+                               item.get("source_span") or "") != quote]
+                    existing_keys = {
+                        (str(item.get("event_type") or ""),
+                         str(item.get("evidence_quote") or
+                             item.get("source_span") or ""))
+                        for item in existing_events
+                    }
+                    event["attributes"] = {
+                        **(event.get("attributes") or {}),
+                        "host_normalization": {
+                            "supersedes_model_event_types": sorted(set(
+                                shadowed_types)),
+                            "basis": "same_verified_source_quote",
+                        },
+                    }
+                key = (str(event.get("event_type") or ""), quote)
+                if key not in existing_keys:
+                    existing_events.append(event)
+                    existing_keys.add(key)
+            return {**candidate_raw, "events": existing_events}
+
+        raw = normalize_deterministic_events(raw, final_probe)
 
         # Transformations share the same single repair budget. Preflight the
         # sealed AST before the forecast call so a near-correct proposal can
@@ -4429,6 +4437,15 @@ class _Run:
                     supplied["known_at"] = self.timestamps[-1]
         raw = canonicalize_transformations(raw)
         raw, duplicate_events_demoted = _demote_covariate_duplicate_events(raw)
+        final_probe, _ = validate_temporal_dossier(
+            raw, context_text=context, cutoff=self.timestamps[-1],
+            future_timestamps=future_timestamps, history=self.values,
+            compiler_model=self.forecaster.openrouter_model)
+        # The bounded repair can add the grounded claim or event shape that
+        # the initial pass omitted. Numeric normalization must therefore run
+        # after repair as well; otherwise equivalent compiler representations
+        # produce materially different forecasts.
+        raw = normalize_deterministic_events(raw, final_probe)
         final_probe, _ = validate_temporal_dossier(
             raw, context_text=context, cutoff=self.timestamps[-1],
             future_timestamps=future_timestamps, history=self.values,

@@ -2228,6 +2228,48 @@ def test_literal_zero_event_without_duplicate_claim_uses_override(tmp_path):
     assert publication["automation"]["eligible"] is False
 
 
+def test_repaired_literal_event_is_normalized_after_repair(tmp_path):
+    task = _task()
+    start, end = task.future_time[1], task.future_time[2]
+    span = f"Readings are zero from {start} to {end}."
+    task.scenario = span
+    empty = json.dumps({
+        "events": [], "claims": [], "hypotheses": [],
+        "effect_proposal": None, "forecast_candidate": None,
+        "covariate_tables": [], "transformations": [],
+        "observation_interpretations": [],
+    })
+    repaired = json.dumps({
+        "events": [{
+            "event_type": "maintenance outage", "entity_scope": ["*"],
+            "effective_start": start, "effective_end": end,
+            "confidence": 1, "status": "confirmed",
+            "evidence_quote": span,
+        }],
+        "claims": [], "hypotheses": [], "effect_proposal": None,
+        "forecast_candidate": None, "covariate_tables": [],
+        "transformations": [], "observation_interpretations": [],
+    })
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        [empty, repaired])
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 1)
+
+    assert len(client.completion_prompts) == 2
+    receipt = json.loads(Path(
+        extra["context_compilation"]["receipt_path"]).read_text())
+    assert receipt["events"][0]["event_type"] == \
+        "override:stated_absolute_value"
+    assert extra["publication"]["recommended_scenario_id"] == \
+        "context_conditioned"
+
+
 def test_deterministic_override_supersedes_same_quote_qualitative_event(tmp_path):
     task = _task()
     start, end = task.future_time[1], task.future_time[2]
