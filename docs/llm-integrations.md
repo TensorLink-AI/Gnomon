@@ -55,6 +55,28 @@ separate `hypothetical_sensitivity` path using one robust innovation scale
 from the target history. Hosts must present that path as a what-if sensitivity,
 never as the primary forecast, expected effect, or probability-bearing claim.
 
+### Provider-neutral sampled priors
+
+For `best_effort` or `scenario` workflows, a host may let its own model propose
+a conditional numeric path while Gnomon retains the immutable primary. The
+shipped `gnomon.agent_context` module provides the integration primitives:
+
+- `build_sampled_context_prior_prompt(...)` encodes host-owned regular grids
+  compactly and asks for indexed values without re-echoing timestamps;
+- `recommended_sample_count(horizon)` bounds provider work while retaining at
+  least three independent draws for long horizons; and
+- `candidate_from_sampled_paths(...)` rejects malformed, non-finite, partial,
+  or wrong-grid paths independently, aggregates valid paths into q10/q50/q90,
+  and reports draw stability separately from historical skill.
+
+The host then attaches the validated paths with
+`gnomon.llm_dossier.attach_host_candidate_elicitation` and submits the sealed
+dossier through `gnomon_forecast.temporal_dossiers`. Fewer than three surviving
+paths remain visible only as an insufficient scenario. Even with three or more,
+the result is `prior_assisted`, requires human review, and is never automation
+eligible unless separate historical admission exists. These helpers make no
+network calls and accept no provider credentials.
+
 ## Is OpenRouter a planned option?
 
 Not in the runtime, and there is no committed date. OpenRouter is a
@@ -95,14 +117,18 @@ Concretely, an LLM layer may:
 - propose context events (verbatim-quote-verified) and *nominate* — never
   pick — an effect shape via `expected_shape`;
 - extract quoted temporal hypotheses for deterministic verification;
+- propose a separately sealed conditional path in an explicit `best_effort` or
+  `scenario` lane; it remains `prior_assisted`, human-reviewed, outcome-scored,
+  and non-automatable unless independent historical evidence later admits it;
 - restrict the model contest via `candidates` (the mandatory baselines
   always compete, and the restriction is disclosed);
 - propose bounded experiments; and
 - explain immutable forecast artifacts and evidence.
 
-It must not generate, edit, or override forecast values, evaluation scores,
-quantiles, model selection, warnings, or abstention. Provider failure must not
-change numerical results.
+It must not generate, edit, or override the immutable primary forecast,
+evaluation scores, engine quantiles, model selection, warnings, or abstention.
+A model-authored conditional path must remain in its typed lane and provider
+failure must leave the primary numerical result unchanged.
 
 ## Proposed future configuration
 

@@ -42,6 +42,11 @@ from benchmarks.common.openrouter import (  # noqa: E402
     OpenRouterClient,
     extract_json_objects,
 )
+from gnomon.agent_context import (  # noqa: E402
+    build_sampled_context_prior_prompt,
+    candidate_from_sampled_paths,
+    recommended_sample_count,
+)
 
 MAX_ROUNDS = 10
 MAX_MCP_CALLS = 24
@@ -4714,19 +4719,18 @@ class _Run:
                 else "requested_for_typed_future_event"
                 if qualitative_future_event_prior_needed
                 else "requested_for_typed_interpretation")
-            context_prompt = _sampled_context_prior_prompt(
+            context_prompt = build_sampled_context_prior_prompt(
                 timestamps=self.timestamps, values=self.values,
                 future_timestamps=future_timestamps, context=context)
             model_candidate_prompt_bytes = len(context_prompt.encode("utf-8"))
             try:
-                requested_paths = (
-                    3 if len(future_timestamps) >= 96
-                    else MODEL_PRIOR_PATH_SAMPLES)
+                requested_paths = recommended_sample_count(
+                    len(future_timestamps))
                 responses = complete_many(
                     context_prompt, "model_context_candidate_samples",
                     n=requested_paths)
                 proposed, model_candidate_sampling = (
-                    _candidate_from_sampled_paths(
+                    candidate_from_sampled_paths(
                         responses, future_timestamps,
                         history_values=self.values))
                 if isinstance(proposed, dict):

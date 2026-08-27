@@ -17,6 +17,32 @@ Treat Gnomon as the authority for computed temporal facts. Use the host model to
 
 Prefer one sufficient call. Fetch an artifact only when the user requests deeper evidence or the brief response says required content was truncated.
 
+## Use supplied context explicitly
+
+When the user supplies dated events, operating constraints, reference-series
+facts, or other forecast-relevant text, never silently drop it and never mix a
+model-authored adjustment into the primary forecast. Submit it through
+`gnomon_forecast.context_submission` with exact source spans, the cutoff-time
+`known_at`, compiler identity, and typed proposal. Every submitted item must
+finish as used, rejected with a typed reason, or retained as a labelled
+scenario.
+
+Choose publication mode from the user's intent:
+
+- `strict` for automation or when only historically admitted effects may lead;
+- `best_effort` when a human wants the best bounded recommendation despite
+  weak evidence; and
+- `scenario` when the user wants the immutable primary beside several explicit
+  what-if paths.
+
+If the host can independently sample its model, use Gnomon's provider-neutral
+sampled-prior prompt/parser integration and submit the sealed dossier rather
+than averaging values in prose. Fewer than three valid sampled paths are
+scenario-only. Sampling agreement is not historical skill, and no
+model-authored path may authorize automation. Use `gnomon_select_scenario` only
+to rank already sealed scenario IDs with cited claim IDs; it cannot edit their
+numbers, support, primary, or automation status.
+
 ## Preserve the answer contract
 
 - Relay `headline` verbatim when possible.
