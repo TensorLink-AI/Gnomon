@@ -1330,12 +1330,13 @@ def _validate_observation_interpretations(
                 high_mad = (statistics.median(
                     abs(value - high_median) for value in high) if high else math.inf)
                 # The cited semantic concerns the near-zero component. Normal
-                # activity may be legitimately broad, so requiring six high-
-                # cluster MADs suppresses obvious censored mixtures. Demand a
-                # very tight low component and still require a meaningful gap
-                # relative to the normal component.
+                # activity may be legitimately broad, so its within-regime
+                # MAD is not evidence against a separate outage component.
+                # Demand a very tight low component and a gap material relative
+                # to the normal operating level. This admits clear censored
+                # mixtures without splitting a broad unimodal positive series.
                 separation_floor = max(
-                    1e-9, 6.0 * low_mad, 1.5 * high_mad)
+                    1e-9, 6.0 * low_mad, .20 * abs(high_median))
                 zero_compatible = abs(low_median) <= max(
                     1.0, .15 * abs(high_median))
                 if gap >= separation_floor and zero_compatible:

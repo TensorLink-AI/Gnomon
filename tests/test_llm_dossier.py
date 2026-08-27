@@ -504,6 +504,36 @@ def test_verified_absence_claim_exposes_separated_noisy_zero_sensitivity():
     assert dossier["automation_eligible"] is False
 
 
+def test_noisy_zero_cluster_survives_broad_normal_activity_variance():
+    span = ("Maintenance resulted in no withdrawals recorded. The maintenance "
+            "has ended.")
+    low = [-.7, -.5, -.4, -.3, -.2, -.1, -.05, .1, .2, .3, .4, .5]
+    # The normal regime is intentionally broad; that variability should not
+    # erase an otherwise separated, source-entailed near-zero component.
+    normal = [5, 7, 9, 12, 14, 17, 19, 22, 25, 29, 33, 38]
+    history = [value for pair in zip(low, normal) for value in pair]
+    history_times = [f"2026-01-{day:02d}T00:00:00+00:00"
+                     for day in range(1, 25)]
+
+    dossier, reasons = validate_temporal_dossier(
+        {"claims": [{
+            "source_span": "Maintenance resulted in no withdrawals recorded.",
+            "relation": "unknown", "effective_start": history_times[0],
+            "effective_end": history_times[-1], "confidence": 1,
+        }]}, context_text=span, cutoff=history_times[-1],
+        future_timestamps=["2026-01-25T00:00:00+00:00"], history=history,
+        history_timestamps=history_times, compiler_model="test")
+
+    assert not reasons
+    interpretation = dossier["observation_interpretations"][0]
+    assert interpretation["excluded_observations"] == len(low)
+    assert interpretation["predicate_normalization"]["kind"] == \
+        "semantic_zero_to_separated_near_zero_cluster"
+    assert dossier["forecast_candidate"]["conditional_replay"]["status"] == \
+        "scenario_only_outcome_inferred_mask"
+    assert dossier["automation_eligible"] is False
+
+
 def test_absence_claim_does_not_split_one_broad_unimodal_history():
     span = ("The store had reporting failures resulting in no sales recorded. "
             "The reporting failure has ended.")
