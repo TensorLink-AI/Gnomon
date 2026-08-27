@@ -86,6 +86,43 @@ def _rows(value: Any) -> list[dict[str, Any]]:
     return [dict(row) for row in value] if isinstance(value, list) else []
 
 
+def _candidate_rows(candidate: dict[str, Any], primary: list[dict[str, Any]]) \
+        -> list[dict[str, Any]]:
+    """Resolve partial model anchors against, never instead of, the primary."""
+    if candidate.get("requires_primary_completion") is not True:
+        return _rows(candidate.get("quantiles"))
+    anchors = _rows(candidate.get("quantile_anchors"))
+    if not anchors or not primary:
+        return []
+    index_by_timestamp = {str(row.get("timestamp")): index
+                          for index, row in enumerate(primary)}
+    resolved = []
+    for anchor in anchors:
+        index = index_by_timestamp.get(str(anchor.get("timestamp")))
+        if index is None:
+            return []
+        resolved.append((index, anchor))
+    resolved.sort(key=lambda item: item[0])
+    rows = [{"timestamp": row.get("timestamp"),
+             "q10": row.get("q10", row.get("point")),
+             "q50": row.get("q50", row.get("point")),
+             "q90": row.get("q90", row.get("point"))}
+            for row in primary]
+    for (left_index, left), (right_index, right) in zip(
+            resolved, resolved[1:]):
+        width = right_index - left_index
+        for index in range(left_index, right_index + 1):
+            weight = (index - left_index) / max(1, width)
+            for key in ("q10", "q50", "q90"):
+                rows[index][key] = (float(left[key])
+                                    + (float(right[key]) - float(left[key]))
+                                    * weight)
+    for index, anchor in resolved:
+        rows[index].update({key: float(anchor[key])
+                            for key in ("q10", "q50", "q90")})
+    return rows
+
+
 def _scenario(identifier: str, role: str, rows: list[dict[str, Any]], *,
               support: str, automation_eligible: bool,
               selection_eligible: bool = True,
@@ -491,7 +528,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
                  "observation_counterfactual" if candidate_origin ==
                  "observation_interpretation_counterfactual" else
                  "model_authored"),
-                _rows(candidate.get("quantiles")),
+                _candidate_rows(candidate, primary),
                 support=("conditionally_supported" if replay_admitted
                          else "prior_assisted"), automation_eligible=False,
                 selection_eligible=selection_eligible,

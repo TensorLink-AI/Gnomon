@@ -71,6 +71,37 @@ def test_best_effort_keeps_unselected_model_candidate_visible_only():
     assert verify_publication(payload)
 
 
+def test_partial_model_anchors_use_primary_outside_supplied_window():
+    timestamps = [f"2026-01-0{day}T00:00:00+00:00" for day in range(3, 8)]
+    result = {"support": "supported", "forecast": [
+        {"timestamp": stamp, "point": 10.0, "q10": 9, "q50": 10, "q90": 11}
+        for stamp in timestamps]}
+    span = "A comparable operation had a temporary middle-period peak."
+    dossier, reasons = validate_temporal_dossier({
+        "claims": [{"source_span": span, "relation": "unknown",
+                    "effective_start": "2025-01-01T00:00:00+00:00",
+                    "effective_end": "2025-01-02T00:00:00+00:00",
+                    "confidence": .5}],
+        "forecast_candidate": {"quantile_anchors": [
+            {"timestamp": timestamps[2], "q10": 18, "q50": 20, "q90": 22},
+        ], "rationale": "model-prior conditional peak"},
+    }, context_text=span, cutoff="2026-01-02T00:00:00+00:00",
+        future_timestamps=timestamps, history=[8, 9, 10, 11],
+        compiler_model="test")
+    assert not reasons
+
+    payload = publish_result(result, mode="best_effort", dossiers=[dossier])
+    scenario = next(item for item in payload["candidate_portfolio"]
+                    if item["role"] == "model_authored")
+
+    assert scenario["forecast"][0]["q50"] == 10
+    assert scenario["forecast"][2]["q50"] == 20
+    assert scenario["forecast"][-1]["q50"] == 10
+    assert payload["primary_forecast"] == result["forecast"]
+    assert scenario["automation_eligible"] is False
+    assert verify_publication(payload)
+
+
 def test_unadmitted_observation_sensitivity_needs_explicit_selection():
     dossier = _dossier()
     dossier["candidate_critique"]["candidate_origin"] = \

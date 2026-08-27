@@ -212,7 +212,26 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: Version 95: exact cited multipliers repair vague custom shape labels, and a
 #: governed host executes one server-authored capped grid repair without an LLM
 #: improvisation turn.
-MCP_CONTRACT_VERSION = 95
+#: Version 96: numeric context cannot disappear through an empty successful
+#: compile; one bounded sufficiency repair must type it or reject it explicitly.
+#: Version 97: past-tense yearless month/day references bind to the latest
+#: occurrence at or before the host-owned cutoff, with provenance retained.
+#: Version 98: inapplicable null lags no longer discard analogue hypotheses,
+#: and sealed model candidates may use compact host-interpolated quantile anchors.
+#: Version 99: numeric-context repair distinguishes best-effort prior-assisted
+#: anchor scenarios from strict evidence admission instead of defaulting to refusal.
+#: Version 100: explicit compiler-confidence ranges retain grounded claims at
+#: their conservative endpoint; parsing confidence still grants no authority.
+#: Version 101: sparse timestamped quantile rows use the same strict,
+#: provenance-disclosed interpolation contract as explicit quantile anchors.
+#: Version 102: the formal candidate schema made the anchor contract explicit.
+#: Version 103: meaningful interior anchors may omit horizon edges; Gnomon
+#: completes only those unanchored edges from the immutable primary and records
+#: that provenance instead of asking the model to invent endpoints.
+#: Version 104: malformed compiler-confidence metadata retains a verbatim
+#: grounded claim at a disclosed conservative floor; confidence remains
+#: non-authoritative, while explicit out-of-range numeric values still fail.
+MCP_CONTRACT_VERSION = 104
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -353,6 +372,13 @@ one JSON object with this shape:
   "forecast_candidate": {
     "quantiles": [{"timestamp": "exact requested timestamp", "q10": 0.0,
                    "q50": 0.0, "q90": 0.0}],
+    "quantile_anchors": [
+      {"timestamp": "FIRST requested timestamp", "q10": 0.0,
+       "q50": 0.0, "q90": 0.0},
+      {"timestamp": "optional exact turning-point timestamp", "q10": 0.0,
+       "q50": 0.0, "q90": 0.0},
+      {"timestamp": "LAST requested timestamp", "q10": 0.0,
+       "q50": 0.0, "q90": 0.0}],
     "rationale": "how the cited claims modify the numeric history"
   },
   "effect_proposal": {
@@ -520,7 +546,12 @@ cross_series_relationship|saturation_bound|custom_scenario",unit:
 duration_steps,period_steps,scope:{kind:"single_series",series:["*"]},
 claim_ids,rationale,uncertainty_basis}.
 - forecast_candidate: {quantiles:[{timestamp,q10,q50,q90}],rationale}; include
-every exact requested forecast timestamp or omit it.
+every exact requested forecast timestamp, OR use quantile_anchors with one or
+more ordered {timestamp,q10,q50,q90} rows at meaningful requested timestamps.
+Gnomon interpolates between anchors and completes only unanchored horizon edges
+from the immutable primary, with that provenance disclosed. Never invent edge
+anchors merely to cover the grid. Omit the candidate when neither
+representation is supportable.
 - covariate table: {name,type:"continuous|binary|cyclic_<period>",rows:[
 {document_index:0,timestamp,source_time_span,value,evidence_quote}]}.
 - transformation wrapper: {transformation:{known_at,claim_ids,lane:
@@ -1470,6 +1501,23 @@ class McpAgentForecaster:
                 "automation_eligible": False,
                 "primary_forecast_unchanged": True,
             }
+            run.final_submission = {
+                "route": extra_info.get("route"),
+                "recommended_scenario_id": publication.get(
+                    "recommended_scenario_id"),
+                "primary_forecast_unchanged": publication.get(
+                    "primary_forecast_unchanged"),
+                "automation_eligible": (
+                    publication.get("automation") or {}).get("eligible"),
+                "recommendation_authority": publication.get(
+                    "recommendation_authority"),
+                "scenario_selector": extra_info.get("scenario_selector"),
+            }
+            # ``drive`` closes the MCP process before governed selection to
+            # avoid holding an idle server during the second model call. Rewrite
+            # the same trace after selection so the diagnostic names the output
+            # that was actually scored rather than only the initial MCP result.
+            run._write_trace()
         paths = samples_from_quantile_rows(submission, n_samples)
         try:
             import numpy as np
@@ -1505,6 +1553,8 @@ class _Run:
         self.mcp_calls = 0
         self.artifact_paths: set[str] = set()
         self.submission: dict[str, Any] | None = None
+        self.final_submission: dict[str, Any] | None = None
+        self._trace_path: Path | None = None
         self.governed_evidence = forecaster.profile == "evidence"
         # Context compilation is part of this treatment's cost, so snapshot
         # usage before invoking it rather than hiding those tokens.
@@ -1644,7 +1694,18 @@ class _Run:
         observation_lane_missing = (
             _expects_historical_zero_interpretation(context)
             and not raw.get("observation_interpretations"))
-        if proposed_any_lane or observation_lane_missing:
+        # An empty response to numeric context is not a successful compile.
+        # It is common for useful references (a comparable site's peak, a
+        # budget, a dated rate) to be informative but not deterministic. Give
+        # the existing single repair round a chance to represent that evidence
+        # as a cited hypothesis or sealed prior-assisted scenario. The model
+        # may still explicitly classify it unsupported; it may not silently
+        # erase supplied information.
+        unresolved_numeric_context = bool(
+            context.strip() and not proposed_any_lane
+            and re.search(r"(?<!\w)\d+(?:\.\d+)?", context))
+        if (proposed_any_lane or observation_lane_missing
+                or unresolved_numeric_context):
             probe, probe_rejections = validate_temporal_dossier(
                 raw, context_text=context, cutoff=self.timestamps[-1],
                 future_timestamps=future_timestamps, history=self.values,
@@ -1661,7 +1722,7 @@ class _Run:
                     "rejected") or []
             if (probe_rejections or effect_failed or candidate_failed
                     or hypothesis_failures or observation_failures
-                    or observation_lane_missing):
+                    or observation_lane_missing or unresolved_numeric_context):
                 # Do not let one failed lane hide another. In particular, an
                 # effect critique used to mask a malformed candidate, causing
                 # the sole repair round to return another placeholder path.
@@ -1679,7 +1740,26 @@ class _Run:
                             "a verbatim claim and the typed exact-zero "
                             "observation_interpretation; do not create a future "
                             "event or mutate history."),
-                    } if observation_lane_missing else None),
+                    } if observation_lane_missing else {
+                        "code": "NUMERIC_CONTEXT_UNRESOLVED",
+                        "message": (
+                            "The supplied context contains numeric information "
+                            "but the dossier represented none of it. Return a "
+                            "verbatim cited claim and typed hypothesis. Add a "
+                            "sealed probabilistic forecast_candidate only when "
+                            "the history plus cited reference supports one; for "
+                            "a long smooth path use quantile_anchors at the first, "
+                            "last, and meaningful turning-point timestamps; "
+                            "this is a best_effort human-review lane, so a "
+                            "reasonable temporal/domain prior may supply anchor "
+                            "numbers when the rationale labels them model-prior "
+                            "rather than source-stated. Such a candidate remains "
+                            "prior_assisted and can never automate. Use an "
+                            "unsupported hypothesis only when no bounded useful "
+                            "conditional path can be formed, and name the missing "
+                            "evidence."
+                        ),
+                    } if unresolved_numeric_context else None),
                     "all_rejections": probe_rejections,
                 }
                 try:
@@ -2325,6 +2405,7 @@ class _Run:
                 if self.context_compilation is not None else None
             ),
             "trace": self.trace,
+            "final_submission": self.final_submission,
             "total_time": time.time() - self.started,
         }
         # CiK task instances carry no `seed` attribute and the forecaster
@@ -2332,11 +2413,13 @@ class _Run:
         # for all five runs of a task: writing to one name silently kept
         # the last run and discarded four (103 traces survived 355 runs).
         # A trace is diagnostic evidence; losing it costs a diagnosis.
-        path = trace_dir / f"{name}-seed{seed}.json"
-        suffix = 1
-        while path.exists():
-            suffix += 1
-            path = trace_dir / f"{name}-seed{seed}.{suffix}.json"
+        path = self._trace_path or trace_dir / f"{name}-seed{seed}.json"
+        if self._trace_path is None:
+            suffix = 1
+            while path.exists():
+                suffix += 1
+                path = trace_dir / f"{name}-seed{seed}.{suffix}.json"
+            self._trace_path = path
         path.write_text(json.dumps(payload, indent=2, default=str) + "\n",
                         encoding="utf-8")
 

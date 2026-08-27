@@ -473,6 +473,19 @@ def test_percent_prose_entails_dimensionless_multiplier():
     assert compiled["expression"]["args"][1]["value"] == 0.1
 
 
+def test_inapplicable_null_lag_is_zero_for_historical_analogue():
+    accepted, critique = compile_context_hypotheses([{
+        "kind": "historical_analogue", "claim_ids": ["claim-1"],
+        "target_series": ["*"], "predictor_series": None,
+        "known_at": _stamp(5), "lag_steps": None,
+        "direction": "unknown", "rationale": "One cited reference.",
+    }], claims=[{"claim_id": "claim-1"}], series=["target"],
+        cutoff=_stamp(5))
+
+    assert critique["status"] == "accepted"
+    assert accepted[0]["lag_steps"] == 0
+
+
 def test_ordinary_additive_equation_derives_only_forced_coefficient_units():
     raw = {
         "known_at": _stamp(5), "claim_ids": ["claim-1"],

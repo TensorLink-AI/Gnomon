@@ -461,6 +461,51 @@ def test_evidence_compiles_and_host_binds_context(tmp_path):
         == extra["context_compilation"]["source_sha256"]
 
 
+def test_numeric_context_gets_one_bounded_sufficiency_repair(tmp_path):
+    task = _task()
+    span = "A comparable site reached 120 on 2023-06-20."
+    task.scenario = span
+    empty = json.dumps({
+        "events": [], "claims": [], "hypotheses": [],
+        "covariate_tables": [], "transformations": [],
+        "observation_interpretations": [], "effect_proposal": None,
+        "forecast_candidate": None,
+    })
+    repaired = json.dumps({
+        "events": [],
+        "claims": [{
+            "source_span": span, "relation": "unknown",
+            "effective_start": "2023-06-20T00:00:00+00:00",
+            "effective_end": "2023-06-20T23:59:59+00:00",
+            "mechanism": "A comparable historical episode.",
+            "confidence": 0.5,
+        }],
+        "hypotheses": [{
+            "kind": "historical_analogue", "claim_ids": ["claim-1"],
+            "target_series": ["*"], "predictor_series": None,
+            "known_at": task.past_time[-1][0], "lag_steps": 0,
+            "direction": "unknown",
+            "rationale": "Keep the reference visible without treating one episode as validation.",
+        }],
+        "covariate_tables": [], "transformations": [],
+        "observation_interpretations": [], "effect_proposal": None,
+        "forecast_candidate": None,
+    })
+    forecaster = _forecaster(
+        [], tmp_path, profile="evidence", compiler_output=[empty, repaired])
+
+    _, extra = forecaster(task, 1)
+
+    compilation = extra["context_compilation"]
+    assert compilation["claim_count"] == 1
+    assert compilation["hypothesis_count"] == 1
+    receipt = json.loads(Path(compilation["receipt_path"]).read_text())
+    assert [call["stage"] for call in receipt["compiler"]["calls"]] == [
+        "initial_compile", "dossier_repair"]
+    assert receipt["dossier"]["hypotheses"][0]["kind"] \
+        == "historical_analogue"
+
+
 def test_evidence_binds_only_cited_host_timestamped_covariates(tmp_path):
     task = _task()
     date = task.future_time[0].split("T", 1)[0]
@@ -606,7 +651,7 @@ def test_best_effort_role_uses_verified_product_publication(tmp_path):
             [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
             [compiler_output, selection_output]),
         session_factory=lambda cwd: InProcessMcpSession(cwd),
-        work_dir=str(tmp_path), profile="evidence",
+        work_dir=str(tmp_path), trace_dir=tmp_path / "traces", profile="evidence",
         output_role="publication_best_effort")
     samples, extra = forecaster(task, 1)
     assert [row[0] for row in samples[0]] == [127, 128, 129, 130]
@@ -614,6 +659,11 @@ def test_best_effort_role_uses_verified_product_publication(tmp_path):
     assert extra["publication"]["recommended_support"] == "prior_assisted"
     assert extra["publication"]["primary_forecast_unchanged"] is True
     assert extra["publication"]["automation"]["eligible"] is False
+    trace = json.loads(next((tmp_path / "traces").glob("*.json")).read_text())
+    assert trace["final_submission"]["recommended_scenario_id"] \
+        == "prior-assisted-1"
+    assert trace["final_submission"]["primary_forecast_unchanged"] is True
+    assert trace["final_submission"]["automation_eligible"] is False
 
 
 def test_best_effort_role_exercises_live_safe_transformation_surface(tmp_path):

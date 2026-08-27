@@ -24,6 +24,11 @@ variance, ramps/recovery, bounds, seasonal amplitude/phase and cross-series
 relationships. A full model-authored quantile path remains a compatibility lane,
 is labelled `model_authored`, and has no additional authority.
 
+Compiler confidence is descriptive metadata, not evidence authority. An
+unparseable model-generated confidence field therefore retains an otherwise
+verbatim grounded claim at a disclosed conservative floor; explicit numeric
+values outside the valid range are still rejected.
+
 `scenario` returns the primary and each bounded conditional path. A governed
 LLM selection may rank their immutable IDs and recommend one, citing verified
 claims, counterevidence, confidence, and what would change its selection. The
@@ -156,6 +161,25 @@ cited multiplier rather than only shifting its median.
 If a compiler calls an otherwise exact, bounded cited multiplier a
 `custom_scenario`, validation canonicalizes the vague label to the executable
 bounded shape. It does not infer a magnitude or timing that the citation lacks.
+Numeric context that produces an empty initial dossier receives the single
+bounded compiler-repair round: it must emerge as cited typed evidence, a sealed
+conditional scenario, or an explicit unsupported hypothesis. An empty parse is
+never silently treated as evidence that the context was irrelevant.
+For clearly past-tense reference claims, a yearless month/day is resolved to
+its most recent occurrence at or before the cutoff and the normalization is
+retained in the receipt. Prospective partial dates are rejected.
+Long prior-assisted paths can be supplied as ordered `quantile_anchors` at
+meaningful turning-point timestamps. Gnomon validates every anchor and
+linearly interpolates the sealed path on its own forecast grid. If the model
+does not anchor a horizon edge, that edge remains the immutable primary and the
+completion is recorded in `path_normalization`; Gnomon does not invent model
+endpoints. Compactness grants no additional support or automation authority.
+Sparse timestamped rows under the older `quantiles` key are treated as the same
+anchor format under the identical validation and disclosure contract.
+In `best_effort`, those anchors may reflect a model temporal/domain prior when
+the rationale distinguishes prior-derived numbers from source-stated facts.
+This is a human-facing conditional estimate, never historical admission; the
+immutable primary remains beside it and automation stays disabled.
 
 When a long requested horizon leaves only one full-horizon holdout, Gnomon
 still refuses to rank incremental candidates. It may preserve demonstrated

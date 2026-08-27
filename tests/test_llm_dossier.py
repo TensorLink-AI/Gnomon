@@ -135,6 +135,45 @@ def test_valid_dossier_is_cited_sealed_and_non_automatable():
     assert not verify_temporal_dossier_seal(dossier)
 
 
+def test_past_tense_yearless_reference_binds_to_latest_past_occurrence():
+    span = "As reference, the maximum on June 20th was 25.83."
+    raw = {"claims": [{
+        "source_span": span, "relation": "unknown",
+        "effective_start": "June 20th", "effective_end": "June 20th",
+        "confidence": 0.5,
+    }], "hypotheses": [{
+        "kind": "historical_analogue", "claim_ids": ["claim-1"],
+        "target_series": ["*"], "known_at": "2026-09-09T00:00:00+00:00",
+        "lag_steps": 0, "direction": "unknown",
+    }]}
+
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=span, cutoff="2026-09-09T00:00:00+00:00",
+        future_timestamps=["2026-09-10T00:00:00+00:00"],
+        history=[1, 2, 3], compiler_model="test")
+
+    assert not reasons
+    claim = dossier["claims"][0]
+    assert claim["effective_start"] == "2026-06-20T00:00:00+00:00"
+    assert claim["effective_window_binding"]["kind"] \
+        == "most_recent_historical_month_day"
+    assert dossier["hypotheses"][0]["kind"] == "historical_analogue"
+
+
+def test_future_yearless_date_is_not_backdated_as_history():
+    span = "The next June 20th will reach 25.83."
+    dossier, reasons = validate_temporal_dossier(
+        {"claims": [{"source_span": span, "relation": "unknown",
+                     "effective_start": "June 20th",
+                     "effective_end": "June 20th", "confidence": 0.5}]},
+        context_text=span, cutoff="2026-09-09T00:00:00+00:00",
+        future_timestamps=["2026-09-10T00:00:00+00:00"],
+        history=[1, 2, 3], compiler_model="test")
+
+    assert not dossier["claims"]
+    assert "invalid effective window" in reasons[0]
+
+
 def test_percentage_scale_claim_confidence_is_normalized_and_disclosed():
     span = "The site will be closed on Monday."
     raw = _raw(span)
@@ -185,6 +224,64 @@ def test_qualitative_claim_confidence_is_conservative_and_non_authoritative():
         history=[8, 9, 10, 11], compiler_model="model-x")
     assert not reasons
     assert dossier["claims"][0]["confidence"] == 0.75
+
+
+def test_confidence_range_uses_conservative_endpoint_without_authority():
+    span = "A comparable site peaked at 25.83."
+    raw = _raw(span)
+    raw["claims"][0]["confidence"] = "0.6-0.8"
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=span,
+        cutoff="2026-01-04T00:00:00+00:00",
+        future_timestamps=["2026-01-05T00:00:00+00:00",
+                           "2026-01-06T00:00:00+00:00"],
+        history=[8, 9, 10, 11], compiler_model="model-x")
+
+    assert not reasons
+    claim = dossier["claims"][0]
+    assert claim["confidence"] == 0.6
+    assert claim["confidence_normalization"] == {
+        "kind": "numeric_range_to_conservative_unit_interval",
+        "supplied": "0.6-0.8", "normalized": 0.6,
+        "authority_effect": "none",
+    }
+
+
+def test_unparseable_claim_confidence_retains_grounded_claim_without_authority():
+    span = "A comparable site peaked at 25.83."
+    raw = _raw(span)
+    raw["claims"][0]["confidence"] = {"label": "fairly plausible"}
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=span,
+        cutoff="2026-01-04T00:00:00+00:00",
+        future_timestamps=["2026-01-05T00:00:00+00:00",
+                           "2026-01-06T00:00:00+00:00"],
+        history=[8, 9, 10, 11], compiler_model="model-x")
+
+    assert not reasons
+    claim = dossier["claims"][0]
+    assert claim["confidence"] == 0.25
+    assert claim["confidence_normalization"] == {
+        "kind": "unparseable_to_conservative_unit_interval",
+        "supplied": "{'label': 'fairly plausible'}",
+        "normalized": 0.25,
+        "authority_effect": "none",
+    }
+
+
+def test_out_of_range_numeric_claim_confidence_is_still_rejected():
+    span = "A comparable site peaked at 25.83."
+    raw = _raw(span)
+    raw["claims"][0]["confidence"] = 101
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=span,
+        cutoff="2026-01-04T00:00:00+00:00",
+        future_timestamps=["2026-01-05T00:00:00+00:00",
+                           "2026-01-06T00:00:00+00:00"],
+        history=[8, 9, 10, 11], compiler_model="model-x")
+
+    assert dossier["claims"] == []
+    assert "claim 1 has invalid confidence" in reasons
 
 
 def test_historical_zero_contamination_derives_sealed_counterfactual():
@@ -604,6 +701,83 @@ def test_compact_constant_candidate_expands_only_onto_host_grid():
     assert all(row["q50"] == 10 for row in candidate["quantiles"])
     assert candidate["path_normalization"] == {
         "kind": "constant_quantiles_expanded_to_host_grid", "steps": 10}
+
+
+def test_compact_quantile_anchors_interpolate_only_on_host_grid():
+    span = "A comparable site had a midday peak and then declined."
+    future = [f"2026-01-05T0{hour}:00:00+00:00" for hour in range(5)]
+    raw = {
+        "claims": [{"source_span": span, "relation": "unknown",
+                    "effective_start": "2025-01-05T00:00:00+00:00",
+                    "effective_end": "2025-01-05T23:59:59+00:00",
+                    "confidence": .5}],
+        "forecast_candidate": {"quantile_anchors": [
+            {"timestamp": future[0], "q10": 8, "q50": 10, "q90": 12},
+            {"timestamp": future[2], "q10": 10, "q50": 12, "q90": 14},
+            {"timestamp": future[4], "q10": 6, "q50": 8, "q90": 10},
+        ], "rationale": "prior-assisted analogue shape"},
+    }
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=span, cutoff="2026-01-04T00:00:00+00:00",
+        future_timestamps=future, history=[8, 9, 10, 11],
+        compiler_model="test")
+
+    assert not reasons
+    candidate = dossier["forecast_candidate"]
+    assert [row["q50"] for row in candidate["quantiles"]] == [10, 11, 12, 10, 8]
+    assert candidate["path_normalization"] == {
+        "kind": "quantile_anchors_linearly_interpolated_on_host_grid",
+        "anchors": 3, "steps": 5, "source_field": "quantile_anchors"}
+
+
+def test_sparse_quantile_rows_use_the_same_strict_anchor_contract():
+    span = "A comparable site had a smooth bounded daily path."
+    future = [f"2026-01-05T0{hour}:00:00+00:00" for hour in range(5)]
+    raw = {
+        "claims": [{"source_span": span, "relation": "unknown",
+                    "effective_start": "2025-01-05T00:00:00+00:00",
+                    "effective_end": "2025-01-05T23:59:59+00:00",
+                    "confidence": .5}],
+        "forecast_candidate": {"quantiles": [
+            {"timestamp": future[0], "q10": 8, "q50": 10, "q90": 12},
+            {"timestamp": future[4], "q10": 4, "q50": 6, "q90": 8},
+        ], "rationale": "sparse prior-assisted path"},
+    }
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=span, cutoff="2026-01-04T00:00:00+00:00",
+        future_timestamps=future, history=[8, 9, 10, 11],
+        compiler_model="test")
+
+    assert not reasons
+    candidate = dossier["forecast_candidate"]
+    assert [row["q50"] for row in candidate["quantiles"]] == [10, 9, 8, 7, 6]
+    assert candidate["path_normalization"]["source_field"] \
+        == "sparse_quantiles_alias"
+
+
+def test_partial_quantile_anchors_require_immutable_primary_completion():
+    span = "A comparable site had a midday peak."
+    future = [f"2026-01-05T0{hour}:00:00+00:00" for hour in range(3)]
+    raw = {
+        "claims": [{"source_span": span, "relation": "unknown",
+                    "effective_start": "2025-01-05T00:00:00+00:00",
+                    "effective_end": "2025-01-05T23:59:59+00:00",
+                    "confidence": .5}],
+        "forecast_candidate": {"quantile_anchors": [
+            {"timestamp": future[0], "q10": 8, "q50": 10, "q90": 12},
+            {"timestamp": future[1], "q10": 9, "q50": 11, "q90": 13},
+        ], "rationale": "incomplete anchors"},
+    }
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=span, cutoff="2026-01-04T00:00:00+00:00",
+        future_timestamps=future, history=[8, 9, 10, 11],
+        compiler_model="test")
+
+    assert not reasons
+    candidate = dossier["forecast_candidate"]
+    assert candidate["requires_primary_completion"] is True
+    assert candidate["path_normalization"]["unanchored_edges"] \
+        == "immutable_primary"
 
 
 def test_candidate_must_obey_its_own_cited_numeric_bounds():

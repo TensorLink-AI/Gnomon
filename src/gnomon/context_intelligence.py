@@ -1429,6 +1429,11 @@ def _validate_hypotheses(raw: list[Any], *, claims: list[dict[str, Any]],
         if known_at is None or known_at > cutoff_dt:
             errors.append({"field": "known_at", "code": "NOT_KNOWN_AT_CUTOFF"})
         lag = item.get("lag_steps", 0)
+        if lag is None and kind != "relationship":
+            # Lag has no semantics for level, regime, or analogue hypotheses.
+            # JSON-producing models commonly emit null for inapplicable slots;
+            # treating that as a negative lag discards otherwise valid evidence.
+            lag = 0
         try:
             lag = int(lag)
         except (TypeError, ValueError):

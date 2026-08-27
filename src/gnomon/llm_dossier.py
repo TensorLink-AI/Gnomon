@@ -119,6 +119,52 @@ def _timestamp(value: Any) -> datetime | None:
     return parsed if parsed.tzinfo is not None else None
 
 
+_MONTHS = {
+    name: number for number, names in enumerate((
+        ("january", "jan"), ("february", "feb"), ("march", "mar"),
+        ("april", "apr"), ("may",), ("june", "jun"),
+        ("july", "jul"), ("august", "aug"),
+        ("september", "sep", "sept"), ("october", "oct"),
+        ("november", "nov"), ("december", "dec"),
+    ), 1) for name in names
+}
+
+
+def _historical_partial_date_window(
+    span: str, cutoff: datetime,
+) -> tuple[datetime, datetime, dict[str, Any]] | None:
+    """Resolve a past-tense month/day reference to its latest occurrence."""
+    text = _normalise(span)
+    if re.search(r"\b(?:next|upcoming|will|expected|planned)\b", text):
+        return None
+    if not re.search(r"\b(?:was|were|historical|previous|prior|reference)\b",
+                     text):
+        return None
+    month_pattern = "|".join(sorted(_MONTHS, key=len, reverse=True))
+    matched = re.search(
+        rf"\b(?P<month>{month_pattern})\.?\s+(?P<day>\d{{1,2}})"
+        r"(?:st|nd|rd|th)?\b", text)
+    if matched is None:
+        return None
+    month = _MONTHS[matched.group("month")]
+    day = int(matched.group("day"))
+    try:
+        start = cutoff.replace(year=cutoff.year, month=month, day=day,
+                               hour=0, minute=0, second=0, microsecond=0)
+    except ValueError:
+        return None
+    if start > cutoff:
+        start = start.replace(year=start.year - 1)
+    end = start + timedelta(days=1) - timedelta(microseconds=1)
+    return start, end, {
+        "kind": "most_recent_historical_month_day",
+        "source_token": matched.group(0),
+        "resolved_date": start.date().isoformat(),
+        "cutoff": cutoff.isoformat(),
+        "basis": "past-tense cited reference with no supplied year",
+    }
+
+
 def validate_temporal_dossier(
     raw: Any,
     *,
@@ -181,6 +227,10 @@ def validate_temporal_dossier(
                         "without an exact calendar window"),
                 }
         if start is None or end is None or end < start:
+            partial = _historical_partial_date_window(span, cutoff_dt)
+            if partial is not None:
+                start, end, history_window_binding = partial
+        if start is None or end is None or end < start:
             reasons.append(f"claim {index + 1} has an invalid effective window")
             continue
         raw_confidence = claim.get("confidence", 1.0)
@@ -211,6 +261,18 @@ def validate_temporal_dossier(
                 "normalized": confidence,
                 "authority_effect": "none",
             }
+        elif len(numeric_matches) == 2 and re.search(
+                r"(?:-|–|—|\bto\b)", confidence_text):
+            # Parsing confidence grants no authority. Preserve the grounded
+            # claim by taking an explicit range's conservative endpoint.
+            confidence = min(map(float, numeric_matches))
+            confidence_normalization = {
+                "kind": "numeric_range_to_conservative_unit_interval",
+                "supplied": raw_confidence,
+                "normalized": (confidence / 100.0
+                               if 1 < confidence <= 100 else confidence),
+                "authority_effect": "none",
+            }
         elif qualitative_match is not None:
             confidence = qualitative[qualitative_match]
             confidence_normalization = {
@@ -223,14 +285,26 @@ def validate_temporal_dossier(
             try:
                 confidence = float(raw_confidence)
             except (TypeError, ValueError):
-                confidence = math.nan
+                # Compiler confidence is descriptive metadata, never evidence
+                # authority. Do not discard an otherwise verbatim, dated claim
+                # merely because a model emitted an unfamiliar label or shape;
+                # retain it at the conservative floor and disclose the repair.
+                confidence = 0.25
+                confidence_normalization = {
+                    "kind": "unparseable_to_conservative_unit_interval",
+                    "supplied": str(raw_confidence)[:200],
+                    "normalized": confidence,
+                    "authority_effect": "none",
+                }
         if math.isfinite(confidence) and 1 < confidence <= 100:
             confidence /= 100.0
-            confidence_normalization = {
-                "kind": "percent_to_unit_interval",
-                "supplied": raw_confidence,
-                "normalized": confidence,
-            }
+            if (confidence_normalization or {}).get("kind") \
+                    != "numeric_range_to_conservative_unit_interval":
+                confidence_normalization = {
+                    "kind": "percent_to_unit_interval",
+                    "supplied": raw_confidence,
+                    "normalized": confidence,
+                }
         if not math.isfinite(confidence) or not 0 <= confidence <= 1:
             reasons.append(f"claim {index + 1} has invalid confidence")
             continue
@@ -404,7 +478,11 @@ def validate_temporal_dossier(
                         "Submit a horizon-aligned q10/q50/q90 path that obeys "
                         "every cited constraint, or use a typed effect or "
                         "transformation. A time-invariant path may use compact "
-                        "constant_quantiles instead of repeating every row."
+                        "constant_quantiles instead of repeating every row. "
+                        "A shaped path may use cited quantile_anchors at "
+                        "meaningful host-grid timestamps; Gnomon interpolates "
+                        "between them and retains the immutable primary beyond "
+                        "the supplied anchor window."
                     ),
                     "required_evidence": [
                         "horizon-aligned q10/q50/q90 path",
@@ -1085,7 +1163,80 @@ def _validate_candidate(
     rows = raw.get("quantiles")
     path_normalization = None
     compact = raw.get("constant_quantiles")
-    if isinstance(compact, dict):
+    anchors = raw.get("quantile_anchors")
+    anchor_source = "quantile_anchors"
+    primary_completion = False
+    validated_anchor_rows: list[dict[str, float | str]] = []
+    if (not isinstance(anchors, list) and isinstance(rows, list)
+            and 2 <= len(rows) < len(future_timestamps)):
+        # Models naturally use the established `quantiles` row shape for a
+        # sparse path. Treat it as the compact anchor representation only when
+        # the strict boundary/grid checks below succeed, and disclose the alias.
+        anchors = rows
+        anchor_source = "sparse_quantiles_alias"
+    if isinstance(anchors, list):
+        index_by_timestamp = {
+            timestamp: index for index, timestamp in enumerate(future_timestamps)}
+        parsed_anchors: list[tuple[int, dict[str, float]]] = []
+        seen: set[int] = set()
+        for anchor in anchors:
+            if not isinstance(anchor, dict):
+                reasons.append("forecast_candidate quantile anchor is not an object")
+                return None
+            timestamp = str(anchor.get("timestamp") or "")
+            index = index_by_timestamp.get(timestamp)
+            if index is None or index in seen:
+                reasons.append(
+                    "forecast_candidate anchors must use unique requested timestamps")
+                return None
+            try:
+                quantiles = {key: float(anchor[key])
+                             for key in ("q10", "q50", "q90")}
+            except (KeyError, TypeError, ValueError):
+                reasons.append("forecast_candidate quantile anchor lacks quantiles")
+                return None
+            if not all(math.isfinite(value) for value in quantiles.values()) \
+                    or not quantiles["q10"] <= quantiles["q50"] <= quantiles["q90"]:
+                reasons.append("forecast_candidate quantile anchor is invalid")
+                return None
+            parsed_anchors.append((index, quantiles)); seen.add(index)
+        parsed_anchors.sort(key=lambda item: item[0])
+        if not parsed_anchors:
+            reasons.append("forecast_candidate requires at least one valid anchor")
+            return None
+        rows = []
+        for index in range(len(future_timestamps)):
+            exact = next((values for anchor_index, values in parsed_anchors
+                          if anchor_index == index), None)
+            if exact is not None:
+                values = exact
+            elif index < parsed_anchors[0][0]:
+                values = parsed_anchors[0][1]
+            elif index > parsed_anchors[-1][0]:
+                values = parsed_anchors[-1][1]
+            else:
+                left_index, left = next(
+                    item for item in reversed(parsed_anchors) if item[0] <= index)
+                right_index, right = next(
+                    item for item in parsed_anchors if item[0] >= index)
+                width = right_index - left_index
+                weight = (index - left_index) / width
+                values = {key: left[key] + (right[key] - left[key]) * weight
+                          for key in ("q10", "q50", "q90")}
+            rows.append(dict(values))
+        primary_completion = (
+            parsed_anchors[0][0] != 0
+            or parsed_anchors[-1][0] != len(future_timestamps) - 1)
+        path_normalization = {
+            "kind": "quantile_anchors_linearly_interpolated_on_host_grid",
+            "anchors": len(parsed_anchors), "steps": len(future_timestamps),
+            "source_field": anchor_source,
+        }
+        if primary_completion:
+            path_normalization["unanchored_edges"] = "immutable_primary"
+        validated_anchor_rows = [{"timestamp": future_timestamps[index], **values}
+                                 for index, values in parsed_anchors]
+    elif isinstance(compact, dict):
         rows = [dict(compact) for _ in future_timestamps]
         path_normalization = {
             "kind": "constant_quantiles_expanded_to_host_grid",
@@ -1222,4 +1373,7 @@ def _validate_candidate(
         },
         **({"path_normalization": path_normalization}
            if path_normalization else {}),
+        **({"quantile_anchors": validated_anchor_rows,
+            "requires_primary_completion": True}
+           if primary_completion else {}),
     }

@@ -2,6 +2,51 @@
 
 ## Unreleased
 
+- Unparseable model-generated claim confidence no longer discards otherwise
+  verbatim grounded context and every candidate that cites it. It normalizes to
+  a disclosed conservative floor with no authority effect; explicit numeric
+  values outside the valid range still fail validation.
+
+- Model-authored conditional paths may now provide only meaningful interior
+  quantile anchors. Gnomon interpolates between supplied anchors while leaving
+  unanchored horizon edges equal to the immutable primary, records that
+  completion in provenance, and keeps the candidate non-automatable. This
+  avoids forcing an LLM to fabricate boundary values merely to express a
+  supported turning-point shape.
+
+- The compiler's formal `forecast_candidate` schema now includes an explicit
+  compact-anchor shape where the model forms its JSON.
+- Sparse timestamped `quantiles` rows are now accepted as a disclosed alias
+  for `quantile_anchors` when they pass the identical grid, ordering,
+  finiteness, and plausibility checks. This removes schema-friction retries
+  without weakening the candidate boundary.
+- Explicit compiler-confidence ranges such as `0.6-0.8` now normalize to the
+  conservative endpoint instead of causing an otherwise grounded claim to be
+  discarded. The supplied range and normalization remain visible, and parsing
+  confidence continues to grant no recommendation or automation authority.
+- The numeric-context sufficiency repair now states the `best_effort` contract
+  honestly: when a domain description plus cited reference supports a bounded
+  conditional estimate, the model may supply compact anchor numbers labelled
+  as model prior. The sealed scenario remains `prior_assisted`, requires human
+  review, cannot mutate the primary, and can never authorize automation;
+  `unsupported` remains correct when no useful bounded path can be formed.
+- Historical-analogue and other non-relationship hypotheses now normalize an
+  inapplicable `lag_steps: null` to zero instead of rejecting the evidence.
+  Prior-assisted model candidates may also provide compact ordered quantile
+  anchors at meaningful requested timestamps; Gnomon validates them,
+  interpolates deterministically on the host grid, seals the resolved
+  path, and retains the same human-review-only authority.
+- Past-tense historical references containing a month and day but no year now
+  bind to the latest occurrence at or before the host-owned cutoff, with the
+  supplied token, resolved date, cutoff, and basis retained in the claim.
+  Future or prospective yearless dates remain invalid rather than being
+  silently backdated.
+- The governed context compiler no longer treats an empty dossier as success
+  when supplied prose contains numeric information. It spends the existing one
+  bounded repair round to produce a verbatim cited hypothesis, a sealed
+  prior-assisted scenario when supportable, or an explicit unsupported reason.
+  This keeps sparse historical references visible without granting them
+  automation authority.
 - Governed context now turns a vague `custom_scenario` label into an executable
   temporary pulse or level shift when the cited source supplies an exact
   multiplier and bounded timing. Percentage prose such as "10% of usual" also
