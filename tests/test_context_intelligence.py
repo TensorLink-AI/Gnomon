@@ -149,6 +149,23 @@ def test_companion_level_mapping_rejects_unaligned_or_short_inputs():
             claim_ids=[], hypothesis_id="h")
 
 
+def test_short_noisy_companion_is_shrunk_and_interval_keeps_raw_displacement():
+    companion = [10, 11, 12, 13, 14, 15]
+    target = [12.0, 12.8, 14.1, 14.9, 16.2, 16.8]
+    primary = [{"timestamp": _stamp(6), "q50": target[-1]}]
+    candidate = fit_companion_level_candidate(
+        target, companion, [20], primary=primary,
+        claim_ids=["claim-1"], hypothesis_id="short")
+    validation = candidate["validation"]
+    assert validation["validation_points"] == 3
+    assert validation["publication_evidence_weight"] == pytest.approx(3 / 8)
+    assert validation["publication_shrunk_to_baseline"] is True
+    raw_point = 20 + candidate["executable"]["offset"]
+    point = candidate["forecast"][0]["q50"]
+    assert target[-1] < point < raw_point
+    assert candidate["forecast"][0]["q90"] - point >= raw_point - point
+
+
 def test_governed_companion_candidate_keeps_validation_and_origin():
     span = "On 2026-01-03 the companion value is 12."
     raw = {"claims": [{

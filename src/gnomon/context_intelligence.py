@@ -1714,15 +1714,30 @@ def fit_companion_level_candidate(
     half_width = max(1.2815515655446004 * 1.4826 * mad,
                      max(abs(value) for value in residuals),
                      level_scale * 1e-6)
+    replay_points = len(actuals)
+    # A short retrospective replay can identify a useful companion without
+    # establishing that its full future displacement is stable.  Use the same
+    # eight-origin boundary as the supported tier to shrink that displacement
+    # toward last-value.  Exact level identities need no shrinkage; neither do
+    # relationships that have accumulated the full evidence requirement.
+    exact_identity = max(abs(value) for value in residuals) <= max(
+        1e-12, level_scale * 1e-12)
+    evidence_weight = (1.0 if exact_identity else
+                       min(1.0, replay_points / 8.0))
+    baseline_point = target[-1]
     rows = []
     for source, value in zip(primary, future):
-        point = value + offset
+        raw_point = value + offset
+        point = baseline_point + evidence_weight * (raw_point - baseline_point)
+        # The unadmitted part of the contextual displacement is model
+        # uncertainty, not evidence that may silently disappear from the
+        # interval.  Preserve it in the published band.
+        published_half_width = max(half_width, abs(raw_point - point))
         rows.append({
             "timestamp": source.get("timestamp"), "point": point,
-            "q10": point - half_width, "q50": point,
-            "q90": point + half_width,
+            "q10": point - published_half_width, "q50": point,
+            "q90": point + published_half_width,
         })
-    replay_points = len(actuals)
     beats_baseline = bool(replay_points >= 3 and skill >= .02)
     return {
         "hypothesis_id": hypothesis_id,
@@ -1747,6 +1762,10 @@ def fit_companion_level_candidate(
             "baseline": "last_value",
             "relationship_known_at_each_origin": False,
             "input_observations_known_at_each_origin": True,
+            "publication_evidence_weight": evidence_weight,
+            "publication_shrunk_to_baseline": evidence_weight < 1.0,
+            "publication_shrinkage_basis": (
+                "validation_points_over_supported_eight_origin_requirement"),
         },
         "support": "prior_assisted",
         "selection_eligible": beats_baseline,
@@ -1755,6 +1774,8 @@ def fit_companion_level_candidate(
         "executable": {
             "kind": "fitted_companion_level_mapping", "version": "0.1",
             "offset": offset, "interval_half_width": half_width,
+            "baseline_point": baseline_point,
+            "publication_evidence_weight": evidence_weight,
         },
     }
 

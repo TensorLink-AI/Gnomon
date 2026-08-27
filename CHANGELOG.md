@@ -29,9 +29,17 @@
 - Detect structured reference/peer/driver tables from their source text rather
   than benchmark-only metadata, and preserve the pre-claim candidate count and
   adjusted threshold in the selected candidate's final validation receipt.
+- Add a deterministic, fail-closed front door for explicit
+  heading/separator/timestamp-value blocks. Exact host-grid tables no longer
+  spend an LLM call on transcription; ambiguous, incomplete, duplicate-name,
+  or non-finite layouts fall back to the governed LLM compiler.
 - Add an independent 100-seed admission check for the companion executable:
   stable offset signals must be admitted while unrelated random walks remain
   below a five-percent false-admission ceiling.
+- Shrink short, noisy companion displacements toward last-value until they
+  accumulate the eight replay origins required by the supported tier, and
+  retain the unadmitted displacement in the interval. Exact identities and
+  sufficiently replayed mappings remain unchanged.
 - Bound compiler rejection diagnostics only at the MCP wire projection. A
   context receipt with more than 16 rejection reasons now sends 15 plus a
   typed overflow pointer while retaining the complete lossless receipt, so

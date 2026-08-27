@@ -45,6 +45,7 @@ from benchmarks.cik.mcp_agent import (
     _bind_covariate_row_claims,
     _fit_governed_companion_from_receipt,
     _looks_like_structured_companion_context,
+    _extract_structured_companion_tables,
 )
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -87,6 +88,24 @@ def test_structured_companion_routing_requires_label_and_overlap_volume():
     assert not _looks_like_structured_companion_context(rows, future)
     assert not _looks_like_structured_companion_context(
         "For reference:\n" + "\n".join(rows.splitlines()[:3]), future)
+
+
+def test_structured_companion_front_door_is_exact_and_fail_closed():
+    history = [f"2024-0{month}-01T00:00:00+00:00" for month in range(1, 5)]
+    future = ["2024-05-01T00:00:00+00:00",
+              "2024-06-01T00:00:00+00:00"]
+    block = "Peer East Sales\n--------------------\n" + "\n".join(
+        f"({timestamp[:10]} 00:00:00, {index + 1}.5)"
+        for index, timestamp in enumerate([*history, *future]))
+    tables = _extract_structured_companion_tables(block, history, future)
+    assert len(tables) == 1
+    assert tables[0]["name"] == "peer_east_sales"
+    assert [row["timestamp"] for row in tables[0]["rows"]] == [*history, *future]
+    assert tables[0]["rows"][0]["evidence_quote"].startswith("(")
+    assert _extract_structured_companion_tables(
+        block.replace("2024-06-01", "2024-07-01"), history, future) == []
+    assert _extract_structured_companion_tables(
+        block.replace("1.5", "not-a-number"), history, future) == []
 
 
 @pytest.mark.parametrize("wrapper", [

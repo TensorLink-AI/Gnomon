@@ -809,6 +809,59 @@ def _looks_like_structured_companion_context(
     return bool(marker and len(rows) >= len(future_timestamps) + 4)
 
 
+def _extract_structured_companion_tables(
+        text: str, history_timestamps: list[str],
+        future_timestamps: list[str],
+) -> list[dict[str, Any]]:
+    """Parse explicit heading/separator/time-value blocks without an LLM."""
+    grid = {timestamp.split("T", 1)[0]: timestamp
+            for timestamp in [*history_timestamps, *future_timestamps]}
+    if len(grid) != len(history_timestamps) + len(future_timestamps):
+        return []
+    lines = text.splitlines()
+    tables = []
+    row_pattern = re.compile(
+        r"^\s*\(?\s*(\d{4}-\d{2}-\d{2}(?:[ T][^,)]*)?)\s*,\s*"
+        r"([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s*\)?\s*$")
+    for index in range(1, len(lines) - 1):
+        if not re.fullmatch(r"\s*-{3,}\s*", lines[index]):
+            continue
+        heading = lines[index - 1].strip()
+        if not heading:
+            continue
+        rows = []
+        cursor = index + 1
+        while cursor < len(lines):
+            match = row_pattern.fullmatch(lines[cursor])
+            if match is None:
+                break
+            date = match.group(1)[:10]
+            timestamp = grid.get(date)
+            if timestamp is None:
+                rows = []
+                break
+            value = float(match.group(2))
+            if not math.isfinite(value):
+                rows = []
+                break
+            rows.append({
+                "document_index": 0, "timestamp": timestamp,
+                "source_time_span": match.group(1).strip(), "value": value,
+                "evidence_quote": lines[cursor].strip(),
+            })
+            cursor += 1
+        covered = {row["timestamp"] for row in rows}
+        if (len(covered.intersection(history_timestamps)) < 4
+                or not set(future_timestamps).issubset(covered)):
+            continue
+        name = re.sub(r"[^a-z0-9_]+", "_", heading.casefold()).strip("_")
+        if not name or not re.match(r"^[a-z_]", name):
+            continue
+        tables.append({"name": name[:64], "type": "continuous", "rows": rows})
+    names = [table["name"] for table in tables]
+    return tables if len(names) == len(set(names)) else []
+
+
 def _validated_item_count(value: Any) -> int:
     """Normalize validator count/list shapes for diagnostic receipts."""
     if isinstance(value, bool):
@@ -2749,6 +2802,10 @@ class _Run:
                                 + MAX_CONTEXT_COMPILATION_SECONDS)
         compiler_calls: list[dict[str, Any]] = []
         repair_decisions: list[dict[str, Any]] = []
+        deterministic_companion_tables = (
+            _extract_structured_companion_tables(
+                context, self.timestamps, future_timestamps)
+            if companion_contract else [])
 
         def bind_active_target(candidate: dict[str, Any]) -> dict[str, Any]:
             """Attach host-owned series identity without granting semantics."""
@@ -2827,16 +2884,28 @@ class _Run:
                     if host_fallback and isinstance(payload, dict):
                         payload["source_claim_ids"] = ["claim-1"]
             return candidate
-        try:
-            completion = complete(prompt, "initial_compile")
-            objects = extract_json_objects(completion)
-            if objects:
-                raw = bind_host_knowledge_time(bind_active_target(objects[0]))
-            else:
-                compile_rejections.append(
-                    "no JSON object in temporal-dossier output")
-        except Exception as error:
-            compile_rejections.append(f"dossier compilation failed: {error}")
+        if deterministic_companion_tables:
+            raw = bind_active_target({
+                "events": [], "claims": [], "hypotheses": [],
+                "covariate_tables": deterministic_companion_tables,
+                "transformations": [], "observation_interpretations": [],
+                "effect_proposal": None, "forecast_candidate": None,
+            })
+            compiler_calls.append({
+                "stage": "deterministic_structured_companion_parse",
+                "elapsed_seconds": 0.0,
+            })
+        else:
+            try:
+                completion = complete(prompt, "initial_compile")
+                objects = extract_json_objects(completion)
+                if objects:
+                    raw = bind_host_knowledge_time(bind_active_target(objects[0]))
+                else:
+                    compile_rejections.append(
+                        "no JSON object in temporal-dossier output")
+            except Exception as error:
+                compile_rejections.append(f"dossier compilation failed: {error}")
 
         # Host bindings are idempotent and must be applied after every model
         # turn, not only the initial completion.
@@ -3871,10 +3940,14 @@ class _Run:
                 "context_unresolved: the compiler returned no grounded event, "
                 "claim, covariate, transformation, or candidate; the immutable "
                 "primary remains visible and the context did not influence it")
+        deterministic_front_door = bool(deterministic_companion_tables)
         payload = {
             "schema_version": 1,
             "compiler": {
-                "kind": "llm_proposes_gnomon_validates",
+                "kind": ("deterministic_structured_parse"
+                         if deterministic_front_door
+                         else "llm_proposes_gnomon_validates"),
+                "deterministic_front_door": deterministic_front_door,
                 "model": self.forecaster.openrouter_model,
                 "contract": ("explicit_lag_relationship"
                              if relationship_contract else
@@ -3882,7 +3955,8 @@ class _Run:
                              if observation_contract else
                              "structured_companion_paths"
                              if companion_contract else "universal_dossier"),
-                "prompt_bytes": len(prompt.encode("utf-8")),
+                "prompt_bytes": (0 if deterministic_front_door
+                                 else len(prompt.encode("utf-8"))),
                 "workflow_budget_seconds": MAX_CONTEXT_COMPILATION_SECONDS,
                 "elapsed_seconds": round(
                     time.monotonic() - compilation_started, 6),
