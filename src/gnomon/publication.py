@@ -854,7 +854,10 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
     elif selected_role in {
             "model_authored", "model_authored_transformation",
             "effect_composed"}:
-        selection_method = "default_prior_assisted_lane"
+        selection_method = (
+            "default_prior_assisted_lane"
+            if selected.get("support") == "prior_assisted"
+            else "default_conditional_scenario_lane")
     else:
         selection_method = "immutable_primary_default"
     prior_assisted_default = selection_method == "default_prior_assisted_lane"
@@ -882,6 +885,10 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
             "A sealed prior-assisted path is the human-facing best estimate, "
             "but it was not independently ranked or historically admitted."
             if prior_assisted_default else
+            "A sealed conditional scenario is the human-facing best estimate, "
+            "but it is hypothetical, was not historically admitted, and "
+            "cannot authorize automation."
+            if selection_method == "default_conditional_scenario_lane" else
             "A fixed observation counterfactual beat the strongest raw "
             "comparator under expanding-origin conditional replay; it remains "
             "non-automatable and requires human review."

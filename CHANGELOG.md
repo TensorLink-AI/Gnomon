@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Governed transformation units now treat universal normalized quantities
+  (`fraction`, `proportion`, `probability`, `ratio`, `share`, and `unitless`)
+  as dimensionless. This allows relationships such as duty-cycle times rated
+  speed to retain their physical output unit. `percent` remains distinct and
+  still requires an explicit scale conversion.
+
 - Safe declarative transformations may now bind additional verbatim source
   lines containing their exact AST literals. The host neither interprets nor
   changes the formula; it only completes numeric citation provenance. This

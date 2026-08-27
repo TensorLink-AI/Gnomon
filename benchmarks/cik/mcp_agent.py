@@ -269,7 +269,9 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: claims are immutable and new verbatim claims append without rewriting them.
 #: Version 122: repaired transformations repeat host provenance binding, and
 #: an exactly cited square/cube may restore a prematurely evaluated literal.
-MCP_CONTRACT_VERSION = 122
+#: Version 123: universal fraction/ratio aliases are dimensionless in the
+#: governed unit algebra; percent remains a distinct unit requiring scaling.
+MCP_CONTRACT_VERSION = 123
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it

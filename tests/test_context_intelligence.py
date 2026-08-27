@@ -404,6 +404,43 @@ def test_reference_power_macro_expands_to_safe_canonical_ast():
     assert result["forecast"][0]["q50"] == 9.375
 
 
+@pytest.mark.parametrize("alias", [
+    "fraction", "proportion", "probability", "ratio", "share", "unitless",
+])
+def test_universal_dimensionless_alias_multiplies_a_physical_unit(alias):
+    raw = {
+        "known_at": _stamp(5), "claim_ids": ["claim-1"],
+        "lane": "prior_assisted", "output_unit": "rpm",
+        "expression": {"op": "multiply", "args": [
+            {"op": "series", "name": "load"},
+            {"op": "literal", "value": 3000, "unit": "rpm"},
+        ]},
+    }
+    compiled = validate_transformation(
+        raw, series=["load"], claim_ids=["claim-1"], cutoff=_stamp(5),
+        units={"load": alias},
+        claim_spans={"claim-1": "load is 0.5; full load is 3000 rpm"})
+    assert compiled["output_unit"] == "rpm"
+    assert compiled["expression"]["args"][0]["name"] == "load"
+
+
+def test_percent_is_not_silently_treated_as_a_fraction():
+    raw = {
+        "known_at": _stamp(5), "claim_ids": ["claim-1"],
+        "lane": "prior_assisted", "output_unit": "rpm",
+        "expression": {"op": "multiply", "args": [
+            {"op": "series", "name": "load"},
+            {"op": "literal", "value": 3000, "unit": "rpm"},
+        ]},
+    }
+    with pytest.raises(TransformationError) as caught:
+        validate_transformation(
+            raw, series=["load"], claim_ids=["claim-1"], cutoff=_stamp(5),
+            units={"load": "percent"},
+            claim_spans={"claim-1": "load is 50 percent; max is 3000 rpm"})
+    assert caught.value.code == "OUTPUT_UNIT_MISMATCH"
+
+
 def test_linear_combination_macro_derives_conversion_units_and_executes():
     raw = {
         "known_at": _stamp(5), "claim_ids": ["claim-1"],

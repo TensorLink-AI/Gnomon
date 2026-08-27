@@ -496,6 +496,8 @@ def validate_transformation(
             "Every transformation must cite verified context claims.")
     expression = raw.get("expression")
     declared_raw = str(raw.get("output_unit") or "")
+    if declared_raw:
+        declared_raw = _canonical_unit(declared_raw)
     expression, derived_coefficient_units = _bind_linear_units(
         expression, output_unit=declared_raw, units=units or {})
     if claim_spans is not None:
@@ -838,8 +840,8 @@ def _validate_expression(node: Any, *, path: str, depth: int,
                                   f"Operator {op!r} is not allowed.")
     if op == "literal":
         return ({"op": op, "value": _finite(node.get("value"), f"{path}.value"),
-                 "unit": str(node.get("unit") or "dimensionless")},
-                str(node.get("unit") or "dimensionless"))
+                 "unit": _canonical_unit(node.get("unit"))},
+                _canonical_unit(node.get("unit")))
     if op in {"series", "primary"}:
         alias = node.get("name")
         if op == "series" and alias is None:
@@ -858,7 +860,7 @@ def _validate_expression(node: Any, *, path: str, depth: int,
             raise TransformationError("UNKNOWN_QUANTILE", f"{path}.quantile",
                                       "Quantile must be q10, q50, q90, or point.")
         return ({"op": op, "name": name, "quantile": quantile},
-                units.get(name, "unknown"))
+                _canonical_unit(units.get(name, "unknown")))
     children = node.get("args")
     if not isinstance(children, list) and "left" in node and "right" in node:
         children = [node.get("left"), node.get("right")]
@@ -949,8 +951,22 @@ def _validate_expression(node: Any, *, path: str, depth: int,
     return clean, output_unit
 
 
+_DIMENSIONLESS_UNIT_ALIASES = frozenset({
+    "", "1", "dimensionless", "fraction", "proportion", "probability",
+    "ratio", "share", "unitless",
+})
+
+
+def _canonical_unit(value: Any) -> str:
+    """Canonicalize only universal aliases, never domain-specific units."""
+    unit = str(value or "dimensionless").strip()
+    return ("dimensionless" if unit.casefold() in _DIMENSIONLESS_UNIT_ALIASES
+            else unit)
+
+
 def _combined_unit(left: str | None, right: str | None, operator: str) -> str:
-    left, right = left or "unknown", right or "unknown"
+    left, right = _canonical_unit(left or "unknown"), _canonical_unit(
+        right or "unknown")
     if operator == "*" and left == "dimensionless":
         return right
     if operator == "*" and right == "dimensionless":
