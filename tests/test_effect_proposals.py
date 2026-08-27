@@ -361,6 +361,37 @@ def test_only_literal_absolute_claim_becomes_deterministic_override():
         dossier("output will probably decline during the promotion")) == []
 
 
+def test_driver_absolute_value_cannot_override_a_different_target():
+    span = (
+        "The speed starts at 285.3. At 05:27:09, it rapidly and smoothly "
+        "changes to 1593.0.")
+    dossier = validate_temporal_dossier({
+        "claims": [{"source_span": span, "relation": "supports_increase",
+                    "effective_start": TIMES[0],
+                    "effective_end": TIMES[-1]}],
+    }, context_text=span, cutoff="2026-01-02T00:00:00+00:00",
+       future_timestamps=TIMES, history=[8, 9, 10], compiler_model="test")[0]
+
+    assert deterministic_events_from_claims(
+        dossier, target_name="pressure_gap") == []
+
+
+def test_target_clause_isolated_before_deterministic_bound_parsing():
+    span = "The maximal fan speed is 3000 rpm and maximal pressure is 37.5 Pa."
+    dossier = validate_temporal_dossier({
+        "claims": [{"source_span": span, "relation": "constrains_range",
+                    "effective_start": TIMES[0],
+                    "effective_end": TIMES[-1]}],
+    }, context_text=span, cutoff="2026-01-02T00:00:00+00:00",
+       future_timestamps=TIMES, history=[8, 9, 10], compiler_model="test")[0]
+
+    events = deterministic_events_from_claims(
+        dossier, target_name="pressure_gap")
+    assert events[0]["deterministic_bound_parsed"] == {
+        "min": None, "max": 37.5}
+    assert "3000" not in events[0]["deterministic_parse_span"]
+
+
 def test_literal_range_claim_becomes_deterministic_constraint():
     span = "values are bounded above by 10.00 and bounded below by 5.82"
     dossier = validate_temporal_dossier({

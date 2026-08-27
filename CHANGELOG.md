@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Bind deterministic absolute-value and range extraction to the forecast
+  target before applying it. Numeric driver schedules can no longer be
+  silently reinterpreted as target overrides; mixed driver/target constraint
+  sentences are narrowed to the target clause before parsing.
+
 - Normalize validator count/list shapes before writing context diagnostics;
   historical-observation cases can no longer crash by calling `len()` on an
   accepted-count integer.

@@ -309,7 +309,7 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: blocks and resolves ambiguous schedule endpoints from pre-cutoff evidence.
 #: Version 142: isolated multi-seed runs bind the runner's authoritative seed
 #: into trace identity instead of overwriting every case as `seedx`.
-MCP_CONTRACT_VERSION = 150
+MCP_CONTRACT_VERSION = 151
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -2785,7 +2785,8 @@ class _Run:
         # resulting event back through the ordinary future-context admission
         # path. This is deterministic extraction, not a semantic guess.
         from gnomon.llm_dossier import deterministic_events_from_claims
-        derived_events = deterministic_events_from_claims(final_probe)
+        derived_events = deterministic_events_from_claims(
+            final_probe, target_name=self.target_name)
         existing_events = [item for item in raw.get("events") or []
                            if isinstance(item, dict)]
         existing_keys = {(str(item.get("event_type") or ""),

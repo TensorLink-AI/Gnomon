@@ -1134,7 +1134,43 @@ def verify_temporal_dossier_seal(dossier: dict[str, Any]) -> bool:
     return dossier["seal_sha256"] == expected
 
 
-def deterministic_events_from_claims(dossier: dict[str, Any]) -> list[dict[str, Any]]:
+def _target_relevant_claim_span(span: str, target_name: str | None) -> str | None:
+    """Return only clauses that can denote the forecast target.
+
+    Numeric parsing establishes *what value was stated*, not *which variable
+    it belongs to*. A driver schedule such as ``speed changes to 1593`` must
+    never become an override for a pressure target. Meaningful target names
+    therefore require a matching clause; generic target nouns remain useful
+    for ordinary prose such as ``output drops to zero``.
+    """
+    text = " ".join(str(span).split())
+    normalized = re.sub(r"[^a-z0-9]+", " ", str(target_name or "").lower())
+    target_tokens = {
+        token for token in normalized.split()
+        if len(token) > 1 and token not in {
+            "value", "values", "target", "series", "column", "default",
+        }
+    }
+    if not target_tokens:
+        return text
+    clauses = re.split(r"(?<=[.!?;])\s+|\s+and\s+", text,
+                       flags=re.IGNORECASE)
+    matching = [clause for clause in clauses
+                if target_tokens.intersection(
+                    re.findall(r"[a-z0-9]+", clause.lower()))]
+    if matching:
+        return " ".join(matching)
+    if re.search(
+            r"\b(?:output|readings?|observations?|forecast(?:ed)?\s+value|"
+            r"target(?:\s+value)?|demand|sales|traffic|requests?)\b",
+            text, re.IGNORECASE):
+        return text
+    return None
+
+
+def deterministic_events_from_claims(
+        dossier: dict[str, Any], *,
+        target_name: str | None = None) -> list[dict[str, Any]]:
     """Promote only literally stated absolute states into event proposals.
 
     The LLM locates and dates the verbatim span; Gnomon's existing parser must
@@ -1147,8 +1183,11 @@ def deterministic_events_from_claims(dossier: dict[str, Any]) -> list[dict[str, 
     events = []
     for index, claim in enumerate(dossier.get("claims") or [], 1):
         span = str(claim.get("source_span") or "")
+        parse_span = _target_relevant_claim_span(span, target_name)
+        if parse_span is None:
+            continue
         if claim.get("relation") == "constrains_range":
-            bound, problem = parse_bound_span(span)
+            bound, problem = parse_bound_span(parse_span)
             if problem is None and bound is not None:
                 events.append({
                     "event_type": "constraint:stated_range",
@@ -1162,10 +1201,11 @@ def deterministic_events_from_claims(dossier: dict[str, Any]) -> list[dict[str, 
                     "entity_kind": "unknown",
                     "deterministic_bound_parsed": {
                         "min": bound.minimum, "max": bound.maximum},
+                    "deterministic_parse_span": parse_span,
                     "derived_from_claim_id": claim.get("claim_id") or f"claim-{index}",
                 })
                 continue
-        value, problem = parse_override_span(span)
+        value, problem = parse_override_span(parse_span)
         if problem is not None or value is None:
             continue
         events.append({
@@ -1179,6 +1219,7 @@ def deterministic_events_from_claims(dossier: dict[str, Any]) -> list[dict[str, 
             "effect_family": "level_shift", "direction": "unknown",
             "duration": "temporary", "entity_kind": "unknown",
             "deterministic_value_parsed": value,
+            "deterministic_parse_span": parse_span,
             "derived_from_claim_id": claim.get("claim_id") or f"claim-{index}",
         })
     return events
