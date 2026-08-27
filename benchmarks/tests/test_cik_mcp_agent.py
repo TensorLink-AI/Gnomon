@@ -601,6 +601,27 @@ def test_scenario_selector_overlap_is_repaired_from_selected_claim_ownership():
     assert raw["cited_claim_ids"] == ["claim-1", "claim-2"]
 
 
+def test_scenario_selector_binds_stale_alias_to_selected_sealed_provenance():
+    scenarios = [
+        {"scenario_id": "primary", "claim_ids": []},
+        {"scenario_id": "holiday", "claim_ids": ["event-actual"]},
+    ]
+    raw = {
+        "selected_scenario_id": "holiday",
+        "cited_claim_ids": ["event-1"],
+        "counterevidence_claim_ids": ["invented-claim"],
+        "counterevidence_hypothesis_ids": ["hyp-real", "hyp-invented"],
+    }
+
+    repaired = _canonicalize_scenario_selection_evidence(
+        raw, scenarios, known_claim_ids={"event-actual"},
+        known_hypothesis_ids={"hyp-real"})
+
+    assert repaired["cited_claim_ids"] == ["event-actual"]
+    assert repaired["counterevidence_claim_ids"] == []
+    assert repaired["counterevidence_hypothesis_ids"] == ["hyp-real"]
+
+
 def test_pre_call_ranking_is_completed_for_extra_live_scenarios(monkeypatch):
     publication = {"candidate_portfolio": [
         {"scenario_id": "primary"}, {"scenario_id": "candidate"},

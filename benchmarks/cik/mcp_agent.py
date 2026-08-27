@@ -2533,8 +2533,10 @@ def _select_publication_fail_closed(
 
 
 def _canonicalize_scenario_selection_evidence(
-        raw: Any, scenarios: list[dict[str, Any]]) -> Any:
-    """Resolve only a mechanically duplicated evidence classification."""
+        raw: Any, scenarios: list[dict[str, Any]], *,
+        known_claim_ids: set[str] | None = None,
+        known_hypothesis_ids: set[str] | None = None) -> Any:
+    """Resolve only mechanically duplicated or stale evidence references."""
     if not isinstance(raw, dict):
         return raw
     output = json.loads(json.dumps(raw))
@@ -2542,8 +2544,6 @@ def _canonicalize_scenario_selection_evidence(
     counter = [str(item) for item in
                output.get("counterevidence_claim_ids") or []]
     overlap = set(cited).intersection(counter)
-    if not overlap:
-        return output
     selected_id = str(output.get("selected_scenario_id") or "")
     selected_claims = set(next((item.get("claim_ids") or []
                                 for item in scenarios
@@ -2554,6 +2554,25 @@ def _canonicalize_scenario_selection_evidence(
     output["counterevidence_claim_ids"] = list(dict.fromkeys(
         item for item in counter
         if item not in overlap or item not in selected_claims))
+    if known_claim_ids is not None:
+        output["cited_claim_ids"] = [
+            item for item in output["cited_claim_ids"]
+            if item in known_claim_ids]
+        output["counterevidence_claim_ids"] = [
+            item for item in output["counterevidence_claim_ids"]
+            if item in known_claim_ids]
+        # The selected sealed scenario already owns its provenance. Repair a
+        # stale/model-invented alias by citing those exact IDs; this cannot add
+        # a claim, change a number, or alter support.
+        if selected_claims and not selected_claims.intersection(
+                output["cited_claim_ids"]):
+            output["cited_claim_ids"].extend(sorted(
+                selected_claims.intersection(known_claim_ids)))
+    if known_hypothesis_ids is not None:
+        output["counterevidence_hypothesis_ids"] = [
+            str(item) for item in
+            output.get("counterevidence_hypothesis_ids") or []
+            if str(item) in known_hypothesis_ids]
     return output
 
 
@@ -3044,7 +3063,19 @@ class McpAgentForecaster:
                                 raise ValueError("selector returned no JSON object")
                             normalized_selection = (
                                 _canonicalize_scenario_selection_evidence(
-                                    objects[0], scenarios))
+                                    objects[0], scenarios,
+                                    known_claim_ids={
+                                        str(item.get("claim_id"))
+                                        for item in contract.get("claims") or []
+                                        if item.get("claim_id")
+                                        and item.get("relation") !=
+                                        "counterevidence"},
+                                    known_hypothesis_ids={
+                                        str(item.get("claim_id"))
+                                        for item in contract.get("claims") or []
+                                        if item.get("claim_id")
+                                        and item.get("relation") ==
+                                        "counterevidence"}))
                             selection = validate_scenario_selection(
                                 normalized_selection, scenarios=scenarios,
                                 dossiers=dossiers)
