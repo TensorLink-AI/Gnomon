@@ -111,6 +111,23 @@ def _states_quantitative_relationship(span: Any) -> bool:
     return has_number and quantitative_operator
 
 
+def _states_historical_reference_distribution(span: Any) -> bool:
+    """Whether a cited span contains an explicit bounded reference sample.
+
+    Bracketed min/max or interval notation is common in planning dossiers for
+    a comparable product, site, or cohort. It is weaker than a target bound:
+    it cannot constrain or automate the forecast. It can, however, explain why
+    a cold-start prior legitimately leaves a degenerate target history. Keep
+    the recognition narrow so incidental prose numbers (population, dates,
+    identifiers) do not become scale authority.
+    """
+    text = str(span or "")
+    return bool(re.search(
+        r"\[\s*[+-]?(?:\d+(?:\.\d*)?|\.\d+)\s*,\s*"
+        r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)\s*\]",
+        text))
+
+
 def _timestamp(value: Any) -> datetime | None:
     try:
         parsed = datetime.fromisoformat(str(value))
@@ -2056,10 +2073,17 @@ def _validate_candidate(
             "changes_seasonal_regime",
         } and _states_quantitative_relationship(claim.get("source_span"))
         for claim in claims)
+    historical_reference_support = any(
+        claim.get("timing_status") == "atemporal_context"
+        and _states_historical_reference_distribution(
+            claim.get("source_span"))
+        for claim in claims)
     bounded_regime_change = bool(bound_claim_ids) and quantitative_support
+    cited_prior_extrapolation = bool(
+        bounded_regime_change or historical_reference_support)
     plausibility_warnings: list[str] = []
     if (boundary_jump > MAX_BOUNDARY_JUMP_SCALES
-            and not bounded_regime_change
+            and not cited_prior_extrapolation
             and not governed_counterfactual_justifies_boundary_jump):
         reasons.append("forecast_candidate failed boundary-jump plausibility")
         return None
@@ -2072,10 +2096,16 @@ def _validate_candidate(
     elif boundary_jump > MAX_BOUNDARY_JUMP_SCALES:
         plausibility_warnings.append(
             "candidate leaves the empirical history scale but remains inside "
-            "a cited numeric bound; treat it as prior-assisted only")
-    if path_scale_ratio > MAX_PATH_SCALE_RATIO:
+            "cited numeric context; treat it as prior-assisted only")
+    if (path_scale_ratio > MAX_PATH_SCALE_RATIO
+            and not historical_reference_support):
         reasons.append("forecast_candidate failed path-scale plausibility")
         return None
+    if path_scale_ratio > MAX_PATH_SCALE_RATIO:
+        plausibility_warnings.append(
+            "candidate dynamics exceed the target history scale but cite a "
+            "bounded historical reference distribution; this is an "
+            "unvalidated cold-start extrapolation for human review only")
     return {
         "quantiles": clean,
         # Forecast points are accepted as a sealed prior-assisted candidate,

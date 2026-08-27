@@ -959,3 +959,56 @@ def test_explicit_relative_past_fact_is_background_not_future_trigger():
         == "explicit_past_background_reconciled"
     assert claim["effective_window_binding"]["numeric_authority"] is False
     assert claim["effective_window_binding"]["automation_eligible"] is False
+
+
+def test_cited_historical_distribution_keeps_cold_start_prior_as_scenario():
+    span = "Comparable stores recorded monthly orders [9, 30]."
+    future = ["2026-04-01T00:00:00+00:00",
+              "2026-05-01T00:00:00+00:00"]
+    raw = {
+        "claims": [{
+            "source_span": span, "relation": "supports_increase",
+            "effective_start": None, "effective_end": None,
+            "mechanism": "A bounded historical comparison.",
+            "confidence": .5, "timing_status": "atemporal_context",
+        }],
+        "forecast_candidate": {"quantiles": [
+            {"timestamp": future[0], "q10": 5, "q50": 10, "q90": 20},
+            {"timestamp": future[1], "q10": 10, "q50": 25, "q90": 30},
+        ], "rationale": "A cold-start prior from the cited comparator."},
+    }
+
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=span, cutoff="2026-03-01T00:00:00+00:00",
+        future_timestamps=future, history=[0, 0, 0], compiler_model="test")
+
+    assert not reasons
+    assert dossier["forecast_candidate"] is not None
+    assert dossier["automation_eligible"] is False
+    warnings = dossier["forecast_candidate"]["plausibility"]["warnings"]
+    assert any("cold-start extrapolation" in warning for warning in warnings)
+
+
+def test_uncited_cold_start_explosion_remains_rejected():
+    span = "A new store opened recently."
+    future = ["2026-04-01T00:00:00+00:00",
+              "2026-05-01T00:00:00+00:00"]
+    raw = {
+        "claims": [{
+            "source_span": span, "relation": "supports_increase",
+            "effective_start": None, "effective_end": None,
+            "mechanism": "No numeric reference.", "confidence": .5,
+            "timing_status": "atemporal_context",
+        }],
+        "forecast_candidate": {"quantiles": [
+            {"timestamp": future[0], "q10": 5, "q50": 10, "q90": 20},
+            {"timestamp": future[1], "q10": 10, "q50": 25, "q90": 30},
+        ], "rationale": "An unsupported jump."},
+    }
+
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=span, cutoff="2026-03-01T00:00:00+00:00",
+        future_timestamps=future, history=[0, 0, 0], compiler_model="test")
+
+    assert dossier["forecast_candidate"] is None
+    assert any("plausibility" in reason for reason in reasons)
