@@ -5,6 +5,10 @@
 - Label claims-only context as interpretation-only scenario evidence rather
   than numerically used, so an unchanged primary forecast never tells humans
   or agents that context affected the recommendation.
+- Do not spend the sole bounded LLM repair on a malformed optional
+  transformation after a valid effect or observation executable already
+  exists; retain the rejected lane and reason in provenance while publishing
+  the complete governed answer without an avoidable second call.
 
 - Treat model-authored effect proposals that duplicate an exact deterministic
   context contract as superseded provenance rather than rejected context, so

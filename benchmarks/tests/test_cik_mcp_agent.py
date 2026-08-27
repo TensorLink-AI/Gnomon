@@ -598,7 +598,7 @@ def test_transformation_repair_hints_are_verbatim_and_constant_specific():
 
 
 def _forecaster(steps, tmp_path, sessions=None, profile=None,
-                compiler_output=None):
+                compiler_output=None, output_role="canonical"):
     def factory(cwd):
         session = InProcessMcpSession(cwd)
         if sessions is not None:
@@ -608,6 +608,7 @@ def _forecaster(steps, tmp_path, sessions=None, profile=None,
     return McpAgentForecaster(
         "x/y", client=ScriptedClient(steps, compiler_output), session_factory=factory,
         work_dir=str(tmp_path), trace_dir=tmp_path / "traces", profile=profile,
+        output_role=output_role,
     )
 
 
@@ -1219,6 +1220,65 @@ def test_accepted_effect_does_not_recompile_for_malformed_optional_lane(
         "disposition": "skipped_evidence_dominance",
         "error": "selector skipped: governed evidence dominance",
     }
+
+
+def test_valid_effect_skips_repair_of_malformed_optional_transformation(
+        tmp_path):
+    task = _task()
+    span = "Demand will be 2 times the usual level tomorrow."
+    task.scenario = span
+    dossier = json.dumps({
+        "claims": [{
+            "source_span": span, "relation": "supports_increase",
+            "effective_start": task.future_time[0],
+            "effective_end": task.future_time[-1], "confidence": .9,
+        }],
+        "effect_proposal": {
+            "shape": "temporary_pulse", "unit": "fraction_of_level",
+            "location": 1, "lower": 1, "upper": 1, "confidence": .9,
+            "delay_steps": 0, "duration_steps": 1,
+            "scope": {"kind": "single_series", "series": ["*"]},
+            "claim_ids": ["claim-1"], "composition": "scenario_only",
+        },
+        "transformations": [{
+            "transformation": {
+                "known_at": task.past_time[-1][0],
+                "claim_ids": ["claim-1"], "lane": "scenario_only",
+                "output_unit": "target_units",
+                "expression": {"op": "series", "name": "future_input"},
+            },
+            "units": {"primary": "target_units",
+                      "future_input": "target_units"},
+            # Deliberately one row for a four-step horizon.
+            "series_values": {"future_input": {
+                "values": [2.0], "known_at": task.past_time[-1][0],
+                "source_claim_ids": ["claim-1"],
+            }},
+        }],
+        "events": [], "hypotheses": [], "covariate_tables": [],
+        "observation_interpretations": [], "forecast_candidate": None,
+    })
+    forecaster = _forecaster(
+        [], tmp_path, profile="evidence", compiler_output=dossier,
+        output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 1)
+
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    assert len(receipt["compiler"]["calls"]) == 1
+    decision = next(item for item in receipt["compiler"]["repair_decisions"]
+                    if item["stage"] == "transformation_preflight")
+    assert decision == {
+        "stage": "transformation_preflight", "triggered": False,
+        "failure_count": 1, "repair_already_used": False,
+        "alternative_executable_available": True,
+        "skip_reason": "valid_non_transform_executable",
+    }
+    assert extra["publication"]["recommended_scenario_id"] == \
+        "effect-composed-1"
+    assert any(item.get("reason_code") == "transformation_preflight_rejected"
+               for item in extra["publication"]["context_dispositions"])
 
 
 def test_exact_lag_claims_get_one_focused_sufficiency_repair(tmp_path):

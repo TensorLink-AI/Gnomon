@@ -309,7 +309,7 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: blocks and resolves ambiguous schedule endpoints from pre-cutoff evidence.
 #: Version 142: isolated multi-seed runs bind the runner's authoritative seed
 #: into trace identity instead of overwriting every case as `seedx`.
-MCP_CONTRACT_VERSION = 145
+MCP_CONTRACT_VERSION = 146
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -3002,14 +3002,34 @@ class _Run:
             return failures
 
         transform_failures = transformation_violations(raw, final_probe)
+        effect_status = (final_probe.get("effect_proposal_critique") or {}).get(
+            "status")
+        accepted_observations = (
+            final_probe.get("observation_interpretation_critique") or {}).get(
+                "accepted") or []
+        observation_count = (
+            accepted_observations if isinstance(accepted_observations, int)
+            else len(accepted_observations))
+        non_transform_executable = (
+            effect_status in {"accepted", "accepted_after_repair"}
+            or observation_count > 0)
+        transform_repair_eligible = bool(
+            transform_failures and not repair_used
+            and not non_transform_executable)
         if raw.get("transformations"):
             repair_decisions.append({
                 "stage": "transformation_preflight",
-                "triggered": bool(transform_failures and not repair_used),
+                "triggered": transform_repair_eligible,
                 "failure_count": len(transform_failures),
                 "repair_already_used": bool(repair_used),
+                "alternative_executable_available": bool(
+                    non_transform_executable),
+                "skip_reason": (
+                    "valid_non_transform_executable"
+                    if transform_failures and non_transform_executable
+                    else None),
             })
-        if transform_failures and not repair_used:
+        if transform_repair_eligible:
             try:
                 repair_used = True
                 repair_hints = _transformation_repair_hints(
