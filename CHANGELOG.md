@@ -12,6 +12,9 @@
   qualitative, and contradictory context. Privacy-safe benchmark telemetry
   separates policy shape from recommendation behavior without retaining policy
   identifiers or source text.
+- Measure whether the agent preserves canonical context disposition codes in
+  its final answer, separately from engine correctness, and instruct the
+  reference integration to copy those codes rather than reinterpret them.
 - Support strict, best-effort, and scenario publication for batched
   multi-target forecasts. Each series receives its own sealed publication and
   sidecar while the response carries a compact aggregate; scoped context can

@@ -198,7 +198,8 @@ Revealed stage input: {json.dumps(case.get('revealed') or {}, separators=(',', '
 
 Return numbers under stable names requested by the question, categorical answers under choices,
 and populate every requested facts key from the supplied case or Gnomon artifact. Preserve material
-limitations in disclosures. When Gnomon returns an artifact_id or forecast_id, copy it exactly to
+limitations in disclosures. Copy typed context disposition and automation reason codes exactly;
+do not translate them into a different diagnosis. When Gnomon returns an artifact_id or forecast_id, copy it exactly to
 artifact_id in submit_answer. Never claim to have observed post-cutoff data.
 """
 

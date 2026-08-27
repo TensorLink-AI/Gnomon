@@ -87,6 +87,7 @@ def test_context_interface_corpus_scores_the_engine_contract_separately():
     result = score_run(cases, observations, "fixture")
     assert result["context_contract"] == {
         "required_cases": 4, "passed_cases": 4, "pass_rate": 1.0,
+        "agent_disposition_preservation_rate": None,
     }
     assert all(row["context_contract"]["pass"] for row in result["rows"])
 

@@ -197,6 +197,14 @@ def _case_score(case: Case, obs: Observation) -> dict[str, Any]:
             context_checks[key] = observed_context.get(key) == expected
     context_contract_pass = (all(context_checks.values())
                              if context_checks else None)
+    disposition_codes = sorted({
+        str(item.get("reason_code")) for item in
+        observed_context.get("dispositions") or []
+        if isinstance(item, dict) and item.get("reason_code")})
+    answer_text = "\n".join([*obs.claims, *obs.disclosures])
+    disposition_preservation = (
+        all(code in answer_text for code in disposition_codes)
+        if disposition_codes else None)
     return {
         "case_id": case.id, "kind": case.kind, "domain": case.domain,
         "correctness": correctness, "disposition_correct": disposition_correct,
@@ -217,6 +225,8 @@ def _case_score(case: Case, obs: Observation) -> dict[str, Any]:
             "expected": expected_context,
             "observed": observed_context,
             "arguments": sorted(observed_arguments),
+            "disposition_codes": disposition_codes,
+            "agent_disposition_preservation": disposition_preservation,
         },
         "temporal_leakage": obs.temporal_leakage,
         "leakage_measurement_pass": leakage_ok,
@@ -319,6 +329,11 @@ def score_run(cases: list[Case], observations: list[Observation], arm: str = "un
                 float(row["context_contract"]["pass"]) for row in rows
                 if row["context_contract"]["applicable"]
             ]),
+            "agent_disposition_preservation_rate": _mean([
+                float(row["context_contract"]["agent_disposition_preservation"])
+                for row in rows
+                if row["context_contract"]["agent_disposition_preservation"]
+                is not None]),
         },
         "correctness_components": {
             key: _mean([float(row["accuracy_components"][key]) for row in rows
