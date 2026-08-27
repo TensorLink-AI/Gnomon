@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Make mixed qualitative and literal context reliable through the agent
+  boundary. Single-target calls can omit redundant event scope, host-resolved
+  transport names remain aligned with context scope, daily date-only times are
+  normalized to disclosed UTC boundaries, and quoted source semantics correct
+  a mistaken cap-versus-fixed-state label without trusting a model-authored
+  number. Mixed outcomes now preserve per-item used, scenario, and rejected
+  dispositions; the immutable primary and automation policy remain unchanged.
+- Once a workflow engine response is sufficient, require the agent to submit
+  its answer instead of spending calls on exploratory or nonexistent tools.
+  Workflow diagnostics now retain privacy-safe context-routing and admission
+  codes so interface failures can be distinguished from forecast failures.
+
 - Preserve every host-validated sampled forecast path inside the sealed context
   receipt instead of discarding temporal dependence after computing compact
   q10/q50/q90 rows. Publication exposes a bounded distribution descriptor;

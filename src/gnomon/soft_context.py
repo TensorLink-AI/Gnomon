@@ -134,12 +134,20 @@ def context_outcome(
         used = list(getattr(context_assessment, "events_used", []) or [])
         used.extend(str(item.get("event_id")) for item in admitted
                     if isinstance(item, dict) and item.get("event_id"))
+        used_ids = sorted(set(used))
+        dispositions = [{"context_id": event.event_id,
+                         "disposition": ("used" if event.event_id in used_ids
+                                         else "scenario" if not event.event_type.startswith(
+                                             ("constraint:", "override:", "structural:"))
+                                         else "rejected")}
+                        for event in applicable]
         return {
             "status": "applied", "primary_forecast_changed": True,
             "canonical_primary_preserved": True,
             "selected_output_role": "context_conditioned_projection",
             "canonical_primary_location": "artifact.results[].primary_forecast",
-            "events": sorted(set(used)),
+            "events": used_ids,
+            "dispositions": dispositions,
             "admission_basis": ("historical_fold_ablation"
                                 if historical_admission
                                 else "future_context_contract"),
@@ -172,9 +180,18 @@ def context_outcome(
     generic = [event for event in applicable if not event.event_type.startswith(
         ("constraint:", "override:", "structural:"))]
     if generic:
+        generic_ids = {event.event_id for event in generic}
+        dispositions = [{
+            "context_id": event.event_id,
+            "disposition": ("scenario" if event.event_id in generic_ids
+                            else "rejected"),
+        } for event in applicable]
         return {
-            "status": "scenario_only", "primary_forecast_changed": False,
-            "events": [event.event_id for event in generic],
+            "status": ("partially_represented"
+                       if len(generic) != len(applicable) else "scenario_only"),
+            "primary_forecast_changed": False,
+            "events": [event.event_id for event in applicable],
+            "dispositions": dispositions,
             **({"context_receipt_ids": receipt_ids} if receipt_ids else {}),
             "hypotheses": hypotheses,
             "conditional_forecasts_produced": len(conditional),

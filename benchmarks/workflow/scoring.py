@@ -173,6 +173,9 @@ def _case_score(case: Case, obs: Observation) -> dict[str, Any]:
     for key, expected in expected_context.items():
         if key == "required_argument":
             context_checks[key] = str(expected) in observed_arguments
+        elif key == "required_arguments":
+            context_checks[key] = {
+                str(item) for item in expected} <= observed_arguments
         elif key == "allowed_arguments":
             context_checks[key] = bool(observed_arguments & {
                 str(item) for item in expected})

@@ -20,24 +20,25 @@ _CONTEXT_EVENTS_PROPERTY: dict[str, Any] = {
     "context_events": {
         "type": "array",
         "description": (
-            "Literal numeric bounds/states or cessation only. Unknown "
-            "magnitude => qualitative_context_events."
+            "Literal claim: claim_kind=min|max|exact plus source_span. "
+            "Unknown magnitude: qualitative_context_events."
         ),
         "items": {
             "type": "object",
             "properties": {
-                "event_id": {"type": "string", "description": "Unique id for this event."},
-                "event_type": {"type": "string", "description": "constraint:<label> for literal bounds; override:<label> for literal states; structural:<label> for cessation; otherwise plain."},
-                "entity_scope": {"type": "array", "items": {"type": "string"}, "description": "Series names, or [\"*\"]."},
-                "effective_start": {"type": "string", "description": "Offset-aware ISO-8601."},
-                "effective_end": {"type": "string", "description": "Offset-aware ISO-8601."},
-                "known_at": {"type": "string", "description": "First knowable time, offset-aware ISO-8601."},
-                "attributes": {"type": "object", "description": "Class payload; numeric claims require verbatim source_span."},
-                "source": {"type": "object", "properties": {"type": {"type": "string"}, "reference": {"type": "string"}}},
-                "created_by": {"type": "string", "description": "user | llm | pipeline."},
+                "event_id": {"type": "string"},
+                "claim_kind": {"type": "string",
+                               "enum": ["min", "max", "exact"],
+                               "description": "min=floor; max=cap; exact=fixed state."},
+                "entity_scope": {"type": "array", "items": {"type": "string"},
+                                 "description": "Omit for one target; required for multiple series."},
+                "effective_start": {"type": "string"},
+                "effective_end": {"type": "string"},
+                "known_at": {"type": "string"},
+                "source_span": {"type": "string"},
+                "source_reference": {"type": "string"},
             },
-            "required": ["event_id", "event_type", "entity_scope",
-                         "effective_start", "effective_end", "known_at"],
+            "required": ["event_id", "effective_start", "effective_end", "known_at"],
         },
     },
     "context_ref": {
@@ -1555,6 +1556,34 @@ def _context_events_from(arguments: dict[str, Any]):
     from .context import events_from_list
     from .contracts import GnomonError
 
+    def normalize_daily_times(item: dict[str, Any]) -> list[dict[str, str]]:
+        """Resolve unambiguous date-only fields on a daily grid."""
+        if str(arguments.get("frequency") or "") != "D":
+            return []
+        normalizations = []
+        for field in ("effective_start", "effective_end", "known_at"):
+            value = item.get(field)
+            if not isinstance(value, str):
+                continue
+            try:
+                from datetime import datetime
+                parsed = datetime.fromisoformat(value)
+            except ValueError:
+                continue
+            if parsed.tzinfo is not None:
+                continue
+            if len(value) == 10:
+                suffix = "T23:59:59+00:00" if field == "effective_end" \
+                    else "T00:00:00+00:00"
+                item[field] = value + suffix
+            else:
+                item[field] = value + "+00:00"
+            normalizations.append({
+                "field": field, "from": value, "to": item[field],
+                "basis": "daily_grid_calendar_boundary",
+            })
+        return normalizations
+
     events = None
     if arguments.get("context_events_file"):
         events = load_events_file(arguments["context_events_file"])
@@ -1565,7 +1594,86 @@ def _context_events_from(arguments: dict[str, Any]):
                 "INVALID_ARGUMENTS",
                 "context_events must be an array of event objects",
             )
-        events = (events or []) + events_from_list(inline)
+        normalized_inline = []
+        for index, raw in enumerate(inline, 1):
+            if not isinstance(raw, dict):
+                raise GnomonError(
+                    "INVALID_ARGUMENTS", "context_events items must be objects",
+                    {"item_index": index})
+            item = dict(raw)
+            time_normalizations = normalize_daily_times(item)
+            claim_kind = item.pop("claim_kind", None)
+            if claim_kind is not None:
+                legacy_type = str(item.pop("event_type", "") or "")
+                item.pop("attributes", None)
+                expected_prefix = ("override:" if claim_kind == "exact"
+                                   else "constraint:")
+                if legacy_type and not legacy_type.startswith(expected_prefix):
+                    raise GnomonError(
+                        "INVALID_ARGUMENTS",
+                        "compact claim_kind conflicts with legacy event_type",
+                        {"item_index": index, "claim_kind": claim_kind})
+                if claim_kind not in {"min", "max", "exact"}:
+                    raise GnomonError(
+                        "INVALID_ARGUMENTS", "unknown context claim_kind",
+                        {"item_index": index, "claim_kind": claim_kind})
+                span = str(item.pop("source_span", "") or "").strip()
+                if not span:
+                    raise GnomonError(
+                        "INVALID_ARGUMENTS",
+                        "compact literal context requires verbatim source_span",
+                        {"item_index": index})
+                reference = str(item.pop("source_reference", "inline") or "inline")
+                if not item.get("entity_scope"):
+                    target = str(arguments.get("target_column") or "").strip()
+                    if not target or "," in target or target.lower() == "auto":
+                        raise GnomonError(
+                            "INVALID_ARGUMENTS",
+                            "compact literal context requires entity_scope "
+                            "for a multi-series or unresolved target",
+                            {"item_index": index})
+                    item["entity_scope"] = [target]
+                from .future_context import parse_bound_span, parse_override_span
+                parsed_bound, _ = parse_bound_span(span)
+                parsed_override, _ = parse_override_span(span)
+                import re
+                explicit_bound = bool(re.search(
+                    r"\b(?:caps?|capped|ceiling|floor|maximum|minimum|"
+                    r"at\s+most|no\s+more\s+than|not\s+exceed|at\s+least|"
+                    r"no\s+less\s+than)\b", span, re.IGNORECASE))
+                source_class = (
+                    "constraint" if parsed_bound is not None
+                    and (parsed_override is None or explicit_bound) else
+                    "override" if parsed_override is not None
+                    and parsed_bound is None else
+                    "override" if claim_kind == "exact" else "constraint"
+                )
+                requested_class = ("override" if claim_kind == "exact"
+                                   else "constraint")
+                class_normalization = (None if source_class == requested_class else {
+                    "code": "literal_claim_reclassified_from_source",
+                    "from": requested_class, "to": source_class,
+                    "reason": "the quoted text, not the model label, determines semantics",
+                })
+                item.update({
+                    "event_type": f"{source_class}:literal_{claim_kind}",
+                    "attributes": {
+                        "source_span": span,
+                        **({"compiler_normalizations": [
+                            *time_normalizations,
+                            *([class_normalization] if class_normalization else []),
+                        ]} if time_normalizations or class_normalization else {}),
+                    },
+                    "source": {"type": "user_supplied", "reference": reference},
+                    "created_by": "llm",
+                })
+            elif not item.get("event_type"):
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "context_events requires claim_kind or event_type",
+                    {"item_index": index})
+            normalized_inline.append(item)
+        events = (events or []) + events_from_list(normalized_inline)
     qualitative = arguments.get("qualitative_context_events")
     if qualitative is not None:
         if not isinstance(qualitative, list):
@@ -1574,12 +1682,14 @@ def _context_events_from(arguments: dict[str, Any]):
                 "qualitative_context_events must be an array of event objects",
             )
         normalized = []
-        for item in qualitative:
+        for raw_item in qualitative:
+            item = dict(raw_item) if isinstance(raw_item, dict) else raw_item
             if not isinstance(item, dict):
                 raise GnomonError(
                     "INVALID_ARGUMENTS",
                     "qualitative_context_events items must be objects",
                 )
+            time_normalizations = normalize_daily_times(item)
             allowed_fields = {
                 "event_id", "entity_scope", "effective_start",
                 "effective_end", "known_at", "direction", "effect_family",
@@ -1633,6 +1743,8 @@ def _context_events_from(arguments: dict[str, Any]):
                 "confidence": 1.0,
                 "attributes": {
                     "source_span": source_span,
+                    **({"compiler_normalizations": time_normalizations}
+                       if time_normalizations else {}),
                     "soft_context": {
                         "effect_family": item.get("effect_family"),
                         "direction": item.get("direction"),
@@ -1654,6 +1766,31 @@ def _materialized_or_public_events(arguments: dict[str, Any]):
     """Consume trusted internal events or validate the public channels."""
     events = arguments.pop("_materialized_context_events", None)
     return events if events is not None else _context_events_from(arguments)
+
+
+def _align_single_target_context_scope(events: list[Any] | None,
+                                       arguments: dict[str, Any]) -> list[Any] | None:
+    """Map the public target name onto the engine's singleton identity.
+
+    A single-column run is represented internally as ``__default__`` while
+    callers only know the requested target column. Treating ``[target]`` as a
+    non-match silently discards correctly scoped context. Other names remain
+    untouched, so this does not broaden an unrelated event to all series.
+    """
+    if not events or arguments.get("series_column"):
+        return events
+    target = str(arguments.get("target_column") or "").strip()
+    if not target or "," in target or target.lower() == "auto":
+        return events
+    from dataclasses import replace
+
+    aligned = []
+    for event in events:
+        scope = tuple("*" if name == target else name
+                      for name in event.entity_scope)
+        aligned.append(replace(event, entity_scope=scope)
+                       if scope != event.entity_scope else event)
+    return aligned
 
 
 def _materialise_context(
@@ -1901,9 +2038,14 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
     target_spec = str(arguments["target_column"])
     if "," in target_spec or target_spec.strip().lower() == "auto":
         return _run_forecast_multi(arguments, target_spec)
-    events = _materialized_or_public_events(arguments)
+    events = _align_single_target_context_scope(
+        _materialized_or_public_events(arguments), arguments)
+    typed_future_context = any(
+        event.event_type.startswith(("constraint:literal_", "override:literal_"))
+        for event in events or [])
     config = None
-    if (arguments.get("future_events") or arguments.get("structural_events")
+    if (arguments.get("future_events") or typed_future_context
+            or arguments.get("structural_events")
             or arguments.get("model_admission") == "evidence_weighted"):
         # MCP tool calls do not read ambient project config — deliberately,
         # so the admission lanes must be reachable as explicit
@@ -1912,7 +2054,8 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
         from .config import GnomonConfig
 
         config = GnomonConfig()
-        config.context.future_events = bool(arguments.get("future_events"))
+        config.context.future_events = bool(
+            arguments.get("future_events") or typed_future_context)
         config.context.structural_events = bool(
             arguments.get("structural_events"))
         if arguments.get("model_admission") == "evidence_weighted":

@@ -285,7 +285,7 @@ def test_qualitative_context_lane_produces_non_automatable_sensitivity(
         "target_column": "demand", "frequency": "D", "horizon": 2,
         "qualitative_context_events": [{
             "event_id": "campaign-1",
-            "entity_scope": ["*"],
+            "entity_scope": ["demand"],
             "effective_start": "2026-02-10T00:00:00+00:00",
             "effective_end": "2026-02-11T00:00:00+00:00",
             "known_at": "2026-02-09T00:00:00+00:00",
@@ -327,6 +327,99 @@ def test_qualitative_context_lane_produces_non_automatable_sensitivity(
     assert strict["publication"]["recommended_scenario_id"] == "primary"
 
 
+def test_compact_literal_context_is_compiled_and_source_bound() -> None:
+    from gnomon.toolspec import _context_events_from
+
+    events = _context_events_from({"context_events": [{
+        "event_id": "closure-1", "claim_kind": "exact",
+        "entity_scope": ["*"],
+        "effective_start": "2026-02-10T00:00:00+00:00",
+        "effective_end": "2026-02-10T00:00:00+00:00",
+        "known_at": "2026-02-09T00:00:00+00:00",
+        "source_span": "The warehouse is closed on 2026-02-10: demand is exactly 0.",
+        "source_reference": "signed-notice",
+    }]})
+
+    assert len(events) == 1
+    assert events[0].event_type == "override:literal_exact"
+    assert events[0].attributes["source_span"].endswith("exactly 0.")
+    assert events[0].source.reference == "signed-notice"
+
+
+def test_compact_literal_context_rejects_ambiguous_or_unsourced_forms() -> None:
+    import pytest
+    from gnomon.contracts import GnomonError
+    from gnomon.toolspec import _context_events_from
+
+    base = {
+        "event_id": "cap-1", "claim_kind": "max", "entity_scope": ["*"],
+        "effective_start": "2026-02-10T00:00:00+00:00",
+        "effective_end": "2026-02-10T01:00:00+00:00",
+        "known_at": "2026-02-09T00:00:00+00:00",
+        "source_span": "Capacity is capped at exactly 40 units.",
+    }
+    compatible = _context_events_from({"context_events": [{
+        **base, "event_type": "constraint:legacy",
+        "attributes": {"source_span": "stale duplicate"},
+    }]})
+    assert compatible[0].event_type == "constraint:literal_max"
+    assert compatible[0].attributes["source_span"] == base["source_span"]
+    with pytest.raises(GnomonError, match="conflicts with legacy"):
+        _context_events_from({"context_events": [{
+            **base, "event_type": "override:cap",
+        }]})
+    with pytest.raises(GnomonError, match="requires verbatim source_span"):
+        _context_events_from({"context_events": [{**base, "source_span": ""}]})
+    with pytest.raises(GnomonError, match="unknown context claim_kind"):
+        _context_events_from({"context_events": [{**base, "claim_kind": "around"}]})
+
+    repaired = _context_events_from({"target_column": "value", "context_events": [{
+        **base, "claim_kind": "exact",
+        "source_span": "A signed notice caps capacity at exactly 40 units.",
+    }]})
+    assert repaired[0].event_type == "constraint:literal_exact"
+    assert repaired[0].attributes["compiler_normalizations"][0] == {
+        "code": "literal_claim_reclassified_from_source",
+        "from": "override", "to": "constraint",
+        "reason": "the quoted text, not the model label, determines semantics",
+    }
+
+
+def test_compact_literal_context_auto_enables_governed_future_lane(tmp_path) -> None:
+    from datetime import date, timedelta
+    from gnomon.toolspec import runner_for
+
+    path = tmp_path / "literal.csv"
+    start = date(2026, 1, 1)
+    path.write_text("\n".join(["timestamp,demand"] + [
+        f"{start + timedelta(days=day)},{100 + day % 4}" for day in range(40)
+    ]) + "\n")
+    payload = runner_for("gnomon_forecast")({
+        "input": str(path), "time_column": "timestamp",
+        "target_column": "demand", "frequency": "D", "horizon": 2,
+        "context_events": [{
+            "event_id": "closure-1", "claim_kind": "exact",
+            "entity_scope": ["demand"],
+            "effective_start": "2026-02-10T00:00:00+00:00",
+            "effective_end": "2026-02-10T00:00:00+00:00",
+            "known_at": "2026-02-09T00:00:00+00:00",
+            "source_span": (
+                "The warehouse is closed on 2026-02-10, so demand is exactly 0."
+            ),
+        }],
+        "publication_mode": "best_effort",
+        "output_dir": str(tmp_path / "out-literal"),
+    })
+
+    result = payload["results"][0]
+    assert result["context_outcome"]["status"] == "applied"
+    assert result["context_outcome"]["canonical_primary_preserved"] is True
+    assert payload["publication"]["recommended_scenario_id"] == \
+        "context_conditioned"
+    assert payload["publication"]["primary_forecast_unchanged"] is True
+    assert payload["publication"]["automation"]["eligible"] is False
+
+
 def test_qualitative_context_lane_rejects_numeric_claims_and_missing_sources():
     import pytest
     from gnomon.contracts import GnomonError
@@ -360,6 +453,19 @@ def test_qualitative_context_lane_rejects_numeric_claims_and_missing_sources():
         })
     assert inferred_time.value.details["required_date_in_source_span"] == \
         "2026-02-10"
+
+    daily = _context_events_from({
+        "frequency": "D", "qualitative_context_events": [{
+            **base,
+            "effective_start": "2026-02-10T00:00:00",
+            "effective_end": "2026-02-10",
+            "known_at": "2026-02-09",
+            "source_span": "The campaign starts on 2026-02-10.",
+        }],
+    })
+    assert daily[0].effective_start == "2026-02-10T00:00:00+00:00"
+    assert daily[0].effective_end == "2026-02-10T23:59:59+00:00"
+    assert len(daily[0].attributes["compiler_normalizations"]) == 3
 
 
 def test_context_ref_conflicts_with_qualitative_inline_context():

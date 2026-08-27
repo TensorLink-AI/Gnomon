@@ -104,6 +104,18 @@ def test_adversarial_context_corpus_has_explicit_safe_dispositions():
     assert all("context-interface" in case.tags for case in cases)
 
 
+def test_mixed_context_corpus_requires_multiple_disposition_channels():
+    path = Path(__file__).parents[1] / "workflow" / "cases" / \
+        "context-mixed.jsonl"
+    cases = load_cases(path)
+    assert len(cases) == 3
+    assert all(len(case.oracle.context_behavior["required_arguments"]) == 2
+               for case in cases)
+    assert {case.oracle.context_behavior["allowed_statuses"][0]
+            for case in cases} == {
+        "used", "partially_used", "partially_represented"}
+
+
 def test_publication_recommendation_overrides_active_artifact_lane_for_answer():
     publication = {
         "recommended_scenario_id": "primary",
@@ -154,6 +166,16 @@ def test_execution_compiler_binds_known_fields_but_preserves_ambiguity(tmp_path)
     assert governed["publication_mode"] == "scenario"
     assert governed["automation_policy"] == {"allow": False}
     assert governed["future_events"] is True
+
+    scoped = _compile_execution_arguments(
+        base, "gnomon_forecast", {
+            "context_events": [{"event_id": "closure",
+                                "entity_scope": ["demand"]}],
+            "qualitative_context_events": [{"event_id": "campaign",
+                                             "entity_scope": ["sales"]}],
+        }, tmp_path / "history.csv", tmp_path)
+    assert scoped["context_events"][0]["entity_scope"] == ["value"]
+    assert scoped["qualitative_context_events"][0]["entity_scope"] == ["value"]
 
     ambiguous = {
         "kind": "messy",

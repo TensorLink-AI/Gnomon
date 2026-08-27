@@ -243,6 +243,16 @@ def _compile_execution_arguments(
         target = None
     if target is not None:
         compiled["target_column"] = target
+        # The host may replace a semantic target with a transport column
+        # (for example demand -> value). With exactly one data column, bind
+        # context to that same resolved target across the host boundary.
+        if len(columns) == 1:
+            for channel in ("context_events", "qualitative_context_events"):
+                for item in compiled.get(channel) or []:
+                    if isinstance(item, dict) and item.get("entity_scope"):
+                        item["entity_scope"] = [
+                            "*" if name == "*" else target
+                            for name in item["entity_scope"]]
     elif intentionally_ambiguous:
         compiled.pop("target_column", None)
     if name in {"gnomon_forecast", "gnomon_run"}:
@@ -343,8 +353,12 @@ def _normalize(case: dict[str, Any], value: dict[str, Any], *, calls: int,
                          "context_arguments", []),
                      "context_behavior": engine_evidence.get(
                          "context_behavior"),
+                     "future_context_behavior": engine_evidence.get(
+                         "future_context_behavior"),
                      "qualitative_context_input": engine_evidence.get(
                          "qualitative_context_input", []),
+                     "literal_context_input": engine_evidence.get(
+                         "literal_context_input", []),
                      "tool_errors": engine_evidence.get("tool_errors", []),
                      **({"error": "model_submission_error"} if status == "error" else {}),
                      "artifact_id": engine_evidence.get("artifact_id"),
@@ -470,6 +484,9 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
             if calls == 0 and not computation_complete:
                 tool_choice = {"type": "function", "function": {
                     "name": preferred_name}}
+            elif computation_complete:
+                tool_choice = {"type": "function", "function": {
+                    "name": "submit_answer"}}
             response = client.chat(messages, n=1, tools=available,
                                    tool_choice=tool_choice, max_tokens=6000)
             message = response.choices[0].message
@@ -512,9 +529,22 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                     engine_evidence["qualitative_context_input"] = [{
                         key: item.get(key) for key in (
                             "event_id", "effective_start", "effective_end",
-                            "direction", "effect_family", "duration")
+                            "known_at", "entity_scope", "direction",
+                            "effect_family", "duration")
                         if item.get(key) is not None
                     } for item in qualitative_inputs if isinstance(item, dict)]
+                literal_inputs = arguments.get("context_events") or []
+                if isinstance(literal_inputs, list):
+                    # Privacy-safe interface telemetry: retain only routing
+                    # shape, never quoted text, values, or source content.
+                    engine_evidence["literal_context_input"] = [{
+                        key: item.get(key) for key in (
+                            "event_id", "claim_kind", "event_type",
+                            "entity_scope", "effective_start", "effective_end",
+                            "known_at")
+                        if item.get(key) is not None
+                    } | {"source_span_present": bool(item.get("source_span"))}
+                       for item in literal_inputs if isinstance(item, dict)]
                 context_keys = [key for key in (
                     "context_submission", "temporal_dossiers",
                     "context_events", "qualitative_context_events", "context_rejections",
@@ -532,12 +562,16 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                             "status") in {"error", "invalid"}:
                         error = structured.get("error") or structured
                         if isinstance(error, dict):
+                            details = error.get("details") or {}
+                            problems = (details.get("problems")
+                                        if isinstance(details, dict) else None)
                             engine_evidence.setdefault("tool_errors", []).append({
                                 "tool": name,
                                 "code": error.get("code"),
                                 "message": str(error.get("message") or "")[:300],
                                 "detail_keys": sorted((error.get("details") or {}).keys())
                                 if isinstance(error.get("details"), dict) else [],
+                                **({"problems": problems} if problems else {}),
                             })
                     publication = (structured.get("publication")
                                    if isinstance(structured, dict) else None)
@@ -557,10 +591,37 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                             "scenario_count": publication.get(
                                 "scenario_count", len(
                                     publication.get("scenarios") or [])),
+                            "dispositions": [{
+                                key: item.get(key) for key in (
+                                    "context_id", "disposition", "reason_code")
+                                if item.get(key) is not None
+                            } for item in publication.get(
+                                "context_dispositions") or []
+                            if isinstance(item, dict)],
                         }
                         recommendation = _publication_recommendation_numbers(
                             publication, set((case.get("answer_schema") or {}).get(
                                 "numbers") or []))
+                    result_rows = (structured.get("results") or []
+                                   if isinstance(structured, dict) else [])
+                    if result_rows and isinstance(result_rows[0], dict):
+                        future = result_rows[0].get("future_context") or {}
+                        if isinstance(future, dict):
+                            engine_evidence["future_context_behavior"] = {
+                                "considered": future.get("considered"),
+                                "admitted": [{
+                                    key: item.get(key) for key in (
+                                        "event_id", "event_class")
+                                    if item.get(key) is not None
+                                } for item in future.get("admitted") or []
+                                   if isinstance(item, dict)],
+                                "rejected": [{
+                                    key: item.get(key) for key in (
+                                        "event_id", "event_class", "code")
+                                    if item.get(key) is not None
+                                } for item in future.get("rejected") or []
+                                   if isinstance(item, dict)],
+                            }
                         if recommendation:
                             engine_evidence["recommendation_numbers"] = recommendation
                         result_rows = structured.get("results") or []

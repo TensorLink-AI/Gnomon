@@ -867,15 +867,25 @@ def build_scenario_catalog(result: dict[str, Any], *,
     context_outcome = result.get("context_outcome")
     if isinstance(context_outcome, dict):
         status = str(context_outcome.get("status") or "rejected")
-        event_ids = context_outcome.get("events") or ["engine-context"]
-        dispositions.extend({
-            "context_id": str(event_id), "disposition": (
-                "used" if status == "applied" else
-                "scenario" if status == "scenario_only" else "rejected"),
-            "reason_code": status,
-            "reason": str(context_outcome.get("reason") or
-                          "See the immutable context outcome receipt."),
-        } for event_id in event_ids)
+        projected = context_outcome.get("dispositions") or []
+        if projected:
+            dispositions.extend({
+                "context_id": str(item.get("context_id") or "engine-context"),
+                "disposition": str(item.get("disposition") or "rejected"),
+                "reason_code": str(item.get("reason_code") or status),
+                "reason": str(item.get("reason") or
+                              "See the immutable context outcome receipt."),
+            } for item in projected if isinstance(item, dict))
+        else:
+            event_ids = context_outcome.get("events") or ["engine-context"]
+            dispositions.extend({
+                "context_id": str(event_id), "disposition": (
+                    "used" if status == "applied" else
+                    "scenario" if status == "scenario_only" else "rejected"),
+                "reason_code": status,
+                "reason": str(context_outcome.get("reason") or
+                              "See the immutable context outcome receipt."),
+            } for event_id in event_ids)
     # A model-authored interpretation may coexist with an independently
     # replayed companion executable. Match them by authenticated source spans,
     # not dossier-local claim ids. This may make the model path selectable for

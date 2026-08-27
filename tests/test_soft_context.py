@@ -44,6 +44,23 @@ def test_failed_deterministic_claim_is_rejected_not_scenario() -> None:
     assert outcome["primary_forecast_changed"] is False
 
 
+def test_mixed_context_preserves_scenario_and_rejected_dispositions() -> None:
+    generic = _event()
+    rejected = ContextEvent(**{
+        **_event("override:literal_exact").__dict__,
+        "event_id": "literal-1",
+    })
+
+    outcome = context_outcome([generic, rejected], "heart_rate")
+
+    assert outcome["status"] == "partially_represented"
+    assert outcome["events"] == ["event-1", "literal-1"]
+    assert outcome["dispositions"] == [
+        {"context_id": "event-1", "disposition": "scenario"},
+        {"context_id": "literal-1", "disposition": "rejected"},
+    ]
+
+
 def test_soft_context_contract_rejects_numeric_effect_smuggling() -> None:
     event = _event()
     bad = ContextEvent(**{
