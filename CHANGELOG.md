@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Upgrade BreachBench's answer contract to separate binary prediction,
+  evidence sufficiency (`breach`/`no_breach`/`indeterminate`), and cost-aware
+  action. It now carries bounded product assessments, reports assessment and
+  probability coverage, scores supplied probabilities with Brier loss, and
+  measures preservation of bounded conclusions independently of automation.
+
 - Return a bounded threshold assessment when short histories cannot support a
   calibrated breach probability. The response separates the primary point
   answer, displayed-range relation, model-assisted disagreement, and an

@@ -43,17 +43,28 @@ class ScriptedClient:
                            text, re.DOTALL)
         if gnomon:
             packet = json.loads(gnomon.group(1))
-            probabilities = (packet.get("threshold_analysis") or {}).get(
+            analysis = packet.get("threshold_analysis") or {}
+            probabilities = analysis.get(
                 "probability_above_per_step") or []
             peak = max(probabilities) if probabilities else 0.0
+            bounded = analysis.get("bounded_assessment") or {}
+            assessment = ({"yes": "breach", "no": "no_breach"}.get(
+                bounded.get("decision"), bounded.get("decision"))
+                if bounded else ("breach" if peak >= .5 else "no_breach"))
             act = peak >= COST_ACT / COST_MISS
             return [json.dumps({"breach_expected": peak >= .5,
                                 "first_breach_step": 1 if act else None,
-                                "action": "act" if act else "monitor"})]
+                                "action": "act" if act else "monitor",
+                                "evidence_assessment": assessment,
+                                "breach_probability": (
+                                    peak if probabilities else None)})]
         near = max(values[-12:]) >= threshold
         return [json.dumps({"breach_expected": bool(near),
                             "first_breach_step": 3 if near else None,
-                            "action": "act" if near else "monitor"})]
+                            "action": "act" if near else "monitor",
+                            "evidence_assessment": (
+                                "breach" if near else "no_breach"),
+                            "breach_probability": 0.7 if near else 0.1})]
 
 
 def test_cases_are_deterministic_real_and_outcome_labelled() -> None:
@@ -77,8 +88,12 @@ def test_cases_are_deterministic_real_and_outcome_labelled() -> None:
         "wiki_traffic_daily_log", "sensor_temps_5min",
         "pedestrian_counts_daily", "retail_sales_monthly"}
     assert provenance["labeling"] == "realized_future_breach_and_first_step"
+    assert provenance["history_windows"] == [24, 48, 96, 168]
+    assert sum(provenance["history_band_distribution"].values()) == 12
     for case in first:
         assert case.frequency == series_frequency(case.origin)
+        assert case.history_length == len(case.values)
+        assert case.history_band in {"short", "medium", "long"}
 
 
 def test_realized_futures_never_overlap_within_a_series(tmp_path) -> None:
@@ -120,6 +135,9 @@ def test_the_product_packet_is_real_gnomon_output() -> None:
     assert packet["headline"]
     assert len(packet["forecast"]) == cases[0].horizon
     assert "threshold_analysis" in packet
+    if packet["threshold_analysis"].get("probability_status") == \
+            "unavailable_uncalibrated":
+        assert packet["threshold_analysis"]["bounded_assessment"]
     rule = product_rule(cases[0], packet)
     assert rule["action"] in {"act", "monitor"}
     assert isinstance(rule["breach_expected"], bool)
@@ -133,6 +151,27 @@ def test_answers_are_validated_not_guessed() -> None:
         '{"breach_expected": true, "first_breach_step": 40, '
         '"action": "act"}', 24)
     assert parsed["valid"] and parsed["first_breach_step"] is None
+    assert parsed["evidence_assessment"] is None
+    assert parsed["breach_probability"] is None
+
+
+def test_assessment_and_probability_are_validated_separately() -> None:
+    parsed = parse_answer(
+        '{"breach_expected": false, "first_breach_step": null, '
+        '"action": "act", "evidence_assessment": "indeterminate", '
+        '"breach_probability": 0.37}', 24)
+    assert parsed["valid"] is True
+    assert parsed["breach_expected"] is False
+    assert parsed["action"] == "act"
+    assert parsed["evidence_assessment"] == "indeterminate"
+    assert parsed["breach_probability"] == 0.37
+    hostile = parse_answer(
+        '{"breach_expected": true, "first_breach_step": null, '
+        '"action": "monitor", "evidence_assessment": "certain", '
+        '"breach_probability": 1.5}', 24)
+    assert hostile["valid"] is True
+    assert hostile["evidence_assessment"] is None
+    assert hostile["breach_probability"] is None
 
 
 def test_a_valid_answer_survives_surrounding_prose_and_echoes() -> None:
@@ -233,6 +272,8 @@ def test_a_matched_offline_run_prices_decisions_in_client_units(
         entry = summary["metrics"][arm]
         assert entry["mean_regret"] >= 0.0
         assert 0.0 <= entry["action_optimal_rate"] <= 1.0
+        assert 0.0 <= entry["assessment_coverage"] <= 1.0
+        assert 0.0 <= entry["probability_coverage"] <= 1.0
     references = summary["references"]
     assert set(references) >= {"gnomon_governed", "gnomon_rule_alone",
                                "gnomon_rule_composed",

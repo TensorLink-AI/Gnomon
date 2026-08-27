@@ -57,9 +57,10 @@ sys.path.insert(0, str(ROOT / "src"))
 from benchmarks.common.envfile import load_env_file  # noqa: E402
 from benchmarks.common.openrouter import extract_json_objects  # noqa: E402
 
-GENERATOR_VERSION = "0.2"
+GENERATOR_VERSION = "0.3"
 DATA_DIR = Path(__file__).resolve().parent / "data"
 HORIZON = 24
+HISTORY_WINDOWS = (24, 48, 96, 168)
 COST_ACT = 2.0
 COST_MISS = 10.0
 ARMS = ("control", "gnomon")
@@ -95,6 +96,15 @@ class Case:
     outcome_cell: str
     origin: str
     frequency: str = "D"
+    history_length: int = 0
+
+    @property
+    def history_band(self) -> str:
+        if self.history_length <= 48:
+            return "short"
+        if self.history_length <= 96:
+            return "medium"
+        return "long"
 
 
 #: The corpus files name their real cadence in the filename
@@ -169,7 +179,7 @@ def generate_cases(
         balanced_phase = attempts <= balanced_limit
         name = names[rng.randrange(len(names))]
         series = corpus[name]
-        window = rng.choice((96, 168))
+        window = rng.choice(HISTORY_WINDOWS)
         if len(series) < window + HORIZON + 1:
             skipped["too_short"] += 1
             continue
@@ -222,7 +232,7 @@ def generate_cases(
         case = Case(
             f"b{seed}-{len(cases):04d}", shown_values, shown_threshold,
             HORIZON, truth_breach, first_step, cell, name,
-            series_frequency(name))
+            series_frequency(name), len(shown_values))
         cases.append(case)
         futures[case.case_id] = shown_future
     if len(cases) < count:
@@ -243,6 +253,10 @@ def generate_cases(
         "fully_balanced": attempts <= balanced_limit,
         "outcome_distribution": dict(sorted(cell_counts.items())),
         "outcome_targets": OUTCOME_TARGETS,
+        "history_windows": list(HISTORY_WINDOWS),
+        "history_band_distribution": {
+            band: sum(case.history_band == band for case in cases)
+            for band in ("short", "medium", "long")},
         "breach_base_rate": statistics.mean(
             case.truth_breach for case in cases),
         "labeling": "realized_future_breach_and_first_step",
@@ -339,6 +353,10 @@ def product_packet(case: Case) -> dict[str, Any]:
                     str(threshold.get("first_timestamp_interval_above"))),
                 "basis": threshold.get("basis"),
                 "horizon_event": horizon_event or None,
+                "bounded_assessment": threshold.get(
+                    "bounded_assessment"),
+                "probability_status": threshold.get(
+                    "probability_status"),
             }
             if horizon_event:
                 # Costs come from this client task.  Gnomon projects them
@@ -391,7 +409,13 @@ def prompt(case: Case, arm: str, packet: dict[str, Any]) -> str:
                  "history):\n" + json.dumps(packet, separators=(",", ":")))
     return body + (
         '\nReturn {"breach_expected": true|false, "first_breach_step": '
-        '<1-' + str(case.horizon) + ' or null>, "action": "act"|"monitor"}.')
+        '<1-' + str(case.horizon) + ' or null>, "action": "act"|"monitor", '
+        '"evidence_assessment": "breach"|"no_breach"|"indeterminate", '
+        '"breach_probability": <number from 0 to 1 or null>}. '
+        'The binary breach_expected is your best point prediction; '
+        'evidence_assessment separately states whether the supplied evidence '
+        'actually distinguishes the outcome. Action follows the stated costs, '
+        'not the 0.5 breach threshold.')
 
 
 def parse_answer(text: str, horizon: int) -> dict[str, Any]:
@@ -415,8 +439,20 @@ def parse_answer(text: str, horizon: int) -> dict[str, Any]:
                 and math.isfinite(raw_step)
                 and 1 <= int(raw_step) <= horizon):
             step = int(raw_step)
+        assessment = str(payload.get("evidence_assessment", "")).strip().lower()
+        if assessment not in {"breach", "no_breach", "indeterminate"}:
+            assessment = None
+        raw_probability = payload.get("breach_probability")
+        probability = None
+        if (isinstance(raw_probability, (int, float))
+                and not isinstance(raw_probability, bool)
+                and math.isfinite(raw_probability)
+                and 0.0 <= float(raw_probability) <= 1.0):
+            probability = float(raw_probability)
         return {"valid": True, "breach_expected": breach,
-                "first_breach_step": step, "action": action}
+                "first_breach_step": step, "action": action,
+                "evidence_assessment": assessment,
+                "breach_probability": probability}
     return {"valid": False}
 
 
@@ -488,7 +524,8 @@ def _score(answer: dict[str, Any], case: Case) -> dict[str, Any]:
         # An unparseable answer is a monitor by omission: the operator got
         # nothing actionable. Recorded as invalid, never silently patched.
         answer = {"valid": False, "breach_expected": False,
-                  "first_breach_step": None, "action": "monitor"}
+                  "first_breach_step": None, "action": "monitor",
+                  "evidence_assessment": None, "breach_probability": None}
     outcome = decision_outcome(answer["action"], case)
     breach_correct = answer["breach_expected"] == case.truth_breach
     timing_error = None
@@ -505,6 +542,12 @@ def _score(answer: dict[str, Any], case: Case) -> dict[str, Any]:
         "action_optimal": outcome["regret"] == 0.0,
         "breach_correct": breach_correct,
         "timing_error": timing_error,
+        "evidence_assessment": answer.get("evidence_assessment"),
+        "breach_probability": answer.get("breach_probability"),
+        "probability_brier": (
+            (float(answer["breach_probability"])
+             - float(case.truth_breach)) ** 2
+            if answer.get("breach_probability") is not None else None),
     }
 
 
@@ -555,6 +598,10 @@ def _arm_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
     timing = [row["timing_error"] for row in valid
               if row["timing_error"] is not None]
     breach_truth = [row for row in valid if row["truth_breach"]]
+    committed = [row for row in valid if row.get(
+        "evidence_assessment") in {"breach", "no_breach"}]
+    probabilistic = [row for row in valid
+                     if row.get("probability_brier") is not None]
     return {
         "mean_cost": statistics.mean(row["cost"] for row in rows),
         "mean_regret": statistics.mean(row["regret"] for row in rows),
@@ -580,6 +627,20 @@ def _arm_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
             row["first_breach_step"] is not None for row in breach_truth)
             if breach_truth else None),
         "invalid_rate": statistics.mean(not row["valid"] for row in rows),
+        "indeterminate_rate": statistics.mean(
+            row.get("evidence_assessment") == "indeterminate"
+            for row in valid) if valid else None,
+        "assessment_coverage": statistics.mean(
+            row.get("evidence_assessment") is not None
+            for row in valid) if valid else None,
+        "assessment_accuracy_when_committed": (statistics.mean(
+            (row["evidence_assessment"] == "breach") == row["truth_breach"]
+            for row in committed) if committed else None),
+        "assessment_committed": len(committed),
+        "probability_coverage": len(probabilistic) / len(valid) if valid else None,
+        "brier_score": (statistics.mean(
+            row["probability_brier"] for row in probabilistic)
+            if probabilistic else None),
     }
 
 
@@ -697,6 +758,8 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
         return {"case_id": case.case_id, "arm": arm,
                 "dataset": dataset_identity, "model": model_name,
                 "origin": case.origin, "outcome_cell": case.outcome_cell,
+                "history_length": case.history_length,
+                "history_band": case.history_band,
                 "truth_breach": case.truth_breach,
                 "truth_first_step": case.truth_first_step,
                 **_score(answer, case)}
@@ -738,6 +801,12 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
             for cell in OUTCOME_CELLS
             if any(row["outcome_cell"] == cell for row in subset)
         }
+        metrics[arm]["by_history_band"] = {
+            band: _arm_metrics([
+                row for row in subset if row["history_band"] == band])
+            for band in ("short", "medium", "long")
+            if any(row["history_band"] == band for row in subset)
+        }
     control_better = gnomon_better = 0
     optimal_pairs = {"control_only": 0, "gnomon_only": 0}
     for case in cases:
@@ -768,6 +837,18 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
         for case in cases
         if governed_recommendations[case.case_id] is None
     ) if len(supported_ids) < len(cases) else 0.0
+    bounded_decisions = {
+        case.case_id: (((packets[case.case_id].get("threshold_analysis") or {})
+                        .get("bounded_assessment") or {}).get("decision"))
+        for case in cases
+    }
+    bounded_ids = [case_id for case_id, decision in bounded_decisions.items()
+                   if decision is not None]
+    bounded_preservation = (statistics.mean(
+        completed[(case_id, "gnomon")].get("evidence_assessment")
+        == ({"yes": "breach", "no": "no_breach"}.get(
+            bounded_decisions[case_id], bounded_decisions[case_id]))
+        for case_id in bounded_ids) if bounded_ids else None)
     summary = {
         "schema_version": "0.2", "seed": args.seed, "cases": args.cases,
         "model": model_name, "temperature": 0,
@@ -797,6 +878,8 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
                 "governed_recommendations": len(supported_ids),
                 "preservation_rate": preservation_rate,
                 "unsupported_action_rate": unsupported_action_rate,
+                "bounded_assessments": len(bounded_ids),
+                "bounded_assessment_preservation_rate": bounded_preservation,
             },
         },
         "verdicts": {
@@ -830,6 +913,9 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
             "held_out_future_absent_from_prompts_verified": True,
             "gnomon_packet_is_production_output": True,
             "costs_stated_in_prompt": True,
+            "history_length_strata_preregistered": list(HISTORY_WINDOWS),
+            "binary_prediction_separate_from_evidence_assessment": True,
+            "probability_scored_with_coverage": True,
             "memorization_defense":
                 "per_case_seeded_positive_affine_transform;"
                 "threshold_transformed_identically;values_only_prompts",
