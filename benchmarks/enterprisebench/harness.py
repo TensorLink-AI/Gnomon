@@ -475,7 +475,6 @@ def compute_engine_packet(case: Case, inputs: dict[str, Any],
 
     from gnomon import forecast as gnomon_forecast
     from gnomon.contracts import GnomonError
-    from gnomon.support import forecast_headline
 
     series = [float(v) for v in inputs.get("series") or case.values]
     threshold = (float(inputs["threshold"])
@@ -506,12 +505,14 @@ def compute_engine_packet(case: Case, inputs: dict[str, Any],
             return packet
         result = artifact.results[0]
         rows = result.forecast or []
+        # Numbers and tiers only — no headline, no interpretation
+        # packet, no canonical semantic conclusions: the ablation
+        # findings showed semantic conclusions in a treatment packet
+        # turn a decision benchmark into a transcription benchmark.
         packet: dict[str, Any] = {
             "authority": "computed_gnomon_forecast_with_threshold_analysis",
             "support": result.support,
             "selected_model": result.selected_model,
-            "headline": forecast_headline(
-                result.support, result.support_assessment, rows),
             "basis": inputs.get("basis", "shown_series"),
             "forecast": [
                 {"step": step,
@@ -1111,6 +1112,7 @@ def score_decision_row(decision: dict[str, Any], valid: bool, case: Case,
         "trap_correct": trap_agreement(decision, case, pack),
         "trap_hidden_reversal": trap_hidden_reversal(case),
         "truth_event": bool(case.meta.get("truth_event")),
+        "outcome_cell": case.meta.get("outcome_cell"),
     }
     truth_step = case.meta.get("truth_first_step")
     answered_step = decision.get("first_event_step")
@@ -1164,6 +1166,13 @@ def _arm_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
             key: statistics.mean(row["extras"][key] for row in rows
                                  if key in (row.get("extras") or {}))
             for key in extra_keys}
+    cells = sorted({row.get("outcome_cell") for row in rows
+                    if row.get("outcome_cell")})
+    if cells:
+        metrics["regret_by_outcome_cell"] = {
+            cell: statistics.mean(row["regret"] for row in rows
+                                  if row.get("outcome_cell") == cell)
+            for cell in cells}
     return metrics
 
 
@@ -1660,14 +1669,32 @@ def _domain_summary(pack: DomainPack, args: Any, cases: list[Case],
         },
     }
     verdicts["useful"] = _useful_verdict(verdicts)
+    event_rate = (statistics.mean(
+        bool(case.meta.get("truth_event")) for case in cases)
+        if pack.decision_kind == "binary" else None)
     return {
         "schema_version": GENERATOR_VERSION,
         "domain": pack.name,
         "seed": args.seed, "cases": args.cases,
+        # Seeds 9xxxxxxx are frozen for validation; everything else is
+        # development, and its numbers are diagnostic by construction.
+        # Stamped mechanically so a diagnostic run cannot be quietly
+        # presented as validation.
+        "scope": ("validation"
+                  if 90_000_000 <= args.seed < 100_000_000
+                  else "diagnostic"),
         "model": model_name, "temperature": 0,
         "cost_model": {"names": pack.cost_model.names,
                        "break_even": pack.cost_model.break_even,
-                       "units": pack.config.get("units", "domain_units")},
+                       "units": pack.config.get("units", "domain_units"),
+                       # Base rates are held near the break-even so
+                       # constant policies cannot masquerade as skill;
+                       # the achieved rate is disclosed, not assumed.
+                       "achieved_event_rate": event_rate,
+                       "event_rate_minus_break_even": (
+                           round(event_rate - pack.cost_model.break_even,
+                                 6)
+                           if event_rate is not None else None)},
         "statistics": {
             "primary_endpoint": "per_case_decision_cost",
             "paired_test": ("exact two-sided sign test; ties dropped "

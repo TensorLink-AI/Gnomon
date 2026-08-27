@@ -856,6 +856,35 @@ def test_runner_survives_a_failed_domain_and_reports_usage_deltas(
         6 * len(MODEL_ARMS)
 
 
+def test_identical_runs_are_bit_identical_end_to_end(tmp_path):
+    """No wall clock, no unseeded randomness, anywhere: two runs with
+    the same seed, cases, and scripted client must produce the same
+    summary byte for byte — including bootstrap intervals and every
+    engine packet-derived number."""
+    pack = PACKS["cashflow"]
+    first = run_domain(pack, _args(tmp_path / "one"),
+                       ScriptedClient(pack))
+    second = run_domain(pack, _args(tmp_path / "two"),
+                        ScriptedClient(pack))
+    assert json.dumps(first, sort_keys=True) == \
+        json.dumps(second, sort_keys=True)
+
+
+def test_scope_is_stamped_from_the_frozen_seed_range(tmp_path):
+    pack = PACKS["cloudcost"]
+    summary = run_domain(pack, _args(tmp_path), ScriptedClient(pack))
+    assert summary["scope"] == "diagnostic"
+    frozen = run_domain(pack, _args(tmp_path / "val", seed=91_000_001),
+                        ScriptedClient(pack, seed=91_000_001))
+    assert frozen["scope"] == "validation"
+    cost_model = summary["cost_model"]
+    assert cost_model["achieved_event_rate"] is not None
+    assert cost_model["event_rate_minus_break_even"] is not None
+    assert "regret_by_outcome_cell" in summary["metrics"]["model"]
+    packet_like = json.dumps(summary["references"]["engine"])
+    assert "headline" not in packet_like
+
+
 def test_rollup_refuses_a_single_aggregate_number(tmp_path):
     pack = PACKS["cloudcost"]
     summary = run_domain(pack, _args(tmp_path), ScriptedClient(pack))
