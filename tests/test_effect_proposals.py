@@ -56,11 +56,16 @@ def test_cited_level_multiplier_is_normalized_to_additive_fraction():
         "applied_additive_fraction": 3.0,
         "parameterization_shift": -1.0,
         "basis": "verified cited source span",
-    }, {
-        "code": "UNSTATED_EFFECT_RANGE_REMOVED",
-        "applied_value": 3.0,
-        "basis": "citation states one exact multiplier; primary path retains forecast uncertainty",
-    }]
+        }, {
+            "code": "UNSTATED_EFFECT_RANGE_REMOVED",
+            "applied_value": 3.0,
+            "basis": "citation states one exact multiplier; primary path retains forecast uncertainty",
+        }, {
+            "code": "EXACT_CITED_LEVEL_MULTIPLIER",
+            "stated_level_multiplier": 4.0,
+            "applied_additive_fraction": 3.0,
+            "basis": "verified cited source span",
+        }]
     assert compose_effect(PRIMARY, proposal)[0]["q50"] == 40.0
     assert compose_effect(PRIMARY, proposal)[0]["q10"] == 36.0
     assert compose_effect(PRIMARY, proposal)[0]["q90"] == 44.0
@@ -128,7 +133,8 @@ def test_cited_calendar_onset_controls_relative_effect_delay():
     assert proposal["delay_steps"] == 2
     assert proposal["location"] == 1.0
     assert [item["code"] for item in proposal["semantic_normalizations"]] == [
-        "MULTIPLIER_TO_ADDITIVE_FRACTION", "CLAIM_ONSET_TO_HORIZON_DELAY"]
+        "MULTIPLIER_TO_ADDITIVE_FRACTION", "EXACT_CITED_LEVEL_MULTIPLIER",
+        "CLAIM_ONSET_TO_HORIZON_DELAY"]
 
 
 def test_uncited_model_authored_onset_cannot_realign_effect():
@@ -147,7 +153,8 @@ def test_uncited_model_authored_onset_cannot_realign_effect():
     assert dossier["effect_proposal"]["delay_steps"] == 0
     assert [item["code"] for item in
             dossier["effect_proposal"]["semantic_normalizations"]] == [
-                "MULTIPLIER_TO_ADDITIVE_FRACTION"]
+                "MULTIPLIER_TO_ADDITIVE_FRACTION",
+                "EXACT_CITED_LEVEL_MULTIPLIER"]
 
 
 def test_separate_cited_timing_and_magnitude_claims_can_align_effect():
@@ -412,3 +419,34 @@ def test_composed_effect_rejects_scale_explosion_and_fractional_negative_base():
     assessment = assess_composed_effect(negative, fractional)
     assert any(item["code"] == "NONPOSITIVE_FRACTIONAL_BASE"
                for item in assessment["violations"])
+
+
+def test_exact_cited_multiplier_may_exceed_history_scale_as_scenario_only():
+    span = "Electricity will be 5 times the usual level for one hour."
+    proposal, critique = validate_effect_proposal(
+        _proposal(unit="fraction_of_level", location=5, lower=3, upper=6,
+                  duration_steps=1),
+        claim_ids={"claim-1"}, claim_spans={"claim-1": span})
+    assert critique["status"] == "accepted"
+    assert proposal["location"] == proposal["lower"] == proposal["upper"] == 4
+    assert any(item["code"] == "EXACT_CITED_LEVEL_MULTIPLIER"
+               for item in proposal["semantic_normalizations"])
+    narrow_primary = [
+        {"point": 100, "q10": 99.9, "q50": 100, "q90": 100.1},
+        {"point": 100, "q10": 99.9, "q50": 100, "q90": 100.1},
+    ]
+    assessment = assess_composed_effect(narrow_primary, proposal)
+    assert assessment["accepted"] is True
+    assert assessment["maximum_displacement_scales"] > 20
+    assert assessment["scale_guard_disposition"] == \
+        "exact_cited_scenario_allowed"
+
+
+def test_approximate_or_uncited_large_multiplier_still_hits_scale_guard():
+    approximate, _ = validate_effect_proposal(
+        _proposal(unit="fraction_of_level", location=4, lower=3, upper=5),
+        claim_ids={"claim-1"},
+        claim_spans={"claim-1": "about 5 times the usual level"})
+    assessment = assess_composed_effect(PRIMARY, approximate)
+    assert assessment["accepted"] is False
+    assert assessment["scale_guard_disposition"] == "rejected"

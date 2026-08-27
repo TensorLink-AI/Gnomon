@@ -520,9 +520,43 @@ def parse_override_scale(span: str) -> tuple[float | None, str | None]:
     matches = list(re.finditer(_SCALED_BASELINE, text, re.IGNORECASE))
     if matches:
         scales = [_scale_from(match) for match in matches]
-        distinct = {round(value, 12) for value in scales}
+        # The baseline matcher intentionally tolerates intervening nouns, but
+        # that must not let it swallow a second competing multiplier in a
+        # phrase such as “either 9 times or 5 times the usual level.”
+        surface_times = [
+            _to_float(match.group(1)) for match in re.finditer(
+                rf"({_N}){_AFTER_NUMBER}\s*(?:times\b|x\b|×)",
+                text, re.IGNORECASE)]
+        surface_pct = [
+            _to_float(match.group(1)) / 100.0 for match in re.finditer(
+                rf"({_N})\s*(?:%|percent\b|pct\b)\s+of\b",
+                text, re.IGNORECASE)]
+        distinct = {round(value, 12)
+                    for value in [*scales, *surface_times, *surface_pct]}
         if len(distinct) == 1:
             return scales[0], None
+        # A source may contrast a generic/default multiple with the explicit
+        # operative case. Resolve only narrow correction language whose tail
+        # contains exactly one multiplier. This is not recency guessing: the
+        # grammar itself says that the following clause supersedes the prior
+        # expectation (for example, “typically 9×, but in this case 5×”).
+        corrections = list(re.finditer(
+            r"\b(?:but\s+in\s+this\s+case|in\s+this\s+case|instead|"
+            r"actually|in\s+practice)\b", text, re.IGNORECASE))
+        if corrections:
+            operative = text[corrections[-1].end():]
+            operative_matches = list(re.finditer(
+                _SCALED_BASELINE, operative, re.IGNORECASE))
+            operative_scales = [_scale_from(match)
+                                for match in operative_matches]
+            operative_surface = [
+                _to_float(match.group(1)) for match in re.finditer(
+                    rf"({_N}){_AFTER_NUMBER}\s*(?:times\b|x\b|×)",
+                    operative, re.IGNORECASE)]
+            operative_distinct = {round(value, 12) for value in
+                                  [*operative_scales, *operative_surface]}
+            if len(operative_distinct) == 1 and operative_scales:
+                return operative_scales[0], None
         return None, (
             "the source span states multiple different baseline multiples; "
             "a deterministic parser cannot choose which scenario is operative"

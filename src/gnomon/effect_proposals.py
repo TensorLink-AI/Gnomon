@@ -172,6 +172,13 @@ def _validate_one(raw: Any, *, claim_ids: set[str],
                     "basis": "citation states one exact multiplier; primary path retains forecast uncertainty",
                 })
                 lower = upper = location
+            if not approximate:
+                semantic_normalizations.append({
+                    "code": "EXACT_CITED_LEVEL_MULTIPLIER",
+                    "stated_level_multiplier": scale,
+                    "applied_additive_fraction": entailed_change,
+                    "basis": "verified cited source span",
+                })
             if shape == "custom_scenario":
                 # The shape label is model-authored; the cited multiplier and
                 # bounded timing are not. Once those deterministic fields are
@@ -295,14 +302,23 @@ def assess_composed_effect(primary: list[dict[str, Any]], proposal: dict[str, An
     scale = (statistics.median(positive) if positive
              else max(abs(statistics.median(centers)) * .01, 1e-12))
     ratio = max(displacements, default=0.0) / scale
-    if ratio > MAX_COMPOSED_EFFECT_SCALES:
+    exact_cited_scenario = (
+        proposal.get("composition") == "scenario_only"
+        and any(item.get("code") == "EXACT_CITED_LEVEL_MULTIPLIER"
+                for item in proposal.get("semantic_normalizations") or []))
+    if ratio > MAX_COMPOSED_EFFECT_SCALES and not exact_cited_scenario:
         violations.append({
             "code": "IMPLAUSIBLE_COMPOSED_DISPLACEMENT",
             "message": (f"Composed displacement is {ratio:.3f} robust path "
                         f"scales; maximum is {MAX_COMPOSED_EFFECT_SCALES:g}.")})
     return {"accepted": not violations, "violations": violations,
             "maximum_displacement_scales": ratio,
-            "scale_basis": "median primary change or interval half-width"}
+            "scale_basis": "median primary change or interval half-width",
+            "scale_guard_disposition": (
+                "exact_cited_scenario_allowed"
+                if ratio > MAX_COMPOSED_EFFECT_SCALES and exact_cited_scenario
+                else "within_limit" if ratio <= MAX_COMPOSED_EFFECT_SCALES
+                else "rejected")}
 
 
 def _shape_weight(index: int, horizon: int, proposal: dict[str, Any]) -> float:

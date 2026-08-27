@@ -473,7 +473,8 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 else:
                     scenarios.append(_scenario(
                         identifier, "effect_composed", compose_effect(primary, proposal),
-                        support="prior_assisted", automation_eligible=False,
+                        support="hypothetical_sensitivity",
+                        automation_eligible=False,
                         claim_ids=[str(item) for item in proposal.get("claim_ids") or []],
                         assumptions=[str(proposal.get("rationale") or ""),
                                      str(proposal.get("uncertainty_basis") or "")],
@@ -487,7 +488,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
                         "reason_code": "effect_proposal_composed",
                         "reason": (
                             "The cited effect was composed into a sealed, "
-                            "prior-assisted scenario; it does not alter the "
+                            "conditional scenario; it does not alter the "
                             "immutable primary or authorize automation."
                         ),
                         "scenario_ids": [identifier],

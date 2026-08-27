@@ -271,7 +271,9 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: an exactly cited square/cube may restore a prematurely evaluated literal.
 #: Version 123: universal fraction/ratio aliases are dimensionless in the
 #: governed unit algebra; percent remains a distinct unit requiring scaling.
-MCP_CONTRACT_VERSION = 123
+#: Version 124: an exact cited multiplier may form a large scenario-only path;
+#: approximate or model-authored extremes still hit the scale guard.
+MCP_CONTRACT_VERSION = 124
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it

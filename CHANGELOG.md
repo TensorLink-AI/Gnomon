@@ -7,6 +7,16 @@
   as dimensionless. This allows relationships such as duty-cycle times rated
   speed to retain their physical output unit. `percent` remains distinct and
   still requires an explicit scale conversion.
+- A source-stated exact level multiplier may now produce a sealed
+  `hypothetical_sensitivity` path even when the requested shock lies far
+  outside historical variation. The exception is restricted to an exact
+  cited multiplier and `scenario_only` publication; approximate, uncited, or
+  model-authored extremes retain the displacement guard, and no such path may
+  alter the primary or authorize automation.
+- Contrasting multiplier prose now resolves only an explicitly operative
+  correction such as “typically 9×, but in this case 5×.” Alternative values
+  without that correction grammar remain ambiguous, including cases where a
+  permissive baseline regex could previously swallow the second multiplier.
 
 - Safe declarative transformations may now bind additional verbatim source
   lines containing their exact AST literals. The host neither interprets nor

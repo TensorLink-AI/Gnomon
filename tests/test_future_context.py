@@ -22,6 +22,7 @@ from gnomon.future_context import (
     apply_future_events,
     assess_future_events,
     parse_bound_span,
+    parse_override_scale,
     parse_override_span,
 )
 from gnomon.runtime import forecast
@@ -89,6 +90,26 @@ def test_date_and_clock_ranges_are_not_read_as_bounds(span):
 def test_more_override_phrasings_parse(span, value):
     parsed, problem = parse_override_span(span)
     assert problem is None and parsed == value
+
+
+def test_explicit_case_correction_selects_the_operative_multiplier():
+    span = (
+        "A heat wave would typically cause 9 times the usual electricity, "
+        "but in this case conservation results in only 5 times the usual "
+        "electricity.")
+    scale, problem = parse_override_scale(span)
+    assert problem is None
+    assert scale == 5.0
+
+
+@pytest.mark.parametrize("span", [
+    "Either 9 times or 5 times the usual electricity.",
+    "In this case either 9 times or 5 times the usual electricity.",
+])
+def test_multiple_multipliers_without_one_operative_correction_reject(span):
+    scale, problem = parse_override_scale(span)
+    assert scale is None
+    assert "multiple different" in problem
 
 
 @pytest.mark.parametrize("span, minimum, maximum", [

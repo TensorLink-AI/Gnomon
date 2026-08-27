@@ -150,7 +150,7 @@ def test_residue_shapes_from_the_recovery_measurement():
         "from 2024-01-15 15:00:00 for 6 hours")[0] == 0.1
     scale, problem = parse_override_scale(
         "Normally 11 times the usual level, but actually 3 times the usual level")
-    assert scale is None and "multiple different" in problem
+    assert scale == 3.0 and problem is None
     # "no <activity>" states a count of zero — the census caught
     # "no withdrawals" slipping the shorter curated noun list
     assert parse_override_span(
