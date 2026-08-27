@@ -140,7 +140,9 @@ def test_sampled_prior_prompt_separates_numeric_task_from_raw_replay_dump():
     assert "(2026-01-01T00:00:00+00:00, 3.5)" in prompt
     assert '"2026-01-02T00:00:00+00:00"' in prompt
     assert "The service will be open tomorrow." in prompt
-    assert "Preserve ordinary temporal shape" in prompt
+    assert "Factor in relevant background" in prompt
+    assert "satisfy any stated constraints" in prompt
+    assert "respect any stated scenarios" in prompt
     assert "mapping failed" not in prompt
     assert "candidate_mae" not in prompt
     assert "baseline_mae" not in prompt
@@ -2106,7 +2108,7 @@ def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
     assert client.completion_temperatures == [1]
     assert len(client.completion_prompts) == 1
     compact_prompt = " ".join(client.completion_prompts[0].split())
-    assert "Preserve ordinary temporal shape" in compact_prompt
+    assert "Factor in relevant background" in compact_prompt
     assert "mapping failed" not in compact_prompt
 
 

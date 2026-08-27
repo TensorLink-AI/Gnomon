@@ -342,9 +342,12 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: one host-sampled prior consensus when no governed path dominates.
 #: Version 169: recommendation receipts distinguish explicit best-effort policy
 #: selection from an independent LLM selector call.
-#: Version 170: sampled numeric priors use a direct compact forecast prompt and
-#: scoped counterevidence instead of the semantic compiler's diagnostic dump.
-MCP_CONTRACT_VERSION = 170
+#: Version 170: sampled numeric priors use a direct compact forecast prompt
+#: instead of the semantic compiler's diagnostic dump.
+#: Version 171: numeric elicitation explicitly applies background, constraints
+#: and scenarios, matching ordinary forecast intent without weakening host
+#: validation, provenance, or publication authority.
+MCP_CONTRACT_VERSION = 171
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -997,27 +1000,26 @@ def _sampled_state_prior_prompt(
         for timestamp, value in zip(timestamps, values))
     future = json.dumps(future_timestamps, separators=(",", ":"))
     return f"""\
-I have a time series forecasting task.
+I have a time series forecasting task for you.
 
-Context known at the forecast cutoff:
+Here is context known at the forecast cutoff. Factor in relevant background
+knowledge, satisfy any stated constraints, and respect any stated scenarios.
 <context>
 {context}
 </context>
 
-Historical target values:
+Here is the historical target series in (timestamp, value) format:
 <history>
 {history}
 </history>
 
-Predict one plausible value for each timestamp in this ordered grid:
+Predict the value at each timestamp in this ordered grid:
 {future}
 
 Return ONLY {{"forecast_path":{{"values":[0.0]}}}} with exactly one finite
-number per grid timestamp. This is one independent draw; do not output
-quantiles or commentary.
+number per grid timestamp. Do not output quantiles or commentary.
 
-Preserve ordinary temporal shape and condition on the supplied context only
-where useful. Use no observations after the cutoff.
+Use no observations after the cutoff.
 """
 
 

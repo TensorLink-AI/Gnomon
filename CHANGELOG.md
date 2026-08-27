@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Align the bounded numeric-candidate prompt with ordinary forecasting intent:
+  explicitly use relevant background, satisfy constraints and respect
+  scenarios. Host-owned timestamps, finite-value validation, receipts,
+  immutable primary output and non-automation policy remain unchanged.
 - Seal host-computed, scale-free sampled-prior stability diagnostics: marginal
   dispersion, pairwise path disagreement and temporal-direction agreement.
   These facts are visible to agents and humans as uncertainty evidence but are
