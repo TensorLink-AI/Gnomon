@@ -12,6 +12,11 @@
   conflict, confidence, and a bounded falsifiable condition. The benchmark
   counts a structurally valid forecast answer with missing reconciliation
   fields as a failed reconciliation rather than crediting opaque copying.
+- **Reconciliation reports conflict-conditioned behavior.** The diagnostic
+  now counts which source an agent names when actions conflict, whether its
+  chosen action follows the prior or primary, and purported synthesis that
+  simply reproduces the primary. This prevents a valid-looking reasoning
+  receipt from masquerading as actual use of the preserved prior.
 
 - **Weak breach evidence no longer communicates exact certainty.** Short-
   history horizon-event estimates based on independence-composed per-step

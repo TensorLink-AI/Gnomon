@@ -223,6 +223,8 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
                 selection.get("counterevidence_source") if selection else None),
             "selection_confidence": (
                 selection.get("confidence") if selection else None),
+            "what_would_change": (
+                selection.get("what_would_change") if selection else None),
             "selection_seal_sha256": (
                 selection.get("seal_sha256") if selection else None),
             **_score(answer, case),
@@ -270,6 +272,20 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
             - completed[case.case_id]["regret"]
             for origin in sampled for case in by_origin[origin]))
     bootstrap.sort()
+    conflict_rows = []
+    for case in cases:
+        prior = _prior_from_control(
+            source_rows[(case.case_id, "control")], case)
+        reconciliation = build_temporal_decision_reconciliation(
+            packets[case.case_id], prior,
+            question_sha256=_question_sha(case))
+        if reconciliation["conflict"]["action"]:
+            conflict_rows.append({
+                "row": completed[case.case_id],
+                "prior_action": prior["action"],
+                "primary_action": reconciliation[
+                    "immutable_primary"]["action_reference"],
+            })
     summary = {
         "schema_version": "0.1", "model": args.model,
         "seed": args.seed, "cases": args.cases,
@@ -296,6 +312,23 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
                 level: sum(row.get("selection_confidence") == level
                            for row in reconciled)
                 for level in ("low", "medium", "high")},
+            "action_conflicts": len(conflict_rows),
+            "source_on_action_conflict": {
+                source: sum(item["row"].get("selected_source") == source
+                            for item in conflict_rows)
+                for source in ("independent_prior", "immutable_primary",
+                               "synthesis")},
+            "chose_prior_action_on_conflict": sum(
+                item["row"]["action"] == item["prior_action"]
+                for item in conflict_rows),
+            "chose_primary_action_on_conflict": sum(
+                item["row"]["action"] == item["primary_action"]
+                for item in conflict_rows),
+            "opaque_synthesis_same_as_primary": sum(
+                item["row"].get("selected_source") == "synthesis"
+                and item["row"]["action"] == item["primary_action"]
+                and item["prior_action"] != item["primary_action"]
+                for item in conflict_rows),
         },
         "invariants": {
             "primary_forecast_unchanged": True,

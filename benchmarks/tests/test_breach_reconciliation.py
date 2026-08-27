@@ -61,7 +61,12 @@ def test_reconciliation_consumes_verified_pre_evidence_rows(tmp_path):
     assert len(rows) == 4
     assert all(row["automation_action"] == "withhold" for row in rows)
     assert all(row["selection_valid"] is True for row in rows)
+    assert all(row.get("what_would_change") for row in rows)
     assert all(row.get("request_sha256") for row in rows)
+    selection = summary["selection"]
+    assert selection["action_conflicts"] >= 0
+    assert selection["chose_prior_action_on_conflict"] <= \
+        selection["action_conflicts"]
 
 
 def test_reconciliation_rejects_tampered_source_request(tmp_path):
