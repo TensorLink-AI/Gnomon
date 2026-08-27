@@ -70,6 +70,25 @@ def test_execution_compiler_binds_known_fields_but_preserves_ambiguity(tmp_path)
         tmp_path / "history.csv", tmp_path,
     )
 
+    governed = _compile_execution_arguments(
+        base, "gnomon_forecast", {
+            "input": "/invented", "output_dir": "/invented-output",
+            "context_submission": {
+                "text": "A closure is scheduled tomorrow.",
+                "known_at": "2026-01-01T00:00:00+00:00",
+                "compiler": "host-model", "proposal": {"events": []},
+            },
+            "publication_mode": "scenario",
+            "automation_policy": {"allow": False},
+            "future_events": True,
+        }, tmp_path / "history.csv", tmp_path)
+    assert governed["input"] == str(tmp_path / "history.csv")
+    assert governed["output_dir"] == str(tmp_path / "gnomon-output")
+    assert governed["context_submission"]["compiler"] == "host-model"
+    assert governed["publication_mode"] == "scenario"
+    assert governed["automation_policy"] == {"allow": False}
+    assert governed["future_events"] is True
+
     ambiguous = {
         "kind": "messy",
         "available_at_cutoff": {

@@ -265,6 +265,92 @@ def test_batched_forecast_accepts_scoped_validated_context(tmp_path) -> None:
     assert by_series["mem"]["context_outcome"]["status"] == "not_considered"
 
 
+def test_qualitative_context_lane_produces_non_automatable_sensitivity(
+        tmp_path) -> None:
+    from datetime import date, timedelta
+    from gnomon.toolspec import runner_for
+
+    path = tmp_path / "qualitative.csv"
+    start = date(2026, 1, 1)
+    path.write_text("\n".join(["timestamp,demand"] + [
+        f"{start + timedelta(days=day)},{100 + day % 4}"
+        for day in range(40)
+    ]) + "\n")
+    source = (
+        "A confirmed campaign begins on 2026-02-10 and is expected to "
+        "increase demand, but its magnitude is unknown.")
+
+    payload = runner_for("gnomon_forecast")({
+        "input": str(path), "time_column": "timestamp",
+        "target_column": "demand", "frequency": "D", "horizon": 2,
+        "qualitative_context_events": [{
+            "event_id": "campaign-1",
+            "entity_scope": ["*"],
+            "effective_start": "2026-02-10T00:00:00+00:00",
+            "effective_end": "2026-02-11T00:00:00+00:00",
+            "known_at": "2026-02-09T00:00:00+00:00",
+            "direction": "increase", "effect_family": "temporary_pulse",
+            "duration": "temporary", "source_span": source,
+            "source_reference": "campaign-plan",
+        }],
+        "publication_mode": "scenario",
+        "output_dir": str(tmp_path / "out-qualitative"),
+    })
+
+    result = payload["results"][0]
+    assert result["context_outcome"]["status"] == "scenario_only"
+    assert result["context_outcome"]["primary_forecast_changed"] is False
+    assert result["context_outcome"]["sensitivity_scenarios_produced"] == 1
+    assert result["context_outcome"]["hypotheses"][0]["direction"] == "increase"
+    publication = payload["publication"]
+    assert publication["primary_forecast_unchanged"] is True
+    assert publication["automation"]["eligible"] is False
+    assert publication["scenario_count"] == 2
+    assert any(item["role"] == "conditional_sensitivity"
+               for item in publication["selection_contract"]["scenarios"])
+
+
+def test_qualitative_context_lane_rejects_numeric_claims_and_missing_sources():
+    import pytest
+    from gnomon.contracts import GnomonError
+    from gnomon.toolspec import _context_events_from
+
+    base = {
+        "event_id": "campaign-1",
+        "effective_start": "2026-02-10T00:00:00+00:00",
+        "effective_end": "2026-02-11T00:00:00+00:00",
+        "known_at": "2026-02-09T00:00:00+00:00",
+        "direction": "increase", "effect_family": "temporary_pulse",
+        "duration": "temporary", "source_span": "Demand should increase.",
+    }
+    with pytest.raises(GnomonError) as numeric:
+        _context_events_from({
+            "qualitative_context_events": [{**base, "magnitude": 25}],
+        })
+    assert numeric.value.details["unknown_fields"] == ["magnitude"]
+
+    with pytest.raises(GnomonError) as unsourced:
+        _context_events_from({
+            "qualitative_context_events": [{**base, "source_span": ""}],
+        })
+    assert unsourced.value.details["missing_fields"] == ["source_span"]
+
+
+def test_context_ref_conflicts_with_qualitative_inline_context():
+    import pytest
+    from gnomon.contracts import GnomonError
+    from gnomon.toolspec import _materialise_context
+
+    with pytest.raises(GnomonError) as raised:
+        _materialise_context({
+            "context_ref": "ctx_existing",
+            "qualitative_context_events": [{"event_id": "campaign-1"}],
+        })
+    assert set(raised.value.details["conflicts"]) == {
+        "context_ref", "qualitative_context_events",
+    }
+
+
 def test_context_ref_replays_validated_context_without_resending(
         tmp_path, monkeypatch) -> None:
     from datetime import date, timedelta

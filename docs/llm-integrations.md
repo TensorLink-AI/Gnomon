@@ -55,6 +55,15 @@ separate `hypothetical_sensitivity` path using one robust innovation scale
 from the target history. Hosts must present that path as a what-if sensitivity,
 never as the primary forecast, expected effect, or probability-bearing claim.
 
+On the MCP surface, use `context_events` only when the source states a literal
+numeric bound, override, or cessation. When direction or shape is known but
+magnitude is not, send `qualitative_context_events` with the verbatim
+`source_span`, timing, direction, effect family, and duration. Gnomon keeps the
+history-only primary immutable and exposes the claim only as a labelled,
+non-automatable sensitivity scenario. Use `context_submission` for non-event
+claims and dossiers. Malformed context is rejected with typed repair
+information rather than silently ignored or coerced into a numeric claim.
+
 ### Provider-neutral sampled priors
 
 For `best_effort` or `scenario` workflows, a host may let its own model propose

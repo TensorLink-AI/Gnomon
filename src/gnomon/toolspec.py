@@ -20,20 +20,20 @@ _CONTEXT_EVENTS_PROPERTY: dict[str, Any] = {
     "context_events": {
         "type": "array",
         "description": (
-            "Inline context events; combined with context_events_file. "
-            "Admission remains strict; preflight deterministic claims first."
+            "Literal numeric bounds/states or cessation only. Unknown "
+            "magnitude => qualitative_context_events."
         ),
         "items": {
             "type": "object",
             "properties": {
                 "event_id": {"type": "string", "description": "Unique id for this event."},
-                "event_type": {"type": "string", "description": "constraint:<label> (stated bound), override:<label> (stated level/state), structural:<label> (stated cessation; needs attributes.effect), or a plain type for the fold-ablation gate."},
-                "entity_scope": {"type": "array", "items": {"type": "string"}, "description": "Series names the event applies to; [\"*\"] for all."},
-                "effective_start": {"type": "string", "description": "ISO-8601 with an explicit timezone offset."},
-                "effective_end": {"type": "string", "description": "ISO-8601 with an explicit offset; not before effective_start."},
-                "known_at": {"type": "string", "description": "When the information became knowable; ISO-8601 with an explicit offset."},
-                "attributes": {"type": "object", "description": "Per-class payload: source_span (the claim sentence, quoted VERBATIM — the only admissible source of numbers), effect (trend_ceases | level_matches_seasonal_high | level_matches_seasonal_low), or claim ({kind: min|max, value: number})."},
-                "source": {"type": "object", "properties": {"type": {"type": "string"}, "reference": {"type": "string"}}, "description": "Where the information came from."},
+                "event_type": {"type": "string", "description": "constraint:<label> for literal bounds; override:<label> for literal states; structural:<label> for cessation; otherwise plain."},
+                "entity_scope": {"type": "array", "items": {"type": "string"}, "description": "Series names, or [\"*\"]."},
+                "effective_start": {"type": "string", "description": "Offset-aware ISO-8601."},
+                "effective_end": {"type": "string", "description": "Offset-aware ISO-8601."},
+                "known_at": {"type": "string", "description": "First knowable time, offset-aware ISO-8601."},
+                "attributes": {"type": "object", "description": "Class payload; numeric claims require verbatim source_span."},
+                "source": {"type": "object", "properties": {"type": {"type": "string"}, "reference": {"type": "string"}}},
                 "created_by": {"type": "string", "description": "user | llm | pipeline."},
             },
             "required": ["event_id", "event_type", "entity_scope",
@@ -46,6 +46,17 @@ _CONTEXT_EVENTS_PROPERTY: dict[str, Any] = {
             "Prior context receipt; replaces both event inputs. Timing and "
             "admission are rechecked."
         ),
+    },
+    "qualitative_context_events": {
+        "type": "array",
+        "description": (
+            "Unknown-magnitude events: event_id; ISO effective_start/end/known_at; "
+            "verbatim source_span; direction increase|decrease|unknown; "
+            "effect_family level_shift|temporary_pulse|variance_change|"
+            "seasonal_regime_change; duration temporary|persistent|unknown; "
+            "optional entity_scope/source_reference. Sensitivity only."
+        ),
+        "items": {"type": "object"},
     },
 }
 
@@ -1514,13 +1525,15 @@ def _run_validate_covariates(arguments: dict[str, Any]) -> dict[str, Any]:
 
 
 def _context_events_from(arguments: dict[str, Any]):
-    """Events from the file channel, the inline channel, or both.
+    """Events from file, strict inline, and qualitative inline channels.
 
     The inline channel exists because an MCP client holds no
     filesystem: with a file-only parameter the admission lanes were
     unreachable from the published tool surface — a model could be
     told about future_events and still have no way to supply an event.
-    Both channels validate loudly through the same contract check.
+    All channels validate loudly through the same contract check. Qualitative
+    events are structurally unable to enter numeric admission: they can only
+    create labelled, non-automatable sensitivity scenarios.
     """
     from .context import events_from_list
     from .contracts import GnomonError
@@ -1536,6 +1549,77 @@ def _context_events_from(arguments: dict[str, Any]):
                 "context_events must be an array of event objects",
             )
         events = (events or []) + events_from_list(inline)
+    qualitative = arguments.get("qualitative_context_events")
+    if qualitative is not None:
+        if not isinstance(qualitative, list):
+            raise GnomonError(
+                "INVALID_ARGUMENTS",
+                "qualitative_context_events must be an array of event objects",
+            )
+        normalized = []
+        for item in qualitative:
+            if not isinstance(item, dict):
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "qualitative_context_events items must be objects",
+                )
+            allowed_fields = {
+                "event_id", "entity_scope", "effective_start",
+                "effective_end", "known_at", "direction", "effect_family",
+                "duration", "source_span", "source_reference",
+            }
+            unknown_fields = sorted(set(item) - allowed_fields)
+            if unknown_fields:
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "qualitative_context_events contains unsupported fields",
+                    {"unknown_fields": unknown_fields},
+                )
+            required_fields = {
+                "event_id", "effective_start", "effective_end", "known_at",
+                "direction", "effect_family", "duration", "source_span",
+            }
+            missing_fields = sorted(field for field in required_fields
+                                    if item.get(field) in (None, ""))
+            if missing_fields:
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "qualitative_context_events is missing required fields",
+                    {"missing_fields": missing_fields},
+                )
+            source_span = str(item.get("source_span") or "").strip()
+            if not source_span:
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "qualitative_context_events.source_span is required",
+                )
+            normalized.append({
+                "event_id": item.get("event_id"),
+                # A non-reserved namespace makes numeric future-context
+                # admission structurally unreachable for this lane.
+                "event_type": "qualitative:" + str(item.get("event_id")),
+                "entity_scope": item.get("entity_scope") or ["*"],
+                "effective_start": item.get("effective_start"),
+                "effective_end": item.get("effective_end"),
+                "known_at": item.get("known_at"),
+                "status": "confirmed",
+                "confidence": 1.0,
+                "attributes": {
+                    "source_span": source_span,
+                    "soft_context": {
+                        "effect_family": item.get("effect_family"),
+                        "direction": item.get("direction"),
+                        "duration": item.get("duration"),
+                        "entity_kind": "unknown",
+                    },
+                },
+                "source": {
+                    "type": "user_supplied",
+                    "reference": str(item.get("source_reference") or "inline"),
+                },
+                "created_by": "llm",
+            })
+        events = (events or []) + events_from_list(normalized)
     return events
 
 
@@ -1556,7 +1640,8 @@ def _materialise_context(
         raise GnomonError(
             "INVALID_ARGUMENTS", "reserved internal context field supplied")
     carries_context = any(arguments.get(key) is not None for key in (
-        "context_ref", "context_events", "context_events_file"))
+        "context_ref", "context_events", "context_events_file",
+        "qualitative_context_events"))
     if not carries_context:
         return arguments, None
     from .context import event_to_dict
@@ -1564,12 +1649,13 @@ def _materialise_context(
     from .soft_context import make_context_receipt
 
     supplied = [key for key in ("context_ref", "context_events",
-                                "context_events_file")
+                                "context_events_file",
+                                "qualitative_context_events")
                 if arguments.get(key) is not None]
     if "context_ref" in supplied and len(supplied) > 1:
         raise GnomonError(
             "INVALID_ARGUMENTS",
-            "context_ref replaces context_events and context_events_file; "
+            "context_ref replaces all inline/file context event channels; "
             "do not supply both.",
             {"conflicts": supplied},
         )
@@ -1585,8 +1671,9 @@ def _materialise_context(
                 {"context_ref": reference},
                 repair_options=[{
                     "action": "resupply_context",
-                    "description": ("Send context_events or context_events_file "
-                                    "again to receive a fresh context_ref."),
+                    "description": (
+                        "Send context_events, qualitative_context_events, or "
+                        "context_events_file again to receive a fresh context_ref."),
                 }],
             ) from error
         events = []
@@ -1605,7 +1692,8 @@ def _materialise_context(
             events, trust_declared_creator=True)
         return ({**{key: value for key, value in arguments.items()
                     if key not in {"context_ref", "context_events_file",
-                                   "context_events"}},
+                                   "context_events",
+                                   "qualitative_context_events"}},
                  "_materialized_context_events": materialized}, {
             "status": "hit", "context_ref": reference,
             "receipt_id": receipt["receipt_id"], "compiler_reused": True,
@@ -1639,7 +1727,8 @@ def _materialise_context(
         materialized.append(replace(
             event, attributes=dict(raw.get("attributes") or {})))
     return ({**{key: value for key, value in arguments.items()
-                if key not in {"context_events_file", "context_events"}},
+                if key not in {"context_events_file", "context_events",
+                               "qualitative_context_events"}},
              "_materialized_context_events": materialized}, {
         "status": "stored", "context_ref": reference,
         "receipt_id": receipt["receipt_id"], "compiler_reused": False,

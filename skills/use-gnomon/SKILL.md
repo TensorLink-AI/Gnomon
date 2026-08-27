@@ -21,11 +21,18 @@ Prefer one sufficient call. Fetch an artifact only when the user requests deeper
 
 When the user supplies dated events, operating constraints, reference-series
 facts, or other forecast-relevant text, never silently drop it and never mix a
-model-authored adjustment into the primary forecast. Submit it through
-`gnomon_forecast.context_submission` with exact source spans, the cutoff-time
-`known_at`, compiler identity, and typed proposal. Every submitted item must
-finish as used, rejected with a typed reason, or retained as a labelled
-scenario.
+model-authored adjustment into the primary forecast. Put bounded dated events
+in `gnomon_forecast.context_events` using exact ISO timestamps, `known_at`,
+verbatim `attributes.source_span`, and a source reference. Use reserved
+`constraint:<label>` or `override:<label>` event types only when the quoted
+text literally supplies that bound or state, and set `future_events: true` for
+future-dated constraints. When direction and shape are stated but magnitude is
+unknown, use `qualitative_context_events`; it intentionally has no magnitude
+field and can produce only a labelled sensitivity. Put non-event claims,
+hypotheses, transformations, or a model-authored conditional path in
+`context_submission` with the original text, cutoff-time `known_at`, compiler
+identity, and typed proposal. Every submitted item must finish as used,
+rejected with a typed reason, or retained as a labelled scenario.
 
 Choose publication mode from the user's intent:
 

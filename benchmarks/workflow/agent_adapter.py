@@ -215,6 +215,18 @@ def _compile_execution_arguments(
     # output paths) instead of merging them into the host-resolved call.
     compiled = {"input": str(csv_path), "time_column": "timestamp",
                 "frequency": "D"}
+    # The host owns transport and data identity, while the agent owns the
+    # user's explicitly supplied context and publication intent. Preserve the
+    # latter through the compilation boundary so this arm measures the real
+    # MCP contract instead of silently deleting the feature under test.
+    for key in (
+        "context_submission", "temporal_dossiers", "publication_mode",
+        "scenario_selection", "automation_policy", "context_events",
+        "qualitative_context_events", "context_ref", "future_events",
+        "structural_events",
+    ):
+        if key in arguments:
+            compiled[key] = arguments[key]
     columns = [key for key in _columns(case["available_at_cutoff"])
                if key != "timestamp"]
     revealed_target = (case.get("revealed") or {}).get("target_column")
@@ -327,6 +339,10 @@ def _normalize(case: dict[str, Any], value: dict[str, Any], *, calls: int,
                          "surface_required_calls", 0),
                      "recovery_calls": engine_evidence.get("recovery_calls", 0),
                      "redundant_calls": engine_evidence.get("redundant_calls", 0),
+                     "context_arguments": engine_evidence.get(
+                         "context_arguments", []),
+                     "context_behavior": engine_evidence.get(
+                         "context_behavior"),
                      **({"error": "model_submission_error"} if status == "error" else {}),
                      "artifact_id": engine_evidence.get("artifact_id"),
                      "agent_artifact_id": value.get("artifact_id"),
@@ -414,13 +430,16 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
             "gnomon_inspect" if case.get("kind") == "multiseries" else
             "gnomon_forecast"
         )
+        skill_path = repository / "skills" / "use-gnomon" / "SKILL.md"
+        skill = skill_path.read_text(encoding="utf-8")
         messages = [
             {"role": "system", "content": (
                 "Use Gnomon for temporal computation. The CSV is inside your path jail. "
                 "End with submit_answer. Gnomon-authored numbers must be quoted faithfully; "
                 "if support is weak, return the forecast with its degraded/best_effort label. "
                 f"For this task, call {preferred_name} exactly once, then submit from that response. "
-                "Do not inspect first, read an artifact, or repeat a successful tool."
+                "Do not inspect first, read an artifact, or repeat a successful tool.\n\n"
+                "Installed Gnomon skill:\n" + skill
             )},
             {"role": "user", "content": _prompt(case, csv_path)},
         ]
@@ -467,11 +486,37 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                 sequence.append(name)
                 arguments = _compile_execution_arguments(
                     case, name, arguments, csv_path, jail)
+                context_keys = [key for key in (
+                    "context_submission", "temporal_dossiers",
+                    "context_events", "qualitative_context_events",
+                    "context_ref", "publication_mode",
+                    "scenario_selection", "automation_policy",
+                ) if key in arguments]
+                if context_keys:
+                    engine_evidence["context_arguments"] = context_keys
                 if calls > MAX_TOOL_CALLS:
                     content = json.dumps({"code": "TOOL_BUDGET_SPENT"})
                 else:
                     result = session.call_tool(name, arguments)
                     structured = result.get("structuredContent") or {}
+                    publication = (structured.get("publication")
+                                   if isinstance(structured, dict) else None)
+                    if isinstance(publication, dict):
+                        summary = publication.get("context_summary") or {}
+                        automation = publication.get("automation") or {}
+                        engine_evidence["context_behavior"] = {
+                            "status": summary.get("status"),
+                            "recommended_scenario_id": publication.get(
+                                "recommended_scenario_id"),
+                            "recommended_support": publication.get(
+                                "recommended_support"),
+                            "primary_forecast_unchanged": publication.get(
+                                "primary_forecast_unchanged"),
+                            "automation_eligible": automation.get("eligible"),
+                            "scenario_count": publication.get(
+                                "scenario_count", len(
+                                    publication.get("scenarios") or [])),
+                        }
                     if isinstance(structured, dict) and structured.get("status") not in {
                             "error", "invalid"}:
                         # The product host owns this state transition. Once a
