@@ -1840,6 +1840,9 @@ def _task_series(task_instance: Any) -> tuple[list[str], list[float]]:
 
 def _task_target_name(task_instance: Any) -> str:
     """Preserve the source column's semantic identity for context binding."""
+    explicit = str(getattr(task_instance, "target_name", "") or "").strip()
+    if explicit:
+        return _semantic_column_name(explicit)
     past = task_instance.past_time
     if hasattr(past, "columns") and len(past.columns):
         name = _semantic_column_name(past.columns[-1])
@@ -4024,7 +4027,10 @@ class _Run:
                              for item in existing_events}
             for derived in derived_events:
                 event = {
-                    **derived, "entity_scope": ["__default__"],
+                    # Validate against the semantic input column first. The
+                    # runtime conversion to ``__default__`` happens only
+                    # after ``parse_context_response`` accepts this binding.
+                    **derived, "entity_scope": [self.target_name],
                     "host_target_binding": "single_target_verified_claim",
                 }
                 quote = str(event.get("evidence_quote") or
