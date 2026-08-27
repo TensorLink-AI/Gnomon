@@ -1780,6 +1780,133 @@ def fit_companion_level_candidate(
     }
 
 
+def fit_categorical_state_candidate(
+    target_history: list[float], state_history: list[str],
+    future_states: list[str], *, primary: list[dict[str, Any]],
+    claim_ids: list[str], hypothesis_id: str,
+    minimum_overlap: int = 8, shrinkage: float = 2.0,
+) -> dict[str, Any]:
+    """Fit a fold-safe state-conditional level forecast.
+
+    This executable is for observed schedules such as open/closed,
+    promotion/control, or cloudy/clear.  State labels are never interpreted as
+    numeric magnitudes.  At each replay origin the state level is estimated
+    only from earlier target/state pairs and shrunk toward the earlier global
+    median.  The fitted relationship is retrospective and human-review-only;
+    it cannot upgrade support or authorize automation.
+    """
+    if len(target_history) != len(state_history):
+        raise ValueError("target and categorical-state histories must align")
+    if len(target_history) < minimum_overlap:
+        raise ValueError(
+            f"categorical-state mapping requires {minimum_overlap} rows")
+    if len(future_states) != len(primary) or not primary:
+        raise ValueError("future states must match the forecast horizon")
+    if shrinkage <= 0 or not math.isfinite(shrinkage):
+        raise ValueError("categorical-state shrinkage must be positive")
+    target = [float(value) for value in target_history]
+    states = [str(value).strip().casefold() for value in state_history]
+    future = [str(value).strip().casefold() for value in future_states]
+    if (not all(math.isfinite(value) for value in target)
+            or any(not value for value in [*states, *future])):
+        raise ValueError("categorical-state inputs must be finite and non-empty")
+
+    def estimate(values: list[float], labels: list[str], state: str) -> tuple[float, int]:
+        global_level = statistics.median(values)
+        matched = [value for value, label in zip(values, labels)
+                   if label == state]
+        if not matched:
+            return global_level, 0
+        weight = len(matched) / (len(matched) + shrinkage)
+        return (global_level + weight *
+                (statistics.median(matched) - global_level), len(matched))
+
+    predictions, actuals, baselines = [], [], []
+    replay_start = max(4, minimum_overlap // 2)
+    for origin in range(replay_start, len(target)):
+        prediction, _ = estimate(target[:origin], states[:origin], states[origin])
+        predictions.append(prediction)
+        actuals.append(target[origin])
+        baselines.append(target[origin - 1])
+    candidate_mae = (statistics.mean(abs(a - b) for a, b in
+                                     zip(actuals, predictions))
+                     if actuals else math.inf)
+    baseline_mae = (statistics.mean(abs(a - b) for a, b in
+                                    zip(actuals, baselines))
+                    if actuals else math.inf)
+    skill = (1 - candidate_mae / max(baseline_mae, 1e-12)
+             if math.isfinite(candidate_mae) and math.isfinite(baseline_mae)
+             else -math.inf)
+    fitted = [estimate(target, states, state)[0] for state in states]
+    residuals = [actual - prediction for actual, prediction in zip(target, fitted)]
+    center = statistics.median(residuals)
+    mad = statistics.median(abs(value - center) for value in residuals)
+    scale = max(statistics.median(abs(value) for value in target), 1.0)
+    base_width = max(1.2815515655446004 * 1.4826 * mad,
+                     scale * 1e-6)
+    state_counts = {state: states.count(state) for state in set(states)}
+    replay_points = len(actuals)
+    evidence_weight = min(1.0, replay_points / 8.0)
+    baseline_point = target[-1]
+    rows = []
+    for source, state in zip(primary, future):
+        raw_point, count = estimate(target, states, state)
+        point = baseline_point + evidence_weight * (raw_point - baseline_point)
+        sparse_penalty = scale if count == 0 else base_width * (1 + 2 / count)
+        half_width = max(base_width, sparse_penalty, abs(raw_point - point))
+        rows.append({
+            "timestamp": source.get("timestamp"), "point": point,
+            "q10": point - half_width, "q50": point,
+            "q90": point + half_width, "state": state,
+        })
+    future_state_counts = {state: state_counts.get(state, 0)
+                           for state in sorted(set(future))}
+    states_supported = all(count >= 2 for count in future_state_counts.values())
+    eligible = bool(replay_points >= 3 and states_supported and skill >= .02)
+    return {
+        "hypothesis_id": hypothesis_id,
+        "kind": "fitted_categorical_state_mapping",
+        "forecast": rows,
+        "quantiles": [{key: row[key] for key in
+                       ("timestamp", "q10", "q50", "q90")} for row in rows],
+        "claim_ids": list(dict.fromkeys(str(item) for item in claim_ids)),
+        "rationale": (
+            "Governed categorical-state mapping: robust state-conditional "
+            "levels estimated with expanding-origin replay and sparse-state "
+            "shrinkage."),
+        "provenance_class": "governed_categorical_state_mapping",
+        "validation": {
+            "scheme": "expanding_origin_state_conditional_level",
+            "mapping": "shrunk_state_median",
+            "overlap_points": len(target),
+            "validation_points": replay_points,
+            "candidate_mae": candidate_mae,
+            "baseline_mae": baseline_mae,
+            "skill": skill,
+            "beats_baseline": eligible,
+            "baseline": "last_value",
+            "future_state_counts": future_state_counts,
+            "all_future_states_observed_twice": states_supported,
+            "relationship_known_at_each_origin": False,
+            "input_observations_known_at_each_origin": True,
+            "publication_evidence_weight": evidence_weight,
+            "publication_shrunk_to_baseline": evidence_weight < 1.0,
+        },
+        "support": "prior_assisted",
+        "selection_eligible": eligible,
+        "automation_eligible": False,
+        "primary_forecast_unchanged": True,
+        "executable": {
+            "kind": "fitted_categorical_state_mapping", "version": "0.1",
+            "states": sorted(state_counts),
+            "state_counts": state_counts,
+            "baseline_point": baseline_point,
+            "publication_evidence_weight": evidence_weight,
+            "shrinkage": shrinkage,
+        },
+    }
+
+
 def fit_vintage_exogenous(
     rows: list[dict[str, Any]], *, target_key: str, predictor_keys: list[str],
     cutoff: str, hypothesis_id: str, minimum_train: int = 20,

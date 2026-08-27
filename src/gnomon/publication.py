@@ -131,6 +131,18 @@ def _scope_recovery_actions(
 
 def dominant_scenario_id(scenarios: list[dict[str, Any]]) -> str | None:
     """Return the path that evidence makes non-discretionary, if any."""
+    primary = next((item for item in scenarios
+                    if item.get("role") == "immutable_primary"), None)
+    alternatives = [item for item in scenarios
+                    if item.get("role") != "immutable_primary"]
+    if primary is not None and alternatives and not any(
+            item.get("human_selection_eligible",
+                     item.get("selection_eligible", True)) is True
+            for item in alternatives):
+        # Failed admission is already a deterministic result. Asking an LLM
+        # to rank a path it is forbidden to select adds latency and creates a
+        # misleading appearance of discretion where none exists.
+        return str(primary["scenario_id"])
     historically_admitted = [item for item in scenarios
                              if item.get("role") == "historically_admitted"]
     if historically_admitted:
@@ -721,8 +733,9 @@ def build_scenario_catalog(result: dict[str, Any], *,
             continue
         source_critique = source_dossier.get("candidate_critique") or {}
         source_candidate = source_dossier.get("forecast_candidate") or {}
-        if (source_critique.get("candidate_origin") !=
-                "governed_companion_mapping"
+        if (source_critique.get("candidate_origin") not in {
+                "governed_companion_mapping",
+                "governed_categorical_state_mapping"}
                 or (source_candidate.get("validation") or {}).get(
                     "beats_baseline") is not True):
             continue
@@ -955,8 +968,9 @@ def build_scenario_catalog(result: dict[str, Any], *,
                  candidate_origin == "calibration_counterfactual" else
                  "observation_counterfactual" if candidate_origin ==
                  "observation_interpretation_counterfactual" else
-                 "governed_companion_mapping" if candidate_origin ==
-                 "governed_companion_mapping" else
+                 candidate_origin if candidate_origin in {
+                     "governed_companion_mapping",
+                     "governed_categorical_state_mapping"} else
                  "model_authored"),
                 _candidate_rows(candidate, primary),
                 support=("conditionally_supported" if replay_admitted
@@ -1007,6 +1021,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
             "context_conditioned": 90,
             "fitted_context_candidate": 80,
             "governed_companion_mapping": 80,
+            "governed_categorical_state_mapping": 80,
             "effect_composed": 70,
             "model_authored": 60,
             "observation_counterfactual": 75,

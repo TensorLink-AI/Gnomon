@@ -315,7 +315,13 @@ MIN_CONTEXT_REPAIR_SECONDS = 10.0
 #: replay evidence, one bounded repair, and auditable portfolio telemetry.
 #: Version 157: qualitative context uses a compact claim/event contract and an
 #: empty compile receives one bounded repair instead of being silently erased.
-MCP_CONTRACT_VERSION = 157
+#: Version 158: explicit categorical state histories and future schedules use
+#: a deterministic parser plus a fold-replayed state-level executable.
+#: Version 159: a failed governed alternative is deterministically dominated
+#: by the primary, so the adapter does not spend an LLM call re-ranking it.
+#: Version 160: categorical transition citations bind to the exact host grid
+#: timestamp, preserving timezone provenance without model normalization.
+MCP_CONTRACT_VERSION = 160
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -918,6 +924,126 @@ def _extract_structured_companion_tables(
         tables.append({"name": name[:64], "type": "continuous", "rows": rows})
     names = [table["name"] for table in tables]
     return tables if len(names) == len(set(names)) else []
+
+
+def _extract_categorical_state_schedule(
+        text: str, history_timestamps: list[str],
+        future_timestamps: list[str],
+) -> dict[str, Any] | None:
+    """Parse an explicit timestamped state log without inventing magnitudes.
+
+    The accepted grammar is intentionally narrow and domain-neutral:
+    ``At the beginning ... <subject> was <state>`` followed by timestamped
+    ``became``/``will become`` transitions. Labels remain categorical; their
+    numeric effect is learned separately by fold-safe replay.
+    """
+    lines = [re.sub(r"^(?:Background|Scenario|Constraints):\s*", "",
+                    line.strip(), flags=re.IGNORECASE)
+             for line in text.splitlines() if line.strip()]
+    beginning_pattern = re.compile(
+        r"^At the beginning of (?:the )?series,\s+(?:the\s+)?"
+        r"(?P<subject>[A-Za-z][A-Za-z _-]*?)\s+was\s+"
+        r"(?P<state>[A-Za-z][A-Za-z_-]*)\.$", re.IGNORECASE)
+    transition_pattern = re.compile(
+        r"^At\s+(?P<time>[^,]+),\s+(?:we expect that\s+)?(?:the\s+)?"
+        r"(?P<subject>[A-Za-z][A-Za-z _-]*?)\s+"
+        r"(?:(?:will\s+)?become|became)\s+"
+        r"(?P<state>[A-Za-z][A-Za-z_-]*)\.$", re.IGNORECASE)
+    initial = None
+    transitions: list[dict[str, Any]] = []
+    for line in lines:
+        match = beginning_pattern.fullmatch(line)
+        if match and initial is None:
+            initial = {
+                "subject": "_".join(match.group("subject").casefold().split()),
+                "state": match.group("state").casefold(), "quote": line,
+            }
+            continue
+        match = transition_pattern.fullmatch(line)
+        if not match:
+            continue
+        try:
+            stamp = datetime.fromisoformat(
+                match.group("time").strip().replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        transitions.append({
+            "subject": "_".join(match.group("subject").casefold().split()),
+            "state": match.group("state").casefold(), "quote": line,
+            "time": stamp, "source_time": match.group("time").strip(),
+        })
+    if initial is None or not transitions:
+        return None
+    if any(item["subject"] != initial["subject"] for item in transitions):
+        return None
+
+    def comparable(value: str) -> datetime:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return parsed.replace(tzinfo=None)
+
+    grid = [*history_timestamps, *future_timestamps]
+    try:
+        grid_times = [comparable(value) for value in grid]
+    except ValueError:
+        return None
+    grid_set = set(grid_times)
+    canonical_by_time = dict(zip(grid_times, grid))
+    normalized = [{**item, "time": item["time"].replace(tzinfo=None)}
+                  for item in transitions]
+    normalized.sort(key=lambda item: item["time"])
+    if any(item["time"] not in grid_set for item in normalized):
+        return None
+    state, quote = initial["state"], initial["quote"]
+    schedule, cursor = [], 0
+    for timestamp, stamp in zip(grid, grid_times):
+        while cursor < len(normalized) and normalized[cursor]["time"] <= stamp:
+            state = normalized[cursor]["state"]
+            quote = normalized[cursor]["quote"]
+            cursor += 1
+        schedule.append({"timestamp": timestamp, "state": state,
+                         "evidence_quote": quote})
+    history_count = len(history_timestamps)
+    history_states = [item["state"] for item in schedule[:history_count]]
+    future_states = [item["state"] for item in schedule[history_count:]]
+    if len(set(history_states)) < 2 or not future_states:
+        return None
+
+    cited = [initial, *normalized]
+    claims = []
+    for item in cited:
+        is_transition = "time" in item
+        timestamp = (canonical_by_time.get(item["time"])
+                     if is_transition else None)
+        claims.append({
+            "source_span": item["quote"], "relation": "unknown",
+            "effective_start": timestamp, "effective_end": timestamp,
+            "timing_status": ("resolved" if is_transition else
+                              "atemporal_context"),
+            "mechanism": "source-stated categorical state transition",
+            "confidence": 1.0,
+        })
+    claim_ids = [f"claim-{index}" for index in range(1, len(claims) + 1)]
+    raw = {
+        "events": [], "claims": claims,
+        "hypotheses": [{
+            "kind": "unsupported", "claim_ids": claim_ids,
+            "target_series": ["*"], "predictor_series": None,
+            "known_at": history_timestamps[-1], "lag_steps": 0,
+            "direction": "unknown",
+            "rationale": (
+                "The source supplies an observed categorical state history "
+                "and a known future state schedule; estimate its target-level "
+                "association by expanding-origin replay."),
+        }],
+        "covariate_tables": [], "transformations": [],
+        "observation_interpretations": [], "effect_proposal": None,
+        "forecast_candidate": None,
+    }
+    return {
+        "name": initial["subject"], "raw": raw,
+        "history_states": history_states, "future_states": future_states,
+        "claim_ids": claim_ids, "schedule": schedule,
+    }
 
 
 def _validated_item_count(value: Any) -> int:
@@ -2833,7 +2959,11 @@ class _Run:
         context = "\n\n".join(part for part in (
             narrative_context, self.companion_evidence) if part)
         future_timestamps = _task_future_timestamps(self.task)
-        relationship_contract = _has_explicit_lag_relationship(context)
+        categorical_schedule = _extract_categorical_state_schedule(
+            narrative_context, self.timestamps, future_timestamps)
+        relationship_contract = bool(
+            categorical_schedule is None
+            and _has_explicit_lag_relationship(context))
         observation_contract = (
             not relationship_contract
             and _expects_historical_zero_interpretation(context))
@@ -2967,7 +3097,13 @@ class _Run:
                     if host_fallback and isinstance(payload, dict):
                         payload["source_claim_ids"] = ["claim-1"]
             return candidate
-        if deterministic_companion_tables:
+        if categorical_schedule is not None:
+            raw = bind_active_target(categorical_schedule["raw"])
+            compiler_calls.append({
+                "stage": "deterministic_categorical_state_parse",
+                "elapsed_seconds": 0.0,
+            })
+        elif deterministic_companion_tables:
             raw = bind_active_target({
                 "events": [], "claims": [], "hypotheses": [],
                 "covariate_tables": deterministic_companion_tables,
@@ -3096,6 +3232,10 @@ class _Run:
             unresolved_context and _has_material_numeric_context(context))
         future_path_needs_executable = _future_numeric_path_needs_executable(
             context, future_timestamps, raw)
+        if categorical_schedule is not None:
+            # State labels are categorical observations, not numeric paths.
+            # The deterministic fitted executable below owns their influence.
+            future_path_needs_executable = False
         companion_mapping_pending = bool(
             companion_contract and raw.get("covariate_tables")
             and future_path_needs_executable)
@@ -4054,6 +4194,20 @@ class _Run:
             history_timestamps=self.timestamps,
             compiler_model=self.forecaster.openrouter_model,
             validated_events=events)
+        governed_categorical = None
+        if categorical_schedule is not None:
+            from gnomon.context_intelligence import (
+                fit_categorical_state_candidate)
+            governed_categorical = fit_categorical_state_candidate(
+                self.values, categorical_schedule["history_states"],
+                categorical_schedule["future_states"],
+                primary=[{"timestamp": timestamp}
+                         for timestamp in future_timestamps],
+                claim_ids=[str(item["claim_id"]) for item in
+                           preliminary_dossier.get("claims") or []],
+                hypothesis_id=(
+                    "host-verified-categorical-state:"
+                    + str(categorical_schedule["name"])))
         governed_companion = _fit_governed_companion_from_receipt(
             covariate_receipt, context=context,
             history_timestamps=self.timestamps, history_values=self.values,
@@ -4070,13 +4224,14 @@ class _Run:
             governed_companion["validation"] = governed_validation
             governed_companion["selection_eligible"] = bool(
                 provisional_companion.get("selection_eligible"))
+        governed_candidate = governed_categorical or governed_companion
         dossier, dossier_rejections = validate_temporal_dossier(
             raw, context_text=context, cutoff=self.timestamps[-1],
             future_timestamps=future_timestamps, history=self.values,
             history_timestamps=self.timestamps,
             compiler_model=self.forecaster.openrouter_model,
             validated_events=events,
-            governed_candidate=governed_companion,
+            governed_candidate=governed_candidate,
             candidate_selection_eligible=not candidate_blocked_by_transform,
             candidate_selection_reason=(
                 "Accompanying governed transformation failed preflight; the "
@@ -4123,7 +4278,8 @@ class _Run:
                 "context_unresolved: the compiler returned no grounded event, "
                 "claim, covariate, transformation, or candidate; the immutable "
                 "primary remains visible and the context did not influence it")
-        deterministic_front_door = bool(deterministic_companion_tables)
+        deterministic_front_door = bool(
+            deterministic_companion_tables or categorical_schedule)
         payload = {
             "schema_version": 1,
             "compiler": {
@@ -4139,6 +4295,8 @@ class _Run:
                              if relationship_contract else
                              "historical_observation_semantics"
                              if observation_contract else
+                             "categorical_state_schedule"
+                             if categorical_schedule else
                              "structured_companion_paths"
                              if companion_contract else "universal_dossier"),
                 "prompt_bytes": (model_candidate_prompt_bytes

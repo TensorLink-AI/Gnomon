@@ -6,6 +6,7 @@ import pytest
 
 from gnomon.llm_dossier import validate_temporal_dossier
 from gnomon.publication import (build_scenario_catalog, publish_result,
+                                dominant_scenario_id,
                                 scenario_selection_contract, select_publication,
                                 verify_publication, write_publication)
 from gnomon.publication import record_publication
@@ -26,6 +27,16 @@ def _result():
             {"timestamp": TIMES[1], "point": 10.0, "q10": 9, "q50": 10, "q90": 11},
         ],
     }
+
+
+def test_failed_alternatives_do_not_trigger_a_model_selection_call():
+    scenarios = [
+        {"scenario_id": "primary", "role": "immutable_primary",
+         "selection_eligible": True, "human_selection_eligible": True},
+        {"scenario_id": "state", "role": "governed_categorical_state_mapping",
+         "selection_eligible": False, "human_selection_eligible": False},
+    ]
+    assert dominant_scenario_id(scenarios) == "primary"
 
 
 def _dossier():

@@ -46,6 +46,7 @@ from benchmarks.cik.mcp_agent import (
     _fit_governed_companion_from_receipt,
     _looks_like_structured_companion_context,
     _extract_structured_companion_tables,
+    _extract_categorical_state_schedule,
 )
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -106,6 +107,29 @@ def test_structured_companion_front_door_is_exact_and_fail_closed():
         block.replace("2024-06-01", "2024-07-01"), history, future) == []
     assert _extract_structured_companion_tables(
         block.replace("1.5", "not-a-number"), history, future) == []
+
+
+def test_categorical_state_schedule_is_exact_labelled_and_fail_closed():
+    history = [f"2024-01-01T{hour:02d}:00:00" for hour in range(4)]
+    future = [f"2024-01-01T{hour:02d}:00:00" for hour in range(4, 6)]
+    text = "\n".join([
+        "At the beginning of the series, the service was open.",
+        "At 2024-01-01 02:00:00, the service became closed.",
+        "At 2024-01-01 04:00:00, we expect that the service will become open.",
+    ])
+    parsed = _extract_categorical_state_schedule(text, history, future)
+    assert parsed is not None
+    assert parsed["name"] == "service"
+    assert parsed["history_states"] == ["open", "open", "closed", "closed"]
+    assert parsed["future_states"] == ["open", "open"]
+    assert parsed["raw"]["forecast_candidate"] is None
+    assert parsed["raw"]["hypotheses"][0]["kind"] == "unsupported"
+
+    assert _extract_categorical_state_schedule(
+        text.replace("the service became", "the market became"),
+        history, future) is None
+    assert _extract_categorical_state_schedule(
+        text.replace("04:00:00", "04:30:00"), history, future) is None
 
 
 @pytest.mark.parametrize("wrapper", [
@@ -1905,6 +1929,49 @@ def test_empty_compile_of_qualitative_context_gets_one_bounded_repair(tmp_path):
     decision = receipt["compiler"]["repair_decisions"][0]
     assert decision["context_unresolved"] is True
     assert decision["numeric_context_unresolved"] is False
+
+
+def test_categorical_state_front_door_skips_llm_and_fits_governed_candidate(
+        tmp_path):
+    from datetime import datetime, timedelta, timezone
+
+    epoch = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    stamps = [(epoch + timedelta(days=index)).isoformat()
+              for index in range(20)]
+    states = (["open"] * 4 + ["closed"] * 4) * 2
+    values = [20.0 if state == "open" else 5.0 for state in states]
+    scenario = "\n".join([
+        "At the beginning of the series, the service was open.",
+        f"At {stamps[4]}, the service became closed.",
+        f"At {stamps[8]}, the service became open.",
+        f"At {stamps[12]}, the service became closed.",
+        f"At {stamps[16]}, we expect that the service will become open.",
+        f"At {stamps[18]}, we expect that the service will become closed.",
+    ])
+    task = SimpleNamespace(
+        past_time=list(zip(stamps[:16], values)), future_time=stamps[16:20],
+        background="Daily service volume.", scenario=scenario,
+        constraints=None, name="StateScheduleTask", seed=1)
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}])
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 1)
+
+    assert client.completion_prompts == []
+    compilation = extra["context_compilation"]
+    receipt = json.loads(Path(compilation["receipt_path"]).read_text())
+    assert receipt["compiler"]["contract"] == (
+        "categorical_state_schedule")
+    assert receipt["compiler"]["deterministic_front_door"] is True
+    assert receipt["dossier"]["candidate_critique"]["candidate_origin"] == (
+        "governed_categorical_state_mapping")
+    assert extra["publication"]["primary_forecast_unchanged"] is True
+    assert extra["publication"]["automation"]["eligible"] is False
 
 
 def test_literal_zero_claim_uses_deterministic_override_lane(tmp_path):

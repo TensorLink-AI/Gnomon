@@ -10,7 +10,7 @@ from gnomon.context_intelligence import (
     compile_transformation, execute_transformation, TransformationError,
     expand_cited_history_segments,
     fit_historical_analogue, fit_lagged_relationship,
-    fit_companion_level_candidate,
+    fit_companion_level_candidate, fit_categorical_state_candidate,
     fit_structured_arx_candidate, fit_vintage_exogenous,
     validate_transformation,
 )
@@ -223,6 +223,49 @@ def test_companion_mapping_admits_signal_and_rejects_independent_walks():
             outcomes[label] += int(candidate["selection_eligible"])
     assert outcomes["signal"] >= 95
     assert outcomes["null"] <= 5
+
+
+def test_categorical_state_mapping_replays_levels_and_stays_manual():
+    states = ["open", "open", "closed", "closed"] * 6
+    target = [20.0 if state == "open" else 5.0 for state in states]
+    primary = [{"timestamp": _stamp(24 + index)} for index in range(4)]
+
+    candidate = fit_categorical_state_candidate(
+        target, states, ["closed", "open", "closed", "open"],
+        primary=primary, claim_ids=["claim-1"], hypothesis_id="hours")
+
+    points = [row["q50"] for row in candidate["forecast"]]
+    assert points[0] < points[1] and points[2] < points[3]
+    assert candidate["validation"]["beats_baseline"] is True
+    assert candidate["validation"]["all_future_states_observed_twice"] is True
+    assert candidate["provenance_class"] == (
+        "governed_categorical_state_mapping")
+    assert candidate["support"] == "prior_assisted"
+    assert candidate["automation_eligible"] is False
+    assert candidate["primary_forecast_unchanged"] is True
+
+
+def test_categorical_state_mapping_rejects_unseen_and_most_null_schedules():
+    primary = [{"timestamp": _stamp(20 + index)} for index in range(2)]
+    unseen = fit_categorical_state_candidate(
+        list(range(20)), ["a", "b"] * 10, ["new", "a"], primary=primary,
+        claim_ids=[], hypothesis_id="unseen")
+    assert unseen["selection_eligible"] is False
+    assert unseen["validation"]["future_state_counts"]["new"] == 0
+
+    admitted = 0
+    for seed in range(100):
+        generator = random.Random(seed)
+        states = [generator.choice(["a", "b"]) for _ in range(32)]
+        value, target = 0.0, []
+        for _ in states:
+            value += generator.gauss(0, 1)
+            target.append(value)
+        candidate = fit_categorical_state_candidate(
+            target, states, ["a", "b"], primary=primary,
+            claim_ids=[], hypothesis_id=f"null-{seed}")
+        admitted += int(candidate["selection_eligible"])
+    assert admitted <= 10
 
 
 def test_structured_arx_fits_coefficients_and_beats_last_value():

@@ -704,8 +704,10 @@ def validate_temporal_dossier(
     governed_candidate_accepted = bool(
         candidate is not None and governed_candidate is not None)
     if governed_candidate_accepted:
+        governed_origin = str(governed_candidate.get("provenance_class") or
+                              "governed_companion_mapping")
         candidate.update({
-            "provenance_class": "governed_companion_mapping",
+            "provenance_class": governed_origin,
             "rationale": str(governed_candidate.get("rationale") or "")[:1000],
             "validation": dict(governed_candidate.get("validation") or {}),
             "executable": dict(governed_candidate.get("executable") or {}),
@@ -715,7 +717,7 @@ def validate_temporal_dossier(
             governed_candidate.get("selection_eligible"))
         candidate_selection_reason = (
             None if candidate_selection_eligible else
-            "The governed companion mapping did not beat last value in "
+            "The governed contextual mapping did not beat last value in "
             "expanding-origin replay; retain it as a visible scenario only.")
     if candidate is not None and not (
             use_calibration_candidate
@@ -866,7 +868,7 @@ def validate_temporal_dossier(
                                  if candidate and not candidate_selection_eligible
                                  else None),
             "candidate_origin": (
-                "governed_companion_mapping" if governed_candidate_accepted else
+                governed_origin if governed_candidate_accepted else
                 "calibration_counterfactual" if use_calibration_candidate else
                 "observation_interpretation_counterfactual"
                 if candidate_was_derived_from_observation_interpretation
