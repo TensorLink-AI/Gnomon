@@ -740,6 +740,67 @@ def test_approximate_cited_multiplier_removes_unstated_range_and_can_compose():
         "exact_cited_scenario_allowed"
 
 
+def test_null_optional_bounds_mean_a_point_effect():
+    proposal, critique = validate_effect_proposal({
+        "shape": "temporary_pulse", "unit": "fraction_of_level",
+        "location": 3, "lower": None, "upper": None, "confidence": .6,
+        "delay_steps": 0, "duration_steps": 1,
+        "scope": {"kind": "single_series", "series": ["*"]},
+        "claim_ids": ["claim-1"],
+    }, claim_ids={"claim-1"}, claim_spans={
+        "claim-1": "Demand reached approximately 4 times the usual level."})
+
+    assert critique["status"] == "accepted"
+    assert proposal["lower"] == proposal["location"] == proposal["upper"] == 3
+
+
+def test_effect_onset_uses_locally_cited_date_not_model_delay():
+    future = [f"2026-01-03T0{hour}:00:00+00:00" for hour in range(5)]
+    timing = "The scheduled event begins on 2026-01-03 03:00:00."
+    magnitude = "Demand will be approximately 4 times the usual level."
+    dossier, reasons = validate_temporal_dossier({
+        "claims": [{
+            "source_span": magnitude, "relation": "supports_increase",
+            "effective_start": future[3], "effective_end": future[4],
+            "confidence": .7,
+        }],
+        "effect_proposal": _proposal(
+            shape="temporary_pulse", unit="fraction_of_level",
+            location=3, lower=3, upper=3, delay_steps=0,
+            duration_steps=2),
+    }, context_text=f"{timing} {magnitude}",
+       cutoff="2026-01-02T00:00:00+00:00", future_timestamps=future,
+       history=[8, 9, 10], compiler_model="test")
+
+    assert reasons == []
+    proposal = dossier["effect_proposal"]
+    assert proposal["delay_steps"] == 3
+    assert proposal["semantic_normalizations"][-1]["code"] == \
+        "CLAIM_ONSET_TO_HORIZON_DELAY"
+
+
+def test_effect_onset_does_not_cross_source_paragraphs():
+    future = [f"2026-01-03T0{hour}:00:00+00:00" for hour in range(5)]
+    timing = "An unrelated event begins on 2026-01-03 03:00:00."
+    magnitude = "Demand will be approximately 4 times the usual level."
+    dossier, reasons = validate_temporal_dossier({
+        "claims": [{
+            "source_span": magnitude, "relation": "supports_increase",
+            "effective_start": future[3], "effective_end": future[4],
+            "confidence": .7,
+        }],
+        "effect_proposal": _proposal(
+            shape="temporary_pulse", unit="fraction_of_level",
+            location=3, lower=3, upper=3, delay_steps=0,
+            duration_steps=2),
+    }, context_text=f"{timing}\n\n{magnitude}",
+       cutoff="2026-01-02T00:00:00+00:00", future_timestamps=future,
+       history=[8, 9, 10], compiler_model="test")
+
+    assert reasons == []
+    assert dossier["effect_proposal"]["delay_steps"] == 0
+
+
 def test_literal_range_claim_becomes_deterministic_constraint():
     span = "values are bounded above by 10.00 and bounded below by 5.82"
     dossier = validate_temporal_dossier({

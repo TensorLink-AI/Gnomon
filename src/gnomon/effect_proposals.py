@@ -80,8 +80,14 @@ def _validate_one(raw: Any, *, claim_ids: set[str],
             return math.nan
 
     location = numeric(raw.get("location"))
-    lower = numeric(raw.get("lower", location))
-    upper = numeric(raw.get("upper", location))
+    # JSON-producing models commonly use null for optional bounds. A point
+    # effect is still well-defined: the primary forecast retains its own
+    # interval, so null must not trigger a costly semantic repair or erase an
+    # otherwise cited executable.
+    lower_raw = raw.get("lower")
+    upper_raw = raw.get("upper")
+    lower = location if lower_raw is None else numeric(lower_raw)
+    upper = location if upper_raw is None else numeric(upper_raw)
     confidence_normalization = None
     try:
         from .context import normalize_context_confidence

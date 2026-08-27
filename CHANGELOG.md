@@ -39,6 +39,10 @@
   remains inherited from the immutable primary path. A sole source-determined
   numeric scenario cannot then be silently demoted by the LLM selector; it
   remains hypothetical, human-reviewed, and ineligible for automation.
+- Derive an effect's relative execution delay from an explicit onset cited in
+  the same source paragraph instead of trusting a model-authored step index.
+  Optional effect bounds emitted as JSON `null` now mean an unbounded point
+  proposal rather than forcing a repair; primary forecast uncertainty remains.
 
 - Add an explicit CiK `immutable_primary` diagnostic role. The previous
   `canonical` label referred to the public artifact trajectory, which may be

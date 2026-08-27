@@ -756,7 +756,7 @@ def validate_temporal_dossier(
         effect_proposal = _align_effect_onset_to_cited_claim(
             effect_proposal, claims=claims,
             future_timestamps=future_timestamps,
-            validated_events=validated_events or [])
+            validated_events=validated_events or [], context_text=context_text)
     hypotheses, hypothesis_critique = compile_context_hypotheses(
         raw.get("hypotheses"), claims=claims,
         series=[str(value) for value in raw.get("series") or ["*"]],
@@ -1378,6 +1378,7 @@ def _validate_observation_interpretations(
 def _align_effect_onset_to_cited_claim(
     proposal: dict[str, Any], *, claims: list[dict[str, Any]],
     future_timestamps: list[str], validated_events: list[Any],
+    context_text: str,
 ) -> dict[str, Any]:
     """Derive relative delay from one cited, horizon-aligned claim window.
 
@@ -1407,6 +1408,12 @@ def _align_effect_onset_to_cited_claim(
         if start is None or not _claim_start_is_cited(start, quote):
             return proposal
         binding = "single validated context event and forecast grid"
+    elif len(distinct_starts) == 0 and len(matching) == 1:
+        start = _timestamp(matching[0].get("effective_start"))
+        if start is None or not _claim_timing_is_locally_cited(
+                matching[0], start=start, context_text=context_text):
+            return proposal
+        binding = "locally cited claim context and forecast grid"
     else:
         return proposal
     future = [_timestamp(value) for value in future_timestamps]
@@ -1430,6 +1437,31 @@ def _align_effect_onset_to_cited_claim(
     })
     normalized["semantic_normalizations"] = notes
     return normalized
+
+
+def _claim_timing_is_locally_cited(
+        claim: dict[str, Any], *, start: datetime, context_text: str) -> bool:
+    """Accept a separated onset only inside the claim's source paragraph."""
+    span = str(claim.get("source_span") or "")
+    span_pos = context_text.find(span)
+    if span_pos < 0:
+        return False
+    representations = {
+        start.isoformat(), start.isoformat().replace("T", " "),
+        start.strftime("%Y-%m-%dT%H:%M:%S"),
+        start.strftime("%Y-%m-%d %H:%M:%S"),
+        start.strftime("%Y-%m-%dT%H:%M"),
+        start.strftime("%Y-%m-%d %H:%M"),
+    }
+    positions = [context_text.find(value) for value in representations
+                 if value and context_text.find(value) >= 0]
+    for position in positions:
+        left = min(position, span_pos)
+        right = max(position + 19, span_pos + len(span))
+        between = context_text[left:right]
+        if right - left <= 1200 and not re.search(r"\n\s*\n", between):
+            return True
+    return False
 
 
 def _claim_start_is_cited(start: datetime, span: str) -> bool:
