@@ -329,6 +329,7 @@ def test_automation_policy_is_actionable_and_can_authorize_supported_primary():
         "explicit_policy_supplied": True,
         "policy_complete": False,
         "requested": True,
+        "authority_source": "host_controlled",
         "reason_code": "incomplete_policy",
         "reason": ("Automation requires policy_id and minimum_support set to "
                    "supported or context_trusted."),
@@ -357,6 +358,19 @@ def test_automation_policy_rejects_unknown_fields_and_wrong_types():
                                       "minimum_support": "supported"})
     assert legacy["automation"]["eligible"] is True
     assert legacy["automation"]["normalization"] == "allow->authorize"
+
+
+def test_advisory_channel_cannot_authorize_supported_primary():
+    payload = publish_result(
+        _result(), automation_policy={
+            "authorize": True, "policy_id": "ops",
+            "minimum_support": "supported"},
+        automation_authority=False)
+    assert payload["automation"]["eligible"] is False
+    assert payload["automation"]["requested"] is True
+    assert payload["automation"]["authority_source"] == "mcp_advisory"
+    assert payload["automation"]["reason_code"] == \
+        "untrusted_authorization_channel"
 
 
 def test_partial_model_anchors_use_primary_outside_supplied_window():

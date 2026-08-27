@@ -285,3 +285,10 @@ necessary but not sufficient: the selected scenario must independently be
 automation-eligible. Conditional, prior-assisted, and model-authored paths
 therefore remain advisory even when the caller requests automation. Denials
 carry a stable `reason_code`, missing fields, and the required field list.
+
+The public MCP forecast surface is advisory: an LLM-authored tool argument is
+not an authorization credential. It may evaluate and disclose a policy, but
+returns `untrusted_authorization_channel` and cannot enable automation. Use a
+host-controlled CLI policy file or the monitoring daemon for executable
+authority. This keeps recommendation selection separate from actuation even
+when conversational prose or a model invents `authorize: true`.

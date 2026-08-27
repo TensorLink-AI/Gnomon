@@ -26,6 +26,11 @@
   safety invariant, context lane, publication mode, and recovery rule. Exact
   disposition-fidelity scoring applies to rejected facts, where the reason is
   material, rather than requiring internal success codes in human prose.
+- Treat public MCP automation arguments as advisory, because a model-authored
+  tool call is not an authorization credential. Host-controlled CLI/daemon
+  policies can still authorize supported paths; MCP returns the stable
+  `untrusted_authorization_channel` denial instead. Benchmark reporting now
+  measures preservation of typed recovery codes for rejected context.
 - Support strict, best-effort, and scenario publication for batched
   multi-target forecasts. Each series receives its own sealed publication and
   sidecar while the response carries a compact aggregate; scoped context can

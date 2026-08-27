@@ -370,6 +370,19 @@ def test_qualitative_context_lane_produces_non_automatable_sensitivity(
     assert strict["publication"]["context_summary"]["status"] == "scenario_only"
     assert strict["publication"]["recommended_scenario_id"] == "primary"
 
+    advisory = runner_for("gnomon_forecast")({
+        "input": str(path), "time_column": "timestamp",
+        "target_column": "demand", "frequency": "D", "horizon": 1,
+        "publication_mode": "strict", "_mcp_agent_boundary": True,
+        "automation_policy": {
+            "authorize": True, "policy_id": "model-invented",
+            "minimum_support": "supported"},
+        "output_dir": str(tmp_path / "out-advisory-automation"),
+    })
+    assert advisory["publication"]["automation"]["eligible"] is False
+    assert advisory["publication"]["automation"]["reason_code"] == \
+        "untrusted_authorization_channel"
+
 
 def test_compact_literal_context_is_compiled_and_source_bound() -> None:
     from gnomon.toolspec import _context_events_from

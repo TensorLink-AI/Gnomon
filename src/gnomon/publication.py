@@ -1679,6 +1679,7 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
                    dossiers: list[dict[str, Any]] | None = None,
                    scenario_selection: dict[str, Any] | None = None,
                    automation_policy: dict[str, Any] | None = None,
+                   automation_authority: bool = True,
                    artifact_id: str | None = None) -> dict[str, Any]:
     """Return a compact, sealed human-facing projection over frozen paths."""
     if mode not in MODES:
@@ -1765,7 +1766,7 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
         and str(automation_policy.get("policy_id") or "").strip()
         and automation_policy.get("minimum_support") in {
             "supported", "context_trusted"})
-    automation = bool(explicit_automation and policy_complete
+    automation = bool(automation_authority and explicit_automation and policy_complete
                       and selected["automation_eligible"])
     missing_policy_fields = [
         field for field in ("policy_id", "minimum_support")
@@ -1778,6 +1779,11 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
         automation_reason = (
             "Automation requires policy_id and minimum_support set to "
             "supported or context_trusted.")
+    elif not automation_authority:
+        automation_reason_code = "untrusted_authorization_channel"
+        automation_reason = (
+            "Conversational MCP arguments are advisory and cannot grant "
+            "automation authority. Use a host-controlled policy file or daemon.")
     elif not selected["automation_eligible"]:
         automation_reason_code = "recommendation_not_automation_eligible"
         automation_reason = (
@@ -1910,6 +1916,8 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
             "explicit_policy_supplied": bool(automation_policy),
             "policy_complete": policy_complete,
             "requested": explicit_automation,
+            "authority_source": (
+                "host_controlled" if automation_authority else "mcp_advisory"),
             "reason_code": automation_reason_code,
             "reason": automation_reason,
             "required_fields": ["authorize", "policy_id", "minimum_support"],

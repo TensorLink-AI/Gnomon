@@ -101,7 +101,8 @@ def _handle(message: dict[str, Any]) -> dict[str, Any] | None:
                 GnomonError("UNKNOWN_TOOL", f"No such tool: {params.get('name')!r}").to_dict(),
                 True,
             )
-        arguments = params.get("arguments") or {}
+        arguments = {**(params.get("arguments") or {}),
+                     "_mcp_agent_boundary": True}
         try:
             return _tool_result(runner(arguments), False)
         except GnomonError as exc:

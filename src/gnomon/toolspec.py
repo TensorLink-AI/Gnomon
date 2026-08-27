@@ -2384,10 +2384,13 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                 continue
             result["transformation_candidates"].append(candidate)
     try:
-        publication = publish_result(
-            result, mode=mode,
-            dossiers=list(dossiers), scenario_selection=selection,
-            automation_policy=policy, artifact_id=artifact.forecast_id)
+            publication = publish_result(
+                result, mode=mode,
+                dossiers=list(dossiers), scenario_selection=selection,
+                automation_policy=policy,
+                automation_authority=not bool(arguments.get(
+                    "_mcp_agent_boundary")),
+                artifact_id=artifact.forecast_id)
     except ValueError as exc:
         raise GnomonError("INVALID_ARGUMENTS", str(exc)) from exc
     payload["publication"] = publication

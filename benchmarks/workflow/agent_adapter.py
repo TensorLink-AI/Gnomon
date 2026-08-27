@@ -198,7 +198,8 @@ Revealed stage input: {json.dumps(case.get('revealed') or {}, separators=(',', '
 
 Return numbers under stable names requested by the question, categorical answers under choices,
 and populate every requested facts key from the supplied case or Gnomon artifact. Preserve material
-limitations in disclosures. Copy typed context disposition and automation reason codes exactly;
+limitations in disclosures. Copy rejected-context reason codes and the associated recovery action
+code exactly; do not translate them into a different diagnosis. Copy automation reason codes;
 do not translate them into a different diagnosis. When Gnomon returns an artifact_id or forecast_id, copy it exactly to
 artifact_id in submit_answer. Never claim to have observed post-cutoff data.
 """
@@ -672,7 +673,11 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                                 key: item.get(key) for key in (
                                     "context_id", "disposition", "reason_code")
                                 if item.get(key) is not None
-                            } for item in publication.get(
+                            } | ({"recovery_code": item["recovery_action"].get(
+                                "code")} if isinstance(item.get(
+                                    "recovery_action"), dict) and item[
+                                        "recovery_action"].get("code") else {})
+                            for item in publication.get(
                                 "context_dispositions") or []
                             if isinstance(item, dict)],
                         }

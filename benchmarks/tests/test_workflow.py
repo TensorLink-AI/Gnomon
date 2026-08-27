@@ -88,6 +88,7 @@ def test_context_interface_corpus_scores_the_engine_contract_separately():
     assert result["context_contract"] == {
         "required_cases": 4, "passed_cases": 4, "pass_rate": 1.0,
         "agent_disposition_preservation_rate": None,
+        "agent_recovery_preservation_rate": None,
     }
     assert all(row["context_contract"]["pass"] for row in result["rows"])
 
@@ -102,6 +103,34 @@ def test_installed_agent_skill_is_compact_without_hiding_safety_contracts():
         "automation", "artifact_id", "data_ref",
     ):
         assert required in text
+
+
+def test_context_recovery_preservation_is_measured_separately():
+    case = load_cases(Path(__file__).parents[1] / "workflow" / "cases" /
+                      "context-automation-pressure.jsonl")[2]
+    observation = _observation(case, claims=[
+        "conflicting_authoritative_claims; correct_rejected_context"],
+        metadata={
+            "leakage_measurement": "cutoff_projection_v1",
+            "cutoff_projection_sha256": "a" * 64,
+            "context_arguments": ["context_rejections"],
+            "context_behavior": {
+                "publication_mode": "strict", "status": "rejected",
+                "primary_forecast_unchanged": True,
+                "automation_eligible": False,
+                "automation_requested": False,
+                "automation_reason_code": "not_requested",
+                "scenario_count": 1,
+                "dispositions": [{
+                    "context_id": "conflict", "disposition": "rejected",
+                    "reason_code": "conflicting_authoritative_claims",
+                    "recovery_code": "correct_rejected_context",
+                }],
+            },
+        })
+    row = score_run([case], [observation], "fixture")["rows"][0]
+    assert row["context_contract"]["agent_disposition_preservation"] is True
+    assert row["context_contract"]["agent_recovery_preservation"] is True
 
 
 def test_adversarial_context_corpus_has_explicit_safe_dispositions():
