@@ -37,6 +37,7 @@ START = datetime(2026, 1, 1, tzinfo=timezone.utc)
     ("demand ranges from 1,200 to 4,500 units", 1200.0, 4500.0),
     ("the load will not exceed 500 MW", None, 500.0),
     ("output is capped at 96", None, 96.0),
+    ("capacity is capped at exactly 40 units", None, 40.0),
     ("at most 12 vehicles per hour", None, 12.0),
     ("occupancy remains below 0.95", None, 0.95),
     ("the count cannot be negative", 0.0, None),

@@ -280,7 +280,7 @@ _MAX_PATTERNS = [
     rf"(?:below|under|less\s+than)\s+({_N}){_AFTER_NUMBER}",
     # "a maximum speed of 3000 rpm" — up to three words may name the
     # bounded quantity between the superlative and "of".
-    rf"(?:capped?\s+at|cap\s+of|ceiling\s+of|a?\s*max(?:imum|imal)?\s+(?:[\w-]+\s+){{0,3}}?of)\s+({_N}){_AFTER_NUMBER}",
+    rf"(?:capped?\s+at|cap\s+of|ceiling\s+of|a?\s*max(?:imum|imal)?\s+(?:[\w-]+\s+){{0,3}}?of)\s+(?:exactly\s+)?({_N}){_AFTER_NUMBER}",
     # Attributive: "the maximal fan speed is 3000 rpm". The superlative
     # names the bounded quantity and the copula states the number; a
     # trailing unit is fine (the number guard only refuses percent and

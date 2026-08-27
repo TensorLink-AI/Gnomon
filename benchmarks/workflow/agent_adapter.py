@@ -343,6 +343,7 @@ def _normalize(case: dict[str, Any], value: dict[str, Any], *, calls: int,
                          "context_arguments", []),
                      "context_behavior": engine_evidence.get(
                          "context_behavior"),
+                     "tool_errors": engine_evidence.get("tool_errors", []),
                      **({"error": "model_submission_error"} if status == "error" else {}),
                      "artifact_id": engine_evidence.get("artifact_id"),
                      "agent_artifact_id": value.get("artifact_id"),
@@ -499,6 +500,17 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                 else:
                     result = session.call_tool(name, arguments)
                     structured = result.get("structuredContent") or {}
+                    if isinstance(structured, dict) and structured.get(
+                            "status") in {"error", "invalid"}:
+                        error = structured.get("error") or structured
+                        if isinstance(error, dict):
+                            engine_evidence.setdefault("tool_errors", []).append({
+                                "tool": name,
+                                "code": error.get("code"),
+                                "message": str(error.get("message") or "")[:300],
+                                "detail_keys": sorted((error.get("details") or {}).keys())
+                                if isinstance(error.get("details"), dict) else [],
+                            })
                     publication = (structured.get("publication")
                                    if isinstance(structured, dict) else None)
                     if isinstance(publication, dict):

@@ -19,7 +19,12 @@ ORACLE_FIELDS = {"numbers", "tolerances", "choices", "required_disclosures",
                  "forbidden_claims", "allowed_support", "should_abstain",
                  "requires_repair", "requires_tracking",
                  "requires_publish_parity", "requires_quote_match",
-                 "required_facts", "engine_required_facts", "choice_aliases"}
+                 "required_facts", "engine_required_facts", "choice_aliases",
+                 "context_behavior"}
+CONTEXT_BEHAVIOR_FIELDS = {
+    "status", "required_argument", "primary_forecast_unchanged",
+    "automation_eligible", "minimum_scenario_count",
+}
 OBSERVATION_FIELDS = {"case_id", "status", "support", "numbers", "choices",
                       "disclosures", "claims", "temporal_leakage",
                       "publish_matches_evaluated", "repair_completed",
@@ -63,10 +68,14 @@ class Oracle:
     required_facts: dict[str, Any] = field(default_factory=dict)
     engine_required_facts: dict[str, Any] = field(default_factory=dict)
     choice_aliases: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    context_behavior: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "Oracle":
         _reject_unknown(value, ORACLE_FIELDS, "oracle")
+        context_behavior = dict(value.get("context_behavior") or {})
+        _reject_unknown(context_behavior, CONTEXT_BEHAVIOR_FIELDS,
+                        "oracle context_behavior")
         numbers = {str(k): float(v) for k, v in (value.get("numbers") or {}).items()}
         tolerances = {str(k): float(v) for k, v in (value.get("tolerances") or {}).items()}
         _require(all(math.isfinite(v) for v in numbers.values()), "oracle numbers must be finite")
@@ -90,6 +99,7 @@ class Oracle:
             choice_aliases={str(key): tuple(str(item) for item in aliases)
                             for key, aliases in
                             (value.get("choice_aliases") or {}).items()},
+            context_behavior=context_behavior,
         )
 
 

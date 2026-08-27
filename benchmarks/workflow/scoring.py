@@ -166,6 +166,20 @@ def _case_score(case: Case, obs: Observation) -> dict[str, Any]:
         "model_submission_error", "provider_error", "provider_timeout",
         "model_error", "timeout", "subprocess_failure", "empty_stdout",
     }) or bool(obs.metadata.get("stage_infrastructure_failures"))
+    expected_context = oracle.context_behavior
+    observed_context = obs.metadata.get("context_behavior") or {}
+    observed_arguments = set(obs.metadata.get("context_arguments") or [])
+    context_checks: dict[str, bool] = {}
+    for key, expected in expected_context.items():
+        if key == "required_argument":
+            context_checks[key] = str(expected) in observed_arguments
+        elif key == "minimum_scenario_count":
+            context_checks[key] = int(observed_context.get(
+                "scenario_count") or 0) >= int(expected)
+        else:
+            context_checks[key] = observed_context.get(key) == expected
+    context_contract_pass = (all(context_checks.values())
+                             if context_checks else None)
     return {
         "case_id": case.id, "kind": case.kind, "domain": case.domain,
         "correctness": correctness, "disposition_correct": disposition_correct,
@@ -179,6 +193,14 @@ def _case_score(case: Case, obs: Observation) -> dict[str, Any]:
         },
         "agent_facts_required": bool(oracle.required_facts),
         "agent_fact_preservation": agent_facts_ok,
+        "context_contract": {
+            "applicable": bool(expected_context),
+            "pass": context_contract_pass,
+            "checks": context_checks,
+            "expected": expected_context,
+            "observed": observed_context,
+            "arguments": sorted(observed_arguments),
+        },
         "temporal_leakage": obs.temporal_leakage,
         "leakage_measurement_pass": leakage_ok,
         "disclosures_pass": disclosures_ok, "forbidden_claims_pass": forbidden_ok,
@@ -271,6 +293,16 @@ def score_run(cases: list[Case], observations: list[Observation], arm: str = "un
             float(row["agent_fact_preservation"]) for row in rows
             if row["agent_facts_required"]
         ]),
+        "context_contract": {
+            "required_cases": sum(
+                row["context_contract"]["applicable"] for row in rows),
+            "passed_cases": sum(
+                row["context_contract"]["pass"] is True for row in rows),
+            "pass_rate": _mean([
+                float(row["context_contract"]["pass"]) for row in rows
+                if row["context_contract"]["applicable"]
+            ]),
+        },
         "correctness_components": {
             key: _mean([float(row["accuracy_components"][key]) for row in rows
                         if row["accuracy_components"][key] is not None])

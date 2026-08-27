@@ -52,6 +52,32 @@ def test_smoke_corpus_covers_all_case_kinds_and_hides_oracle():
     assert all("oracle" not in case_payload(case) for case in cases)
 
 
+def test_context_interface_corpus_scores_the_engine_contract_separately():
+    path = Path(__file__).parents[1] / "workflow" / "cases" / \
+        "context-interface.jsonl"
+    cases = load_cases(path)
+    assert len(cases) == 4
+    observations = []
+    for case in cases:
+        expected = case.oracle.context_behavior
+        observations.append(_observation(case, metadata={
+            "leakage_measurement": "cutoff_projection_v1",
+            "cutoff_projection_sha256": "a" * 64,
+            "surface_required_calls": 1,
+            "context_arguments": [expected["required_argument"],
+                                  "publication_mode"],
+            "context_behavior": {
+                key: value for key, value in expected.items()
+                if key not in {"required_argument", "minimum_scenario_count"}
+            } | {"scenario_count": expected["minimum_scenario_count"]},
+        }))
+    result = score_run(cases, observations, "fixture")
+    assert result["context_contract"] == {
+        "required_cases": 4, "passed_cases": 4, "pass_rate": 1.0,
+    }
+    assert all(row["context_contract"]["pass"] for row in result["rows"])
+
+
 def test_execution_compiler_binds_known_fields_but_preserves_ambiguity(tmp_path):
     base = {
         "kind": "synthetic",
