@@ -24,7 +24,8 @@ ORACLE_FIELDS = {"numbers", "tolerances", "choices", "required_disclosures",
 CONTEXT_BEHAVIOR_FIELDS = {
     "status", "required_argument", "primary_forecast_unchanged",
     "automation_eligible", "minimum_scenario_count", "publication_mode",
-    "recommended_scenario_id",
+    "recommended_scenario_id", "allowed_statuses", "allowed_arguments",
+    "allowed_publication_modes", "recommended_scenario_by_mode",
 }
 OBSERVATION_FIELDS = {"case_id", "status", "support", "numbers", "choices",
                       "disclosures", "claims", "temporal_leakage",

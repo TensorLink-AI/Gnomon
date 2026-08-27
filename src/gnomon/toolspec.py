@@ -51,12 +51,42 @@ _CONTEXT_EVENTS_PROPERTY: dict[str, Any] = {
         "type": "array",
         "description": (
             "Unknown-magnitude events: event_id; ISO effective_start/end/known_at; "
-            "verbatim source_span; direction increase|decrease|unknown; "
+            "verbatim source_span containing the effective_start date; "
+            "direction increase|decrease|unknown; "
             "effect_family level_shift|temporary_pulse|variance_change|"
             "seasonal_regime_change; duration temporary|persistent|unknown; "
             "optional entity_scope/source_reference. Sensitivity only."
         ),
-        "items": {"type": "object"},
+        "items": {
+            "type": "object", "additionalProperties": False,
+            "properties": {
+                "event_id": {"type": "string"},
+                "effective_start": {"type": "string"},
+                "effective_end": {"type": "string"},
+                "known_at": {"type": "string"},
+                "source_span": {"type": "string",
+                                "description": "Must quote effective_start date."},
+                "direction": {"type": "string",
+                              "enum": ["increase", "decrease", "unknown"]},
+                "effect_family": {"type": "string", "enum": [
+                    "level_shift", "temporary_pulse", "variance_change",
+                    "seasonal_regime_change"]},
+                "duration": {"type": "string",
+                             "enum": ["temporary", "persistent", "unknown"]},
+                "entity_scope": {"type": "array", "items": {"type": "string"}},
+                "source_reference": {"type": "string"},
+            },
+            "required": ["event_id", "effective_start", "effective_end",
+                         "known_at", "source_span", "direction",
+                         "effect_family", "duration"],
+        },
+    },
+    "context_rejections": {
+        "type": "array", "items": {"type": "object"},
+        "description": (
+            "Ungroundable facts: context_id, reason_code, reason, source_span. "
+            "Receipted; never changes numbers."
+        ),
     },
 }
 
@@ -67,11 +97,8 @@ _COVARIATES_PROPERTY: dict[str, Any] = {
     "covariates": {
         "type": "array",
         "description": (
-            "Point-in-time covariate vintages supplied inline: row "
-            "objects with the covariate time column (default "
-            "`timestamp`), the known-at column (default `known_at`), and "
-            "one key per covariate named in covariate_mapping. Same "
-            "validation as covariates_file; mutually exclusive with it."
+            "Inline point-in-time rows: timestamp, known_at, and mapped "
+            "covariates. Mutually exclusive with covariates_file."
         ),
         "items": {"type": "object"},
     },
@@ -87,11 +114,8 @@ _COVARIATE_MAPPING_PROPERTY: dict[str, Any] = {
         "type": ["string", "array"],
         "items": {"type": ["string", "object"]},
         "description": (
-            "Covariate declarations: comma-separated "
-            "name:type:future_known entries, an array of those strings, "
-            "or objects with name, type (continuous, binary, or "
-            "cyclic_<positive-period>), and "
-            "availability (future_known) keys."
+            "Covariates as name:type:future_known strings or objects with "
+            "name, type, and availability."
         ),
     },
 }
@@ -123,7 +147,7 @@ _DATA_REF_PROPERTY: dict[str, Any] = {
 }
 
 _INPUT_PROPERTIES: dict[str, Any] = {
-    "input": {"type": "string", "description": "Path to a local CSV, TSV, JSON, JSONL, Parquet, or Excel file; `store:<dataset>`; or a read-only `prom://.../api/v1/query_range?...` source whose host is allowlisted by GNOMON_PROMETHEUS_ALLOWED_HOSTS. Callers without either pass observations inline."},
+    "input": {"type": "string", "description": "Local table, store:<dataset>, or allowlisted read-only prom:// range query. Otherwise pass observations."},
     **_OBSERVATIONS_PROPERTY,
     **_DATA_REF_PROPERTY,
     "time_column": {"type": "string", "description": (
@@ -141,23 +165,16 @@ _INPUT_PROPERTIES: dict[str, Any] = {
         "type": "string",
         "pattern": "^([1-9][0-9]*)?(s|min|h)$|^(D|W|MS)$",
         "description": (
-            "Observation frequency: s (seconds), min (minutes), h (hourly), "
-            "D (daily), W (weekly), MS (month start), or any whole-second "
-            "sub-daily step as <N>s, <N>min, or <N>h (e.g. 5min, 90s, 2h). "
-            "Omit to infer; ambiguity fails loudly."
+            "Grid: s|min|h|D|W|MS or <N>s|<N>min|<N>h. Omit to infer; "
+            "ambiguity fails loudly."
         ),
     },
     "regrid": {
         "type": "string", "enum": ["business_daily", "month_start"],
         "description": (
-            "Declared calendar regrid, applied before validation: "
-            "business_daily forward-fills weekends and holidays so Mon-Fri "
-            "market data lands on the continuous daily grid (implies "
-            "frequency=D); month_start restamps monthly data (typically "
-            "month-end stamps) to the first of each month (implies "
-            "frequency=MS). A statement about the data's calendar, not a "
-            "repair of messiness: fills and restamps are disclosed as "
-            "warnings but not charged against the repair ceiling."
+            "Calendar declaration before validation: business_daily fills "
+            "non-business days (implies D); month_start restamps months "
+            "(implies MS). Every change is disclosed."
         ),
     },
 }
@@ -1593,6 +1610,16 @@ def _context_events_from(arguments: dict[str, Any]):
                     "INVALID_ARGUMENTS",
                     "qualitative_context_events.source_span is required",
                 )
+            effective_day = str(item.get("effective_start") or "")[:10]
+            if len(effective_day) != 10 or effective_day not in source_span:
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "qualitative_context_events cannot infer an exact event "
+                    "window from undated or relative prose",
+                    {"event_id": str(item.get("event_id")),
+                     "required_date_in_source_span": effective_day,
+                     "repair": "submit context_rejections with the ambiguous timing"},
+                )
             normalized.append({
                 "event_id": item.get("event_id"),
                 # A non-reserved namespace makes numeric future-context
@@ -1694,7 +1721,8 @@ def _materialise_context(
                     if key not in {"context_ref", "context_events_file",
                                    "context_events",
                                    "qualitative_context_events"}},
-                 "_materialized_context_events": materialized}, {
+                 "_materialized_context_events": materialized,
+                 "_context_was_supplied": True}, {
             "status": "hit", "context_ref": reference,
             "receipt_id": receipt["receipt_id"], "compiler_reused": True,
             "store_schema_version": "0.1",
@@ -1729,7 +1757,8 @@ def _materialise_context(
     return ({**{key: value for key, value in arguments.items()
                 if key not in {"context_events_file", "context_events",
                                "qualitative_context_events"}},
-             "_materialized_context_events": materialized}, {
+             "_materialized_context_events": materialized,
+             "_context_was_supplied": True}, {
         "status": "stored", "context_ref": reference,
         "receipt_id": receipt["receipt_id"], "compiler_reused": False,
         "store_schema_version": "0.1",
@@ -1954,12 +1983,39 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
     submission = arguments.get("context_submission") or {}
     if not isinstance(submission, dict):
         raise GnomonError("INVALID_ARGUMENTS", "context_submission must be an object")
+    submission = dict(submission)
+    direct_rejections = arguments.get("context_rejections")
+    if direct_rejections is not None:
+        if not isinstance(direct_rejections, list):
+            raise GnomonError(
+                "INVALID_ARGUMENTS", "context_rejections must be an array")
+        allowed_rejection_fields = {
+            "context_id", "reason_code", "reason", "source_span"}
+        for index, item in enumerate(direct_rejections, 1):
+            if not isinstance(item, dict):
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "context_rejections items must be objects",
+                    {"item_index": index})
+            unknown = sorted(set(item) - allowed_rejection_fields)
+            missing = sorted(key for key in allowed_rejection_fields
+                             if not str(item.get(key) or "").strip())
+            if unknown or missing:
+                raise GnomonError(
+                    "INVALID_ARGUMENTS",
+                    "context_rejections require context_id, reason_code, "
+                    "reason, and verbatim source_span",
+                    {"item_index": index, "unknown_fields": unknown,
+                     "missing_fields": missing})
+        submission["rejections"] = [
+            *(submission.get("rejections") or []), *direct_rejections]
     raw_proposal = submission.get("proposal")
     selection = arguments.get("scenario_selection")
     policy = arguments.get("automation_policy")
     if mode == "strict" and not (dossiers or raw_proposal
                                   or submission.get("transformations")
                                   or submission.get("rejections")
+                                  or arguments.get("_context_was_supplied")
                                   or selection or policy):
         return
     if len(artifact.results) != 1:
@@ -1994,6 +2050,8 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                                    "context_unresolved"),
                 "reason": str(item.get("reason") or
                               "Supplied context could not be grounded or executed."),
+                **({"source_span": str(item["source_span"])}
+                   if item.get("source_span") else {}),
             })
         else:
             raise GnomonError(
@@ -2538,6 +2596,9 @@ TOOLS: list[dict[str, Any]] = [
                 **_TEMPORAL_QUESTIONS_PROPERTY,
                 "covariate_series_column": {"type": "string", "description": "Optional series column in the covariate CSV."},
                 "repair": {"type": "string", "enum": ["off", "safe", "aggressive"], "description": "Messy-data handling (default safe): off rejects anything non-strict; safe normalises cell text; aggressive also fills gaps and snaps timestamps — every fix disclosed in warnings and evidence."},
+                "best_effort": {"type": "boolean", "description": (
+                    "Deprecated alias for minimum_support=best_effort."
+                )},
                 "minimum_support": {"type": "string",
                                     "enum": ["supported",
                                              "conditionally_supported",
@@ -2545,9 +2606,6 @@ TOOLS: list[dict[str, Any]] = [
                                     "description": (
                     "Publication floor (default best_effort); supported "
                     "refuses weaker results. Tiers never get easier to earn."
-                )},
-                "best_effort": {"type": "boolean", "description": (
-                    "Deprecated alias for minimum_support=best_effort."
                 )},
                 "publication_mode": {"type": "string",
                     "enum": ["strict", "best_effort", "scenario"],

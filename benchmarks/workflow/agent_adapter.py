@@ -222,7 +222,7 @@ def _compile_execution_arguments(
     for key in (
         "context_submission", "temporal_dossiers", "publication_mode",
         "scenario_selection", "automation_policy", "context_events",
-        "qualitative_context_events", "context_ref", "future_events",
+        "qualitative_context_events", "context_rejections", "context_ref", "future_events",
         "structural_events",
     ):
         if key in arguments:
@@ -343,6 +343,8 @@ def _normalize(case: dict[str, Any], value: dict[str, Any], *, calls: int,
                          "context_arguments", []),
                      "context_behavior": engine_evidence.get(
                          "context_behavior"),
+                     "qualitative_context_input": engine_evidence.get(
+                         "qualitative_context_input", []),
                      "tool_errors": engine_evidence.get("tool_errors", []),
                      **({"error": "model_submission_error"} if status == "error" else {}),
                      "artifact_id": engine_evidence.get("artifact_id"),
@@ -487,9 +489,18 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                 sequence.append(name)
                 arguments = _compile_execution_arguments(
                     case, name, arguments, csv_path, jail)
+                qualitative_inputs = arguments.get(
+                    "qualitative_context_events") or []
+                if isinstance(qualitative_inputs, list):
+                    engine_evidence["qualitative_context_input"] = [{
+                        key: item.get(key) for key in (
+                            "event_id", "effective_start", "effective_end",
+                            "direction", "effect_family", "duration")
+                        if item.get(key) is not None
+                    } for item in qualitative_inputs if isinstance(item, dict)]
                 context_keys = [key for key in (
                     "context_submission", "temporal_dossiers",
-                    "context_events", "qualitative_context_events",
+                    "context_events", "qualitative_context_events", "context_rejections",
                     "context_ref", "publication_mode",
                     "scenario_selection", "automation_policy",
                 ) if key in arguments]
@@ -530,6 +541,14 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                                 "scenario_count", len(
                                     publication.get("scenarios") or [])),
                         }
+                        result_rows = structured.get("results") or []
+                        if result_rows and isinstance(result_rows[0], dict):
+                            outcome = result_rows[0].get("context_outcome") or {}
+                            if isinstance(outcome, dict):
+                                engine_evidence["context_behavior"][
+                                    "numeric_sensitivity_count"] = int(
+                                        outcome.get(
+                                            "sensitivity_scenarios_produced") or 0)
                     if isinstance(structured, dict) and structured.get("status") not in {
                             "error", "invalid"}:
                         # The product host owns this state transition. Once a

@@ -63,6 +63,13 @@ history-only primary immutable and exposes the claim only as a labelled,
 non-automatable sensitivity scenario. Use `context_submission` for non-event
 claims and dossiers. Malformed context is rejected with typed repair
 information rather than silently ignored or coerced into a numeric claim.
+When timing is ambiguous, a fact was first known after the cutoff, no temporal
+mechanism is stated, or a third party is merely forecasting a value, send the
+compact `context_rejections` array. Each item requires `context_id`,
+`reason_code`, `reason`, and the verbatim `source_span`; Gnomon persists that
+disposition without changing any number. It rejects qualitative event windows
+whose effective start date is absent from the quoted source, preventing an
+agent from converting “sometime next month” into an invented timestamp.
 
 ### Provider-neutral sampled priors
 

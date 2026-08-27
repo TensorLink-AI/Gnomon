@@ -309,6 +309,23 @@ def test_qualitative_context_lane_produces_non_automatable_sensitivity(
     assert any(item["role"] == "conditional_sensitivity"
                for item in publication["selection_contract"]["scenarios"])
 
+    strict = runner_for("gnomon_forecast")({
+            "input": str(path), "time_column": "timestamp",
+            "target_column": "demand", "frequency": "D", "horizon": 2,
+            "qualitative_context_events": [{
+                "event_id": "campaign-1", "entity_scope": ["*"],
+                "effective_start": "2026-02-10T00:00:00+00:00",
+                "effective_end": "2026-02-11T00:00:00+00:00",
+                "known_at": "2026-02-09T00:00:00+00:00",
+                "direction": "increase", "effect_family": "temporary_pulse",
+                "duration": "temporary", "source_span": source,
+            }], "publication_mode": "strict",
+            "output_dir": str(tmp_path / "out-qualitative-strict"),
+    })
+    assert strict["publication"]["mode"] == "strict"
+    assert strict["publication"]["context_summary"]["status"] == "scenario_only"
+    assert strict["publication"]["recommended_scenario_id"] == "primary"
+
 
 def test_qualitative_context_lane_rejects_numeric_claims_and_missing_sources():
     import pytest
@@ -335,6 +352,15 @@ def test_qualitative_context_lane_rejects_numeric_claims_and_missing_sources():
         })
     assert unsourced.value.details["missing_fields"] == ["source_span"]
 
+    with pytest.raises(GnomonError) as inferred_time:
+        _context_events_from({
+            "qualitative_context_events": [{
+                **base, "source_span": "The campaign starts sometime next month."
+            }],
+        })
+    assert inferred_time.value.details["required_date_in_source_span"] == \
+        "2026-02-10"
+
 
 def test_context_ref_conflicts_with_qualitative_inline_context():
     import pytest
@@ -349,6 +375,50 @@ def test_context_ref_conflicts_with_qualitative_inline_context():
     assert set(raised.value.details["conflicts"]) == {
         "context_ref", "qualitative_context_events",
     }
+
+
+def test_direct_context_rejection_is_receipted_without_changing_numbers(
+        tmp_path) -> None:
+    import pytest
+    from datetime import date, timedelta
+    from gnomon.contracts import GnomonError
+    from gnomon.toolspec import runner_for
+
+    path = tmp_path / "rejected-context.csv"
+    start = date(2026, 1, 1)
+    path.write_text("\n".join(["timestamp,demand"] + [
+        f"{start + timedelta(days=day)},{100 + day % 4}"
+        for day in range(40)
+    ]) + "\n")
+    arguments = {
+        "input": str(path), "time_column": "timestamp",
+        "target_column": "demand", "frequency": "D", "horizon": 1,
+        "context_rejections": [{
+            "context_id": "late-notice", "reason_code": "known_after_cutoff",
+            "reason": "The notice was first knowable after the forecast cutoff.",
+            "source_span": "The notice was published on 2026-02-11.",
+        }],
+        "publication_mode": "best_effort",
+        "output_dir": str(tmp_path / "out-rejected-context"),
+    }
+    payload = runner_for("gnomon_forecast")(arguments)
+    publication = payload["publication"]
+    assert publication["context_summary"]["status"] == "rejected"
+    assert publication["recommended_scenario_id"] == "primary"
+    assert publication["primary_forecast_unchanged"] is True
+    assert publication["automation"]["eligible"] is False
+    rejection = publication["context_dispositions"][0]
+    assert rejection["reason_code"] == "known_after_cutoff"
+    assert rejection["source_span"] == \
+        "The notice was published on 2026-02-11."
+
+    invalid = {**arguments, "context_rejections": [{
+        "context_id": "late-notice", "reason_code": "known_after_cutoff",
+        "reason": "Known later.",
+    }]}
+    with pytest.raises(GnomonError) as raised:
+        runner_for("gnomon_forecast")(invalid)
+    assert raised.value.details["missing_fields"] == ["source_span"]
 
 
 def test_context_ref_replays_validated_context_without_resending(

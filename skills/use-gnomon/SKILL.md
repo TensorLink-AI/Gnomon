@@ -34,6 +34,15 @@ hypotheses, transformations, or a model-authored conditional path in
 identity, and typed proposal. Every submitted item must finish as used,
 rejected with a typed reason, or retained as a labelled scenario.
 
+If a supplied fact cannot be grounded, send `context_rejections` with its
+verbatim `source_span` and a specific reason. Use this for missing/ambiguous
+event timing, information first known after the cutoff, irrelevant facts with
+no temporal mechanism, and model/vendor predictions that merely *forecast* a
+numeric value. Never invent an exact event window from relative prose, and do
+not encode somebody else's forecast as a `constraint:` or `override:`. A
+`qualitative_context_events.effective_start` calendar date must be stated in
+its `source_span`; otherwise reject the fact instead of resolving the date.
+
 Choose publication mode from the user's intent:
 
 - `strict` for automation or when only historically admitted effects may lead;

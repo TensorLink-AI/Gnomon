@@ -201,6 +201,14 @@ accuracy or product uplift**. Read `context_contract.pass_rate`, calls, typed
 tool errors, and the trust components. Use multiple model replicates when
 making an affordance decision because argument construction is stochastic.
 
+`cases/context-adversarial.jsonl` complements it with irrelevant, ambiguous-
+timing, late-known, and third-party forecast claims. Safe equivalences are
+intentional: either structured rejection channel and either strict or
+best-effort publication may pass when the primary remains recommended. A
+qualitative event cannot pass by inventing a date absent from its quoted
+source. This corpus measures epistemic routing and receipts, not whether a
+numeric forecast is accurate.
+
 The comparison distinguishes surface eligibility from decision readiness.
 `decision_ready_arms` remains empty unless all four evidence legs are present:
 

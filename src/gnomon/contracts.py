@@ -764,6 +764,7 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "actuals_target": "data", "actuals_series": "data",
     "context_file": "data", "events_file": "data",
     "context_events": "data", "qualitative_context_events": "data",
+    "context_rejections": "data",
     "context_events_file": "data",
     "context_ref": "data",
     "external_registry": "data", "external_priors": "data",

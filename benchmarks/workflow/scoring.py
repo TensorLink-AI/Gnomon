@@ -173,6 +173,20 @@ def _case_score(case: Case, obs: Observation) -> dict[str, Any]:
     for key, expected in expected_context.items():
         if key == "required_argument":
             context_checks[key] = str(expected) in observed_arguments
+        elif key == "allowed_arguments":
+            context_checks[key] = bool(observed_arguments & {
+                str(item) for item in expected})
+        elif key == "allowed_statuses":
+            context_checks[key] = observed_context.get("status") in expected
+        elif key == "allowed_publication_modes":
+            context_checks[key] = observed_context.get(
+                "publication_mode") in expected
+        elif key == "recommended_scenario_by_mode":
+            mode = observed_context.get("publication_mode")
+            context_checks[key] = (
+                mode in expected
+                and observed_context.get("recommended_scenario_id")
+                == expected[mode])
         elif key == "minimum_scenario_count":
             context_checks[key] = int(observed_context.get(
                 "scenario_count") or 0) >= int(expected)

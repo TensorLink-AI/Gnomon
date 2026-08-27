@@ -721,6 +721,8 @@ def build_scenario_catalog(result: dict[str, Any], *,
             **({"supersedes_reason_code": reason_code,
                 "represented_violation_codes": sorted(repeated_codes)}
                if duplicate_summary else {}),
+            **({"source_span": str(item["source_span"])}
+               if item.get("source_span") else {}),
         })
     context_outcome = result.get("context_outcome") or {}
     historically_admitted = (
