@@ -392,6 +392,45 @@ def test_target_clause_isolated_before_deterministic_bound_parsing():
     assert "3000" not in events[0]["deterministic_parse_span"]
 
 
+def test_unresolved_trigger_rule_is_retained_but_cannot_change_numbers():
+    span = "Demand typically falls during public holidays."
+    raw = {
+        "claims": [{
+            "source_span": span, "relation": "supports_decrease",
+            "effective_start": None, "effective_end": None,
+            "timing_status": "unresolved_trigger",
+            "mechanism": "Holiday demand effect", "confidence": .7,
+        }],
+        "hypotheses": [{
+            "kind": "unsupported", "claim_ids": ["claim-1"],
+            "target_series": ["*"], "predictor_series": None,
+            "known_at": "2026-01-02T00:00:00+00:00", "lag_steps": 0,
+            "direction": "decrease",
+            "rationale": "No dated holiday trigger was supplied.",
+        }],
+        "effect_proposal": _proposal(claim_ids=["claim-1"]),
+        "forecast_candidate": {
+            "claim_ids": ["claim-1"],
+            "constant_quantiles": {"q10": 1, "q50": 2, "q90": 3},
+            "rationale": "Assume the horizon contains a holiday.",
+        },
+    }
+
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=span, cutoff="2026-01-02T00:00:00+00:00",
+        future_timestamps=TIMES, history=[8, 9, 10], compiler_model="test")
+
+    claim = dossier["claims"][0]
+    assert claim["timing_status"] == "unresolved_trigger"
+    assert claim["effective_window_binding"]["numeric_authority"] is False
+    assert dossier["effect_proposal"] is None
+    assert dossier["effect_proposal_critique"]["attempts"][0][
+        "violations"][0]["code"] == "UNRESOLVED_TRIGGER_TIMING"
+    assert dossier["forecast_candidate"] is None
+    assert any("unresolved trigger timing" in reason for reason in reasons)
+    assert deterministic_events_from_claims(dossier) == []
+
+
 def test_literal_range_claim_becomes_deterministic_constraint():
     span = "values are bounded above by 10.00 and bounded below by 5.82"
     dossier = validate_temporal_dossier({

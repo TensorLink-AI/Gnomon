@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Preserve relevant qualitative rules with undated triggers as typed
+  `unresolved_trigger` claims. They remain scenario-only, cannot produce
+  deterministic effects or automation, and return a concrete request for the
+  missing trigger identity and effective window. A one-path publication now
+  also reports selector work as unnecessary rather than as an error.
+
 - Add an explicit CiK `immutable_primary` diagnostic role. The previous
   `canonical` label referred to the public artifact trajectory, which may be
   context-conditioned and therefore could not serve as a context-free matched

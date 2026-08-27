@@ -309,7 +309,7 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: blocks and resolves ambiguous schedule endpoints from pre-cutoff evidence.
 #: Version 142: isolated multi-seed runs bind the runner's authoritative seed
 #: into trace identity instead of overwriting every case as `seedx`.
-MCP_CONTRACT_VERSION = 153
+MCP_CONTRACT_VERSION = 154
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -439,7 +439,8 @@ one JSON object with this shape:
     {"source_span": "verbatim context sentence",
      "relation": "supports_increase | supports_decrease | supports_stability | supports_higher_variance | supports_lower_variance | changes_seasonal_regime | constrains_range | unknown",
      "effective_start": "timezone-aware ISO", "effective_end": "timezone-aware ISO",
-     "mechanism": "brief qualitative explanation", "confidence": 0.0}
+     "mechanism": "brief qualitative explanation", "confidence": 0.0,
+     "timing_status": "resolved | unresolved_trigger"}
   ],
   "observation_interpretations": [
     {"kind": "historical_contamination", "claim_ids": ["claim-1"],
@@ -527,6 +528,12 @@ Rules:
   them into historical folds.
 - Claims are the richer interpretation lane. Put qualitative relationships
   there even when no deterministic event can represent them.
+- Preserve a relevant general rule whose trigger is not dated (for example,
+  demand falls on holidays without naming a holiday in the horizon) as a
+  claim with null effective dates and `timing_status:"unresolved_trigger"`,
+  plus an `unsupported` hypothesis. Do not turn it into an event, effect,
+  transformation, or automated recommendation. It exists to explain what is
+  missing and what dated evidence would make the rule executable.
 - A numeric effect must cite both its magnitude and its timing. Prefer one
   verbatim claim span containing both. If the source separates them, emit one
   claim for the dated window and one for the numeric relationship, then cite
@@ -607,7 +614,8 @@ medication|procedure|calendar|capacity|price|environment|unknown"}.
 - claim: {source_span,relation:"supports_increase|supports_decrease|
 supports_stability|supports_higher_variance|supports_lower_variance|
 changes_seasonal_regime|constrains_range|unknown",effective_start,effective_end,
-mechanism,confidence}.
+mechanism,confidence,timing_status:"resolved|unresolved_trigger"}. Use null
+effective dates only with unresolved_trigger.
 - observation_interpretation: {kind:"historical_contamination",claim_ids:
 ["claim-1"],predicate:{op:"equals",value:0}|{op:"recurring_window",start,
 duration_steps,period_steps},window:
@@ -652,6 +660,10 @@ fraction_of_level change of 3). Exact target values use override events.
 Never infer an exact zero from words such as closed, outage, or unavailable;
 without a stated target value, use a qualitative event/hypothesis and an
 explicitly prior_assisted forecast_candidate only if you can derive one.
+General temporal rules with an unidentified or undated trigger are still
+useful context: preserve the verbatim claim with timing_status
+`unresolved_trigger` and an unsupported hypothesis, but never apply it
+numerically or authorize automation.
 4. Preserve ambiguity as competing hypotheses. Confidence never upgrades
 support or automation. A model-authored candidate is prior_assisted only,
 never automation-eligible, and its rationale explains derived arithmetic.
@@ -1669,8 +1681,10 @@ def _select_publication_fail_closed(
     """Apply a model ranking or retain the already verified publication."""
     if selection is None:
         from gnomon.publication import dominant_scenario_id
-        dominant = dominant_scenario_id(
-            list(publication.get("candidate_portfolio") or []))
+        portfolio = list(publication.get("candidate_portfolio") or [])
+        if len(portfolio) <= 1:
+            return publication, None
+        dominant = dominant_scenario_id(portfolio)
         if dominant == publication.get("recommended_scenario_id"):
             return publication, "selector skipped: governed evidence dominance"
         return publication, "live MCP publication used without selection"
@@ -3010,13 +3024,28 @@ class _Run:
 
             claims = dossier.get("claims") or []
             claim_ids = [str(claim.get("claim_id")) for claim in claims]
+            unresolved_ids = {
+                str(claim.get("claim_id")) for claim in claims
+                if claim.get("timing_status") == "unresolved_trigger"
+            }
             spans = {str(claim.get("claim_id")): str(
                 claim.get("source_span") or "") for claim in claims}
             failures = []
             for index, item in enumerate(candidate_raw.get("transformations") or [], 1):
                 wrapper = item if isinstance(item, dict) else {}
+                transformation = wrapper.get("transformation", wrapper)
+                cited = {str(value) for value in
+                         transformation.get("claim_ids") or []}
+                if cited.intersection(unresolved_ids):
+                    failures.append({"index": index, "violations": [{
+                        "code": "UNRESOLVED_TRIGGER_TIMING",
+                        "message": (
+                            "A transformation cannot execute until every "
+                            "cited trigger has a dated effective window."),
+                    }]})
+                    continue
                 compiled, critique = compile_transformation(
-                    wrapper.get("transformation", wrapper),
+                    transformation,
                     series=list((wrapper.get("series_values") or {}).keys()),
                     claim_ids=claim_ids, cutoff=self.timestamps[-1],
                     units=wrapper.get("units"), repair=wrapper.get("repair"),
@@ -3058,10 +3087,17 @@ class _Run:
             transform_failures and not repair_used
             and not non_transform_executable)
         if raw.get("transformations"):
+            transform_violation_codes = sorted({
+                str(violation.get("code"))
+                for failure in transform_failures
+                for violation in failure.get("violations", [])
+                if violation.get("code")
+            })
             repair_decisions.append({
                 "stage": "transformation_preflight",
                 "triggered": transform_repair_eligible,
                 "failure_count": len(transform_failures),
+                "violation_codes": transform_violation_codes,
                 "repair_already_used": bool(repair_used),
                 "alternative_executable_available": bool(
                     non_transform_executable),

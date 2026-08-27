@@ -215,6 +215,18 @@ def test_incompatible_scenario_ranking_retains_live_publication(monkeypatch):
         "ranking omitted one live scenario")
 
 
+def test_single_live_scenario_needs_no_selector_and_reports_no_error():
+    publication = {
+        "recommended_scenario_id": "primary",
+        "candidate_portfolio": [{"scenario_id": "primary"}],
+    }
+
+    retained, error = _select_publication_fail_closed(publication, None)
+
+    assert retained is publication
+    assert error is None
+
+
 def test_pre_call_ranking_is_completed_for_extra_live_scenarios(monkeypatch):
     publication = {"candidate_portfolio": [
         {"scenario_id": "primary"}, {"scenario_id": "candidate"},
@@ -1318,6 +1330,7 @@ def test_valid_effect_skips_repair_of_malformed_optional_transformation(
     assert decision == {
         "stage": "transformation_preflight", "triggered": False,
         "failure_count": 1, "repair_already_used": False,
+        "violation_codes": ["HORIZON_MISMATCH"],
         "alternative_executable_available": True,
         "skip_reason": "valid_non_transform_executable",
     }
@@ -1619,6 +1632,71 @@ def test_immutable_primary_role_uses_public_path_when_context_did_not_apply(
     assert len(samples[0]) == len(_task().future_time)
     assert extra["route"] == "immutable_primary_diagnostic"
     assert extra["context_recommendation_ignored"] is True
+
+
+def test_undated_general_rule_is_retained_with_actionable_recovery(tmp_path):
+    task = _task()
+    span = "Demand typically falls during public holidays."
+    task.background = span
+    clean_dossier = {
+        "events": [],
+        "claims": [{
+            "source_span": span, "relation": "supports_decrease",
+            "effective_start": None, "effective_end": None,
+            "timing_status": "unresolved_trigger",
+            "mechanism": "Holiday demand effect", "confidence": .7,
+        }],
+        "hypotheses": [{
+            "kind": "unsupported", "claim_ids": ["claim-1"],
+            "target_series": ["*"], "predictor_series": None,
+            "known_at": task.past_time[-1][0], "lag_steps": 0,
+            "direction": "decrease", "rationale": "Trigger date missing.",
+        }],
+        "effect_proposal": None, "forecast_candidate": None,
+        "covariate_tables": [], "transformations": [],
+    }
+    invalid_dossier = {**clean_dossier, "transformations": [{
+        "transformation": {
+            "known_at": task.past_time[-1][0],
+            "claim_ids": ["claim-1"], "lane": "scenario_only",
+            "output_unit": "value", "expression": {
+                "op": "add", "args": [
+                    {"op": "primary", "quantile": "q50"},
+                    {"op": "literal", "value": 1, "unit": "value"},
+                ],
+            },
+        },
+        "units": {"primary": "value"}, "series_values": {},
+    }]}
+    forecaster = McpAgentForecaster(
+        "x/y", client=ScriptedClient(
+            [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+            [json.dumps(invalid_dossier), json.dumps(clean_dossier)]),
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 1)
+
+    assert extra["context_compilation"]["claim_count"] == 1
+    assert extra["context_compilation"]["hypothesis_count"] == 1
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    decision = next(item for item in receipt["compiler"]["repair_decisions"]
+                    if item["stage"] == "transformation_preflight")
+    assert decision["triggered"] is True
+    assert decision["violation_codes"] == ["UNRESOLVED_TRIGGER_TIMING"]
+    assert receipt["rejections"] == []
+    disposition = next(item for item in extra["publication"][
+        "context_dispositions"] if item.get("claim_id") == "claim-1")
+    assert disposition["reason_code"] == "trigger_timing_unresolved"
+    assert disposition["recovery_action"]["code"] == "provide_dated_trigger"
+    assert extra["publication"]["recommended_scenario_id"] == "primary"
+    assert extra["publication"]["automation"]["eligible"] is False
+    assert extra["scenario_selector"] == {
+        "attempted": False, "accepted": False,
+        "disposition": "not_required", "error": None,
+    }
 
 
 def test_transformation_preflight_repairs_malformed_future_series(tmp_path):

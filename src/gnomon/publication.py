@@ -333,6 +333,45 @@ def _context_recovery(disposition: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _claim_disposition(
+        claim: dict[str, Any], *, dossier_index: int,
+        disposition: str, reason_code: str,
+        reason: str | None = None,
+        scenario_ids: list[str] | None = None) -> dict[str, Any]:
+    """Project a verified claim, preserving unresolved-trigger recovery."""
+    if claim.get("timing_status") == "unresolved_trigger":
+        return {
+            "context_id": f"dossier-{dossier_index}:{claim.get('claim_id')}",
+            "disposition": "scenario",
+            "reason_code": "trigger_timing_unresolved",
+            "reason": (
+                "The source states a relevant temporal rule but does not "
+                "establish whether or when its trigger occurs in the "
+                "forecast horizon. It was not applied numerically."),
+            "claim_id": claim.get("claim_id"),
+            "scenario_ids": list(scenario_ids or []),
+            "recovery_action": {
+                "code": "provide_dated_trigger",
+                "message": (
+                    "Provide the trigger identity and its effective date or "
+                    "window; Gnomon will recompile the same cited rule."),
+                "required_evidence": [
+                    "trigger identity", "effective date or window",
+                    "target or entity scope",
+                ],
+                "automation_eligible": False,
+                "required_for_current_recommendation": False,
+            },
+        }
+    return {
+        "context_id": f"dossier-{dossier_index}:{claim.get('claim_id')}",
+        "disposition": disposition, "reason_code": reason_code,
+        "reason": reason, "claim_id": claim.get("claim_id"),
+        **({"scenario_ids": list(scenario_ids)} if scenario_ids is not None
+           else {}),
+    }
+
+
 def build_scenario_catalog(result: dict[str, Any], *,
                            dossiers: list[dict[str, Any]] | None = None
                            ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -596,24 +635,23 @@ def build_scenario_catalog(result: dict[str, Any], *,
             deterministic_used = bool(
                 isinstance(context_outcome, dict)
                 and context_outcome.get("status") == "applied")
-            dispositions.extend({
-                "context_id": f"dossier-{index}:{item.get('claim_id')}",
-                "disposition": (
+            dispositions.extend(_claim_disposition(
+                item, dossier_index=index,
+                disposition=(
                     "used" if deterministic_used
                     and str(item.get("claim_id")) in deterministic_claim_ids
                     else "scenario"),
-                "reason_code": (
+                reason_code=(
                     "deterministic_claim_applied" if deterministic_used
                     and str(item.get("claim_id")) in deterministic_claim_ids
                     else "interpretation_only_no_numeric_path"),
-                "reason": (
+                reason=(
                     "Verified claim was applied through the deterministic "
                     "context contract." if deterministic_used
                     and str(item.get("claim_id")) in deterministic_claim_ids
                     else "Verified claim is retained for interpretation but "
                     "did not alter the selected numeric forecast."),
-                "claim_id": item.get("claim_id"),
-            } for item in claims)
+            ) for item in claims)
             continue
         emitted: list[str] = []
         if proposal:
@@ -751,14 +789,12 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 },
             ))
             emitted.append(identifier)
-        dispositions.extend({
-            "context_id": f"dossier-{index}:{item.get('claim_id')}",
-            "disposition": "scenario",
-            "reason_code": (
-                "conditional_replay_admitted" if replay_admitted else
-                "prior_assisted_not_historically_admitted"),
-            "scenario_ids": emitted, "claim_id": item.get("claim_id"),
-        } for item in claims)
+        dispositions.extend(_claim_disposition(
+            item, dossier_index=index, disposition="scenario",
+            reason_code=("conditional_replay_admitted" if replay_admitted
+                         else "prior_assisted_not_historically_admitted"),
+            scenario_ids=emitted,
+        ) for item in claims)
     if len(scenarios) > MAX_SCENARIOS:
         role_priority = {
             "immutable_primary": 100,

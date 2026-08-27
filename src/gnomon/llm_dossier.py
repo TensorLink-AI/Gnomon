@@ -213,6 +213,24 @@ def validate_temporal_dossier(
         start = _timestamp(claim.get("effective_start"))
         end = _timestamp(claim.get("effective_end"))
         history_window_binding = None
+        timing_status = str(claim.get("timing_status") or "resolved")
+        if timing_status not in {"resolved", "unresolved_trigger"}:
+            reasons.append(f"claim {index + 1} has unknown timing_status")
+            continue
+        if timing_status == "unresolved_trigger":
+            # This is question scope, not asserted event timing. It keeps a
+            # useful qualitative rule visible while categorically preventing
+            # deterministic application until the trigger is dated.
+            start = _timestamp(future_timestamps[0]) if future_timestamps else None
+            end = _timestamp(future_timestamps[-1]) if future_timestamps else None
+            history_window_binding = {
+                "kind": "forecast_question_scope_unresolved_trigger",
+                "basis": (
+                    "source states a temporal rule but does not establish "
+                    "whether or when its trigger occurs in the horizon"),
+                "numeric_authority": False,
+                "automation_eligible": False,
+            }
         if (start is None or end is None or end < start) and \
                 _claim_requests_whole_history_binding(
                     claim, raw.get("observation_interpretations"),
@@ -317,6 +335,7 @@ def validate_temporal_dossier(
             "mechanism": str(claim.get("mechanism") or "")[:500],
             "confidence": confidence,
             "known_at": cutoff_dt.isoformat(),
+            "timing_status": timing_status,
             **({"confidence_normalization": confidence_normalization}
                if confidence_normalization else {}),
             **({"effective_window_binding": history_window_binding}
@@ -402,6 +421,17 @@ def validate_temporal_dossier(
     candidate_input = (calibration_candidate if use_calibration_candidate else
                        derived_candidate if use_derived_candidate else
                        raw.get("forecast_candidate") or derived_candidate)
+    unresolved_claim_ids = {
+        str(claim["claim_id"]) for claim in claims
+        if claim.get("timing_status") == "unresolved_trigger"
+    }
+    if isinstance(candidate_input, dict) and unresolved_claim_ids:
+        cited = {str(item) for item in candidate_input.get("claim_ids") or
+                 [claim["claim_id"] for claim in claims]}
+        if cited.intersection(unresolved_claim_ids):
+            reasons.append(
+                "forecast_candidate cites a rule with unresolved trigger timing")
+            candidate_input = None
     candidate = _validate_candidate(
         candidate_input, claims=claims,
         future_timestamps=future_timestamps, history=history, reasons=reasons,
@@ -433,13 +463,25 @@ def validate_temporal_dossier(
         # explicit citation so the model cannot smuggle in a broad rationale.
         effect_raw = {**effect_raw, "claim_ids": [claims[0]["claim_id"]],
                       "citation_binding": "single_verified_claim"}
-    effect_proposal, proposal_critique = validate_effect_proposal(
+    unresolved_effect = bool(
+        isinstance(effect_raw, dict) and unresolved_claim_ids.intersection(
+            str(item) for item in effect_raw.get("claim_ids") or
+            ([claims[0]["claim_id"]] if len(claims) == 1 else [])))
+    effect_proposal, proposal_critique = ((None, {
+        "status": "rejected", "attempts_used": 1, "attempts_remaining": 1,
+        "attempts": [{"attempt": 1, "accepted": False, "violations": [{
+            "code": "UNRESOLVED_TRIGGER_TIMING",
+            "message": (
+                "A qualitative rule cannot produce a numeric effect until "
+                "its trigger date or window is established."),
+        }]}],
+    }) if unresolved_effect else validate_effect_proposal(
         effect_raw,
         claim_ids={str(claim["claim_id"]) for claim in claims},
         claim_spans={str(claim["claim_id"]): str(claim["source_span"])
                      for claim in claims},
         repair=raw.get("effect_proposal_repair"),
-    ) if raw.get("effect_proposal") not in (None, {}) else (None, {
+    )) if raw.get("effect_proposal") not in (None, {}) else (None, {
         "status": "not_proposed", "attempts_used": 0, "attempts_remaining": 2,
         "attempts": [],
     })
@@ -1182,6 +1224,8 @@ def deterministic_events_from_claims(
 
     events = []
     for index, claim in enumerate(dossier.get("claims") or [], 1):
+        if claim.get("timing_status") == "unresolved_trigger":
+            continue
         span = str(claim.get("source_span") or "")
         parse_span = _target_relevant_claim_span(span, target_name)
         if parse_span is None:
