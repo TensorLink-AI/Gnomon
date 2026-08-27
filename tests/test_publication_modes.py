@@ -154,7 +154,43 @@ def test_atemporal_claim_requests_applicability_not_a_trigger_date():
     assert disposition["reason_code"] == "background_context_not_conditioned"
     assert disposition["recovery_action"]["code"] \
         == "provide_applicability_evidence"
+    assert disposition["cited_fact"] == {
+        "source_span": span,
+        "relation": "supports_stability",
+        "confidence": .7,
+    }
     assert "date" not in disposition["recovery_action"]["message"]
+    assert payload["recommended_scenario_id"] == "primary"
+    assert payload["automation"]["eligible"] is False
+
+
+def test_atemporal_peer_bound_preserves_fact_and_requests_a_reference_path():
+    span = "A comparable site's maximum was 25.83 at 21:10:00."
+    dossier, reasons = validate_temporal_dossier({
+        "claims": [{
+            "source_span": span, "relation": "constrains_range",
+            "effective_start": None, "effective_end": None,
+            "timing_status": "atemporal_context", "confidence": .5,
+        }],
+        "hypotheses": [{
+            "kind": "bound", "claim_ids": ["claim-1"],
+            "target_series": ["*"], "predictor_series": None,
+            "known_at": "2026-01-02T00:00:00+00:00", "lag_steps": 0,
+            "direction": "unknown", "rationale": "Peer upper bound only.",
+        }],
+    }, context_text=span, cutoff="2026-01-02T00:00:00+00:00",
+       future_timestamps=TIMES, history=[8, 9, 10], compiler_model="test")
+    assert not reasons
+
+    payload = publish_result(_result(), mode="best_effort", dossiers=[dossier])
+
+    disposition = payload["context_dispositions"][0]
+    assert disposition["cited_fact"]["source_span"] == span
+    assert disposition["cited_fact"]["relation"] == "constrains_range"
+    assert disposition["recovery_action"]["required_evidence"][:2] == [
+        "reference observations over the forecast grid",
+        "target-to-reference scale or historical overlap",
+    ]
     assert payload["recommended_scenario_id"] == "primary"
     assert payload["automation"]["eligible"] is False
 

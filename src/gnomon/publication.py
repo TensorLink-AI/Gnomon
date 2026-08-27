@@ -410,6 +410,11 @@ def _claim_disposition(
         reason: str | None = None,
         scenario_ids: list[str] | None = None) -> dict[str, Any]:
     """Project a verified claim, preserving unresolved-trigger recovery."""
+    cited_fact = {
+        "source_span": claim.get("source_span"),
+        "relation": claim.get("relation"),
+        "confidence": claim.get("confidence"),
+    }
     if claim.get("timing_status") == "unresolved_trigger":
         return {
             "context_id": f"dossier-{dossier_index}:{claim.get('claim_id')}",
@@ -420,6 +425,7 @@ def _claim_disposition(
                 "establish whether or when its trigger occurs in the "
                 "forecast horizon. It was not applied numerically."),
             "claim_id": claim.get("claim_id"),
+            "cited_fact": cited_fact,
             "scenario_ids": list(scenario_ids or []),
             "recovery_action": {
                 "code": "provide_dated_trigger",
@@ -435,6 +441,7 @@ def _claim_disposition(
             },
         }
     if claim.get("timing_status") == "atemporal_context":
+        range_constraint = claim.get("relation") == "constrains_range"
         return {
             "context_id": f"dossier-{dossier_index}:{claim.get('claim_id')}",
             "disposition": "scenario",
@@ -444,19 +451,28 @@ def _claim_disposition(
                 "not a dated event. It remains available to interpretation "
                 "but was not treated as a deterministic forecast adjustment."),
             "claim_id": claim.get("claim_id"),
+            "cited_fact": cited_fact,
             "scenario_ids": list(scenario_ids or []),
             "recovery_action": {
                 "code": "provide_applicability_evidence",
                 "message": (
+                    "Provide the aligned reference path and evidence for how "
+                    "its level and timing transfer to this target; a single "
+                    "peer bound cannot identify a forecast path."
+                    if range_constraint else
                     "Provide the current driver observations, comparison "
                     "period, or an explicit bounded scenario assumption "
                     "needed to apply this background evidence."),
-                "required_evidence": [
+                "required_evidence": ([
+                    "reference observations over the forecast grid",
+                    "target-to-reference scale or historical overlap",
+                    "target and entity scope",
+                ] if range_constraint else [
                     "applicable driver observations or comparison period",
                     "target and entity scope",
                     "bounded scenario assumption when historical validation "
                     "is unavailable",
-                ],
+                ]),
                 "automation_eligible": False,
                 "required_for_current_recommendation": False,
             },
@@ -465,6 +481,7 @@ def _claim_disposition(
         "context_id": f"dossier-{dossier_index}:{claim.get('claim_id')}",
         "disposition": disposition, "reason_code": reason_code,
         "reason": reason, "claim_id": claim.get("claim_id"),
+        "cited_fact": cited_fact,
         **({"scenario_ids": list(scenario_ids)} if scenario_ids is not None
            else {}),
     }
