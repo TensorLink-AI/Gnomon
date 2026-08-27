@@ -24,8 +24,9 @@ facts, or other forecast-relevant text, never silently drop it and never mix a
 model-authored adjustment into the primary forecast. Put literal bounded dated
 events in `gnomon_forecast.context_events` using `claim_kind: min|max|exact`,
 exact ISO timestamps, `known_at`, a verbatim top-level `source_span`, and a
-source reference. Omit `entity_scope` for a single target; name it explicitly
-for multi-series calls. Always use this compact form for literal numeric claims; do
+source reference. Omit `entity_scope` for one target; for multi-series calls,
+name it unless the quote itself names exactly one requested target. Always use
+this compact form for literal numeric claims; do
 not construct `event_type` or `attributes` yourself. Gnomon re-parses the
 number from the quote and enables the governed future-context lane
 automatically. When direction and shape are stated but magnitude is

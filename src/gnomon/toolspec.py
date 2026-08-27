@@ -31,7 +31,7 @@ _CONTEXT_EVENTS_PROPERTY: dict[str, Any] = {
                                "enum": ["min", "max", "exact"],
                                "description": "min=floor; max=cap; exact=fixed state."},
                 "entity_scope": {"type": "array", "items": {"type": "string"},
-                                 "description": "Omit for one target; required for multiple series."},
+                                 "description": "Omit when one target or quote names exactly one requested target."},
                 "effective_start": {"type": "string"},
                 "effective_end": {"type": "string"},
                 "known_at": {"type": "string"},
@@ -1553,6 +1553,8 @@ def _context_events_from(arguments: dict[str, Any]):
     events are structurally unable to enter numeric admission: they can only
     create labelled, non-automatable sensitivity scenarios.
     """
+    import re
+
     from .context import events_from_list
     from .contracts import GnomonError
 
@@ -1626,17 +1628,26 @@ def _context_events_from(arguments: dict[str, Any]):
                 reference = str(item.pop("source_reference", "inline") or "inline")
                 if not item.get("entity_scope"):
                     target = str(arguments.get("target_column") or "").strip()
-                    if not target or "," in target or target.lower() == "auto":
+                    candidates = [name.strip() for name in target.split(",")
+                                  if name.strip() and name.strip().lower() != "auto"]
+                    matches = [name for name in candidates if re.search(
+                        rf"(?<![\w-]){re.escape(name)}(?![\w-])", span,
+                        re.IGNORECASE)]
+                    if len(candidates) == 1:
+                        item["entity_scope"] = candidates
+                    elif len(matches) == 1:
+                        item["entity_scope"] = matches
+                    else:
                         raise GnomonError(
                             "INVALID_ARGUMENTS",
                             "compact literal context requires entity_scope "
-                            "for a multi-series or unresolved target",
-                            {"item_index": index})
-                    item["entity_scope"] = [target]
+                            "unless its quote names exactly one requested target",
+                            {"item_index": index,
+                             "requested_targets": candidates,
+                             "targets_named_in_source_span": matches})
                 from .future_context import parse_bound_span, parse_override_span
                 parsed_bound, _ = parse_bound_span(span)
                 parsed_override, _ = parse_override_span(span)
-                import re
                 explicit_bound = bool(re.search(
                     r"\b(?:caps?|capped|ceiling|floor|maximum|minimum|"
                     r"at\s+most|no\s+more\s+than|not\s+exceed|at\s+least|"
@@ -2119,7 +2130,8 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
 
 
 def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
-                        path: Any, arguments: dict[str, Any]) -> None:
+                        path: Any, arguments: dict[str, Any], *,
+                        result_index: int = 0) -> None:
     """MCP projection boundary; forecast artifacts remain byte-immutable."""
     mode = str(arguments.get("publication_mode") or "strict")
     dossiers = arguments.get("temporal_dossiers") or []
@@ -2161,14 +2173,13 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
                                   or arguments.get("_context_was_supplied")
                                   or selection or policy):
         return
-    if len(artifact.results) != 1:
+    if result_index < 0 or result_index >= len(artifact.results):
         raise GnomonError(
             "INVALID_ARGUMENTS",
-            "Publication modes currently require one target series; call "
-            "gnomon_forecast once per target.")
+            "Publication result index is outside the artifact.")
     from .publication import (compile_dossier_for_result, publish_result,
                               write_publication)
-    result = artifact.to_dict()["results"][0]
+    result = artifact.to_dict()["results"][result_index]
     raw_context_rejections = submission.get("rejections") or []
     if not isinstance(raw_context_rejections, list):
         raise GnomonError(
@@ -2362,15 +2373,14 @@ def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str
     in target_column batches several columns into one run and one
     combined artifact — same numbers per channel as separate calls."""
     from .contracts import GnomonError
-    if (arguments.get("publication_mode") not in (None, "strict")
-            or arguments.get("temporal_dossiers")
+    if (arguments.get("temporal_dossiers")
             or arguments.get("context_submission")
-            or arguments.get("scenario_selection")
-            or arguments.get("automation_policy")):
+            or arguments.get("scenario_selection")):
         raise GnomonError(
             "INVALID_ARGUMENTS",
-            "Publication modes require one target series; call "
-            "gnomon_forecast once per target.")
+            "Cross-series dossier or scenario ranking requires one target; "
+            "plain strict, best_effort, and scenario publication modes are "
+            "supported in one batched call.")
     from .data import resolve_target_spec
     from .runtime import forecast_multi
 
@@ -2397,12 +2407,17 @@ def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str
     events = _materialized_or_public_events(arguments)
     covariates = _covariates_from(arguments)
     config = None
-    if (arguments.get("future_events") or arguments.get("structural_events")
+    typed_future_context = any(
+        event.event_type.startswith(("constraint:literal_", "override:literal_"))
+        for event in events or [])
+    if (arguments.get("future_events") or typed_future_context
+            or arguments.get("structural_events")
             or arguments.get("model_admission") == "evidence_weighted"):
         from .config import GnomonConfig
 
         config = GnomonConfig()
-        config.context.future_events = bool(arguments.get("future_events"))
+        config.context.future_events = bool(
+            arguments.get("future_events") or typed_future_context)
         config.context.structural_events = bool(arguments.get("structural_events"))
         if arguments.get("model_admission") == "evidence_weighted":
             registry = arguments.get("model_evidence_registry")
@@ -2439,6 +2454,47 @@ def _run_forecast_multi(arguments: dict[str, Any], target_spec: str) -> dict[str
     payload = (forecast_summary(artifact, path)
                if arguments.get("format") == "full"
                else brief_summary(artifact, path))
+    if (arguments.get("publication_mode") is not None
+            or arguments.get("automation_policy")
+            or arguments.get("_context_was_supplied")):
+        publications = []
+        for index, result in enumerate(artifact.results):
+            child: dict[str, Any] = {}
+            _attach_publication(
+                child, artifact, path, arguments, result_index=index)
+            publication = child.get("publication")
+            if not publication:
+                continue
+            publications.append({
+                "series": result.series,
+                "mode": publication.get("mode"),
+                "recommended_scenario_id": publication.get(
+                    "recommended_scenario_id"),
+                "recommended_support": publication.get("recommended_support"),
+                "primary_forecast_unchanged": publication.get(
+                    "primary_forecast_unchanged"),
+                "scenario_count": publication.get("scenario_count"),
+                "context_summary": publication.get("context_summary"),
+                "context_dispositions": publication.get(
+                    "context_dispositions") or [],
+                "automation": publication.get("automation"),
+                "publication_seal_sha256": publication.get(
+                    "publication_seal_sha256"),
+                "publication_path": child.get("publication_path"),
+            })
+        payload["publications"] = publications
+        payload["publication_summary"] = {
+            "mode": str(arguments.get("publication_mode") or "strict"),
+            "series_count": len(publications),
+            "primary_forecast_unchanged": all(
+                item.get("primary_forecast_unchanged") is True
+                for item in publications),
+            "automation_eligible": bool(publications) and all(
+                (item.get("automation") or {}).get("eligible") is True
+                for item in publications),
+            "scenario_count": sum(int(item.get("scenario_count") or 0)
+                                  for item in publications),
+        }
     _attach_temporal_answers(payload, artifact, path, arguments)
     return payload
 

@@ -435,6 +435,22 @@ def _publication_recommendation_numbers(
     return {}
 
 
+def _preferred_tool(case: dict[str, Any], profile: str) -> str:
+    """Choose by requested verb before dataset shape.
+
+    A wide forecast remains a forecast; routing every multiseries input to
+    describe silently drops publication and context semantics.
+    """
+    if profile == "mega":
+        return "gnomon_run"
+    forecast_intent = str(case.get("question") or "").lstrip().lower().startswith(
+        "forecast")
+    if case.get("kind") == "multiseries" and not forecast_intent:
+        return ("gnomon_describe" if profile in {"describe", "evidence", "full"}
+                else "gnomon_inspect")
+    return "gnomon_forecast"
+
+
 def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
         jail: Path, profile: str) -> tuple[dict[str, Any], int, list[str], dict[str, Any]]:
     # The server deliberately runs with the case jail as cwd. Ensure that
@@ -457,13 +473,7 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
     try:
         session.initialize()
         tools = openai_tool_specs(session.list_tools(), SUBMIT)
-        preferred_name = (
-            "gnomon_run" if profile == "mega" else
-            "gnomon_describe" if case.get("kind") == "multiseries"
-            and profile in {"describe", "evidence", "full"} else
-            "gnomon_inspect" if case.get("kind") == "multiseries" else
-            "gnomon_forecast"
-        )
+        preferred_name = _preferred_tool(case, profile)
         skill_path = repository / "skills" / "use-gnomon" / "SKILL.md"
         skill = skill_path.read_text(encoding="utf-8")
         messages = [
@@ -575,6 +585,40 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                             })
                     publication = (structured.get("publication")
                                    if isinstance(structured, dict) else None)
+                    if not isinstance(publication, dict) and isinstance(
+                            structured, dict):
+                        publications = [item for item in
+                                        structured.get("publications") or []
+                                        if isinstance(item, dict)]
+                        summary = structured.get("publication_summary") or {}
+                        if publications and isinstance(summary, dict):
+                            child_statuses = [str((item.get(
+                                "context_summary") or {}).get("status") or
+                                "not_supplied") for item in publications]
+                            used = any(status in {"used", "partially_used"}
+                                       for status in child_statuses)
+                            mixed = len(set(child_statuses)) > 1
+                            publication = {
+                                "mode": summary.get("mode"),
+                                "primary_forecast_unchanged": summary.get(
+                                    "primary_forecast_unchanged"),
+                                "scenario_count": summary.get("scenario_count"),
+                                "context_summary": {
+                                    "status": ("partially_used" if used and mixed
+                                               else "used" if used
+                                               else "partially_represented"
+                                               if mixed else child_statuses[0]),
+                                },
+                                "context_dispositions": [{
+                                    **disposition,
+                                    "series": item.get("series"),
+                                } for item in publications for disposition in
+                                    item.get("context_dispositions") or []
+                                   if isinstance(disposition, dict)],
+                                "automation": {
+                                    "eligible": summary.get(
+                                        "automation_eligible")},
+                            }
                     if isinstance(publication, dict):
                         summary = publication.get("context_summary") or {}
                         automation = publication.get("automation") or {}
@@ -642,6 +686,10 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                     elif not computation_complete:
                         recovery_calls += 1
                     if isinstance(structured, dict):
+                        artifact_identity = (structured.get("artifact_id")
+                                             or structured.get("forecast_id"))
+                        if artifact_identity:
+                            engine_evidence["artifact_id"] = artifact_identity
                         requested = set((case.get("answer_schema") or {}).get(
                             "facts") or [])
                         harvested = _extract_engine_facts(structured, requested)
@@ -661,8 +709,7 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                                         str(evaluated["name"]), str(source)),
                                     "published_fingerprint": _identity_fingerprint(
                                         str(published["name"]), str(source)),
-                                    "artifact_id": structured.get("artifact_id")
-                                        or structured.get("forecast_id"),
+                                    "artifact_id": artifact_identity,
                                     "parity_evidence_level": "response_execution_identity",
                                 })
                             answer_keys = set((case.get("answer_schema") or {}).get("numbers") or [])
@@ -674,6 +721,40 @@ def mcp(case: dict[str, Any], client: OpenRouterClient, csv_path: Path,
                                 if point is not None:
                                     engine_evidence["artifact_numbers"] = {
                                         "next": float(point)}
+                        elif len(response_results) > 1:
+                            identities = []
+                            for response_result in response_results:
+                                identity = response_result.get(
+                                    "execution_identity") or {}
+                                evaluated = identity.get("evaluated") or {}
+                                published = identity.get("published") or {}
+                                source = published.get("data_fingerprint")
+                                if not (response_result.get("series")
+                                        and evaluated.get("name")
+                                        and published.get("name") and source):
+                                    identities = []
+                                    break
+                                identities.append((
+                                    str(response_result["series"]),
+                                    str(evaluated["name"]),
+                                    str(published["name"]), str(source)))
+                            if identities:
+                                source = "|".join(
+                                    f"{series}:{fingerprint}" for
+                                    series, _, _, fingerprint in identities)
+                                engine_evidence.update({
+                                    "evaluated_fingerprint": _identity_fingerprint(
+                                        "|".join(f"{series}:{evaluated}" for
+                                                 series, evaluated, _, _ in identities),
+                                        source),
+                                    "published_fingerprint": _identity_fingerprint(
+                                        "|".join(f"{series}:{published}" for
+                                                 series, _, published, _ in identities),
+                                        source),
+                                    "artifact_id": artifact_identity,
+                                    "parity_evidence_level": (
+                                        "response_multi_execution_identity"),
+                                })
                     artifact_path = structured.get("artifact_path") if isinstance(structured, dict) else None
                     if artifact_path:
                         try:

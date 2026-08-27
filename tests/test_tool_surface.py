@@ -265,6 +265,46 @@ def test_batched_forecast_accepts_scoped_validated_context(tmp_path) -> None:
     assert by_series["mem"]["context_outcome"]["status"] == "not_considered"
 
 
+def test_batched_forecast_emits_scoped_sealed_publications(tmp_path) -> None:
+    from datetime import date, timedelta
+    from gnomon.toolspec import runner_for
+
+    wide = tmp_path / "wide-publication.csv"
+    start = date(2026, 1, 1)
+    wide.write_text("\n".join(["timestamp,cpu,mem"] + [
+        f"{start + timedelta(days=day)},{70 + day % 4},{40 + day % 3}"
+        for day in range(40)
+    ]) + "\n")
+    payload = runner_for("gnomon_forecast")({
+        "input": str(wide), "time_column": "timestamp",
+        "target_column": "cpu,mem", "frequency": "D", "horizon": 1,
+        "context_events": [{
+            "event_id": "cpu-cap", "claim_kind": "max",
+            "entity_scope": ["cpu"],
+            "effective_start": "2026-02-10",
+            "effective_end": "2026-02-10",
+            "known_at": "2026-02-09",
+            "source_span": "CPU is capped at 60 on 2026-02-10.",
+        }],
+        "publication_mode": "best_effort",
+        "automation_policy": {"allow": False},
+        "output_dir": str(tmp_path / "out-wide-publication"),
+    })
+
+    publications = {item["series"]: item for item in payload["publications"]}
+    assert set(publications) == {"cpu", "mem"}
+    assert publications["cpu"]["recommended_scenario_id"] == \
+        "context_conditioned"
+    assert publications["mem"]["recommended_scenario_id"] == "primary"
+    assert payload["publication_summary"] == {
+        "mode": "best_effort", "series_count": 2,
+        "primary_forecast_unchanged": True,
+        "automation_eligible": False,
+        "scenario_count": 3,
+    }
+    assert all(item["publication_path"] for item in publications.values())
+
+
 def test_qualitative_context_lane_produces_non_automatable_sensitivity(
         tmp_path) -> None:
     from datetime import date, timedelta
@@ -383,6 +423,21 @@ def test_compact_literal_context_rejects_ambiguous_or_unsourced_forms() -> None:
         "from": "override", "to": "constraint",
         "reason": "the quoted text, not the model label, determines semantics",
     }
+
+    scoped = _context_events_from({
+        "target_column": "cpu,memory", "context_events": [{
+            **base, "entity_scope": [],
+            "source_span": "A signed rule caps CPU at exactly 40 units.",
+        }],
+    })
+    assert scoped[0].entity_scope == ("cpu",)
+    with pytest.raises(GnomonError, match="names exactly one"):
+        _context_events_from({
+            "target_column": "cpu,memory", "context_events": [{
+                **base, "entity_scope": [],
+                "source_span": "A signed rule caps both systems at 40 units.",
+            }],
+        })
 
 
 def test_compact_literal_context_auto_enables_governed_future_lane(tmp_path) -> None:

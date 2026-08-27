@@ -14,7 +14,8 @@ from benchmarks.workflow.audit import audit
 from benchmarks.workflow.provenance import corpus_sha256
 from benchmarks.workflow.generate import generate_publication_cases
 from benchmarks.workflow.agent_adapter import (
-    _compile_execution_arguments, _publication_recommendation_numbers)
+    _compile_execution_arguments, _preferred_tool,
+    _publication_recommendation_numbers)
 
 
 def _observation(case, **overrides):
@@ -116,6 +117,19 @@ def test_mixed_context_corpus_requires_multiple_disposition_channels():
         "used", "partially_used", "partially_represented"}
 
 
+def test_context_generalization_corpus_is_frozen_and_diverse():
+    path = Path(__file__).parents[1] / "workflow" / "cases" / \
+        "context-generalization.jsonl"
+    cases = load_cases(path)
+    assert len(cases) == 8
+    assert len({case.domain for case in cases}) >= 6
+    assert {tag for case in cases for tag in case.tags} >= {
+        "literal-floor", "literal-ceiling", "zero-state",
+        "conflicting-context", "strict-mode", "scenario-mode",
+        "multi-series", "qualitative", "irrelevant",
+    }
+
+
 def test_publication_recommendation_overrides_active_artifact_lane_for_answer():
     publication = {
         "recommended_scenario_id": "primary",
@@ -128,6 +142,14 @@ def test_publication_recommendation_overrides_active_artifact_lane_for_answer():
     assert _publication_recommendation_numbers(publication, {"next"}) == {
         "next": 70.72}
     assert _publication_recommendation_numbers(publication, set()) == {}
+
+
+def test_multiseries_routing_follows_requested_verb_before_shape():
+    base = {"kind": "multiseries"}
+    assert _preferred_tool({**base, "question": "Forecast CPU and memory."},
+                           "evidence") == "gnomon_forecast"
+    assert _preferred_tool({**base, "question": "Describe CPU and memory."},
+                           "evidence") == "gnomon_describe"
 
 
 def test_execution_compiler_binds_known_fields_but_preserves_ambiguity(tmp_path):

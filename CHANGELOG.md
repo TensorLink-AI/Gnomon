@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Support strict, best-effort, and scenario publication for batched
+  multi-target forecasts. Each series receives its own sealed publication and
+  sidecar while the response carries a compact aggregate; scoped context can
+  affect one channel without changing another, and automation remains a
+  per-series policy decision. Cross-series dossier ranking still fails loudly.
+- Route wide requests by the user-requested verb before dataset shape, so a
+  multi-series forecast no longer becomes a descriptive call. When a compact
+  literal omits scope in a multi-target request, bind it only if its quoted
+  source names exactly one requested target; otherwise require explicit scope.
+
 - Make mixed qualitative and literal context reliable through the agent
   boundary. Single-target calls can omit redundant event scope, host-resolved
   transport names remain aligned with context scope, daily date-only times are
