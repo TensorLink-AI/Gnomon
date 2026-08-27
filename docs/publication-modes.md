@@ -29,6 +29,41 @@ unparseable model-generated confidence field therefore retains an otherwise
 verbatim grounded claim at a disclosed conservative floor; explicit numeric
 values outside the valid range are still rejected.
 
+For long regular horizons, the compiler receives the exact grid boundaries,
+step size, and count instead of a repeated timestamp array. Any returned
+anchor must still land exactly on the host grid; irregular grids are never
+compressed under a false regularity assumption.
+
+When a safe declarative transformation cites its semantic rule but an explicit
+AST literal appears in another supplied source line, the host may attach that
+line verbatim as a parameter claim. It never invents a value or edits the AST;
+ordinary unit, entailment, replay, support, and automation gates still apply.
+Likewise, a missing literal unit may bind only from an exact source-adjacent
+unit already declared elsewhere in the transformation. Ambiguous, absent, or
+undeclared units remain a typed rejection.
+Future driver schedules may use timestamp/value rows for readability. Gnomon
+removes the timestamp wrapper only after proving exact, complete host-grid
+identity; it never fills or interpolates a model-supplied driver series.
+Piecewise-constant schedules may instead provide a cited initial value and
+change points. Exact timestamps—or clock times matching exactly one host-grid
+instant—are resolved and forward-filled by Gnomon; ambiguity is a rejection.
+Exact identity operations in model-authored arithmetic are normalized away
+before validation. This reduces schema noise but does not exempt any material
+constant from source entailment or unit checks.
+Repair is lane-prioritized: a proposed transformation receives the bounded
+repair budget for its own typed violations; optional malformed side proposals
+cannot starve it. Material derived constants must remain expressed through
+their cited literals and operations.
+Transformation repair is transactional: it may replace the rejected AST set
+and append new verbatim claims, but it cannot delete or rewrite prior evidence
+or alter unrelated dossier lanes.
+An undated transformation specification is bound to the host cutoff rather
+than discarded or represented as a future event. This repair applies only to
+claims supporting a proposed safe transformation; valid windows are unchanged.
+Within an explicit `series / literal` normalization, a single verbatim unit
+adjacent to the denominator may type both operands so the ratio is
+dimensionless. Gnomon does not create the ratio or choose its unit.
+
 `scenario` returns the primary and each bounded conditional path. A governed
 LLM selection may rank their immutable IDs and recommend one, citing verified
 claims, counterevidence, confidence, and what would change its selection. The

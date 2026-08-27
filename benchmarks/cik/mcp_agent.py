@@ -25,6 +25,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from datetime import datetime
 from functools import partial
 from pathlib import Path
 from typing import Any
@@ -231,7 +232,44 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: Version 104: malformed compiler-confidence metadata retains a verbatim
 #: grounded claim at a disclosed conservative floor; confidence remains
 #: non-authoritative, while explicit out-of-range numeric values still fail.
-MCP_CONTRACT_VERSION = 104
+#: Version 105: long regular forecast grids are described by exact boundaries,
+#: step size, and count instead of retransmitting hundreds of timestamps.
+#: Version 106: safe transformation literals may bind additional verbatim
+#: source lines containing those exact constants instead of spending the sole
+#: LLM repair round on citation bookkeeping.
+#: Version 107: those static parameter claims bind to the host cutoff rather
+#: than masquerading as future-window events.
+#: Version 108: transformations bind literals to every already-verified
+#: verbatim parameter claim, not only claims added during host normalization.
+#: Version 109: missing literal units bind only from exact source-adjacent units
+#: already declared by the transformation; arithmetic remains unchanged.
+#: Version 110: timestamp/value future-driver rows canonicalize to values only
+#: after exact identity with the complete host forecast grid is proved.
+#: Version 111: missing dates on transformation-specification claims bind to
+#: the cutoff; valid supplied windows and future driver vintages remain intact.
+#: Version 112: a source-adjacent denominator unit may type both sides of an
+#: explicit series/literal normalization ratio, making the ratio dimensionless.
+#: Version 113: numeric provenance matching treats integral `298` and explicit
+#: decimal `298.0` as equivalent source spellings without fuzzy tolerance.
+#: Version 114: verified driver-schedule claims join both the series payload
+#: and its parent transformation claim set.
+#: Version 115: piecewise-constant drivers may use one initial value plus
+#: source-cited change points resolved uniquely onto the host grid.
+#: Version 116: exact algebraic identity operations are removed before
+#: provenance validation; every material constant remains cited and checked.
+#: Version 117: the latest cited change at or before the forecast boundary
+#: establishes a compact schedule's initial state; future changes stay on-grid.
+#: Version 118: a proposed transformation owns the one repair budget instead
+#: of malformed optional side lanes; derived constants remain source-shaped.
+#: Version 119: exact numeric citations allow sentence-ending punctuation but
+#: still reject longer decimal prefixes.
+#: Version 120: AST constants may bind exact semantic word forms already
+#: recognized by the core entailment validator from separate source sentences.
+#: Version 121: a transformation repair replaces only rejected ASTs; prior
+#: claims are immutable and new verbatim claims append without rewriting them.
+#: Version 122: repaired transformations repeat host provenance binding, and
+#: an exactly cited square/cube may restore a prematurely evaluated literal.
+MCP_CONTRACT_VERSION = 122
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -557,7 +595,9 @@ representation is supportable.
 - transformation wrapper: {transformation:{known_at,claim_ids,lane:
 "historically_testable|prior_assisted|scenario_only",output_unit,expression},
 units:{primary:"unit",series_name:"unit"},series_values:{series_name:
-{values:[],known_at,source_claim_ids:[]}}}.
+{values:[],known_at,source_claim_ids:[]}}}. A piecewise-constant driver may
+replace values with initial_value and change_points:[{timestamp,value}]; use
+exact host timestamps or unique HH:MM:SS clock times copied from context.
 
 Rules:
 1. Every source_span/evidence_quote is verbatim context. Never invent a fact,
@@ -598,8 +638,14 @@ primary,series,add,subtract,multiply,divide,power,lag,difference,
 percent_change,rolling_mean,clip,quantile,reference_power,
 linear_combination,recursive_linear. Arithmetic uses args:[NODE,...]; series
 uses {op:"series",name}; lag uses {op:"lag",args:[NODE],steps:N}. Every future
-series has exactly one cited series_values item per forecast timestamp. Never
-fill, extrapolate, or duplicate it as a covariate.
+series has either one cited value per forecast timestamp or a cited
+piecewise-constant initial value plus change points. Gnomon resolves change
+times to its exact grid and performs the forward fill. Never invent an initial
+value or change point, extrapolate beyond the declared schedule, or duplicate
+it as a covariate.
+Preserve source-stated literals and operations in the AST. Never precompute a
+derived constant such as replacing `3000^2` with `9000000`, because every
+material literal must be entailed by a cited source.
 7. historically_testable requires point-in-time replay; prior_assisted is a
 precise prospective rule; scenario_only is conditional. For recursive_linear,
 supply cited future drivers only—Gnomon binds history and prior outputs.
@@ -1025,6 +1071,578 @@ def _transformation_repair_hints(
     return list(dict.fromkeys(hints))[:6]
 
 
+def _transformation_literal_values(wrapper: Any) -> list[float]:
+    """Return only executable AST literals, never dates, lags, or metadata."""
+    transformation = (wrapper.get("transformation", wrapper)
+                      if isinstance(wrapper, dict) else {})
+    expression = (transformation.get("expression")
+                  if isinstance(transformation, dict) else None)
+    values: list[float] = []
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            if node.get("op") == "literal":
+                value = node.get("value")
+                if (isinstance(value, (int, float))
+                        and not isinstance(value, bool)
+                        and math.isfinite(float(value))):
+                    values.append(float(value))
+            for child in node.values():
+                walk(child)
+        elif isinstance(node, list):
+            for child in node:
+                walk(child)
+
+    walk(expression)
+    return list(dict.fromkeys(values))
+
+
+def _numeric_token_pattern(value: float) -> str:
+    token = re.escape(format(float(value), ".15g"))
+    if float(value).is_integer():
+        token += r"(?:\.0+)?"
+    return rf"(?<![\d.]){token}(?!\d|\.\d)"
+
+
+def _verbatim_constant_lines(wrapper: Any, context: str,
+                             existing_spans: list[str]) -> list[str]:
+    """Find source lines needed to entail explicit AST literals."""
+    existing = "\n".join(existing_spans).replace(",", "")
+    lines = [line.strip() for line in context.splitlines() if line.strip()]
+    output = []
+    for value in _transformation_literal_values(wrapper):
+        pattern = _numeric_token_pattern(value)
+        if re.search(pattern, existing.replace(",", "")):
+            continue
+        match = next((line for line in lines if re.search(
+            pattern, line.replace(",", ""))), None)
+        if match is not None:
+            output.append(match)
+    return list(dict.fromkeys(output))[:6]
+
+
+def _verbatim_semantic_constant_lines(wrapper: Any, context: str,
+                                      existing_spans: list[str]) -> list[str]:
+    """Find exact word forms already accepted by constant entailment."""
+    existing = "\n".join(existing_spans).casefold()
+    lines = [line.strip() for line in context.splitlines() if line.strip()]
+    patterns = {
+        0.25: r"\b(?:a\s+quarter|one\s+quarter|quarter)\b",
+        0.5: r"\b(?:a\s+half|one\s+half|half)\b",
+        2.0: r"\b(?:twice|double|square|squared|quadratic)\b",
+        3.0: r"\b(?:triple|cube|cubed|cubic)\b",
+    }
+    output = []
+    for value in _transformation_literal_values(wrapper):
+        pattern = patterns.get(value)
+        if not pattern or re.search(pattern, existing):
+            continue
+        match = next((line for line in lines
+                      if re.search(pattern, line.casefold())), None)
+        if match is not None:
+            output.append(match)
+    return list(dict.fromkeys(output))[:6]
+
+
+def _verbatim_literal_claim_ids(wrapper: Any,
+                                claims: list[dict[str, Any]]) -> list[str]:
+    """Bind AST literals to already-verified verbatim parameter claims."""
+    values = _transformation_literal_values(wrapper)
+    output = []
+    for claim in claims:
+        span = str(claim.get("source_span") or "").replace(",", "")
+        if any(re.search(_numeric_token_pattern(value), span)
+               for value in values):
+            output.append(str(claim.get("claim_id") or ""))
+    return [claim_id for claim_id in dict.fromkeys(output) if claim_id]
+
+
+def _future_series_values(wrapper: Any) -> dict[str, list[float]]:
+    output: dict[str, list[float]] = {}
+    if not isinstance(wrapper, dict):
+        return output
+    for name, payload in (wrapper.get("series_values") or {}).items():
+        rows = payload.get("values") if isinstance(payload, dict) else None
+        values = []
+        for row in rows if isinstance(rows, list) else []:
+            value = row.get("value") if isinstance(row, dict) else row
+            if (isinstance(value, (int, float)) and not isinstance(value, bool)
+                    and math.isfinite(float(value))):
+                values.append(float(value))
+        if values:
+            output[str(name)] = list(dict.fromkeys(values))
+    return output
+
+
+def _verbatim_series_lines(wrapper: Any, context: str,
+                           existing_spans: list[str]) -> list[str]:
+    existing = "\n".join(existing_spans).replace(",", "")
+    lines = [line.strip() for line in context.splitlines() if line.strip()]
+    output = []
+    for values in _future_series_values(wrapper).values():
+        for value in values:
+            pattern = _numeric_token_pattern(value)
+            if re.search(pattern, existing) or any(
+                    re.search(pattern, line.replace(",", ""))
+                    for line in output):
+                continue
+            match = next((line for line in lines if re.search(
+                pattern, line.replace(",", ""))), None)
+            if match is not None:
+                output.append(match)
+    return list(dict.fromkeys(output))[:12]
+
+
+def _verbatim_series_claim_ids(wrapper: Any,
+                               claims: list[dict[str, Any]]) -> dict[str, list[str]]:
+    output: dict[str, list[str]] = {}
+    for name, values in _future_series_values(wrapper).items():
+        ids = []
+        for claim in claims:
+            span = str(claim.get("source_span") or "").replace(",", "")
+            if any(re.search(_numeric_token_pattern(value), span)
+                   for value in values):
+                ids.append(str(claim.get("claim_id") or ""))
+        output[name] = [claim_id for claim_id in dict.fromkeys(ids) if claim_id]
+    return output
+
+
+def _bind_verbatim_literal_units(wrapper: Any,
+                                 claims: list[dict[str, Any]]) -> tuple[Any, int]:
+    """Attach only source-adjacent units already declared by the wrapper."""
+    if not isinstance(wrapper, dict):
+        return wrapper, 0
+    output = json.loads(json.dumps(wrapper))
+    transformation = output.get("transformation", output)
+    expression = (transformation.get("expression")
+                  if isinstance(transformation, dict) else None)
+    declared = {str(value) for value in (output.get("units") or {}).values()
+                if str(value) and str(value) != "unknown"}
+    if isinstance(transformation, dict):
+        unit = str(transformation.get("output_unit") or "")
+        if unit and unit != "unknown":
+            declared.add(unit)
+    spans = "\n".join(str(claim.get("source_span") or "") for claim in claims)
+    changes = 0
+
+    def adjacent_units(value: float, *, declared_only: bool) -> list[str]:
+        token = _numeric_token_pattern(value)
+        matches = re.findall(
+            rf"{token}\s*([A-Za-z][A-Za-z0-9_/*^.-]*)",
+            spans)
+        units = [match.rstrip(".,;:") for match in matches]
+        if declared_only:
+            units = [unit for unit in units if unit in declared]
+        return list(dict.fromkeys(units))
+
+    def walk(node: Any) -> None:
+        nonlocal changes
+        if isinstance(node, dict):
+            args = node.get("args") or []
+            if node.get("op") == "divide" and len(args) == 2:
+                numerator, denominator = args
+                if (isinstance(numerator, dict)
+                        and numerator.get("op") == "series"
+                        and isinstance(denominator, dict)
+                        and denominator.get("op") == "literal"
+                        and not denominator.get("unit")):
+                    value = denominator.get("value")
+                    if isinstance(value, (int, float)) and not isinstance(value, bool):
+                        units = adjacent_units(float(value), declared_only=False)
+                        if len(units) == 1:
+                            unit = units[0]
+                            denominator["unit"] = unit
+                            output.setdefault("units", {})[
+                                str(numerator.get("name") or "")] = unit
+                            declared.add(unit)
+                            changes += 1
+            if node.get("op") == "literal" and not node.get("unit"):
+                value = node.get("value")
+                if isinstance(value, (int, float)) and not isinstance(value, bool):
+                    units = adjacent_units(float(value), declared_only=True)
+                    if len(units) == 1:
+                        node["unit"] = units[0]
+                        changes += 1
+            for child in node.values():
+                walk(child)
+        elif isinstance(node, list):
+            for child in node:
+                walk(child)
+
+    walk(expression)
+    if changes and isinstance(transformation, dict):
+        transformation["literal_unit_binding"] = "verbatim_source_adjacency"
+    return output, changes
+
+
+def _canonicalize_timestamped_series_values(
+        wrapper: Any, future_timestamps: list[str]) -> tuple[Any, int]:
+    """Remove timestamp wrappers only after exact host-grid identity proof."""
+    if not isinstance(wrapper, dict):
+        return wrapper, 0
+    output = json.loads(json.dumps(wrapper))
+    changes = 0
+    for payload in (output.get("series_values") or {}).values():
+        if not isinstance(payload, dict):
+            continue
+        rows = payload.get("values")
+        if not (isinstance(rows, list) and rows
+                and all(isinstance(row, dict)
+                        and {"timestamp", "value"}.issubset(row) for row in rows)):
+            continue
+        ordered = sorted(rows, key=lambda row: str(row["timestamp"]))
+        if [str(row["timestamp"]) for row in ordered] != sorted(future_timestamps):
+            continue
+        payload["values"] = [row["value"] for row in ordered]
+        payload["syntax_canonicalization"] = (
+            "timestamped_rows_exact_host_grid")
+        changes += 1
+    return output, changes
+
+
+def _expand_change_point_series_values(
+        wrapper: Any, future_timestamps: list[str]) -> tuple[Any, int]:
+    """Expand a compact piecewise-constant schedule on one exact host grid."""
+    if not isinstance(wrapper, dict):
+        return wrapper, 0
+    output = json.loads(json.dumps(wrapper))
+    index_by_stamp = {stamp: index for index, stamp in enumerate(future_timestamps)}
+    changes = 0
+
+    first_dt = datetime.fromisoformat(
+        future_timestamps[0].replace("Z", "+00:00"))
+
+    def resolve(value: Any) -> tuple[int, float] | None:
+        stamp = str(value or "")
+        if stamp in index_by_stamp:
+            exact = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+            return index_by_stamp[stamp], exact.timestamp()
+        try:
+            parsed = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+        except ValueError:
+            parsed = None
+        if parsed is not None and parsed.tzinfo is not None and parsed < first_dt:
+            return 0, parsed.timestamp()
+        clock = stamp + (":00" if re.fullmatch(r"\d{2}:\d{2}", stamp) else "")
+        if not re.fullmatch(r"\d{2}:\d{2}:\d{2}(?:\.\d+)?", clock):
+            return None
+        matches = [index for index, host in enumerate(future_timestamps)
+                   if re.search(rf"T{re.escape(clock)}(?:[+-]|Z$)", host)]
+        if len(matches) == 1:
+            exact = datetime.fromisoformat(
+                future_timestamps[matches[0]].replace("Z", "+00:00"))
+            return matches[0], exact.timestamp()
+        return None
+
+    for payload in (output.get("series_values") or {}).values():
+        if not isinstance(payload, dict) or "change_points" not in payload:
+            continue
+        points = payload.get("change_points")
+        initial = payload.get("initial_value")
+        if not (isinstance(points, list)
+                and isinstance(initial, (int, float))
+                and not isinstance(initial, bool)):
+            continue
+        parsed = []
+        valid = True
+        for point in points:
+            if not isinstance(point, dict):
+                valid = False
+                break
+            resolved = resolve(point.get("timestamp"))
+            value = point.get("value")
+            if (resolved is None or not isinstance(value, (int, float))
+                    or isinstance(value, bool)):
+                valid = False
+                break
+            index, order = resolved
+            parsed.append((index, order, float(value)))
+        grouped: dict[int, tuple[float, float]] = {}
+        for index, order, value in parsed:
+            prior = grouped.get(index)
+            if prior is not None and prior[0] == order:
+                valid = False
+                break
+            if prior is None or order > prior[0]:
+                grouped[index] = (order, value)
+        if not valid:
+            continue
+        values = [float(initial)] * len(future_timestamps)
+        resolved_points = [(index, item[1]) for index, item in grouped.items()]
+        for index, value in sorted(resolved_points):
+            values[index:] = [value] * (len(values) - index)
+        payload["values"] = values
+        payload["syntax_canonicalization"] = (
+            "cited_piecewise_constant_change_points")
+        payload["resolved_change_points"] = [
+            {"timestamp": future_timestamps[index], "value": value}
+            for index, value in sorted(resolved_points)]
+        changes += 1
+    return output, changes
+
+
+def _bind_missing_transformation_claim_windows(
+        raw: dict[str, Any], cutoff: str) -> tuple[dict[str, Any], int]:
+    """Bind undated specification claims to cutoff, never future outcomes."""
+    if not raw.get("transformations"):
+        return raw, 0
+
+    def aware(value: Any) -> datetime | None:
+        try:
+            parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        except (TypeError, ValueError):
+            return None
+        return parsed if parsed.tzinfo is not None else None
+
+    claims = []
+    changes = 0
+    for item in raw.get("claims") or []:
+        if not isinstance(item, dict):
+            claims.append(item)
+            continue
+        claim = dict(item)
+        start = aware(claim.get("effective_start"))
+        end = aware(claim.get("effective_end"))
+        if start is None or end is None or end < start:
+            claim["effective_start"] = cutoff
+            claim["effective_end"] = cutoff
+            claim["effective_window_binding"] = (
+                "undated_transformation_specification_at_cutoff")
+            changes += 1
+        claims.append(claim)
+    return {**raw, "claims": claims}, changes
+
+
+def _simplify_identity_literals(wrapper: Any) -> tuple[Any, int]:
+    """Remove exact algebraic identities without changing numeric meaning."""
+    if not isinstance(wrapper, dict):
+        return wrapper, 0
+    output = json.loads(json.dumps(wrapper))
+    transformation = output.get("transformation", output)
+    expression = (transformation.get("expression")
+                  if isinstance(transformation, dict) else None)
+    changes = 0
+
+    def literal(node: Any, value: float) -> bool:
+        return (isinstance(node, dict) and node.get("op") == "literal"
+                and isinstance(node.get("value"), (int, float))
+                and not isinstance(node.get("value"), bool)
+                and float(node["value"]) == value)
+
+    def simplify(node: Any) -> Any:
+        nonlocal changes
+        if not isinstance(node, dict):
+            return node
+        normalized = {key: ([simplify(child) for child in value]
+                            if key == "args" and isinstance(value, list)
+                            else value) for key, value in node.items()}
+        args = normalized.get("args") or []
+        op = normalized.get("op")
+        if len(args) == 2:
+            left, right = args
+            if op in {"multiply", "divide"} and literal(right, 1.0):
+                changes += 1
+                return left
+            if op == "multiply" and literal(left, 1.0):
+                changes += 1
+                return right
+            if op in {"add", "subtract"} and literal(right, 0.0):
+                changes += 1
+                return left
+            if op == "add" and literal(left, 0.0):
+                changes += 1
+                return right
+            if op == "power" and literal(right, 1.0):
+                changes += 1
+                return left
+        return normalized
+
+    if isinstance(transformation, dict) and isinstance(expression, dict):
+        transformation["expression"] = simplify(expression)
+        if changes:
+            transformation["identity_simplification"] = (
+                "exact_algebraic_identities_removed")
+    return output, changes
+
+
+def _restore_cited_power_literals(
+        wrapper: Any, claims: list[dict[str, Any]]) -> tuple[Any, int]:
+    """Restore an exact cited power that a compiler prematurely evaluated.
+
+    This is deliberately narrower than algebraic inference: the cited claim
+    must contain both the base literal and the matching square/cube semantics,
+    the derived value must not itself appear in any cited span, and exactly one
+    base/exponent pair may match.  It lets provenance validation inspect the
+    source-shaped equation instead of an uncited arithmetic intermediate.
+    """
+    if not isinstance(wrapper, dict):
+        return wrapper, 0
+    output = json.loads(json.dumps(wrapper))
+    transformation = output.get("transformation", output)
+    expression = (transformation.get("expression")
+                  if isinstance(transformation, dict) else None)
+    cited_ids = {str(value) for value in
+                 (transformation.get("claim_ids") or [])}
+    cited = [claim for claim in claims
+             if str(claim.get("claim_id") or "") in cited_ids]
+    replacements: dict[float, tuple[float, int]] = {}
+    all_spans = "\n".join(str(claim.get("source_span") or "")
+                           for claim in cited).replace(",", "")
+    candidates: list[tuple[float, int]] = []
+    for claim in cited:
+        span = str(claim.get("source_span") or "").replace(",", "")
+        lowered = span.casefold()
+        exponents = []
+        if re.search(r"\b(?:square|squared|quadratic)\b", lowered):
+            exponents.append(2)
+        if re.search(r"\b(?:cube|cubed|cubic)\b", lowered):
+            exponents.append(3)
+        numbers = [float(token) for token in re.findall(
+            r"(?<![\w.])[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?![\w.])", span)]
+        candidates.extend((base, exponent) for base in numbers
+                          for exponent in exponents)
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            if node.get("op") == "literal":
+                value = node.get("value")
+                if (isinstance(value, (int, float))
+                        and not isinstance(value, bool)
+                        and math.isfinite(float(value))
+                        and not re.search(_numeric_token_pattern(float(value)),
+                                          all_spans)):
+                    matches = [(base, exponent) for base, exponent in candidates
+                               if math.isclose(base ** exponent, float(value),
+                                               rel_tol=1e-12, abs_tol=1e-12)]
+                    if len(matches) == 1:
+                        replacements[float(value)] = matches[0]
+            for child in node.values():
+                walk(child)
+        elif isinstance(node, list):
+            for child in node:
+                walk(child)
+
+    walk(expression)
+    changes = 0
+
+    def rewrite(node: Any) -> Any:
+        nonlocal changes
+        if isinstance(node, dict):
+            if node.get("op") == "literal":
+                value = node.get("value")
+                match = replacements.get(float(value)) if isinstance(
+                    value, (int, float)) and not isinstance(value, bool) else None
+                if match is not None:
+                    changes += 1
+                    base, exponent = match
+                    return {"op": "power", "args": [
+                        {"op": "literal", "value": base},
+                        {"op": "literal", "value": exponent},
+                    ]}
+            return {key: rewrite(value) for key, value in node.items()}
+        if isinstance(node, list):
+            return [rewrite(value) for value in node]
+        return node
+
+    if isinstance(transformation, dict):
+        transformation["expression"] = rewrite(expression)
+        if changes:
+            transformation["syntax_canonicalization"] = (
+                "exact_cited_power_restoration")
+    return output, changes
+
+
+def _bind_transformation_provenance(
+        raw: dict[str, Any], verified_claims: list[dict[str, Any]],
+        ) -> dict[str, Any]:
+    """Bind host-assigned claim IDs to literals and future series values."""
+    if not verified_claims or not raw.get("transformations"):
+        return raw
+    host_grounded = [str(claim["claim_id"]) for claim in verified_claims
+                     if claim.get("mechanism") ==
+                     "host-grounded explicit transformation constant"]
+    rebound = []
+    for item in raw.get("transformations") or []:
+        if not isinstance(item, dict):
+            rebound.append(item)
+            continue
+        wrapper = dict(item)
+        transformation = dict(wrapper.get("transformation", wrapper))
+        literal_ids = _verbatim_literal_claim_ids(wrapper, verified_claims)
+        series_ids = _verbatim_series_claim_ids(wrapper, verified_claims)
+        transformation["claim_ids"] = list(dict.fromkeys([
+            *[str(value) for value in transformation.get("claim_ids") or []],
+            *literal_ids, *host_grounded,
+            *[claim_id for ids in series_ids.values() for claim_id in ids],
+        ]))
+        if literal_ids:
+            transformation["citation_binding"] = (
+                "model_semantics_plus_verbatim_constant_lines")
+        series_values = dict(wrapper.get("series_values") or {})
+        for name, claim_ids in series_ids.items():
+            payload = series_values.get(name)
+            if isinstance(payload, dict) and claim_ids:
+                payload = dict(payload)
+                payload["source_claim_ids"] = list(dict.fromkeys([
+                    *[str(value) for value in
+                      payload.get("source_claim_ids") or []], *claim_ids]))
+                payload["citation_binding"] = (
+                    "verbatim_future_series_value_lines")
+                series_values[name] = payload
+        wrapper["series_values"] = series_values
+        wrapper["transformation"] = transformation
+        rebound.append(wrapper)
+    return {**raw, "transformations": rebound}
+
+
+def _select_publication_fail_closed(
+        publication: dict[str, Any], selection: dict[str, Any] | None,
+        ) -> tuple[dict[str, Any], str | None]:
+    """Apply a model ranking or retain the already verified publication."""
+    if selection is None:
+        return publication, "live MCP publication used without selection"
+    from gnomon.publication import select_publication
+    try:
+        live_ids = [str(item.get("scenario_id")) for item in
+                    publication.get("candidate_portfolio") or []]
+        selected = str(selection.get("selected_scenario_id") or "")
+        if selected not in live_ids:
+            raise ValueError("selected scenario is absent from live portfolio")
+        proposed = [str(item) for item in selection.get("ranking") or []]
+        # The pre-call catalog can be a strict subset of the live MCP
+        # portfolio (for example, the product may add a typed sensitivity
+        # lane). Complete only the number-free ordering; never synthesize or
+        # remove a candidate, and retain the model's relative order.
+        ranking = list(dict.fromkeys([
+            selected,
+            *[item for item in proposed
+              if item in live_ids and item != selected],
+            *[item for item in live_ids if item != selected],
+        ]))
+        completed = {**selection, "selected_scenario_id": selected,
+                     "ranking": ranking,
+                     "host_completed_live_portfolio": ranking != proposed}
+        return select_publication(publication, completed), None
+    except (TypeError, ValueError) as error:
+        return publication, f"selector incompatible with live portfolio: {error}"
+
+
+def _merge_transformation_repair(raw: dict[str, Any],
+                                 repaired: dict[str, Any]) -> dict[str, Any]:
+    """Preserve prior claims; allow the bounded repair to replace only ASTs."""
+    merged_claims = list(raw.get("claims") or [])
+    known_spans = {str(item.get("source_span") or "")
+                   for item in merged_claims if isinstance(item, dict)}
+    for claim in repaired.get("claims") or []:
+        span = (str(claim.get("source_span") or "")
+                if isinstance(claim, dict) else "")
+        if span and span not in known_spans:
+            merged_claims.append(claim)
+            known_spans.add(span)
+    return {**raw, "claims": merged_claims,
+            "transformations": repaired.get("transformations") or []}
+
+
 def _task_future_timestamps(task_instance: Any) -> list[str]:
     future = task_instance.future_time
     if hasattr(future, "columns"):
@@ -1038,6 +1656,34 @@ def _task_future_timestamps(task_instance: Any) -> list[str]:
             index = index.tz_localize("UTC")
         return [ts.isoformat() for ts in index]
     return [str(ts) for ts in future]
+
+
+def _forecast_grid_prompt(timestamps: list[str], *, compact_after: int = 32) -> str:
+    """Describe a regular host grid without retransmitting every timestamp."""
+    if len(timestamps) <= compact_after:
+        return json.dumps(timestamps)
+    try:
+        parsed = [datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+                  for stamp in timestamps]
+        steps = [(right - left).total_seconds()
+                 for left, right in zip(parsed, parsed[1:])]
+    except (TypeError, ValueError):
+        return json.dumps(timestamps)
+    if not steps or any(not math.isclose(step, steps[0], abs_tol=1e-9)
+                        for step in steps[1:]):
+        # Never describe an irregular grid as regular. It is safer to pay the
+        # schema cost than let a model form off-grid anchors.
+        return json.dumps(timestamps)
+    return json.dumps({
+        "kind": "regular_host_grid",
+        "first": timestamps[0],
+        "last": timestamps[-1],
+        "steps": len(timestamps),
+        "step_seconds": steps[0],
+        "anchor_rule": (
+            "quantile anchors must use first, last, or another timestamp "
+            "obtained by adding an integer number of step_seconds to first"),
+    }, separators=(",", ":"))
 
 
 def _write_history_csv(timestamps: list[str], values: list[float],
@@ -1384,7 +2030,6 @@ class McpAgentForecaster:
             if self.output_role == "publication_best_effort":
                 from gnomon.publication import (build_scenario_catalog,
                                                 scenario_selection_contract,
-                                                select_publication,
                                                 validate_scenario_selection)
                 from gnomon.temporal_state import build_temporal_state
                 scenarios, _ = build_scenario_catalog(
@@ -1436,13 +2081,11 @@ class McpAgentForecaster:
                 # including typed transformation use/rejection. Re-point its
                 # sealed recommendation only when the governed selector earns
                 # a valid choice; never rebuild or reforecast the artifact.
-                if selection is not None:
-                    publication = select_publication(
-                        live_publication, selection)
-                else:
-                    publication = live_publication
-                    if selection_error is None:
-                        selection_error = "live MCP publication used without selection"
+                publication, live_selection_error = (
+                    _select_publication_fail_closed(
+                        live_publication, selection))
+                if live_selection_error is not None:
+                    selection_error = live_selection_error
             else:
                 if self.output_role == "llm_candidate_shadow":
                     # Shadow is an explicit evaluation instrument: score the
@@ -1597,7 +2240,7 @@ class _Run:
             f"{instructions}\n"
             f"Forecast target series: {self.target_name}\n"
             f"History cutoff: {self.timestamps[-1]}\n"
-            f"Forecast timestamps: {json.dumps(future_timestamps)}\n"
+            f"Forecast grid: {_forecast_grid_prompt(future_timestamps)}\n"
             f"{history}\n\n"
             f"Context:\n{compiler_context or '(none)'}\n"
         )
@@ -1683,6 +2326,8 @@ class _Run:
             for supplied in (wrapper.get("series_values") or {}).values():
                 if isinstance(supplied, dict):
                     supplied["known_at"] = self.timestamps[-1]
+        raw, _ = _bind_missing_transformation_claim_windows(
+            raw, self.timestamps[-1])
 
         # Exercise the product's bounded repair lane. The first response is
         # probed before event parsing so a corrected complete dossier (claims
@@ -1704,8 +2349,9 @@ class _Run:
         unresolved_numeric_context = bool(
             context.strip() and not proposed_any_lane
             and re.search(r"(?<!\w)\d+(?:\.\d+)?", context))
-        if (proposed_any_lane or observation_lane_missing
-                or unresolved_numeric_context):
+        transformation_proposed = bool(raw.get("transformations"))
+        if ((proposed_any_lane or observation_lane_missing
+                or unresolved_numeric_context) and not transformation_proposed):
             probe, probe_rejections = validate_temporal_dossier(
                 raw, context_text=context, cutoff=self.timestamps[-1],
                 future_timestamps=future_timestamps, history=self.values,
@@ -1845,6 +2491,45 @@ class _Run:
         # Claims remain evidence for dossiers and transformations. Do not
         # synthesize wildcard numeric events from them: only explicitly
         # target-bound event proposals may change the numeric path.
+        normalized_schedules = []
+        for item in raw.get("transformations") or []:
+            simplified, _ = _simplify_identity_literals(item)
+            expanded, _ = _expand_change_point_series_values(
+                simplified, future_timestamps)
+            if isinstance(expanded, dict):
+                transformation = expanded.get("transformation", expanded)
+                if isinstance(transformation, dict):
+                    transformation["known_at"] = self.timestamps[-1]
+                for payload in (expanded.get("series_values") or {}).values():
+                    if isinstance(payload, dict):
+                        payload["known_at"] = self.timestamps[-1]
+            normalized_schedules.append(expanded)
+        raw = {**raw, "transformations": normalized_schedules}
+
+        existing_claims = [item for item in raw.get("claims") or []
+                           if isinstance(item, dict)]
+        existing_spans = [str(item.get("source_span") or "")
+                          for item in existing_claims]
+        constant_claim_spans = []
+        for wrapper in raw.get("transformations") or []:
+            constant_claim_spans.extend(_verbatim_constant_lines(
+                wrapper, context, existing_spans + constant_claim_spans))
+            constant_claim_spans.extend(_verbatim_semantic_constant_lines(
+                wrapper, context, existing_spans + constant_claim_spans))
+            constant_claim_spans.extend(_verbatim_series_lines(
+                wrapper, context, existing_spans + constant_claim_spans))
+        for span in dict.fromkeys(constant_claim_spans):
+            existing_claims.append({
+                "source_span": span,
+                "relation": "unknown",
+                "effective_start": self.timestamps[-1],
+                "effective_end": self.timestamps[-1],
+                "mechanism": "host-grounded explicit transformation constant",
+                "confidence": 1.0,
+            })
+        if constant_claim_spans:
+            raw = {**raw, "claims": existing_claims}
+
         final_probe, _ = validate_temporal_dossier(
             raw, context_text=context, cutoff=self.timestamps[-1],
             future_timestamps=future_timestamps, history=self.values,
@@ -1856,6 +2541,7 @@ class _Run:
         # rebound before AST validation. Entailment checks still verify every
         # constant and supplied value against that sole source span.
         verified_claims = final_probe.get("claims") or []
+        raw = _bind_transformation_provenance(raw, verified_claims)
         if len(verified_claims) == 1:
             sole_id = str(verified_claims[0]["claim_id"])
             known_ids = {sole_id}
@@ -2099,6 +2785,17 @@ class _Run:
 
         raw = canonicalize_transformations(raw)
 
+        unit_bound_transformations = []
+        for item in raw.get("transformations") or []:
+            source_shaped, _ = _restore_cited_power_literals(
+                item, verified_claims)
+            canonical_rows, _ = _canonicalize_timestamped_series_values(
+                source_shaped, future_timestamps)
+            bound, _ = _bind_verbatim_literal_units(
+                canonical_rows, verified_claims)
+            unit_bound_transformations.append(bound)
+        raw = {**raw, "transformations": unit_bound_transformations}
+
         def transformation_violations(
                 candidate_raw: dict[str, Any], dossier: dict[str, Any]) -> list[dict[str, Any]]:
             from gnomon.context_intelligence import (
@@ -2162,25 +2859,37 @@ class _Run:
                 repaired_objects = extract_json_objects(repair_completion)
                 if repaired_objects:
                     repaired = repaired_objects[0]
-                    prior_spans = {str(item.get("source_span") or "")
-                                   for item in raw.get("claims") or []
-                                   if isinstance(item, dict)}
-                    repaired_spans = {str(item.get("source_span") or "")
-                                      for item in repaired.get("claims") or []
-                                      if isinstance(item, dict)}
-                    if not prior_spans.issubset(repaired_spans):
-                        compile_rejections.append(
-                            "transformation repair attempted to remove prior verified claims")
-                    else:
-                        raw = {**raw,
-                               "claims": repaired.get("claims") or [],
-                               "transformations": repaired.get("transformations") or []}
-                        raw = canonicalize_transformations(raw)
-                        final_probe, _ = validate_temporal_dossier(
-                            raw, context_text=context, cutoff=self.timestamps[-1],
-                            future_timestamps=future_timestamps,
-                            history=self.values,
-                            compiler_model=self.forecaster.openrouter_model)
+                    raw = _merge_transformation_repair(raw, repaired)
+                    raw, _ = _bind_missing_transformation_claim_windows(
+                        raw, self.timestamps[-1])
+                    repaired_transforms = []
+                    for item in raw.get("transformations") or []:
+                        simplified, _ = _simplify_identity_literals(item)
+                        expanded, _ = _expand_change_point_series_values(
+                            simplified, future_timestamps)
+                        repaired_transforms.append(expanded)
+                    raw = {**raw, "transformations": repaired_transforms}
+                    final_probe, _ = validate_temporal_dossier(
+                        raw, context_text=context, cutoff=self.timestamps[-1],
+                        future_timestamps=future_timestamps,
+                        history=self.values,
+                        history_timestamps=self.timestamps,
+                        compiler_model=self.forecaster.openrouter_model)
+                    verified_claims = final_probe.get("claims") or []
+                    raw = _bind_transformation_provenance(
+                        raw, verified_claims)
+                    raw = canonicalize_transformations(raw)
+                    repaired_bound = []
+                    for item in raw.get("transformations") or []:
+                        source_shaped, _ = _restore_cited_power_literals(
+                            item, verified_claims)
+                        canonical_rows, _ = (
+                            _canonicalize_timestamped_series_values(
+                                source_shaped, future_timestamps))
+                        bound, _ = _bind_verbatim_literal_units(
+                            canonical_rows, verified_claims)
+                        repaired_bound.append(bound)
+                    raw = {**raw, "transformations": repaired_bound}
                 else:
                     compile_rejections.append(
                         "transformation repair returned no JSON object")

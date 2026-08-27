@@ -2,6 +2,73 @@
 
 ## Unreleased
 
+- Safe declarative transformations may now bind additional verbatim source
+  lines containing their exact AST literals. The host neither interprets nor
+  changes the formula; it only completes numeric citation provenance. This
+  prevents a useful equation from failing when its semantics and parameter
+  values appear in separate source sentences. Static parameter claims are
+  effective at the host cutoff, not misrepresented as future events, and
+  already-valid model-extracted parameter claims participate in the same
+  deterministic citation binding.
+- A missing unit on a safe AST literal may be filled only when the exact
+  literal is immediately followed by one unambiguous unit in its verified
+  source and that unit is already declared by the transformation. Gnomon does
+  not infer units from domain knowledge or change the arithmetic.
+- Future-driver inputs expressed as timestamp/value rows now normalize to the
+  executor's numeric-array form only after their timestamps exactly cover the
+  complete host forecast grid. Off-grid, missing, duplicate, or extra rows
+  remain rejected; no interpolation is performed.
+- Undated claims used to specify a declarative transformation now bind to the
+  host cutoff when their window is missing or malformed. Valid supplied claim
+  windows are preserved, and future driver schedules retain their separate
+  point-in-time provenance.
+- For an explicit `series / literal` normalization in a safe AST, one
+  unambiguous source-adjacent denominator unit may type both the literal and
+  named series. This repairs a missing driver-unit field without inferring a
+  relationship or changing arithmetic; ambiguous units still reject.
+- Exact numeric provenance matching now recognizes an integral value and the
+  same value written with trailing decimal zeroes (for example `298` and
+  `298.0`). It remains token-exact otherwise and uses no fuzzy tolerance.
+- Verified future-driver schedule claims now bind to both the individual
+  series payload and the parent transformation claim set, preserving the
+  executor's provenance-subset invariant.
+- Piecewise-constant future drivers may now cross the LLM boundary as one
+  initial value plus cited change points. Gnomon resolves exact timestamps or
+  unique clock times onto its host grid and forward-fills deterministically;
+  ambiguous/off-grid times and uncited values reject.
+- Exact algebraic identity operations emitted by a model (`x/1`, `x*1`,
+  `x+0`, `x-0`, `x^1`) are removed before AST provenance validation. No
+  material constant or operation is simplified, inferred, or exempted.
+- A compact schedule may include historical change points: the latest cited
+  change at or before the first forecast instant establishes the initial
+  forecast state. Subsequent changes must still resolve exactly on-grid, and
+  multiple claims for the same instant remain invalid.
+- When a declarative transformation is proposed, malformed optional side lanes
+  no longer consume the sole repair round before transformation preflight.
+  Compiler guidance also requires source literals and operations to remain
+  explicit rather than replacing them with uncited derived constants.
+- Exact numeric citation matching now distinguishes a sentence-ending period
+  from a continued decimal: `1591.7.` is valid provenance for `1591.7`, while
+  `1591.75` remains a non-match.
+- Citation completion now attaches separate verbatim source lines containing
+  semantic constant forms already recognized by the core validator (such as
+  `square`, `cube`, `double`, and `half`) when the AST already proposes the
+  corresponding operation/value. It does not create an operation or number.
+- A bounded transformation repair no longer has to retransmit every verified
+  claim. Prior claims are preserved byte-for-byte, new verbatim claims append,
+  and only the rejected transformation set is replaced. Other dossier lanes
+  remain unchanged.
+- Initial and repaired transformations now pass through the same host-owned
+  provenance binding before execution. An exactly evaluated square or cube
+  may be restored to its source-shaped expression only when one cited base and
+  matching power word uniquely entail it; arithmetic coincidences, ambiguous
+  bases, and uncited power semantics remain rejected.
+
+- Long regular forecast grids now cross the LLM compiler boundary as exact
+  first/last timestamps, step size, and count rather than hundreds of repeated
+  timestamps. Irregular grids remain explicit. This reduces latency and
+  transcription pressure without relaxing host-grid anchor validation.
+
 - Unparseable model-generated claim confidence no longer discards otherwise
   verbatim grounded context and every candidate that cites it. It normalizes to
   a disclosed conservative floor with no authority effect; explicit numeric

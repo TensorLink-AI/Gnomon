@@ -21,8 +21,336 @@ from types import SimpleNamespace
 
 import pytest
 import benchmarks.cik.mcp_agent as mcp_agent_module
+from benchmarks.cik.mcp_agent import (
+    _forecast_grid_prompt, _transformation_literal_values,
+    _verbatim_constant_lines, _verbatim_literal_claim_ids,
+    _verbatim_semantic_constant_lines,
+    _bind_verbatim_literal_units, _canonicalize_timestamped_series_values,
+    _bind_missing_transformation_claim_windows,
+    _future_series_values, _verbatim_series_lines,
+    _verbatim_series_claim_ids,
+    _expand_change_point_series_values,
+    _simplify_identity_literals,
+    _merge_transformation_repair,
+    _restore_cited_power_literals,
+    _bind_transformation_provenance,
+    _select_publication_fail_closed,
+)
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+
+def test_regular_long_forecast_grid_is_compact_but_exact():
+    stamps = [f"2026-01-01T00:{minute:02d}:00+00:00" for minute in range(40)]
+    rendered = json.loads(_forecast_grid_prompt(stamps))
+    assert rendered == {
+        "kind": "regular_host_grid",
+        "first": stamps[0], "last": stamps[-1], "steps": 40,
+        "step_seconds": 60.0,
+        "anchor_rule": (
+            "quantile anchors must use first, last, or another timestamp "
+            "obtained by adding an integer number of step_seconds to first"),
+    }
+    assert len(_forecast_grid_prompt(stamps)) < len(json.dumps(stamps)) / 3
+
+
+def test_irregular_forecast_grid_is_never_misdescribed_as_regular():
+    stamps = ["2026-01-01T00:00:00+00:00",
+              "2026-01-01T00:01:00+00:00",
+              "2026-01-01T00:03:00+00:00"] * 12
+    assert json.loads(_forecast_grid_prompt(stamps)) == stamps
+
+
+def test_transformation_constant_citations_are_completed_verbatim_only():
+    wrapper = {"transformation": {"expression": {
+        "op": "divide", "args": [
+            {"op": "power", "args": [
+                {"op": "series", "name": "speed"},
+                {"op": "literal", "value": 2}]},
+            {"op": "literal", "value": 3000},
+            {"op": "literal", "value": 37.5},
+        ]}}}
+    assert _transformation_literal_values(wrapper) == [2.0, 3000.0, 37.5]
+    context = ("Pressure follows the square of speed.\n"
+               "The maximal fan speed is 3000 rpm and pressure is 37.5 Pa.")
+    assert _verbatim_constant_lines(
+        wrapper, context, ["Pressure follows the square of speed."]) == [
+            "The maximal fan speed is 3000 rpm and pressure is 37.5 Pa."]
+    assert _verbatim_constant_lines(
+        wrapper, context,
+        ["Pressure follows the square of speed and exponent 2.",
+         "The maximal fan speed is 3000 rpm and pressure is 37.5 Pa."]) == []
+    assert _verbatim_literal_claim_ids(wrapper, [
+        {"claim_id": "claim-1", "source_span": "Pressure follows speed."},
+        {"claim_id": "claim-2", "source_span": context.splitlines()[1]},
+    ]) == ["claim-2"]
+    assert _verbatim_semantic_constant_lines(
+        wrapper, "Pressure is proportional to the square of speed.", []) == [
+            "Pressure is proportional to the square of speed."]
+
+    wrapper["units"] = {"primary": "Pa", "speed": "rpm"}
+    wrapper["transformation"]["output_unit"] = "Pa"
+    bound, changes = _bind_verbatim_literal_units(wrapper, [
+        {"source_span": context.splitlines()[1]}])
+    args = bound["transformation"]["expression"]["args"]
+    assert changes == 2
+    assert args[1]["unit"] == "rpm"
+    assert args[2]["unit"] == "Pa"
+    assert args[0]["args"][1].get("unit") is None
+    assert bound["transformation"]["literal_unit_binding"] \
+        == "verbatim_source_adjacency"
+
+
+def test_exact_cited_power_is_restored_without_general_algebra_inference():
+    wrapper = {"transformation": {
+        "claim_ids": ["claim-1"],
+        "expression": {"op": "divide", "args": [
+            {"op": "power", "args": [
+                {"op": "series", "name": "speed"},
+                {"op": "literal", "value": 2}]},
+            {"op": "literal", "value": 9_000_000},
+        ]},
+    }}
+    claims = [{"claim_id": "claim-1", "source_span": (
+        "Pressure follows the square of speed over maximal speed; "
+        "maximal speed is 3000 rpm.")}]
+    restored, changes = _restore_cited_power_literals(wrapper, claims)
+    denominator = restored["transformation"]["expression"]["args"][1]
+    assert changes == 1
+    assert denominator == {"op": "power", "args": [
+        {"op": "literal", "value": 3000.0},
+        {"op": "literal", "value": 2},
+    ]}
+    assert wrapper["transformation"]["expression"]["args"][1]["value"] \
+        == 9_000_000
+
+    # An exact arithmetic coincidence is insufficient without cited power
+    # semantics, and ambiguous bases are never guessed between.
+    unchanged, count = _restore_cited_power_literals(wrapper, [{
+        "claim_id": "claim-1", "source_span": "maximal speed is 3000 rpm"}])
+    assert count == 0
+    assert unchanged == wrapper
+
+
+def test_repaired_transformation_rebinds_host_claim_ids_transactionally():
+    raw = {"transformations": [{
+        "transformation": {
+            "claim_ids": ["compiler-claim"],
+            "expression": {"op": "multiply", "args": [
+                {"op": "literal", "value": 37.5},
+                {"op": "series", "name": "rpm_in"},
+            ]},
+        },
+        "series_values": {"rpm_in": {
+            "values": [298.0, 298.0],
+            "source_claim_ids": ["compiler-claim"],
+        }},
+    }]}
+    claims = [
+        {"claim_id": "claim-1", "source_span": "max pressure is 37.5 Pa"},
+        {"claim_id": "claim-2", "source_span": "speed changes to 298.0"},
+    ]
+    bound = _bind_transformation_provenance(raw, claims)
+    wrapper = bound["transformations"][0]
+    assert wrapper["transformation"]["claim_ids"] == [
+        "compiler-claim", "claim-1", "claim-2"]
+    assert wrapper["series_values"]["rpm_in"]["source_claim_ids"] == [
+        "compiler-claim", "claim-2"]
+    assert raw["transformations"][0]["series_values"]["rpm_in"][
+        "source_claim_ids"] == ["compiler-claim"]
+
+    context = ("Pressure follows the square of speed.\n"
+               "The maximal fan speed is 3000 rpm and pressure is 37.5 Pa.")
+    ratio_wrapper = {"transformation": {"output_unit": "Pa", "expression": {
+        "op": "multiply", "args": [
+            {"op": "literal", "value": 37.5},
+            {"op": "power", "args": [
+                {"op": "divide", "args": [
+                    {"op": "series", "name": "rpm_in"},
+                    {"op": "literal", "value": 3000}]},
+                {"op": "literal", "value": 2}]}]}},
+        "units": {"primary": "Pa", "series_name": "Pa"}}
+    ratio_bound, changes = _bind_verbatim_literal_units(ratio_wrapper, [
+        {"source_span": context.splitlines()[1]}])
+    ratio = ratio_bound["transformation"]["expression"]["args"][1]["args"][0]
+    assert changes == 2
+    assert ratio["args"][1]["unit"] == "rpm"
+    assert ratio_bound["units"]["rpm_in"] == "rpm"
+
+
+def test_incompatible_scenario_ranking_retains_live_publication(monkeypatch):
+    publication = {
+        "publication_seal_sha256": "already-verified",
+        "candidate_portfolio": [{"scenario_id": "candidate"}],
+    }
+
+    def reject(*_args, **_kwargs):
+        raise ValueError("ranking omitted one live scenario")
+
+    monkeypatch.setattr("gnomon.publication.select_publication", reject)
+    retained, error = _select_publication_fail_closed(
+        publication, {"selected_scenario_id": "candidate"})
+    assert retained is publication
+    assert error == (
+        "selector incompatible with live portfolio: "
+        "ranking omitted one live scenario")
+
+
+def test_pre_call_ranking_is_completed_for_extra_live_scenarios(monkeypatch):
+    publication = {"candidate_portfolio": [
+        {"scenario_id": "primary"}, {"scenario_id": "candidate"},
+        {"scenario_id": "product-sensitivity"}]}
+    observed = {}
+
+    def accept(payload, selection):
+        observed.update(selection)
+        return {**payload, "selected": selection["selected_scenario_id"]}
+
+    monkeypatch.setattr("gnomon.publication.select_publication", accept)
+    selected, error = _select_publication_fail_closed(publication, {
+        "selected_scenario_id": "candidate",
+        "ranking": ["candidate", "primary"],
+    })
+    assert error is None
+    assert selected["selected"] == "candidate"
+    assert observed["ranking"] == [
+        "candidate", "primary", "product-sensitivity"]
+    assert observed["host_completed_live_portfolio"] is True
+
+
+def test_timestamped_future_series_normalizes_only_on_exact_host_grid():
+    stamps = ["2026-01-01T00:00:00+00:00",
+              "2026-01-01T01:00:00+00:00"]
+    wrapper = {"series_values": {"price": {"values": [
+        {"timestamp": stamps[1], "value": 4},
+        {"timestamp": stamps[0], "value": 3}]}}}
+    canonical, changes = _canonicalize_timestamped_series_values(
+        wrapper, stamps)
+    assert changes == 1
+    assert canonical["series_values"]["price"]["values"] == [3, 4]
+    assert canonical["series_values"]["price"]["syntax_canonicalization"] \
+        == "timestamped_rows_exact_host_grid"
+    off_grid = {"series_values": {"price": {"values": [
+        {"timestamp": stamps[0], "value": 3}]}}}
+    unchanged, changes = _canonicalize_timestamped_series_values(
+        off_grid, stamps)
+    assert changes == 0
+    assert unchanged == off_grid
+
+
+def test_only_missing_transformation_claim_windows_bind_to_cutoff():
+    cutoff = "2026-01-01T00:00:00+00:00"
+    raw = {"transformations": [{}], "claims": [
+        {"source_span": "static formula", "effective_start": None,
+         "effective_end": None},
+        {"source_span": "dated schedule",
+         "effective_start": "2026-01-02T00:00:00+00:00",
+         "effective_end": "2026-01-03T00:00:00+00:00"},
+    ]}
+    bound, changes = _bind_missing_transformation_claim_windows(raw, cutoff)
+    assert changes == 1
+    assert bound["claims"][0]["effective_start"] == cutoff
+    assert bound["claims"][0]["effective_end"] == cutoff
+    assert bound["claims"][0]["effective_window_binding"] \
+        == "undated_transformation_specification_at_cutoff"
+    assert bound["claims"][1] == raw["claims"][1]
+    untouched, changes = _bind_missing_transformation_claim_windows(
+        {"claims": raw["claims"]}, cutoff)
+    assert changes == 0
+    assert untouched == {"claims": raw["claims"]}
+
+
+def test_future_series_values_bind_only_to_verbatim_source_lines():
+    wrapper = {"series_values": {"rpm_in": {"values": [
+        {"timestamp": "t1", "value": 1591.7},
+        {"timestamp": "t2", "value": 1591.7},
+        {"timestamp": "t3", "value": 298.0}]}}}
+    context = ("Speed starts at 1591.7 rpm.\n"
+               "At 05:32:42 it changes to 298.0 rpm.")
+    assert _future_series_values(wrapper) == {"rpm_in": [1591.7, 298.0]}
+    assert _verbatim_series_lines(wrapper, context, []) == context.splitlines()
+    claims = [
+        {"claim_id": "claim-1", "source_span": context.splitlines()[0]},
+        {"claim_id": "claim-2", "source_span": context.splitlines()[1]},
+    ]
+    assert _verbatim_series_claim_ids(wrapper, claims) == {
+        "rpm_in": ["claim-1", "claim-2"]}
+    assert _verbatim_series_lines(
+        wrapper, context, [context.splitlines()[0]]) == [context.splitlines()[1]]
+    punctuated = [{"claim_id": "claim-3",
+                   "source_span": "It changes to 1591.7."}]
+    assert _verbatim_series_claim_ids(wrapper, punctuated) == {
+        "rpm_in": ["claim-3"]}
+
+
+def test_compact_change_point_schedule_resolves_unique_host_clock():
+    stamps = [f"1970-01-01T05:32:{second:02d}+00:00"
+              for second in range(8, 14)]
+    wrapper = {"series_values": {"rpm_in": {
+        "initial_value": 1591.7,
+        "change_points": [{"timestamp": "05:32:11", "value": 298.0}],
+    }}}
+    expanded, changes = _expand_change_point_series_values(wrapper, stamps)
+    payload = expanded["series_values"]["rpm_in"]
+    assert changes == 1
+    assert payload["values"] == [1591.7, 1591.7, 1591.7, 298.0, 298.0, 298.0]
+    assert payload["resolved_change_points"] == [
+        {"timestamp": stamps[3], "value": 298.0}]
+
+    ambiguous = stamps + ["1970-01-02T05:32:11+00:00"]
+    unchanged, changes = _expand_change_point_series_values(wrapper, ambiguous)
+    assert changes == 0
+    assert "values" not in unchanged["series_values"]["rpm_in"]
+
+    with_history = {"series_values": {"rpm_in": {
+        "initial_value": 285.5,
+        "change_points": [
+            {"timestamp": "1970-01-01T05:31:26+00:00", "value": 285.9},
+            {"timestamp": "1970-01-01T05:32:07+00:00", "value": 1591.7},
+            {"timestamp": "05:32:11", "value": 298.0}],
+    }}}
+    expanded, changes = _expand_change_point_series_values(with_history, stamps)
+    assert changes == 1
+    assert expanded["series_values"]["rpm_in"]["values"] == [
+        1591.7, 1591.7, 1591.7, 298.0, 298.0, 298.0]
+
+
+def test_only_exact_algebraic_identities_are_simplified():
+    wrapper = {"transformation": {"expression": {
+        "op": "divide", "args": [
+            {"op": "add", "args": [
+                {"op": "series", "name": "x"},
+                {"op": "literal", "value": 0}]},
+            {"op": "literal", "value": 1}]}}}
+    simplified, changes = _simplify_identity_literals(wrapper)
+    assert changes == 2
+    assert simplified["transformation"]["expression"] == {
+        "op": "series", "name": "x"}
+    assert simplified["transformation"]["identity_simplification"] \
+        == "exact_algebraic_identities_removed"
+    material = {"transformation": {"expression": {
+        "op": "multiply", "args": [
+            {"op": "series", "name": "x"},
+            {"op": "literal", "value": 1.01}]}}}
+    unchanged, changes = _simplify_identity_literals(material)
+    assert changes == 0
+    assert unchanged == material
+
+
+def test_transformation_repair_cannot_delete_or_rewrite_prior_claims():
+    prior = {"claims": [
+        {"source_span": "Rule A", "relation": "unknown"}],
+        "transformations": [{"old": True}], "events": [{"kept": True}]}
+    repaired = {"claims": [
+        {"source_span": "Rule A", "relation": "supports_increase"},
+        {"source_span": "Parameter B", "relation": "unknown"}],
+        "transformations": [{"new": True}], "events": []}
+    merged = _merge_transformation_repair(prior, repaired)
+    assert merged["claims"] == [
+        {"source_span": "Rule A", "relation": "unknown"},
+        {"source_span": "Parameter B", "relation": "unknown"}]
+    assert merged["transformations"] == [{"new": True}]
+    assert merged["events"] == [{"kept": True}]
 
 from benchmarks.cik.gnomon_forecaster import GnomonAbstained
 from benchmarks.cik.mcp_agent import (
