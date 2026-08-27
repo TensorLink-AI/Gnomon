@@ -1025,6 +1025,85 @@ class TrackingStore:
             })
         return summaries
 
+    def decision_synthesis_skill(
+        self, project: str, *, proposer_id: str | None = None,
+        minimum_resolved: int = 20,
+    ) -> list[dict[str, Any]]:
+        """Outcome-derived skill for model-authored categorical decisions.
+
+        Uses the existing immutable synthesis receipts. Only exact categorical
+        outcomes where canonical and synthesis were both scoreable enter the
+        ledger. Graduation is paired: the synthesis must win significantly
+        more discordant cases than it loses, have positive shrunk net wins,
+        and meet a predeclared resolved-count floor. This may justify a
+        human-facing prior weight; it can never upgrade support or automation.
+        """
+        if minimum_resolved < 1:
+            raise ValueError("minimum_resolved must be positive")
+        groups: dict[str, list[tuple[bool, bool]]] = {}
+        for receipt in self.temporal_synthesis_receipts(project, resolved=True):
+            score = receipt.get("score_payload") or {}
+            synthesis = receipt.get("synthesis_payload") or {}
+            canonical_correct = score.get("canonical_correct")
+            synthesis_correct = score.get("synthesis_correct")
+            if not isinstance(canonical_correct, bool) \
+                    or not isinstance(synthesis_correct, bool):
+                continue
+            origin = str(synthesis.get("proposer_id")
+                         or synthesis.get("candidate_origin") or "unknown")
+            if proposer_id is not None and origin != proposer_id:
+                continue
+            groups.setdefault(origin, []).append(
+                (canonical_correct, synthesis_correct))
+
+        summaries = []
+        k = PROPOSER_SKILL_SHRINKAGE
+        for origin, outcomes in sorted(groups.items()):
+            resolved = len(outcomes)
+            wins = sum(synthesis and not canonical
+                       for canonical, synthesis in outcomes)
+            losses = sum(canonical and not synthesis
+                         for canonical, synthesis in outcomes)
+            ties = resolved - wins - losses
+            discordant = wins + losses
+            # Exact two-sided sign test over paired discordant outcomes.
+            if discordant:
+                tail = sum(math.comb(discordant, index)
+                           for index in range(min(wins, losses) + 1))
+                exact_p = min(1.0, 2.0 * tail / (2 ** discordant))
+            else:
+                exact_p = 1.0
+            shrunk_net = (wins - losses) / (resolved + k)
+            synthesis_accuracy = sum(
+                synthesis for _, synthesis in outcomes) / resolved
+            canonical_accuracy = sum(
+                canonical for canonical, _ in outcomes) / resolved
+            graduated = bool(
+                resolved >= minimum_resolved
+                and discordant >= 8
+                and wins > losses
+                and exact_p < .05
+                and shrunk_net > 0)
+            summaries.append({
+                "proposer_id": origin,
+                "resolved": resolved,
+                "wins_vs_canonical": wins,
+                "losses_vs_canonical": losses,
+                "ties": ties,
+                "discordant": discordant,
+                "exact_sign_p": exact_p,
+                "synthesis_accuracy": synthesis_accuracy,
+                "canonical_accuracy": canonical_accuracy,
+                "shrunk_net_wins_per_resolved": shrunk_net,
+                "shrinkage_k": k,
+                "minimum_resolved": minimum_resolved,
+                "graduated_for_human_prior": graduated,
+                "support_upgrade_allowed": False,
+                "automation_upgrade_allowed": False,
+                "rule": "paired_categorical_sign_test_and_shrunk_net_v1",
+            })
+        return summaries
+
     def _resolve_temporal_answers(
         self, record: ForecastRecord, actuals: list[float], resolved_at: str,
     ) -> None:

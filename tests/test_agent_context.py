@@ -4,11 +4,13 @@ from gnomon.agent_context import (
     build_temporal_decision_reconciliation,
     build_sampled_context_prior_prompt,
     candidate_from_sampled_paths,
+    decision_selection_synthesis_payload,
     recommended_sample_count,
     sample_path_stability,
     seal_temporal_decision_selection,
     seal_temporal_decision_prior,
     verify_temporal_decision_reconciliation,
+    verify_temporal_decision_selection,
     verify_temporal_decision_prior,
 )
 
@@ -121,6 +123,11 @@ def test_reconciliation_surfaces_conflict_without_mutating_primary():
     assert selection["support"] == "prior_assisted"
     assert selection["primary_forecast_unchanged"] is True
     assert selection["automation_eligible"] is False
+    assert verify_temporal_decision_selection(selection)
+    synthesis = decision_selection_synthesis_payload(result, selection)
+    assert synthesis["label"] == "hypothesis_ranking"
+    assert synthesis["proposer_id"] == "host:test"
+    assert synthesis["automation_eligible"] is False
 
 
 def test_reconciliation_rejects_cross_question_and_model_claimed_order():
@@ -154,3 +161,36 @@ def test_selection_requires_counterevidence_and_withholds_automation():
         seal_temporal_decision_selection(reconciliation, {
             **base, "counterevidence_source": "immutable_primary",
             "automation_action": "act"})
+
+
+def test_reconciliation_accepts_only_cutoff_safe_matching_skill():
+    packet = {
+        "threshold_analysis": {"horizon_event": {
+            "probability_any_breach": .25}},
+        "governed_decision": {"advisory_action": "monitor",
+                              "automation_eligible": False},
+    }
+    skill = {
+        "proposer_id": "host:test", "resolved": 30,
+        "graduated_for_human_prior": True,
+        "support_upgrade_allowed": False,
+        "automation_upgrade_allowed": False,
+        "rule": "paired_categorical_sign_test_and_shrunk_net_v1",
+        "known_at": "2026-01-02T00:00:00+00:00",
+    }
+    result = build_temporal_decision_reconciliation(
+        packet, _prior(), question_sha256="a" * 64,
+        proposer_skill=skill,
+        decision_cutoff="2026-01-03T00:00:00+00:00")
+    assert result["selection_policy"]["prior_has_outcome_skill"] is True
+    assert result["proposer_skill"]["resolved"] == 30
+    with pytest.raises(ValueError, match="not known"):
+        build_temporal_decision_reconciliation(
+            packet, _prior(), question_sha256="a" * 64,
+            proposer_skill=skill,
+            decision_cutoff="2026-01-01T00:00:00+00:00")
+    with pytest.raises(ValueError, match="another proposer"):
+        build_temporal_decision_reconciliation(
+            packet, _prior(), question_sha256="a" * 64,
+            proposer_skill={**skill, "proposer_id": "other"},
+            decision_cutoff="2026-01-03T00:00:00+00:00")

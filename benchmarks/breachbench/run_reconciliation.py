@@ -286,6 +286,30 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
                 "primary_action": reconciliation[
                     "immutable_primary"]["action_reference"],
             })
+    midpoint = len(cases) // 2
+    skill_stability = {}
+    for label, partition in (
+            ("calibration", cases[:midpoint]), ("evaluation", cases[midpoint:])):
+        wins = losses = ties = 0
+        for case in partition:
+            prior_action = source_rows[(case.case_id, "control")]["action"]
+            primary = build_temporal_decision_reconciliation(
+                packets[case.case_id],
+                _prior_from_control(
+                    source_rows[(case.case_id, "control")], case),
+                question_sha256=_question_sha(case),
+            )["immutable_primary"]["action_reference"]
+            truth_action = "act" if case.truth_breach else "monitor"
+            prior_correct = prior_action == truth_action
+            primary_correct = primary == truth_action
+            wins += prior_correct and not primary_correct
+            losses += primary_correct and not prior_correct
+            ties += prior_correct == primary_correct
+        skill_stability[label] = {
+            "cases": len(partition), "prior_wins": wins,
+            "prior_losses": losses, "ties": ties,
+            "exact_sign_p": exact_sign_p(wins, losses),
+        }
     summary = {
         "schema_version": "0.1", "model": args.model,
         "seed": args.seed, "cases": args.cases,
@@ -329,6 +353,15 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
                 and item["row"]["action"] == item["primary_action"]
                 and item["prior_action"] != item["primary_action"]
                 for item in conflict_rows),
+        },
+        "retrospective_skill_stability": {
+            **skill_stability,
+            "used_for_selection": False,
+            "reading": (
+                "A proposer advantage that does not persist from calibration "
+                "to evaluation is not skill evidence and must not alter "
+                "reconciliation authority."
+            ),
         },
         "invariants": {
             "primary_forecast_unchanged": True,

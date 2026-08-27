@@ -98,12 +98,39 @@ def verify_temporal_decision_prior(receipt: dict[str, Any]) -> bool:
 def build_temporal_decision_reconciliation(
     primary_packet: dict[str, Any], prior_receipt: dict[str, Any],
     *, question_sha256: str,
+    proposer_skill: dict[str, Any] | None = None,
+    decision_cutoff: str | None = None,
 ) -> dict[str, Any]:
     """Build a deterministic contrast between immutable evidence and prior."""
     if not verify_temporal_decision_prior(prior_receipt):
         raise ValueError("temporal decision prior seal is invalid")
     if prior_receipt.get("question_sha256") != question_sha256:
         raise ValueError("temporal decision prior belongs to another question")
+    skill = None
+    if proposer_skill is not None:
+        proposer = prior_receipt.get("proposer") or {}
+        if proposer_skill.get("proposer_id") != proposer.get("proposer_id"):
+            raise ValueError("proposer skill belongs to another proposer")
+        if (proposer_skill.get("rule")
+                != "paired_categorical_sign_test_and_shrunk_net_v1"
+                or not isinstance(proposer_skill.get("resolved"), int)
+                or proposer_skill.get("resolved", 0) < 1
+                or proposer_skill.get("support_upgrade_allowed") is not False
+                or proposer_skill.get("automation_upgrade_allowed") is not False):
+            raise ValueError("proposer skill schema is invalid")
+        known_at = proposer_skill.get("known_at")
+        if not isinstance(known_at, str) or not decision_cutoff:
+            raise ValueError(
+                "proposer skill requires known_at and decision_cutoff")
+        try:
+            known = datetime.fromisoformat(known_at.replace("Z", "+00:00"))
+            cutoff = datetime.fromisoformat(
+                decision_cutoff.replace("Z", "+00:00"))
+        except ValueError as error:
+            raise ValueError("proposer skill timing is invalid") from error
+        if known.tzinfo is None or cutoff.tzinfo is None or known > cutoff:
+            raise ValueError("proposer skill was not known by the decision cutoff")
+        skill = dict(proposer_skill)
     analysis = primary_packet.get("threshold_analysis") or {}
     event = analysis.get("horizon_event") or {}
     decision = primary_packet.get("governed_decision") or {}
@@ -129,6 +156,7 @@ def build_temporal_decision_reconciliation(
                 "automation_eligible") is True,
         },
         "independent_prior": prior_receipt,
+        "proposer_skill": skill,
         "conflict": {
             "prediction": prior_receipt.get("prediction") != engine_prediction,
             "action": (engine_action is not None
@@ -147,6 +175,8 @@ def build_temporal_decision_reconciliation(
             "may_edit_numeric_inputs": False,
             "may_upgrade_support": False,
             "automation_eligible": False,
+            "prior_has_outcome_skill": bool(
+                skill and skill.get("graduated_for_human_prior") is True),
         },
         "primary_forecast_unchanged": True,
     }
@@ -211,6 +241,46 @@ def seal_temporal_decision_selection(
         "primary_forecast_unchanged": True,
     }
     return {**body, "seal_sha256": _seal(body)}
+
+
+def verify_temporal_decision_selection(payload: dict[str, Any]) -> bool:
+    if not isinstance(payload, dict) or not payload.get("seal_sha256"):
+        return False
+    body = {key: value for key, value in payload.items()
+            if key != "seal_sha256"}
+    return (
+        payload.get("kind") == "temporal_decision_selection"
+        and payload.get("primary_forecast_unchanged") is True
+        and payload.get("automation_eligible") is False
+        and payload["seal_sha256"] == _seal(body)
+    )
+
+
+def decision_selection_synthesis_payload(
+    reconciliation: dict[str, Any], selection: dict[str, Any],
+) -> dict[str, Any]:
+    """Project a sealed selection into the existing outcome ledger schema."""
+    if not verify_temporal_decision_reconciliation(reconciliation):
+        raise ValueError("temporal decision reconciliation seal is invalid")
+    if not verify_temporal_decision_selection(selection):
+        raise ValueError("temporal decision selection seal is invalid")
+    if (selection.get("reconciliation_seal_sha256")
+            != reconciliation.get("seal_sha256")):
+        raise ValueError("selection belongs to another reconciliation")
+    prior = reconciliation.get("independent_prior") or {}
+    proposer = prior.get("proposer") or {}
+    return {
+        "label": "hypothesis_ranking",
+        "value": selection["action"],
+        "primary_forecast_unchanged": True,
+        "scenario_role": "temporal_decision_selection",
+        "candidate_origin": "model_authored_decision_prior",
+        "proposer_id": proposer.get("proposer_id"),
+        "model": proposer.get("model"),
+        "support": "prior_assisted",
+        "automation_eligible": False,
+        "selection_seal_sha256": selection["seal_sha256"],
+    }
 
 
 def _json_objects(text: str) -> list[dict[str, Any]]:

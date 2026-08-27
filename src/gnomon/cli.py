@@ -873,6 +873,17 @@ def build_parser() -> argparse.ArgumentParser:
     track_proposers.add_argument("--event-type", default=None,
                                  help="Restrict to one event type")
 
+    track_decision_skill = track_commands.add_parser(
+        "decision-skill",
+        help="Outcome-derived skill for model-authored temporal decisions",
+    )
+    track_decision_skill.add_argument("--project", required=True)
+    track_decision_skill.add_argument(
+        "--proposer", default=None, help="Restrict to one proposer id")
+    track_decision_skill.add_argument(
+        "--minimum-resolved", type=int, default=20,
+        help="Resolved comparisons required before human-prior graduation")
+
     track_effects = track_commands.add_parser(
         "effects",
         help="Query frozen context scenarios and their realised effect estimates",
@@ -1899,6 +1910,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(json.dumps(store.proposer_skill(
                     args.project, proposer_id=args.proposer,
                     event_type=args.event_type,
+                ), indent=2))
+                return 0
+
+            elif args.track_command == "decision-skill":
+                print(json.dumps(store.decision_synthesis_skill(
+                    args.project, proposer_id=args.proposer,
+                    minimum_resolved=args.minimum_resolved,
                 ), indent=2))
                 return 0
 

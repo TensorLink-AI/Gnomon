@@ -67,6 +67,10 @@ def test_reconciliation_consumes_verified_pre_evidence_rows(tmp_path):
     assert selection["action_conflicts"] >= 0
     assert selection["chose_prior_action_on_conflict"] <= \
         selection["action_conflicts"]
+    stability = summary["retrospective_skill_stability"]
+    assert stability["calibration"]["cases"] == 2
+    assert stability["evaluation"]["cases"] == 2
+    assert stability["used_for_selection"] is False
 
 
 def test_reconciliation_rejects_tampered_source_request(tmp_path):

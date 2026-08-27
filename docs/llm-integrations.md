@@ -119,6 +119,13 @@ or authorize automation. Hosts should outcome-score those choices before
 making this a default; the helper preserves a prior, it does not prove that the
 prior is skilled.
 
+Record sealed selections through the existing temporal-synthesis tracking
+lane and resolve them when outcomes arrive. `gnomon track decision-skill`
+(or MCP `gnomon_track` with `action: "decision_skill"`) reports paired,
+shrunk skill for each proposer. Reconciliation accepts that evidence only when
+its proposer identity matches and its `known_at` precedes the decision cutoff.
+Cold-start or non-graduated evidence stays visible but cannot create authority.
+
 ## Is OpenRouter a planned option?
 
 Not in the runtime, and there is no committed date. OpenRouter is a

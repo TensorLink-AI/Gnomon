@@ -3594,12 +3594,27 @@ def _run_track(arguments: dict[str, Any]) -> dict[str, Any]:
                 "automation_upgrade_allowed": False,
             },
         }
+    if action == "decision_skill":
+        from .tracking import TrackingStore
+        rows = TrackingStore().decision_synthesis_skill(
+            str(arguments["project"]),
+            proposer_id=arguments.get("proposer_id"),
+            minimum_resolved=int(arguments.get("min_outcomes", 20)))
+        return {
+            "status": "ok", "project": arguments["project"],
+            "decision_skill": rows,
+            "authority": {
+                "human_prior_only": True,
+                "support_upgrade_allowed": False,
+                "automation_upgrade_allowed": False,
+            },
+        }
     raise GnomonError("INVALID_ARGUMENTS", "action is required.",
                       {"allowed": ["status", "submit_actuals", "resolve_outcome",
                                    "record_adapter_shadow",
                                    "assess_adapter_shadow", "record_synthesis",
                                    "resolve_synthesis", "synthesis_status",
-                                   "candidate_outcomes"]})
+                                   "candidate_outcomes", "decision_skill"]})
 
 
 def _run_explain_run(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -3851,7 +3866,7 @@ TOOLS.extend([
                 "status", "submit_actuals", "resolve_outcome",
                 "record_adapter_shadow", "assess_adapter_shadow",
                 "record_synthesis", "resolve_synthesis", "synthesis_status",
-                "candidate_outcomes"]},
+                "candidate_outcomes", "decision_skill"]},
             "project": {"type": "string"},
             "section": {"type": "string", "enum": [
                 "open_forecasts", "performance", "decisions", "all"]},
@@ -3885,6 +3900,7 @@ TOOLS.extend([
             "outcome": {"type": "object"},
             "resolved_at": {"type": "string"},
             "resolved": {"type": "boolean"},
+            "proposer_id": {"type": "string"},
         }, "required": ["action"]},
         "runner": _run_track,
     },

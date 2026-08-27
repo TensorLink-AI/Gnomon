@@ -1,5 +1,12 @@
 # Changelog
 
+- **Resolved decision skill reuses the synthesis ledger.** Categorical
+  canonical-versus-model selections now aggregate by proposer with paired
+  wins/losses, an exact sign test, and shrunk net improvement. The CLI and MCP
+  expose this as human-prior evidence only. Reconciliation accepts it only
+  when proposer identity matches and `known_at` is cutoff-safe; support and
+  automation upgrades remain impossible.
+
 - **Host-sealed pre-evidence temporal priors.** Provider-neutral helpers now
   validate and seal an LLM's threshold decision before it sees Gnomon, then
   build a deterministic reconciliation packet with explicit prediction,
@@ -17,6 +24,11 @@
   chosen action follows the prior or primary, and purported synthesis that
   simply reproduces the primary. This prevents a valid-looking reasoning
   receipt from masquerading as actual use of the preserved prior.
+- **Proposer skill stability is split, never post-selected.** Reconciliation
+  diagnostics now report prior-versus-primary paired wins independently on
+  calibration and evaluation partitions. The retrospective row is explicitly
+  excluded from selection; an apparent advantage that reverses out of sample
+  cannot be promoted into product authority.
 
 - **Weak breach evidence no longer communicates exact certainty.** Short-
   history horizon-event estimates based on independence-composed per-step

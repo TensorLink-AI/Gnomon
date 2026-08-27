@@ -743,7 +743,7 @@ PARAMETER_AUTHORITY: dict[str, str] = {
     "context_store": "intent", "context_namespace": "intent",
     "candidate": "intent", "revision": "intent", "outcome_id": "intent",
     "question_id": "intent", "synthesis_id": "intent",
-    "resolved": "intent",
+    "resolved": "intent", "minimum_resolved": "intent",
     "automation_policy": "intent",
     "month": "intent", "state": "intent", "webhook": "intent",
     "auto_score": "intent",
