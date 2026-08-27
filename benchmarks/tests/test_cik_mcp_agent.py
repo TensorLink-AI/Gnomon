@@ -156,16 +156,35 @@ def test_sampled_prior_prompt_separates_numeric_task_from_raw_replay_dump():
         timestamps=["2026-01-01T00:00:00+00:00"], values=[3.5],
         future_timestamps=["2026-01-02T00:00:00+00:00"],
         context="The service will be open tomorrow.")
-    assert "(2026-01-01T00:00:00+00:00, 3.5)" in prompt
-    assert "2026-01-02 00:00:00" in prompt
+    assert "values below are in exact" in prompt.lower()
+    assert "[3.5]" in prompt
+    assert "timestamps=['2026-01-02T00:00:00+00:00']" in prompt
     assert "The service will be open tomorrow." in prompt
     assert "Factor in relevant background" in prompt
     assert "satisfy any stated constraints" in prompt
     assert "respect any stated scenarios" in prompt
-    assert "<forecast>" in prompt
+    assert '"forecast_path"' in prompt
+    assert "Do not echo timestamps" in prompt
     assert "mapping failed" not in prompt
     assert "candidate_mae" not in prompt
     assert "baseline_mae" not in prompt
+
+
+def test_sampled_prior_prompt_compacts_regular_grids_without_losing_order():
+    history_grid = [
+        f"2026-01-01T0{hour}:00:00+00:00" for hour in range(3)]
+    future_grid = [
+        f"2026-01-01T0{hour}:00:00+00:00" for hour in range(3, 6)]
+
+    prompt = _sampled_context_prior_prompt(
+        timestamps=history_grid, values=[1, 2, 3],
+        future_timestamps=future_grid, context="A bounded scenario.")
+
+    assert "step_seconds=3600" in prompt
+    assert "count=3" in prompt
+    assert "[1,2,3]" in prompt
+    assert "(2026-01-01" not in prompt
+    assert "exactly one finite value per future grid point" in prompt
 
 
 def test_future_numeric_path_gets_one_repair_without_granting_authority():

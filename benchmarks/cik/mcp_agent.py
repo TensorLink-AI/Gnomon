@@ -1037,14 +1037,31 @@ def _sampled_context_prior_prompt(
     *, timestamps: list[str], values: list[float],
     future_timestamps: list[str], context: str,
 ) -> str:
-    """Build a compact numeric prompt separate from semantic compilation."""
-    history = "\n".join(
-        f"({timestamp}, {float(value):.12g})"
-        for timestamp, value in zip(timestamps, values))
-    future = [
-        datetime.fromisoformat(timestamp.replace("Z", "+00:00")).strftime(
-            "%Y-%m-%d %H:%M:%S") for timestamp in future_timestamps]
-    future_display = "[" + " ".join(future) + "]"
+    """Build a compact indexed numeric prompt separate from compilation.
+
+    The host owns both grids. Repeating a timestamp beside every historical
+    value and asking the model to echo every future timestamp wastes the
+    bounded workflow budget without adding forecast information. Regular
+    grids are therefore represented by their endpoints, step and count; an
+    irregular future grid remains explicit.
+    """
+    history_values = ",".join(f"{float(value):.12g}" for value in values)
+
+    def grid_summary(grid: list[str]) -> str:
+        parsed = [datetime.fromisoformat(
+            timestamp.replace("Z", "+00:00")) for timestamp in grid]
+        if len(parsed) < 2:
+            return f"timestamps={grid!r}"
+        steps = [(right - left).total_seconds()
+                 for left, right in zip(parsed, parsed[1:])]
+        if steps and max(steps) == min(steps):
+            return (
+                f"start={grid[0]}, end={grid[-1]}, "
+                f"step_seconds={steps[0]:.12g}, count={len(grid)}")
+        return "timestamps=" + json.dumps(grid, separators=(",", ":"))
+
+    history_grid = grid_summary(timestamps)
+    future_grid = grid_summary(future_timestamps)
     return f"""\
 I have a time series forecasting task for you.
 
@@ -1054,21 +1071,18 @@ knowledge, satisfy any stated constraints, and respect any stated scenarios.
 {context}
 </context>
 
-Here is the historical target series in (timestamp, value) format:
+The host owns the historical grid ({history_grid}). Values below are in exact
+grid order:
 <history>
-{history}
+[{history_values}]
 </history>
 
-Now predict the value at the following timestamps: {future_display}.
+Predict the future grid ({future_grid}).
 
-Return the forecast in (timestamp, value) format between <forecast> and
-</forecast> tags. Return exactly one finite value for every requested timestamp
-in the same order, and include no commentary inside the tags.
+Return only compact JSON with exactly one finite value per future grid point,
+in order. Do not echo timestamps:
 
-Example:
-<forecast>
-(2026-01-01 00:00:00, 1.0)
-</forecast>
+{{"forecast_path":{{"values":[1.0,2.0],"rationale":"brief basis"}}}}
 
 Use no observations after the cutoff.
 """
@@ -4705,9 +4719,12 @@ class _Run:
                 future_timestamps=future_timestamps, context=context)
             model_candidate_prompt_bytes = len(context_prompt.encode("utf-8"))
             try:
+                requested_paths = (
+                    3 if len(future_timestamps) >= 96
+                    else MODEL_PRIOR_PATH_SAMPLES)
                 responses = complete_many(
                     context_prompt, "model_context_candidate_samples",
-                    n=MODEL_PRIOR_PATH_SAMPLES)
+                    n=requested_paths)
                 proposed, model_candidate_sampling = (
                     _candidate_from_sampled_paths(
                         responses, future_timestamps,
