@@ -694,6 +694,31 @@ def build_scenario_catalog(result: dict[str, Any], *,
             "reason": str(context_outcome.get("reason") or
                           "See the immutable context outcome receipt."),
         } for event_id in event_ids)
+    # A model-authored interpretation may coexist with an independently
+    # replayed companion executable. Match them by authenticated source spans,
+    # not dossier-local claim ids. This may make the model path selectable for
+    # human review, never evidence-supported or automation-eligible.
+    governed_companion_sources: list[set[str]] = []
+    for source_dossier in dossiers or []:
+        if not verify_temporal_dossier_seal(source_dossier):
+            continue
+        source_critique = source_dossier.get("candidate_critique") or {}
+        source_candidate = source_dossier.get("forecast_candidate") or {}
+        if (source_critique.get("candidate_origin") !=
+                "governed_companion_mapping"
+                or (source_candidate.get("validation") or {}).get(
+                    "beats_baseline") is not True):
+            continue
+        source_ids = {str(item) for item in
+                      source_candidate.get("claim_ids") or []}
+        source_spans = {
+            " ".join(str(claim.get("source_span") or "").split())
+            for claim in source_dossier.get("claims") or []
+            if str(claim.get("claim_id")) in source_ids
+            and str(claim.get("source_span") or "").strip()
+        }
+        if source_spans:
+            governed_companion_sources.append(source_spans)
     for index, dossier in enumerate(dossiers or [], 1):
         if not verify_temporal_dossier_seal(dossier):
             dispositions.append({
@@ -877,6 +902,17 @@ def build_scenario_catalog(result: dict[str, Any], *,
             replay_insufficient_only = bool(relevant_observation_replays) and all(
                 str(replay.get("status") or "").startswith("insufficient")
                 for replay in relevant_observation_replays)
+            candidate_source_spans = {
+                " ".join(str(claim.get("source_span") or "").split())
+                for claim in claims
+                if str(claim.get("claim_id")) in candidate_claims
+                and str(claim.get("source_span") or "").strip()
+            }
+            governed_companion_evidence = bool(
+                candidate_origin == "model_authored"
+                and candidate_source_spans
+                and any(candidate_source_spans <= source_spans
+                        for source_spans in governed_companion_sources))
             if governed_by_transformation or governed_by_deterministic_claim:
                 # A model cannot bypass a failed replay/admission check by
                 # restating its own forecast under the same cited claims. The
@@ -890,6 +926,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
             # choose model-authored intervals over the engine's executable.
             human_selection_eligible = bool(
                 selection_eligible
+                or governed_companion_evidence
                 or (candidate_origin == "model_authored"
                     and candidate_critique.get("status") == "accepted"
                     and replay_insufficient_only
@@ -931,6 +968,7 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 source_seal=str(dossier["seal_sha256"]),
                 effect={
                     "candidate_origin": candidate_origin,
+                    "governed_companion_evidence": governed_companion_evidence,
                     "conditional_replay": conditional_replay,
                     "calibration_replay": calibration_replay,
                     "validation": candidate.get("validation") or {},
@@ -1151,6 +1189,33 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
             })
         return summary
 
+    def candidate_validation_summary(item: dict[str, Any]) -> dict[str, Any] | None:
+        validation = ((item.get("effect") or {}).get("validation") or {})
+        if not validation:
+            return None
+        points = int(validation.get("validation_points") or 0)
+        beats = validation.get("beats_baseline") is True
+        threshold = validation.get("multiplicity_adjusted_threshold")
+        skill = validation.get("skill")
+        summary = {
+            key: validation.get(key) for key in (
+                "scheme", "validation_points", "skill", "beats_baseline",
+                "baseline", "candidate_tables",
+                "multiplicity_adjusted_threshold",
+                "publication_evidence_weight",
+                "publication_shrunk_to_baseline",
+                "relationship_known_at_each_origin")
+            if validation.get(key) is not None
+        }
+        summary["evidence_sufficiency"] = (
+            "supported_replay" if beats and points >= 8 else
+            "preliminary_short_replay" if beats else "not_admitted")
+        if isinstance(skill, (int, float)) and isinstance(
+                threshold, (int, float)):
+            summary["skill_margin_over_adjusted_threshold"] = (
+                float(skill) - float(threshold))
+        return summary
+
     dominant = dominant_scenario_id(scenarios)
     return {
         "selection_required": dominant is None,
@@ -1161,7 +1226,11 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
             "Rank only the supplied scenario_ids. Explain the ranking using "
             "claim_ids (including compiled hypothesis ids), name all material "
             "counterevidence, and weigh any accepted historical-contamination "
-            "evidence against the replay strength of alternatives. Give "
+            "evidence against the replay strength of alternatives. A role "
+            "name is provenance, not proof: compare candidate_validation, "
+            "evidence volume, shrinkage, assumptions and path shape. Treat "
+            "preliminary_short_replay as useful but insufficient evidence, "
+            "not automatic dominance over another bounded human-only path. Give "
             "confidence and state what "
             "would change the selection. Do not output forecast numbers, "
             "support labels, or automation advice."),
@@ -1175,6 +1244,9 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
             "summary": shape_summary(item),
             "derivation": {
                 "assumptions": list(item.get("assumptions") or [])[:2],
+                "candidate_origin": ((item.get("effect") or {}).get(
+                    "candidate_origin")),
+                "candidate_validation": candidate_validation_summary(item),
                 "conditional_replay_status": str(
                     (((item.get("effect") or {}).get(
                         "conditional_replay") or {}).get("status") or

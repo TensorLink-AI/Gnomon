@@ -1002,6 +1002,69 @@ def test_evidence_host_binds_first_valid_forecast_artifact(tmp_path):
         "accepted": True, "route": "gnomon"}
 
 
+@pytest.mark.parametrize("needs_repair", [False, True])
+def test_structured_context_keeps_governed_and_model_candidates_separate(
+        tmp_path, needs_repair):
+    task = _task(horizon=4)
+    history_rows = [(stamp, value - 2.0)
+                    for stamp, value in task.past_time[-6:]]
+    future_rows = [(stamp, 130.0 + index)
+                   for index, stamp in enumerate(task.future_time)]
+    task.scenario = (
+        "For reference, peer demand:\nPeer demand\n--------------------\n"
+        + "\n".join(
+            f"({stamp[:10]} 00:00:00, {value})"
+            for stamp, value in [*history_rows, *future_rows]))
+    candidate = {"forecast_candidate": {
+        "quantiles": [
+            {"timestamp": stamp, "q10": 124 + index,
+             "q50": 128 + index, "q90": 132 + index}
+            for index, stamp in enumerate(task.future_time)],
+        "rationale": "Peer path and recent target level support this range.",
+    }}
+    selector = {
+        "selected_scenario_id": "prior-assisted-2",
+        "ranking": ["prior-assisted-2", "prior-assisted-1", "primary"],
+        "cited_claim_ids": ["claim-1"],
+        "counterevidence_claim_ids": ["claim-2"], "confidence": .55,
+        "rationale": "The model alternative is useful for human review.",
+        "what_would_change_selection": "More resolved target outcomes.",
+    }
+    outputs = (["not json"] if needs_repair else []) + [
+        json.dumps(candidate), json.dumps(selector)]
+    client = ScriptedClient([], outputs)
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), trace_dir=tmp_path / "traces",
+        profile="evidence", output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 1)
+
+    roles = {item["role"] for item in extra["publication"][
+        "candidate_portfolio"]}
+    assert "governed_companion_mapping" in roles
+    assert "model_authored" in roles
+    assert extra["publication"]["recommended_scenario_id"] == "primary"
+    assert extra["scenario_selector"]["accepted"] is False
+    assert "counterevidence" in extra["scenario_selector"]["error"]
+    assert extra["publication"]["primary_forecast_unchanged"] is True
+    assert extra["publication"]["automation"]["eligible"] is False
+    trace = json.loads(next((tmp_path / "traces").glob("*.json")).read_text())
+    assert trace["context_compilation"]["dossier_count"] == 2
+    assert set(trace["context_compilation"]["candidate_origins"]) == {
+        "governed_companion_mapping", "model_authored"}
+    timing = trace["context_compilation"]["compiler_timing"]
+    assert timing["kind"] == "deterministic_parse_plus_sealed_model_candidate"
+    assert timing["prompt_bytes"] > 0
+    stages = [item["stage"] for item in timing["calls"]]
+    assert ("model_companion_candidate_repair" in stages) is needs_repair
+    assert '"candidate_validation"' in client.completion_prompts[-1]
+    assert '"publication_evidence_weight"' in client.completion_prompts[-1]
+    assert '"evidence_sufficiency": "preliminary_short_replay"' in (
+        client.completion_prompts[-1])
+
+
 def test_evidence_executes_one_server_authored_grid_repair(tmp_path):
     client = ScriptedClient([])
     forecaster = McpAgentForecaster(

@@ -310,7 +310,10 @@ MIN_CONTEXT_REPAIR_SECONDS = 10.0
 #: blocks and resolves ambiguous schedule endpoints from pre-cutoff evidence.
 #: Version 142: isolated multi-seed runs bind the runner's authoritative seed
 #: into trace identity instead of overwriting every case as `seedx`.
-MCP_CONTRACT_VERSION = 155
+#: Version 156: structured companion context preserves a governed executable
+#: and a separately sealed model-authored path; selection receives compact
+#: replay evidence, one bounded repair, and auditable portfolio telemetry.
+MCP_CONTRACT_VERSION = 156
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -752,6 +755,23 @@ forecast candidate. Preserve series identity in the table name using only
 words present in its source heading/description. Gnomon, not the model, fits
 and replays mappings against last value. If no companion has at least four
 overlap rows plus complete future coverage, return empty arrays/nulls.
+"""
+
+COMPANION_CANDIDATE_INSTRUCTIONS = """\
+Author one bounded probabilistic forecast candidate from the supplied target
+history and source-grounded companion paths. Return ONLY:
+{"forecast_candidate":{"quantiles":[{"timestamp":"exact requested ISO",
+"q10":0.0,"q50":0.0,"q90":0.0}],"rationale":"brief arithmetic and competing
+interpretation"}}
+
+Provide exactly one row per requested forecast timestamp, ordered by time.
+Use only target history and context known at the cutoff. Do not claim that a
+companion is the target, hide uncertainty, or invent observations. The path is
+a human-review-only prior-assisted alternative: it cannot edit the immutable
+primary, upgrade support, or authorize automation. Because this is the
+explicitly requested best-effort lane, produce the best bounded estimate when
+the supplied paths cover the complete grid; represent ambiguity with wider
+quantiles and state the competing interpretation rather than withholding.
 """
 
 
@@ -2531,7 +2551,10 @@ class McpAgentForecaster:
             run._write_trace()
         if self.output_role in {"llm_candidate_shadow",
                                "publication_best_effort"}:
-            dossier = (run.context_compilation or {}).get("dossier") or {}
+            compilation = run.context_compilation or {}
+            dossier = compilation.get("dossier") or {}
+            dossiers = [item for item in compilation.get("dossiers") or
+                        [dossier] if isinstance(item, dict) and item]
             candidate = dossier.get("forecast_candidate") or {}
             candidate_rows = candidate.get("quantiles")
             if (not candidate_rows and not dossier.get("effect_proposal")
@@ -2553,12 +2576,12 @@ class McpAgentForecaster:
                                                 validate_scenario_selection)
                 from gnomon.temporal_state import build_temporal_state
                 scenarios, _ = build_scenario_catalog(
-                    artifact_result, dossiers=[dossier])
+                    artifact_result, dossiers=dossiers)
                 if len(scenarios) > 1:
                     contract = scenario_selection_contract(
-                        scenarios=scenarios, dossiers=[dossier],
+                        scenarios=scenarios, dossiers=dossiers,
                         temporal_state=build_temporal_state(
-                            artifact_result, dossiers=[dossier]))
+                            artifact_result, dossiers=dossiers))
                     if contract.get("selection_required") is False:
                         # A host should not pay for a choice the verifier would
                         # reject. Emptying this local list only skips the model
@@ -2593,7 +2616,7 @@ class McpAgentForecaster:
                                     objects[0], scenarios))
                             selection = validate_scenario_selection(
                                 normalized_selection, scenarios=scenarios,
-                                dossiers=[dossier])
+                                dossiers=dossiers)
                             break
                         except Exception as error:
                             last_error = error
@@ -2619,7 +2642,7 @@ class McpAgentForecaster:
                     # selector contract so forecast values remain untouchable.
                     from gnomon.publication import build_scenario_catalog
                     shadow_scenarios, _ = build_scenario_catalog(
-                        artifact_result, dossiers=[dossier])
+                        artifact_result, dossiers=dossiers)
                     shadow = next((item for item in shadow_scenarios
                                    if item.get("role") == "model_authored"), None)
                     if shadow is not None:
@@ -2627,24 +2650,30 @@ class McpAgentForecaster:
                                      for item in shadow_scenarios
                                      if item["scenario_id"] != shadow["scenario_id"]]
                         claim_ids = list(shadow.get("claim_ids") or [])
+                        counter_ids = list(dict.fromkeys(
+                            str(hypothesis.get("hypothesis_id"))
+                            for item in dossiers
+                            for hypothesis in item.get("hypotheses") or []
+                            if hypothesis.get("kind") == "unsupported"
+                            and hypothesis.get("hypothesis_id")))
                         selection = {
                             "selected_scenario_id": shadow["scenario_id"],
                             "ranking": [shadow["scenario_id"], *remaining],
                             "cited_claim_ids": claim_ids,
-                            "counterevidence_claim_ids": [],
+                            "counterevidence_claim_ids": counter_ids,
                             "confidence": .5,
                             "rationale": "Explicit shadow evaluation of the sealed candidate.",
                             "what_would_change_selection": "Resolved outcomes score this candidate.",
                         }
                 try:
                     publication = publish_result(
-                        artifact_result, mode="best_effort", dossiers=[dossier],
+                        artifact_result, mode="best_effort", dossiers=dossiers,
                         scenario_selection=selection)
                 except ValueError as error:
                     selection_error = f"selector rejected: {error}"
                     selection = None
                     publication = publish_result(
-                        artifact_result, mode="best_effort", dossiers=[dossier])
+                        artifact_result, mode="best_effort", dossiers=dossiers)
             if not verify_publication(publication):
                 raise RuntimeError("best-effort publication failed verification")
             submission = publication["recommended_forecast"]
@@ -2688,6 +2717,15 @@ class McpAgentForecaster:
                     "recommendation_authority"),
                 "context_summary": publication.get("context_summary"),
                 "scenario_selector": extra_info.get("scenario_selector"),
+                "scenario_selection": publication.get("scenario_selection"),
+                "candidate_portfolio": [{
+                    "scenario_id": item.get("scenario_id"),
+                    "role": item.get("role"),
+                    "support": item.get("support"),
+                    "human_selection_eligible": item.get(
+                        "human_selection_eligible"),
+                    "effect": item.get("effect"),
+                } for item in publication.get("candidate_portfolio") or []],
             }
             # ``drive`` closes the MCP process before governed selection to
             # avoid holding an idle server during the second model call. Rewrite
@@ -2802,6 +2840,9 @@ class _Run:
                                 + MAX_CONTEXT_COMPILATION_SECONDS)
         compiler_calls: list[dict[str, Any]] = []
         repair_decisions: list[dict[str, Any]] = []
+        model_candidate_proposal: dict[str, Any] | None = None
+        model_candidate_prompt_bytes = 0
+        model_candidate_status = "not_requested"
         deterministic_companion_tables = (
             _extract_structured_companion_tables(
                 context, self.timestamps, future_timestamps)
@@ -2895,6 +2936,69 @@ class _Run:
                 "stage": "deterministic_structured_companion_parse",
                 "elapsed_seconds": 0.0,
             })
+            # Parsing and reasoning are separate jobs. Exact rows do not need
+            # model transcription, but best-effort publication may still gain
+            # from a separately sealed model interpretation of their temporal
+            # relationship. This candidate never replaces the governed
+            # executable in its dossier and can never authorize automation.
+            if self.forecaster.output_role in {
+                    "publication_best_effort", "llm_candidate_shadow"}:
+                model_candidate_status = "requested"
+                candidate_prompt = (
+                    f"{COMPANION_CANDIDATE_INSTRUCTIONS}\n"
+                    f"Forecast target series: {self.target_name}\n"
+                    f"History cutoff: {self.timestamps[-1]}\n"
+                    f"Forecast grid: {_forecast_grid_prompt(future_timestamps)}\n"
+                    f"{history}\n\nContext:\n{context}\n")
+                model_candidate_prompt_bytes = len(
+                    candidate_prompt.encode("utf-8"))
+                def accept_model_candidate(content: str) -> bool:
+                    nonlocal model_candidate_proposal, model_candidate_status
+                    objects = extract_json_objects(content)
+                    if not objects:
+                        model_candidate_status = "no_json"
+                        return False
+                    first = objects[0]
+                    wrapped = first.get("forecast_candidate")
+                    if isinstance(wrapped, dict):
+                        model_candidate_proposal = wrapped
+                        model_candidate_status = "proposed"
+                        return True
+                    if isinstance(first.get("quantiles"), list):
+                        # Bounded schema normalization: accept the exact
+                        # candidate body when the model omitted only its outer
+                        # key. Validators still own timestamps, quantiles,
+                        # citations and plausibility.
+                        model_candidate_proposal = first
+                        model_candidate_status = "proposed_unwrapped"
+                        return True
+                    model_candidate_status = (
+                        "withheld" if wrapped is None else "invalid_shape")
+                    return False
+                try:
+                    candidate_completion = complete(
+                        candidate_prompt, "model_companion_candidate")
+                    accepted = accept_model_candidate(candidate_completion)
+                    if not accepted and not repair_used:
+                        repair_used = True
+                        repair_completion = complete(
+                            candidate_prompt
+                            + "\nYour previous response was not an executable "
+                              "candidate (status=" + model_candidate_status
+                            + "). This is the single repair: return only the "
+                              "requested JSON with every grid row.",
+                            "model_companion_candidate_repair")
+                        accepted = accept_model_candidate(repair_completion)
+                        if accepted:
+                            model_candidate_status = "proposed_after_repair"
+                    if not accepted:
+                        compile_rejections.append(
+                            "model companion candidate unavailable after "
+                            f"bounded repair: {model_candidate_status}")
+                except Exception as error:
+                    model_candidate_status = "request_failed"
+                    compile_rejections.append(
+                        f"model companion candidate failed: {error}")
         else:
             try:
                 completion = complete(prompt, "initial_compile")
@@ -3928,6 +4032,29 @@ class _Run:
                 "prior for human review; it remains unsupported for automation."
                 if prior_only_semantic_gap else None),
         )
+        dossiers = [dossier]
+        if model_candidate_proposal is not None:
+            model_raw = {**raw,
+                         "forecast_candidate": model_candidate_proposal}
+            model_dossier, model_dossier_rejections = (
+                validate_temporal_dossier(
+                    model_raw, context_text=context,
+                    cutoff=self.timestamps[-1],
+                    future_timestamps=future_timestamps,
+                    history=self.values,
+                    history_timestamps=self.timestamps,
+                    compiler_model=self.forecaster.openrouter_model,
+                    validated_events=events))
+            if model_dossier.get("forecast_candidate") is not None:
+                dossiers.append(model_dossier)
+                model_candidate_status = "accepted"
+            else:
+                model_candidate_status = "rejected"
+            dossier_rejections = [
+                *dossier_rejections,
+                *(f"model_candidate:{item}"
+                  for item in model_dossier_rejections),
+            ]
         rejections = [*compile_rejections, *event_rejections,
                       *dossier_rejections, *covariate_rejections]
         if (context.strip() and not events and not dossier.get("claims")
@@ -3944,7 +4071,10 @@ class _Run:
         payload = {
             "schema_version": 1,
             "compiler": {
-                "kind": ("deterministic_structured_parse"
+                "kind": ("deterministic_parse_plus_sealed_model_candidate"
+                         if deterministic_front_door
+                         and model_candidate_prompt_bytes else
+                         "deterministic_structured_parse"
                          if deterministic_front_door
                          else "llm_proposes_gnomon_validates"),
                 "deterministic_front_door": deterministic_front_door,
@@ -3955,7 +4085,8 @@ class _Run:
                              if observation_contract else
                              "structured_companion_paths"
                              if companion_contract else "universal_dossier"),
-                "prompt_bytes": (0 if deterministic_front_door
+                "prompt_bytes": (model_candidate_prompt_bytes
+                                 if deterministic_front_door
                                  else len(prompt.encode("utf-8"))),
                 "workflow_budget_seconds": MAX_CONTEXT_COMPILATION_SECONDS,
                 "elapsed_seconds": round(
@@ -3967,6 +4098,7 @@ class _Run:
                         duplicate_events_demoted,
                     "rule": "companion_covariate_precedes_target_override",
                 } if duplicate_events_demoted else {}),
+                "model_candidate_status": model_candidate_status,
             },
             "source": {
                 "kind": "benchmark_task_context",
@@ -3976,6 +4108,7 @@ class _Run:
             "context_receipt_id": compilation["receipt_id"],
             "hypotheses": compilation["hypotheses"],
             "dossier": dossier,
+            "dossiers": dossiers,
             "covariates": covariate_receipt,
             "transformations": list(raw.get("transformations") or [])[:6],
             "rejections": list(rejections),
@@ -4033,6 +4166,15 @@ class _Run:
                         self.context_compilation["dossier"].get("effect_proposal")
                         or self.context_compilation["dossier"].get(
                             "forecast_candidate")),
+                    "dossier_count": len(
+                        self.context_compilation.get("dossiers") or
+                        [self.context_compilation["dossier"]]),
+                    "candidate_origins": [
+                        str((item.get("candidate_critique") or {}).get(
+                            "candidate_origin") or "none")
+                        for item in (self.context_compilation.get("dossiers") or
+                                     [self.context_compilation["dossier"]])
+                        if item.get("forecast_candidate")],
                     "covariate_tables": len(
                         self.context_compilation["covariates"]["tables"]),
                     "covariate_tables_proposed": self.context_compilation[
@@ -4246,7 +4388,9 @@ class _Run:
             if self.forecaster.output_role == "publication_best_effort":
                 arguments.update({
                     "publication_mode": "best_effort",
-                    "temporal_dossiers": [receipt.get("dossier") or {}],
+                    "temporal_dossiers": (
+                        receipt.get("dossiers") or
+                        [receipt.get("dossier") or {}]),
                     "context_submission": {
                         "known_at": self.timestamps[-1],
                         "transformations": receipt.get("transformations") or [],

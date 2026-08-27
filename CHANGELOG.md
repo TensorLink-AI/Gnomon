@@ -40,6 +40,14 @@
   accumulate the eight replay origins required by the supported tier, and
   retain the unadmitted displacement in the interval. Exact identities and
   sufficiently replayed mappings remain unchanged.
+- Preserve both a replayed companion executable and a separately sealed
+  model-authored interpretation in best-effort portfolios. The selector now
+  sees compact candidate validation, evidence volume and shrinkage rather than
+  inferring quality from role names; model paths remain human-review-only.
+- Give malformed or prose-only model candidate responses one bounded repair,
+  record candidate origin/status and the final ranking in traces, and repair
+  the shadow evaluator so it scores the intended sealed model path rather than
+  silently falling back to the primary.
 - Bound compiler rejection diagnostics only at the MCP wire projection. A
   context receipt with more than 16 rejection reasons now sends 15 plus a
   typed overflow pointer while retaining the complete lossless receipt, so
