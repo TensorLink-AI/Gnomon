@@ -10,6 +10,16 @@
   citable evidence, and require prior-assisted recommendations to acknowledge
   compiled unsupported-context counterevidence instead of ranking from the
   attractive claim alone.
+- Route material numeric context explicitly on the compiler's first pass so
+  quantities cannot disappear into an empty dossier, while excluding bare
+  dates and clock times from that obligation to avoid unnecessary repair and
+  invented numeric influence.
+- Retain typed hypothesis violation codes in context-compiler receipts so a
+  bounded repair or product diagnosis can distinguish citation, series,
+  timing, and schema failures instead of reporting only a rejected count.
+- Make hypothesis knowledge time host-owned at receipt creation, matching
+  claims and transformations, so a model-authored future timestamp cannot
+  create leakage or waste a second LLM call repairing metadata the host knows.
 
 - Governed transformation units now treat universal normalized quantities
   (`fraction`, `proportion`, `probability`, `ratio`, `share`, and `unitless`)

@@ -309,7 +309,7 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: blocks and resolves ambiguous schedule endpoints from pre-cutoff evidence.
 #: Version 142: isolated multi-seed runs bind the runner's authoritative seed
 #: into trace identity instead of overwriting every case as `seedx`.
-MCP_CONTRACT_VERSION = 143
+MCP_CONTRACT_VERSION = 144
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -696,6 +696,23 @@ is rejected without changing the primary.
 9. Use nothing after the history cutoff. If context is irrelevant, return the
 seven empty/null fields.
 """
+
+
+def _has_material_numeric_context(text: str) -> bool:
+    """Whether prose contains a quantity beyond calendar/clock notation.
+
+    Dates establish knowledge and effect windows but do not by themselves
+    justify a numeric scenario.  Strip their common representations before
+    deciding whether the compiler must preserve a material quantity.  A
+    duration, level, rate, bound, or coefficient remains visible.
+    """
+    stripped = re.sub(
+        r"\b\d{4}-\d{2}-\d{2}(?:[T ]\d{1,2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:?\d{2})?)?\b",
+        " ", text)
+    stripped = re.sub(
+        r"\b\d{1,2}:\d{2}(?::\d{2})?(?:\s*[ap]m)?\b",
+        " ", stripped, flags=re.IGNORECASE)
+    return bool(re.search(r"(?<!\w)[+-]?(?:\d+(?:\.\d*)?|\.\d+)", stripped))
 
 
 def _expects_historical_zero_interpretation(context: str) -> bool:
@@ -2292,8 +2309,19 @@ class _Run:
         instructions = (RELATIONSHIP_INSTRUCTIONS if relationship_contract
                         else OBSERVATION_INSTRUCTIONS if observation_contract
                         else DOSSIER_INSTRUCTIONS)
+        material_numeric_context = _has_material_numeric_context(
+            compiler_context)
+        numeric_routing_note = (
+            "\nHost routing note: the context contains at least one material "
+            "numeric quantity beyond dates or clock times. Do not return an "
+            "empty dossier. Preserve it in a verbatim claim and at least one "
+            "typed hypothesis. If the history plus cited quantity supports a "
+            "bounded useful conditional forecast, include that sealed "
+            "prior_assisted candidate in this first response; otherwise "
+            "classify it unsupported and name the missing evidence.\n"
+            if material_numeric_context and not relationship_contract else "")
         prompt = (
-            f"{instructions}\n"
+            f"{instructions}{numeric_routing_note}\n"
             f"Forecast target series: {self.target_name}\n"
             f"History cutoff: {self.timestamps[-1]}\n"
             f"Forecast grid: {_forecast_grid_prompt(future_timestamps)}\n"
@@ -2312,6 +2340,13 @@ class _Run:
         def bind_active_target(candidate: dict[str, Any]) -> dict[str, Any]:
             """Attach host-owned series identity without granting semantics."""
             return {**candidate, "series": [self.target_name]}
+
+        def bind_host_knowledge_time(candidate: dict[str, Any]) -> dict[str, Any]:
+            """Bind receipt-time metadata the compiler has no authority over."""
+            for hypothesis in candidate.get("hypotheses") or []:
+                if isinstance(hypothesis, dict):
+                    hypothesis["known_at"] = self.timestamps[-1]
+            return candidate
 
         def complete(content: str, stage: str) -> str:
             remaining = compilation_deadline - time.monotonic()
@@ -2335,7 +2370,7 @@ class _Run:
             completion = complete(prompt, "initial_compile")
             objects = extract_json_objects(completion)
             if objects:
-                raw = bind_active_target(objects[0])
+                raw = bind_host_knowledge_time(bind_active_target(objects[0]))
             else:
                 compile_rejections.append(
                     "no JSON object in temporal-dossier output")
@@ -2405,7 +2440,7 @@ class _Run:
         # erase supplied information.
         unresolved_numeric_context = bool(
             context.strip() and not proposed_any_lane
-            and re.search(r"(?<!\w)\d+(?:\.\d+)?", context))
+            and _has_material_numeric_context(context))
         transformation_proposed = bool(raw.get("transformations"))
         if ((proposed_any_lane or observation_lane_missing
                 or unresolved_numeric_context) and not transformation_proposed):
@@ -2424,6 +2459,11 @@ class _Run:
                 "accepted", "accepted_after_repair"}
             hypothesis_failures = (probe.get("hypothesis_critique") or {}).get(
                 "rejected") or []
+            hypothesis_violation_codes = list(dict.fromkeys(
+                str(violation.get("code"))
+                for failure in hypothesis_failures
+                for violation in failure.get("violations") or []
+                if violation.get("code")))
             observation_failures = (
                 probe.get("observation_interpretation_critique") or {}).get(
                     "rejected") or []
@@ -2474,6 +2514,7 @@ class _Run:
                     probe.get("observation_interpretation_critique") or {}).get(
                         "accepted") or []),
                 "rejected_hypotheses": len(hypothesis_failures),
+                "hypothesis_violation_codes": hypothesis_violation_codes,
                 "rejected_observation_interpretations": len(
                     observation_failures),
                 "required_observation_lane_missing": bool(
@@ -2536,7 +2577,8 @@ class _Run:
                         "dossier_repair")
                     repaired = extract_json_objects(repair_completion)
                     if repaired:
-                        raw = bind_active_target(repaired[0])
+                        raw = bind_host_knowledge_time(
+                            bind_active_target(repaired[0]))
                     else:
                         compile_rejections.append(
                             "dossier repair returned no JSON object")

@@ -35,9 +35,20 @@ from benchmarks.cik.mcp_agent import (
     _restore_cited_power_literals,
     _bind_transformation_provenance,
     _select_publication_fail_closed,
+    _has_material_numeric_context,
 )
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+
+def test_material_numeric_context_ignores_calendar_not_business_quantities():
+    assert not _has_material_numeric_context(
+        "Maintenance begins 2026-01-03T14:30:00+00:00 and ends at 16:00.")
+    assert _has_material_numeric_context(
+        "Maintenance begins 2026-01-03 and lasts for 6 days.")
+    assert _has_material_numeric_context(
+        "The comparable site's maximum was 25.83 at 21:10:00.")
+    assert _has_material_numeric_context("Demand is bounded below by -2.5.")
 
 
 def test_regular_long_forecast_grid_is_compact_but_exact():
@@ -834,6 +845,45 @@ def test_numeric_context_gets_one_bounded_sufficiency_repair(tmp_path):
         == "historical_analogue"
 
 
+def test_hypothesis_knowledge_time_is_bound_by_host_without_llm_repair(
+        tmp_path):
+    task = _task()
+    span = "A comparable site reached 120 on 2023-06-20."
+    task.scenario = span
+    compiler_output = json.dumps({
+        "events": [],
+        "claims": [{
+            "source_span": span, "relation": "unknown",
+            "effective_start": "2023-06-20T00:00:00+00:00",
+            "effective_end": "2023-06-20T23:59:59+00:00",
+            "mechanism": "A comparable historical episode.",
+            "confidence": 0.5,
+        }],
+        "hypotheses": [{
+            "kind": "historical_analogue", "claim_ids": ["claim-1"],
+            "target_series": ["*"], "predictor_series": None,
+            # Model-authored future metadata must not trigger an LLM repair.
+            "known_at": "2099-01-01T00:00:00+00:00", "lag_steps": 0,
+            "direction": "unknown", "rationale": "Weak external analogue.",
+        }],
+        "covariate_tables": [], "transformations": [],
+        "observation_interpretations": [], "effect_proposal": None,
+        "forecast_candidate": None,
+    })
+    forecaster = _forecaster(
+        [], tmp_path, profile="evidence", compiler_output=compiler_output)
+
+    _, extra = forecaster(task, 1)
+
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    assert len(receipt["compiler"]["calls"]) == 1
+    assert receipt["dossier"]["hypotheses"][0]["known_at"] == \
+        task.past_time[-1][0]
+    assert receipt["compiler"]["repair_decisions"][0][
+        "hypothesis_violation_codes"] == []
+
+
 def test_evidence_binds_only_cited_host_timestamped_covariates(tmp_path):
     task = _task()
     date = task.future_time[0].split("T", 1)[0]
@@ -1156,6 +1206,7 @@ def test_accepted_effect_does_not_recompile_for_malformed_optional_lane(
             "forecast_candidate quantiles must match the requested horizon"],
         "accepted_observation_interpretations": 0,
         "rejected_hypotheses": 0,
+        "hypothesis_violation_codes": [],
         "rejected_observation_interpretations": 0,
         "required_observation_lane_missing": False,
         "numeric_context_unresolved": False,
