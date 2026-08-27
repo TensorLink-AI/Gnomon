@@ -1829,6 +1829,9 @@ def _compiled_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
                 row["model_own_action_optimal"] for row in rows),
             "decision_invalid_rate": statistics.mean(
                 not row["decision_valid"] for row in rows),
+            # The model's own revision handling, separate from the
+            # governed path built on its claims.
+            "trap_accuracy": _mean_of(rows, "model_own_trap_correct"),
         },
         "extraction": {
             "value_relative_error": _mean_of(rows, "value_relative_error",
