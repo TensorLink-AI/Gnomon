@@ -48,6 +48,7 @@ from benchmarks.cik.mcp_agent import (
     _extract_structured_companion_tables,
     _extract_categorical_state_schedule,
     _candidate_from_sampled_paths,
+    _sampled_state_prior_prompt,
 )
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -97,6 +98,20 @@ def test_sampled_path_aggregation_rejects_bad_draws_independently():
     assert diagnostics["rejected"] == 3
     assert candidate["quantiles"][0] == {
         "timestamp": "t1", "q10": 1.0, "q50": 1.0, "q90": 1.0}
+
+
+def test_sampled_prior_prompt_separates_numeric_task_from_raw_replay_dump():
+    prompt = _sampled_state_prior_prompt(
+        timestamps=["2026-01-01T00:00:00+00:00"], values=[3.5],
+        future_timestamps=["2026-01-02T00:00:00+00:00"],
+        context="The service will be open tomorrow.")
+    assert "(2026-01-01T00:00:00+00:00, 3.5)" in prompt
+    assert '"2026-01-02T00:00:00+00:00"' in prompt
+    assert "The service will be open tomorrow." in prompt
+    assert "Preserve ordinary temporal shape" in prompt
+    assert "mapping failed" not in prompt
+    assert "candidate_mae" not in prompt
+    assert "baseline_mae" not in prompt
 
 
 def test_future_numeric_path_gets_one_repair_without_granting_authority():
@@ -2058,8 +2073,9 @@ def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
     assert client.completion_ns == [5]
     assert client.completion_temperatures == [1]
     assert len(client.completion_prompts) == 1
-    assert "failed governed state replay remains explicit counterevidence" in (
-        " ".join(client.completion_prompts[0].split()))
+    compact_prompt = " ".join(client.completion_prompts[0].split())
+    assert "Preserve ordinary temporal shape" in compact_prompt
+    assert "mapping failed" not in compact_prompt
 
 
 def test_literal_zero_claim_uses_deterministic_override_lane(tmp_path):

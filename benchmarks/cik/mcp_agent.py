@@ -342,7 +342,9 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: one host-sampled prior consensus when no governed path dominates.
 #: Version 169: recommendation receipts distinguish explicit best-effort policy
 #: selection from an independent LLM selector call.
-MCP_CONTRACT_VERSION = 169
+#: Version 170: sampled numeric priors use a direct compact forecast prompt and
+#: scoped counterevidence instead of the semantic compiler's diagnostic dump.
+MCP_CONTRACT_VERSION = 170
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -839,24 +841,6 @@ the supplied paths cover the complete grid; represent ambiguity with wider
 quantiles and state the competing interpretation rather than withholding.
 """
 
-STATE_CANDIDATE_INSTRUCTIONS = """\
-Author one plausible point-forecast path from the supplied target history and
-source-grounded categorical state schedule. Return ONLY:
-{"forecast_path":{"values":[0.0],"rationale":"brief temporal argument,
-state effect, competing interpretation, and uncertainty"}}
-
-Provide exactly one finite value per requested timestamp, in the given order;
-the host owns the timestamp grid. Infer no state that the source did not state.
-Separate the ordinary temporal shape from the possible state effect and use
-history only through the cutoff. This completion is one draw in a bounded
-ensemble: do not estimate quantiles and do not coordinate with other draws.
-The host validates each path and derives empirical quantiles. The aggregate is
-a sealed prior-assisted human-review alternative. It cannot edit the immutable
-primary, upgrade support, or authorize automation, and the failed governed
-state replay remains explicit counterevidence.
-"""
-
-
 def _empirical_quantile(values: list[float], probability: float) -> float:
     """Dependency-free linear empirical quantile for bounded LLM path draws."""
     ordered = sorted(float(value) for value in values)
@@ -933,6 +917,40 @@ def _candidate_from_sampled_paths(
                if rationales else "")),
     }
     return candidate, diagnostics
+
+
+def _sampled_state_prior_prompt(
+    *, timestamps: list[str], values: list[float],
+    future_timestamps: list[str], context: str,
+) -> str:
+    """Build a compact numeric prompt separate from semantic compilation."""
+    history = "\n".join(
+        f"({timestamp}, {float(value):.12g})"
+        for timestamp, value in zip(timestamps, values))
+    future = json.dumps(future_timestamps, separators=(",", ":"))
+    return f"""\
+I have a time series forecasting task.
+
+Context known at the forecast cutoff:
+<context>
+{context}
+</context>
+
+Historical target values:
+<history>
+{history}
+</history>
+
+Predict one plausible value for each timestamp in this ordered grid:
+{future}
+
+Return ONLY {{"forecast_path":{{"values":[0.0]}}}} with exactly one finite
+number per grid timestamp. This is one independent draw; do not output
+quantiles or commentary.
+
+Preserve ordinary temporal shape and condition on the supplied context only
+where useful. Use no observations after the cutoff.
+"""
 
 
 def _has_material_numeric_context(text: str) -> bool:
@@ -4380,15 +4398,9 @@ class _Run:
                 and self.forecaster.output_role in {
                     "publication_best_effort", "llm_candidate_shadow"}):
             model_candidate_status = "requested_after_governed_rejection"
-            state_prompt = (
-                f"{STATE_CANDIDATE_INSTRUCTIONS}\n"
-                f"Forecast target series: {self.target_name}\n"
-                f"History cutoff: {self.timestamps[-1]}\n"
-                f"Forecast grid: {_forecast_grid_prompt(future_timestamps)}\n"
-                f"{history}\n\nContext:\n{context}\n"
-                "Governed replay counterevidence:\n"
-                + json.dumps(governed_categorical.get("validation") or {},
-                             sort_keys=True))
+            state_prompt = _sampled_state_prior_prompt(
+                timestamps=self.timestamps, values=self.values,
+                future_timestamps=future_timestamps, context=context)
             model_candidate_prompt_bytes = len(state_prompt.encode("utf-8"))
             try:
                 responses = complete_many(

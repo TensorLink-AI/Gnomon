@@ -7,6 +7,11 @@
   derive marginal q10/q50/q90 deterministically. This replaces unreliable
   one-shot self-reported quantiles while retaining sealed prior-assisted
   provenance, immutable primary output, and a categorical automation ban.
+- Separate semantic compilation from numeric prior elicitation. The bounded
+  path sampler now receives only the exact history, context, host grid and
+  numeric output contract—never raw replay scores, failed surrogate-model
+  diagnostics or compiler instructions. Failed replay remains visible in the
+  sealed receipt without anchoring an independent numeric forecast.
 - Fix CiK shadow attribution when a context receipt contains both a governed
   rejected executable and a later model-authored candidate. Shadow scoring now
   follows the retained candidate's dossier seal instead of silently scoring
