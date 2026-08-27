@@ -479,6 +479,19 @@ def parse_override_span(span: str) -> tuple[float | None, str | None]:
     120 while the line is partially shut down" reads as 120, not 0.
     """
     text = " ".join(str(span).split())
+    # Relative levels must be resolved against a disclosed baseline by the
+    # scale lane. Without this guard, the broad "will be N" pattern reads
+    # "will be 5 times the usual level" as the absolute value 5 and creates a
+    # second, materially different deterministic scenario.
+    if re.search(
+            rf"{_N}{_AFTER_NUMBER}\s*(?:times\b|x\b|×).*?\b{_BASELINE}\b",
+            text, re.IGNORECASE):
+        scale, problem = parse_override_scale(text)
+        if problem is not None:
+            return None, problem
+        return None, (
+            f"the source span states {scale:g} times a baseline, not an "
+            "absolute override value; use the relative-scale lane")
     for pattern in _OVERRIDE_VALUE_PATTERNS:
         match = re.search(pattern, text, re.IGNORECASE)
         if match:

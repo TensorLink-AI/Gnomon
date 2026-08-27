@@ -301,7 +301,11 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: selector skip rather than a generic no-selection diagnostic.
 #: Version 138: recovery actions disclose when they concern only a rejected
 #: side representation and no further call is needed for the recommendation.
-MCP_CONTRACT_VERSION = 138
+#: Version 139: relative multipliers cannot masquerade as absolute overrides,
+#: and deterministic absolute claims own their numeric scenario representation.
+#: Version 140: model-authored full paths over deterministic absolute/range
+#: claims remain outcome-scored shadows but cannot compete for recommendation.
+MCP_CONTRACT_VERSION = 140
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it

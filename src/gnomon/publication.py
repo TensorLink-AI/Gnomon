@@ -14,8 +14,9 @@ import math
 from pathlib import Path
 from typing import Any, Literal
 
-from .llm_dossier import verify_temporal_dossier_seal
-from .llm_dossier import validate_temporal_dossier
+from .llm_dossier import (deterministic_events_from_claims,
+                          validate_temporal_dossier,
+                          verify_temporal_dossier_seal)
 from .effect_proposals import assess_composed_effect, compose_effect
 from .temporal_state import build_temporal_state
 from .context_intelligence import candidate_evidence_score
@@ -505,6 +506,27 @@ def build_scenario_catalog(result: dict[str, Any], *,
         proposal = dossier.get("effect_proposal")
         candidate = dossier.get("forecast_candidate")
         claims = dossier.get("claims") or []
+        deterministic_claim_ids = {
+            str(event.get("derived_from_claim_id"))
+            for event in deterministic_events_from_claims(dossier)
+            if event.get("derived_from_claim_id")}
+        if proposal and deterministic_claim_ids.intersection(
+                str(item) for item in proposal.get("claim_ids") or []):
+            # An exact absolute/range claim belongs to the deterministic
+            # context contract. A model-authored additive effect over the same
+            # words is a different operation (notably, +0 is not "set to
+            # zero") and must not become a competing scenario.
+            dispositions.append({
+                "context_id": f"dossier-{index}:effect-proposal",
+                "disposition": "rejected",
+                "reason_code": "superseded_by_deterministic_context_contract",
+                "reason": (
+                    "The cited claim states an absolute value or range; its "
+                    "deterministic context representation owns numeric "
+                    "authority, so a model-authored additive effect was not "
+                    "published."),
+            })
+            proposal = None
         if not candidate and not proposal:
             critique = dossier.get("effect_proposal_critique") or {}
             if critique.get("status") == "rejected":
@@ -606,7 +628,9 @@ def build_scenario_catalog(result: dict[str, Any], *,
             governed_by_transformation = any(
                 candidate_claims and candidate_claims.intersection(claims)
                 for claims in transformation_claim_sets)
-            if governed_by_transformation:
+            governed_by_deterministic_claim = bool(
+                candidate_claims.intersection(deterministic_claim_ids))
+            if governed_by_transformation or governed_by_deterministic_claim:
                 # A model cannot bypass a failed replay/admission check by
                 # restating its own forecast under the same cited claims. The
                 # executable path owns numeric authority; the model path stays
@@ -637,7 +661,11 @@ def build_scenario_catalog(result: dict[str, Any], *,
                           "selection_eligible", True) else []),
                     *(["A governed transformation over the same cited claims "
                         "owns recommendation authority."]
-                      if governed_by_transformation else [])],
+                      if governed_by_transformation else []),
+                    *(["A deterministic absolute/range context contract over "
+                        "the same cited claims owns recommendation authority; "
+                        "this model path is retained only for outcome scoring."]
+                      if governed_by_deterministic_claim else [])],
                 source_seal=str(dossier["seal_sha256"]),
                 effect={
                     "candidate_origin": candidate_origin,

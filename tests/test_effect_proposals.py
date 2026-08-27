@@ -438,6 +438,35 @@ def test_model_candidate_empirical_story_is_retained_only_as_unverified():
     assert "historical holidays" not in " ".join(scenario["assumptions"])
 
 
+def test_absolute_zero_claim_cannot_create_additive_zero_scenario():
+    span = "The meter is offline tomorrow, which results in zero readings."
+    dossier, reasons = validate_temporal_dossier({
+        "claims": [{"source_span": span, "relation": "supports_decrease",
+                    "effective_start": TIMES[0], "effective_end": TIMES[-1]}],
+        "effect_proposal": _proposal(
+            location=0, lower=0, upper=0, duration_steps=2),
+        "forecast_candidate": {
+            "constant_quantiles": {"q10": 8, "q50": 9, "q90": 10},
+            "rationale": "zero during maintenance",
+        },
+    }, context_text=span, cutoff="2026-01-02T00:00:00+00:00",
+       future_timestamps=TIMES, history=[8, 9, 10], compiler_model="test")
+    assert reasons == []
+    payload = publish_result({"support": "supported", "forecast": PRIMARY},
+                             mode="scenario", dossiers=[dossier])
+    assert all(item["role"] != "effect_composed"
+               for item in payload["candidate_portfolio"])
+    shadow = next(item for item in payload["candidate_portfolio"]
+                  if item["role"] == "model_authored")
+    assert shadow["selection_eligible"] is False
+    assert any("deterministic absolute/range" in assumption
+               for assumption in shadow["assumptions"])
+    rejection = next(item for item in payload["context_dispositions"]
+                     if item.get("reason_code") ==
+                     "superseded_by_deterministic_context_contract")
+    assert rejection["disposition"] == "rejected"
+
+
 def test_validated_context_path_precedes_weaker_model_effect():
     dossier, _ = validate_temporal_dossier({
         "claims": [{"source_span": "promotion begins tomorrow",

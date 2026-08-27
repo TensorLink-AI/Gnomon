@@ -69,6 +69,13 @@
   repair actions attached to rejected side representations are explicitly
   optional and scoped to that lane. The aggregate summary states that further
   calls add nothing to the current recommendation, preventing repair loops.
+- Relative statements such as “5 times the usual level” can no longer be
+  misparsed as the absolute value `5`; they remain in the disclosed baseline-
+  scale lane. Conversely, an exact absolute/range claim (including “zero
+  readings”) owns its deterministic representation, so an LLM cannot publish
+  a second additive `+0` or otherwise contradictory effect scenario.
+  A model-authored full forecast over the same claim may remain in the sealed
+  receipt for outcome scoring, but is explicitly selection-ineligible.
 
 - Safe declarative transformations may now bind additional verbatim source
   lines containing their exact AST literals. The host neither interprets nor

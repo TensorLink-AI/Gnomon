@@ -102,6 +102,13 @@ def test_explicit_case_correction_selects_the_operative_multiplier():
     assert scale == 5.0
 
 
+def test_relative_multiplier_is_not_misparsed_as_absolute_override():
+    value, problem = parse_override_span(
+        "Electricity will be 5 times the usual level.")
+    assert value is None
+    assert "relative-scale lane" in problem
+
+
 @pytest.mark.parametrize("span", [
     "Either 9 times or 5 times the usual electricity.",
     "In this case either 9 times or 5 times the usual electricity.",
