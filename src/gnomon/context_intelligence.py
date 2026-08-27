@@ -1136,13 +1136,31 @@ def execute_transformation(
         expression = compiled["expression"]
         driver_lags = {str(item["series"]): list(item["lags"])
                        for item in expression.get("driver_lags") or []}
+        ar_lags = list(expression.get("autoregressive_lags") or [])
+        all_lags = [*ar_lags, *(lag for values in driver_lags.values()
+                                for lag in values)]
+        maximum_lag = max(all_lags, default=0)
+        feature_count = len(ar_lags) + sum(len(values)
+                                           for values in driver_lags.values())
+        minimum_train = max((feature_count + 1) * 3, 20)
+        required_history = maximum_lag + minimum_train + 3
+        available_history = min([
+            len(history_values or []),
+            *(len((history_series or {}).get(name) or [])
+              for name in driver_lags),
+        ])
+        if available_history < required_history:
+            raise TransformationError(
+                "INSUFFICIENT_RELATIONSHIP_HISTORY", "history_values",
+                f"This {feature_count}-feature lag structure needs at least "
+                f"{required_history} aligned observations for expanding-origin "
+                f"validation; {available_history} are available.")
         try:
             candidate = fit_structured_arx_candidate(
                 history_values or [], history_series or {},
                 future_drivers={name: environment[name] for name in driver_lags},
                 primary=primary,
-                autoregressive_lags=list(
-                    expression.get("autoregressive_lags") or []),
+                autoregressive_lags=ar_lags,
                 driver_lags=driver_lags,
                 hypothesis_id=compiled["transformation_id"])
         except (KeyError, ValueError) as exc:

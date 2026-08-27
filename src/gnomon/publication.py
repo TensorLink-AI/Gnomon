@@ -300,6 +300,19 @@ def _context_recovery(disposition: dict[str, Any]) -> dict[str, Any]:
             "required_evidence": ["source-stated future effective window"],
             "automation_eligible": False,
         }
+    if code == "INSUFFICIENT_RELATIONSHIP_HISTORY":
+        return {
+            "code": "collect_relationship_history",
+            "message": (
+                "Keep the immutable primary and collect the aligned target "
+                "and driver observations named in the rejection. Rerun the "
+                "same sealed lag structure once the stated minimum is met."),
+            "required_evidence": [
+                "additional aligned target observations",
+                "additional aligned driver observations",
+            ],
+            "automation_eligible": False,
+        }
     if code in {
             "transformation_validation_failed", "effect_proposal_rejected",
             "forecast_candidate_rejected"}:
@@ -550,7 +563,9 @@ def build_scenario_catalog(result: dict[str, Any], *,
         selection_eligible = (
             validation.get("recurrence_plausibility_passed", True) is True
             and (not is_recurrence
-                 or validation.get("recurrence_replay_admitted") is True))
+                 or validation.get("recurrence_replay_admitted") is True)
+            and not (lane == "historically_testable"
+                     and validation.get("beats_baseline") is False))
         valid = bool(
             rows and len(rows) == len(primary) and source_seal
             and raw.get("primary_forecast_unchanged") is True
@@ -583,6 +598,9 @@ def build_scenario_catalog(result: dict[str, Any], *,
             effect={"evidence": evidence, "validation": validation,
                     "transformation_id": candidate_id, "lane": lane},
         ))
+        weak_historical_fit = bool(
+            lane == "historically_testable" and not admitted
+            and validation.get("beats_baseline") is False)
         dispositions.append({
             "context_id": candidate_id,
             "disposition": "used" if admitted else "scenario",
@@ -591,11 +609,19 @@ def build_scenario_catalog(result: dict[str, Any], *,
                             if retrospective else
                             "historically_tested_transformation_admitted"
                             if admitted else
+                            "historical_relationship_did_not_beat_baseline"
+                            if weak_historical_fit else
                             "transformation_retained_plausibility_failed"
                             if not selection_eligible else
                             "prior_assisted_transformation"
                             if lane == "prior_assisted" else
                             "scenario_only_transformation"),
+            "reason": (
+                "The cited relationship was fitted and tested on aligned "
+                "historical origins but did not beat last-value. The immutable "
+                "primary remains the recommendation; no context correction is "
+                "required."
+                if weak_historical_fit else None),
             "scenario_ids": [identifier], "evidence": evidence,
         })
 

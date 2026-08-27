@@ -594,6 +594,46 @@ def test_model_authored_path_cannot_bypass_governed_transform_authority():
         by_id["prior-assisted-1"]["assumptions"])
 
 
+def test_relationship_history_rejection_teaches_collection_not_recompilation():
+    result = _result()
+    result["transformation_rejections"] = [{
+        "transformation_id": "fit-relationship",
+        "reason_code": "INSUFFICIENT_RELATIONSHIP_HISTORY",
+        "reason": "Needs at least 29 aligned observations; 16 are available.",
+    }]
+    payload = publish_result(result, mode="best_effort")
+    rejection = payload["context_dispositions"][0]
+    assert rejection["recovery_action"]["code"] == \
+        "collect_relationship_history"
+    assert "Rerun the same sealed lag structure" in rejection[
+        "recovery_action"]["message"]
+    assert payload["recommended_scenario_id"] == "primary"
+
+
+def test_weak_fitted_relationship_retains_primary_without_blaming_context():
+    result = _result()
+    result["transformation_candidates"] = [{
+        "transformation_id": "fit-relationship", "source_seal_sha256": "seal",
+        "lane": "historically_testable", "claim_ids": ["claim-1"],
+        "primary_forecast_unchanged": True,
+        "forecast": [{**row, "point": row["point"] + 2,
+                      "q10": row["q10"] + 2, "q50": row["q50"] + 2,
+                      "q90": row["q90"] + 2}
+                     for row in result["forecast"]],
+        "validation": {"validation_points": 24, "skill": -.1,
+                       "beats_baseline": False,
+                       "specification_known_at_each_origin": False},
+    }]
+    payload = publish_result(result, mode="best_effort")
+    disposition = next(item for item in payload["context_dispositions"]
+                       if item["context_id"] == "fit-relationship")
+    assert disposition["reason_code"] == \
+        "historical_relationship_did_not_beat_baseline"
+    assert "no context correction is required" in disposition["reason"]
+    assert disposition.get("recovery_action") is None
+    assert payload["recommended_scenario_id"] == "primary"
+
+
 def test_scenario_selection_can_rank_but_not_authorize_or_edit():
     selection = {
         "selected_scenario_id": "prior-assisted-1",

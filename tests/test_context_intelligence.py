@@ -213,6 +213,18 @@ def test_fitted_recursive_structure_executes_only_with_versioned_future_path():
     assert candidate["automation_eligible"] is False
     assert candidate["source_seal_sha256"] == compiled["seal_sha256"]
 
+    with pytest.raises(TransformationError) as short:
+        execute_transformation(
+            compiled, primary=primary,
+            series_values={"driver": {"values": [3, 8],
+                                       "known_at": _stamp(89),
+                                       "source_claim_ids": ["c1"]}},
+            claim_spans={"c1": claim}, history_values=target[:12],
+            history_series={"driver": driver[:12]})
+    assert short.value.code == "INSUFFICIENT_RELATIONSHIP_HISTORY"
+    assert "at least" in short.value.message
+    assert "12 are available" in short.value.message
+
 
 def test_historical_analogue_excludes_outcomes_unknown_at_cutoff():
     episodes = []

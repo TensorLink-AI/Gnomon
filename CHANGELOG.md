@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Distinguish relationship data insufficiency from malformed context: short
+  histories now return the aligned-observation requirement and a collect-then-
+  rerun action. A historically tested relationship that fails to beat
+  last-value remains visible but can no longer displace the immutable primary
+  or tell users to rewrite otherwise valid context.
 - Canonicalize top-level fitted-relationship proposals without a second LLM
   call and make every provenance-binding pass tolerate malformed nested
   transformation or series shapes. Invalid model output now reaches typed
