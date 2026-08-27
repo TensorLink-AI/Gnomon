@@ -8,6 +8,17 @@
   paths nor additional horizon leads inflate that count, and regularisation
   is not repeated per lead, avoiding prior-driven horizon inflation. The
   estimate remains `best_effort` and automation-ineligible.
+- **BreachBench distinguishes useful model judgment from safety failures.**
+  Divergence from a best-effort human recommendation is now reported as an
+  outcome-scored beneficial/harmful/neutral override with regret delta, while
+  automation preservation remains a strict invariant. The legacy
+  `preservation_rate` is retained for compatibility but is explicitly an
+  adherence measure, not a requirement that the model surrender judgment.
+- **BreachBench resume is request-bound.** Every paid row now fingerprints
+  the exact system prompt, arm prompt including the Gnomon packet, model,
+  endpoint, token budget, reasoning mode, and temperature. Resume rejects
+  legacy or mismatched rows instead of silently mixing answers elicited under
+  different product behavior; scorer-only changes can still reuse raw rows.
 
 ## Unreleased
 

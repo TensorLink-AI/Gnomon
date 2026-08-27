@@ -220,6 +220,19 @@ def test_resume_rejects_rows_from_a_different_dataset_or_model(
         assert row["model"] == "scripted-test-model"
 
 
+def test_resume_rejects_rows_from_a_different_request_contract(tmp_path) -> None:
+    run(_args(tmp_path, cases=4), client=ScriptedClient())
+    rows_path = tmp_path / "out" / "rows.jsonl"
+    old_count = len(rows_path.read_text().splitlines())
+    args = _args(tmp_path, cases=4, resume=True)
+    args.max_tokens = 401
+    run(args, client=ScriptedClient())
+    new_rows = [json.loads(line) for line in
+                rows_path.read_text().splitlines()[old_count:]]
+    assert len(new_rows) == 4 * len(ARMS)
+    assert all(row.get("request_sha256") for row in new_rows)
+
+
 def test_malformed_steps_degrade_and_never_crash_a_paid_run() -> None:
     # json.loads accepts NaN/Infinity, and true is an int in Python:
     # each must degrade to a missing step, not raise mid-run.
@@ -306,6 +319,13 @@ def test_a_matched_offline_run_prices_decisions_in_client_units(
     assert interval["cluster"] == "origin_series"
     assert interval["lower"] <= interval["upper"]
     assert "agent_preservation" in summary["paired"]
+    preservation = summary["paired"]["agent_preservation"]
+    assert "human_recommendation_adherence_rate" in preservation
+    overrides = preservation["human_override_evaluation"]
+    assert overrides["overrides"] == (
+        overrides["beneficial"] + overrides["harmful"]
+        + overrides["neutral"])
+    assert "automation authority" in overrides["reading"]
     rows = [json.loads(line) for line in
             (tmp_path / "out" / "rows.jsonl").read_text().splitlines()]
     assert len(rows) == 6 * len(ARMS)

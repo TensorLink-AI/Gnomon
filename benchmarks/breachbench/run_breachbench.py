@@ -429,6 +429,31 @@ def prompt(case: Case, arm: str, packet: dict[str, Any]) -> str:
         'not the 0.5 breach threshold.')
 
 
+def request_identity(
+    case: Case, arm: str, packet: dict[str, Any], args: Any,
+) -> str:
+    """Fingerprint everything that can change the model's answer.
+
+    Dataset/model identity alone is insufficient for safe resume: a product
+    packet or prompt-contract change could otherwise reuse an answer elicited
+    under the old interface. Scorer-only changes intentionally do not alter
+    this identity, allowing raw responses to be re-analysed without new API
+    spend.
+    """
+    payload = {
+        "system": SYSTEM,
+        "user": prompt(case, arm, packet),
+        "model": getattr(args, "model", None),
+        "base_url": getattr(args, "base_url", None),
+        "temperature": 0,
+        "initial_max_tokens": getattr(args, "max_tokens", 400),
+        "reasoning_effort": getattr(args, "reasoning_effort", None),
+    }
+    return hashlib.sha256(json.dumps(
+        payload, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")).hexdigest()
+
+
 def parse_answer(text: str, horizon: int) -> dict[str, Any]:
     # Balanced-span candidates, not a greedy regex: a correct JSON answer
     # followed by prose containing a brace — or preceded by an echoed
@@ -780,9 +805,16 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
                 # its (case, arm) simply reruns.
                 malformed += 1
                 continue
+            case = next((item for item in cases
+                         if item.case_id == row.get("case_id")), None)
+            expected_request = (
+                request_identity(case, row.get("arm"),
+                                 packets[case.case_id], args)
+                if case is not None and row.get("arm") in ARMS else None)
             if (row.get("case_id") in valid_ids and row.get("arm") in ARMS
                     and row.get("dataset") == dataset_identity
-                    and row.get("model") == model_name):
+                    and row.get("model") == model_name
+                    and row.get("request_sha256") == expected_request):
                 completed[(row["case_id"], row["arm"])] = row
             else:
                 stale += 1
@@ -800,6 +832,8 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
         answer = parse_answer(text, case.horizon)
         return {"case_id": case.case_id, "arm": arm,
                 "dataset": dataset_identity, "model": model_name,
+                "request_sha256": request_identity(
+                    case, arm, packets[case.case_id], args),
                 "origin": case.origin, "outcome_cell": case.outcome_cell,
                 "history_length": case.history_length,
                 "history_band": case.history_band,
@@ -875,6 +909,34 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
         completed[(case_id, "gnomon")]["action"]
         == governed_recommendations[case_id]
         for case_id in supported_ids) if supported_ids else None)
+    # A best-effort human recommendation is evidence, not automation
+    # authority. The model is explicitly allowed to disagree with it; score
+    # whether that discretion helped after outcomes arrive instead of calling
+    # every disagreement a preservation failure. Automation below remains a
+    # strict copy-or-withhold contract.
+    override_deltas: list[float] = []
+    for case in cases:
+        recommendation = governed_recommendations[case.case_id]
+        agent_row = completed[(case.case_id, "gnomon")]
+        if (recommendation is None
+                or agent_row["action"] == recommendation):
+            continue
+        governed_regret = decision_outcome(recommendation, case)["regret"]
+        override_deltas.append(governed_regret - agent_row["regret"])
+    override_evaluation = {
+        "overrides": len(override_deltas),
+        "beneficial": sum(delta > 0 for delta in override_deltas),
+        "harmful": sum(delta < 0 for delta in override_deltas),
+        "neutral": sum(delta == 0 for delta in override_deltas),
+        "net_regret_reduction": sum(override_deltas),
+        "mean_regret_reduction_per_override": (
+            statistics.mean(override_deltas) if override_deltas else None),
+        "reading": (
+            "Positive regret reduction means model discretion improved the "
+            "human-facing best-effort recommendation after outcomes arrived; "
+            "this never grants automation authority."
+        ),
+    }
     automation_eligible = {
         case.case_id: (
             (packets[case.case_id].get("governed_decision") or {}).get(
@@ -927,7 +989,7 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
         bootstrap_deltas.append(statistics.mean(deltas))
     bootstrap_deltas.sort()
     summary = {
-        "schema_version": "0.3", "seed": args.seed, "cases": args.cases,
+        "schema_version": "0.4", "seed": args.seed, "cases": args.cases,
         "model": model_name, "temperature": 0,
         "horizon": HORIZON,
         "cost_model": {"act": COST_ACT, "missed_breach": COST_MISS},
@@ -959,6 +1021,10 @@ def run(args: argparse.Namespace, client: Any = None) -> dict[str, Any]:
             },
             "agent_preservation": {
                 "governed_recommendations": len(supported_ids),
+                "human_recommendation_adherence_rate": preservation_rate,
+                "human_override_evaluation": override_evaluation,
+                # Backward-compatible name; this is adherence, not a safety
+                # invariant. See human_override_evaluation for its value.
                 "preservation_rate": preservation_rate,
                 "unsupported_action_rate": unsupported_action_rate,
                 "automation_eligible_cases": len(automation_ids),
