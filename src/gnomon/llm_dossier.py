@@ -191,9 +191,13 @@ def _atemporal_hypothesis_rows(
 
 
 def _validated_event_window_for_claim(
-        span: str, validated_events: list[Any],
+        claim: dict[str, Any], validated_events: list[Any], *,
+        context_text: str,
 ) -> tuple[datetime, datetime] | None:
     """Join a magnitude-only claim to one validated containing event quote."""
+    from .future_context import parse_override_scale
+
+    span = str(claim.get("source_span") or "")
     normalized_span = _normalise(span)
     matches = []
     for event in validated_events:
@@ -206,7 +210,42 @@ def _validated_event_window_for_claim(
                 and start is not None and end is not None and end >= start
                 and _claim_start_is_cited(start, quote)):
             matches.append((start, end))
-    return matches[0] if len(matches) == 1 else None
+    if len(matches) == 1:
+        return matches[0]
+    if matches or len(validated_events) != 1:
+        return None
+
+    # Sources often put the event schedule and its measured magnitude in
+    # adjacent sentences. Join them only within one source paragraph, under a
+    # tight distance bound, with one validated event and a compatible stated
+    # direction. This is document structure, not semantic date invention.
+    multiplier, problem = parse_override_scale(span)
+    if problem is not None or multiplier is None:
+        return None
+    event = validated_events[0]
+    attributes = getattr(event, "attributes", {}) or {}
+    quote = str(attributes.get("evidence_quote") or
+                attributes.get("source_span") or "")
+    start = _timestamp(getattr(event, "effective_start", None))
+    end = _timestamp(getattr(event, "effective_end", None))
+    direction = str((attributes.get("soft_context") or {}).get(
+        "direction") or "unknown")
+    expected = {"supports_increase": "increase",
+                "supports_decrease": "decrease"}.get(
+                    str(claim.get("relation")))
+    claim_pos = context_text.find(span)
+    quote_pos = context_text.find(quote)
+    if (start is None or end is None or end < start
+            or claim_pos < 0 or quote_pos < 0
+            or not _claim_start_is_cited(start, quote)
+            or expected is not None and direction not in {expected, "unknown"}):
+        return None
+    left = min(claim_pos, quote_pos)
+    right = max(claim_pos + len(span), quote_pos + len(quote))
+    between = context_text[left:right]
+    if right - left > 800 or re.search(r"\n\s*\n", between):
+        return None
+    return start, end
 
 
 def _derived_scale_effect(
@@ -361,7 +400,7 @@ def validate_temporal_dossier(
             reasons.append(f"claim {index + 1} has unknown timing_status")
             continue
         event_window = (_validated_event_window_for_claim(
-            span, validated_events or [])
+            claim, validated_events or [], context_text=context_text)
                         if timing_status == "unresolved_trigger" else None)
         if event_window is not None:
             start, end = event_window

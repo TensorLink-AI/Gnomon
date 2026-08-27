@@ -32,6 +32,13 @@
   when the source separates arithmetic from timing. Exact baseline multipliers
   now compile deterministically into a non-automatable conditional effect, and
   the adapter avoids an LLM repair while the validated join is pending.
+- Recover exact multipliers stated in an adjacent sentence only when one
+  validated event, one same-paragraph source segment, a bounded distance, and
+  compatible direction make the join unambiguous. Approximate multipliers keep
+  their cited center but discard model-invented numeric ranges; uncertainty
+  remains inherited from the immutable primary path. A sole source-determined
+  numeric scenario cannot then be silently demoted by the LLM selector; it
+  remains hypothetical, human-reviewed, and ineligible for automation.
 
 - Add an explicit CiK `immutable_primary` diagnostic role. The previous
   `canonical` label referred to the public artifact trajectory, which may be

@@ -195,9 +195,26 @@ def _validate_one(raw: Any, *, claim_ids: set[str],
                     "basis": "citation states one exact multiplier; primary path retains forecast uncertainty",
                 })
                 lower = upper = location
+            if approximate and (lower != location or upper != location):
+                semantic_normalizations.append({
+                    "code": "UNSTATED_APPROXIMATE_RANGE_REMOVED",
+                    "applied_value": entailed_change,
+                    "basis": (
+                        "citation states an approximate central multiplier, "
+                        "not numeric lower/upper bounds; primary forecast "
+                        "uncertainty remains in the composed path"),
+                })
+                lower = upper = location
             if not approximate:
                 semantic_normalizations.append({
                     "code": "EXACT_CITED_LEVEL_MULTIPLIER",
+                    "stated_level_multiplier": scale,
+                    "applied_additive_fraction": entailed_change,
+                    "basis": "verified cited source span",
+                })
+            else:
+                semantic_normalizations.append({
+                    "code": "APPROXIMATE_CITED_LEVEL_MULTIPLIER",
                     "stated_level_multiplier": scale,
                     "applied_additive_fraction": entailed_change,
                     "basis": "verified cited source span",
@@ -239,7 +256,8 @@ def _validate_one(raw: Any, *, claim_ids: set[str],
             for cited_value in cited_numbers)
         for value in distribution_values)
     exact_multiplier_cited = any(
-        item.get("code") == "EXACT_CITED_LEVEL_MULTIPLIER"
+        item.get("code") in {"EXACT_CITED_LEVEL_MULTIPLIER",
+                             "APPROXIMATE_CITED_LEVEL_MULTIPLIER"}
         for item in semantic_normalizations)
     if numeric_distribution_cited or exact_multiplier_cited:
         provenance_class = "source_stated_distribution"
@@ -370,7 +388,9 @@ def assess_composed_effect(primary: list[dict[str, Any]], proposal: dict[str, An
     ratio = max(displacements, default=0.0) / scale
     exact_cited_scenario = (
         proposal.get("composition") == "scenario_only"
-        and any(item.get("code") == "EXACT_CITED_LEVEL_MULTIPLIER"
+        and any(item.get("code") in {
+                    "EXACT_CITED_LEVEL_MULTIPLIER",
+                    "APPROXIMATE_CITED_LEVEL_MULTIPLIER"}
                 for item in proposal.get("semantic_normalizations") or []))
     if ratio > MAX_COMPOSED_EFFECT_SCALES and not exact_cited_scenario:
         violations.append({

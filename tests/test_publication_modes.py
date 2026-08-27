@@ -174,6 +174,42 @@ def test_exact_cited_scenario_is_human_facing_but_never_automatable():
     assert verify_publication(payload)
 
 
+def test_approximate_cited_scenario_cannot_be_silently_demoted():
+    span = "In this case demand will be about 5 times the usual level."
+    dossier, reasons = validate_temporal_dossier({
+        "claims": [{
+            "source_span": span, "relation": "supports_increase",
+            "effective_start": TIMES[0], "effective_end": TIMES[0],
+            "confidence": .7,
+        }],
+        "effect_proposal": {
+            "shape": "temporary_pulse", "unit": "fraction_of_level",
+            "location": 4, "lower": 2, "upper": 4, "confidence": .7,
+            "delay_steps": 0, "duration_steps": 1,
+            "scope": {"kind": "single_series", "series": ["*"]},
+            "claim_ids": ["claim-1"], "composition": "scenario_only",
+        },
+    }, context_text=span, cutoff="2026-01-02T00:00:00+00:00",
+        future_timestamps=TIMES, history=[8, 9, 10], compiler_model="test")
+    assert not reasons
+
+    payload = publish_result(_result(), mode="best_effort", dossiers=[dossier])
+    assert payload["recommended_scenario_id"] == "effect-composed-1"
+    assert payload["selection_contract"]["selection_required"] is False
+    assert payload["selection_contract"]["deterministic_scenario_id"] == \
+        "effect-composed-1"
+    with pytest.raises(ValueError, match="evidence-dominant"):
+        select_publication(payload, {
+            "selected_scenario_id": "primary",
+            "ranking": ["primary", "effect-composed-1"],
+            "cited_claim_ids": ["claim-1"],
+            "counterevidence_claim_ids": [],
+            "confidence": .6,
+            "rationale": "Prefer the context-free path.",
+            "what_would_change_selection": "More observations.",
+        })
+
+
 def test_best_effort_keeps_unselected_model_candidate_visible_only():
     payload = publish_result(
         _result(), mode="best_effort", dossiers=[_dossier()],

@@ -120,21 +120,23 @@ def dominant_scenario_id(scenarios: list[dict[str, Any]]) -> str | None:
         # number-free model ranking. The model may explain it, not silently
         # replace it with an unsupported sealed path.
         return str(observation[0]["scenario_id"])
-    exact_scenarios = [item for item in scenarios
+    source_determined_scenarios = [item for item in scenarios
                        if item.get("role") == "effect_composed"
                        and item.get("support") == "hypothetical_sensitivity"
-                       and any(normalization.get("code") ==
-                               "EXACT_CITED_LEVEL_MULTIPLIER"
+                       and any(normalization.get("code") in {
+                                   "EXACT_CITED_LEVEL_MULTIPLIER",
+                                   "APPROXIMATE_CITED_LEVEL_MULTIPLIER",
+                               }
                                for normalization in
                                (item.get("effect") or {}).get(
                                    "semantic_normalizations") or [])]
-    if exact_scenarios:
-        # The caller supplied one exact operative scenario. A model may
-        # explain the conditional answer, but choosing the context-free path
-        # would silently answer a different question. This dominance changes
-        # presentation only: support stays hypothetical and automation stays
-        # disabled.
-        return str(exact_scenarios[0]["scenario_id"])
+    if len(source_determined_scenarios) == 1:
+        # The caller supplied one operative numeric scenario. Approximate
+        # language widens the scenario's uncertainty; it does not make the
+        # context-free primary answer the answer to the caller's conditional
+        # question. A model may explain this path but cannot silently demote
+        # it. Support stays hypothetical and automation stays disabled.
+        return str(source_determined_scenarios[0]["scenario_id"])
     admitted = [item for item in scenarios
                 if item.get("role") == "fitted_context_candidate"
                 and ((item.get("effect") or {}).get("evidence") or {}).get("decisive")]

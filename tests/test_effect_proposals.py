@@ -662,6 +662,84 @@ def test_event_timing_join_requires_one_unambiguous_containing_event():
     assert dossier["effect_proposal"] is None
 
 
+def test_adjacent_same_paragraph_scale_joins_one_validated_event():
+    event_sentence = (
+        "A heatwave began on 2026-01-03 01:00:00 and lasted for 2 hours.")
+    magnitude = "Demand reached approximately 4 times the usual level."
+    context = event_sentence + " " + magnitude
+    event = SimpleNamespace(
+        effective_start="2026-01-03T01:00:00+00:00",
+        effective_end="2026-01-03T03:00:00+00:00",
+        attributes={"evidence_quote": event_sentence,
+                    "soft_context": {"direction": "increase"}})
+    times = [
+        "2026-01-03T00:00:00+00:00", "2026-01-03T01:00:00+00:00",
+        "2026-01-03T02:00:00+00:00", "2026-01-03T03:00:00+00:00",
+    ]
+    dossier, reasons = validate_temporal_dossier({
+        "claims": [{
+            "source_span": magnitude, "relation": "supports_increase",
+            "effective_start": None, "effective_end": None,
+            "timing_status": "unresolved_trigger", "confidence": .7,
+        }],
+    }, context_text=context, cutoff="2026-01-02T00:00:00+00:00",
+       future_timestamps=times, history=[8, 9, 10], compiler_model="test",
+       validated_events=[event])
+
+    assert not reasons
+    assert dossier["claims"][0]["timing_status"] == "resolved"
+    effect = dossier["effect_proposal"]
+    assert effect["location"] == effect["lower"] == effect["upper"] == 3.0
+    codes = {item["code"] for item in effect["semantic_normalizations"]}
+    assert "APPROXIMATE_CITED_LEVEL_MULTIPLIER" in codes
+
+
+def test_adjacent_join_refuses_cross_paragraph_and_opposite_direction():
+    event_sentence = (
+        "A shutdown began on 2026-01-03 01:00:00 and lasted for 2 hours.")
+    magnitude = "Demand reached 4 times the usual level."
+    for context, direction in (
+            (event_sentence + "\n\n" + magnitude, "increase"),
+            (event_sentence + " " + magnitude, "decrease")):
+        event = SimpleNamespace(
+            effective_start="2026-01-03T01:00:00+00:00",
+            effective_end="2026-01-03T03:00:00+00:00",
+            attributes={"evidence_quote": event_sentence,
+                        "soft_context": {"direction": direction}})
+        dossier, _ = validate_temporal_dossier({
+            "claims": [{
+                "source_span": magnitude, "relation": "supports_increase",
+                "effective_start": None, "effective_end": None,
+                "timing_status": "unresolved_trigger", "confidence": .7,
+            }],
+        }, context_text=context, cutoff="2026-01-02T00:00:00+00:00",
+           future_timestamps=TIMES, history=[8, 9, 10], compiler_model="test",
+           validated_events=[event])
+        assert dossier["claims"][0]["timing_status"] == "unresolved_trigger"
+
+
+def test_approximate_cited_multiplier_removes_unstated_range_and_can_compose():
+    proposal, critique = validate_effect_proposal({
+        "shape": "temporary_pulse", "unit": "fraction_of_level",
+        "location": 3, "lower": 2, "upper": 4, "confidence": .6,
+        "delay_steps": 0, "duration_steps": 1,
+        "scope": {"kind": "single_series", "series": ["*"]},
+        "claim_ids": ["claim-1"],
+    }, claim_ids={"claim-1"}, claim_spans={
+        "claim-1": "Demand reached approximately 4 times the usual level."})
+
+    assert critique["status"] == "accepted"
+    assert proposal["location"] == proposal["lower"] == proposal["upper"] == 3
+    assert proposal["provenance_class"] == "source_stated_distribution"
+    codes = {item["code"] for item in proposal["semantic_normalizations"]}
+    assert codes == {"UNSTATED_APPROXIMATE_RANGE_REMOVED",
+                     "APPROXIMATE_CITED_LEVEL_MULTIPLIER"}
+    assessment = assess_composed_effect(PRIMARY, proposal)
+    assert assessment["accepted"] is True
+    assert assessment["scale_guard_disposition"] == \
+        "exact_cited_scenario_allowed"
+
+
 def test_literal_range_claim_becomes_deterministic_constraint():
     span = "values are bounded above by 10.00 and bounded below by 5.82"
     dossier = validate_temporal_dossier({
@@ -914,11 +992,22 @@ def test_exact_cited_multiplier_may_exceed_history_scale_as_scenario_only():
         "exact_cited_scenario_allowed"
 
 
-def test_approximate_or_uncited_large_multiplier_still_hits_scale_guard():
+def test_approximate_cited_multiplier_can_exceed_historical_scale_guard():
     approximate, _ = validate_effect_proposal(
         _proposal(unit="fraction_of_level", location=4, lower=3, upper=5),
         claim_ids={"claim-1"},
         claim_spans={"claim-1": "about 5 times the usual level"})
     assessment = assess_composed_effect(PRIMARY, approximate)
+    assert assessment["accepted"] is True
+    assert assessment["scale_guard_disposition"] == \
+        "exact_cited_scenario_allowed"
+
+
+def test_uncited_large_multiplier_still_hits_scale_guard():
+    uncited, _ = validate_effect_proposal(
+        _proposal(unit="fraction_of_level", location=4, lower=3, upper=5),
+        claim_ids={"claim-1"},
+        claim_spans={"claim-1": "Demand is expected to rise."})
+    assessment = assess_composed_effect(PRIMARY, uncited)
     assert assessment["accepted"] is False
     assert assessment["scale_guard_disposition"] == "rejected"
