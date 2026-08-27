@@ -56,6 +56,15 @@
   assumptions identify them as uncalibrated prior-assisted paths, while the
   model's original rationale is retained only in the immutable receipt under
   an explicitly `model_rationale_unverified` field.
+- Publications now include one authoritative `context_summary` across all
+  governed lanes. A rejected event representation alongside an admitted
+  transformation is reported as `partially_used`, not as contradictory
+  top-level “rejected” and “used” claims; detailed lane dispositions remain.
+  The summary is protected in compact MCP responses and benchmark traces, so
+  agents do not need to open the bulk receipt to resolve the lane outcome.
+- When the live publication already contains an evidence-dominant path, MCP
+  telemetry now records the omitted ranking call as
+  `skipped_evidence_dominance`, not as a generic no-selection condition.
 
 - Safe declarative transformations may now bind additional verbatim source
   lines containing their exact AST literals. The host neither interprets nor

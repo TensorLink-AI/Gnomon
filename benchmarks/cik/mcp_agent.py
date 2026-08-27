@@ -293,7 +293,13 @@ MAX_CONTEXT_COMPILATION_SECONDS = max(1.0, min(
 #: model-authored provenance and never repeat unsupported empirical claims.
 #: Version 134: sealed model-authored forecast paths likewise separate their
 #: unverified rationale from the bounded public provenance statement.
-MCP_CONTRACT_VERSION = 134
+#: Version 135: publication exposes one authoritative aggregate context
+#: disposition while retaining parser- and executable-lane diagnostics.
+#: Version 136: compact MCP responses and traces retain that aggregate context
+#: disposition instead of leaving it only in the full publication receipt.
+#: Version 137: a live evidence-dominant publication records an intentional
+#: selector skip rather than a generic no-selection diagnostic.
+MCP_CONTRACT_VERSION = 137
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -1624,6 +1630,11 @@ def _select_publication_fail_closed(
         ) -> tuple[dict[str, Any], str | None]:
     """Apply a model ranking or retain the already verified publication."""
     if selection is None:
+        from gnomon.publication import dominant_scenario_id
+        dominant = dominant_scenario_id(
+            list(publication.get("candidate_portfolio") or []))
+        if dominant == publication.get("recommended_scenario_id"):
+            return publication, "selector skipped: governed evidence dominance"
         return publication, "live MCP publication used without selection"
     from gnomon.publication import select_publication
     try:
@@ -2188,6 +2199,7 @@ class McpAgentForecaster:
                     publication.get("automation") or {}).get("eligible"),
                 "recommendation_authority": publication.get(
                     "recommendation_authority"),
+                "context_summary": publication.get("context_summary"),
                 "scenario_selector": extra_info.get("scenario_selector"),
             }
             # ``drive`` closes the MCP process before governed selection to
@@ -3491,6 +3503,7 @@ class _Run:
                             publication.get("automation") or {}).get("eligible"),
                         "recommendation_authority": publication.get(
                             "recommendation_authority"),
+                        "context_summary": publication.get("context_summary"),
                         "context_dispositions": [{
                             "context_id": item.get("context_id"),
                             "disposition": item.get("disposition"),

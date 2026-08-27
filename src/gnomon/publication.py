@@ -27,8 +27,60 @@ MAX_SCENARIOS = 8
 SELECTION_LABEL = "hypothesis_ranking"
 
 
+def _context_summary(dispositions: list[dict[str, Any]]) -> dict[str, Any]:
+    """Return one authoritative publication-level context disposition.
+
+    Individual parsers may reject one representation while another governed
+    lane successfully executes the same source (for example, a numeric event
+    parser rejects an exogenous value while a fold-tested transformation uses
+    the relationship).  Expose both details, but never make a human reconcile
+    contradictory top-level statuses themselves.
+    """
+    counts = {kind: sum(item.get("disposition") == kind
+                        for item in dispositions)
+              for kind in ("used", "scenario", "rejected")}
+    if not dispositions:
+        status = "not_supplied"
+        message = "No context was supplied to the publication contract."
+    elif counts["used"] and counts["rejected"]:
+        status = "partially_used"
+        message = (
+            "At least one governed context lane affected the human-facing "
+            "recommendation; other representations were rejected. See typed "
+            "per-lane dispositions.")
+    elif counts["used"]:
+        status = "used"
+        message = "Governed context affected the human-facing recommendation."
+    elif counts["scenario"] and counts["rejected"]:
+        status = "partially_represented"
+        message = (
+            "Context was retained in labelled scenarios while other "
+            "representations were rejected; it did not earn governed use.")
+    elif counts["scenario"]:
+        status = "scenario_only"
+        message = (
+            "Context was retained only in labelled scenarios and did not "
+            "earn governed use.")
+    else:
+        status = "rejected"
+        message = "No supplied context representation passed its governed lane."
+    return {
+        "status": status,
+        "authoritative_for_publication": True,
+        "counts": counts,
+        "message": message,
+    }
+
+
 def dominant_scenario_id(scenarios: list[dict[str, Any]]) -> str | None:
     """Return the path that evidence makes non-discretionary, if any."""
+    historically_admitted = [item for item in scenarios
+                             if item.get("role") == "historically_admitted"]
+    if historically_admitted:
+        # These paths already won their disclosed out-of-sample contest. An
+        # LLM may explain that result but cannot demote it in favour of an
+        # untested interpretation.
+        return str(historically_admitted[0]["scenario_id"])
     trusted = [item for item in scenarios
                if item.get("role") == "context_conditioned"
                and item.get("support") == "context_trusted"]
@@ -935,6 +987,7 @@ def publish_result(result: dict[str, Any], *, mode: PublicationMode = "strict",
         "scenarios": scenarios if mode == "scenario" else [by_id["primary"], selected]
                      if selected_id != "primary" else [by_id["primary"]],
         "context_dispositions": dispositions,
+        "context_summary": _context_summary(dispositions),
         "temporal_state": build_temporal_state(result, dossiers=dossiers),
         "scenario_selection": selection,
         "recommendation_authority": recommendation_authority,
@@ -1028,6 +1081,15 @@ def select_publication(payload: dict[str, Any], raw_selection: dict[str, Any]
                    if item["scenario_id"] == "primary")
     result = {key: value for key, value in payload.items()
               if key != "publication_seal_sha256"}
+    dispositions = [{
+        **item,
+        "disposition": (
+            "used" if selected["scenario_id"] in
+            (item.get("scenario_ids") or []) else item.get("disposition")),
+        **({"selection_role": "human_facing_recommendation"}
+           if selected["scenario_id"] in (item.get("scenario_ids") or [])
+           else {}),
+    } for item in payload.get("context_dispositions") or []]
     result.update({
         "recommended_scenario_id": selected["scenario_id"],
         "recommended_forecast": selected["forecast"],
@@ -1035,6 +1097,8 @@ def select_publication(payload: dict[str, Any], raw_selection: dict[str, Any]
         "primary_forecast": primary["forecast"],
         "primary_forecast_unchanged": True,
         "scenario_selection": selection,
+        "context_dispositions": dispositions,
+        "context_summary": _context_summary(dispositions),
         "scenarios": (portfolio if payload.get("mode") == "scenario" else
                       [primary, selected] if selected is not primary else [primary]),
         "recommendation_authority": {

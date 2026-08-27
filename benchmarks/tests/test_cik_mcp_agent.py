@@ -987,11 +987,34 @@ def test_best_effort_role_uses_verified_product_publication(tmp_path):
     assert extra["publication"]["recommended_support"] == "prior_assisted"
     assert extra["publication"]["primary_forecast_unchanged"] is True
     assert extra["publication"]["automation"]["eligible"] is False
+    assert extra["publication"]["context_summary"]["status"] == "used"
     trace = json.loads(next((tmp_path / "traces").glob("*.json")).read_text())
     assert trace["final_submission"]["recommended_scenario_id"] \
         == "prior-assisted-1"
     assert trace["final_submission"]["primary_forecast_unchanged"] is True
     assert trace["final_submission"]["automation_eligible"] is False
+    assert trace["final_submission"]["context_summary"]["status"] == "used"
+
+
+def test_live_evidence_dominance_is_not_reported_as_selector_failure():
+    from benchmarks.cik.mcp_agent import _select_publication_fail_closed
+    from gnomon.publication import publish_result
+
+    result = {
+        "support": "supported",
+        "forecast": [{"timestamp": "2026-01-02T00:00:00+00:00",
+                      "point": 10, "q10": 9, "q50": 10, "q90": 11}],
+        "primary_forecast": [{"timestamp": "2026-01-02T00:00:00+00:00",
+                              "point": 9, "q10": 8, "q50": 9, "q90": 10}],
+        "context_outcome": {
+            "status": "applied", "admission_basis": "historical_fold_ablation",
+            "events": ["event-1"],
+        },
+    }
+    publication = publish_result(result, mode="best_effort")
+    retained, reason = _select_publication_fail_closed(publication, None)
+    assert retained is publication
+    assert reason == "selector skipped: governed evidence dominance"
 
 
 def test_best_effort_role_exercises_live_safe_transformation_surface(tmp_path):

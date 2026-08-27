@@ -382,7 +382,45 @@ def test_validated_context_event_is_citable_without_a_dossier_claim():
     authority = payload["recommendation_authority"]
     assert authority["selection_method"] == "governed_scenario_selection"
     assert authority["independent_selection_performed"] is True
+    assert payload["context_summary"]["status"] == "used"
     assert verify_publication(payload)
+
+
+def test_publication_summarizes_mixed_context_lanes_without_contradiction():
+    result = _result()
+    result["context_outcome"] = {
+        "status": "rejected", "events": ["event-parser"],
+        "reasons": [{"code": "wrong_representation"}],
+    }
+    result["transformation_candidates"] = [{
+        "transformation_id": "lag-equation", "forecast": result["forecast"],
+        "source_seal_sha256": "sealed", "primary_forecast_unchanged": True,
+        "lane": "historically_testable", "claim_ids": ["claim-1"],
+        "validation": {
+            "validation_points": 40, "skill": .9, "beats_baseline": True,
+            "recurrence_plausibility_passed": True,
+            "recurrence_replay_admitted": True,
+            "recurrence_replay_points": 40,
+            "recurrence_candidate_mae": .1,
+            "recurrence_baseline_mae": 1.0,
+        },
+    }]
+    payload = publish_result(result, mode="best_effort")
+    assert payload["recommended_scenario_id"] == "transformation-1"
+    assert payload["context_summary"] == {
+        "status": "partially_used",
+        "authoritative_for_publication": True,
+        "counts": {"used": 1, "scenario": 0, "rejected": 1},
+        "message": (
+            "At least one governed context lane affected the human-facing "
+            "recommendation; other representations were rejected. See typed "
+            "per-lane dispositions."),
+    }
+    assert verify_publication(payload)
+    contract = scenario_selection_contract(
+        scenarios=payload["candidate_portfolio"])
+    assert contract["selection_required"] is False
+    assert contract["deterministic_scenario_id"] == "transformation-1"
 
 
 def test_selector_cannot_displace_context_trusted_path_with_weaker_primary():

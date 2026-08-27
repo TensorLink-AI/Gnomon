@@ -406,7 +406,8 @@ def compact_publication_for_wire(payload: dict[str, Any]) -> dict[str, Any]:
         "schema_version", "artifact_id", "mode", "recommended_scenario_id",
         "recommended_support", "primary_scenario_id",
         "primary_forecast_unchanged", "scenario_count",
-        "context_dispositions", "temporal_state", "scenario_selection",
+        "context_dispositions", "context_summary", "temporal_state",
+        "scenario_selection",
         "recommendation_authority", "automation", "selection_contract",
         "candidate_admission", "publication_seal_sha256",
     )
