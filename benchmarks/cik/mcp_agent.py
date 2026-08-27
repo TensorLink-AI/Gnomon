@@ -747,17 +747,17 @@ def _has_material_numeric_context(text: str) -> bool:
     return bool(re.search(r"(?<!\w)[+-]?(?:\d+(?:\.\d*)?|\.\d+)", stripped))
 
 
-def _has_unrepresented_future_numeric_path(
+def _future_numeric_path_needs_executable(
         text: str, future_timestamps: list[str], raw: dict[str, Any],
 ) -> bool:
-    """Detect supplied dated driver paths that the first compile flattened.
+    """Detect a supplied dated driver path without an executable mapping.
 
     This schedules the existing bounded repair only. It neither chooses the
     relevant series nor grants numeric authority. The model must still quote
     exact rows and the ordinary validators must seal or reject its proposal.
     """
     if any(raw.get(key) for key in (
-            "covariate_tables", "transformations", "forecast_candidate")):
+            "transformations", "forecast_candidate", "effect_proposal")):
         return False
     matched = 0
     for timestamp in future_timestamps:
@@ -805,6 +805,75 @@ def _bounded_context_rejections(
         ),
     })
     return retained, omitted
+
+
+def _canonicalize_unreferenced_covariate_names(
+        candidate: dict[str, Any],
+) -> dict[str, Any]:
+    """Make display-style table labels safe when no expression references them.
+
+    Names are internal identifiers, not source evidence. We only normalize
+    them when no transformation exists, avoiding any possibility of silently
+    rebinding executable semantics.
+    """
+    if candidate.get("transformations"):
+        return candidate
+    tables = candidate.get("covariate_tables")
+    if not isinstance(tables, list):
+        return candidate
+    used: set[str] = set()
+    normalized: list[Any] = []
+    for index, item in enumerate(tables, 1):
+        if not isinstance(item, dict):
+            normalized.append(item)
+            continue
+        table = dict(item)
+        original = str(table.get("name") or "")
+        name = re.sub(r"[^a-z0-9_]+", "_", original.casefold()).strip("_")
+        if not name or not re.match(r"^[a-z_]", name):
+            name = f"context_driver_{index}"
+        base = name[:64]
+        name = base
+        suffix = 2
+        while name in used:
+            tail = f"_{suffix}"
+            name = base[:64-len(tail)] + tail
+            suffix += 1
+        used.add(name)
+        table["name"] = name
+        normalized.append(table)
+    return {**candidate, "covariate_tables": normalized}
+
+
+def _demote_covariate_duplicate_events(
+        candidate: dict[str, Any],
+) -> tuple[dict[str, Any], int]:
+    """Prefer companion-data semantics over a duplicate target override.
+
+    A verbatim row cannot simultaneously be a predictor observation and an
+    exact intervention on the target. Keeping the covariate is the strictly
+    less authoritative interpretation; values still require downstream
+    admission before they may influence a forecast.
+    """
+    quotes = {
+        str(row.get("evidence_quote") or "").strip()
+        for table in candidate.get("covariate_tables") or []
+        if isinstance(table, dict)
+        for row in table.get("rows") or [] if isinstance(row, dict)
+        if str(row.get("evidence_quote") or "").strip()
+    }
+    if not quotes:
+        return candidate, 0
+    retained, demoted = [], 0
+    for item in candidate.get("events") or []:
+        quote = (str(item.get("evidence_quote") or
+                     item.get("source_span") or "").strip()
+                 if isinstance(item, dict) else "")
+        if quote in quotes:
+            demoted += 1
+        else:
+            retained.append(item)
+    return {**candidate, "events": retained}, demoted
 
 
 def _expects_historical_zero_interpretation(context: str) -> bool:
@@ -2569,6 +2638,7 @@ class _Run:
 
         def normalize_relationship(candidate: dict[str, Any]) -> dict[str, Any]:
             """Reapply host-owned relationship bindings after any LLM turn."""
+            candidate = _canonicalize_unreferenced_covariate_names(candidate)
             if not relationship_contract or not candidate.get("transformations"):
                 return candidate
             claims = [item for item in candidate.get("claims") or []
@@ -2657,7 +2727,7 @@ class _Run:
         unresolved_numeric_context = bool(
             context.strip() and not proposed_any_lane
             and _has_material_numeric_context(context))
-        unrepresented_future_path = _has_unrepresented_future_numeric_path(
+        future_path_needs_executable = _future_numeric_path_needs_executable(
             context, future_timestamps, raw)
         transformation_proposed = bool(raw.get("transformations"))
         if ((proposed_any_lane or observation_lane_missing
@@ -2711,7 +2781,7 @@ class _Run:
             # categorically ineligible numeric lane.
             repair_required = (
                 observation_lane_missing or unresolved_numeric_context
-                or unrepresented_future_path
+                or future_path_needs_executable
                 or (not accepted_executable
                     and not retained_unresolved_interpretation
                     and not retained_atemporal_interpretation and (
@@ -2756,8 +2826,8 @@ class _Run:
                     observation_lane_missing),
                 "numeric_context_unresolved": bool(
                     unresolved_numeric_context),
-                "future_numeric_path_unrepresented": bool(
-                    unrepresented_future_path),
+                "future_numeric_path_needs_executable": bool(
+                    future_path_needs_executable),
                 "top_level_rejections": len(probe_rejections),
                 **({
                     "retained_unresolved_interpretation": True,
@@ -2787,7 +2857,7 @@ class _Run:
                             "observation_interpretation; do not create a future "
                             "event or mutate history."),
                     } if observation_lane_missing else {
-                        "code": "FUTURE_NUMERIC_PATH_UNREPRESENTED",
+                        "code": "FUTURE_NUMERIC_PATH_NEEDS_EXECUTABLE",
                         "message": (
                             "The source supplies dated numeric companion-series "
                             "values on the requested forecast grid, but the "
@@ -2803,7 +2873,7 @@ class _Run:
                             "identifiable. Do not copy a target outcome or "
                             "invent missing rows."
                         ),
-                    } if unrepresented_future_path else {
+                    } if future_path_needs_executable else {
                         "code": "NUMERIC_CONTEXT_UNRESOLVED",
                         "message": (
                             "The supplied context contains numeric information "
@@ -3475,6 +3545,7 @@ class _Run:
                 if isinstance(supplied, dict):
                     supplied["known_at"] = self.timestamps[-1]
         raw = canonicalize_transformations(raw)
+        raw, duplicate_events_demoted = _demote_covariate_duplicate_events(raw)
         final_probe, _ = validate_temporal_dossier(
             raw, context_text=context, cutoff=self.timestamps[-1],
             future_timestamps=future_timestamps, history=self.values,
@@ -3627,6 +3698,11 @@ class _Run:
                     time.monotonic() - compilation_started, 6),
                 "calls": compiler_calls,
                 "repair_decisions": repair_decisions,
+                "representation_normalizations": ({
+                    "covariate_duplicate_events_demoted":
+                        duplicate_events_demoted,
+                    "rule": "companion_covariate_precedes_target_override",
+                } if duplicate_events_demoted else {}),
             },
             "source": {
                 "kind": "benchmark_task_context",

@@ -24,6 +24,9 @@ MAX_ROWS = 500
 _NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,63}$")
 _NUMBER = re.compile(
     r"(?<![\w.])[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?")
+_TIME_TOKEN = re.compile(
+    r"\b\d{4}-\d{2}-\d{2}(?:[ T]\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?"
+    r"(?:Z|[+-]\d{2}:?\d{2})?)?\b")
 
 COVARIATE_TABLES_SCHEMA: dict[str, Any] = {
     "type": "array",
@@ -81,6 +84,17 @@ def _time_is_cited(normalised: datetime, source_time: str) -> bool:
                 == normalised.second == normalised.microsecond == 0)
     except ValueError:
         return False
+
+
+def _resolve_cited_time_span(
+        normalised: datetime, quote: str, proposed: str,
+) -> str | None:
+    """Return the exact quote token for an already normalized cited instant."""
+    if proposed and proposed in quote and _time_is_cited(normalised, proposed):
+        return proposed
+    matches = [match.group(0) for match in _TIME_TOKEN.finditer(quote)]
+    cited = [token for token in matches if _time_is_cited(normalised, token)]
+    return cited[0] if len(cited) == 1 else None
 
 
 def _value_is_cited(value: float, quote: str, source_time: str) -> bool:
@@ -177,11 +191,12 @@ def validate_llm_covariate_tables(
             if not quote or quote not in document:
                 rejections.append(f"{row_label} lacks a verbatim evidence_quote")
                 continue
-            if source_time not in quote:
-                rejections.append(f"{row_label} source_time_span is not quoted")
-                continue
             timestamp = _aware_timestamp(row.get("timestamp"))
-            if timestamp is None or not _time_is_cited(timestamp, source_time):
+            if timestamp is None:
+                rejections.append(f"{row_label} timestamp is not supported by its quote")
+                continue
+            source_time = _resolve_cited_time_span(timestamp, quote, source_time)
+            if source_time is None:
                 rejections.append(f"{row_label} timestamp is not supported by its quote")
                 continue
             try:

@@ -8,10 +8,21 @@
   diagnostic detail cannot invalidate the forecast call it is meant to
   explain.
 - Give dated companion-series paths one bounded semantic repair when an LLM
-  flattens their exact future observations into prose. The repair must extract
-  verbatim rows and either seal a human-review-only mapped candidate or name
-  why the mapping is unidentifiable; it never grants automation or changes the
-  immutable primary by itself.
+  leaves them as prose or a future-only table without an executable mapping.
+  The repair must extract verbatim rows and either seal a human-review-only
+  mapped candidate or name why the mapping is unidentifiable; it never grants
+  automation or changes the immutable primary by itself.
+- Canonicalize human-readable covariate table labels into collision-safe
+  internal identifiers when no executable references them. Punctuation in an
+  otherwise verbatim table can no longer discard its values; referenced names
+  remain strict to prevent silent semantic rebinding.
+- Recover a normalized covariate timestamp's exact source token from its
+  verbatim quote when the instant is unambiguous. Equivalent ISO formatting
+  can no longer discard a row, while uncited or ambiguous times still fail.
+- Resolve duplicate context semantics toward the safer lane: when an LLM emits
+  the same cited companion-series row as both a covariate and a target override,
+  the override is demoted and the receipt records the normalization. A driver
+  observation can no longer masquerade as an exact target intervention.
 - Give the governed scenario selector compact interior-shape evidence: extrema
   and timestamps, turning points, and the largest deviation from the immutable
   primary. Temporary closures, campaigns, outages, and interventions can no

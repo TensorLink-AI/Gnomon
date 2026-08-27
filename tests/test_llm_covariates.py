@@ -42,6 +42,21 @@ def test_cited_row_is_host_timestamped_and_loader_ready():
     assert arguments["covariate_mapping"][0]["availability"] == "future_known"
 
 
+def test_normalized_time_span_recovers_exact_token_from_verbatim_quote():
+    document = "(2026-08-27 00:00:00, 31.5)"
+    proposal = _table(quote=document)
+    proposal[0]["rows"][0]["source_time_span"] = (
+        "2026-08-27T00:00:00+00:00")
+    receipt, rejected = validate_llm_covariate_tables(
+        proposal, documents=[document],
+        known_at="2026-08-25T00:00:00+00:00",
+        as_of="2026-08-25T00:00:00+00:00",
+    )
+    assert rejected == []
+    provenance = receipt["tables"][0]["rows"][0]["provenance"]
+    assert provenance["source_time_span"] == "2026-08-27 00:00:00"
+
+
 def test_model_cannot_invent_value_or_backdate_known_at():
     receipt, rejected = validate_llm_covariate_tables(
         _table(99), documents=[DOC],
