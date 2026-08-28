@@ -412,7 +412,9 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: as a non-authoritative historical analogue before bounded elicitation.
 #: Version 192: long sampled priors use 32 host-owned time anchors and
 #: deterministic interpolation instead of fragile 100-value model payloads.
-MCP_CONTRACT_VERSION = 192
+#: Version 193: optional provider failure remains transport telemetry and no
+#: longer mislabels successfully retained user context as rejected.
+MCP_CONTRACT_VERSION = 193
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -5170,6 +5172,26 @@ class _Run:
                         "transport availability is reported separately; "
                         "semantic validity is measured over returned paths"),
                 }
+                if transport_failed == transport_requested:
+                    final_sufficiency = {
+                        "version": "0.1",
+                        "eligible_for_human_recommendation": False,
+                        "reason_codes": ["transport_unavailable"],
+                        "reasons": [{
+                            "code": "transport_unavailable",
+                            "message": (
+                                "No sampled path returned before the bounded "
+                                "provider deadline; the context itself remains "
+                                "valid and visible."),
+                        }],
+                        "requested_paths": transport_requested,
+                        "accepted_paths": 0,
+                        "valid_path_fraction": 0.0,
+                        "interpretation": (
+                            "provider_availability_not_context_validity"),
+                        "historical_skill_evidence": False,
+                        "automation_eligible": False,
+                    }
                 if reference_power_spec is not None:
                     model_candidate_sampling["governed_transformation"] = {
                         "kind": "reference_normalized_power_law",
@@ -5201,14 +5223,15 @@ class _Run:
                         if qualitative_future_event_prior_needed
                         else "sampled_paths_proposed_for_typed_interpretation")
                 else:
-                    model_candidate_status = (
-                        "withheld_after_governed_rejection"
-                        if categorical_prior_needed
-                        else "withheld_for_typed_future_event"
-                        if qualitative_future_event_prior_needed
-                        else "withheld_for_typed_interpretation")
-                    compile_rejections.append(
-                        "model context candidate returned no valid sampled path")
+                    lane = ("after_governed_rejection"
+                            if categorical_prior_needed else
+                            "for_typed_future_event"
+                            if qualitative_future_event_prior_needed else
+                            "for_typed_interpretation")
+                    prefix = ("transport_unavailable"
+                              if transport_failed == transport_requested
+                              else "withheld")
+                    model_candidate_status = f"{prefix}_{lane}"
             except Exception as error:
                 model_candidate_status = (
                     "request_failed_after_governed_rejection"
@@ -5216,8 +5239,11 @@ class _Run:
                     else "request_failed_for_typed_future_event"
                     if qualitative_future_event_prior_needed
                     else "request_failed_for_typed_interpretation")
-                compile_rejections.append(
-                    f"model context candidate failed: {error}")
+                model_candidate_sampling = {
+                    "status": "provider_request_failed",
+                    "error": str(error)[:300],
+                    "interpretation": "provider_failure_not_context_rejection",
+                }
         dossier, dossier_rejections = validate_temporal_dossier(
             raw, context_text=context, cutoff=self.timestamps[-1],
             future_timestamps=future_timestamps, history=self.values,

@@ -2610,6 +2610,55 @@ def test_external_reference_front_door_routes_only_bounded_prior_paths(
     assert publication["automation"]["eligible"] is False
 
 
+def test_optional_prior_transport_outage_does_not_reject_valid_context(
+        tmp_path):
+    task = _task()
+    task.background = (
+        "As reference, maximal request volume in a similar region on "
+        "January 10th was 125 at 21:10:00.")
+    task.scenario = None
+
+    class UnavailablePriorClient(ScriptedClient):
+        def completions(self, *args, **kwargs):
+            if kwargs.get("temperature") == 1:
+                raise TimeoutError("provider unavailable")
+            return super().completions(*args, **kwargs)
+
+    client = UnavailablePriorClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}],
+        ["unused"])
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 1)
+
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    compiler = receipt["compiler"]
+    assert compiler["model_candidate_status"] == (
+        "transport_unavailable_for_typed_interpretation")
+    assert compiler["model_candidate_sampling"]["transport"] == {
+        "requested": 5, "failed": 5, "returned": 0,
+        "interpretation": (
+            "transport availability is reported separately; semantic "
+            "validity is measured over returned paths"),
+    }
+    assert compiler["model_candidate_sampling"]["sufficiency"][
+        "reason_codes"] == ["transport_unavailable"]
+    assert receipt["rejections"] == []
+    assert extra["context_compilation"]["rejection_count"] == 0
+    publication = extra["publication"]
+    assert publication["recommended_scenario_id"] == "primary"
+    assert publication["context_summary"]["status"] == "scenario_only"
+    assert publication["context_summary"]["counts"] == {
+        "used": 0, "scenario": 1, "rejected": 0}
+    assert publication["primary_forecast_unchanged"] is True
+    assert publication["automation"]["eligible"] is False
+
+
 def test_one_sample_transport_failure_preserves_other_governed_paths(tmp_path):
     import threading
 

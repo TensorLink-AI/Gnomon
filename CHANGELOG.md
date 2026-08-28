@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Separate optional prior-provider availability from user-context validity.
+  When every bounded sampled-path request fails at transport, the cited event,
+  analogue, or interpretation remains a valid labelled scenario and the
+  primary remains recommended. Transport counts, failure diagnostics, and
+  elapsed time stay visible, but the public context summary no longer calls
+  the user's evidence rejected or asks them to correct it.
 - Preserve one explicit dated numeric observation from a comparable entity as
   a typed, non-authoritative historical analogue. It cannot establish target
   skill or automation authority; in best-effort mode it only routes a bounded
