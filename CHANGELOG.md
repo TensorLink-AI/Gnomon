@@ -5,9 +5,10 @@
 - Govern named but numerically incomplete target/driver relationships through
   a fixed, low-dimensional relationship family (level-offset, linear, and
   positive-data log-power). Selection uses prefix-only expanding-origin replay,
-  a complexity penalty, and the strongest declared target-only baseline; weak
-  relationships remain visible but cannot lead the human recommendation or
-  authorize automation.
+  a complexity penalty, chronological block consistency, and the strongest of
+  last-value, expanding-mean, and robust-drift baselines. This resists shared-
+  trend confounding; weak relationships remain visible but cannot lead the
+  human recommendation or authorize automation.
 - Prevent governed scenario selectors from citing context as support for a
   sealed scenario that does not carry that claim. Unattached context must be
   represented as counterevidence, avoiding explanations that rhetorically bind

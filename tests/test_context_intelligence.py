@@ -56,6 +56,28 @@ def test_relationship_family_rejects_unpredictive_driver():
     assert candidate["selection_eligible"] is False
 
 
+def test_relationship_admission_resists_shared_trend_confounding():
+    true_admissions = 0
+    confounded_admissions = 0
+    for seed in range(40):
+        rng = random.Random(seed)
+        driver = [10 + index * .5 + rng.gauss(0, 2) for index in range(40)]
+        true_target = [3 + 2 * value + rng.gauss(0, 4) for value in driver]
+        confounded_target = [100 + index * 1.2 + rng.gauss(0, 4)
+                             for index in range(40)]
+        primary = [{"timestamp": _stamp(41)}, {"timestamp": _stamp(42)}]
+        true_admissions += fit_companion_relationship_candidate(
+            true_target, driver, [31, 32], primary=primary,
+            claim_ids=["law"], hypothesis_id="true")["selection_eligible"]
+        confounded_admissions += fit_companion_relationship_candidate(
+            confounded_target, driver, [31, 32], primary=primary,
+            claim_ids=["law"], hypothesis_id="confounded")[
+                "selection_eligible"]
+
+    assert true_admissions >= 34
+    assert confounded_admissions <= 4
+
+
 def test_cited_history_segments_require_entailment_complete_nonoverlap():
     timestamps = [datetime(2026, 1, day, tzinfo=UTC) for day in range(1, 5)]
     span = "X is 2.5 from 2026-01-01 to 2026-01-02 and 3.5 from 2026-01-03 to 2026-01-04"

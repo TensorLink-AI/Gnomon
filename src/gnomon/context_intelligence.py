@@ -1839,7 +1839,8 @@ def fit_companion_relationship_candidate(
     replay_start = max(8, minimum_overlap - 1)
     scores: list[dict[str, Any]] = []
     for family, parameters in families:
-        predictions, actuals, last_baselines, mean_baselines = [], [], [], []
+        predictions, actuals = [], []
+        last_baselines, mean_baselines, drift_baselines = [], [], []
         try:
             for origin in range(replay_start, len(target)):
                 predictions.append(fit_predict(
@@ -1847,6 +1848,10 @@ def fit_companion_relationship_candidate(
                 actuals.append(target[origin])
                 last_baselines.append(target[origin - 1])
                 mean_baselines.append(statistics.mean(target[:origin]))
+                increments = [target[index] - target[index - 1]
+                              for index in range(1, origin)]
+                drift_baselines.append(
+                    target[origin - 1] + statistics.median(increments))
         except (ValueError, OverflowError):
             continue
         if not actuals or not all(math.isfinite(item) for item in predictions):
@@ -1857,9 +1862,25 @@ def fit_companion_relationship_candidate(
                 abs(a - b) for a, b in zip(actuals, last_baselines)),
             "expanding_mean": statistics.mean(
                 abs(a - b) for a, b in zip(actuals, mean_baselines)),
+            "robust_drift": statistics.mean(
+                abs(a - b) for a, b in zip(actuals, drift_baselines)),
         }
         baseline_name, baseline_mae = min(
             baseline_scores.items(), key=lambda item: (item[1], item[0]))
+        baseline_paths = {
+            "last_value": last_baselines,
+            "expanding_mean": mean_baselines,
+            "robust_drift": drift_baselines,
+        }
+        chosen_baseline = baseline_paths[baseline_name]
+        split = max(1, len(actuals) // 2)
+        blocks = [(0, split), (split, len(actuals))]
+        block_wins = sum(
+            statistics.mean(abs(actuals[index] - predictions[index])
+                            for index in range(start, end))
+            < statistics.mean(abs(actuals[index] - chosen_baseline[index])
+                              for index in range(start, end))
+            for start, end in blocks if end > start)
         # Penalize flexible mappings inside the family before the family winner
         # enters admission. The penalty is deterministic and weakens as replay
         # evidence grows; adding variants cannot improve a candidate for free.
@@ -1872,14 +1893,20 @@ def fit_companion_relationship_candidate(
             "baseline_mae": baseline_mae,
             "baseline": baseline_name,
             "baseline_scores": baseline_scores,
+            "chronological_block_wins": block_wins,
+            "required_block_wins": 2,
             "skill": 1 - penalized_mae / max(baseline_mae, 1e-12),
         })
     if not scores:
         raise ValueError("no relationship family could be replayed")
     best = min(scores, key=lambda item: (
         item["penalized_mae"], item["parameters"], item["family"]))
-    threshold = min(.25, .03 + .02 * math.log2(len(scores)))
+    # Relationship claims are especially vulnerable to coincident trends.
+    # Require a material margin over the strongest target-only baseline in
+    # addition to the family-complexity penalty and chronological consistency.
+    threshold = min(.30, .10 + .02 * math.log2(len(scores)))
     eligible = bool(best["validation_points"] >= 8
+                    and best["chronological_block_wins"] >= 2
                     and best["skill"] >= threshold)
     fitted_history = [fit_predict(
         str(best["family"]), target, driver, value) for value in driver]
@@ -1928,6 +1955,8 @@ def fit_companion_relationship_candidate(
             "baseline_mae": best["baseline_mae"], "skill": best["skill"],
             "beats_baseline": eligible, "baseline": best["baseline"],
             "baseline_scores": best["baseline_scores"],
+            "chronological_block_wins": best["chronological_block_wins"],
+            "required_block_wins": best["required_block_wins"],
             "relationship_known_at_each_origin": False,
             "input_observations_known_at_each_origin": True,
             "publication_evidence_weight": evidence_weight,
