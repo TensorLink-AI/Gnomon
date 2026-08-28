@@ -42,6 +42,8 @@ from .llm_covariates import (
     validate_llm_covariate_tables,
 )
 
+CONTEXT_COMPILER_CONTRACT_VERSION = "0.3"
+
 
 @dataclass(frozen=True)
 class DocumentRef:
@@ -505,12 +507,22 @@ def parse_context_response(
                 *(attributes.get("compiler_normalizations") or []),
                 *soft_normalizations,
             ]
-        if quote and (event_type.startswith("constraint:")
-                      or event_type.startswith("override:")):
+        if quote and event_type.startswith(
+                ("constraint:", "override:", "structural:")):
             # The quote has just been verified verbatim against the caller's
             # document, which is exactly the check `source_span` exists to
             # carry; the lane's deterministic parser takes it from here.
             attributes["source_span"] = quote
+        if event_type.startswith("structural:"):
+            effect = event_type.split(":", 1)[1]
+            if effect in {
+                "trend_ceases", "level_matches_seasonal_high",
+                "level_matches_seasonal_low",
+            }:
+                # The event type is already constrained by the compiler's
+                # closed vocabulary. Copy only that class label; all numeric
+                # quantities remain derived by the engine from its own path.
+                attributes["effect"] = effect
         try:
             confidence, confidence_normalization = normalize_context_confidence(
                 proposal.get("confidence", 0.5), default=0.5)
@@ -634,7 +646,8 @@ def parse_context_response(
             "context_receipt_id": receipt["receipt_id"],
         }
         executable_events.append(executable)
-    return {"schema_version": "0.2", "events": executable_events,
+    return {"schema_version": CONTEXT_COMPILER_CONTRACT_VERSION,
+            "events": executable_events,
             "rejected": rejected, "hypotheses": hypotheses,
             "rejected_hypotheses": rejected_hypotheses,
             "covariates": covariates,

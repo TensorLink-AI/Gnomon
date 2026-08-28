@@ -349,6 +349,8 @@ def test_grounded_open_ended_trend_cessation_gets_one_bounded_repair() -> None:
     event = result["events"][0]
     assert event["event_type"] == "structural:trend_ceases"
     assert event["effective_end"] == "2026-08-31T23:59:59+00:00"
+    assert event["attributes"]["source_span"] == quote
+    assert event["attributes"]["effect"] == "trend_ceases"
     assert {item["field"] for item in event["attributes"][
         "compiler_normalizations"]} >= {
             "event_type", "effective_end", "known_at"}

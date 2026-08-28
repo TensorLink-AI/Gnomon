@@ -1001,6 +1001,30 @@ def _attach_tsfm_on_ramp(payload: dict[str, Any],
 def _compact_sensitivity_projection(items: list[dict[str, Any]]) \
         -> list[dict[str, Any]]:
     """Group numerically identical scenarios for a bounded wire response."""
+    def preview(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        selected = rows if len(rows) <= 2 else [rows[0], rows[-1]]
+        return [{key: row[key] for key in ("timestamp", "q50") if key in row}
+                for row in selected]
+
+    def compact_effect(effect: Any) -> dict[str, Any] | None:
+        if not isinstance(effect, dict):
+            return None
+        distribution = effect.get("distribution") or {}
+        provenance = effect.get("provenance") or {}
+        return {
+            "shape": effect.get("shape"),
+            "distribution": {
+                key: distribution.get(key) for key in (
+                    "distribution", "location", "lower", "upper", "unit")
+                if distribution.get(key) is not None
+            },
+            "provenance": {
+                key: provenance.get(key) for key in (
+                    "provenance_class", "observed", "known_at")
+                if provenance.get(key) is not None
+            },
+        }
+
     grouped: dict[str, dict[str, Any]] = {}
     for scenario in items:
         assumptions = [str(value) for value in scenario.get("assumptions", [])
@@ -1010,6 +1034,7 @@ def _compact_sensitivity_projection(items: list[dict[str, Any]]) \
             "assumed_effect": scenario.get("assumed_effect"),
             "assumed_effect_unit": scenario.get("assumed_effect_unit"),
             "assumptions": assumptions,
+            "effect": scenario.get("effect"),
             "forecast": scenario.get("forecast") or [],
         }, sort_keys=True, default=str, separators=(",", ":"))
         events = [str(value) for value in scenario.get("events", [])]
@@ -1020,6 +1045,11 @@ def _compact_sensitivity_projection(items: list[dict[str, Any]]) \
                 "assumed_effect": scenario.get("assumed_effect"),
                 "assumed_effect_unit": scenario.get("assumed_effect_unit"),
                 "assumptions": assumptions,
+                **({"effect": compact_effect(scenario.get("effect")),
+                    "forecast_preview": preview(
+                        scenario.get("forecast") or [])}
+                   if (scenario.get("effect") and scenario.get("support") ==
+                       "prior_assisted_structural") else {}),
                 "automation_eligible": bool(
                     scenario.get("automation_eligible", False)),
                 "selection_eligible": bool(
@@ -2367,9 +2397,11 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
     typed_future_context = any(
         event.event_type.startswith(("constraint:literal_", "override:literal_"))
         for event in events or [])
+    typed_structural_context = any(
+        event.event_type.startswith("structural:") for event in events or [])
     config = None
     if (arguments.get("future_events") or typed_future_context
-            or arguments.get("structural_events")
+            or arguments.get("structural_events") or typed_structural_context
             or arguments.get("model_admission") == "evidence_weighted"):
         # MCP tool calls do not read ambient project config — deliberately,
         # so the admission lanes must be reachable as explicit
@@ -2381,7 +2413,7 @@ def _run_forecast(arguments: dict[str, Any]) -> dict[str, Any]:
         config.context.future_events = bool(
             arguments.get("future_events") or typed_future_context)
         config.context.structural_events = bool(
-            arguments.get("structural_events"))
+            arguments.get("structural_events") or typed_structural_context)
         if arguments.get("model_admission") == "evidence_weighted":
             registry = arguments.get("model_evidence_registry")
             if not registry:
@@ -3173,8 +3205,10 @@ TOOLS: list[dict[str, Any]] = [
                     "retains a history-only counterfactual."
                 )},
                 "structural_events": {"type": "boolean", "description": (
-                    "Admit closed-menu structural events (experimental); "
-                    "quantities remain engine-derived."
+                    "Recognize closed-menu structural events (experimental); "
+                    "validated typed structural context is recognized "
+                    "automatically. Quantities remain engine-derived and an "
+                    "unvalidated effect stays a non-automatable scenario."
                 )},
             },
             "required": [],

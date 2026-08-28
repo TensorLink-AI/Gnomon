@@ -456,14 +456,19 @@ def compile_row_context(row: dict[str, Any], client: Any,
         receipt_path = Path(receipt_dir) / f"{safe_id}.json"
         if receipt_path.is_file():
             cached = json.loads(receipt_path.read_text(encoding="utf-8"))
+            from gnomon.workflows import CONTEXT_COMPILER_CONTRACT_VERSION
             from gnomon.soft_context import content_fingerprint
             documents = ((cached.get("context_receipt") or {}).get(
                 "documents") or [])
-            if not documents or documents[0].get("content_fingerprint") != \
-                    content_fingerprint(narrative):
+            if (cached.get("schema_version") !=
+                    CONTEXT_COMPILER_CONTRACT_VERSION):
+                cached = None
+            elif (not documents or documents[0].get("content_fingerprint") !=
+                  content_fingerprint(narrative)):
                 raise ValueError("cached context receipt does not match task narrative")
-            return {**cached, "attempted": True, "compiler_called": False,
-                    "receipt_reused": True}
+            if cached is not None:
+                return {**cached, "attempted": True, "compiler_called": False,
+                        "receipt_reused": True}
     document = DocumentRef(
         name=f"{row.get('id', 'temporalbench')}-context",
         content=narrative,

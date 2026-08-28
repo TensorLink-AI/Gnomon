@@ -196,10 +196,14 @@ def compiled_surface_context(case: Case, client: OpenRouterClient,
         cached = json.loads(path.read_text())
         if cached.get("narrative_sha256") != fingerprint:
             raise ValueError("cached surface context does not match narrative")
-        return {**cached["validated"], "compiler_called": False,
-                "receipt_reused": True}
+        from gnomon.workflows import CONTEXT_COMPILER_CONTRACT_VERSION
+        if (cached.get("validated") or {}).get("schema_version") == \
+                CONTEXT_COMPILER_CONTRACT_VERSION:
+            return {**cached["validated"], "compiler_called": False,
+                    "receipt_reused": True}
     compiled = compile_events(case, client)
     validated = {
+        "schema_version": compiled.get("schema_version"),
         "events": compiled.get("events") or [],
         "hypotheses": compiled.get("hypotheses") or [],
         "rejected": compiled.get("rejected") or [],

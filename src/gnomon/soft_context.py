@@ -185,6 +185,29 @@ def context_outcome(
         if isinstance(check, dict) and check.get("code")
         and check.get("passed") is False
     ]
+    future_failures = [
+        check for check in ((future_context or {}).get("checks") or [])
+        if isinstance(check, dict) and check.get("code")
+        and check.get("passed") is False
+    ]
+    future_failure_ids = {str(check.get("event_id"))
+                          for check in future_failures if check.get("event_id")}
+    # When every applicable event is governed by the dedicated future lane,
+    # its transformation-specific gate is the decisive explanation. The
+    # generic historical-ablation lane may also have declined the same event,
+    # but projecting that displaced gate instead caused agents to explain the
+    # wrong decision.
+    if future_failures and future_failure_ids >= {
+            event.event_id for event in applicable}:
+        failed_gate_codes = []
+        gate_reasons = []
+    for check in future_failures:
+        code = str(check["code"])
+        if code not in failed_gate_codes:
+            failed_gate_codes.append(code)
+        detail = str(check.get("detail") or code)
+        if detail not in gate_reasons:
+            gate_reasons.append(detail)
     # Generic, grounded events are useful scenarios even when their effect
     # size is not measurable. Namespaced deterministic claims have a stricter
     # contract: a failed parser/admission is a rejection, never a scenario.

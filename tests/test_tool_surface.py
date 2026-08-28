@@ -373,6 +373,57 @@ def test_qualitative_context_lane_produces_non_automatable_sensitivity(
     assert len(json.dumps(publication["selection_contract"])) < 3_500
 
 
+def test_validated_structural_context_reaches_scenario_lane_automatically(
+        tmp_path) -> None:
+    from datetime import date, timedelta
+    from gnomon.toolspec import runner_for
+
+    path = tmp_path / "structural-context.csv"
+    start = date(2026, 1, 1)
+    path.write_text("\n".join(["timestamp,value"] + [
+        f"{start + timedelta(days=day)},{100 + day * 0.5}"
+        for day in range(60)
+    ]) + "\n")
+    source = (
+        "From 2026-03-02T00:00:00+00:00, the prior trend will cease "
+        "and the series will continue without that drift.")
+
+    payload = runner_for("gnomon_forecast")({
+        "input": str(path), "time_column": "timestamp",
+        "target_column": "value", "frequency": "D", "horizon": 7,
+        "context_events": [{
+            "event_id": "repair-1", "event_type": "structural:repair",
+            "entity_scope": ["value"],
+            "effective_start": "2026-03-02T00:00:00+00:00",
+            "effective_end": "2026-03-08T00:00:00+00:00",
+            "known_at": "2026-03-01T00:00:00+00:00",
+            "attributes": {"source_span": source,
+                           "effect": "trend_ceases"},
+            "source": {"type": "ticket", "reference": "OPS-42"},
+            "created_by": "llm",
+        }],
+        # No structural_events switch: a validated typed event must not be
+        # silently discarded by the ordinary agent path.
+        "publication_mode": "scenario",
+        "output_dir": str(tmp_path / "out-structural-context"),
+    })
+
+    result = payload["results"][0]
+    assert result["context_outcome"]["status"] in {
+        "scenario_only", "partially_represented",
+    }
+    assert result["context_outcome"]["canonical_primary_preserved"] is True
+    scenario = next(item for item in result["sensitivity_scenarios"]
+                    if item["support"] == "prior_assisted_structural")
+    assert scenario["automation_eligible"] is False
+    assert scenario["primary_forecast_changed"] is False
+    assert scenario["effect"]["provenance"]["provenance_class"] == \
+        "human_assumption"
+    assert scenario["effect"]["shape"] == "trend_change"
+    assert len(scenario["forecast_preview"]) == 2
+    assert {"timestamp", "q50"} <= set(scenario["forecast_preview"][0])
+
+
 def test_brief_compacts_large_repeated_context_without_losing_counts(
         tmp_path) -> None:
     import json

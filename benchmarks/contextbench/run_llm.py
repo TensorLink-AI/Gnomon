@@ -26,7 +26,8 @@ from benchmarks.common.openrouter import (  # noqa: E402
 )
 from benchmarks.temporalbench.mcp_agent import coerce_json_containers  # noqa: E402
 from gnomon.workflows import (  # noqa: E402
-    DocumentRef, build_context_investigation_prompt,
+    CONTEXT_COMPILER_CONTRACT_VERSION, DocumentRef,
+    build_context_investigation_prompt,
     extract_explicit_schedule_context,
     normalise_context_response_containers, parse_context_response,
 )
@@ -221,7 +222,8 @@ def raw_case(case: Case, oracle: Oracle, client: OpenRouterClient) -> dict[str, 
 
 def compile_events(case: Case, client: OpenRouterClient) -> dict[str, Any]:
     if not case.context_events:
-        return {"events": [], "rejected": [], "hypotheses": [],
+        return {"schema_version": CONTEXT_COMPILER_CONTRACT_VERSION,
+                "events": [], "rejected": [], "hypotheses": [],
                 "compiler_called": False}
     source_type = ("calendar" if case.family != "prior_only"
                    else "narrative_assertion")
@@ -320,6 +322,7 @@ def compile_events(case: Case, client: OpenRouterClient) -> dict[str, Any]:
     else:
         compiled_chunks = []
     return {
+        "schema_version": CONTEXT_COMPILER_CONTRACT_VERSION,
         "events": [*explicit["events"], *[
             event for chunk in compiled_chunks
             for event in chunk.get("events") or []]],

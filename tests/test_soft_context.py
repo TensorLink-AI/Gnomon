@@ -89,6 +89,32 @@ def test_failed_deterministic_claim_is_rejected_not_scenario() -> None:
     assert outcome["automation_eligible"] is False
 
 
+def test_structural_scenario_reports_its_decisive_future_gate() -> None:
+    assessment = ContextAssessment(
+        considered=True, admitted=False,
+        reasons=["history evaluation had fewer than four folds"],
+        gate_checks=[{"code": "separated_folds_available", "passed": False}],
+    )
+    event = _event("structural:trend_ceases")
+    outcome = context_outcome(
+        [event], "heart_rate", context_assessment=assessment,
+        future_context={"checks": [{
+            "event_id": "event-1", "event_class": "structural",
+            "code": "separated_model_folds_available", "passed": False,
+            "detail": "four transformation-specific evaluations are required",
+        }]},
+        sensitivity_scenarios=[{
+            "events": ["event-1"], "support": "prior_assisted_structural",
+        }],
+    )
+
+    assert outcome["status"] == "partially_represented"
+    assert outcome["failed_gate_codes"] == [
+        "separated_model_folds_available"]
+    assert outcome["gate_reasons"] == [
+        "four transformation-specific evaluations are required"]
+
+
 def test_mixed_context_preserves_scenario_and_rejected_dispositions() -> None:
     generic = _event()
     rejected = ContextEvent(**{
