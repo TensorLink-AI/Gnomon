@@ -1,5 +1,12 @@
 # Changelog
 
+- **Context rejection is now typed through the agent boundary.** Scenario and
+  rejection outcomes expose the exact failed admission-gate codes alongside
+  human-readable reasons, and the MCP benchmark projection retains them. A
+  matched DeepSeek diagnostic now attributes every missed influence to its
+  measured gates instead of reporting an empty reason set, while preserving
+  one-call execution, artifact identity, and zero leakage.
+
 - **Complete context receipts are no longer repaid as prompt history.** The
   benchmark host still binds every accepted event and hypothesis to Gnomon's
   execution and preserves the complete immutable receipt, but gives the

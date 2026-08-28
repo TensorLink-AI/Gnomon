@@ -174,6 +174,12 @@ def context_outcome(
                 hypothesis["may_affect_primary_forecast"] = False
     exclusions = list(getattr(context_assessment, "events_excluded", []) or [])
     gate_reasons = list(getattr(context_assessment, "reasons", []) or [])
+    failed_gate_codes = [
+        str(check.get("code"))
+        for check in (getattr(context_assessment, "gate_checks", []) or [])
+        if isinstance(check, dict) and check.get("code")
+        and check.get("passed") is False
+    ]
     # Generic, grounded events are useful scenarios even when their effect
     # size is not measurable. Namespaced deterministic claims have a stricter
     # contract: a failed parser/admission is a rejection, never a scenario.
@@ -219,12 +225,16 @@ def context_outcome(
                 "track post-event outcomes and rerun once an effect can be measured",
             ],
             **({"gate_reasons": gate_reasons} if gate_reasons else {}),
+            **({"failed_gate_codes": failed_gate_codes}
+               if failed_gate_codes else {}),
             **({"excluded": exclusions} if exclusions else {}),
         }
     return {
         "status": "rejected", "primary_forecast_changed": False,
         "events": [event.event_id for event in applicable],
         **({"context_receipt_ids": receipt_ids} if receipt_ids else {}),
+        **({"failed_gate_codes": failed_gate_codes}
+           if failed_gate_codes else {}),
         "reasons": ((future_context or {}).get("rejected") or exclusions
                     or gate_reasons or ["context did not pass numeric admission"]),
     }

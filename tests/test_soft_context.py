@@ -45,6 +45,10 @@ def test_point_supported_interval_weak_context_is_explicitly_non_automatable() -
         reasons=["interval coverage failed"],
         events_used=["event-1"], point_candidate=[101.0, 102.0],
         point_support="point_supported_interval_weak",
+        gate_checks=[
+            {"code": "point_improvement", "passed": True},
+            {"code": "coverage_not_degraded", "passed": False},
+        ],
     )
 
     outcome = context_outcome(
@@ -60,6 +64,7 @@ def test_point_supported_interval_weak_context_is_explicitly_non_automatable() -
     assert outcome["scenario_support"] == "point_supported_interval_weak"
     assert outcome["automation_eligible"] is False
     assert outcome["primary_forecast_changed"] is False
+    assert outcome["failed_gate_codes"] == ["coverage_not_degraded"]
     assert "intervals failed" in outcome["basis"]
 
 

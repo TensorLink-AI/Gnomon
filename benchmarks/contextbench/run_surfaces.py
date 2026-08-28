@@ -399,7 +399,7 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
             "primary_changed": bool(changed), "changed_steps": changed,
             "applied": applied, "disposition": disposition,
             "admission_rejection_reasons": (
-                list(context_gate.get("gate_reasons") or []) + [
+                list(context_gate.get("rejection_codes") or []) + [
                     str(item.get("reason")) for item in
                     (covariate_gate.get("rejected") or [])
                     if isinstance(item, dict) and item.get("reason")
