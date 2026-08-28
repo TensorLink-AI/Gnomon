@@ -1333,6 +1333,17 @@ def build_scenario_catalog(result: dict[str, Any], *,
                 sampled_prior_sufficient
                 and (selection_eligible
                      or governed_companion_evidence
+                     # In best-effort publication, repeated independently
+                     # validated paths may remain human-selectable after the
+                     # deterministic mapping fails admission.  This is a
+                     # prior-assisted alternative, never historical support or
+                     # automation authority.  Arbitrary one-shot candidates do
+                     # not qualify for this lane.
+                     or (sampled_prior
+                         and elicitation.get("governed_fallback") ==
+                         "structured_companion_mapping_not_admitted"
+                         and candidate_critique.get("status") == "accepted"
+                         and not governed_by_transformation)
                      or (candidate_origin == "model_authored"
                          and candidate_critique.get("status") == "accepted"
                          and replay_insufficient_only
@@ -1629,6 +1640,17 @@ def best_effort_prior_selection(
     """
     if dominant_scenario_id(scenarios) is not None:
         return None
+    # A failed structured mapping creates two genuinely competing
+    # interpretations of the same panel.  Do not auto-promote its sampled
+    # fallback: the bounded selector must compare it with the primary and cite
+    # counterevidence.  If selection is unavailable or rejected, publication
+    # remains on the immutable primary.  Existing single-prior best-effort
+    # behavior remains deterministic for simpler context lanes.
+    if any((((item.get("effect") or {}).get("elicitation") or {}).get(
+            "governed_fallback") ==
+            "structured_companion_mapping_not_admitted")
+           for item in scenarios):
+        return None
     sampled = []
     for item in scenarios:
         effect = item.get("effect") or {}
@@ -1689,6 +1711,7 @@ def best_effort_prior_selection(
 def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
                                 dossiers: list[dict[str, Any]] | None = None,
                                 temporal_state: dict[str, Any] | None = None,
+                                allow_prior_assisted_choice: bool = False,
                                 ) -> dict[str, Any]:
     """Compact prompt packet for the governed, number-free LLM channel."""
     claims = [claim for dossier in dossiers or []
@@ -1811,6 +1834,14 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
         return summary
 
     dominant = dominant_scenario_id(scenarios)
+    if (allow_prior_assisted_choice
+            and any(item.get("role") == "model_authored"
+                    and item.get("human_selection_eligible") is True
+                    for item in scenarios)):
+        # Explicit best-effort publication asks the bounded selector to weigh a
+        # sealed prior against the primary.  This removes deterministic choice
+        # dominance, not the primary, its support, or automation restrictions.
+        dominant = None
     return {
         "selection_required": dominant is None,
         "deterministic_scenario_id": dominant,
@@ -1823,6 +1854,13 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
             "evidence against the replay strength of alternatives. A role "
             "name is provenance, not proof: compare candidate_validation, "
             "evidence volume, shrinkage, assumptions and path shape. Treat "
+            "an empty primary claim_ids list as normal—the primary is derived "
+            "from the observed series, not as missing evidence. Treat sampled "
+            "path agreement and valid_path_fraction only as elicitation "
+            "coherence, never as forecast skill or accuracy. Coherence alone "
+            "cannot outweigh a supported primary. Select a prior-assisted path "
+            "only when cited context is materially applicable to the target and "
+            "supplies a bounded temporal reason the primary omits. Treat "
             "preliminary_short_replay as useful but insufficient evidence, "
             "not automatic dominance over another bounded human-only path. "
             "A supporting claim_id may be cited only when it appears in the "

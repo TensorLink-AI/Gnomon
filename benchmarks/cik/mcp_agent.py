@@ -414,7 +414,9 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: deterministic interpolation instead of fragile 100-value model payloads.
 #: Version 193: optional provider failure remains transport telemetry and no
 #: longer mislabels successfully retained user context as rejected.
-MCP_CONTRACT_VERSION = 193
+#: Version 194: weak structured-panel mappings receive repeated bounded paths,
+#: replacing an unmeasured one-shot model-authored quantile candidate.
+MCP_CONTRACT_VERSION = 194
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -892,23 +894,6 @@ forecast candidate. Preserve series identity in the table name using only
 words present in its source heading/description. Gnomon, not the model, fits
 and replays mappings against last value. If no companion has at least four
 overlap rows plus complete future coverage, return empty arrays/nulls.
-"""
-
-COMPANION_CANDIDATE_INSTRUCTIONS = """\
-Author one bounded probabilistic forecast candidate from the supplied target
-history and source-grounded companion paths. Return ONLY:
-{"forecast_candidate":{"quantiles":[{"timestamp":"exact requested ISO",
-"q10":0.0,"q50":0.0,"q90":0.0}],"rationale":"brief arithmetic and competing
-interpretation"}}
-
-Provide exactly one row per requested forecast timestamp, ordered by time.
-Use only target history and context known at the cutoff. Do not claim that a
-companion is the target, hide uncertainty, or invent observations. The path is
-a human-review-only prior-assisted alternative: it cannot edit the immutable
-primary, upgrade support, or authorize automation. Because this is the
-explicitly requested best-effort lane, produce the best bounded estimate when
-the supplied paths cover the complete grid; represent ambiguity with wider
-quantiles and state the competing interpretation rather than withholding.
 """
 
 def _empirical_quantile(values: list[float], probability: float) -> float:
@@ -3116,7 +3101,8 @@ class McpAgentForecaster:
                     contract = scenario_selection_contract(
                         scenarios=scenarios, dossiers=dossiers,
                         temporal_state=build_temporal_state(
-                            artifact_result, dossiers=dossiers))
+                            artifact_result, dossiers=dossiers),
+                        allow_prior_assisted_choice=True)
                     if contract.get("selection_required") is False:
                         # A host should not pay for a choice the verifier would
                         # reject. Emptying this local list only skips the model
@@ -3722,69 +3708,6 @@ class _Run:
                 "stage": "deterministic_structured_companion_parse",
                 "elapsed_seconds": 0.0,
             })
-            # Parsing and reasoning are separate jobs. Exact rows do not need
-            # model transcription, but best-effort publication may still gain
-            # from a separately sealed model interpretation of their temporal
-            # relationship. This candidate never replaces the governed
-            # executable in its dossier and can never authorize automation.
-            if self.forecaster.output_role in {
-                    "publication_best_effort", "llm_candidate_shadow"}:
-                model_candidate_status = "requested"
-                candidate_prompt = (
-                    f"{COMPANION_CANDIDATE_INSTRUCTIONS}\n"
-                    f"Forecast target series: {self.target_name}\n"
-                    f"History cutoff: {self.timestamps[-1]}\n"
-                    f"Forecast grid: {_forecast_grid_prompt(future_timestamps)}\n"
-                    f"{history}\n\nContext:\n{context}\n")
-                model_candidate_prompt_bytes = len(
-                    candidate_prompt.encode("utf-8"))
-                def accept_model_candidate(content: str) -> bool:
-                    nonlocal model_candidate_proposal, model_candidate_status
-                    objects = extract_json_objects(content)
-                    if not objects:
-                        model_candidate_status = "no_json"
-                        return False
-                    first = objects[0]
-                    wrapped = first.get("forecast_candidate")
-                    if isinstance(wrapped, dict):
-                        model_candidate_proposal = wrapped
-                        model_candidate_status = "proposed"
-                        return True
-                    if isinstance(first.get("quantiles"), list):
-                        # Bounded schema normalization: accept the exact
-                        # candidate body when the model omitted only its outer
-                        # key. Validators still own timestamps, quantiles,
-                        # citations and plausibility.
-                        model_candidate_proposal = first
-                        model_candidate_status = "proposed_unwrapped"
-                        return True
-                    model_candidate_status = (
-                        "withheld" if wrapped is None else "invalid_shape")
-                    return False
-                try:
-                    candidate_completion = complete(
-                        candidate_prompt, "model_companion_candidate")
-                    accepted = accept_model_candidate(candidate_completion)
-                    if not accepted and not repair_used:
-                        repair_used = True
-                        repair_completion = complete(
-                            candidate_prompt
-                            + "\nYour previous response was not an executable "
-                              "candidate (status=" + model_candidate_status
-                            + "). This is the single repair: return only the "
-                              "requested JSON with every grid row.",
-                            "model_companion_candidate_repair")
-                        accepted = accept_model_candidate(repair_completion)
-                        if accepted:
-                            model_candidate_status = "proposed_after_repair"
-                    if not accepted:
-                        compile_rejections.append(
-                            "model companion candidate unavailable after "
-                            f"bounded repair: {model_candidate_status}")
-                except Exception as error:
-                    model_candidate_status = "request_failed"
-                    compile_rejections.append(
-                        f"model companion candidate failed: {error}")
         elif deterministic_ended_disruption is not None:
             raw = bind_active_target(deterministic_ended_disruption)
             compiler_calls.append({
@@ -5049,6 +4972,10 @@ class _Run:
             categorical_schedule is not None
             and governed_categorical is not None
             and not governed_categorical.get("selection_eligible"))
+        companion_prior_needed = bool(
+            companion_contract and deterministic_companion_tables
+            and model_candidate_proposal is None
+            and not (governed_companion or {}).get("selection_eligible"))
         numeric_interpretation_hypotheses = [
             item for item in preliminary_dossier.get("hypotheses") or []
             if item.get("kind") in {
@@ -5081,13 +5008,14 @@ class _Run:
             and preliminary_dossier.get("forecast_candidate") is None
             and numeric_interpretation_hypotheses
             and _has_material_numeric_context(context))
-        if ((categorical_prior_needed or interpretation_prior_needed
+        if ((categorical_prior_needed or companion_prior_needed
+             or interpretation_prior_needed
              or qualitative_future_event_prior_needed)
                 and self.forecaster.output_role in {
                     "publication_best_effort", "llm_candidate_shadow"}):
             model_candidate_status = (
                 "requested_after_governed_rejection"
-                if categorical_prior_needed
+                if categorical_prior_needed or companion_prior_needed
                 else "requested_for_typed_future_event"
                 if qualitative_future_event_prior_needed
                 else "requested_for_typed_interpretation")
@@ -5218,13 +5146,13 @@ class _Run:
                     model_candidate_proposal = proposed
                     model_candidate_status = (
                         "sampled_paths_proposed_after_governed_rejection"
-                        if categorical_prior_needed
+                        if categorical_prior_needed or companion_prior_needed
                         else "sampled_paths_proposed_for_typed_future_event"
                         if qualitative_future_event_prior_needed
                         else "sampled_paths_proposed_for_typed_interpretation")
                 else:
                     lane = ("after_governed_rejection"
-                            if categorical_prior_needed else
+                            if categorical_prior_needed or companion_prior_needed else
                             "for_typed_future_event"
                             if qualitative_future_event_prior_needed else
                             "for_typed_interpretation")
@@ -5235,7 +5163,7 @@ class _Run:
             except Exception as error:
                 model_candidate_status = (
                     "request_failed_after_governed_rejection"
-                    if categorical_prior_needed
+                    if categorical_prior_needed or companion_prior_needed
                     else "request_failed_for_typed_future_event"
                     if qualitative_future_event_prior_needed
                     else "request_failed_for_typed_interpretation")
@@ -5290,7 +5218,10 @@ class _Run:
                         stability=model_candidate_sampling.get("stability"),
                         request_mode=str(model_candidate_sampling[
                             "request_mode"]),
-                        sample_paths=model_candidate_sample_paths)
+                        sample_paths=model_candidate_sample_paths,
+                        governed_fallback=(
+                            "structured_companion_mapping_not_admitted"
+                            if companion_prior_needed else None))
                 dossiers.append(model_dossier)
                 model_candidate_status = "accepted"
             else:

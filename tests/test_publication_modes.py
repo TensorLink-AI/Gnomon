@@ -1330,6 +1330,10 @@ def test_prior_assisted_selection_must_receive_and_cite_counter_hypothesis():
     scenarios, _ = build_scenario_catalog(_result(), dossiers=[dossier])
     contract = scenario_selection_contract(
         scenarios=scenarios, dossiers=[dossier])
+    assert "empty primary claim_ids list as normal" in contract[
+        "instruction"]
+    assert "never as forecast skill or accuracy" in contract[
+        "instruction"]
     exported = next(item for item in contract["claims"]
                     if item["claim_id"] == "hyp-counter-1")
     assert exported["relation"] == "counterevidence"

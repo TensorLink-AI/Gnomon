@@ -2247,6 +2247,7 @@ def attach_host_candidate_elicitation(
     stability: dict[str, Any] | None = None,
     request_mode: str = "batch_request",
     sample_paths: list[list[float]] | None = None,
+    governed_fallback: str | None = None,
 ) -> dict[str, Any]:
     """Seal narrow host-observed elicitation metadata onto a model candidate.
 
@@ -2273,6 +2274,9 @@ def attach_host_candidate_elicitation(
     if request_mode not in {"batch_request",
                             "concurrent_single_sample_requests"}:
         raise ValueError("candidate elicitation request mode is unsupported")
+    if governed_fallback not in {
+            None, "structured_companion_mapping_not_admitted"}:
+        raise ValueError("candidate elicitation governed fallback is unsupported")
     if not isinstance(temperature, (int, float)) or isinstance(temperature, bool) \
             or not math.isfinite(float(temperature)) or temperature < 0:
         raise ValueError("candidate elicitation temperature is invalid")
@@ -2336,6 +2340,8 @@ def attach_host_candidate_elicitation(
         "host_observed": True,
         "historical_skill_evidence": False,
         "automation_eligible": False,
+        **({"governed_fallback": governed_fallback}
+           if governed_fallback is not None else {}),
         **({"stability": json.loads(json.dumps(stability))}
            if stability is not None else {}),
     }

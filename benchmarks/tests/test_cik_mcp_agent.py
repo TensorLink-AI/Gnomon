@@ -1175,12 +1175,15 @@ def test_evidence_host_binds_first_valid_forecast_artifact(tmp_path):
         "accepted": True, "route": "gnomon"}
 
 
-@pytest.mark.parametrize("needs_repair", [False, True])
 def test_structured_context_keeps_governed_and_model_candidates_separate(
-        tmp_path, needs_repair):
+        tmp_path):
     task = _task(horizon=4)
-    history_rows = [(stamp, value - 2.0)
-                    for stamp, value in task.past_time[-6:]]
+    # A flat companion cannot improve on the target's own last-value baseline,
+    # so the governed mapping must fail admission before the sampled-prior lane
+    # is offered.  This exercises the intended fallback instead of needlessly
+    # asking the model to compete with an already admitted executable.
+    history_rows = [(stamp, 20.0)
+                    for stamp, _value in task.past_time[-6:]]
     future_rows = [(stamp, 130.0 + index)
                    for index, stamp in enumerate(task.future_time)]
     task.scenario = (
@@ -1188,23 +1191,21 @@ def test_structured_context_keeps_governed_and_model_candidates_separate(
         + "\n".join(
             f"({stamp[:10]} 00:00:00, {value})"
             for stamp, value in [*history_rows, *future_rows]))
-    candidate = {"forecast_candidate": {
-        "quantiles": [
-            {"timestamp": stamp, "q10": 124 + index,
-             "q50": 128 + index, "q90": 132 + index}
-            for index, stamp in enumerate(task.future_time)],
-        "rationale": "Peer path and recent target level support this range.",
-    }}
+    sampled = ["<forecast>\n" + "\n".join(
+        f"({stamp.replace('T', ' ').replace('+00:00', '')}, "
+        f"{130 + 0.25 * draw + 0.4 * index})"
+        for index, stamp in enumerate(task.future_time)) + "\n</forecast>"
+        for draw in range(3)]
     selector = {
         "selected_scenario_id": "prior-assisted-2",
-        "ranking": ["prior-assisted-2", "prior-assisted-1", "primary"],
+        "ranking": ["prior-assisted-2", "primary"],
         "cited_claim_ids": ["claim-1"],
-        "counterevidence_claim_ids": ["claim-2"], "confidence": .55,
+        "counterevidence_claim_ids": [], "confidence": .55,
+        "counterevidence_hypothesis_ids": ["hyp-071635c80c62"],
         "rationale": "The model alternative is useful for human review.",
         "what_would_change_selection": "More resolved target outcomes.",
     }
-    outputs = (["not json"] if needs_repair else []) + [
-        json.dumps(candidate), json.dumps(selector)]
+    outputs = [*sampled, json.dumps(selector)]
     client = ScriptedClient([], outputs)
     forecaster = McpAgentForecaster(
         "x/y", client=client,
@@ -1216,25 +1217,30 @@ def test_structured_context_keeps_governed_and_model_candidates_separate(
 
     roles = {item["role"] for item in extra["publication"][
         "candidate_portfolio"]}
-    assert "governed_companion_mapping" in roles
     assert "model_authored" in roles
-    assert extra["publication"]["recommended_scenario_id"] == "primary"
-    assert extra["scenario_selector"]["accepted"] is False
-    assert "counterevidence" in extra["scenario_selector"]["error"]
+    assert "governed_companion_mapping" not in roles
+    assert extra["publication"]["recommended_scenario_id"] == \
+        "prior-assisted-2"
+    assert extra["scenario_selector"]["accepted"] is True
     assert extra["publication"]["primary_forecast_unchanged"] is True
     assert extra["publication"]["automation"]["eligible"] is False
     trace = json.loads(next((tmp_path / "traces").glob("*.json")).read_text())
     assert trace["context_compilation"]["dossier_count"] == 2
-    assert set(trace["context_compilation"]["candidate_origins"]) == {
-        "governed_companion_mapping", "model_authored"}
+    assert trace["context_compilation"]["candidate_origins"] == [
+        "model_authored"]
     timing = trace["context_compilation"]["compiler_timing"]
     assert timing["kind"] == "deterministic_parse_plus_sealed_model_candidate"
     assert timing["prompt_bytes"] > 0
     stages = [item["stage"] for item in timing["calls"]]
-    assert ("model_companion_candidate_repair" in stages) is needs_repair
+    assert "model_context_candidate_samples_initial" in stages
+    assert "model_companion_candidate" not in stages
+    sampling = timing["model_candidate_sampling"]
+    assert sampling["accepted"] == 3
+    assert sampling["sufficiency"][
+        "eligible_for_human_recommendation"] is True
+    assert sampling["request_mode"] == "concurrent_single_sample_requests"
     assert '"candidate_validation"' in client.completion_prompts[-1]
-    assert '"publication_evidence_weight"' in client.completion_prompts[-1]
-    assert '"evidence_sufficiency": "preliminary_short_replay"' in (
+    assert '"human_selection_eligible": true' in (
         client.completion_prompts[-1])
 
 

@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Replace one-shot model forecasts over weak structured companion panels with
+  repeated, independently validated point paths. Gnomon first attempts its
+  fold-safe deterministic mapping; only a failed admission opens the sampled
+  prior lane. The host seals the aggregate, records path/transport sufficiency,
+  keeps it human-only, and requires a bounded evidence-citing selector rather
+  than silently promoting it over the immutable primary. Selector guidance now
+  states that model-path agreement is elicitation coherence—not forecast
+  skill—and that an empty primary `claim_ids` list is normal. On spent panel
+  seed 210 an unconstrained rationale opportunistically selected the prior and
+  scored 0.1230; after the semantic guard it correctly retained the 0.3352
+  primary, and a fresh seed likewise retained its primary at 0.7879. These
+  probes validate safe behavior, not comparative uplift.
 - Separate optional prior-provider availability from user-context validity.
   When every bounded sampled-path request fails at transport, the cited event,
   analogue, or interpretation remains a valid labelled scenario and the
