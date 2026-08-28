@@ -442,7 +442,16 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: identified historical driver transitions and executed over the stated
 #: future driver state. It can lead only best-effort human review; strict
 #: publication, immutable primary, and automation authority remain unchanged.
-MCP_CONTRACT_VERSION = 203
+#: Version 204: exact source-stated laws use a disclosed non-inferiority gate
+#: in best-effort mode. Quiet-period last-value skill need not be positive,
+#: but material-transition replay may not contradict the law beyond 2%.
+#: Version 205: non-inferiority is available only when history contains a
+#: separated material-transition population. Without comparable transitions,
+#: best-effort requires positive skill in both chronological replay blocks.
+#: Version 206: reference-law execution retains the complete ordered future
+#: driver schedule instead of silently extending only its first transition
+#: across the horizon. Smooth between-state dynamics remain uncertainty.
+MCP_CONTRACT_VERSION = 206
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -5084,17 +5093,30 @@ class _Run:
         governed_reference_power = None
         reference_future_driver = None
         if reference_power_spec is not None:
-            from gnomon.context_intelligence import fit_reference_power_candidate
+            from gnomon.context_intelligence import (
+                build_piecewise_driver_schedule, fit_reference_power_candidate)
             driver_name = str(reference_power_spec["driver"])
             observed_driver = self.companion_histories.get(driver_name)
             if observed_driver:
-                # "Changes to X" identifies the state from the stated
-                # transition onward.  This is a source-grounded conditional
-                # path, not a hidden future observation.  Applicability and
-                # residual uncertainty are measured on pre-cutoff pairs.
-                reference_future_driver = [
-                    float(reference_power_spec["future_driver_endpoint"])
-                    for _ in future_timestamps]
+                schedule = sorted((
+                    (datetime.fromisoformat(str(item["timestamp"]).replace(
+                        "Z", "+00:00")), float(item["value"]))
+                    for item in reference_power_spec.get(
+                        "future_transitions") or [{
+                            "timestamp": future_timestamps[0],
+                            "value": reference_power_spec[
+                                "future_driver_endpoint"],
+                        }]), key=lambda item: item[0])
+                # Every cited "changes to X" establishes the conditional
+                # state from that transition until the next cited state. This
+                # retains the complete schedule; smooth within-step dynamics
+                # remain uncertainty rather than invented observations.
+                reference_future_driver = build_piecewise_driver_schedule(
+                    last_observed=float(observed_driver[-1]),
+                    future_timestamps=future_timestamps,
+                    transitions=[{"timestamp": stamp.isoformat(),
+                                  "value": value}
+                                 for stamp, value in schedule])
                 try:
                     governed_reference_power = fit_reference_power_candidate(
                         self.values, observed_driver, reference_future_driver,
@@ -5111,10 +5133,11 @@ class _Run:
                             "host-replayed-reference-law:" + driver_name))
                     governed_reference_power["future_driver_assumption"] = {
                         "driver": driver_name,
-                        "transition_value": float(reference_power_spec[
-                            "future_driver_endpoint"]),
-                        "shape": "piecewise_constant_after_stated_transition",
-                        "basis": "source-stated future driver state",
+                        "transitions": [{
+                            "timestamp": stamp.isoformat(), "value": value,
+                        } for stamp, value in schedule],
+                        "shape": "piecewise_constant_between_stated_transitions",
+                        "basis": "complete source-stated future driver schedule",
                     }
                 except ValueError:
                     governed_reference_power = None

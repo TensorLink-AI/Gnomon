@@ -6,10 +6,16 @@
   invent their arithmetic. Gnomon replays the fixed law against pre-cutoff
   target/driver pairs at robustly identified material driver transitions,
   learns only a prefix-safe residual correction and uncertainty, and applies
-  the source-stated future driver state. A replay-positive candidate may lead
-  only an explicit `best_effort` human recommendation; strict publication,
+  the source-stated future driver state. A candidate that is not contradicted
+  beyond a disclosed 2% non-inferiority margin on a genuine historical
+  material-transition population may lead an explicit `best_effort` human
+  recommendation. Without comparable transitions it must instead show
+  positive, chronologically consistent skill. Strict publication,
   the immutable primary, and automation authority remain unchanged. Failed
   or chronologically inconsistent laws stay visible as rejected scenarios.
+  Every stated future driver transition is retained in one ordered piecewise
+  schedule; a later return-to-normal can no longer be discarded after the
+  first transition.
 - Bound qualitative future-event priors to their validated event windows.
   Model-authored values may shape the cited holiday, deployment, closure, or
   campaign interval, while every unrelated row comes from the best already

@@ -1979,6 +1979,56 @@ def fit_companion_panel_candidate(
     }
 
 
+def build_piecewise_driver_schedule(
+    *, last_observed: float, future_timestamps: list[str],
+    transitions: list[dict[str, Any]],
+) -> list[float]:
+    """Resolve all source-stated future driver states onto a host grid.
+
+    Each transition establishes a state until the next transition. The host
+    owns the timestamps and ordering; this helper never interpolates a smooth
+    path or reads future observations. Duplicate timestamps are rejected
+    because their order would otherwise create hidden semantic authority.
+    """
+    if not future_timestamps:
+        raise ValueError("future driver schedule requires a forecast grid")
+    try:
+        grid = [datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+                for value in future_timestamps]
+    except ValueError as error:
+        raise ValueError("future driver schedule has an invalid timestamp") from error
+    if any(right <= left for left, right in zip(grid, grid[1:])):
+        raise ValueError("future driver grid must be strictly increasing")
+    parsed: list[tuple[datetime, float]] = []
+    for item in transitions:
+        if not isinstance(item, dict):
+            raise ValueError("future driver transition must be an object")
+        try:
+            stamp = datetime.fromisoformat(
+                str(item["timestamp"]).replace("Z", "+00:00"))
+            value = float(item["value"])
+        except (KeyError, TypeError, ValueError) as error:
+            raise ValueError("future driver transition is invalid") from error
+        if not math.isfinite(value):
+            raise ValueError("future driver transition must be finite")
+        parsed.append((stamp, value))
+    parsed.sort(key=lambda item: item[0])
+    if any(right[0] == left[0] for left, right in zip(parsed, parsed[1:])):
+        raise ValueError("future driver transitions cannot share a timestamp")
+    state = float(last_observed)
+    if not math.isfinite(state):
+        raise ValueError("last observed driver value must be finite")
+    output: list[float] = []
+    schedule_index = 0
+    for stamp in grid:
+        while (schedule_index < len(parsed)
+               and parsed[schedule_index][0] <= stamp):
+            state = parsed[schedule_index][1]
+            schedule_index += 1
+        output.append(state)
+    return output
+
+
 def fit_reference_power_candidate(
     target_history: list[float], driver_history: list[float],
     future_driver: list[float], *, primary: list[dict[str, Any]],
@@ -2078,8 +2128,21 @@ def fit_reference_power_candidate(
         for start, end in blocks if end > start)
     actuals_count = len(actuals)
     skill = 1 - candidate_mae / max(baseline_mae, 1e-12)
+    # When comparable material transitions exist, best-effort asks whether
+    # history contradicts applicability rather than demanding that an exact
+    # caller-supplied law dominate every noisy one-step baseline. A small
+    # non-inferiority allowance absorbs finite-sample noise. Without such a
+    # transition population, extrapolation needs positive, consistent replay.
+    # Neither route upgrades support or automation.
+    best_effort_noninferiority_margin = -.02
+    comparable_transition_evidence = (
+        replay_subset == "robust_material_driver_transitions")
+    required_skill = (best_effort_noninferiority_margin
+                      if comparable_transition_evidence else .05)
+    required_block_wins = 1 if comparable_transition_evidence else 2
     human_eligible = bool(
-        actuals_count >= 8 and block_wins >= 1 and skill >= .05)
+        actuals_count >= 8 and block_wins >= required_block_wins
+        and skill >= required_skill)
 
     def quantile(values: list[float], probability: float) -> float:
         ordered = sorted(values)
@@ -2134,6 +2197,12 @@ def fit_reference_power_candidate(
             "chronological_block_wins": block_wins,
             "required_block_wins": 2,
             "best_effort_minimum_block_wins": 1,
+            "best_effort_noninferiority_margin":
+                best_effort_noninferiority_margin,
+            "comparable_transition_evidence":
+                comparable_transition_evidence,
+            "best_effort_required_skill": required_skill,
+            "best_effort_required_block_wins": required_block_wins,
             "chronologically_consistent": block_wins == 2,
             "retrospective_skill_not_automation_evidence": True,
             "retrospective_skill_not_admission": True,

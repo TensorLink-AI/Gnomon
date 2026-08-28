@@ -539,8 +539,8 @@ def deterministic_reference_power_dossier(
 
     This front door intentionally stops short of creating a numeric path.  It
     recognizes only a source-stated proportional square/cube relationship,
-    two reference values, one unambiguous host-known driver, and a stated
-    future transition.  The resulting relationship hypothesis can support a
+    two reference values, one unambiguous host-known driver, and an ordered
+    schedule of stated future transitions. The resulting relationship can support a
     separately sealed prior-assisted candidate, but never automation.
     """
     text = " ".join(str(context_text or "").split())
@@ -587,8 +587,10 @@ def deterministic_reference_power_dossier(
         if cutoff_dt.tzinfo is not None:
             clock = clock.replace(tzinfo=cutoff_dt.tzinfo)
         if clock >= cutoff_dt:
-            future_transitions.append((clock, fragment))
-    transition_span = (min(future_transitions, key=lambda item: item[0])[1]
+            future_transitions.append(
+                (clock, fragment, float(match.group(2))))
+    future_transitions.sort(key=lambda item: item[0])
+    transition_span = (future_transitions[0][1]
                        if future_transitions else None)
     if not relationship_span or not reference_span or not transition_span:
         return None
@@ -608,6 +610,18 @@ def deterministic_reference_power_dossier(
                          if item not in driver_references]
     if len(driver_references) != 1 or len(output_references) != 1:
         return None
+    transition_claims = [{
+        "source_span": span,
+        # This is a predictor value, not a target override. The typed
+        # relationship below carries its meaning.
+        "relation": "unknown",
+        "effective_start": stamp.isoformat(),
+        "effective_end": stamp.isoformat(),
+        "mechanism": "source-stated future driver transition",
+        "confidence": 1.0,
+    } for stamp, span, _ in future_transitions]
+    transition_claim_ids = [
+        f"claim-{index}" for index in range(3, 3 + len(transition_claims))]
     return {
         "events": [],
         "claims": [
@@ -627,19 +641,11 @@ def deterministic_reference_power_dossier(
                 "mechanism": "source-stated input and output reference values",
                 "confidence": 1.0,
             },
-            {
-                "source_span": transition_span,
-                # This is a predictor value, not a target override. The typed
-                # relationship below carries its meaning.
-                "relation": "unknown",
-                "effective_start": cutoff_dt.isoformat(),
-                "effective_end": cutoff_dt.isoformat(),
-                "mechanism": "source-stated future driver transition",
-                "confidence": 1.0,
-            },
+            *transition_claims,
         ],
         "hypotheses": [{
-            "kind": "relationship", "claim_ids": ["claim-1", "claim-2", "claim-3"],
+            "kind": "relationship",
+            "claim_ids": ["claim-1", "claim-2", *transition_claim_ids],
             "target_series": ["*"], "predictor_series": driver,
             "known_at": cutoff_dt.isoformat(), "lag_steps": 0,
             "direction": "increase",
@@ -657,8 +663,13 @@ def deterministic_reference_power_dossier(
             "input_unit": driver_references[0][2],
             "output_reference": float(output_references[0][1]),
             "output_unit": output_references[0][2],
-            "future_driver_endpoint": float(transition_pattern.search(
-                transition_span).group(2)),
+            # Compatibility scalar for old callers; execution consumes the
+            # complete ordered schedule below.
+            "future_driver_endpoint": future_transitions[0][2],
+            "future_transitions": [{
+                "timestamp": stamp.isoformat(), "value": value,
+                "source_span": span,
+            } for stamp, span, value in future_transitions],
         },
     }
 

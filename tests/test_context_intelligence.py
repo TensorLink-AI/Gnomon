@@ -5,7 +5,8 @@ import random
 import pytest
 
 from gnomon.context_intelligence import (
-    align_vintage_rows, candidate_evidence_score, canonicalize_recursive_wrapper,
+    align_vintage_rows, build_piecewise_driver_schedule,
+    candidate_evidence_score, canonicalize_recursive_wrapper,
     compile_context_hypotheses,
     compile_transformation, execute_transformation, TransformationError,
     expand_cited_history_segments,
@@ -41,6 +42,10 @@ def test_reference_power_law_replays_context_without_model_numbers():
     assert candidate["forecast"][1]["q50"] == pytest.approx(
         37.5 * (1600 / 3000) ** 2 + .2)
     assert candidate["validation"]["beats_baseline"] is True
+    assert candidate["validation"][
+        "best_effort_noninferiority_margin"] == -.02
+    assert candidate["validation"]["comparable_transition_evidence"] is False
+    assert candidate["validation"]["best_effort_required_skill"] == .05
     assert candidate["human_selection_eligible"] is True
     assert candidate["selection_eligible"] is True
     assert candidate["support"] == "prior_assisted"
@@ -60,6 +65,42 @@ def test_reference_power_law_keeps_bad_domain_rule_scenario_only():
     assert candidate["human_selection_eligible"] is False
     assert candidate["selection_eligible"] is False
     assert candidate["automation_eligible"] is False
+
+
+def test_reference_power_noninferiority_requires_material_transitions():
+    driver = [300.0 if (index // 5) % 2 == 0 else 900.0
+              for index in range(60)]
+    target = [37.5 * (value / 3000.0) ** 2 + .1
+              for value in driver]
+    candidate = fit_reference_power_candidate(
+        target, driver, [1500.0], primary=[{"timestamp": _stamp(61)}],
+        input_reference=3000.0, output_reference=37.5, exponent=2,
+        claim_ids=["law"], hypothesis_id="transition-law")
+
+    validation = candidate["validation"]
+    assert validation["replay_subset"] == (
+        "robust_material_driver_transitions")
+    assert validation["comparable_transition_evidence"] is True
+    assert validation["best_effort_required_skill"] == -.02
+    assert validation["best_effort_required_block_wins"] == 1
+
+
+def test_piecewise_driver_schedule_retains_every_stated_transition():
+    grid = [_stamp(index) for index in range(4)]
+    assert build_piecewise_driver_schedule(
+        last_observed=10.0, future_timestamps=grid,
+        transitions=[
+            {"timestamp": grid[0], "value": 20.0},
+            {"timestamp": grid[2], "value": 5.0},
+        ]) == [20.0, 20.0, 5.0, 5.0]
+
+    with pytest.raises(ValueError, match="share a timestamp"):
+        build_piecewise_driver_schedule(
+            last_observed=10.0, future_timestamps=grid,
+            transitions=[
+                {"timestamp": grid[0], "value": 20.0},
+                {"timestamp": grid[0], "value": 5.0},
+            ])
 
 
 def test_relationship_family_learns_power_law_without_assuming_exponent():

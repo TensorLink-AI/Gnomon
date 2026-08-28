@@ -256,6 +256,29 @@ def test_reference_power_law_is_preserved_without_inventing_transition_path():
     assert dossier["effect_proposal"] is None
 
 
+def test_reference_power_law_preserves_complete_future_driver_schedule():
+    text = (
+        "Pressure (target) is proportional to the square of speed (rpm_in). "
+        "At 05:14:23, speed rapidly changes to 1592.4. "
+        "At 05:14:30, speed rapidly changes to 300.0. "
+        "The maximal fan speed is 3000 rpm and the maximal pressure is 37.5 Pa.")
+
+    raw = deterministic_reference_power_dossier(
+        text, cutoff="1970-01-01T05:14:22+00:00",
+        driver_names=["rpm_in"])
+
+    assert raw is not None
+    spec = raw["_reference_power_spec"]
+    assert [(item["timestamp"], item["value"])
+            for item in spec["future_transitions"]] == [
+        ("1970-01-01T05:14:23+00:00", 1592.4),
+        ("1970-01-01T05:14:30+00:00", 300.0),
+    ]
+    assert len(raw["claims"]) == 4
+    assert raw["hypotheses"][0]["claim_ids"] == [
+        "claim-1", "claim-2", "claim-3", "claim-4"]
+
+
 @pytest.mark.parametrize("text", [
     "Pressure rises with speed; speed changes to 100 tomorrow.",
     ("Pressure is proportional to the square of speed (rpm_in). "

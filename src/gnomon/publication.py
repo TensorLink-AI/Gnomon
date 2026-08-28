@@ -253,8 +253,8 @@ def dominant_scenario_id(scenarios: list[dict[str, Any]]) -> str | None:
             "best_effort_human_gate_passed") is True]
     if len(reference_law) == 1:
         # The caller asked a conditional question and supplied the numeric
-        # law and future driver state that define it. Once that fixed law has
-        # beaten a target-only baseline on comparable historical transitions,
+        # law and future driver state that define it. Once comparable
+        # historical transitions fail to materially contradict that fixed law,
         # a generic drift extrapolation is not an equally relevant answer.
         # Best-effort may therefore choose the sealed conditional executable
         # without an LLM vote. Strict mode still publishes the primary and
