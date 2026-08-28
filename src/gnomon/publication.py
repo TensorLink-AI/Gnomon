@@ -1052,7 +1052,9 @@ def build_scenario_catalog(result: dict[str, Any], *,
         proposal = dossier.get("effect_proposal")
         candidate = dossier.get("forecast_candidate")
         claims = dossier.get("claims") or []
-        deterministic_events = deterministic_events_from_claims(dossier)
+        deterministic_events = deterministic_events_from_claims(
+            dossier, target_name=str(result.get("target_identity")
+                                     or result.get("series") or ""))
         deterministic_claim_ids = {
             str(event.get("derived_from_claim_id"))
             for event in deterministic_events

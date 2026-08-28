@@ -252,6 +252,137 @@ def deterministic_ended_recurring_disruption_dossier(
     }
 
 
+def deterministic_reference_power_dossier(
+    context_text: str, *, cutoff: str, driver_names: list[str],
+) -> dict[str, Any] | None:
+    """Preserve an explicit reference-normalized power law without an LLM.
+
+    This front door intentionally stops short of creating a numeric path.  It
+    recognizes only a source-stated proportional square/cube relationship,
+    two reference values, one unambiguous host-known driver, and a stated
+    future transition.  The resulting relationship hypothesis can support a
+    separately sealed prior-assisted candidate, but never automation.
+    """
+    text = " ".join(str(context_text or "").split())
+    cutoff_dt = _timestamp(cutoff)
+    if not text or cutoff_dt is None:
+        return None
+    exponent_match = re.search(
+        r"\bproportional\s+to\b.{0,80}?\b(square|squared|quadratic|"
+        r"cube|cubed|cubic)\b", text, re.I)
+    if exponent_match is None:
+        return None
+    mentioned = [name for name in driver_names
+                 if re.search(rf"(?<!\w){re.escape(name)}(?!\w)", text, re.I)]
+    if len(mentioned) != 1:
+        return None
+    driver = mentioned[0]
+    reference_values = re.findall(
+        r"\bmax(?:imal|imum)?\s+([A-Za-z_][\w -]{0,30}?)\s+(?:is|=)\s*"
+        r"([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*([A-Za-z/%]+)", text, re.I)
+    if len(reference_values) < 2:
+        return None
+    fragments = [fragment.strip() for fragment in re.split(
+        r"(?<=[.!?])\s+", str(context_text)) if fragment.strip()]
+    relationship_span = next((fragment for fragment in fragments
+                              if exponent_match.group(0).casefold()
+                              in fragment.casefold()), None)
+    reference_span = next((fragment for fragment in fragments
+                           if len(re.findall(
+                               r"\bmax(?:imal|imum)?\s+"
+                               r"[A-Za-z_][\w -]{0,30}?\s+(?:is|=)\s*"
+                               r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)\s*"
+                               r"[A-Za-z/%]+", fragment, re.I)) >= 2), None)
+    transition_pattern = re.compile(
+        r"\b(?:at\s+)?(\d{1,2}:\d{2}(?::\d{2})?)\b.{0,70}?"
+        r"(?:changes?|moves?|ramps?|transitions?)\s+to\s+"
+        r"([+-]?(?:\d+(?:\.\d*)?|\.\d+))", re.I)
+    future_transitions = []
+    for fragment in fragments:
+        match = transition_pattern.search(fragment)
+        if match is None:
+            continue
+        clock = datetime.fromisoformat(
+            f"{cutoff_dt.date().isoformat()}T{match.group(1)}")
+        if cutoff_dt.tzinfo is not None:
+            clock = clock.replace(tzinfo=cutoff_dt.tzinfo)
+        if clock > cutoff_dt:
+            future_transitions.append((clock, fragment))
+    transition_span = (min(future_transitions, key=lambda item: item[0])[1]
+                       if future_transitions else None)
+    if not relationship_span or not reference_span or not transition_span:
+        return None
+    exponent = 2 if exponent_match.group(1).casefold().startswith(
+        ("squ", "quad")) else 3
+    alias_match = re.search(
+        rf"\b([A-Za-z][\w-]*)\s*\(\s*{re.escape(driver)}\s*\)",
+        text, re.I)
+    aliases = {driver.casefold(), *(part for part in driver.casefold().split("_")
+                                    if len(part) > 2)}
+    if alias_match:
+        aliases.add(alias_match.group(1).casefold())
+    driver_references = [item for item in reference_values
+                         if any(alias in item[0].casefold()
+                                for alias in aliases)]
+    output_references = [item for item in reference_values
+                         if item not in driver_references]
+    if len(driver_references) != 1 or len(output_references) != 1:
+        return None
+    return {
+        "events": [],
+        "claims": [
+            {
+                "source_span": relationship_span,
+                "relation": "supports_increase",
+                "effective_start": None, "effective_end": None,
+                "timing_status": "atemporal_context",
+                "mechanism": f"reference-normalized power law (exponent {exponent})",
+                "confidence": 1.0,
+            },
+            {
+                "source_span": reference_span,
+                "relation": "constrains_range",
+                "effective_start": None, "effective_end": None,
+                "timing_status": "atemporal_context",
+                "mechanism": "source-stated input and output reference values",
+                "confidence": 1.0,
+            },
+            {
+                "source_span": transition_span,
+                # This is a predictor value, not a target override. The typed
+                # relationship below carries its meaning.
+                "relation": "unknown",
+                "effective_start": cutoff_dt.isoformat(),
+                "effective_end": cutoff_dt.isoformat(),
+                "mechanism": "source-stated future driver transition",
+                "confidence": 1.0,
+            },
+        ],
+        "hypotheses": [{
+            "kind": "relationship", "claim_ids": ["claim-1", "claim-2", "claim-3"],
+            "target_series": ["*"], "predictor_series": driver,
+            "known_at": cutoff_dt.isoformat(), "lag_steps": 0,
+            "direction": "increase",
+            "rationale": (
+                "The source states a bounded reference-normalized power law "
+                "and a future driver transition. Transition dynamics remain "
+                "uncertain and require a sealed conditional path."),
+        }],
+        "covariate_tables": [], "transformations": [],
+        "observation_interpretations": [], "effect_proposal": None,
+        "forecast_candidate": None,
+        "_reference_power_spec": {
+            "driver": driver, "exponent": exponent,
+            "input_reference": float(driver_references[0][1]),
+            "input_unit": driver_references[0][2],
+            "output_reference": float(output_references[0][1]),
+            "output_unit": output_references[0][2],
+            "future_driver_endpoint": float(transition_pattern.search(
+                transition_span).group(2)),
+        },
+    }
+
+
 def _robust_scale(values: list[float]) -> float:
     differences = [abs(b - a) for a, b in zip(values, values[1:])]
     positive = [value for value in differences if value > 0]

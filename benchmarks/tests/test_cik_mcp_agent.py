@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import re
 import sys
 import time
@@ -2353,7 +2354,7 @@ def test_failed_categorical_replay_can_request_sealed_model_shadow(tmp_path):
     assert resolved_samples == [[16.0, 17.0, 18.0, 19.0]] * 3
     assert client.completion_ns == [1] * 3
     assert client.completion_temperatures == [1] * 3
-    assert client.completion_reasoning_efforts == [None] * 3
+    assert client.completion_reasoning_efforts == ["none"] * 3
     assert len(client.completion_prompts) == 3
     compact_prompt = " ".join(client.completion_prompts[0].split())
     assert "Factor in relevant background" in compact_prompt
@@ -2556,11 +2557,17 @@ def test_one_sample_transport_failure_preserves_other_governed_paths(tmp_path):
     receipt = json.loads(Path(extra["context_compilation"][
         "receipt_path"]).read_text())
     sampling = receipt["compiler"]["model_candidate_sampling"]
-    assert sampling["requested"] == 5
+    assert sampling["requested"] == 4
     assert sampling["accepted"] == 4
-    assert sampling["rejected"] == 1
+    assert sampling["rejected"] == 0
+    assert sampling["transport"] == {
+        "requested": 5, "failed": 1, "returned": 4,
+        "interpretation": (
+            "transport availability is reported separately; semantic "
+            "validity is measured over returned paths"),
+    }
     assert sampling["adaptive_sampling"]["expanded"] is True
-    assert "low_valid_path_fraction" in sampling["adaptive_sampling"][
+    assert "too_few_valid_paths" in sampling["adaptive_sampling"][
         "expansion_reason_codes"]
     assert sampling["sufficiency"][
         "eligible_for_human_recommendation"] is True
@@ -3692,6 +3699,30 @@ def test_stdio_session_kills_a_hung_server_instead_of_blocking_forever():
             session._rpc("initialize", {})
     finally:
         session.close()
+
+
+def test_stdio_session_pins_mcp_child_to_working_tree(monkeypatch, tmp_path):
+    from benchmarks.cik import mcp_agent as module
+
+    captured = {}
+
+    class Process:
+        stdin = None
+        stdout = None
+        def poll(self): return 0
+        def terminate(self): pass
+        def wait(self, timeout=None): pass
+
+    def popen(*args, **kwargs):
+        captured.update(kwargs)
+        return Process()
+
+    monkeypatch.setattr(module.subprocess, "Popen", popen)
+    module.StdioMcpSession(tmp_path, command=["gnomon-test"])
+
+    paths = captured["env"]["PYTHONPATH"].split(os.pathsep)
+    root = str(Path(module.__file__).resolve().parents[2])
+    assert paths[:2] == [str(Path(root) / "src"), root]
 
 
 # -- superseded tool results ------------------------------------------------

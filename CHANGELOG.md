@@ -1,5 +1,20 @@
 # Changelog
 
+- **Explicit driver laws now produce governed conditional answers instead of
+  target-identity mistakes.** High-precision reference-normalized square/cube
+  relationships receive a deterministic typed front door. The host asks its
+  model only for independent future driver paths, then applies the cited law
+  itself; driver values can no longer become target overrides or model
+  arithmetic silently change the relationship. Transport failures are
+  reported separately from returned-path coherence, and ungrouped MCP runs
+  retain the caller's semantic target through publication. The CiK MCP jail is
+  now pinned to the working-tree source, closing a benchmark defect that ran
+  the current host against a stale installed server. On the spent diagnostic
+  `ExplicitPressureFromSpeedTask` seed 175, current-code RCRPS moved from
+  0.992 to 0.299 and latency from about 59s to 12.5s; this validates behavior,
+  not held-out uplift. The immutable primary remained visible and the selected
+  prior-assisted answer remained ineligible for automation.
+
 - **Validated structural prose now survives the complete agent path.** The
   context compiler copies its verified quote and closed effect label into the
   executable event, the MCP forecast boundary automatically recognizes that

@@ -9,6 +9,7 @@ from gnomon.effect_proposals import (assess_composed_effect, compose_effect,
 from gnomon.llm_dossier import (
     deterministic_dated_multiplier_dossier,
     deterministic_ended_recurring_disruption_dossier,
+    deterministic_reference_power_dossier,
     deterministic_events_from_claims,
     validate_temporal_dossier,
 )
@@ -84,6 +85,45 @@ def test_ended_recurring_disruption_is_preserved_without_inferred_effect():
     assert dossier["hypotheses"][0]["kind"] == "regime_shift"
     assert dossier["forecast_candidate"] is None
     assert dossier["effect_proposal"] is None
+
+
+def test_reference_power_law_is_preserved_without_inventing_transition_path():
+    text = (
+        "Pressure (target) is proportional to the square of speed (rpm_in). "
+        "At 05:14:23, speed rapidly and smoothly changes to 1592.4. "
+        "The maximal fan speed is 3000 rpm and the maximal pressure is 37.5 Pa.")
+    raw = deterministic_reference_power_dossier(
+        text, cutoff="1970-01-01T05:14:22+00:00",
+        driver_names=["rpm_in"])
+
+    assert raw is not None
+    raw["series"] = ["target", "rpm_in"]
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=text, cutoff="1970-01-01T05:14:22+00:00",
+        future_timestamps=["1970-01-01T05:14:23+00:00"],
+        history=[1.0, 1.2], history_timestamps=[
+            "1970-01-01T05:14:21+00:00",
+            "1970-01-01T05:14:22+00:00"], compiler_model="deterministic")
+
+    assert not reasons
+    assert dossier["hypotheses"][0]["kind"] == "relationship"
+    assert dossier["hypotheses"][0]["predictor_series"] == "rpm_in"
+    assert dossier["forecast_candidate"] is None
+    assert dossier["effect_proposal"] is None
+
+
+@pytest.mark.parametrize("text", [
+    "Pressure rises with speed; speed changes to 100 tomorrow.",
+    ("Pressure is proportional to the square of speed (rpm_in). "
+     "The maximum speed is 3000 rpm and maximum pressure is 37.5 Pa."),
+    ("Pressure is proportional to the square of speed (rpm_in and fan_rpm). "
+     "At 05:14:23 speed changes to 100. Maximum speed is 3000 rpm and "
+     "maximum pressure is 37.5 Pa."),
+])
+def test_reference_power_front_door_refuses_incomplete_or_ambiguous_rules(text):
+    assert deterministic_reference_power_dossier(
+        text, cutoff="1970-01-01T05:14:22+00:00",
+        driver_names=["rpm_in", "fan_rpm"]) is None
 
 
 @pytest.mark.parametrize("text", [

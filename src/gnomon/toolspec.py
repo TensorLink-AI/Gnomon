@@ -2554,6 +2554,10 @@ def _attach_publication(payload: dict[str, Any], artifact: ForecastArtifact,
     from .publication import (compile_dossier_for_result, publish_result,
                               write_publication)
     result = artifact.to_dict()["results"][result_index]
+    # Ungrouped artifacts use ``__default__`` as their storage series key.
+    # Preserve the semantic target supplied by the caller for claim-ownership
+    # checks at the publication boundary; this metadata never changes points.
+    result["target_identity"] = str(arguments.get("target_column") or "")
     raw_context_rejections = submission.get("rejections") or []
     if not isinstance(raw_context_rejections, list):
         raise GnomonError(

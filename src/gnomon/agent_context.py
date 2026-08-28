@@ -508,6 +508,7 @@ def sampled_prior_sufficiency(
 def candidate_from_sampled_paths(
     outputs: list[str], future_timestamps: list[str],
     *, history_values: list[float] | None = None,
+    path_transform: Any = None,
 ) -> tuple[dict[str, Any] | None, dict[str, Any]]:
     """Validate independent model paths on a host-owned grid and aggregate."""
     accepted: list[list[float]] = []
@@ -562,6 +563,18 @@ def candidate_from_sampled_paths(
         if not all(math.isfinite(value) for value in path):
             rejection_reasons.append("forecast_path contains a non-finite value")
             continue
+        if path_transform is not None:
+            try:
+                path = [float(value) for value in path_transform(path)]
+            except (TypeError, ValueError, OverflowError):
+                rejection_reasons.append(
+                    "forecast_path failed the governed transformation")
+                continue
+            if len(path) != expected or not all(
+                    math.isfinite(value) for value in path):
+                rejection_reasons.append(
+                    "governed transformation returned an invalid path")
+                continue
         accepted.append(path)
         rationale = " ".join(str(
             raw.get("rationale") or "" if isinstance(raw, dict) else ""

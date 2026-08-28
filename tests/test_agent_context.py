@@ -49,6 +49,21 @@ def test_provider_neutral_prior_parser_retains_valid_paths_independently():
         "stability_not_historical_skill"
 
 
+def test_sampled_driver_paths_are_transformed_by_governed_math():
+    future = ["2026-01-02T00:00:00+00:00",
+              "2026-01-03T00:00:00+00:00"]
+    candidate, diagnostics = candidate_from_sampled_paths([
+        '{"forecast_path":{"values":[10,20]}}',
+        '{"forecast_path":{"values":[20,30]}}',
+    ], future, history_values=[1, 2, 3],
+        path_transform=lambda path: [(value / 10) ** 2 for value in path])
+
+    assert diagnostics["accepted"] == 2
+    assert candidate is not None
+    assert candidate["_validated_sample_paths"] == [[1.0, 4.0], [4.0, 9.0]]
+    assert [row["q50"] for row in candidate["quantiles"]] == [2.5, 6.5]
+
+
 def test_provider_neutral_prior_rejects_nonfinite_and_wrong_grid_paths():
     candidate, diagnostics = candidate_from_sampled_paths([
         '{"forecast_path":{"values":[1]}}',

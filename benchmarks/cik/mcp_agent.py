@@ -362,7 +362,32 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: compiler's non-reasoning, low-token policy.
 #: Version 174: sampled priors use concurrent single-sample requests instead
 #: of potentially correlated choices from one provider batch.
-MCP_CONTRACT_VERSION = 174
+#: Version 175: explicit reference-normalized power laws and future driver
+#: transitions use a deterministic typed front door before sealed prior
+#: elicitation, and host-observed companion names are available to hypothesis
+#: validation. This materially changes the context treatment and cache key.
+#: Version 176: sealed numeric-path elicitation disables hidden reasoning and
+#: uses a horizon-sized output budget after the typed dossier has already
+#: isolated the forecasting argument.
+#: Version 177: explicit nonlinear reference relationships request the full
+#: five-path prior concurrently because a late initial request otherwise
+#: consumes the shared deadline before adaptive expansion can run.
+#: Version 178: transport failures are recorded separately from semantic path
+#: validity, so an unavailable provider response cannot masquerade as
+#: contradictory forecast evidence.
+#: Version 179: sampled paths for explicit reference laws represent the
+#: uncertain future driver; Gnomon applies the cited power law to create the
+#: target path, preventing driver facts from becoming target overrides or
+#: model arithmetic from silently changing the relationship.
+#: Version 180: publication rechecks deterministic claim authority against the
+#: actual target identity, so a cited driver transition cannot block or
+#: supersede a separately sealed target scenario.
+#: Version 181: the MCP publication boundary carries the caller's semantic
+#: target identity through ungrouped ``__default__`` artifacts, making the
+#: driver/target authority check effective in the live product response.
+#: Version 182: the jailed MCP subprocess is pinned to the host's working-tree
+#: source instead of silently importing an older installed wheel.
+MCP_CONTRACT_VERSION = 182
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -1689,6 +1714,16 @@ class StdioMcpSession:
                  call_timeout: float | None = None,
                  profile: str | None = None):
         child_env = dict(os.environ)
+        # The child deliberately runs from a disposable jail, so its normal
+        # import path would resolve the environment's last installed wheel.
+        # Benchmarks must exercise the same working-tree revision as the host
+        # adapter. Pin that source explicitly and retain any caller path after
+        # it; the manifest/cache contract then describes one coherent build.
+        repository_root = Path(__file__).resolve().parents[2]
+        source_paths = [str(repository_root / "src"), str(repository_root)]
+        inherited_path = child_env.get("PYTHONPATH")
+        child_env["PYTHONPATH"] = os.pathsep.join(
+            [*source_paths, *([inherited_path] if inherited_path else [])])
         if profile:
             child_env["GNOMON_MCP_PROFILE"] = profile
         self._proc = subprocess.Popen(
@@ -3336,6 +3371,7 @@ class _Run:
             deterministic_dated_multiplier_dossier,
             deterministic_ended_recurring_disruption_dossier,
             deterministic_historical_observation_claim,
+            deterministic_reference_power_dossier,
             validate_temporal_dossier,
         )
         from gnomon.workflows import DocumentRef, parse_context_response
@@ -3344,6 +3380,15 @@ class _Run:
         context = "\n\n".join(part for part in (
             narrative_context, self.companion_evidence) if part)
         future_timestamps = _task_future_timestamps(self.task)
+        deterministic_reference_power = (
+            deterministic_reference_power_dossier(
+                context, cutoff=self.timestamps[-1],
+                driver_names=list(self.companion_histories)))
+        reference_power_spec = None
+        if deterministic_reference_power is not None:
+            deterministic_reference_power = dict(deterministic_reference_power)
+            reference_power_spec = deterministic_reference_power.pop(
+                "_reference_power_spec", None)
         categorical_schedule = _extract_categorical_state_schedule(
             narrative_context, self.timestamps, future_timestamps)
         relationship_contract = bool(
@@ -3354,6 +3399,7 @@ class _Run:
             and _expects_historical_zero_interpretation(context))
         companion_contract = bool(
             not relationship_contract and not observation_contract
+            and deterministic_reference_power is None
             and _looks_like_structured_companion_context(
                 context, future_timestamps))
         deterministic_ended_disruption = (
@@ -3362,11 +3408,15 @@ class _Run:
             if (categorical_schedule is None and not relationship_contract
                 and not observation_contract and not companion_contract)
             else None)
+        if (categorical_schedule is not None or relationship_contract
+                or observation_contract or deterministic_ended_disruption is not None):
+            deterministic_reference_power = None
         deterministic_calibration_claim = (
             deterministic_additive_drift_claim(
                 context, history_start=self.timestamps[0],
                 cutoff=self.timestamps[-1])
             if (deterministic_ended_disruption is None
+                and deterministic_reference_power is None
                 and categorical_schedule is None and not relationship_contract
                 and not observation_contract and not companion_contract)
             else None)
@@ -3433,8 +3483,15 @@ class _Run:
             if companion_contract else [])
 
         def bind_active_target(candidate: dict[str, Any]) -> dict[str, Any]:
-            """Attach host-owned series identity without granting semantics."""
-            return {**candidate, "series": [self.target_name]}
+            """Attach host-owned target and observed companion identities.
+
+            The model cannot introduce a series name here.  Exposing the
+            columns already present in the governed snapshot lets a typed
+            relationship survive validation without granting it numeric
+            authority.
+            """
+            return {**candidate, "series": [
+                self.target_name, *sorted(self.companion_histories)]}
 
         def bind_host_knowledge_time(candidate: dict[str, Any]) -> dict[str, Any]:
             """Bind receipt-time metadata the compiler has no authority over."""
@@ -3489,16 +3546,24 @@ class _Run:
 
                 def one_sample(_: int) -> tuple[str, str | None]:
                     try:
+                        # The dossier has already isolated the temporal
+                        # argument. This call supplies one numeric path on a
+                        # host-owned grid; hidden reasoning adds latency and
+                        # can consume the workflow deadline without improving
+                        # the auditable output.
+                        path_token_budget = min(
+                            6_000, max(1_500,
+                                       500 + 30 * len(future_timestamps)))
                         response = self.forecaster.client.completions(
-                            messages, n=1, temperature=1, max_tokens=10_000,
-                            reasoning_effort=None, request_timeout=timeout,
+                            messages, n=1, temperature=1,
+                            max_tokens=path_token_budget,
+                            reasoning_effort="none", request_timeout=timeout,
                             transport_retries=0)[0]
                         return response, None
                     except Exception as error:  # independent sampled draws
                         # One slow or failed provider request must not erase
-                        # the other sealed paths. The empty response remains
-                        # in the parser input so requested/accepted/rejected
-                        # accounting stays exact and auditable.
+                        # the other sealed paths. Transport availability is
+                        # recorded separately from semantic path validity.
                         return "", str(error)[:300]
 
                 with ThreadPoolExecutor(max_workers=min(n, 8)) as pool:
@@ -3643,6 +3708,12 @@ class _Run:
                 "stage": "deterministic_ended_recurring_disruption_parse",
                 "elapsed_seconds": 0.0,
             })
+        elif deterministic_reference_power is not None:
+            raw = bind_active_target(deterministic_reference_power)
+            compiler_calls.append({
+                "stage": "deterministic_reference_power_parse",
+                "elapsed_seconds": 0.0,
+            })
         elif deterministic_calibration_claim is not None:
             raw = bind_active_target({
                 "events": [], "claims": [deterministic_calibration_claim],
@@ -3785,6 +3856,10 @@ class _Run:
                 and all(claim.get("timing_status") == "atemporal_context"
                         for claim in verified_claims)
                 and probe.get("hypotheses"))
+            retained_reference_interpretation = bool(
+                deterministic_reference_power is not None
+                and verified_claims and probe.get("hypotheses")
+                and not hypothesis_failures)
             # Once one numeric lane is valid, malformed optional lanes remain
             # visible in the dossier critique but must not replace a useful
             # result or consume another LLM call. Required observation
@@ -3798,6 +3873,7 @@ class _Run:
                 observation_lane_missing or unresolved_context
                 or (future_path_needs_executable
                     and not companion_mapping_pending
+                    and not retained_reference_interpretation
                     and not accepted_executable)
                 or (not accepted_executable
                     and not retained_unresolved_interpretation
@@ -3860,6 +3936,11 @@ class _Run:
                     "retained_atemporal_interpretation": True,
                     "skip_reason": "typed_background_already_preserved",
                 } if retained_atemporal_interpretation else {}),
+                **({
+                    "retained_reference_interpretation": True,
+                    "skip_reason": (
+                        "typed_reference_law_preserved_for_sealed_prior"),
+                } if retained_reference_interpretation else {}),
             })
             if repair_required:
                 # Do not let one failed lane hide another. In particular, an
@@ -4802,19 +4883,47 @@ class _Run:
                 if qualitative_future_event_prior_needed
                 else "requested_for_typed_interpretation")
             context_prompt = build_sampled_context_prior_prompt(
-                timestamps=self.timestamps, values=self.values,
-                future_timestamps=future_timestamps, context=context)
+                timestamps=self.timestamps,
+                values=(self.companion_histories[
+                    str(reference_power_spec["driver"])]
+                    if reference_power_spec is not None else self.values),
+                future_timestamps=future_timestamps,
+                context=(
+                    context + "\n\nForecast the future DRIVER series "
+                    + str(reference_power_spec["driver"])
+                    + ", not the target. Gnomon will apply the cited "
+                      "reference power law to every returned driver value."
+                    if reference_power_spec is not None else context))
             model_candidate_prompt_bytes = len(context_prompt.encode("utf-8"))
+            def transform_sampled_path(path: list[float]) -> list[float]:
+                if reference_power_spec is None:
+                    return path
+                input_reference = float(
+                    reference_power_spec["input_reference"])
+                output_reference = float(
+                    reference_power_spec["output_reference"])
+                exponent = int(reference_power_spec["exponent"])
+                if input_reference <= 0 or output_reference <= 0:
+                    raise ValueError("reference values must be positive")
+                return [output_reference * (value / input_reference) ** exponent
+                        for value in path]
             try:
                 requested_paths = recommended_sample_count(
                     len(future_timestamps))
-                initial_paths = recommended_initial_sample_count(
-                    len(future_timestamps))
+                initial_paths = (
+                    requested_paths if deterministic_reference_power is not None
+                    else recommended_initial_sample_count(
+                        len(future_timestamps)))
                 responses = complete_many(
                     context_prompt, "model_context_candidate_samples_initial",
                     n=initial_paths)
+                transport_requested = initial_paths
+                transport_failed = sum(not response.strip()
+                                       for response in responses)
                 proposed, model_candidate_sampling = candidate_from_sampled_paths(
-                    responses, future_timestamps, history_values=self.values)
+                    [response for response in responses if response.strip()],
+                    future_timestamps, history_values=self.values,
+                    path_transform=transform_sampled_path)
                 initial_sufficiency = sampled_prior_sufficiency(
                     model_candidate_sampling)
                 expanded = False
@@ -4823,14 +4932,20 @@ class _Run:
                         and not initial_sufficiency[
                             "eligible_for_human_recommendation"]
                         and compilation_deadline - time.monotonic() >= 5.0):
-                    responses.extend(complete_many(
+                    expanded_responses = complete_many(
                         context_prompt,
                         "model_context_candidate_samples_expansion",
-                        n=requested_paths - initial_paths))
+                        n=requested_paths - initial_paths)
+                    responses.extend(expanded_responses)
+                    transport_requested += requested_paths - initial_paths
+                    transport_failed += sum(
+                        not response.strip() for response in expanded_responses)
                     proposed, model_candidate_sampling = (
                         candidate_from_sampled_paths(
-                            responses, future_timestamps,
-                            history_values=self.values))
+                            [response for response in responses
+                             if response.strip()], future_timestamps,
+                            history_values=self.values,
+                            path_transform=transform_sampled_path))
                     expanded = True
                 elif (requested_paths > initial_paths
                       and not initial_sufficiency[
@@ -4838,6 +4953,21 @@ class _Run:
                     expansion_skipped_reason = "workflow_deadline_exhausted"
                 final_sufficiency = sampled_prior_sufficiency(
                     model_candidate_sampling)
+                model_candidate_sampling["transport"] = {
+                    "requested": transport_requested,
+                    "failed": transport_failed,
+                    "returned": transport_requested - transport_failed,
+                    "interpretation": (
+                        "transport availability is reported separately; "
+                        "semantic validity is measured over returned paths"),
+                }
+                if reference_power_spec is not None:
+                    model_candidate_sampling["governed_transformation"] = {
+                        "kind": "reference_normalized_power_law",
+                        **reference_power_spec,
+                        "model_authored_quantity": "future_driver_path",
+                        "engine_authored_quantity": "target_forecast_path",
+                    }
                 model_candidate_sampling["sufficiency"] = final_sufficiency
                 model_candidate_sampling["adaptive_sampling"] = {
                     "initial_requested": initial_paths,
@@ -4950,6 +5080,7 @@ class _Run:
         deterministic_front_door = bool(
             deterministic_companion_tables or categorical_schedule
             or deterministic_ended_disruption is not None
+            or deterministic_reference_power is not None
             or deterministic_calibration_claim is not None
             or deterministic_multiplier is not None)
         payload = {
@@ -4973,6 +5104,8 @@ class _Run:
                              if companion_contract else
                              "ended_recurring_disruption_hypothesis"
                              if deterministic_ended_disruption is not None else
+                             "explicit_reference_power_relationship"
+                             if deterministic_reference_power is not None else
                              "explicit_additive_measurement_drift"
                              if deterministic_calibration_claim is not None else
                              "explicit_dated_multiplier"
