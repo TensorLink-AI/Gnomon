@@ -513,6 +513,7 @@ def candidate_from_sampled_paths(
     """Validate independent model paths on a host-owned grid and aggregate."""
     accepted: list[list[float]] = []
     rejection_reasons: list[str] = []
+    response_shapes: list[dict[str, Any]] = []
     rationales: list[str] = []
     expected = len(future_timestamps)
     display_timestamps = []
@@ -528,6 +529,13 @@ def candidate_from_sampled_paths(
         first = objects[0] if objects else {}
         raw = first.get("forecast_path") if isinstance(first, dict) else None
         values = raw.get("values") if isinstance(raw, dict) else None
+        shape = {
+            "sha256": hashlib.sha256(output.encode("utf-8")).hexdigest(),
+            "characters": len(output),
+            "json_objects": len(objects),
+            "forecast_path_present": isinstance(raw, dict),
+            "observed_values": len(values) if isinstance(values, list) else None,
+        }
         if not isinstance(values, list):
             match = re.search(
                 r"<forecast>\s*(.*?)\s*</forecast>", output,
@@ -551,30 +559,44 @@ def candidate_from_sampled_paths(
                         break
             if parsed_values and parsed_timestamps == display_timestamps:
                 values = parsed_values
+                shape["fallback_format"] = "timestamp_value_rows"
+                shape["observed_values"] = len(values)
         if not isinstance(values, list) or len(values) != expected:
+            shape["status"] = "rejected_wrong_shape"
+            response_shapes.append(shape)
             rejection_reasons.append(
                 f"forecast response requires {expected} host-grid-bound values")
             continue
         try:
             path = [float(value) for value in values]
         except (TypeError, ValueError):
+            shape["status"] = "rejected_non_numeric"
+            response_shapes.append(shape)
             rejection_reasons.append("forecast_path contains a non-number")
             continue
         if not all(math.isfinite(value) for value in path):
+            shape["status"] = "rejected_non_finite"
+            response_shapes.append(shape)
             rejection_reasons.append("forecast_path contains a non-finite value")
             continue
         if path_transform is not None:
             try:
                 path = [float(value) for value in path_transform(path)]
             except (TypeError, ValueError, OverflowError):
+                shape["status"] = "rejected_transformation"
+                response_shapes.append(shape)
                 rejection_reasons.append(
                     "forecast_path failed the governed transformation")
                 continue
             if len(path) != expected or not all(
                     math.isfinite(value) for value in path):
+                shape["status"] = "rejected_transformation_shape"
+                response_shapes.append(shape)
                 rejection_reasons.append(
                     "governed transformation returned an invalid path")
                 continue
+        shape["status"] = "accepted"
+        response_shapes.append(shape)
         accepted.append(path)
         rationale = " ".join(str(
             raw.get("rationale") or "" if isinstance(raw, dict) else ""
@@ -585,6 +607,9 @@ def candidate_from_sampled_paths(
         "requested": len(outputs), "accepted": len(accepted),
         "rejected": len(outputs) - len(accepted),
         "rejection_reasons": rejection_reasons[:8],
+        # Structural diagnostics are sufficient to debug provider formatting
+        # without persisting raw model text or user context in the receipt.
+        "response_shapes": response_shapes,
         "aggregation": "linear_empirical_marginal_q10_q50_q90",
         "timestamp_binding": "host_grid_order",
         "request_mode": "concurrent_single_sample_requests",

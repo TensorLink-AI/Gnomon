@@ -47,6 +47,10 @@ def test_provider_neutral_prior_parser_retains_valid_paths_independently():
     assert [row["q50"] for row in candidate["quantiles"]] == [3.0, 6.0]
     assert diagnostics["stability"]["interpretation"] == \
         "stability_not_historical_skill"
+    assert [item["status"] for item in diagnostics["response_shapes"]] == [
+        "accepted", "accepted", "rejected_wrong_shape"]
+    assert len(diagnostics["response_shapes"][0]["sha256"]) == 64
+    assert "output" not in diagnostics["response_shapes"][0]
 
 
 def test_sampled_driver_paths_are_transformed_by_governed_math():

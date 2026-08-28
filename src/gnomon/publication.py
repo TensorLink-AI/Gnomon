@@ -1496,6 +1496,16 @@ def validate_scenario_selection(raw: Any, *, scenarios: list[dict[str, Any]],
         raise ValueError("a claim cannot be both supporting evidence and counterevidence")
     selected_claims = set(next(item for item in scenarios
                                if item["scenario_id"] == selected)["claim_ids"])
+    # A claim can support only the sealed scenario that carries it.  Keeping
+    # unrelated context in the packet is useful counterevidence, but allowing
+    # it in ``cited_claim_ids`` lets a fluent selector rhetorically attach a
+    # rejected or scenario-only fact to the immutable primary (or to another
+    # unrelated candidate).  That is misleading even though no number moves.
+    unattached_support = set(cited) - selected_claims
+    if unattached_support:
+        raise ValueError(
+            "supporting claim ids must belong to the selected sealed scenario; "
+            "use counterevidence_claim_ids for unattached context")
     if selected_claims and not selected_claims.intersection(cited):
         raise ValueError("selected conditional scenario requires one of its claims to be cited")
     required_counter_hypotheses = {
@@ -1725,7 +1735,10 @@ def scenario_selection_contract(*, scenarios: list[dict[str, Any]],
             "evidence volume, shrinkage, assumptions and path shape. Treat "
             "preliminary_short_replay as useful but insufficient evidence, "
             "not automatic dominance over another bounded human-only path. "
-            "Only a scenario whose human_selection_eligible field is true may "
+            "A supporting claim_id may be cited only when it appears in the "
+            "selected scenario's claim_ids; context attached to another or no "
+            "scenario belongs in counterevidence_claim_ids. Only a scenario "
+            "whose human_selection_eligible field is true may "
             "be selected; every ineligible scenario must rank below every "
             "eligible scenario, while remaining visible as counterevidence. Give "
             "confidence and state what "

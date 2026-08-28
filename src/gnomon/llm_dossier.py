@@ -297,7 +297,7 @@ def deterministic_reference_power_dossier(
         r"\b(?:at\s+)?(\d{1,2}:\d{2}(?::\d{2})?)\b.{0,70}?"
         r"(?:changes?|moves?|ramps?|transitions?)\s+to\s+"
         r"([+-]?(?:\d+(?:\.\d*)?|\.\d+))", re.I)
-    future_transitions = []
+    future_transitions: list[tuple[datetime, str, float]] = []
     for fragment in fragments:
         match = transition_pattern.search(fragment)
         if match is None:
@@ -306,7 +306,7 @@ def deterministic_reference_power_dossier(
             f"{cutoff_dt.date().isoformat()}T{match.group(1)}")
         if cutoff_dt.tzinfo is not None:
             clock = clock.replace(tzinfo=cutoff_dt.tzinfo)
-        if clock > cutoff_dt:
+        if clock >= cutoff_dt:
             future_transitions.append((clock, fragment))
     transition_span = (min(future_transitions, key=lambda item: item[0])[1]
                        if future_transitions else None)
@@ -379,6 +379,92 @@ def deterministic_reference_power_dossier(
             "output_unit": output_references[0][2],
             "future_driver_endpoint": float(transition_pattern.search(
                 transition_span).group(2)),
+        },
+    }
+
+
+def deterministic_named_driver_relationship_dossier(
+    context_text: str, *, cutoff: str, driver_names: list[str],
+) -> dict[str, Any] | None:
+    """Preserve one explicitly named but numerically incomplete driver law.
+
+    A named scientific/business rule may be useful to a model even when the
+    document does not state executable coefficients. With exactly one
+    observed companion, this routine preserves the relationship and future
+    driver transition as a prior-only hypothesis. It never supplies the
+    missing equation, numeric target path, support upgrade, or automation.
+    """
+    if len(driver_names) != 1:
+        return None
+    text = " ".join(str(context_text or "").split())
+    cutoff_dt = _timestamp(cutoff)
+    if not text or cutoff_dt is None:
+        return None
+    relationship = re.search(
+        r"\b(?:estimated|predicted|calculated|derived|forecast)\b.{0,50}?"
+        r"\bfrom\b.{0,80}?\busing\b.{0,60}?"
+        r"\b(?:law|laws|model|equation|formula|relationship)\b", text, re.I)
+    if relationship is None:
+        return None
+    transition_pattern = re.compile(
+        r"\b(?:at\s+)?(\d{1,2}:\d{2}(?::\d{2})?)\b.{0,70}?"
+        r"(?:changes?|moves?|ramps?|transitions?)\s+to\s+"
+        r"([+-]?(?:\d+(?:\.\d*)?|\.\d+))", re.I)
+    fragments = [fragment.strip() for fragment in re.split(
+        r"(?<=[.!?])\s+", str(context_text)) if fragment.strip()]
+    relationship_span = next((fragment for fragment in fragments
+                              if relationship.group(0).casefold()
+                              in fragment.casefold()), None)
+    future_transitions = []
+    for fragment in fragments:
+        match = transition_pattern.search(fragment)
+        if match is None:
+            continue
+        stamp = datetime.fromisoformat(
+            f"{cutoff_dt.date().isoformat()}T{match.group(1)}")
+        if cutoff_dt.tzinfo is not None:
+            stamp = stamp.replace(tzinfo=cutoff_dt.tzinfo)
+        if stamp >= cutoff_dt:
+            future_transitions.append((stamp, fragment, float(match.group(2))))
+    selected_transition = (min(future_transitions, key=lambda item: item[0])
+                           if future_transitions else None)
+    transition_span = selected_transition[1] if selected_transition else None
+    if relationship_span is None or transition_span is None:
+        return None
+    driver = driver_names[0]
+    return {
+        "events": [],
+        "claims": [{
+            "source_span": relationship_span, "relation": "unknown",
+            "effective_start": None, "effective_end": None,
+            "timing_status": "atemporal_context",
+            "mechanism": "source-named driver law with unstated parameters",
+            "confidence": 1.0,
+        }, {
+            "source_span": transition_span, "relation": "unknown",
+            "effective_start": cutoff_dt.isoformat(),
+            "effective_end": cutoff_dt.isoformat(),
+            "mechanism": "source-stated future driver transition",
+            "confidence": 1.0,
+        }],
+        "hypotheses": [{
+            "kind": "relationship", "claim_ids": ["claim-1", "claim-2"],
+            "target_series": ["*"], "predictor_series": driver,
+            "known_at": cutoff_dt.isoformat(), "lag_steps": 0,
+            "direction": "unknown",
+            "rationale": (
+                "The source names a driver relationship and future driver "
+                "transition but omits executable parameters. A model may "
+                "propose a labelled prior; historical support is absent."),
+        }],
+        "covariate_tables": [], "transformations": [],
+        "observation_interpretations": [], "effect_proposal": None,
+        "forecast_candidate": None,
+        "_named_driver_relationship": {
+            "driver": driver,
+            "transition_timestamp": selected_transition[0].isoformat(),
+            "transition_value": selected_transition[2],
+            "future_path_assumption": "piecewise_constant_after_stated_transition",
         },
     }
 
@@ -1060,8 +1146,9 @@ def validate_temporal_dossier(
             governed_candidate.get("selection_eligible"))
         candidate_selection_reason = (
             None if candidate_selection_eligible else
-            "The governed contextual mapping did not beat last value in "
-            "expanding-origin replay; retain it as a visible scenario only.")
+            "The governed contextual mapping did not beat its strongest "
+            "declared target-only baseline in expanding-origin replay; retain "
+            "it as a visible scenario only.")
     if candidate is not None and not (
             use_calibration_candidate
             or candidate_was_derived_from_observation_interpretation

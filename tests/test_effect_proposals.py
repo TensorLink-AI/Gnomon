@@ -9,6 +9,7 @@ from gnomon.effect_proposals import (assess_composed_effect, compose_effect,
 from gnomon.llm_dossier import (
     deterministic_dated_multiplier_dossier,
     deterministic_ended_recurring_disruption_dossier,
+    deterministic_named_driver_relationship_dossier,
     deterministic_reference_power_dossier,
     deterministic_events_from_claims,
     validate_temporal_dossier,
@@ -124,6 +125,35 @@ def test_reference_power_front_door_refuses_incomplete_or_ambiguous_rules(text):
     assert deterministic_reference_power_dossier(
         text, cutoff="1970-01-01T05:14:22+00:00",
         driver_names=["rpm_in", "fan_rpm"]) is None
+
+
+def test_named_driver_law_is_prior_only_when_parameters_are_unstated():
+    text = (
+        "Pressure can be estimated from speed using the affinity laws. "
+        "At 05:14:23 speed rapidly changes to 1592.4.")
+    raw = deterministic_named_driver_relationship_dossier(
+        text, cutoff="1970-01-01T05:14:22+00:00",
+        driver_names=["rpm_in"])
+
+    assert raw is not None
+    spec = raw["_named_driver_relationship"]
+    assert spec["driver"] == "rpm_in"
+    assert spec["transition_value"] == 1592.4
+    assert spec["transition_timestamp"] == "1970-01-01T05:14:23+00:00"
+    assert raw["hypotheses"][0]["predictor_series"] == "rpm_in"
+    assert raw["forecast_candidate"] is None
+    assert raw["transformations"] == []
+
+
+def test_named_driver_law_refuses_ambiguous_or_undated_context():
+    text = "Pressure can be estimated from speed using the affinity laws."
+    assert deterministic_named_driver_relationship_dossier(
+        text, cutoff="1970-01-01T05:14:22+00:00",
+        driver_names=["rpm_in"]) is None
+    assert deterministic_named_driver_relationship_dossier(
+        text + " At 05:14:23 speed changes to 100.",
+        cutoff="1970-01-01T05:14:22+00:00",
+        driver_names=["rpm_in", "other_driver"]) is None
 
 
 @pytest.mark.parametrize("text", [

@@ -9,6 +9,7 @@ from gnomon.publication import (build_scenario_catalog, publish_result,
                                 best_effort_prior_selection,
                                 dominant_scenario_id,
                                 scenario_selection_contract, select_publication,
+                                validate_scenario_selection,
                                 verify_publication, write_publication)
 from gnomon.publication import record_publication
 from gnomon.tracking import TrackingStore
@@ -1126,6 +1127,35 @@ def test_scenario_selection_can_rank_but_not_authorize_or_edit():
     assert "forecast" not in payload["scenario_selection"]
     assert payload["recommended_forecast"][0]["q50"] == 11
     assert verify_publication(payload)
+
+
+def test_selector_cannot_attach_unrelated_context_to_primary():
+    scenarios, _ = build_scenario_catalog(_result(), dossiers=[_dossier()])
+    with pytest.raises(ValueError, match="selected sealed scenario"):
+        validate_scenario_selection({
+            "selected_scenario_id": "primary",
+            "ranking": ["primary", "prior-assisted-1"],
+            "cited_claim_ids": ["claim-1"],
+            "counterevidence_claim_ids": [],
+            "confidence": .6,
+            "rationale": "The context confirms the primary.",
+            "what_would_change_selection": "More evidence.",
+        }, scenarios=scenarios, dossiers=[_dossier()])
+
+
+def test_selector_can_treat_unattached_context_as_counterevidence():
+    scenarios, _ = build_scenario_catalog(_result(), dossiers=[_dossier()])
+    selection = validate_scenario_selection({
+        "selected_scenario_id": "primary",
+        "ranking": ["primary", "prior-assisted-1"],
+        "cited_claim_ids": [],
+        "counterevidence_claim_ids": ["claim-1"],
+        "confidence": .6,
+        "rationale": "The context supports the alternative but lacks replay.",
+        "what_would_change_selection": "Successful historical replay.",
+    }, scenarios=scenarios, dossiers=[_dossier()])
+    assert selection["cited_claim_ids"] == []
+    assert selection["counterevidence_claim_ids"] == ["claim-1"]
 
 
 def test_validated_context_event_is_citable_without_a_dossier_claim():

@@ -10,7 +10,8 @@ from gnomon.context_intelligence import (
     compile_transformation, execute_transformation, TransformationError,
     expand_cited_history_segments,
     fit_historical_analogue, fit_lagged_relationship,
-    fit_companion_level_candidate, fit_categorical_state_candidate,
+    fit_companion_level_candidate, fit_companion_relationship_candidate,
+    fit_categorical_state_candidate,
     fit_structured_arx_candidate, fit_vintage_exogenous,
     validate_transformation,
 )
@@ -22,6 +23,37 @@ UTC = timezone.utc
 
 def _stamp(index):
     return (datetime(2026, 1, 1, tzinfo=UTC) + timedelta(days=index)).isoformat()
+
+
+def test_relationship_family_learns_power_law_without_assuming_exponent():
+    driver = [10.0 + index for index in range(30)]
+    target = [2.5 * value ** 1.7 for value in driver]
+    primary = [{"timestamp": _stamp(31)}, {"timestamp": _stamp(32)}]
+
+    candidate = fit_companion_relationship_candidate(
+        target, driver, [41.0, 42.0], primary=primary,
+        claim_ids=["law", "future-driver"], hypothesis_id="h")
+
+    validation = candidate["validation"]
+    assert validation["mapping"] == "log_power"
+    assert validation["beats_baseline"] is True
+    assert validation["skill"] > .5
+    assert candidate["forecast"][0]["q50"] == pytest.approx(
+        2.5 * 41.0 ** 1.7)
+    assert candidate["automation_eligible"] is False
+
+
+def test_relationship_family_rejects_unpredictive_driver():
+    driver = [float((index * 7) % 13 + 1) for index in range(30)]
+    target = [100.0 + (index % 2) for index in range(30)]
+    primary = [{"timestamp": _stamp(31)}, {"timestamp": _stamp(32)}]
+
+    candidate = fit_companion_relationship_candidate(
+        target, driver, [4.0, 5.0], primary=primary,
+        claim_ids=["law"], hypothesis_id="h")
+
+    assert candidate["validation"]["beats_baseline"] is False
+    assert candidate["selection_eligible"] is False
 
 
 def test_cited_history_segments_require_entailment_complete_nonoverlap():

@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+- Govern named but numerically incomplete target/driver relationships through
+  a fixed, low-dimensional relationship family (level-offset, linear, and
+  positive-data log-power). Selection uses prefix-only expanding-origin replay,
+  a complexity penalty, and the strongest declared target-only baseline; weak
+  relationships remain visible but cannot lead the human recommendation or
+  authorize automation.
+- Prevent governed scenario selectors from citing context as support for a
+  sealed scenario that does not carry that claim. Unattached context must be
+  represented as counterevidence, avoiding explanations that rhetorically bind
+  rejected evidence to an unchanged primary forecast.
+- Add privacy-safe structural diagnostics for model-authored sampled paths
+  (response hash, shape, value count, and rejection class) without retaining
+  raw provider output or user context.
+
 - **Explicit driver laws now produce governed conditional answers instead of
   target-identity mistakes.** High-precision reference-normalized square/cube
   relationships receive a deterministic typed front door. The host asks its

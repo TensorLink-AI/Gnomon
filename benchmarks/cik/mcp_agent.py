@@ -387,7 +387,17 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: driver/target authority check effective in the live product response.
 #: Version 182: the jailed MCP subprocess is pinned to the host's working-tree
 #: source instead of silently importing an older installed wheel.
-MCP_CONTRACT_VERSION = 182
+#: Version 183: named but numerically incomplete driver laws receive a typed
+#: prior-only front door, preserving useful model knowledge without inventing
+#: coefficients, support, or automation authority.
+#: Version 184: a cited driver transition beginning exactly at the observation
+#: cutoff is future-relevant; deterministic relationship routing no longer
+#: discards that boundary case.
+#: Version 185: supporting citations must belong to the selected sealed
+#: scenario; rejected/unattached context can appear only as counterevidence.
+#: Version 186: named driver relationships use a prefix-replayed, complexity-
+#: penalized relationship family before any model-authored path is requested.
+MCP_CONTRACT_VERSION = 186
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -3371,6 +3381,7 @@ class _Run:
             deterministic_dated_multiplier_dossier,
             deterministic_ended_recurring_disruption_dossier,
             deterministic_historical_observation_claim,
+            deterministic_named_driver_relationship_dossier,
             deterministic_reference_power_dossier,
             validate_temporal_dossier,
         )
@@ -3389,6 +3400,17 @@ class _Run:
             deterministic_reference_power = dict(deterministic_reference_power)
             reference_power_spec = deterministic_reference_power.pop(
                 "_reference_power_spec", None)
+        deterministic_named_relationship = (
+            deterministic_named_driver_relationship_dossier(
+                context, cutoff=self.timestamps[-1],
+                driver_names=list(self.companion_histories))
+            if deterministic_reference_power is None else None)
+        named_relationship_spec = None
+        if deterministic_named_relationship is not None:
+            deterministic_named_relationship = dict(
+                deterministic_named_relationship)
+            named_relationship_spec = deterministic_named_relationship.pop(
+                "_named_driver_relationship", None)
         categorical_schedule = _extract_categorical_state_schedule(
             narrative_context, self.timestamps, future_timestamps)
         relationship_contract = bool(
@@ -3400,6 +3422,7 @@ class _Run:
         companion_contract = bool(
             not relationship_contract and not observation_contract
             and deterministic_reference_power is None
+            and deterministic_named_relationship is None
             and _looks_like_structured_companion_context(
                 context, future_timestamps))
         deterministic_ended_disruption = (
@@ -3411,6 +3434,8 @@ class _Run:
         if (categorical_schedule is not None or relationship_contract
                 or observation_contract or deterministic_ended_disruption is not None):
             deterministic_reference_power = None
+            deterministic_named_relationship = None
+            named_relationship_spec = None
         deterministic_calibration_claim = (
             deterministic_additive_drift_claim(
                 context, history_start=self.timestamps[0],
@@ -3714,6 +3739,12 @@ class _Run:
                 "stage": "deterministic_reference_power_parse",
                 "elapsed_seconds": 0.0,
             })
+        elif deterministic_named_relationship is not None:
+            raw = bind_active_target(deterministic_named_relationship)
+            compiler_calls.append({
+                "stage": "deterministic_named_driver_relationship_parse",
+                "elapsed_seconds": 0.0,
+            })
         elif deterministic_calibration_claim is not None:
             raw = bind_active_target({
                 "events": [], "claims": [deterministic_calibration_claim],
@@ -3857,7 +3888,8 @@ class _Run:
                         for claim in verified_claims)
                 and probe.get("hypotheses"))
             retained_reference_interpretation = bool(
-                deterministic_reference_power is not None
+                (deterministic_reference_power is not None
+                 or deterministic_named_relationship is not None)
                 and verified_claims and probe.get("hypotheses")
                 and not hypothesis_failures)
             # Once one numeric lane is valid, malformed optional lanes remain
@@ -4820,6 +4852,41 @@ class _Run:
                 hypothesis_id=(
                     "host-verified-categorical-state:"
                     + str(categorical_schedule["name"])))
+        governed_named_relationship = None
+        if named_relationship_spec is not None:
+            from gnomon.context_intelligence import (
+                fit_companion_relationship_candidate)
+            driver_name = str(named_relationship_spec["driver"])
+            transition_time = datetime.fromisoformat(str(
+                named_relationship_spec["transition_timestamp"]
+            ).replace("Z", "+00:00"))
+            transition_value = float(named_relationship_spec[
+                "transition_value"])
+            observed_driver = self.companion_histories[driver_name]
+            future_driver = [
+                transition_value if datetime.fromisoformat(
+                    timestamp.replace("Z", "+00:00")) >= transition_time
+                else float(observed_driver[-1])
+                for timestamp in future_timestamps]
+            try:
+                governed_named_relationship = (
+                    fit_companion_relationship_candidate(
+                        self.values, observed_driver, future_driver,
+                        primary=[{"timestamp": timestamp}
+                                 for timestamp in future_timestamps],
+                        claim_ids=[str(item["claim_id"]) for item in
+                                   preliminary_dossier.get("claims") or []],
+                        hypothesis_id=(
+                            "host-fitted-named-relationship:" + driver_name)))
+                governed_named_relationship["future_driver_assumption"] = {
+                    "driver": driver_name,
+                    "transition_timestamp": transition_time.isoformat(),
+                    "transition_value": transition_value,
+                    "shape": named_relationship_spec[
+                        "future_path_assumption"],
+                }
+            except ValueError:
+                governed_named_relationship = None
         governed_companion = _fit_governed_companion_from_receipt(
             covariate_receipt, context=context,
             history_timestamps=self.timestamps, history_values=self.values,
@@ -4836,7 +4903,8 @@ class _Run:
             governed_companion["validation"] = governed_validation
             governed_companion["selection_eligible"] = bool(
                 provisional_companion.get("selection_eligible"))
-        governed_candidate = governed_categorical or governed_companion
+        governed_candidate = (governed_categorical or governed_companion
+                              or governed_named_relationship)
         categorical_prior_needed = bool(
             categorical_schedule is not None
             and governed_categorical is not None
@@ -4911,7 +4979,9 @@ class _Run:
                 requested_paths = recommended_sample_count(
                     len(future_timestamps))
                 initial_paths = (
-                    requested_paths if deterministic_reference_power is not None
+                    requested_paths if (
+                        deterministic_reference_power is not None
+                        or deterministic_named_relationship is not None)
                     else recommended_initial_sample_count(
                         len(future_timestamps)))
                 responses = complete_many(
@@ -5081,6 +5151,7 @@ class _Run:
             deterministic_companion_tables or categorical_schedule
             or deterministic_ended_disruption is not None
             or deterministic_reference_power is not None
+            or deterministic_named_relationship is not None
             or deterministic_calibration_claim is not None
             or deterministic_multiplier is not None)
         payload = {
@@ -5106,6 +5177,8 @@ class _Run:
                              if deterministic_ended_disruption is not None else
                              "explicit_reference_power_relationship"
                              if deterministic_reference_power is not None else
+                             "named_driver_relationship_prior"
+                             if deterministic_named_relationship is not None else
                              "explicit_additive_measurement_drift"
                              if deterministic_calibration_claim is not None else
                              "explicit_dated_multiplier"

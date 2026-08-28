@@ -1781,6 +1781,170 @@ def fit_companion_level_candidate(
     }
 
 
+def fit_companion_relationship_candidate(
+    target_history: list[float], companion_history: list[float],
+    future_companion: list[float], *, primary: list[dict[str, Any]],
+    claim_ids: list[str], hypothesis_id: str, minimum_overlap: int = 12,
+) -> dict[str, Any]:
+    """Fit a small fold-safe family for a named target/driver relationship.
+
+    The family is deliberately fixed and low dimensional: robust level
+    offset, ordinary linear mapping, and (for positive data) a log-power
+    mapping. Each member predicts every replay origin from prefix-only data.
+    A BIC-like complexity penalty chooses within the family; the chosen member
+    must still beat last-value by a multiplicity-adjusted margin. This lets a
+    supplied driver path contribute without asking an LLM to invent target
+    numbers or assuming that a named domain law has a particular exponent.
+    """
+    if len(target_history) != len(companion_history):
+        raise ValueError("target and companion histories must align")
+    if len(target_history) < minimum_overlap:
+        raise ValueError(
+            f"relationship mapping requires {minimum_overlap} rows")
+    if len(future_companion) != len(primary) or not primary:
+        raise ValueError("future companion path must match the forecast horizon")
+    target = [float(value) for value in target_history]
+    driver = [float(value) for value in companion_history]
+    future = [float(value) for value in future_companion]
+    if not all(math.isfinite(value) for value in [*target, *driver, *future]):
+        raise ValueError("relationship mapping values must be finite")
+
+    def fit_predict(kind: str, ys: list[float], xs: list[float], value: float) -> float:
+        if kind == "level_offset":
+            return value + statistics.median(
+                left - right for left, right in zip(ys, xs))
+        if kind == "linear":
+            xbar, ybar = statistics.mean(xs), statistics.mean(ys)
+            denom = sum((item - xbar) ** 2 for item in xs)
+            slope = (sum((x - xbar) * (y - ybar)
+                         for x, y in zip(xs, ys)) / denom
+                     if denom > 1e-12 else 0.0)
+            return ybar + slope * (value - xbar)
+        if kind == "log_power":
+            if value <= 0 or any(x <= 0 for x in xs) or any(y <= 0 for y in ys):
+                raise ValueError("log-power mapping requires positive values")
+            logs_x, logs_y = [math.log(x) for x in xs], [math.log(y) for y in ys]
+            xbar, ybar = statistics.mean(logs_x), statistics.mean(logs_y)
+            denom = sum((item - xbar) ** 2 for item in logs_x)
+            exponent = (sum((x - xbar) * (y - ybar)
+                            for x, y in zip(logs_x, logs_y)) / denom
+                        if denom > 1e-12 else 0.0)
+            intercept = ybar - exponent * xbar
+            return math.exp(intercept + exponent * math.log(value))
+        raise ValueError("unknown relationship family")
+
+    families = [("level_offset", 1), ("linear", 2)]
+    if min([*target, *driver, *future]) > 0:
+        families.append(("log_power", 2))
+    replay_start = max(8, minimum_overlap - 1)
+    scores: list[dict[str, Any]] = []
+    for family, parameters in families:
+        predictions, actuals, last_baselines, mean_baselines = [], [], [], []
+        try:
+            for origin in range(replay_start, len(target)):
+                predictions.append(fit_predict(
+                    family, target[:origin], driver[:origin], driver[origin]))
+                actuals.append(target[origin])
+                last_baselines.append(target[origin - 1])
+                mean_baselines.append(statistics.mean(target[:origin]))
+        except (ValueError, OverflowError):
+            continue
+        if not actuals or not all(math.isfinite(item) for item in predictions):
+            continue
+        mae = statistics.mean(abs(a - b) for a, b in zip(actuals, predictions))
+        baseline_scores = {
+            "last_value": statistics.mean(
+                abs(a - b) for a, b in zip(actuals, last_baselines)),
+            "expanding_mean": statistics.mean(
+                abs(a - b) for a, b in zip(actuals, mean_baselines)),
+        }
+        baseline_name, baseline_mae = min(
+            baseline_scores.items(), key=lambda item: (item[1], item[0]))
+        # Penalize flexible mappings inside the family before the family winner
+        # enters admission. The penalty is deterministic and weakens as replay
+        # evidence grows; adding variants cannot improve a candidate for free.
+        penalized_mae = mae * (1 + parameters * math.log(len(actuals) + 1)
+                               / max(1, len(actuals)))
+        scores.append({
+            "family": family, "parameters": parameters,
+            "validation_points": len(actuals), "mae": mae,
+            "penalized_mae": penalized_mae,
+            "baseline_mae": baseline_mae,
+            "baseline": baseline_name,
+            "baseline_scores": baseline_scores,
+            "skill": 1 - penalized_mae / max(baseline_mae, 1e-12),
+        })
+    if not scores:
+        raise ValueError("no relationship family could be replayed")
+    best = min(scores, key=lambda item: (
+        item["penalized_mae"], item["parameters"], item["family"]))
+    threshold = min(.25, .03 + .02 * math.log2(len(scores)))
+    eligible = bool(best["validation_points"] >= 8
+                    and best["skill"] >= threshold)
+    fitted_history = [fit_predict(
+        str(best["family"]), target, driver, value) for value in driver]
+    residuals = [actual - fitted for actual, fitted in
+                 zip(target, fitted_history)]
+    center = statistics.median(residuals)
+    mad = statistics.median(abs(value - center) for value in residuals)
+    level_scale = max(statistics.median(abs(value) for value in target), 1.0)
+    absolute_residuals = sorted(abs(value) for value in residuals)
+    residual_q90 = absolute_residuals[min(
+        len(absolute_residuals) - 1,
+        math.ceil(.9 * len(absolute_residuals)) - 1)]
+    half_width = max(1.2815515655446004 * 1.4826 * mad,
+                     residual_q90,
+                     level_scale * 1e-6)
+    evidence_weight = min(1.0, best["validation_points"] / 8.0)
+    baseline_point = target[-1]
+    rows = []
+    for source, value in zip(primary, future):
+        raw_point = fit_predict(str(best["family"]), target, driver, value)
+        point = baseline_point + evidence_weight * (raw_point - baseline_point)
+        width = max(half_width, abs(raw_point - point))
+        rows.append({
+            "timestamp": source.get("timestamp"), "point": point,
+            "q10": point - width, "q50": point, "q90": point + width,
+        })
+    return {
+        "hypothesis_id": hypothesis_id,
+        "kind": "fitted_companion_relationship_mapping",
+        "forecast": rows,
+        "quantiles": [{key: row[key] for key in
+                       ("timestamp", "q10", "q50", "q90")} for row in rows],
+        "claim_ids": list(dict.fromkeys(str(item) for item in claim_ids)),
+        "rationale": (
+            "Governed target/driver relationship selected from a fixed "
+            "low-dimensional family using prefix-only replay."),
+        "provenance_class": "governed_companion_relationship_mapping",
+        "validation": {
+            "scheme": "expanding_origin_fixed_relationship_family",
+            "mapping": best["family"], "family_scores": scores,
+            "candidate_families": len(scores),
+            "multiplicity_adjusted_threshold": threshold,
+            "validation_points": best["validation_points"],
+            "candidate_mae": best["mae"],
+            "penalized_candidate_mae": best["penalized_mae"],
+            "baseline_mae": best["baseline_mae"], "skill": best["skill"],
+            "beats_baseline": eligible, "baseline": best["baseline"],
+            "baseline_scores": best["baseline_scores"],
+            "relationship_known_at_each_origin": False,
+            "input_observations_known_at_each_origin": True,
+            "publication_evidence_weight": evidence_weight,
+            "publication_shrunk_to_baseline": evidence_weight < 1.0,
+        },
+        "support": "prior_assisted", "selection_eligible": eligible,
+        "automation_eligible": False, "primary_forecast_unchanged": True,
+        "executable": {
+            "kind": "fitted_companion_relationship_mapping", "version": "0.1",
+            "selected_family": best["family"],
+            "candidate_families": [item["family"] for item in scores],
+            "baseline_point": baseline_point,
+            "publication_evidence_weight": evidence_weight,
+        },
+    }
+
+
 def fit_categorical_state_candidate(
     target_history: list[float], state_history: list[str],
     future_states: list[str], *, primary: list[dict[str, Any]],
