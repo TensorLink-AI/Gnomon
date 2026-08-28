@@ -1,5 +1,14 @@
 # Changelog
 
+- **Complete context receipts are no longer repaid as prompt history.** The
+  benchmark host still binds every accepted event and hypothesis to Gnomon's
+  execution and preserves the complete immutable receipt, but gives the
+  tool-driving model only bounded routing/provenance counts. On a matched
+  three-case DeepSeek diagnostic this cut prompt usage from 81,386 to 37,465
+  tokens while preserving the explanation contract, one-call execution,
+  artifact identity, and zero leakage. This is diagnostic efficiency evidence,
+  not a context-admission graduation claim.
+
 - **Context knowledge time is host-owned, and literal tickets stay cheap.**
   A document-bound `known_at` now overrides model-authored timestamps with a
   disclosed normalization, so compiler and canonical folds use the same

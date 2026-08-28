@@ -35,11 +35,46 @@ from benchmarks.temporalbench import mcp_agent
 from benchmarks.temporalbench.mcp_agent import (
     MAX_ROUNDS,
     bounded_tool_text,
+    compact_context_compilation_for_prompt,
     compile_row_context,
     mcq_row,
     preferred_execution_tool,
     run_row,
 )
+
+
+def test_context_prompt_projection_is_bounded_and_keeps_routing_facts() -> None:
+    events = [{
+        "event_type": f"type-{index % 12}",
+        "known_at": f"2026-01-{(index % 28) + 1:02d}T00:00:00Z",
+        "claim": "large repeated claim that belongs only in the receipt " * 8,
+    } for index in range(32)]
+    compilation = {
+        "receipt_id": "receipt-123",
+        "events": events,
+        "hypotheses": [{"claim": "h"}] * 5,
+        "rejected": [
+            {"reason_code": "missing_time", "source": "long text" * 50},
+            {"reason_code": "missing_time"},
+            {"reason_code": "unsupported_transform"},
+        ],
+    }
+
+    projected = compact_context_compilation_for_prompt(compilation)
+
+    assert projected["receipt_id"] == "receipt-123"
+    assert projected["accepted_event_count"] == 32
+    assert projected["accepted_hypothesis_count"] == 5
+    assert projected["rejected_count"] == 3
+    assert len(projected["event_types"]) == 8
+    assert projected["event_types_omitted"] == 4
+    assert projected["known_at_min"] == "2026-01-01T00:00:00Z"
+    assert projected["known_at_max"] == "2026-01-28T00:00:00Z"
+    assert projected["rejection_code_counts"] == {
+        "missing_time": 2, "unsupported_transform": 1}
+    assert projected["execution_binding"] == "host-bound complete receipt"
+    assert len(json.dumps(projected)) < 800
+    assert "large repeated claim" not in json.dumps(projected)
 
 
 def test_temporal_question_compiler_uses_text_not_labels_and_reuses_receipt(

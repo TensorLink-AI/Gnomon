@@ -1842,11 +1842,12 @@ class _Run(_RunBase):
                      "artifact. No inspection call is available or needed.\n")
         if self.context_compilation.get("attempted"):
             text += ("\nThe host compiled the task narrative through Gnomon's "
-                     "quoted-context validator. This receipt is authoritative; "
-                     "only accepted events were supplied to execution:\n"
-                     + json.dumps({key: self.context_compilation.get(key, [])
-                                  for key in ("events", "hypotheses", "rejected")},
-                                  separators=(",", ":")) + "\n")
+                     "quoted-context validator. The complete authoritative "
+                     "receipt is host-bound to execution; this bounded summary "
+                     "is for routing and provenance only:\n"
+                     + json.dumps(compact_context_compilation_for_prompt(
+                         self.context_compilation), separators=(",", ":"))
+                     + "\n")
         if self.row.get("_require_gnomon_execution"):
             text += ("\nThis product run delegates every published numeric "
                      "trajectory to Gnomon. Submit the forecast artifact "
@@ -2322,10 +2323,12 @@ class _McqRun(_RunBase):
             max_rounds=MAX_ROUNDS, max_calls=MAX_MCP_CALLS,
         )
         if self.context_compilation.get("attempted"):
-            text += ("\nValidated context compiler receipt:\n"
-                     + json.dumps({key: self.context_compilation.get(key, [])
-                                   for key in ("events", "hypotheses", "rejected")},
-                                  separators=(",", ":")) + "\n")
+            text += ("\nThe complete validated context compiler receipt is "
+                     "host-bound to execution. This bounded summary is for "
+                     "routing and provenance only:\n"
+                     + json.dumps(compact_context_compilation_for_prompt(
+                         self.context_compilation), separators=(",", ":"))
+                     + "\n")
         return text
 
     def _abstain_outcome(self, reason: str) -> dict[str, Any]:
@@ -2466,3 +2469,38 @@ def _ensure_checkout_importable() -> None:
         *[root for root in roots if root not in existing],
         *[item for item in existing if item],
     ])
+
+
+# The host binds the complete compiler receipt to the execution call.  The
+# tool-driving model needs routing and provenance facts, not a second inline
+# copy of every event that will then be re-sent after the tool result.
+def compact_context_compilation_for_prompt(
+        compilation: Mapping[str, Any]) -> dict[str, Any]:
+    events = [item for item in compilation.get("events", [])
+              if isinstance(item, Mapping)]
+    hypotheses = [item for item in compilation.get("hypotheses", [])
+                  if isinstance(item, Mapping)]
+    rejected = [item for item in compilation.get("rejected", [])
+                if isinstance(item, Mapping)]
+    event_types = sorted({str(item.get("event_type")) for item in events
+                          if item.get("event_type")})
+    known_times = sorted({str(item.get("known_at")) for item in events
+                          if item.get("known_at")})
+    rejection_codes: dict[str, int] = {}
+    for item in rejected:
+        code = str(item.get("reason_code") or "unspecified")
+        rejection_codes[code] = rejection_codes.get(code, 0) + 1
+    return {
+        "receipt_id": compilation.get("receipt_id"),
+        "accepted_event_count": len(events),
+        "accepted_hypothesis_count": len(hypotheses),
+        "rejected_count": len(rejected),
+        "event_types": event_types[:8],
+        **({"event_types_omitted": len(event_types) - 8}
+           if len(event_types) > 8 else {}),
+        **({"known_at_min": known_times[0], "known_at_max": known_times[-1]}
+           if known_times else {}),
+        **({"rejection_code_counts": rejection_codes}
+           if rejection_codes else {}),
+        "execution_binding": "host-bound complete receipt",
+    }
