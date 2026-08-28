@@ -3532,6 +3532,7 @@ class _Run:
             deterministic_external_reference_point_dossier,
             deterministic_ended_recurring_disruption_dossier,
             deterministic_historical_observation_claim,
+            deterministic_quantitative_background_claims,
             deterministic_named_driver_relationship_dossier,
             deterministic_reference_power_dossier,
             validate_temporal_dossier,
@@ -4226,6 +4227,30 @@ class _Run:
                     str(item.get("source_span") or "") !=
                     literal_claim["source_span"]]
                 raw = {**raw, "claims": [literal_claim, *remaining_claims]}
+
+        # Descriptive numeric facts are useful cold-start evidence and should
+        # not disappear merely because a broad stochastic compile focused on
+        # a more dramatic (possibly rejected) claim. This copies exact source
+        # sentences only; it creates no effect, path, or automation authority.
+        deterministic_background = (
+            deterministic_quantitative_background_claims(context))
+        if deterministic_background:
+            existing_spans = {
+                str(item.get("source_span") or "").strip()
+                for item in raw.get("claims") or [] if isinstance(item, dict)}
+            missing_background = [
+                claim for claim in deterministic_background
+                if claim["source_span"] not in existing_spans]
+            if missing_background:
+                raw = {**raw, "claims": [
+                    *(raw.get("claims") or []), *missing_background]}
+                repair_decisions.append({
+                    "stage": "deterministic_quantitative_background_recall",
+                    "triggered": True,
+                    "claims_restored": len(missing_background),
+                    "numeric_authority": False,
+                    "automation_eligible": False,
+                })
 
         # A broad extraction prompt sometimes identifies every exact equation
         # yet emits no executable lane. For humans this looks like “Gnomon read

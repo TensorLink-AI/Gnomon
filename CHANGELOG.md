@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Preserve explicit descriptive statistics (averages, medians, typical rates,
+  and historical extrema) through a deterministic, quote-preserving recall
+  pass when the model compiler omits them. Restored facts remain scenario-only
+  until a separately sealed candidate uses them and can never authorize
+  automation.
 - Prevent one rejected context representation from suppressing safe use of
   other grounded facts. The sampled interpretation lane now receives only
   applicability-resolved, quantitative, non-associational source spans and

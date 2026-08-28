@@ -772,6 +772,52 @@ def _states_historical_reference_distribution(span: Any) -> bool:
         text))
 
 
+def deterministic_quantitative_background_claims(
+        context_text: str, *, maximum_claims: int = 8,
+) -> list[dict[str, Any]]:
+    """Preserve explicit descriptive quantities a compiler omitted.
+
+    This deliberately does not interpret dates, causal effects, or future
+    triggers. It copies only complete source sentences that state a descriptive
+    statistic (for example an average, median, typical rate, or historical
+    peak) together with an explicit number. The claims are scenario context,
+    never numeric authority or automation evidence by themselves.
+    """
+    if (isinstance(maximum_claims, bool) or not isinstance(maximum_claims, int)
+            or not 1 <= maximum_claims <= 32):
+        raise ValueError("maximum_claims must be an integer from 1 to 32")
+    sentences = [item.strip() for item in re.split(
+        r"(?<=[.!?])\s+|[\r\n]+", str(context_text or "")) if item.strip()]
+    statistic = re.compile(
+        r"\b(?:on\s+average|averag(?:e|es|ed|ing)|mean|median|typically|"
+        r"usual(?:ly)?|historical(?:ly)?|busiest|quietest|peak(?:ed|s)?|"
+        r"minimum|maximum)\b", re.I)
+    quantity = re.compile(
+        r"(?<![A-Za-z])[-+]?(?:\d+(?:\.\d*)?|\.\d+)\s*"
+        r"(?:%|percent\b|[A-Za-z][A-Za-z_-]*\b)", re.I)
+    prospective = re.compile(
+        r"\b(?:will|would|shall|tomorrow|next\s+(?:day|week|month|year)|"
+        r"forecast|projected|expected\s+to)\b", re.I)
+    claims = []
+    for sentence in sentences:
+        if (statistic.search(sentence) is None
+                or quantity.search(sentence) is None
+                or prospective.search(sentence) is not None):
+            continue
+        claims.append({
+            "source_span": sentence,
+            "relation": "supports_stability",
+            "effective_start": None,
+            "effective_end": None,
+            "timing_status": "atemporal_context",
+            "mechanism": "source-stated descriptive reference statistic",
+            "confidence": 0.5,
+        })
+        if len(claims) >= maximum_claims:
+            break
+    return claims
+
+
 def _timestamp(value: Any) -> datetime | None:
     try:
         parsed = datetime.fromisoformat(str(value))

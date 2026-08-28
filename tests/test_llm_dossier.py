@@ -8,9 +8,25 @@ import pytest
 from gnomon.llm_dossier import (
     attach_host_candidate_elicitation,
     deterministic_historical_observation_claim,
+    deterministic_quantitative_background_claims,
     validate_temporal_dossier,
     verify_temporal_dossier_seal,
 )
+
+
+def test_deterministic_quantitative_background_claims_copy_only_statistics():
+    text = (
+        "Demand averages 85 incidents per year. "
+        "A launch in 2027 will eliminate demand. "
+        "The busiest month historically recorded 19 incidents.")
+
+    claims = deterministic_quantitative_background_claims(text)
+
+    assert [claim["source_span"] for claim in claims] == [
+        "Demand averages 85 incidents per year.",
+        "The busiest month historically recorded 19 incidents."]
+    assert all(claim["timing_status"] == "atemporal_context"
+               for claim in claims)
 
 
 def test_only_host_can_attach_bounded_sampling_provenance():
