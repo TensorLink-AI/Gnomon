@@ -1428,6 +1428,34 @@ def test_accepted_historical_observation_count_does_not_crash_receipt(
     assert decision["triggered"] is False
 
 
+def test_literal_historical_observation_skips_redundant_llm_repair(tmp_path):
+    task = _task()
+    task.past_time[9] = (task.past_time[9][0], 0.0)
+    task.past_time[10] = (task.past_time[10][0], 0.0)
+    start, end = task.past_time[9][0], task.past_time[10][0]
+    task.scenario = (
+        f"Maintenance from {start} to {end} resulted in no requests "
+        "recorded. There is no future maintenance.")
+    compiler_output = json.dumps({
+        "events": [], "claims": [], "hypotheses": [],
+        "covariate_tables": [], "transformations": [],
+        "observation_interpretations": [], "effect_proposal": None,
+        "forecast_candidate": None,
+    })
+    forecaster = _forecaster(
+        [], tmp_path, profile="evidence", compiler_output=compiler_output)
+
+    _, extra = forecaster(task, 1)
+
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    assert [call["stage"] for call in receipt["compiler"]["calls"]] == [
+        "initial_compile"]
+    assert receipt["dossier"]["observation_interpretation_critique"][
+        "status"] == "accepted"
+    assert receipt["compiler"]["repair_decisions"][0]["triggered"] is False
+
+
 def test_evidence_binds_only_cited_host_timestamped_covariates(tmp_path):
     task = _task()
     date = task.future_time[0].split("T", 1)[0]

@@ -3640,6 +3640,27 @@ class _Run:
         raw, _ = _bind_missing_transformation_claim_windows(
             raw, self.timestamps[-1])
 
+        # High-precision historical observation semantics do not need an LLM
+        # to copy the same sentence twice.  Bind the deterministic verbatim
+        # claim before probing so the ordinary dossier validator can derive
+        # and replay its contamination interpretation immediately.  A repair
+        # remains available when the literal extractor cannot establish the
+        # required source evidence.
+        literal_observation_claim = None
+        if _expects_historical_zero_interpretation(context):
+            literal_observation_claim = (
+                deterministic_historical_observation_claim(
+                    context, history_start=self.timestamps[0],
+                    cutoff=self.timestamps[-1]))
+            if literal_observation_claim is not None:
+                remaining_claims = [
+                    item for item in raw.get("claims") or []
+                    if not isinstance(item, dict) or
+                    str(item.get("source_span") or "") !=
+                    literal_observation_claim["source_span"]]
+                raw = {**raw, "claims": [
+                    literal_observation_claim, *remaining_claims]}
+
         # Exercise the product's bounded repair lane. The first response is
         # probed before event parsing so a corrected complete dossier (claims
         # plus effect) feeds every downstream validator consistently.
@@ -3649,6 +3670,7 @@ class _Run:
             "effect_proposal", "forecast_candidate"))
         observation_lane_missing = (
             _expects_historical_zero_interpretation(context)
+            and literal_observation_claim is None
             and not raw.get("observation_interpretations"))
         # An empty response to numeric context is not a successful compile.
         # It is common for useful references (a comparable site's peak, a
@@ -3882,9 +3904,10 @@ class _Run:
         # sentence and stated date only; all filtering and candidate creation
         # still pass through Gnomon's normal validator below.
         if _expects_historical_zero_interpretation(context):
-            literal_claim = deterministic_historical_observation_claim(
-                context, history_start=self.timestamps[0],
-                cutoff=self.timestamps[-1])
+            literal_claim = literal_observation_claim or (
+                deterministic_historical_observation_claim(
+                    context, history_start=self.timestamps[0],
+                    cutoff=self.timestamps[-1]))
             if literal_claim is not None:
                 remaining_claims = [
                     item for item in raw.get("claims") or []
