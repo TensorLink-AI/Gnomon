@@ -188,6 +188,34 @@ def dominant_scenario_id(scenarios: list[dict[str, Any]]) -> str | None:
         # sweep already made the numeric choice; an LLM may explain it but
         # cannot inconsistently demote it in best-effort publication.
         return str(seasonal_assisted[0]["scenario_id"])
+    governed_replay = []
+    for item in scenarios:
+        effect = item.get("effect") or {}
+        validation = effect.get("validation") or {}
+        executable = effect.get("executable") or {}
+        if (item.get("human_selection_eligible") is True
+                and item.get("support") == "prior_assisted"
+                and str(effect.get("candidate_origin") or "").startswith(
+                    "governed_")
+                and str(executable.get("kind") or "").startswith("fitted_")
+                and validation.get("beats_baseline") is True
+                and int(validation.get("validation_points") or 0) > 0
+                and float(validation.get(
+                    "publication_evidence_weight") or 0.0) > 0.0):
+            governed_replay.append(item)
+    selectable_alternatives = [
+        item for item in alternatives
+        if item.get("human_selection_eligible",
+                    item.get("selection_eligible", True)) is True]
+    if (len(governed_replay) == 1
+            and selectable_alternatives == governed_replay):
+        # A single sealed, fitted executable that beat its declared baseline
+        # under replay has already made the numeric comparison.  Asking an
+        # LLM to choose between it and the context-free primary adds no new
+        # evidence and can discard a valid conditional answer.  This remains
+        # a human-only prior-assisted recommendation unless the stronger
+        # historical-admission requirements are independently satisfied.
+        return str(governed_replay[0]["scenario_id"])
     source_determined_scenarios = [item for item in scenarios
                        if item.get("role") == "effect_composed"
                        and item.get("support") == "hypothetical_sensitivity"
