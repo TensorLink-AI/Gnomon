@@ -1001,11 +1001,6 @@ def _attach_tsfm_on_ramp(payload: dict[str, Any],
 def _compact_sensitivity_projection(items: list[dict[str, Any]]) \
         -> list[dict[str, Any]]:
     """Group numerically identical scenarios for a bounded wire response."""
-    def preview(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        selected = rows if len(rows) <= 2 else [rows[0], rows[-1]]
-        return [{key: row[key] for key in ("timestamp", "q50") if key in row}
-                for row in selected]
-
     def compact_effect(effect: Any) -> dict[str, Any] | None:
         if not isinstance(effect, dict):
             return None
@@ -1042,12 +1037,13 @@ def _compact_sensitivity_projection(items: list[dict[str, Any]]) \
             grouped[key] = {
                 "events": [], "support": scenario.get("support"),
                 "primary_forecast_changed": False,
-                "assumed_effect": scenario.get("assumed_effect"),
-                "assumed_effect_unit": scenario.get("assumed_effect_unit"),
+                **({"assumed_effect": scenario.get("assumed_effect")}
+                   if scenario.get("assumed_effect") is not None else {}),
+                **({"assumed_effect_unit": scenario.get(
+                    "assumed_effect_unit")}
+                   if scenario.get("assumed_effect_unit") is not None else {}),
                 "assumptions": assumptions,
                 **({"effect": compact_effect(scenario.get("effect")),
-                    "forecast_preview": preview(
-                        scenario.get("forecast") or []),
                     "consequence": scenario.get("consequence"),
                     "consequence_summary": scenario.get(
                         "consequence_summary")}
@@ -1057,8 +1053,8 @@ def _compact_sensitivity_projection(items: list[dict[str, Any]]) \
                     scenario.get("automation_eligible", False)),
                 "selection_eligible": bool(
                     scenario.get("selection_eligible", True)),
-                "intervals_available": bool(
-                    scenario.get("intervals_available", True)),
+                **({"intervals_available": False}
+                   if scenario.get("intervals_available") is False else {}),
                 "forecast_rows": len(scenario.get("forecast", [])),
                 "location": "artifact.results[].sensitivity_scenarios",
             }
@@ -1141,7 +1137,7 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
             projected["dispositions_location"] = (
                 "artifact.results[].context_outcome.dispositions")
         hypotheses = list(projected.get("hypotheses") or [])
-        if len(hypotheses) > 4:
+        if hypotheses:
             signatures: dict[str, dict[str, Any]] = {}
             for hypothesis in hypotheses:
                 signature_fields = {
@@ -1150,7 +1146,8 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
                         "effect_family", "entity_kind", "entity_scope",
                         "grounding_status", "numeric_status",
                         "may_affect_numbers", "may_affect_primary_forecast",
-                    ) if key in hypothesis
+                    ) if (key in hypothesis and hypothesis.get(key) is not None
+                          and hypothesis.get(key) != "unknown")
                 }
                 signature = json.dumps(
                     signature_fields, sort_keys=True, separators=(",", ":"))
@@ -1164,6 +1161,8 @@ def brief_summary(artifact: ForecastArtifact, path: Any) -> dict[str, Any]:
             projected["hypotheses"] = list(signatures.values())
             projected["hypotheses_location"] = (
                 "artifact.results[].context_outcome.hypotheses")
+        if projected.get("conditional_forecasts_produced") == 0:
+            projected.pop("conditional_forecasts_produced", None)
         excluded = list(projected.get("excluded") or [])
         if len(excluded) > 4:
             reason_counts: dict[str, int] = {}

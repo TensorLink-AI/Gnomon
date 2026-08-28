@@ -375,6 +375,7 @@ def test_qualitative_context_lane_produces_non_automatable_sensitivity(
 
 def test_validated_structural_context_reaches_scenario_lane_automatically(
         tmp_path) -> None:
+    import json
     from datetime import date, timedelta
     from gnomon.toolspec import runner_for
 
@@ -420,15 +421,16 @@ def test_validated_structural_context_reaches_scenario_lane_automatically(
     assert scenario["effect"]["provenance"]["provenance_class"] == \
         "human_assumption"
     assert scenario["effect"]["shape"] == "trend_change"
-    assert len(scenario["forecast_preview"]) == 2
-    assert {"timestamp", "q50"} <= set(scenario["forecast_preview"][0])
     assert scenario["consequence"]["status"] == "numeric_difference"
-    assert scenario["consequence"]["first_affected_timestamp"] != \
-        scenario["forecast_preview"][0]["timestamp"]
-    assert scenario["consequence"]["horizon_end_scenario_q50"] == \
-        scenario["forecast_preview"][-1]["q50"]
+    assert "forecast_preview" not in scenario
+    assert scenario["consequence"]["first_affected_timestamp"] == \
+        "2026-03-03T00:00:00"
     assert "canonical primary remains unchanged" in \
         scenario["consequence_summary"]
+    # Brief MCP responses omit the duplicate scenario forecast preview while
+    # keeping the established publication contract and exact consequence.
+    assert payload["publication"]["projection"] == "compact"
+    assert len(json.dumps(payload, default=str)) < 16_500
 
 
 def test_brief_compacts_large_repeated_context_without_losing_counts(
