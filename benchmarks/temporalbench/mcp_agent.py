@@ -1801,8 +1801,16 @@ class _Run(_RunBase):
                     "items": {"type": "string"},
                     "maxItems": 8,
                 }
+                parameters["properties"]["context_automation_eligible"] = {
+                    "type": "boolean",
+                    "description": (
+                        "Copy context_outcome.automation_eligible exactly. "
+                        "Scenario-only and rejected context is false."),
+                }
                 parameters["required"].append("reasoning")
                 parameters["required"].append("cited_context_gate_codes")
+                parameters["required"].append(
+                    "context_automation_eligible")
             else:
                 parameters["properties"].pop("reasoning", None)
             if getattr(self, "temporal_compilation", {}).get("questions"):
@@ -1977,6 +1985,8 @@ class _Run(_RunBase):
                 # actually applied to the emitted trajectory.
                 "applied": (len(outcome_events) if status == "applied" else 0),
                 "support": str(support),
+                "automation_eligible": disposition.get(
+                    "automation_eligible"),
                 "admitted_event_ids": [
                     str(item.get("event_id")) for item in admitted
                     if isinstance(item, dict) and item.get("event_id")
@@ -2191,6 +2201,20 @@ class _Run(_RunBase):
                 "invalid": [code for code in supplied
                             if code not in expected_codes],
             }
+            engine_automation = {
+                value.get("automation_eligible")
+                for value in self.context_execution.values()
+                if value.get("automation_eligible") is not None
+            }
+            supplied_automation = arguments.get(
+                "context_automation_eligible")
+            self.submission["context_automation_projection"] = {
+                "engine": (next(iter(engine_automation))
+                           if len(engine_automation) == 1 else None),
+                "supplied": supplied_automation,
+                "matched": (len(engine_automation) == 1 and
+                            supplied_automation in engine_automation),
+            }
         return {"accepted": True, "routes": routes}
 
     def _project_receipt_choices(self) -> dict[str, dict[str, Any]]:
@@ -2277,6 +2301,10 @@ class _Run(_RunBase):
                 self.submission["context_gate_citations"]}
                if self.submission.get("context_gate_citations") is not None
                else {}),
+            **({"context_automation_projection":
+                self.submission["context_automation_projection"]}
+               if self.submission.get(
+                   "context_automation_projection") is not None else {}),
             "canonical_mcq": self.submission.get("canonical_mcq", {}),
             "synthesized_mcq": self.submission.get("synthesized_mcq", {}),
             "choice_authority": self.submission.get("choice_authority", {}),

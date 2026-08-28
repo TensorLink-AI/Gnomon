@@ -924,11 +924,18 @@ def test_context_contract_requires_bounded_typed_gate_citations():
     parameters = run._submit_tool()["function"]["parameters"]
 
     assert parameters["required"] == [
-        "forecast", "reasoning", "cited_context_gate_codes"]
+        "forecast", "reasoning", "cited_context_gate_codes",
+        "context_automation_eligible"]
     citations = parameters["properties"]["cited_context_gate_codes"]
     assert citations["maxItems"] == 8
     assert citations["items"] == {"type": "string"}
     assert parameters["properties"]["reasoning"]["maxLength"] == 600
+    assert parameters["properties"]["context_automation_eligible"] == {
+        "type": "boolean",
+        "description": (
+            "Copy context_outcome.automation_eligible exactly. Scenario-only "
+            "and rejected context is false."),
+    }
 
 
 def test_typed_questions_require_explicit_synthesis_and_basis_maps():

@@ -35,6 +35,7 @@ def test_grounded_unestimated_event_is_scenario_only() -> None:
     outcome = context_outcome([_event()], "heart_rate")
     assert outcome["status"] == "scenario_only"
     assert outcome["primary_forecast_changed"] is False
+    assert outcome["automation_eligible"] is False
     assert outcome["hypotheses"][0]["magnitude"] is None
     assert outcome["recovery_actions"]
 
@@ -72,6 +73,7 @@ def test_failed_deterministic_claim_is_rejected_not_scenario() -> None:
     outcome = context_outcome([_event("constraint:capacity")], "heart_rate")
     assert outcome["status"] == "rejected"
     assert outcome["primary_forecast_changed"] is False
+    assert outcome["automation_eligible"] is False
 
 
 def test_mixed_context_preserves_scenario_and_rejected_dispositions() -> None:

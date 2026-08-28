@@ -1,5 +1,13 @@
 # Changelog
 
+- **Context scenarios cannot imply automation authority.** Every applied,
+  scenario-only, partially represented, and rejected context outcome now says
+  explicitly that context admission alone is not automation eligibility. The
+  agent evaluation requires the model to copy that boolean and state the limit
+  unambiguously; “automation was not requested” no longer substitutes for
+  “this scenario is not eligible.” The matched diagnostic preserved the false
+  value on all three cases without changing the primary forecast.
+
 - **Context explanations must cite the engine evidence they rely on.** The
   context-agent evaluation now asks for bounded typed citations to Gnomon's
   failed admission gates and checks them against the gates actually returned

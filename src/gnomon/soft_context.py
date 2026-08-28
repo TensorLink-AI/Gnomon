@@ -143,6 +143,10 @@ def context_outcome(
                         for event in applicable]
         return {
             "status": "applied", "primary_forecast_changed": True,
+            # Numeric admission permits a labelled context-conditioned
+            # recommendation. Automation remains a separate explicit policy
+            # decision; this context outcome alone never grants it.
+            "automation_eligible": False,
             "canonical_primary_preserved": True,
             "selected_output_role": "context_conditioned_projection",
             "canonical_primary_location": "artifact.results[].primary_forecast",
@@ -198,6 +202,7 @@ def context_outcome(
             "status": ("partially_represented"
                        if len(generic) != len(applicable) else "scenario_only"),
             "primary_forecast_changed": False,
+            "automation_eligible": False,
             "events": [event.event_id for event in applicable],
             "dispositions": dispositions,
             **({"context_receipt_ids": receipt_ids} if receipt_ids else {}),
@@ -231,6 +236,7 @@ def context_outcome(
         }
     return {
         "status": "rejected", "primary_forecast_changed": False,
+        "automation_eligible": False,
         "events": [event.event_id for event in applicable],
         **({"context_receipt_ids": receipt_ids} if receipt_ids else {}),
         **({"failed_gate_codes": failed_gate_codes}

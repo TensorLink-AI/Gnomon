@@ -320,6 +320,21 @@ def test_surface_summary_reports_agent_context_explanation_contract():
     }
 
 
+def test_automation_limit_needs_typed_parity_and_explicit_ineligibility():
+    check = surface_runner.preserves_automation_limit
+    matched = {"engine": False, "supplied": False, "matched": True}
+
+    assert check("Automation eligibility is false.", restricted=True,
+                 projection=matched)
+    assert check("This scenario cannot authorize automation.", restricted=True,
+                 projection=matched)
+    assert not check("Automation was not requested.", restricted=True,
+                     projection=matched)
+    assert not check("Automation is not eligible.", restricted=True,
+                     projection={**matched, "matched": False})
+    assert check("", restricted=False, projection={})
+
+
 def test_history_surface_row_excludes_all_outside_context():
     raw_cases, _ = generate(32, per_family=1)
     case = Case.from_dict(next(

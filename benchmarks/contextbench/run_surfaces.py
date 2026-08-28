@@ -250,6 +250,21 @@ def _artifact_contract(outcome: dict[str, Any], forecast: list[float] | None
     return parity, leakage
 
 
+def preserves_automation_limit(
+    explanation: str, *, restricted: bool, projection: dict[str, Any],
+) -> bool:
+    """Require typed parity plus an unambiguous human-facing authority limit."""
+    if not restricted:
+        return True
+    lowered = explanation.lower()
+    return projection.get("matched") is True and any(
+        token in lowered for token in (
+            "not eligible", "ineligible", "cannot automate",
+            "cannot authorize", "no automation", "eligibility is false",
+            "eligible is false",
+        ))
+
+
 def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
              work_root: Path, receipt_dir: Path,
              routing_policy: str = "compiled",
@@ -381,11 +396,13 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
             ("interval" in explanation and any(
                 token in explanation for token in (
                     "weak", "coverage", "failed", "unreliable"))))
-        preserved_automation_limit = (
-            not interval_weak or
-            ("automat" in explanation and any(
-                token in explanation for token in (
-                    "not", "no ", "ineligible", "cannot"))))
+        automation_projection = contextual.get(
+            "context_automation_projection") or {}
+        automation_restricted = (
+            context_gate.get("automation_eligible") is False)
+        preserved_automation_limit = preserves_automation_limit(
+            explanation, restricted=automation_restricted,
+            projection=automation_projection)
         citations = contextual.get("context_gate_citations") or {}
         expected_citations = list(citations.get("expected") or [])
         rejection_evidence_cited = (
@@ -429,6 +446,7 @@ def run_case(case: Case, oracle: Oracle, client: OpenRouterClient, profile: str,
                 )),
             },
             "context_gate_citations": citations,
+            "context_automation_projection": automation_projection,
             "history_route": (history.get("channel_route") or {}).get("value"),
             "context_route": (contextual.get("channel_route") or {}).get("value"),
             "history_calls": int((history.get("mcp") or {}).get("calls", 0)),
