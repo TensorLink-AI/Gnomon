@@ -1,5 +1,12 @@
 # Changelog
 
+- **A fold winner must remain executable on the complete visible history.**
+  Built-in candidates now receive a domain-only final-fit check before
+  calibration. If later visible observations invalidate the model (for
+  example, a negative demand value invalidating Croston-SBA), Gnomon
+  recalibrates and publishes the strongest baseline instead of crashing after
+  selection or attaching the failed candidate's intervals to a fallback.
+
 - **Recurring events must separate from calendar placebos beyond sampling
   noise.** Episode candidates require their episode-level 95% lower bound to
   exceed the strongest displaced copy of the schedule. Residual and detrended

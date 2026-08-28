@@ -1982,6 +1982,24 @@ def evaluate(
             raise ValueError(f"no adapter available for {name}")
         return _predict_adapter(adapter, train, steps, season)
 
+    # A built-in can be valid on every earlier selection/calibration prefix
+    # yet become outside its mathematical domain when later visible data
+    # arrives (Croston-SBA is the canonical example: it requires non-negative
+    # demand). Domain eligibility is not a score and may therefore be checked
+    # on the complete visible history without using the report-only future to
+    # choose a winner. Fall back before calibration so points, residuals,
+    # intervals, identity, and publication all belong to the same executable.
+    if selected in MODELS:
+        try:
+            _predict_selected(selected, values, len(values))
+        except (ValueError, ArithmeticError, OverflowError) as exc:
+            warnings.append(
+                f"{selected} won earlier folds but cannot fit the complete "
+                f"visible history ({exc}); publishing the strongest baseline "
+                f"{strongest_baseline} instead."
+            )
+            selected = strongest_baseline
+
     # Get calibration prediction from the selected model; fall back to the
     # strongest baseline if a TSFM/ensemble selection cannot predict here.
     try:
@@ -2270,9 +2288,9 @@ def evaluate(
             CandidateIdentity(
                 kind="builtin", name=selected,
                 revisions=_revisions(()),
-                # A built-in is stdlib arithmetic over the visible
-                # history: there is no failure mode that would swap it
-                # for something else at final prediction.
+                # Built-in domain eligibility was checked on the complete
+                # visible history before calibration, so publication does not
+                # need a second candidate-selection path.
                 fallback_policy="none",
             ),
             selected,
