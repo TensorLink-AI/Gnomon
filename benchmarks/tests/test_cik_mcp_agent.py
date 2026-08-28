@@ -379,6 +379,7 @@ def test_companion_identity_may_be_split_across_heading_and_description():
     future = ["2024-05-01T00:00:00+00:00"]
     rows = [{
         "timestamp": timestamp, "new_jersey_unemployment_rate": 4 + index,
+        "known_at": "2023-01-01T00:00:00+00:00",
         "provenance": {"evidence_quote":
                        f"({timestamp[:10]} 00:00:00, {4 + index})"},
     } for index, timestamp in enumerate([*history, *future])]
@@ -405,6 +406,7 @@ def test_multiple_companions_select_by_replay_not_table_order():
         for timestamp, value in zip([*history, *future], values):
             rows.append({
                 "timestamp": timestamp, name: value,
+                "known_at": "2023-01-01T00:00:00+00:00",
                 "provenance": {"evidence_quote":
                     f"({timestamp[:10]} 00:00:00, {value})"},
             })
@@ -427,6 +429,93 @@ def test_multiple_companions_select_by_replay_not_table_order():
     assert all("17" not in claim["source_span"] or
                claim["effective_start"] == future[0]
                for claim in bound["claims"])
+
+
+def test_multiple_companions_can_publish_one_fold_safe_panel_consensus():
+    history = [f"2024-{month:02d}-01T00:00:00+00:00"
+               for month in range(1, 11)]
+    future = ["2024-11-01T00:00:00+00:00"]
+    target = [1.2653, 1.7119, .2429, 2.1811, .9517,
+              -1.4068, -1.6671, -3.2680, -3.5206, -.5662]
+    companions = [
+        [-2.1281, -2.0913, -5.7514, -2.7286, -3.8475,
+         -6.0268, -6.4376, -12.7660, -7.5434, -5.2184, -4.2],
+        [3.6111, 5.9201, 4.4974, 3.5235, 5.6424,
+         5.5875, 2.2730, 2.6712, -.2326, 2.2098, 3.2],
+        [7.9755, 13.7911, 9.8832, 13.3420, 11.8188,
+         7.1835, 6.0624, 4.6657, 8.2864, 9.5665, 10.5],
+    ]
+
+    def table(index, values):
+        name = f"peer_{index}_demand"
+        return {"name": name, "rows": [{
+            "timestamp": timestamp, name: value,
+            "known_at": "2023-01-01T00:00:00+00:00",
+            "provenance": {"evidence_quote":
+                           f"({timestamp[:10]} 00:00:00, {value})"},
+        } for timestamp, value in zip([*history, *future], values)]}
+
+    receipt = {"tables": [table(index, values)
+                           for index, values in enumerate(companions)]}
+    context = " ".join(f"Peer {index} demand"
+                       for index in range(len(companions)))
+    candidate = _fit_governed_companion_from_receipt(
+        receipt, context=context, history_timestamps=history,
+        history_values=target, future_timestamps=future, claims=[])
+
+    assert candidate["source_table_name"].startswith("panel:")
+    assert candidate["validation"]["mapping"] == (
+        "panel_median_of_companion_level_offsets")
+    assert candidate["validation"]["candidate_tables"] == 3
+    assert candidate["validation"]["candidate_estimators"] == 4
+    assert candidate["validation"]["selected_estimator"].startswith("panel:")
+    scores = candidate["validation"]["estimator_scores"]
+    assert len(scores) == 4
+    assert scores[0]["mapping"] == "panel_median_of_companion_level_offsets"
+    assert all(set(item) == {
+        "source", "mapping", "validation_points", "skill",
+        "candidate_mae", "baseline_mae", "heterogeneity_scaled",
+    } for item in scores)
+    assert candidate["validation"]["beats_baseline"] is True
+    assert candidate["automation_eligible"] is False
+    bound = _bind_covariate_row_claims(
+        {}, receipt, future, table_name=None, maximum_claims=128)
+    claims = [{**item, "claim_id": f"claim-{index}"}
+              for index, item in enumerate(bound["claims"], 1)]
+    sealed = _fit_governed_companion_from_receipt(
+        receipt, context=context, history_timestamps=history,
+        history_values=target, future_timestamps=future, claims=claims)
+    assert sealed["source_table_name"].startswith("panel:")
+    assert sealed["validation"]["candidate_estimators"] == 4
+
+
+def test_companion_replay_does_not_backdate_late_known_context():
+    history = [f"2024-{month:02d}-01T00:00:00+00:00"
+               for month in range(1, 9)]
+    future = ["2024-09-01T00:00:00+00:00"]
+    name = "peer_demand"
+    values = [10, 12, 11, 14, 13, 16, 15, 18, 17]
+    # The complete document became available only at the current cutoff. Its
+    # historical rows must not be treated as inputs known during old replays.
+    rows = [{
+        "timestamp": timestamp, "known_at": history[-1], name: value,
+        "provenance": {"evidence_quote":
+                       f"({timestamp[:10]} 00:00:00, {value})"},
+    } for timestamp, value in zip([*history, *future], values)]
+    receipt = {"tables": [{"name": name, "rows": rows}]}
+    candidate = _fit_governed_companion_from_receipt(
+        receipt, context="Peer demand " + " ".join(
+            row["provenance"]["evidence_quote"] for row in rows),
+        history_timestamps=history,
+        history_values=[value + 2 for value in values[:-1]],
+        future_timestamps=future, claims=[])
+
+    validation = candidate["validation"]
+    assert validation["validation_points"] == 0
+    assert validation["skill"] is None
+    assert validation["beats_baseline"] is False
+    assert validation["per_origin_observation_availability_checked"] is True
+    assert validation["input_observations_known_at_each_origin"] is False
 
 
 def test_regular_long_forecast_grid_is_compact_but_exact():
@@ -1198,7 +1287,7 @@ def test_structured_context_keeps_governed_and_model_candidates_separate(
         for draw in range(3)]
     selector = {
         "selected_scenario_id": "prior-assisted-2",
-        "ranking": ["prior-assisted-2", "primary"],
+        "ranking": ["prior-assisted-2", "primary", "prior-assisted-1"],
         "cited_claim_ids": ["claim-1"],
         "counterevidence_claim_ids": [], "confidence": .55,
         "counterevidence_hypothesis_ids": ["hyp-071635c80c62"],
@@ -1218,7 +1307,11 @@ def test_structured_context_keeps_governed_and_model_candidates_separate(
     roles = {item["role"] for item in extra["publication"][
         "candidate_portfolio"]}
     assert "model_authored" in roles
-    assert "governed_companion_mapping" not in roles
+    assert "governed_companion_mapping" in roles
+    governed = next(item for item in extra["publication"][
+        "candidate_portfolio"] if item["role"] ==
+        "governed_companion_mapping")
+    assert governed["human_selection_eligible"] is False
     assert extra["publication"]["recommended_scenario_id"] == \
         "prior-assisted-2"
     assert extra["scenario_selector"]["accepted"] is True
@@ -1227,7 +1320,7 @@ def test_structured_context_keeps_governed_and_model_candidates_separate(
     trace = json.loads(next((tmp_path / "traces").glob("*.json")).read_text())
     assert trace["context_compilation"]["dossier_count"] == 2
     assert trace["context_compilation"]["candidate_origins"] == [
-        "model_authored"]
+        "governed_companion_mapping", "model_authored"]
     timing = trace["context_compilation"]["compiler_timing"]
     assert timing["kind"] == "deterministic_parse_plus_sealed_model_candidate"
     assert timing["prompt_bytes"] > 0

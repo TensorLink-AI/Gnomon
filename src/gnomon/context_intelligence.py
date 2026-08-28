@@ -1665,6 +1665,7 @@ def fit_companion_level_candidate(
     future_companion: list[float], *, primary: list[dict[str, Any]],
     claim_ids: list[str], hypothesis_id: str,
     minimum_overlap: int = 4,
+    replay_origin_eligible: list[bool] | None = None,
 ) -> dict[str, Any]:
     """Fit a robust, bounded mapping from a supplied companion path.
 
@@ -1678,6 +1679,9 @@ def fit_companion_level_candidate(
     if len(target_history) < minimum_overlap:
         raise ValueError(
             f"companion mapping requires {minimum_overlap} overlapping rows")
+    if (replay_origin_eligible is not None
+            and len(replay_origin_eligible) != len(target_history)):
+        raise ValueError("companion replay availability must align")
     if len(future_companion) != len(primary) or not primary:
         raise ValueError("future companion path must match the forecast horizon")
     target = [float(value) for value in target_history]
@@ -1691,6 +1695,9 @@ def fit_companion_level_candidate(
     baselines: list[float] = []
     replay_start = max(2, minimum_overlap - 1)
     for origin in range(replay_start, len(target)):
+        if (replay_origin_eligible is not None
+                and not replay_origin_eligible[origin]):
+            continue
         offset = statistics.median(
             target[index] - companion[index] for index in range(origin))
         predictions.append(companion[origin] + offset)
@@ -1698,13 +1705,13 @@ def fit_companion_level_candidate(
         baselines.append(target[origin - 1])
     candidate_mae = (statistics.mean(abs(a - b) for a, b in
                                      zip(actuals, predictions))
-                     if actuals else math.inf)
+                     if actuals else None)
     baseline_mae = (statistics.mean(abs(a - b) for a, b in
                                     zip(actuals, baselines))
-                    if actuals else math.inf)
+                    if actuals else None)
     skill = (1 - candidate_mae / max(baseline_mae, 1e-12)
-             if math.isfinite(candidate_mae) and math.isfinite(baseline_mae)
-             else -math.inf)
+             if candidate_mae is not None and baseline_mae is not None
+             else None)
     offset = statistics.median(
         left - right for left, right in zip(target, companion))
     fitted = [value + offset for value in companion]
@@ -1739,7 +1746,8 @@ def fit_companion_level_candidate(
             "q10": point - published_half_width, "q50": point,
             "q90": point + published_half_width,
         })
-    beats_baseline = bool(replay_points >= 3 and skill >= .02)
+    beats_baseline = bool(
+        replay_points >= 3 and skill is not None and skill >= .02)
     return {
         "hypothesis_id": hypothesis_id,
         "kind": "fitted_companion_level_mapping",
@@ -1762,7 +1770,10 @@ def fit_companion_level_candidate(
             "beats_baseline": beats_baseline,
             "baseline": "last_value",
             "relationship_known_at_each_origin": False,
-            "input_observations_known_at_each_origin": True,
+            "input_observations_known_at_each_origin": bool(
+                replay_origin_eligible is None or replay_points > 0),
+            "per_origin_observation_availability_checked": (
+                replay_origin_eligible is not None),
             "publication_evidence_weight": evidence_weight,
             "publication_shrunk_to_baseline": evidence_weight < 1.0,
             "publication_shrinkage_basis": (
@@ -1776,6 +1787,193 @@ def fit_companion_level_candidate(
             "kind": "fitted_companion_level_mapping", "version": "0.1",
             "offset": offset, "interval_half_width": half_width,
             "baseline_point": baseline_point,
+            "publication_evidence_weight": evidence_weight,
+        },
+    }
+
+
+def fit_companion_panel_candidate(
+    target_history: list[float], companion_histories: list[list[float]],
+    future_companions: list[list[float]], *, primary: list[dict[str, Any]],
+    claim_ids: list[str], hypothesis_id: str, minimum_overlap: int = 6,
+    replay_origin_eligible: list[bool] | None = None,
+) -> dict[str, Any]:
+    """Fit one robust panel consensus without selecting among columns.
+
+    Each companion receives only a prefix-fitted median level offset. Their
+    contemporaneous predictions are then aggregated by a median, making the
+    executable invariant to column order and robust to one extreme peer. Every
+    replay origin refits all offsets from data available before that origin.
+    Admission compares the single fixed panel estimator with the strongest of
+    last value, expanding mean, and robust drift, and rejects panels whose
+    member predictions remain materially heterogeneous after normalization.
+    """
+    if not 2 <= len(companion_histories) <= 64:
+        raise ValueError("panel mapping requires between 2 and 64 companions")
+    if len(companion_histories) != len(future_companions):
+        raise ValueError("panel history and future companion counts must match")
+    if len(target_history) < minimum_overlap:
+        raise ValueError(
+            f"panel mapping requires {minimum_overlap} overlapping rows")
+    if (replay_origin_eligible is not None
+            and len(replay_origin_eligible) != len(target_history)):
+        raise ValueError("panel replay availability must align")
+    if not primary:
+        raise ValueError("panel mapping requires a non-empty forecast horizon")
+    n = len(target_history)
+    horizon = len(primary)
+    if any(len(values) != n for values in companion_histories):
+        raise ValueError("panel histories must align with the target")
+    if any(len(values) != horizon for values in future_companions):
+        raise ValueError("panel future paths must match the forecast horizon")
+    target = [float(value) for value in target_history]
+    histories = [[float(value) for value in values]
+                 for values in companion_histories]
+    futures = [[float(value) for value in values]
+               for values in future_companions]
+    if not all(math.isfinite(value) for value in [
+            *target, *(value for series in histories for value in series),
+            *(value for series in futures for value in series)]):
+        raise ValueError("panel mapping values must be finite")
+
+    def member_predictions(origin: int, values: list[float]) -> list[float]:
+        return [values[index] + statistics.median(
+            target[step] - histories[index][step] for step in range(origin))
+            for index in range(len(histories))]
+
+    replay_start = max(3, minimum_overlap - 3)
+    predictions, actuals = [], []
+    last_values, means, drifts = [], [], []
+    member_spreads = []
+    for origin in range(replay_start, n):
+        if (replay_origin_eligible is not None
+                and not replay_origin_eligible[origin]):
+            continue
+        members = member_predictions(
+            origin, [series[origin] for series in histories])
+        predictions.append(statistics.median(members))
+        actuals.append(target[origin])
+        last_values.append(target[origin - 1])
+        means.append(statistics.mean(target[:origin]))
+        increments = [target[index] - target[index - 1]
+                      for index in range(1, origin)]
+        drifts.append(target[origin - 1] + statistics.median(increments))
+        centre = statistics.median(members)
+        member_spreads.append(statistics.median(
+            abs(value - centre) for value in members))
+    baseline_paths = {
+        "last_value": last_values,
+        "expanding_mean": means,
+        "robust_drift": drifts,
+    }
+    if actuals:
+        candidate_mae = statistics.mean(
+            abs(a - b) for a, b in zip(actuals, predictions))
+        baseline_scores = {name: statistics.mean(
+            abs(a - b) for a, b in zip(actuals, path))
+            for name, path in baseline_paths.items()}
+        baseline_name, baseline_mae = min(
+            baseline_scores.items(), key=lambda item: (item[1], item[0]))
+        chosen_baseline = baseline_paths[baseline_name]
+        skill = 1 - candidate_mae / max(baseline_mae, 1e-12)
+        scale = max(
+            baseline_mae,
+            statistics.median(abs(target[index] - target[index - 1])
+                              for index in range(1, n)),
+            max(1.0, statistics.median(abs(value) for value in target)) * 1e-6,
+        )
+        heterogeneity = statistics.median(member_spreads) / scale
+        split = max(1, len(actuals) // 2)
+        blocks = [(0, split), (split, len(actuals))]
+        block_wins = sum(
+            statistics.mean(abs(actuals[index] - predictions[index])
+                            for index in range(start, end))
+            < statistics.mean(abs(actuals[index] - chosen_baseline[index])
+                              for index in range(start, end))
+            for start, end in blocks if end > start)
+    else:
+        candidate_mae = baseline_mae = skill = heterogeneity = None
+        baseline_scores = {name: None for name in baseline_paths}
+        baseline_name, block_wins = "not_available", 0
+    required_block_wins = 1 if len(actuals) < 6 else 2
+    threshold = .05
+    heterogeneity_limit = 2.5
+    eligible = bool(
+        len(actuals) >= 3 and skill is not None and skill >= threshold
+        and block_wins >= required_block_wins
+        and heterogeneity is not None
+        and heterogeneity <= heterogeneity_limit)
+
+    offsets = [statistics.median(
+        target[step] - history[step] for step in range(n))
+        for history in histories]
+    fitted = [statistics.median([
+        histories[index][step] + offsets[index]
+        for index in range(len(histories))]) for step in range(n)]
+    replay_errors = [abs(a - b) for a, b in zip(actuals, predictions)]
+    residual_errors = [abs(a - b) for a, b in zip(target, fitted)]
+    errors = sorted([*replay_errors, *residual_errors])
+    error_q90 = errors[min(len(errors) - 1,
+                           math.ceil(.9 * len(errors)) - 1)]
+    evidence_weight = min(1.0, len(actuals) / 8.0)
+    baseline_point = target[-1]
+    rows = []
+    for step, source in enumerate(primary):
+        members = [futures[index][step] + offsets[index]
+                   for index in range(len(histories))]
+        raw_point = statistics.median(members)
+        point = baseline_point + evidence_weight * (raw_point - baseline_point)
+        centre = statistics.median(members)
+        future_spread = statistics.median(
+            abs(value - centre) for value in members)
+        width = max(error_q90, future_spread, abs(raw_point - point),
+                    max(1.0, abs(point)) * 1e-6)
+        rows.append({
+            "timestamp": source.get("timestamp"), "point": point,
+            "q10": point - width, "q50": point, "q90": point + width,
+        })
+    return {
+        "hypothesis_id": hypothesis_id,
+        "kind": "fitted_companion_panel_mapping",
+        "forecast": rows,
+        "quantiles": [{key: row[key] for key in
+                       ("timestamp", "q10", "q50", "q90")} for row in rows],
+        "claim_ids": list(dict.fromkeys(str(item) for item in claim_ids)),
+        "rationale": (
+            "Governed panel consensus: prefix-fitted robust level offsets "
+            "aggregated across companion series by a column-order-invariant "
+            "median."),
+        "provenance_class": "governed_companion_mapping",
+        "validation": {
+            "scheme": "expanding_origin_panel_median_level_mapping",
+            "mapping": "panel_median_of_companion_level_offsets",
+            "companion_count": len(histories),
+            "overlap_points": n, "validation_points": len(actuals),
+            "candidate_mae": candidate_mae,
+            "baseline_mae": baseline_mae, "skill": skill,
+            "beats_baseline": eligible, "baseline": baseline_name,
+            "baseline_scores": baseline_scores,
+            "chronological_block_wins": block_wins,
+            "required_block_wins": required_block_wins,
+            "heterogeneity_scaled": heterogeneity,
+            "heterogeneity_limit": heterogeneity_limit,
+            "multiplicity_adjusted_threshold": threshold,
+            "relationship_known_at_each_origin": False,
+            "input_observations_known_at_each_origin": bool(
+                replay_origin_eligible is None or actuals),
+            "per_origin_observation_availability_checked": (
+                replay_origin_eligible is not None),
+            "publication_evidence_weight": evidence_weight,
+            "publication_shrunk_to_baseline": evidence_weight < 1.0,
+            "publication_shrinkage_basis": (
+                "validation_points_over_supported_eight_origin_requirement"),
+        },
+        "support": "prior_assisted", "selection_eligible": eligible,
+        "automation_eligible": False, "primary_forecast_unchanged": True,
+        "executable": {
+            "kind": "fitted_companion_panel_mapping", "version": "0.1",
+            "aggregation": "median", "companion_count": len(histories),
+            "offsets": offsets, "baseline_point": baseline_point,
             "publication_evidence_weight": evidence_weight,
         },
     }

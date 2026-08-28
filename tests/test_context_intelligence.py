@@ -10,7 +10,8 @@ from gnomon.context_intelligence import (
     compile_transformation, execute_transformation, TransformationError,
     expand_cited_history_segments,
     fit_historical_analogue, fit_lagged_relationship,
-    fit_companion_level_candidate, fit_companion_relationship_candidate,
+    fit_companion_level_candidate, fit_companion_panel_candidate,
+    fit_companion_relationship_candidate,
     fit_categorical_state_candidate,
     fit_structured_arx_candidate, fit_vintage_exogenous,
     validate_transformation,
@@ -287,6 +288,65 @@ def test_companion_mapping_admits_signal_and_rejects_independent_walks():
             outcomes[label] += int(candidate["selection_eligible"])
     assert outcomes["signal"] >= 95
     assert outcomes["null"] <= 5
+
+
+def test_panel_mapping_recovers_shared_signal_and_rejects_unrelated_panels():
+    admissions = {"shared": 0, "unrelated": 0}
+    for seed in range(40):
+        rng = random.Random(seed + 9000)
+        latent, value = [], 0.0
+        for _ in range(28):
+            value += rng.gauss(0, 1.5)
+            latent.append(value)
+        shared = [[value + offset + rng.gauss(0, .45)
+                   for value in latent] for offset in (-8.0, 3.0, 15.0)]
+        target = [value + rng.gauss(0, .7) for value in latent]
+        unrelated = []
+        for offset in (-8.0, 3.0, 15.0):
+            path, current = [], offset
+            for _ in latent:
+                current += rng.gauss(0, 1.5)
+                path.append(current)
+            unrelated.append(path)
+        primary = [{"timestamp": f"future-{index}"} for index in range(4)]
+        shared_future = [[series[-1] + rng.gauss(0, 1) for _ in range(4)]
+                         for series in shared]
+        unrelated_future = [series[-4:] for series in unrelated]
+        for label, companions, future in (
+                ("shared", shared, shared_future),
+                ("unrelated", unrelated, unrelated_future)):
+            candidate = fit_companion_panel_candidate(
+                target, companions, future, primary=primary,
+                claim_ids=["panel"], hypothesis_id=label)
+            admissions[label] += int(candidate["selection_eligible"])
+            assert candidate["validation"]["input_observations_known_at_each_origin"]
+            assert candidate["automation_eligible"] is False
+            assert candidate["primary_forecast_unchanged"] is True
+    assert admissions["shared"] >= 36
+    assert admissions["unrelated"] <= 4
+
+
+def test_panel_mapping_is_column_order_invariant_and_robust_to_one_outlier():
+    target = [10.0 + index + (.2 if index % 2 else -.2)
+              for index in range(20)]
+    good_a = [value - 4 + (.1 if index % 3 else -.1)
+              for index, value in enumerate(target)]
+    good_b = [value + 7 + (.15 if index % 4 else -.15)
+              for index, value in enumerate(target)]
+    outlier = [500.0 * (-1 if index % 2 else 1) for index in range(20)]
+    primary = [{"timestamp": "future-0"}, {"timestamp": "future-1"}]
+    future = [[26.0, 27.0], [37.0, 38.0], [-500.0, 500.0]]
+    left = fit_companion_panel_candidate(
+        target, [good_a, good_b, outlier], future, primary=primary,
+        claim_ids=["panel"], hypothesis_id="left")
+    right = fit_companion_panel_candidate(
+        target, [outlier, good_b, good_a], [future[2], future[1], future[0]],
+        primary=primary, claim_ids=["panel"], hypothesis_id="right")
+    assert [row["q50"] for row in left["forecast"]] == pytest.approx(
+        [row["q50"] for row in right["forecast"]])
+    assert left["validation"]["mapping"] == (
+        "panel_median_of_companion_level_offsets")
+    assert left["validation"]["companion_count"] == 3
 
 
 def test_categorical_state_mapping_replays_levels_and_stays_manual():

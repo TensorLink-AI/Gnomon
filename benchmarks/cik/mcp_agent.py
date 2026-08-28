@@ -416,7 +416,9 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: longer mislabels successfully retained user context as rejected.
 #: Version 194: weak structured-panel mappings receive repeated bounded paths,
 #: replacing an unmeasured one-shot model-authored quantile candidate.
-MCP_CONTRACT_VERSION = 194
+#: Version 195: multiple aligned companions also enter one fixed fold-safe
+#: median-consensus estimator before the prior-assisted fallback is opened.
+MCP_CONTRACT_VERSION = 195
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -1515,9 +1517,41 @@ def _fit_governed_companion_from_receipt(
     claim_by_span = {str(item.get("source_span") or ""): str(item["claim_id"])
                      for item in claims if item.get("claim_id")}
     history_by_time = dict(zip(history_timestamps, history_values))
-    from gnomon.context_intelligence import fit_companion_level_candidate
+    from gnomon.context_intelligence import (
+        fit_companion_level_candidate, fit_companion_panel_candidate)
     primary = [{"timestamp": timestamp} for timestamp in future_timestamps]
     fitted = []
+    panel_inputs = []
+
+    def replay_availability(
+            overlap: list[str], known_at_by_time: dict[str, str],
+    ) -> list[bool]:
+        """Prove that every prefix input existed by each replay cutoff."""
+        parsed_known = {}
+        for timestamp in overlap:
+            try:
+                parsed_known[timestamp] = datetime.fromisoformat(
+                    str(known_at_by_time.get(timestamp) or "").replace(
+                        "Z", "+00:00"))
+            except ValueError:
+                parsed_known[timestamp] = None
+        availability = [False] * len(overlap)
+        for origin in range(1, len(overlap)):
+            try:
+                cutoff = datetime.fromisoformat(
+                    overlap[origin - 1].replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            try:
+                availability[origin] = all(
+                    parsed_known.get(timestamp) is not None
+                    and parsed_known[timestamp] <= cutoff
+                    for timestamp in overlap[:origin + 1])
+            except TypeError:
+                # Mixing aware and naive timestamps cannot prove availability.
+                availability[origin] = False
+        return availability
+
     for table in tables:
         name = str(table.get("name") or "")
         tokens = [token for token in name.casefold().split("_") if token]
@@ -1526,12 +1560,13 @@ def _fit_governed_companion_from_receipt(
                 re.search(rf"\b{re.escape(token)}\b", source)
                 for token in tokens)):
             continue
-        by_time, quote_by_time = {}, {}
+        by_time, quote_by_time, known_at_by_time = {}, {}, {}
         for row in table.get("rows") or []:
             timestamp = str(row.get("timestamp") or "")
             if name not in row:
                 continue
             by_time[timestamp] = float(row[name])
+            known_at_by_time[timestamp] = str(row.get("known_at") or "")
             quote_by_time[timestamp] = str(
                 (row.get("provenance") or {}).get("evidence_quote") or "")
         overlap = [timestamp for timestamp in history_timestamps
@@ -1550,20 +1585,81 @@ def _fit_governed_companion_from_receipt(
             [by_time[timestamp] for timestamp in overlap],
             [by_time[timestamp] for timestamp in future_timestamps],
             primary=primary, claim_ids=claim_ids,
-            hypothesis_id=f"host-verified-companion:{name}")
+            hypothesis_id=f"host-verified-companion:{name}",
+            replay_origin_eligible=replay_availability(
+                overlap, known_at_by_time))
         candidate["source_table_name"] = name
         fitted.append(candidate)
+        panel_inputs.append({
+            "name": name, "by_time": by_time,
+            "quote_by_time": quote_by_time,
+            "known_at_by_time": known_at_by_time,
+        })
+    if len(panel_inputs) >= 2:
+        common_overlap = [timestamp for timestamp in history_timestamps
+                          if all(timestamp in item["by_time"]
+                                 for item in panel_inputs)]
+        if len(common_overlap) >= 6:
+            panel_claim_ids = []
+            for item in panel_inputs:
+                required = [*common_overlap, *future_timestamps]
+                panel_claim_ids.extend(
+                    claim_by_span[item["quote_by_time"][timestamp]]
+                    for timestamp in required
+                    if item["quote_by_time"].get(timestamp) in claim_by_span)
+            expected_claims = len(panel_inputs) * (
+                len(common_overlap) + len(future_timestamps))
+            if not claims or len(panel_claim_ids) == expected_claims:
+                panel = fit_companion_panel_candidate(
+                    [float(history_by_time[timestamp])
+                     for timestamp in common_overlap],
+                    [[item["by_time"][timestamp]
+                      for timestamp in common_overlap]
+                     for item in panel_inputs],
+                    [[item["by_time"][timestamp]
+                      for timestamp in future_timestamps]
+                     for item in panel_inputs],
+                    primary=primary, claim_ids=panel_claim_ids,
+                    hypothesis_id="host-verified-companion-panel",
+                    replay_origin_eligible=[all(flags) for flags in zip(*[
+                        replay_availability(
+                            common_overlap, item["known_at_by_time"])
+                        for item in panel_inputs])])
+                panel["source_table_name"] = "panel:" + ",".join(
+                    str(item["name"]) for item in panel_inputs)
+                fitted.append(panel)
     if not fitted:
         return None
+    def numeric_skill(item: dict[str, Any]) -> float:
+        value = (item.get("validation") or {}).get("skill")
+        return float(value) if isinstance(value, (int, float)) else -math.inf
+
     selected = max(fitted, key=lambda item: (
-        float((item.get("validation") or {}).get("skill") or -math.inf),
+        numeric_skill(item),
         str(item.get("source_table_name"))))
     threshold = min(.25, .02 + .02 * math.log2(max(1, len(fitted))))
     validation = dict(selected["validation"])
     eligible = bool(validation["validation_points"] >= 3
-                    and validation["skill"] >= threshold)
+                    and numeric_skill(selected) >= threshold)
+    estimator_scores = [{
+        "source": str(item.get("source_table_name") or "unknown"),
+        "mapping": str((item.get("validation") or {}).get("mapping") or
+                       item.get("kind") or "unknown"),
+        "validation_points": int(
+            (item.get("validation") or {}).get("validation_points") or 0),
+        "skill": (item.get("validation") or {}).get("skill"),
+        "candidate_mae": (item.get("validation") or {}).get("candidate_mae"),
+        "baseline_mae": (item.get("validation") or {}).get("baseline_mae"),
+        "heterogeneity_scaled": (item.get("validation") or {}).get(
+            "heterogeneity_scaled"),
+    } for item in sorted(fitted, key=lambda item: (
+        -numeric_skill(item),
+        str(item.get("source_table_name"))))[:8]]
     validation.update({
-        "candidate_tables": len(fitted),
+        "candidate_tables": len(panel_inputs),
+        "candidate_estimators": len(fitted),
+        "selected_estimator": str(selected.get("source_table_name") or ""),
+        "estimator_scores": estimator_scores,
         "multiplicity_adjusted_threshold": threshold,
         "beats_baseline": eligible,
     })
@@ -4837,9 +4933,18 @@ class _Run:
             covariate_receipt, context=context,
             history_timestamps=self.timestamps, history_values=self.values,
             future_timestamps=future_timestamps, claims=[])
+        provisional_source_table = str(
+            (provisional_companion or {}).get("source_table_name") or "")
         raw = _bind_covariate_row_claims(
             raw, covariate_receipt, future_timestamps,
-            table_name=(provisional_companion or {}).get("source_table_name"))
+            # A panel executable is authenticated by all of its member tables;
+            # narrowing to the synthetic ``panel:...`` identifier would bind
+            # none of them and silently collapse the final fitted pass back to
+            # one column. Individual winners retain narrow binding.
+            table_name=(None if provisional_source_table.startswith("panel:")
+                        else provisional_source_table or None),
+            maximum_claims=(128 if provisional_source_table.startswith(
+                "panel:") else 16))
         preliminary_dossier, _ = validate_temporal_dossier(
             raw, context_text=context, cutoff=self.timestamps[-1],
             future_timestamps=future_timestamps, history=self.values,
@@ -4904,7 +5009,9 @@ class _Run:
         if governed_companion and provisional_companion:
             provisional_validation = provisional_companion.get("validation") or {}
             governed_validation = dict(governed_companion.get("validation") or {})
-            for key in ("candidate_tables", "multiplicity_adjusted_threshold"):
+            for key in ("candidate_tables", "candidate_estimators",
+                        "selected_estimator", "estimator_scores",
+                        "multiplicity_adjusted_threshold"):
                 if key in provisional_validation:
                     governed_validation[key] = provisional_validation[key]
             governed_validation["beats_baseline"] = bool(

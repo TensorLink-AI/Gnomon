@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+- Add one fold-safe panel-consensus candidate for aligned companion series.
+  Each replay origin fits robust target-minus-companion offsets from its prefix,
+  aggregates peers by a column-order-invariant median, compares the single
+  estimator with the strongest target-only baseline, requires chronological
+  wins, and rejects excessive cross-peer heterogeneity. One outlying column
+  cannot move the median; the panel remains one fixed candidate while existing
+  individual mappings remain multiplicity-guarded. Publication stays
+  prior-assisted and non-automatable. The
+  receipt now exposes a bounded estimator scoreboard. Independent randomized
+  tests admit shared-signal panels in at least 36/40 seeds and unrelated panels
+  in at most 4/40. Per-origin availability is checked from every row's
+  `known_at`; late-arriving context cannot be backdated into replay skill. On
+  CiK unemployment seed 210 all four estimators correctly reported zero replay
+  origins because the document became known only at the present cutoff, and
+  retained the 0.3352 primary. Earlier seeds 210–211 also retained their
+  primaries (0.3352 and 0.7558). These probes validate discrimination,
+  integration, and vintage discipline—not benchmark uplift.
 - Replace one-shot model forecasts over weak structured companion panels with
   repeated, independently validated point paths. Gnomon first attempts its
   fold-safe deterministic mapping; only a failed admission opens the sampled
