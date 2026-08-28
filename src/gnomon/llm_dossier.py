@@ -189,6 +189,95 @@ def deterministic_dated_multiplier_dossier(
     }
 
 
+def deterministic_dated_zero_window_dossier(
+    context_text: str, *, cutoff: str, future_timestamps: list[str],
+    target_name: str | None = None,
+) -> dict[str, Any] | None:
+    """Compile one explicit future window whose target activity is zero.
+
+    This front door covers hard operational states such as no sales during a
+    closure, no withdrawals while cash is depleted, zero production during an
+    outage, or no requests while a service is disabled. It requires one exact
+    start, one duration, and a phrase that the existing conservative override
+    parser independently resolves to zero. Operational causes alone never
+    imply zero.
+    """
+    from .future_context import parse_override_span
+
+    text = " ".join(str(context_text or "").split())
+    if not text:
+        return None
+    value, problem = parse_override_span(text)
+    if problem is not None or value != 0:
+        return None
+    timestamps = re.findall(
+        r"\b\d{4}-\d{2}-\d{2}[ T]\d{1,2}:\d{2}(?::\d{2})?"
+        r"(?:Z|[+-]\d{2}:?\d{2})?\b", text)
+    durations = re.findall(
+        r"\b(?:last(?:ed|s)?|continu(?:ed|es)|for)\s+(?:for\s+)?"
+        r"(?:approximately\s+|about\s+|roughly\s+)?"
+        r"(\d+(?:\.\d+)?)\s*(minutes?|hours?|days?)\b",
+        text, flags=re.IGNORECASE)
+    if len(timestamps) != 1 or len(durations) != 1:
+        return None
+    target_terms = (
+        "production", "output", "traffic", "flow", "generation",
+        "withdrawals", "transactions", "sales", "arrivals", "departures",
+        "rides", "trips", "requests", "visitors", "customers",
+        "passengers", "calls", "orders", "deliveries", "operations",
+        "activity", "usage", "demand", "consumption", "readings",
+    )
+    normalized = _normalise(text)
+    normalized_target = _normalise(target_name)
+    if (normalized_target and not normalized_target.isdigit()
+            and normalized_target not in normalized
+            and not any(term in normalized for term in target_terms)):
+        return None
+    if (not normalized_target or normalized_target.isdigit()) and not any(
+            term in normalized for term in target_terms):
+        return None
+    cutoff_time = _timestamp(cutoff)
+    future = [_timestamp(value) for value in future_timestamps]
+    if cutoff_time is None or not future or any(value is None for value in future):
+        return None
+    try:
+        start = datetime.fromisoformat(timestamps[0].replace(" ", "T"))
+    except ValueError:
+        return None
+    if start.tzinfo is None:
+        start = start.replace(tzinfo=cutoff_time.tzinfo)
+    amount = float(durations[0][0])
+    unit = durations[0][1].casefold()
+    seconds = amount * (60 if unit.startswith("minute") else
+                        3600 if unit.startswith("hour") else 86400)
+    if not math.isfinite(seconds) or seconds <= 0 or start <= cutoff_time:
+        return None
+    exclusive_end = start + timedelta(seconds=seconds)
+    active = [index for index, stamp in enumerate(future)
+              if stamp is not None and start <= stamp < exclusive_end]
+    if not active or active != list(range(active[0], active[-1] + 1)):
+        return None
+    # Public event windows are inclusive. Bind the stated duration to the
+    # actual host grid so a ten-day window cannot silently cover eleven daily
+    # observations.
+    effective_start = future[active[0]]
+    effective_end = future[active[-1]]
+    assert effective_start is not None and effective_end is not None
+    return {
+        "events": [],
+        "claims": [{
+            "source_span": context_text, "relation": "supports_decrease",
+            "effective_start": effective_start.isoformat(),
+            "effective_end": effective_end.isoformat(),
+            "mechanism": "explicit dated zero-activity window",
+            "confidence": 1.0,
+        }],
+        "hypotheses": [], "covariate_tables": [], "transformations": [],
+        "observation_interpretations": [], "forecast_candidate": None,
+        "effect_proposal": None,
+    }
+
+
 def deterministic_ended_recurring_disruption_dossier(
     context_text: str, *, cutoff: str,
 ) -> dict[str, Any] | None:

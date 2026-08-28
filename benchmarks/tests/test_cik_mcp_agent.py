@@ -2193,6 +2193,37 @@ def test_dated_multiplier_front_door_survives_compiler_unavailability(tmp_path):
     assert summary["context_can_authorize_automation"] is False
 
 
+def test_dated_zero_window_front_door_uses_context_without_model_call(tmp_path):
+    task = _task(horizon=12)
+    start = task.future_time[0]
+    task.scenario = (
+        f"The service is depleted from {start.replace('T', ' ').split('+', 1)[0]} "
+        "for 10 days, resulting in no requests during that period.")
+    client = ScriptedClient(
+        [{"tool_calls": [("gnomon_forecast", {"frequency": "D"})]}])
+    forecaster = McpAgentForecaster(
+        "x/y", client=client,
+        session_factory=lambda cwd: InProcessMcpSession(cwd),
+        work_dir=str(tmp_path), profile="evidence",
+        output_role="publication_best_effort")
+
+    _, extra = forecaster(task, 1)
+
+    assert client.completion_prompts == []
+    receipt = json.loads(Path(extra["context_compilation"][
+        "receipt_path"]).read_text())
+    assert receipt["compiler"]["contract"] == "explicit_dated_zero_window"
+    assert receipt["compiler"]["deterministic_front_door"] is True
+    assert [item["stage"] for item in receipt["compiler"]["calls"]] == [
+        "deterministic_dated_zero_window_parse"]
+    assert receipt["dossier"]["claims"][0]["effective_end"] == (
+        task.future_time[9])
+    publication = extra["publication"]
+    assert publication["recommended_scenario_id"] != "primary"
+    assert publication["primary_forecast_unchanged"] is True
+    assert publication["automation"]["eligible"] is False
+
+
 def test_additive_drift_front_door_survives_compiler_unavailability(tmp_path):
     from datetime import datetime, timedelta, timezone
 

@@ -404,7 +404,9 @@ MODEL_PRIOR_PATH_SAMPLES = 5
 #: scale, constructs uncertainty, seals the path, and keeps automation off.
 #: Version 188: all typed hypothesis identities survive sealed publication
 #: reranking, not only hypotheses marked as mandatory counterevidence.
-MCP_CONTRACT_VERSION = 188
+#: Version 189: one explicit future zero-activity window is compiled without
+#: an LLM round trip; its stated duration is bound to the host forecast grid.
+MCP_CONTRACT_VERSION = 189
 # A runaway agent is bounded by the three caps above; this one exists
 # only to stop a hung endpoint from parking a worker forever, so it must
 # sit above the latency an honest run can incur. At 600s it did not: it
@@ -3389,6 +3391,7 @@ class _Run:
         )
         from gnomon.llm_dossier import (
             deterministic_dated_multiplier_dossier,
+            deterministic_dated_zero_window_dossier,
             deterministic_ended_recurring_disruption_dossier,
             deterministic_historical_observation_claim,
             deterministic_named_driver_relationship_dossier,
@@ -3455,12 +3458,25 @@ class _Run:
                 and categorical_schedule is None and not relationship_contract
                 and not observation_contract and not companion_contract)
             else None)
+        deterministic_zero_window = (
+            deterministic_dated_zero_window_dossier(
+                context, cutoff=self.timestamps[-1],
+                future_timestamps=future_timestamps,
+                target_name=self.target_name)
+            if (deterministic_ended_disruption is None
+                and deterministic_reference_power is None
+                and deterministic_named_relationship is None
+                and deterministic_calibration_claim is None
+                and categorical_schedule is None and not relationship_contract
+                and not observation_contract and not companion_contract)
+            else None)
         deterministic_multiplier = (
             deterministic_dated_multiplier_dossier(
                 context, cutoff=self.timestamps[-1],
                 future_timestamps=future_timestamps,
                 target_name=self.target_name)
             if (deterministic_calibration_claim is None
+                and deterministic_zero_window is None
                 and categorical_schedule is None and not relationship_contract
                 and not observation_contract and not companion_contract)
             else None)
@@ -3764,6 +3780,12 @@ class _Run:
             })
             compiler_calls.append({
                 "stage": "deterministic_additive_drift_parse",
+                "elapsed_seconds": 0.0,
+            })
+        elif deterministic_zero_window is not None:
+            raw = bind_active_target(deterministic_zero_window)
+            compiler_calls.append({
+                "stage": "deterministic_dated_zero_window_parse",
                 "elapsed_seconds": 0.0,
             })
         elif deterministic_multiplier is not None:
@@ -4292,6 +4314,15 @@ class _Run:
                 if str(item.get("evidence_quote") or
                        item.get("source_span") or "").strip()
             }
+            # Deterministic zero-window compilation already verified target
+            # ownership against the host-bound single target. Preserve that
+            # authority when symbolic CiK column names (for example ``0``)
+            # would otherwise obscure ordinary nouns such as withdrawals.
+            if deterministic_zero_window is not None:
+                single_target_event_spans.update(
+                    str(item.get("source_span") or "")
+                    for item in deterministic_zero_window.get("claims") or []
+                    if str(item.get("source_span") or "").strip())
             derived_events = deterministic_events_from_claims(
                 {**probe, "events": existing_events},
                 target_name=self.target_name,
@@ -5219,6 +5250,7 @@ class _Run:
             or deterministic_reference_power is not None
             or deterministic_named_relationship is not None
             or deterministic_calibration_claim is not None
+            or deterministic_zero_window is not None
             or deterministic_multiplier is not None)
         payload = {
             "schema_version": 1,
@@ -5247,6 +5279,8 @@ class _Run:
                              if deterministic_named_relationship is not None else
                              "explicit_additive_measurement_drift"
                              if deterministic_calibration_claim is not None else
+                             "explicit_dated_zero_window"
+                             if deterministic_zero_window is not None else
                              "explicit_dated_multiplier"
                              if deterministic_multiplier is not None else
                              "universal_dossier"),

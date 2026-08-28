@@ -8,6 +8,7 @@ from gnomon.effect_proposals import (assess_composed_effect, compose_effect,
                                      validate_effect_proposal)
 from gnomon.llm_dossier import (
     deterministic_dated_multiplier_dossier,
+    deterministic_dated_zero_window_dossier,
     deterministic_ended_recurring_disruption_dossier,
     deterministic_named_driver_relationship_dossier,
     deterministic_reference_power_dossier,
@@ -64,6 +65,46 @@ def test_dated_multiplier_failover_refuses_missing_or_wrong_target_facts(text):
     assert deterministic_dated_multiplier_dossier(
         text, cutoff="2026-01-02T00:00:00+00:00",
         future_timestamps=TIMES, target_name="sales") is None
+
+
+def test_explicit_dated_zero_window_binds_exclusive_duration_to_grid():
+    future = [f"2026-01-{day:02d}T00:00:00+00:00" for day in range(3, 15)]
+    text = (
+        "Cash is depleted from 2026-01-03 00:00:00 for 10 days, "
+        "resulting in no withdrawals during that period.")
+
+    raw = deterministic_dated_zero_window_dossier(
+        text, cutoff="2026-01-02T00:00:00+00:00",
+        future_timestamps=future, target_name="withdrawals")
+
+    assert raw is not None
+    assert raw["claims"][0]["effective_start"] == future[0]
+    assert raw["claims"][0]["effective_end"] == future[9]
+    dossier, reasons = validate_temporal_dossier(
+        raw, context_text=text, cutoff="2026-01-02T00:00:00+00:00",
+        future_timestamps=future, history=[8, 9, 10],
+        history_timestamps=[
+            "2025-12-30T00:00:00+00:00",
+            "2025-12-31T00:00:00+00:00",
+            "2026-01-02T00:00:00+00:00"], compiler_model="deterministic")
+    assert not reasons
+    assert dossier["claims"][0]["mechanism"] == (
+        "explicit dated zero-activity window")
+
+
+@pytest.mark.parametrize("text", [
+    "Cash is depleted from 2026-01-03 00:00:00 for 10 days.",
+    "There will be no withdrawals for 10 days.",
+    ("There will be no withdrawals from 2026-01-03 00:00:00, "
+     "but no duration is stated."),
+    ("There will be no withdrawals from 2025-12-30 00:00:00 "
+     "for 2 days."),
+    ("Temperatures will be zero from 2026-01-03 00:00:00 for 2 days."),
+])
+def test_dated_zero_window_refuses_incomplete_or_wrong_target_facts(text):
+    assert deterministic_dated_zero_window_dossier(
+        text, cutoff="2026-01-02T00:00:00+00:00",
+        future_timestamps=TIMES, target_name="withdrawals") is None
 
 
 def test_ended_recurring_disruption_is_preserved_without_inferred_effect():

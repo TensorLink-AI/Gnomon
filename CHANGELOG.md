@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Compile explicit future zero-activity windows (for example a shutdown,
+  stockout, or depleted service with a stated start and duration) without an
+  LLM round trip. The conservative numeric parser must independently recover
+  zero; operational prose alone cannot imply it. Inclusive public windows are
+  bound to the host grid so a ten-day statement changes exactly ten daily
+  rows. Symbolic input-column names retain the host-verified target binding.
+  On the observed ATM diagnostic, compilation fell from about 59 seconds to
+  about 2 milliseconds and RCRPS improved from 0.1168 to 0.0503; an untouched
+  adjacent seed scored 0.0936. These are behavior checks, not an uplift claim.
 - Govern named but numerically incomplete target/driver relationships through
   a fixed, low-dimensional relationship family (level-offset, linear, and
   positive-data log-power). Selection uses prefix-only expanding-origin replay,
